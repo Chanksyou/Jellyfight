@@ -42,7 +42,11 @@ window._jfError = reportError;
 
 // Open the page with #debug for a live readout. The counter ticks on a timer, so if the
 // picture freezes but the counter keeps going, the page is alive and only drawing stopped.
-if (location.hash.includes('debug')) {
+// Also switchable from the pause menu (the Claude app can drop the #debug part of a link).
+let debugOn = false;
+export function enableDebug() {
+  if (debugOn) return;
+  debugOn = true;
   let frames = 0, last = performance.now(), beats = 0;
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = (cb) => raf((t) => { frames++; last = performance.now(); cb(t); });
@@ -61,3 +65,4 @@ if (location.hash.includes('debug')) {
     frames = 0;
   }, 500);
 }
+if (location.hash.includes('debug')) enableDebug();

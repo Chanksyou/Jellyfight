@@ -16,7 +16,7 @@ import { STAGE1 } from './stage1.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
-import { reportError } from './errors.js';
+import { reportError, enableDebug } from './errors.js';
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
 import { Fx } from './fx.js';
@@ -72,7 +72,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer" class="desk-only">🏠 Apartment viewer</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer" class="desk-only">🏠 Apartment viewer</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -168,6 +168,8 @@ const run = new Run({
 if (IS_TOUCH) {
   document.body.classList.add('touch');
   tpc.distance = 0.27;   // phone screens are small: sit a bit closer
+  // Start phones at 1x resolution; the apartment's own frame-rate check raises it if there's headroom
+  if (window._perf) { window._perf.pr = 1; renderer.setPixelRatio(1); dispatchEvent(new Event('resize')); }
 }
 input.touchOnly = IS_TOUCH;
 function play() {
@@ -302,6 +304,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'viewer') GAME.stop();
+  else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {
   if (!GAME.active || mode !== 'play' || IS_TOUCH) return;
