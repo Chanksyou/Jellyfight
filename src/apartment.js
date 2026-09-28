@@ -16,10 +16,11 @@ export async function loadApartment(scene, renderer, onProgress) {
   }
   const loader = new GLTFLoader();
   if (decoder) loader.setMeshoptDecoder(decoder);
-  const [gltf, meta] = await Promise.all([
-    loader.loadAsync(file, (e) => e.total && onProgress?.(e.loaded / e.total)),
+  const [buffer, meta] = await Promise.all([
+    fetchModel(file, onProgress),
     fetch('assets/apartment.json').then((r) => r.json()),
   ]);
+  const gltf = await loader.parseAsync(buffer, '');
   const root = gltf.scene;
   scene.add(root);
   const unpacked = new Set();
@@ -71,6 +72,38 @@ export async function loadApartment(scene, renderer, onProgress) {
     };
   });
   return { root, plan: meta.plan, doors };
+}
+
+// Downloads the model with progress. Some hosts (claude.ai artifacts) don't serve .glb files,
+// so a base64 text copy next to it (<name>.b64.txt) is used when the .glb isn't there.
+async function fetchModel(file, onProgress) {
+  const res = await fetch(file);
+  if (res.ok) return new Uint8Array(await readAll(res, onProgress)).buffer;
+  const alt = await fetch(file + '.b64.txt');
+  if (!alt.ok) throw new Error(`Couldn't download ${file} (${res.status})`);
+  const text = new TextDecoder().decode(await readAll(alt, onProgress));
+  const bin = atob(text.trim());
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
+async function readAll(res, onProgress) {
+  const total = +res.headers.get('content-length') || 0;
+  if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
+  const reader = res.body.getReader(), parts = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    got += value.length;
+    onProgress?.(Math.min(1, got / total));
+  }
+  const out = new Uint8Array(got);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
 }
 
 // The soft reflections the apartment used: a warm room gradient, two bright windows and two lamps
