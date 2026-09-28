@@ -97,8 +97,11 @@ export async function exportApartment({ mins = 0 } = {}) {
     stats.kept++;
   });
 
-  // Opaque textures go in as JPEG (much smaller); anything with transparency stays PNG
+  // Opaque textures go in as JPEG (much smaller); anything with transparency stays PNG.
+  // Bump maps (wood grain) don't survive compression, so materials whose bump is their own
+  // color texture are tagged in their name ("bump:<scale>") and rebuilt by src/apartment.js.
   for (const m of mats) {
+    if (m.bumpMap && m.bumpMap === m.map) m.name = `${m.name || 'material'} bump:${m.bumpScale}`;
     for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'bumpMap']) {
       const t = m[k];
       if (t && !t.userData.mimeType) t.userData.mimeType = m.transparent || m.alphaTest > 0 ? 'image/png' : 'image/jpeg';

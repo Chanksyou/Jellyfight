@@ -75,6 +75,17 @@ export class Run {
       return { x, y: hit ? hit.point.y : y, z };
     });
     this.chests.place(spots);
+    // Only open, easy-to-reach Moon Drop spots (the apartment is static, so check once)
+    if (!this.dropSpots) {
+      this.dropSpots = [];
+      this.dropRejects = [];
+      for (const sp of s.drops) {
+        const r = this.openSpot(sp.at);
+        if (r.ok) this.dropSpots.push({ ...sp, y: r.y });
+        else this.dropRejects.push(`${sp.label}: ${r.why}`);
+      }
+      if (!this.dropSpots.length) this.dropSpots = s.drops.map((sp) => ({ ...sp, y: sp.at[1] }));
+    }
     this.setNight(s.clock[0]);
     this.refreshHud();
   }
@@ -320,18 +331,36 @@ export class Run {
     if (this.dropTimer <= 0) this.spawnDrop();
   }
 
+  // A Moon Drop spot must be easy to see and reach: open sky above it (the camera looks down),
+  // nothing crowding it, and flat ground. Returns the surface height, or null with a reason.
+  openSpot([x, y, z]) {
+    const W = this.world, V = (a, b, c) => new THREE.Vector3(a, b, c);
+    const hit = W.castAll(V(x, y + 0.15, z), DOWN, 0.4);
+    if (!hit) return { ok: false, why: 'no surface' };
+    const sy = hit.point.y;
+    if (W.castAll(V(x, sy + 0.01, z), V(0, 1, 0), 0.3)) return { ok: false, why: 'covered overhead' };
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      if (W.castAll(V(x, sy + 0.015, z), V(Math.cos(a), 0, Math.sin(a)), 0.06)) return { ok: false, why: 'crowded' };
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + 0.4;
+      const h = W.castAll(V(x + Math.cos(a) * 0.03, sy + 0.05, z + Math.sin(a) * 0.03), DOWN, 0.1);
+      if (!h || Math.abs(h.point.y - sy) > 0.012) return { ok: false, why: 'uneven or on an edge' };
+    }
+    return { ok: true, y: sy };
+  }
+
   spawnDrop() {
     const P = this.player.position;
     const [lo, hi] = this.drops === 0 ? [0.5, 2.0] : [1.0, 3.5];
-    const all = this.stage.drops;
+    const all = this.dropSpots;
     const dist = (sp) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z);
     let cands = all.filter((sp) => sp.area !== this.lastArea && dist(sp) >= lo && dist(sp) <= hi);
     if (!cands.length) cands = all.filter((sp) => dist(sp) >= 0.5);
     let r = Math.random() * cands.reduce((a, sp) => a + (sp.at[1] > 0.3 ? 2 : 1), 0), spot = cands[0];
     for (const sp of cands) if ((r -= sp.at[1] > 0.3 ? 2 : 1) <= 0) { spot = sp; break; }
-    const [x, y, z] = spot.at;
-    const hit = this.world.castAll(new THREE.Vector3(x, y + 0.1, z), DOWN, 0.3);
-    this.moon.show(spot, hit ? hit.point.y : y);
+    this.moon.show(spot, spot.y);
     this.lastArea = spot.area;
     this.hud.toast(`🌙 A Moon Drop appeared: ${spot.label}`, 2200);
   }

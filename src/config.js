@@ -16,13 +16,13 @@ export const CONFIG = {
     liftSpeed: 0.45,     // m/s up an updraft
   },
   camera: {
-    distance: 0.34,      // how far behind the player the camera sits
-    pitch: 0.55,         // starting tilt: high enough to see enemies coming
-    minDistance: 0.05,
-    maxDistance: 0.8,
-    height: 0.03,        // look-at point above the player's feet
-    minPitch: -0.6,
-    maxPitch: 1.3,
+    distance: 0.42,      // how far from the player the camera sits
+    pitch: 0.9,          // starting tilt (~52 degrees down): mostly top-down, still behind the player
+    minDistance: 0.12,
+    maxDistance: 0.9,
+    height: 0.02,        // look-at point above the player's feet
+    minPitch: 0.45,      // never lower than ~26 degrees, so the floor around you stays in view
+    maxPitch: 1.3,       // never fully overhead (~75 degrees)
     sensitivity: 0.0025,
     fov: 60,
     near: 0.002,         // tiny near plane so walls don't vanish when the camera is close

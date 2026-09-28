@@ -24,6 +24,7 @@ export async function loadApartment(scene, renderer, onProgress) {
   const root = gltf.scene;
   scene.add(root);
   const unpacked = new Set();
+  const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), matchMedia('(pointer: coarse)').matches ? 4 : 8);
   root.traverse((o) => {
     if (!o.isMesh) return;
     // The file stores positions as packed integers (smaller download). The collision BVH
@@ -38,7 +39,15 @@ export async function loadApartment(scene, renderer, onProgress) {
       unpacked.add(o.geometry);
     }
     o.receiveShadow = true;
-    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
+      // Sharp textures at grazing angles: the jelly looks along the floor, and without
+      // anisotropic filtering floor tiles and wood grain blur away. glTF doesn't store it.
+      for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap']) if (m[k]) m[k].anisotropy = aniso;
+      // Wood grain bump (tagged by tools/exporter.js)
+      const bump = /bump:([\d.]+)/.exec(m.name);
+      if (bump && m.map) { m.bumpMap = m.map; m.bumpScale = parseFloat(bump[1]); m.needsUpdate = true; }
+    }
   });
 
   // Lights, as captured at midnight. Intensities are in the apartment's legacy units;

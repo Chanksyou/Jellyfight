@@ -36,21 +36,24 @@ export const STAGE1 = {
     { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
   ],
 
-  // Possible Moon Drop spots. One is active at a time.
+  // Possible Moon Drop spots. One is active at a time. At the start of each run the game
+  // keeps only spots that are open: nothing overhead, nothing crowding them, flat ground
+  // (see Run.openSpot), so a drop is never tucked under or between things.
   drops: [
     { area: 'Bathroom', at: [1.0, 0.004, 6.8], label: 'bath mat' },
-    { area: 'Bathroom', at: [1.25, 0.025, 5.9], label: 'duck rug' },
-    { area: 'Bathroom', at: [1.35, 0.88, 5.4], label: 'vanity top' },
-    { area: 'Bathroom', at: [0.45, 0.803, 5.22], label: 'toilet tank' },
-    { area: 'Bathroom', at: [0.32, 0.803, 6.6], label: 'bathroom shelf' },
-    { area: 'Bathroom', at: [0.9, 0.15, 7.55], label: 'in the tub' },
+    { area: 'Bathroom', at: [1.25, 0.025, 5.95], label: 'duck rug' },
+    { area: 'Bathroom', at: [0.75, 0.004, 6.35], label: 'bathroom floor' },
+    { area: 'Bathroom', at: [1.25, 0.88, 5.37], label: 'vanity top' },
+    { area: 'Bathroom', at: [0.5, 0.49, 5.58], label: 'toilet lid' },
     { area: 'Hallway', at: [2.4, 0, 7.9], label: 'hall runner' },
-    { area: 'Hallway', at: [3.0, 0, 5.3], label: 'hall by the closets' },
-    { area: 'Hallway', at: [3.32, 0.8, 7.75], label: 'sideboard' },
-    { area: 'Hallway', at: [1.98, 0.46, 7.5], label: 'bench' },
-    { area: 'Laundry closet', at: [3.8, 0.007, 4.95], label: 'laundry closet floor' },
+    { area: 'Hallway', at: [2.75, 0, 6.6], label: 'middle of the hall' },
+    { area: 'Hallway', at: [3.0, 0, 5.35], label: 'hall by the closets' },
+    { area: 'Hallway', at: [2.9, 0, 8.4], label: 'end of the hall' },
+    { area: 'Hallway', at: [3.27, 0.8, 6.4], label: 'sideboard' },
+    { area: 'Hallway', at: [3.27, 0.8, 7.05], label: 'sideboard, by the carved bear' },
+    { area: 'Hallway', at: [1.97, 0.46, 7.38], label: 'bench' },
+    { area: 'Hallway', at: [3.39, 0.696, 5.92], label: 'recycling bin lid' },
     { area: 'Laundry closet', at: [3.95, 1.7, 5.45], label: 'top of the dryer' },
-    { area: 'Coat closet', at: [2.05, 0.01, 5.6], label: 'under the coats' },
   ],
 
   // Possible treasure spots; a few are used each run

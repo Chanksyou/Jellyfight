@@ -72,10 +72,18 @@ export class World {
 
   // Like cast(), but checks every collider (slow; for rare lookups far from the player)
   castAll(origin, dir, far) {
+    if (!this.allSpheres || this.allSpheres.length !== this.colliders.length) {
+      this.allSpheres = this.colliders.map((m) => m.geometry.boundingSphere.clone().applyMatrix4(m.matrixWorld));
+    }
     this.raycaster.set(origin, dir);
     this.raycaster.near = 0;
     this.raycaster.far = far;
-    for (const h of this.raycaster.intersectObjects(this.colliders, false)) {
+    const ray = this.raycaster.ray;
+    const list = this.colliders.filter((m, i) => {
+      const s = this.allSpheres[i];
+      return ray.distanceSqToPoint(s.center) <= s.radius * s.radius && s.center.distanceTo(origin) - s.radius <= far;
+    });
+    for (const h of this.raycaster.intersectObjects(list, false)) {
       if (visibleChain(h.object)) return { distance: h.distance, point: h.point };
     }
     return null;
