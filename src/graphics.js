@@ -19,6 +19,9 @@ const DofShader = {
     tDepth: { value: null },
     resolution: { value: new THREE.Vector2(1, 1) },
     logFar: { value: Math.log2(561) }, // log2(camera.far + 1)
+    logDepth: { value: 1 },            // 0 when the renderer uses a normal depth buffer (phones)
+    near: { value: 0.005 },
+    far: { value: 560 },
     focus: { value: 0.16 },            // meters from the camera
     strength: { value: 1.0 },
     maxBlur: { value: 9.0 },           // pixels
@@ -30,11 +33,12 @@ const DofShader = {
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse, tDepth;
     uniform vec2 resolution;
-    uniform float logFar, focus, strength, maxBlur, vignette;
+    uniform float logFar, focus, strength, maxBlur, vignette, logDepth, near, far;
     varying vec2 vUv;
     float viewDist(vec2 uv) {
       float d = texture2D(tDepth, uv).x;
-      return exp2(d * logFar) - 1.0;
+      if (logDepth > 0.5) return exp2(d * logFar) - 1.0;
+      return (near * far) / ((far - near) * d - far) * -1.0;   // perspective depth -> distance
     }
     float coc(float z) {
       // circle of confusion in 0..1: (1/focus - 1/z) scaled so ~10x focus distance is fully soft
@@ -148,6 +152,9 @@ export class Graphics {
       const u = this.dof.uniforms;
       u.focus.value = this.focus;
       u.logFar.value = Math.log2(this.camera.far + 1);
+      u.logDepth.value = this.renderer.capabilities.logarithmicDepthBuffer ? 1 : 0;
+      u.near.value = this.camera.near;
+      u.far.value = this.camera.far;
     }
     this.composer.render();
   }

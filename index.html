@@ -200,7 +200,7 @@ const DS=THREE.DoubleSide,H=2.75,PI=Math.PI;
 const $=s=>document.querySelector(s);
 const canvas=$('#c');
 const MOBILE=matchMedia('(pointer:coarse)').matches||Math.min(screen.width,screen.height)<700;
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:true/*JELLY*/});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:!MOBILE/*JELLY: log depth defeats phone GPUs' hidden-surface removal*/});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,MOBILE?1.5:2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=MOBILE?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;

@@ -238,7 +238,9 @@ const GAME = {
     APT.enterGame();
     document.body.classList.add('game');
     player.mesh.visible = blob.visible = true;
-    camera.near = CONFIG.camera.near;
+    // Log depth lets the camera sit 2 mm from a wall without flicker. Phones don't use it
+    // (it's too slow on their GPUs), so they get a 5 mm near plane instead.
+    camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
     camera.updateProjectionMatrix();
     if (mode === 'creator') setViewOffset();
     overlay.hidden = mode === 'creator' || menus.open || document.pointerLockElement === renderer.domElement;

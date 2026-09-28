@@ -39,3 +39,25 @@ export function watchCanvas(canvas) {
 addEventListener('error', (e) => reportError(e));
 addEventListener('unhandledrejection', (e) => reportError(e, 'async'));
 window._jfError = reportError;
+
+// Open the page with #debug for a live readout. The counter ticks on a timer, so if the
+// picture freezes but the counter keeps going, the page is alive and only drawing stopped.
+if (location.hash.includes('debug')) {
+  let frames = 0, last = performance.now(), beats = 0;
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => raf((t) => { frames++; last = performance.now(); cb(t); });
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:99;'
+    + 'background:#000a;color:#9f9;font:11px ui-monospace,Menlo,monospace;padding:3px 8px;border-radius:6px;pointer-events:none;white-space:nowrap';
+  const attach = () => { if (!box.isConnected) document.body.appendChild(box); };
+  if (document.body) attach(); else addEventListener('DOMContentLoaded', attach);
+  setInterval(() => {
+    beats++;
+    const r = window.APT?.renderer;
+    const since = Math.round(performance.now() - last);
+    box.textContent = `alive ${beats} | ${frames * 2} fps | last frame ${since} ms ago | dpr ${r ? r.getPixelRatio().toFixed(2) : '-'}`
+      + ` | draws ${r ? r.info.render.calls : '-'} | logdepth ${r ? r.capabilities.logarithmicDepthBuffer : '-'}`;
+    box.style.color = since > 1000 ? '#f99' : '#9f9';
+    frames = 0;
+  }, 500);
+}
