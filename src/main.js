@@ -14,7 +14,9 @@ import { Hud } from './hud.js';
 import { addFloorDetail } from './detail.js';
 import { STAGE1 } from './stage1.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
-import { Enemies } from './enemies.js';
+import { Enemies, TYPES } from './enemies.js';
+import { Clog } from './boss.js';
+import { reportError } from './errors.js';
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
 import { Fx } from './fx.js';
@@ -46,6 +48,7 @@ ui.innerHTML = `
   #g-over .tag { margin: 0; opacity: .85; }
   #g-over .play { margin: 16px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
     border-radius: 14px; padding: 12px 34px; cursor: pointer; }
+  #g-over .play:disabled { opacity: .6; cursor: progress; }
   #g-over .row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 8px 0; }
   #g-over .row button { font: 14px system-ui, sans-serif; color: #fff; background: #ffffff1a; border: 1px solid #ffffff30;
     border-radius: 10px; padding: 8px 14px; cursor: pointer; }
@@ -103,7 +106,7 @@ creator.mount(ui);
 prepareApartment(APT, stage);
 const world = new World(scene, { exclude: [APT.OUT] }); // the neighbourhood outside isn't walkable
 addStageWalls(world, stage);
-const detailed = addFloorDetail(world.colliders);
+const detailed = IS_TOUCH ? 0 : addFloorDetail(world.colliders);   // phones: skip, saves GPU work
 const traversal = new Traversal(scene, stage);
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
@@ -312,8 +315,45 @@ addEventListener('keydown', (e) => {
   if (e.code === 'F3') { e.preventDefault(); debug = !debug; hud.setDebug(''); }
 });
 
+// Build every game material's GPU program now, behind the menu, instead of the moment each
+// thing first appears. With the apartment's many lights these programs are big, and building
+// several mid-game stalled phones for long enough that the browser reset the GPU.
+const playBtn = overlay.querySelector('.play');
+async function warmUp() {
+  playBtn.disabled = true;
+  playBtn.textContent = 'Loading…';
+  const P = player.position;
+  const temp = Object.keys(TYPES).map((t, i) => {
+    const e = enemies.spawn(t, P.clone().add(new THREE.Vector3(0.03 * i, 0.01, 0.06)));
+    e.mesh.scale.setScalar(e.baseScale);
+    return e;
+  });
+  dew.drop(P.clone(), 1, 1);
+  moon.show({ at: [P.x, P.y, P.z] }, P.y);
+  const tentacles = [lash.mesh(), lash.mesh()];
+  tentacles[1].material = lash.goldMat;
+  tentacles.forEach((m) => { m.position.copy(P); m.scale.set(0.002, 0.05, 0.002); });
+  fx.puff(P.clone(), 0xffffff, 0.01, 1);
+  const clog = new Clog(scene, enemies, fx, stage.boss);
+  try {
+    await renderer.compileAsync(scene, camera);
+  } catch (e) {
+    reportError(e, 'preparing graphics');
+  }
+  clog.dispose();
+  temp.forEach((e) => enemies.kill(e, true));
+  enemies.clear();
+  dew.clear();
+  moon.hide();
+  fx.clear();
+  tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
+  playBtn.disabled = false;
+  playBtn.textContent = 'Play';
+}
+
 GAME.start();
 overlay.hidden = false;
+warmUp();
 
 // Handy for poking at things from the browser console
 Object.assign(window, { player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, chests, traversal, menus });

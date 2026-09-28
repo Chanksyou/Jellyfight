@@ -11,7 +11,7 @@ export class Dew {
     this.world = world;
     this.list = [];
     this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
-    this.mat = new THREE.MeshPhysicalMaterial({ color: 0x9fe2ff, emissive: 0x3aa8ff, emissiveIntensity: 0.5, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.9 });
+    this.mat = new THREE.MeshStandardMaterial({ color: 0x9fe2ff, emissive: 0x3aa8ff, emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
     this.magnetAll = false;
   }
 

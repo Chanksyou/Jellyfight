@@ -2986,7 +2986,7 @@ window._life=(dt,now)=>{lifeT+=dt;perfStep(dt);
 let last=performance.now(),clkAcc=0,still=0,skip=0;const _lastCam=new THREE.Matrix4();
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  if(tween&&mode==='orbit'){let t=Math.min(1,(now-tween.start)/tween.dur);const e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;camera.position.lerpVectors(tween.p0,tween.p1,e);camera.position.y+=Math.sin(PI*e)*(tween.lift||0);controls.target.lerpVectors(tween.t0,tween.t1,e);if(t>=1)tween=null;}
- if(window.GAME&&GAME.active)GAME.step(dt)/*JELLY*/;else if(window._dcOn)window._dcStep(dt);else if(mode==='orbit')controls.update();else updateWalk(dt);
+ if(window.GAME&&GAME.active){try{GAME.step(dt)}catch(e){window._jfError&&_jfError(e,'game step')}}/*JELLY*/else if(window._dcOn)window._dcStep(dt);else if(mode==='orbit')controls.update();else updateWalk(dt);
  updateHide();updateDims();
  if(window._clk&&window._clk.play){clkAcc+=dt*60;if(clkAcc>=2){const c=window._clk;c.mins=(c.mins+Math.floor(clkAcc))%1440;clkAcc%=1;document.getElementById('clockR').value=c.mins;window._applyClock();}}
  if(window._stepFall)window._stepFall(Math.min(dt,.05));if(window._halos)window._halos();if(window._life)window._life(dt,now);
@@ -2997,7 +2997,7 @@ function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  if(helper)fitFrame(helper,helper.userData.root,helper.userData.lb);if(selHelper&&sel&&sel.lbox)fitFrame(selHelper,sel.pivot,sel.lbox);
  camera.updateMatrixWorld();if(_lastCam.equals(camera.matrixWorld)&&!drag)still+=dt;else{still=0;_lastCam.copy(camera.matrixWorld);}
  if(MOBILE&&still>.6&&(skip++&1)){requestAnimationFrame(loop);return;}
- if(window.GAME&&GAME.active&&GAME.render)GAME.render()/*JELLY*/;else renderer.render(scene,camera);requestAnimationFrame(loop);}
+ if(window.GAME&&GAME.active&&GAME.render){try{GAME.render()}catch(e){window._jfError&&_jfError(e,'render');renderer.render(scene,camera)}}/*JELLY*/else renderer.render(scene,camera);requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
 // ---------- starter quests: five first things to try, remembered on this device ----------
 {const Q=[['pet','🐈','Pet Dendi','Tap Dendi wherever he is'],['treat','🐟','Toss Dendi a treat','The fish button up top'],['cam','🎥','Ride along on Dendi cam','The cat button up top'],['baby','👶','Find the baby','Somewhere in the bedroom, fast asleep'],['party','🪩','Throw a dance party','The disco ball up top']];

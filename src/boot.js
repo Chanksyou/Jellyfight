@@ -1,4 +1,5 @@
 // Loads three.js, runs the apartment (a classic script kept as-is in #apartment-src), then starts the game.
+import { reportError, watchCanvas } from './errors.js';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { patchLegacyFalloff, scaleLightsOnRender } from './legacy-lighting.js';
@@ -18,4 +19,9 @@ if (!window.APT) {
   throw new Error('Apartment script failed (window.APT missing)');
 }
 scaleLightsOnRender(window.APT.renderer, window.APT.scene);
-await import('./main.js');
+watchCanvas(window.APT.renderer.domElement);
+try {
+  await import('./main.js');
+} catch (e) {
+  reportError(e, 'starting the game');
+}
