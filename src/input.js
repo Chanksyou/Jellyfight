@@ -10,7 +10,7 @@ export class Input {
     this.locked = false;
 
     addEventListener('keydown', (e) => {
-      if (e.repeat) return;
+      if (e.repeat || e.target.closest?.('input, textarea, select')) return;
       this.keys.add(e.code);
       if (e.code === 'Space') this.jumpQueued = true;
       if (e.code === 'KeyR') this.resetQueued = true;
@@ -18,7 +18,8 @@ export class Input {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
 
-    element.addEventListener('click', () => element.requestPointerLock());
+    this.enabled = true; // main.js turns pointer lock off while menus are open
+    element.addEventListener('click', () => { if (this.enabled) element.requestPointerLock(); });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === element;
     });

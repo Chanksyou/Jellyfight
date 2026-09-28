@@ -14,8 +14,13 @@ export class Player {
     this.facing = 0;
     this.time = 0;
 
-    this.mesh = buildJelly(cfg);
-    this.body = this.mesh.getObjectByName('body');
+    this.mesh = new THREE.Group();
+    this.mesh.name = 'Player';
+    this.avatar = null;
+    this.canSprint = true;   // main.js turns this off when stamina runs out
+    this.sprinting = false;
+    this.peakY = 0;          // highest point since leaving the ground, for fall damage
+    this.onLand = null;      // (dropMeters) => void
 
     // Ray origins for horizontal collision: just above step height, middle, near top
     this.probeHeights = [cfg.stepHeight + 0.002, cfg.height * 0.5, cfg.height * 0.9];
@@ -31,9 +36,31 @@ export class Player {
     this._d = new THREE.Vector3();
   }
 
+  // Swap the model (see character.js for the avatar interface)
+  setAvatar(avatar) {
+    if (this.avatar) {
+      this.mesh.remove(this.avatar.root);
+      this.avatar.dispose();
+    }
+    this.avatar = avatar;
+    this.mesh.add(avatar.root);
+  }
+
+  // Put the feet on whatever is below (used right after spawning)
+  snapToGround(maxDrop = 1) {
+    this._o.set(this.position.x, this.position.y + this.cfg.height * 0.5, this.position.z);
+    const hit = this.world.cast(this._o, DOWN, this.cfg.height * 0.5 + maxDrop);
+    if (!hit) return;
+    this.position.y = hit.point.y;
+    this.peakY = hit.point.y;
+    this.grounded = true;
+    this.syncMesh();
+  }
+
   spawn(p) {
     this.position.copy(p);
     this.velocity.set(0, 0, 0);
+    this.peakY = p.y;
     this.grounded = false;
     this.syncMesh();
   }
@@ -48,7 +75,8 @@ export class Player {
     const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
     const wish = fwd.multiplyScalar(axes.y).add(right.multiplyScalar(axes.x));
     if (wish.lengthSq() > 1) wish.normalize();
-    const speed = input.sprint ? c.sprintSpeed : c.walkSpeed;
+    this.sprinting = input.sprint && this.canSprint && wish.lengthSq() > 0.01;
+    const speed = this.sprinting ? c.sprintSpeed : c.walkSpeed;
     wish.multiplyScalar(speed);
 
     const accel = this.grounded ? c.groundAccel : c.airAccel;
@@ -66,7 +94,14 @@ export class Player {
     // --- Move -------------------------------------------------------------
     this.moveHorizontal(this.velocity.x * dt, this.velocity.z * dt);
     this.depenetrate();
+    const wasGrounded = this.grounded;
+    const vyBefore = this.velocity.y;
     this.moveVertical(dt);
+    if (!this.grounded) this.peakY = wasGrounded ? this.position.y : Math.max(this.peakY, this.position.y);
+    else if (!wasGrounded) {
+      this.avatar?.land(-vyBefore);
+      this.onLand?.(this.peakY - this.position.y);
+    }
 
     // --- Face movement direction -----------------------------------------
     const hv = Math.hypot(this.velocity.x, this.velocity.z);
@@ -77,7 +112,7 @@ export class Player {
       this.facing += diff * (1 - Math.exp(-c.turnSpeed * dt));
     }
 
-    this.animate(hv);
+    this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded, vy: this.velocity.y });
     this.syncMesh();
   }
 
@@ -168,52 +203,8 @@ export class Player {
     }
   }
 
-  // Squash & stretch so it feels like jelly
-  animate(hv) {
-    let sy = 1;
-    if (this.grounded) {
-      sy = 1 + Math.sin(this.time * 22) * 0.08 * Math.min(1, hv / this.cfg.walkSpeed);
-    } else {
-      sy = 1 + THREE.MathUtils.clamp(this.velocity.y * 0.25, -0.15, 0.2);
-    }
-    const sxz = 1 / Math.sqrt(sy);
-    this.body.scale.set(sxz, sy, sxz);
-  }
-
   syncMesh() {
     this.mesh.position.copy(this.position);
     this.mesh.rotation.y = this.facing;
   }
-}
-
-function buildJelly(cfg) {
-  const group = new THREE.Group();
-  group.name = 'Player';
-
-  // "body" is scaled for squash/stretch; its origin sits at the feet.
-  const body = new THREE.Group();
-  body.name = 'body';
-  group.add(body);
-
-  const R = cfg.radius * 1.15;
-  const blob = new THREE.Mesh(
-    new THREE.SphereGeometry(R, 32, 24),
-    new THREE.MeshPhysicalMaterial({
-      color: 0xff6fb5, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.1,
-      emissive: 0x551133, emissiveIntensity: 0.4,
-    }),
-  );
-  blob.scale.set(1, cfg.height / (2 * R), 1);
-  blob.position.y = cfg.height / 2;
-  blob.castShadow = true;
-  body.add(blob);
-
-  const eyeGeo = new THREE.SphereGeometry(cfg.radius * 0.18, 12, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
-  for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(eyeGeo, eyeMat);
-    eye.position.set(side * R * 0.35, cfg.height * 0.62, R * 0.9);
-    body.add(eye);
-  }
-  return group;
 }
