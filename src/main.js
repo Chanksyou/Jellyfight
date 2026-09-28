@@ -17,6 +17,10 @@ import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
+import { LIGHTING } from './legacy-lighting.js';
+
+const BUILD = 'v5';   // shown in the pause menu so we know which version a phone is running
+window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
 import { Fx } from './fx.js';
@@ -70,7 +74,7 @@ ui.innerHTML = `
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
-  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
+  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
   <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer" class="desk-only">🏠 Apartment viewer</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
@@ -167,6 +171,11 @@ const run = new Run({
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
+  // Phones: no shadows, and only the sky and sun lights (the apartment has 17). Set before the
+  // warm-up below so every GPU program is built for this lighter setup once.
+  LIGHTING.lite = true;
+  renderer.shadowMap.enabled = false;
+  enableDebug();   // temporary while we chase the phone freeze
   tpc.distance = 0.27;   // phone screens are small: sit a bit closer
   // Start phones at 1x resolution; the apartment's own frame-rate check raises it if there's headroom
   if (window._perf) { window._perf.pr = 1; renderer.setPixelRatio(1); dispatchEvent(new Event('resize')); }

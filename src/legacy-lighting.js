@@ -15,6 +15,11 @@ export function patchLegacyFalloff(THREE) {
 }`);
 }
 
+// lite: phones. Point and spot lights (the lamps) are hidden for the draw and the sky light is
+// boosted to make up for them. Hiding them the same way every frame keeps the GPU programs
+// fixed, so nothing recompiles.
+export const LIGHTING = { lite: false, skyBoost: 3 };
+
 export function scaleLightsOnRender(renderer, scene) {
   const render = renderer.render.bind(renderer);
   let lights = [];
@@ -26,11 +31,20 @@ export function scaleLightsOnRender(renderer, scene) {
       scene.traverse((o) => { if (o.isLight) lights.push(o); });
       age = 0;
     }
-    for (const l of lights) l.intensity *= Math.PI;
+    const lite = LIGHTING.lite;
+    for (const l of lights) {
+      l.intensity *= Math.PI;
+      if (lite && (l.isPointLight || l.isSpotLight)) { l._wasVisible = l.visible; l.visible = false; }
+      if (lite && (l.isHemisphereLight || l.isAmbientLight)) l.intensity *= LIGHTING.skyBoost;
+    }
     try {
       render(s, cam);
     } finally {
-      for (const l of lights) l.intensity /= Math.PI;
+      for (const l of lights) {
+        l.intensity /= Math.PI;
+        if (lite && (l.isPointLight || l.isSpotLight)) l.visible = l._wasVisible;
+        if (lite && (l.isHemisphereLight || l.isAmbientLight)) l.intensity /= LIGHTING.skyBoost;
+      }
     }
   };
 }

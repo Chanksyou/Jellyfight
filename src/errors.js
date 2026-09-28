@@ -9,6 +9,7 @@ function show(msg) {
   seen.add(msg);
   if (!panel) {
     panel = document.createElement('div');
+    panel.className = 'jf-keep';   // survives game mode's hide-the-apartment-UI rule
     panel.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#2a0d12ee;color:#ffd9dc;border:1px solid #ff6b7a;'
       + 'border-radius:10px;padding:8px 12px;font:12px/1.4 ui-monospace,Menlo,monospace;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word';
     const close = document.createElement('button');
@@ -51,7 +52,8 @@ export function enableDebug() {
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = (cb) => raf((t) => { frames++; last = performance.now(); cb(t); });
   const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:99;'
+  box.className = 'jf-keep';
+  box.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);z-index:99;'
     + 'background:#000a;color:#9f9;font:11px ui-monospace,Menlo,monospace;padding:3px 8px;border-radius:6px;pointer-events:none;white-space:nowrap';
   const attach = () => { if (!box.isConnected) document.body.appendChild(box); };
   if (document.body) attach(); else addEventListener('DOMContentLoaded', attach);
@@ -59,7 +61,7 @@ export function enableDebug() {
     beats++;
     const r = window.APT?.renderer;
     const since = Math.round(performance.now() - last);
-    box.textContent = `alive ${beats} | ${frames * 2} fps | last frame ${since} ms ago | dpr ${r ? r.getPixelRatio().toFixed(2) : '-'}`
+    box.textContent = `${window.JF_BUILD || ''} | up ${Math.round(performance.now() / 1000)}s | alive ${beats} | ${frames * 2} fps | last frame ${since} ms ago | dpr ${r ? r.getPixelRatio().toFixed(2) : '-'}`
       + ` | draws ${r ? r.info.render.calls : '-'} | logdepth ${r ? r.capabilities.logarithmicDepthBuffer : '-'}`;
     box.style.color = since > 1000 ? '#f99' : '#9f9';
     frames = 0;
