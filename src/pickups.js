@@ -1,4 +1,4 @@
-// Things you collect: dew (XP and currency), the Moon Drop, and treasure spots.
+// Things you collect: dew (XP) and the Moon Drop.
 import * as THREE from 'three';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -68,8 +68,8 @@ export class MoonDrop {
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
-    const glow = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 3, roughness: 0.2 });
-    this.orb = new THREE.Mesh(new THREE.SphereGeometry(0.008, 24, 16), glow);
+    this.glow = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 3, roughness: 0.2 });
+    this.orb = new THREE.Mesh(new THREE.SphereGeometry(0.008, 24, 16), this.glow);
     this.orb.scale.y = 1.25;
     this.group.add(this.orb);
     this.halo = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -83,8 +83,12 @@ export class MoonDrop {
     this.t = 0;
   }
 
-  show(spot, surfaceY) {
+  // full: the last drop of the stage (summons the boss), bigger and warmer
+  show(spot, surfaceY, full = false) {
     this.spot = spot;
+    this.full = full;
+    this.glow.emissive.setHex(full ? 0xffb060 : 0xfff0c0);
+    this.halo.material.color.setHex(full ? 0xffb060 : 0xfff0c0);
     this.base = new THREE.Vector3(spot.at[0], surfaceY + 0.018, spot.at[2]);
     this.group.position.copy(this.base);
     this.group.visible = true;
@@ -100,104 +104,8 @@ export class MoonDrop {
     this.t += dt;
     this.group.position.y = this.base.y + Math.sin(this.t * 2.2) * 0.004;
     this.orb.rotation.y += dt;
-    const s = Math.min(1, this.t * 3);
+    const s = Math.min(1, this.t * 3) * (this.full ? 1.6 : 1);
     this.group.scale.setScalar(s);
     this.halo.scale.setScalar(1 + Math.sin(this.t * 4) * 0.15);
-  }
-}
-
-// ---------------------------------------------------------------- treasure spots
-function labelTexture(text, font = 64, pad = 12, bg = null) {
-  const c = document.createElement('canvas');
-  const g = c.getContext('2d');
-  g.font = `700 ${font}px system-ui, sans-serif`;
-  const w = Math.ceil(g.measureText(text).width) + pad * 2;
-  c.width = w; c.height = font + pad * 2;
-  g.font = `700 ${font}px system-ui, sans-serif`;
-  if (bg) { g.fillStyle = bg; g.beginPath(); g.roundRect(0, 0, c.width, c.height, c.height / 2); g.fill(); }
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillStyle = '#fff';
-  g.fillText(text, w / 2, c.height / 2 + 2);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return { t, aspect: w / c.height };
-}
-
-// Sprites can only be raycast with a camera set on the raycaster. The apartment's own code
-// (the cat, furniture settling) casts rays through the whole scene without one, and hitting
-// one of these labels threw and stopped the frame loop. Labels never need to be hit anyway.
-const noRaycast = () => {};
-
-export class TreasureSpots {
-  constructor(scene) {
-    this.scene = scene;
-    this.list = [];
-    const sparkle = labelTexture('✨', 96, 6);
-    this.sparkleMat = new THREE.SpriteMaterial({ map: sparkle.t, depthWrite: false });
-    this.boxGeo = new THREE.BoxGeometry(0.018, 0.012, 0.014);
-    this.boxMat = new THREE.MeshStandardMaterial({ color: 0xc9a46a, roughness: 0.5, metalness: 0.2, emissive: 0x6a4a18, emissiveIntensity: 0.3 });
-  }
-
-  place(spots) {
-    this.clear();
-    for (const s of spots) {
-      const g = new THREE.Group();
-      g.position.set(s.x, s.y, s.z);
-      const box = new THREE.Mesh(this.boxGeo, this.boxMat);   // a little lost-and-found tin
-      box.position.y = 0.006;
-      box.castShadow = true;
-      g.add(box);
-      const sp = new THREE.Sprite(this.sparkleMat);
-      sp.raycast = noRaycast;
-      sp.scale.setScalar(0.014);
-      sp.position.y = 0.026;
-      g.add(sp);
-      const price = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
-      price.raycast = noRaycast;
-      price.position.y = 0.043;
-      g.add(price);
-      this.scene.add(g);
-      this.list.push({ g, box, sp, price, pos: g.position, open: false, cost: -1, phase: Math.random() * 6 });
-    }
-  }
-
-  setCost(cost) {
-    for (const s of this.list) {
-      if (s.open || s.cost === cost) continue;
-      s.cost = cost;
-      s.price.material.map?.dispose();
-      const { t, aspect } = labelTexture(cost === 0 ? 'FREE' : `💧 ${cost}`, 48, 12, 'rgba(10,20,40,.72)');
-      s.price.material.map = t;
-      s.price.material.needsUpdate = true;
-      s.price.scale.set(0.012 * aspect, 0.012, 1);
-    }
-  }
-
-  nearest(p, max = 0.045) {
-    let best = null, bd = max;
-    for (const s of this.list) {
-      if (s.open) continue;
-      const d = s.pos.distanceTo(p);
-      if (d < bd) { bd = d; best = s; }
-    }
-    return best;
-  }
-
-  markOpen(s) {
-    s.open = true;
-    this.scene.remove(s.g);
-  }
-
-  clear() {
-    this.list.forEach((s) => this.scene.remove(s.g));
-    this.list = [];
-  }
-
-  update(dt, t) {
-    for (const s of this.list) {
-      if (s.open) continue;
-      s.sp.position.y = 0.026 + Math.sin(t * 2 + s.phase) * 0.003;
-      s.sp.material.rotation = Math.sin(t + s.phase) * 0.2;
-    }
   }
 }

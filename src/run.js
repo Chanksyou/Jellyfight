@@ -1,15 +1,16 @@
-// One run of stage 1: survive the night, grow, collect 3 Moon Drops, beat The Clog, evolve.
+// One run of stage 1: survive the night, grow, collect Moon Drops (the first 3 give treasures,
+// the 4th summons the boss), beat The Clog, evolve.
 import * as THREE from 'three';
-import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, treasureCost, EVOLUTIONS } from './stats.js';
+import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } from './stats.js';
 import { inPoly } from './hud.js';
 import { Clog } from './boss.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const TOTAL_DROPS = 3;
+const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export class Run {
-  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, chests, traversal, hud, ui, fx, tpc, input, setNight }
+  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, traversal, hud, ui, fx, tpc, input, setNight }
   constructor(ctx) {
     Object.assign(this, ctx);
     this.rooms = ctx.plan;
@@ -44,8 +45,6 @@ export class Run {
     this.purse = 0;
     this.moisture = this.stats.moisture;
     this.owned = new Set();
-    this.opened = 0;
-    this.freeNext = false;
     this.drops = 0;
     this.kills = 0;
     this.pendingLevels = 0;
@@ -68,13 +67,6 @@ export class Run {
     this.player.snapToGround();
     this.tpc.snapTo(this.player.position);
 
-    // pick this run's treasure spots and find the surface under each
-    const spots = shuffle([...s.treasures]).slice(0, s.treasureCount).map((sp) => {
-      const [x, y, z] = sp.at;
-      const hit = this.world.castAll(new THREE.Vector3(x, y + 0.1, z), DOWN, 0.3);
-      return { x, y: hit ? hit.point.y : y, z };
-    });
-    this.chests.place(spots);
     // Only open, easy-to-reach Moon Drop spots (the apartment is static, so check once)
     if (!this.dropSpots) {
       this.dropSpots = [];
@@ -112,7 +104,8 @@ export class Run {
     if (this.phase !== 'moonlift') {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
-        speedMul: s.pulse, jumpMul: s.bounce, lift: tr.lift, climb: !!tr.climb,
+        speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
+        airJumps: this.owned.has('penSpring') ? 2 : 1,
         slow: this.slowT > 0 ? 0.4 : 0, push,
       });
     }
@@ -160,20 +153,13 @@ export class Run {
     const got = this.dew.update(dt, origin);
     if (got) this.gainDew(got);
 
-    // --- treasures
-    this.chests.update(dt, this.t);
-    this.chests.setCost(this.freeNext ? 0 : treasureCost(this.opened));
-    const chest = this.phase === 'explore' ? this.chests.nearest(P.position) : null;
-    const cost = this.freeNext ? 0 : treasureCost(this.opened);
-    if (chest && this.input.consumeInteract()) this.openChest(chest, cost);
-    this.input.consumeInteract();
-
     // --- hints
-    const canOpen = chest && this.purse >= cost;
-    this.touchAction = canOpen ? `Open 💧${cost || 'free'}` : null;
+    this.input.consumeInteract();
+    this.touchAction = null;
     const jumpKey = this.touch ? '⤴' : '<kbd>Space</kbd>';
-    if (chest) this.hud.hint(canOpen ? (this.touch ? 'Treasure! Tap Open' : `<kbd>E</kbd> open for 💧 ${cost || 'free'}`) : `Needs 💧 ${cost} dew (you have ${this.purse})`);
-    else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
+    if (tr.vent) this.lastVent = tr.vent.to;
+    if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
+    else if (P.flight) this.hud.hint(`Whoosh! Up to ${this.lastVent}`);
     else this.hud.hint(null);
 
     this.moon.update(dt);
@@ -292,30 +278,28 @@ export class Run {
   levelUp() {
     this.pendingLevels--;
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(), this.stats, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats), this.stats, 1, (card) => {
       const before = this.stats.moisture;
       applyCard(this.stats, card);
       if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
       this.resume();
-    }, () => rollCards());
+    }, () => rollCards(this.stats));
   }
 
   resume() {
     if (!this.ui.open) this.onResume?.();
   }
 
-  openChest(chest, cost) {
-    if (this.purse < cost) { this.hud.toast('Not enough dew', 900); return; }
-    const left = TREASURES.filter((t) => !this.owned.has(t.id));
+  // A Moon Drop's gift: pick 1 of 3 treasures you don't have yet
+  pickTreasure() {
+    const left = shuffle(TREASURES.filter((t) => !this.owned.has(t.id))).slice(0, 3);
     if (!left.length) return;
-    this.purse -= cost;
-    this.opened++;
-    const t = left[(Math.random() * left.length) | 0];
-    this.owned.add(t.id);
-    this.freeNext = t.id === 'spareKey';
-    this.chests.markOpen(chest);
-    this.fx.puff(chest.pos.clone().setY(chest.pos.y + 0.01), 0xffd23a, 0.03, 0.4);
-    this.ui.treasure(t);
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.ui.choose(`🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, 'The moonlight shows you three lost things. Keep one.', left, (t) => {
+      this.owned.add(t.id);
+      this.ui.treasure(t);
+      this.resume();
+    });
   }
 
   // ------------------------------------------------------------ moon drops
@@ -358,11 +342,11 @@ export class Run {
     const dist = (sp) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z);
     let cands = all.filter((sp) => sp.area !== this.lastArea && dist(sp) >= lo && dist(sp) <= hi);
     if (!cands.length) cands = all.filter((sp) => dist(sp) >= 0.5);
-    let r = Math.random() * cands.reduce((a, sp) => a + (sp.at[1] > 0.3 ? 2 : 1), 0), spot = cands[0];
-    for (const sp of cands) if ((r -= sp.at[1] > 0.3 ? 2 : 1) <= 0) { spot = sp; break; }
-    this.moon.show(spot, spot.y);
+    const spot = cands[(Math.random() * cands.length) | 0];
+    const last = this.drops === TOTAL_DROPS - 1;
+    this.moon.show(spot, spot.y, last);
     this.lastArea = spot.area;
-    this.hud.toast(`🌙 A Moon Drop appeared: ${spot.label}`, 2200);
+    this.hud.toast(last ? `🌕 The full moon drop appeared: ${spot.label}. It will summon ${this.stage.boss.name}!` : `🌙 A Moon Drop appeared: ${spot.label}`, last ? 3200 : 2200);
   }
 
   collectDrop() {
@@ -373,7 +357,7 @@ export class Run {
     this.moon.hide();
     this.dropTimer = 1.2;
     if (this.drops >= TOTAL_DROPS) this.startMoonlift();
-    else this.hud.toast(`🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`);
+    else this.pickTreasure();
   }
 
   // ------------------------------------------------------------ boss
@@ -381,7 +365,6 @@ export class Run {
     this.phase = 'moonlift';
     this.liftT = 0;
     this.hud.toast('🌙 The moonlight lifts you…', 2200);
-    this.chests.list.forEach((c) => { if (!c.open) c.g.visible = false; });
     for (const e of this.enemies.list) if (!e.dead) this.enemies.kill(e, true);
     this.dew.magnetAll = true;
   }
@@ -485,7 +468,6 @@ export class Run {
       const p = this.moon.position;
       out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true });
     }
-    for (const c of this.chests.list) if (!c.open && c.g.visible) out.push({ x: c.pos.x, y: c.pos.y, z: c.pos.z, color: '#ffd23a' });
     return out;
   }
 }

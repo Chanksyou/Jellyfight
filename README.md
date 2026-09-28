@@ -16,19 +16,18 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
 You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am.
 
-- **Your tentacles attack on their own** (the Lash). You move, jump and position.
-- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP and your currency.
+- **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
+- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP.
 - **Level up** by collecting dew: pick 1 of 3 cards, each one stat and one number. One free reroll per level.
-- **Treasures** are lost things around the stage. Open them with dew (the price rises each time). Each has a unique effect and appears once per run.
-- **Moon Drops** spawn one at a time somewhere in the stage, often up high, and show on the minimap with how far above or below you they are. Collect 3 and the moonlight carries you into the tub to fight **The Clog**.
+- **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Clog**, and the moonlight carries you into the tub to fight it.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - After 6 minutes (2 am) **The Dry** spreads: more enemies, and moisture drains.
 
-**Getting up high:** floor vents blow you up to the vanity, sideboard and bench; hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet); long-jump from the vanity to the toilet tank.
+**Getting around:** the jelly swims in pulses (each squeeze of the bell is a little surge) and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the vanity, sideboard and bench. Hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet).
 
 ## Controls
 
-WASD move · mouse look · Space jump (hold to climb fabric) · E open treasure · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the character creator. On phones: left thumb moves, right thumb looks, ⤴ jumps (hold to climb), the yellow button opens treasure.
+WASD move · mouse look · Space jump, again in the air to double jump (hold to climb fabric) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the character creator. On phones: left thumb moves, right thumb looks, ⤴ jumps (tap again in the air to double jump, hold to climb).
 
 ## How it fits together
 
@@ -59,12 +58,13 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
 | `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, frame loop. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
-| `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation. |
+| `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
+| `src/tentacles.js` | The jellyfish's 6 live tentacles: hang, trail, stream when falling, whip out when the Lash strikes. |
 | `src/creator.js` | Character creator panel. |
 | `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |
 | `src/detail.js` | Fine bump detail on floors and rugs (desktop), which otherwise look flat up close. |
-| `src/player.js` | Movement, low-gravity jumping, climbing, updrafts, wall sliding, stepping up small ledges. |
+| `src/player.js` | Swimming movement, low-gravity jump and double jump, vent launches, climbing, wall sliding, stepping up small ledges. |
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
 | `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. |
 | `src/input.js`, `src/touch.js` | Keyboard and pointer-lock mouse; phone joystick, look drag and buttons. |
@@ -77,7 +77,8 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 A look is plain JSON (`{ name, body, finish, color, accent, pattern, eyes, eyeColor, mouth, top, topColor, feet, size }`). `buildCharacter(look, heightMeters)` returns an avatar:
 
 ```js
-{ root: THREE.Object3D, update(dt, { speed, walkSpeed, grounded, vy }), land(impact), dispose() }
+{ root: THREE.Object3D, update(dt, { speed, walkSpeed, grounded, vy, swim, vel }), land(impact), dispose(),
+  pulse(), tentacles }   // optional: a jump's bell squeeze; a TentacleRig the Lash strikes with
 ```
 
 The player only talks to that interface (`player.setAvatar(avatar)`), so a rigged glTF character can replace the procedural one by writing another builder that returns the same shape. It would drive its animation mixer from `update()` and map the look's colors and hat onto the model.
@@ -86,12 +87,12 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 
 | File | What's in it |
 | --- | --- |
-| `src/stage1.js` | Rooms, start, doors, invisible walls, vents, climbable fabric, Moon Drop and treasure spots, boss arena. Positions are world meters. |
-| `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, treasure prices, evolutions. |
+| `src/stage1.js` | Rooms, start, doors, invisible walls, vents (and where each lands you), climbable fabric, Moon Drop spots, boss arena. Positions are world meters. |
+| `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, evolutions. |
 | `src/enemies.js` | Enemy types (health, speed, damage, size, dew) and how they move. |
-| `src/run.js` | Wave pacing, Moon Drop spawning, damage, treasure effects, boss flow, death and victory. |
-| `src/combat.js` | The Lash: targeting, tentacle animation, and treasure effects on hits. |
+| `src/run.js` | Wave pacing, Moon Drops and treasure picks, damage, treasure effects, boss flow, death and victory. |
+| `src/combat.js` | The Lash: targeting, picking which tentacle strikes, and treasure effects on hits. |
 | `src/boss.js` | The Clog. |
-| `src/traversal.js` | Vents, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
-| `src/pickups.js` | Dew, the Moon Drop, treasure tins. |
+| `src/traversal.js` | Vent launch pads, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
+| `src/pickups.js` | Dew and the Moon Drop. |
 | `src/ui.js`, `src/hud.js`, `src/fx.js` | Menus, HUD and minimap, damage numbers and poofs. |

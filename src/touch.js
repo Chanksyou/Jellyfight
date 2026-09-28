@@ -1,7 +1,7 @@
 // Phone and tablet controls:
 //  - left side: a joystick that appears wherever your thumb lands
 //  - right side: drag to look around
-//  - jump button (hold it to climb fabric), a context button (open treasure), pause
+//  - jump button (hold it to climb fabric), a context button (unused for now), pause
 export const IS_TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
 const CSS = `

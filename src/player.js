@@ -20,7 +20,9 @@ export class Player {
     this.peakY = 0;          // highest point since leaving the ground
     this.onLand = null;      // (dropMeters) => void
     this.climbing = false;
-    this.lifting = false;
+    this.flight = null;      // a vent launch in progress (scripted arc, see launch())
+    this.airJumps = 0;       // mid-air jumps left
+    this.swim = 0;           // bell pulse phase, 0..1; each pulse gives a little surge forward
     this.speed = 0;
 
     // Ray origins for horizontal collision: just above step height, middle, near top
@@ -61,16 +63,65 @@ export class Player {
   spawn(p) {
     this.position.copy(p);
     this.velocity.set(0, 0, 0);
+    this.flight = null;
     this.peakY = p.y;
     this.grounded = false;
     this.syncMesh();
   }
 
-  // env (all optional): speedMul, jumpMul, lift (updraft top y), climb (inside climbable fabric),
-  // push (THREE.Vector3 m/s added to movement, e.g. a drain's pull), slow (0..1 speed penalty)
+  // Ride the air from a vent to `to` (a surface point). The arc is scripted, not simulated,
+  // so it always lands: straight up first, then over and down onto the surface.
+  launch(to) {
+    const from = this.position.clone();
+    to = new THREE.Vector3(...to);
+    const apex = Math.max(from.y, to.y) + 0.06;
+    const T = 0.8 + (apex - from.y) * 0.35 + Math.hypot(to.x - from.x, to.z - from.z) * 0.8;
+    this.flight = { from, to, apex, T, t: 0 };
+    this.velocity.set(0, 0, 0);
+    this.grounded = false;
+    this.avatar?.pulse?.();
+  }
+
+  updateFlight(dt) {
+    const f = this.flight;
+    f.t += dt;
+    const u = Math.min(1, f.t / f.T);
+    const rise = 0.55;
+    const sm = (a, b, x) => { const k = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+    const xz = sm(0.5, 1, u);                                    // move over only once clear of the edge
+    const y = u < rise
+      ? f.from.y + (f.apex - f.from.y) * (1 - (1 - u / rise) ** 2)
+      : f.apex + (f.to.y - f.apex) * ((u - rise) / (1 - rise)) ** 2;
+    const prev = this.position.clone();
+    this.position.set(f.from.x + (f.to.x - f.from.x) * xz, y, f.from.z + (f.to.z - f.from.z) * xz);
+    this.velocity.copy(this.position).sub(prev).divideScalar(Math.max(dt, 1e-4));
+    if (u >= 1) {
+      this.flight = null;
+      this.velocity.set(0, 0, 0);
+      this.snapToGround(0.05);
+      this.airJumps = this.maxAirJumps ?? 1;
+      this.avatar?.land(0.6);
+      this.onLand?.(0);
+    }
+  }
+
+  // env (all optional): speedMul, jumpMul, airJumps (mid-air jumps), vent (a vent underfoot),
+  // climb (inside climbable fabric), push (THREE.Vector3 m/s added to movement, e.g. a drain's
+  // pull), slow (0..1 speed penalty)
   update(dt, input, cameraYaw, env = {}) {
     const c = this.cfg;
     this.time += dt;
+    this.maxAirJumps = env.airJumps ?? 1;
+
+    if (!this.flight && env.vent) this.launch(env.vent.land);
+    if (this.flight) {
+      input.consumeJump();
+      this.updateFlight(dt);
+      this.swim = (this.swim + dt * 1.6) % 1;
+      this.syncMesh();
+      this.avatar?.update(dt, { speed: 0.1, walkSpeed: c.walkSpeed, grounded: false, vy: this.velocity.y, swim: this.swim, vel: this.velocity });
+      return;
+    }
 
     // --- Desired horizontal velocity, relative to the camera --------------
     const axes = input.moveAxes();
@@ -78,7 +129,12 @@ export class Player {
     const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
     const wish = fwd.multiplyScalar(axes.y).add(right.multiplyScalar(axes.x));
     if (wish.lengthSq() > 1) wish.normalize();
-    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0));
+    // Swimming: the bell pulses faster the harder you push, and each pulse is a little surge
+    // (sharp squeeze, then glide). Averages out to walk speed.
+    const push = Math.min(1, wish.length());
+    this.swim = (this.swim + dt * (0.7 + 1.5 * push)) % 1;
+    const surge = Math.exp(-this.swim * 5);
+    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0)) * (1 + c.swimSurge * (surge * 4.1 - 0.83));
     wish.multiplyScalar(walk);
 
     const accel = this.grounded ? c.groundAccel : c.airAccel;
@@ -87,18 +143,27 @@ export class Player {
     this.velocity.z += (wish.z - this.velocity.z) * t;
 
     // --- Jump, climbing, updrafts, gravity --------------------------------
-    if (input.consumeJump() && this.grounded) {
-      this.velocity.y = Math.sqrt(2 * c.gravity * c.jumpHeight * (env.jumpMul ?? 1));
+    // Jump from the ground, or pulse the bell for a mid-air jump (double jump, more with treasure)
+    if (this.grounded) { this.airJumps = this.maxAirJumps; this.coyote = 0.1; }
+    else this.coyote = Math.max(0, (this.coyote ?? 0) - dt);
+    if (input.consumeJump()) {
+      const v = Math.sqrt(2 * c.gravity * c.jumpHeight * (env.jumpMul ?? 1));
+      if (this.grounded || this.coyote > 0) {
+        this.velocity.y = v;
+        this.coyote = 0;
+        this.avatar?.pulse?.();
+      } else if (this.airJumps > 0 && !env.climb) {
+        this.airJumps--;
+        this.velocity.y = Math.max(this.velocity.y, v * c.airJumpMul);
+        this.swim = 0;                                   // a big squeeze of the bell
+        this.avatar?.pulse?.();
+      }
       this.grounded = false;
     }
     this.climbing = !!env.climb && input.jumpHeld;
-    this.lifting = env.lift != null;
     if (this.climbing) {
       this.velocity.y = c.climbSpeed;
-    } else if (this.lifting) {
-      // rise toward the top of the updraft, then bob there
-      const target = THREE.MathUtils.clamp((env.lift - this.position.y) * 6, -0.25, c.liftSpeed);
-      this.velocity.y += (target - this.velocity.y) * (1 - Math.exp(-6 * dt));
+      this.airJumps = this.maxAirJumps;
     } else {
       this.velocity.y = Math.max(-c.maxFall, this.velocity.y - c.gravity * dt);
     }
@@ -126,8 +191,8 @@ export class Player {
       this.facing += diff * (1 - Math.exp(-c.turnSpeed * dt));
     }
 
-    this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded || this.climbing, vy: this.climbing ? 0 : this.velocity.y });
     this.syncMesh();
+    this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded || this.climbing, vy: this.climbing ? 0 : this.velocity.y, swim: this.swim, vel: this.velocity, push });
   }
 
   moveHorizontal(dx, dz) {

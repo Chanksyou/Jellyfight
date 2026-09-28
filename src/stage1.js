@@ -22,11 +22,11 @@ export const STAGE1 = {
     { min: [0, -0.05, 4.8], max: [4.55, 0, 9.05] },
   ],
 
-  // Updrafts from floor vents: stand on one and it carries you up to `top`
+  // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, top: 0.97 },
-    { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, top: 0.9 },
-    { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, top: 0.56 },
+    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.25, 0.881, 5.42], to: 'the vanity' },
+    { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
+    { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
   ],
 
   // Fabric you can climb: hold Space inside the box
@@ -36,7 +36,8 @@ export const STAGE1 = {
     { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
   ],
 
-  // Possible Moon Drop spots. One is active at a time. At the start of each run the game
+  // Possible Moon Drop spots. One is active at a time; each of the first three gives a
+  // treasure, the fourth summons the boss. At the start of each run the game
   // keeps only spots that are open: nothing overhead, nothing crowding them, flat ground
   // (see Run.openSpot), so a drop is never tucked under or between things.
   drops: [
@@ -56,18 +57,6 @@ export const STAGE1 = {
     { area: 'Laundry closet', at: [3.95, 1.7, 5.45], label: 'top of the dryer' },
   ],
 
-  // Possible treasure spots; a few are used each run
-  treasures: [
-    { at: [0.2, 0.004, 5.95] },   // beside the toilet
-    { at: [1.45, 0.004, 7.0] },   // bath mat corner
-    { at: [1.08, 0.88, 5.45] },   // vanity top by the oil burner
-    { at: [1.9, 0.003, 6.85] },   // hall, beside the bench
-    { at: [3.32, 0.8, 6.0] },     // sideboard, north end
-    { at: [3.72, 0.007, 5.0] },   // laundry closet floor
-    { at: [1.95, 0.01, 5.3] },    // coat closet floor
-    { at: [2.6, 0, 8.55] },       // hall, far end
-  ],
-  treasureCount: 5,
 
   // The boss arena: the bathtub. Moonlight carries you in once all 3 drops are collected.
   boss: {

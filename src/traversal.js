@@ -1,4 +1,4 @@
-// Getting around a world built for giants: floor vents with updrafts, and fabric you can climb.
+// Getting around a world built for giants: floor vents that launch you onto furniture, and fabric you can climb.
 // Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
 import * as THREE from 'three';
 
@@ -74,8 +74,8 @@ export class Traversal {
       plate.receiveShadow = true;
       this.group.add(plate);
 
-      // shimmer column + rising specks so the updraft reads from across the room
-      const h = v.top - y;
+      // shimmer column + rising specks so the vent reads from across the room
+      const h = v.land[1] + 0.06 - y;
       const col = new THREE.Mesh(
         new THREE.CylinderGeometry(v.radius * 0.9, v.radius, h, 24, 1, true),
         new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
@@ -100,16 +100,16 @@ export class Traversal {
 
   // What's acting on a player standing at `p` (feet position)
   query(p) {
-    let lift = null, climb = null;
+    let vent = null, climb = null;
     for (const v of this.vents) {
       if (this.bossMode) break;
-      if (Math.hypot(p.x - v.x, p.z - v.z) < v.radius && p.y < v.top + 0.03 && p.y > v.y - 0.02) lift = v.top;
+      if (Math.hypot(p.x - v.x, p.z - v.z) < v.radius && p.y < v.y + 0.02 && p.y > v.y - 0.02) vent = v;
     }
     for (const c of this.climbs) {
       if (this.bossMode && c.boss === false) continue;
       if (c.box.containsPoint(p)) climb = c;
     }
-    return { lift, climb };
+    return { vent, climb };
   }
 
   update(dt) {

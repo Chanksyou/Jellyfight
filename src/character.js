@@ -2,12 +2,14 @@
 // buildCharacter(look) turns it into a model with procedural animation.
 //
 // Anything with the same shape as buildCharacter's return value can be the player's
-// avatar: { root: Object3D, update(dt, state), land(impact), dispose() }. When we get a
+// avatar: { root: Object3D, update(dt, state), land(impact), dispose() }, plus optionally
+// pulse() (a jump's bell squeeze) and tentacles (a TentacleRig the Lash strikes with). When we get a
 // rigged model, a second builder can map the same look (colors, hat, eyes) onto it.
 //
 // Models are built in "units": 1 unit = the character's height, feet at y = 0, facing +z.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { TentacleRig } from './tentacles.js';
 
 export const OPTIONS = {
   body: [['blob', 'Blob'], ['bean', 'Bean'], ['jellyfish', 'Jellyfish'], ['cube', 'Gummy'], ['mushroom', 'Mushroom']],
@@ -141,6 +143,7 @@ export function buildCharacter(look, heightMeters) {
   squash.add(lean);
 
   const wobblers = [];                       // things that sway: [object, axis, phase, amount]
+  let bell = null, rig = null;               // jellyfish only: the pulsing bell and its tentacles
 
   // --- Body ---------------------------------------------------------------
   const bellyOn = look.pattern === 'belly';
@@ -157,29 +160,21 @@ export function buildCharacter(look, heightMeters) {
       break;
     }
     case 'jellyfish': {
-      const dome = mesh(new THREE.SphereGeometry(0.46, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), M.body, lean, 0, 0.42, 0);
+      // The bell squeezes and relaxes as it swims; its pivot is the rim, so it pulses in place
+      bell = new THREE.Group();
+      bell.position.y = 0.42;
+      lean.add(bell);
+      const dome = mesh(new THREE.SphereGeometry(0.46, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), M.body, bell);
       dome.scale.y = 1.05;
-      const under = mesh(new THREE.CircleGeometry(0.46, 40), bellyOn ? M.accent : M.body, lean, 0, 0.42, 0);
+      const under = mesh(new THREE.CircleGeometry(0.46, 40), bellyOn ? M.accent : M.body, bell);
       under.rotation.x = Math.PI / 2;
       // frilly rim
       for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2;
-        mesh(new THREE.SphereGeometry(0.06, 10, 8), bellyOn ? M.accent : M.body, lean, Math.sin(a) * 0.44, 0.42, Math.cos(a) * 0.44).scale.set(1, 0.6, 1);
+        mesh(new THREE.SphereGeometry(0.06, 10, 8), bellyOn ? M.accent : M.body, bell, Math.sin(a) * 0.44, 0, Math.cos(a) * 0.44).scale.set(1, 0.6, 1);
       }
-      // tentacles hang from the rim to the floor
-      for (let i = 0; i < 7; i++) {
-        const a = (i / 7) * Math.PI * 2 + 0.2;
-        const pivot = new THREE.Group();
-        pivot.position.set(Math.sin(a) * 0.26, 0.42, Math.cos(a) * 0.26);
-        lean.add(pivot);
-        const curve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.03, -0.14, 0.02),
-          new THREE.Vector3(-0.03, -0.28, -0.02), new THREE.Vector3(0.01, -0.38, 0),
-        ]);
-        mesh(new THREE.TubeGeometry(curve, 12, 0.035, 8), bellyOn ? M.accent : M.body, pivot);
-        mesh(new THREE.SphereGeometry(0.035, 8, 6), bellyOn ? M.accent : M.body, pivot, 0.01, -0.38, 0);
-        wobblers.push([pivot, 'x', i * 0.9, 0.25], [pivot, 'z', i * 1.7, 0.2]);
-      }
+      // six tentacles hang from under the bell (see tentacles.js)
+      rig = new TentacleRig(lean, { count: 6, radius: 0.32, y: 0.42, length: 0.5, thickness: 0.06, material: bellyOn ? M.accent : M.body });
       break;
     }
     case 'cube': {
@@ -339,24 +334,48 @@ export function buildCharacter(look, heightMeters) {
 
   // --- Animation --------------------------------------------------------------
   let t = 0, phase = 0, impact = 0, impactV = 0, blinkIn = 1 + Math.random() * 2;
+  let kick = 0, roll = 0, idleSwim = 0;
   const baseRot = wobblers.map(([o, ax]) => o.rotation[ax]);
+  const toUnits = 1 / (heightMeters * look.size);
+  const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
 
   function update(dt, s) {
     t += dt;
     const move = Math.min(1, s.speed / (s.walkSpeed || 0.35));
     phase += dt * s.speed * 60;
 
+    if (bell) {
+      // the swim cycle comes from the player (so the surge and the squeeze line up); menus and
+      // the creator don't pass one, so keep a slow idle pulse going there
+      let swim = s.swim;
+      if (swim == null) swim = idleSwim = (idleSwim + dt * 0.7) % 1;
+      kick = Math.max(0, kick - dt * 3);
+      const contract = Math.max(Math.exp(-swim * 5) * (0.45 + 0.55 * move), kick);
+      bell.scale.set(1 - 0.16 * contract, 1 + 0.14 * contract, 1 - 0.16 * contract);
+      bell.position.y = 0.42 + 0.03 * contract;
+      lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012;           // hovers a little off the floor
+      // lean into the swim, and bank into turns (sideways speed, since facing lags behind)
+      localVel.set(0, 0, 0);
+      if (s.vel) {
+        root.getWorldQuaternion(q);
+        localVel.copy(s.vel).applyQuaternion(q.invert()).multiplyScalar(toUnits);
+      }
+      roll += (THREE.MathUtils.clamp(-localVel.x * 0.05, -0.35, 0.35) - roll) * (1 - Math.exp(-8 * dt));
+      lean.rotation.z = roll;
+      rig.update(dt, { localVel, contract, vy: s.vy || 0 });
+    }
+
     // landing squash as a damped spring
     impactV += (-impact * 180 - impactV * 14) * dt;
     impact += impactV * dt;
 
     let sy = 1 + Math.sin(t * 2.4) * 0.02 * (1 - move);           // breathing
-    if (s.grounded) sy += Math.abs(Math.sin(phase)) * 0.07 * move;   // bounce with each step
+    if (s.grounded && !bell) sy += Math.abs(Math.sin(phase)) * 0.07 * move;   // bounce with each step
     else sy += THREE.MathUtils.clamp(s.vy * 0.25, -0.12, 0.2);      // stretch in the air
     sy -= impact;
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
-    lean.rotation.x = move * 0.14 * (s.grounded ? 1 : 0.4);
+    lean.rotation.x = move * (bell ? 0.22 : 0.14) * (s.grounded ? 1 : 0.4);
 
     feet.forEach((f, i) => {
       const p = phase + i * Math.PI;
@@ -380,10 +399,13 @@ export function buildCharacter(look, heightMeters) {
     impactV -= Math.min(4, strength) * 1.2;
   }
 
+  function pulse() { kick = 1; }
+
   function dispose() {
+    rig?.dispose();
     root.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
     Object.values(M).forEach((m) => m.dispose());
   }
 
-  return { root, update, land, dispose, look };
+  return { root, update, land, pulse, dispose, look, tentacles: rig };
 }

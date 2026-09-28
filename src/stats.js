@@ -2,7 +2,7 @@
 // Everything a player reads is here, so tuning lives in one place.
 
 export const BASE_STATS = {
-  tentacles: 2,     // enemies hit per lash
+  tentacles: 2,     // tentacles that lash out at once (the jelly has 6 in all)
   reach: 0.12,      // meters a tentacle reaches (about 3.5x body height)
   sting: 5,         // damage per tentacle
   lashSpeed: 1.2,   // lashes per second
@@ -51,6 +51,7 @@ export function applyCard(stats, card) {
   const v = CARD_VALUES[card.stat];
   if (v.pct) stats[card.stat] += BASE_STATS[card.stat] * card.amount / 100;
   else stats[card.stat] += card.amount;
+  stats.tentacles = Math.min(MAX_TENTACLES, stats.tentacles);
 }
 
 function pickWeighted(list, w) {
@@ -60,8 +61,8 @@ function pickWeighted(list, w) {
 }
 
 // Three different stats, each with a rolled rarity
-export function rollCards(n = 3) {
-  const pool = Object.keys(CARD_VALUES);
+export function rollCards(stats, n = 3) {
+  const pool = Object.keys(CARD_VALUES).filter((k) => k !== 'tentacles' || stats.tentacles < MAX_TENTACLES);
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => CARD_VALUES[s].weight ?? 1);
@@ -69,6 +70,7 @@ export function rollCards(n = 3) {
     let rarity = pickWeighted(RARITY, (r) => r.weight);
     let ri = RARITY.indexOf(rarity);
     if (CARD_VALUES[stat].amounts[ri] === 0) ri = 1; // tentacles start at rare
+    if (stat === 'tentacles') ri = Math.min(ri, 1 + (MAX_TENTACLES - stats.tentacles >= 2 ? 1 : 0));
     cards.push({ stat, rarity: RARITY[ri], amount: CARD_VALUES[stat].amounts[ri] });
   }
   return cards;
@@ -90,14 +92,14 @@ export const TREASURES = [
   { id: 'lintRoller', name: 'Lint Roller', icon: '🧻', text: 'Every 20 s, all dew nearby sticks to you at once.' },
   { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'One tentacle becomes a lance: double reach, half speed.' },
   { id: 'wristband', name: 'Festival Wristband', icon: '🎟️', text: 'For 3 s after you land a jump, you lash 50% faster.' },
-  { id: 'spareKey', name: 'Spare Key', icon: '🔑', text: 'The next treasure you find is free.' },
+  { id: 'penSpring', name: 'Pen Spring', icon: '🌀', text: 'One more jump in mid-air: a triple jump.' },
 ];
 
-export const treasureCost = (opened) => 12 + opened * 8;
+export const MAX_TENTACLES = 6;
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Tentacle, +15% Pulse', apply: (s) => { s.tentacles += 1; s.pulse += 0.15; } },
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Tentacle, +15% Pulse', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.pulse += 0.15; } },
   { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+4 Sting, +15% Reach', apply: (s) => { s.sting += 4; s.reach += BASE_STATS.reach * 0.15; } },
   { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Moisture', apply: (s) => { s.moisture += 10; } },
   { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Lash speed', apply: (s) => { s.lashSpeed += 0.25; } },

@@ -16,10 +16,10 @@ import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v9';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v10';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
-import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
+import { Dew, MoonDrop } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run } from './run.js';
@@ -77,13 +77,13 @@ ui.innerHTML = `
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
-    ⤴ jump (hold it to climb fabric) &nbsp;·&nbsp; the yellow button opens treasure<br>
-    Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.
+    ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
+    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric &nbsp; <kbd>E</kbd> open treasure<br>
-    Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.<br>
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
+    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -116,9 +116,9 @@ const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
 const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
+lash.getRig = () => player.avatar?.tentacles || null;
 const dew = new Dew(scene, world);
 const moon = new MoonDrop(scene);
-const chests = new TreasureSpots(scene);
 
 function applyLook(l, hop) {
   look = normalizeLook(l);
@@ -152,7 +152,7 @@ function updateBlob() {
 }
 
 const run = new Run({
-  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon, chests,
+  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH,
 });
 
@@ -339,4 +339,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, chests, traversal, menus });
+Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus });

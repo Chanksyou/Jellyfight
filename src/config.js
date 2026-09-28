@@ -13,7 +13,8 @@ export const CONFIG = {
     airAccel: 6,         // floaty jumps need good air control
     turnSpeed: 12,
     climbSpeed: 0.2,     // m/s up fabric
-    liftSpeed: 0.45,     // m/s up an updraft
+    airJumpMul: 0.85,    // a mid-air jump is a bit weaker than one from the ground
+    swimSurge: 0.25,     // how much each bell pulse surges you forward (0 = steady speed)
   },
   camera: {
     distance: 0.42,      // how far from the player the camera sits

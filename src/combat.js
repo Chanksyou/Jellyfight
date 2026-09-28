@@ -1,5 +1,7 @@
-// Lash: the jelly's automatic attack. Every so often each tentacle whips out at a
-// different nearby enemy, stings, and snaps back. Treasures hook in here.
+// Lash: the jelly's automatic attack. Every so often a few of its tentacles whip out, each at
+// a different nearby enemy, sting, and snap back. Treasures hook in here.
+// The jelly's own tentacles (avatar.tentacles) do the striking; bounces between enemies (Hair
+// Tie) and bodies without tentacles use a simple stretched cylinder instead.
 import * as THREE from 'three';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
@@ -18,13 +20,32 @@ export class Lash {
     this.goldMat = new THREE.MeshStandardMaterial({ color: 0xffe07a, emissive: 0xffc23a, emissiveIntensity: 1.2, roughness: 0.3 });
     this._a = new THREE.Vector3();
     this._b = new THREE.Vector3();
+    this.getRig = () => null;     // main.js: () => player.avatar.tentacles
   }
 
   reset() {
     this.timer = 0;
     this.count = 0;
-    this.strikes.forEach((s) => { s.mesh.visible = false; });
+    this.strikes.forEach((s) => this.release(s));
     this.strikes = [];
+  }
+
+  release(s) {
+    if (s.mesh) { s.mesh.visible = false; this.pool.push(s.mesh); }
+    if (s.rig) s.rig.aim(s.tent, null);
+  }
+
+  // The free tentacle whose root points most toward the target
+  pickTentacle(rig, from, target) {
+    const busy = new Set(this.strikes.filter((s) => s.rig === rig).map((s) => s.tent));
+    const want = this.enemies.center(target, this._b).sub(from).setY(0).normalize();
+    let best = -1, bd = -Infinity;
+    for (let i = 0; i < rig.count; i++) {
+      if (busy.has(i)) continue;
+      const d = rig.worldDir(i, this._a).dot(want);
+      if (d > bd) { bd = d; best = i; }
+    }
+    return best;
   }
 
   mesh() {
@@ -74,9 +95,14 @@ export class Lash {
   }
 
   strike(from, target, dmg, golden, has, stats, lance = false) {
-    const m = this.mesh();
-    m.material = golden ? this.goldMat : this.mat;
-    this.strikes.push({ mesh: m, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden, hit: false, has, stats, lance, chained: false });
+    const rig = this.getRig();
+    const tent = rig ? this.pickTentacle(rig, from, target) : -1;
+    let m = null;
+    if (tent < 0) {
+      m = this.mesh();
+      m.material = golden ? this.goldMat : this.mat;
+    }
+    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden, hit: false, has, stats, lance, chained: false });
   }
 
   animate(dt, origin) {
@@ -86,6 +112,7 @@ export class Lash {
       const b = this.enemies.center(s.target, this._b);
       if (!s.hit && s.t >= EXTEND) { s.hit = true; this.land(s, a, b); }
       const k = s.t < EXTEND ? s.t / EXTEND : s.t < EXTEND + HOLD ? 1 : 1 - (s.t - EXTEND - HOLD) / RETRACT;
+      if (s.rig) { s.rig.aim(s.tent, b, Math.max(0, k), s.golden); continue; }
       const dir = this._a.copy(b).sub(a);
       const full = dir.length();
       if (full < 1e-5 || k <= 0) { s.mesh.visible = false; continue; }
@@ -97,7 +124,7 @@ export class Lash {
       s.mesh.scale.set(thick, full * k, thick);
     }
     const done = this.strikes.filter((s) => s.t >= EXTEND + HOLD + RETRACT);
-    for (const s of done) { s.mesh.visible = false; this.pool.push(s.mesh); }
+    for (const s of done) this.release(s);
     if (done.length) this.strikes = this.strikes.filter((s) => s.t < EXTEND + HOLD + RETRACT);
   }
 
@@ -135,7 +162,7 @@ export class Lash {
       if (best) {
         const m = this.mesh();
         m.material = s.golden ? this.goldMat : this.mat;
-        this.strikes.push({ ...s, mesh: m, target: best, fixedFrom: b.clone(), t: 0, dmg: s.dmg * 0.7, hit: false, chained: true });
+        this.strikes.push({ ...s, mesh: m, rig: null, tent: -1, target: best, fixedFrom: b.clone(), t: 0, dmg: s.dmg * 0.7, hit: false, chained: true });
       }
     }
   }
