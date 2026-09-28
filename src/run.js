@@ -306,7 +306,7 @@ export class Run {
     if (this.moon.active) {
       const P = this.player.position;
       const d = this.moon.position.distanceTo(P.clone().setY(P.y + this.cfg.height * 0.5));
-      if (d < 0.03) this.collectDrop();
+      if (d < 0.02 + this.cfg.radius) this.collectDrop();
       return;
     }
     if (this.drops >= TOTAL_DROPS) return;

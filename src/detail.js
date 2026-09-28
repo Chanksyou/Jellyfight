@@ -1,4 +1,4 @@
-// Close-up surface detail. At 3.5 cm tall the floor fills half the screen, and textures made
+// Close-up surface detail. At 7 cm tall the floor fills half the screen, and textures made
 // for a person-sized view look flat and blurry. This adds fine tiling normal maps: grain,
 // pores and scratches on floors; an orange-peel paint finish on walls, doors and furniture.
 import * as THREE from 'three';

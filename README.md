@@ -1,6 +1,6 @@
 # Jelly Fight
 
-A third-person game where you play a ~3.5 cm critter of your own design inside a real-scale 3D model of the apartment.
+A third-person game where you play a ~7 cm critter of your own design inside a real-scale 3D model of the apartment.
 
 ## Run it
 
