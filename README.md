@@ -28,34 +28,48 @@ You're an immortal jellyfish growing up over one night in the apartment. Stage 1
 
 ## Controls
 
-WASD move · mouse look · Space jump (hold to climb fabric) · E open treasure · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · G apartment viewer · F3 debug readout. "Look" in the pause menu opens the character creator.
+WASD move · mouse look · Space jump (hold to climb fabric) · E open treasure · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the character creator. On phones: left thumb moves, right thumb looks, ⤴ jumps (hold to climb), the yellow button opens treasure.
 
 ## How it fits together
 
-`index.html` is the apartment app. Its code lives in a `<script type="text/plain" id="apartment-src">` block and is run unchanged by `src/boot.js` once three.js (r170, from jsDelivr) has loaded. The apartment has a few small hooks, each marked `JELLY`:
+The apartment is a static 3D model, `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, door angles, the lights at midnight). Nothing from the original apartment app runs in the game.
 
-1. `logarithmicDepthBuffer: true` on the renderer, so a 2 mm camera near plane doesn't make surfaces flicker.
-2. The render loop calls `GAME.step(dt)` and `GAME.render()` instead of its own camera and render while the game is active.
-3. `window.APT` exposes the scene, renderer, camera and floor plan, plus `enterGame()` / `exitGame()`.
-4. A style rule that hides the apartment's UI in game mode.
+`src/boot.js` sets up three.js (r170 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
 
-The apartment was written for three.js r128. For r170 it only needed the color-space renames; `src/legacy-lighting.js` keeps its lights looking the same (old falloff, and the PI scaling legacy lights had). `apartment-original.html` is the untouched r128 original.
+The apartment's colors and lights were authored for three.js r128, so the game keeps color management off and `src/legacy-lighting.js` renders the lights with r128's falloff and scaling.
+
+Desktop uses a logarithmic depth buffer, so the camera can sit 2 mm from a wall without flicker. Phones skip it (it defeats their GPUs' hidden-surface removal) and use a 5 mm near plane.
+
+### Re-baking the apartment
+
+`tools/apartment-source.html` is the full apartment app, kept only as the source for the bake. After changing it:
+
+```
+cd tools
+npm install
+npx playwright install chromium
+npm run export
+```
+
+The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops everything else: the neighborhood, the corridor, the sky, Dendi, particles and helpers. Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
 
 | File | What it does |
 | --- | --- |
-| `src/boot.js` | Loads three.js, runs the apartment, starts the game. |
-| `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, debug readout. |
+| `src/boot.js` | Renderer, camera, loading screen; loads the apartment, starts the game. |
+| `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
+| `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, frame loop. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation. |
 | `src/creator.js` | Character creator panel. |
 | `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |
-| `src/detail.js` | Fine bump detail on floors and rugs, which otherwise look flat up close. |
+| `src/detail.js` | Fine bump detail on floors and rugs (desktop), which otherwise look flat up close. |
 | `src/player.js` | Movement, low-gravity jumping, climbing, updrafts, wall sliding, stepping up small ledges. |
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
-| `src/collision.js` | Raycast collision against every visible apartment mesh (the neighborhood outside is excluded), with a BVH per mesh and a nearby-object filter. |
-| `src/input.js` | Keyboard and pointer-lock mouse. |
-| `src/legacy-lighting.js` | Keeps r128-era lighting under r170. |
+| `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. |
+| `src/input.js`, `src/touch.js` | Keyboard and pointer-lock mouse; phone joystick, look drag and buttons. |
+| `src/errors.js` | On-screen error panel and the Diagnostics readout (pause menu, or `#debug`). |
+| `src/legacy-lighting.js` | Renders r128-era lights under r170. |
 | `vendor/` | three-mesh-bvh 0.8.3, n8ao 2.0.1 (plus a stub for its unused `postprocessing` import). |
 
 ## Characters and swapping in a real model
@@ -78,6 +92,6 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | `src/run.js` | Wave pacing, Moon Drop spawning, damage, treasure effects, boss flow, death and victory. |
 | `src/combat.js` | The Lash: targeting, tentacle animation, and treasure effects on hits. |
 | `src/boss.js` | The Clog. |
-| `src/traversal.js` | Vents, climbing, and per-stage apartment setup (doors, see-through curtain, walls). |
+| `src/traversal.js` | Vents, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
 | `src/pickups.js` | Dew, the Moon Drop, treasure tins. |
 | `src/ui.js`, `src/hud.js`, `src/fx.js` | Menus, HUD and minimap, damage numbers and poofs. |

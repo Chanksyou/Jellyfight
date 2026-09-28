@@ -2,6 +2,11 @@ import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
 
 import * as THREE from 'three';
 
+// indirect: the BVH keeps its own triangle order instead of reordering the geometry's index.
+// The compressed apartment shares index buffers between meshes, and reordering one in place
+// scrambled the others (holes in furniture).
+const BVH_OPTIONS = { indirect: true };
+
 // Raycast-based collision against the apartment meshes. Rays use each mesh's
 // current transform, so things that move (doors, the cat) still collide.
 // Each collider gets a BVH so a ray only tests the few triangles near it.
@@ -19,7 +24,7 @@ export class World {
     };
     walk(scene);
     for (const m of this.colliders) {
-      if (!m.geometry.boundsTree) m.geometry.boundsTree = new MeshBVH(m.geometry);
+      if (!m.geometry.boundsTree) m.geometry.boundsTree = new MeshBVH(m.geometry, BVH_OPTIONS);
       m.raycast = acceleratedRaycast;
     }
     this.raycaster = new THREE.Raycaster();
@@ -40,7 +45,7 @@ export class World {
   addCollider(mesh) {
     mesh.updateMatrixWorld(true);
     if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
-    if (!mesh.geometry.boundsTree) mesh.geometry.boundsTree = new MeshBVH(mesh.geometry);
+    if (!mesh.geometry.boundsTree) mesh.geometry.boundsTree = new MeshBVH(mesh.geometry, BVH_OPTIONS);
     mesh.raycast = acceleratedRaycast;
     this.colliders.push(mesh);
     this.spheres.push(new THREE.Sphere());

@@ -1,27 +1,41 @@
-// Loads three.js, runs the apartment (a classic script kept as-is in #apartment-src), then starts the game.
+// Sets up three.js, loads the baked apartment, then starts the game.
 import { reportError, watchCanvas } from './errors.js';
-import * as T from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as THREE from 'three';
 import { patchLegacyFalloff, scaleLightsOnRender } from './legacy-lighting.js';
+import { loadApartment } from './apartment.js';
+import { IS_TOUCH } from './touch.js';
 
-// The apartment converts its own colors from sRGB (its C() helper), the way r128 worked.
-T.ColorManagement.enabled = false;
-patchLegacyFalloff(T);
-window.THREE = { ...T, OrbitControls };
+// The apartment's colors and lights were authored for three.js r128 conventions
+THREE.ColorManagement.enabled = false;
+patchLegacyFalloff(THREE);
 
-const script = document.createElement('script');
-script.textContent = document.getElementById('apartment-src').textContent;
-document.body.appendChild(script);
+const canvas = document.getElementById('c');
+// Log depth lets the camera sit 2 mm from a wall without flicker, but it's too slow for
+// phone GPUs, which get a slightly bigger near plane instead (see main.js).
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: !IS_TOUCH });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+watchCanvas(canvas);
 
-if (!window.APT) {
-  const msg = document.getElementById('loading');
-  if (msg) msg.textContent = 'The apartment failed to load. Check the browser console.';
-  throw new Error('Apartment script failed (window.APT missing)');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.002, 200);
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
 }
-scaleLightsOnRender(window.APT.renderer, window.APT.scene);
-watchCanvas(window.APT.renderer.domElement);
+addEventListener('resize', resize);
+resize();
+
+const bar = document.querySelector('#loading .bar i');
 try {
+  const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; });
+  scaleLightsOnRender(renderer, scene);
+  window.APT = { scene, renderer, camera, ...apt };
   await import('./main.js');
+  document.getElementById('loading').classList.add('gone');
 } catch (e) {
-  reportError(e, 'starting the game');
+  reportError(e, 'loading');
+  document.querySelector('#loading p').textContent = 'Something went wrong while loading. Details below.';
 }

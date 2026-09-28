@@ -1,6 +1,4 @@
-// Jelly Fight game layer. The apartment page (index.html) builds the scene and
-// runs the render loop; while GAME.active is true it calls GAME.step(dt) and
-// GAME.render() instead of driving its own camera. G flips back to the original viewer.
+// Jelly Fight: wires the game together on top of the baked apartment (src/boot.js loads it).
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { World } from './collision.js';
@@ -17,9 +15,8 @@ import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
-import { LIGHTING } from './legacy-lighting.js';
 
-const BUILD = 'v6';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v7';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
@@ -76,7 +73,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer" class="desk-only">🏠 Apartment viewer</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -87,7 +84,7 @@ ui.innerHTML = `
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric &nbsp; <kbd>E</kbd> open treasure<br>
     Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.<br>
-    <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>G</kbd> viewer &nbsp; <kbd>F3</kbd> debug
+    <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
 document.body.appendChild(ui);
@@ -108,7 +105,7 @@ creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
 prepareApartment(APT, stage);
-const world = new World(scene, { exclude: [APT.OUT] }); // the neighbourhood outside isn't walkable
+const world = new World(scene);
 addStageWalls(world, stage);
 const detailed = IS_TOUCH ? 0 : addFloorDetail(world.colliders);   // phones: skip, saves GPU work
 const traversal = new Traversal(scene, stage);
@@ -154,31 +151,15 @@ function updateBlob() {
   blob.material.opacity = 0.35 / (1 + h * 20);
 }
 
-// Night: the apartment's own sun/sky clock, set to the stage's hour
-function setNight(mins) {
-  const c = window._clk;
-  if (!c || !window._applyClock) return;
-  c.play = false;
-  c.mins = Math.round(mins) % 1440;
-  window._applyClock();
-}
-
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon, chests,
-  traversal, hud, ui: menus, fx, tpc, input, setNight, touch: IS_TOUCH,
+  traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH,
 });
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  // Phones: no shadows, and only the sky and sun lights (the apartment has 17). Set before the
-  // warm-up below so every GPU program is built for this lighter setup once.
-  LIGHTING.lite = true;
-  renderer.shadowMap.enabled = false;
-  enableDebug();   // temporary while we chase the phone freeze
   tpc.distance = 0.27;   // phone screens are small: sit a bit closer
-  // Start phones at 1x resolution; the apartment's own frame-rate check raises it if there's headroom
-  if (window._perf) { window._perf.pr = 1; renderer.setPixelRatio(1); dispatchEvent(new Event('resize')); }
 }
 input.touchOnly = IS_TOUCH;
 function play() {
@@ -239,34 +220,14 @@ function creatorCamera(dt) {
   gfx.focus = d;
 }
 
-// --- Game mode on/off -------------------------------------------------------------
-const saved = { near: camera.near };
+// --- The frame loop -------------------------------------------------------------------
+// Log depth lets the camera sit 2 mm from a wall without flicker. Phones don't use it
+// (too slow on their GPUs), so they get a 5 mm near plane instead.
+camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
+camera.updateProjectionMatrix();
+document.body.classList.add('game');
 let debug = false, fps = 0, fpsN = 0, fpsT = 0;
 const GAME = {
-  active: false,
-  start() {
-    this.active = true;
-    APT.enterGame();
-    document.body.classList.add('game');
-    player.mesh.visible = blob.visible = true;
-    // Log depth lets the camera sit 2 mm from a wall without flicker. Phones don't use it
-    // (it's too slow on their GPUs), so they get a 5 mm near plane instead.
-    camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
-    camera.updateProjectionMatrix();
-    if (mode === 'creator') setViewOffset();
-    overlay.hidden = mode === 'creator' || menus.open || document.pointerLockElement === renderer.domElement;
-  },
-  stop() {
-    this.active = false;
-    touch.show(false);
-    document.body.classList.remove('game');
-    player.mesh.visible = blob.visible = false;
-    if (document.pointerLockElement) document.exitPointerLock();
-    camera.clearViewOffset();
-    camera.near = saved.near;
-    camera.updateProjectionMatrix();
-    APT.exitGame();
-  },
   step(dt) {
     fpsN++; fpsT += dt;
     if (fpsT > 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
@@ -312,18 +273,15 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
-  else if (b.dataset.act === 'viewer') GAME.stop();
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {
-  if (!GAME.active || mode !== 'play' || IS_TOUCH) return;
+  if (mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
   overlay.hidden = locked || menus.open;
 });
 addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
-  if (e.code === 'KeyG' && mode === 'play' && !menus.open) GAME.active ? GAME.stop() : GAME.start();
-  if (!GAME.active) return;
   if (e.code === 'KeyC' && mode === 'play' && !menus.open && !overlay.hidden) openCreator();
   else if (e.code === 'Escape' && mode === 'creator') { saveLook(look); closeCreator(); }
   if (e.code === 'F3') { e.preventDefault(); debug = !debug; hud.setDebug(''); }
@@ -365,9 +323,20 @@ async function warmUp() {
   playBtn.textContent = 'Play';
 }
 
-GAME.start();
 overlay.hidden = false;
 warmUp();
 
+let last = performance.now();
+renderer.setAnimationLoop((now) => {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  try {
+    GAME.step(dt);
+    GAME.render();
+  } catch (e) {
+    reportError(e, 'frame');
+  }
+});
+
 // Handy for poking at things from the browser console
-Object.assign(window, { player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, chests, traversal, menus });
+Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, chests, traversal, menus });

@@ -32,7 +32,7 @@ export const STAGE1 = {
   // Fabric you can climb: hold Space inside the box
   climbs: [
     { name: 'Drawstring bag', min: [0.2, 0, 7.0], max: [0.42, 0.83, 7.2] },
-    { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [1.54, 0.62, 7.27], boss: false },
+    { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [0.8, 0.62, 7.27], boss: false },   // the open bathroom door covers the rest of the tub
     { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
   ],
 

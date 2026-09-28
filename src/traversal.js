@@ -2,14 +2,16 @@
 // Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
 import * as THREE from 'three';
 
-// Objects in the apartment carry userData.info.name; find every mesh under the named ones
+// Apartment objects are named after what they are ("Shower curtain"); three.js's loader
+// swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
 function meshesNamed(scene, name) {
-  const out = [];
+  const want = THREE.PropertyBinding.sanitizeNodeName(name);
+  const out = new Set();
   scene.traverse((o) => {
-    if (o.userData.info?.name !== name) return;
-    o.traverse((m) => { if (m.isMesh) out.push(m); });
+    if (o.name !== want) return;
+    o.traverse((m) => { if (m.isMesh) out.add(m); });
   });
-  return out;
+  return [...out];
 }
 
 // Call before building the collision world
@@ -25,9 +27,7 @@ export function prepareApartment(apt, stage) {
   }
   for (const [id, state] of Object.entries(stage.doors || {})) {
     const d = apt.doors[id];
-    if (!d) continue;
-    d.target = d.cur = state === 'open' ? d.open : 0;   // snap, so the collision world starts right
-    d.leaf.rotation.y = d.cur;
+    if (d) d.set(state === 'open' ? d.open : 0);
   }
 }
 
