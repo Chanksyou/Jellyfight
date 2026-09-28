@@ -3,12 +3,21 @@
 // materials and textures, plus door nodes a stage can swing open or shut.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 export async function loadApartment(scene, renderer, onProgress) {
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  // The small file needs a WebAssembly decoder; if WebAssembly is blocked, load the plain one
+  let file = 'assets/apartment.glb', decoder = null;
+  try {
+    ({ MeshoptDecoder: decoder } = await import('three/addons/libs/meshopt_decoder.module.js'));
+    await decoder.ready;
+  } catch {
+    file = 'assets/apartment-q.glb';
+    decoder = null;
+  }
+  const loader = new GLTFLoader();
+  if (decoder) loader.setMeshoptDecoder(decoder);
   const [gltf, meta] = await Promise.all([
-    loader.loadAsync('assets/apartment.glb', (e) => e.total && onProgress?.(e.loaded / e.total)),
+    loader.loadAsync(file, (e) => e.total && onProgress?.(e.loaded / e.total)),
     fetch('assets/apartment.json').then((r) => r.json()),
   ]);
   const root = gltf.scene;

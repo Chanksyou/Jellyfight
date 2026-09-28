@@ -32,7 +32,7 @@ WASD move · mouse look · Space jump (hold to climb fabric) · E open treasure 
 
 ## How it fits together
 
-The apartment is a static 3D model, `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, door angles, the lights at midnight). Nothing from the original apartment app runs in the game.
+The apartment is a static 3D model, `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, door angles, the lights at midnight). `apartment.glb` is meshopt-compressed (~5 MB, needs WebAssembly); `apartment-q.glb` is the same model without that compression (~9 MB), loaded automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game.
 
 `src/boot.js` sets up three.js (r170 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
 
