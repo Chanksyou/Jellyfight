@@ -20,7 +20,18 @@ export async function loadApartment(scene, renderer, onProgress) {
     fetchModel(file, onProgress),
     fetch('assets/apartment.json').then((r) => r.json()),
   ]);
-  const gltf = await loader.parseAsync(buffer, '');
+  // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
+  // and pages with a strict security policy (claude.ai artifacts) refuse that, so every texture
+  // silently went missing. Hiding createImageBitmap for the parse makes it use <img> instead,
+  // which those pages allow.
+  const bitmap = window.createImageBitmap;
+  let gltf;
+  try {
+    window.createImageBitmap = undefined;
+    gltf = await loader.parseAsync(buffer, '');
+  } finally {
+    window.createImageBitmap = bitmap;
+  }
   const root = gltf.scene;
   scene.add(root);
   const unpacked = new Set();
@@ -80,6 +91,11 @@ export async function loadApartment(scene, renderer, onProgress) {
       set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); o.updateMatrixWorld(true); },
     };
   });
+  // Say so if textures failed to load, instead of showing plain white surfaces
+  let missing = 0;
+  root.traverse((o) => { if (o.isMesh && o.material.map && !o.material.map.image) missing++; });
+  if (missing) window._jfError?.(new Error(`${missing} apartment surfaces are missing their textures`), 'loading');
+
   return { root, plan: meta.plan, doors };
 }
 

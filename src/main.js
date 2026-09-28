@@ -16,7 +16,7 @@ import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v8';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v9';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
