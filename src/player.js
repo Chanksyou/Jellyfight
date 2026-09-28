@@ -17,10 +17,11 @@ export class Player {
     this.mesh = new THREE.Group();
     this.mesh.name = 'Player';
     this.avatar = null;
-    this.canSprint = true;   // main.js turns this off when stamina runs out
-    this.sprinting = false;
-    this.peakY = 0;          // highest point since leaving the ground, for fall damage
+    this.peakY = 0;          // highest point since leaving the ground
     this.onLand = null;      // (dropMeters) => void
+    this.climbing = false;
+    this.lifting = false;
+    this.speed = 0;
 
     // Ray origins for horizontal collision: just above step height, middle, near top
     this.probeHeights = [cfg.stepHeight + 0.002, cfg.height * 0.5, cfg.height * 0.9];
@@ -65,7 +66,9 @@ export class Player {
     this.syncMesh();
   }
 
-  update(dt, input, cameraYaw) {
+  // env (all optional): speedMul, jumpMul, lift (updraft top y), climb (inside climbable fabric),
+  // push (THREE.Vector3 m/s added to movement, e.g. a drain's pull), slow (0..1 speed penalty)
+  update(dt, input, cameraYaw, env = {}) {
     const c = this.cfg;
     this.time += dt;
 
@@ -75,28 +78,38 @@ export class Player {
     const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
     const wish = fwd.multiplyScalar(axes.y).add(right.multiplyScalar(axes.x));
     if (wish.lengthSq() > 1) wish.normalize();
-    this.sprinting = input.sprint && this.canSprint && wish.lengthSq() > 0.01;
-    const speed = this.sprinting ? c.sprintSpeed : c.walkSpeed;
-    wish.multiplyScalar(speed);
+    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0));
+    wish.multiplyScalar(walk);
 
     const accel = this.grounded ? c.groundAccel : c.airAccel;
     const t = 1 - Math.exp(-accel * dt);
     this.velocity.x += (wish.x - this.velocity.x) * t;
     this.velocity.z += (wish.z - this.velocity.z) * t;
 
-    // --- Jump + gravity ---------------------------------------------------
+    // --- Jump, climbing, updrafts, gravity --------------------------------
     if (input.consumeJump() && this.grounded) {
-      this.velocity.y = Math.sqrt(2 * c.gravity * c.jumpHeight);
+      this.velocity.y = Math.sqrt(2 * c.gravity * c.jumpHeight * (env.jumpMul ?? 1));
       this.grounded = false;
     }
-    this.velocity.y -= c.gravity * dt;
+    this.climbing = !!env.climb && input.jumpHeld;
+    this.lifting = env.lift != null;
+    if (this.climbing) {
+      this.velocity.y = c.climbSpeed;
+    } else if (this.lifting) {
+      // rise toward the top of the updraft, then bob there
+      const target = THREE.MathUtils.clamp((env.lift - this.position.y) * 6, -0.25, c.liftSpeed);
+      this.velocity.y += (target - this.velocity.y) * (1 - Math.exp(-6 * dt));
+    } else {
+      this.velocity.y = Math.max(-c.maxFall, this.velocity.y - c.gravity * dt);
+    }
 
     // --- Move -------------------------------------------------------------
-    this.moveHorizontal(this.velocity.x * dt, this.velocity.z * dt);
+    const px = env.push ? env.push.x : 0, pz = env.push ? env.push.z : 0;
+    this.moveHorizontal((this.velocity.x + px) * dt, (this.velocity.z + pz) * dt);
     this.depenetrate();
     const wasGrounded = this.grounded;
     const vyBefore = this.velocity.y;
-    this.moveVertical(dt);
+    this.moveVertical(dt, this.climbing);
     if (!this.grounded) this.peakY = wasGrounded ? this.position.y : Math.max(this.peakY, this.position.y);
     else if (!wasGrounded) {
       this.avatar?.land(-vyBefore);
@@ -105,6 +118,7 @@ export class Player {
 
     // --- Face movement direction -----------------------------------------
     const hv = Math.hypot(this.velocity.x, this.velocity.z);
+    this.speed = hv;
     if (hv > 0.02) {
       const target = Math.atan2(this.velocity.x, this.velocity.z);
       let diff = target - this.facing;
@@ -112,7 +126,7 @@ export class Player {
       this.facing += diff * (1 - Math.exp(-c.turnSpeed * dt));
     }
 
-    this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded, vy: this.velocity.y });
+    this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded || this.climbing, vy: this.climbing ? 0 : this.velocity.y });
     this.syncMesh();
   }
 
@@ -164,11 +178,16 @@ export class Player {
     }
   }
 
-  moveVertical(dt) {
+  moveVertical(dt, ignoreCeiling = false) {
     const c = this.cfg;
     const vy = this.velocity.y;
     const half = c.height * 0.5;
 
+    if (vy > 0 && ignoreCeiling) {       // climbing: you're gripping fabric, not bumping into it
+      this.position.y += vy * dt;
+      this.grounded = false;
+      return;
+    }
     if (vy > 0) {
       // Ceiling check
       this._o.set(this.position.x, this.position.y + half, this.position.z);

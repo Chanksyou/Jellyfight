@@ -3020,7 +3020,7 @@ requestAnimationFrame(loop);
 
 // ---------- JELLY FIGHT hook: hands the scene to the game (src/main.js) ----------
 const _k=P=>P.map(p=>[p[0]*K,p[1]*K]);
-window.APT={scene,renderer,camera,controls,OUT,
+window.APT={scene,renderer,camera,controls,OUT,doors:DOORMAP,
  plan:[['Living room',PMs],['Hallway',PHs],['Bathroom',PBs],['Bedroom',PRs],['Laundry closet',_k(PLc)],['Coat closet',_k(PCc)]],
  enterGame(){if(tour)endTour();if(arrange)setArrange(false);select(null);window._dcOn=false;mode='game';controls.enabled=false;tween=null;joy.hidden=true;},
  exitGame(){setMode('orbit');}};

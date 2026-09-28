@@ -12,24 +12,26 @@ import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
 import { Hud } from './hud.js';
 import { addFloorDetail } from './detail.js';
+import { STAGE1 } from './stage1.js';
+import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
+import { Enemies } from './enemies.js';
+import { Lash } from './combat.js';
+import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
+import { Fx } from './fx.js';
+import { UI } from './ui.js';
+import { Run } from './run.js';
 
 const APT = window.APT;
 const { scene, renderer, camera } = APT;
-
-// Living room floor, between the sofa and the coffee table
-const SPAWN = new THREE.Vector3(2.4, 0.05, 3.3);
+const stage = STAGE1;
 const LOOK_KEY = 'jellyfight.look';
-const MAX_HP = 10;              // 2 per heart
-const SAFE_FALL = 0.7;          // meters you can drop without getting hurt
-const SPRINT_SECONDS = 3.5;     // full stamina lasts this long
-const REST_SECONDS = 2.5;       // time to refill from empty
 
-// --- Saved character ------------------------------------------------------------
+// --- Saved character (the creator is optional, under C) ----------------------------
 let savedLook = null;
 try { savedLook = JSON.parse(localStorage.getItem(LOOK_KEY)); } catch {}
 let look = normalizeLook(savedLook);
 
-// --- UI -------------------------------------------------------------------------
+// --- Pause menu ---------------------------------------------------------------------
 const ui = document.createElement('div');
 ui.id = 'game-ui';
 ui.innerHTML = `
@@ -40,7 +42,8 @@ ui.innerHTML = `
     text-align: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; z-index: 10; }
   #g-over[hidden] { display: none; }
   #g-over h1 { margin: 0 0 4px; font-size: 46px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0008; }
-  #g-over .play { margin: 14px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
+  #g-over .tag { margin: 0; opacity: .85; }
+  #g-over .play { margin: 16px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
     border-radius: 14px; padding: 12px 34px; cursor: pointer; }
   #g-over .row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 8px 0; }
   #g-over .row button { font: 14px system-ui, sans-serif; color: #fff; background: #ffffff1a; border: 1px solid #ffffff30;
@@ -51,39 +54,52 @@ ui.innerHTML = `
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
+  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="creator">🎨 Edit character</button><button data-act="viewer">🏠 Apartment viewer</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer">🏠 Apartment viewer</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Shift</kbd> sprint<br>
-    <kbd>Wheel</kbd> zoom &nbsp; <kbd>R</kbd> respawn &nbsp; <kbd>C</kbd> character &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>G</kbd> viewer &nbsp; <kbd>F3</kbd> debug
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric &nbsp; <kbd>E</kbd> open treasure<br>
+    Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.<br>
+    <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>G</kbd> viewer &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
 document.body.appendChild(ui);
 const overlay = ui.querySelector('#g-over');
 const qualityRow = ui.querySelector('#g-quality');
 
-const hud = new Hud(APT.plan);
+const plan = APT.plan.filter(([name]) => stage.rooms.includes(name));
+const hud = new Hud(plan);
 hud.mount(ui);
+const fx = new Fx(scene, camera);
+fx.mount(ui);
+const menus = new UI(ui);
 const creator = new Creator({
   onChange: (l) => applyLook(l, true),
   onDone: (l) => { saveLook(l); closeCreator(); },
 });
 creator.mount(ui);
 
-// --- World + player -------------------------------------------------------------
+// --- World --------------------------------------------------------------------------
+prepareApartment(APT, stage);
 const world = new World(scene, { exclude: [APT.OUT] }); // the neighbourhood outside isn't walkable
+addStageWalls(world, stage);
 const detailed = addFloorDetail(world.colliders);
+const traversal = new Traversal(scene, stage);
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
 const gfx = new Graphics(renderer, scene, camera);
+const enemies = new Enemies(scene, world, fx);
+const lash = new Lash(scene, enemies, fx);
+const dew = new Dew(scene, world);
+const moon = new MoonDrop(scene);
+const chests = new TreasureSpots(scene);
 
 function applyLook(l, hop) {
   look = normalizeLook(l);
   player.setAvatar(buildCharacter(look, CONFIG.player.height));
-  hud.setName(look.name);
   if (hop) player.avatar.land(1.2);
 }
 function saveLook(l) {
@@ -112,38 +128,25 @@ function updateBlob() {
   blob.material.opacity = 0.35 / (1 + h * 20);
 }
 
-// --- Health + stamina -----------------------------------------------------------
-const stats = { hp: MAX_HP, stamina: 1, tired: false };
-player.onLand = (drop) => {
-  if (drop <= SAFE_FALL) return;
-  const dmg = 1 + Math.floor((drop - SAFE_FALL) / 0.3);
-  stats.hp = Math.max(0, stats.hp - dmg);
-  hud.toast(stats.hp ? 'Ouch!' : 'Splat!');
-  if (!stats.hp) setTimeout(respawn, 900);
-};
-function updateStats(dt) {
-  if (player.sprinting) stats.stamina = Math.max(0, stats.stamina - dt / SPRINT_SECONDS);
-  else stats.stamina = Math.min(1, stats.stamina + dt / REST_SECONDS);
-  if (stats.stamina <= 0) stats.tired = true;
-  if (stats.tired && stats.stamina > 0.35) stats.tired = false;
-  player.canSprint = !stats.tired;
-  hud.setStamina(stats.stamina, stats.tired);
-  hud.setHealth(stats.hp, MAX_HP);
+// Night: the apartment's own sun/sky clock, set to the stage's hour
+function setNight(mins) {
+  const c = window._clk;
+  if (!c || !window._applyClock) return;
+  c.play = false;
+  c.mins = Math.round(mins) % 1440;
+  window._applyClock();
 }
 
-function respawn() {
-  world.focus(SPAWN, 1);
-  player.spawn(SPAWN);
-  player.snapToGround();
-  tpc.snapTo(player.position);
-  stats.hp = MAX_HP;
-  stats.stamina = 1;
-  hud.setHealth(stats.hp, MAX_HP);
-}
+const run = new Run({
+  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon, chests,
+  traversal, hud, ui: menus, fx, tpc, input, setNight,
+});
+run.onResume = () => renderer.domElement.requestPointerLock();
 
-// --- Modes: 'play' (paused while the menu is up) and 'creator' --------------------
+// --- Modes: 'play' (paused while a menu is up) and 'creator' -----------------------
 let mode = 'play';
 let spin = 0.6, drag = null;
+const menuOpen = () => !overlay.hidden || menus.open || mode === 'creator';
 
 function openCreator() {
   mode = 'creator';
@@ -161,25 +164,15 @@ function closeCreator() {
   hud.el.hidden = false;
   camera.clearViewOffset();
   tpc.snapTo(player.position);
-  hud.toast(`Go, ${look.name}!`);
-  overlay.hidden = false; // "Play" grabs the mouse; browsers need a click for that
+  overlay.hidden = false;
 }
-// Shift the picture so the critter isn't hidden behind the creator panel
 function setViewOffset() {
-  const w = innerWidth, h = innerHeight;
-  const wide = w > 640;
+  const w = innerWidth, h = innerHeight, wide = w > 640;
   camera.setViewOffset(w, h, wide ? Math.min(360, w) / 2 : 0, wide ? 0 : h * 0.29, w, h);
 }
 addEventListener('resize', () => { if (mode === 'creator') setViewOffset(); });
-
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (mode === 'creator') drag = { x: e.clientX };
-});
-addEventListener('pointermove', (e) => {
-  if (!drag) return;
-  spin -= (e.clientX - drag.x) * 0.01;
-  drag.x = e.clientX;
-});
+renderer.domElement.addEventListener('pointerdown', (e) => { if (mode === 'creator') drag = { x: e.clientX }; });
+addEventListener('pointermove', (e) => { if (!drag) return; spin -= (e.clientX - drag.x) * 0.01; drag.x = e.clientX; });
 addEventListener('pointerup', () => { drag = null; });
 
 function creatorCamera(dt) {
@@ -194,7 +187,7 @@ function creatorCamera(dt) {
 
 // --- Game mode on/off -------------------------------------------------------------
 const saved = { near: camera.near };
-let debug = false;
+let debug = false, fps = 0, fpsN = 0, fpsT = 0;
 const GAME = {
   active: false,
   start() {
@@ -205,7 +198,7 @@ const GAME = {
     camera.near = CONFIG.camera.near;
     camera.updateProjectionMatrix();
     if (mode === 'creator') setViewOffset();
-    overlay.hidden = mode === 'creator' || document.pointerLockElement === renderer.domElement;
+    overlay.hidden = mode === 'creator' || menus.open || document.pointerLockElement === renderer.domElement;
   },
   stop() {
     this.active = false;
@@ -218,30 +211,30 @@ const GAME = {
     APT.exitGame();
   },
   step(dt) {
+    fpsN++; fpsT += dt;
+    if (fpsT > 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
+    traversal.update(dt);
+    fx.update(dt);
     if (mode === 'creator') {
       player.avatar.update(dt, { speed: 0, walkSpeed: 1, grounded: true, vy: 0 });
       creatorCamera(dt);
       updateBlob();
       return;
     }
-    const paused = !overlay.hidden;
-    if (!paused) {
-      if (input.consumeReset() || player.position.y < -1) respawn();
-      world.focus(player.position, dt);
-      player.update(dt, input, tpc.yaw);
-      updateStats(dt);
-    } else {
-      input.consumeReset();
+    if (!menuOpen()) run.update(dt);
+    else {
       input.consumeJump();
+      input.consumeInteract();
       player.avatar.update(dt, { speed: 0, walkSpeed: 1, grounded: player.grounded, vy: 0 });
     }
+    input.consumeReset();
     tpc.update(dt, input.consumeMouse(), player.position);
     gfx.focus = camera.position.distanceTo(player.position) + 0.005;
     updateBlob();
-    hud.update(player.position, player.facing, tpc.yaw);
+    hud.update(player.position, player.facing, tpc.yaw, run.markers());
     if (debug) {
       const p = player.position;
-      hud.setDebug(`x ${p.x.toFixed(2)}  y ${(p.y * 100).toFixed(1)} cm  z ${p.z.toFixed(2)}  |  ${player.grounded ? 'grounded' : 'airborne'}  |  ${gfx.quality}  |  ${world.nearby.length} nearby  |  ${detailed} detailed`);
+      hud.setDebug(`${fps} fps | x ${p.x.toFixed(2)} y ${(p.y * 100).toFixed(1)} cm z ${p.z.toFixed(2)} | ${run.phase} t=${run.t.toFixed(0)}s | ${enemies.alive} enemies | ${dew.list.length} dew | ${gfx.quality}`);
     }
   },
   render() { gfx.render(); },
@@ -258,25 +251,26 @@ overlay.addEventListener('click', (e) => {
   if (!b) return;
   if (b.classList.contains('play')) renderer.domElement.requestPointerLock();
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
+  else if (b.dataset.act === 'restart') { run.start(); renderer.domElement.requestPointerLock(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'viewer') GAME.stop();
 });
 document.addEventListener('pointerlockchange', () => {
-  if (GAME.active && mode === 'play') overlay.hidden = document.pointerLockElement === renderer.domElement;
+  if (!GAME.active || mode !== 'play') return;
+  const locked = document.pointerLockElement === renderer.domElement;
+  overlay.hidden = locked || menus.open;
 });
 addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
-  if (e.code === 'KeyG' && mode === 'play') GAME.active ? GAME.stop() : GAME.start();
+  if (e.code === 'KeyG' && mode === 'play' && !menus.open) GAME.active ? GAME.stop() : GAME.start();
   if (!GAME.active) return;
-  if (e.code === 'KeyC' && mode === 'play') openCreator();
+  if (e.code === 'KeyC' && mode === 'play' && !menus.open && !overlay.hidden) openCreator();
   else if (e.code === 'Escape' && mode === 'creator') { saveLook(look); closeCreator(); }
   if (e.code === 'F3') { e.preventDefault(); debug = !debug; hud.setDebug(''); }
 });
 
-respawn();
 GAME.start();
-hud.update(player.position, player.facing, tpc.yaw);
-if (!savedLook) openCreator(); // first visit: make a character before playing
+overlay.hidden = false;
 
 // Handy for poking at things from the browser console
-Object.assign(window, { player, world, tpc, input, gfx, hud, creator });
+Object.assign(window, { player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, chests, traversal, menus });

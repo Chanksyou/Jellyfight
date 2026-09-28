@@ -1,0 +1,127 @@
+// Getting around a world built for giants: floor vents with updrafts, and fabric you can climb.
+// Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
+import * as THREE from 'three';
+
+// Objects in the apartment carry userData.info.name; find every mesh under the named ones
+function meshesNamed(scene, name) {
+  const out = [];
+  scene.traverse((o) => {
+    if (o.userData.info?.name !== name) return;
+    o.traverse((m) => { if (m.isMesh) out.push(m); });
+  });
+  return out;
+}
+
+// Call before building the collision world
+export function prepareApartment(apt, stage) {
+  for (const name of stage.noCollide || []) meshesNamed(apt.scene, name).forEach((m) => { m.userData.noCollide = true; });
+  for (const [name, opacity] of Object.entries(stage.fade || {})) {
+    meshesNamed(apt.scene, name).forEach((m) => {
+      m.material = m.material.clone();
+      m.material.transparent = true;
+      m.material.opacity = opacity;
+      m.material.depthWrite = false;
+    });
+  }
+  for (const [id, state] of Object.entries(stage.doors || {})) {
+    const d = apt.doors[id];
+    if (!d) continue;
+    d.target = d.cur = state === 'open' ? d.open : 0;   // snap, so the collision world starts right
+    d.leaf.rotation.y = d.cur;
+  }
+}
+
+export function addStageWalls(world, stage) {
+  for (const w of stage.walls || []) {
+    const size = w.max.map((v, i) => v - w.min[i]);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
+    m.position.set(...w.min.map((v, i) => v + size[i] / 2));
+    world.addCollider(m);
+  }
+}
+
+// A floor grille texture: dark metal with slots
+function grilleTexture() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d9d6cf'; g.fillRect(0, 0, 128, 96);
+  g.fillStyle = '#2b2a28';
+  for (let i = 0; i < 9; i++) g.fillRect(10, 10 + i * 8.6, 108, 4.5);
+  g.strokeStyle = '#a9a59c'; g.lineWidth = 4; g.strokeRect(2, 2, 124, 92);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+export class Traversal {
+  constructor(scene, stage) {
+    this.scene = scene;
+    this.bossMode = false;
+    this.group = new THREE.Group();
+    this.group.name = 'Traversal';
+    scene.add(this.group);
+
+    const grille = grilleTexture();
+    this.vents = stage.vents.map((v) => {
+      const [x, y, z] = v.at;
+      const plate = new THREE.Mesh(
+        new THREE.BoxGeometry(v.radius * 2.2, 0.002, v.radius * 1.6),
+        new THREE.MeshStandardMaterial({ map: grille, roughness: 0.5, metalness: 0.4 }),
+      );
+      plate.position.set(x, y + 0.001, z);
+      plate.receiveShadow = true;
+      this.group.add(plate);
+
+      // shimmer column + rising specks so the updraft reads from across the room
+      const h = v.top - y;
+      const col = new THREE.Mesh(
+        new THREE.CylinderGeometry(v.radius * 0.9, v.radius, h, 24, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
+      );
+      col.position.set(x, y + h / 2, z);
+      this.group.add(col);
+      const n = 40, pos = new Float32Array(n * 3), seeds = [];
+      for (let i = 0; i < n; i++) seeds.push([Math.random() * Math.PI * 2, Math.sqrt(Math.random()) * v.radius, Math.random()]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.003, transparent: true, opacity: 0.7, depthWrite: false }));
+      pts.frustumCulled = false;
+      this.group.add(pts);
+      return { ...v, x, y, z, h, pts, seeds };
+    });
+
+    this.climbs = stage.climbs.map((c) => ({
+      ...c,
+      box: new THREE.Box3(new THREE.Vector3(...c.min), new THREE.Vector3(...c.max)),
+    }));
+  }
+
+  // What's acting on a player standing at `p` (feet position)
+  query(p) {
+    let lift = null, climb = null;
+    for (const v of this.vents) {
+      if (this.bossMode) break;
+      if (Math.hypot(p.x - v.x, p.z - v.z) < v.radius && p.y < v.top + 0.03 && p.y > v.y - 0.02) lift = v.top;
+    }
+    for (const c of this.climbs) {
+      if (this.bossMode && c.boss === false) continue;
+      if (c.box.containsPoint(p)) climb = c;
+    }
+    return { lift, climb };
+  }
+
+  update(dt) {
+    for (const v of this.vents) {
+      const a = v.pts.geometry.attributes.position;
+      for (let i = 0; i < v.seeds.length; i++) {
+        const s = v.seeds[i];
+        s[2] = (s[2] + dt * 0.35) % 1;           // rise
+        s[0] += dt * 0.8;                         // swirl
+        a.setXYZ(i, v.x + Math.cos(s[0]) * s[1], v.y + s[2] * v.h, v.z + Math.sin(s[0]) * s[1]);
+      }
+      a.needsUpdate = true;
+    }
+  }
+}

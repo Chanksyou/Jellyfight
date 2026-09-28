@@ -8,7 +8,7 @@ export class ThirdPersonCamera {
     this.world = world;
     this.cfg = cfg;
     this.yaw = 0;
-    this.pitch = 0.35;
+    this.pitch = cfg.pitch ?? 0.35;
     this.distance = cfg.distance;
     this.currentDistance = cfg.distance;
     this.focus = new THREE.Vector3();

@@ -14,6 +14,7 @@ export class Input {
       this.keys.add(e.code);
       if (e.code === 'Space') this.jumpQueued = true;
       if (e.code === 'KeyR') this.resetQueued = true;
+      if (e.code === 'KeyE') this.interactQueued = true;
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
@@ -39,7 +40,7 @@ export class Input {
     return { x, y };
   }
 
-  get sprint() { return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'); }
+  get jumpHeld() { return this.keys.has('Space'); }
 
   consumeMouse() {
     const d = { x: this.mouseDX, y: this.mouseDY, wheel: this.wheel };
@@ -49,4 +50,5 @@ export class Input {
 
   consumeJump() { const j = this.jumpQueued; this.jumpQueued = false; return j; }
   consumeReset() { const r = this.resetQueued; this.resetQueued = false; return r; }
+  consumeInteract() { const r = this.interactQueued; this.interactQueued = false; return r; }
 }

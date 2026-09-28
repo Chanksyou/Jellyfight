@@ -10,8 +10,10 @@ export class World {
     this.colliders = [];
     scene.updateMatrixWorld(true);
     const skip = new Set(exclude);
+    // Include hidden objects too: the apartment viewer hides walls between its camera
+    // and the room. cast() skips whatever is hidden at the moment of the ray.
     const walk = (o) => {
-      if (skip.has(o) || !o.visible) return;
+      if (skip.has(o)) return;
       if (isSolid(o)) this.colliders.push(o);
       for (const c of o.children) walk(c);
     };
@@ -34,9 +36,20 @@ export class World {
     this._focusAge = 0;
   }
 
+  // Add a mesh that isn't part of the apartment (invisible walls, props)
+  addCollider(mesh) {
+    mesh.updateMatrixWorld(true);
+    if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+    if (!mesh.geometry.boundsTree) mesh.geometry.boundsTree = new MeshBVH(mesh.geometry);
+    mesh.raycast = acceleratedRaycast;
+    this.colliders.push(mesh);
+    this.spheres.push(new THREE.Sphere());
+    this._focusAge = Infinity; // rebuild the nearby list next frame
+  }
+
   // Keep a short list of colliders around the player so each ray only checks those.
   // Rebuilt when the player moves or every quarter second (doors swing, the cat walks).
-  focus(center, dt, radius = 1.2) {
+  focus(center, dt, radius = 1.6) {
     this._focusAge += dt;
     if (this._focus.distanceToSquared(center) < 0.04 && this._focusAge < 0.25) return;
     this._focus.copy(center);
@@ -50,6 +63,17 @@ export class World {
         this.nearbySpheres.push(s);
       }
     });
+  }
+
+  // Like cast(), but checks every collider (slow; for rare lookups far from the player)
+  castAll(origin, dir, far) {
+    this.raycaster.set(origin, dir);
+    this.raycaster.near = 0;
+    this.raycaster.far = far;
+    for (const h of this.raycaster.intersectObjects(this.colliders, false)) {
+      if (visibleChain(h.object)) return { distance: h.distance, point: h.point };
+    }
+    return null;
   }
 
   // Nearest hit along a ray, or null. Returned normal is in world space.

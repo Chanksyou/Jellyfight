@@ -1,0 +1,105 @@
+// The jelly's stats, level-up cards, treasures and evolution choices.
+// Everything a player reads is here, so tuning lives in one place.
+
+export const BASE_STATS = {
+  tentacles: 2,     // enemies hit per lash
+  reach: 0.12,      // meters a tentacle reaches (about 3.5x body height)
+  sting: 5,         // damage per tentacle
+  lashSpeed: 1.2,   // lashes per second
+  moisture: 25,     // max health
+  pulse: 1.0,       // move speed multiplier
+  bounce: 1.0,      // jump height multiplier
+};
+
+// How each stat is shown on a card and in the stats panel
+export const STAT_INFO = {
+  tentacles: { name: 'Tentacles', icon: '🪼', fmt: (v) => `${v}` },
+  reach:     { name: 'Reach',     icon: '📏', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
+  sting:     { name: 'Sting',     icon: '⚡', fmt: (v) => `${Math.round(v)}` },
+  lashSpeed: { name: 'Lash speed', icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
+  moisture:  { name: 'Moisture',  icon: '💧', fmt: (v) => `${Math.round(v)}` },
+  pulse:     { name: 'Pulse',     icon: '🫧', fmt: (v) => `${Math.round(v * 100)}%` },
+  bounce:    { name: 'Bounce',    icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
+};
+
+export const RARITY = [
+  { id: 'common', name: 'Common', color: '#cfd6e0', weight: 70 },
+  { id: 'rare', name: 'Rare', color: '#5fb4ff', weight: 25 },
+  { id: 'epic', name: 'Epic', color: '#c77bff', weight: 5 },
+];
+
+// [common, rare, epic] amounts. `pct` = percent of the base value, added.
+const CARD_VALUES = {
+  tentacles: { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
+  reach:     { amounts: [10, 18, 30], pct: true },
+  sting:     { amounts: [2, 4, 7] },
+  lashSpeed: { amounts: [10, 18, 30], pct: true },
+  moisture:  { amounts: [4, 8, 14] },
+  pulse:     { amounts: [6, 11, 18], pct: true },
+  bounce:    { amounts: [8, 14, 22], pct: true },
+};
+
+export function cardText(card) {
+  const info = STAT_INFO[card.stat];
+  const v = CARD_VALUES[card.stat];
+  const amount = v.pct ? `${card.amount}%` : card.amount;
+  const unit = card.stat === 'tentacles' ? (card.amount === 1 ? ' Tentacle' : ' Tentacles') : ` ${info.name}`;
+  return `+${amount}${unit}`;
+}
+
+export function applyCard(stats, card) {
+  const v = CARD_VALUES[card.stat];
+  if (v.pct) stats[card.stat] += BASE_STATS[card.stat] * card.amount / 100;
+  else stats[card.stat] += card.amount;
+}
+
+function pickWeighted(list, w) {
+  let r = Math.random() * list.reduce((s, x) => s + w(x), 0);
+  for (const x of list) if ((r -= w(x)) <= 0) return x;
+  return list[list.length - 1];
+}
+
+// Three different stats, each with a rolled rarity
+export function rollCards(n = 3) {
+  const pool = Object.keys(CARD_VALUES);
+  const cards = [];
+  while (cards.length < n && pool.length) {
+    const stat = pickWeighted(pool, (s) => CARD_VALUES[s].weight ?? 1);
+    pool.splice(pool.indexOf(stat), 1);
+    let rarity = pickWeighted(RARITY, (r) => r.weight);
+    let ri = RARITY.indexOf(rarity);
+    if (CARD_VALUES[stat].amounts[ri] === 0) ri = 1; // tentacles start at rare
+    cards.push({ stat, rarity: RARITY[ri], amount: CARD_VALUES[stat].amounts[ri] });
+  }
+  return cards;
+}
+
+// Dew needed to go from `level` to the next one
+export const xpToNext = (level) => 5 + 2 * level;
+
+// Treasures: lost things with one-of-a-kind effects. Each can appear once per run.
+export const TREASURES = [
+  { id: 'bobbyPin', name: 'Bobby Pin', icon: '🧷', text: 'Lashes pierce, hitting everything in a line.' },
+  { id: 'hairTie', name: 'Hair Tie', icon: '➰', text: 'Each lash bounces to one more enemy nearby.' },
+  { id: 'goldRing', name: 'Gold Ring', icon: '💍', text: 'Every 10th lash is golden and does 5x damage.' },
+  { id: 'bathSalt', name: 'Bath Salt', icon: '🧂', text: 'Enemies you finish off burst and hurt their neighbors.' },
+  { id: 'rubberDuck', name: 'Rubber Duck', icon: '🦆', text: 'When you get hit, a squeak knocks nearby enemies back. (5 s)' },
+  { id: 'whale', name: 'Whale Bath Toy', icon: '🐳', text: 'Stand still for a second and you start spouting, refilling moisture.' },
+  { id: 'qtip', name: 'Q-tip', icon: '🦴', text: 'Enemies you sting are slowed.' },
+  { id: 'soapBubble', name: 'Soap Bubble', icon: '🫧', text: 'Blocks the first hit you take each stage.' },
+  { id: 'lintRoller', name: 'Lint Roller', icon: '🧻', text: 'Every 20 s, all dew nearby sticks to you at once.' },
+  { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'One tentacle becomes a lance: double reach, half speed.' },
+  { id: 'wristband', name: 'Festival Wristband', icon: '🎟️', text: 'For 3 s after you land a jump, you lash 50% faster.' },
+  { id: 'spareKey', name: 'Spare Key', icon: '🔑', text: 'The next treasure you find is free.' },
+];
+
+export const treasureCost = (opened) => 12 + opened * 8;
+
+// Offered after beating a stage's boss; pick one
+export const EVOLUTIONS = [
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Tentacle, +15% Pulse', apply: (s) => { s.tentacles += 1; s.pulse += 0.15; } },
+  { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+4 Sting, +15% Reach', apply: (s) => { s.sting += 4; s.reach += BASE_STATS.reach * 0.15; } },
+  { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Moisture', apply: (s) => { s.moisture += 10; } },
+  { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Lash speed', apply: (s) => { s.lashSpeed += 0.25; } },
+  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Bounce, +10% Pulse', apply: (s) => { s.bounce += 0.25; s.pulse += 0.1; } },
+];

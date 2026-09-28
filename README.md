@@ -12,11 +12,23 @@ npx http-server -c-1        # or: python -m http.server
 
 Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
+## The game
+
+You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am.
+
+- **Your tentacles attack on their own** (the Lash). You move, jump and position.
+- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP and your currency.
+- **Level up** by collecting dew: pick 1 of 3 cards, each one stat and one number. One free reroll per level.
+- **Treasures** are lost things around the stage. Open them with dew (the price rises each time). Each has a unique effect and appears once per run.
+- **Moon Drops** spawn one at a time somewhere in the stage, often up high, and show on the minimap with how far above or below you they are. Collect 3 and the moonlight carries you into the tub to fight **The Clog**.
+- Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
+- After 6 minutes (2 am) **The Dry** spreads: more enemies, and moisture drains.
+
+**Getting up high:** floor vents blow you up to the vanity, sideboard and bench; hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet); long-jump from the vanity to the toilet tank.
+
 ## Controls
 
-WASD move · mouse look · Space jump · Shift sprint (uses stamina) · wheel zoom · R respawn · C character creator · Esc pause · G apartment viewer · F3 debug readout
-
-On first visit the character creator opens before you play. Your character is saved in the browser (localStorage).
+WASD move · mouse look · Space jump (hold to climb fabric) · E open treasure · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · G apartment viewer · F3 debug readout. "Look" in the pause menu opens the character creator.
 
 ## How it fits together
 
@@ -32,14 +44,14 @@ The apartment was written for three.js r128. For r170 it only needed the color-s
 | File | What it does |
 | --- | --- |
 | `src/boot.js` | Loads three.js, runs the apartment, starts the game. |
-| `src/main.js` | Game modes (play, pause menu, creator), spawn, health, stamina, blob shadow. |
+| `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, debug readout. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation. |
 | `src/creator.js` | Character creator panel. |
-| `src/hud.js` | Hearts, stamina bar, minimap of the floor plan, room name, toasts. |
+| `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |
 | `src/detail.js` | Fine bump detail on floors and rugs, which otherwise look flat up close. |
-| `src/player.js` | Movement, jumping, wall sliding, stepping up tiny ledges, landing and fall tracking. |
+| `src/player.js` | Movement, low-gravity jumping, climbing, updrafts, wall sliding, stepping up small ledges. |
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
 | `src/collision.js` | Raycast collision against every visible apartment mesh (the neighborhood outside is excluded), with a BVH per mesh and a nearby-object filter. |
 | `src/input.js` | Keyboard and pointer-lock mouse. |
@@ -56,7 +68,16 @@ A look is plain JSON (`{ name, body, finish, color, accent, pattern, eyes, eyeCo
 
 The player only talks to that interface (`player.setAvatar(avatar)`), so a rigged glTF character can replace the procedural one by writing another builder that returns the same shape. It would drive its animation mixer from `update()` and map the look's colors and hat onto the model.
 
-## Game rules so far
+## Stage and tuning files
 
-- 5 hearts. Falls over 0.7 m hurt (half a heart, plus half per extra 30 cm). At zero you respawn.
-- Sprinting drains stamina in 3.5 s. Run it dry and you can't sprint again until it's back to 35%.
+| File | What's in it |
+| --- | --- |
+| `src/stage1.js` | Rooms, start, doors, invisible walls, vents, climbable fabric, Moon Drop and treasure spots, boss arena. Positions are world meters. |
+| `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, treasure prices, evolutions. |
+| `src/enemies.js` | Enemy types (health, speed, damage, size, dew) and how they move. |
+| `src/run.js` | Wave pacing, Moon Drop spawning, damage, treasure effects, boss flow, death and victory. |
+| `src/combat.js` | The Lash: targeting, tentacle animation, and treasure effects on hits. |
+| `src/boss.js` | The Clog. |
+| `src/traversal.js` | Vents, climbing, and per-stage apartment setup (doors, see-through curtain, walls). |
+| `src/pickups.js` | Dew, the Moon Drop, treasure tins. |
+| `src/ui.js`, `src/hud.js`, `src/fx.js` | Menus, HUD and minimap, damage numbers and poofs. |
