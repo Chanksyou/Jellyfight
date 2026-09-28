@@ -19,7 +19,7 @@ import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 import { LIGHTING } from './legacy-lighting.js';
 
-const BUILD = 'v5';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v6';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop, TreasureSpots } from './pickups.js';

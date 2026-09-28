@@ -2989,7 +2989,7 @@ function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
  if(window.GAME&&GAME.active){try{GAME.step(dt)}catch(e){window._jfError&&_jfError(e,'game step')}}/*JELLY*/else if(window._dcOn)window._dcStep(dt);else if(mode==='orbit')controls.update();else updateWalk(dt);
  updateHide();updateDims();
  if(window._clk&&window._clk.play){clkAcc+=dt*60;if(clkAcc>=2){const c=window._clk;c.mins=(c.mins+Math.floor(clkAcc))%1440;clkAcc%=1;document.getElementById('clockR').value=c.mins;window._applyClock();}}
- if(window._stepFall)window._stepFall(Math.min(dt,.05));if(window._halos)window._halos();if(window._life)window._life(dt,now);
+ try{if(window._stepFall)window._stepFall(Math.min(dt,.05));if(window._halos)window._halos();if(window._life)window._life(dt,now);}catch(e){window._jfError&&_jfError(e,'apartment')}/*JELLY: keep the loop alive*/
  DOORS.forEach(d=>{if(Math.abs(d.target-d.cur)>.0005){d.cur+=(d.target-d.cur)*Math.min(1,dt*5);d.leaf.rotation.y=d.cur;renderer.shadowMap.needsUpdate=true;}});
  if(window._curt)window._curt(dt);
  shades.forEach(s=>{s.cur+=(s.target-s.cur)*Math.min(1,dt*6);s.pl.scale.y=Math.max(.001,s.cur);s.bar.position.y=-s.cur;});

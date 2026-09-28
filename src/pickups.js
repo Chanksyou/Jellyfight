@@ -123,6 +123,11 @@ function labelTexture(text, font = 64, pad = 12, bg = null) {
   return { t, aspect: w / c.height };
 }
 
+// Sprites can only be raycast with a camera set on the raycaster. The apartment's own code
+// (the cat, furniture settling) casts rays through the whole scene without one, and hitting
+// one of these labels threw and stopped the frame loop. Labels never need to be hit anyway.
+const noRaycast = () => {};
+
 export class TreasureSpots {
   constructor(scene) {
     this.scene = scene;
@@ -143,10 +148,12 @@ export class TreasureSpots {
       box.castShadow = true;
       g.add(box);
       const sp = new THREE.Sprite(this.sparkleMat);
+      sp.raycast = noRaycast;
       sp.scale.setScalar(0.014);
       sp.position.y = 0.026;
       g.add(sp);
       const price = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
+      price.raycast = noRaycast;
       price.position.y = 0.043;
       g.add(price);
       this.scene.add(g);
