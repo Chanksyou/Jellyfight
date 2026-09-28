@@ -1,15 +1,17 @@
-// Enemies of The Dry. Placeholder shapes for now; each type is one entry in TYPES.
+// Enemies of The Dry: fuzz that has soaked up the apartment's moisture. Each type is one entry
+// in TYPES. A few spawn as elites: bigger, gold, tougher, and worth a lot more.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const TYPES = {
   // drifts through the air, so high ledges aren't perfectly safe
-  mote:  { name: 'Mote', hp: 4, speed: 0.17, dmg: 1, r: 0.007, dew: 1, fly: true },
+  mote:  { name: 'Mote', hp: 6, speed: 0.17, dmg: 1, r: 0.01, dew: 3, fly: true },
   // rolls toward you, winds up, then charges
-  bunny: { name: 'Dust bunny', hp: 12, speed: 0.2, dmg: 2, r: 0.013, dew: 2, charge: true },
+  bunny: { name: 'Dust bunny', hp: 20, speed: 0.2, dmg: 2, r: 0.02, dew: 6, charge: true },
   // slow; sticks to you and slows you down
-  lint:  { name: 'Lint puff', hp: 8, speed: 0.13, dmg: 1, r: 0.01, dew: 1, slows: true },
+  lint:  { name: 'Lint puff', hp: 14, speed: 0.13, dmg: 1, r: 0.016, dew: 4, slows: true },
   // shed by The Clog
-  hair:  { name: 'Hair tangle', hp: 9, speed: 0.2, dmg: 2, r: 0.01, dew: 1 },
+  hair:  { name: 'Hair tangle', hp: 12, speed: 0.2, dmg: 2, r: 0.015, dew: 3 },
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -24,6 +26,8 @@ const EYE = {
   brow: new THREE.MeshStandardMaterial({ color: 0x1c1512, roughness: 0.8 }),
   ball: new THREE.SphereGeometry(1, 16, 12),
   brow_: new THREE.BoxGeometry(1, 1, 1),
+  glow: new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffc23a, emissiveIntensity: 1.2 }),
+  halo: new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffb020, emissiveIntensity: 1.6, roughness: 0.3 }),
 };
 export function angryEyes({ y = 0.2, z = 0.78, size = 0.34, gap = 0.36, glow = false } = {}) {
   const face = new THREE.Group();
@@ -54,33 +58,116 @@ export function angryEyes({ y = 0.2, z = 0.78, size = 0.34, gap = 0.36, glow = f
   return face;
 }
 
-function makeLooks() {
-  const fuzz = (hex) => new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).convertSRGBToLinear(), roughness: 1 });
-  const lumps = (mat, n, spread) => {
-    const g = new THREE.Group();
-    const geo = new THREE.IcosahedronGeometry(1, 1);
-    for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(geo, mat);
-      const a = (i / n) * Math.PI * 2;
-      m.position.set(i ? Math.cos(a) * spread : 0, i ? (Math.random() - 0.3) * spread : 0, i ? Math.sin(a) * spread : 0);
-      m.scale.setScalar(i ? 0.55 + Math.random() * 0.2 : 0.85);
-      m.castShadow = true;
-      g.add(m);
+// --- Fuzz: every enemy is built from a lumpy core, hundreds of fine fibers and a few bits
+// caught in it (a thread, a crumb). Built once per type and merged into one mesh.
+function rng(seed) { let x = seed >>> 0; return () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296); }
+function paint(geo, color) {
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  geo.deleteAttribute('uv');
+  const n = geo.attributes.position.count, c = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) { c[k * 3] = color.r; c[k * 3 + 1] = color.g; c[k * 3 + 2] = color.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  return geo;
+}
+// A bumpy ball whose shading varies with the bumps
+function core(r, bump, dark, light, seed) {
+  const g = new THREE.IcosahedronGeometry(r, 3), p = g.attributes.position, v = new THREE.Vector3();
+  const n = (x, y, z) => Math.sin(x * 7.1 + seed) * Math.sin(y * 6.3 + seed * 2) * Math.sin(z * 8.7 + seed * 3) + 0.5 * Math.sin(x * 17 + y * 13 + z * 11 + seed);
+  const c = new Float32Array(p.count * 3), a = new THREE.Color(dark), b = new THREE.Color(light), t = new THREE.Color();
+  for (let k = 0; k < p.count; k++) {
+    v.fromBufferAttribute(p, k).normalize();
+    const h = n(v.x, v.y, v.z);
+    p.setXYZ(k, v.x * r * (1 + bump * h), v.y * r * (1 + bump * h), v.z * r * (1 + bump * h));
+    t.copy(a).lerp(b, THREE.MathUtils.clamp(0.5 + h * 0.6, 0, 1));
+    c[k * 3] = t.r; c[k * 3 + 1] = t.g; c[k * 3 + 2] = t.b;
+  }
+  g.deleteAttribute('uv');
+  g.computeVertexNormals();
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  return g;
+}
+// Fine fibers sticking out of a ball of radius r. lie: 0 = straight out, 1 = lying flat on it.
+function fibers(count, r, len, thick, colors, rand, lie = 0.3) {
+  const out = [], up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), tan = new THREE.Vector3(), q = new THREE.Quaternion();
+  for (let k = 0; k < count; k++) {
+    d.set(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1).normalize();
+    tan.set(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1).cross(d).normalize();
+    const dir = d.clone().lerp(tan, lie * (0.5 + rand() * 0.5)).normalize();
+    const L = len * (0.5 + rand() * 0.7);
+    const g = new THREE.CylinderGeometry(thick * 0.25, thick, L, 3, 1).translate(0, L / 2, 0);
+    g.applyQuaternion(q.setFromUnitVectors(up, dir));
+    g.translate(d.x * r * 0.9, d.y * r * 0.9, d.z * r * 0.9);
+    out.push(paint(g, new THREE.Color(colors[(rand() * colors.length) | 0]).offsetHSL(0, 0, (rand() - 0.5) * 0.08)));
+  }
+  return out;
+}
+// A thread or hair: a thin tube along a wandering curve
+function strand(points, thick, color, segs = 40) {
+  return paint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), segs, thick, 4), new THREE.Color(color));
+}
+function curl(rand, r, turns, spread) {
+  const pts = [], a0 = rand() * 6.3, tilt = rand() * 3.1;
+  for (let k = 0; k <= 24; k++) {
+    const t = k / 24, a = a0 + t * turns * Math.PI * 2, rr = r * (0.7 + 0.5 * Math.sin(t * 5 + a0));
+    const p = new THREE.Vector3(Math.cos(a) * rr, (t - 0.5) * spread, Math.sin(a) * rr);
+    pts.push(p.applyAxisAngle(new THREE.Vector3(1, 0, 0), tilt));
+  }
+  return pts;
+}
+
+const GEO = {};
+function buildGeometry(type) {
+  const rand = rng({ mote: 11, bunny: 23, lint: 37, hair: 51 }[type]);
+  const parts = [];
+  if (type === 'mote') {          // a pale wisp of dust
+    parts.push(core(0.5, 0.25, '#b9ae9c', '#efe8da', 1));
+    parts.push(...fibers(70, 0.5, 0.75, 0.035, ['#e9e1d2', '#d4cab8', '#fff8ea'], rand, 0.2));
+  } else if (type === 'bunny') {  // a grey dust bunny with a red thread and a crumb caught in it
+    parts.push(core(0.72, 0.3, '#6e6760', '#aaa399', 2));
+    parts.push(...fibers(260, 0.72, 0.7, 0.04, ['#8f887e', '#a59e94', '#7a746c', '#bdb6ab'], rand, 0.35));
+    parts.push(strand(curl(rand, 0.75, 1.3, 0.5), 0.025, '#c0392b'));
+    parts.push(paint(new THREE.DodecahedronGeometry(0.14, 0).translate(0.45, 0.45, 0.35), new THREE.Color('#b08858')));
+  } else if (type === 'lint') {   // a flat, pilled puff of dryer lint with a thread loop
+    const c = core(0.8, 0.18, '#6f8296', '#a9b8c8', 3);
+    c.scale(1, 0.55, 1);
+    parts.push(c);
+    for (let k = 0; k < 14; k++) {
+      const a = rand() * 6.3, y = (rand() - 0.3) * 0.35;
+      parts.push(paint(new THREE.IcosahedronGeometry(0.1 + rand() * 0.06, 1).translate(Math.cos(a) * 0.72, y, Math.sin(a) * 0.72), new THREE.Color('#c6d0dc').offsetHSL(0, 0, (rand() - 0.5) * 0.1)));
     }
+    const f = fibers(160, 0.8, 0.55, 0.035, ['#8a9bb0', '#b4c2d2', '#76889c'], rand, 0.75);
+    f.forEach((g) => g.scale(1, 0.6, 1));
+    parts.push(...f);
+    parts.push(strand(curl(rand, 0.6, 0.8, 0.2).map((p) => p.add(new THREE.Vector3(0.5, 0.15, 0))), 0.03, '#e7b73a'));
+  } else {                        // hair: curly strands wrapped round a small clump
+    parts.push(core(0.4, 0.3, '#2a1c14', '#4a3222', 4));
+    for (let k = 0; k < 9; k++) parts.push(strand(curl(rand, 0.55 + rand() * 0.3, 1.5 + rand(), 0.8), 0.022, k < 7 ? (k % 2 ? '#3b2618' : '#5a3a24') : '#9a948e', 60));
+    parts.push(...fibers(40, 0.4, 0.5, 0.03, ['#3b2618', '#5a3a24'], rand, 0.5));
+  }
+  const g = mergeGeometries(parts);
+  g.computeBoundingSphere();
+  return g;
+}
+
+function makeLooks() {
+  const fuzz = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  const glowFuzz = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: 0x3a3426, emissiveIntensity: 1 });
+  const hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
+  const body = (type, mat) => {
+    GEO[type] ||= buildGeometry(type);
+    const m = new THREE.Mesh(GEO[type], mat);
+    m.castShadow = true;
+    const g = new THREE.Group();
+    g.add(m);
     return g;
   };
   // body: the fuzz (may spin and roll); face: where the angry eyes go
   return {
-    mote: () => ({ body: lumps(fuzz('#d9d0c0'), 4, 0.45), face: angryEyes({ y: 0.15, z: 0.85, size: 0.4, gap: 0.38 }) }),
-    bunny: () => ({ body: lumps(fuzz('#9c958b'), 7, 0.5), face: angryEyes({ y: 0.3, z: 0.95 }) }),
-    lint: () => { const g = lumps(fuzz('#8fa3b8'), 5, 0.55); g.scale.y = 0.7; return { body: g, face: angryEyes({ y: 0.12, z: 0.85 }) }; },
-    hair: () => {
-      const g = new THREE.Group();
-      const m = new THREE.Mesh(new THREE.TorusKnotGeometry(0.6, 0.12, 48, 6, 3, 5), fuzz('#3b2a20'));
-      m.castShadow = true;
-      g.add(m);
-      return { body: g, face: angryEyes({ y: 0.2, z: 0.8 }) };
-    },
+    mote: () => ({ body: body('mote', glowFuzz), face: angryEyes({ y: 0.15, z: 0.75, size: 0.4, gap: 0.38 }) }),
+    bunny: () => ({ body: body('bunny', fuzz), face: angryEyes({ y: 0.3, z: 0.95 }) }),
+    lint: () => ({ body: body('lint', fuzz), face: angryEyes({ y: 0.12, z: 0.85 }) }),
+    hair: () => ({ body: body('hair', hairMat), face: angryEyes({ y: 0.2, z: 0.75 }) }),
+    fuzz, glowFuzz, hairMat,
   };
 }
 
@@ -91,6 +178,8 @@ export class Enemies {
     this.fx = fx;
     this.list = [];
     this.looks = makeLooks();
+    this.eliteMats = {};
+    this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.onKill = null;       // (enemy) => void
     this.frame = 0;
     this._o = new THREE.Vector3();
@@ -99,16 +188,31 @@ export class Enemies {
 
   get alive() { return this.list.length; }
 
-  spawn(type, pos, hpScale = 1) {
-    const T = TYPES[type];
+  // elite: 35% bigger, 3x health, 4x dew, gold, with a spinning halo and glowing eyes
+  spawn(type, pos, hpScale = 1, elite = false) {
+    let T = TYPES[type];
     const { body: mesh, face } = this.looks[type]();
-    mesh.scale.multiplyScalar(T.r);
     const root = new THREE.Group();
+    if (elite) {
+      T = { ...T, dew: T.dew * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
+      hpScale *= 3;
+      const m = mesh.children[0];
+      this.eliteMats[type] ||= Object.assign(m.material.clone(), { emissive: new THREE.Color(0xffb020), emissiveIntensity: 0.35 });
+      m.material = this.eliteMats[type];
+      face.traverse((o) => { if (o.isMesh && o.material === EYE.white) o.material = EYE.glow; });
+      const halo = new THREE.Mesh(this.haloGeo, EYE.halo);
+      halo.name = 'halo';
+      halo.rotation.x = Math.PI / 2;
+      halo.position.y = T.r * 1.35;
+      halo.scale.setScalar(T.r);
+      root.add(halo);
+    }
+    mesh.scale.multiplyScalar(T.r);
     root.add(mesh, face);
     root.position.copy(pos);
     this.scene.add(root);
     const e = {
-      type, T, root, mesh, face, pos: root.position, r: T.r,
+      type, T, root, mesh, face, elite, pos: root.position, r: T.r,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -213,6 +317,7 @@ export class Enemies {
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
       e.mesh.scale.setScalar(sc);
       e.face.scale.setScalar(sc);
+      if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.type === 'bunny' || e.type === 'hair') e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }

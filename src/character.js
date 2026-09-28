@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const OPTIONS = {
   body: [['blob', 'Blob'], ['bean', 'Bean'], ['jellyfish', 'Jellyfish'], ['cube', 'Gummy'], ['mushroom', 'Mushroom']],
@@ -109,6 +110,17 @@ function makeMaterials(look) {
   };
 }
 
+function canvasTexture(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+
 function mesh(geo, mat, parent, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
@@ -160,21 +172,83 @@ export function buildCharacter(look, heightMeters) {
       break;
     }
     case 'jellyfish': {
-      // The bell squeezes and relaxes as it swims; its pivot is the rim, so it pulses in place
+      // A moon jelly: a clear outer bell over a patterned inner bell (radial canals and the
+      // four-leaf gonads), a ruffled scalloped rim with a fringe of fine marginal tentacles and
+      // glowing sense organs, four frilly oral arms underneath, and the six hunting tentacles.
+      // The bell pulses from its rim (see update), so it's built around y = 0 of `bell`.
       bell = new THREE.Group();
       bell.position.y = 0.42;
       lean.add(bell);
-      const dome = mesh(new THREE.SphereGeometry(0.46, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), M.body, bell);
-      dome.scale.y = 1.05;
-      const under = mesh(new THREE.CircleGeometry(0.46, 40), bellyOn ? M.accent : M.body, bell);
+      const base = new THREE.Color(look.color), acc = new THREE.Color(look.accent);
+      const profile = [[0.47, -0.015], [0.47, 0.03], [0.455, 0.1], [0.42, 0.2], [0.36, 0.3], [0.27, 0.39], [0.15, 0.45], [0, 0.47]];
+      const lathe = (k) => new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r * k, y * k)), 48, 0, Math.PI * 2);
+      // inner bell: canals, gonads and speckles painted on (u runs around the bell, v from rim to top)
+      const innerTex = canvasTexture(256, 128, (g, w, h) => {
+        g.fillStyle = '#' + base.clone().lerp(new THREE.Color('#ffffff'), 0.35).getHexString(); g.fillRect(0, 0, w, h);
+        const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = grad; g.fillRect(0, 0, w, h);
+        const canal = '#ffffff';
+        g.strokeStyle = canal; g.globalAlpha = 0.95;
+        for (let k = 0; k < 16; k++) { const x = (k + 0.5) / 16 * w; g.lineWidth = k % 2 ? 1.5 : 3; g.beginPath(); g.moveTo(x, h * 0.02); g.bezierCurveTo(x + 3, h * 0.35, x - 3, h * 0.6, x, h); g.stroke(); }
+        g.lineWidth = 3; g.beginPath(); g.moveTo(0, h * 0.94); g.lineTo(w, h * 0.94); g.stroke();   // ring canal at the rim (canvas top = crown)
+        g.globalAlpha = 1;
+        for (let k = 0; k < 4; k++) {                                   // the four gonad "petals" near the top
+          const x = (k + 0.5) / 4 * w;
+          g.fillStyle = '#' + base.clone().multiplyScalar(0.7).getHexString();
+          g.beginPath(); g.ellipse(x, h * 0.3, w * 0.08, h * 0.2, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.ellipse(x, h * 0.3, w * 0.035, h * 0.11, 0, 0, Math.PI * 2); g.fill();
+        }
+        for (let k = 0; k < 140; k++) { g.fillStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.35})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 0.6 + Math.random() * 1.4, 0, 7); g.fill(); }
+      });
+      const inner = new THREE.MeshStandardMaterial({ map: innerTex, roughness: 0.35, emissive: base.clone().multiplyScalar(0.25), emissiveIntensity: look.finish === 'glow' ? 2.5 : 1 });
+      mesh(lathe(0.9), inner, bell);
+      // outer bell: clear and glossy, a tint of the body color
+      const outer = M.body.clone();
+      outer.transparent = true; outer.opacity = look.finish === 'matte' ? 0.75 : 0.38; outer.depthWrite = false;
+      if (outer.clearcoat !== undefined) { outer.clearcoat = 1; outer.clearcoatRoughness = 0.05; }
+      const shell = mesh(lathe(1), outer, bell);
+      shell.castShadow = false;
+      shell.renderOrder = 2;
+      // underside (the subumbrella), seen when it jumps
+      const under = mesh(new THREE.CircleGeometry(0.44, 40), bellyOn ? M.accent : inner, bell, 0, 0.005, 0);
       under.rotation.x = Math.PI / 2;
-      // frilly rim
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2;
-        mesh(new THREE.SphereGeometry(0.06, 10, 8), bellyOn ? M.accent : M.body, bell, Math.sin(a) * 0.44, 0, Math.cos(a) * 0.44).scale.set(1, 0.6, 1);
+      // ruffled rim: a torus whose tube wobbles in and out 16 times around
+      const rimGeo = new THREE.TorusGeometry(0.465, 0.03, 8, 96);
+      { const p = rimGeo.attributes.position, v = new THREE.Vector3();
+        for (let k = 0; k < p.count; k++) { v.fromBufferAttribute(p, k); const a = Math.atan2(v.y, v.x), w = 1 + 0.08 * Math.sin(a * 16); p.setXY(k, v.x * w, v.y * w); p.setZ(k, v.z + 0.018 * Math.sin(a * 32)); }
+        rimGeo.computeVertexNormals(); }
+      const rim = mesh(rimGeo, bellyOn ? M.accent : M.body, bell);
+      rim.rotation.x = Math.PI / 2;
+      // a fringe of fine marginal tentacles, and 8 glowing sense organs (rhopalia) between them
+      const fringe = [];
+      for (let k = 0; k < 64; k++) {
+        const a = (k / 64) * Math.PI * 2, len = 0.07 + (k % 2) * 0.05;
+        fringe.push(new THREE.CylinderGeometry(0.004, 0.008, len, 4, 1).translate(0, -len / 2, 0).rotateX(0.35).rotateY(a).translate(Math.sin(a) * 0.47, -0.01, Math.cos(a) * 0.47));
       }
-      // six tentacles hang from under the bell (see tentacles.js)
-      rig = new TentacleRig(lean, { count: 6, radius: 0.32, y: 0.42, length: 0.5, thickness: 0.06, material: bellyOn ? M.accent : M.body });
+      mesh(mergeGeometries(fringe), inner, bell).castShadow = false;
+      const glowDot = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: acc, emissiveIntensity: 2.2 });
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 16; mesh(new THREE.SphereGeometry(0.018, 8, 6), glowDot, bell, Math.sin(a) * 0.47, -0.02, Math.cos(a) * 0.47); }
+      // four frilly oral arms under the middle: ribbons with rippled edges
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+        const pivot = new THREE.Group();
+        pivot.position.set(Math.sin(a) * 0.05, 0, Math.cos(a) * 0.05);
+        pivot.rotation.y = a;
+        bell.add(pivot);
+        const armGeo = new THREE.PlaneGeometry(0.09, 0.3, 6, 16).translate(0, -0.15, 0);
+        const ap = armGeo.attributes.position;
+        for (let q = 0; q < ap.count; q++) {
+          const x = ap.getX(q), y = ap.getY(q), edge = Math.abs(x) / 0.045;
+          ap.setZ(q, Math.sin(y * 40) * 0.025 * edge + Math.sin(-y * 9) * 0.03);
+          ap.setX(q, x * (1 - (-y / 0.3) * 0.5));
+        }
+        armGeo.computeVertexNormals();
+        const arm = mesh(armGeo, new THREE.MeshStandardMaterial({ map: innerTex, color: acc, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }), pivot);
+        arm.castShadow = false;
+        wobblers.push([pivot, 'x', k * 1.3, 0.18], [pivot, 'z', k * 2.1, 0.12]);
+      }
+      // six hunting tentacles (see tentacles.js)
+      rig = new TentacleRig(lean, { count: 6, radius: 0.36, y: 0.42, length: 0.5, thickness: 0.05, material: bellyOn ? M.accent : M.body });
       break;
     }
     case 'cube': {
@@ -403,7 +477,7 @@ export function buildCharacter(look, heightMeters) {
 
   function dispose() {
     rig?.dispose();
-    root.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+    root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.dispose(); } });
     Object.values(M).forEach((m) => m.dispose());
   }
 

@@ -1,6 +1,6 @@
 # Jelly Fight
 
-A third-person game where you play a ~7 cm critter of your own design inside a real-scale 3D model of the apartment.
+A third-person game where you play a ~5 cm critter of your own design inside a real-scale 3D model of the apartment.
 
 ## Run it
 
@@ -17,7 +17,7 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am (2 real minutes).
 
 - **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
-- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP.
+- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot; about 1 in 8 is a gold **elite** (haloed, tougher, 4x dew, and it gives back moisture).
 - **Level up** by collecting dew: pick 1 of 3 cards, each one stat and one number. One free reroll per level.
 - **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Clog**, and the moonlight carries you into the tub to fight it.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.

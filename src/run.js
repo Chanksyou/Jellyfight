@@ -169,8 +169,9 @@ export class Run {
 
   // ------------------------------------------------------------ waves
   spawnWaves(dt) {
-    const rate = 0.6 + this.t * 0.014;
-    const cap = Math.min(60, 20 + this.t / 3);
+    // fewer enemies, each worth more (see TYPES in enemies.js)
+    const rate = 0.3 + this.t * 0.006;
+    const cap = Math.min(24, 8 + this.t / 6);
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
@@ -179,7 +180,7 @@ export class Run {
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'mote';
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
       const pos = this.spawnPoint(type) || (type !== 'mote' ? this.spawnPoint((type = 'mote')) : null);
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22);
+      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22, this.t > 20 && Math.random() < 0.12);
     }
   }
 
@@ -252,6 +253,12 @@ export class Run {
     this.kills++;
     const c = this.enemies.center(e);
     this.dew.drop(c, 1, e.T.dew);
+    this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${e.T.dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
+    if (e.elite) {                       // elites also give back some moisture
+      this.heal(4);
+      this.fx.puff(c, 0xffd23a, e.r * 3, 0.5);
+      this.hud.toast('✨ Elite cleared! +4 moisture', 1400);
+    }
     if (this.owned.has('bathSalt')) this.bursts.push(c);
   }
 

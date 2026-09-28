@@ -16,7 +16,7 @@ import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v12';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v13';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -163,7 +163,7 @@ const run = new Run({
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = 0.44;   // phone screens are small: sit a bit closer
+  tpc.distance = 0.4;    // phone screens are small: sit a bit closer
 }
 input.touchOnly = IS_TOUCH;
 function play() {
@@ -217,7 +217,7 @@ addEventListener('pointerup', () => { drag = null; });
 function creatorCamera(dt) {
   if (!drag) spin += dt * 0.35;
   const p = player.position;
-  const d = 0.24 * look.size, fy = CONFIG.player.height * 0.55 * look.size;
+  const d = 0.18 * look.size, fy = CONFIG.player.height * 0.55 * look.size;
   const yaw = player.facing + spin;
   camera.position.set(p.x + Math.sin(yaw) * d, p.y + fy + 0.02, p.z + Math.cos(yaw) * d);
   camera.lookAt(p.x, p.y + fy, p.z);
