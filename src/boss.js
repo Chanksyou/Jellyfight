@@ -3,6 +3,7 @@
 //  - sheds hair tangles that join the fight
 //  - every so often the drain pulls everything toward it; standing on the drain hurts
 import * as THREE from 'three';
+import { angryEyes } from './enemies.js';
 
 export class Clog {
   constructor(scene, enemies, fx, arena) {
@@ -37,16 +38,8 @@ export class Clog {
       m.scale.setScalar(0.6 + Math.random() * 0.5);
       root.add(m);
     }
-    const eyeW = new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe28a, emissiveIntensity: 0.8 });
-    const eyeB = new THREE.MeshStandardMaterial({ color: 0x111111 });
-    for (const s of [-1, 1]) {
-      const e = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), eyeW);
-      e.position.set(s * 0.32, 0.25, 0.86);
-      root.add(e);
-      const p = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), eyeB);
-      p.position.set(s * 0.32, 0.22, 1.02);
-      root.add(p);
-    }
+    // glowing, angry: the one thing you can see through the hair
+    root.add(angryEyes({ y: 0.25, z: 0.9, size: 0.24, gap: 0.34, glow: true }));
     this.body = root;
     this.holder = new THREE.Group();
     this.holder.add(root);

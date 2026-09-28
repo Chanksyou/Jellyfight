@@ -14,14 +14,14 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
 ## The game
 
-You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am.
+You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am (2 real minutes).
 
 - **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
 - **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP.
 - **Level up** by collecting dew: pick 1 of 3 cards, each one stat and one number. One free reroll per level.
 - **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Clog**, and the moonlight carries you into the tub to fight it.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
-- After 6 minutes (2 am) **The Dry** spreads: more enemies, and moisture drains.
+- **2 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
 
 **Getting around:** the jelly swims in pulses (each squeeze of the bell is a little surge) and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the vanity, sideboard and bench. Hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet).
 
@@ -50,6 +50,8 @@ npx playwright install chromium
 npm run export
 ```
 
+The bathroom's close-up details live in the source too: the vanity's undermount basin (a real bowl under a hole in the counter), the oval toilet seat, the loop-pile bath mat, canvas laundry bags, panelled doors and fabric coats. A material whose bump map is its own color map keeps its bump through the bake.
+
 The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops everything else: the neighborhood, the corridor, the sky, Dendi, particles and helpers. Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
 
 | File | What it does |
@@ -63,7 +65,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/creator.js` | Character creator panel. |
 | `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |
-| `src/detail.js` | Fine bump detail on floors and rugs (desktop), which otherwise look flat up close. |
+| `src/detail.js` | Fine close-up detail (normal maps): grain on floors and rugs, an orange-peel paint finish on walls, doors, cabinets and porcelain. |
 | `src/player.js` | Swimming movement, low-gravity jump and double jump, vent launches, climbing, wall sliding, stepping up small ledges. |
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
 | `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. |
@@ -89,7 +91,7 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | --- | --- |
 | `src/stage1.js` | Rooms, start, doors, invisible walls, vents (and where each lands you), climbable fabric, Moon Drop spots, boss arena. Positions are world meters. |
 | `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, evolutions. |
-| `src/enemies.js` | Enemy types (health, speed, damage, size, dew) and how they move. |
+| `src/enemies.js` | Enemy types (health, speed, damage, size, dew), their angry eyes, and how they move. |
 | `src/run.js` | Wave pacing, Moon Drops and treasure picks, damage, treasure effects, boss flow, death and victory. |
 | `src/combat.js` | The Lash: targeting, picking which tentacle strikes, and treasure effects on hits. |
 | `src/boss.js` | The Clog. |

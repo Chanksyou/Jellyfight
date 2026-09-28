@@ -14,10 +14,48 @@ export const TYPES = {
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 
+// Angry eyes: white eyeballs with small red-rimmed pupils and thick brows slanted down toward
+// the middle. Built in "radius units" (the body is about 1 across) facing +z. The face sits on the
+// enemy's root, not its body, so it keeps glaring at you while the fuzz rolls and spins.
+const EYE = {
+  white: new THREE.MeshStandardMaterial({ color: 0xfffdf6, roughness: 0.25 }),
+  iris: new THREE.MeshStandardMaterial({ color: 0xc8231c, roughness: 0.3, emissive: 0x6a0a06, emissiveIntensity: 0.4 }),
+  pupil: new THREE.MeshStandardMaterial({ color: 0x0c0a0a, roughness: 0.2 }),
+  brow: new THREE.MeshStandardMaterial({ color: 0x1c1512, roughness: 0.8 }),
+  ball: new THREE.SphereGeometry(1, 16, 12),
+  brow_: new THREE.BoxGeometry(1, 1, 1),
+};
+export function angryEyes({ y = 0.2, z = 0.78, size = 0.34, gap = 0.36, glow = false } = {}) {
+  const face = new THREE.Group();
+  const white = glow ? new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe28a, emissiveIntensity: 0.8 }) : EYE.white;
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Group();
+    eye.position.set(s * gap, y, z);
+    eye.rotation.y = s * 0.25;
+    face.add(eye);
+    const ball = new THREE.Mesh(EYE.ball, white);
+    ball.scale.set(size, size * 0.8, size * 0.55);
+    eye.add(ball);
+    const iris = new THREE.Mesh(EYE.ball, EYE.iris);
+    iris.scale.set(size * 0.5, size * 0.45, size * 0.2);
+    iris.position.set(-s * size * 0.12, -size * 0.12, size * 0.44);
+    eye.add(iris);
+    const pupil = new THREE.Mesh(EYE.ball, EYE.pupil);
+    pupil.scale.set(size * 0.24, size * 0.24, size * 0.12);
+    pupil.position.set(-s * size * 0.12, -size * 0.12, size * 0.58);
+    eye.add(pupil);
+    // the brow cuts across the top of the eye, low on the inside: the angry V
+    const brow = new THREE.Mesh(EYE.brow_, EYE.brow);
+    brow.scale.set(size * 2.3, size * 0.5, size * 0.5);
+    brow.position.set(-s * size * 0.1, size * 0.62, size * 0.3);
+    brow.rotation.z = s * 0.5;
+    eye.add(brow);
+  }
+  return face;
+}
+
 function makeLooks() {
   const fuzz = (hex) => new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).convertSRGBToLinear(), roughness: 1 });
-  const eye = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
-  const eyeGeo = new THREE.SphereGeometry(0.16, 8, 6);
   const lumps = (mat, n, spread) => {
     const g = new THREE.Group();
     const geo = new THREE.IcosahedronGeometry(1, 1);
@@ -31,24 +69,17 @@ function makeLooks() {
     }
     return g;
   };
-  const withEyes = (g, y = 0.25, z = 0.8) => {
-    for (const s of [-1, 1]) {
-      const e = new THREE.Mesh(eyeGeo, eye);
-      e.position.set(s * 0.28, y, z);
-      g.add(e);
-    }
-    return g;
-  };
+  // body: the fuzz (may spin and roll); face: where the angry eyes go
   return {
-    mote: () => lumps(fuzz('#d9d0c0'), 4, 0.45),
-    bunny: () => withEyes(lumps(fuzz('#9c958b'), 7, 0.5)),
-    lint: () => { const g = withEyes(lumps(fuzz('#8fa3b8'), 5, 0.55), 0.15, 0.75); g.scale.y = 0.7; return g; },
+    mote: () => ({ body: lumps(fuzz('#d9d0c0'), 4, 0.45), face: angryEyes({ y: 0.15, z: 0.85, size: 0.4, gap: 0.38 }) }),
+    bunny: () => ({ body: lumps(fuzz('#9c958b'), 7, 0.5), face: angryEyes({ y: 0.3, z: 0.95 }) }),
+    lint: () => { const g = lumps(fuzz('#8fa3b8'), 5, 0.55); g.scale.y = 0.7; return { body: g, face: angryEyes({ y: 0.12, z: 0.85 }) }; },
     hair: () => {
       const g = new THREE.Group();
       const m = new THREE.Mesh(new THREE.TorusKnotGeometry(0.6, 0.12, 48, 6, 3, 5), fuzz('#3b2a20'));
       m.castShadow = true;
       g.add(m);
-      return withEyes(g, 0.2, 0.75);
+      return { body: g, face: angryEyes({ y: 0.2, z: 0.8 }) };
     },
   };
 }
@@ -70,20 +101,21 @@ export class Enemies {
 
   spawn(type, pos, hpScale = 1) {
     const T = TYPES[type];
-    const mesh = this.looks[type]();
+    const { body: mesh, face } = this.looks[type]();
     mesh.scale.multiplyScalar(T.r);
     const root = new THREE.Group();
-    root.add(mesh);
+    root.add(mesh, face);
     root.position.copy(pos);
     this.scene.add(root);
     const e = {
-      type, T, root, mesh, pos: root.position, r: T.r,
+      type, T, root, mesh, face, pos: root.position, r: T.r,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
       slowT: 0, pop: 0, spawnT: 0, phase: Math.random() * 10, baseScale: mesh.scale.x,
     };
     mesh.scale.setScalar(0.001); // grows in
+    face.scale.setScalar(0.001);
     this.list.push(e);
     return e;
   }
@@ -180,6 +212,7 @@ export class Enemies {
       let sc = e.baseScale * e.spawnT * (1 + e.pop * 0.35);
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
       e.mesh.scale.setScalar(sc);
+      e.face.scale.setScalar(sc);
       if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.type === 'bunny' || e.type === 'hair') e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }

@@ -14,7 +14,7 @@ const CSS = `
 #hud .items span { width: 28px; height: 28px; display: grid; place-items: center; font-size: 17px; background: #0008; border: 1px solid #ffffff40; border-radius: 8px; }
 #hud .tc { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
 #hud .clock { font-size: 22px; font-weight: 800; letter-spacing: .02em; }
-#hud .clock.dry { color: #ffb36a; }
+#hud .clock.dry { color: #ff8a6a; }   /* the boss is almost here */
 #hud .stage { font-size: 12px; opacity: .85; letter-spacing: .08em; text-transform: uppercase; }
 #hud .drops { margin-top: 4px; font-size: 15px; font-weight: 700; }
 #hud .boss { position: absolute; left: 50%; top: 116px; transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }

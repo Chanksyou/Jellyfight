@@ -1,5 +1,6 @@
-// One run of stage 1: survive the night, grow, collect Moon Drops (the first 3 give treasures,
-// the 4th summons the boss), beat The Clog, evolve.
+// One run of stage 1: grow for 2 minutes, collect Moon Drops (the first 3 give treasures,
+// the 4th summons the boss early), then beat The Clog and evolve. When time runs out the boss
+// comes anyway.
 import * as THREE from 'three';
 import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } from './stats.js';
 import { inPoly } from './hud.js';
@@ -115,13 +116,11 @@ export class Run {
     this.slowT = Math.max(0, this.slowT - dt);
     this.wristT = Math.max(0, this.wristT - dt);
     this.duckCd = Math.max(0, this.duckCd - dt);
-    const dry = this.t > this.stage.duration;
-
-    // --- the night: clock, The Dry
+    // --- the night: waves, drops, and the boss when time runs out
     if (this.phase === 'explore') {
-      if (dry) this.hurt(0.25 * dt, true);
-      this.spawnWaves(dt, dry);
+      this.spawnWaves(dt);
       this.updateDrops(dt);
+      if (this.t >= this.stage.duration && this.phase === 'explore') this.startMoonlift(true);
     }
     this.nightT -= dt;
     if (this.nightT <= 0) {
@@ -169,14 +168,14 @@ export class Run {
   }
 
   // ------------------------------------------------------------ waves
-  spawnWaves(dt, dry) {
-    const rate = (0.4 + this.t * 0.008) * (dry ? 1.8 : 1);
-    const cap = dry ? 75 : Math.min(60, 20 + this.t / 6);
+  spawnWaves(dt) {
+    const rate = 0.6 + this.t * 0.014;
+    const cap = Math.min(60, 20 + this.t / 3);
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
       if (this.enemies.alive >= cap) continue;
-      const w = [['mote', 1], ['bunny', this.t > 25 ? 0.6 : 0], ['lint', this.t > 75 ? 0.45 : 0]];
+      const w = [['mote', 1], ['bunny', this.t > 20 ? 0.6 : 0], ['lint', this.t > 50 ? 0.45 : 0]];
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'mote';
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
       const pos = this.spawnPoint(type) || (type !== 'mote' ? this.spawnPoint((type = 'mote')) : null);
@@ -361,10 +360,11 @@ export class Run {
   }
 
   // ------------------------------------------------------------ boss
-  startMoonlift() {
+  startMoonlift(timeUp = false) {
     this.phase = 'moonlift';
     this.liftT = 0;
-    this.hud.toast('🌙 The moonlight lifts you…', 2200);
+    this.moon.hide();
+    this.hud.toast(timeUp ? `🌕 Time's up! The moonlight drags you to ${this.stage.boss.name}…` : '🌙 The moonlight lifts you…', 2400);
     for (const e of this.enemies.list) if (!e.dead) this.enemies.kill(e, true);
     this.dew.magnetAll = true;
   }
@@ -454,10 +454,11 @@ export class Run {
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.owned].map((id) => TREASURES.find((t) => t.id === id)));
     const [c0, c1] = this.stage.clock;
-    const dry = this.t > this.stage.duration;
     const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.stage.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);
-    h.setClock(`${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM${dry ? ' · The Dry is spreading' : ''}`, dry);
+    const left = Math.max(0, Math.ceil(this.stage.duration - this.t));
+    const boss = this.phase === 'explore' ? ` · ${this.stage.boss.name} in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
+    h.setClock(`${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM${boss}`, this.phase === 'explore' && left <= 20);
     h.setStage(`Stage ${this.stage.id} · ${this.stage.name}`);
     h.setDrops(this.drops, TOTAL_DROPS, this.phase === 'boss');
   }

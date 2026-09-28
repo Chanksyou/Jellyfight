@@ -327,6 +327,22 @@ const mat={
  mat:M('#4b5a2b',{roughness:1}),matDark:M('#3b4722'),tan:M('#d2a57c',{roughness:.6}),
  white:M('#f4f2ee',{roughness:.55}),door:M('#f1efea',{roughness:.5}),rug:M('#e2ddd3',{roughness:1}),cardboard:M('#c7a174',{roughness:1}),bowl:M('#b98552',{roughness:.45,side:DS})
 };MATS.push(mat.glassTop);
+// close-up detail textures (the game's player is 3.5 cm tall). A material whose bump map is its
+// own color map keeps its bump through the game bake (tools/exporter.js tags it).
+function bumpy(m,t,s){m.bumpMap=t;m.bumpScale=s;m.needsUpdate=true;return m;}
+function speck(q,w,h,n,a,sz=2){for(let i=0;i<n;i++){q.fillStyle=`rgba(${rnd()<.5?'255,255,255':'0,0,0'},${rr(0,a)})`;q.fillRect(rr(0,w),rr(0,h),sz,sz);}}
+// canvas weave: fine crosshatch, a slub or two, darker seams at the sides and a stitched hem
+const canvasT=tex(128,256,(q,w,h)=>{q.fillStyle='#f3eee3';q.fillRect(0,0,w,h);for(let y=0;y<h;y+=2){q.fillStyle=`rgba(120,100,70,${rr(.04,.1)})`;q.fillRect(0,y,w,1);}for(let x=0;x<w;x+=2){q.fillStyle=`rgba(120,100,70,${rr(.03,.08)})`;q.fillRect(x,0,1,h);}speck(q,w,h,500,.12);
+ q.fillStyle='rgba(90,75,55,.35)';q.fillRect(0,0,3,h);q.fillRect(w-3,0,3,h);q.fillRect(0,26,w,2);q.strokeStyle='rgba(90,75,55,.5)';q.setLineDash([4,3]);q.beginPath();q.moveTo(0,20);q.lineTo(w,20);q.moveTo(0,h-10);q.lineTo(w,h-10);q.stroke();q.setLineDash([]);
+ q.fillStyle='rgba(150,120,85,.75)';q.font='bold 17px sans-serif';q.textAlign='center';q.fillText('LAUNDRY',w/2,h*.45);q.strokeStyle='rgba(150,120,85,.6)';q.lineWidth=2;q.strokeRect(w*.2,h*.45-24,w*.6,34);});
+// coat fabric: woven noise, a button placket, two pocket flaps and a stitched hem; tinted by the coat color
+const coatT=tex(128,256,(q,w,h)=>{q.fillStyle='#e4e4e4';q.fillRect(0,0,w,h);for(let y=0;y<h;y+=2){q.fillStyle=`rgba(0,0,0,${rr(0,.06)})`;q.fillRect(0,y,w,1);}speck(q,w,h,900,.14);
+ q.fillStyle='rgba(0,0,0,.28)';q.fillRect(w/2-1,0,2,h);q.fillStyle='rgba(0,0,0,.45)';for(let y=20;y<h-20;y+=38){q.beginPath();q.arc(w/2+7,y,4,0,7);q.fill();}
+ q.strokeStyle='rgba(0,0,0,.35)';q.lineWidth=2;[[12,h*.6],[w-50,h*.6]].forEach(([x,y])=>{q.strokeRect(x,y,38,14);});q.setLineDash([3,3]);q.beginPath();q.moveTo(0,h-8);q.lineTo(w,h-8);q.moveTo(8,0);q.lineTo(8,h);q.moveTo(w-8,0);q.lineTo(w-8,h);q.stroke();q.setLineDash([]);});
+// painted door: three recessed shaker panels, lit from above
+{const dT=tex(256,512,(q,w,h)=>{q.fillStyle='#f1efea';q.fillRect(0,0,w,h);speck(q,w,h,1400,.035);
+  [[30,30,196,150],[30,200,196,120],[30,340,196,142]].forEach(([x,y,pw,ph])=>{q.fillStyle='rgba(0,0,0,.05)';q.fillRect(x,y,pw,ph);q.fillStyle='rgba(0,0,0,.22)';q.fillRect(x,y,pw,4);q.fillRect(x,y,4,ph);q.fillStyle='rgba(255,255,255,.7)';q.fillRect(x,y+ph-4,pw,4);q.fillRect(x+pw-4,y,4,ph);});});
+ mat.door.map=dT;mat.door.color=C('#ffffff');bumpy(mat.door,dT,.02);}
 
 {const vt=tex(128,128,(q,w,h)=>{q.fillStyle='#ffffff';q.fillRect(0,0,w,h);q.strokeStyle='rgba(205,232,185,.95)';q.lineWidth=3;[0,w/2,w].forEach(x=>{q.beginPath();q.moveTo(x,0);q.lineTo(x,h);q.stroke();});
   q.lineWidth=1.3;q.strokeStyle='rgba(195,225,175,.7)';for(let y=8;y<h+10;y+=14)[0,w/2].forEach(x=>{q.beginPath();q.moveTo(x,y);q.lineTo(x+22,y-10);q.moveTo(x+w/2,y);q.lineTo(x+w/2-22,y-10);q.stroke();});
@@ -1428,7 +1444,7 @@ acc('laundryBasket','Laundry basket','','White wire basket of folded laundry and
  const Gs=[['Baby carrier','#9ea2a4',.62,.07],['Canvas tote','#efece6',.5,.05],['Camel coat','#8a5a2e',1.0,.06],['Black puffer',null,.95,.11],['Patterned jacket','art',.85,.06],['Faux-fur jacket','#3a2e24',.8,.08],['Green fleece','#3e4034',.78,.06],['Pink sherpa with cats','cat',.82,.08],['Black jacket','#202022',.9,.06],['Black coat','#2a2b2e',.95,.06]];
  let z=.41;Gs.forEach(([nm,c,Ln,t])=>{z-=t/2;const g=grp(-.04,0,z,Cg);info(g,nm,'Hanging in the coat closet.');
   const hg=mesh(new THREE.TorusGeometry(.018,.003,6,12,PI*1.4),mat.steel,g);hg.position.set(0,1.61,0);hg.rotation.y=PI/2;rod(V(-.17,1.52,0),V(0,1.575,0),.004,M('#c9a06a'),g);rod(V(.17,1.52,0),V(0,1.575,0),.004,M('#c9a06a'),g);
-  const m=c==='cat'?M('#ffffff',{map:catT,roughness:1}):c==='art'?M('#ffffff',{map:artTex([0,20,300,40],'#5a2a2e'),roughness:1}):c===null?M('#ffffff',{map:quT,roughness:.5}):M(c,{roughness:1});
+  const m=c==='cat'?M('#ffffff',{map:catT,roughness:1}):c==='art'?M('#ffffff',{map:artTex([0,20,300,40],'#5a2a2e'),roughness:1}):c===null?M('#ffffff',{map:quT,roughness:.5}):nm==='Canvas tote'?bumpy(M(c,{map:canvasT,roughness:1}),canvasT,.02):bumpy(M(c,{map:coatT,roughness:1}),coatT,.02);
   const wdt=nm==='Canvas tote'?.3:.44;rbox(wdt,Ln,t,.025,m,0,1.53-Ln,0,g);if(nm==='Baby carrier'){const lp=mesh(new THREE.TorusGeometry(.11,.025,8,20),M('#8e9294',{roughness:1}),g);lp.position.set(.05,1.0,0);}
   z-=t/2+.012;});
  // top shelf: vented baskets, labelled black bins, tape, vest, baby bath
@@ -1560,19 +1576,27 @@ item('gear','Cart, guitar case and keyboard stand',()=>{{const g=grp(2.3,0,7.62)
 item('bench','Cubby bench',()=>{{const g=grp(1.72,0,6.45);info(g,'Cubby bench','Dark walnut cubby bench under the wall clock, piled with everyday things.');const wm=M('#ffffff',{map:walnutT,roughness:.5});
  box(.38,.43,.74,wm,0,.03,0,g);box(.02,.36,.34,mat.inner,.19,.07,.18,g,false);box(.01,.36,.34,wm,.195,.07,-.18,g,false);box(.01,.36,.004,mat.inner,.196,.07,0,g,false);
  [[-.15,-.3],[.15,-.3],[-.15,.3],[.15,.3]].forEach(([x,z])=>box(.04,.03,.04,wm,x,0,z,g));
- box(.18,.14,.12,M('#2a2a2c'),-.05,.46,.2,g);box(.1,.18,.08,M('#1c1c1e'),-.05,.46,-.05,g);sph(.035,M('#d9e84a'),.1,.495,-.2,g);cyl(.03,.03,.15,M('#b8e0c0',{transparent:true,opacity:.7}),-.1,.46,-.28,g,10);
- const pf=box(.02,.22,.16,mat.black,-.08,.46,.08,g);pf.rotation.z=-.15;box(.1,.08,.06,M('#6a4a3a'),.08,.46,.08,g);}},null);
+ {const tb=tex(128,64,(q,w,h)=>{q.fillStyle='#d4e33e';q.fillRect(0,0,w,h);speck(q,w,h,600,.2,1.5);q.strokeStyle='#f6f6ee';q.lineWidth=4;q.beginPath();for(let x=0;x<=w;x+=2)q.lineTo(x,h/2+Math.sin(x/w*PI*4)*h*.28);q.stroke();});
+  sph(.035,bumpy(M('#ffffff',{map:tb,roughness:1}),tb,.02),.1,.495,-.2,g);}cyl(.03,.03,.15,M('#b8e0c0',{transparent:true,opacity:.7}),-.1,.46,-.28,g,10);}},null);
 
 // ---------- bathroom fittings (placed in final metres) ----------
 {const BF=grp();BF.userData.noScale=true;const porc=M('#f7f7f5',{roughness:.18});const ch=mat.steel;
  {const g=grp(.55,0,5.08,BF);info(g,'Toilet','Toilet with a bidet seat and side control panel, a small lidded trash can beside it, and a black candle, a reed diffuser and a toilet spray on the tank.');
-  rbox(.44,.38,.2,.03,porc,0,.42,.11,g);rbox(.46,.03,.21,.01,porc,0,.8,.11,g);const bw=cyl(.2,.15,.4,porc,0,0,.45,g,24);bw.scale.z=1.35;rbox(.4,.08,.54,.05,porc,0,.4,.46,g);box(.38,.07,.12,M('#f4f4f2',{roughness:.25}),0,.4,.2,g);box(.07,.004,.004,M('#b8bcc0',{metalness:.6,roughness:.3}),0,.472,.262,g,false);rbox(.07,.035,.3,.01,M('#f2f2f0',{roughness:.3}),-.26,.41,.4,g);[['#e8702a',.29],['#dcdcda',.35],['#dcdcda',.41],['#dcdcda',.47]].forEach(([c,z])=>box(.022,.005,.022,M(c),-.26,.445,z,g,false));rbox(.19,.3,.2,.03,M('#f2f2f0',{roughness:.3}),.34,0,.16,g);rbox(.19,.035,.2,.02,M('#a8adb0',{roughness:.3,metalness:.2}),.34,.3,.16,g);
+  rbox(.44,.38,.2,.03,porc,0,.42,.11,g);rbox(.46,.03,.21,.01,porc,0,.8,.11,g);const bw=cyl(.2,.15,.4,porc,0,0,.45,g,24);bw.scale.z=1.35;{const st2=cyl(.2,.2,.028,M('#f2f2f0',{roughness:.22}),0,.4,.47,g,36);st2.scale.z=1.3;const ld=cyl(.19,.2,.035,porc,0,.428,.47,g,36);ld.scale.z=1.3;const lt=cyl(.165,.19,.014,porc,0,.463,.47,g,36);lt.scale.z=1.3;}box(.38,.07,.12,M('#f4f4f2',{roughness:.25}),0,.4,.2,g);box(.07,.004,.004,M('#b8bcc0',{metalness:.6,roughness:.3}),0,.472,.262,g,false);rbox(.07,.035,.3,.01,M('#f2f2f0',{roughness:.3}),-.26,.41,.4,g);[['#e8702a',.29],['#dcdcda',.35],['#dcdcda',.41],['#dcdcda',.47]].forEach(([c,z])=>box(.022,.005,.022,M(c),-.26,.445,z,g,false));{const cT=tex(64,128,(q,w,h)=>{q.fillStyle='#f2f2f0';q.fillRect(0,0,w,h);for(let x=0;x<w;x+=4){q.fillStyle='rgba(0,0,0,.08)';q.fillRect(x,0,1,h);q.fillStyle='rgba(255,255,255,.6)';q.fillRect(x+1,0,1,h);}q.fillStyle='rgba(0,0,0,.18)';q.fillRect(0,6,w,2);speck(q,w,h,120,.05);});
+  rbox(.19,.3,.2,.03,bumpy(M('#ffffff',{map:cT,roughness:.3}),cT,.015),.34,0,.16,g);rbox(.08,.02,.05,.008,M('#a8adb0',{roughness:.3,metalness:.2}),.34,.0,.28,g);}rbox(.19,.035,.2,.02,M('#a8adb0',{roughness:.3,metalness:.2}),.34,.3,.16,g);
   cyl(.042,.038,.1,M('#161618',{roughness:.12}),-.12,.83,.12,g,18);cyl(.037,.037,.004,M('#3a3a3a',{roughness:.9}),-.12,.922,.12,g,16);box(.05,.06,.002,M('#f4f2ec'),-.12,.845,.162,g,false);cyl(.011,.024,.085,M('#f6f6f4',{roughness:.18}),-.03,.83,.12,g,14);for(let i=0;i<5;i++)rod(V(-.03,.9,.12),V(-.03+rr(-.03,.03),1.08,.12+rr(-.03,.03)),.002,M('#8a6a3a'),g);rbox(.055,.09,.035,.008,M('#f6f6f4',{roughness:.3}),.1,.83,.12,g);box(.045,.05,.002,M('#e2c8a4'),.1,.848,.138,g,false);cyl(.016,.016,.04,M('#161618',{roughness:.3}),.1,.92,.12,g,12);bundle(g,'Black candle','Black glass candle with a cream label.',-0.17,-0.07,0.8,1.0,0,0.25);bundle(g,'Reed diffuser','White reed diffuser on the tank.',-0.065,0.035,0.8,1.2,0,0.25);bundle(g,'Toilet spray','Before-you-go toilet spray.',0.05,0.15,0.8,1.0,0,0.25);bundle(g,'Trash can','Small white trash can with a gray lid.',0.25,0.45,0,0.4,0,0.35);}
  {const g=grp(1.29,0,5.08,BF);info(g,'Vanity','Wood-front vanity on a black metal frame with a long black bar pull and an open wood shelf of toiletries, a thick charcoal counter with an undermount basin and a widespread faucet, and a lit mirror cabinet above.');const fr=mat.black;
   [[-.29,.03],[.29,.03],[-.29,.47],[.29,.47]].forEach(([x,z])=>box(.025,.82,.025,fr,x,0,z,g));box(.6,.02,.46,fr,0,.15,.25,g);
-  box(.56,.33,.02,M('#ffffff',{map:kitT,roughness:.5}),0,.47,.49,g);box(.56,.33,.42,M('#6a4a30'),0,.47,.26,g,false);box(.42,.014,.014,fr,0,.73,.505,g);
-  box(.64,.1,.54,mat.counter,0,.78,.27,g);{const st=tex(256,192,(q,w,h)=>{const gr=q.createRadialGradient(w/2,h*.64,8,w/2,h*.55,w*.62);gr.addColorStop(0,'#dfe2e2');gr.addColorStop(.55,'#f4f4f2');gr.addColorStop(1,'#fbfbf9');q.fillStyle=gr;q.fillRect(0,0,w,h);q.strokeStyle='rgba(90,90,90,.45)';q.lineWidth=4;q.strokeRect(4,4,w-8,h-8);q.fillStyle='#9ea2a4';q.beginPath();q.arc(w/2,h*.74,11,0,7);q.fill();q.fillStyle='#d4d8da';q.beginPath();q.arc(w/2,h*.74,7,0,7);q.fill();});
-  const sk=mesh(new THREE.PlaneGeometry(.42,.3),M('#ffffff',{map:st,roughness:.15}),g,false,false);sk.rotation.x=-PI/2;sk.position.set(0,.8815,.29);}
+  box(.56,.33,.02,M('#ffffff',{map:kitT,roughness:.5}),0,.47,.49,g);box(.56,.22,.42,M('#6a4a30'),0,.47,.26,g,false);box(.42,.014,.014,fr,0,.73,.505,g);
+  {const cs=new THREE.Shape();cs.moveTo(-.32,0);cs.lineTo(.32,0);cs.lineTo(.32,.54);cs.lineTo(-.32,.54);cs.lineTo(-.32,0);
+   const hl=new THREE.Path();hl.absellipse(0,.29,.19,.135,0,PI*2,true,0);cs.holes.push(hl);
+   const cg=new THREE.ExtrudeGeometry(cs,{depth:.1,bevelEnabled:false,curveSegments:48});cg.rotateX(PI/2);const ct=mesh(cg,mat.counter,g);ct.position.y=.88;
+   // undermount basin: a glazed oval bowl under the hole, sloping to a chrome drain (shallow enough to jump out of)
+   const bp=[[.21,.004],[.2,-.01],[.19,-.03],[.165,-.05],[.12,-.066],[.06,-.074],[0,-.076]].map(p=>new THREE.Vector2(p[0],p[1]));
+   const bowl=mesh(new THREE.LatheGeometry(bp,40),M('#f6f6f3',{roughness:.12,side:DS}),g);bowl.position.set(0,.78,.29);bowl.scale.z=.72;
+   const dr=mesh(new THREE.CircleGeometry(.017,20),M('#2a2c2e',{roughness:.3,metalness:.6}),g,false,false);dr.rotation.x=-PI/2;dr.position.set(0,.7055,.29);
+   const dring=mesh(new THREE.TorusGeometry(.019,.003,6,20),mat.chrome,g,false,false);dring.rotation.x=PI/2;dring.position.set(0,.706,.29);
+   const ov=mesh(new THREE.CircleGeometry(.008,14),M('#2a2c2e'),g,false,false);ov.position.set(0,.755,.44);ov.rotation.x=PI*.85;}
   rod(V(0,.87,.06),V(0,1.04,.06),.012,ch,g);rod(V(0,1.04,.06),V(0,1.01,.17),.01,ch,g);[-.13,.13].forEach(x=>{cyl(.018,.018,.075,ch,x,.88,.06,g,14);cyl(.028,.028,.006,ch,x,.88,.06,g,16);box(.06,.01,.014,ch,x+Math.sign(x)*.04,.942,.06,g,false);});cyl(.026,.026,.006,ch,0,.88,.06,g,16);
   box(.62,1.0,.12,fr,0,1.12,.06,g);const mr=mesh(new THREE.PlaneGeometry(.58,.84),M('#dfe6ea',{metalness:.95,roughness:.04}),g,false,false);mr.position.set(0,1.56,.121);box(.003,.84,.004,fr,0,1.14,.123,g,false);
   box(.58,.07,.01,M('#fffaf0',{emissive:'#fff2dc'}),0,2.03,.122,g,false);
@@ -1613,7 +1637,9 @@ item('bench','Cubby bench',()=>{{const g=grp(1.72,0,6.45);info(g,'Cubby bench','
   const fz=mesh(new THREE.ExtrudeGeometry(s,{depth:.012,bevelEnabled:true,bevelThickness:.004,bevelSize:.008,bevelSegments:2,curveSegments:16}),M('#ece4d0',{roughness:1}),BF,false,true);fz.rotation.x=-PI/2;fz.position.set(1.22,.002,5.66);fz.rotation.z=.15;
   const top=mesh(new THREE.ShapeGeometry(s,16),M('#ffffff',{map:dt,roughness:1}),fz,false,true);top.position.z=.0165;
   info(fz,'Duck rug','Fluffy cream duck-shaped rug in front of the vanity.');PROMO.push(['duckRug','Duck rug','',[fz]]);}
- const bm=box(.62,.015,.95,M('#8a8a8c',{roughness:1}),.95,0,6.62,BF,false);info(bm,'Bath mat','Gray bath mat in front of the tub.');PROMO.push(['bathMat','Bath mat','Gray bath mat in front of the tub.',[bm]]);
+ const bmT=tex(256,384,(q,w,h)=>{q.fillStyle='#8a8a8c';q.fillRect(0,0,w,h);for(let i=0;i<5200;i++){const l=rr(90,170)|0;q.fillStyle=`rgba(${l},${l},${l+3},.8)`;q.beginPath();q.arc(rr(0,w),rr(0,h),rr(1.2,2.6),0,7);q.fill();}
+  q.fillStyle='rgba(60,60,64,.55)';for(let k=0;k<3;k++){q.fillRect(10+k*5,10+k*5,w-20-k*10,2);q.fillRect(10+k*5,h-12-k*5,w-20-k*10,2);q.fillRect(10+k*5,10+k*5,2,h-20-k*10);q.fillRect(w-12-k*5,10+k*5,2,h-20-k*10);}});
+ const bm=rbox(.62,.015,.95,.006,bumpy(M('#ffffff',{map:bmT,roughness:1}),bmT,.04),.95,0,6.62,BF);bm.castShadow=false;info(bm,'Bath mat','Gray bath mat in front of the tub.');PROMO.push(['bathMat','Bath mat','Gray bath mat in front of the tub.',[bm]]);
  {const tp=grp(.07,.7,5.62,BF);rod(V(0,0,0),V(.1,0,0),.01,ch,tp);const rl=cyl(.05,.05,.11,M('#ffffff'),.12,-.055,0,tp,16);rl.rotation.z=PI/2;rl.position.set(.12,0,0);}
  BF.traverse(o=>{if(o.isMesh)o.receiveShadow=true;});}
 framed(B0.lg,.49,1.72,0,.27,.41,photoTex('bathprint'),M('#e6d6ba'),'Watercolor print','Underwater watercolor print of a little figure drifting among giant koi, clocks and to-do lists, in a pale maple frame with a white mat.');
@@ -1624,7 +1650,8 @@ framed(B3.lg,1.62,1.62,0,.46,.66,art('anime'),M('#d9c3a0'),'Anime poster','Blue 
 {const g=grp(1.22,1.28,.05,B3.lg);box(.5,.02,.02,mat.steel,0,0,0,g);box(.34,.55,.03,M('#2e2f31',{roughness:1}),0,-.54,.02,g);info(g,'Towel bar','Towel bar with a dark bath towel.');}
 item('laundry','Laundry shelf',()=>{{const g=grp(.25,0,5.83);info(g,'Laundry shelf','Bamboo hamper shelf with two canvas bags, the bottle sterilizer and folded washcloths on top.');const bb=M('#c8a06a',{roughness:.6});
  [[-.17,-.34],[.17,-.34],[-.17,.34],[.17,.34]].forEach(([x,z])=>box(.03,.8,.03,bb,x,0,z,g));for(let i=0;i<6;i++)box(.36,.02,.03,bb,0,.78,-.3+i*.12,g);box(.36,.02,.72,bb,0,.08,0,g,false);
- [-.17,.17].forEach(z=>{const bg2=rbox(.3,.5,.3,.04,M('#f4f1ea',{roughness:1}),0,.22,z,g);});
+ {const cm=bumpy(M('#ffffff',{map:canvasT,roughness:1}),canvasT,.02),hm=M('#e6dfd0',{roughness:1}),rope=M('#b89a70',{roughness:1});
+  [-.17,.17].forEach(z=>{rbox(.3,.5,.3,.04,cm,0,.22,z,g);rbox(.315,.035,.315,.012,hm,0,.69,z,g);[-1,1].forEach(sd=>{const hd=mesh(new THREE.TorusGeometry(.045,.006,6,14,PI),rope,g);hd.position.set(sd*.158,.72,z);hd.rotation.y=PI/2;});});}
  rbox(.26,.28,.24,.03,M('#f2f2f0',{roughness:.3}),0,.8,-.18,g);box(.24,.08,.22,M('#bcd4e8',{transparent:true,opacity:.7}),0,1.08,-.18,g);
  box(.2,.08,.18,M('#8f9aa2',{roughness:1}),0,.8,.15,g);sph(.05,M('#4a8a3a',{roughness:.3}),.03,.81,.24,g,[1.6,.35,1]);
  [-.14,.14].forEach(x=>rod(V(x,.745,-.36),V(x,.745,.36),.011,bb,g));
@@ -1635,7 +1662,8 @@ item('laundry','Laundry shelf',()=>{{const g=grp(.25,0,5.83);info(g,'Laundry she
  sph(.09,M('#efe9dc',{roughness:1}),.02,.38,.42,g,[.8,1.9,.45],12);rod(V(.02,.56,.42),V(.02,.76,.36),.004,M('#e8e0d0'),g);
  bundle(g,'Bottle sterilizer','Bottle sterilizer and dryer with its blue lid.',-0.15,0.15,0.85,1.2,-0.3,-0.05);bundle(g,'Washcloths','Folded gray and chevron washcloths.',-0.12,0.12,0.835,0.95,0.05,0.22);bundle(g,'Leaf dish','Green leaf-shaped dish.',-0.02,0.08,0.8,0.83,0.2,0.28);bundle(g,'Mouthwash','Bottle of blue mouthwash.',-0.13,-0.05,0.85,1.05,0.25,0.33);bundle(g,'Jar in a bowl','Glass jar with a steel lid sitting in a small bowl.',0.03,0.13,0.8,0.95,0.25,0.33);bundle(g,'Gold ring','Gold ring hanging off the shelf.',0.1,0.14,0.9,0.96,-0.02,0.06);bundle(g,'Drawstring bag','Cream drawstring bag hanging off the end of the shelf.',-0.05,0.07,0.3,0.7,0.35,0.45);
  info(g,'Laundry shelf','Bamboo hamper shelf with two canvas bags on bamboo rods, the bottle sterilizer, folded gray and chevron washcloths, mouthwash, a jar in a bowl, a leaf dish and a drawstring bag hanging off the end.');}},null);
-item('bathstool','Bath step stool',()=>{{const g=grp(.48,0,5.17);info(g,'Step stool','White plastic squat stool in front of the toilet.');const sm=M('#f0eeea',{roughness:.4});rbox(.34,.035,.24,.015,sm,0,.21,0,g);[-1,1].forEach(sd=>rbox(.035,.22,.24,.012,sm,sd*.152,0,0,g));const sl=mesh(new THREE.PlaneGeometry(.1,.022),M('#2a2a2a'),g,false,false);sl.rotation.x=-PI/2;sl.position.set(0,.2455,0);}},null);
+item('bathstool','Bath step stool',()=>{{const g=grp(.48,0,5.17);info(g,'Step stool','White plastic squat stool in front of the toilet.');const sm=M('#f0eeea',{roughness:.4});{const rT=tex(128,96,(q,w,h)=>{q.fillStyle='#f0eeea';q.fillRect(0,0,w,h);for(let x=6;x<w-4;x+=7){q.fillStyle='rgba(0,0,0,.16)';q.fillRect(x,8,3,h-16);q.fillStyle='rgba(255,255,255,.7)';q.fillRect(x+3,8,1,h-16);}speck(q,w,h,200,.05);});
+  rbox(.34,.035,.24,.015,bumpy(M('#ffffff',{map:rT,roughness:.45}),rT,.03),0,.21,0,g);}[-1,1].forEach(sd=>rbox(.035,.22,.24,.012,sm,sd*.152,0,0,g));const sl=mesh(new THREE.PlaneGeometry(.1,.022),M('#2a2a2a'),g,false,false);sl.rotation.x=-PI/2;sl.position.set(0,.2455,0);}},null);
 
 // spread everything onto// spread everything onto the corrected floor-plan scale (objects keep their real sizes)
 // ---------- bedroom ----------

@@ -8,7 +8,7 @@ export const STAGE1 = {
   subtitle: 'Bathroom & hallway',
   rooms: ['Bathroom', 'Hallway', 'Laundry closet', 'Coat closet'],
   start: [1.0, 0.004, 6.8],          // bath mat
-  duration: 360,                      // seconds of night before The Dry sets in
+  duration: 120,                      // seconds until the boss comes, Moon Drops or not
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   // Things the player shouldn't bump into or can pass through
@@ -24,7 +24,7 @@ export const STAGE1 = {
 
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.25, 0.881, 5.42], to: 'the vanity' },
+    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.5, 0.881, 5.52], to: 'the vanity' },   // beside the sink, not in it
     { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
     { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
   ],
@@ -44,7 +44,8 @@ export const STAGE1 = {
     { area: 'Bathroom', at: [1.0, 0.004, 6.8], label: 'bath mat' },
     { area: 'Bathroom', at: [1.25, 0.025, 5.95], label: 'duck rug' },
     { area: 'Bathroom', at: [0.75, 0.004, 6.35], label: 'bathroom floor' },
-    { area: 'Bathroom', at: [1.25, 0.88, 5.37], label: 'vanity top' },
+    { area: 'Bathroom', at: [1.5, 0.88, 5.52], label: 'vanity top' },
+    { area: 'Bathroom', at: [1.29, 0.705, 5.37], label: 'in the sink' },
     { area: 'Bathroom', at: [0.5, 0.49, 5.58], label: 'toilet lid' },
     { area: 'Hallway', at: [2.4, 0, 7.9], label: 'hall runner' },
     { area: 'Hallway', at: [2.75, 0, 6.6], label: 'middle of the hall' },

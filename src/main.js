@@ -8,15 +8,15 @@ import { Input } from './input.js';
 import { Graphics, QUALITY } from './graphics.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
-import { Hud } from './hud.js';
-import { addFloorDetail } from './detail.js';
+import { Hud, inPoly } from './hud.js';
+import { addSurfaceDetail } from './detail.js';
 import { STAGE1 } from './stage1.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES } from './enemies.js';
 import { Clog } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v10';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v11';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -78,12 +78,12 @@ ui.innerHTML = `
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
-    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss. Floor vents fling you up onto furniture.
+    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
-    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss. Floor vents fling you up onto furniture.<br>
+    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -107,7 +107,11 @@ creator.mount(ui);
 prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage);
-const detailed = IS_TOUCH ? 0 : addFloorDetail(world.colliders);   // phones: skip, saves GPU work
+// fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
+addSurfaceDetail(world.colliders, {
+  inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
+});
+
 const traversal = new Traversal(scene, stage);
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
@@ -298,6 +302,7 @@ async function warmUp() {
   const temp = Object.keys(TYPES).map((t, i) => {
     const e = enemies.spawn(t, P.clone().add(new THREE.Vector3(0.03 * i, 0.01, 0.06)));
     e.mesh.scale.setScalar(e.baseScale);
+    e.face.scale.setScalar(e.baseScale);
     return e;
   });
   dew.drop(P.clone(), 1, 1);
