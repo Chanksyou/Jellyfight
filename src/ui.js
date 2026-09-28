@@ -32,6 +32,25 @@ const CSS = `
 .jf-pop .ic { font-size: 38px; }
 .jf-pop b { display: block; font-size: 17px; }
 .jf-pop span { font-size: 14px; opacity: .9; }
+@media (max-height: 520px), (max-width: 700px) {
+  .jf-modal > div { max-height: 100%; overflow-y: auto; padding: 10px 0; box-sizing: border-box; }
+  .jf-modal h2 { font-size: 24px; }
+  .jf-modal .sub { margin: 2px 0 10px; font-size: 13px; }
+  .jf-cards { gap: 8px; flex-wrap: nowrap; padding: 0 8px; }
+  .jf-card { width: min(190px, 31vw); min-height: 0; padding: 12px 8px; border-radius: 14px; gap: 3px; }
+  .jf-card .ic { font-size: 30px; }
+  .jf-card .big { font-size: 15px; }
+  .jf-card .txt { font-size: 12px; }
+  .jf-card .now { font-size: 11px; }
+  .jf-card .key { display: none; }
+  .jf-modal .btns { margin-top: 10px; }
+  .jf-modal .btns small { display: none; }
+  .jf-stats { font-size: 13px; }
+  .jf-pop { top: 12%; padding: 8px 12px; }
+  .jf-pop .ic { font-size: 28px; }
+  .jf-pop b { font-size: 14px; }
+  .jf-pop span { font-size: 12px; }
+}
 `;
 
 export class UI {

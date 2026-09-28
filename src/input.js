@@ -20,7 +20,7 @@ export class Input {
     addEventListener('blur', () => this.keys.clear());
 
     this.enabled = true; // main.js turns pointer lock off while menus are open
-    element.addEventListener('click', () => { if (this.enabled) element.requestPointerLock(); });
+    element.addEventListener('click', () => { if (this.enabled && !this.touchOnly) element.requestPointerLock?.(); });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === element;
     });
@@ -35,12 +35,13 @@ export class Input {
   // -1..1 on each axis
   moveAxes() {
     const k = this.keys;
-    const x = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
-    const y = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    let x = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    let y = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    if (this.touchMove) { x += this.touchMove.x; y += this.touchMove.y; }   // on-screen joystick (touch.js)
     return { x, y };
   }
 
-  get jumpHeld() { return this.keys.has('Space'); }
+  get jumpHeld() { return this.keys.has('Space') || !!this.touchJump; }
 
   consumeMouse() {
     const d = { x: this.mouseDX, y: this.mouseDY, wheel: this.wheel };

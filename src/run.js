@@ -83,7 +83,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
-    if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') return;
+    if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     this.t += dt;
     const P = this.player, s = this.stats;
 
@@ -158,8 +158,11 @@ export class Run {
     this.input.consumeInteract();
 
     // --- hints
-    if (chest) this.hud.hint(this.purse >= cost ? `<kbd>E</kbd> open for 💧 ${cost || 'free'}` : `Needs 💧 ${cost} dew (you have ${this.purse})`);
-    else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold <kbd>Space</kbd> to climb the ${tr.climb.name.toLowerCase()}`);
+    const canOpen = chest && this.purse >= cost;
+    this.touchAction = canOpen ? `Open 💧${cost || 'free'}` : null;
+    const jumpKey = this.touch ? '⤴' : '<kbd>Space</kbd>';
+    if (chest) this.hud.hint(canOpen ? (this.touch ? 'Treasure! Tap Open' : `<kbd>E</kbd> open for 💧 ${cost || 'free'}`) : `Needs 💧 ${cost} dew (you have ${this.purse})`);
+    else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
     else this.hud.hint(null);
 
     this.moon.update(dt);

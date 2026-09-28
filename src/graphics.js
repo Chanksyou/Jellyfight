@@ -65,13 +65,13 @@ const DofShader = {
 };
 
 export class Graphics {
-  constructor(renderer, scene, camera) {
+  constructor(renderer, scene, camera, defaultQuality = 'high') {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
     this.composer = null;
     this.focus = 0.16;
-    let q = 'high';
+    let q = defaultQuality;
     try { q = localStorage.getItem(STORE) || q; } catch {}
     this.setQuality(QUALITY.includes(q) ? q : 'high');
     addEventListener('resize', () => this.resize());

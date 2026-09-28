@@ -31,6 +31,25 @@ const CSS = `
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity .5s; }
 #hud .hurt.on { opacity: .5; transition: none; }
 #hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; text-shadow: 0 1px 2px #000; opacity: .8; }
+/* phones: smaller, and keep the bottom corners free for the thumbs */
+@media (max-height: 520px), (max-width: 700px) {
+  #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 160px; }
+  #hud .bar { height: 14px; border-width: 1.5px; }
+  #hud .bar b { font-size: 10px; }
+  #hud .xp { height: 7px; margin-top: 4px; }
+  #hud .row { font-size: 12px; margin-top: 4px; gap: 8px; }
+  #hud .items span { width: 22px; height: 22px; font-size: 13px; border-radius: 6px; }
+  #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
+  #hud .clock { font-size: 16px; }
+  #hud .stage { font-size: 9.5px; }
+  #hud .drops { font-size: 12px; margin-top: 1px; }
+  #hud .boss { top: 70px; }
+  #hud .toast { font-size: 17px; top: 30%; }
+  #hud .hint { font-size: 12.5px; bottom: 16px; }
+}
+body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 118px; height: 118px; }
+body.touch #hud .room { top: calc(env(safe-area-inset-top, 0px) + 180px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 118px; font-size: 11px; }
+body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 `;
 
 export class Hud {

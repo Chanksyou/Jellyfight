@@ -20,6 +20,7 @@ import { Dew, MoonDrop, TreasureSpots } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run } from './run.js';
+import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
 const { scene, renderer, camera } = APT;
@@ -51,14 +52,32 @@ ui.innerHTML = `
   #g-over .row button.on { background: #fff; color: #111; }
   #g-over .keys { margin-top: 14px; opacity: .8; font-size: 13.5px; line-height: 2; }
   #g-over kbd { background: #fff2; border: 1px solid #fff4; border-radius: 4px; padding: 1px 6px; font-size: 12.5px; }
+  #g-over > div { max-height: 100%; overflow-y: auto; padding: 12px 16px; box-sizing: border-box; }
+  #g-over .touch-only { display: none; }
+  body.touch #g-over .touch-only { display: block; }
+  body.touch #g-over .desk-only, body.touch #g-over button.desk-only { display: none; }
+  @media (max-height: 520px), (max-width: 600px) {
+    #g-over h1 { font-size: 32px; }
+    #g-over .tag { font-size: 13px; }
+    #g-over .play { margin: 10px auto 10px; padding: 10px 30px; }
+    #g-over .keys { margin-top: 6px; font-size: 12.5px; line-height: 1.7; }
+  }
+  @media (orientation: portrait) { body.touch #g-over .rotate { display: block; } }
+  #g-over .rotate { display: none; margin-top: 8px; color: #ffd23a; font-size: 13px; }
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer">🏠 Apartment viewer</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="viewer" class="desk-only">🏠 Apartment viewer</button></div>
   <div class="row" id="g-quality"></div>
-  <div class="keys">
+  <div class="keys touch-only">
+    Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
+    ⤴ jump (hold it to climb fabric) &nbsp;·&nbsp; the yellow button opens treasure<br>
+    Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.
+    <div class="rotate">Tip: turn your phone sideways.</div>
+  </div>
+  <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric &nbsp; <kbd>E</kbd> open treasure<br>
     Your tentacles attack on their own. Find 3 🌙 Moon Drops, then face the boss.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>G</kbd> viewer &nbsp; <kbd>F3</kbd> debug
@@ -90,7 +109,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera);
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 const dew = new Dew(scene, world);
@@ -139,9 +158,30 @@ function setNight(mins) {
 
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon, chests,
-  traversal, hud, ui: menus, fx, tpc, input, setNight,
+  traversal, hud, ui: menus, fx, tpc, input, setNight, touch: IS_TOUCH,
 });
-run.onResume = () => renderer.domElement.requestPointerLock();
+
+// Desktop plays with the mouse locked to the game; phones use on-screen controls
+if (IS_TOUCH) {
+  document.body.classList.add('touch');
+  tpc.distance = 0.27;   // phone screens are small: sit a bit closer
+}
+input.touchOnly = IS_TOUCH;
+function play() {
+  if (!IS_TOUCH) { renderer.domElement.requestPointerLock(); return; }
+  overlay.hidden = true;
+  const d = document.documentElement;
+  if (!document.fullscreenElement && d.requestFullscreen) {
+    d.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  }
+}
+function pause() {
+  if (menus.open || mode !== 'play') return;
+  overlay.hidden = false;
+}
+const touch = new TouchControls(input, { onPause: pause });
+touch.mount(ui);
+run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up) and 'creator' -----------------------
 let mode = 'play';
@@ -202,6 +242,7 @@ const GAME = {
   },
   stop() {
     this.active = false;
+    touch.show(false);
     document.body.classList.remove('game');
     player.mesh.visible = blob.visible = false;
     if (document.pointerLockElement) document.exitPointerLock();
@@ -221,6 +262,8 @@ const GAME = {
       updateBlob();
       return;
     }
+    touch.show(IS_TOUCH && !menuOpen());
+    touch.setAction(run.touchAction);
     if (!menuOpen()) run.update(dt);
     else {
       input.consumeJump();
@@ -249,14 +292,14 @@ renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.classList.contains('play')) renderer.domElement.requestPointerLock();
+  if (b.classList.contains('play')) play();
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
-  else if (b.dataset.act === 'restart') { run.start(); renderer.domElement.requestPointerLock(); }
+  else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'viewer') GAME.stop();
 });
 document.addEventListener('pointerlockchange', () => {
-  if (!GAME.active || mode !== 'play') return;
+  if (!GAME.active || mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
   overlay.hidden = locked || menus.open;
 });
