@@ -1,7 +1,6 @@
 import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
 
-// three.js r128 is loaded as a global by the apartment page
-const THREE = window.THREE;
+import * as THREE from 'three';
 
 // Raycast-based collision against the apartment meshes. Rays use each mesh's
 // current transform, so things that move (doors, the cat) still collide.

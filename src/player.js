@@ -1,5 +1,4 @@
-// three.js r128 is loaded as a global by the apartment page
-const THREE = window.THREE;
+import * as THREE from 'three';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);

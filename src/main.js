@@ -6,8 +6,8 @@ import { World } from './collision.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Input } from './input.js';
+import * as THREE from 'three';
 
-const THREE = window.THREE;
 const APT = window.APT;
 if (!APT) throw new Error('Apartment did not load (window.APT missing)');
 const { scene, renderer, camera } = APT;
