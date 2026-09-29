@@ -106,6 +106,13 @@ export const TREASURES = [
   { id: 'soapBubble', name: 'Rubber Glove', icon: '🧤', text: 'Blocks the first hit you take each stage.' },
   { id: 'lintRoller', name: 'Lint Roller', icon: '🧻', text: 'Every 20 s, all dew nearby sticks to you at once.' },
   { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'Every other volley adds one giant, slow bubble that pops for a big splash.' },
+  // elements for your bubbles (bubbles.js); they stack
+  { id: 'candle', name: 'Birthday Candle', icon: '🕯️', text: 'Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage.' },
+  { id: 'battery', name: 'AA Battery', icon: '🔋', text: 'Lightning bubbles: every pop arcs to 2 more enemies nearby.' },
+  { id: 'freezerPack', name: 'Freezer Pack', icon: '❄️', text: 'Ice bubbles: hits chill and slow; the 3rd chilled hit freezes the enemy solid.' },
+  { id: 'nailPolish', name: 'Nail Polish', icon: '💅', text: 'Acid bubbles: pops leave a puddle that eats at anything standing in it.' },
+  { id: 'paperFan', name: 'Paper Fan', icon: '🌬️', text: 'Wind bubbles: whatever they hit gets blown backward.' },
+  { id: 'glitter', name: 'Glitter', icon: '✨', text: 'Glitter bubbles: the splash is twice as wide and hits harder.' },
   // tentacles (the close-range sting): these are the only way to improve them
   { id: 'fishingLine', name: 'Fishing Line', icon: '🎣', text: 'Two more tentacles lash out at once.' },
   { id: 'chopstick', name: 'Chopstick', icon: '🥢', text: 'Tentacles reach 60% farther.' },
