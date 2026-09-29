@@ -69,6 +69,7 @@ export class Run {
 
     this.phase = 'explore';
     this.t = 0;
+    this.startPicked = false;         // the starting treasure is offered on the run's first frame
     this.stats = { ...BASE_STATS };
     this.level = 1;
     this.xp = 0;
@@ -134,6 +135,12 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
+    // every run starts with a treasure: pick 1 of 3 before anything happens
+    if (!this.startPicked && this.phase === 'explore') {
+      this.startPicked = true;
+      this.pickTreasure('🎁 Pick a starting treasure', 'Something lost, just within reach. Keep one to shape this run.');
+      return;
+    }
     this.t += dt;
     const P = this.player, s = this.stats;
 
