@@ -1,9 +1,17 @@
-// Enemies of The Dry: fuzz that has soaked up the apartment's moisture. Each type is one entry
-// in TYPES. A few spawn as elites: bigger, gold, tougher, and worth a lot more.
+// Enemies. The bugs of the living room (critters.js) are the waves: cockroaches, ant squads
+// that curl into a ball and roll at you, and mosquitoes that hover out of reach and spit. The
+// dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { buildRoach, buildAnts, buildMosquito } from './critters.js';
 
 export const TYPES = {
+  // scuttles straight at you; the basic enemy
+  roach:    { name: 'Cockroach', hp: 16, speed: 0.24, dmg: 1, r: 0.016, dew: 4 },
+  // four ants in a block; up close they curl into a ball and roll into you
+  ants:     { name: 'Ant squad', hp: 30, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.022, dew: 7, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
+  // hovers out of reach and spits at you
+  mosquito: { name: 'Mosquito', hp: 12, speed: 0.22, dmg: 1, r: 0.012, dew: 5, fly: true, shoots: true },
   // drifts through the air, so high ledges aren't perfectly safe
   mote:  { name: 'Mote', hp: 6, speed: 0.17, dmg: 1, r: 0.01, dew: 3, fly: true },
   // rolls toward you, winds up, then charges
@@ -168,6 +176,9 @@ function makeLooks() {
     bunny: () => ({ body: body('bunny', fuzz), face: angryEyes({ y: 0.3, z: 0.95 }) }),
     lint: () => ({ body: body('lint', fuzz), face: angryEyes({ y: 0.12, z: 0.85 }) }),
     hair: () => ({ body: body('hair', hairMat), face: angryEyes({ y: 0.2, z: 0.75 }) }),
+    roach: buildRoach,
+    ants: buildAnts,
+    mosquito: buildMosquito,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -182,6 +193,9 @@ export class Enemies {
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.onKill = null;       // (enemy) => void
+    this.shots = [];          // mosquito spit
+    this.shotGeo = new THREE.SphereGeometry(0.004, 10, 8);
+    this.shotMat = new THREE.MeshStandardMaterial({ color: 0xc8202a, emissive: 0x8a0a10, emissiveIntensity: 1.2, roughness: 0.2 });
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -192,9 +206,9 @@ export class Enemies {
   // elite: 35% bigger, 2.2x health, 4x dew, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
-    const { body: mesh, face } = this.looks[type]();
+    const { body: mesh, face, anim } = this.looks[type]();
     const root = new THREE.Group();
-    if (elite) {
+    if (elite && !anim) {
       T = { ...T, dew: T.dew * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
       const m = mesh.children[0];
@@ -213,7 +227,7 @@ export class Enemies {
     root.position.copy(pos);
     this.scene.add(root);
     const e = {
-      type, T, root, mesh, face, elite, pos: root.position, r: T.r,
+      type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 1 + Math.random() * 1.5, aimT: 0,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -256,6 +270,7 @@ export class Enemies {
   }
 
   center(e, out = new THREE.Vector3()) {
+    if (e.proxy?.center) return e.proxy.center(out);     // bosses know where their middle is
     return out.copy(e.pos).setY(e.pos.y + (e.T.fly ? 0 : e.r));
   }
 
@@ -285,6 +300,27 @@ export class Enemies {
   clear() {
     for (const e of this.list) { e.dead = true; if (e.root) this.scene.remove(e.root); }
     this.list = [];
+    this.shots.forEach((s) => this.scene.remove(s.m));
+    this.shots = [];
+  }
+
+  // Mosquito spit that reached the player this frame: returns the damage (run.js applies it)
+  shotHits(pc, radius) {
+    let dmg = 0;
+    for (const s of this.shots) if (!s.done && s.m.position.distanceTo(pc) < radius + 0.005) { s.done = true; dmg += 1; this.fx.puff(s.m.position, 0xc8202a, 0.01, 0.2); }
+    return dmg;
+  }
+
+  updateShots(dt) {
+    for (const s of this.shots) {
+      s.t -= dt;
+      const step = s.v.length() * dt;
+      if (this.world.cast(s.m.position, s.v.clone().normalize(), step + 0.004)) s.done = true;
+      s.m.position.addScaledVector(s.v, dt);
+      if (s.t <= 0) s.done = true;
+      if (s.done) this.scene.remove(s.m);
+    }
+    this.shots = this.shots.filter((s) => !s.done);
   }
 
   // player: { position, radius, height }
@@ -304,7 +340,28 @@ export class Enemies {
       const dist = toP.length();
       const near = dist < 1.4;
 
-      if (e.T.fly) {
+      if (e.T.shoots) {
+        // hover at a distance, a little above you, circling slowly; every couple of seconds
+        // dip and spit at you
+        const away = e.pos.clone().sub(pc).setY(0);
+        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
+        away.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.4);
+        const spot = pc.clone().addScaledVector(away, 0.2).setY(pc.y + 0.07);
+        const to = spot.sub(e.pos);
+        const s = e.T.speed * slow;
+        e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * dt));
+        e.pos.addScaledVector(e.vel, dt);
+        e.shootT -= dt * (slow > 0 ? 1 : 0);
+        e.aimT = Math.max(0, e.aimT - dt);
+        if (e.shootT <= 0.35 && e.aimT <= 0 && e.shootT > 0) e.aimT = 0.35;
+        if (e.shootT <= 0 && dist < 0.45) {
+          e.shootT = 2.4;
+          const m = new THREE.Mesh(this.shotGeo, this.shotMat);
+          m.position.copy(e.pos);
+          this.scene.add(m);
+          this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(0.32), t: 2.2 });
+        } else if (e.shootT <= 0) e.shootT = 0.5;
+      } else if (e.T.fly) {
         // drift toward the player's middle with a lazy wobble
         const s = e.T.speed * slow;
         const wob = Math.sin(t * 3 + e.phase) * 0.35;
@@ -318,14 +375,14 @@ export class Enemies {
         let speed = e.T.speed * slow;
         if (e.T.charge) {
           e.stateT -= dt;
-          if (e.state === 'approach' && flat < 0.2 && e.grounded) { e.state = 'windup'; e.stateT = 0.45; }
+          if (e.state === 'approach' && flat < 0.2 && e.grounded) { e.state = 'windup'; e.stateT = e.T.windup ?? 0.45; }
           else if (e.state === 'windup') {
             speed = 0;
-            if (e.stateT <= 0) { e.state = 'dash'; e.stateT = 0.45; e.dashDir.copy(toP); }
+            if (e.stateT <= 0) { e.state = 'dash'; e.stateT = e.T.dashTime ?? 0.45; e.dashDir.copy(toP); }
           } else if (e.state === 'dash') {
-            speed = 0.55 * slow;
+            speed = (e.T.dashSpeed ?? 0.55) * slow;
             toP.copy(e.dashDir);
-            if (e.stateT <= 0) { e.state = 'rest'; e.stateT = 0.6; }
+            if (e.stateT <= 0) { e.state = 'rest'; e.stateT = e.T.rest ?? 0.6; }
           } else if (e.state === 'rest') {
             speed *= 0.3;
             if (e.stateT <= 0) e.state = 'approach';
@@ -345,7 +402,8 @@ export class Enemies {
       e.mesh.scale.setScalar(sc);
       e.face.scale.setScalar(sc);
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
-      if (e.T.fly) e.mesh.rotation.x += dt * 2;
+      if (e.anim) e.anim(dt, e);
+      else if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.type === 'bunny' || e.type === 'hair') e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
 
@@ -366,6 +424,7 @@ export class Enemies {
       }
     }
 
+    this.updateShots(dt);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 

@@ -14,9 +14,10 @@ import { STAGE1 } from './stage1.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES } from './enemies.js';
 import { Boss } from './boss.js';
+import { Vacuum } from './vacuum.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v20';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v21';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -78,12 +79,12 @@ ui.innerHTML = `
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 5 minutes it comes anyway. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 5 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -320,7 +321,10 @@ async function warmUp() {
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
-  const clog = new Boss(scene, enemies, fx, stage.boss);
+  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : new Boss(scene, enemies, fx, stage.boss);
+  const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
+  spit.position.copy(P).setY(P.y + 0.03);
+  scene.add(spit);
   try {
     await renderer.compileAsync(scene, camera);
   } catch (e) {
@@ -331,6 +335,7 @@ async function warmUp() {
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmFx.forEach((m) => scene.remove(m));
   clog.dispose();
+  scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
   enemies.clear();
   dew.clear();

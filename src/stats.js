@@ -142,6 +142,12 @@ export const TREASURES = [
   { id: 'thimble', name: 'Thimble', icon: '🛡️', text: 'Hits take 30% less moisture.' },
 ];
 
+// Treasures that change how you attack: elements, things that attack on their own, and bubble
+// upgrades. The starting pick always includes one of these.
+export const ATTACK_TREASURES = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter',
+  'guitarPick', 'remote', 'fairyLights', 'magnifier', 'glowStick', 'iceCube', 'legoBrick', 'marble', 'bathBomb', 'cottonBall',
+  'bobbyPin', 'hairTie', 'reedStick'];
+
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 5;
 

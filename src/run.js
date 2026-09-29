@@ -2,9 +2,11 @@
 // the 4th summons the boss early), then beat the stage's boss and evolve. When time runs out the boss
 // comes anyway.
 import * as THREE from 'three';
-import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } from './stats.js';
+import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES } from './stats.js';
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
+import { Vacuum } from './vacuum.js';
+import { TYPES } from './enemies.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
@@ -138,7 +140,7 @@ export class Run {
     // every run starts with a treasure: pick 1 of 3 before anything happens
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      this.pickTreasure('🎁 Pick a starting treasure', 'Something lost, just within reach. Keep one to shape this run.');
+      this.pickTreasure('🎁 Pick a starting treasure', 'Something lost, just within reach. Keep one to shape this run.', true);
       return;
     }
     this.t += dt;
@@ -152,6 +154,7 @@ export class Run {
       push = r.push;
       if (r.hurt) this.hurt(r.hurt, true);
       if (r.contact) this.hit(4);
+      if (r.hit) this.hit(r.hit);
       this.hud.setBoss(this.stage.boss.name, this.boss.hp / this.boss.maxHp);
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
     }
@@ -193,6 +196,8 @@ export class Run {
       if (this.phase === 'explore') this.elites.update(dt, P, this.cfg, this.eliteHooks);
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
+      const spit = this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
+      if (spit) this.hit(spit);
     }
     for (const b of this.bursts.splice(0)) this.burst(b);
 
@@ -231,18 +236,19 @@ export class Run {
 
   // ------------------------------------------------------------ waves
   spawnWaves(dt) {
-    // fewer enemies, each worth more (see TYPES in enemies.js)
-    const rate = 0.3 + this.t * 0.006;
-    const cap = Math.min(24, 8 + this.t / 6);
+    // fewer enemies, each worth more (see TYPES in enemies.js); paced for a 5-minute night
+    const rate = 0.3 + this.t * 0.003;
+    const cap = Math.min(26, 8 + this.t / 12);
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
       if (this.enemies.alive >= cap) continue;
-      const w = [['mote', 1], ['bunny', this.t > 20 ? 0.6 : 0], ['lint', this.t > 50 ? 0.45 : 0]];
-      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'mote';
+      // cockroaches from the start, ant squads from 0:45, mosquitoes from 1:30
+      const w = [['roach', 1], ['ants', this.t > 45 ? 0.5 : 0], ['mosquito', this.t > 90 ? 0.45 : 0]];
+      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'roach';
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
-      const pos = this.spawnPoint(type) || (type !== 'mote' ? this.spawnPoint((type = 'mote')) : null);
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22);
+      const pos = this.spawnPoint(type) || (type !== 'roach' ? this.spawnPoint((type = 'roach')) : null);
+      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.18);
     }
   }
 
@@ -257,7 +263,7 @@ export class Run {
       if (!this.inStage(x, z)) continue;
       const dir = new THREE.Vector3(x - P.x, 0, z - P.z).normalize();
       if (this.world.cast(pc, dir, d)) continue;               // behind a wall or furniture
-      if (type === 'mote') return new THREE.Vector3(x, pc.y + (Math.random() * 0.1 - 0.02), z);
+      if (TYPES[type].fly) return new THREE.Vector3(x, pc.y + 0.05 + Math.random() * 0.06, z);
       const hit = this.world.cast(new THREE.Vector3(x, P.y + 0.12, z), DOWN, 0.3);
       if (hit && Math.abs(hit.point.y - P.y) < 0.1) return hit.point.clone();
     }
@@ -275,7 +281,7 @@ export class Run {
         if (e.T.slows) this.slowT = 1.5;
         // Cactus Spine: whatever touches you gets stung (once per second each)
         if (this.owned.has('cactus') && !(e.cactusT > this.t)) { e.cactusT = this.t + 1; this.enemies.damage(e, this.stats.sting * 3 + this.stats.pop, '#9adf6a'); }
-        this.hit(e.T.dmg);
+        this.hit(e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg);   // ant squads hit harder rolling
       }
     }
   }
@@ -389,8 +395,13 @@ export class Run {
   }
 
   // Pick 1 of 3 treasures you don't have yet (from a Moon Drop or an elite)
-  pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.') {
-    const left = shuffle(TREASURES.filter((t) => !this.owned.has(t.id))).slice(0, 3);
+  // attack: make sure one of the three changes how you attack (the starting pick)
+  pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.', attack = false) {
+    let left = shuffle(TREASURES.filter((t) => !this.owned.has(t.id))).slice(0, 3);
+    if (attack && !left.some((t) => ATTACK_TREASURES.includes(t.id))) {
+      const a = shuffle(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && !this.owned.has(t.id)))[0];
+      if (a) left = shuffle([a, ...left.slice(0, 2)]);
+    }
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
     this.ui.choose(title, sub, left, (t) => {
@@ -491,7 +502,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = new Boss(this.scene, this.enemies, this.fx, B);
+      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : new Boss(this.scene, this.enemies, this.fx, B);
       this.enemies.addProxy(this.boss);
       setTimeout(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';

@@ -14,7 +14,7 @@ export const STAGE1 = {
   subtitle: 'Living room',
   rooms: ['Living room'],
   start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
-  duration: 120,                      // seconds until the boss comes, Moon Drops or not
+  duration: 300,                      // seconds until the boss comes, Moon Drops or not
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   noCollide: [],
@@ -70,16 +70,16 @@ export const STAGE1 = {
     { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop' },
   ],
 
-  // The boss: a crowned dust king that rises from a dust pile on the open floor. While it's
-  // up, low invisible walls (`walls`) keep the fight in front of the kitchen.
+  // The boss: a robot vacuum that powers on in front of the kitchen (vacuum.js). While it's
+  // up, low invisible walls (`walls`) keep the fight there.
   boss: {
-    name: 'The Dust King',
-    kind: 'dust',                     // see boss.js
-    intro: 'The Dust King rises from the dust pile!',
+    name: 'The Vacuum',
+    kind: 'vacuum',
+    intro: 'The Vacuum powers on!',
     arenaMin: [2.9, 0, 2.0],
     arenaMax: [4.3, 0.6, 4.3],
     playerStart: [3.1, 0, 3.9],
-    drain: [3.6, 0, 3.1],             // the dust pile it rises from and inhales toward
+    drain: [3.6, 0, 3.1],             // where it powers on
     walls: [
       { min: [2.85, 0, 1.95], max: [2.9, 0.6, 4.35] },
       { min: [4.3, 0, 1.95], max: [4.35, 0.6, 4.35] },
