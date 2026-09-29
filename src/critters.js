@@ -2,7 +2,9 @@
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
-// radius is 1), facing +z; Enemies.spawn scales them to size. Geometry is built once per type
+// radius is 1), facing +z; Enemies.spawn scales `body` to size. Everything that moves (and the
+// eyes) lives in an inner group, so animation offsets stay in radius units and the eyes stay
+// on the head. Geometry is built once per type
 // and shared, and parts of the same material are merged, to keep draw calls down on phones.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -66,7 +68,8 @@ function roachGeometry() {
 
 export function buildRoach() {
   const G = (GEO.roach ||= roachGeometry()), M = mats();
-  const body = new THREE.Group();
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
   const shell = new THREE.Mesh(G.body, M.shell);
   shell.castShadow = true;
   body.add(shell);
@@ -79,34 +82,36 @@ export function buildRoach() {
     body.add(pivot);
     legs.push({ pivot, base: pivot.rotation.y, phase: (i + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });   // tripod gait
   }));
-  const face = angryEyes({ y: 0.42, z: 0.98, size: 0.2, gap: 0.2 });
-  let t = 0;
+  // the eyes sit on the front of the head
+  const face = angryEyes({ y: 0.4, z: 0.9, size: 0.17, gap: 0.14 });
+  body.add(face);
+  // antennae sweep on their own
+  let t = 0, k = 0;
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
-    t += dt * (4 + speed * 120);
-    const k = Math.min(1, speed * 12);
+    k += (Math.min(1, speed * 6) - k) * (1 - Math.exp(-8 * dt));   // smoothed, so it never flickers
+    t += dt * (3 + 14 * k);                                           // legs cycle ~2.5 steps/s at full run
     for (const L of legs) {
-      L.pivot.rotation.y = L.base + Math.sin(t + L.phase) * 0.45 * k;
-      L.pivot.rotation.z = Math.max(0, Math.cos(t + L.phase)) * 0.35 * k * Math.sign(L.pivot.position.x);
+      L.pivot.rotation.y = L.base + Math.sin(t + L.phase) * 0.4 * k;
+      L.pivot.rotation.z = Math.max(0, Math.cos(t + L.phase)) * 0.25 * k * Math.sign(L.pivot.position.x);
     }
-    body.position.y = Math.abs(Math.sin(t * 2)) * 0.03 * k;
-    shell.rotation.z = Math.sin(t) * 0.04 * k;          // a little waddle
+    body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
+    body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
   };
-  return { body, face, anim };
+  return { body: outer, face: new THREE.Group(), anim };
 }
 
 // ------------------------------------------------------------------ ant squad
 function antGeometry() {
-  const black = '#1c0a06', red = '#5a1a0c', white = '#ffffff';
+  const black = '#1c0a06', red = '#5a1a0c', white = '#ffffff', shine = '#3a1a10';
   const body = merge([
     ellipsoid(0.16, 0.13, 0.2, V(0, 0.2, 0.28), black),      // head
+    ellipsoid(0.07, 0.04, 0.05, V(-0.08, 0.14, 0.44), red),  // mandibles
+    ellipsoid(0.07, 0.04, 0.05, V(0.08, 0.14, 0.44), red),
     ellipsoid(0.1, 0.09, 0.16, V(0, 0.19, 0.02), red),       // thorax
     ellipsoid(0.05, 0.05, 0.05, V(0, 0.18, -0.13), black),   // petiole
     ellipsoid(0.17, 0.15, 0.22, V(0, 0.22, -0.33), black),   // gaster
-    rod(V(-0.08, 0.28, 0.4), V(-0.2, 0.42, 0.52), 0.015, 0.01, black),   // antennae
-    rod(V(-0.2, 0.42, 0.52), V(-0.24, 0.36, 0.68), 0.01, 0.006, black),
-    rod(V(0.08, 0.28, 0.4), V(0.2, 0.42, 0.52), 0.015, 0.01, black),
-    rod(V(0.2, 0.42, 0.52), V(0.24, 0.36, 0.68), 0.01, 0.006, black),
+    ellipsoid(0.08, 0.04, 0.1, V(0, 0.33, -0.3), shine),     // glossy highlight band
     ellipsoid(0.05, 0.05, 0.03, V(-0.07, 0.25, 0.46), white, 8),   // angry little eyes
     ellipsoid(0.05, 0.05, 0.03, V(0.07, 0.25, 0.46), white, 8),
     ellipsoid(0.025, 0.025, 0.02, V(-0.065, 0.24, 0.485), '#c8231c', 6),
@@ -114,99 +119,149 @@ function antGeometry() {
     tint(new THREE.BoxGeometry(0.1, 0.02, 0.02).rotateZ(-0.45).translate(-0.07, 0.3, 0.47), black),
     tint(new THREE.BoxGeometry(0.1, 0.02, 0.02).rotateZ(0.45).translate(0.07, 0.3, 0.47), black),
   ]);
-  const legs = [];
-  for (const s of [-1, 1]) for (const z of [0.1, 0.02, -0.06]) legs.push(rod(V(s * 0.06, 0.18, z), V(s * 0.2, 0.26, z + (z - 0.02) * 1.5), 0.02, 0.015, black), rod(V(s * 0.2, 0.26, z + (z - 0.02) * 1.5), V(s * 0.3, 0.0, z + (z - 0.02) * 3), 0.015, 0.008, black));
-  return { body, legs: merge(legs) };
+  // antennae, built at their base on the head
+  const antenna = (s) => merge([rod(V(0, 0, 0), V(s * 0.12, 0.14, 0.12), 0.015, 0.01, black), rod(V(s * 0.12, 0.14, 0.12), V(s * 0.16, 0.08, 0.28), 0.01, 0.006, black)]);
+  // one leg built at its hip
+  const leg = (s, z) => merge([rod(V(0, 0, 0), V(s * 0.14, 0.08, z * 1.5), 0.02, 0.015, black), rod(V(s * 0.14, 0.08, z * 1.5), V(s * 0.24, -0.18, z * 3), 0.015, 0.008, black)]);
+  return { body, antL: antenna(-1), antR: antenna(1), leg };
 }
 
-// four ants: marching in a tight 2x2 block, or curled into a ball
-const FORMATION = [[-0.3, 0.3], [0.3, 0.3], [-0.3, -0.45], [0.3, -0.45]];
+// four ants: marching in a tight 2x2 block, or curled into a tight ball, backs out
+const FORMATION = [[-0.28, 0.3], [0.28, 0.3], [-0.28, -0.42], [0.28, -0.42]];
+// the corners of a tetrahedron: four ants cover a ball evenly
+const TETRA = [V(1, 1, 1), V(-1, -1, 1), V(-1, 1, -1), V(1, -1, -1)].map((v) => v.normalize());
 export function buildAnts() {
   const G = (GEO.ants ||= antGeometry()), M = mats();
+  const LEGS = (GEO.antLegs ||= [-1, 1].flatMap((s) => [0.08, 0, -0.08].map((z) => ({ s, z, geo: G.leg(s, z) }))));
   const body = new THREE.Group();
   const ball = new THREE.Group();          // rolls as one while curled
-  ball.position.y = 0.45;
+  ball.position.y = 0.42;
   body.add(ball);
+  // the tucked-in legs and heads in the middle: fills the ball out while they're curled
+  const core = new THREE.Mesh((GEO.antCore ||= tint(new THREE.IcosahedronGeometry(0.3, 2), '#2a0e08')), M.shell);
+  core.scale.setScalar(0.001);
+  ball.add(core);
+  const q0 = new THREE.Quaternion();
   const ants = FORMATION.map(([x, z], i) => {
     const a = new THREE.Group();
     const shell = new THREE.Mesh(G.body, M.shell);
     shell.castShadow = true;
-    const legs = new THREE.Mesh(G.legs, M.shell);
-    a.add(shell, legs);
+    a.add(shell);
+    const legs = LEGS.map((L, j) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(L.s * 0.06, 0.18, L.z);
+      pivot.add(new THREE.Mesh(L.geo, M.shell));
+      a.add(pivot);
+      return { pivot, phase: (j % 2) ^ (L.s > 0 ? 1 : 0) ? Math.PI : 0 };   // tripod gait
+    });
+    const ants2 = [G.antL, G.antR].map((geo, j) => {
+      const p = new THREE.Group();
+      p.position.set(j ? 0.08 : -0.08, 0.28, 0.4);
+      p.add(new THREE.Mesh(geo, M.shell));
+      a.add(p);
+      return p;
+    });
     ball.add(a);
-    // curled: each ant hugs the ball with its back outward
-    const dir = V(Math.sin(i * 1.57 + 0.4), (i % 2 ? 0.5 : -0.5), Math.cos(i * 1.57 + 0.4)).normalize();
-    const curlQ = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir);
-    return { a, legs, phase: i * 1.3, walkPos: V(x, -0.45, z), curlPos: dir.clone().multiplyScalar(0.22).add(V(0, -0.2, 0)), curlQ };
+    // curled: back out along a tetrahedron corner, bent around the ball, head tucked
+    const dir = TETRA[i];
+    const curlQ = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), i * 1.3));
+    return { a, legs, ants: ants2, phase: i * 1.7, walkPos: V(x, -0.42, z), curlPos: dir.clone().multiplyScalar(0.02).add(V(0, -0.22, 0)), curlQ };
   });
-  let t = 0, curl = 0;
-  const q0 = new THREE.Quaternion();
+  let t = 0, curl = 0, k = 0;
   const anim = (dt, e) => {
     const want = e.state === 'windup' || e.state === 'dash' ? 1 : 0;
-    curl += (want - curl) * (1 - Math.exp(-(want ? 10 : 5) * dt));
+    curl += (want - curl) * (1 - Math.exp(-(want ? 12 : 5) * dt));
     const speed = Math.hypot(e.vel.x, e.vel.z);
-    t += dt * (5 + speed * 150);
+    k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
+    t += dt * (3 + 16 * k);
+    const walk = 1 - curl;
     for (const A of ants) {
       A.a.position.lerpVectors(A.walkPos, A.curlPos, curl);
       A.a.quaternion.slerpQuaternions(q0, A.curlQ, curl);
-      A.a.position.y += (1 - curl) * Math.abs(Math.sin(t + A.phase)) * 0.03;
-      A.legs.rotation.y = (1 - curl) * Math.sin(t * 1.5 + A.phase) * 0.35;
-      A.legs.scale.setScalar(1 - curl * 0.6);         // legs tuck in when curled
+      A.a.scale.setScalar(1 - curl * 0.25);
+      // marching: a little bob and sway each, legs in a tripod gait, antennae feeling around
+      A.a.position.y += walk * Math.abs(Math.sin(t + A.phase)) * 0.025 * k;
+      A.a.rotation.z += walk * Math.sin(t * 0.5 + A.phase) * 0.06;
+      for (const L of A.legs) {
+        L.pivot.rotation.y = walk * Math.sin(t + A.phase + L.phase) * 0.45 * k;
+        L.pivot.rotation.x = walk * Math.max(0, Math.cos(t + A.phase + L.phase)) * -0.3 * k;
+        L.pivot.scale.setScalar(1 - curl * 0.7);        // legs tuck in when curled
+      }
+      A.ants.forEach((p, j) => { p.rotation.x = Math.sin(t * 0.7 + A.phase + j) * 0.4; p.rotation.y = Math.sin(t * 0.9 + A.phase * 2 + j * 2) * 0.35; p.scale.setScalar(1 - curl * 0.8); });
     }
-    if (e.state === 'dash') ball.rotation.x += speed * dt / 0.45 * 2.2;
+    if (e.state === 'dash') ball.rotation.x += speed * dt / 0.42;
     else ball.rotation.x *= Math.exp(-6 * dt);
-    if (e.state === 'windup') ball.rotation.z = Math.sin(t * 6) * 0.15;   // a quick shiver: it's about to roll
-    else ball.rotation.z = 0;
+    ball.rotation.z = e.state === 'windup' ? Math.sin(t * 5) * 0.12 : 0;   // a quick shiver: it's about to roll
+    ball.position.y = 0.42 - curl * 0.08;
+    core.scale.setScalar(Math.max(0.001, curl));
   };
   return { body, face: new THREE.Group(), anim };
 }
 
 // ------------------------------------------------------------------ mosquito
 function mosquitoGeometry() {
-  const gray = '#3a3a42', white = '#e8e8ec', dark = '#1a1a20';
+  const black = '#15151a', white = '#f4f4f0', blood = '#b0202a', dark = '#0c0c10';
   const parts = [
-    ellipsoid(0.28, 0.26, 0.32, V(0, 0, 0.1), gray),                     // thorax
-    ellipsoid(0.16, 0.16, 0.16, V(0, 0.02, 0.48), dark),                 // head
-    rod(V(0, -0.02, 0.6), V(0, -0.32, 1.25), 0.025, 0.006, dark),        // proboscis
+    ellipsoid(0.26, 0.24, 0.3, V(0, 0, 0.1), black),                     // thorax
+    ellipsoid(0.05, 0.2, 0.03, V(0, 0.2, 0.1), white, 8),                // white stripe down the back (tiger mosquito)
+    ellipsoid(0.15, 0.15, 0.15, V(0, 0.02, 0.46), dark),                 // head
+    ellipsoid(0.1, 0.1, 0.07, V(-0.1, 0.06, 0.52), '#8a1a1a', 10),       // big red compound eyes
+    ellipsoid(0.1, 0.1, 0.07, V(0.1, 0.06, 0.52), '#8a1a1a', 10),
+    rod(V(0, -0.02, 0.58), V(0, -0.36, 1.35), 0.03, 0.006, dark),        // long proboscis
+    rod(V(-0.05, 0.04, 0.6), V(-0.2, 0.1, 1.0), 0.012, 0.004, dark),     // feathery antennae
+    rod(V(0.05, 0.04, 0.6), V(0.2, 0.1, 1.0), 0.012, 0.004, dark),
   ];
-  for (let k = 0; k < 6; k++) {                                          // striped abdomen
-    const z = -0.2 - k * 0.17;
-    parts.push(ellipsoid(0.17 - k * 0.018, 0.14 - k * 0.015, 0.1, V(0, -0.06 - k * 0.04, z), k % 2 ? white : gray, 10));
+  for (let k = 0; k < 7; k++) {                                          // striped abdomen, swollen and red with blood
+    const z = -0.2 - k * 0.16;
+    const w = 0.2 - Math.abs(k - 2.5) * 0.02;
+    parts.push(ellipsoid(w, w * 0.85, 0.1, V(0, -0.06 - k * 0.045, z), k % 2 ? white : blood, 12));
   }
   const legs = [];
   for (const s of [-1, 1]) for (const z of [0.25, 0.1, -0.05]) {
-    const knee = V(s * 0.5, 0.15, z + 0.15), foot = V(s * 0.75, -0.9, z + 0.3 - (0.25 - z) * 1.5);
-    legs.push(rod(V(s * 0.12, -0.05, z), knee, 0.025, 0.018, dark), rod(knee, foot, 0.018, 0.006, dark));
+    const knee = V(s * 0.55, 0.2, z + 0.15), foot = V(s * 0.8, -1.0, z + 0.3 - (0.25 - z) * 1.8);
+    legs.push(rod(V(s * 0.12, -0.05, z), knee, 0.03, 0.022, black));
+    // white bands down the long shins
+    for (let b = 0; b < 4; b++) legs.push(rod(knee.clone().lerp(foot, b / 4), knee.clone().lerp(foot, (b + 1) / 4), 0.02 - b * 0.003, 0.017 - b * 0.003, b % 2 ? white : black));
   }
-  const wing = new THREE.ShapeGeometry(new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.3, 0.18, 1.0, 0.16, 1.15, 0).bezierCurveTo(1.0, -0.12, 0.3, -0.12, 0, 0));
+  const shape = new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.3, 0.2, 1.1, 0.2, 1.3, 0).bezierCurveTo(1.1, -0.14, 0.3, -0.14, 0, 0);
+  const wing = new THREE.ShapeGeometry(shape, 12);
   wing.rotateX(-Math.PI / 2).rotateY(Math.PI * 0.62);
-  return { body: merge(parts), legs: merge(legs), wing };
+  // wing veins: a few dark lines along the wing
+  const veins = new THREE.BufferGeometry().setFromPoints([0.05, -0.03, 0.03].flatMap((o, i) => [V(0, 0, 0), V(1.15, 0, o * (i + 1))]).map((p) => p.applyAxisAngle(V(0, 1, 0), Math.PI * 0.62)));
+  return { body: merge(parts), legs: merge(legs), wing, veins };
 }
 
 export function buildMosquito() {
   const G = (GEO.mosquito ||= mosquitoGeometry()), M = mats();
-  const body = new THREE.Group();
-  const shell = new THREE.Mesh(G.body, M.matte);
+  M.wing.opacity = 0.55;
+  M.wing.color.setHex(0xcfe0ee);
+  M.vein ||= new THREE.LineBasicMaterial({ color: 0x3a3a48, transparent: true, opacity: 0.7 });
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const shell = new THREE.Mesh(G.body, M.shell);
   shell.castShadow = true;
   const legs = new THREE.Mesh(G.legs, M.matte);
   body.add(shell, legs);
   const wings = [-1, 1].map((s) => {
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.12, 0.2, 0.12);
-    const w = new THREE.Mesh(G.wing, M.wing);
+    const w = new THREE.Group();
+    w.add(new THREE.Mesh(G.wing, M.wing), new THREE.LineSegments(G.veins, M.vein));
     w.scale.set(s * -1, 1, 1);
     pivot.add(w);
     body.add(pivot);
     return { pivot, s };
   });
-  const face = angryEyes({ y: 0.12, z: 0.62, size: 0.28, gap: 0.26 });
+  // small angry brows over the compound eyes
+  const face = angryEyes({ y: 0.1, z: 0.56, size: 0.12, gap: 0.12 });
+  body.add(face);
   let t = 0;
   const anim = (dt, e) => {
     t += dt;
-    for (const W of wings) W.pivot.rotation.z = W.s * (0.2 + Math.sin(t * 70) * 0.55);   // a blur of wings
+    for (const W of wings) W.pivot.rotation.z = W.s * (0.25 + Math.sin(t * 60) * 0.5);   // a blur of wings
     legs.rotation.x = Math.sin(t * 2.3) * 0.08;
-    body.position.y = Math.sin(t * 5 + e.phase) * 0.12;
+    body.position.y = Math.sin(t * 4 + e.phase) * 0.1;                  // radius units: a gentle hover bob
     body.rotation.x = -0.15 + (e.aimT > 0 ? -0.35 : 0);                 // dips its nose to shoot
   };
-  return { body, face, anim };
+  return { body: outer, face: new THREE.Group(), anim };
 }

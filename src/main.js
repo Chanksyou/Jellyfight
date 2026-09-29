@@ -17,7 +17,7 @@ import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v21';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v22';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';

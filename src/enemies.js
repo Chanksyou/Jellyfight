@@ -11,7 +11,7 @@ export const TYPES = {
   // four ants in a block; up close they curl into a ball and roll into you
   ants:     { name: 'Ant squad', hp: 30, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.022, dew: 7, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
   // hovers out of reach and spits at you
-  mosquito: { name: 'Mosquito', hp: 12, speed: 0.22, dmg: 1, r: 0.012, dew: 5, fly: true, shoots: true },
+  mosquito: { name: 'Mosquito', hp: 12, speed: 0.22, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
   // drifts through the air, so high ledges aren't perfectly safe
   mote:  { name: 'Mote', hp: 6, speed: 0.17, dmg: 1, r: 0.01, dew: 3, fly: true },
   // rolls toward you, winds up, then charges
@@ -395,7 +395,12 @@ export class Enemies {
       }
 
       // look at the player, pop when hit, grow in when spawned
-      e.root.rotation.y = Math.atan2(pc.x - e.pos.x, pc.z - e.pos.z);
+      // turn smoothly toward the player (snapping every frame made them twitch up close)
+      if (dist > e.r * 0.5) {
+        let d = Math.atan2(pc.x - e.pos.x, pc.z - e.pos.z) - e.root.rotation.y;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
+      }
       e.pop = Math.max(0, e.pop - dt * 6);
       let sc = e.baseScale * e.spawnT * (1 + e.pop * 0.35);
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
