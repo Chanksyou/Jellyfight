@@ -20,7 +20,7 @@ import { applyLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v25';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v26';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';

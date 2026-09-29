@@ -31,7 +31,7 @@ You're an immortal jellyfish growing up over one night in the apartment. Stage 1
 
 **🛠 Layout (dev)** in the pause menu lets you move, rotate, raise/lower and hide the furniture and objects. Tap or click an object to select it (a yellow box shows it), drag it to move it. Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo. Touch: drag empty space to pan, pinch to zoom, and use the toolbar.
 
-Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied on every load before collisions are built, so moved furniture is solid where it is. **Export** shows a JSON code; paste it back to Claude to bake the layout into the stage for everyone. Stage markers (vents, Moon Drop spots, elites, gift boxes) don't follow moved furniture yet. Code: `src/layout.js`.
+Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied on every load before collisions are built, so moved furniture is solid where it is. **Export** shows a JSON code; paste it back to Claude to bake the layout into the stage for everyone. Baked edits live in `src/layout-baked.js`; they load first and become each object's "home", with your own browser edits on top. Stage markers (vents, Moon Drop spots, elites, gift boxes) don't follow moved furniture yet. Code: `src/layout.js`.
 
 ## Controls
 

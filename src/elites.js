@@ -140,7 +140,7 @@ class Elite {
     this.hitPop = 0;
     // stand in for the real object while alive
     this.hidden = spec.hide ? owner.findObject(spec.hide) : null;
-    if (this.hidden) this.hidden.visible = false;
+    if (this.hidden) { this.hiddenWas = this.hidden.visible; this.hidden.visible = false; }
   }
 
   get position() { return this.base; }
@@ -155,7 +155,7 @@ class Elite {
 
   remove() {
     this.owner.scene.remove(this.holder);
-    if (this.hidden) this.hidden.visible = true;
+    if (this.hidden) this.hidden.visible = this.hiddenWas;   // back as it was (it may be hidden in the layout)
   }
 }
 

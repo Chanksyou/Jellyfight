@@ -12,6 +12,7 @@
 //
 // Stage markers (vents, Moon Drop spots, elites, gift boxes) don't follow moved furniture yet.
 import * as THREE from 'three';
+import { BAKED_LAYOUT } from './layout-baked.js';
 
 const KEY = 'jf-layout-v1';
 const SKIP = /^(Shell|door-|Hall_lights|LED_cove|Kitchen_lights|Closet$)/;   // walls, doors and lights stay put
@@ -59,12 +60,23 @@ function applyEdit(node, e) {
 }
 
 // Call once after the apartment loads, before the collision world is built
+// The baked layout (layout-baked.js) goes first and becomes each object's "home"; your own
+// saved edits go on top. Saved edits that now match home are dropped.
 export function applyLayout(root, data = loadLayout()) {
-  let n = 0;
+  let n = 0, pruned = false;
   for (const { key, node } of movables(root)) {
-    node.userData.home ||= { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible };
-    if (data[key]) { applyEdit(node, data[key]); n++; }
+    if (!node.userData.home) {
+      if (BAKED_LAYOUT[key]) applyEdit(node, BAKED_LAYOUT[key]);
+      node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible };
+    }
+    const e = data[key];
+    if (!e) continue;
+    const h = node.userData.home;
+    if (e.p && e.q && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
+    applyEdit(node, e);
+    n++;
   }
+  if (pruned) saveLayout(data);
   return n;
 }
 
