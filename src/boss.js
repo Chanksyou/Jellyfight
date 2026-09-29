@@ -1,11 +1,13 @@
-// The Clog: stage 1's boss, a hairball that rises out of the bathtub drain.
-//  - rolls after you, faster the longer it chases
-//  - sheds hair tangles that join the fight
-//  - every so often the drain pulls everything toward it; standing on the drain hurts
+// A stage boss that rises out of a spot on the floor (arena.drain) and fights in the arena.
+//  - rolls after you, faster once it's hurt
+//  - sheds minions that join the fight
+//  - every so often it pulls everything toward the spot it rose from; standing there hurts
+// arena.kind picks the look: 'hair' (The Clog, a hairball from the bathtub drain) or
+// 'dust' (The Dust King, a giant crowned dust bunny from a dust pile, shedding dust bunnies).
 import * as THREE from 'three';
-import { angryEyes } from './enemies.js';
+import { angryEyes, fuzzGeometry } from './enemies.js';
 
-export class Clog {
+export class Boss {
   constructor(scene, enemies, fx, arena) {
     this.scene = scene;
     this.enemies = enemies;
@@ -23,23 +25,53 @@ export class Clog {
     this.rise = 0;
     this.vel = new THREE.Vector3();
 
+    this.kind = arena.kind || 'hair';
+    this.minion = this.kind === 'dust' ? 'bunny' : 'hair';
+    this.dustColor = this.kind === 'dust' ? 0x9c958b : 0x5a4030;
     const root = new THREE.Group();
-    const hairMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#3b2a20').convertSRGBToLinear(), roughness: 1 });
-    const body = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), hairMat);
-    body.castShadow = true;
-    root.add(body);
-    // strands sticking out
-    const strand = new THREE.TorusKnotGeometry(0.35, 0.05, 40, 5, 2, 3);
-    for (let i = 0; i < 14; i++) {
-      const m = new THREE.Mesh(strand, hairMat);
-      const d = new THREE.Vector3().randomDirection();
-      m.position.copy(d.multiplyScalar(0.85));
-      m.rotation.set(Math.random() * 6, Math.random() * 6, 0);
-      m.scale.setScalar(0.6 + Math.random() * 0.5);
-      root.add(m);
+    if (this.kind === 'dust') {
+      // a huge dust bunny wearing a bottle-cap crown
+      this.r = 0.075;
+      const fuzz = new THREE.Mesh(fuzzGeometry('bunny'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+      fuzz.castShadow = true;
+      fuzz.scale.setScalar(1.25);
+      root.add(fuzz);
+      const gold = new THREE.MeshStandardMaterial({ color: 0xe8b83a, metalness: 0.85, roughness: 0.3, emissive: 0x3a2a00 });
+      const crown = new THREE.Group();
+      crown.position.y = 1.0;
+      crown.rotation.z = 0.15;
+      root.add(crown);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.45, 0.2, 24, 1, true), gold);
+      band.material.side = THREE.DoubleSide;
+      crown.add(band);
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        const p = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 8), gold);
+        p.position.set(Math.sin(a) * 0.43, 0.2, Math.cos(a) * 0.43);
+        crown.add(p);
+        const gem = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), new THREE.MeshStandardMaterial({ color: [0xd8344a, 0x3a8ad8, 0x3ad88a][k % 3], emissive: [0x5a0a14, 0x0a2a5a, 0x0a5a2a][k % 3], roughness: 0.2 }));
+        gem.position.set(Math.sin(a) * 0.46, 0.05, Math.cos(a) * 0.46);
+        crown.add(gem);
+      }
+      root.add(angryEyes({ y: 0.3, z: 1.05, size: 0.26, gap: 0.36, glow: true }));
+    } else {
+      const hairMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#3b2a20').convertSRGBToLinear(), roughness: 1 });
+      const body = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), hairMat);
+      body.castShadow = true;
+      root.add(body);
+      // strands sticking out
+      const strand = new THREE.TorusKnotGeometry(0.35, 0.05, 40, 5, 2, 3);
+      for (let i = 0; i < 14; i++) {
+        const m = new THREE.Mesh(strand, hairMat);
+        const d = new THREE.Vector3().randomDirection();
+        m.position.copy(d.multiplyScalar(0.85));
+        m.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+        m.scale.setScalar(0.6 + Math.random() * 0.5);
+        root.add(m);
+      }
+      // glowing, angry: the one thing you can see through the hair
+      root.add(angryEyes({ y: 0.25, z: 0.9, size: 0.24, gap: 0.34, glow: true }));
     }
-    // glowing, angry: the one thing you can see through the hair
-    root.add(angryEyes({ y: 0.25, z: 0.9, size: 0.24, gap: 0.34, glow: true }));
     this.body = root;
     this.holder = new THREE.Group();
     this.holder.add(root);
@@ -53,7 +85,15 @@ export class Clog {
       new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0, depthWrite: false }),
     );
     this.swirl.position.copy(this.drain).setY(this.drain.y + 0.002);
+    if (this.kind === 'dust') this.swirl.material.color.setHex(0xcfc6b8);
     scene.add(this.swirl);
+    // the dust pile it rises from
+    if (this.kind === 'dust') {
+      this.pile = new THREE.Mesh(fuzzGeometry('lint'), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, color: 0xb8b0a4 }));
+      this.pile.scale.set(0.08, 0.02, 0.08);
+      this.pile.position.copy(this.drain);
+      scene.add(this.pile);
+    }
   }
 
   get position() { return this.holder.position; }
@@ -98,7 +138,8 @@ export class Clog {
     this.holder.position.z = THREE.MathUtils.clamp(this.holder.position.z, a.arenaMin[2] + this.r, a.arenaMax[2] - this.r);
     this.holder.position.y = this.drain.y;
     this.body.rotation.y = Math.atan2(to.x, to.z);
-    this.body.rotation.x += this.vel.length() * dt / this.r * 0.5;
+    if (this.kind === 'dust') this.body.position.y = Math.abs(Math.sin(this.t * 5)) * this.r * 0.25;   // hops along, crown up
+    else this.body.rotation.x += this.vel.length() * dt / this.r * 0.5;
 
     if (dist < this.r + 0.012) out.contact = true;
 
@@ -110,9 +151,9 @@ export class Clog {
       for (let i = 0; i < n; i++) {
         const ang = Math.random() * Math.PI * 2;
         const p = this.holder.position.clone().add(new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang)).multiplyScalar(this.r + 0.02));
-        this.enemies.spawn('hair', p);
+        this.enemies.spawn(this.minion, p);
       }
-      this.fx.puff(this.center(), 0x5a4030, 0.05, 0.4);
+      this.fx.puff(this.center(), this.dustColor, 0.05, 0.4);
     }
 
     // drain pull
@@ -135,5 +176,6 @@ export class Clog {
   dispose() {
     this.scene.remove(this.holder);
     this.scene.remove(this.swirl);
+    if (this.pile) this.scene.remove(this.pile);
   }
 }

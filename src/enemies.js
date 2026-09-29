@@ -116,6 +116,8 @@ function curl(rand, r, turns, spread) {
 }
 
 const GEO = {};
+// The shared fuzz geometry for an enemy type (the Dust King borrows the dust bunny's)
+export function fuzzGeometry(type) { return (GEO[type] ||= buildGeometry(type)); }
 function buildGeometry(type) {
   const rand = rng({ mote: 11, bunny: 23, lint: 37, hair: 51 }[type]);
   const parts = [];
@@ -154,8 +156,7 @@ function makeLooks() {
   const glowFuzz = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: 0x3a3426, emissiveIntensity: 1 });
   const hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
   const body = (type, mat) => {
-    GEO[type] ||= buildGeometry(type);
-    const m = new THREE.Mesh(GEO[type], mat);
+    const m = new THREE.Mesh(fuzzGeometry(type), mat);
     m.castShadow = true;
     const g = new THREE.Group();
     g.add(m);

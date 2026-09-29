@@ -1,70 +1,80 @@
-// Stage 1: Polyp. Bathroom, hallway and the two hall closets, midnight to 2 am.
+// Stage 1: Polyp. The living room and its kitchen strip, midnight to 2 am.
 // All positions are world meters (x, y, z); y is the surface height, measured from the
 // apartment model. Surfaces are re-found at runtime with a downward ray, so small
 // errors in y are fine.
+//
+// Rough layout (x runs from the desk wall to the kitchen, z from the window to the TV wall):
+//   sofa x 0.5-2.9, z 1.0-2.6 (seat 0.51)   coffee table x 1.5-2.8, z 2.45-3.15 (top 0.46)
+//   lounge chair x 2.9-3.5, z 1.1-1.9 (0.43) standing desk x 0.1-0.8, z 2.5-3.8 (0.78)
+//   media console x 0.9-2.4, z 4.35-4.8 (0.6) kitchen counters x 4.35-5.0 (0.94, under cabinets)
 export const STAGE1 = {
   id: 1,
   name: 'Polyp',
-  subtitle: 'Bathroom & hallway',
-  rooms: ['Bathroom', 'Hallway', 'Laundry closet', 'Coat closet'],
-  start: [1.0, 0.004, 6.8],          // bath mat
+  subtitle: 'Living room',
+  rooms: ['Living room'],
+  start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
   duration: 120,                      // seconds until the boss comes, Moon Drops or not
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
-  // Things the player shouldn't bump into or can pass through
-  noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
-  fade: { 'Shower curtain': 0.5 },    // make it see-through so the camera can look into the tub
-  doors: { bath: 'open', laundry: 'open', coat: 'open', bedroom: 'closed', front: 'closed' },
+  noCollide: [],
+  fade: {},
+  doors: { bath: 'closed', laundry: 'closed', coat: 'closed', bedroom: 'closed', front: 'closed' },
   walls: [
-    // where the hallway opens into the living room
+    // where the living room opens into the hallway
     { min: [2.45, 0, 4.83], max: [3.65, 2.7, 4.87] },
-    // a safety floor just under the real one: door thresholds have gaps you could fall into
-    { min: [0, -0.05, 4.8], max: [4.55, 0, 9.05] },
+    // a safety floor just under the real one
+    { min: [0, -0.05, 0], max: [5.0, 0, 4.9] },
   ],
 
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.5, 0.881, 5.52], to: 'the vanity' },   // beside the sink, not in it
-    { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
-    { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
+    { name: 'Vent by the sofa', at: [1.0, 0, 2.6], radius: 0.045, land: [1.35, 0.511, 2.15], to: 'the sofa' },
+    { name: 'Vent by the coffee table', at: [3.0, 0, 2.8], radius: 0.045, land: [2.6, 0.46, 3.0], to: 'the coffee table' },
+    { name: 'Vent by the TV', at: [1.0, 0, 4.05], radius: 0.045, land: [1.0, 0.603, 4.45], to: 'the media console' },
+    { name: 'Vent by the desk', at: [1.2, 0, 2.95], radius: 0.04, land: [0.6, 0.775, 3.2], to: 'the desk' },
+    { name: 'Vent by the lounge chair', at: [3.2, 0, 2.3], radius: 0.045, land: [3.2, 0.435, 1.5], to: 'the lounge chair' },
   ],
 
-  // Fabric you can climb: hold Space inside the box
+  // Fabric you can climb: hold jump inside the box
   climbs: [
-    { name: 'Drawstring bag', min: [0.2, 0, 7.0], max: [0.42, 0.83, 7.2] },
-    { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [0.8, 0.62, 7.27], boss: false },   // the open bathroom door covers the rest of the tub
-    { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
+    { name: 'Corduroy sofa', min: [0.8, 0, 2.28], max: [2.4, 0.5, 2.45] },   // the front of the seat
   ],
 
   // Possible Moon Drop spots. One is active at a time; each of the first three gives a
-  // treasure, the fourth summons the boss. At the start of each run the game
-  // keeps only spots that are open: nothing overhead, nothing crowding them, flat ground
-  // (see Run.openSpot), so a drop is never tucked under or between things.
+  // treasure, the fourth summons the boss. At the start of each run the game keeps only
+  // spots that are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
   drops: [
-    { area: 'Bathroom', at: [1.0, 0.004, 6.8], label: 'bath mat' },
-    { area: 'Bathroom', at: [1.25, 0.025, 5.95], label: 'duck rug' },
-    { area: 'Bathroom', at: [0.75, 0.004, 6.35], label: 'bathroom floor' },
-    { area: 'Bathroom', at: [1.5, 0.88, 5.52], label: 'vanity top' },
-    { area: 'Bathroom', at: [1.29, 0.705, 5.37], label: 'in the sink' },
-    { area: 'Bathroom', at: [0.5, 0.49, 5.58], label: 'toilet lid' },
-    { area: 'Hallway', at: [2.4, 0, 7.9], label: 'hall runner' },
-    { area: 'Hallway', at: [2.75, 0, 6.6], label: 'middle of the hall' },
-    { area: 'Hallway', at: [3.0, 0, 5.35], label: 'hall by the closets' },
-    { area: 'Hallway', at: [2.9, 0, 8.4], label: 'end of the hall' },
-    { area: 'Hallway', at: [3.27, 0.8, 6.4], label: 'sideboard' },
-    { area: 'Hallway', at: [3.27, 0.8, 7.05], label: 'sideboard, by the carved bear' },
-    { area: 'Hallway', at: [1.97, 0.46, 7.38], label: 'bench' },
-    { area: 'Hallway', at: [3.39, 0.696, 5.92], label: 'recycling bin lid' },
-    { area: 'Laundry closet', at: [3.95, 1.7, 5.45], label: 'top of the dryer' },
+    { area: 'Floor', at: [3.2, 0, 3.0], label: 'middle of the room' },
+    { area: 'Floor', at: [3.4, 0, 2.2], label: 'by the lounge chair' },
+    { area: 'Floor', at: [1.15, 0, 3.5], label: 'by the desk' },
+    { area: 'Floor', at: [1.6, 0.015, 0.5], label: 'by the window' },
+    { area: 'Kitchen', at: [4.15, 0.013, 2.6], label: 'on the kitchen mat' },
+    { area: 'Kitchen', at: [3.8, 0, 3.5], label: 'kitchen floor' },
+    { area: 'Floor', at: [2.2, 0.01, 3.45], label: 'by the play gym' },
+    { area: 'Floor', at: [3.3, 0, 4.2], label: 'by the cat scratcher' },
+    { area: 'Sofa', at: [1.6, 0.508, 2.18], label: 'sofa seat' },
+    { area: 'Sofa', at: [2.4, 0.508, 1.95], label: 'sofa, by the blue pillow' },
+    { area: 'Furniture', at: [3.2, 0.435, 1.5], label: 'lounge chair' },
+    { area: 'Furniture', at: [0.6, 0.775, 3.2], label: 'standing desk' },
+    { area: 'Furniture', at: [2.6, 0.46, 3.0], label: 'coffee table' },
+    { area: 'Furniture', at: [1.0, 0.603, 4.45], label: 'media console' },
   ],
 
-
-  // The boss arena: the bathtub. Moonlight carries you in once all 3 drops are collected.
+  // The boss: a crowned dust king that rises from a dust pile on the open floor. While it's
+  // up, low invisible walls (`walls`) keep the fight in front of the kitchen.
   boss: {
-    name: 'The Clog',
-    arenaMin: [0.14, 0.15, 7.22],
-    arenaMax: [1.5, 0.6, 7.84],
-    playerStart: [1.2, 0.15, 7.53],
-    drain: [0.3, 0.15, 7.53],
+    name: 'The Dust King',
+    kind: 'dust',                     // see boss.js
+    intro: 'The Dust King rises from the dust pile!',
+    arenaMin: [2.9, 0, 2.0],
+    arenaMax: [4.3, 0.6, 4.3],
+    playerStart: [3.1, 0, 3.9],
+    drain: [3.6, 0, 3.1],             // the dust pile it rises from and inhales toward
+    walls: [
+      { min: [2.85, 0, 1.95], max: [2.9, 0.6, 4.35] },
+      { min: [4.3, 0, 1.95], max: [4.35, 0.6, 4.35] },
+      { min: [2.85, 0, 1.95], max: [4.35, 0.6, 2.0] },
+      { min: [2.85, 0, 4.3], max: [4.35, 0.6, 4.35] },
+    ],
   },
 };

@@ -14,16 +14,16 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
 ## The game
 
-You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am (2 real minutes).
+You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the living room and its kitchen strip, midnight to 2 am (2 real minutes). The bathroom and hallway are kept for a later stage (`src/stage-bathroom.js`).
 
 - **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
 - **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot. Every 30 s a gold **elite** appears (haloed, tougher, 4x dew): beat it for a treasure pick and some moisture back.
 - **Level up** by collecting dew (levels come slowly): pick 1 of 3 cards, each one stat and one number, including swim speed. One free reroll per level.
-- **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Clog**, and the moonlight carries you into the tub to fight it.
+- **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Dust King**, a giant crowned dust bunny that rises from a dust pile in front of the kitchen and sheds dust bunnies.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - **2 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
 
-**Getting around:** the jelly swims in strokes (`src/swim.js`): the bell squeezes shut and it surges, then relaxes open and glides. The movement and the animation read the same curve and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the vanity, sideboard and bench. Hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet).
+**Getting around:** the jelly swims in strokes (`src/swim.js`): the bell squeezes shut and it surges, then relaxes open and glides. The movement and the animation read the same curve and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk and lounge chair. Hold Space to climb the front of the corduroy sofa.
 
 ## Controls
 
@@ -90,12 +90,13 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 
 | File | What's in it |
 | --- | --- |
-| `src/stage1.js` | Rooms, start, doors, invisible walls, vents (and where each lands you), climbable fabric, Moon Drop spots, boss arena. Positions are world meters. |
+| `src/stage1.js` | The living room: rooms, start, doors, invisible walls, vents (and where each lands you), climbable fabric, Moon Drop spots, boss arena and its walls. Positions are world meters. |
+| `src/stage-bathroom.js` | The bathroom and hallway, in the same format, for a later stage. |
 | `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, evolutions. |
 | `src/enemies.js` | Enemy types (health, speed, damage, size, dew), their angry eyes, and how they move. |
 | `src/run.js` | Wave pacing, Moon Drops and treasure picks, damage, treasure effects, boss flow, death and victory. |
 | `src/combat.js` | The Lash: targeting, picking which tentacle strikes, and treasure effects on hits. |
-| `src/boss.js` | The Clog. |
+| `src/boss.js` | Stage bosses: The Dust King (living room) and The Clog (bathroom). |
 | `src/traversal.js` | Vent launch pads, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
 | `src/pickups.js` | Dew and the Moon Drop. |
 | `src/ui.js`, `src/hud.js`, `src/fx.js` | Menus, HUD and minimap, damage numbers and poofs. |

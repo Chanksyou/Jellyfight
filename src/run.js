@@ -1,10 +1,10 @@
 // One run of stage 1: grow for 2 minutes, collect Moon Drops (the first 3 give treasures,
-// the 4th summons the boss early), then beat The Clog and evolve. When time runs out the boss
+// the 4th summons the boss early), then beat the stage's boss and evolve. When time runs out the boss
 // comes anyway.
 import * as THREE from 'three';
 import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } from './stats.js';
 import { inPoly } from './hud.js';
-import { Clog } from './boss.js';
+import { Boss } from './boss.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -14,6 +14,16 @@ export class Run {
   // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, traversal, hud, ui, fx, tpc, input, setNight }
   constructor(ctx) {
     Object.assign(this, ctx);
+    // low invisible walls around the boss arena, solid only during the fight
+    this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
+      const size = w.max.map((v, i) => v - w.min[i]);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
+      m.position.set(...w.min.map((v, i) => v + size[i] / 2));
+      m.visible = false;
+      m.updateMatrixWorld();
+      ctx.world.addCollider(m);
+      return m;
+    });
     this.rooms = ctx.plan;
     this.fade = document.createElement('div');
     this.fade.style.cssText = 'position:fixed;inset:0;background:radial-gradient(#fffbe8,#cfe2ff);opacity:0;pointer-events:none;z-index:20;transition:opacity .5s';
@@ -41,6 +51,7 @@ export class Run {
     this.boss?.dispose();
     this.boss = null;
     this.traversal.bossMode = false;
+    this.bossWalls.forEach((m) => { m.visible = false; });
     this.moon.hide();
     this.hud.setBoss(null);
     this.ui.close();
@@ -415,6 +426,7 @@ export class Run {
       const B = this.stage.boss;
       this.enemies.clear();
       this.traversal.bossMode = true;
+      this.bossWalls.forEach((m) => { m.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);
@@ -422,12 +434,12 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = new Clog(this.scene, this.enemies, this.fx, B);
+      this.boss = new Boss(this.scene, this.enemies, this.fx, B);
       this.enemies.addProxy(this.boss);
       setTimeout(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
       this.bossStarted = false;
-      this.hud.toast(`${B.name} rises from the drain!`, 2400);
+      this.hud.toast(B.intro || `${B.name} rises!`, 2400);
     }
   }
 
@@ -451,7 +463,7 @@ export class Run {
       evo.apply(this.stats);
       this.moisture = this.stats.moisture;
       this.phase = 'won';
-      this.ui.message('Stage 1 complete', 'The bathroom and hallway are yours. The living room (stage 2) is coming soon.', this.summary(), [
+      this.ui.message('Stage 1 complete', 'The living room is yours. The bathroom and hallway (stage 2) are coming soon.', this.summary(), [
         { label: 'Play stage 1 again', go: true, onClick: () => { this.start(); this.resume(); } },
       ]);
     });
