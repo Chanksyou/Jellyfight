@@ -73,7 +73,7 @@ export class TentacleRig {
     T.golden = golden;
   }
 
-  // state: { localVel (units/s, in the parent's frame), contract (0..1 bell squeeze), vy (m/s) }
+  // state: { localVel (units/s, in the parent's frame), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
   update(dt, state) {
     this.t += dt;
     this.trail.lerp(state.localVel, 1 - Math.exp(-6 * dt));
@@ -85,7 +85,9 @@ export class TentacleRig {
 
     for (const T of this.list) {
       // --- resting shape: hang, sway, flare with the bell, trail behind the motion
-      const flare = 0.3 + 0.12 * contract - 0.15 * rise;   // splay out past the bell so all six show from above
+      // splay out past the bell so all six show from above; they pull together on the power
+      // stroke and spread wide as the bell relaxes
+      const flare = 0.3 - 0.14 * contract - 0.15 * rise;
       const side = _b.set(T.out.z, 0, -T.out.x);
       for (let j = 0; j <= SEG; j++) {
         const s = j / SEG, s15 = s ** 1.5;

@@ -14,7 +14,7 @@ export const CONFIG = {
     turnSpeed: 12,
     climbSpeed: 0.2,     // m/s up fabric
     airJumpMul: 0.85,    // a mid-air jump is a bit weaker than one from the ground
-    swimSurge: 0.25,     // how much each bell pulse surges you forward (0 = steady speed)
+    swimSurge: 0.22,     // how much each bell stroke surges you forward (0 = steady speed)
   },
   camera: {
     distance: 0.46,      // how far from the player the camera sits

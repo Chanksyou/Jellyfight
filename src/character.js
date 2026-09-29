@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
+import { squeeze, thrust } from './swim.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const OPTIONS = {
@@ -408,7 +409,7 @@ export function buildCharacter(look, heightMeters) {
 
   // --- Animation --------------------------------------------------------------
   let t = 0, phase = 0, impact = 0, impactV = 0, blinkIn = 1 + Math.random() * 2;
-  let kick = 0, roll = 0, idleSwim = 0;
+  let kick = 0, roll = 0, idleSwim = 0, surge = 0;
   const baseRot = wobblers.map(([o, ax]) => o.rotation[ax]);
   const toUnits = 1 / (heightMeters * look.size);
   const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
@@ -422,12 +423,15 @@ export function buildCharacter(look, heightMeters) {
       // the swim cycle comes from the player (so the surge and the squeeze line up); menus and
       // the creator don't pass one, so keep a slow idle pulse going there
       let swim = s.swim;
-      if (swim == null) swim = idleSwim = (idleSwim + dt * 0.7) % 1;
+      if (swim == null) swim = idleSwim = (idleSwim + dt * 0.6) % 1;
       kick = Math.max(0, kick - dt * 3);
-      const contract = Math.max(Math.exp(-swim * 5) * (0.45 + 0.55 * move), kick);
-      bell.scale.set(1 - 0.16 * contract, 1 + 0.14 * contract, 1 - 0.16 * contract);
-      bell.position.y = 0.42 + 0.03 * contract;
-      lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012;           // hovers a little off the floor
+      // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
+      const contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
+      bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
+      bell.position.y = 0.42 + 0.05 * Math.max(0, contract);
+      // the thrust lifts the body and tips it into the swim; it sinks back as it glides
+      surge = thrust(swim) / 4.7 * move;
+      lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge;
       // lean into the swim, and bank into turns (sideways speed, since facing lags behind)
       localVel.set(0, 0, 0);
       if (s.vel) {
@@ -449,7 +453,7 @@ export function buildCharacter(look, heightMeters) {
     sy -= impact;
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
-    lean.rotation.x = move * (bell ? 0.22 : 0.14) * (s.grounded ? 1 : 0.4);
+    lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
 
     feet.forEach((f, i) => {
       const p = phase + i * Math.PI;

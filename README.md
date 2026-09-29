@@ -17,13 +17,13 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the bathroom, hallway and the two hall closets, midnight to 2 am (2 real minutes).
 
 - **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
-- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot; about 1 in 8 is a gold **elite** (haloed, tougher, 4x dew, and it gives back moisture).
-- **Level up** by collecting dew: pick 1 of 3 cards, each one stat and one number. One free reroll per level.
+- **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot. Every 30 s a gold **elite** appears (haloed, tougher, 4x dew): beat it for a treasure pick and some moisture back.
+- **Level up** by collecting dew (levels come slowly): pick 1 of 3 cards, each one stat and one number, including swim speed. One free reroll per level.
 - **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Clog**, and the moonlight carries you into the tub to fight it.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - **2 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
 
-**Getting around:** the jelly swims in pulses (each squeeze of the bell is a little surge) and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the vanity, sideboard and bench. Hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet).
+**Getting around:** the jelly swims in strokes (`src/swim.js`): the bell squeezes shut and it surges, then relaxes open and glides. The movement and the animation read the same curve and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the vanity, sideboard and bench. Hold Space to climb fabric (the drawstring bag, the shower curtain, the duster in the laundry closet).
 
 ## Controls
 
@@ -61,6 +61,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, frame loop. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
+| `src/swim.js` | One bell stroke: the squeeze, the thrust, and how often strokes come. Shared by movement and animation. |
 | `src/tentacles.js` | The jellyfish's 6 live tentacles: hang, trail, stream when falling, whip out when the Lash strikes. |
 | `src/creator.js` | Character creator panel. |
 | `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |

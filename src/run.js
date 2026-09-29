@@ -19,7 +19,15 @@ export class Run {
     this.fade.style.cssText = 'position:fixed;inset:0;background:radial-gradient(#fffbe8,#cfe2ff);opacity:0;pointer-events:none;z-index:20;transition:opacity .5s';
     document.body.appendChild(this.fade);
     this.enemies.onKill = (e) => this.onKill(e);
-    this.player.onLand = () => { if (this.owned.has('wristband')) this.wristT = 3; };
+    this.player.onLand = (drop) => {
+      if (this.owned.has('wristband')) this.wristT = 3;
+      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.stats.sting * 2, 0xffffff);
+    };
+    // a little wake of bubbles behind each stroke of the bell
+    this.player.onStroke = () => {
+      const P = this.player.position, f = this.player.facing;
+      this.fx.puff(new THREE.Vector3(P.x - Math.sin(f) * this.cfg.radius * 1.4, P.y + this.cfg.height * 0.45, P.z - Math.cos(f) * this.cfg.radius * 1.4), 0xdff4ff, 0.008, 0.3);
+    };
     this.start();
   }
 
@@ -56,6 +64,8 @@ export class Run {
     this.duckCd = 0;
     this.bubbleUsed = false;
     this.lintT = 20;
+    this.bombT = 6;
+    this.nextElite = 25;             // an elite every 30 s: each one drops a treasure
     this.spawnAcc = 0;
     this.dropTimer = 2;
     this.lastArea = null;
@@ -143,13 +153,17 @@ export class Run {
       this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;
       if (this.stillT > 1) this.heal(0.5 * dt);
     }
+    if (this.owned.has('bathBomb') && this.phase !== 'moonlift') {
+      this.bombT -= dt;
+      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, s.sting * 1.5, 0xff9ad8); }
+    }
     if (this.owned.has('lintRoller')) {
       this.lintT -= dt;
       if (this.lintT <= 0) { this.lintT = 20; this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); }
     }
 
     // --- dew
-    const got = this.dew.update(dt, origin);
+    const got = this.dew.update(dt, origin, this.owned.has('loofah') ? 2.5 : 1);
     if (got) this.gainDew(got);
 
     // --- hints
@@ -180,7 +194,9 @@ export class Run {
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'mote';
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
       const pos = this.spawnPoint(type) || (type !== 'mote' ? this.spawnPoint((type = 'mote')) : null);
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22, this.t > 20 && Math.random() < 0.12);
+      const elite = this.t >= this.nextElite;
+      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22, elite);
+      if (pos && elite) { this.nextElite += 30; this.hud.toast('✨ An elite appeared: it carries a lost thing', 1800); }
     }
   }
 
@@ -254,12 +270,21 @@ export class Run {
     const c = this.enemies.center(e);
     this.dew.drop(c, 1, e.T.dew);
     this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${e.T.dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
-    if (e.elite) {                       // elites also give back some moisture
+    if (e.elite) {                       // elites give back some moisture and drop a treasure
       this.heal(4);
       this.fx.puff(c, 0xffd23a, e.r * 3, 0.5);
-      this.hud.toast('✨ Elite cleared! +4 moisture', 1400);
+      if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
     }
     if (this.owned.has('bathSalt')) this.bursts.push(c);
+  }
+
+  // A ring of stinging (Bath Bomb, Cotton Ball)
+  shockwave(c, radius, dmg, color) {
+    this.fx.puff(c.clone().setY(c.y + 0.01), color, radius, 0.35);
+    for (const e of this.enemies.list) {
+      if (e.dead || e.proxy) continue;
+      if (this.enemies.center(e).distanceTo(c) < radius + e.r) this.enemies.damage(e, dmg, '#ffd0ec');
+    }
   }
 
   burst(c) {
@@ -296,12 +321,12 @@ export class Run {
     if (!this.ui.open) this.onResume?.();
   }
 
-  // A Moon Drop's gift: pick 1 of 3 treasures you don't have yet
-  pickTreasure() {
+  // Pick 1 of 3 treasures you don't have yet (from a Moon Drop or an elite)
+  pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.') {
     const left = shuffle(TREASURES.filter((t) => !this.owned.has(t.id))).slice(0, 3);
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.choose(`🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, 'The moonlight shows you three lost things. Keep one.', left, (t) => {
+    this.ui.choose(title, sub, left, (t) => {
       this.owned.add(t.id);
       this.ui.treasure(t);
       this.resume();

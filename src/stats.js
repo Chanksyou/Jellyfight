@@ -7,7 +7,7 @@ export const BASE_STATS = {
   sting: 5,         // damage per tentacle
   lashSpeed: 1.2,   // lashes per second
   moisture: 25,     // max health
-  pulse: 1.0,       // move speed multiplier
+  pulse: 1.0,       // swim speed multiplier
   bounce: 1.0,      // jump height multiplier
 };
 
@@ -18,7 +18,7 @@ export const STAT_INFO = {
   sting:     { name: 'Sting',     icon: '⚡', fmt: (v) => `${Math.round(v)}` },
   lashSpeed: { name: 'Lash speed', icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
   moisture:  { name: 'Moisture',  icon: '💧', fmt: (v) => `${Math.round(v)}` },
-  pulse:     { name: 'Pulse',     icon: '🫧', fmt: (v) => `${Math.round(v * 100)}%` },
+  pulse:     { name: 'Swim speed', icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
   bounce:    { name: 'Bounce',    icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
 };
 
@@ -35,7 +35,7 @@ const CARD_VALUES = {
   sting:     { amounts: [2, 4, 7] },
   lashSpeed: { amounts: [10, 18, 30], pct: true },
   moisture:  { amounts: [4, 8, 14] },
-  pulse:     { amounts: [6, 11, 18], pct: true },
+  pulse:     { amounts: [8, 14, 22], pct: true, weight: 1.2 },
   bounce:    { amounts: [8, 14, 22], pct: true },
 };
 
@@ -77,7 +77,7 @@ export function rollCards(stats, n = 3) {
 }
 
 // Dew needed to go from `level` to the next one
-export const xpToNext = (level) => 5 + 2 * level;
+export const xpToNext = (level) => 10 + 4 * level;   // steep: levels are a trickle, treasures are the big moments
 
 // Treasures: lost things with one-of-a-kind effects. Each can appear once per run.
 export const TREASURES = [
@@ -93,15 +93,19 @@ export const TREASURES = [
   { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'One tentacle becomes a lance: double reach, half speed.' },
   { id: 'wristband', name: 'Festival Wristband', icon: '🎟️', text: 'For 3 s after you land a jump, you lash 50% faster.' },
   { id: 'penSpring', name: 'Pen Spring', icon: '🌀', text: 'One more jump in mid-air: a triple jump.' },
+  { id: 'bathBomb', name: 'Bath Bomb', icon: '💥', text: 'Every 6 s you fizz, stinging everything close around you.' },
+  { id: 'nailClipper', name: 'Nail Clipper', icon: '✂️', text: '1 in 5 stings is a snip for triple damage.' },
+  { id: 'cottonBall', name: 'Cotton Ball', icon: '☁️', text: 'Land from a jump to send out a soft shockwave that stings.' },
+  { id: 'loofah', name: 'Loofah', icon: '🧽', text: 'Dew soaks into you from much farther away.' },
 ];
 
 export const MAX_TENTACLES = 6;
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Tentacle, +15% Pulse', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.pulse += 0.15; } },
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Tentacle, +15% Swim speed', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.pulse += 0.15; } },
   { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+4 Sting, +15% Reach', apply: (s) => { s.sting += 4; s.reach += BASE_STATS.reach * 0.15; } },
   { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Moisture', apply: (s) => { s.moisture += 10; } },
   { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Lash speed', apply: (s) => { s.lashSpeed += 0.25; } },
-  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Bounce, +10% Pulse', apply: (s) => { s.bounce += 0.25; s.pulse += 0.1; } },
+  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Bounce, +10% Swim speed', apply: (s) => { s.bounce += 0.25; s.pulse += 0.1; } },
 ];

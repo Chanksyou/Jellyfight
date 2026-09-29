@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { thrust, strokeRate } from './swim.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -129,12 +130,14 @@ export class Player {
     const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
     const wish = fwd.multiplyScalar(axes.y).add(right.multiplyScalar(axes.x));
     if (wish.lengthSq() > 1) wish.normalize();
-    // Swimming: the bell pulses faster the harder you push, and each pulse is a little surge
-    // (sharp squeeze, then glide). Averages out to walk speed.
+    // Swimming: each stroke of the bell (swim.js) is a surge and then a glide, and the avatar
+    // squeezes its bell in time with it. Strokes come faster the harder you push and the higher
+    // your swim speed. Averages out to walk speed.
     const push = Math.min(1, wish.length());
-    this.swim = (this.swim + dt * (0.7 + 1.5 * push)) % 1;
-    const surge = Math.exp(-this.swim * 5);
-    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0)) * (1 + c.swimSurge * (surge * 4.1 - 0.83));
+    const before = this.swim;
+    this.swim = (this.swim + dt * strokeRate(push, env.speedMul ?? 1)) % 1;
+    if (this.swim < before && push > 0.3) this.onStroke?.();
+    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0)) * (1 + c.swimSurge * (thrust(this.swim) - 1));
     wish.multiplyScalar(walk);
 
     const accel = this.grounded ? c.groundAccel : c.airAccel;
