@@ -19,7 +19,7 @@ You're an immortal jellyfish growing up over one night in the apartment. Stage 1
 - **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
 - **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot. Every 30 s a gold **elite** appears (haloed, tougher, 4x dew): beat it for a treasure pick and some moisture back.
 - **Level up** by collecting dew (levels come slowly): pick 1 of 3 cards, each one stat and one number, including swim speed. One free reroll per level.
-- **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. The 4th (bigger, orange) summons **The Dust King**, a giant crowned dust bunny that rises from a dust pile in front of the kitchen and sheds dust bunnies.
+- **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. There are 30: lash upgrades, things that attack on their own (a chord every 5 s, remote zaps, orbiting fairy lights, a burning moonbeam, Lego traps, bowling marbles, freezes, auras), and rule-benders (marks that make enemies take more damage, more dew, better level-up cards, a later boss). The 4th (bigger, orange) summons **The Dust King**, a giant crowned dust bunny that rises from a dust pile in front of the kitchen and sheds dust bunnies.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - **2 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
 
@@ -95,6 +95,7 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | `src/stats.js` | Base stats, level-up cards and their numbers, XP curve, treasures, evolutions. |
 | `src/enemies.js` | Enemy types (health, speed, damage, size, dew), their angry eyes, and how they move. |
 | `src/run.js` | Wave pacing, Moon Drops and treasure picks, damage, treasure effects, boss flow, death and victory. |
+| `src/gadgets.js` | Treasures that act on their own: Guitar Pick, TV Remote, Fairy Lights, Magnifying Glass, Glow Stick, Ice Cube, Lego Brick, Marble. |
 | `src/combat.js` | The Lash: targeting, picking which tentacle strikes, and treasure effects on hits. |
 | `src/boss.js` | Stage bosses: The Dust King (living room) and The Clog (bathroom). |
 | `src/traversal.js` | Vent launch pads, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |

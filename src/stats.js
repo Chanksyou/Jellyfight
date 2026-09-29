@@ -61,14 +61,15 @@ function pickWeighted(list, w) {
 }
 
 // Three different stats, each with a rolled rarity
-export function rollCards(stats, n = 3) {
+// bonus: rarity steps added to every card (Game Die)
+export function rollCards(stats, n = 3, bonus = 0) {
   const pool = Object.keys(CARD_VALUES).filter((k) => k !== 'tentacles' || stats.tentacles < MAX_TENTACLES);
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => CARD_VALUES[s].weight ?? 1);
     pool.splice(pool.indexOf(stat), 1);
     let rarity = pickWeighted(RARITY, (r) => r.weight);
-    let ri = RARITY.indexOf(rarity);
+    let ri = Math.min(RARITY.length - 1, RARITY.indexOf(rarity) + bonus);
     if (CARD_VALUES[stat].amounts[ri] === 0) ri = 1; // tentacles start at rare
     if (stat === 'tentacles') ri = Math.min(ri, 1 + (MAX_TENTACLES - stats.tentacles >= 2 ? 1 : 0));
     cards.push({ stat, rarity: RARITY[ri], amount: CARD_VALUES[stat].amounts[ri] });
@@ -97,6 +98,22 @@ export const TREASURES = [
   { id: 'nailClipper', name: 'Nail Clipper', icon: '✂️', text: '1 in 5 stings is a snip for triple damage.' },
   { id: 'cottonBall', name: 'Cotton Ball', icon: '☁️', text: 'Land from a jump to send out a soft shockwave that stings.' },
   { id: 'loofah', name: 'Loofah', icon: '🧽', text: 'Dew soaks into you from much farther away.' },
+  // things that attack on their own (gadgets.js)
+  { id: 'guitarPick', name: 'Guitar Pick', icon: '🎸', text: 'Every 5 s a chord rings out, stinging and pushing back everything close.' },
+  { id: 'remote', name: 'TV Remote', icon: '📺', text: 'Every 7 s, zap the 3 nearest enemies for double damage.' },
+  { id: 'fairyLights', name: 'Fairy Lights', icon: '💡', text: 'Three little bulbs circle you and sting whatever they touch.' },
+  { id: 'magnifier', name: 'Magnifying Glass', icon: '🔍', text: 'Focused moonlight burns the nearest enemy, nonstop.' },
+  { id: 'glowStick', name: 'Glow Stick', icon: '🟢', text: 'A soft glow around you stings anything inside it.' },
+  { id: 'iceCube', name: 'Ice Cube', icon: '🧊', text: 'Every 8 s a cold snap freezes everything close for 2 s. Frozen things can\'t hurt you.' },
+  { id: 'legoBrick', name: 'Lego Brick', icon: '🧱', text: 'Drop a brick every 4 s. Anything that steps on it takes a huge hit.' },
+  { id: 'marble', name: 'Marble', icon: '🔮', text: 'Every 5 s a marble rolls out ahead of you, bouncing off walls and bowling through enemies.' },
+  // things that bend the rules
+  { id: 'stickyNote', name: 'Sticky Note', icon: '🗒️', text: 'Enemies you sting are marked for 3 s and take 50% more damage from everything.' },
+  { id: 'coin', name: 'Lucky Penny', icon: '🪙', text: 'Enemies drop 50% more dew.' },
+  { id: 'dice', name: 'Game Die', icon: '🎲', text: 'Level-up cards roll one rarity higher.' },
+  { id: 'hourglass', name: 'Egg Timer', icon: '⏳', text: 'The boss comes 30 s later: more night to grow in.' },
+  { id: 'babyBottle', name: 'Baby Bottle', icon: '🍼', text: 'Every enemy you clear gives back a sip of moisture.' },
+  { id: 'thimble', name: 'Thimble', icon: '🛡️', text: 'Hits take 30% less moisture.' },
 ];
 
 export const MAX_TENTACLES = 6;

@@ -225,6 +225,29 @@ export class Enemies {
     return e;
   }
 
+  // Sticky Note mark: a little yellow note above the enemy while it lasts; Ice Cube frost: a
+  // pale blue tint on the eyes' whites is enough to read "frozen"
+  markLook(e, dt) {
+    e.markT = Math.max(0, (e.markT || 0) - dt);
+    if (e.markT > 0 && !e.note) {
+      this.noteGeo ||= new THREE.PlaneGeometry(1, 1);
+      this.noteMat ||= new THREE.MeshStandardMaterial({ color: 0xffe45a, emissive: 0x6a5a00, side: THREE.DoubleSide, roughness: 0.8 });
+      e.note = new THREE.Mesh(this.noteGeo, this.noteMat);
+      e.note.scale.setScalar(e.r * 0.9);
+      e.note.position.y = e.r * 2.3;
+      e.note.rotation.z = 0.2;
+      e.root.add(e.note);
+    }
+    if (e.note) e.note.visible = e.markT > 0;
+    if (e.freezeT > 0 && !e.frost) {
+      this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, roughness: 0.1 });
+      e.frost = new THREE.Mesh(new THREE.IcosahedronGeometry(e.r * 1.25, 1), this.frostMat);
+      e.frost.position.y = e.T.fly ? 0 : e.r;
+      e.root.add(e.frost);
+    }
+    if (e.frost) e.frost.visible = e.freezeT > 0;
+  }
+
   // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color).
   addProxy(obj) {
     const e = { proxy: obj, T: { fly: false }, get pos() { return obj.position; }, get r() { return obj.r; }, dead: false };
@@ -243,6 +266,7 @@ export class Enemies {
       if (e.proxy.dead) e.dead = true;
       return e.dead;
     }
+    if (e.markT > 0) amount *= 1.5;       // Sticky Note
     e.hp -= amount;
     e.pop = 1;
     this.fx.number(this.center(e), Math.round(amount), color, color === '#fff' ? 13 : 17);
@@ -273,7 +297,9 @@ export class Enemies {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
       e.slowT = Math.max(0, e.slowT - dt);
-      const slow = e.slowT > 0 ? 0.55 : 1;
+      e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
+      this.markLook(e, dt);
+      const slow = e.freezeT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1;
       const toP = this._d.copy(pc).sub(this.center(e, tmp));
       const dist = toP.length();
       const near = dist < 1.4;

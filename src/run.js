@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } from './stats.js';
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
+import { Gadgets } from './gadgets.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -14,6 +15,7 @@ export class Run {
   // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, traversal, hud, ui, fx, tpc, input, setNight }
   constructor(ctx) {
     Object.assign(this, ctx);
+    this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
       const size = w.max.map((v, i) => v - w.min[i]);
@@ -48,6 +50,7 @@ export class Run {
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
+    this.gadgets.reset();
     this.boss?.dispose();
     this.boss = null;
     this.traversal.bossMode = false;
@@ -105,6 +108,8 @@ export class Run {
   }
 
   get paused() { return this.ui.open; }
+  // seconds until the boss comes (the Egg Timer adds 30)
+  get duration() { return this.stage.duration + (this.owned.has('hourglass') ? 30 : 0); }
 
   // ------------------------------------------------------------ main update
   update(dt) {
@@ -141,19 +146,20 @@ export class Run {
     if (this.phase === 'explore') {
       this.spawnWaves(dt);
       this.updateDrops(dt);
-      if (this.t >= this.stage.duration && this.phase === 'explore') this.startMoonlift(true);
+      if (this.t >= this.duration && this.phase === 'explore') this.startMoonlift(true);
     }
     this.nightT -= dt;
     if (this.nightT <= 0) {
       this.nightT = 10;
       const [c0, c1] = this.stage.clock;
-      this.setNight(c0 + (c1 - c0) * Math.min(1, this.t / this.stage.duration));
+      this.setNight(c0 + (c1 - c0) * Math.min(1, this.t / this.duration));
     }
 
     // --- attacks and enemies
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
     if (this.phase === 'explore' || this.phase === 'boss') {
       this.lash.update(dt, origin, s, this.owned, { lashSpeedMul: this.wristT > 0 ? 1.5 : 1 });
+      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: s.sting });
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
     }
@@ -234,7 +240,7 @@ export class Run {
     const P = this.player.position;
     const pc = P.clone().setY(P.y + this.cfg.height * 0.5);
     for (const e of this.enemies.list) {
-      if (e.dead || e.proxy) continue;
+      if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < e.r + this.cfg.radius) {
         if (e.T.slows) this.slowT = 1.5;
@@ -246,6 +252,7 @@ export class Run {
   hit(amount) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
+    if (this.owned.has('thimble')) amount *= 0.7;
     if (this.owned.has('soapBubble') && !this.bubbleUsed) {
       this.bubbleUsed = true;
       this.hud.toast('🫧 Pop!', 900);
@@ -279,8 +286,10 @@ export class Run {
   onKill(e) {
     this.kills++;
     const c = this.enemies.center(e);
-    this.dew.drop(c, 1, e.T.dew);
-    this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${e.T.dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
+    const dew = this.owned.has('coin') ? Math.round(e.T.dew * 1.5) : e.T.dew;
+    this.dew.drop(c, 1, dew);
+    this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
+    if (this.owned.has('babyBottle')) this.heal(0.5);
     if (e.elite) {                       // elites give back some moisture and drop a treasure
       this.heal(4);
       this.fx.puff(c, 0xffd23a, e.r * 3, 0.5);
@@ -320,12 +329,12 @@ export class Run {
   levelUp() {
     this.pendingLevels--;
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats), this.stats, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3, this.owned.has('dice') ? 1 : 0), this.stats, 1, (card) => {
       const before = this.stats.moisture;
       applyCard(this.stats, card);
       if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
       this.resume();
-    }, () => rollCards(this.stats));
+    }, () => rollCards(this.stats, 3, this.owned.has('dice') ? 1 : 0));
   }
 
   resume() {
@@ -498,9 +507,9 @@ export class Run {
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.owned].map((id) => TREASURES.find((t) => t.id === id)));
     const [c0, c1] = this.stage.clock;
-    const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.stage.duration);
+    const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);
-    const left = Math.max(0, Math.ceil(this.stage.duration - this.t));
+    const left = Math.max(0, Math.ceil(this.duration - this.t));
     const boss = this.phase === 'explore' ? ` · ${this.stage.boss.name} in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
     h.setClock(`${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM${boss}`, this.phase === 'explore' && left <= 20);
     h.setStage(`Stage ${this.stage.id} · ${this.stage.name}`);

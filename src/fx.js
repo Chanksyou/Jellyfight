@@ -1,4 +1,4 @@
-// Little bits of feedback: floating damage numbers and poofs.
+// Little bits of feedback: floating damage numbers, poofs and expanding rings.
 import * as THREE from 'three';
 
 export class Fx {
@@ -10,6 +10,8 @@ export class Fx {
     this.nums = [];
     this.puffs = [];
     this.puffGeo = new THREE.SphereGeometry(1, 12, 8);
+    this.rings = [];
+    this.ringGeo = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
     this._v = new THREE.Vector3();
   }
 
@@ -53,8 +55,32 @@ export class Fx {
     p.m.material.color.set(color);
   }
 
+  // A flat ring that grows out to `radius` and fades: shows the reach of an area attack
+  ring(pos, color = 0xffffff, radius = 0.1, life = 0.4) {
+    let r = this.rings.find((x) => !x.alive);
+    if (!r) {
+      if (this.rings.length > 16) return;
+      const m = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      this.scene.add(m);
+      r = { m };
+      this.rings.push(r);
+    }
+    Object.assign(r, { alive: true, t: 0, life, r: radius });
+    r.m.visible = true;
+    r.m.position.copy(pos);
+    r.m.material.color.set(color);
+  }
+
   update(dt) {
     const w = innerWidth, h = innerHeight;
+    for (const r of this.rings) {
+      if (!r.alive) continue;
+      r.t += dt;
+      const k = r.t / r.life;
+      if (k >= 1) { r.alive = false; r.m.visible = false; continue; }
+      r.m.scale.setScalar(r.r * (0.2 + 0.8 * Math.sqrt(k)));
+      r.m.material.opacity = 0.7 * (1 - k);
+    }
     for (const n of this.nums) {
       if (!n.alive) continue;
       n.t += dt;
@@ -79,5 +105,6 @@ export class Fx {
   clear() {
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });
     this.puffs.forEach((p) => { p.alive = false; p.m.visible = false; });
+    this.rings.forEach((r) => { r.alive = false; r.m.visible = false; });
   }
 }

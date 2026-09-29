@@ -134,6 +134,7 @@ export class Lash {
     this.fx.puff(b, s.golden ? 0xffd23a : 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
     if (s.target.dead) return;
     if (has.has('qtip')) s.target.slowT = 2;
+    if (has.has('stickyNote') && !s.target.proxy) s.target.markT = 3;
     // Nail Clipper: some stings are snips for triple damage
     if (has.has('nailClipper') && Math.random() < 0.2) { E.damage(s.target, s.dmg * 3, '#ff6b6b'); this.fx.puff(b, 0xff6b6b, 0.01, 0.2); }
     else E.damage(s.target, s.dmg, color);

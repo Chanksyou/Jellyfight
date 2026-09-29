@@ -16,7 +16,7 @@ import { Enemies, TYPES } from './enemies.js';
 import { Boss } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v15';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v16';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -311,12 +311,17 @@ async function warmUp() {
   tentacles[1].material = lash.goldMat;
   tentacles.forEach((m) => { m.position.copy(P); m.scale.set(0.002, 0.05, 0.002); });
   fx.puff(P.clone(), 0xffffff, 0.01, 1);
+  fx.ring(P.clone(), 0xffffff, 0.05, 1);
+  run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
+  temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
+  enemies.markLook(temp[0], 0);
   const clog = new Boss(scene, enemies, fx, stage.boss);
   try {
     await renderer.compileAsync(scene, camera);
   } catch (e) {
     reportError(e, 'preparing graphics');
   }
+  run.gadgets.warm(false);
   clog.dispose();
   temp.forEach((e) => enemies.kill(e, true));
   enemies.clear();
