@@ -27,6 +27,12 @@ You're an immortal jellyfish growing up over one night in the apartment. Stage 1
 
 **Getting around:** the jelly swims in strokes (`src/swim.js`): the bell squeezes shut and it surges, then relaxes open and glides. The movement and the animation read the same curve and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Hold Space to climb the front of the corduroy sofa.
 
+## Dev: layout editor
+
+**🛠 Layout (dev)** in the pause menu lets you move, rotate, raise/lower and hide the furniture and objects. Tap or click an object to select it (a yellow box shows it), drag it to move it. Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo. Touch: drag empty space to pan, pinch to zoom, and use the toolbar.
+
+Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied on every load before collisions are built, so moved furniture is solid where it is. **Export** shows a JSON code; paste it back to Claude to bake the layout into the stage for everyone. Stage markers (vents, Moon Drop spots, elites, gift boxes) don't follow moved furniture yet. Code: `src/layout.js`.
+
 ## Controls
 
 WASD move · mouse look · Space jump, again in the air to double jump (hold to climb fabric) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the character creator. On phones: left thumb moves, right thumb looks, ⤴ jumps (tap again in the air to double jump, hold to climb).

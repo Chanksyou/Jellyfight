@@ -16,10 +16,11 @@ import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { juice } from './juice.js';
+import { applyLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v24';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v25';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -76,7 +77,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="layout">🛠 Layout (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -107,6 +108,7 @@ const creator = new Creator({
 creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
+applyLayout(APT.root);                 // your saved furniture edits (dev layout editor)
 prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage);
@@ -189,7 +191,35 @@ run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); 
 // --- Modes: 'play' (paused while a menu is up) and 'creator' -----------------------
 let mode = 'play';
 let spin = 0.6, drag = null;
-const menuOpen = () => !overlay.hidden || menus.open || mode === 'creator';
+const menuOpen = () => !overlay.hidden || menus.open || mode === 'creator' || mode === 'layout';
+
+// Dev layout editor: move the furniture around (layout.js)
+let layout = null, layoutChanged = false;
+function openLayout() {
+  layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene });
+  window.layout = layout;
+  layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
+  layout.onDone = closeLayout;
+  layoutChanged = false;
+  mode = 'layout';
+  input.enabled = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  overlay.hidden = true;
+  hud.el.hidden = true;
+  touch.show(false);
+  layout.target.copy(player.position);
+  layout.open();
+}
+function closeLayout() {
+  layout.close();
+  mode = 'play';
+  input.enabled = true;
+  hud.el.hidden = false;
+  // things placed on furniture need checking again (Moon Drop spots, the player's footing)
+  if (layoutChanged) { run.dropSpots = null; run.start(); }
+  tpc.snapTo(player.position);
+  overlay.hidden = false;
+}
 
 function openCreator() {
   mode = 'creator';
@@ -241,6 +271,11 @@ const GAME = {
     if (fpsT > 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
     traversal.update(dt);
     fx.update(dt);
+    if (mode === 'layout') {
+      layout.update(dt);
+      gfx.focus = layout.dist;
+      return;
+    }
     if (mode === 'creator') {
       player.avatar.update(dt, { speed: 0, walkSpeed: 1, grounded: true, vy: 0 });
       creatorCamera(dt);
@@ -281,6 +316,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
+  else if (b.dataset.act === 'layout') openLayout();
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
