@@ -7,6 +7,7 @@
 //   sofa x 0.5-2.9, z 1.0-2.6 (seat 0.51)   coffee table x 1.5-2.8, z 2.45-3.15 (top 0.46)
 //   lounge chair x 2.9-3.5, z 1.1-1.9 (0.43) standing desk x 0.1-0.8, z 2.5-3.8 (0.78)
 //   media console x 0.9-2.4, z 4.35-4.8 (0.6) kitchen counters x 4.35-5.0 (0.94, under cabinets)
+//   stovetop x 4.4-4.65, z 3.0-3.8 (0.90), pans to its right, the kettle behind it
 export const STAGE1 = {
   id: 1,
   name: 'Polyp',
@@ -33,6 +34,7 @@ export const STAGE1 = {
     { name: 'Vent by the TV', at: [1.0, 0, 4.05], radius: 0.045, land: [1.0, 0.603, 4.45], to: 'the media console' },
     { name: 'Vent by the desk', at: [1.2, 0, 2.95], radius: 0.04, land: [0.6, 0.775, 3.2], to: 'the desk' },
     { name: 'Vent by the lounge chair', at: [3.2, 0, 2.3], radius: 0.045, land: [3.2, 0.435, 1.5], to: 'the lounge chair' },
+    { name: 'Vent by the stove', at: [4.05, 0, 3.4], radius: 0.045, land: [4.5, 0.9, 3.35], to: 'the stovetop' },
   ],
 
   // Fabric you can climb: hold jump inside the box
@@ -58,6 +60,14 @@ export const STAGE1 = {
     { area: 'Furniture', at: [0.6, 0.775, 3.2], label: 'standing desk' },
     { area: 'Furniture', at: [2.6, 0.46, 3.0], label: 'coffee table' },
     { area: 'Furniture', at: [1.0, 0.603, 4.45], label: 'media console' },
+  ],
+
+  // High-ground elites (elites.js): real objects that came alive, one on each raised area.
+  // `hide` is the apartment object each one stands in for while it's alive.
+  elites: [
+    { kind: 'controller', at: [1.31, 0.603, 4.52], hide: 'Controllers', area: 'media console' },
+    { kind: 'mug', at: [0.65, 0.775, 2.715], hide: 'Mug', area: 'standing desk' },
+    { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop' },
   ],
 
   // The boss: a crowned dust king that rises from a dust pile on the open floor. While it's

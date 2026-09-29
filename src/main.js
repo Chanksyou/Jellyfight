@@ -16,7 +16,7 @@ import { Enemies, TYPES } from './enemies.js';
 import { Boss } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v16';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v17';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -157,7 +157,7 @@ function updateBlob() {
 
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon,
-  traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH,
+  traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
 });
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
@@ -313,6 +313,7 @@ async function warmUp() {
   fx.puff(P.clone(), 0xffffff, 0.01, 1);
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
+  run.elites.warm(true, P.clone().setY(P.y + 0.03));
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   const clog = new Boss(scene, enemies, fx, stage.boss);
@@ -322,6 +323,7 @@ async function warmUp() {
     reportError(e, 'preparing graphics');
   }
   run.gadgets.warm(false);
+  run.elites.warm(false);
   clog.dispose();
   temp.forEach((e) => enemies.kill(e, true));
   enemies.clear();

@@ -6,6 +6,7 @@ import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS } fro
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Gadgets } from './gadgets.js';
+import { Elites } from './elites.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -16,6 +17,7 @@ export class Run {
   constructor(ctx) {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
       const size = w.max.map((v, i) => v - w.min[i]);
@@ -47,6 +49,7 @@ export class Run {
   start() {
     const s = this.stage;
     this.enemies.clear();
+    this.elites?.start(this.stage.elites);
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
@@ -79,7 +82,6 @@ export class Run {
     this.bubbleUsed = false;
     this.lintT = 20;
     this.bombT = 6;
-    this.nextElite = 25;             // an elite every 30 s: each one drops a treasure
     this.spawnAcc = 0;
     this.dropTimer = 2;
     this.lastArea = null;
@@ -160,6 +162,7 @@ export class Run {
     if (this.phase === 'explore' || this.phase === 'boss') {
       this.lash.update(dt, origin, s, this.owned, { lashSpeedMul: this.wristT > 0 ? 1.5 : 1 });
       this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: s.sting });
+      if (this.phase === 'explore') this.elites.update(dt, P, this.cfg, this.eliteHooks);
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
     }
@@ -211,9 +214,7 @@ export class Run {
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'mote';
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
       const pos = this.spawnPoint(type) || (type !== 'mote' ? this.spawnPoint((type = 'mote')) : null);
-      const elite = this.t >= this.nextElite;
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22, elite);
-      if (pos && elite) { this.nextElite += 30; this.hud.toast('✨ An elite appeared: it carries a lost thing', 1800); }
+      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.22);
     }
   }
 
@@ -296,6 +297,22 @@ export class Run {
       if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
     }
     if (this.owned.has('bathSalt')) this.bursts.push(c);
+  }
+
+  // What the high-ground elites can do to you, and what beating one gives you
+  get eliteHooks() {
+    return this._eliteHooks ||= {
+      hit: (n) => this.hit(n),
+      hurt: (n) => this.hurt(n, true),
+      slow: () => { this.slowT = Math.max(this.slowT, 0.3); },
+      defeated: (e) => {
+        this.kills++;
+        this.heal(4);
+        this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
+        this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
+        this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 moisture)`);
+      },
+    };
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
@@ -435,6 +452,7 @@ export class Run {
       const B = this.stage.boss;
       this.enemies.clear();
       this.traversal.bossMode = true;
+      this.elites.clear();
       this.bossWalls.forEach((m) => { m.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
@@ -522,6 +540,7 @@ export class Run {
       const p = this.moon.position;
       out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true });
     }
+    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true });
     return out;
   }
 }
