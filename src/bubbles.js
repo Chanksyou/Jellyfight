@@ -4,15 +4,19 @@
 // splash, and pop harmlessly on walls or when they run out of range. Treasures hook in here.
 //
 // Element treasures infuse the bubbles (all of them stack; each bubble is tinted one of them):
-//   fire (Birthday Candle)   sets enemies burning for 3 s. Fire on a frozen enemy shatters it: 3x.
-//   lightning (AA Battery)   each pop arcs to 2 more enemies nearby.
-//   ice (Freezer Pack)       chills; the 3rd chilled hit freezes the enemy for 1.5 s.
-//   acid (Nail Polish)       pops leave a puddle of acid that eats at anything in it.
-//   wind (Paper Fan)         blows what it hits backward.
-//   glitter (Glitter)        a splash twice as wide and harder.
+//   fire (Birthday Candle)   bursts into flame and sets enemies burning; burning enemies that die
+//                            set their neighbors alight. Fire on a frozen enemy shatters it: 3x.
+//   lightning (AA Battery)   each pop chains a bolt to 3 more enemies and stuns them briefly.
+//   ice (Freezer Pack)       chills and slows; the 2nd chilled hit freezes the enemy solid for 2 s.
+//   acid (Nail Polish)       pops leave a bubbling puddle that eats at enemies and softens them
+//                            (they take 50% more damage while in it).
+//   wind (Paper Fan)         faster bubbles that pierce once more and blast what they hit away.
+//   glitter (Glitter)        a sparkling burst: splash over twice as wide and much harder.
+// Every element bubble leaves a trail of its color, so you can tell them apart in flight.
+// Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles.
 import * as THREE from 'three';
 
-const SPEED = 0.5;           // m/s
+const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
 const RADIUS = 0.011;        // m, at bubble size 1
 const SPLASH = 0.03;         // m, splash radius at bubble size 1
 
@@ -40,12 +44,12 @@ export class Bubbles {
       emissive: glow, emissiveIntensity: 0.6, depthWrite: false,
     });
     this.mat = film(0xcfeeff, 0x4aa8ff);
-    this.elemMats = Object.fromEntries(ELEMENTS.map((e) => [e.id, film(e.color, e.color)]));
+    this.elemMats = Object.fromEntries(ELEMENTS.map((e) => { const m = film(e.color, e.color); m.emissiveIntensity = 1.6; m.opacity = 0.75; return [e.id, m]; }));
     this.burning = new Map();          // enemy -> seconds of fire left
     this.zaps = [];
     this.puddles = [];
     this.zapMat = new THREE.LineBasicMaterial({ color: 0xfff27a, transparent: true });
-    this.acidMat = new THREE.MeshBasicMaterial({ color: 0x7aff4a, transparent: true, opacity: 0.4, depthWrite: false });
+    this.acidMat = new THREE.MeshBasicMaterial({ color: 0x7aff4a, transparent: true, opacity: 0.55, depthWrite: false });
     this.puddleGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
     this.goldMat = film(0xffe8a0, 0xffb020);
@@ -106,8 +110,10 @@ export class Bubbles {
   elements(has) { return ELEMENTS.filter((e) => has.has(e.treasure)).map((e) => e.id); }
 
   volley(origin, stats, has) {
-    const targets = this.inRange(origin, stats.range).slice(0, stats.bubbles);
-    if (!targets.length) return false;
+    const near = this.inRange(origin, stats.range);
+    if (!near.length) return false;
+    // one bubble per nearest enemy; spare bubbles double up on the closest ones
+    const targets = Array.from({ length: stats.bubbles }, (_, i) => near[i % Math.min(near.length, stats.bubbles)]);
     this.volleys++;
     const golden = has.has('goldRing') && this.volleys % 10 === 0;
     const size = stats.bubbleSize, elems = this.elements(has);
@@ -125,10 +131,13 @@ export class Bubbles {
     const dir = this.enemies.center(target).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
     const b = {
-      m, target, vel: dir.multiplyScalar(SPEED * (o.speed || 1)), r: RADIUS * o.size, dmg: o.dmg, golden: o.golden,
+      m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.dmg * 4.5, golden: o.golden,
       pierce: o.pierce, hit: new Set(), travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
-      elems: new Set(o.elems || []), tint: o.tint,
+      elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
     };
+    const wind = b.elems.has('wind');
+    b.vel = dir.multiplyScalar(SPEED * (o.speed || 1) * (wind ? 1.4 : 1));
+    if (wind) b.pierce += 1;
     m.scale.setScalar(0.001);
     this.list.push(b);
     return b;
@@ -149,6 +158,12 @@ export class Bubbles {
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
+      // a trail in the element's color
+      if (b.tint && (b.trailT -= dt) <= 0) {
+        b.trailT = 0.06;
+        this.fx.puff(b.m.position.clone().addScaledVector(b.vel, -0.03), EL[b.tint].color, b.r * (b.tint === 'fire' ? 0.9 : 0.6), b.tint === 'fire' ? 0.35 : 0.25);
+      }
+      if (b.tint === 'lightning') b.m.material.emissiveIntensity = 1 + Math.random() * 2;   // crackles
       const grow = Math.min(1, b.t * 8);
       b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       // touching an enemy?
@@ -176,15 +191,19 @@ export class Bubbles {
     const el = b.elems, c = this.enemies.center(e);
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { dmg *= 3; e.freezeT = 0; color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3, 0.35); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER', '#bff4ff', 15); }
-      this.burning.set(e, { t: 3, dps: b.dmg * 0.35 });
+      if (e.freezeT > 0) { dmg *= 3; e.freezeT = 0; color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
+      this.ignite(e, b.pw);
     }
     if (el.has('ice') && !e.proxy) {
-      e.slowT = Math.max(e.slowT || 0, 1.5);
+      e.slowT = Math.max(e.slowT || 0, 2);
       e.chill = (e.chill || 0) + 1;
-      if (e.chill >= 3) { e.chill = 0; e.freezeT = 1.5; this.fx.ring(c, 0x9fe8ff, e.r * 2.5, 0.4); }
+      this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
+      if (e.chill >= 2) { e.chill = 0; e.freezeT = 2; this.fx.ring(c.clone().setY(c.y - e.r), 0x9fe8ff, e.r * 3, 0.5); this.fx.number(c.clone().setY(c.y + e.r * 2), 'FROZEN', '#bff4ff', 14); }
     }
-    if (el.has('wind') && !e.proxy) e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.035);
+    if (el.has('wind') && !e.proxy) {
+      e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.07);
+      this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
+    }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     this.enemies.damage(e, dmg, color);
   }
@@ -193,14 +212,21 @@ export class Bubbles {
   effects(dt, stats) {
     const E = this.enemies, c = new THREE.Vector3();
     for (const [e, f] of this.burning) {
-      if (e.dead) { this.burning.delete(e); continue; }
+      if (e.dead) {
+        // burning things that die set their neighbors alight
+        this.burning.delete(e);
+        if (!e.proxy) for (const n of this.inRange(E.center(e, c), 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.dps / 0.5); }
+        continue;
+      }
       f.t -= dt;
       f.tick = (f.tick || 0) - dt;
-      if (f.tick <= 0) {
-        f.tick = 0.5;
-        E.damage(e, f.dps * 0.5, '#ffa65a');
-        this.fx.puff(E.center(e, c).setY(c.y + e.r * 0.6), 0xff7a2a, e.r * 0.9, 0.35);
+      f.flame = (f.flame || 0) - dt;
+      if (f.flame <= 0) {                 // licking flames
+        f.flame = 0.12;
+        E.center(e, c);
+        this.fx.puff(c.add(new THREE.Vector3((Math.random() - 0.5) * e.r, e.r * (0.4 + Math.random() * 0.6), (Math.random() - 0.5) * e.r)), Math.random() < 0.5 ? 0xff7a2a : 0xffc23a, e.r * 0.8, 0.3);
       }
+      if (f.tick <= 0) { f.tick = 0.5; E.damage(e, f.dps * 0.5, '#ffa65a'); }
       if (f.t <= 0) this.burning.delete(e);
     }
     for (const z of this.zaps) { z.t -= dt; z.line.material.opacity = Math.max(0, z.t / 0.2); if (z.t <= 0) { this.scene.remove(z.line); z.line.geometry.dispose(); } }
@@ -209,17 +235,29 @@ export class Bubbles {
       p.t -= dt;
       p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (3 - p.t) * 6 + 0.3));
       p.tick -= dt;
+      if (Math.random() < dt * 12) {       // it bubbles
+        const a = Math.random() * 6.3, rr = Math.random() * p.r * 0.8;
+        this.fx.puff(p.m.position.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0.003, Math.sin(a) * rr)), 0x9aff6a, 0.005, 0.35);
+      }
       if (p.tick <= 0) {
         p.tick = 0.5;
         for (const e of E.list) {
           if (e.dead) continue;
           E.center(e, c);
-          if (Math.hypot(c.x - p.m.position.x, c.z - p.m.position.z) < p.r + e.r && Math.abs(c.y - e.r - p.m.position.y) < e.r + 0.03) E.damage(e, p.dmg * 0.5, '#a8ff7a');
+          if (Math.hypot(c.x - p.m.position.x, c.z - p.m.position.z) < p.r + e.r && Math.abs(c.y - e.r - p.m.position.y) < e.r + 0.03) {
+            if (!e.proxy) e.markT = Math.max(e.markT || 0, 0.6);   // softened: +50% damage from everything
+            E.damage(e, p.dmg * 0.5, '#a8ff7a');
+          }
         }
       }
       if (p.t <= 0) this.scene.remove(p.m);
     }
     this.puddles = this.puddles.filter((p) => p.t > 0);
+  }
+
+  ignite(e, pw) {
+    const had = this.burning.get(e);
+    this.burning.set(e, { t: 3, dps: pw * 0.5, tick: had?.tick ?? 0.25, flame: 0 });
   }
 
   zap(from, to) {
@@ -228,7 +266,11 @@ export class Bubbles {
     pts.push(to.clone());
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat.clone());
     this.scene.add(line);
-    this.zaps.push({ line, t: 0.2 });
+    this.zaps.push({ line, t: 0.25 });
+    const line2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q, i) => (i && i < pts.length - 1 ? q.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(0.004)) : q))), this.zapMat.clone());
+    this.scene.add(line2);
+    this.zaps.push({ line: line2, t: 0.18 });
+    this.fx.puff(to, 0xfff6a0, 0.012, 0.15);
   }
 
   pop(b, hitEnemy, stats, has) {
@@ -239,17 +281,27 @@ export class Bubbles {
     if (!hitEnemy) return;
     // splash: a share of the damage to everything close by (Glitter: twice as wide, harder)
     const glitter = b.elems.has('glitter');
-    const splash = SPLASH * (b.r / RADIUS) * (glitter ? 2 : 1), E = this.enemies, c = new THREE.Vector3();
+    const splash = SPLASH * (b.r / RADIUS) * (glitter ? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();
+    if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
+    if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
-      if (E.center(e, c).distanceTo(p) < splash + e.r) E.damage(e, b.dmg * (b.big ? 0.8 : 0.4) * (glitter ? 1.5 : 1), glitter ? '#ffb0f0' : '#bfe8ff');
+      if (E.center(e, c).distanceTo(p) < splash + e.r) E.damage(e, glitter ? b.pw * 0.45 : b.dmg * (b.big ? 0.8 : 0.4), glitter ? '#ffb0f0' : '#bfe8ff');
     }
-    // Lightning: arc to 2 more enemies nearby
+    // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
-      for (const e of this.inRange(p, 0.14, b.hit).slice(0, 2)) {
-        this.zap(p, E.center(e, c));
-        E.damage(e, b.dmg * 0.6, '#fff27a');
+      let from = p.clone();
+      const hit = new Set(b.hit);
+      for (let k = 0; k < 3; k++) {
+        const e = this.inRange(from, 0.16, hit)[0];
+        if (!e) break;
+        hit.add(e);
+        const to = E.center(e, c).clone();
+        this.zap(from, to);
+        E.damage(e, b.pw * 0.5, '#fff27a');
+        if (!e.proxy) e.stunT = 0.5;
+        from = to;
       }
     }
     // Acid: leave a puddle that eats at anything standing in it
@@ -258,7 +310,8 @@ export class Bubbles {
       const m = new THREE.Mesh(this.puddleGeo, this.acidMat);
       m.position.copy(h ? h.point : p).setY((h ? h.point.y : p.y) + 0.0015);
       this.scene.add(m);
-      this.puddles.push({ m, t: 3, r: 0.035 * (b.r / RADIUS), dmg: b.dmg * 0.8, tick: 0.25 });
+      this.puddles.push({ m, t: 3.5, r: 0.05 * (b.r / RADIUS), dmg: b.pw * 0.35, tick: 0.25 });
+      this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
     // Hair Tie: a smaller bubble spins off toward another enemy, once
     if (has.has('hairTie') && !b.child) {

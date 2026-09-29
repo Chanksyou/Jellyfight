@@ -3,10 +3,10 @@
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
-  bubbles: 1,       // bubbles blown per volley, each at a different enemy
+  bubbles: 2,       // bubbles blown per volley, spread across the nearest enemies
   range: 0.3,       // meters a bubble flies before it pops on its own
-  pop: 8,           // damage when a bubble pops on an enemy
-  blowRate: 1.2,    // volleys per second
+  pop: 1.8,         // damage when a bubble pops on an enemy (light: lots of bubbles, each small)
+  blowRate: 3.0,    // volleys per second: a stream of bubbles
   bubbleSize: 1.0,  // size multiplier: bigger bubbles are easier to land and splash wider
   moisture: 25,     // max health
   pulse: 1.0,       // swim speed multiplier
@@ -22,7 +22,7 @@ export const BASE_STATS = {
 export const STAT_INFO = {
   bubbles:    { name: 'Bubbles',     icon: '🫧', fmt: (v) => `${v}` },
   range:      { name: 'Range',       icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
-  pop:        { name: 'Pop damage',  icon: '💥', fmt: (v) => `${Math.round(v)}` },
+  pop:        { name: 'Pop damage',  icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
   blowRate:   { name: 'Blow rate',   icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
   bubbleSize: { name: 'Bubble size', icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
   moisture:   { name: 'Moisture',    icon: '💧', fmt: (v) => `${Math.round(v)}` },
@@ -44,7 +44,7 @@ export const RARITY = [
 const CARD_VALUES = {
   bubbles:    { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
   range:      { amounts: [10, 18, 30], pct: true },
-  pop:        { amounts: [2, 4, 7] },
+  pop:        { amounts: [0.5, 0.8, 1.3] },
   blowRate:   { amounts: [10, 18, 30], pct: true },
   bubbleSize: { amounts: [12, 20, 35], pct: true },
   moisture:   { amounts: [4, 8, 14] },
@@ -149,7 +149,7 @@ export const ATTACK_TREASURES = ['candle', 'battery', 'freezerPack', 'nailPolish
   'bobbyPin', 'hairTie', 'reedStick'];
 
 export const MAX_TENTACLES = 6;
-export const MAX_BUBBLES = 5;
+export const MAX_BUBBLES = 6;
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [

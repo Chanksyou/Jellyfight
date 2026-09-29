@@ -40,7 +40,7 @@ export class Fx {
   puff(pos, color = 0xd8d2c6, radius = 0.012, life = 0.35) {
     let p = this.puffs.find((x) => !x.alive);
     if (!p) {
-      if (this.puffs.length > 40) return;
+      if (this.puffs.length > 90) return;
       const m = new THREE.Mesh(this.puffGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
       this.scene.add(m);
       p = { m };

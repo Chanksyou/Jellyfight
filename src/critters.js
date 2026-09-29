@@ -126,10 +126,11 @@ function antGeometry() {
   return { body, antL: antenna(-1), antR: antenna(1), leg };
 }
 
-// four ants: marching in a tight 2x2 block, or curled into a tight ball, backs out
-const FORMATION = [[-0.28, 0.3], [0.28, 0.3], [-0.28, -0.42], [0.28, -0.42]];
-// the corners of a tetrahedron: four ants cover a ball evenly
-const TETRA = [V(1, 1, 1), V(-1, -1, 1), V(-1, 1, -1), V(1, -1, -1)].map((v) => v.normalize());
+// five ants: marching in a tight 2-1-2 block, or curled up together into a ball made of
+// their own bodies (backs out, heads and legs tucked in; no shell, just ants)
+const FORMATION = [[-0.3, 0.38], [0.3, 0.38], [0, -0.02], [-0.3, -0.42], [0.3, -0.42]];
+// a trigonal bipyramid: five ants cover a ball evenly
+const BALL = [V(0, 1, 0), V(0, -1, 0), V(1, 0, 0), V(-0.5, 0, 0.866), V(-0.5, 0, -0.866)];
 export function buildAnts() {
   const G = (GEO.ants ||= antGeometry()), M = mats();
   const LEGS = (GEO.antLegs ||= [-1, 1].flatMap((s) => [0.08, 0, -0.08].map((z) => ({ s, z, geo: G.leg(s, z) }))));
@@ -137,10 +138,6 @@ export function buildAnts() {
   const ball = new THREE.Group();          // rolls as one while curled
   ball.position.y = 0.42;
   body.add(ball);
-  // the tucked-in legs and heads in the middle: fills the ball out while they're curled
-  const core = new THREE.Mesh((GEO.antCore ||= tint(new THREE.IcosahedronGeometry(0.3, 2), '#2a0e08')), M.shell);
-  core.scale.setScalar(0.001);
-  ball.add(core);
   const q0 = new THREE.Quaternion();
   const ants = FORMATION.map(([x, z], i) => {
     const a = new THREE.Group();
@@ -162,10 +159,11 @@ export function buildAnts() {
       return p;
     });
     ball.add(a);
-    // curled: back out along a tetrahedron corner, bent around the ball, head tucked
-    const dir = TETRA[i];
-    const curlQ = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), i * 1.3));
-    return { a, legs, ants: ants2, phase: i * 1.7, walkPos: V(x, -0.42, z), curlPos: dir.clone().multiplyScalar(0.02).add(V(0, -0.22, 0)), curlQ };
+    // curled: back out along its ball direction, each twisted a different way so the bodies
+    // interlock into a round clump
+    const dir = BALL[i];
+    const curlQ = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), i * 1.26 + 0.4));
+    return { a, legs, ants: ants2, phase: i * 1.7, walkPos: V(x, -0.42, z), curlPos: dir.clone().multiplyScalar(0.12).add(V(0, -0.2, 0)), curlQ };
   });
   let t = 0, curl = 0, k = 0;
   const anim = (dt, e) => {
@@ -178,7 +176,7 @@ export function buildAnts() {
     for (const A of ants) {
       A.a.position.lerpVectors(A.walkPos, A.curlPos, curl);
       A.a.quaternion.slerpQuaternions(q0, A.curlQ, curl);
-      A.a.scale.setScalar(1 - curl * 0.25);
+      A.a.scale.setScalar(1 + curl * 0.1);
       // marching: a little bob and sway each, legs in a tripod gait, antennae feeling around
       A.a.position.y += walk * Math.abs(Math.sin(t + A.phase)) * 0.025 * k;
       A.a.rotation.z += walk * Math.sin(t * 0.5 + A.phase) * 0.06;
@@ -192,8 +190,7 @@ export function buildAnts() {
     if (e.state === 'dash') ball.rotation.x += speed * dt / 0.42;
     else ball.rotation.x *= Math.exp(-6 * dt);
     ball.rotation.z = e.state === 'windup' ? Math.sin(t * 5) * 0.12 : 0;   // a quick shiver: it's about to roll
-    ball.position.y = 0.42 - curl * 0.08;
-    core.scale.setScalar(Math.max(0.001, curl));
+    ball.position.y = 0.42 - curl * 0.06;
   };
   return { body, face: new THREE.Group(), anim };
 }

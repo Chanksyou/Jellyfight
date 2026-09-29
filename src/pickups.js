@@ -109,3 +109,51 @@ export class MoonDrop {
     this.halo.scale.setScalar(1 + Math.sin(this.t * 4) * 0.15);
   }
 }
+
+// ---------------------------------------------------------------- lost things up high
+// Little gift boxes on high spots that take some climbing to reach. A gold beam shows where
+// each one is from across the room; touch one to pick a treasure.
+export class LostThings {
+  constructor(scene) {
+    this.scene = scene;
+    this.list = [];
+    this.boxGeo = new THREE.BoxGeometry(0.02, 0.016, 0.02);
+    this.boxMat = new THREE.MeshStandardMaterial({ color: 0xd8344a, roughness: 0.4, emissive: 0x5a0a14, emissiveIntensity: 0.6 });
+    this.ribbonMat = new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: 0.3, metalness: 0.5, emissive: 0x8a6a10, emissiveIntensity: 0.8 });
+    this.beamMat = new THREE.MeshBasicMaterial({ color: 0xffd86a, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    this.beamGeo = new THREE.CylinderGeometry(0.006, 0.014, 0.8, 12, 1, true).translate(0, 0.4, 0);
+  }
+
+  place(spots) {
+    this.clear();
+    for (const s of spots) {
+      const g = new THREE.Group();
+      g.position.set(...s.at);
+      const box = new THREE.Group();
+      box.position.y = 0.008;
+      box.add(new THREE.Mesh(this.boxGeo, this.boxMat));
+      for (const [w, d] of [[0.022, 0.005], [0.005, 0.022]]) box.add(new THREE.Mesh(new THREE.BoxGeometry(w, 0.017, d), this.ribbonMat));
+      const bow = new THREE.Mesh(new THREE.TorusGeometry(0.004, 0.0015, 6, 12), this.ribbonMat);
+      bow.position.y = 0.01;
+      box.add(bow);
+      box.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      g.add(box, new THREE.Mesh(this.beamGeo, this.beamMat));
+      this.scene.add(g);
+      this.list.push({ g, box, pos: g.position, label: s.label, taken: false, phase: Math.random() * 6 });
+    }
+  }
+
+  clear() { this.list.forEach((s) => this.scene.remove(s.g)); this.list = []; }
+
+  // returns the spot the player just touched, if any
+  update(dt, t, feet) {
+    let got = null;
+    for (const s of this.list) {
+      if (s.taken) continue;
+      s.box.rotation.y += dt;
+      s.box.position.y = 0.008 + Math.abs(Math.sin(t * 2 + s.phase)) * 0.004;
+      if (!got && s.pos.distanceTo(feet) < 0.035) { got = s; s.taken = true; this.scene.remove(s.g); }
+    }
+    return got;
+  }
+}

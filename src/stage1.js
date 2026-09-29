@@ -62,6 +62,14 @@ export const STAGE1 = {
     { area: 'Furniture', at: [1.0, 0.603, 4.45], label: 'media console' },
   ],
 
+  // Lost things up high: a treasure on each, for the climb (pickups.js LostThings)
+  lostThings: [
+    { at: [4.5, 0.947, 2.1], label: 'kitchen counter' },       // from the stovetop, hop up and walk along
+    { at: [2.75, 0.743, 1.7], label: 'arm of the sofa' },      // from the sofa seat, double jump
+    { at: [2.35, 0.967, 1.5], label: 'top of the blue pillow' }, // from the sofa seat, jump up the pillows
+    { at: [3.2, 0.866, 1.25], label: 'back of the lounge chair' }, // from the chair seat, double jump
+  ],
+
   // High-ground elites (elites.js): real objects that came alive, one on each raised area.
   // `hide` is the apartment object each one stands in for while it's alive.
   elites: [

@@ -8,8 +8,8 @@ import { buildRoach, buildAnts, buildMosquito } from './critters.js';
 export const TYPES = {
   // scuttles straight at you; the basic enemy
   roach:    { name: 'Cockroach', hp: 16, speed: 0.24, dmg: 1, r: 0.016, dew: 4 },
-  // four ants in a block; up close they curl into a ball and roll into you
-  ants:     { name: 'Ant squad', hp: 30, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.022, dew: 7, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
+  // five ants in a block; up close they curl into a ball and roll into you
+  ants:     { name: 'Ant squad', hp: 36, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
   // hovers out of reach and spits at you
   mosquito: { name: 'Mosquito', hp: 12, speed: 0.22, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
   // drifts through the air, so high ledges aren't perfectly safe
@@ -335,7 +335,8 @@ export class Enemies {
       e.slowT = Math.max(0, e.slowT - dt);
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
-      const slow = e.freezeT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1;
+      e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
+      const slow = e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1;
       const toP = this._d.copy(pc).sub(this.center(e, tmp));
       const dist = toP.length();
       const near = dist < 1.4;

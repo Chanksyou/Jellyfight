@@ -10,6 +10,7 @@ import { TYPES } from './enemies.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
+import { LostThings } from './pickups.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -21,6 +22,7 @@ export class Run {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.lost = new LostThings(ctx.scene);
     this.bubbles.onBlow = () => this.player.avatar?.pulse?.(0.6);   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     // low invisible walls around the boss arena, solid only during the fight
@@ -40,7 +42,7 @@ export class Run {
     this.enemies.onKill = (e) => this.onKill(e);
     this.player.onLand = (drop) => {
       if (this.owned.has('wristband')) this.wristT = 3;
-      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.stats.pop * 2, 0xffffff);
+      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.power * 2, 0xffffff);
     };
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
@@ -55,6 +57,7 @@ export class Run {
     const s = this.stage;
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
+    this.lost?.place(this.stage.lostThings || []);
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
@@ -117,6 +120,8 @@ export class Run {
   }
 
   get paused() { return this.ui.open; }
+  // how hard treasures that attack on their own hit: scales with pop damage
+  get power() { return this.stats.pop * 4.5; }
   // The tentacles' stats, with their treasures applied
   get tentacleStats() {
     const s = this.stats, o = this.owned;
@@ -192,8 +197,12 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.owned);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.tentacleTreasures, { lashSpeedMul: this.wristT > 0 ? 2 : 1 });
-      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: s.pop });
-      if (this.phase === 'explore') this.elites.update(dt, P, this.cfg, this.eliteHooks);
+      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: this.power });
+      if (this.phase === 'explore') {
+        this.elites.update(dt, P, this.cfg, this.eliteHooks);
+        const found = this.lost.update(dt, this.t, P.position);
+        if (found) { this.fx.puff(found.pos.clone().setY(found.pos.y + 0.01), 0xffd23a, 0.04, 0.5); this.pickTreasure('🎁 A lost thing!', `Tucked away on the ${found.label}. Keep one.`); }
+      }
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
       const spit = this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
@@ -208,7 +217,7 @@ export class Run {
     }
     if (this.owned.has('bathBomb') && this.phase !== 'moonlift') {
       this.bombT -= dt;
-      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, s.pop * 1.5, 0xff9ad8); }
+      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, this.power * 1.5, 0xff9ad8); }
     }
     if (this.owned.has('lintRoller')) {
       this.lintT -= dt;
@@ -237,8 +246,8 @@ export class Run {
   // ------------------------------------------------------------ waves
   spawnWaves(dt) {
     // fewer enemies, each worth more (see TYPES in enemies.js); paced for a 5-minute night
-    const rate = 0.3 + this.t * 0.003;
-    const cap = Math.min(26, 8 + this.t / 12);
+    const rate = 0.22 + this.t * 0.0022;
+    const cap = Math.min(20, 6 + this.t / 15);
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
@@ -280,7 +289,7 @@ export class Run {
       if (d < e.r + this.cfg.radius) {
         if (e.T.slows) this.slowT = 1.5;
         // Cactus Spine: whatever touches you gets stung (once per second each)
-        if (this.owned.has('cactus') && !(e.cactusT > this.t)) { e.cactusT = this.t + 1; this.enemies.damage(e, this.stats.sting * 3 + this.stats.pop, '#9adf6a'); }
+        if (this.owned.has('cactus') && !(e.cactusT > this.t)) { e.cactusT = this.t + 1; this.enemies.damage(e, this.stats.sting * 3 + this.power, '#9adf6a'); }
         this.hit(e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg);   // ant squads hit harder rolling
       }
     }
@@ -364,7 +373,7 @@ export class Run {
     this.fx.puff(c, 0xffffff, 0.045, 0.3);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) this.enemies.damage(e, this.stats.pop * 0.5, '#bfe8ff');
+      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) this.enemies.damage(e, this.power * 0.5, '#bfe8ff');
     }
   }
 
@@ -494,6 +503,7 @@ export class Run {
       this.enemies.clear();
       this.traversal.bossMode = true;
       this.elites.clear();
+      this.lost.clear();
       this.bossWalls.forEach((m) => { m.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
@@ -581,6 +591,7 @@ export class Run {
       const p = this.moon.position;
       out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true });
     }
+    if (this.phase === 'explore') for (const s of this.lost.list) if (!s.taken) out.push({ x: s.pos.x, y: s.pos.y, z: s.pos.z, color: '#ff5a7a' });
     if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true });
     return out;
   }

@@ -17,7 +17,7 @@ import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v22';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v23';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -337,7 +337,7 @@ async function warmUp() {
   clog.dispose();
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
-  enemies.clear();
+  enemies.list = enemies.list.filter((e) => !temp.includes(e));   // keep the elites run.start() registered
   dew.clear();
   moon.hide();
   fx.clear();
