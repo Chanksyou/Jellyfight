@@ -1,5 +1,6 @@
-// Lash: the jelly's automatic attack. Every so often a few of its tentacles whip out, each at
-// a different nearby enemy, sting, and snap back. Treasures hook in here.
+// Lash: the jelly's close-range sting, next to its main attack (bubbles.js). Every so often a
+// few of its tentacles whip out, each at a different enemy within reach, sting, and snap back.
+// Only treasures improve it (run.js works out the tentacle stats and which treasures apply).
 // The jelly's own tentacles (avatar.tentacles) do the striking; bounces between enemies (Hair
 // Tie) and bodies without tentacles use a simple stretched cylinder instead.
 import * as THREE from 'three';
@@ -135,6 +136,8 @@ export class Lash {
     if (s.target.dead) return;
     if (has.has('qtip')) s.target.slowT = 2;
     if (has.has('stickyNote') && !s.target.proxy) s.target.markT = 3;
+    // Hot Sauce: double damage, and it slows
+    if (has.has('hotSauce')) { s.dmg *= 2; if (!s.target.proxy) s.target.slowT = 1.5; this.fx.puff(b, 0xff5a2a, 0.008, 0.2); }
     // Nail Clipper: some stings are snips for triple damage
     if (has.has('nailClipper') && Math.random() < 0.2) { E.damage(s.target, s.dmg * 3, '#ff6b6b'); this.fx.puff(b, 0xff6b6b, 0.01, 0.2); }
     else E.damage(s.target, s.dmg, color);

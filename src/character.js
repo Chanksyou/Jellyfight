@@ -477,7 +477,7 @@ export function buildCharacter(look, heightMeters) {
     impactV -= Math.min(4, strength) * 1.2;
   }
 
-  function pulse() { kick = 1; }
+  function pulse(k = 1) { kick = Math.max(kick, k); }
 
   function dispose() {
     rig?.dispose();

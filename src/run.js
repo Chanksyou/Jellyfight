@@ -7,6 +7,7 @@ import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
+import { Bubbles } from './bubbles.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -17,6 +18,8 @@ export class Run {
   constructor(ctx) {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.bubbles.onBlow = () => this.player.avatar?.pulse?.(0.6);   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
@@ -35,7 +38,7 @@ export class Run {
     this.enemies.onKill = (e) => this.onKill(e);
     this.player.onLand = (drop) => {
       if (this.owned.has('wristband')) this.wristT = 3;
-      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.stats.sting * 2, 0xffffff);
+      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.stats.pop * 2, 0xffffff);
     };
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
@@ -53,6 +56,7 @@ export class Run {
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
+    this.bubbles.reset();
     this.gadgets.reset();
     this.boss?.dispose();
     this.boss = null;
@@ -110,6 +114,20 @@ export class Run {
   }
 
   get paused() { return this.ui.open; }
+  // The tentacles' stats, with their treasures applied
+  get tentacleStats() {
+    const s = this.stats, o = this.owned;
+    return {
+      tentacles: Math.min(6, s.tentacles + (o.has('fishingLine') ? 2 : 0)),
+      reach: s.reach * (o.has('chopstick') ? 1.6 : 1),
+      sting: s.sting,
+      lashSpeed: s.lashSpeed,
+    };
+  }
+  // the treasures that work on tentacle stings
+  get tentacleTreasures() {
+    return new Set(['stickyNote', 'nailClipper', 'hotSauce'].filter((id) => this.owned.has(id)));
+  }
   // seconds until the boss comes (the Egg Timer adds 30)
   get duration() { return this.stage.duration + (this.owned.has('hourglass') ? 30 : 0); }
 
@@ -160,8 +178,11 @@ export class Run {
     // --- attacks and enemies
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
     if (this.phase === 'explore' || this.phase === 'boss') {
-      this.lash.update(dt, origin, s, this.owned, { lashSpeedMul: this.wristT > 0 ? 1.5 : 1 });
-      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: s.sting });
+      // main attack: bubbles, blown from the top of the bell
+      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.owned);
+      // close-range sting: tentacles, improved only by treasures
+      this.lash.update(dt, origin, this.tentacleStats, this.tentacleTreasures, { lashSpeedMul: this.wristT > 0 ? 2 : 1 });
+      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: s.pop });
       if (this.phase === 'explore') this.elites.update(dt, P, this.cfg, this.eliteHooks);
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
@@ -175,7 +196,7 @@ export class Run {
     }
     if (this.owned.has('bathBomb') && this.phase !== 'moonlift') {
       this.bombT -= dt;
-      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, s.sting * 1.5, 0xff9ad8); }
+      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, s.pop * 1.5, 0xff9ad8); }
     }
     if (this.owned.has('lintRoller')) {
       this.lintT -= dt;
@@ -245,6 +266,8 @@ export class Run {
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < e.r + this.cfg.radius) {
         if (e.T.slows) this.slowT = 1.5;
+        // Cactus Spine: whatever touches you gets stung (once per second each)
+        if (this.owned.has('cactus') && !(e.cactusT > this.t)) { e.cactusT = this.t + 1; this.enemies.damage(e, this.stats.sting * 3 + this.stats.pop, '#9adf6a'); }
         this.hit(e.T.dmg);
       }
     }
@@ -328,7 +351,7 @@ export class Run {
     this.fx.puff(c, 0xffffff, 0.045, 0.3);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) this.enemies.damage(e, this.stats.sting * 0.5, '#bfe8ff');
+      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) this.enemies.damage(e, this.stats.pop * 0.5, '#bfe8ff');
     }
   }
 

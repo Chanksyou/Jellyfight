@@ -16,9 +16,9 @@ Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
 You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the living room and its kitchen strip, midnight to 2 am (2 real minutes). The bathroom and hallway are kept for a later stage (`src/stage-bathroom.js`).
 
-- **Your tentacles attack on their own** (the Lash). The jelly has 6; the Tentacles stat is how many whip out at once, and only those move. You swim, jump and position.
+- **You attack on your own, two ways.** Your main attack is **bubbles**: the bell squeezes and blows them at enemies in range; they pop for damage and a small splash. Level-up cards improve them (more bubbles per volley, range, pop damage, blow rate, bubble size). Up close, your **tentacles** sting automatically; only treasures improve them (Fishing Line, Chopstick, Hot Sauce, Cactus Spine, Festival Wristband). You swim, jump and position.
 - **Dry things** (motes, dust bunnies, lint) have soaked up the apartment's moisture. Sting them and they drop **dew**: your XP. There aren't many at once, but each is worth a lot. Each piece of high ground has an **elite**, an object there that came alive, each with its own attack: the **Controller** on the media console (spreads of button shots), the **Mug** on the desk (lobs coffee that leaves scalding puddles) and the **Kettle** on the stove (whistles, then blasts steam). They only fight when you come close. Beat one for 20 dew, moisture and a treasure pick.
-- **Level up** by collecting dew (levels come slowly): pick 1 of 3 cards, each one stat and one number, including swim speed. One free reroll per level.
+- **Level up** by collecting dew (levels come slowly): pick 1 of 3 cards, each one stat and one number (bubble stats, moisture, swim speed, bounce). One free reroll per level.
 - **Moon Drops** spawn one at a time somewhere in the stage and show on the minimap with how far above or below you they are. Each of the first 3 lets you keep 1 of 3 **treasures**: lost things with a unique effect, once per run. There are 30: lash upgrades, things that attack on their own (a chord every 5 s, remote zaps, orbiting fairy lights, a burning moonbeam, Lego traps, bowling marbles, freezes, auras), and rule-benders (marks that make enemies take more damage, more dew, better level-up cards, a later boss). The 4th (bigger, orange) summons **The Dust King**, a giant crowned dust bunny that rises from a dust pile in front of the kitchen and sheds dust bunnies.
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - **2 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
@@ -97,7 +97,8 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | `src/run.js` | Wave pacing, Moon Drops and treasure picks, damage, treasure effects, boss flow, death and victory. |
 | `src/elites.js` | The high-ground elites: Controller, Mug and Kettle, their models and attacks. |
 | `src/gadgets.js` | Treasures that act on their own: Guitar Pick, TV Remote, Fairy Lights, Magnifying Glass, Glow Stick, Ice Cube, Lego Brick, Marble. |
-| `src/combat.js` | The Lash: targeting, picking which tentacle strikes, and treasure effects on hits. |
+| `src/bubbles.js` | The main attack: bubble volleys, steering, popping, splash, and the bubble treasures. |
+| `src/combat.js` | The Lash (close-range tentacle sting): targeting, picking which tentacle strikes, and its treasures. |
 | `src/boss.js` | Stage bosses: The Dust King (living room) and The Clog (bathroom). |
 | `src/traversal.js` | Vent launch pads, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
 | `src/pickups.js` | Dew and the Moon Drop. |

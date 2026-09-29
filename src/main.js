@@ -16,7 +16,7 @@ import { Enemies, TYPES } from './enemies.js';
 import { Boss } from './boss.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v17';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v18';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -78,12 +78,12 @@ ui.innerHTML = `
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
-    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
-    Your tentacles attack on their own. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 2 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -314,6 +314,8 @@ async function warmUp() {
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
+  const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
+  warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   const clog = new Boss(scene, enemies, fx, stage.boss);
@@ -324,6 +326,7 @@ async function warmUp() {
   }
   run.gadgets.warm(false);
   run.elites.warm(false);
+  warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   clog.dispose();
   temp.forEach((e) => enemies.kill(e, true));
   enemies.clear();
