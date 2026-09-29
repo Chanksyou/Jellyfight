@@ -15,6 +15,8 @@
 // Every element bubble leaves a trail of its color, so you can tell them apart in flight.
 // Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles.
 import * as THREE from 'three';
+import { sfx } from './sfx.js';
+import { juice } from './juice.js';
 
 const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
 const RADIUS = 0.011;        // m, at bubble size 1
@@ -191,20 +193,22 @@ export class Bubbles {
     const el = b.elems, c = this.enemies.center(e);
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { dmg *= 3; e.freezeT = 0; color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
+      if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; e.freezeT = 0; color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw);
     }
     if (el.has('ice') && !e.proxy) {
       e.slowT = Math.max(e.slowT || 0, 2);
       e.chill = (e.chill || 0) + 1;
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
-      if (e.chill >= 2) { e.chill = 0; e.freezeT = 2; this.fx.ring(c.clone().setY(c.y - e.r), 0x9fe8ff, e.r * 3, 0.5); this.fx.number(c.clone().setY(c.y + e.r * 2), 'FROZEN', '#bff4ff', 14); }
+      if (e.chill >= 2) { sfx.freeze(); e.chill = 0; e.freezeT = 2; this.fx.ring(c.clone().setY(c.y - e.r), 0x9fe8ff, e.r * 3, 0.5); this.fx.number(c.clone().setY(c.y + e.r * 2), 'FROZEN', '#bff4ff', 14); }
     }
     if (el.has('wind') && !e.proxy) {
       e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.07);
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
+    // a little shove in the direction the bubble was going
+    if (!e.proxy && !e.T.fly) e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.006 * (b.big ? 3 : 1));
     this.enemies.damage(e, dmg, color);
   }
 
@@ -279,6 +283,15 @@ export class Bubbles {
     const p = b.m.position;
     this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);
     if (!hitEnemy) return;
+    // pop: a splash of droplets, a plip, a tiny kick
+    this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
+    sfx.pop(b.big);
+    juice.shake(b.big ? 0.12 : 0.03);
+    const el = b.elems;
+    if (el.has('fire')) sfx.fire();
+    if (el.has('lightning')) sfx.zap();
+    if (el.has('acid')) sfx.acid();
+    if (el.has('wind')) sfx.wind();
     // splash: a share of the damage to everything close by (Glitter: twice as wide, harder)
     const glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();

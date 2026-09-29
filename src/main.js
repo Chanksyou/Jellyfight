@@ -12,12 +12,14 @@ import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { STAGE1 } from './stage1.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
-import { Enemies, TYPES } from './enemies.js';
+import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
+import { juice } from './juice.js';
+import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v23';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v24';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -74,7 +76,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -168,6 +170,7 @@ if (IS_TOUCH) {
 }
 input.touchOnly = IS_TOUCH;
 function play() {
+  unlockAudio();
   if (!IS_TOUCH) { renderer.domElement.requestPointerLock(); return; }
   overlay.hidden = true;
   const d = document.documentElement;
@@ -278,6 +281,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
+  else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {
@@ -289,6 +293,7 @@ addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
   if (e.code === 'KeyC' && mode === 'play' && !menus.open && !overlay.hidden) openCreator();
   else if (e.code === 'Escape' && mode === 'creator') { saveLook(look); closeCreator(); }
+  if (e.code === 'KeyM') setMuted(!isMuted());
   if (e.code === 'F3') { e.preventDefault(); debug = !debug; hud.setDebug(''); }
 });
 
@@ -313,6 +318,10 @@ async function warmUp() {
   tentacles.forEach((m) => { m.position.copy(P); m.scale.set(0.002, 0.05, 0.002); });
   fx.puff(P.clone(), 0xffffff, 0.01, 1);
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
+  fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
+  flash.position.copy(P).setY(P.y + 0.02);
+  scene.add(flash);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
@@ -335,6 +344,7 @@ async function warmUp() {
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmFx.forEach((m) => scene.remove(m));
   clog.dispose();
+  scene.remove(flash);
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
   enemies.list = enemies.list.filter((e) => !temp.includes(e));   // keep the elites run.start() registered
@@ -350,11 +360,16 @@ overlay.hidden = false;
 warmUp();
 
 let last = performance.now();
+const shakeV = new THREE.Vector3();
 renderer.setAnimationLoop((now) => {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   try {
-    GAME.step(dt);
+    // hit-stop: for a beat after a kill the world nearly freezes, then snaps back
+    const slow = juice.stop > 0 ? 0.05 : 1;
+    juice.stop = Math.max(0, juice.stop - dt);
+    GAME.step(dt * slow);
+    camera.position.add(juice.offset(shakeV));
     GAME.render();
   } catch (e) {
     reportError(e, 'frame');
@@ -362,4 +377,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus });
+Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus, fx });

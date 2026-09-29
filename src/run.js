@@ -11,6 +11,8 @@ import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { LostThings } from './pickups.js';
+import { juice } from './juice.js';
+import { sfx } from './sfx.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -23,7 +25,7 @@ export class Run {
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.lost = new LostThings(ctx.scene);
-    this.bubbles.onBlow = () => this.player.avatar?.pulse?.(0.6);   // the bell squeezes as it blows
+    this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
@@ -61,6 +63,7 @@ export class Run {
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
+    juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
     this.boss?.dispose();
@@ -226,7 +229,9 @@ export class Run {
 
     // --- dew
     const got = this.dew.update(dt, origin, this.owned.has('loofah') ? 2.5 : 1);
-    if (got) this.gainDew(got);
+    if (got) { this.gainDew(got); sfx.dew(juice.combo); }
+    juice.update(dt);
+    this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
     // --- hints
     this.input.consumeInteract();
@@ -323,6 +328,7 @@ export class Run {
 
   hurt(amount, silent = false) {
     this.moisture -= amount;
+    if (!silent) { juice.shake(0.55); sfx.hurt(); }
     if (!silent) this.player.avatar?.land(1.5);
     if (this.moisture <= 0) this.die();
   }
@@ -332,7 +338,9 @@ export class Run {
   onKill(e) {
     this.kills++;
     const c = this.enemies.center(e);
-    const dew = this.owned.has('coin') ? Math.round(e.T.dew * 1.5) : e.T.dew;
+    const combo = juice.kill();
+    if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + e.r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
+    const dew = Math.round((this.owned.has('coin') ? e.T.dew * 1.5 : e.T.dew) * juice.bonus);
     this.dew.drop(c, 1, dew);
     this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
     if (this.owned.has('babyBottle')) this.heal(0.5);
@@ -352,6 +360,7 @@ export class Run {
       slow: () => { this.slowT = Math.max(this.slowT, 0.3); },
       defeated: (e) => {
         this.kills++;
+        juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
         this.heal(4);
         this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
         this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
@@ -390,6 +399,7 @@ export class Run {
 
   levelUp() {
     this.pendingLevels--;
+    sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
     this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3, this.owned.has('dice') ? 1 : 0), this.stats, 1, (card) => {
       const before = this.stats.moisture;
@@ -413,6 +423,7 @@ export class Run {
     }
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
+    sfx.treasure();
     this.ui.choose(title, sub, left, (t) => {
       this.owned.add(t.id);
       this.ui.treasure(t);
@@ -523,6 +534,7 @@ export class Run {
 
   onBossDead() {
     this.bossDeadT = true;
+    juice.shake(1); juice.hitstop(0.25); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.dew.drop(c, 1, 30);

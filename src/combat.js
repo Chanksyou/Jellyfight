@@ -4,6 +4,7 @@
 // The jelly's own tentacles (avatar.tentacles) do the striking; bounces between enemies (Hair
 // Tie) and bodies without tentacles use a simple stretched cylinder instead.
 import * as THREE from 'three';
+import { sfx } from './sfx.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 
@@ -133,6 +134,8 @@ export class Lash {
     const E = this.enemies, has = s.has;
     const color = s.golden ? '#ffd23a' : '#fff';
     this.fx.puff(b, s.golden ? 0xffd23a : 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
+    sfx.sting();
+    if (!s.target.dead && !s.target.proxy && !s.target.T.fly) s.target.pos.addScaledVector(b.clone().sub(a).setY(0).normalize(), 0.008);
     if (s.target.dead) return;
     if (has.has('qtip')) s.target.slowT = 2;
     if (has.has('stickyNote') && !s.target.proxy) s.target.markT = 3;

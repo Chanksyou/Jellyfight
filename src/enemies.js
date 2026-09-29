@@ -4,6 +4,16 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito } from './critters.js';
+import { juice } from './juice.js';
+import { sfx } from './sfx.js';
+
+// what each type bursts into when it dies
+const GUTS = {
+  roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
+};
+export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 export const TYPES = {
   // scuttles straight at you; the basic enemy
@@ -284,6 +294,8 @@ export class Enemies {
     if (e.markT > 0) amount *= 1.5;       // Sticky Note
     e.hp -= amount;
     e.pop = 1;
+    e.flashT = 0.07;                      // flashes white for a moment
+    sfx.hit();
     this.fx.number(this.center(e), Math.round(amount), color, color === '#fff' ? 13 : 17);
     if (e.hp <= 0) { this.kill(e); return true; }
     return false;
@@ -292,7 +304,16 @@ export class Enemies {
   kill(e, silent = false) {
     if (e.dead) return;
     e.dead = true;
-    this.fx.puff(this.center(e), 0xe6ded0, e.r * 1.6);
+    const c = this.center(e);
+    this.fx.puff(c, 0xe6ded0, e.r * 1.6);
+    if (!silent) {
+      // it bursts: bits fly and bounce, the screen kicks, the game catches its breath for a beat
+      this.fx.burst(c, GUTS[e.type] || ['#ffffff'], 10 + (e.r > 0.018 ? 6 : 0), e.r * 0.28, 0.3, e.pos.y);
+      this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), 0xffffff, e.r * 3, 0.25);
+      juice.hitstop(e.r > 0.018 ? 0.06 : 0.035);
+      juice.shake(e.r > 0.018 ? 0.3 : 0.18);
+      sfx.kill(e.r > 0.018 ? 1.6 : 1);
+    }
     this.scene.remove(e.root);
     if (!silent) this.onKill?.(e);
   }
@@ -403,6 +424,15 @@ export class Enemies {
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
       }
       e.pop = Math.max(0, e.pop - dt * 6);
+      // white hit flash: swap every mesh to a flat white for a moment
+      if (e.flashT > 0 || e.flashing) {
+        e.flashT = Math.max(0, (e.flashT || 0) - dt);
+        const on = e.flashT > 0;
+        if (on !== !!e.flashing) {
+          e.flashing = on;
+          e.mesh.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.mat = o.material; o.material = FLASH; } else if (o.userData.mat) o.material = o.userData.mat; });
+        }
+      }
       let sc = e.baseScale * e.spawnT * (1 + e.pop * 0.35);
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
       e.mesh.scale.setScalar(sc);

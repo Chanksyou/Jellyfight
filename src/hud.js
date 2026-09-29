@@ -1,6 +1,15 @@
 // On-screen HUD: moisture, level and dew, night clock, Moon Drops, treasures,
 // minimap of the real floor plan (with the Moon Drop marker), boss bar, hints, toasts.
 const CSS = `
+#hud .combo { position: absolute; right: 18px; top: 38%; text-align: right; color: hsl(var(--hue, 50) 100% 62%); text-shadow: 0 2px 6px #000a; pointer-events: none; }
+#hud .combo[hidden] { display: none; }
+#hud .combo b { display: block; font: 900 44px/1 system-ui, sans-serif; transform-origin: right center; }
+#hud .combo span { font: 700 13px system-ui, sans-serif; opacity: .9; }
+#hud .combo i { display: block; height: 4px; margin-top: 4px; border-radius: 2px; background: currentColor; transform-origin: right; }
+#hud .combo.punch b { animation: jf-punch .22s ease-out; }
+@keyframes jf-punch { 0% { transform: scale(1.6) rotate(-6deg); } 100% { transform: scale(1) rotate(0); } }
+body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { font-size: 34px; }
+
 #hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
 #hud .tl { position: absolute; left: 18px; top: 16px; width: 240px; }
 #hud .bar { position: relative; height: 18px; border: 2px solid #f4f1e8; border-radius: 10px; background: #0007; overflow: hidden; box-shadow: 0 1px 4px #0009; }
@@ -67,7 +76,8 @@ export class Hud {
       <div class="tc"><div class="stage"></div><div class="clock"></div><div class="drops"></div></div>
       <div class="boss" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
       <div class="room"></div><canvas class="map"></canvas>
-      <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>`;
+      <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>
+      <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
     this.$ = (s) => this.el.querySelector(s);
     this.map = this.$('.map');
     this.ctx = this.map.getContext('2d');
@@ -85,6 +95,21 @@ export class Hud {
     if (this.cache[key] === v) return;
     this.cache[key] = v;
     this.$(sel).innerHTML = v;
+  }
+
+  // kill combo: a big number that punches up on every kill, with a draining timer bar
+  setCombo(n, frac, bonus) {
+    const c = this.$('.combo');
+    c.hidden = n < 3;
+    if (n < 3) { this.cache.combo = 0; return; }
+    if (this.cache.combo !== n) {
+      this.cache.combo = n;
+      c.querySelector('b').textContent = `x${n}`;
+      c.querySelector('span').textContent = bonus > 1.01 ? `combo · +${Math.round((bonus - 1) * 100)}% dew` : 'combo';
+      c.classList.remove('punch'); void c.offsetWidth; c.classList.add('punch');
+      c.style.setProperty('--hue', String(Math.max(0, 50 - n * 2)));
+    }
+    c.querySelector('i').style.transform = `scaleX(${frac})`;
   }
 
   setMoisture(v, max) {
