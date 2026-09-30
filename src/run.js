@@ -144,7 +144,7 @@ export class Run {
 
   get paused() { return this.ui.open; }
   // how hard treasures that attack on their own hit: scales with pop damage
-  get power() { return this.stats.pop * 4.5; }
+  get power() { return this.stats.pop * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
   // The tentacles' stats, with their treasures applied
   get tentacleStats() {
     const s = this.stats, o = this.owned;

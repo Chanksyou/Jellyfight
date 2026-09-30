@@ -5,8 +5,8 @@ export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
   bubbles: 2,       // more bubbles: a faster stream, spread across that many of the nearest enemies
   range: 0.3,       // meters a bubble flies before it pops on its own
-  pop: 2.4,         // damage when a bubble pops on an enemy (light: lots of bubbles, each small)
-  blowRate: 2.2,    // stream speed: bubbles per second = blow rate x bubbles
+  pop: 6,           // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
+  blowRate: 0.88,   // stream speed: bubbles per second = blow rate x bubbles (1.76/s to start)
   bubbleSize: 1.0,  // size multiplier: bigger bubbles are easier to land and splash wider
   moisture: 25,     // max health
   pulse: 1.0,       // swim speed multiplier
@@ -44,7 +44,7 @@ export const RARITY = [
 const CARD_VALUES = {
   bubbles:    { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
   range:      { amounts: [10, 18, 30], pct: true },
-  pop:        { amounts: [0.5, 0.8, 1.3] },
+  pop:        { amounts: [1.25, 2, 3.25] },   // scaled with the base (6) so each card is worth the same share
   blowRate:   { amounts: [10, 18, 30], pct: true },
   bubbleSize: { amounts: [12, 20, 35], pct: true },
   moisture:   { amounts: [4, 8, 14] },

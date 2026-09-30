@@ -16,8 +16,8 @@ export const GUTS = {
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 export const TYPES = {
-  // scuttles straight at you; the basic enemy
-  roach:    { name: 'Cockroach', hp: 30, speed: 0.24, dmg: 1, r: 0.016, dew: 4 },
+  // scuttles straight at you; the basic enemy. Slower than the jelly (0.2 vs 0.28 m/s) so you can always outswim one
+  roach:    { name: 'Cockroach', hp: 30, speed: 0.2, dmg: 1, r: 0.016, dew: 4 },
   // five ants in a block; up close they curl into a ball and roll into you
   ants:     { name: 'Ant squad', hp: 66, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
   // hovers out of reach and spits at you
