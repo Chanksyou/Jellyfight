@@ -66,7 +66,8 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | --- | --- |
 | `src/boot.js` | Renderer, camera, loading screen; loads the apartment, starts the game. |
 | `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
-| `src/main.js` | Wires everything up: pause menu, creator mode, graphics, blob shadow, frame loop. |
+| `src/main.js` | Wires everything up: pause menu, mode switching (play, creator, layout), and the frame loop, which only works out dt and calls each system's `update` in order. |
+| `src/systems.js` | The per-frame systems: clock (dt clamp, hit-stop), gameplay, layout editor, touch controls, idle avatar, input, camera (follow, creator orbit, shake), blob shadow, HUD, debug readout, render. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
 | `src/swim.js` | One bell stroke: the squeeze, the thrust, and how often strokes come. Shared by movement and animation. |

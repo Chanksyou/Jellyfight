@@ -19,8 +19,9 @@ import { juice } from './juice.js';
 import { applyLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
+import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v27';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v28';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -37,7 +38,9 @@ const LOOK_KEY = 'jellyfight.look';
 // --- Saved character (the creator is optional, under C) ----------------------------
 let savedLook = null;
 try { savedLook = JSON.parse(localStorage.getItem(LOOK_KEY)); } catch {}
-let look = normalizeLook(savedLook);
+
+// What the frame systems share (systems.js)
+const state = { mode: 'play', look: normalizeLook(savedLook), layout: null, debug: false };
 
 // --- Pause menu ---------------------------------------------------------------------
 const ui = document.createElement('div');
@@ -146,35 +149,14 @@ const dew = new Dew(scene, world);
 const moon = new MoonDrop(scene);
 
 function applyLook(l, hop) {
-  look = normalizeLook(l);
-  player.setAvatar(buildCharacter(look, CONFIG.player.height));
+  state.look = normalizeLook(l);
+  player.setAvatar(buildCharacter(state.look, CONFIG.player.height));
   if (hop) player.avatar.land(1.2);
 }
 function saveLook(l) {
   try { localStorage.setItem(LOOK_KEY, JSON.stringify(l)); } catch {}
 }
-applyLook(look);
-
-// Soft blob shadow under the player. The apartment only re-renders its shadow map
-// when furniture moves, so the player can't rely on a real cast shadow.
-const blob = new THREE.Mesh(
-  new THREE.CircleGeometry(CONFIG.player.radius * 1.1, 24).rotateX(-Math.PI / 2),
-  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
-);
-blob.renderOrder = 1;
-scene.add(blob);
-const DOWN = new THREE.Vector3(0, -1, 0);
-function updateBlob() {
-  const o = player.position.clone();
-  o.y += CONFIG.player.height * 0.5;
-  const hit = world.cast(o, DOWN, 3);
-  blob.visible = !!hit;
-  if (!hit) return;
-  const h = player.position.y - hit.point.y;
-  blob.position.set(player.position.x, hit.point.y + 0.0008, player.position.z);
-  blob.scale.setScalar(look.size * (1 + h * 4));
-  blob.material.opacity = 0.35 / (1 + h * 20);
-}
+applyLook(state.look);
 
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon,
@@ -197,27 +179,42 @@ function play() {
   }
 }
 function pause() {
-  if (menus.open || mode !== 'play') return;
+  if (menus.open || state.mode !== 'play') return;
   overlay.hidden = false;
 }
 const touch = new TouchControls(input, { onPause: pause });
 touch.mount(ui);
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
-// --- Modes: 'play' (paused while a menu is up) and 'creator' -----------------------
-let mode = 'play';
-let spin = 0.6, drag = null;
-const menuOpen = () => !overlay.hidden || menus.open || mode === 'creator' || mode === 'layout';
+// --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
+const menuOpen = () => !overlay.hidden || menus.open || state.mode === 'creator' || state.mode === 'layout';
+
+// --- Frame systems, in the order they run (systems.js) ---------------------------------
+const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
+const systems = {
+  traversal,
+  fx,
+  layout: new LayoutSystem({ state }),
+  touch: new TouchSystem({ state, touch, run, menuOpen, isTouch: IS_TOUCH }),
+  gameplay: new GameplaySystem({ state, run, menuOpen }),
+  avatar: new AvatarSystem({ state, player, menuOpen }),
+  input: new InputSystem({ state, input, menuOpen }),
+  camera: camSys,
+  shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player }),
+  hud: new HudSystem({ state, hud, player, tpc, run }),
+  debug: new DebugSystem({ state, hud, player, run, enemies, dew, gfx }),
+  render: new RenderSystem({ gfx }),
+};
 
 // Dev layout editor: move the furniture around (layout.js)
-let layout = null, layoutChanged = false;
+let layoutChanged = false;
 function openLayout() {
-  layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene });
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
   layoutChanged = false;
-  mode = 'layout';
+  state.mode = 'layout';
   input.enabled = false;
   if (document.pointerLockElement) document.exitPointerLock();
   overlay.hidden = true;
@@ -227,8 +224,8 @@ function openLayout() {
   layout.open();
 }
 function closeLayout() {
-  layout.close();
-  mode = 'play';
+  state.layout.close();
+  state.mode = 'play';
   input.enabled = true;
   hud.el.hidden = false;
   // things placed on furniture need checking again (Moon Drop spots, the player's footing)
@@ -238,40 +235,22 @@ function closeLayout() {
 }
 
 function openCreator() {
-  mode = 'creator';
+  state.mode = 'creator';
   input.enabled = false;
   if (document.pointerLockElement) document.exitPointerLock();
   overlay.hidden = true;
   hud.el.hidden = true;
-  creator.open(look);
-  setViewOffset();
+  creator.open(state.look);
+  camSys.setCreatorView();
 }
 function closeCreator() {
-  mode = 'play';
+  state.mode = 'play';
   input.enabled = true;
   creator.close();
   hud.el.hidden = false;
-  camera.clearViewOffset();
+  camSys.clearCreatorView();
   tpc.snapTo(player.position);
   overlay.hidden = false;
-}
-function setViewOffset() {
-  const w = innerWidth, h = innerHeight, wide = w > 640;
-  camera.setViewOffset(w, h, wide ? Math.min(360, w) / 2 : 0, wide ? 0 : h * 0.29, w, h);
-}
-addEventListener('resize', () => { if (mode === 'creator') setViewOffset(); });
-renderer.domElement.addEventListener('pointerdown', (e) => { if (mode === 'creator') drag = { x: e.clientX }; });
-addEventListener('pointermove', (e) => { if (!drag) return; spin -= (e.clientX - drag.x) * 0.01; drag.x = e.clientX; });
-addEventListener('pointerup', () => { drag = null; });
-
-function creatorCamera(dt) {
-  if (!drag) spin += dt * 0.35;
-  const p = player.position;
-  const d = 0.18 * look.size, fy = CONFIG.player.height * 0.55 * look.size;
-  const yaw = player.facing + spin;
-  camera.position.set(p.x + Math.sin(yaw) * d, p.y + fy + 0.02, p.z + Math.cos(yaw) * d);
-  camera.lookAt(p.x, p.y + fy, p.z);
-  gfx.focus = d;
 }
 
 // --- The frame loop -------------------------------------------------------------------
@@ -280,43 +259,21 @@ function creatorCamera(dt) {
 camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
 camera.updateProjectionMatrix();
 document.body.classList.add('game');
-let debug = false, fps = 0, fpsN = 0, fpsT = 0;
 const GAME = {
   step(dt) {
-    fpsN++; fpsT += dt;
-    if (fpsT > 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
-    traversal.update(dt);
-    fx.update(dt);
-    if (mode === 'layout') {
-      layout.update(dt);
-      gfx.focus = layout.dist;
-      return;
-    }
-    if (mode === 'creator') {
-      player.avatar.update(dt, { speed: 0, walkSpeed: 1, grounded: true, vy: 0 });
-      creatorCamera(dt);
-      updateBlob();
-      return;
-    }
-    touch.show(IS_TOUCH && !menuOpen());
-    touch.setAction(run.touchAction);
-    if (!menuOpen()) run.update(dt);
-    else {
-      input.consumeJump();
-      input.consumeInteract();
-      player.avatar.update(dt, { speed: 0, walkSpeed: 1, grounded: player.grounded, vy: 0 });
-    }
-    input.consumeReset();
-    tpc.update(dt, input.consumeMouse(), player.position);
-    gfx.focus = camera.position.distanceTo(player.position) + 0.005;
-    updateBlob();
-    hud.update(player.position, player.facing, tpc.yaw, run.markers());
-    if (debug) {
-      const p = player.position;
-      hud.setDebug(`${fps} fps | x ${p.x.toFixed(2)} y ${(p.y * 100).toFixed(1)} cm z ${p.z.toFixed(2)} | ${run.phase} t=${run.t.toFixed(0)}s | ${enemies.alive} enemies | ${dew.list.length} dew | ${gfx.quality}`);
-    }
+    systems.traversal.update(dt);
+    systems.fx.update(dt);
+    systems.layout.update(dt);
+    systems.touch.update(dt);
+    systems.gameplay.update(dt);
+    systems.avatar.update(dt);
+    systems.input.update(dt);
+    systems.camera.update(dt);
+    systems.shadow.update(dt);
+    systems.hud.update(dt);
+    systems.debug.update(dt);
   },
-  render() { gfx.render(); },
+  render() { systems.render.update(); },
 };
 window.GAME = GAME;
 
@@ -337,16 +294,16 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {
-  if (mode !== 'play' || IS_TOUCH) return;
+  if (state.mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
   overlay.hidden = locked || menus.open;
 });
 addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
-  if (e.code === 'KeyC' && mode === 'play' && !menus.open && !overlay.hidden) openCreator();
-  else if (e.code === 'Escape' && mode === 'creator') { saveLook(look); closeCreator(); }
+  if (e.code === 'KeyC' && state.mode === 'play' && !menus.open && !overlay.hidden) openCreator();
+  else if (e.code === 'Escape' && state.mode === 'creator') { saveLook(state.look); closeCreator(); }
   if (e.code === 'KeyM') setMuted(!isMuted());
-  if (e.code === 'F3') { e.preventDefault(); debug = !debug; hud.setDebug(''); }
+  if (e.code === 'F3') { e.preventDefault(); state.debug = !state.debug; hud.setDebug(''); }
 });
 
 // Build every game material's GPU program now, behind the menu, instead of the moment each
@@ -411,17 +368,11 @@ async function warmUp() {
 overlay.hidden = false;
 warmUp();
 
-let last = performance.now();
-const shakeV = new THREE.Vector3();
+const clock = new Clock();
 renderer.setAnimationLoop((now) => {
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
+  const dt = clock.tick(now);
   try {
-    // hit-stop: for a beat after a kill the world nearly freezes, then snaps back
-    const slow = juice.stop > 0 ? 0.05 : 1;
-    juice.stop = Math.max(0, juice.stop - dt);
-    GAME.step(dt * slow);
-    camera.position.add(juice.offset(shakeV));
+    GAME.step(dt);
     GAME.render();
   } catch (e) {
     reportError(e, 'frame');
