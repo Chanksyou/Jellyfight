@@ -23,7 +23,7 @@ import { wireFeedback } from './feedback.js';
 import { batcher } from './batch.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v31';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v32';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -170,7 +170,7 @@ const run = new Run({
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = 0.4;    // phone screens are small: sit a bit closer
+  tpc.distance = 0.52;   // phone screens are small: sit a bit closer
 }
 input.touchOnly = IS_TOUCH;
 function play() {

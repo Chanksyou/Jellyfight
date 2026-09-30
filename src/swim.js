@@ -1,5 +1,5 @@
-// One stroke of the bell, shared by the movement (player.js) and the animation (character.js)
-// so every burst of speed has a visible squeeze behind it. p is the stroke phase, 0..1.
+// One stroke of the bell, for the animation (character.js). player.js advances the phase, faster
+// the harder you push; the swim speed itself stays steady. p is the stroke phase, 0..1.
 //
 //   0.00-0.30  power stroke: the bell squeezes shut, pushing water out, and the jelly surges
 //   0.30-1.00  recovery: the bell relaxes open wider than rest while the jelly glides and slows

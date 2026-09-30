@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { thrust, strokeRate } from './swim.js';
+import { strokeRate } from './swim.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -137,7 +137,7 @@ export class Player {
     const before = this.swim;
     this.swim = (this.swim + dt * strokeRate(push, env.speedMul ?? 1)) % 1;
     if (this.swim < before && push > 0.3) this.onStroke?.();
-    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0)) * (1 + c.swimSurge * (thrust(this.swim) - 1));
+    const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0));   // steady: the bell still pulses, the speed doesn't
     wish.multiplyScalar(walk);
 
     const accel = this.grounded ? c.groundAccel : c.airAccel;

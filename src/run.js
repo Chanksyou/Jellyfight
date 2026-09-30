@@ -25,6 +25,7 @@ export class Run {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.bubbles.grace = this.cfg.radius;
     this.lost = new LostThings(ctx.scene);
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);

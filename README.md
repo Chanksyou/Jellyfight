@@ -1,6 +1,6 @@
 # Jelly Fight
 
-A third-person game where you play a ~5 cm critter of your own design inside a real-scale 3D model of the apartment.
+A third-person game where you play a ~9 cm critter of your own design inside a real-scale 3D model of the apartment.
 
 ## Run it
 
@@ -25,7 +25,7 @@ You're an immortal jellyfish growing up over one night in the apartment. Stage 1
 - Beat it and you **metamorphose** into an Ephyra (pick 1 of 3 evolutions). Dry out and you shrink back to a polyp and start over.
 - **5 minutes per stage.** At 2 am the moonlight drags you to the boss whether you have the drops or not, so the drops are a race: get them fast and you go in with more treasures (or summon the boss early).
 
-**Getting around:** the jelly swims in strokes (`src/swim.js`): the bell squeezes shut and it surges, then relaxes open and glides. The movement and the animation read the same curve and has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Hold Space to climb the front of the corduroy sofa.
+**Getting around:** the jelly swims at a steady speed while its bell pulses in strokes (`src/swim.js`), faster the harder you push. It has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Hold Space to climb the front of the corduroy sofa.
 
 ## Dev: layout editor
 

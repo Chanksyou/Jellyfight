@@ -13,7 +13,7 @@ export const BASE_STATS = {
   bounce: 1.0,      // jump height multiplier
   // Tentacles: an automatic sting at close range. Only treasures improve these.
   tentacles: 1,     // tentacles that lash out at once (the jelly has 6 in all)
-  reach: 0.07,      // meters a tentacle reaches
+  reach: 0.083,     // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
   sting: 4,         // damage per tentacle
   lashSpeed: 1.0,   // lashes per second
 };

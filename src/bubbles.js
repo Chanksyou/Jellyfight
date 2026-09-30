@@ -40,6 +40,7 @@ export class Bubbles {
     this.list = [];
     this.pool = [];
     this._dir = new THREE.Vector3();   // scratch for fly(): no garbage per bubble per frame
+    this.grace = 0.03;                 // run.js: the jelly's radius
     this._c = new THREE.Vector3();
     this.timer = 0;
     this.volleys = 0;
@@ -164,7 +165,9 @@ export class Bubbles {
         b.vel.lerp(want, 1 - Math.exp(-3 * dt));
       }
       const step = b.vel.length() * dt;
-      if (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, has); continue; }
+      // walls only count once the bubble has left the jelly's own body: blown from the top of the
+      // bell while you're pressed under or against something, it would otherwise pop at once
+      if (b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, has); continue; }
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
