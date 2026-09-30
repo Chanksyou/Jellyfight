@@ -8,6 +8,7 @@
 //   menuOpen()   true while the pause menu, a pick, the creator or the layout editor is up
 import * as THREE from 'three';
 import { juice } from './juice.js';
+import { batcher } from './batch.js';
 
 const IDLE = { speed: 0, walkSpeed: 1, vy: 0 };
 
@@ -129,11 +130,12 @@ export class ShadowSystem {
     this.blob.renderOrder = 1;
     scene.add(this.blob);
     this.down = new THREE.Vector3(0, -1, 0);
+    this.from = new THREE.Vector3();
   }
   update() {
     if (this.state.mode === 'layout') return;
     const P = this.player.position, blob = this.blob;
-    const hit = this.world.cast(P.clone().setY(P.y + this.cfg.height * 0.5), this.down, 3);
+    const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3);
     blob.visible = !!hit;
     if (!hit) return;
     const h = P.y - hit.point.y;
@@ -166,8 +168,11 @@ export class DebugSystem {
   }
 }
 
-// Draws the frame
+// Draws the frame: first gathers the small moving things into instanced batches (batch.js)
 export class RenderSystem {
   constructor({ gfx }) { this.gfx = gfx; }
-  update() { this.gfx.render(); }
+  update() {
+    batcher.sync();
+    this.gfx.render();
+  }
 }

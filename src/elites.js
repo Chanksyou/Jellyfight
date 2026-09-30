@@ -187,6 +187,7 @@ class Elite {
 // ------------------------------------------------------------------ manager
 export class Elites {
   constructor(scene, enemies, fx, world, camera, apartmentRoot) {
+    this._dir = new THREE.Vector3();   // scratch for the shot raycasts
     Object.assign(this, { scene, enemies, fx, world, camera, root: apartmentRoot });
     this.list = [];
     this.bullets = [];
@@ -471,7 +472,7 @@ export class Elites {
     for (const b of this.bullets) {
       b.t -= dt;
       const step = b.v.length() * dt;
-      if (this.world.cast(b.m.position, b.v.clone().normalize(), step + 0.004)) b.t = 0;
+      if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), step + 0.004)) b.t = 0;
       b.m.position.addScaledVector(b.v, dt);
       if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hit(2, 'controller'); b.t = 0; this.fx.puff(b.m.position, 0xffffff, 0.01, 0.2); }
       if (b.t <= 0) this.scene.remove(b.m);

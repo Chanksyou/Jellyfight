@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito } from './critters.js';
 import { bus, PLAYER, nextId } from './events.js';
+import { batcher } from './batch.js';
 
 // what each type bursts into when it dies
 export const GUTS = {
@@ -263,6 +264,7 @@ export class Enemies {
     root.add(mesh, face);
     root.position.copy(pos);
     this.scene.add(root);
+    batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
       id: nextId(), type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 1 + Math.random() * 1.5, aimT: 0,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
@@ -293,7 +295,9 @@ export class Enemies {
     if (e.note) e.note.visible = e.markT > 0;
     if (e.freezeT > 0 && !e.frost) {
       this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, roughness: 0.1 });
-      e.frost = new THREE.Mesh(new THREE.IcosahedronGeometry(e.r * 1.25, 1), this.frostMat);
+      this.frostGeo ||= new THREE.IcosahedronGeometry(1, 1);   // shared: one per enemy leaked GPU buffers
+      e.frost = new THREE.Mesh(this.frostGeo, this.frostMat);
+      e.frost.scale.setScalar(e.r * 1.25);
       e.frost.position.y = e.T.fly ? 0 : e.r;
       e.root.add(e.frost);
     }
@@ -360,7 +364,7 @@ export class Enemies {
     for (const s of this.shots) {
       s.t -= dt;
       const step = s.v.length() * dt;
-      if (this.world.cast(s.m.position, s.v.clone().normalize(), step + 0.004)) s.done = true;
+      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) s.done = true;
       s.m.position.addScaledVector(s.v, dt);
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
@@ -389,10 +393,10 @@ export class Enemies {
       if (e.T.shoots) {
         // hover at a distance, a little above you, circling slowly; every couple of seconds
         // dip and spit at you
-        const away = e.pos.clone().sub(pc).setY(0);
+        const away = S.away.copy(e.pos).sub(pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.4);
-        const spot = pc.clone().addScaledVector(away, 0.2).setY(pc.y + 0.07);
+        away.normalize().applyAxisAngle(S.up, dt * 0.4);
+        const spot = S.spot.copy(pc).addScaledVector(away, 0.2).setY(pc.y + 0.07);
         const to = spot.sub(e.pos);
         const s = e.T.speed * slow;
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * dt));
@@ -402,7 +406,7 @@ export class Enemies {
         if (e.shootT <= 0.35 && e.aimT <= 0 && e.shootT > 0) e.aimT = 0.35;
         if (e.shootT <= 0 && dist < 0.45) {
           e.shootT = 2.4;
-          const m = new THREE.Mesh(this.shotGeo, this.shotMat);
+          const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
           m.position.copy(e.pos);
           this.scene.add(m);
           this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(0.32), t: 2.2 });
@@ -412,7 +416,7 @@ export class Enemies {
         const s = e.T.speed * slow;
         const wob = Math.sin(t * 3 + e.phase) * 0.35;
         toP.normalize();
-        e.vel.lerp(new THREE.Vector3(toP.x + wob * toP.z, toP.y + Math.sin(t * 2 + e.phase) * 0.3, toP.z - wob * toP.x).multiplyScalar(s), 1 - Math.exp(-3 * dt));
+        e.vel.lerp(S.want.set(toP.x + wob * toP.z, toP.y + Math.sin(t * 2 + e.phase) * 0.3, toP.z - wob * toP.x).multiplyScalar(s), 1 - Math.exp(-3 * dt));
         e.pos.addScaledVector(e.vel, dt);
       } else {
         toP.y = 0;
@@ -490,11 +494,11 @@ export class Enemies {
 
   moveGround(e, dt, near) {
     const w = this.world;
-    const step = new THREE.Vector3(e.vel.x * dt, 0, e.vel.z * dt);
+    const step = S.step.set(e.vel.x * dt, 0, e.vel.z * dt);
     const len = step.length();
     if (near && len > 1e-6) {
-      const dir = step.clone().divideScalar(len);
-      const o = new THREE.Vector3(e.pos.x, e.pos.y + e.r, e.pos.z);
+      const dir = S.dir.copy(step).divideScalar(len);
+      const o = S.o.set(e.pos.x, e.pos.y + e.r, e.pos.z);
       const hit = w.cast(o, dir, e.r + len);
       if (hit) {
         const n = hit.normal; n.y = 0;
@@ -512,7 +516,7 @@ export class Enemies {
     if (!near) return;
     e.vy = Math.max(-1, e.vy - 1.0 * dt);
     if ((this.frame + e.phase * 10) % 2 < 1 || !e.grounded) {
-      const o = new THREE.Vector3(e.pos.x, e.pos.y + e.r, e.pos.z);
+      const o = S.o.set(e.pos.x, e.pos.y + e.r, e.pos.z);
       const hit = w.cast(o, DOWN, e.r + Math.max(0.004, -e.vy * dt * 2));
       if (hit) { e.pos.y = hit.point.y; e.vy = 0; e.grounded = true; return; }
       e.grounded = false;
@@ -522,3 +526,5 @@ export class Enemies {
 }
 
 const tmp = new THREE.Vector3();
+// scratch vectors for the per-frame movement code (no garbage per enemy per frame)
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3() };

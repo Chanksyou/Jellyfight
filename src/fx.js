@@ -1,5 +1,6 @@
 // Little bits of feedback: floating damage numbers, poofs and expanding rings.
 import * as THREE from 'three';
+import { batcher } from './batch.js';
 
 export class Fx {
   constructor(scene, camera) {
@@ -14,10 +15,25 @@ export class Fx {
     this.chunks = [];
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
     this.ringGeo = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
+    // one material per pool, drawn instanced (batch.js); each piece's own tint and fade ride
+    // along as userData.color / userData.opacity
+    const per = (m) => { m.userData.perInstance = true; return m; };
+    this.puffMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+    this.chunkMat = per(new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
+    this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     this._v = new THREE.Vector3();
   }
 
   mount(parent) { parent.appendChild(this.layer); }
+
+  // a pooled piece: in the scene for its transform, drawn instanced
+  piece(geo, mat) {
+    const m = new THREE.Mesh(geo, mat);
+    m.userData.color = new THREE.Color();
+    m.userData.opacity = 1;
+    this.scene.add(m);
+    return batcher.track(m);
+  }
 
   number(pos, text, color = '#fff', size = 14) {
     let n = this.nums.find((x) => !x.alive);
@@ -43,8 +59,7 @@ export class Fx {
     let p = this.puffs.find((x) => !x.alive);
     if (!p) {
       if (this.puffs.length > 90) return;
-      const m = new THREE.Mesh(this.puffGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-      this.scene.add(m);
+      const m = this.piece(this.puffGeo, this.puffMat);
       p = { m };
       this.puffs.push(p);
     }
@@ -54,7 +69,7 @@ export class Fx {
     p.r = radius;
     p.m.visible = true;
     p.m.position.copy(pos);
-    p.m.material.color.set(color);
+    p.m.userData.color.set(color);
   }
 
   // Bits that fly out, fall, bounce once and fade: an enemy bursting apart, a splash of drops.
@@ -64,8 +79,7 @@ export class Fx {
       let c = this.chunks.find((x) => !x.alive);
       if (!c) {
         if (this.chunks.length > 120) return;
-        const m = new THREE.Mesh(this.chunkGeo, new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
-        this.scene.add(m);
+        const m = this.piece(this.chunkGeo, this.chunkMat);
         c = { m, v: new THREE.Vector3() };
         this.chunks.push(c);
       }
@@ -76,7 +90,7 @@ export class Fx {
       c.m.visible = true;
       c.m.position.copy(pos);
       c.m.scale.setScalar(size * (0.6 + Math.random() * 0.8));
-      c.m.material.color.set(colors[(Math.random() * colors.length) | 0]);
+      c.m.userData.color.set(colors[(Math.random() * colors.length) | 0]);
       c.v.set(Math.random() - 0.5, 0.6 + Math.random() * 0.8, Math.random() - 0.5).normalize().multiplyScalar(speed * (0.5 + Math.random()));
       c.spin = (Math.random() - 0.5) * 30;
     }
@@ -87,15 +101,14 @@ export class Fx {
     let r = this.rings.find((x) => !x.alive);
     if (!r) {
       if (this.rings.length > 16) return;
-      const m = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }));
-      this.scene.add(m);
+      const m = this.piece(this.ringGeo, this.ringMat);
       r = { m };
       this.rings.push(r);
     }
     Object.assign(r, { alive: true, t: 0, life, r: radius });
     r.m.visible = true;
     r.m.position.copy(pos);
-    r.m.material.color.set(color);
+    r.m.userData.color.set(color);
   }
 
   update(dt) {
@@ -109,7 +122,7 @@ export class Fx {
       if (c.m.position.y < c.floor) { c.m.position.y = c.floor; c.v.y = -c.v.y * 0.35; c.v.x *= 0.6; c.v.z *= 0.6; c.spin *= 0.5; }
       c.m.rotation.x += c.spin * dt;
       c.m.rotation.z += c.spin * 0.7 * dt;
-      c.m.material.opacity = Math.min(1, (c.life - c.t) * 4);
+      c.m.userData.opacity = Math.min(1, (c.life - c.t) * 4);
     }
     for (const r of this.rings) {
       if (!r.alive) continue;
@@ -117,7 +130,7 @@ export class Fx {
       const k = r.t / r.life;
       if (k >= 1) { r.alive = false; r.m.visible = false; continue; }
       r.m.scale.setScalar(r.r * (0.2 + 0.8 * Math.sqrt(k)));
-      r.m.material.opacity = 0.7 * (1 - k);
+      r.m.userData.opacity = 0.7 * (1 - k);
     }
     for (const n of this.nums) {
       if (!n.alive) continue;
@@ -137,7 +150,7 @@ export class Fx {
       const k = p.t / p.life;
       if (k >= 1) { p.alive = false; p.m.visible = false; continue; }
       p.m.scale.setScalar(p.r * (0.4 + k * 1.2));
-      p.m.material.opacity = 0.55 * (1 - k);
+      p.m.userData.opacity = 0.55 * (1 - k);
     }
   }
 

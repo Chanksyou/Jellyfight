@@ -20,9 +20,10 @@ import { applyLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
+import { batcher } from './batch.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v29';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v30';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -33,6 +34,7 @@ import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
 const { scene, renderer, camera } = APT;
+batcher.scene = scene;
 const stage = STAGE1;
 const LOOK_KEY = 'jellyfight.look';
 
@@ -341,10 +343,12 @@ async function warmUp() {
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
+  temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
   const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : new Boss(scene, enemies, fx, stage.boss);
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);
+  batcher.sync();                                // build the instanced batches so they compile too
   try {
     await renderer.compileAsync(scene, camera);
   } catch (e) {
@@ -382,4 +386,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus, fx });
+Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus, fx });

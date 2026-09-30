@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { bus } from './events.js';
+import { batcher } from './batch.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 
@@ -52,7 +53,7 @@ export class Lash {
   }
 
   mesh() {
-    const m = this.pool.pop() || new THREE.Mesh(this.geo, this.mat);
+    const m = this.pool.pop() || batcher.track(new THREE.Mesh(this.geo, this.mat));
     if (!m.parent) this.scene.add(m);
     m.visible = true;
     return m;

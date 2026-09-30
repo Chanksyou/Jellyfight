@@ -80,7 +80,8 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/detail.js` | Fine close-up detail (normal maps): grain on floors and rugs, an orange-peel paint finish on walls, doors, cabinets and porcelain. |
 | `src/player.js` | Swimming movement, low-gravity jump and double jump, vent launches, climbing, wall sliding, stepping up small ledges. |
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
-| `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. |
+| `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. `cast()` walks the BVH itself, reading triangles straight from the typed arrays, so a ray that misses allocates nothing (it runs 100+ times a frame in a fight). |
+| `src/batch.js` | Instanced drawing for the small moving things (bug parts, bubbles, puffs, gut chunks, rings, dew, tentacles, spit). They stay normal meshes for the game code but are hidden from the camera; once a frame, before rendering, the batcher draws each geometry + material group as one InstancedMesh, with per-instance color and fade for effects. A big fight is ~300 draw calls instead of ~2,100. |
 | `src/input.js`, `src/touch.js` | Keyboard and pointer-lock mouse; phone joystick, look drag and buttons. |
 | `src/errors.js` | On-screen error panel and the Diagnostics readout (pause menu, or `#debug`). |
 | `src/legacy-lighting.js` | Renders r128-era lights under r170. |

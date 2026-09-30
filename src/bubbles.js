@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { bus } from './events.js';
+import { batcher } from './batch.js';
 
 const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -38,6 +39,8 @@ export class Bubbles {
     Object.assign(this, { scene, enemies, fx, world });
     this.list = [];
     this.pool = [];
+    this._dir = new THREE.Vector3();   // scratch for fly(): no garbage per bubble per frame
+    this._c = new THREE.Vector3();
     this.timer = 0;
     this.volleys = 0;
     this.geo = new THREE.SphereGeometry(1, 20, 14);
@@ -81,6 +84,7 @@ export class Bubbles {
       glint.scale.setScalar(0.22);
       glint.position.set(-0.4, 0.45, 0.4);
       m.add(glint);
+      batcher.track(m);                // drawn instanced, glint and all (batch.js)
     }
     if (!m.parent) this.scene.add(m);
     m.material = mat;
@@ -150,7 +154,7 @@ export class Bubbles {
   }
 
   fly(dt, stats, has) {
-    const E = this.enemies, c = new THREE.Vector3();
+    const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
       b.t += dt;
@@ -160,7 +164,7 @@ export class Bubbles {
         b.vel.lerp(want, 1 - Math.exp(-3 * dt));
       }
       const step = b.vel.length() * dt;
-      if (this.world.cast(b.m.position, b.vel.clone().normalize(), step + b.r)) { this.pop(b, null, stats, has); continue; }
+      if (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, has); continue; }
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;

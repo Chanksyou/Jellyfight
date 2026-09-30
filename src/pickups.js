@@ -1,5 +1,6 @@
 // Things you collect: dew (XP) and the Moon Drop.
 import * as THREE from 'three';
+import { batcher } from './batch.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const MAGNET = 0.09;          // meters: dew drifts to you from this far
@@ -13,6 +14,7 @@ export class Dew {
     this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
     this.mat = new THREE.MeshStandardMaterial({ color: 0x9fe2ff, emissive: 0x3aa8ff, emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
     this.magnetAll = false;
+    this._to = new THREE.Vector3();
   }
 
   drop(pos, value, count = 1) {
@@ -22,7 +24,7 @@ export class Dew {
         n.value += value;
         continue;
       }
-      const m = new THREE.Mesh(this.geo, this.mat);
+      const m = batcher.track(new THREE.Mesh(this.geo, this.mat));   // drawn instanced (batch.js)
       m.position.copy(pos);
       this.scene.add(m);
       const a = Math.random() * Math.PI * 2, s = 0.04 + Math.random() * 0.05;
@@ -46,7 +48,7 @@ export class Dew {
       if (d.pull || dist < MAGNET * magnetMul || this.magnetAll) d.pull = true;
       if (d.pull) {
         const sp = 0.25 + d.t * 0.4 + (this.magnetAll ? 1 : 0);
-        p.addScaledVector(target.clone().sub(p).normalize(), Math.min(dist, sp * dt));
+        p.addScaledVector(this._to.copy(target).sub(p).normalize(), Math.min(dist, sp * dt));
         if (dist < 0.012) { got += d.value; d.done = true; this.scene.remove(d.m); }
       } else {
         // pop out, fall, settle
