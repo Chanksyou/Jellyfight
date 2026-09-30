@@ -17,11 +17,11 @@ export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 export const TYPES = {
   // scuttles straight at you; the basic enemy
-  roach:    { name: 'Cockroach', hp: 16, speed: 0.24, dmg: 1, r: 0.016, dew: 4 },
+  roach:    { name: 'Cockroach', hp: 30, speed: 0.24, dmg: 1, r: 0.016, dew: 4 },
   // five ants in a block; up close they curl into a ball and roll into you
-  ants:     { name: 'Ant squad', hp: 36, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
+  ants:     { name: 'Ant squad', hp: 66, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
   // hovers out of reach and spits at you
-  mosquito: { name: 'Mosquito', hp: 12, speed: 0.22, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
+  mosquito: { name: 'Mosquito', hp: 22, speed: 0.22, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
   // drifts through the air, so high ledges aren't perfectly safe
   mote:  { name: 'Mote', hp: 6, speed: 0.17, dmg: 1, r: 0.01, dew: 3, fly: true },
   // rolls toward you, winds up, then charges

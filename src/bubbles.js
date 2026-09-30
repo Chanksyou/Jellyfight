@@ -1,5 +1,5 @@
-// Bubbles: the jelly's main attack. Every so often it squeezes its bell and blows a volley of
-// bubbles, each at a different nearby enemy. Bubbles drift toward their target (steering a
+// Bubbles: the jelly's main attack. It blows a steady stream of small bubbles, one after
+// another (shots per second = blow rate x bubbles), each at the next of the nearest enemies. Bubbles drift toward their target (steering a
 // little, so they mostly land), pop on the first enemy they touch for damage plus a small
 // splash, and pop harmlessly on walls or when they run out of range. Treasures hook in here.
 //
@@ -19,8 +19,8 @@ import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 
 const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
-const RADIUS = 0.011;        // m, at bubble size 1
-const SPLASH = 0.03;         // m, splash radius at bubble size 1
+const RADIUS = 0.0065;       // m, at bubble size 1
+const SPLASH = 0.026;        // m, splash radius at bubble size 1
 
 export const ELEMENTS = [
   { id: 'fire', treasure: 'candle', color: 0xff8a3a, text: '#ffa65a' },
@@ -99,10 +99,12 @@ export class Bubbles {
 
   // origin: where bubbles leave the bell. has: owned treasure ids.
   update(dt, origin, stats, has) {
-    this.timer += dt * stats.blowRate;
+    // one bubble at a time: more bubbles or a faster blow rate = a faster stream
+    this.timer += dt * stats.blowRate * stats.bubbles;
     if (this.timer >= 1) {
-      if (this.volley(origin, stats, has)) this.timer = 0;
+      if (this.volley(origin, stats, has)) this.timer -= 1;
       else this.timer = 1;            // ready, waiting for something in range
+      this.timer = Math.min(this.timer, 1);
     }
     this.fly(dt, stats, has);
     this.effects(dt, stats);
@@ -114,15 +116,16 @@ export class Bubbles {
   volley(origin, stats, has) {
     const near = this.inRange(origin, stats.range);
     if (!near.length) return false;
-    // one bubble per nearest enemy; spare bubbles double up on the closest ones
-    const targets = Array.from({ length: stats.bubbles }, (_, i) => near[i % Math.min(near.length, stats.bubbles)]);
+    // the next of the nearest `bubbles` enemies, in turn
+    const target = near[this.volleys % Math.min(near.length, stats.bubbles)];
     this.volleys++;
-    const golden = has.has('goldRing') && this.volleys % 10 === 0;
+    const n = this.volleys;
+    const golden = has.has('goldRing') && n % 10 === 0;
     const size = stats.bubbleSize, elems = this.elements(has);
-    const tint = (i) => (elems.length ? elems[(this.volleys + i) % elems.length] : null);
-    targets.forEach((t, i) => this.blow(origin, t, { size, dmg: stats.pop, golden, elems, tint: tint(i), pierce: has.has('bobbyPin') ? 3 : 1, spread: (i - (targets.length - 1) / 2) * 0.25 }));
-    // Reed Stick: every other volley adds one giant, slow bubble
-    if (has.has('reedStick') && this.volleys % 2 === 0) this.blow(origin, targets[0], { size: size * 2.5, dmg: stats.pop * 2.5, golden, elems, tint: tint(7), pierce: 1, speed: 0.6, big: true });
+    const tint = elems.length ? elems[n % elems.length] : null;
+    this.blow(origin, target, { size, dmg: stats.pop, golden, elems, tint, pierce: has.has('bobbyPin') ? 3 : 1, spread: (Math.random() - 0.5) * 0.12 });
+    // Reed Stick: every 6th bubble is a giant, slow one
+    if (has.has('reedStick') && n % 6 === 0) this.blow(origin, target, { size: size * 2.5, dmg: stats.pop * 4, golden, elems, tint, pierce: 1, speed: 0.6, big: true });
     this.onBlow?.();
     return true;
   }

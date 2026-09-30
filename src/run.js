@@ -599,12 +599,16 @@ export class Run {
 
   markers() {
     const out = [];
+    for (const v of this.traversal.vents) out.push({ kind: 'vent', x: v.x, y: v.y, z: v.z });
+    for (const e of this.enemies.list) if (!e.dead && !e.proxy) out.push({ kind: 'enemy', x: e.pos.x, y: e.pos.y, z: e.pos.z });
     if (this.moon.active) {
       const p = this.moon.position;
-      out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true });
+      out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true, icon: this.moon.full ? '🌕' : '🌙' });
     }
-    if (this.phase === 'explore') for (const s of this.lost.list) if (!s.taken) out.push({ x: s.pos.x, y: s.pos.y, z: s.pos.z, color: '#ff5a7a' });
-    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true });
+    if (this.phase === 'explore') for (const s of this.lost.list) if (!s.taken) out.push({ x: s.pos.x, y: s.pos.y, z: s.pos.z, color: '#ff7a9a', icon: '🎁' });
+    const ICON = { controller: '🎮', mug: '☕', kettle: '🫖' };
+    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true, icon: ICON[e.kind] || '★' });
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true, icon: '🤖' }); }
     return out;
   }
 }

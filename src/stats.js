@@ -3,10 +3,10 @@
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
-  bubbles: 2,       // bubbles blown per volley, spread across the nearest enemies
+  bubbles: 2,       // more bubbles: a faster stream, spread across that many of the nearest enemies
   range: 0.3,       // meters a bubble flies before it pops on its own
-  pop: 1.8,         // damage when a bubble pops on an enemy (light: lots of bubbles, each small)
-  blowRate: 3.0,    // volleys per second: a stream of bubbles
+  pop: 2.4,         // damage when a bubble pops on an enemy (light: lots of bubbles, each small)
+  blowRate: 2.2,    // stream speed: bubbles per second = blow rate x bubbles
   bubbleSize: 1.0,  // size multiplier: bigger bubbles are easier to land and splash wider
   moisture: 25,     // max health
   pulse: 1.0,       // swim speed multiplier
@@ -98,14 +98,14 @@ export const TREASURES = [
   // bubbles (bubbles.js)
   { id: 'bobbyPin', name: 'Bobby Pin', icon: '🧷', text: 'Bubbles pierce, popping on up to 3 enemies in a line.' },
   { id: 'hairTie', name: 'Hair Tie', icon: '➰', text: 'Each bubble that pops blows a smaller one at another enemy nearby.' },
-  { id: 'goldRing', name: 'Gold Ring', icon: '💍', text: 'Every 10th volley is golden and does 5x damage.' },
+  { id: 'goldRing', name: 'Gold Ring', icon: '💍', text: 'Every 10th bubble is golden and does 5x damage.' },
   { id: 'bathSalt', name: 'Bath Salt', icon: '🧂', text: 'Enemies you finish off burst and hurt their neighbors.' },
   { id: 'rubberDuck', name: 'Rubber Duck', icon: '🦆', text: 'When you get hit, a squeak knocks nearby enemies back. (5 s)' },
   { id: 'whale', name: 'Whale Bath Toy', icon: '🐳', text: 'Stand still for a second and you start spouting, refilling moisture.' },
   { id: 'qtip', name: 'Q-tip', icon: '🦴', text: 'Enemies your bubbles hit are slowed.' },
   { id: 'soapBubble', name: 'Rubber Glove', icon: '🧤', text: 'Blocks the first hit you take each stage.' },
   { id: 'lintRoller', name: 'Lint Roller', icon: '🧻', text: 'Every 20 s, all dew nearby sticks to you at once.' },
-  { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'Every other volley adds one giant, slow bubble that pops for a big splash.' },
+  { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'Every 6th bubble brings a giant, slow one that pops for a big splash.' },
   // elements for your bubbles (bubbles.js); they stack
   { id: 'candle', name: 'Birthday Candle', icon: '🕯️', text: 'Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage.' },
   { id: 'battery', name: 'AA Battery', icon: '🔋', text: 'Lightning bubbles: every pop arcs to 2 more enemies nearby.' },

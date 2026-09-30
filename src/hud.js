@@ -30,8 +30,8 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .boss .bar { height: 14px; border-color: #ffd9c9; }
 #hud .boss i { background: linear-gradient(#ff8a6a, #c2312a); }
 #hud .boss .nm { font-weight: 800; letter-spacing: .12em; font-size: 13px; margin-bottom: 4px; text-shadow: 0 1px 3px #000; }
-#hud .map { position: absolute; right: 18px; bottom: 18px; width: 200px; height: 200px; }
-#hud .room { position: absolute; right: 18px; bottom: 222px; width: 200px; text-align: center; font-weight: 600; font-size: 13px; text-shadow: 0 1px 3px #000a; }
+#hud .map { position: absolute; right: 18px; bottom: 18px; width: 230px; height: 230px; }
+#hud .room { position: absolute; right: 18px; bottom: 252px; width: 230px; text-align: center; font-weight: 600; font-size: 13px; text-shadow: 0 1px 3px #000a; }
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
 #hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
@@ -56,8 +56,8 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
   #hud .toast { font-size: 17px; top: 30%; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
-body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 118px; height: 118px; }
-body.touch #hud .room { top: calc(env(safe-area-inset-top, 0px) + 180px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 118px; font-size: 11px; }
+body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 150px; height: 150px; }
+body.touch #hud .room { top: calc(env(safe-area-inset-top, 0px) + 212px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 150px; font-size: 11px; }
 body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 `;
 
@@ -174,95 +174,123 @@ export class Hud {
   }
 
   // markers: [{ x, y, z, color, big }]; player y is used to show "above / below"
+  // Furniture footprints for the map: [{ x0, z0, x1, z1, top }], drawn once into a cached layer
+  setFurniture(list) { this.furniture = list; this.mapBase = null; }
+
+  // The minimap: the room, the furniture (lighter = taller), vents, what's worth going to
+  // (icons, with how far above or below you), enemies as red dots, and you.
+  // markers: [{ x, y, z, icon?, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {
     const room = this.roomAt(pos.x, pos.z);
     if (room !== this.room) { this.room = room; this.$('.room').textContent = room || ''; }
 
     const c = this.map, g = this.ctx;
-    const dpr = Math.min(2, devicePixelRatio || 1);
-    const W = 200 * dpr;
-    if (c.width !== W) { c.width = c.height = W; }
-    const b = this.bounds, pad = 14 * dpr;
+    const dpr = Math.min(3, devicePixelRatio || 1);
+    const css = c.clientWidth || 220;
+    const W = Math.round(css * dpr);
+    if (c.width !== W) { c.width = c.height = W; this.mapBase = null; }
+    const b = this.bounds, pad = 8 * dpr;
     const s = Math.min((W - 2 * pad) / (b.x1 - b.x0), (W - 2 * pad) / (b.z1 - b.z0));
     const ox = (W - (b.x1 - b.x0) * s) / 2, oz = (W - (b.z1 - b.z0) * s) / 2;
     const X = (x) => ox + (x - b.x0) * s, Z = (z) => oz + (z - b.z0) * s;
+    const u = W / 220;                                    // scale for sizes, so small maps stay readable
 
-    g.clearRect(0, 0, W, W);
-    g.fillStyle = 'rgba(8, 20, 30, 0.5)';
-    g.beginPath();
-    g.roundRect(1, 1, W - 2, W - 2, 12 * dpr);
-    g.fill();
-    for (const [name, poly] of this.plan) {
-      g.beginPath();
-      poly.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z))));
-      g.closePath();
-      const here = name === room;
-      g.fillStyle = here ? 'rgba(90, 240, 230, 0.26)' : 'rgba(90, 240, 230, 0.09)';
-      g.fill();
-      g.lineWidth = 2 * dpr;
-      g.strokeStyle = here ? '#7ff6ee' : 'rgba(127, 246, 238, 0.5)';
-      g.stroke();
-    }
-
-    // markers (Moon Drop, treasures)
-    const t = performance.now() / 1000;
-    for (const m of markers) {
-      const mx = X(m.x), mz = Z(m.z);
-      g.fillStyle = m.color;
-      g.beginPath();
-      g.arc(mx, mz, (m.big ? 5 + Math.sin(t * 4) * 1.2 : 3) * dpr, 0, Math.PI * 2);
-      g.fill();
-      if (m.big) {
-        g.strokeStyle = m.color;
-        g.lineWidth = 1.5 * dpr;
-        g.beginPath();
-        g.arc(mx, mz, (9 + (t * 8) % 8) * dpr, 0, Math.PI * 2);
-        g.globalAlpha = 1 - ((t * 8) % 8) / 8;
-        g.stroke();
-        g.globalAlpha = 1;
-        // height difference: ▲ above you, ▼ below you
-        const dy = m.y - pos.y;
-        if (Math.abs(dy) > 0.1) {
-          g.font = `700 ${11 * dpr}px system-ui, sans-serif`;
-          g.textAlign = 'center';
-          g.fillStyle = '#fff';
-          g.strokeStyle = '#000a';
-          g.lineWidth = 3 * dpr;
-          const label = `${dy > 0 ? '▲' : '▼'} ${Math.abs(dy) < 1 ? Math.round(Math.abs(dy) * 100) + ' cm' : Math.abs(dy).toFixed(1) + ' m'}`;
-          const ly = mz - 12 * dpr;
-          g.strokeText(label, mx, ly);
-          g.fillText(label, mx, ly);
-        }
+    // the static layer: room + furniture
+    if (!this.mapBase) {
+      const base = this.mapBase = document.createElement('canvas');
+      base.width = base.height = W;
+      const q = base.getContext('2d');
+      q.fillStyle = 'rgba(10, 14, 24, 0.82)';
+      q.beginPath(); q.roundRect(0, 0, W, W, 14 * u); q.fill();
+      for (const [, poly] of this.plan) {
+        q.beginPath();
+        poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z))));
+        q.closePath();
+        q.fillStyle = '#3a4250';
+        q.fill();
+        q.lineWidth = 3 * u;
+        q.strokeStyle = '#cfe8ff';
+        q.stroke();
       }
+      q.save();
+      q.beginPath();
+      for (const [, poly] of this.plan) poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z))));
+      q.clip();
+      for (const f of (this.furniture || []).sort((a, z2) => a.top - z2.top)) {
+        const t = Math.min(1, f.top / 1.2);
+        q.fillStyle = `hsl(28, ${18 + t * 20}%, ${34 + t * 34}%)`;
+        q.strokeStyle = 'rgba(0,0,0,0.45)';
+        q.lineWidth = 1 * u;
+        q.beginPath();
+        q.roundRect(X(f.x0), Z(f.z0), Math.max(2, (f.x1 - f.x0) * s), Math.max(2, (f.z1 - f.z0) * s), 3 * u);
+        q.fill(); q.stroke();
+      }
+      q.restore();
+    }
+    g.clearRect(0, 0, W, W);
+    g.drawImage(this.mapBase, 0, 0);
+
+    const t = performance.now() / 1000;
+    const label = (text, x, y) => {
+      g.font = `800 ${11 * u}px system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.lineWidth = 3.5 * u;
+      g.strokeStyle = '#000c';
+      g.strokeText(text, x, y);
+      g.fillStyle = '#fff';
+      g.fillText(text, x, y);
+    };
+    // small things first (vents, enemies), then what you're heading for on top
+    for (const m of markers) {
+      if (m.kind !== 'vent') continue;
+      g.fillStyle = '#7ff6ee';
+      g.fillRect(X(m.x) - 4 * u, Z(m.z) - 3 * u, 8 * u, 6 * u);
+      g.fillStyle = '#1a3a40';
+      for (let k = 0; k < 3; k++) g.fillRect(X(m.x) - 3 * u, Z(m.z) - 2 * u + k * 1.8 * u, 6 * u, 0.9 * u);
+    }
+    for (const m of markers) {
+      if (m.kind !== 'enemy') continue;
+      g.fillStyle = m.color || '#ff4a4a';
+      g.beginPath(); g.arc(X(m.x), Z(m.z), 2.4 * u, 0, Math.PI * 2); g.fill();
+    }
+    for (const m of markers) {
+      if (m.kind === 'vent' || m.kind === 'enemy') continue;
+      const mx = X(m.x), mz = Z(m.z);
+      // a pulsing ring so the important ones pop
+      if (m.big) {
+        const k = (t * 1.5) % 1;
+        g.strokeStyle = m.color; g.globalAlpha = 1 - k; g.lineWidth = 2 * u;
+        g.beginPath(); g.arc(mx, mz, (8 + k * 10) * u, 0, Math.PI * 2); g.stroke();
+        g.globalAlpha = 1;
+      }
+      g.fillStyle = 'rgba(10,14,24,0.85)';
+      g.beginPath(); g.arc(mx, mz, 9 * u, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = m.color; g.lineWidth = 2 * u; g.stroke();
+      g.font = `${12 * u}px system-ui, "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(m.icon || '●', mx, mz + 0.5 * u);
+      g.textBaseline = 'alphabetic';
+      const dy = m.y - pos.y;
+      if (Math.abs(dy) > 0.06) label(`${dy > 0 ? '▲' : '▼'}${Math.round(Math.abs(dy) * 100)}`, mx, mz - 12 * u);
     }
 
-    // camera view cone
+    // camera view cone and you
     const px = X(pos.x), pz = Z(pos.z);
     const ca = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw));
-    g.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    g.beginPath();
-    g.moveTo(px, pz);
-    g.arc(px, pz, 30 * dpr, ca - 0.5, ca + 0.5);
-    g.closePath();
-    g.fill();
-
-    // player arrow
+    const grad = g.createRadialGradient(px, pz, 0, px, pz, 42 * u);
+    grad.addColorStop(0, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.beginPath(); g.moveTo(px, pz); g.arc(px, pz, 42 * u, ca - 0.55, ca + 0.55); g.closePath(); g.fill();
     g.save();
     g.translate(px, pz);
     g.rotate(Math.atan2(Math.cos(facing), Math.sin(facing)));
     g.beginPath();
-    g.moveTo(8 * dpr, 0);
-    g.lineTo(-5 * dpr, -5 * dpr);
-    g.lineTo(-2.5 * dpr, 0);
-    g.lineTo(-5 * dpr, 5 * dpr);
-    g.closePath();
-    g.fillStyle = '#ff8ad0';
-    g.strokeStyle = '#fff';
-    g.lineWidth = 1.5 * dpr;
-    g.stroke();
-    g.fill();
+    g.moveTo(11 * u, 0); g.lineTo(-7 * u, -7 * u); g.lineTo(-3 * u, 0); g.lineTo(-7 * u, 7 * u); g.closePath();
+    g.fillStyle = '#ff5ab8'; g.strokeStyle = '#fff'; g.lineWidth = 2.2 * u;
+    g.stroke(); g.fill();
     g.restore();
   }
+
 }
 
 function inPoly(x, z, P) {

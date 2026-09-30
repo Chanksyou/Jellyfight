@@ -16,11 +16,11 @@ import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { juice } from './juice.js';
-import { applyLayout, LayoutEditor } from './layout.js';
+import { applyLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 
-const BUILD = 'v26';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v27';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -118,6 +118,22 @@ addSurfaceDetail(world.colliders, {
 });
 
 const traversal = new Traversal(scene, stage);
+// furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
+function mapFurniture() {
+  const out = [], bx = new THREE.Box3(), c = new THREE.Vector3();
+  for (const { node } of movables(APT.root)) {
+    if (!node.visible) continue;
+    visibleBox(node, bx);
+    if (bx.isEmpty() || bx.min.y > 1.2) continue;
+    const w = bx.max.x - bx.min.x, d = bx.max.z - bx.min.z;
+    if (w * d < 0.012 || w > 3 || d > 3) continue;
+    bx.getCenter(c);
+    if (!plan.some(([, poly]) => inPoly(c.x, c.z, poly))) continue;
+    out.push({ x0: bx.min.x, z0: bx.min.z, x1: bx.max.x, z1: bx.max.z, top: bx.max.y });
+  }
+  hud.setFurniture(out);
+}
+mapFurniture();
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
@@ -216,7 +232,7 @@ function closeLayout() {
   input.enabled = true;
   hud.el.hidden = false;
   // things placed on furniture need checking again (Moon Drop spots, the player's footing)
-  if (layoutChanged) { run.dropSpots = null; run.start(); }
+  if (layoutChanged) { run.dropSpots = null; run.start(); mapFurniture(); }
   tpc.snapTo(player.position);
   overlay.hidden = false;
 }

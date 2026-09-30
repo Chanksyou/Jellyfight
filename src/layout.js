@@ -18,7 +18,7 @@ const KEY = 'jf-layout-v1';
 const SKIP = /^(Shell|door-|Hall_lights|LED_cove|Kitchen_lights|Closet$)/;   // walls, doors and lights stay put
 
 // Every movable object: the Apartment node's named children, keyed "name#n" (names can repeat)
-function movables(root) {
+export function movables(root) {
   const app = root.getObjectByName('Apartment') || root;
   const seen = {}, out = [];
   for (const o of app.children) {
@@ -31,7 +31,7 @@ function movables(root) {
 
 // Bounds of what you can see: objects carry invisible click boxes and flat see-through shadow
 // sheets from the apartment app
-function visibleBox(node, box) {
+export function visibleBox(node, box) {
   box.makeEmpty();
   const b = new THREE.Box3();
   node.updateMatrixWorld(true);
