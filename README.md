@@ -68,6 +68,8 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
 | `src/main.js` | Wires everything up: pause menu, mode switching (play, creator, layout), and the frame loop, which only works out dt and calls each system's `update` in order. |
 | `src/systems.js` | The per-frame systems: clock (dt clamp, hit-stop), gameplay, layout editor, touch controls, idle avatar, input, camera (follow, creator orbit, shake), blob shadow, HUD, debug readout, render. |
+| `src/events.js` | The event bus (synchronous `on`/`emit`) and the event list. Systems don't change each other's data: attacks emit `damage_taken`, `status_applied` and `knockback` with a target id (`'player'` or an enemy's id); enemies.js and run.js own the HP, status and position they apply to, and announce `enemy_hit`, `enemy_frozen`, `enemy_killed`, `elite_defeated` and `boss_health`. |
+| `src/feedback.js` | Listens for enemy hits, freezes and kills and plays the numbers, bursts, shake, hit-stop and sounds. |
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
 | `src/swim.js` | One bell stroke: the squeeze, the thrust, and how often strokes come. Shared by movement and animation. |

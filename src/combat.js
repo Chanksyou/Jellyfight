@@ -5,6 +5,7 @@
 // Tie) and bodies without tentacles use a simple stretched cylinder instead.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
+import { bus } from './events.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 
@@ -135,15 +136,17 @@ export class Lash {
     const color = s.golden ? '#ffd23a' : '#fff';
     this.fx.puff(b, s.golden ? 0xffd23a : 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
     sfx.sting();
-    if (!s.target.dead && !s.target.proxy && !s.target.T.fly) s.target.pos.addScaledVector(b.clone().sub(a).setY(0).normalize(), 0.008);
+    const id = s.target.id;
+    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: 0.008 });
     if (s.target.dead) return;
-    if (has.has('qtip')) s.target.slowT = 2;
-    if (has.has('stickyNote') && !s.target.proxy) s.target.markT = 3;
+    if (has.has('qtip')) bus.emit('status_applied', { targetId: id, status: 'slow', duration: 2 });
+    if (has.has('stickyNote')) bus.emit('status_applied', { targetId: id, status: 'mark', duration: 3 });
     // Hot Sauce: double damage, and it slows
-    if (has.has('hotSauce')) { s.dmg *= 2; if (!s.target.proxy) s.target.slowT = 1.5; this.fx.puff(b, 0xff5a2a, 0.008, 0.2); }
+    if (has.has('hotSauce')) { s.dmg *= 2; bus.emit('status_applied', { targetId: id, status: 'slow', duration: 1.5 }); this.fx.puff(b, 0xff5a2a, 0.008, 0.2); }
     // Nail Clipper: some stings are snips for triple damage
-    if (has.has('nailClipper') && Math.random() < 0.2) { E.damage(s.target, s.dmg * 3, '#ff6b6b'); this.fx.puff(b, 0xff6b6b, 0.01, 0.2); }
-    else E.damage(s.target, s.dmg, color);
+    const snip = has.has('nailClipper') && Math.random() < 0.2;
+    if (snip) this.fx.puff(b, 0xff6b6b, 0.01, 0.2);
+    bus.emit('damage_taken', { targetId: id, amount: snip ? s.dmg * 3 : s.dmg, color: snip ? '#ff6b6b' : color, source: 'tentacle' });
 
     // Bobby Pin: everything along the line out to full reach takes the hit too
     if (has.has('bobbyPin')) {
@@ -155,8 +158,8 @@ export class Lash {
         const along = c.dot(dir);
         if (along < 0 || along > reach) continue;
         if (c.addScaledVector(dir, -along).length() < e.r + 0.006) {
-          if (has.has('qtip')) e.slowT = 2;
-          E.damage(e, s.dmg, color);
+          if (has.has('qtip')) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
+          bus.emit('damage_taken', { targetId: e.id, amount: s.dmg, color, source: 'tentacle' });
         }
       }
     }

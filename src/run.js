@@ -13,6 +13,7 @@ import { Bubbles } from './bubbles.js';
 import { LostThings } from './pickups.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
+import { bus, PLAYER } from './events.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
@@ -41,7 +42,25 @@ export class Run {
     this.fade = document.createElement('div');
     this.fade.style.cssText = 'position:fixed;inset:0;background:radial-gradient(#fffbe8,#cfe2ff);opacity:0;pointer-events:none;z-index:20;transition:opacity .5s';
     document.body.appendChild(this.fade);
-    this.enemies.onKill = (e) => this.onKill(e);
+    this.cactusCd = new Map();           // enemy id -> when Cactus Spine can sting it again
+
+    // The run owns the jelly's moisture, slow and knockback, and what kills are worth
+    bus.on('damage_taken', ({ targetId, amount, drain }) => {
+      if (targetId !== PLAYER) return;
+      if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
+      else this.hit(amount);                // i-frames, Thimble, Soap Bubble, Rubber Duck
+    });
+    bus.on('status_applied', ({ targetId, status, duration }) => {
+      if (targetId === PLAYER && status === 'slow') this.slowT = Math.max(this.slowT, duration);
+    });
+    bus.on('knockback', ({ targetId, dir, force, launch }) => {
+      if (targetId !== PLAYER) return;
+      const v = this.player.velocity;
+      v.addScaledVector(dir, force);
+      if (launch) { v.y = Math.max(v.y, launch); this.player.grounded = false; }
+    });
+    bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
+    bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     this.player.onLand = (drop) => {
       if (this.owned.has('wristband')) this.wristT = 3;
       if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.power * 2, 0xffffff);
@@ -99,6 +118,7 @@ export class Run {
     this.dropTimer = 2;
     this.lastArea = null;
     this.bursts = [];
+    this.cactusCd.clear();
     this.nightT = 0;
 
     const start = new THREE.Vector3(...s.start);
@@ -158,12 +178,7 @@ export class Run {
     const tr = this.traversal.query(P.position);
     let push = null;
     if (this.phase === 'boss' && this.boss) {
-      const r = this.boss.update(dt, P);
-      push = r.push;
-      if (r.hurt) this.hurt(r.hurt, true);
-      if (r.contact) this.hit(4);
-      if (r.hit) this.hit(r.hit);
-      this.hud.setBoss(this.stage.boss.name, this.boss.hp / this.boss.maxHp);
+      push = this.boss.update(dt, P).push;
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
     }
     if (this.phase !== 'moonlift') {
@@ -202,14 +217,13 @@ export class Run {
       this.lash.update(dt, origin, this.tentacleStats, this.tentacleTreasures, { lashSpeedMul: this.wristT > 0 ? 2 : 1 });
       this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: this.power });
       if (this.phase === 'explore') {
-        this.elites.update(dt, P, this.cfg, this.eliteHooks);
+        this.elites.update(dt, P, this.cfg);
         const found = this.lost.update(dt, this.t, P.position);
         if (found) { this.fx.puff(found.pos.clone().setY(found.pos.y + 0.01), 0xffd23a, 0.04, 0.5); this.pickTreasure('🎁 A lost thing!', `Tucked away on the ${found.label}. Keep one.`); }
       }
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
-      const spit = this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
-      if (spit) this.hit(spit);
+      this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }
     for (const b of this.bursts.splice(0)) this.burst(b);
 
@@ -292,10 +306,14 @@ export class Run {
       if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < e.r + this.cfg.radius) {
-        if (e.T.slows) this.slowT = 1.5;
+        if (e.T.slows) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
         // Cactus Spine: whatever touches you gets stung (once per second each)
-        if (this.owned.has('cactus') && !(e.cactusT > this.t)) { e.cactusT = this.t + 1; this.enemies.damage(e, this.stats.sting * 3 + this.power, '#9adf6a'); }
-        this.hit(e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg);   // ant squads hit harder rolling
+        if (this.owned.has('cactus') && !(this.cactusCd.get(e.id) > this.t)) {
+          this.cactusCd.set(e.id, this.t + 1);
+          bus.emit('damage_taken', { targetId: e.id, amount: this.stats.sting * 3 + this.power, color: '#9adf6a', source: 'cactus' });
+        }
+        // ant squads hit harder rolling
+        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type });
       }
     }
   }
@@ -319,8 +337,8 @@ export class Run {
         const away = e.pos.clone().sub(P).setY(0);
         const d = away.length();
         if (d > 0.09) continue;
-        e.pos.addScaledVector(away.normalize(), 0.06);
-        this.enemies.damage(e, 3, '#ffe066');
+        bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: 0.06 });
+        bus.emit('damage_taken', { targetId: e.id, amount: 3, color: '#ffe066', source: 'duck' });
       }
     }
     this.hurt(amount);
@@ -335,38 +353,31 @@ export class Run {
 
   heal(amount) { this.moisture = Math.min(this.stats.moisture, this.moisture + amount); }
 
-  onKill(e) {
+  // an enemy_killed event: { pos, r, dew, elite }
+  onKill({ pos: c, r, dew: baseDew, elite }) {
     this.kills++;
-    const c = this.enemies.center(e);
     const combo = juice.kill();
-    if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + e.r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
-    const dew = Math.round((this.owned.has('coin') ? e.T.dew * 1.5 : e.T.dew) * juice.bonus);
+    if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
+    const dew = Math.round((this.owned.has('coin') ? baseDew * 1.5 : baseDew) * juice.bonus);
     this.dew.drop(c, 1, dew);
-    this.fx.number(c.clone().setY(c.y + e.r * 1.5), `+${dew}💧`, '#9fe2ff', e.elite ? 20 : 14);
+    this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
     if (this.owned.has('babyBottle')) this.heal(0.5);
-    if (e.elite) {                       // elites give back some moisture and drop a treasure
+    if (elite) {                         // elites give back some moisture and drop a treasure
       this.heal(4);
-      this.fx.puff(c, 0xffd23a, e.r * 3, 0.5);
+      this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
     }
     if (this.owned.has('bathSalt')) this.bursts.push(c);
   }
 
-  // What the high-ground elites can do to you, and what beating one gives you
-  get eliteHooks() {
-    return this._eliteHooks ||= {
-      hit: (n) => this.hit(n),
-      hurt: (n) => this.hurt(n, true),
-      slow: () => { this.slowT = Math.max(this.slowT, 0.3); },
-      defeated: (e) => {
-        this.kills++;
-        juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
-        this.heal(4);
-        this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
-        this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
-        this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 moisture)`);
-      },
-    };
+  // One of the high-ground elites (elites.js) is beaten
+  eliteDefeated(e) {
+    this.kills++;
+    juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
+    this.heal(4);
+    this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
+    this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
+    this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 moisture)`);
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
@@ -374,7 +385,7 @@ export class Run {
     this.fx.puff(c.clone().setY(c.y + 0.01), color, radius, 0.35);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < radius + e.r) this.enemies.damage(e, dmg, '#ffd0ec');
+      if (this.enemies.center(e).distanceTo(c) < radius + e.r) bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' });
     }
   }
 
@@ -382,7 +393,7 @@ export class Run {
     this.fx.puff(c, 0xffffff, 0.045, 0.3);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) this.enemies.damage(e, this.power * 0.5, '#bfe8ff');
+      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) bus.emit('damage_taken', { targetId: e.id, amount: this.power * 0.5, color: '#bfe8ff', source: 'bathSalt' });
     }
   }
 

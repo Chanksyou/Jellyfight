@@ -9,6 +9,7 @@
 // Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
 import { angryEyes } from './enemies.js';
+import { bus, PLAYER } from './events.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
@@ -134,7 +135,17 @@ export class Vacuum {
 
   setLight(hex, k = 2) { this.ringMat.color.setHex(hex); this.ringMat.emissive.setHex(hex); this.ringMat.emissiveIntensity = k; }
 
+  // What it does to you goes out as events; the pull on the player comes back as `push`
   update(dt, player) {
+    const out = this.tick(dt, player);
+    if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
+    if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
+    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
+    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp });
+    return { push: out.push };
+  }
+
+  tick(dt, player) {
     this.t += dt;
     const out = { push: null, hurt: 0, hit: 0, contact: false };
     const p = this.holder.position, P = player.position;

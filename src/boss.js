@@ -6,6 +6,7 @@
 // 'dust' (The Dust King, a giant crowned dust bunny from a dust pile, shedding dust bunnies).
 import * as THREE from 'three';
 import { angryEyes, fuzzGeometry } from './enemies.js';
+import { bus, PLAYER } from './events.js';
 
 export class Boss {
   constructor(scene, enemies, fx, arena) {
@@ -108,7 +109,17 @@ export class Boss {
   }
 
   // Returns { push: Vector3 (drain pull on the player), hurt: damage to the player this frame }
+  // What it does to you goes out as events; the pull on the player comes back as `push`
   update(dt, player) {
+    const out = this.tick(dt, player);
+    if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
+    if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
+    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
+    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp });
+    return { push: out.push };
+  }
+
+  tick(dt, player) {
     this.t += dt;
     const out = { push: null, hurt: 0, contact: false };
     if (this.dead) {

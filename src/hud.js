@@ -1,5 +1,7 @@
 // On-screen HUD: moisture, level and dew, night clock, Moon Drops, treasures,
 // minimap of the real floor plan (with the Moon Drop marker), boss bar, hints, toasts.
+import { bus } from './events.js';
+
 const CSS = `
 #hud .combo { position: absolute; right: 18px; top: 38%; text-align: right; color: hsl(var(--hue, 50) 100% 62%); text-shadow: 0 2px 6px #000a; pointer-events: none; }
 #hud .combo[hidden] { display: none; }
@@ -64,6 +66,7 @@ body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); 
 export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
+    bus.on('boss_health', ({ name, hp, maxHp }) => this.setBoss(name, hp / maxHp));
     this.el = document.createElement('div');
     this.el.id = 'hud';
     this.el.innerHTML = `<style>${CSS}</style>

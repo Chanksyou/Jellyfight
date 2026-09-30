@@ -19,9 +19,10 @@ import { juice } from './juice.js';
 import { applyLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
+import { wireFeedback } from './feedback.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v28';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v29';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -103,6 +104,7 @@ const hud = new Hud(plan);
 hud.mount(ui);
 const fx = new Fx(scene, camera);
 fx.mount(ui);
+wireFeedback(fx);
 const menus = new UI(ui);
 const creator = new Creator({
   onChange: (l) => applyLook(l, true),

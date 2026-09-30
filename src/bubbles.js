@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
+import { bus } from './events.js';
 
 const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -191,28 +192,27 @@ export class Bubbles {
   strike(b, e, has) {
     let dmg = b.dmg * (b.golden ? 5 : 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
     if (has.has('nailClipper') && Math.random() < 0.2) { dmg *= 3; color = '#ff6b6b'; }
-    if (has.has('qtip') && !e.proxy) e.slowT = 2;
-    if (has.has('stickyNote') && !e.proxy) e.markT = 3;
-    const el = b.elems, c = this.enemies.center(e);
+    if (has.has('qtip')) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
+    if (has.has('stickyNote')) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 3 });
+    const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; e.freezeT = 0; color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
+      if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw);
     }
     if (el.has('ice') && !e.proxy) {
-      e.slowT = Math.max(e.slowT || 0, 2);
-      e.chill = (e.chill || 0) + 1;
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
-      if (e.chill >= 2) { sfx.freeze(); e.chill = 0; e.freezeT = 2; this.fx.ring(c.clone().setY(c.y - e.r), 0x9fe8ff, e.r * 3, 0.5); this.fx.number(c.clone().setY(c.y + e.r * 2), 'FROZEN', '#bff4ff', 14); }
+      bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
+      bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: 2 });   // the 2nd chill freezes
     }
     if (el.has('wind') && !e.proxy) {
-      e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.07);
+      bus.emit('knockback', { targetId: e.id, dir, force: 0.07 });
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a little shove in the direction the bubble was going
-    if (!e.proxy && !e.T.fly) e.pos.addScaledVector(b.vel.clone().setY(0).normalize(), 0.006 * (b.big ? 3 : 1));
-    this.enemies.damage(e, dmg, color);
+    if (!e.T.fly) bus.emit('knockback', { targetId: e.id, dir, force: 0.006 * (b.big ? 3 : 1) });
+    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble' });
   }
 
   // Burning enemies, lightning arcs and acid puddles
@@ -233,7 +233,7 @@ export class Bubbles {
         E.center(e, c);
         this.fx.puff(c.add(new THREE.Vector3((Math.random() - 0.5) * e.r, e.r * (0.4 + Math.random() * 0.6), (Math.random() - 0.5) * e.r)), Math.random() < 0.5 ? 0xff7a2a : 0xffc23a, e.r * 0.8, 0.3);
       }
-      if (f.tick <= 0) { f.tick = 0.5; E.damage(e, f.dps * 0.5, '#ffa65a'); }
+      if (f.tick <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#ffa65a', source: 'fire' }); }
       if (f.t <= 0) this.burning.delete(e);
     }
     for (const z of this.zaps) { z.t -= dt; z.line.material.opacity = Math.max(0, z.t / 0.2); if (z.t <= 0) { this.scene.remove(z.line); z.line.geometry.dispose(); } }
@@ -252,8 +252,8 @@ export class Bubbles {
           if (e.dead) continue;
           E.center(e, c);
           if (Math.hypot(c.x - p.m.position.x, c.z - p.m.position.z) < p.r + e.r && Math.abs(c.y - e.r - p.m.position.y) < e.r + 0.03) {
-            if (!e.proxy) e.markT = Math.max(e.markT || 0, 0.6);   // softened: +50% damage from everything
-            E.damage(e, p.dmg * 0.5, '#a8ff7a');
+            bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 0.6 });   // softened: +50% damage from everything
+            bus.emit('damage_taken', { targetId: e.id, amount: p.dmg * 0.5, color: '#a8ff7a', source: 'acid' });
           }
         }
       }
@@ -303,7 +303,7 @@ export class Bubbles {
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
-      if (E.center(e, c).distanceTo(p) < splash + e.r) E.damage(e, glitter ? b.pw * 0.45 : b.dmg * (b.big ? 0.8 : 0.4), glitter ? '#ffb0f0' : '#bfe8ff');
+      if (E.center(e, c).distanceTo(p) < splash + e.r) bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * 0.45 : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
     }
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
@@ -315,8 +315,8 @@ export class Bubbles {
         hit.add(e);
         const to = E.center(e, c).clone();
         this.zap(from, to);
-        E.damage(e, b.pw * 0.5, '#fff27a');
-        if (!e.proxy) e.stunT = 0.5;
+        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * 0.5, color: '#fff27a', source: 'lightning' });
+        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: 0.5 });
         from = to;
       }
     }

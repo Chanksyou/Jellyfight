@@ -2,6 +2,7 @@
 // rolling marbles, a burning beam, freezes and auras. Each one is a small block in update(),
 // switched on by owning the treasure (ids in stats.js TREASURES).
 import * as THREE from 'three';
+import { bus } from './events.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -101,8 +102,8 @@ export class Gadgets {
     if (has.has('guitarPick') && this.every('guitar', dt, 5)) {
       fx.ring(feet.clone().setY(feet.y + 0.004), 0xc08aff, 0.13, 0.45);
       for (const e of this.near(center, 0.13)) {
-        E.damage(e, sting * 1.2, '#d6b0ff');
-        if (!e.proxy) e.pos.addScaledVector(e.pos.clone().sub(feet).setY(0).normalize(), 0.035);
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * 1.2, color: '#d6b0ff', source: 'gadget' });
+        bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: 0.035 });
       }
     }
 
@@ -115,7 +116,7 @@ export class Gadgets {
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
         this.group.add(line);
         this.zaps.push({ line, t: 0.25 });
-        E.damage(e, sting * 2, '#9fd8ff');
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * 2, color: '#9fd8ff', source: 'gadget' });
       }
     }
     for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
@@ -132,7 +133,7 @@ export class Gadgets {
       for (const e of this.near(b.position, 0.008)) {
         if ((e.fairyT || 0) > 0) continue;
         e.fairyT = 0.4;
-        E.damage(e, sting * 0.6, '#ffe7a8');
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.6, color: '#ffe7a8', source: 'gadget' });
       }
     });
     if (lights) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
@@ -146,7 +147,7 @@ export class Gadgets {
         this.beam.visible = true;
         this.beam.position.copy(c).setY(c.y - e.r * 0.5);
         this.beam.material.opacity = 0.25 + Math.random() * 0.15;
-        if (this.every('burn', dt, 0.25)) { E.damage(e, sting * 0.3, '#ffd27a'); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
+        if (this.every('burn', dt, 0.25)) { bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.3, color: '#ffd27a', source: 'gadget' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
       }
     }
 
@@ -155,15 +156,15 @@ export class Gadgets {
     if (this.aura.visible) {
       this.aura.position.copy(feet).setY(feet.y + 0.002);
       this.aura.scale.setScalar(0.08 * (1 + Math.sin(this.orbit * 2) * 0.05));
-      if (this.every('glow', dt, 0.5)) for (const e of this.near(center, 0.08)) E.damage(e, sting * 0.4, '#8aff9f');
+      if (this.every('glow', dt, 0.5)) for (const e of this.near(center, 0.08)) bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.4, color: '#8aff9f', source: 'gadget' });
     }
 
     // Ice Cube: every 8 s a cold snap freezes everything close for 2 s
     if (has.has('iceCube') && this.every('ice', dt, 8)) {
       fx.ring(feet.clone().setY(feet.y + 0.004), 0xbff4ff, 0.16, 0.6);
       for (const e of this.near(center, 0.16)) {
-        E.damage(e, sting * 0.5, '#bff4ff');
-        if (!e.proxy) e.freezeT = 2;
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.5, color: '#bff4ff', source: 'gadget' });
+        bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: 2 });
       }
     }
 
@@ -181,7 +182,7 @@ export class Gadgets {
     for (const b of this.bricks) {
       b.t -= dt;
       const hit = this.near(b.m.position, 0.012, { proxies: false }).find((e) => !e.T.fly);
-      if (hit) { E.damage(hit, sting * 4, '#ff8a6a'); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
+      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: sting * 4, color: '#ff8a6a', source: 'gadget' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
       if (b.t <= 0) this.group.remove(b.m);
     }
     this.bricks = this.bricks.filter((b) => b.t > 0);
@@ -204,7 +205,7 @@ export class Gadgets {
       for (const e of this.near(mb.m.position, 0.008)) {
         if (mb.hit.has(e)) continue;
         mb.hit.add(e);
-        E.damage(e, sting * 2, '#9fd8ff');
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * 2, color: '#9fd8ff', source: 'gadget' });
       }
       if (mb.t <= 0) this.group.remove(mb.m);
     }

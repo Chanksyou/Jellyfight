@@ -25,6 +25,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { angryEyes } from './enemies.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
+import { bus, PLAYER } from './events.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -291,12 +292,14 @@ export class Elites {
     this.puddles.push({ m, r, t: life });
   }
 
-  // hooks: { hit(amount), hurt(amount), slow(), defeated(elite) }
-  update(dt, player, cfg, hooks) {
+  // What they do to you goes out as events (damage_taken, knockback, status_applied); a beaten
+  // elite sends elite_defeated
+  update(dt, player, cfg) {
     const P = player.position, pc = P.clone().setY(P.y + cfg.height * 0.5);
     const camQ = this.camera.quaternion;
     const sameLevel = (y) => Math.abs(P.y - y) < 0.1;
-    const knock = (from, k) => { const d = P.clone().sub(from).setY(0).normalize(); player.velocity.addScaledVector(d, k); player.velocity.y = Math.max(player.velocity.y, 0.25); player.grounded = false; };
+    const hit = (amount, source) => bus.emit('damage_taken', { targetId: PLAYER, amount, source });
+    const knock = (from, force) => bus.emit('knockback', { targetId: PLAYER, dir: P.clone().sub(from).setY(0).normalize(), force, launch: 0.25 });
 
     for (const e of this.list) {
       if (e.dead) {
@@ -305,7 +308,7 @@ export class Elites {
           this.fx.puff(e.base.clone().setY(e.base.y + e.r), 0xffd23a, e.r * 2.5, 0.6);
           this.fx.ring(e.base.clone().setY(e.base.y + 0.004), 0xffd23a, e.r * 3, 0.6);
           e.remove();
-          hooks.defeated(e);
+          bus.emit('elite_defeated', { elite: e });
         }
         continue;
       }
@@ -380,7 +383,7 @@ export class Elites {
             this.fx.ring(surf, 0xff5a5a, R, 0.4);
             this.fx.burst(surf.clone().setY(surf.y + 0.02), ['#ff5a5a', '#ffffff'], 10, 0.004, 0.4, surf.y);
             juice.shake(0.35); sfx.kill(1.6);
-            if (Math.hypot(P.x - e.base.x, P.z - e.base.z) < R + cfg.radius && sameLevel(e.base.y)) { hooks.hit(3); knock(e.base, 0.9); }
+            if (Math.hypot(P.x - e.base.x, P.z - e.base.z) < R + cfg.radius && sameLevel(e.base.y)) { hit(3, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
         }
@@ -439,7 +442,7 @@ export class Elites {
             }
             const rel = pc.clone().sub(muzzle).setY(0);
             const along = rel.dot(fwd), ang = Math.acos(THREE.MathUtils.clamp(rel.clone().normalize().dot(fwd), -1, 1));
-            if (along > 0 && along < len + 0.04 && ang < 0.47 && Math.abs(pc.y - muzzle.y) < 0.15) { hooks.hit(2); player.velocity.addScaledVector(fwd, 1.5 * dt); }
+            if (along > 0 && along < len + 0.04 && ang < 0.47 && Math.abs(pc.y - muzzle.y) < 0.15) { hit(2, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
           } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; }
         } else {
           // Boil over: the lid pops, four boiling drops fall on filling orange circles around you
@@ -454,7 +457,7 @@ export class Elites {
               this.lob(muzzle, at, 1.0 + k * 0.15, this.dropMat, this.T.orange, 0.035, (p) => {
                 this.fx.burst(p.clone().setY(p.y + 0.01), ['#ff8a3a', '#ffd23a', '#ffffff'], 6, 0.003, 0.3, p.y);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
-                if (Math.hypot(P.x - p.x, P.z - p.z) < 0.035 + cfg.radius && Math.abs(P.y - p.y) < 0.06) hooks.hit(2);
+                if (Math.hypot(P.x - p.x, P.z - p.z) < 0.035 + cfg.radius && Math.abs(P.y - p.y) < 0.06) hit(2, 'kettle');
               });
             }
           }
@@ -470,7 +473,7 @@ export class Elites {
       const step = b.v.length() * dt;
       if (this.world.cast(b.m.position, b.v.clone().normalize(), step + 0.004)) b.t = 0;
       b.m.position.addScaledVector(b.v, dt);
-      if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hooks.hit(2); b.t = 0; this.fx.puff(b.m.position, 0xffffff, 0.01, 0.2); }
+      if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hit(2, 'controller'); b.t = 0; this.fx.puff(b.m.position, 0xffffff, 0.01, 0.2); }
       if (b.t <= 0) this.scene.remove(b.m);
     }
     this.bullets = this.bullets.filter((b) => b.t > 0);
@@ -496,7 +499,7 @@ export class Elites {
       p.t -= dt;
       p.m.scale.setScalar(p.r * Math.min(1, p.t * 2));
       const d = Math.hypot(P.x - p.m.position.x, P.z - p.m.position.z);
-      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { hooks.hurt(1.5 * dt); hooks.slow(); }
+      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { bus.emit('damage_taken', { targetId: PLAYER, amount: 1.5 * dt, source: 'coffee', drain: true }); bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 0.3 }); }
       if (p.t <= 0) this.scene.remove(p.m);
     }
     this.puddles = this.puddles.filter((p) => p.t > 0);

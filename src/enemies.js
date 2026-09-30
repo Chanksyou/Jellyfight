@@ -4,11 +4,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito } from './critters.js';
-import { juice } from './juice.js';
-import { sfx } from './sfx.js';
+import { bus, PLAYER, nextId } from './events.js';
 
 // what each type bursts into when it dies
-const GUTS = {
+export const GUTS = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
   mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
@@ -202,13 +201,41 @@ export class Enemies {
     this.looks = makeLooks();
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
-    this.onKill = null;       // (enemy) => void
+    this.byId = new Map();    // id -> enemy, for events that name their target
     this.shots = [];          // mosquito spit
     this.shotGeo = new THREE.SphereGeometry(0.004, 10, 8);
     this.shotMat = new THREE.MeshStandardMaterial({ color: 0xc8202a, emissive: 0x8a0a10, emissiveIntensity: 1.2, roughness: 0.2 });
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
+
+    // Everything that happens to an enemy arrives as an event; this system owns their HP,
+    // status timers and position.
+    bus.on('damage_taken', ({ targetId, amount, color }) => {
+      if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color);
+    });
+    bus.on('status_applied', ({ targetId, status, duration }) => {
+      const e = this.byId.get(targetId);
+      if (!e || e.dead || e.proxy) return;
+      if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
+      else if (status === 'mark') e.markT = Math.max(e.markT || 0, duration);
+      else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
+      else if (status === 'freeze') e.freezeT = duration;
+      else if (status === 'thaw') e.freezeT = 0;
+      else if (status === 'chill') {
+        // the second chill in a row freezes it solid
+        e.chill = (e.chill || 0) + 1;
+        if (e.chill >= 2) {
+          e.chill = 0;
+          e.freezeT = duration;
+          bus.emit('enemy_frozen', { targetId, pos: this.center(e), r: e.r });
+        }
+      }
+    });
+    bus.on('knockback', ({ targetId, dir, force }) => {
+      const e = this.byId.get(targetId);
+      if (e && !e.dead && !e.proxy) e.pos.addScaledVector(dir, force);
+    });
   }
 
   get alive() { return this.list.length; }
@@ -237,7 +264,7 @@ export class Enemies {
     root.position.copy(pos);
     this.scene.add(root);
     const e = {
-      type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 1 + Math.random() * 1.5, aimT: 0,
+      id: nextId(), type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 1 + Math.random() * 1.5, aimT: 0,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -246,6 +273,7 @@ export class Enemies {
     mesh.scale.setScalar(0.001); // grows in
     face.scale.setScalar(0.001);
     this.list.push(e);
+    this.byId.set(e.id, e);
     return e;
   }
 
@@ -274,8 +302,9 @@ export class Enemies {
 
   // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color).
   addProxy(obj) {
-    const e = { proxy: obj, T: { fly: false }, get pos() { return obj.position; }, get r() { return obj.r; }, dead: false };
+    const e = { id: nextId(), proxy: obj, T: { fly: false }, get pos() { return obj.position; }, get r() { return obj.r; }, dead: false };
     this.list.push(e);
+    this.byId.set(e.id, e);
     return e;
   }
 
@@ -284,52 +313,47 @@ export class Enemies {
     return out.copy(e.pos).setY(e.pos.y + (e.T.fly ? 0 : e.r));
   }
 
-  damage(e, amount, color = '#fff') {
-    if (e.dead) return false;
+  // (the damage_taken listener) elites and bosses keep their own HP
+  applyDamage(e, amount, color = '#fff') {
+    if (!e || e.dead) return;
     if (e.proxy) {
       e.proxy.damage(amount, color);
-      if (e.proxy.dead) e.dead = true;
-      return e.dead;
+      if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
+      return;
     }
     if (e.markT > 0) amount *= 1.5;       // Sticky Note
     e.hp -= amount;
     e.pop = 1;
     e.flashT = 0.07;                      // flashes white for a moment
-    sfx.hit();
-    this.fx.number(this.center(e), Math.round(amount), color, color === '#fff' ? 13 : 17);
-    if (e.hp <= 0) { this.kill(e); return true; }
-    return false;
+    bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e) });
+    if (e.hp <= 0) this.kill(e);
   }
 
+  // Bursts, shakes and sounds are feedback.js's; the reward is run.js's
   kill(e, silent = false) {
     if (e.dead) return;
     e.dead = true;
-    const c = this.center(e);
-    this.fx.puff(c, 0xe6ded0, e.r * 1.6);
-    if (!silent) {
-      // it bursts: bits fly and bounce, the screen kicks, the game catches its breath for a beat
-      this.fx.burst(c, GUTS[e.type] || ['#ffffff'], 10 + (e.r > 0.018 ? 6 : 0), e.r * 0.28, 0.3, e.pos.y);
-      this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), 0xffffff, e.r * 3, 0.25);
-      juice.hitstop(e.r > 0.018 ? 0.06 : 0.035);
-      juice.shake(e.r > 0.018 ? 0.3 : 0.18);
-      sfx.kill(e.r > 0.018 ? 1.6 : 1);
-    }
+    this.byId.delete(e.id);
     this.scene.remove(e.root);
-    if (!silent) this.onKill?.(e);
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, dew: e.T.dew, silent });
   }
 
   clear() {
     for (const e of this.list) { e.dead = true; if (e.root) this.scene.remove(e.root); }
     this.list = [];
+    this.byId.clear();
     this.shots.forEach((s) => this.scene.remove(s.m));
     this.shots = [];
   }
 
-  // Mosquito spit that reached the player this frame: returns the damage (run.js applies it)
+  // Mosquito spit that reached the player this frame
   shotHits(pc, radius) {
-    let dmg = 0;
-    for (const s of this.shots) if (!s.done && s.m.position.distanceTo(pc) < radius + 0.005) { s.done = true; dmg += 1; this.fx.puff(s.m.position, 0xc8202a, 0.01, 0.2); }
-    return dmg;
+    for (const s of this.shots) {
+      if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
+      s.done = true;
+      this.fx.puff(s.m.position, 0xc8202a, 0.01, 0.2);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'mosquito' });
+    }
   }
 
   updateShots(dt) {
