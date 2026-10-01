@@ -246,7 +246,7 @@ export class Vacuum {
         const m = new THREE.Mesh(this.shotGeo, this.shotMat);
         m.position.copy(p).addScaledVector(dir, this.r).setY(0.03);
         this.scene.add(m);
-        this.shots.push({ m, v: dir.multiplyScalar(0.35), t: 2 });
+        this.shots.push({ m, v: dir.multiplyScalar(0.525), t: 1.33 });
       }
       if (this.stateT <= 0) this.toChase();
     }

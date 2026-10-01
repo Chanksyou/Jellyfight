@@ -193,11 +193,11 @@ export class Gadgets {
       const m = new THREE.Mesh(this.marbleGeo, this.marbleMat);
       m.position.copy(feet).setY(feet.y + 0.007);
       this.group.add(m);
-      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: 2.2, hit: new Set() });
+      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: 1.47, hit: new Set() });
     }
     for (const mb of this.marbles) {
       mb.t -= dt;
-      const step = 0.55 * dt;
+      const step = 0.825 * dt;
       const wall = this.world.cast(mb.m.position, mb.dir, step + 0.007);
       if (wall) { const n = wall.normal.clone().setY(0).normalize(); mb.dir.addScaledVector(n, -2 * mb.dir.dot(n)).normalize(); }
       mb.m.position.addScaledVector(mb.dir, step);

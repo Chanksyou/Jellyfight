@@ -429,7 +429,7 @@ export class Enemies {
           const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
           m.position.copy(e.pos);
           this.scene.add(m);
-          this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(0.32), t: 2.2 });
+          this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(0.48), t: 1.47 });   // same reach as before, 50% faster
         } else if (e.shootT <= 0) e.shootT = 0.5;
       } else if (e.T.fly) {
         // drift toward the player's middle with a lazy wobble

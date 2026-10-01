@@ -365,7 +365,7 @@ export class Elites {
               const b = new THREE.Mesh(this.bulletGeo, this.bulletMats[i]);
               b.position.copy(muzzle);
               this.scene.add(b);
-              this.bullets.push({ m: b, v: dir.multiplyScalar(0.6), t: 1.5 });
+              this.bullets.push({ m: b, v: dir.multiplyScalar(0.9), t: 1.0 });
             });
             M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
             e.clearTele(); e.hitPop = 0.8; sfx.zap();

@@ -20,7 +20,7 @@ import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
 
-const SPEED = 0.38;          // m/s: slow enough that you see a stream of them in the air
+const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
 const SPLASH = 0.026;        // m, splash radius at bubble size 1
 
