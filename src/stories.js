@@ -12,7 +12,7 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { rollCards, RARITY } from './stats.js';
+import { rollCards, RARITY, xpToNext } from './stats.js';
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 
@@ -203,6 +203,25 @@ story('enemies/mosquito-spits', {
     const m0 = run.moisture;
     step(60 * 10, () => run.moisture < m0);
     return ok(run.moisture < m0, { lost: +(m0 - run.moisture).toFixed(2) });
+  },
+});
+
+// --- progression
+story('progression/level-curve', {
+  about: 'Each level needs 1.5x the dew of the last, starting at 3: three cockroaches (1 dew each) is level 2.',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
+    let killed = 0;
+    for (let k = 0; k < 3; k++) {
+      const e = spawn('roach', near(0, -0.15), { still: true, hp: 1 });
+      step(240, () => e.dead);
+      if (e.dead) killed++;
+      tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the dew
+      step(120);
+    }
+    const ok1 = curve.join() === '3,5,7,10,15,23' && killed === 3 && run.level === 2 && xpToNext(run.level) === 5;
+    return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });
 

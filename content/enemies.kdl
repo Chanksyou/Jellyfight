@@ -4,11 +4,11 @@
 //   hp     health            r      body radius (m)        dmg    damage when it touches you
 //   dew    XP it drops       model  which model to build (src/critters.js, src/enemies.js)
 
-enemy "roach" name="Cockroach" hp=30 r=0.024 dmg=1 dew=4 model="roach" {
+enemy "roach" name="Cockroach" hp=30 r=0.024 dmg=1 dew=1 model="roach" {
     chase 0.3                       // a little slower than you swim (0.42), so you can always get away
 }
 
-enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 dew=8 model="ants" {
+enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 dew=2 model="ants" {
     chase 0.225
     curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3
 }

@@ -92,7 +92,7 @@ export function rollCards(stats, n = 3, bonus = 0) {
 }
 
 // Dew needed to go from `level` to the next one
-export const xpToNext = (level) => 10 + 4 * level;   // steep: levels are a trickle, treasures are the big moments
+export const xpToNext = (level) => Math.round(3 * 1.5 ** (level - 1));   // 3, 5, 7, 10, 15, 23, 34, 51…: each level 1.5x the last
 
 // Treasures: lost things with one-of-a-kind effects. Each can appear once per run.
 // Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)
