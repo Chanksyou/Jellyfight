@@ -1,0 +1,155 @@
+// Treasures: lost things you keep for the rest of the run, picked from Moon Drops, gift boxes
+// and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
+// every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
+// Damage numbers are multiples of your power (pop damage x 1.8) unless a word says otherwise.
+//
+//   attack=#true   it changes how you attack: the starting pick always offers one of these
+//
+// A new treasure that combines existing words needs no code: add it here and a story.
+
+// --- your bubbles (bubbles.js)
+treasure "bobbyPin" name="Bobby Pin" icon="🧷" attack=#true text="Bubbles pierce, popping on up to 3 enemies in a line." {
+    pierce 3
+}
+treasure "hairTie" name="Hair Tie" icon="➰" attack=#true text="Each bubble that pops blows a smaller one at another enemy nearby." {
+    split-bubble
+}
+treasure "goldRing" name="Gold Ring" icon="💍" text="Every 10th bubble is golden and does 5x damage." {
+    golden-bubble every=10 mult=5
+}
+treasure "reedStick" name="Reed Stick" icon="🎋" attack=#true text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
+    giant-bubble every=6 size=2.5 dmg=4 speed=0.6
+}
+treasure "qtip" name="Q-tip" icon="🦴" text="Enemies your bubbles hit are slowed." {
+    slow-on-hit 2 by="bubbles"
+}
+
+// --- elements for your bubbles (bubbles.js); they stack
+treasure "candle" name="Birthday Candle" icon="🕯️" attack=#true text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage." {
+    element "fire"
+}
+treasure "battery" name="AA Battery" icon="🔋" attack=#true text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each." {
+    element "lightning"
+}
+treasure "freezerPack" name="Freezer Pack" icon="❄️" attack=#true text="Ice bubbles: hits chill and slow; the 2nd chilled hit freezes the enemy solid." {
+    element "ice"
+}
+treasure "nailPolish" name="Nail Polish" icon="💅" attack=#true text="Acid bubbles: pops leave a puddle that eats at anything standing in it." {
+    element "acid"
+}
+treasure "paperFan" name="Paper Fan" icon="🌬️" attack=#true text="Wind bubbles: whatever they hit gets blown backward." {
+    element "wind"
+}
+treasure "glitter" name="Glitter" icon="✨" attack=#true text="Glitter bubbles: the splash is twice as wide and hits harder." {
+    element "glitter"
+}
+
+// --- your tentacles (the close-range sting): these are the only way to improve them
+treasure "fishingLine" name="Fishing Line" icon="🎣" text="Two more tentacles lash out at once." {
+    more-tentacles 2
+}
+treasure "chopstick" name="Chopstick" icon="🥢" text="Tentacles reach 60% farther." {
+    tentacle-reach 1.6
+}
+treasure "hotSauce" name="Hot Sauce" icon="🌶️" text="Tentacle stings do double damage and slow what they hit." {
+    sting-damage 2
+    slow-on-hit 1.5 by="tentacles"
+}
+treasure "cactus" name="Cactus Spine" icon="🌵" text="Anything that touches you gets stung hard." {
+    thorns sting=3 power=1 cooldown=1
+}
+treasure "wristband" name="Festival Wristband" icon="🎟️" text="For 3 s after you land a jump, your tentacles lash twice as fast." {
+    haste-after-landing 3 lash=2
+}
+
+// --- hits, jumps and your body
+treasure "nailClipper" name="Nail Clipper" icon="✂️" text="1 in 5 hits (bubbles and tentacles) does triple damage." {
+    crit chance=0.2 mult=3 by="all"
+}
+treasure "stickyNote" name="Sticky Note" icon="🗒️" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
+    mark-on-hit 3 by="all"
+}
+treasure "penSpring" name="Pen Spring" icon="🌀" text="One more jump in mid-air: a triple jump." {
+    extra-jumps 1
+}
+treasure "cottonBall" name="Cotton Ball" icon="☁️" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
+    landing-shockwave 0.08 dmg=2 drop=0.04
+}
+treasure "rubberDuck" name="Rubber Duck" icon="🦆" text="When you get hit, a squeak knocks nearby enemies back. (5 s)" {
+    squeak-when-hit radius=0.09 push=0.06 dmg=3 cooldown=5
+}
+treasure "soapBubble" name="Rubber Glove" icon="🧤" text="Blocks the first hit you take each stage." {
+    block-first-hit
+}
+treasure "thimble" name="Thimble" icon="🛡️" text="Hits take 30% less moisture." {
+    damage-taken 0.7
+}
+treasure "whale" name="Whale Bath Toy" icon="🐳" text="Stand still for a second and you start spouting, refilling moisture." {
+    spout after=1 heal=0.5
+}
+treasure "babyBottle" name="Baby Bottle" icon="🍼" text="Every enemy you clear gives back a sip of moisture." {
+    heal-on-kill 0.5
+}
+treasure "bathSalt" name="Bath Salt" icon="🧂" text="Enemies you finish off burst and hurt their neighbors." {
+    burst-on-kill 0.045 dmg=0.5
+}
+
+// --- things that attack on their own (gadgets.js)
+treasure "guitarPick" name="Guitar Pick" icon="🎸" attack=#true text="Every 5 s a chord rings out, stinging and pushing back everything close." {
+    every 5 {
+        ring 0.13 dmg=1.2 push=0.035 color="#c08aff" show=0.45
+    }
+}
+treasure "bathBomb" name="Bath Bomb" icon="💥" attack=#true text="Every 6 s you fizz, stinging everything close around you." {
+    every 6 first=6 {
+        ring 0.09 dmg=1.5 color="#ff9ad8" look="puff" elites=#false
+    }
+}
+treasure "iceCube" name="Ice Cube" icon="🧊" attack=#true text="Every 8 s a cold snap freezes everything close for 2 s. Frozen things can't hurt you." {
+    every 8 {
+        ring 0.16 dmg=0.5 freeze=2 color="#bff4ff" show=0.6
+    }
+}
+treasure "remote" name="TV Remote" icon="📺" attack=#true text="Every 7 s, zap the 3 nearest enemies for double damage." {
+    every 7 {
+        zap 3 range=0.45 dmg=2
+    }
+}
+treasure "legoBrick" name="Lego Brick" icon="🧱" attack=#true text="Drop a brick every 4 s. Anything that steps on it takes a huge hit." {
+    every 4 {
+        brick dmg=4 last=14 most=5
+    }
+}
+treasure "marble" name="Marble" icon="🔮" attack=#true text="Every 5 s a marble rolls out ahead of you, bouncing off walls and bowling through enemies." {
+    every 5 {
+        marble dmg=2 speed=0.825 life=1.47
+    }
+}
+treasure "fairyLights" name="Fairy Lights" icon="💡" attack=#true text="Three little bulbs circle you and sting whatever they touch." {
+    orbit-lights 3 radius=0.07 dmg=0.6
+}
+treasure "magnifier" name="Magnifying Glass" icon="🔍" attack=#true text="Focused moonlight burns the nearest enemy, nonstop." {
+    beam range=0.35 dmg=0.3 tick=0.25
+}
+treasure "glowStick" name="Glow Stick" icon="🟢" attack=#true text="A soft glow around you stings anything inside it." {
+    aura 0.08 dmg=0.4 tick=0.5
+}
+
+// --- things that bend the rules
+treasure "lintRoller" name="Lint Roller" icon="🧻" text="Every 20 s, all dew nearby sticks to you at once." {
+    every 20 first=20 {
+        pull-dew
+    }
+}
+treasure "loofah" name="Loofah" icon="🧽" text="Dew soaks into you from much farther away." {
+    dew-reach 2.5
+}
+treasure "coin" name="Lucky Penny" icon="🪙" text="Enemies drop 50% more dew." {
+    dew-mult 1.5
+}
+treasure "dice" name="Game Die" icon="🎲" text="Level-up cards roll one rarity higher." {
+    card-rarity 1
+}
+treasure "hourglass" name="Egg Timer" icon="⏳" text="The boss comes 30 s later: more night to grow in." {
+    longer-night 30
+}

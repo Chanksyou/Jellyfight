@@ -118,5 +118,111 @@ export function makeWord(registry, node, where) {
   const want = def.args || [];
   if (node.args.length !== want.length) throw new Error(`${where}: "${node.name}" takes ${want.length ? want.join(', ') : 'no arguments'}, got ${node.args.length}`);
   for (const k of Object.keys(node.props)) if (!(def.props && k in def.props)) throw new Error(`${where}: "${node.name}" has no setting "${k}"${def.props ? ` (it has: ${Object.keys(def.props).join(', ')})` : ''}`);
-  return def.make(node.args, { ...def.props, ...node.props });
+  // a block word (every N { … }) builds its children from its own little vocabulary
+  if (def.block && !node.children.length) throw new Error(`${where}: "${node.name}" needs a { block } of effects (${Object.keys(def.block).join(', ')})`);
+  if (!def.block && node.children.length) throw new Error(`${where}: "${node.name}" doesn't take a { block }`);
+  const children = def.block ? node.children.map((c) => makeWord(def.block, c, where.replace(/:\d+$/, ':' + c.line))) : null;
+  try {
+    return def.make(node.args, { ...def.props, ...node.props }, where, children);
+  } catch (e) {
+    throw new Error(e.message.startsWith(where) ? e.message : `${where}: ${e.message}`);
+  }
 }
+
+// ------------------------------------------------------------------ treasure words
+// A treasure (content/treasures.kdl) is a few of these. Each one adds its effect to the run's
+// combined effects, `mods` (see newMods): the systems read mods, never treasure ids. Damage
+// numbers are multiples of the run's power (pop damage x 1.8) unless the doc says otherwise.
+
+// What a run has with no treasures
+export function newMods() {
+  return {
+    bubbles: { pierce: 1, split: false, golden: null, giant: null },
+    elements: new Set(),
+    hits: { bubbles: { slow: 0, mark: 0, crit: null }, tentacles: { slow: 0, mark: 0, crit: null, mult: 1 } },
+    tentacles: { extra: 0, reach: 1 },
+    thorns: null, haste: null, landingShockwave: null, extraJumps: 0,
+    dewReach: 1, dewMult: 1, healOnKill: 0, damageTaken: 1, blockFirstHit: false,
+    squeak: null, spout: null, burstOnKill: null, cardRarity: 0, longerNight: 0,
+    timed: [], orbit: null, beam: null, aura: null,
+  };
+}
+
+const BY = ['bubbles', 'tentacles', 'all'];
+const scopes = (by, where) => {
+  if (!BY.includes(by)) throw new Error(`${where}: by= must be one of ${BY.join(', ')}`);
+  return by === 'all' ? ['bubbles', 'tentacles'] : [by];
+};
+const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
+
+// effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
+export const TIMED_WORDS = {
+  ring: {
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s. `elites=#false` spares elites and the boss; `look` is "ring" or "puff".',
+    args: ['radius'],
+    props: { dmg: 1, push: 0, freeze: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
+    make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
+  },
+  zap: {
+    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each.',
+    args: ['count'],
+    props: { range: 0.45, dmg: 2 },
+    make: ([count], p) => ({ kind: 'zap', count, ...p }),
+  },
+  brick: {
+    doc: 'Drops a brick at your feet; the first walking enemy to step on it takes `dmg`. Lasts `last` s, at most `most` on the floor.',
+    props: { dmg: 4, last: 14, most: 5 },
+    make: (_, p) => ({ kind: 'brick', ...p }),
+  },
+  marble: {
+    doc: 'Rolls a marble out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`.',
+    props: { dmg: 2, speed: 0.825, life: 1.47 },
+    make: (_, p) => ({ kind: 'marble', ...p }),
+  },
+  'pull-dew': {
+    doc: 'All the dew on the floor drifts to you at once.',
+    make: () => ({ kind: 'pull-dew' }),
+  },
+};
+
+export const TREASURE_WORDS = {
+  pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
+  'split-bubble': { doc: 'Each bubble that pops blows a smaller one at another enemy nearby, once.', make: () => (m) => { m.bubbles.split = true; } },
+  'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
+  'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
+  element: {
+    doc: 'Infuses your bubbles with an element: fire, lightning, ice, acid, wind or glitter (see bubbles.js). Elements stack.',
+    args: ['name'],
+    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); }; },
+  },
+  'slow-on-hit': { doc: 'Enemies you hit are slowed for `seconds`. `by` = "bubbles", "tentacles" or "all".', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].slow = Math.max(m.hits[k].slow, s); }; } },
+  'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
+  crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].crit = { chance: p.chance, mult: p.mult }; }; } },
+  'more-tentacles': { doc: '`count` more tentacles lash out at once (6 at most).', args: ['count'], make: ([n]) => (m) => { m.tentacles.extra += n; } },
+  'tentacle-reach': { doc: 'Tentacles reach `times` as far.', args: ['times'], make: ([k]) => (m) => { m.tentacles.reach *= k; } },
+  'sting-damage': { doc: 'Tentacle stings do `times` the damage.', args: ['times'], make: ([k]) => (m) => { m.hits.tentacles.mult *= k; } },
+  thorns: { doc: 'Anything that touches you is stung for `sting` x your sting stat + `power` x your power, at most once every `cooldown` s each.', props: { sting: 3, power: 1, cooldown: 1 }, make: (_, p) => (m) => { m.thorns = p; } },
+  'haste-after-landing': { doc: 'For `seconds` after you land a jump, your tentacles lash `lash` times as fast.', args: ['seconds'], props: { lash: 2 }, make: ([s], p) => (m) => { m.haste = { seconds: s, lash: p.lash }; } },
+  'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
+  'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
+  'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeak = p; } },
+  'block-first-hit': { doc: 'The first hit you take each stage does nothing.', make: () => (m) => { m.blockFirstHit = true; } },
+  'damage-taken': { doc: 'Hits take `times` as much moisture.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
+  spout: { doc: 'Stand still for `after` s and you refill `heal` moisture a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
+  'heal-on-kill': { doc: 'Every enemy you clear gives back `moisture`.', args: ['moisture'], make: ([n]) => (m) => { m.healOnKill += n; } },
+  'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
+  'dew-reach': { doc: 'Dew drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.dewReach *= k; } },
+  'dew-mult': { doc: 'Enemies drop `times` as much dew.', args: ['times'], make: ([k]) => (m) => { m.dewMult *= k; } },
+  'card-rarity': { doc: 'Level-up cards roll `steps` rarity higher.', args: ['steps'], make: ([n]) => (m) => { m.cardRarity += n; } },
+  'longer-night': { doc: 'The boss comes `seconds` later.', args: ['seconds'], make: ([n]) => (m) => { m.longerNight += n; } },
+  every: {
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, pull-dew.',
+    args: ['seconds'],
+    props: { first: null },
+    block: TIMED_WORDS,
+    make: ([s], p, where, effects) => (m) => { m.timed.push({ every: s, first: p.first ?? s * 0.6, effects, key: where }); },
+  },
+  'orbit-lights': { doc: '`count` little bulbs circle you `radius` m out and sting whatever they touch for `dmg` (each enemy at most every 0.4 s).', args: ['count'], props: { radius: 0.07, dmg: 0.6 }, make: ([n], p) => (m) => { m.orbit = { count: n, ...p }; } },
+  beam: { doc: 'A beam burns the nearest enemy within `range` m for `dmg` every `tick` s.', props: { range: 0.35, dmg: 0.3, tick: 0.25 }, make: (_, p) => (m) => { m.beam = p; } },
+  aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s.', args: ['radius'], props: { dmg: 0.4, tick: 0.5 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
+};

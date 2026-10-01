@@ -7,7 +7,7 @@ import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { TYPES } from './enemies.js';
-import { CONTENT } from './content.js';
+import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
@@ -19,6 +19,13 @@ import { bus, PLAYER } from './events.js';
 const DOWN = new THREE.Vector3(0, -1, 0);
 const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// The treasures you own; counts changes so the combined effects are rebuilt only when needed
+class Owned extends Set {
+  add(v) { super.add(v); this.version = (this.version || 0) + 1; return this; }
+  delete(v) { const r = super.delete(v); this.version = (this.version || 0) + 1; return r; }
+  clear() { super.clear(); this.version = (this.version || 0) + 1; }
+}
 
 export class Run {
   // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, traversal, hud, ui, fx, tpc, input, setNight }
@@ -64,8 +71,10 @@ export class Run {
     bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     this.player.onLand = (drop) => {
-      if (this.owned.has('wristband')) this.wristT = 3;
-      if (this.owned.has('cottonBall') && drop > 0.04) this.shockwave(this.player.position.clone(), 0.08, this.power * 2, 0xffffff);
+      const M = this.mods;
+      if (M.haste) this.wristT = M.haste.seconds;
+      const L = M.landingShockwave;
+      if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff);
     };
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
@@ -104,7 +113,7 @@ export class Run {
     this.xp = 0;
     this.purse = 0;
     this.moisture = this.stats.moisture;
-    this.owned = new Set();
+    this.owned = new Owned();
     this.drops = 0;
     this.kills = 0;
     this.pendingLevels = 0;
@@ -114,8 +123,6 @@ export class Run {
     this.stillT = 0;
     this.duckCd = 0;
     this.bubbleUsed = false;
-    this.lintT = 20;
-    this.bombT = 6;
     this.spawnAcc = 0;
     this.dropTimer = 2;
     this.lastArea = null;
@@ -148,21 +155,28 @@ export class Run {
   // how hard treasures that attack on their own hit: scales with pop damage
   get power() { return this.stats.pop * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
   // The tentacles' stats, with their treasures applied
+  // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
+  // reads these, never treasure ids
+  get mods() {
+    if (this._modsOf !== this.owned || this._modsV !== this.owned.version) {
+      this._mods = compileMods(this.owned);
+      this._modsOf = this.owned;
+      this._modsV = this.owned.version;
+    }
+    return this._mods;
+  }
+
   get tentacleStats() {
-    const s = this.stats, o = this.owned;
+    const s = this.stats, M = this.mods;
     return {
-      tentacles: Math.min(6, s.tentacles + (o.has('fishingLine') ? 2 : 0)),
-      reach: s.reach * (o.has('chopstick') ? 1.6 : 1),
+      tentacles: Math.min(6, s.tentacles + M.tentacles.extra),
+      reach: s.reach * M.tentacles.reach,
       sting: s.sting,
       lashSpeed: s.lashSpeed,
     };
   }
-  // the treasures that work on tentacle stings
-  get tentacleTreasures() {
-    return new Set(['stickyNote', 'nailClipper', 'hotSauce'].filter((id) => this.owned.has(id)));
-  }
-  // seconds until the boss comes (the Egg Timer adds 30)
-  get duration() { return this.stage.duration + (this.owned.has('hourglass') ? 30 : 0); }
+  // seconds until the boss comes (treasures can make the night longer)
+  get duration() { return this.stage.duration + this.mods.longerNight; }
 
   // ------------------------------------------------------------ main update
   update(dt) {
@@ -187,7 +201,7 @@ export class Run {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
-        airJumps: this.owned.has('penSpring') ? 2 : 1,
+        airJumps: 1 + this.mods.extraJumps,
         slow: this.slowT > 0 ? 0.4 : 0, push,
       });
     }
@@ -214,10 +228,10 @@ export class Run {
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
     if (this.phase === 'explore' || this.phase === 'boss') {
       // main attack: bubbles, blown from the top of the bell
-      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.owned);
+      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
-      this.lash.update(dt, origin, this.tentacleStats, this.tentacleTreasures, { lashSpeedMul: this.wristT > 0 ? 2 : 1 });
-      this.gadgets.update(dt, { owned: this.owned, feet: P.position, center: origin, facing: P.facing, sting: this.power });
+      this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { lashSpeedMul: this.wristT > 0 && this.mods.haste ? this.mods.haste.lash : 1 });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, pullDew: () => { this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); } });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         const found = this.lost.update(dt, this.t, P.position);
@@ -229,22 +243,15 @@ export class Run {
     }
     for (const b of this.bursts.splice(0)) this.burst(b);
 
-    // --- treasure effects that tick
-    if (this.owned.has('whale')) {
+    // --- treasure effects that tick here (timed and area ones run in gadgets.js)
+    const spout = this.mods.spout;
+    if (spout) {
       this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;
-      if (this.stillT > 1) this.heal(0.5 * dt);
-    }
-    if (this.owned.has('bathBomb') && this.phase !== 'moonlift') {
-      this.bombT -= dt;
-      if (this.bombT <= 0) { this.bombT = 6; this.shockwave(P.position.clone(), 0.09, this.power * 1.5, 0xff9ad8); }
-    }
-    if (this.owned.has('lintRoller')) {
-      this.lintT -= dt;
-      if (this.lintT <= 0) { this.lintT = 20; this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); }
+      if (this.stillT > spout.after) this.heal(spout.heal * dt);
     }
 
     // --- dew
-    const got = this.dew.update(dt, origin, this.owned.has('loofah') ? 2.5 : 1);
+    const got = this.dew.update(dt, origin, this.mods.dewReach);
     if (got) { this.gainDew(got); sfx.dew(juice.combo); }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
@@ -310,9 +317,10 @@ export class Run {
       if (d < e.r + this.cfg.radius) {
         if (e.T.slows) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
         // Cactus Spine: whatever touches you gets stung (once per second each)
-        if (this.owned.has('cactus') && !(this.cactusCd.get(e.id) > this.t)) {
-          this.cactusCd.set(e.id, this.t + 1);
-          bus.emit('damage_taken', { targetId: e.id, amount: this.stats.sting * 3 + this.power, color: '#9adf6a', source: 'cactus' });
+        const th = this.mods.thorns;
+        if (th && !(this.cactusCd.get(e.id) > this.t)) {
+          this.cactusCd.set(e.id, this.t + th.cooldown);
+          bus.emit('damage_taken', { targetId: e.id, amount: this.stats.sting * th.sting + this.power * th.power, color: '#9adf6a', source: 'thorns' });
         }
         // ant squads hit harder rolling
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type });
@@ -323,14 +331,16 @@ export class Run {
   hit(amount) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
-    if (this.owned.has('thimble')) amount *= 0.7;
-    if (this.owned.has('soapBubble') && !this.bubbleUsed) {
+    const M = this.mods;
+    amount *= M.damageTaken;
+    if (M.blockFirstHit && !this.bubbleUsed) {
       this.bubbleUsed = true;
       this.hud.toast('🫧 Pop!', 900);
       return;
     }
-    if (this.owned.has('rubberDuck') && this.duckCd <= 0) {
-      this.duckCd = 5;
+    const Q = M.squeak;
+    if (Q && this.duckCd <= 0) {
+      this.duckCd = Q.cooldown;
       const P = this.player.position;
       this.fx.puff(P.clone().setY(P.y + 0.015), 0xffe066, 0.09, 0.35);
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
@@ -338,9 +348,9 @@ export class Run {
         if (e.dead || e.proxy) continue;
         const away = e.pos.clone().sub(P).setY(0);
         const d = away.length();
-        if (d > 0.09) continue;
-        bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: 0.06 });
-        bus.emit('damage_taken', { targetId: e.id, amount: 3, color: '#ffe066', source: 'duck' });
+        if (d > Q.radius) continue;
+        bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: Q.push });
+        bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
       }
     }
     this.hurt(amount);
@@ -360,16 +370,16 @@ export class Run {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
-    const dew = Math.round((this.owned.has('coin') ? baseDew * 1.5 : baseDew) * juice.bonus);
+    const dew = Math.round(baseDew * this.mods.dewMult * juice.bonus);
     this.dew.drop(c, 1, dew);
     this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
-    if (this.owned.has('babyBottle')) this.heal(0.5);
+    if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
     if (elite) {                         // elites give back some moisture and drop a treasure
       this.heal(4);
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
     }
-    if (this.owned.has('bathSalt')) this.bursts.push(c);
+    if (this.mods.burstOnKill) this.bursts.push(c);
   }
 
   // One of the high-ground elites (elites.js) is beaten
@@ -392,10 +402,12 @@ export class Run {
   }
 
   burst(c) {
-    this.fx.puff(c, 0xffffff, 0.045, 0.3);
+    const B = this.mods.burstOnKill;
+    if (!B) return;
+    this.fx.puff(c, 0xffffff, B.radius, 0.3);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < 0.045 + e.r) bus.emit('damage_taken', { targetId: e.id, amount: this.power * 0.5, color: '#bfe8ff', source: 'bathSalt' });
+      if (this.enemies.center(e).distanceTo(c) < B.radius + e.r) bus.emit('damage_taken', { targetId: e.id, amount: this.power * B.dmg, color: '#bfe8ff', source: 'burst' });
     }
   }
 
@@ -414,12 +426,12 @@ export class Run {
     this.pendingLevels--;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3, this.owned.has('dice') ? 1 : 0), this.stats, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3, this.mods.cardRarity), this.stats, 1, (card) => {
       const before = this.stats.moisture;
       applyCard(this.stats, card);
       if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
       this.resume();
-    }, () => rollCards(this.stats, 3, this.owned.has('dice') ? 1 : 0));
+    }, () => rollCards(this.stats, 3, this.mods.cardRarity));
   }
 
   resume() {

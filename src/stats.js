@@ -1,5 +1,6 @@
 // The jelly's stats, level-up cards, treasures and evolution choices.
 // Everything a player reads is here, so tuning lives in one place.
+import { CONTENT } from './content.js';
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
@@ -94,59 +95,11 @@ export function rollCards(stats, n = 3, bonus = 0) {
 export const xpToNext = (level) => 10 + 4 * level;   // steep: levels are a trickle, treasures are the big moments
 
 // Treasures: lost things with one-of-a-kind effects. Each can appear once per run.
-export const TREASURES = [
-  // bubbles (bubbles.js)
-  { id: 'bobbyPin', name: 'Bobby Pin', icon: '🧷', text: 'Bubbles pierce, popping on up to 3 enemies in a line.' },
-  { id: 'hairTie', name: 'Hair Tie', icon: '➰', text: 'Each bubble that pops blows a smaller one at another enemy nearby.' },
-  { id: 'goldRing', name: 'Gold Ring', icon: '💍', text: 'Every 10th bubble is golden and does 5x damage.' },
-  { id: 'bathSalt', name: 'Bath Salt', icon: '🧂', text: 'Enemies you finish off burst and hurt their neighbors.' },
-  { id: 'rubberDuck', name: 'Rubber Duck', icon: '🦆', text: 'When you get hit, a squeak knocks nearby enemies back. (5 s)' },
-  { id: 'whale', name: 'Whale Bath Toy', icon: '🐳', text: 'Stand still for a second and you start spouting, refilling moisture.' },
-  { id: 'qtip', name: 'Q-tip', icon: '🦴', text: 'Enemies your bubbles hit are slowed.' },
-  { id: 'soapBubble', name: 'Rubber Glove', icon: '🧤', text: 'Blocks the first hit you take each stage.' },
-  { id: 'lintRoller', name: 'Lint Roller', icon: '🧻', text: 'Every 20 s, all dew nearby sticks to you at once.' },
-  { id: 'reedStick', name: 'Reed Stick', icon: '🎋', text: 'Every 6th bubble brings a giant, slow one that pops for a big splash.' },
-  // elements for your bubbles (bubbles.js); they stack
-  { id: 'candle', name: 'Birthday Candle', icon: '🕯️', text: 'Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage.' },
-  { id: 'battery', name: 'AA Battery', icon: '🔋', text: 'Lightning bubbles: every pop arcs to 2 more enemies nearby.' },
-  { id: 'freezerPack', name: 'Freezer Pack', icon: '❄️', text: 'Ice bubbles: hits chill and slow; the 3rd chilled hit freezes the enemy solid.' },
-  { id: 'nailPolish', name: 'Nail Polish', icon: '💅', text: 'Acid bubbles: pops leave a puddle that eats at anything standing in it.' },
-  { id: 'paperFan', name: 'Paper Fan', icon: '🌬️', text: 'Wind bubbles: whatever they hit gets blown backward.' },
-  { id: 'glitter', name: 'Glitter', icon: '✨', text: 'Glitter bubbles: the splash is twice as wide and hits harder.' },
-  // tentacles (the close-range sting): these are the only way to improve them
-  { id: 'fishingLine', name: 'Fishing Line', icon: '🎣', text: 'Two more tentacles lash out at once.' },
-  { id: 'chopstick', name: 'Chopstick', icon: '🥢', text: 'Tentacles reach 60% farther.' },
-  { id: 'hotSauce', name: 'Hot Sauce', icon: '🌶️', text: 'Tentacle stings do double damage and slow what they hit.' },
-  { id: 'cactus', name: 'Cactus Spine', icon: '🌵', text: 'Anything that touches you gets stung hard.' },
-  { id: 'wristband', name: 'Festival Wristband', icon: '🎟️', text: 'For 3 s after you land a jump, your tentacles lash twice as fast.' },
-  { id: 'penSpring', name: 'Pen Spring', icon: '🌀', text: 'One more jump in mid-air: a triple jump.' },
-  { id: 'bathBomb', name: 'Bath Bomb', icon: '💥', text: 'Every 6 s you fizz, stinging everything close around you.' },
-  { id: 'nailClipper', name: 'Nail Clipper', icon: '✂️', text: '1 in 5 hits (bubbles and tentacles) does triple damage.' },
-  { id: 'cottonBall', name: 'Cotton Ball', icon: '☁️', text: 'Land from a jump to send out a soft shockwave that stings.' },
-  { id: 'loofah', name: 'Loofah', icon: '🧽', text: 'Dew soaks into you from much farther away.' },
-  // things that attack on their own (gadgets.js)
-  { id: 'guitarPick', name: 'Guitar Pick', icon: '🎸', text: 'Every 5 s a chord rings out, stinging and pushing back everything close.' },
-  { id: 'remote', name: 'TV Remote', icon: '📺', text: 'Every 7 s, zap the 3 nearest enemies for double damage.' },
-  { id: 'fairyLights', name: 'Fairy Lights', icon: '💡', text: 'Three little bulbs circle you and sting whatever they touch.' },
-  { id: 'magnifier', name: 'Magnifying Glass', icon: '🔍', text: 'Focused moonlight burns the nearest enemy, nonstop.' },
-  { id: 'glowStick', name: 'Glow Stick', icon: '🟢', text: 'A soft glow around you stings anything inside it.' },
-  { id: 'iceCube', name: 'Ice Cube', icon: '🧊', text: 'Every 8 s a cold snap freezes everything close for 2 s. Frozen things can\'t hurt you.' },
-  { id: 'legoBrick', name: 'Lego Brick', icon: '🧱', text: 'Drop a brick every 4 s. Anything that steps on it takes a huge hit.' },
-  { id: 'marble', name: 'Marble', icon: '🔮', text: 'Every 5 s a marble rolls out ahead of you, bouncing off walls and bowling through enemies.' },
-  // things that bend the rules
-  { id: 'stickyNote', name: 'Sticky Note', icon: '🗒️', text: 'Enemies you hit are marked for 3 s and take 50% more damage from everything.' },
-  { id: 'coin', name: 'Lucky Penny', icon: '🪙', text: 'Enemies drop 50% more dew.' },
-  { id: 'dice', name: 'Game Die', icon: '🎲', text: 'Level-up cards roll one rarity higher.' },
-  { id: 'hourglass', name: 'Egg Timer', icon: '⏳', text: 'The boss comes 30 s later: more night to grow in.' },
-  { id: 'babyBottle', name: 'Baby Bottle', icon: '🍼', text: 'Every enemy you clear gives back a sip of moisture.' },
-  { id: 'thimble', name: 'Thimble', icon: '🛡️', text: 'Hits take 30% less moisture.' },
-];
+// Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)
+export const TREASURES = CONTENT.treasures;
 
-// Treasures that change how you attack: elements, things that attack on their own, and bubble
-// upgrades. The starting pick always includes one of these.
-export const ATTACK_TREASURES = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter',
-  'guitarPick', 'remote', 'fairyLights', 'magnifier', 'glowStick', 'iceCube', 'legoBrick', 'marble', 'bathBomb', 'cottonBall',
-  'bobbyPin', 'hairTie', 'reedStick'];
+// Treasures that change how you attack (attack=#true): the starting pick always includes one
+export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;

@@ -59,12 +59,13 @@ export class Lash {
     return m;
   }
 
-  // origin: world position tentacles come from. has: set of treasure ids.
-  update(dt, origin, stats, has, mods) {
-    const speed = stats.lashSpeed * (mods.lashSpeedMul || 1);
+  // origin: world position tentacles come from. hits: what your treasures add to a sting
+  // (mods.hits.tentacles: slow, mark, crit, mult; see words.js)
+  update(dt, origin, stats, hits, opts) {
+    const speed = stats.lashSpeed * (opts.lashSpeedMul || 1);
     this.timer += dt * speed;
     if (this.timer >= 1) {
-      if (this.fire(origin, stats, has)) this.timer = 0;
+      if (this.fire(origin, stats, hits)) this.timer = 0;
       else this.timer = 1; // ready, waiting for something in reach
     }
     this.animate(dt, origin);
@@ -80,33 +81,23 @@ export class Lash {
     return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   }
 
-  fire(origin, stats, has) {
-    const lance = has.has('reedStick');
-    const normal = lance ? Math.max(0, stats.tentacles - 1) : stats.tentacles;
-    const targets = this.inReach(origin, stats.reach).slice(0, normal);
-    let lanceTarget = null;
-    if (lance && this.count % 2 === 0) {
-      lanceTarget = this.inReach(origin, stats.reach * 2, new Set(targets))[0] || null;
-    }
-    if (!targets.length && !lanceTarget) return false;
-
+  fire(origin, stats, hits) {
+    const targets = this.inReach(origin, stats.reach).slice(0, stats.tentacles);
+    if (!targets.length) return false;
     this.count++;
-    const golden = has.has('goldRing') && this.count % 10 === 0;
-    const dmg = stats.sting * (golden ? 5 : 1);
-    for (const e of targets) this.strike(origin, e, dmg, golden, has, stats);
-    if (lanceTarget) this.strike(origin, lanceTarget, dmg, golden, has, stats, true);
+    for (const e of targets) this.strike(origin, e, stats.sting, hits);
     return true;
   }
 
-  strike(from, target, dmg, golden, has, stats, lance = false) {
+  strike(from, target, dmg, hits) {
     const rig = this.getRig();
     const tent = rig ? this.pickTentacle(rig, from, target) : -1;
     let m = null;
     if (tent < 0) {
       m = this.mesh();
-      m.material = golden ? this.goldMat : this.mat;
+      m.material = this.mat;
     }
-    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden, hit: false, has, stats, lance, chained: false });
+    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits });
   }
 
   animate(dt, origin) {
@@ -124,8 +115,7 @@ export class Lash {
       s.mesh.visible = true;
       s.mesh.position.copy(a);
       s.mesh.quaternion.setFromUnitVectors(UP, dir);
-      const thick = s.lance ? 0.0022 : 0.0015;
-      s.mesh.scale.set(thick, full * k, thick);
+      s.mesh.scale.set(0.0015, full * k, 0.0015);
     }
     const done = this.strikes.filter((s) => s.t >= EXTEND + HOLD + RETRACT);
     for (const s of done) this.release(s);
@@ -133,51 +123,18 @@ export class Lash {
   }
 
   land(s, a, b) {
-    const E = this.enemies, has = s.has;
-    const color = s.golden ? '#ffd23a' : '#fff';
-    this.fx.puff(b, s.golden ? 0xffd23a : 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
+    const H = s.hits;
+    this.fx.puff(b, 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
     sfx.sting();
     const id = s.target.id;
     if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: 0.008 });
     if (s.target.dead) return;
-    if (has.has('qtip')) bus.emit('status_applied', { targetId: id, status: 'slow', duration: 2 });
-    if (has.has('stickyNote')) bus.emit('status_applied', { targetId: id, status: 'mark', duration: 3 });
-    // Hot Sauce: double damage, and it slows
-    if (has.has('hotSauce')) { s.dmg *= 2; bus.emit('status_applied', { targetId: id, status: 'slow', duration: 1.5 }); this.fx.puff(b, 0xff5a2a, 0.008, 0.2); }
-    // Nail Clipper: some stings are snips for triple damage
-    const snip = has.has('nailClipper') && Math.random() < 0.2;
-    if (snip) this.fx.puff(b, 0xff6b6b, 0.01, 0.2);
-    bus.emit('damage_taken', { targetId: id, amount: snip ? s.dmg * 3 : s.dmg, color: snip ? '#ff6b6b' : color, source: 'tentacle' });
-
-    // Bobby Pin: everything along the line out to full reach takes the hit too
-    if (has.has('bobbyPin')) {
-      const dir = b.clone().sub(a).normalize();
-      const reach = s.stats.reach * (s.lance ? 2 : 1);
-      for (const e of E.list) {
-        if (e.dead || e === s.target) continue;
-        const c = E.center(e, new THREE.Vector3()).sub(a);
-        const along = c.dot(dir);
-        if (along < 0 || along > reach) continue;
-        if (c.addScaledVector(dir, -along).length() < e.r + 0.006) {
-          if (has.has('qtip')) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
-          bus.emit('damage_taken', { targetId: e.id, amount: s.dmg, color, source: 'tentacle' });
-        }
-      }
-    }
-    // Hair Tie: bounce to one more enemy nearby, once
-    if (has.has('hairTie') && !s.chained) {
-      let best = null, bd = 0.07;
-      for (const e of E.list) {
-        if (e.dead || e === s.target) continue;
-        const d = E.center(e, new THREE.Vector3()).distanceTo(b);
-        if (d < bd) { bd = d; best = e; }
-      }
-      if (best) {
-        const m = this.mesh();
-        m.material = s.golden ? this.goldMat : this.mat;
-        this.strikes.push({ ...s, mesh: m, rig: null, tent: -1, target: best, fixedFrom: b.clone(), t: 0, dmg: s.dmg * 0.7, hit: false, chained: true });
-      }
-    }
+    if (H.slow) bus.emit('status_applied', { targetId: id, status: 'slow', duration: H.slow });
+    if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark });
+    let dmg = s.dmg * H.mult, color = '#fff';
+    if (H.mult > 1) this.fx.puff(b, 0xff5a2a, 0.008, 0.2);             // a hot sting
+    if (H.crit && Math.random() < H.crit.chance) { dmg *= H.crit.mult; color = '#ff6b6b'; this.fx.puff(b, 0xff6b6b, 0.01, 0.2); }
+    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle' });
   }
 }
 

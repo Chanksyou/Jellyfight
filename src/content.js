@@ -6,9 +6,9 @@
 //   content/waves.kdl     how the night fills with them
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
-import { ENEMY_WORDS, makeWord } from './words.js';
+import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null };
+export const CONTENT = { enemies: {}, waves: null, treasures: [] };
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
@@ -58,10 +58,39 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
   return w;
 }
 
+// treasure "id" name="…" icon="…" text="…" attack=#true { effect words… }
+export function compileTreasures(nodes, file = 'content/treasures.kdl') {
+  const out = [], seen = new Set();
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name !== 'treasure') throw new Error(`${where}: expected "treasure", got "${n.name}"`);
+    const id = n.args[0];
+    if (typeof id !== 'string') throw new Error(`${where}: treasure needs an id, like treasure "bobbyPin"`);
+    if (seen.has(id)) throw new Error(`${where}: there are two treasures called "${id}"`);
+    seen.add(id);
+    for (const k of ['name', 'icon', 'text']) if (typeof n.props[k] !== 'string') throw new Error(`${where}: "${id}" needs ${k}="…"`);
+    if (!n.children.length) throw new Error(`${where}: "${id}" does nothing (give it effect words)`);
+    out.push({
+      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack,
+      effects: n.children.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`)),
+      vocabulary: n.children.map((w) => w.name),
+    });
+  }
+  return out;
+}
+
+// The combined effects of the treasures you own (ids): what the systems read
+export function compileMods(ids) {
+  const m = newMods();
+  for (const t of CONTENT.treasures) if (ids.has(t.id)) for (const fx of t.effects) fx(m);
+  return m;
+}
+
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves] = await Promise.all([read('enemies.kdl'), read('waves.kdl')]);
+  const [enemies, waves, treasures] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl')]);
   CONTENT.enemies = compileEnemies(parse(enemies, 'content/enemies.kdl'));
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
+  CONTENT.treasures = compileTreasures(parse(treasures, 'content/treasures.kdl'));
   return CONTENT;
 }

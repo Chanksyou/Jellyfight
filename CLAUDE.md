@@ -17,7 +17,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | Vents, gift boxes, Moon Drop spots, elite spots, boss arena | `src/stage1.js` | Plain data |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
-| Treasures | `src/stats.js` (`TREASURES`) + their effects in `bubbles.js`, `gadgets.js`, `combat.js`, `run.js` | Not words yet (see "Next") |
+| Treasures | `content/treasures.kdl` | Effect words from `src/words.js` (`TREASURE_WORDS`, `TIMED_WORDS` for `every N { … }`). Systems read the run's combined effects (`run.mods`), never treasure ids |
 | Elites (Controller, Mug, Kettle) | `src/elites.js` | Not words yet |
 | The boss (Vacuum) | `src/vacuum.js` | Not words yet |
 | Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |
@@ -25,10 +25,12 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 
 ## Rules
 
-1. **New behaviour = a new word, not a special case.** If a bug needs to do something no word
-   can say, add a small word to `src/words.js` (one job, a one-line `doc`, named args/props),
-   use it in the `.kdl`, and add a `words/<name>` story that proves it. Never branch on a type
-   id in code (`if (e.type === 'roach')`). If existing words can say it, use them.
+1. **New behaviour = a new word, not a special case.** If a bug or a treasure needs to do
+   something no word can say, add a small word to `src/words.js` (one job, a one-line `doc`,
+   named args/props), use it in the `.kdl`, and add a story that proves it (`words/<name>` for
+   bug words, `treasures/<name>` for treasure words). Never branch on an id in code
+   (`if (e.type === 'roach')`, `owned.has('candle')`). If existing words can say it, use them:
+   a new treasure is often just a new combination, e.g. `every 3 { ring 0.1 freeze=1 }`.
 2. **Prove it with a story.** `src/stories.js` holds named situations in the real game; each
    `play()` steps the game and asserts what should happen. Add or update a story for every
    behaviour you change. Run them all before you push:
@@ -59,9 +61,6 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 
 ## Next (the same pattern, not done yet)
 
-- **Treasures as effect words** (`every 5 { ring … }`, `on-hit …`, `on-kill …`, `stat +1 bubbles`,
-  `bubble-element fire`) in a `content/treasures.kdl`. Today about 40 treasures are
-  `owned.has('…')` checks spread over four files.
 - **Elites and the Vacuum as stacked words** (a telegraph shape + an effect per attack).
 - **A balance bot**: headless runs reporting the median wave reached and what killed you
   (the bus already tags every hit with its `source`).

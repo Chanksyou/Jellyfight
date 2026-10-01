@@ -10,8 +10,9 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
-import { ENEMY_WORDS } from './words.js';
-import { CONTENT, compileEnemies } from './content.js';
+import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS } from './words.js';
+import { CONTENT, compileEnemies, compileTreasures } from './content.js';
+import { rollCards, RARITY } from './stats.js';
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 
@@ -26,7 +27,11 @@ function stub(obj, key, fn) {
   patched.push([obj, key, Object.prototype.hasOwnProperty.call(obj, key), obj[key]]);
   obj[key] = fn;
 }
+const offs = [];
+// record every payload of a bus event during this story (stopped by fresh/restore)
+function record(type) { const log = []; offs.push(bus.on(type, (p) => log.push(p))); return log; }
 function restore() {
+  while (offs.length) offs.pop()();
   while (patched.length) {
     const [obj, key, own, old] = patched.pop();
     if (own) obj[key] = old; else delete obj[key];
@@ -290,6 +295,280 @@ story('look/tokens-reach-the-game', {
   play() {
     const s = G().APT.scene;
     return ok(LOOK.has('night-fill') && s.environmentIntensity === LOOK.num('night-fill') && s.fog.density === LOOK.num('haze'), { fill: s.environmentIntensity, haze: s.fog.density });
+  },
+});
+
+// --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
+const give = (...ids) => { for (const id of ids) G().run.owned.add(id); };
+const dmgBy = (log, source) => log.filter((d) => d.source === source && d.targetId !== PLAYER);
+const roachAt = (dx, dz, opts = { still: true, hp: 9999 }) => spawn('roach', near(dx, dz), opts);
+const setupFight = (opts = {}) => { fresh({ elites: false, ...opts }); tp(3.2, 0.05, 3.0, 0); };
+
+story('treasures/pierce', {
+  about: 'pierce (Bobby Pin): a bubble pops through up to 3 bugs in a line.',
+  setup() { setupFight({ lash: false }); give('bobbyPin'); G().run.stats.bubbles = 1; [0.2, 0.25, 0.3].forEach((z) => roachAt(0, -z)); },
+  play() { step(240); const hurt = G().enemies.list.filter((e) => e.hp < e.maxHp).length; return ok(hurt >= 2, { hurt }); },
+});
+story('treasures/split-bubble', {
+  about: 'split-bubble (Hair Tie): each pop blows a smaller bubble at another bug nearby.',
+  setup() { setupFight({ lash: false }); give('hairTie'); G().run.stats.bubbles = 1; roachAt(0, -0.12); roachAt(0.1, -0.14); },
+  play() { step(360); const side = G().enemies.list[1]; return ok(side.hp < side.maxHp, { sideDamage: Math.round(side.maxHp - side.hp) }); },
+});
+story('treasures/golden-bubble', {
+  about: 'golden-bubble (Gold Ring): every 10th bubble is golden and hits 5x.',
+  setup() { setupFight({ lash: false }); give('goldRing'); roachAt(0, -0.15); },
+  play() {
+    const { run } = G(), opts = [];
+    const blow = run.bubbles.blow.bind(run.bubbles);
+    stub(run.bubbles, 'blow', (o, t, x) => { opts.push(x.golden); return blow(o, t, x); });
+    step(60 * 13);
+    const golden = opts.filter((g) => g === 5).length;
+    return ok(opts.length >= 20 && golden === Math.floor(opts.length / 10), { blown: opts.length, golden });
+  },
+});
+story('treasures/giant-bubble', {
+  about: 'giant-bubble (Reed Stick): every 6th bubble brings a giant, slow one.',
+  setup() { setupFight({ lash: false }); give('reedStick'); roachAt(0, -0.15); },
+  play() {
+    const { run } = G(), opts = [];
+    const blow = run.bubbles.blow.bind(run.bubbles);
+    stub(run.bubbles, 'blow', (o, t, x) => { opts.push(x); return blow(o, t, x); });
+    step(60 * 8);
+    const giants = opts.filter((x) => x.big).length, normal = opts.length - giants;
+    return ok(giants >= 1 && giants === Math.floor(normal / 6) && opts.find((x) => x.big).size === 2.5, { normal, giants });
+  },
+});
+story('treasures/element', {
+  about: 'element: fire burns, lightning arcs, ice freezes, acid leaves puddles (Candle, Battery, Freezer Pack, Nail Polish).',
+  setup() { setupFight({ lash: false }); give('candle', 'battery', 'freezerPack', 'nailPolish'); G().run.stats.bubbles = 2; roachAt(-0.04, -0.15); roachAt(0.04, -0.15); roachAt(0.1, -0.2); },
+  play() {
+    const { run, enemies } = G();
+    let burned = false, puddles = false, zapped = false, frozen = false;
+    const zap = run.bubbles.zap.bind(run.bubbles);
+    stub(run.bubbles, 'zap', (...a) => { zapped = true; return zap(...a); });
+    step(60 * 6, () => {
+      burned ||= run.bubbles.burning.size > 0; puddles ||= run.bubbles.puddles.length > 0;
+      frozen ||= enemies.list.some((e) => e.freezeT > 0);
+      return burned && puddles && zapped && frozen;
+    });
+    return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
+  },
+});
+story('treasures/slow-on-hit', {
+  about: 'slow-on-hit (Q-tip): bugs your bubbles hit are slowed.',
+  setup() { setupFight({ lash: false }); give('qtip'); roachAt(0, -0.15); },
+  play() { const e = G().enemies.list[0]; step(120, () => e.slowT > 0); return ok(e.slowT > 0, { slowT: +e.slowT.toFixed(2) }); },
+});
+story('treasures/mark-on-hit', {
+  about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
+  setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
+  play() { const e = G().enemies.list[0]; step(120, () => e.markT > 0); return ok(e.markT > 0 && !!e.note, { markT: +e.markT.toFixed(2) }); },
+});
+story('treasures/crit', {
+  about: 'crit (Nail Clipper): about 1 hit in 5 does triple damage.',
+  setup() { setupFight({ lash: false }); give('nailClipper'); roachAt(0, -0.15); },
+  play() {
+    const log = record('damage_taken'), pop = G().run.stats.pop;
+    step(60 * 20);
+    const hits = dmgBy(log, 'bubble'), crits = hits.filter((d) => Math.abs(d.amount - pop * 3) < 1e-6).length;
+    return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
+  },
+});
+story('treasures/more-tentacles', {
+  about: 'more-tentacles (Fishing Line): two more tentacles lash out at once.',
+  setup() { setupFight({ bubbles: false }); give('fishingLine'); [[0.05, 0], [-0.05, 0], [0, 0.05], [0, -0.05]].forEach(([x, z]) => roachAt(x, z)); },
+  play() { let most = 0; step(120, () => { most = Math.max(most, G().lash.strikes.length); }); return ok(most >= 3 && G().run.tentacleStats.tentacles === 3, { atOnce: most }); },
+});
+story('treasures/tentacle-reach', {
+  about: 'tentacle-reach (Chopstick): tentacles reach 60% farther.',
+  setup() { setupFight({ bubbles: false }); give('chopstick'); roachAt(0.11, 0); },
+  play() { const log = record('damage_taken'); step(120); return ok(dmgBy(log, 'tentacle').length > 0, { reach: +G().run.tentacleStats.reach.toFixed(3), stings: dmgBy(log, 'tentacle').length }); },
+});
+story('treasures/sting-damage', {
+  about: 'sting-damage (Hot Sauce): tentacle stings do double damage (and slow).',
+  setup() { setupFight({ bubbles: false }); give('hotSauce'); roachAt(0.05, 0); },
+  play() {
+    const log = record('damage_taken'), sting = G().run.stats.sting, e = G().enemies.list[0];
+    step(120);
+    const s = dmgBy(log, 'tentacle');
+    return ok(s.length > 0 && s.every((d) => d.amount === sting * 2) && e.slowT > 0, { stings: s.map((d) => d.amount), slowed: e.slowT > 0 });
+  },
+});
+story('treasures/thorns', {
+  about: 'thorns (Cactus Spine): anything that touches you gets stung, once a second each.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('cactus'); roachAt(0.02, 0); },
+  play() { const log = record('damage_taken'); step(150); const n = dmgBy(log, 'thorns').length; return ok(n >= 2 && n <= 3, { stings: n }); },
+});
+story('treasures/haste-after-landing', {
+  about: 'haste-after-landing (Festival Wristband): after you land a jump, your tentacles lash twice as fast.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('wristband'); },
+  play() { const { input, run } = G(); input.jumpQueued = true; step(120, () => run.wristT > 0); return ok(run.wristT > 0, { wristT: +run.wristT.toFixed(2) }); },
+});
+story('treasures/extra-jumps', {
+  about: 'extra-jumps (Pen Spring): one more jump in mid-air.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('penSpring'); },
+  play() { step(2); return ok(G().player.maxAirJumps === 2, { airJumps: G().player.maxAirJumps }); },
+});
+story('treasures/landing-shockwave', {
+  about: 'landing-shockwave (Cotton Ball): landing from a jump sends out a stinging ring.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('cottonBall'); roachAt(0.06, 0); },
+  play() { const log = record('damage_taken'); G().input.jumpQueued = true; step(120); return ok(dmgBy(log, 'shockwave').length > 0, { hits: dmgBy(log, 'shockwave').length }); },
+});
+story('treasures/squeak-when-hit', {
+  about: 'squeak-when-hit (Rubber Duck): when you get hit, nearby bugs are knocked back and hurt.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('rubberDuck'); roachAt(0.05, 0); },
+  play() {
+    const e = G().enemies.list[0], d0 = e.pos.distanceTo(G().player.position), log = record('damage_taken');
+    G().run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
+    const d1 = e.pos.distanceTo(G().player.position);
+    return ok(dmgBy(log, 'squeak').length === 1 && d1 > d0 + 0.03, { pushed: +(d1 - d0).toFixed(3) });
+  },
+});
+story('treasures/block-first-hit', {
+  about: 'block-first-hit (Rubber Glove): the first hit does nothing; the next one counts.',
+  setup() { setupFight({ hurt: true }); give('soapBubble'); },
+  play() {
+    const { run } = G(), m0 = run.moisture;
+    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
+    const m1 = run.moisture;
+    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
+    return ok(m1 === m0 && run.moisture === m0 - 3, { m0, m1, m2: run.moisture });
+  },
+});
+story('treasures/damage-taken', {
+  about: 'damage-taken (Thimble): hits take 30% less moisture.',
+  setup() { setupFight({ hurt: true }); give('thimble'); },
+  play() { const { run } = G(), m0 = run.moisture; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'story' }); return ok(Math.abs(m0 - run.moisture - 7) < 1e-9, { lost: m0 - run.moisture }); },
+});
+story('treasures/spout', {
+  about: 'spout (Whale Bath Toy): stand still and you refill moisture.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('whale'); G().run.moisture = 10; },
+  play() { step(60 * 3); return ok(G().run.moisture > 10.5, { moisture: +G().run.moisture.toFixed(2) }); },
+});
+story('treasures/heal-on-kill', {
+  about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of moisture.',
+  setup() { setupFight({ lash: false }); give('babyBottle'); G().run.moisture = 10; roachAt(0, -0.15, { still: true }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.moisture === 10.5, { moisture: G().run.moisture }); },
+});
+story('treasures/burst-on-kill', {
+  about: 'burst-on-kill (Bath Salt): bugs you finish off burst and hurt their neighbours.',
+  setup() { setupFight({ lash: false }); give('bathSalt'); G().run.stats.bubbles = 1; roachAt(0, -0.12, { still: true, hp: 12 }); roachAt(0.035, -0.12); },
+  play() { const log = record('damage_taken'); step(400, () => dmgBy(log, 'burst').length > 0); return ok(dmgBy(log, 'burst').length > 0, { bursts: dmgBy(log, 'burst').length }); },
+});
+story('treasures/dew-reach', {
+  about: 'dew-reach (Loofah): dew drifts to you from much farther away.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('loofah'); G().dew.drop(near(0.18, 0, 0.01), 1, 1); },
+  play() { step(120); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
+});
+story('treasures/dew-mult', {
+  about: 'dew-mult (Lucky Penny): bugs drop 50% more dew.',
+  setup() { setupFight({ lash: false }); give('coin'); roachAt(0, -0.15, { still: true }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.dew * 1.5), { dew: total }); },
+});
+story('treasures/card-rarity', {
+  about: 'card-rarity (Game Die): level-up cards roll one rarity higher (never common).',
+  setup() { setupFight(); give('dice'); },
+  play() {
+    let common = 0;
+    for (let i = 0; i < 40; i++) for (const c of rollCards(G().run.stats, 3, G().run.mods.cardRarity)) if (c.rarity === RARITY[0]) common++;
+    return ok(G().run.mods.cardRarity === 1 && common === 0, { common });
+  },
+});
+story('treasures/longer-night', {
+  about: 'longer-night (Egg Timer): the boss comes 30 s later.',
+  setup() { setupFight(); give('hourglass'); },
+  play() { return ok(G().run.duration === G().run.stage.duration + 30, { duration: G().run.duration }); },
+});
+story('treasures/every', {
+  about: 'every + ring (Guitar Pick): every 5 s a chord stings and pushes back everything close.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('guitarPick'); roachAt(0.08, 0); },
+  play() {
+    const log = record('damage_taken');
+    step(60 * 9);
+    const rings = dmgBy(log, 'ring').length, e = G().enemies.list[0];
+    return ok(rings === 2 && e.pos.distanceTo(G().player.position) > 0.1, { rings, distance: +e.pos.distanceTo(G().player.position).toFixed(3) });
+  },
+});
+story('treasures/ring', {
+  about: 'ring with freeze (Ice Cube): a cold snap freezes everything close.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('iceCube'); roachAt(0.1, 0); },
+  play() { const e = G().enemies.list[0]; step(60 * 6, () => e.freezeT > 0); return ok(e.freezeT > 0, { freezeT: +e.freezeT.toFixed(2) }); },
+});
+story('treasures/zap', {
+  about: 'zap (TV Remote): every 7 s, the 3 nearest bugs get zapped.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('remote'); [0.2, -0.2, 0.3, -0.3].forEach((x) => roachAt(x, 0.1)); },
+  play() { const log = record('damage_taken'); step(60 * 5); return ok(dmgBy(log, 'zap').length === 3, { zapped: dmgBy(log, 'zap').length }); },
+});
+story('treasures/brick', {
+  about: 'brick (Lego Brick): a dropped brick hurts the first bug that steps on it.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('legoBrick'); },
+  play() {
+    const { gadgets } = G().run;
+    step(60 * 3, () => gadgets.bricks.length > 0);
+    const log = record('damage_taken');
+    const b = gadgets.bricks[0];
+    if (b) { const e = spawn('roach', b.m.position.clone(), { still: true, hp: 9999 }); e.pos.copy(b.m.position); }
+    step(5);
+    return ok(!!b && dmgBy(log, 'brick').length === 1, { bricks: gadgets.bricks.length, hits: dmgBy(log, 'brick').length });
+  },
+});
+story('treasures/marble', {
+  about: 'marble (Marble): a marble rolls out ahead of you and bowls through bugs.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('marble'); const P = G().player; const f = V(Math.sin(P.facing), 0, Math.cos(P.facing)); spawn('roach', P.position.clone().addScaledVector(f, 0.2), { still: true, hp: 9999 }); },
+  play() { const log = record('damage_taken'); step(60 * 5); return ok(dmgBy(log, 'marble').length >= 1, { hits: dmgBy(log, 'marble').length }); },
+});
+story('treasures/pull-dew', {
+  about: 'pull-dew (Lint Roller): every 20 s, all the dew on the floor drifts to you.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('lintRoller'); G().dew.drop(near(0.5, 0.3, 0.01), 1, 3); },
+  play() { step(60 * 23); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
+});
+story('treasures/orbit-lights', {
+  about: 'orbit-lights (Fairy Lights): bulbs circle you and sting what they touch.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('fairyLights'); roachAt(0.07, 0); },
+  play() { const log = record('damage_taken'); step(120); return ok(dmgBy(log, 'orbit-lights').length > 0, { stings: dmgBy(log, 'orbit-lights').length }); },
+});
+story('treasures/beam', {
+  about: 'beam (Magnifying Glass): focused moonlight burns the nearest bug.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('magnifier'); roachAt(0.2, 0); },
+  play() { const log = record('damage_taken'); step(60); return ok(dmgBy(log, 'beam').length >= 3, { burns: dmgBy(log, 'beam').length }); },
+});
+story('treasures/aura', {
+  about: 'aura (Glow Stick): a glow around you stings anything inside it.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('glowStick'); roachAt(0.06, 0); },
+  play() { const log = record('damage_taken'); step(90); return ok(dmgBy(log, 'aura').length >= 2, { stings: dmgBy(log, 'aura').length }); },
+});
+story('vocabulary/every-treasure-word-documented-used-and-proven', {
+  about: 'Every treasure word has a description, is used by some treasure, and has a treasures/ story.',
+  setup() {},
+  play() {
+    const used = new Set(CONTENT.treasures.flatMap((t) => t.vocabulary));
+    const usedTimed = new Set();
+    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = { timed: [], bubbles: {}, hits: { bubbles: {}, tentacles: {} }, tentacles: {}, elements: new Set() }; try { fx(m); } catch {} for (const T of m.timed) for (const ef of T.effects) usedTimed.add(ef.kind); }
+    const problems = [];
+    for (const [w, def] of Object.entries(TREASURE_WORDS)) {
+      if (!def.doc) problems.push(`${w}: no doc`);
+      if (!used.has(w)) problems.push(`${w}: no treasure uses it`);
+      if (!STORIES['treasures/' + w]) problems.push(`${w}: no treasures/${w} story`);
+    }
+    for (const [w, def] of Object.entries(TIMED_WORDS)) {
+      if (!def.doc) problems.push(`${w}: no doc`);
+      if (!usedTimed.has(w)) problems.push(`${w}: no treasure uses it`);
+      if (!STORIES['treasures/' + w]) problems.push(`${w}: no treasures/${w} story`);
+    }
+    return ok(!problems.length && CONTENT.treasures.length === 40, { problems, treasures: CONTENT.treasures.length });
+  },
+});
+story('content/treasure-mistakes-are-caught', {
+  about: 'A typo in treasures.kdl names the file, line and problem.',
+  setup() {},
+  play() {
+    const tryIt = (src) => { try { compileTreasures(parse(src, 'test.kdl'), 'test.kdl'); return null; } catch (e) { return e.message; } };
+    const unknown = tryIt('treasure "x" name="X" icon="x" text="x" {\n    pierce 3\n    sparkle\n}');
+    const element = tryIt('treasure "x" name="X" icon="x" text="x" {\n    element "plasma"\n}');
+    const block = tryIt('treasure "x" name="X" icon="x" text="x" {\n    every 5 {\n        explode\n    }\n}');
+    const good = /test\.kdl:3: unknown word "sparkle"/.test(unknown) && /test\.kdl:2: element must be one of/.test(element) && /test\.kdl:3: unknown word "explode"/.test(block);
+    return ok(good, { unknown, element, block });
   },
 });
 

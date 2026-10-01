@@ -35,6 +35,7 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 
 - **`content/enemies.kdl`**: every bug as a few numbers and a few behaviour words, e.g. `chase 0.3`, or `curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3`. Each word is defined once in `src/words.js` with what its numbers mean. A typo stops loading with a message naming the file and line.
 - **`content/waves.kdl`**: how fast bugs arrive, how many at once, how much tougher they get, and from when each kind appears.
+- **`content/treasures.kdl`**: all 40 treasures, each a name, icon, text and effect words, e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1.2 push=0.035 }`. A new treasure that combines existing effects needs no code.
 - **`content/look.css`**: colours and render numbers: the night fill, haze, bloom, the jelly's size, colour, glow and light, how much enemies glow, gut colours, the camera.
 
 **Stories** (`src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
@@ -79,7 +80,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/boot.js` | Renderer, camera, loading screen; loads the apartment, starts the game. |
 | `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
 | `content/*.kdl`, `content/look.css` | What things are (bugs, waves) and how they look. See "Changing the game". |
-| `src/words.js` | The behaviour vocabulary (`ENEMY_WORDS`): each word once, with its doc, arguments and settings. |
+| `src/words.js` | The vocabulary: bug behaviours (`ENEMY_WORDS`), treasure effects (`TREASURE_WORDS`, `TIMED_WORDS`), each word once with its doc, arguments and settings. |
 | `src/content.js`, `src/kdl.js`, `src/look.js` | Load and check the content files before the game starts. |
 | `src/stories.js`, `tests/run.mjs` | Named situations that prove behaviour; the headless runner. |
 | `src/main.js` | Wires everything up: pause menu, mode switching (play, creator, layout), and the frame loop, which only works out dt and calls each system's `update` in order. |

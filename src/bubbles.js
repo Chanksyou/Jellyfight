@@ -25,12 +25,12 @@ const RADIUS = 0.0065;       // m, at bubble size 1
 const SPLASH = 0.026;        // m, splash radius at bubble size 1
 
 export const ELEMENTS = [
-  { id: 'fire', treasure: 'candle', color: 0xff8a3a, text: '#ffa65a' },
-  { id: 'lightning', treasure: 'battery', color: 0xfff06a, text: '#fff27a' },
-  { id: 'ice', treasure: 'freezerPack', color: 0x9fe8ff, text: '#bff4ff' },
-  { id: 'acid', treasure: 'nailPolish', color: 0x8aff5a, text: '#a8ff7a' },
-  { id: 'wind', treasure: 'paperFan', color: 0xeef2ff, text: '#ffffff' },
-  { id: 'glitter', treasure: 'glitter', color: 0xff9ae8, text: '#ffb0f0' },
+  { id: 'fire', color: 0xff8a3a, text: '#ffa65a' },
+  { id: 'lightning', color: 0xfff06a, text: '#fff27a' },
+  { id: 'ice', color: 0x9fe8ff, text: '#bff4ff' },
+  { id: 'acid', color: 0x8aff5a, text: '#a8ff7a' },
+  { id: 'wind', color: 0xeef2ff, text: '#ffffff' },
+  { id: 'glitter', color: 0xff9ae8, text: '#ffb0f0' },
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, e]));
 
@@ -103,35 +103,37 @@ export class Bubbles {
     return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   }
 
-  // origin: where bubbles leave the bell. has: owned treasure ids.
-  update(dt, origin, stats, has) {
+  // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
+  update(dt, origin, stats, mods) {
     // one bubble at a time: more bubbles or a faster blow rate = a faster stream
     this.timer += dt * stats.blowRate * stats.bubbles;
     if (this.timer >= 1) {
-      if (this.volley(origin, stats, has)) this.timer -= 1;
+      if (this.volley(origin, stats, mods)) this.timer -= 1;
       else this.timer = 1;            // ready, waiting for something in range
       this.timer = Math.min(this.timer, 1);
     }
-    this.fly(dt, stats, has);
+    this.fly(dt, stats, mods);
     this.effects(dt, stats);
   }
 
   // the elements you own, in the order of ELEMENTS
-  elements(has) { return ELEMENTS.filter((e) => has.has(e.treasure)).map((e) => e.id); }
+  elements(mods) { return ELEMENTS.filter((e) => mods.elements.has(e.id)).map((e) => e.id); }
 
-  volley(origin, stats, has) {
+  volley(origin, stats, mods) {
     const near = this.inRange(origin, stats.range);
     if (!near.length) return false;
     // the next of the nearest `bubbles` enemies, in turn
     const target = near[this.volleys % Math.min(near.length, stats.bubbles)];
     this.volleys++;
     const n = this.volleys;
-    const golden = has.has('goldRing') && n % 10 === 0;
-    const size = stats.bubbleSize, elems = this.elements(has);
+    const B = mods.bubbles;
+    const golden = B.golden && n % B.golden.every === 0 ? B.golden.mult : 0;   // golden: its damage multiplier
+    const size = stats.bubbleSize, elems = this.elements(mods);
     const tint = elems.length ? elems[n % elems.length] : null;
-    this.blow(origin, target, { size, dmg: stats.pop, golden, elems, tint, pierce: has.has('bobbyPin') ? 3 : 1, spread: (Math.random() - 0.5) * 0.12 });
+    this.blow(origin, target, { size, dmg: stats.pop, golden, elems, tint, pierce: B.pierce, spread: (Math.random() - 0.5) * 0.12 });
     // Reed Stick: every 6th bubble is a giant, slow one
-    if (has.has('reedStick') && n % 6 === 0) this.blow(origin, target, { size: size * 2.5, dmg: stats.pop * 4, golden, elems, tint, pierce: 1, speed: 0.6, big: true });
+    const G = B.giant;
+    if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.pop * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
     this.onBlow?.();
     return true;
   }
@@ -154,20 +156,21 @@ export class Bubbles {
     return b;
   }
 
-  fly(dt, stats, has) {
+  fly(dt, stats, mods) {
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
       b.t += dt;
-      // steer gently toward the target while it lives
-      if (b.target && !b.target.dead) {
+      // steer gently toward the target while it lives, until the bubble has hit it (a piercing
+      // bubble then flies straight on instead of turning back to it)
+      if (b.target && !b.target.dead && !b.hit.has(b.target)) {
         const want = E.center(b.target, c).sub(b.m.position).normalize().multiplyScalar(b.vel.length());
         b.vel.lerp(want, 1 - Math.exp(-3 * dt));
       }
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
       // bell while you're pressed under or against something, it would otherwise pop at once
-      if (b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, has); continue; }
+      if (b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, mods); continue; }
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
@@ -184,11 +187,11 @@ export class Bubbles {
         if (e.dead || b.hit.has(e)) continue;
         if (E.center(e, c).distanceTo(b.m.position) < e.r + b.r) {
           b.hit.add(e);
-          this.strike(b, e, has);
-          if (b.hit.size >= b.pierce) { this.pop(b, e, stats, has); break; }
+          this.strike(b, e, mods);
+          if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
         }
       }
-      if (!b.done && b.travel > maxTravel) this.pop(b, null, stats, has);
+      if (!b.done && b.travel > maxTravel) this.pop(b, null, stats, mods);
     }
     const done = this.list.filter((b) => b.done);
     done.forEach((b) => this.release(b));
@@ -196,11 +199,12 @@ export class Bubbles {
   }
 
   // damage one enemy
-  strike(b, e, has) {
-    let dmg = b.dmg * (b.golden ? 5 : 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
-    if (has.has('nailClipper') && Math.random() < 0.2) { dmg *= 3; color = '#ff6b6b'; }
-    if (has.has('qtip')) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
-    if (has.has('stickyNote')) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 3 });
+  strike(b, e, mods) {
+    const H = mods.hits.bubbles;
+    let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
+    if (H.crit && Math.random() < H.crit.chance) { dmg *= H.crit.mult; color = '#ff6b6b'; }
+    if (H.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: H.slow });
+    if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
@@ -287,7 +291,7 @@ export class Bubbles {
     this.fx.puff(to, 0xfff6a0, 0.012, 0.15);
   }
 
-  pop(b, hitEnemy, stats, has) {
+  pop(b, hitEnemy, stats, mods) {
     if (b.done) return;
     b.done = true;
     const p = b.m.position;
@@ -336,8 +340,8 @@ export class Bubbles {
       this.puddles.push({ m, t: 3.5, r: 0.05 * (b.r / RADIUS), dmg: b.pw * 0.35, tick: 0.25 });
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
-    // Hair Tie: a smaller bubble spins off toward another enemy, once
-    if (has.has('hairTie') && !b.child) {
+    // split-bubble: a smaller bubble spins off toward another enemy, once
+    if (mods.bubbles.split && !b.child) {
       const next = this.inRange(p, 0.15, b.hit)[0];
       if (next) { const k = this.blow(p, next, { size: b.r / RADIUS * 0.7, dmg: b.dmg * 0.7, golden: b.golden, pierce: 1 }); k.child = true; }
     }

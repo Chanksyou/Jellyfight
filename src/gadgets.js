@@ -1,6 +1,7 @@
-// Treasures that act on their own: automatic area attacks, zaps, orbiting lights, traps,
-// rolling marbles, a burning beam, freezes and auras. Each one is a small block in update(),
-// switched on by owning the treasure (ids in stats.js TREASURES).
+// The treasure effects that act on their own: timed effects (an `every N { … }` block of ring,
+// zap, brick, marble, pull-dew) and always-on ones (orbit-lights, beam, aura). Which ones run,
+// and their numbers, come from the run's combined treasure effects (mods; see words.js and
+// content/treasures.kdl): nothing here knows a treasure by name.
 import * as THREE from 'three';
 import { bus } from './events.js';
 
@@ -18,7 +19,7 @@ export class Gadgets {
 
     const glow = (color, k = 1.6) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
     // Fairy Lights: three warm bulbs that circle you
-    this.bulbs = [0xffd27a, 0xff9ad8, 0x9fe2ff].map((c) => {
+    this.bulbs = [0xffd27a, 0xff9ad8, 0x9fe2ff, 0xffd27a, 0xff9ad8, 0x9fe2ff].map((c) => {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.005, 12, 8), glow(c, 2.4));
       m.visible = false;
       this.group.add(m);
@@ -76,8 +77,8 @@ export class Gadgets {
     }
   }
 
-  every(id, dt, period) {
-    this.t[id] = (this.t[id] ?? period * 0.6) - dt;
+  every(id, dt, period, first = period * 0.6) {
+    this.t[id] = (this.t[id] ?? first) - dt;
     if (this.t[id] > 0) return false;
     this.t[id] += period;
     return true;
@@ -93,122 +94,121 @@ export class Gadgets {
     return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   }
 
-  // ctx: { owned: Set, feet: Vector3, center: Vector3, facing, sting }
+  // ctx: { mods, feet: Vector3, center: Vector3, facing, sting (your power), pullDew() }
   update(dt, ctx) {
-    const { owned: has, feet, center, sting } = ctx;
+    const { mods: M, feet, center, sting } = ctx;
     const E = this.enemies, fx = this.fx;
 
-    // Guitar Pick: a chord rings out every 5 s, stinging and pushing back everything close
-    if (has.has('guitarPick') && this.every('guitar', dt, 5)) {
-      fx.ring(feet.clone().setY(feet.y + 0.004), 0xc08aff, 0.13, 0.45);
-      for (const e of this.near(center, 0.13)) {
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * 1.2, color: '#d6b0ff', source: 'gadget' });
-        bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: 0.035 });
+    // timed effects: every N s, do what's in the block
+    for (const T of M.timed) if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
+    for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
+    this.zaps = this.zaps.filter((z) => z.t > 0);
+
+    // orbit-lights: bulbs circle you and sting whatever they brush
+    const O = M.orbit, n = O ? Math.min(O.count, this.bulbs.length) : 0;
+    this.orbit += dt * 3.2;
+    this.bulbs.forEach((b, i) => {
+      b.visible = i < n;
+      if (i >= n) return;
+      const a = this.orbit + (i / n) * Math.PI * 2;
+      b.position.set(center.x + Math.cos(a) * O.radius, center.y + Math.sin(this.orbit * 2 + i) * 0.006, center.z + Math.sin(a) * O.radius);
+      for (const e of this.near(b.position, 0.008)) {
+        if ((e.fairyT || 0) > 0) continue;
+        e.fairyT = 0.4;
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * O.dmg, color: '#ffe7a8', source: 'orbit-lights' });
+      }
+    });
+    if (n) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
+
+    // beam: focused moonlight burns the nearest enemy
+    this.beam.visible = false;
+    const Bm = M.beam;
+    if (Bm) {
+      const e = this.near(center, Bm.range)[0];
+      if (e) {
+        const c = E.center(e);
+        this.beam.visible = true;
+        this.beam.position.copy(c).setY(c.y - e.r * 0.5);
+        this.beam.material.opacity = 0.25 + Math.random() * 0.15;
+        if (this.every('beam', dt, Bm.tick)) { bus.emit('damage_taken', { targetId: e.id, amount: sting * Bm.dmg, color: '#ffd27a', source: 'beam' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
       }
     }
 
-    // Remote Control: every 7 s, zap the 3 nearest enemies with a jagged bolt
-    if (has.has('remote') && this.every('remote', dt, 7)) {
-      for (const e of this.near(center, 0.45).slice(0, 3)) {
+    // aura: a soft glow around you that stings anything inside it
+    const A = M.aura;
+    this.aura.visible = !!A;
+    if (A) {
+      this.aura.position.copy(feet).setY(feet.y + 0.002);
+      this.aura.scale.setScalar(A.radius * (1 + Math.sin(this.orbit * 2) * 0.05));
+      if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: sting * A.dmg, color: '#8aff9f', source: 'aura' });
+    }
+
+    // bricks on the floor: the first walking enemy to step on one takes the hit
+    for (const b of this.bricks) {
+      b.t -= dt;
+      const hit = this.near(b.m.position, 0.012, { proxies: false }).find((e) => !e.T.fly);
+      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: sting * b.dmg, color: '#ff8a6a', source: 'brick' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
+      if (b.t <= 0) this.group.remove(b.m);
+    }
+    this.bricks = this.bricks.filter((b) => b.t > 0);
+
+    // marbles rolling: bounce off walls, bowl through enemies
+    for (const mb of this.marbles) {
+      mb.t -= dt;
+      const step = mb.speed * dt;
+      const wall = this.world.cast(mb.m.position, mb.dir, step + 0.007);
+      if (wall) { const nrm = wall.normal.clone().setY(0).normalize(); mb.dir.addScaledVector(nrm, -2 * mb.dir.dot(nrm)).normalize(); }
+      mb.m.position.addScaledVector(mb.dir, step);
+      mb.m.rotateOnAxis(new THREE.Vector3(mb.dir.z, 0, -mb.dir.x), step / 0.007);
+      for (const e of this.near(mb.m.position, 0.008)) {
+        if (mb.hit.has(e)) continue;
+        mb.hit.add(e);
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * mb.dmg, color: '#9fd8ff', source: 'marble' });
+      }
+      if (mb.t <= 0) this.group.remove(mb.m);
+    }
+    this.marbles = this.marbles.filter((mb) => mb.t > 0);
+  }
+
+  // one timed effect going off (TIMED_WORDS in words.js)
+  fire(ef, ctx) {
+    const { feet, center, sting } = ctx;
+    const E = this.enemies, fx = this.fx;
+    if (ef.kind === 'ring') {
+      const col = new THREE.Color(ef.color);
+      if (ef.look === 'puff') fx.puff(feet.clone().setY(feet.y + 0.01), col.getHex(), ef.radius, 0.35);
+      else fx.ring(feet.clone().setY(feet.y + 0.004), col.getHex(), ef.radius, ef.show);
+      for (const e of this.near(center, ef.radius, { proxies: ef.elites })) {
+        if (ef.dmg) bus.emit('damage_taken', { targetId: e.id, amount: sting * ef.dmg, color: ef.color, source: 'ring' });
+        if (ef.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: ef.push });
+        if (ef.freeze) bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: ef.freeze });
+      }
+    } else if (ef.kind === 'zap') {
+      for (const e of this.near(center, ef.range).slice(0, ef.count)) {
         const to = E.center(e), pts = [center.clone()];
         for (let k = 1; k < 6; k++) pts.push(center.clone().lerp(to, k / 6).add(new THREE.Vector3().randomDirection().multiplyScalar(0.008)));
         pts.push(to);
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
         this.group.add(line);
         this.zaps.push({ line, t: 0.25 });
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * 2, color: '#9fd8ff', source: 'gadget' });
+        bus.emit('damage_taken', { targetId: e.id, amount: sting * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
-    }
-    for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
-    this.zaps = this.zaps.filter((z) => z.t > 0);
-
-    // Fairy Lights: three bulbs circle you and sting whatever they brush
-    const lights = has.has('fairyLights');
-    this.orbit += dt * 3.2;
-    this.bulbs.forEach((b, i) => {
-      b.visible = lights;
-      if (!lights) return;
-      const a = this.orbit + (i / 3) * Math.PI * 2;
-      b.position.set(center.x + Math.cos(a) * 0.07, center.y + Math.sin(this.orbit * 2 + i) * 0.006, center.z + Math.sin(a) * 0.07);
-      for (const e of this.near(b.position, 0.008)) {
-        if ((e.fairyT || 0) > 0) continue;
-        e.fairyT = 0.4;
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.6, color: '#ffe7a8', source: 'gadget' });
-      }
-    });
-    if (lights) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
-
-    // Magnifying Glass: a beam of focused moonlight burns the nearest enemy
-    this.beam.visible = false;
-    if (has.has('magnifier')) {
-      const e = this.near(center, 0.35)[0];
-      if (e) {
-        const c = E.center(e);
-        this.beam.visible = true;
-        this.beam.position.copy(c).setY(c.y - e.r * 0.5);
-        this.beam.material.opacity = 0.25 + Math.random() * 0.15;
-        if (this.every('burn', dt, 0.25)) { bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.3, color: '#ffd27a', source: 'gadget' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
-      }
-    }
-
-    // Glow Stick: a soft green aura that stings anything inside it
-    this.aura.visible = has.has('glowStick');
-    if (this.aura.visible) {
-      this.aura.position.copy(feet).setY(feet.y + 0.002);
-      this.aura.scale.setScalar(0.08 * (1 + Math.sin(this.orbit * 2) * 0.05));
-      if (this.every('glow', dt, 0.5)) for (const e of this.near(center, 0.08)) bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.4, color: '#8aff9f', source: 'gadget' });
-    }
-
-    // Ice Cube: every 8 s a cold snap freezes everything close for 2 s
-    if (has.has('iceCube') && this.every('ice', dt, 8)) {
-      fx.ring(feet.clone().setY(feet.y + 0.004), 0xbff4ff, 0.16, 0.6);
-      for (const e of this.near(center, 0.16)) {
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * 0.5, color: '#bff4ff', source: 'gadget' });
-        bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: 2 });
-      }
-    }
-
-    // Lego Brick: drop a brick every 4 s; an enemy that steps on it takes a big hit
-    if (has.has('legoBrick') && this.every('lego', dt, 4)) {
+    } else if (ef.kind === 'brick') {
       const g = new THREE.Group(), mat = this.brickMats[(Math.random() * 3) | 0];
       g.add(new THREE.Mesh(this.brickGeo, mat));
-      for (const x of [-0.005, 0.005]) { const s = new THREE.Mesh(this.studGeo, mat); s.position.x = x; g.add(s); }
+      for (const x of [-0.005, 0.005]) { const st = new THREE.Mesh(this.studGeo, mat); st.position.x = x; g.add(st); }
       g.position.copy(feet);
       g.rotation.y = Math.random() * Math.PI;
       this.group.add(g);
-      this.bricks.push({ m: g, t: 14 });
-      if (this.bricks.length > 5) this.group.remove(this.bricks.shift().m);
-    }
-    for (const b of this.bricks) {
-      b.t -= dt;
-      const hit = this.near(b.m.position, 0.012, { proxies: false }).find((e) => !e.T.fly);
-      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: sting * 4, color: '#ff8a6a', source: 'gadget' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
-      if (b.t <= 0) this.group.remove(b.m);
-    }
-    this.bricks = this.bricks.filter((b) => b.t > 0);
-
-    // Marble: every 5 s a marble rolls out the way you face, bouncing off walls and bowling
-    // through enemies
-    if (has.has('marble') && this.every('marble', dt, 5)) {
+      this.bricks.push({ m: g, t: ef.last, dmg: ef.dmg });
+      while (this.bricks.length > ef.most) this.group.remove(this.bricks.shift().m);
+    } else if (ef.kind === 'marble') {
       const m = new THREE.Mesh(this.marbleGeo, this.marbleMat);
       m.position.copy(feet).setY(feet.y + 0.007);
       this.group.add(m);
-      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: 1.47, hit: new Set() });
+      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, hit: new Set() });
+    } else if (ef.kind === 'pull-dew') {
+      ctx.pullDew?.();
     }
-    for (const mb of this.marbles) {
-      mb.t -= dt;
-      const step = 0.825 * dt;
-      const wall = this.world.cast(mb.m.position, mb.dir, step + 0.007);
-      if (wall) { const n = wall.normal.clone().setY(0).normalize(); mb.dir.addScaledVector(n, -2 * mb.dir.dot(n)).normalize(); }
-      mb.m.position.addScaledVector(mb.dir, step);
-      mb.m.rotateOnAxis(new THREE.Vector3(mb.dir.z, 0, -mb.dir.x), step / 0.007);
-      for (const e of this.near(mb.m.position, 0.008)) {
-        if (mb.hit.has(e)) continue;
-        mb.hit.add(e);
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * 2, color: '#9fd8ff', source: 'gadget' });
-      }
-      if (mb.t <= 0) this.group.remove(mb.m);
-    }
-    this.marbles = this.marbles.filter((mb) => mb.t > 0);
   }
 }
