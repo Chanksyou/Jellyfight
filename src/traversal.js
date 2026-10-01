@@ -89,13 +89,26 @@ export class Traversal {
       const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.003, transparent: true, opacity: 0.7, depthWrite: false }));
       pts.frustumCulled = false;
       this.group.add(pts);
-      return { ...v, x, y, z, h, pts, seeds };
+      return { ...v, x, y, z, h, pts, seeds, plate, col };
     });
 
     this.climbs = stage.climbs.map((c) => ({
       ...c,
       box: new THREE.Box3(new THREE.Vector3(...c.min), new THREE.Vector3(...c.max)),
     }));
+  }
+
+  // Move vent i: its floor plate to `at`, and where it throws you to `land` (the layout editor)
+  placeVent(i, at, land) {
+    const v = this.vents[i];
+    v.at = [...at]; v.land = [...land];
+    [v.x, v.y, v.z] = at;
+    v.h = Math.max(0.05, land[1] + 0.06 - v.y);
+    v.plate.position.set(v.x, v.y + 0.001, v.z);
+    v.col.geometry.dispose();
+    v.col.geometry = new THREE.CylinderGeometry(v.radius * 0.9, v.radius, v.h, 24, 1, true);
+    v.col.position.set(v.x, v.y + v.h / 2, v.z);
+    v.plate.updateMatrixWorld(); v.col.updateMatrixWorld();
   }
 
   // What's acting on a player standing at `p` (feet position)

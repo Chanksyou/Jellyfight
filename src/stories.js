@@ -109,6 +109,23 @@ for (const to of ['the sofa', 'the coffee table', 'the media console', 'the desk
     },
   });
 }
+let ventHome = null;
+story('traversal/moved-vent-still-lands', {
+  about: 'A vent moved in the layout editor launches from its new spot and lands on its new target.',
+  setup() {
+    fresh({ elites: false });
+    const { traversal } = G(), v = traversal.vents[0];
+    ventHome = [v.at, v.land];
+    traversal.placeVent(0, [v.x + 0.15, v.y, v.z - 0.05], [2.6, 0.46, 3.0]);
+    tp(v.x, 0.05, v.z, 0);
+  },
+  play() {
+    const r = sim(3);
+    G().traversal.placeVent(0, ...ventHome);
+    const [x, y, z] = r.pos;
+    return ok(Math.hypot(x - 2.6, z - 3.0) < 0.08 && Math.abs(y - 0.46) < 0.06 && r.grounded, { end: r.pos });
+  },
+});
 story('traversal/sofa-climb', {
   about: 'Holding jump against the front of the corduroy sofa climbs it.',
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 2.6, 0); },

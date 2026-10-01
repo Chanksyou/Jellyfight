@@ -10,7 +10,11 @@
 // Touch: tap to select, drag it to move; drag empty space to pan; pinch to zoom; the toolbar
 // does the rest.
 //
-// Stage markers (vents, Moon Drop spots, elites, gift boxes) don't follow moved furniture yet.
+// Floor vents are edited here too: each has an orange disc (the grille on the floor) and a cyan
+// ball (where it throws you), joined by the arc of the jump. Drag either one and it sticks to
+// whatever surface is under the pointer; R/F nudge it up and down. Vent edits are saved and
+// exported with the furniture, keyed "vent:<name>" with `at` and `land` in world meters.
+// Other stage markers (Moon Drop spots, elites, gift boxes) don't follow moved furniture yet.
 import * as THREE from 'three';
 import { BAKED_LAYOUT } from './layout-baked.js';
 
@@ -59,6 +63,23 @@ function applyEdit(node, e) {
   node.updateMatrixWorld(true);
 }
 
+const VENT = (v) => `vent:${v.name}`;
+const same3 = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-4);
+
+// Call before the vents are built (Traversal): the baked layout first (that becomes each vent's
+// "home"), then your saved edits. Changes the stage's vent list in place.
+export function applyVentLayout(vents, data = loadLayout()) {
+  for (const v of vents) {
+    if (!v.home) {
+      const b = BAKED_LAYOUT[VENT(v)];
+      if (b) { v.at = [...b.at]; v.land = [...b.land]; }
+      v.home = { at: [...v.at], land: [...v.land] };
+    }
+    const e = data[VENT(v)];
+    if (e) { v.at = [...e.at]; v.land = [...e.land]; }
+  }
+}
+
 // Call once after the apartment loads, before the collision world is built
 // The baked layout (layout-baked.js) goes first and becomes each object's "home"; your own
 // saved edits go on top. Saved edits that now match home are dropped.
@@ -86,6 +107,8 @@ export class LayoutEditor {
     Object.assign(this, ctx);
     this.items = movables(this.root);
     this.byNode = new Map(this.items.map((it) => [it.node, it]));
+    this.ventItems = this.traversal ? this.makeVentHandles() : [];
+    for (const it of this.ventItems) this.byNode.set(it.node, it);
     this.data = loadLayout();
     this.undoStack = [];
     this.sel = null;
@@ -100,6 +123,71 @@ export class LayoutEditor {
     this.scene.add(this.box);
     this.buildUi();
     this.bind();
+  }
+
+  // ---------------------------------------------------------------- vents
+  // Two handles per vent (always drawn on top, only while the editor is open) and the jump's arc
+  makeVentHandles() {
+    // drawn on top of everything, last (transparent: after the vents' own glowing air columns), in true colour
+    const out = [], top = (m) => { m.material.depthTest = false; m.material.toneMapped = false; m.material.transparent = true; m.renderOrder = 999; m.visible = false; this.scene.add(m); return m; };
+    // dim colours: the frame is tone-mapped after the effects, which washes bright orange out to yellow
+    const plateMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff5a00).multiplyScalar(0.45) }), landMat = new THREE.MeshBasicMaterial({ color: 0x5ff0ff });
+    this.traversal.vents.forEach((v, vi) => {
+      v.home ||= { at: [...v.at], land: [...v.land] };
+      const at = top(new THREE.Mesh(new THREE.CylinderGeometry(v.radius, v.radius, 0.006, 24), plateMat.clone()));
+      const land = top(new THREE.Mesh(new THREE.SphereGeometry(0.018, 16, 12), landMat.clone()));
+      at.name = `${v.name}: floor grille`;
+      land.name = `${v.name}: where it throws you (${v.to})`;
+      const arc = top(new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 25 }, () => new THREE.Vector3())), new THREE.LineBasicMaterial({ color: 0x5ff0ff })));
+      const key = `vent:${v.name}`;
+      out.push({ key, vi, end: 'at', node: at, arc }, { key, vi, end: 'land', node: land, arc });
+    });
+    for (const it of out) this.placeHandle(it);
+    return out;
+  }
+  // put a vent's handle where the vent says (and redraw its arc)
+  placeHandle(it) {
+    const v = this.traversal.vents[it.vi];
+    it.node.position.fromArray(it.end === 'at' ? v.at : v.land);
+    it.node.position.y += it.end === 'at' ? 0.003 : 0.018;
+    it.node.updateMatrixWorld(true);
+    const a = new THREE.Vector3(...v.at), b = new THREE.Vector3(...v.land), lift = Math.max(a.y, b.y) - a.y + 0.12;
+    const pos = it.arc.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) { const t = i / (pos.count - 1); pos.setXYZ(i, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t + 4 * lift * t * (1 - t), a.z + (b.z - a.z) * t); }
+    pos.needsUpdate = true;
+    it.arc.geometry.computeBoundingSphere();
+    it.arc.updateMatrixWorld(true);
+  }
+  // the vent as its two handles now stand
+  ventFromHandles(it) {
+    const [a, l] = this.ventItems.filter((x) => x.vi === it.vi).map((x) => x.node.position);
+    const r = (p, dy) => [+p.x.toFixed(3), +(p.y - dy).toFixed(3), +p.z.toFixed(3)];
+    return { at: r(a, 0.003), land: r(l, 0.018) };
+  }
+  setVent(vi, e) {
+    this.traversal.placeVent(vi, e.at, e.land);
+    for (const x of this.ventItems) if (x.vi === vi) this.placeHandle(x);
+  }
+  commitVent(it, snap) {
+    const v = this.traversal.vents[it.vi], e = this.ventFromHandles(it);
+    if (same3(e.at, v.home.at) && same3(e.land, v.home.land)) delete this.data[it.key];
+    else this.data[it.key] = e;
+    this.setVent(it.vi, e);
+    if (snap) this.undoStack.push(snap);
+    saveLayout(this.data);
+    this.onChange?.();
+  }
+  ventHome(vi) { const h = this.traversal.vents[vi].home; this.setVent(vi, { at: h.at, land: h.land }); }
+
+  // the first solid, visible surface under the pointer (furniture, floor), for dropping handles on
+  surfaceHit(e) {
+    const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    for (const h of this.pointerRay(e).intersectObject(this.root, true)) {
+      const m = h.object.material;
+      if (!h.object.isMesh || m.visible === false || m.colorWrite === false || m.transparent || !shown(h.object)) continue;
+      return h.point;
+    }
+    return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   }
 
   // ---------------------------------------------------------------- UI
@@ -122,7 +210,7 @@ export class LayoutEditor {
       #jf-layout-io div { display: flex; gap: 8px; justify-content: flex-end; }
       #jf-layout-io button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 14px; font: 600 13px system-ui, sans-serif; }
     </style>
-    <div id="jf-layout-top">🛠 Layout editor (dev) · tap an object to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Ctrl+Z undo'}</div>
+    <div id="jf-layout-top">🛠 Layout editor (dev) · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Ctrl+Z undo'}</div>
     <div id="jf-layout">
       <div class="name">Nothing selected</div>
       <button data-a="rotL" title="Rotate left 15° (Q)">⟲</button><button data-a="rotR" title="Rotate right 15° (E)">⟳</button>
@@ -151,17 +239,19 @@ export class LayoutEditor {
   refresh() {
     const it = this.sel;
     this.nameEl.textContent = it ? `${it.node.name.replace(/_/g, ' ')}${it.node.visible ? '' : ' (hidden)'}${this.data[it.key] ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
-    this.el.querySelectorAll('[data-a=rotL],[data-a=rotR],[data-a=up],[data-a=down],[data-a=hide],[data-a=home]').forEach((b) => { b.disabled = !it; });
+    this.el.querySelectorAll('[data-a=rotL],[data-a=rotR],[data-a=up],[data-a=down],[data-a=hide],[data-a=home]').forEach((b) => { b.disabled = !it || (it.vi != null && /rot|hide/.test(b.dataset.a)); });
     this.el.querySelector('[data-a=undo]').disabled = !this.undoStack.length;
     if (it) { visibleBox(it.node, this.box.box); this.box.visible = true; this.box.updateMatrixWorld(true); } else this.box.visible = false;
   }
 
-  open() { this.el.hidden = false; this.active = true; this.refresh(); }
-  close() { this.el.hidden = true; this.active = false; this.sel = null; this.box.visible = false; this.drag = null; }
+  open() { this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
+  close() { this.el.hidden = true; this.active = false; this.sel = null; this.box.visible = false; this.drag = null; this.showVents(false); }
+  showVents(on) { for (const it of this.ventItems) { it.node.visible = on; it.arc.visible = on; } }
 
   // ---------------------------------------------------------------- edits
   snapshot(it) { return { key: it.key, before: this.data[it.key] ? { ...this.data[it.key] } : null }; }
   commit(it, snap) {
+    if (it.vi != null) return this.commitVent(it, snap);
     const n = it.node, h = n.userData.home;
     const p = n.position.toArray().map((v) => +v.toFixed(4)), q = n.quaternion.toArray().map((v) => +v.toFixed(5));
     const same = h && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v;
@@ -178,7 +268,7 @@ export class LayoutEditor {
 
   // rotate about the object's own middle (its pivot may be the room's corner)
   rotate(a) {
-    const it = this.sel; if (!it) return;
+    const it = this.sel; if (!it || it.vi != null) return;
     const snap = this.snapshot(it), n = it.node;
     const c = n.parent.worldToLocal(this.center(n));
     const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a);
@@ -187,15 +277,23 @@ export class LayoutEditor {
     this.commit(it, snap);
   }
   raise(dy) { const it = this.sel; if (!it) return; const snap = this.snapshot(it); it.node.position.y += dy; this.commit(it, snap); }
-  toggleHide() { const it = this.sel; if (!it) return; const snap = this.snapshot(it); it.node.visible = !it.node.visible; this.commit(it, snap); }
+  toggleHide() { const it = this.sel; if (!it || it.vi != null) return; const snap = this.snapshot(it); it.node.visible = !it.node.visible; this.commit(it, snap); }
   putBack() {
     const it = this.sel; if (!it) return;
+    if (it.vi != null) { const snap = this.snapshot(it); this.ventHome(it.vi); this.commitVent(it, snap); return; }
     const snap = this.snapshot(it), h = it.node.userData.home;
     it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v;
     this.commit(it, snap);
   }
   undo() {
     const u = this.undoStack.pop(); if (!u) return;
+    const vent = this.ventItems.find((x) => x.key === u.key);
+    if (vent) {
+      if (u.before) this.setVent(vent.vi, u.before); else this.ventHome(vent.vi);
+      this.commitVent(vent, null);
+      this.sel = vent;
+      return;
+    }
     const it = this.items.find((x) => x.key === u.key), h = it.node.userData.home;
     if (u.before) applyEdit(it.node, u.before);
     else { it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
@@ -205,6 +303,7 @@ export class LayoutEditor {
   resetAll() {
     if (!confirm('Put every object back where it started?')) return;
     for (const it of this.items) { const h = it.node.userData.home; if (!h) continue; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
+    this.traversal?.vents.forEach((v, vi) => this.ventHome(vi));
     this.data = {}; this.undoStack = []; saveLayout(this.data); this.onChange?.();
   }
 
@@ -223,7 +322,9 @@ export class LayoutEditor {
         try {
           const d = JSON.parse(ta.value);
           for (const it of this.items) { const h = it.node.userData.home; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
-          this.data = d; saveLayout(d); applyLayout(this.root, d); this.onChange?.(); this.refresh(); box.remove();
+          this.data = d; saveLayout(d); applyLayout(this.root, d);
+          this.traversal?.vents.forEach((v, vi) => { const e = d[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
+          this.onChange?.(); this.refresh(); box.remove();
         } catch (err) { e.target.textContent = 'Not valid JSON'; }
       }
       if (a === 'close') box.remove();
@@ -238,6 +339,11 @@ export class LayoutEditor {
     return this.ray;
   }
   pick(e) {
+    // vent handles first: they're small and drawn on top of everything
+    if (this.ventItems.length) {
+      const h = this.pointerRay(e).intersectObjects(this.ventItems.map((it) => it.node), false)[0];
+      if (h) return { it: this.byNode.get(h.object), point: h.point };
+    }
     const hits = this.pointerRay(e).intersectObjects(this.items.map((it) => it.node), true);
     for (const h of hits) {
       let o = h.object;
@@ -259,7 +365,7 @@ export class LayoutEditor {
       if (got && got.it === this.sel) {
         // grab the selected object: move it on the horizontal plane through the grab point
         const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -got.point.y);
-        this.drag = { move: true, plane, last: got.point.clone(), snap: this.snapshot(got.it), moved: false };
+        this.drag = { move: true, plane, last: got.point.clone(), snap: this.snapshot(got.it), moved: false, surface: got.it.vi != null };
       } else this.drag = { pan: true, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, picked: got?.it || null };
       d.setPointerCapture?.(e.pointerId);
     });
@@ -268,7 +374,17 @@ export class LayoutEditor {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pts.size === 2 && this.pinch) { const nd = this.pinchDist(pts); this.dist = THREE.MathUtils.clamp(this.dist * this.pinch / nd, 0.3, 7); this.pinch = nd; return; }
       const g = this.drag; if (!g) return;
-      if (g.move) {
+      if (g.move && g.surface) {
+        // a vent handle: stick to whatever is under the pointer
+        const p = this.surfaceHit(e);
+        if (!p) return;
+        const it = this.sel;
+        it.node.position.copy(p).y += it.end === 'at' ? 0.003 : 0.018;
+        it.node.updateMatrixWorld(true);
+        this.setVent(it.vi, this.ventFromHandles(it));
+        g.moved = true;
+        this.refresh();
+      } else if (g.move) {
         const p = this.pointerRay(e).ray.intersectPlane(g.plane, new THREE.Vector3());
         if (!p) return;
         const delta = p.clone().sub(g.last);

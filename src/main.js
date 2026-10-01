@@ -16,7 +16,7 @@ import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { juice } from './juice.js';
-import { applyLayout, LayoutEditor, movables, visibleBox } from './layout.js';
+import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
@@ -24,7 +24,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v43';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v44';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -131,6 +131,7 @@ addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 
+applyVentLayout(stage.vents);          // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
 // furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
 function mapFurniture() {
@@ -220,7 +221,7 @@ const systems = {
 // Dev layout editor: move the furniture around (layout.js)
 let layoutChanged = false;
 function openLayout() {
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene });
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
