@@ -18,7 +18,7 @@ enemy "mosquito" name="Mosquito" hp=22 r=0.04 dmg=1 dew=5 model="mosquito" {
     spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=1 aim=0.5
 }
 
-// A tougher regular: an office stapler, opened out and standing on its hinge. It hops after you
+// Act 2 (not in act 1's waves yet). A tougher regular: an office stapler, opened out and standing on its hinge. It hops after you
 // slowly and fires a fan of five staples; stand in a gap between them, or get out of its reach.
 enemy "stapler" name="Standing stapler" hp=80 r=0.04 dmg=5 dew=8 model="stapler" {
     chase 0.16
