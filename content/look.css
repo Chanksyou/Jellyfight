@@ -30,6 +30,7 @@
   --iris-glow: 1.1;            /* the red irises */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
   --laser-length: 0.03;        /* meters: how long a bolt is */
+  --laser-aim-width: 0.006;    /* meters: how wide the aiming beam's glow is (its bright core is a third of it) */
 
   /* what each bug bursts into when it dies */
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;

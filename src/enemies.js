@@ -222,12 +222,12 @@ export class Enemies {
     this.shotMat = new THREE.MeshBasicMaterial({ color: laser.clone().lerp(new THREE.Color('#ffffff'), 0.65), toneMapped: false });
     this.glowGeo = new THREE.CapsuleGeometry(0.0055, len * 1.15, 4, 8).rotateX(Math.PI / 2);
     this.glowMat = new THREE.MeshBasicMaterial({ color: laser.clone().multiplyScalar(2), transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    // aiming lines: while a mosquito dips to shoot, a thin flickering line marks where the bolt will go
-    this.aimGeo = new THREE.BufferGeometry();
-    this.aimGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(64 * 6), 3));
-    this.aimLines = new THREE.LineSegments(this.aimGeo, new THREE.LineBasicMaterial({ color: laser, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-    this.aimLines.frustumCulled = false;
-    scene.add(this.aimLines);
+    // aiming beams: while a mosquito dips to shoot, a beam (a bright core in a red glow) marks
+    // where the bolt will go. Real geometry, since WebGL draws lines 1 pixel wide whatever you ask.
+    const aw = LOOK.num('laser-aim-width', 0.006);
+    this.aimCoreGeo = new THREE.CylinderGeometry(aw / 6, aw / 6, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m long along +z
+    this.aimGlowGeo = new THREE.CylinderGeometry(aw / 2, aw / 2, 1, 10, 1, true).rotateX(Math.PI / 2);
+    this.aimBeams = [];       // pooled: one per mosquito aiming this frame
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -387,21 +387,34 @@ export class Enemies {
     this.shots.push({ m, v, t: life, dmg });
   }
 
-  // the aiming lines of every mosquito about to fire (the spit word sets e.aimT and e.aimAt)
+  // the aiming beam of every mosquito about to fire (the spit word sets e.aimT, e.aimMax and e.aimAt):
+  // it flickers, and burns brighter and steadier as the shot gets close
   drawAim(t) {
-    const pos = this.aimGeo.attributes.position;
     let n = 0;
     for (const e of this.list) {
-      if (e.dead || !(e.aimT > 0) || !e.aimAt || n >= 64) continue;
-      const a = e.pos, b = e.aimAt;
-      pos.setXYZ(n * 2, a.x, a.y, a.z);
-      pos.setXYZ(n * 2 + 1, b.x, b.y, b.z);
+      if (e.dead || !(e.aimT > 0) || !e.aimAt) continue;
+      let B = this.aimBeams[n];
+      if (!B) {
+        const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+        B = new THREE.Mesh(this.aimGlowGeo, mat(this.laserColor.clone().multiplyScalar(1.6), 0.5));
+        B.add(new THREE.Mesh(this.aimCoreGeo, mat(this.laserColor.clone().lerp(new THREE.Color('#ffffff'), 0.6).multiplyScalar(1.5), 1)));
+        B.frustumCulled = B.children[0].frustumCulled = false;
+        this.scene.add(B);
+        this.aimBeams.push(B);
+      }
+      const a = e.pos, b = e.aimAt, len = a.distanceTo(b) + 0.03;   // runs a little past you
+      B.position.copy(a);
+      B.lookAt(b);
+      B.translateZ(len / 2);
+      B.scale.set(1, 1, len);
+      const charge = 1 - e.aimT / (e.aimMax || 0.5);                // 0 when it starts aiming, 1 as it fires
+      const flick = 0.75 + 0.25 * Math.abs(Math.sin(t * 40));
+      B.material.opacity = (0.3 + 0.5 * charge) * flick;
+      B.children[0].material.opacity = (0.55 + 0.45 * charge) * flick;
+      B.visible = true;
       n++;
     }
-    this.aimGeo.setDrawRange(0, n * 2);
-    pos.needsUpdate = true;
-    this.aimLines.visible = n > 0;
-    this.aimLines.material.opacity = 0.3 + 0.3 * Math.abs(Math.sin(t * 40));   // flickers as it charges
+    for (let i = n; i < this.aimBeams.length; i++) this.aimBeams[i].visible = false;
   }
 
   // Mosquito spit that reached the player this frame
