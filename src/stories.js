@@ -430,21 +430,10 @@ story('treasures/squeak-when-hit', {
     return ok(dmgBy(log, 'squeak').length === 1 && d1 > d0 + 0.03, { pushed: +(d1 - d0).toFixed(3) });
   },
 });
-story('treasures/block-first-hit', {
-  about: 'block-first-hit (Rubber Glove): the first hit does nothing; the next one counts.',
-  setup() { setupFight({ hurt: true }); give('soapBubble'); },
-  play() {
-    const { run } = G(), m0 = run.moisture;
-    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
-    const m1 = run.moisture;
-    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
-    return ok(m1 === m0 && run.moisture === m0 - 3, { m0, m1, m2: run.moisture });
-  },
-});
 story('treasures/damage-taken', {
-  about: 'damage-taken (Thimble): hits take 30% less moisture.',
-  setup() { setupFight({ hurt: true }); give('thimble'); },
-  play() { const { run } = G(), m0 = run.moisture; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'story' }); return ok(Math.abs(m0 - run.moisture - 7) < 1e-9, { lost: m0 - run.moisture }); },
+  about: 'damage-taken (Shot Glass): hits take 25% more moisture.',
+  setup() { setupFight({ hurt: true }); give('shotGlass'); },
+  play() { const { run } = G(), m0 = run.moisture; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'story' }); return ok(Math.abs(m0 - run.moisture - 5) < 1e-9, { lost: m0 - run.moisture }); },
 });
 story('treasures/spout', {
   about: 'spout (Whale Bath Toy): stand still and you refill moisture.',
@@ -467,9 +456,9 @@ story('treasures/dew-reach', {
   play() { step(120); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
 });
 story('treasures/dew-mult', {
-  about: 'dew-mult (Lucky Penny): bugs drop 50% more dew.',
-  setup() { setupFight({ lash: false }); give('coin'); roachAt(0, -0.15, { still: true }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.dew * 1.5), { dew: total }); },
+  about: 'dew-mult (Spilled Sugar): bugs drop 30% more dew.',
+  setup() { setupFight({ lash: false }); give('sugar'); spawn('mosquito', near(0, -0.15), { still: true, hp: 1 }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.dew * 1.3), { dew: total, base: e.T.dew }); },
 });
 story('treasures/card-rarity', {
   about: 'card-rarity (Game Die): level-up cards roll one rarity higher (never common).',
@@ -479,11 +468,6 @@ story('treasures/card-rarity', {
     for (let i = 0; i < 40; i++) for (const c of rollCards(G().run.stats, 3, G().run.mods.cardRarity)) if (c.rarity === RARITY[0]) common++;
     return ok(G().run.mods.cardRarity === 1 && common === 0, { common });
   },
-});
-story('treasures/longer-night', {
-  about: 'longer-night (Egg Timer): the boss comes 30 s later.',
-  setup() { setupFight(); give('hourglass'); },
-  play() { return ok(G().run.duration === G().run.stage.duration + 30, { duration: G().run.duration }); },
 });
 story('treasures/stat', {
   about: 'stat (Lemon Slice, Coffee Bean): a treasure adds to a stat, flat or by a percent.',
@@ -502,6 +486,77 @@ story('treasures/heal', {
   about: 'heal inside every (Snow Globe): every 6 s you refill 1 moisture.',
   setup() { setupFight({ bubbles: false, lash: false }); give('snowGlobe'); G().run.moisture = 10; },
   play() { step(60 * 7); return ok(Math.abs(G().run.moisture - 11) < 1e-6, { moisture: +G().run.moisture.toFixed(2) }); },
+});
+story('treasures/grow-on-kills', {
+  about: 'grow-on-kills (Bandage): every 5 bugs you clear, +1 max moisture for good (and it refills).',
+  setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
+  play() {
+    const { run } = G(), max0 = run.S.moisture;
+    const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, dew: 1 });
+    for (let i = 0; i < 4; i++) kill();
+    const after4 = run.S.moisture;
+    for (let i = 0; i < 6; i++) kill();
+    return ok(after4 === max0 && run.S.moisture === max0 + 2 && run.moisture === run.S.moisture, { max0, after4, after10: run.S.moisture });
+  },
+});
+story('treasures/heal-on-hit', {
+  about: 'heal-on-hit (Plastic Fangs): about 1 bubble or tentacle hit in 10 gives back 1 moisture.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('fangs'); roachAt(0.3, 0); },
+  play() {
+    const { run } = G(), e = G().enemies.list[0];
+    let heals = 0;
+    for (let i = 0; i < 300; i++) { run.moisture = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'bubble' }); if (run.moisture > 5) heals++; }
+    run.moisture = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'zap' });
+    return ok(heals > 12 && heals < 55, { heals, of: 300 });
+  },
+});
+story('treasures/heal-on-dew', {
+  about: 'heal-on-dew (Juice Box): each dew you soak up gives back 0.25 moisture.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('juiceBox'); G().run.moisture = 10; G().dew.drop(near(0.02, 0, 0.01), 1, 4); },
+  play() { step(60); return ok(G().dew.list.length === 0 && Math.abs(G().run.moisture - 11) < 1e-6, { moisture: G().run.moisture }); },
+});
+story('treasures/card-choices', {
+  about: 'card-choices (Notebook): level-ups offer 4 cards.',
+  setup() { setupFight(); give('notebook'); },
+  play() {
+    const { run } = G();
+    let shown = 0;
+    stub(run.ui, 'levelUp', (lvl, cards) => { shown = cards.length; });
+    run.pendingLevels = 1;
+    Object.getPrototypeOf(run).levelUp.call(run);
+    return ok(shown === 4, { shown });
+  },
+});
+story('treasures/bug-speed', {
+  about: 'bug-speed (Snail Shell): bugs crawl 15% slower.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const run1 = () => { G().enemies.clear(); const e = spawn('roach', near(0.6, 0), { hp: 9999 }); const d0 = e.pos.distanceTo(G().player.position); step(40); return d0 - e.pos.distanceTo(G().player.position); };
+    const plain = run1();
+    give('snailShell');
+    const slow = run1();
+    return ok(slow / plain > 0.75 && slow / plain < 0.93, { plain: +plain.toFixed(3), slow: +slow.toFixed(3), ratio: +(slow / plain).toFixed(2) });
+  },
+});
+story('treasures/more-bugs', {
+  about: 'more-bugs (Spilled Sugar): 30% more bugs come out of the vents.',
+  setup() { setupFight(); },
+  play() {
+    const { run, enemies } = G();
+    let n = 0;
+    stub(enemies, 'spawn', () => { n++; });
+    stub(run, 'spawnPoint', () => near(0.4, 0));
+    const count = () => { n = 0; run.spawnAcc = 0; Object.getPrototypeOf(run).spawnWaves.call(run, 200); return n; };
+    const plain = count();
+    give('sugar');
+    const more = count();
+    return ok(plain > 20 && Math.abs(more / plain - 1.3) < 0.08, { plain, more });
+  },
+});
+story('treasures/dew', {
+  about: 'dew inside every (Houseplant): every 12 s, 2 dew drips at your feet.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('houseplant'); },
+  play() { const { run } = G(), p0 = run.purse; step(60 * 9); return ok(run.purse - p0 === 2, { gained: run.purse - p0 }); },
 });
 story('treasures/every', {
   about: 'every + ring (Guitar Pick): every 5 s a chord stings and pushes back everything close.',

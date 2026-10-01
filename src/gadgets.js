@@ -212,6 +212,8 @@ export class Gadgets {
     } else if (ef.kind === 'heal') {
       ctx.heal?.(ef.moisture);
       fx.puff(center, 0x9fe2ff, 0.03, 0.4);
+    } else if (ef.kind === 'dew') {
+      ctx.dropDew?.(ef.dew);
     }
   }
 }

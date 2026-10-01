@@ -396,6 +396,7 @@ export class Enemies {
   // player: { position, radius, height }
   update(dt, player, t) {
     this.frame++;
+    const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
 
@@ -406,7 +407,7 @@ export class Enemies {
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
-      const slow = e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1;
+      const slow = (e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
       const toP = this._d.copy(pc).sub(this.center(e, tmp));
       const dist = toP.length();
       const near = dist < 1.4;

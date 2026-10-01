@@ -2,7 +2,7 @@
 // the 4th summons the boss early), then beat the stage's boss and evolve. When time runs out the boss
 // comes anyway.
 import * as THREE from 'three';
-import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE } from './stats.js';
+import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
@@ -68,6 +68,11 @@ export class Run {
       if (launch) { v.y = Math.max(v.y, launch); this.player.grounded = false; }
     });
     bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
+    // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back moisture
+    bus.on('damage_taken', (d) => {
+      const H = this.mods.healOnHit;
+      if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.moisture);
+    });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     this.player.onLand = (drop) => {
       const M = this.mods;
@@ -119,7 +124,7 @@ export class Run {
     this.slowT = 0;
     this.stillT = 0;
     this.squeakCd = [];
-    this.bubbleUsed = false;
+    this.grown = {}; this.growCount = {};
     this.spawnAcc = 0;
     this.dropTimer = 2;
     this.lastArea = null;
@@ -153,7 +158,8 @@ export class Run {
   // your treasures add (stat words). One object, refilled on each read: no garbage per frame.
   get S() {
     const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
-    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
+    const grown = this.grown || {};
+    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
     return S;
@@ -182,7 +188,7 @@ export class Run {
     };
   }
   // seconds until the boss comes (treasures can make the night longer)
-  get duration() { return this.stage.duration + this.mods.longerNight; }
+  get duration() { return this.stage.duration; }
 
   // ------------------------------------------------------------ main update
   update(dt) {
@@ -235,12 +241,13 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, pullDew: () => { this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); }, heal: (n) => this.heal(n) });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, pullDew: () => { this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); }, heal: (n) => this.heal(n), dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         const found = this.lost.update(dt, this.t, P.position);
         if (found) { this.fx.puff(found.pos.clone().setY(found.pos.y + 0.01), 0xffd23a, 0.04, 0.5); this.pickTreasure('🎁 A lost thing!', `Tucked away on the ${found.label}. Keep one.`); }
       }
+      this.enemies.pace = this.mods.bugSpeed;
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
       this.contactDamage();
       this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
@@ -257,7 +264,7 @@ export class Run {
 
     // --- dew
     const got = this.dew.update(dt, origin, this.mods.dewReach);
-    if (got) { this.gainDew(got); sfx.dew(juice.combo); }
+    if (got) { this.gainDew(got); sfx.dew(juice.combo); if (this.mods.healOnDew) this.heal(got * this.mods.healOnDew); }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
@@ -280,8 +287,9 @@ export class Run {
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
     const W = CONTENT.waves;
-    const rate = W.rate + this.t * W.grow;
-    const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery);
+    const more = this.mods.moreBugs;   // more-bugs (treasures)
+    const rate = (W.rate + this.t * W.grow) * more;
+    const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery) * more;
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
@@ -333,11 +341,6 @@ export class Run {
     this.iFrames = 1.0;
     const M = this.mods;
     amount *= M.damageTaken;
-    if (M.blockFirstHit && !this.bubbleUsed) {
-      this.bubbleUsed = true;
-      this.hud.toast('🫧 Pop!', 900);
-      return;
-    }
     // dodge: the hit misses (and a moment of grace, so touching a bug doesn't re-roll every frame)
     if (Math.random() * 100 < this.S.dodge) {
       this.iFrames = 0.4;
@@ -382,6 +385,16 @@ export class Run {
     this.dew.drop(c, 1, dew);
     this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
+    // grow-on-kills: every N kills a stat grows for good
+    for (const g of this.mods.growth) {
+      const n = (this.growCount[g.key] || 0) + 1;
+      this.growCount[g.key] = n % g.kills;
+      if (n < g.kills) continue;
+      this.grown[g.stat] = (this.grown[g.stat] || 0) + g.amount;
+      if (g.stat === 'moisture') this.heal(g.amount);
+      const P = this.player.position;
+      this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
+    }
     if (elite) {                         // elites give back some moisture and drop a treasure
       this.heal(4);
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
@@ -434,12 +447,12 @@ export class Run {
     this.pendingLevels--;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3, this.mods.cardRarity), this.S, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity), this.S, 1, (card) => {
       const before = this.stats.moisture;
       applyCard(this.stats, card);
       if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
       this.resume();
-    }, () => rollCards(this.stats, 3, this.mods.cardRarity));
+    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity));
   }
 
   resume() {

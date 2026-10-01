@@ -61,12 +61,6 @@ treasure "cottonBall" name="Cotton Ball" icon="☁️" attack=#true text="Land f
 treasure "rubberDuck" name="Rubber Duck" icon="🦆" text="When you get hit, a squeak knocks nearby enemies back. (5 s)" {
     squeak-when-hit radius=0.09 push=0.06 dmg=3 cooldown=5
 }
-treasure "soapBubble" name="Rubber Glove" icon="🧤" text="Blocks the first hit you take each stage." {
-    block-first-hit
-}
-treasure "thimble" name="Thimble" icon="🛡️" text="Hits take 30% less moisture." {
-    damage-taken 0.7
-}
 treasure "whale" name="Whale Bath Toy" icon="🐳" text="Stand still for a second and you start spouting, refilling moisture." {
     spout after=1 heal=0.5
 }
@@ -127,14 +121,11 @@ treasure "lintRoller" name="Lint Roller" icon="🧻" text="Every 20 s, all dew n
 treasure "loofah" name="Loofah" icon="🧽" text="Dew soaks into you from much farther away." {
     dew-reach 2.5
 }
-treasure "coin" name="Lucky Penny" icon="🪙" text="Enemies drop 50% more dew." {
-    dew-mult 1.5
+treasure "coin" name="Lucky Penny" icon="🪙" text="Enemies drop 25% more dew." {
+    dew-mult 1.25
 }
 treasure "dice" name="Game Die" icon="🎲" text="Level-up cards roll one rarity higher." {
     card-rarity 1
-}
-treasure "hourglass" name="Egg Timer" icon="⏳" text="The boss comes 30 s later: more night to grow in." {
-    longer-night 30
 }
 
 // --- found later: more lost things
@@ -152,9 +143,8 @@ treasure "seashell" name="Seashell" icon="🐚" text="Hold it to your bell: +0.5
     stat regen 0.5
     stat swim-speed -10 percent=#true
 }
-treasure "bandage" name="Bandage" icon="🩹" text="+5 max moisture, and every enemy you clear gives back 1." {
-    stat moisture 5
-    heal-on-kill 1
+treasure "bandage" name="Bandage" icon="🩹" text="Every 5 enemies you clear, +1 max moisture for good." {
+    grow-on-kills moisture 1 kills=5
 }
 treasure "coffeeBean" name="Coffee Bean" icon="🫘" attack=#true text="Bubbles blow 25% faster." {
     stat blow-rate 25 percent=#true
@@ -214,5 +204,58 @@ treasure "snowGlobe" name="Snow Globe" icon="🌨️" attack=#true text="Every 6
     every 6 {
         ring 0.12 dmg=0.3 freeze=1 color="#dff4ff" show=0.5
         heal 1
+    }
+}
+
+// --- trade-offs and slow growers (in the spirit of Brotato's items)
+treasure "shotGlass" name="Shot Glass" icon="🥃" attack=#true text="Glass cannon: +40% pop damage, but hits take 25% more moisture." {
+    stat pop 40 percent=#true
+    damage-taken 1.25
+}
+treasure "chili" name="Hot Chili" icon="🌶️" attack=#true text="+25% pop damage and +10% blow rate, but bubbles reach 15% less far." {
+    stat pop 25 percent=#true
+    stat blow-rate 10 percent=#true
+    stat range -15 percent=#true
+}
+treasure "glasses" name="Reading Glasses" icon="👓" text="Bubbles reach 50% farther, but blow 10% slower." {
+    stat range 50 percent=#true
+    stat blow-rate -10 percent=#true
+}
+treasure "flipFlop" name="Flip Flop" icon="🩴" text="Swim 20% faster, but -4 max moisture." {
+    stat swim-speed 20 percent=#true
+    stat moisture -4
+}
+treasure "fangs" name="Plastic Fangs" icon="🦷" text="Life steal: 1 in 10 bubble or tentacle hits gives back 1 moisture. -3 max moisture." {
+    heal-on-hit chance=0.1 moisture=1
+    stat moisture -3
+}
+treasure "trophy" name="Little Trophy" icon="🏆" attack=#true text="Every 10 enemies you clear, +0.25 pop damage for good." {
+    grow-on-kills pop 0.25 kills=10
+}
+treasure "stopwatch" name="Kitchen Timer" icon="⏲️" attack=#true text="Every 15 enemies you clear, +0.03 blow rate (about 3%) for good." {
+    grow-on-kills blow-rate 0.03 kills=15
+}
+treasure "juiceBox" name="Juice Box" icon="🧃" text="Every dew you soak up gives back 0.25 moisture." {
+    heal-on-dew 0.25
+}
+treasure "houseplant" name="Houseplant" icon="🪴" text="Every 12 s it drips 2 dew at your feet." {
+    every 12 {
+        dew 2
+    }
+}
+treasure "notebook" name="Notebook" icon="📓" text="Level-ups offer 4 cards instead of 3." {
+    card-choices 1
+}
+treasure "snailShell" name="Snail Shell" icon="🐌" text="Bugs crawl 15% slower, but so do you (-10% swim speed)." {
+    bug-speed 0.85
+    stat swim-speed -10 percent=#true
+}
+treasure "sugar" name="Spilled Sugar" icon="🍬" text="Bait: 30% more bugs come out, and each drops 30% more dew." {
+    more-bugs 1.3
+    dew-mult 1.3
+}
+treasure "sprinkler" name="Sprinkler" icon="🚿" attack=#true text="Every 4 s it sprays the 5 nearest enemies close by." {
+    every 4 {
+        zap 5 range=0.25 dmg=0.8
     }
 }
