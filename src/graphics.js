@@ -69,6 +69,28 @@ const DofShader = {
     }`,
 };
 
+// Keeps every pixel a real, sane number before the passes that spread light around. N8AO now and
+// then writes a NaN on the top or bottom row (its normal reconstruction reads depth past the edge
+// of the screen), and a bright glint can overflow half-float to Inf on some GPUs. Bloom's blur
+// would smear either into a block of black squares for a frame, so: NaN -> black, and anything
+// brighter than MAX_LIGHT is capped (lamps peak around 16).
+const FiniteShader = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse;
+    varying vec2 vUv;
+    const float MAX_LIGHT = 256.0;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      // isnan can be optimised away by some drivers; a NaN also fails every comparison
+      bool ok = !any(isnan(c.rgb)) && all(greaterThanEqual(c.rgb, vec3(-1e4))) && all(lessThanEqual(c.rgb, vec3(1e30)));
+      gl_FragColor = ok ? vec4(min(c.rgb, vec3(MAX_LIGHT)), c.a) : vec4(0.0, 0.0, 0.0, 1.0);
+    }`,
+};
+
 export class Graphics {
   constructor(renderer, scene, camera, defaultQuality = 'high') {
     this.renderer = renderer;
@@ -115,6 +137,7 @@ export class Graphics {
     ao.setQualityMode(high ? 'Medium' : 'Performance');
     if (high) ao.beautyRenderTarget.samples = 4; // MSAA on the scene render
     composer.addPass(ao);
+    composer.addPass(new ShaderPass(FiniteShader));   // before anything that blurs or blooms
 
     if (high) {
       const dof = new ShaderPass(DofShader);
