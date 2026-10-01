@@ -323,6 +323,21 @@ story('words/spit', {
     return ok(aimed && run.moisture < m0, { aimed, lost: +(m0 - run.moisture).toFixed(2) });
   },
 });
+story('words/spit-dodge', {
+  about: 'spit: the laser flies down its aiming line, so stepping off the line after it locks on dodges it.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0, -0.2, 0.1)); e.shootT = 0.6; },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], P = G().player.position;
+    run.iFrames = 0;
+    const m0 = run.moisture;
+    let shot = false;
+    // wait until the aim has locked, then slip 6 cm to the side
+    step(60, () => e.aimT > 0 && e.aimT < 0.2);
+    tp(P.x + 0.06, P.y, P.z);
+    step(90, () => { if (enemies.shots.length) shot = true; });
+    return ok(shot && run.moisture === m0, { shot, lost: m0 - run.moisture });
+  },
+});
 story('words/drift', {
   about: 'drift: a dust mote floats at your middle (bathroom stage).',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mote', near(0.4, 0, 0.15)); },

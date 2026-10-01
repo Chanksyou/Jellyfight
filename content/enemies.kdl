@@ -15,7 +15,7 @@ enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 dew=2 model="ants" {
 
 enemy "mosquito" name="Mosquito" hp=22 r=0.04 dmg=1 dew=5 model="mosquito" {
     hover 0.2 above=0.07 speed=0.33
-    spit every=2.4 reach=0.45 speed=0.48 life=1.47 dmg=1
+    spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=1 aim=0.5
 }
 
 // The dust enemies, kept for the bathroom stage (src/stage-bathroom.js)

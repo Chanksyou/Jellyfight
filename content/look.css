@@ -28,6 +28,8 @@
   --rim-color: #ffcc9e;
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
+  --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
+  --laser-length: 0.03;        /* meters: how long a bolt is */
 
   /* what each bug bursts into when it dies */
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;

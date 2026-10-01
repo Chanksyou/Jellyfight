@@ -214,9 +214,20 @@ export class Enemies {
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.byId = new Map();    // id -> enemy, for events that name their target
-    this.shots = [];          // mosquito spit
-    this.shotGeo = new THREE.SphereGeometry(0.004, 10, 8);
-    this.shotMat = new THREE.MeshStandardMaterial({ color: 0xc8202a, emissive: 0x8a0a10, emissiveIntensity: 1.2, roughness: 0.2 });
+    this.shots = [];          // mosquito laser bolts (the spit word)
+    // a bolt: a thin bright core inside a soft coloured glow, stretched along its flight
+    const laser = new THREE.Color(LOOK.color('laser-color', '#ff2a4a')), len = LOOK.num('laser-length', 0.03);
+    this.laserColor = laser;
+    this.shotGeo = new THREE.CapsuleGeometry(0.0022, len, 4, 8).rotateX(Math.PI / 2);   // along +z
+    this.shotMat = new THREE.MeshBasicMaterial({ color: laser.clone().lerp(new THREE.Color('#ffffff'), 0.65), toneMapped: false });
+    this.glowGeo = new THREE.CapsuleGeometry(0.0055, len * 1.15, 4, 8).rotateX(Math.PI / 2);
+    this.glowMat = new THREE.MeshBasicMaterial({ color: laser.clone().multiplyScalar(2), transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    // aiming lines: while a mosquito dips to shoot, a thin flickering line marks where the bolt will go
+    this.aimGeo = new THREE.BufferGeometry();
+    this.aimGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(64 * 6), 3));
+    this.aimLines = new THREE.LineSegments(this.aimGeo, new THREE.LineBasicMaterial({ color: laser, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.aimLines.frustumCulled = false;
+    scene.add(this.aimLines);
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -363,12 +374,34 @@ export class Enemies {
     this.shots = [];
   }
 
-  // a spit shot from e at the jelly's middle (the spit word)
+  // a laser bolt from e at the jelly's middle (the spit word): a streak of light, pointing the way
+  // it flies, with a flash at the muzzle
   spit(e, pc, speed, life, dmg) {
     const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
-    m.position.copy(e.pos);
+    m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
+    const v = pc.clone().sub(e.pos).normalize().multiplyScalar(speed);
+    m.position.copy(e.pos).addScaledVector(v, 0.03 / speed);           // leaves from in front of its nose
+    m.lookAt(m.position.clone().add(v));
     this.scene.add(m);
-    this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(speed), t: life, dmg });
+    this.fx.puff(m.position, this.laserColor.getHex(), 0.012, 0.12);
+    this.shots.push({ m, v, t: life, dmg });
+  }
+
+  // the aiming lines of every mosquito about to fire (the spit word sets e.aimT and e.aimAt)
+  drawAim(t) {
+    const pos = this.aimGeo.attributes.position;
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !(e.aimT > 0) || !e.aimAt || n >= 64) continue;
+      const a = e.pos, b = e.aimAt;
+      pos.setXYZ(n * 2, a.x, a.y, a.z);
+      pos.setXYZ(n * 2 + 1, b.x, b.y, b.z);
+      n++;
+    }
+    this.aimGeo.setDrawRange(0, n * 2);
+    pos.needsUpdate = true;
+    this.aimLines.visible = n > 0;
+    this.aimLines.material.opacity = 0.3 + 0.3 * Math.abs(Math.sin(t * 40));   // flickers as it charges
   }
 
   // Mosquito spit that reached the player this frame
@@ -376,7 +409,7 @@ export class Enemies {
     for (const s of this.shots) {
       if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
-      this.fx.puff(s.m.position, 0xc8202a, 0.01, 0.2);
+      this.fx.puff(s.m.position, this.laserColor.getHex(), 0.014, 0.2);
       bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: 'spit' });
     }
   }
@@ -385,7 +418,7 @@ export class Enemies {
     for (const s of this.shots) {
       s.t -= dt;
       const step = s.v.length() * dt;
-      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) s.done = true;
+      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.puff(s.m.position, this.laserColor.getHex(), 0.01, 0.15); }   // scorches the wall
       s.m.position.addScaledVector(s.v, dt);
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
@@ -472,6 +505,7 @@ export class Enemies {
     }
 
     this.updateShots(dt);
+    this.drawAim(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 
