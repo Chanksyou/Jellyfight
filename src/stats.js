@@ -14,6 +14,7 @@ export const BASE_STATS = {
   bounce: 1.0,      // jump height multiplier
   regen: 0,         // moisture refilled per second
   dodge: 0,         // % chance a hit misses you entirely (60% at most)
+  luck: 0,          // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
   // Tentacles: an automatic sting at close range. Only treasures improve these.
   tentacles: 1,     // tentacles that lash out at once (the jelly has 6 in all)
   reach: 0.083,     // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
@@ -33,17 +34,33 @@ export const STAT_INFO = {
   bounce:     { name: 'Bounce',      icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
   regen:      { name: 'Moisture regen', icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
   dodge:      { name: 'Dodge',       icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
+  luck:       { name: 'Luck',        icon: '🍀', fmt: (v) => `${Math.round(v)}` },
   tentacles:  { name: 'Tentacles',   icon: '🪼', fmt: (v) => `${v}` },
   reach:      { name: 'Tentacle reach', icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
   sting:      { name: 'Sting',       icon: '⚡', fmt: (v) => `${Math.round(v)}` },
   lashSpeed:  { name: 'Lash speed',  icon: '🌀', fmt: (v) => `${v.toFixed(2)}/s` },
 };
 
+// Level-up card rarities, and how often each rolls with no luck
 export const RARITY = [
   { id: 'common', name: 'Common', color: '#cfd6e0', weight: 70 },
   { id: 'rare', name: 'Rare', color: '#5fb4ff', weight: 25 },
   { id: 'epic', name: 'Epic', color: '#c77bff', weight: 5 },
 ];
+
+// Treasure rarities (rarity="…" in content/treasures.kdl), and how often a pick slot rolls each
+// with no luck. Rated by tests/clear.mjs (how much faster ten clumped cockroaches die) for
+// treasures that hurt things, and by how unique the effect is for the rest.
+export const TREASURE_RARITY = [
+  { id: 'common', name: 'Common', color: '#cfd6e0', weight: 55 },
+  { id: 'rare', name: 'Rare', color: '#5fb4ff', weight: 30 },
+  { id: 'epic', name: 'Epic', color: '#c77bff', weight: 12 },
+  { id: 'legendary', name: 'Legendary', color: '#ffb347', weight: 3 },
+];
+
+// Luck: each tier above common is (1 + luck/100)x likelier per step up, so 30 luck makes rares
+// 1.3x, epics 1.69x and legendaries 2.2x as likely (before the shares are re-normalised)
+export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * Math.max(0, 1 + luck / 100) ** i);
 
 // [common, rare, epic] amounts. `pct` = percent of the base value, added.
 const CARD_VALUES = {
@@ -55,6 +72,7 @@ const CARD_VALUES = {
   pulse:      { amounts: [8, 14, 22], pct: true, weight: 1.2 },
   regen:      { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // moisture a second
   dodge:      { amounts: [3, 5, 8], suffix: '%' },           // percentage points
+  luck:       { amounts: [10, 18, 30] },                     // see luckWeights
 };
 
 export function cardText(card) {
@@ -79,14 +97,15 @@ function pickWeighted(list, w) {
 }
 
 // Three different stats, each with a rolled rarity
-// bonus: rarity steps added to every card (Game Die)
-export function rollCards(stats, n = 3, bonus = 0) {
+// bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights)
+export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
+  const w = luckWeights(RARITY, luck);
   const pool = Object.keys(CARD_VALUES).filter((k) => k !== 'bubbles' || stats.bubbles < MAX_BUBBLES);
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => CARD_VALUES[s].weight ?? 1);
     pool.splice(pool.indexOf(stat), 1);
-    let rarity = pickWeighted(RARITY, (r) => r.weight);
+    const rarity = pickWeighted(RARITY, (r) => w[RARITY.indexOf(r)]);
     let ri = Math.min(RARITY.length - 1, RARITY.indexOf(rarity) + bonus);
     if (CARD_VALUES[stat].amounts[ri] === 0) ri = 1; // extra bubbles start at rare
     if (stat === 'bubbles') ri = Math.min(ri, 1 + (MAX_BUBBLES - stats.bubbles >= 2 ? 1 : 0));
@@ -98,7 +117,22 @@ export function rollCards(stats, n = 3, bonus = 0) {
 // Dew needed to go from `level` to the next one
 export const xpToNext = (level) => Math.round(3 * 1.5 ** (level - 1));   // 3, 5, 7, 10, 15, 23, 34, 51…: each level 1.5x the last
 
-// Treasures: lost things with one-of-a-kind effects. Each can appear once per run.
+// Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities
+// still in the pool, then one treasure of that rarity
+export function rollTreasures(pool, n = 3, luck = 0) {
+  const left = [...pool], out = [], w = luckWeights(TREASURE_RARITY, luck);
+  while (out.length < n && left.length) {
+    const tiers = TREASURE_RARITY.filter((r) => left.some((t) => t.rarity === r.id));
+    const tier = pickWeighted(tiers, (r) => w[TREASURE_RARITY.indexOf(r)]);
+    const some = left.filter((t) => t.rarity === tier.id);
+    const t = some[Math.floor(Math.random() * some.length)];
+    left.splice(left.indexOf(t), 1);
+    out.push(t);
+  }
+  return out;
+}
+
+// Treasures: lost things with their own effects; unique ones once per run, stackable ones up to stack=N.
 // Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)
 export const TREASURES = CONTENT.treasures;
 

@@ -58,7 +58,8 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
   return w;
 }
 
-// treasure "id" name="…" icon="…" text="…" attack=#true { effect words… }
+// treasure "id" name="…" icon="…" text="…" rarity="…" attack=#true stack=N { effect words… }
+const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
   for (const n of nodes) {
@@ -70,9 +71,10 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     seen.add(id);
     for (const k of ['name', 'icon', 'text']) if (typeof n.props[k] !== 'string') throw new Error(`${where}: "${id}" needs ${k}="…"`);
     if (n.props.stack !== undefined && !(Number.isInteger(n.props.stack) && n.props.stack >= 1)) throw new Error(`${where}: "${id}" stack= must be a whole number, 1 or more`);
+    if (n.props.rarity !== undefined && !TIERS.includes(n.props.rarity)) throw new Error(`${where}: "${id}" rarity= must be one of ${TIERS.join(', ')}, not "${n.props.rarity}"`);
     if (!n.children.length) throw new Error(`${where}: "${id}" does nothing (give it effect words)`);
     out.push({
-      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: n.props.stack ?? 1,
+      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: n.props.stack ?? 1, rarity: n.props.rarity ?? 'common',
       effects: n.children.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`)),
       vocabulary: n.children.map((w) => w.name),
     });

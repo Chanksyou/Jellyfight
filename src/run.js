@@ -2,7 +2,7 @@
 // the 4th summons the boss early), then beat the stage's boss and evolve. When time runs out the boss
 // comes anyway.
 import * as THREE from 'three';
-import { BASE_STATS, rollCards, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
@@ -449,12 +449,12 @@ export class Run {
     this.pendingLevels--;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity), this.S, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, 1, (card) => {
       const before = this.stats.moisture;
       applyCard(this.stats, card);
       if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
       this.resume();
-    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity));
+    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck));
   }
 
   resume() {
@@ -466,16 +466,16 @@ export class Run {
   // attack: make sure one of the three changes how you attack (the starting pick)
   pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.', attack = false) {
     const can = (t) => this.owned.count(t.id) < t.stack;
-    let left = shuffle(TREASURES.filter(can)).slice(0, 3);
+    let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (attack && !left.some((t) => ATTACK_TREASURES.includes(t.id))) {
-      const a = shuffle(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && can(t)))[0];
+      const a = rollTreasures(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && can(t)), 1, this.S.luck)[0];
       if (a) left = shuffle([a, ...left.slice(0, 2)]);
     }
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     // stackable ones say how many you'd have
-    left = left.map((t) => (t.stack > 1 ? { ...t, name: `${t.name} <small>${this.owned.count(t.id) + 1}/${t.stack}</small>` } : t));
+    left = left.map((t) => ({ ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity), name: t.stack > 1 ? `${t.name} <small>${this.owned.count(t.id) + 1}/${t.stack}</small>` : t.name }));
     this.ui.choose(title, sub, left, (t) => {
       const before = this.S.moisture;
       this.owned.add(t.id);

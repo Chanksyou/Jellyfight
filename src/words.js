@@ -188,7 +188,7 @@ export const TIMED_WORDS = {
 };
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', pop: 'pop', 'blow-rate': 'blowRate', moisture: 'moisture', 'swim-speed': 'pulse', regen: 'regen', dodge: 'dodge' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', pop: 'pop', 'blow-rate': 'blowRate', moisture: 'moisture', 'swim-speed': 'pulse', regen: 'regen', dodge: 'dodge', luck: 'luck' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -211,7 +211,7 @@ export const TREASURE_WORDS = {
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
   'dew-reach': { doc: 'Dew drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.dewReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, pop, blow-rate, moisture, swim-speed, regen (moisture a second) or dodge (% chance a hit misses). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, pop, blow-rate, moisture, swim-speed, regen (moisture a second), dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {

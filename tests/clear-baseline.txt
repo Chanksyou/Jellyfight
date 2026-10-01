@@ -1,0 +1,97 @@
+   (no treasure)        range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    234
+🧷 Bobby Pin            range: clear  19.4 s, dmg    190   swarm: clear  20.7 s, dmg    150
+➰ Hair Tie             range: clear  18.7 s, dmg    178   swarm: clear  11.1 s, dmg    286
+💍 Gold Ring            range: clear  26.6 s, dmg    127   swarm: clear  13.9 s, dmg    252
+🎋 Reed Stick           range: clear  13.4 s, dmg    249   swarm: clear   6.9 s, dmg    624
+🕯️ Birthday Candle      range: clear   7.3 s, dmg    339   swarm: clear   4.8 s, dmg    523
+🔋 AA Battery           range: clear   7.3 s, dmg    791   swarm: clear   4.8 s, dmg    879
+❄️ Freezer Pack         range: clear  28.9 s, dmg    103   swarm: clear  16.4 s, dmg    207
+💅 Nail Polish          range: clear     7 s, dmg   1164   swarm: clear   2.5 s, dmg   3203
+🌬️ Paper Fan            range: clear    30 s, dmg    149   swarm: clear  17.4 s, dmg    259
+✨ Glitter              range: clear   7.2 s, dmg    714   swarm: clear   3.4 s, dmg   1653
+✂️ Nail Clipper         range: clear    24 s, dmg    150   swarm: clear    13 s, dmg    296
+🗒️ Sticky Note          range: clear  22.1 s, dmg    102   swarm: clear  11.7 s, dmg    228
+🌀 Pen Spring           range: clear  28.9 s, dmg    103   swarm: clear  16.2 s, dmg    230
+☁️ Cotton Ball          range: clear  28.9 s, dmg    102   swarm: clear  16.1 s, dmg    232
+🦆 Rubber Duck          range: clear  28.9 s, dmg    102   swarm: clear  14.3 s, dmg    232
+🐳 Whale Bath Toy       range: clear  28.9 s, dmg    102   swarm: clear  16.1 s, dmg    232
+🍼 Baby Bottle          range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    232
+🧂 Bath Salt            range: clear  22.6 s, dmg    103   swarm: clear   7.1 s, dmg    228
+🎸 Guitar Pick          range: clear  26.6 s, dmg    142   swarm: clear   8.6 s, dmg    490
+💥 Bath Bomb            range: clear  28.9 s, dmg    103   swarm: clear   9.8 s, dmg    395
+🧊 Ice Cube             range: clear  28.3 s, dmg    129   swarm: clear  12.5 s, dmg    282
+📺 TV Remote            range: clear  19.2 s, dmg    167   swarm: clear  12.8 s, dmg    296
+🧱 Lego Brick           range: clear  28.9 s, dmg    102   swarm: clear  13.9 s, dmg    316
+🔮 Marble               range: clear  28.9 s, dmg    103   swarm: clear  12.7 s, dmg    336
+💡 Fairy Lights         range: clear  28.9 s, dmg    103   swarm: clear   5.7 s, dmg    901
+🔍 Magnifying Glass     range: clear  13.9 s, dmg    232   swarm: clear   9.4 s, dmg    358
+🟢 Glow Stick           range: clear  28.9 s, dmg    103   swarm: clear     4 s, dmg   1029
+🪙 Lucky Penny          range: clear  28.9 s, dmg    102   swarm: clear  16.1 s, dmg    234
+🎲 Game Die             range: clear  28.9 s, dmg    103   swarm: clear  16.2 s, dmg    230
+🧴 Hand Cream           range: clear  28.9 s, dmg    103   swarm: clear  16.5 s, dmg    233
+🧦 Odd Sock             range: clear  28.9 s, dmg    103   swarm: clear  15.9 s, dmg    229
+🩹 Bandage              range: clear  28.9 s, dmg    102   swarm: clear  16.1 s, dmg    225
+🫘 Coffee Bean          range: clear  23.2 s, dmg    126   swarm: clear    13 s, dmg    275
+🥤 Drinking Straw       range: clear  28.9 s, dmg    103   swarm: clear  16.1 s, dmg    231
+🍋 Lemon Slice          range: clear  23.2 s, dmg    137   swarm: clear  12.5 s, dmg    297
+🪄 Bubble Wand          range: clear  18.9 s, dmg    175   swarm: clear  11.2 s, dmg    323
+🧲 Fridge Magnet        range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    230
+🥃 Shot Glass           range: clear  23.2 s, dmg    144   swarm: clear    12 s, dmg    310
+🌶️ Hot Chili            range: clear    30 s, dmg    143   swarm: clear    13 s, dmg    310
+🩴 Flip Flop            range: clear  28.9 s, dmg    102   swarm: clear  15.6 s, dmg    233
+🦷 Plastic Fangs        range: clear  28.9 s, dmg    102   swarm: clear  15.9 s, dmg    231
+🏆 Little Trophy        range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    229
+⏲️ Kitchen Timer        range: clear  28.9 s, dmg    102   swarm: clear  15.5 s, dmg    232
+🪴 Houseplant           range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    228
+📓 Notebook             range: clear  28.9 s, dmg    102   swarm: clear  16.1 s, dmg    233
+🐌 Snail Shell          range: clear  28.9 s, dmg    102   swarm: clear  16.5 s, dmg    229
+🍬 Spilled Sugar        range: clear  28.9 s, dmg    103   swarm: clear  16.9 s, dmg    235
+
+by clear strength (x = times faster than no treasure: 28.9 s at range, 16.3 s swarmed):
+  💅 Nail Polish          x6.52 clear   x13.69 damage   (range 7 s, swarm 2.5 s)
+  ✨ Glitter              x4.79 clear   x7.06 damage   (range 7.2 s, swarm 3.4 s)
+  🟢 Glow Stick           x4.08 clear   x4.40 damage   (range 28.9 s, swarm 4 s)
+  🕯️ Birthday Candle      x3.96 clear   x3.32 damage   (range 7.3 s, swarm 4.8 s)
+  🔋 AA Battery           x3.96 clear   x7.75 damage   (range 7.3 s, swarm 4.8 s)
+  💡 Fairy Lights         x2.86 clear   x3.85 damage   (range 28.9 s, swarm 5.7 s)
+  🎋 Reed Stick           x2.36 clear   x2.67 damage   (range 13.4 s, swarm 6.9 s)
+  🧂 Bath Salt            x2.30 clear   x1.01 damage   (range 22.6 s, swarm 7.1 s)
+  🔍 Magnifying Glass     x2.08 clear   x2.27 damage   (range 13.9 s, swarm 9.4 s)
+  🎸 Guitar Pick          x1.90 clear   x2.09 damage   (range 26.6 s, swarm 8.6 s)
+  💥 Bath Bomb            x1.66 clear   x1.69 damage   (range 28.9 s, swarm 9.8 s)
+  ➰ Hair Tie             x1.55 clear   x1.75 damage   (range 18.7 s, swarm 11.1 s)
+  🪄 Bubble Wand          x1.53 clear   x1.72 damage   (range 18.9 s, swarm 11.2 s)
+  📺 TV Remote            x1.51 clear   x1.64 damage   (range 19.2 s, swarm 12.8 s)
+  🧷 Bobby Pin            x1.49 clear   x1.86 damage   (range 19.4 s, swarm 20.7 s)
+  🗒️ Sticky Note          x1.39 clear   x1.00 damage   (range 22.1 s, swarm 11.7 s)
+  🥃 Shot Glass           x1.36 clear   x1.41 damage   (range 23.2 s, swarm 12 s)
+  🧊 Ice Cube             x1.30 clear   x1.26 damage   (range 28.3 s, swarm 12.5 s)
+  🍋 Lemon Slice          x1.30 clear   x1.34 damage   (range 23.2 s, swarm 12.5 s)
+  🔮 Marble               x1.28 clear   x1.44 damage   (range 28.9 s, swarm 12.7 s)
+  ✂️ Nail Clipper         x1.25 clear   x1.47 damage   (range 24 s, swarm 13 s)
+  🫘 Coffee Bean          x1.25 clear   x1.24 damage   (range 23.2 s, swarm 13 s)
+  🌶️ Hot Chili            x1.25 clear   x1.40 damage   (range 30 s, swarm 13 s)
+  💍 Gold Ring            x1.17 clear   x1.25 damage   (range 26.6 s, swarm 13.9 s)
+  🧱 Lego Brick           x1.17 clear   x1.35 damage   (range 28.9 s, swarm 13.9 s)
+  🦆 Rubber Duck          x1.14 clear   x1.00 damage   (range 28.9 s, swarm 14.3 s)
+  ⏲️ Kitchen Timer        x1.05 clear   x1.00 damage   (range 28.9 s, swarm 15.5 s)
+  🩴 Flip Flop            x1.04 clear   x1.00 damage   (range 28.9 s, swarm 15.6 s)
+  🧦 Odd Sock             x1.03 clear   x1.01 damage   (range 28.9 s, swarm 15.9 s)
+  🦷 Plastic Fangs        x1.03 clear   x1.00 damage   (range 28.9 s, swarm 15.9 s)
+  ☁️ Cotton Ball          x1.01 clear   x1.00 damage   (range 28.9 s, swarm 16.1 s)
+  🐳 Whale Bath Toy       x1.01 clear   x1.00 damage   (range 28.9 s, swarm 16.1 s)
+  🪙 Lucky Penny          x1.01 clear   x1.00 damage   (range 28.9 s, swarm 16.1 s)
+  🩹 Bandage              x1.01 clear   x1.00 damage   (range 28.9 s, swarm 16.1 s)
+  🥤 Drinking Straw       x1.01 clear   x1.01 damage   (range 28.9 s, swarm 16.1 s)
+  📓 Notebook             x1.01 clear   x1.00 damage   (range 28.9 s, swarm 16.1 s)
+  🌀 Pen Spring           x1.01 clear   x1.01 damage   (range 28.9 s, swarm 16.2 s)
+  🎲 Game Die             x1.01 clear   x1.01 damage   (range 28.9 s, swarm 16.2 s)
+  ❄️ Freezer Pack         x1.00 clear   x1.01 damage   (range 28.9 s, swarm 16.4 s)
+  🍼 Baby Bottle          x1.00 clear   x1.00 damage   (range 28.9 s, swarm 16.3 s)
+  🧴 Hand Cream           x1.00 clear   x1.01 damage   (range 28.9 s, swarm 16.5 s)
+  🧲 Fridge Magnet        x1.00 clear   x1.00 damage   (range 28.9 s, swarm 16.3 s)
+  🏆 Little Trophy        x1.00 clear   x1.00 damage   (range 28.9 s, swarm 16.3 s)
+  🪴 Houseplant           x1.00 clear   x1.00 damage   (range 28.9 s, swarm 16.3 s)
+  🐌 Snail Shell          x1.00 clear   x1.00 damage   (range 28.9 s, swarm 16.5 s)
+  🍬 Spilled Sugar        x1.00 clear   x1.01 damage   (range 28.9 s, swarm 16.9 s)
+  🌬️ Paper Fan            x0.96 clear   x1.46 damage   (range 30 s, swarm 17.4 s)

@@ -117,8 +117,8 @@ export class UI {
   choose(title, sub, choices, onPick) {
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
       <div class="jf-cards">${choices.map((c, i) => `
-        <button class="jf-card" data-i="${i}" style="--c:#7ff6ee">
-          <span class="key">${i + 1}</span><span class="ic">${c.icon}</span><span class="big">${c.name}</span><span class="txt">${c.text}</span>
+        <button class="jf-card" data-i="${i}" style="--c:${c.tier?.color || '#7ff6ee'}">
+          <span class="key">${i + 1}</span><span class="ic">${c.icon}</span><span class="big">${c.name}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>
         </button>`).join('')}</div></div>`;
     this.modal.hidden = false;
     const pick = (i) => { const c = choices[i]; if (!c) return; this.close(); onPick(c); };

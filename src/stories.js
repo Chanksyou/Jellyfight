@@ -12,7 +12,7 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { rollCards, RARITY, xpToNext } from './stats.js';
+import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext } from './stats.js';
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 
@@ -207,6 +207,31 @@ story('enemies/mosquito-spits', {
 });
 
 // --- progression
+story('progression/luck', {
+  about: 'Luck (a level-up card) makes rarer level-up cards and treasures come up more often.',
+  setup() {},
+  play() {
+    const share = (luck) => {
+      let epic = 0, cards = 0, top = 0, treasures = 0;
+      for (let i = 0; i < 1500; i++) {
+        for (const c of rollCards({ bubbles: 2 }, 3, 0, luck)) { cards++; if (c.rarity.id === 'epic') epic++; }
+        for (const t of rollTreasures(CONTENT.treasures, 3, luck)) { treasures++; if (t.rarity === 'epic' || t.rarity === 'legendary') top++; }
+      }
+      return { epicCards: +(epic / cards).toFixed(3), epicOrLegendaryTreasures: +(top / treasures).toFixed(3) };
+    };
+    const none = share(0), lucky = share(60);
+    return ok(lucky.epicCards > none.epicCards * 1.6 && lucky.epicOrLegendaryTreasures > none.epicOrLegendaryTreasures * 1.4, { none, lucky });
+  },
+});
+story('content/every-treasure-has-a-rarity', {
+  about: 'Every treasure is rated common, rare, epic or legendary, and every rarity has treasures.',
+  setup() {},
+  play() {
+    const ids = TREASURE_RARITY.map((r) => r.id), count = Object.fromEntries(ids.map((id) => [id, 0]));
+    for (const t of CONTENT.treasures) count[t.rarity] = (count[t.rarity] ?? NaN) + 1;
+    return ok(ids.every((id) => count[id] > 0) && Object.keys(count).length === ids.length, count);
+  },
+});
 story('progression/regen', {
   about: 'Moisture regen (a card or Hand Cream) refills moisture every second.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.regen = 0.5; G().run.moisture = 10; },
