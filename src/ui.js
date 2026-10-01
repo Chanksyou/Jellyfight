@@ -108,7 +108,7 @@ export class UI {
       else pick(+b.dataset.i);
     };
     this.keyHandler = (e) => {
-      if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) pick(+e.code.slice(-1) - 1);
+      if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1);
       if (e.code === 'KeyR') reroll();
     };
   }
@@ -123,7 +123,7 @@ export class UI {
     this.modal.hidden = false;
     const pick = (i) => { const c = choices[i]; if (!c) return; this.close(); onPick(c); };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
-    this.keyHandler = (e) => { if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) pick(+e.code.slice(-1) - 1); };
+    this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
   }
 
   // rows: [[label, value]], buttons: [{ label, go, onClick }]
