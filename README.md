@@ -40,6 +40,8 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 
 **Stories** (`src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
 
+**The balance bot** (`node tests/balance.mjs 5`) plays whole nights on autopilot and reports how long it lasted, its level and kills, whether it beat the boss, and which sources took its moisture. Run it before and after anything that could make the game harder or easier.
+
 ## Dev: layout editor
 
 **🛠 Layout (dev)** in the pause menu lets you move, rotate, raise/lower and hide the furniture and objects. Tap or click an object to select it (a yellow box shows it), drag it to move it. Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo. Touch: drag empty space to pan, pinch to zoom, and use the toolbar.

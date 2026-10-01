@@ -46,8 +46,12 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    story, or if bad content doesn't produce a clear error.
 3. **Look values go in `content/look.css`**, not literals in code. Read them with
    `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
-4. **Don't quietly re-balance.** If a change makes the game harder or easier, say so with
-   numbers and name the one value to change; don't tweak content numbers to make a test pass.
+4. **Don't quietly re-balance.** If a change could make the game harder or easier, run the
+   balance bot before and after (`node tests/balance.mjs 5`: an autopilot plays whole nights
+   and reports how long it lasted, its level and kills, and which sources took its moisture),
+   say what moved with those numbers (the last recorded run is `tests/balance-baseline.txt`),
+   and name the one value to change. Don't tweak content
+   numbers to make a test pass.
 5. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
    `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
 6. **Phones first.** Phones run the `low` graphics setting (no bloom, no AO). Keep draw
@@ -62,5 +66,3 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 ## Next (the same pattern, not done yet)
 
 - **Elites and the Vacuum as stacked words** (a telegraph shape + an effect per attack).
-- **A balance bot**: headless runs reporting the median wave reached and what killed you
-  (the bus already tags every hit with its `source`).
