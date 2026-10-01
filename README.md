@@ -29,6 +29,16 @@ It's night: the room is lit only by its lamps (warm pools of light, dark corners
 
 **Getting around:** the jelly swims at a steady speed while its bell pulses in strokes (`src/swim.js`), faster the harder you push. It has a double jump (the Pen Spring treasure makes it a triple). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Hold Space to climb the front of the corduroy sofa.
 
+## Changing the game
+
+Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full map (agents read it automatically):
+
+- **`content/enemies.kdl`**: every bug as a few numbers and a few behaviour words, e.g. `chase 0.3`, or `curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3`. Each word is defined once in `src/words.js` with what its numbers mean. A typo stops loading with a message naming the file and line.
+- **`content/waves.kdl`**: how fast bugs arrive, how many at once, how much tougher they get, and from when each kind appears.
+- **`content/look.css`**: colours and render numbers: the night fill, haze, bloom, the jelly's size, colour, glow and light, how much enemies glow, gut colours, the camera.
+
+**Stories** (`src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
+
 ## Dev: layout editor
 
 **🛠 Layout (dev)** in the pause menu lets you move, rotate, raise/lower and hide the furniture and objects. Tap or click an object to select it (a yellow box shows it), drag it to move it. Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo. Touch: drag empty space to pan, pinch to zoom, and use the toolbar.
@@ -68,6 +78,10 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | --- | --- |
 | `src/boot.js` | Renderer, camera, loading screen; loads the apartment, starts the game. |
 | `src/apartment.js` | Loads the baked apartment, recreates its lights and reflections, exposes the doors. |
+| `content/*.kdl`, `content/look.css` | What things are (bugs, waves) and how they look. See "Changing the game". |
+| `src/words.js` | The behaviour vocabulary (`ENEMY_WORDS`): each word once, with its doc, arguments and settings. |
+| `src/content.js`, `src/kdl.js`, `src/look.js` | Load and check the content files before the game starts. |
+| `src/stories.js`, `tests/run.mjs` | Named situations that prove behaviour; the headless runner. |
 | `src/main.js` | Wires everything up: pause menu, mode switching (play, creator, layout), and the frame loop, which only works out dt and calls each system's `update` in order. |
 | `src/systems.js` | The per-frame systems: clock (dt clamp, hit-stop), gameplay, layout editor, touch controls, idle avatar, input, camera (follow, creator orbit, shake), blob shadow, HUD, debug readout, render. |
 | `src/events.js` | The event bus (synchronous `on`/`emit`) and the event list. Systems don't change each other's data: attacks emit `damage_taken`, `status_applied` and `knockback` with a target id (`'player'` or an enemy's id); enemies.js and run.js own the HP, status and position they apply to, and announce `enemy_hit`, `enemy_frozen`, `enemy_killed`, `elite_defeated` and `boss_health`. |

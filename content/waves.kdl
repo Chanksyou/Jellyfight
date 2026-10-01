@@ -1,0 +1,12 @@
+// How the night fills with bugs (run.js spawnWaves). Times are seconds into the night.
+// Which bugs exist and how they behave: content/enemies.kdl.
+
+spawning {
+    rate 0.22 grow=0.0022       // bugs per second at midnight, and how much faster each second after
+    cap 6 every=15 max=20       // most alive at once: 6, one more every 15 s, never more than 20
+    toughen 0.18                // each minute into the night, new bugs have 18% more health
+}
+
+bug "roach" weight=1                // cockroaches from the start
+bug "ants" weight=0.5 from=45       // ant squads from 0:45
+bug "mosquito" weight=0.45 from=90  // mosquitoes from 1:30

@@ -6,26 +6,31 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito } from './critters.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
+import { LOOK } from './look.js';
+import { CONTENT } from './content.js';
 
 // what each type bursts into when it dies
-export const GUTS = {
+const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
   mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
+// --guts-<type> in content/look.css overrides these
+export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v]) => [k, LOOK.list('guts-' + k, v)]));
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
 // model (every lit material in it is patched once).
 export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
+  const rc = new THREE.Color(LOOK.color('rim-color', '#ffcc9e'));
   const patch = (m) => {
     if (!m || m.userData.standOut || !(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
     m.userData.standOut = true;
     m.onBeforeCompile = (sh) => {
       sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float soRim = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.5);
-        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(1.0, 0.8, 0.62) * soRim * ${rim.toFixed(3)};`);
+        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(${rc.r.toFixed(3)}, ${rc.g.toFixed(3)}, ${rc.b.toFixed(3)}) * soRim * ${rim.toFixed(3)};`);
     };
     m.customProgramCacheKey = () => `standOut${base}:${rim}`;
     m.needsUpdate = true;
@@ -35,22 +40,8 @@ export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
   return target;
 }
 
-export const TYPES = {
-  // scuttles straight at you; the basic enemy. Slower than the jelly (0.3 vs 0.42 m/s) so you can always outswim one
-  roach:    { name: 'Cockroach', hp: 30, speed: 0.3, dmg: 1, r: 0.016, dew: 4 },
-  // five ants in a block; up close they curl into a ball and roll into you
-  ants:     { name: 'Ant squad', hp: 66, speed: 0.225, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.75, rest: 0.8 },
-  // hovers out of reach and spits at you
-  mosquito: { name: 'Mosquito', hp: 22, speed: 0.33, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
-  // drifts through the air, so high ledges aren't perfectly safe
-  mote:  { name: 'Mote', hp: 6, speed: 0.255, dmg: 1, r: 0.01, dew: 3, fly: true },
-  // rolls toward you, winds up, then charges
-  bunny: { name: 'Dust bunny', hp: 20, speed: 0.3, dmg: 2, r: 0.02, dew: 6, charge: true },
-  // slow; sticks to you and slows you down
-  lint:  { name: 'Lint puff', hp: 14, speed: 0.195, dmg: 1, r: 0.016, dew: 4, slows: true },
-  // shed by The Clog
-  hair:  { name: 'Hair tangle', hp: 12, speed: 0.3, dmg: 2, r: 0.015, dew: 3 },
-};
+// The bug types come from content/enemies.kdl (numbers + behaviour words, see src/words.js)
+export const TYPES = CONTENT.enemies;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 
@@ -58,8 +49,8 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 // the middle. Built in "radius units" (the body is about 1 across) facing +z. The face sits on the
 // enemy's root, not its body, so it keeps glaring at you while the fuzz rolls and spins.
 const EYE = {
-  white: new THREE.MeshStandardMaterial({ color: 0xfffdf6, roughness: 0.25, emissive: 0xfff4e6, emissiveIntensity: 0.35 }),   // eyes catch the light in the dark
-  iris: new THREE.MeshStandardMaterial({ color: 0xc8231c, roughness: 0.3, emissive: 0xff2a1a, emissiveIntensity: 1.1 }),
+  white: new THREE.MeshStandardMaterial({ color: 0xfffdf6, roughness: 0.25, emissive: 0xfff4e6, emissiveIntensity: LOOK.num('eye-glow', 0.35) }),   // eyes catch the light in the dark
+  iris: new THREE.MeshStandardMaterial({ color: 0xc8231c, roughness: 0.3, emissive: 0xff2a1a, emissiveIntensity: LOOK.num('iris-glow', 1.1) }),
   pupil: new THREE.MeshStandardMaterial({ color: 0x0c0a0a, roughness: 0.2 }),
   brow: new THREE.MeshStandardMaterial({ color: 0x1c1512, roughness: 0.8 }),
   ball: new THREE.SphereGeometry(1, 16, 12),
@@ -229,6 +220,7 @@ export class Enemies {
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
+    this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3() };   // the frame every word sees
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -264,7 +256,7 @@ export class Enemies {
   // elite: 35% bigger, 2.2x health, 4x dew, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
-    const { body: mesh, face, anim } = this.looks[type]();
+    const { body: mesh, face, anim } = this.looks[T.model || type]();
     const root = new THREE.Group();
     if (elite && !anim) {
       T = { ...T, dew: T.dew * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
@@ -286,7 +278,7 @@ export class Enemies {
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      id: nextId(), type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 1 + Math.random() * 1.5, aimT: 0,
+      id: nextId(), type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -294,6 +286,7 @@ export class Enemies {
     };
     mesh.scale.setScalar(0.001); // grows in
     face.scale.setScalar(0.001);
+    for (const w of T.words) w.init?.(e);
     this.list.push(e);
     this.byId.set(e.id, e);
     return e;
@@ -370,13 +363,21 @@ export class Enemies {
     this.shots = [];
   }
 
+  // a spit shot from e at the jelly's middle (the spit word)
+  spit(e, pc, speed, life, dmg) {
+    const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
+    m.position.copy(e.pos);
+    this.scene.add(m);
+    this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(speed), t: life, dmg });
+  }
+
   // Mosquito spit that reached the player this frame
   shotHits(pc, radius) {
     for (const s of this.shots) {
       if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.puff(s.m.position, 0xc8202a, 0.01, 0.2);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'mosquito' });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: 'spit' });
     }
   }
 
@@ -410,57 +411,18 @@ export class Enemies {
       const dist = toP.length();
       const near = dist < 1.4;
 
-      if (e.T.shoots) {
-        // hover at a distance, a little above you, circling slowly; every couple of seconds
-        // dip and spit at you
-        const away = S.away.copy(e.pos).sub(pc).setY(0);
-        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.normalize().applyAxisAngle(S.up, dt * 0.4);
-        const spot = S.spot.copy(pc).addScaledVector(away, 0.2).setY(pc.y + 0.07);
-        const to = spot.sub(e.pos);
-        const s = e.T.speed * slow;
-        e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * dt));
-        e.pos.addScaledVector(e.vel, dt);
-        e.shootT -= dt * (slow > 0 ? 1 : 0);
-        e.aimT = Math.max(0, e.aimT - dt);
-        if (e.shootT <= 0.35 && e.aimT <= 0 && e.shootT > 0) e.aimT = 0.35;
-        if (e.shootT <= 0 && dist < 0.45) {
-          e.shootT = 2.4;
-          const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
-          m.position.copy(e.pos);
-          this.scene.add(m);
-          this.shots.push({ m, v: pc.clone().sub(e.pos).normalize().multiplyScalar(0.48), t: 1.47 });   // same reach as before, 50% faster
-        } else if (e.shootT <= 0) e.shootT = 0.5;
-      } else if (e.T.fly) {
-        // drift toward the player's middle with a lazy wobble
-        const s = e.T.speed * slow;
-        const wob = Math.sin(t * 3 + e.phase) * 0.35;
-        toP.normalize();
-        e.vel.lerp(S.want.set(toP.x + wob * toP.z, toP.y + Math.sin(t * 2 + e.phase) * 0.3, toP.z - wob * toP.x).multiplyScalar(s), 1 - Math.exp(-3 * dt));
-        e.pos.addScaledVector(e.vel, dt);
-      } else {
-        toP.y = 0;
-        const flat = toP.length();
-        toP.normalize();
-        let speed = e.T.speed * slow;
-        if (e.T.charge) {
-          e.stateT -= dt;
-          if (e.state === 'approach' && flat < 0.2 && e.grounded) { e.state = 'windup'; e.stateT = e.T.windup ?? 0.45; }
-          else if (e.state === 'windup') {
-            speed = 0;
-            if (e.stateT <= 0) { e.state = 'dash'; e.stateT = e.T.dashTime ?? 0.45; e.dashDir.copy(toP); }
-          } else if (e.state === 'dash') {
-            speed = (e.T.dashSpeed ?? 0.825) * slow;
-            toP.copy(e.dashDir);
-            if (e.stateT <= 0) { e.state = 'rest'; e.stateT = e.T.rest ?? 0.6; }
-          } else if (e.state === 'rest') {
-            speed *= 0.3;
-            if (e.stateT <= 0) e.state = 'approach';
-          }
-        }
-        const want = toP.multiplyScalar(speed);
-        e.vel.x += (want.x - e.vel.x) * (1 - Math.exp(-8 * dt));
-        e.vel.z += (want.z - e.vel.z) * (1 - Math.exp(-8 * dt));
+      // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
+      const c = this._c;
+      c.dt = dt; c.t = t; c.pc = pc; c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.flatDir.copy(toP).setY(0);
+      c.flat = c.flatDir.length();
+      c.flatDir.normalize();
+      c.speed = 0;
+      c.dir.set(0, 0, 0);
+      if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
+      if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
+        e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
+        e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
         this.moveGround(e, dt, near);
       }
 
@@ -488,7 +450,7 @@ export class Enemies {
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) e.anim(dt, e);
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
-      else if (e.type === 'bunny' || e.type === 'hair') e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
+      else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
 
     // keep them from stacking into one blob

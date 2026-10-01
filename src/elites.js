@@ -23,6 +23,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { angryEyes, standOut } from './enemies.js';
+import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER } from './events.js';
@@ -144,7 +145,7 @@ class Elite {
     this.holder.position.copy(this.base);
     this.holder.add(m.group);
     m.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    standOut(m.group, { base: 0.2, rim: 0.6 });   // readable in the dark room
+    standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
     owner.scene.add(this.holder);
     // a little health bar that faces the camera
     this.bar = new THREE.Group();

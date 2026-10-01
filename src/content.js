@@ -1,0 +1,67 @@
+// Loads the game's content: plain-text files in content/ that say what things are, read
+// before the game starts (boot.js). A mistake in a file stops loading with a message naming
+// the file, the line and what's wrong, instead of a game that half works.
+//
+//   content/enemies.kdl   the bugs: numbers + behaviour words (src/words.js)
+//   content/waves.kdl     how the night fills with them
+//   content/look.css      colours and render numbers (src/look.js)
+import { parse } from './kdl.js';
+import { ENEMY_WORDS, makeWord } from './words.js';
+
+export const CONTENT = { enemies: {}, waves: null };
+
+const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
+
+// enemy "id" name="…" hp= r= dmg= dew= model="…" { words… }
+export function compileEnemies(nodes, file = 'content/enemies.kdl') {
+  const out = {};
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name !== 'enemy') throw new Error(`${where}: expected "enemy", got "${n.name}"`);
+    const id = n.args[0];
+    if (typeof id !== 'string') throw new Error(`${where}: enemy needs an id, like enemy "roach"`);
+    need(n, ['hp', 'r', 'dmg', 'dew'], where);
+    const words = n.children.map((w) => makeWord(ENEMY_WORDS, w, `${file}:${w.line}`));
+    if (!words.some((w) => w.ground || w.fly)) throw new Error(`${where}: "${id}" has no way to move (give it chase, hover or drift)`);
+    out[id] = {
+      id, name: n.props.name || id, hp: n.props.hp, r: n.props.r, dmg: n.props.dmg, dew: n.props.dew, model: n.props.model || id,
+      words,
+      fly: words.some((w) => w.fly),
+      rolls: words.some((w) => w.rolls),
+      slows: words.some((w) => w.slows),
+      rollDmg: words.find((w) => w.rollDmg != null)?.rollDmg ?? null,
+      vocabulary: n.children.map((w) => w.name),
+    };
+  }
+  return out;
+}
+
+// spawning { rate … cap … toughen … }  and  bug "id" weight= from=
+export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
+  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, toughen: 0, bugs: [] };
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name === 'spawning') {
+      for (const s of n.children) {
+        if (s.name === 'rate') { w.rate = s.args[0]; w.grow = s.props.grow ?? 0; }
+        else if (s.name === 'cap') { w.cap = s.args[0]; w.capEvery = s.props.every ?? Infinity; w.capMax = s.props.max ?? w.cap; }
+        else if (s.name === 'toughen') w.toughen = s.args[0];
+        else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap, toughen)`);
+      }
+    } else if (n.name === 'bug') {
+      const id = n.args[0];
+      if (!enemies[id]) throw new Error(`${where}: no enemy called "${id}" in content/enemies.kdl`);
+      w.bugs.push({ id, weight: n.props.weight ?? 1, from: n.props.from ?? 0 });
+    } else throw new Error(`${where}: expected "spawning" or "bug", got "${n.name}"`);
+  }
+  if (!w.bugs.length) throw new Error(`${file}: no bugs listed`);
+  return w;
+}
+
+export async function loadContent(base = './content/') {
+  const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
+  const [enemies, waves] = await Promise.all([read('enemies.kdl'), read('waves.kdl')]);
+  CONTENT.enemies = compileEnemies(parse(enemies, 'content/enemies.kdl'));
+  CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
+  return CONTENT;
+}

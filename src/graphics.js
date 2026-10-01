@@ -2,6 +2,7 @@
 // under furniture), depth of field (the far side of the room goes soft, like a macro photo,
 // which sells being tiny), bloom on lamps and windows, and a light vignette.
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -124,7 +125,7 @@ export class Graphics {
       this.dof = null;
     }
 
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.22, 0.5, 1.0)); // only lamps, screens, sunlit glass
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.x, size.y), LOOK.num('bloom', 0.22), 0.5, 1.0)); // only lamps, screens, sunlit glass
     composer.addPass(new OutputPass());
 
     this.ao = ao;

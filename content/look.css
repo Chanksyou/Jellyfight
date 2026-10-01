@@ -1,0 +1,41 @@
+/* How Jelly Fight looks: every colour and render number you might want to tune, in one place.
+   Change a value, reload, and the game uses it (src/look.js reads this file at startup).
+   Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
+:root {
+  /* --- the night ------------------------------------------------------------ */
+  --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
+  --night-sky: #05060c;        /* what you see through the windows */
+  --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
+  --haze-color: #0c0604;
+  --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
+
+  /* --- the jelly ------------------------------------------------------------- */
+  --jelly-scale: 1;            /* 1 = 8.9 cm tall; collision grows with it */
+  --jelly-color: #2ff0c4;      /* default look: bell and tentacles (the Look screen can change it) */
+  --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */
+  --jelly-glow: 1;             /* how brightly the bell, rim and tentacles fluoresce */
+  --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
+  --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
+  --jelly-light-reach: 0.4;    /* meters */
+
+  /* --- enemies: a faint glow in their own colours and a warm rim, so they read in the dark */
+  --bug-glow: 0.35;
+  --bug-rim: 0.8;
+  --elite-glow: 0.2;
+  --elite-rim: 0.6;
+  --boss-glow: 0.15;
+  --boss-rim: 0.6;
+  --rim-color: #ffcc9e;
+  --eye-glow: 0.35;            /* the whites of the angry eyes */
+  --iris-glow: 1.1;            /* the red irises */
+
+  /* what each bug bursts into when it dies */
+  --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;
+  --guts-ants: #1c0a06 #5a1a0c #3a1a10;
+  --guts-mosquito: #15151a #f4f4f0 #b0202a #b0202a;
+
+  /* --- the camera ------------------------------------------------------------ */
+  --camera-distance: 0.6;      /* meters behind the jelly */
+  --camera-distance-phone: 0.52;
+  --camera-tilt: 0.9;          /* radians down from level at the start */
+}

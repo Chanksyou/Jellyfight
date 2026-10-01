@@ -9,6 +9,7 @@
 // Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
+import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -82,7 +83,7 @@ export class Vacuum {
     face.rotation.x = -1.0;
     root.add(face);
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    standOut(root, { base: 0.15, rim: 0.6 });     // readable in the dark room
+    standOut(root, { base: LOOK.num('boss-glow', 0.15), rim: LOOK.num('boss-rim', 0.6) });     // readable in the dark room
 
     this.body = root;
     this.holder = new THREE.Group();

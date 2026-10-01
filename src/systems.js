@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { juice } from './juice.js';
 import { batcher } from './batch.js';
+import { LOOK } from './look.js';
 
 const IDLE = { speed: 0, walkSpeed: 1, vy: 0 };
 
@@ -132,7 +133,7 @@ export class ShadowSystem {
     this.down = new THREE.Vector3(0, -1, 0);
     this.from = new THREE.Vector3();
     // the jelly is fluorescent: a small light of its own tints the floor and anything close
-    this.glow = new THREE.PointLight(0x2ff0c4, 0.9, 0.4, 2);
+    this.glow = new THREE.PointLight(0x2ff0c4, LOOK.num('jelly-light', 0.9), LOOK.num('jelly-light-reach', 0.4), 2);
     this.glowHex = null;
     scene.add(this.glow);
   }

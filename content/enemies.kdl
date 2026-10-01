@@ -1,0 +1,37 @@
+// The bugs. Each one is a few numbers and a few behaviour words; every word is defined once,
+// in src/words.js (ENEMY_WORDS), with what its numbers mean. Colours and glow: content/look.css.
+//
+//   hp     health            r      body radius (m)        dmg    damage when it touches you
+//   dew    XP it drops       model  which model to build (src/critters.js, src/enemies.js)
+
+enemy "roach" name="Cockroach" hp=30 r=0.016 dmg=1 dew=4 model="roach" {
+    chase 0.3                       // a little slower than you swim (0.42), so you can always get away
+}
+
+enemy "ants" name="Ant squad" hp=66 r=0.024 dmg=1 dew=8 model="ants" {
+    chase 0.225
+    curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3
+}
+
+enemy "mosquito" name="Mosquito" hp=22 r=0.02 dmg=1 dew=5 model="mosquito" {
+    hover 0.2 above=0.07 speed=0.33
+    spit every=2.4 reach=0.45 speed=0.48 life=1.47 dmg=1
+}
+
+// The dust enemies, kept for the bathroom stage (src/stage-bathroom.js)
+enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
+    drift 0.255
+}
+enemy "bunny" name="Dust bunny" hp=20 r=0.02 dmg=2 dew=6 model="bunny" {
+    chase 0.3
+    curl-dash
+    rolls
+}
+enemy "lint" name="Lint puff" hp=14 r=0.016 dmg=1 dew=4 model="lint" {
+    chase 0.195
+    slows-on-touch
+}
+enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 dew=3 model="hair" {
+    chase 0.3
+    rolls
+}

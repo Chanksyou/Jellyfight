@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
+import { LOOK } from './look.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -38,8 +39,9 @@ function mats() {
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });
   MAT.matte ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
   MAT.wing ||= new THREE.MeshStandardMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, roughness: 0.1, depthWrite: false });
-  standOut(MAT.shell, { base: 0.35, rim: 0.8 });     // brighter bugs: readable in the dark room
-  standOut(MAT.matte, { base: 0.35, rim: 0.8 });
+  const lit = { base: LOOK.num('bug-glow', 0.35), rim: LOOK.num('bug-rim', 0.8) };   // content/look.css
+  standOut(MAT.shell, lit);     // brighter bugs: readable in the dark room
+  standOut(MAT.matte, lit);
   standOut(MAT.wing, { base: 0.3, rim: 0.5 });
   return MAT;
 }

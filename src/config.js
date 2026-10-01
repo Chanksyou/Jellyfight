@@ -1,9 +1,13 @@
+import { LOOK } from './look.js';
+
+const JELLY = LOOK.num('jelly-scale', 1);   // content/look.css
+
 // All distances are in METERS. The apartment is built at real-world scale,
 // and the player is a ~9 cm tall critter living inside it.
 export const CONFIG = {
   player: {
-    radius: 0.0306,      // collision radius (3.06 cm)
-    height: 0.08925,     // collision height (8.9 cm)
+    radius: 0.0306 * JELLY,   // collision radius (3.06 cm at --jelly-scale 1)
+    height: 0.08925 * JELLY,  // collision height (8.9 cm)
     walkSpeed: 0.42,     // m/s at 100% Pulse
     jumpHeight: 0.13,    // 13 cm at 100% Bounce (~1.5x body height)
     gravity: 1.0,        // very low: a jump hangs in the air for about a second
@@ -16,8 +20,8 @@ export const CONFIG = {
     airJumpMul: 0.85,    // a mid-air jump is a bit weaker than one from the ground
   },
   camera: {
-    distance: 0.6,       // how far from the player the camera sits
-    pitch: 0.9,          // starting tilt (~52 degrees down): mostly top-down, still behind the player
+    distance: LOOK.num('camera-distance', 0.6),   // how far from the player the camera sits
+    pitch: LOOK.num('camera-tilt', 0.9),          // starting tilt (~52 degrees down): mostly top-down, still behind the player
     minDistance: 0.2,
     maxDistance: 0.9,
     height: 0.051,       // look-at point above the player's feet

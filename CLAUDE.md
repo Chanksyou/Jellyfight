@@ -1,0 +1,67 @@
+# Jelly Fight: how to change this game
+
+A jellyfish roguelike in a real-scale 3D apartment. Three.js, plain ES modules, no build step.
+Players are on phones (Pixel, Chrome) as much as desktops.
+
+The game is meant to be changed by short requests to agents that have never seen it. That
+works because every kind of change has **one home**, things are described in **plain-text
+content** with a small **vocabulary**, and **stories** prove behaviour. Keep it that way.
+
+## Where each kind of change lives
+
+| To change… | Edit | Notes |
+|---|---|---|
+| A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
+| When bugs appear, how many, how fast | `content/waves.kdl` | |
+| Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
+| Vents, gift boxes, Moon Drop spots, elite spots, boss arena | `src/stage1.js` | Plain data |
+| Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
+| Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
+| Treasures | `src/stats.js` (`TREASURES`) + their effects in `bubbles.js`, `gadgets.js`, `combat.js`, `run.js` | Not words yet (see "Next") |
+| Elites (Controller, Mug, Kettle) | `src/elites.js` | Not words yet |
+| The boss (Vacuum) | `src/vacuum.js` | Not words yet |
+| Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |
+| Movement and collision | `src/player.js`, `src/collision.js` | |
+
+## Rules
+
+1. **New behaviour = a new word, not a special case.** If a bug needs to do something no word
+   can say, add a small word to `src/words.js` (one job, a one-line `doc`, named args/props),
+   use it in the `.kdl`, and add a `words/<name>` story that proves it. Never branch on a type
+   id in code (`if (e.type === 'roach')`). If existing words can say it, use them.
+2. **Prove it with a story.** `src/stories.js` holds named situations in the real game; each
+   `play()` steps the game and asserts what should happen. Add or update a story for every
+   behaviour you change. Run them all before you push:
+
+   ```
+   cd tests && npm install && npx playwright install chromium   # once
+   node tests/run.mjs            # everything (about 5 minutes headless)
+   node tests/run.mjs elites     # just stories whose name contains "elites"
+   ```
+
+   If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked
+   `three@0.170.0` npm package. The guard stories fail if a word has no doc, no user or no
+   story, or if bad content doesn't produce a clear error.
+3. **Look values go in `content/look.css`**, not literals in code. Read them with
+   `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
+4. **Don't quietly re-balance.** If a change makes the game harder or easier, say so with
+   numbers and name the one value to change; don't tweak content numbers to make a test pass.
+5. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
+   `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
+6. **Phones first.** Phones run the `low` graphics setting (no bloom, no AO). Keep draw
+   calls low: small moving things are instanced through `src/batch.js` (`batcher.track(mesh)`);
+   hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
+7. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
+   `knockback`, `enemy_killed`… Don't write another system's data directly.
+8. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
+   run the stories, commit, push `main`, then publish to the artifact (copy changed files,
+   including `content/`, next to `index.html`).
+
+## Next (the same pattern, not done yet)
+
+- **Treasures as effect words** (`every 5 { ring … }`, `on-hit …`, `on-kill …`, `stat +1 bubbles`,
+  `bubble-element fire`) in a `content/treasures.kdl`. Today about 40 treasures are
+  `owned.has('…')` checks spread over four files.
+- **Elites and the Vacuum as stacked words** (a telegraph shape + an effect per attack).
+- **A balance bot**: headless runs reporting the median wave reached and what killed you
+  (the bus already tags every hit with its `source`).

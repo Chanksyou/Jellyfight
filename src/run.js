@@ -7,6 +7,7 @@ import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { TYPES } from './enemies.js';
+import { CONTENT } from './content.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
@@ -264,20 +265,20 @@ export class Run {
   }
 
   // ------------------------------------------------------------ waves
+  // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
-    // fewer enemies, each worth more (see TYPES in enemies.js); paced for a 5-minute night
-    const rate = 0.22 + this.t * 0.0022;
-    const cap = Math.min(20, 6 + this.t / 15);
+    const W = CONTENT.waves;
+    const rate = W.rate + this.t * W.grow;
+    const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery);
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
       if (this.enemies.alive >= cap) continue;
-      // cockroaches from the start, ant squads from 0:45, mosquitoes from 1:30
-      const w = [['roach', 1], ['ants', this.t > 45 ? 0.5 : 0], ['mosquito', this.t > 90 ? 0.45 : 0]];
-      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = 'roach';
+      const w = W.bugs.map((b) => [b.id, this.t >= b.from ? b.weight : 0]);
+      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = W.bugs[0].id;
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
-      const pos = this.spawnPoint(type) || (type !== 'roach' ? this.spawnPoint((type = 'roach')) : null);
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * 0.18);
+      const pos = this.spawnPoint(type) || (type !== W.bugs[0].id ? this.spawnPoint((type = W.bugs[0].id)) : null);
+      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * W.toughen);
     }
   }
 

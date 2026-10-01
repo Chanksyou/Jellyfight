@@ -21,9 +21,10 @@ import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
 import { batcher } from './batch.js';
+import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v34';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v35';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -119,9 +120,9 @@ applyLayout(APT.root);                 // your saved furniture edits (dev layout
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
-scene.environmentIntensity = 0.12;
-scene.background = new THREE.Color(0x05060c);
-scene.fog = new THREE.FogExp2(0x0c0604, 0.14);
+scene.environmentIntensity = LOOK.num('night-fill', 0.12);
+scene.background = new THREE.Color(LOOK.color('night-sky', '#05060c'));
+scene.fog = new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
 prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage);
@@ -176,7 +177,7 @@ const run = new Run({
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = 0.52;   // phone screens are small: sit a bit closer
+  tpc.distance = LOOK.num('camera-distance-phone', 0.52);   // phone screens are small: sit a bit closer
 }
 input.touchOnly = IS_TOUCH;
 function play() {
@@ -378,7 +379,12 @@ async function warmUp() {
 }
 
 overlay.hidden = false;
-warmUp();
+// Stories (stories.js): index.html?story=<name> opens one live; index.html?stories lists them
+const storyParams = new URLSearchParams(location.search);
+warmUp().then(() => {
+  if (!storyParams.has('story') && !storyParams.has('stories')) return;
+  import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
+});
 
 const clock = new Clock();
 renderer.setAnimationLoop((now) => {

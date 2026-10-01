@@ -12,6 +12,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { TentacleRig } from './tentacles.js';
 import { squeeze, thrust } from './swim.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { LOOK } from './look.js';
 
 export const OPTIONS = {
   body: [['blob', 'Blob'], ['bean', 'Bean'], ['jellyfish', 'Jellyfish'], ['cube', 'Gummy'], ['mushroom', 'Mushroom']],
@@ -28,8 +29,8 @@ export const DEFAULT_LOOK = {
   name: 'Jelly',
   body: 'jellyfish',
   finish: 'glow',
-  color: '#2ff0c4',
-  accent: '#3d8cff',
+  color: LOOK.color('jelly-color', '#2ff0c4'),     // content/look.css
+  accent: LOOK.color('jelly-accent', '#3d8cff'),
   pattern: 'none',
   eyes: 'big',
   eyeColor: '#123a4a',
@@ -195,7 +196,7 @@ export function buildCharacter(look, heightMeters) {
       lean.add(bell);
       const base = new THREE.Color(look.color), acc = new THREE.Color(look.accent);
       const rimCol = base.clone().lerp(new THREE.Color('#f4ff8a'), 0.55);
-      const glow = look.finish === 'glow' ? 1 : look.finish === 'jelly' ? 0.65 : 0.3;
+      const glow = (look.finish === 'glow' ? 1 : look.finish === 'jelly' ? 0.65 : 0.3) * LOOK.num('jelly-glow', 1);
       const R = BELL_R;
       const profile = [[1, -0.07], [1.02, 0.11], [1, 0.37], [0.945, 0.63], [0.83, 0.89], [0.67, 1.15], [0.44, 1.33], [0.22, 1.44], [0, 1.48]];
       const lathe = (k) => new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r * R * k, y * R * k)), 48, 0, Math.PI * 2);
@@ -266,7 +267,7 @@ export function buildCharacter(look, heightMeters) {
       // six long, glowing hunting tentacles (see tentacles.js)
       rig = new TentacleRig(lean, { count: 6, radius: R * 0.92, y: BELL_Y, length: 0.95, thickness: 0.024, flare: 0.1, drag: 0.1, material: lit(base.clone().lerp(rimCol, 0.3), 1.3) });
       // a soft fluorescent halo, so it glows even without the bloom pass (phones)
-      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: base, transparent: true, opacity: 0.32 * glow + 0.05, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: base, transparent: true, opacity: LOOK.num('jelly-halo', 0.37) * (glow + 0.15) / 1.15, depthWrite: false, blending: THREE.AdditiveBlending }));
       halo.scale.setScalar(1.05);
       halo.position.y = BELL_Y + R * 0.6;
       lean.add(halo);
