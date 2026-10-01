@@ -139,11 +139,11 @@ export function newMods() {
   return {
     bubbles: { pierce: 1, split: false, golden: null, giant: null },
     elements: new Set(),
-    hits: { bubbles: { slow: 0, mark: 0, crit: null }, tentacles: { slow: 0, mark: 0, crit: null, mult: 1 } },
-    tentacles: { extra: 0, reach: 1 },
-    thorns: null, haste: null, landingShockwave: null, extraJumps: 0,
-    dewReach: 1, dewMult: 1, healOnKill: 0, damageTaken: 1, blockFirstHit: false,
-    squeak: null, spout: null, burstOnKill: null, cardRarity: 0, longerNight: 0,
+    hits: { bubbles: { slow: 0, mark: 0, crit: null }, tentacles: { slow: 0, mark: 0, crit: null } },
+    stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
+    landingShockwave: null, extraJumps: 0,
+    dewReach: 1, dewMult: 1, dewBonus: 0, healOnKill: 0, damageTaken: 1, blockFirstHit: false,
+    squeaks: [], spout: null, burstOnKill: null, cardRarity: 0, longerNight: 0,
     timed: [], orbit: null, beam: null, aura: null,
   };
 }
@@ -183,7 +183,15 @@ export const TIMED_WORDS = {
     doc: 'All the dew on the floor drifts to you at once.',
     make: () => ({ kind: 'pull-dew' }),
   },
+  heal: {
+    doc: 'Refills `moisture` (a flat number).',
+    args: ['moisture'],
+    make: ([n]) => ({ kind: 'heal', moisture: n }),
+  },
 };
+
+// The stats a treasure can raise with `stat`, by the name content files use
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', pop: 'pop', 'blow-rate': 'blowRate', moisture: 'moisture', 'swim-speed': 'pulse', regen: 'regen', dodge: 'dodge' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -197,26 +205,33 @@ export const TREASURE_WORDS = {
   },
   'slow-on-hit': { doc: 'Enemies you hit are slowed for `seconds`. `by` = "bubbles", "tentacles" or "all".', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].slow = Math.max(m.hits[k].slow, s); }; } },
   'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
-  crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].crit = { chance: p.chance, mult: p.mult }; }; } },
-  'more-tentacles': { doc: '`count` more tentacles lash out at once (6 at most).', args: ['count'], make: ([n]) => (m) => { m.tentacles.extra += n; } },
-  'tentacle-reach': { doc: 'Tentacles reach `times` as far.', args: ['times'], make: ([k]) => (m) => { m.tentacles.reach *= k; } },
-  'sting-damage': { doc: 'Tentacle stings do `times` the damage.', args: ['times'], make: ([k]) => (m) => { m.hits.tentacles.mult *= k; } },
-  thorns: { doc: 'Anything that touches you is stung for `sting` x your sting stat + `power` x your power, at most once every `cooldown` s each.', props: { sting: 3, power: 1, cooldown: 1 }, make: (_, p) => (m) => { m.thorns = p; } },
-  'haste-after-landing': { doc: 'For `seconds` after you land a jump, your tentacles lash `lash` times as fast.', args: ['seconds'], props: { lash: 2 }, make: ([s], p) => (m) => { m.haste = { seconds: s, lash: p.lash }; } },
+  crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
-  'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeak = p; } },
+  'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
   'block-first-hit': { doc: 'The first hit you take each stage does nothing.', make: () => (m) => { m.blockFirstHit = true; } },
   'damage-taken': { doc: 'Hits take `times` as much moisture.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
   spout: { doc: 'Stand still for `after` s and you refill `heal` moisture a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `moisture`.', args: ['moisture'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
   'dew-reach': { doc: 'Dew drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.dewReach *= k; } },
+  'dew-bonus': { doc: 'Every enemy you clear drops `dew` more.', args: ['dew'], make: ([n]) => (m) => { m.dewBonus += n; } },
+  stat: {
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, pop, blow-rate, bubble-size, moisture, swim-speed, bounce, regen (moisture a second) or dodge (% chance a hit misses). `percent=#true` means % of its starting value.',
+    args: ['name', 'amount'],
+    props: { percent: false },
+    make: ([name, amount], p) => {
+      const key = STAT_NAMES[name];
+      if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
+      return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; };
+    },
+  },
   'dew-mult': { doc: 'Enemies drop `times` as much dew.', args: ['times'], make: ([k]) => (m) => { m.dewMult *= k; } },
   'card-rarity': { doc: 'Level-up cards roll `steps` rarity higher.', args: ['steps'], make: ([n]) => (m) => { m.cardRarity += n; } },
   'longer-night': { doc: 'The boss comes `seconds` later.', args: ['seconds'], make: ([n]) => (m) => { m.longerNight += n; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, pull-dew.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, pull-dew, heal.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,

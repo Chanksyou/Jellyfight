@@ -2,6 +2,7 @@
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
 // Damage numbers are multiples of your power (pop damage x 1.8) unless a word says otherwise.
+// Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
 //
 //   attack=#true   it changes how you attack: the starting pick always offers one of these
 //
@@ -42,24 +43,6 @@ treasure "paperFan" name="Paper Fan" icon="🌬️" attack=#true text="Wind bubb
 }
 treasure "glitter" name="Glitter" icon="✨" attack=#true text="Glitter bubbles: the splash is twice as wide and hits harder." {
     element "glitter"
-}
-
-// --- your tentacles (the close-range sting): these are the only way to improve them
-treasure "fishingLine" name="Fishing Line" icon="🎣" text="Two more tentacles lash out at once." {
-    more-tentacles 2
-}
-treasure "chopstick" name="Chopstick" icon="🥢" text="Tentacles reach 60% farther." {
-    tentacle-reach 1.6
-}
-treasure "hotSauce" name="Hot Sauce" icon="🌶️" text="Tentacle stings do double damage and slow what they hit." {
-    sting-damage 2
-    slow-on-hit 1.5 by="tentacles"
-}
-treasure "cactus" name="Cactus Spine" icon="🌵" text="Anything that touches you gets stung hard." {
-    thorns sting=3 power=1 cooldown=1
-}
-treasure "wristband" name="Festival Wristband" icon="🎟️" text="For 3 s after you land a jump, your tentacles lash twice as fast." {
-    haste-after-landing 3 lash=2
 }
 
 // --- hits, jumps and your body
@@ -152,4 +135,84 @@ treasure "dice" name="Game Die" icon="🎲" text="Level-up cards roll one rarity
 }
 treasure "hourglass" name="Egg Timer" icon="⏳" text="The boss comes 30 s later: more night to grow in." {
     longer-night 30
+}
+
+// --- found later: more lost things
+treasure "handCream" name="Hand Cream" icon="🧴" text="Your moisture slowly refills: +0.3 a second." {
+    stat regen 0.3
+}
+treasure "sock" name="Odd Sock" icon="🧦" text="Slippery: 15% of hits miss you entirely." {
+    stat dodge 15
+}
+treasure "feather" name="Feather" icon="🪶" text="Light as a feather: 10% of hits miss you, and you swim 10% faster." {
+    stat dodge 10
+    stat swim-speed 10 percent=#true
+}
+treasure "seashell" name="Seashell" icon="🐚" text="Hold it to your bell: +0.5 moisture a second, but you swim 10% slower." {
+    stat regen 0.5
+    stat swim-speed -10 percent=#true
+}
+treasure "bandage" name="Bandage" icon="🩹" text="+5 max moisture, and every enemy you clear gives back 1." {
+    stat moisture 5
+    heal-on-kill 1
+}
+treasure "coffeeBean" name="Coffee Bean" icon="🫘" attack=#true text="Bubbles blow 25% faster." {
+    stat blow-rate 25 percent=#true
+}
+treasure "straw" name="Drinking Straw" icon="🥤" text="Blow through a straw: bubbles reach 40% farther." {
+    stat range 40 percent=#true
+}
+treasure "lemon" name="Lemon Slice" icon="🍋" attack=#true text="Sour bubbles: +2 pop damage." {
+    stat pop 2
+}
+treasure "bubbleWand" name="Bubble Wand" icon="🪄" attack=#true text="One more bubble in the stream." {
+    stat bubbles 1
+}
+treasure "thumbtack" name="Thumbtack" icon="📌" attack=#true text="Sharp bubbles: they pierce 2 enemies and slow what they hit." {
+    pierce 2
+    slow-on-hit 1 by="bubbles"
+}
+treasure "clover" name="Four-Leaf Clover" icon="🍀" text="1 in 4 hits does double damage (stacks with the Nail Clipper)." {
+    crit chance=0.25 mult=2 by="all"
+}
+treasure "magnet" name="Fridge Magnet" icon="🧲" text="Dew flies to you from three times as far, and enemies drop 25% more." {
+    dew-reach 3
+    dew-mult 1.25
+}
+treasure "piggyBank" name="Piggy Bank" icon="🐷" text="Every enemy you clear drops 1 more dew." {
+    dew-bonus 1
+}
+treasure "mirror" name="Compact Mirror" icon="🪞" text="When you get hit, everything close is stung for 5. (3 s)" {
+    squeak-when-hit radius=0.12 push=0 dmg=5 cooldown=3
+}
+treasure "pocketWatch" name="Pocket Watch" icon="⏱️" attack=#true text="Every 10 s, time stops around you: everything close freezes for 3 s." {
+    every 10 {
+        ring 0.2 dmg=0 freeze=3 color="#e0d8ff" show=0.7
+    }
+}
+treasure "firecracker" name="Firecracker" icon="🧨" attack=#true text="Every 4 s, a bang where you are: a big hit to everything very close." {
+    every 4 {
+        ring 0.07 dmg=3 color="#ff7a3a" look="puff"
+    }
+}
+treasure "flashlight" name="Flashlight" icon="🔦" attack=#true text="Every 3 s, a flash of light stings everything near you." {
+    every 3 {
+        ring 0.11 dmg=0.8 color="#fff6b0" show=0.3
+    }
+}
+treasure "dart" name="Dart" icon="🎯" attack=#true text="Every 3 s, the nearest enemy takes a huge hit." {
+    every 3 {
+        zap 1 range=0.4 dmg=4
+    }
+}
+treasure "alarmClock" name="Alarm Clock" icon="⏰" attack=#true text="Every 12 s it rings: everything close is knocked far back." {
+    every 12 {
+        ring 0.18 dmg=0.5 push=0.08 color="#ffd23a" show=0.5
+    }
+}
+treasure "snowGlobe" name="Snow Globe" icon="🌨️" attack=#true text="Every 6 s a flurry freezes everything close for 1 s, and you refill 1 moisture." {
+    every 6 {
+        ring 0.12 dmg=0.3 freeze=1 color="#dff4ff" show=0.5
+        heal 1
+    }
 }

@@ -12,6 +12,8 @@ export const BASE_STATS = {
   moisture: 25,     // max health
   pulse: 1.0,       // swim speed multiplier
   bounce: 1.0,      // jump height multiplier
+  regen: 0,         // moisture refilled per second
+  dodge: 0,         // % chance a hit misses you entirely (60% at most)
   // Tentacles: an automatic sting at close range. Only treasures improve these.
   tentacles: 1,     // tentacles that lash out at once (the jelly has 6 in all)
   reach: 0.083,     // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
@@ -29,6 +31,8 @@ export const STAT_INFO = {
   moisture:   { name: 'Moisture',    icon: '💧', fmt: (v) => `${Math.round(v)}` },
   pulse:      { name: 'Swim speed',  icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
   bounce:     { name: 'Bounce',      icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
+  regen:      { name: 'Moisture regen', icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
+  dodge:      { name: 'Dodge',       icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
   tentacles:  { name: 'Tentacles',   icon: '🪼', fmt: (v) => `${v}` },
   reach:      { name: 'Tentacle reach', icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
   sting:      { name: 'Sting',       icon: '⚡', fmt: (v) => `${Math.round(v)}` },
@@ -47,16 +51,16 @@ const CARD_VALUES = {
   range:      { amounts: [10, 18, 30], pct: true },
   pop:        { amounts: [1.25, 2, 3.25] },   // scaled with the base (6) so each card is worth the same share
   blowRate:   { amounts: [10, 18, 30], pct: true },
-  bubbleSize: { amounts: [12, 20, 35], pct: true },
   moisture:   { amounts: [4, 8, 14] },
   pulse:      { amounts: [8, 14, 22], pct: true, weight: 1.2 },
-  bounce:     { amounts: [8, 14, 22], pct: true },
+  regen:      { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // moisture a second
+  dodge:      { amounts: [3, 5, 8], suffix: '%' },           // percentage points
 };
 
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
   const v = CARD_VALUES[card.stat];
-  const amount = v.pct ? `${card.amount}%` : card.amount;
+  const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   const unit = card.stat === 'bubbles' ? (card.amount === 1 ? ' Bubble' : ' Bubbles') : ` ${info.name}`;
   return `+${amount}${unit}`;
 }
@@ -103,6 +107,7 @@ export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;
+export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [

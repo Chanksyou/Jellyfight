@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
-import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS } from './words.js';
+import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
 import { rollCards, RARITY, xpToNext } from './stats.js';
 import { parse } from './kdl.js';
@@ -207,6 +207,22 @@ story('enemies/mosquito-spits', {
 });
 
 // --- progression
+story('progression/regen', {
+  about: 'Moisture regen (a card or Hand Cream) refills moisture every second.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.regen = 0.5; G().run.moisture = 10; },
+  play() { step(60 * 4); const m = G().run.moisture; return ok(Math.abs(m - 12) < 0.05, { moisture: +m.toFixed(2) }); },
+});
+story('progression/dodge', {
+  about: 'Dodge % makes that share of hits miss (starts at 0, capped at 60).',
+  setup() { fresh({ elites: false, lash: false, bubbles: false, hurt: true }); tp(3.2, 0.05, 3.0, 0); G().run.stats.dodge = 50; },
+  play() {
+    const { run } = G();
+    let missed = 0;
+    for (let i = 0; i < 200; i++) { run.moisture = 50; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' }); if (run.moisture === 50) missed++; }
+    run.stats.dodge = 500;
+    return ok(missed > 70 && missed < 130 && run.S.dodge === 60, { missed, of: 200, capped: run.S.dodge });
+  },
+});
 story('progression/level-curve', {
   about: 'Each level needs 1.5x the dew of the last, starting at 3: three cockroaches (1 dew each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
@@ -393,36 +409,6 @@ story('treasures/crit', {
     return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
   },
 });
-story('treasures/more-tentacles', {
-  about: 'more-tentacles (Fishing Line): two more tentacles lash out at once.',
-  setup() { setupFight({ bubbles: false }); give('fishingLine'); [[0.05, 0], [-0.05, 0], [0, 0.05], [0, -0.05]].forEach(([x, z]) => roachAt(x, z)); },
-  play() { let most = 0; step(120, () => { most = Math.max(most, G().lash.strikes.length); }); return ok(most >= 3 && G().run.tentacleStats.tentacles === 3, { atOnce: most }); },
-});
-story('treasures/tentacle-reach', {
-  about: 'tentacle-reach (Chopstick): tentacles reach 60% farther.',
-  setup() { setupFight({ bubbles: false }); give('chopstick'); roachAt(0.11, 0); },
-  play() { const log = record('damage_taken'); step(120); return ok(dmgBy(log, 'tentacle').length > 0, { reach: +G().run.tentacleStats.reach.toFixed(3), stings: dmgBy(log, 'tentacle').length }); },
-});
-story('treasures/sting-damage', {
-  about: 'sting-damage (Hot Sauce): tentacle stings do double damage (and slow).',
-  setup() { setupFight({ bubbles: false }); give('hotSauce'); roachAt(0.05, 0); },
-  play() {
-    const log = record('damage_taken'), sting = G().run.stats.sting, e = G().enemies.list[0];
-    step(120);
-    const s = dmgBy(log, 'tentacle');
-    return ok(s.length > 0 && s.every((d) => d.amount === sting * 2) && e.slowT > 0, { stings: s.map((d) => d.amount), slowed: e.slowT > 0 });
-  },
-});
-story('treasures/thorns', {
-  about: 'thorns (Cactus Spine): anything that touches you gets stung, once a second each.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('cactus'); roachAt(0.02, 0); },
-  play() { const log = record('damage_taken'); step(150); const n = dmgBy(log, 'thorns').length; return ok(n >= 2 && n <= 3, { stings: n }); },
-});
-story('treasures/haste-after-landing', {
-  about: 'haste-after-landing (Festival Wristband): after you land a jump, your tentacles lash twice as fast.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('wristband'); },
-  play() { const { input, run } = G(); input.jumpQueued = true; step(120, () => run.wristT > 0); return ok(run.wristT > 0, { wristT: +run.wristT.toFixed(2) }); },
-});
 story('treasures/extra-jumps', {
   about: 'extra-jumps (Pen Spring): one more jump in mid-air.',
   setup() { setupFight({ bubbles: false, lash: false }); give('penSpring'); },
@@ -499,6 +485,24 @@ story('treasures/longer-night', {
   setup() { setupFight(); give('hourglass'); },
   play() { return ok(G().run.duration === G().run.stage.duration + 30, { duration: G().run.duration }); },
 });
+story('treasures/stat', {
+  about: 'stat (Lemon Slice, Coffee Bean): a treasure adds to a stat, flat or by a percent.',
+  setup() { setupFight({ lash: false }); give('lemon'); give('coffeeBean'); },
+  play() {
+    const { run } = G(), b = run.stats;
+    return ok(run.S.pop === b.pop + 2 && Math.abs(run.S.blowRate - b.blowRate * 1.25) < 1e-9, { pop: [b.pop, run.S.pop], blowRate: [b.blowRate, +run.S.blowRate.toFixed(3)] });
+  },
+});
+story('treasures/dew-bonus', {
+  about: 'dew-bonus (Piggy Bank): every bug you clear drops 1 more dew.',
+  setup() { setupFight({ lash: false }); give('piggyBank'); roachAt(0, -0.15, { still: true }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === e.T.dew + 1, { dew: total }); },
+});
+story('treasures/heal', {
+  about: 'heal inside every (Snow Globe): every 6 s you refill 1 moisture.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('snowGlobe'); G().run.moisture = 10; },
+  play() { step(60 * 7); return ok(Math.abs(G().run.moisture - 11) < 1e-6, { moisture: +G().run.moisture.toFixed(2) }); },
+});
 story('treasures/every', {
   about: 'every + ring (Guitar Pick): every 5 s a chord stings and pushes back everything close.',
   setup() { setupFight({ bubbles: false, lash: false }); give('guitarPick'); roachAt(0.08, 0); },
@@ -563,7 +567,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
   play() {
     const used = new Set(CONTENT.treasures.flatMap((t) => t.vocabulary));
     const usedTimed = new Set();
-    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = { timed: [], bubbles: {}, hits: { bubbles: {}, tentacles: {} }, tentacles: {}, elements: new Set() }; try { fx(m); } catch {} for (const T of m.timed) for (const ef of T.effects) usedTimed.add(ef.kind); }
+    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of m.timed) for (const ef of T.effects) usedTimed.add(ef.kind); }
     const problems = [];
     for (const [w, def] of Object.entries(TREASURE_WORDS)) {
       if (!def.doc) problems.push(`${w}: no doc`);
@@ -575,7 +579,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
       if (!usedTimed.has(w)) problems.push(`${w}: no treasure uses it`);
       if (!STORIES['treasures/' + w]) problems.push(`${w}: no treasures/${w} story`);
     }
-    return ok(!problems.length && CONTENT.treasures.length === 40, { problems, treasures: CONTENT.treasures.length });
+    return ok(!problems.length && CONTENT.treasures.length >= 50, { problems, treasures: CONTENT.treasures.length });
   },
 });
 story('content/treasure-mistakes-are-caught', {
@@ -756,7 +760,7 @@ story('engine/fight-draw-calls', {
     fresh({ elites: false });
     tp(3.2, 0.05, 3.0, 0);
     const { run } = G(), P = G().player.position;
-    for (const t of ['candle', 'glitter', 'battery', 'fishingLine']) run.owned.add(t);
+    for (const t of ['candle', 'glitter', 'battery', 'fairyLights']) run.owned.add(t);
     Object.assign(run.stats, { bubbles: 6, blowRate: 3 });
     for (let k = 0; k < 25; k++) { const a = k * 0.9, d = 0.15 + (k % 5) * 0.06; spawn(['roach', 'ants', 'mosquito'][k % 3], P.clone().add(V(Math.cos(a) * d, 0, Math.sin(a) * d)), { hp: 9999 }); }
   },

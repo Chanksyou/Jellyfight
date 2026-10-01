@@ -1,5 +1,5 @@
 // The treasure effects that act on their own: timed effects (an `every N { … }` block of ring,
-// zap, brick, marble, pull-dew) and always-on ones (orbit-lights, beam, aura). Which ones run,
+// zap, brick, marble, pull-dew, heal) and always-on ones (orbit-lights, beam, aura). Which ones run,
 // and their numbers, come from the run's combined treasure effects (mods; see words.js and
 // content/treasures.kdl): nothing here knows a treasure by name.
 import * as THREE from 'three';
@@ -94,7 +94,7 @@ export class Gadgets {
     return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   }
 
-  // ctx: { mods, feet: Vector3, center: Vector3, facing, sting (your power), pullDew() }
+  // ctx: { mods, feet: Vector3, center: Vector3, facing, sting (your power), pullDew(), heal(moisture) }
   update(dt, ctx) {
     const { mods: M, feet, center, sting } = ctx;
     const E = this.enemies, fx = this.fx;
@@ -209,6 +209,9 @@ export class Gadgets {
       this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, hit: new Set() });
     } else if (ef.kind === 'pull-dew') {
       ctx.pullDew?.();
+    } else if (ef.kind === 'heal') {
+      ctx.heal?.(ef.moisture);
+      fx.puff(center, 0x9fe2ff, 0.03, 0.4);
     }
   }
 }
