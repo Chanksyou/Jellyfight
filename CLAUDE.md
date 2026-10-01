@@ -46,8 +46,8 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    story, or if bad content doesn't produce a clear error.
 3. **Look values go in `content/look.css`**, not literals in code. Read them with
    `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
-4. **Don't quietly re-balance.** If a change could make the game harder or easier, run the
-   balance bot before and after (`node tests/balance.mjs 5`: an autopilot plays whole nights
+4. **Don't quietly re-balance.** If a change could make the game harder or easier, offer to
+   run the balance bot (**ask the owner first, never run it unasked**; it takes about 15 minutes) before and after (`node tests/balance.mjs 5`: an autopilot plays whole nights
    and reports how long it lasted, its level and kills, and which sources took its moisture),
    say what moved with those numbers (the last recorded run is `tests/balance-baseline.txt`),
    and name the one value to change. Don't tweak content

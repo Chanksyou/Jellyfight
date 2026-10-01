@@ -21,7 +21,7 @@ export function wireFeedback(fx) {
   bus.on('enemy_killed', ({ type, pos, floor, r, silent }) => {
     fx.puff(pos, 0xe6ded0, r * 1.6);
     if (silent) return;
-    const big = r > 0.018;
+    const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
     fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
     fx.ring(pos.clone().setY(floor + 0.003), 0xffffff, r * 3, 0.25);
     juice.hitstop(big ? 0.06 : 0.035);
