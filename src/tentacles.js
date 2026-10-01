@@ -28,7 +28,7 @@ function tubeGeometry() {
 
 export class TentacleRig {
   // parent: the group the tentacles hang from (moves and tilts with the bell).
-  // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material }
+  // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material, angles? (each one's place around the ring) }
   constructor(parent, opts) {
     this.parent = parent;
     this.count = opts.count;
@@ -38,7 +38,7 @@ export class TentacleRig {
     this.drag = opts.drag ?? 0.045;
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
-      const a = (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face
+      const a = opts.angles?.[i] ?? (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face (unless placed)
       const mat = opts.material.clone();                                   // same shader, own glow
       const mesh = new THREE.Mesh(tubeGeometry(), mat);
       mesh.castShadow = true;

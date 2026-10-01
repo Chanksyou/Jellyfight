@@ -1,6 +1,6 @@
 // Character creator panel. Edits a look object and reports every change so the
 // game can rebuild the model live; main.js handles the camera and saving.
-import { OPTIONS, SWATCHES, DEFAULT_LOOK, randomLook, normalizeLook } from './character.js';
+import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, randomLook, normalizeLook } from './character.js';
 
 const CSS = `
 #creator { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100vw); display: flex; flex-direction: column;
@@ -18,6 +18,7 @@ const CSS = `
   padding: 6px 11px; border-radius: 999px; cursor: pointer; }
 #creator .chips button:hover { background: #ffffff1f; }
 #creator .chips button.on { background: #ffd23a; color: #1d1a12; border-color: transparent; font-weight: 600; }
+#creator .blurb { margin-top: 6px; font-size: 13px; color: #c9c3d6; }
 #creator .sw { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #creator .sw button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffffff30; cursor: pointer; padding: 0; }
 #creator .sw button.on { border-color: #fff; box-shadow: 0 0 0 2px #ffd23a; }
@@ -36,7 +37,7 @@ const CSS = `
   .cr-hint { right: 0; bottom: calc(58vh + 10px); } }
 `;
 
-const COLOR_ROWS = [['color', 'Body color'], ['accent', 'Accent color'], ['eyeColor', 'Eye color'], ['topColor', 'Hat color']];
+const COLOR_ROWS = [['color', 'Bell and tentacle color'], ['accent', 'Arm color'], ['eyeColor', 'Eye color'], ['topColor', 'Hat color']];
 
 export class Creator {
   constructor({ onChange, onDone }) {
@@ -45,10 +46,10 @@ export class Creator {
     this.look = { ...DEFAULT_LOOK };
     this.el = document.createElement('div');
     this.el.innerHTML = `<style>${CSS}</style><div id="creator" hidden>
-      <header><h2>Make your critter</h2><p>You're about 3&frac12; cm tall. Choose wisely.</p></header>
+      <header><h2>Make your jellyfish</h2><p>You're about 3&frac12; cm tall. Choose wisely.</p></header>
       <div class="scroll"></div>
       <footer><button class="ghost" data-act="random" title="Randomize">🎲 Surprise me</button><button class="go" data-act="done">Let's go!</button></footer>
-      </div><div class="cr-hint" hidden>Drag to spin your critter</div>`;
+      </div><div class="cr-hint" hidden>Drag to spin your jellyfish</div>`;
     this.panel = this.el.querySelector('#creator');
     this.hint = this.el.querySelector(".cr-hint");
     this.body = this.el.querySelector('.scroll');
@@ -81,7 +82,8 @@ export class Creator {
     }<input type="color" data-k="${key}" value="${L[key]}" title="Any color"></div></div>`;
     this.body.innerHTML = `
       <div class="sec"><div class="lbl">Name</div><input type="text" data-k="name" maxlength="16" value="${escapeAttr(L.name)}"></div>
-      ${chips('body', 'Body')}
+      ${chips('body', 'Jellyfish')}
+      <div class="blurb">${SPECIES[L.body].blurb}</div>
       ${chips('finish', 'Finish')}
       ${colors('color', COLOR_ROWS[0][1])}
       ${chips('pattern', 'Pattern')}
@@ -91,9 +93,6 @@ export class Creator {
       ${chips('mouth', 'Mouth')}
       ${chips('top', 'On top')}
       ${L.top !== 'none' && L.top !== 'sprout' ? colors('topColor', COLOR_ROWS[3][1]) : ''}
-      <div class="sec"><div class="lbl">Feet</div><div class="chips">
-        <button data-k="feet" data-v="1" class="${L.feet ? 'on' : ''}">Little feet</button>
-        <button data-k="feet" data-v="0" class="${L.feet ? '' : 'on'}">No feet</button></div></div>
       <div class="sec"><div class="lbl">Size</div><input type="range" data-k="size" min="0.8" max="1.2" step="0.01" value="${L.size}"></div>`;
   }
 
@@ -114,7 +113,7 @@ export class Creator {
       this.onDone(this.look);
     } else if (b.dataset.k) {
       const k = b.dataset.k;
-      this.set(k, k === 'feet' ? b.dataset.v === '1' : b.dataset.v);
+      this.set(k, b.dataset.v);
     }
   }
 

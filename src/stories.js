@@ -15,6 +15,7 @@ import { CONTENT, compileEnemies, compileTreasures } from './content.js';
 import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext } from './stats.js';
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
+import { SPECIES, buildCharacter, normalizeLook } from './character.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -364,6 +365,23 @@ story('content/mistakes-are-caught', {
     const noMove = tryIt('enemy "x" hp=1 r=0.01 dmg=1 dew=1 {\n    rolls\n}');
     const good = /test\.kdl:2: unknown word "lurk"/.test(unknown) && /"chase" takes speed/.test(badArgs) && /no setting "wndup"/.test(badProp) && /no way to move/.test(noMove);
     return ok(good, { unknown, badArgs, badProp, noMove });
+  },
+});
+story('look/every-species-builds', {
+  about: 'Every jellyfish species builds a model with hunting tentacles for the Lash, and old saved looks become jellyfish.',
+  setup() {},
+  play() {
+    const built = {};
+    for (const id of Object.keys(SPECIES)) {
+      const c = buildCharacter({ body: id }, 0.09);
+      let meshes = 0;
+      c.root.traverse((o) => { if (o.isMesh) meshes++; });
+      built[id] = { meshes, tentacles: c.tentacles?.count };
+      c.dispose();
+    }
+    const old = [normalizeLook({ body: 'jellyfish' }).body, normalizeLook({ body: 'blob', feet: true }).body, 'feet' in normalizeLook({ feet: true })];
+    const good = Object.values(built).every((b) => b.meshes > 10 && b.tentacles >= 6) && old[0] === 'nettle' && old[1] === 'nettle' && old[2] === false;
+    return ok(good, { built, old });
   },
 });
 story('look/tokens-reach-the-game', {

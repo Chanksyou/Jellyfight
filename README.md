@@ -1,6 +1,6 @@
 # Jelly Fight
 
-A third-person game where you play a ~9 cm critter of your own design inside a real-scale 3D model of the apartment.
+A third-person game where you play a ~9 cm jellyfish of your own design inside a real-scale 3D model of the apartment.
 
 ## Run it
 
@@ -50,7 +50,7 @@ Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied o
 
 ## Controls
 
-WASD move · mouse look · Space jump, again in the air to double jump (hold to climb fabric) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the character creator. On phones: left thumb moves, right thumb looks, ⤴ jumps (tap again in the air to double jump, hold to climb).
+WASD move · mouse look · Space jump, again in the air to double jump (hold to climb fabric) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, finish, spots, face and hat. On phones: left thumb moves, right thumb looks, ⤴ jumps (tap again in the air to double jump, hold to climb).
 
 ## How it fits together
 
@@ -93,7 +93,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
 | `src/swim.js` | One bell stroke: the squeeze, the thrust, and how often strokes come. Shared by movement and animation. |
 | `src/tentacles.js` | The jellyfish's 6 live tentacles: hang, trail, stream when falling, whip out when the Lash strikes. |
-| `src/creator.js` | Character creator panel. |
+| `src/creator.js` | The jellyfish creator panel (species, colours, finish, face, hat). |
 | `src/hud.js` | Moisture, XP, dew, night clock, Moon Drops, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |
 | `src/detail.js` | Fine close-up detail (normal maps): grain on floors and rugs, an orange-peel paint finish on walls, doors, cabinets and porcelain. |
