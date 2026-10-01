@@ -8,7 +8,7 @@
 // Below 45% health it's angry: an orange light, faster driving, shorter pauses.
 // Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
-import { angryEyes } from './enemies.js';
+import { angryEyes, standOut } from './enemies.js';
 import { bus, PLAYER } from './events.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -82,6 +82,7 @@ export class Vacuum {
     face.rotation.x = -1.0;
     root.add(face);
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    standOut(root, { base: 0.15, rim: 0.6 });     // readable in the dark room
 
     this.body = root;
     this.holder = new THREE.Group();
@@ -173,7 +174,7 @@ export class Vacuum {
 
     if (this.state === 'chase') {
       this.setLight(angry ? 0xff8a2a : 0x4ab8ff, 2);
-      this.drive(dt, P, angry ? 0.13 : 0.1, angry ? 2.2 : 1.6);
+      this.drive(dt, P, angry ? 0.195 : 0.15, angry ? 2.2 : 1.6);
       if (this.stateT <= 0) this.pick();
     } else if (this.state === 'charge') {
       // wind up (flashing red, a strip on the floor shows the line), then ram along it
@@ -187,7 +188,7 @@ export class Vacuum {
         if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; }
       } else {
         this.setLight(0xff2a2a, 3);
-        const wall = this.drive(dt, null, angry ? 0.85 : 0.7, 0);
+        const wall = this.drive(dt, null, angry ? 1.275 : 1.05, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
         if (wall || this.stateT <= 0) { this.locked = false; this.fx.ring(p.clone().setY(0.004), 0xffffff, this.r * 1.6, 0.4); this.toChase(); }
       }
@@ -207,7 +208,7 @@ export class Vacuum {
       if (this.stateT <= 0) { this.swirl.material.opacity = 0; this.toChase(); }
     } else if (this.state === 'brushes') {
       // brushes whirr up (the warning), then two sweeps
-      this.drive(dt, P, 0.03, 1);
+      this.drive(dt, P, 0.045, 1);
       this.setLight(0xffe24a, 2.5);
       brushSpin = 60;
       const sweeps = [0.9, 0.35];

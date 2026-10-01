@@ -4,7 +4,7 @@ export const CONFIG = {
   player: {
     radius: 0.0306,      // collision radius (3.06 cm)
     height: 0.08925,     // collision height (8.9 cm)
-    walkSpeed: 0.28,     // m/s at 100% Pulse
+    walkSpeed: 0.42,     // m/s at 100% Pulse
     jumpHeight: 0.13,    // 13 cm at 100% Bounce (~1.5x body height)
     gravity: 1.0,        // very low: a jump hangs in the air for about a second
     maxFall: 1.1,        // terminal fall speed, so long drops stay gentle
@@ -12,7 +12,7 @@ export const CONFIG = {
     groundAccel: 15,
     airAccel: 6,         // floaty jumps need good air control
     turnSpeed: 12,
-    climbSpeed: 0.2,     // m/s up fabric
+    climbSpeed: 0.3,     // m/s up fabric
     airJumpMul: 0.85,    // a mid-air jump is a bit weaker than one from the ground
   },
   camera: {

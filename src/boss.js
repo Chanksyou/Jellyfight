@@ -141,7 +141,7 @@ export class Boss {
     const to = player.position.clone().sub(this.holder.position).setY(0);
     const dist = to.length();
     to.normalize();
-    const speed = (this.pulling > 0 ? 0.03 : enraged ? 0.14 : 0.1);
+    const speed = (this.pulling > 0 ? 0.045 : enraged ? 0.21 : 0.15);
     this.vel.lerp(to.multiplyScalar(speed), 1 - Math.exp(-1.5 * dt));
     this.holder.position.add(this.vel.clone().multiplyScalar(dt));
     const a = this.arena;

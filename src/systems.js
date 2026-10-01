@@ -131,10 +131,16 @@ export class ShadowSystem {
     scene.add(this.blob);
     this.down = new THREE.Vector3(0, -1, 0);
     this.from = new THREE.Vector3();
+    // the jelly is fluorescent: a small light of its own tints the floor and anything close
+    this.glow = new THREE.PointLight(0x2ff0c4, 0.9, 0.4, 2);
+    this.glowHex = null;
+    scene.add(this.glow);
   }
   update() {
     if (this.state.mode === 'layout') return;
     const P = this.player.position, blob = this.blob;
+    this.glow.position.set(P.x, P.y + this.cfg.height * 0.65, P.z);
+    if (this.glowHex !== this.state.look.color) { this.glowHex = this.state.look.color; this.glow.color.set(this.glowHex); }
     const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3);
     blob.visible = !!hit;
     if (!hit) return;

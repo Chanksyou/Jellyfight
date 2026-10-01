@@ -27,12 +27,12 @@ export const SWATCHES = ['#ff6fb5', '#ff5a4e', '#ffa23a', '#ffd23a', '#8ee07a', 
 export const DEFAULT_LOOK = {
   name: 'Jelly',
   body: 'jellyfish',
-  finish: 'jelly',
-  color: '#ff8fc8',
-  accent: '#ffe0f0',
-  pattern: 'belly',
+  finish: 'glow',
+  color: '#2ff0c4',
+  accent: '#3d8cff',
+  pattern: 'none',
   eyes: 'big',
-  eyeColor: '#3a2a6b',
+  eyeColor: '#123a4a',
   mouth: 'smile',
   top: 'none',
   topColor: '#ffd23a',
@@ -81,7 +81,7 @@ export function randomLook() {
 const SHAPES = {
   blob:      { faceY: 0.56, faceZ: 0.42, spread: 0.15, topY: 0.93, spots: { c: [0, 0.47, 0], r: [0.45, 0.47, 0.43] } },
   bean:      { faceY: 0.64, faceZ: 0.33, spread: 0.13, topY: 0.99, spots: { c: [0, 0.5, 0], r: [0.34, 0.48, 0.34] } },
-  jellyfish: { faceY: 0.58, faceZ: 0.43, spread: 0.15, topY: 0.9,  spots: { c: [0, 0.42, 0], r: [0.46, 0.48, 0.46], upper: true }, noFeet: true },
+  jellyfish: { faceY: 0.72, faceZ: 0.255, spread: 0.1, topY: 0.98, spots: { c: [0, 0.6, 0], r: [0.27, 0.38, 0.27], upper: true }, noFeet: true, faceScale: 0.7 },
   cube:      { faceY: 0.56, faceZ: 0.375, spread: 0.15, topY: 0.88, spots: null },
   mushroom:  { faceY: 0.3,  faceZ: 0.25, spread: 0.09, topY: 0.84, spots: { c: [0, 0.45, 0], r: [0.52, 0.4, 0.52], upper: true }, small: true, faceSkin: 'accent' },
 };
@@ -141,6 +141,19 @@ function hash(str) {
   return h >>> 0;
 }
 
+// The jellyfish's proportions (in units): a tall, lean bell sitting high, things hanging below
+const BELL_Y = 0.56, BELL_R = 0.27, ARM_LEN = 0.5;
+
+// A soft round glow for the jelly's halo (additive, so black = nothing)
+let HALO = null;
+function haloTexture() {
+  return HALO ||= canvasTexture(64, 64, (g, w, h) => {
+    const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,0.35)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, h);
+  });
+}
+
 export function buildCharacter(look, heightMeters) {
   look = normalizeLook(look);
   const shape = SHAPES[look.body];
@@ -173,83 +186,90 @@ export function buildCharacter(look, heightMeters) {
       break;
     }
     case 'jellyfish': {
-      // A moon jelly: a clear outer bell over a patterned inner bell (radial canals and the
-      // four-leaf gonads), a ruffled scalloped rim with a fringe of fine marginal tentacles and
-      // glowing sense organs, four frilly oral arms underneath, and the six hunting tentacles.
-      // The bell pulses from its rim (see update), so it's built around y = 0 of `bell`.
+      // A fluorescent jelly in the dark: a tall clear bell over a glowing inner bell (radial
+      // canals, bright spots on the crown), a luminous rim with a fringe of fine marginal
+      // tentacles, long frilly oral arms twisting down from the middle, and six long glowing
+      // hunting tentacles that trail behind it. The bell pulses from its rim (see update).
       bell = new THREE.Group();
-      bell.position.y = 0.42;
+      bell.position.y = BELL_Y;
       lean.add(bell);
       const base = new THREE.Color(look.color), acc = new THREE.Color(look.accent);
-      const profile = [[0.47, -0.015], [0.47, 0.03], [0.455, 0.1], [0.42, 0.2], [0.36, 0.3], [0.27, 0.39], [0.15, 0.45], [0, 0.47]];
-      const lathe = (k) => new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r * k, y * k)), 48, 0, Math.PI * 2);
-      // inner bell: canals, gonads and speckles painted on (u runs around the bell, v from rim to top)
+      const rimCol = base.clone().lerp(new THREE.Color('#f4ff8a'), 0.55);
+      const glow = look.finish === 'glow' ? 1 : look.finish === 'jelly' ? 0.65 : 0.3;
+      const R = BELL_R;
+      const profile = [[1, -0.07], [1.02, 0.11], [1, 0.37], [0.945, 0.63], [0.83, 0.89], [0.67, 1.15], [0.44, 1.33], [0.22, 1.44], [0, 1.48]];
+      const lathe = (k) => new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r * R * k, y * R * k)), 48, 0, Math.PI * 2);
+      // inner bell (u runs around the bell, canvas top = the crown): dark, with glowing canals,
+      // a glowing ring at the rim and bright spots on the crown, used as color and glow map
+      const css = (c) => '#' + c.getHexString();
       const innerTex = canvasTexture(256, 128, (g, w, h) => {
-        g.fillStyle = '#' + base.clone().lerp(new THREE.Color('#ffffff'), 0.35).getHexString(); g.fillRect(0, 0, w, h);
-        const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = css(base.clone().multiplyScalar(0.18)); g.fillRect(0, 0, w, h);
+        const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, css(base.clone().multiplyScalar(0.35))); grad.addColorStop(1, 'rgba(0,0,0,0)');
         g.fillStyle = grad; g.fillRect(0, 0, w, h);
-        const canal = '#ffffff';
-        g.strokeStyle = canal; g.globalAlpha = 0.95;
-        for (let k = 0; k < 16; k++) { const x = (k + 0.5) / 16 * w; g.lineWidth = k % 2 ? 1.5 : 3; g.beginPath(); g.moveTo(x, h * 0.02); g.bezierCurveTo(x + 3, h * 0.35, x - 3, h * 0.6, x, h); g.stroke(); }
-        g.lineWidth = 3; g.beginPath(); g.moveTo(0, h * 0.94); g.lineTo(w, h * 0.94); g.stroke();   // ring canal at the rim (canvas top = crown)
+        g.strokeStyle = css(base); g.globalAlpha = 0.95;
+        for (let k = 0; k < 16; k++) { const x = (k + 0.5) / 16 * w; g.lineWidth = k % 2 ? 2 : 4; g.beginPath(); g.moveTo(x, h * 0.12); g.bezierCurveTo(x + 3, h * 0.4, x - 3, h * 0.65, x, h); g.stroke(); }
         g.globalAlpha = 1;
-        for (let k = 0; k < 4; k++) {                                   // the four gonad "petals" near the top
-          const x = (k + 0.5) / 4 * w;
-          g.fillStyle = '#' + base.clone().multiplyScalar(0.7).getHexString();
-          g.beginPath(); g.ellipse(x, h * 0.3, w * 0.08, h * 0.2, 0, 0, Math.PI * 2); g.fill();
-          g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.ellipse(x, h * 0.3, w * 0.035, h * 0.11, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = css(rimCol); g.fillRect(0, h * 0.9, w, h * 0.1);                         // the glowing rim band
+        for (let k = 0; k < 26; k++) {                                                         // spots on the crown
+          g.fillStyle = k % 3 ? '#fff6b0' : css(rimCol);
+          g.beginPath(); g.ellipse(Math.random() * w, h * (0.04 + Math.random() * 0.32), 2.5 + Math.random() * 4, 2 + Math.random() * 3, 0, 0, 7); g.fill();
         }
-        for (let k = 0; k < 140; k++) { g.fillStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.35})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 0.6 + Math.random() * 1.4, 0, 7); g.fill(); }
       });
-      const inner = new THREE.MeshStandardMaterial({ map: innerTex, roughness: 0.35, emissive: base.clone().multiplyScalar(0.25), emissiveIntensity: look.finish === 'glow' ? 2.5 : 1 });
+      const inner = new THREE.MeshStandardMaterial({ map: innerTex, emissiveMap: innerTex, emissive: 0xffffff, emissiveIntensity: 1.6 * glow, roughness: 0.3 });
       mesh(lathe(0.9), inner, bell);
       // outer bell: clear and glossy, a tint of the body color
-      const outer = M.body.clone();
-      outer.transparent = true; outer.opacity = look.finish === 'matte' ? 0.75 : 0.38; outer.depthWrite = false;
-      if (outer.clearcoat !== undefined) { outer.clearcoat = 1; outer.clearcoatRoughness = 0.05; }
+      const outer = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: look.finish === 'matte' ? 0.6 : 0.28, depthWrite: false, emissive: base, emissiveIntensity: 0.25 * glow });
       const shell = mesh(lathe(1), outer, bell);
       shell.castShadow = false;
       shell.renderOrder = 2;
       // underside (the subumbrella), seen when it jumps
-      const under = mesh(new THREE.CircleGeometry(0.44, 40), bellyOn ? M.accent : inner, bell, 0, 0.005, 0);
+      const under = mesh(new THREE.CircleGeometry(R * 0.95, 40), inner, bell, 0, 0.005, 0);
       under.rotation.x = Math.PI / 2;
-      // ruffled rim: a torus whose tube wobbles in and out 16 times around
-      const rimGeo = new THREE.TorusGeometry(0.465, 0.03, 8, 96);
+      // luminous ruffled rim: a torus whose tube wobbles in and out 16 times around
+      const lit = (c, k) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k * glow, roughness: 0.3 });
+      const rimGeo = new THREE.TorusGeometry(R, 0.016, 8, 96);
       { const p = rimGeo.attributes.position, v = new THREE.Vector3();
-        for (let k = 0; k < p.count; k++) { v.fromBufferAttribute(p, k); const a = Math.atan2(v.y, v.x), w = 1 + 0.08 * Math.sin(a * 16); p.setXY(k, v.x * w, v.y * w); p.setZ(k, v.z + 0.018 * Math.sin(a * 32)); }
+        for (let k = 0; k < p.count; k++) { v.fromBufferAttribute(p, k); const a = Math.atan2(v.y, v.x), w = 1 + 0.06 * Math.sin(a * 16); p.setXY(k, v.x * w, v.y * w); p.setZ(k, v.z + 0.012 * Math.sin(a * 32)); }
         rimGeo.computeVertexNormals(); }
-      const rim = mesh(rimGeo, bellyOn ? M.accent : M.body, bell);
+      const rim = mesh(rimGeo, lit(rimCol, 2.2), bell);
       rim.rotation.x = Math.PI / 2;
-      // a fringe of fine marginal tentacles, and 8 glowing sense organs (rhopalia) between them
+      rim.castShadow = false;
+      // a fringe of fine glowing marginal tentacles, and 8 bright sense organs between them
       const fringe = [];
-      for (let k = 0; k < 64; k++) {
-        const a = (k / 64) * Math.PI * 2, len = 0.07 + (k % 2) * 0.05;
-        fringe.push(new THREE.CylinderGeometry(0.004, 0.008, len, 4, 1).translate(0, -len / 2, 0).rotateX(0.35).rotateY(a).translate(Math.sin(a) * 0.47, -0.01, Math.cos(a) * 0.47));
+      for (let k = 0; k < 40; k++) {
+        const a = (k / 40) * Math.PI * 2, len = 0.12 + (k % 3) * 0.06;
+        fringe.push(new THREE.CylinderGeometry(0.003, 0.006, len, 4, 1).translate(0, -len / 2, 0).rotateX(0.18).rotateY(a).translate(Math.sin(a) * R, -0.01, Math.cos(a) * R));
       }
-      mesh(mergeGeometries(fringe), inner, bell).castShadow = false;
-      const glowDot = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: acc, emissiveIntensity: 2.2 });
-      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 16; mesh(new THREE.SphereGeometry(0.018, 8, 6), glowDot, bell, Math.sin(a) * 0.47, -0.02, Math.cos(a) * 0.47); }
-      // four frilly oral arms under the middle: ribbons with rippled edges
+      mesh(mergeGeometries(fringe), lit(base, 1.4), bell).castShadow = false;
+      const dot = lit(new THREE.Color('#fff6b0'), 3);
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 16; mesh(new THREE.SphereGeometry(0.012, 8, 6), dot, bell, Math.sin(a) * R, -0.015, Math.cos(a) * R).castShadow = false; }
+      // four long frilly oral arms twisting down from the middle
+      const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: 0.9 * glow, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
       for (let k = 0; k < 4; k++) {
         const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
         const pivot = new THREE.Group();
-        pivot.position.set(Math.sin(a) * 0.05, 0, Math.cos(a) * 0.05);
+        pivot.position.set(Math.sin(a) * 0.035, 0, Math.cos(a) * 0.035);
         pivot.rotation.y = a;
         bell.add(pivot);
-        const armGeo = new THREE.PlaneGeometry(0.09, 0.3, 6, 16).translate(0, -0.15, 0);
+        const L = ARM_LEN, armGeo = new THREE.PlaneGeometry(0.09, L, 6, 28).translate(0, -L / 2, 0);
         const ap = armGeo.attributes.position;
         for (let q = 0; q < ap.count; q++) {
-          const x = ap.getX(q), y = ap.getY(q), edge = Math.abs(x) / 0.045;
-          ap.setZ(q, Math.sin(y * 40) * 0.025 * edge + Math.sin(-y * 9) * 0.03);
-          ap.setX(q, x * (1 - (-y / 0.3) * 0.5));
+          const x = ap.getX(q), y = ap.getY(q), edge = Math.abs(x) / 0.045, f = -y / L;
+          const ruffle = Math.sin(y * 70) * 0.02 * edge, tw = f * 2.4 + k;          // frilly edges, and a slow twist
+          const xx = x * (1 - f * 0.35), zz = ruffle + Math.sin(-y * 8) * 0.02;
+          ap.setXYZ(q, xx * Math.cos(tw) - zz * Math.sin(tw), y, xx * Math.sin(tw) + zz * Math.cos(tw));
         }
         armGeo.computeVertexNormals();
-        const arm = mesh(armGeo, new THREE.MeshStandardMaterial({ map: innerTex, color: acc, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }), pivot);
-        arm.castShadow = false;
-        wobblers.push([pivot, 'x', k * 1.3, 0.18], [pivot, 'z', k * 2.1, 0.12]);
+        mesh(armGeo, armMat, pivot).castShadow = false;
+        wobblers.push([pivot, 'x', k * 1.3, 0.16], [pivot, 'z', k * 2.1, 0.1]);
       }
-      // six hunting tentacles (see tentacles.js)
-      rig = new TentacleRig(lean, { count: 6, radius: 0.36, y: 0.42, length: 0.5, thickness: 0.05, material: bellyOn ? M.accent : M.body });
+      // six long, glowing hunting tentacles (see tentacles.js)
+      rig = new TentacleRig(lean, { count: 6, radius: R * 0.92, y: BELL_Y, length: 0.95, thickness: 0.024, flare: 0.1, drag: 0.1, material: lit(base.clone().lerp(rimCol, 0.3), 1.3) });
+      // a soft fluorescent halo, so it glows even without the bloom pass (phones)
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: base, transparent: true, opacity: 0.32 * glow + 0.05, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.scale.setScalar(1.05);
+      halo.position.y = BELL_Y + R * 0.6;
+      lean.add(halo);
       break;
     }
     case 'cube': {
@@ -288,6 +308,7 @@ export function buildCharacter(look, heightMeters) {
   // --- Face -----------------------------------------------------------------
   const face = new THREE.Group();
   face.position.set(0, shape.faceY, shape.faceZ);
+  if (shape.faceScale) face.scale.setScalar(shape.faceScale);
   lean.add(face);
   const k = shape.small ? 0.7 : 1;             // mushroom faces are smaller
   const eyes = [];
@@ -428,7 +449,7 @@ export function buildCharacter(look, heightMeters) {
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
       const contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
       bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
-      bell.position.y = 0.42 + 0.05 * Math.max(0, contract);
+      bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
       surge = thrust(swim) / 4.7 * move;
       lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge;

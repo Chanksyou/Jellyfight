@@ -34,6 +34,8 @@ export class TentacleRig {
     this.count = opts.count;
     this.length = opts.length;
     this.thick = opts.thickness;
+    this.flare = opts.flare ?? 0.3;
+    this.drag = opts.drag ?? 0.045;
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
       const a = (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face
@@ -85,9 +87,9 @@ export class TentacleRig {
 
     for (const T of this.list) {
       // --- resting shape: hang, sway, flare with the bell, trail behind the motion
-      // splay out past the bell so all six show from above; they pull together on the power
-      // stroke and spread wide as the bell relaxes
-      const flare = 0.3 - 0.14 * contract - 0.15 * rise;
+      // hang close under the bell (a lean jelly), flaring a little as the bell relaxes and
+      // pulling in on the power stroke
+      const flare = this.flare - 0.06 * contract - 0.06 * rise;
       const side = _b.set(T.out.z, 0, -T.out.x);
       for (let j = 0; j <= SEG; j++) {
         const s = j / SEG, s15 = s ** 1.5;
@@ -96,7 +98,7 @@ export class TentacleRig {
         p.y -= L * s * (1 - 0.55 * fall);
         p.addScaledVector(T.out, flare * s + wave * 0.5);
         p.addScaledVector(side, wave);
-        p.addScaledVector(this.trail, -0.045 * s15);                   // drag behind
+        p.addScaledVector(this.trail, -this.drag * s15);               // drag behind: long tentacles stream out
         p.y += fall * 0.35 * s15;
         p.y = Math.max(p.y, 0.015 * (1 - fall));                       // don't dig into the floor
       }
@@ -116,7 +118,7 @@ export class TentacleRig {
           const bz = u * u * T.anchor.z + 2 * u * s * ctrl.z + s * s * end.z;
           T.pts[j].lerp(_v.set(bx, by, bz), w);
         }
-        T.mat.emissive.setHex(T.golden ? 0xffc23a : 0xff5fb0);
+        T.mat.emissive.setHex(T.golden ? 0xffc23a : 0xfff6b0);
         T.mat.emissiveIntensity = 0.6 + T.k * 1.4;
       } else if (T.mat.emissiveIntensity !== T.baseGlow) {
         T.mat.emissive.copy(T.baseEmissive);

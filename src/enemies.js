@@ -15,21 +15,41 @@ export const GUTS = {
 };
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
+// The apartment is dark at night, so enemies stand out from it: each lit material gets a little
+// glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
+// model (every lit material in it is patched once).
+export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
+  const patch = (m) => {
+    if (!m || m.userData.standOut || !(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
+    m.userData.standOut = true;
+    m.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float soRim = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.5);
+        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(1.0, 0.8, 0.62) * soRim * ${rim.toFixed(3)};`);
+    };
+    m.customProgramCacheKey = () => `standOut${base}:${rim}`;
+    m.needsUpdate = true;
+  };
+  if (target.isMaterial) patch(target);
+  else target.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(patch); });
+  return target;
+}
+
 export const TYPES = {
-  // scuttles straight at you; the basic enemy. Slower than the jelly (0.2 vs 0.28 m/s) so you can always outswim one
-  roach:    { name: 'Cockroach', hp: 30, speed: 0.2, dmg: 1, r: 0.016, dew: 4 },
+  // scuttles straight at you; the basic enemy. Slower than the jelly (0.3 vs 0.42 m/s) so you can always outswim one
+  roach:    { name: 'Cockroach', hp: 30, speed: 0.3, dmg: 1, r: 0.016, dew: 4 },
   // five ants in a block; up close they curl into a ball and roll into you
-  ants:     { name: 'Ant squad', hp: 66, speed: 0.15, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.5, rest: 0.8 },
+  ants:     { name: 'Ant squad', hp: 66, speed: 0.225, dmg: 1, rollDmg: 3, r: 0.024, dew: 8, charge: true, windup: 0.6, dashTime: 0.7, dashSpeed: 0.75, rest: 0.8 },
   // hovers out of reach and spits at you
-  mosquito: { name: 'Mosquito', hp: 22, speed: 0.22, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
+  mosquito: { name: 'Mosquito', hp: 22, speed: 0.33, dmg: 1, r: 0.02, dew: 5, fly: true, shoots: true },
   // drifts through the air, so high ledges aren't perfectly safe
-  mote:  { name: 'Mote', hp: 6, speed: 0.17, dmg: 1, r: 0.01, dew: 3, fly: true },
+  mote:  { name: 'Mote', hp: 6, speed: 0.255, dmg: 1, r: 0.01, dew: 3, fly: true },
   // rolls toward you, winds up, then charges
-  bunny: { name: 'Dust bunny', hp: 20, speed: 0.2, dmg: 2, r: 0.02, dew: 6, charge: true },
+  bunny: { name: 'Dust bunny', hp: 20, speed: 0.3, dmg: 2, r: 0.02, dew: 6, charge: true },
   // slow; sticks to you and slows you down
-  lint:  { name: 'Lint puff', hp: 14, speed: 0.13, dmg: 1, r: 0.016, dew: 4, slows: true },
+  lint:  { name: 'Lint puff', hp: 14, speed: 0.195, dmg: 1, r: 0.016, dew: 4, slows: true },
   // shed by The Clog
-  hair:  { name: 'Hair tangle', hp: 12, speed: 0.2, dmg: 2, r: 0.015, dew: 3 },
+  hair:  { name: 'Hair tangle', hp: 12, speed: 0.3, dmg: 2, r: 0.015, dew: 3 },
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -38,8 +58,8 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 // the middle. Built in "radius units" (the body is about 1 across) facing +z. The face sits on the
 // enemy's root, not its body, so it keeps glaring at you while the fuzz rolls and spins.
 const EYE = {
-  white: new THREE.MeshStandardMaterial({ color: 0xfffdf6, roughness: 0.25 }),
-  iris: new THREE.MeshStandardMaterial({ color: 0xc8231c, roughness: 0.3, emissive: 0x6a0a06, emissiveIntensity: 0.4 }),
+  white: new THREE.MeshStandardMaterial({ color: 0xfffdf6, roughness: 0.25, emissive: 0xfff4e6, emissiveIntensity: 0.35 }),   // eyes catch the light in the dark
+  iris: new THREE.MeshStandardMaterial({ color: 0xc8231c, roughness: 0.3, emissive: 0xff2a1a, emissiveIntensity: 1.1 }),
   pupil: new THREE.MeshStandardMaterial({ color: 0x0c0a0a, roughness: 0.2 }),
   brow: new THREE.MeshStandardMaterial({ color: 0x1c1512, roughness: 0.8 }),
   ball: new THREE.SphereGeometry(1, 16, 12),
@@ -430,7 +450,7 @@ export class Enemies {
             speed = 0;
             if (e.stateT <= 0) { e.state = 'dash'; e.stateT = e.T.dashTime ?? 0.45; e.dashDir.copy(toP); }
           } else if (e.state === 'dash') {
-            speed = (e.T.dashSpeed ?? 0.55) * slow;
+            speed = (e.T.dashSpeed ?? 0.825) * slow;
             toP.copy(e.dashDir);
             if (e.stateT <= 0) { e.state = 'rest'; e.stateT = e.T.rest ?? 0.6; }
           } else if (e.state === 'rest') {

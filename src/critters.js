@@ -8,7 +8,7 @@
 // and shared, and parts of the same material are merged, to keep draw calls down on phones.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { angryEyes } from './enemies.js';
+import { angryEyes, standOut } from './enemies.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -38,6 +38,9 @@ function mats() {
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });
   MAT.matte ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
   MAT.wing ||= new THREE.MeshStandardMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, roughness: 0.1, depthWrite: false });
+  standOut(MAT.shell, { base: 0.35, rim: 0.8 });     // brighter bugs: readable in the dark room
+  standOut(MAT.matte, { base: 0.35, rim: 0.8 });
+  standOut(MAT.wing, { base: 0.3, rim: 0.5 });
   return MAT;
 }
 

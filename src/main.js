@@ -23,7 +23,7 @@ import { wireFeedback } from './feedback.js';
 import { batcher } from './batch.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v32';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v33';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -36,7 +36,7 @@ const APT = window.APT;
 const { scene, renderer, camera } = APT;
 batcher.scene = scene;
 const stage = STAGE1;
-const LOOK_KEY = 'jellyfight.look';
+const LOOK_KEY = 'jellyfight.look.v2';   // v2: the fluorescent jelly is the new default
 
 // --- Saved character (the creator is optional, under C) ----------------------------
 let savedLook = null;
@@ -116,6 +116,12 @@ creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
 applyLayout(APT.root);                 // your saved furniture edits (dev layout editor)
+// Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
+// apartment ships with brightened everything to daylight, so it's turned almost all the way
+// down; a faint warm haze gives the far side of the room some depth.
+scene.environmentIntensity = 0.12;
+scene.background = new THREE.Color(0x05060c);
+scene.fog = new THREE.FogExp2(0x0c0604, 0.14);
 prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage);
