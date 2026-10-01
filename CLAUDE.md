@@ -17,7 +17,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | Vents, gift boxes, Moon Drop spots, elite spots, boss arena | `src/stage1.js` | Plain data |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
-| Treasures | `content/treasures.kdl` | Effect words from `src/words.js` (`TREASURE_WORDS`, `TIMED_WORDS` for `every N { … }`). Systems read the run's combined effects (`run.mods`), never treasure ids |
+| Treasures | `content/treasures.kdl` | Effect words from `src/words.js` (`TREASURE_WORDS`, `TIMED_WORDS` for `every N { … }`). Systems read the run's combined effects (`run.mods`), never treasure ids. Unique by default; `stack=N` only for plain number boosts. Before adding one, check no existing treasure already does nearly the same thing |
 | Elites (Controller, Mug, Kettle) | `src/elites.js` | Not words yet |
 | The boss (Vacuum) | `src/vacuum.js` | Not words yet |
 | Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |

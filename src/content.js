@@ -69,9 +69,10 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     if (seen.has(id)) throw new Error(`${where}: there are two treasures called "${id}"`);
     seen.add(id);
     for (const k of ['name', 'icon', 'text']) if (typeof n.props[k] !== 'string') throw new Error(`${where}: "${id}" needs ${k}="…"`);
+    if (n.props.stack !== undefined && !(Number.isInteger(n.props.stack) && n.props.stack >= 1)) throw new Error(`${where}: "${id}" stack= must be a whole number, 1 or more`);
     if (!n.children.length) throw new Error(`${where}: "${id}" does nothing (give it effect words)`);
     out.push({
-      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack,
+      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: n.props.stack ?? 1,
       effects: n.children.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`)),
       vocabulary: n.children.map((w) => w.name),
     });
@@ -82,7 +83,10 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
 // The combined effects of the treasures you own (ids): what the systems read
 export function compileMods(ids) {
   const m = newMods();
-  for (const t of CONTENT.treasures) if (ids.has(t.id)) for (const fx of t.effects) fx(m);
+  for (const t of CONTENT.treasures) {
+    const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;   // stackable treasures apply once per copy
+    for (let copy = 0; copy < n; copy++) for (const fx of t.effects) fx(m, copy);
+  }
   return m;
 }
 

@@ -203,7 +203,6 @@ export class Bubbles {
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
     if (H.crit && Math.random() < H.crit.chance) { dmg *= H.crit.mult; color = '#ff6b6b'; }
-    if (H.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: H.slow });
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {

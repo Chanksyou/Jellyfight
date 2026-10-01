@@ -389,11 +389,6 @@ story('treasures/element', {
     return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
   },
 });
-story('treasures/slow-on-hit', {
-  about: 'slow-on-hit (Q-tip): bugs your bubbles hit are slowed.',
-  setup() { setupFight({ lash: false }); give('qtip'); roachAt(0, -0.15); },
-  play() { const e = G().enemies.list[0]; step(120, () => e.slowT > 0); return ok(e.slowT > 0, { slowT: +e.slowT.toFixed(2) }); },
-});
 story('treasures/mark-on-hit', {
   about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
   setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
@@ -451,8 +446,8 @@ story('treasures/burst-on-kill', {
   play() { const log = record('damage_taken'); step(400, () => dmgBy(log, 'burst').length > 0); return ok(dmgBy(log, 'burst').length > 0, { bursts: dmgBy(log, 'burst').length }); },
 });
 story('treasures/dew-reach', {
-  about: 'dew-reach (Loofah): dew drifts to you from much farther away.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('loofah'); G().dew.drop(near(0.18, 0, 0.01), 1, 1); },
+  about: 'dew-reach (Fridge Magnet): dew flies to you from much farther away.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('magnet'); G().dew.drop(near(0.18, 0, 0.01), 1, 1); },
   play() { step(120); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
 });
 story('treasures/dew-mult', {
@@ -469,6 +464,23 @@ story('treasures/card-rarity', {
     return ok(G().run.mods.cardRarity === 1 && common === 0, { common });
   },
 });
+story('treasures/stacking', {
+  about: 'stack=N: a stackable treasure (Lemon Slice, stack=3) adds up per copy and stops being offered at 3; a unique one is never offered twice.',
+  setup() { setupFight(); give('lemon', 'lemon', 'bobbyPin'); },
+  play() {
+    const { run } = G(), b = run.stats.pop;
+    const two = run.S.pop;
+    let offered = [];
+    stub(run.ui, 'choose', (title, sub, choices) => { offered = choices.map((c) => c.id); });
+    const seen = new Set();
+    for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
+    const lemonOffered = seen.has('lemon');
+    give('lemon');
+    seen.clear();
+    for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
+    return ok(two === b + 4 && run.S.pop === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('bobbyPin'), { two, three: run.S.pop, lemonOffered, afterFull: seen.has('lemon'), pin: seen.has('bobbyPin') });
+  },
+});
 story('treasures/stat', {
   about: 'stat (Lemon Slice, Coffee Bean): a treasure adds to a stat, flat or by a percent.',
   setup() { setupFight({ lash: false }); give('lemon'); give('coffeeBean'); },
@@ -476,16 +488,6 @@ story('treasures/stat', {
     const { run } = G(), b = run.stats;
     return ok(run.S.pop === b.pop + 2 && Math.abs(run.S.blowRate - b.blowRate * 1.25) < 1e-9, { pop: [b.pop, run.S.pop], blowRate: [b.blowRate, +run.S.blowRate.toFixed(3)] });
   },
-});
-story('treasures/dew-bonus', {
-  about: 'dew-bonus (Piggy Bank): every bug you clear drops 1 more dew.',
-  setup() { setupFight({ lash: false }); give('piggyBank'); roachAt(0, -0.15, { still: true }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === e.T.dew + 1, { dew: total }); },
-});
-story('treasures/heal', {
-  about: 'heal inside every (Snow Globe): every 6 s you refill 1 moisture.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('snowGlobe'); G().run.moisture = 10; },
-  play() { step(60 * 7); return ok(Math.abs(G().run.moisture - 11) < 1e-6, { moisture: +G().run.moisture.toFixed(2) }); },
 });
 story('treasures/grow-on-kills', {
   about: 'grow-on-kills (Bandage): every 5 bugs you clear, +1 max moisture for good (and it refills).',
@@ -509,11 +511,6 @@ story('treasures/heal-on-hit', {
     run.moisture = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'zap' });
     return ok(heals > 12 && heals < 55, { heals, of: 300 });
   },
-});
-story('treasures/heal-on-dew', {
-  about: 'heal-on-dew (Juice Box): each dew you soak up gives back 0.25 moisture.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('juiceBox'); G().run.moisture = 10; G().dew.drop(near(0.02, 0, 0.01), 1, 4); },
-  play() { step(60); return ok(G().dew.list.length === 0 && Math.abs(G().run.moisture - 11) < 1e-6, { moisture: G().run.moisture }); },
 });
 story('treasures/card-choices', {
   about: 'card-choices (Notebook): level-ups offer 4 cards.',
@@ -596,11 +593,6 @@ story('treasures/marble', {
   setup() { setupFight({ bubbles: false, lash: false }); give('marble'); const P = G().player; const f = V(Math.sin(P.facing), 0, Math.cos(P.facing)); spawn('roach', P.position.clone().addScaledVector(f, 0.2), { still: true, hp: 9999 }); },
   play() { const log = record('damage_taken'); step(60 * 5); return ok(dmgBy(log, 'marble').length >= 1, { hits: dmgBy(log, 'marble').length }); },
 });
-story('treasures/pull-dew', {
-  about: 'pull-dew (Lint Roller): every 20 s, all the dew on the floor drifts to you.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('lintRoller'); G().dew.drop(near(0.5, 0.3, 0.01), 1, 3); },
-  play() { step(60 * 23); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
-});
 story('treasures/orbit-lights', {
   about: 'orbit-lights (Fairy Lights): bulbs circle you and sting what they touch.',
   setup() { setupFight({ bubbles: false, lash: false }); give('fairyLights'); roachAt(0.07, 0); },
@@ -634,7 +626,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
       if (!usedTimed.has(w)) problems.push(`${w}: no treasure uses it`);
       if (!STORIES['treasures/' + w]) problems.push(`${w}: no treasures/${w} story`);
     }
-    return ok(!problems.length && CONTENT.treasures.length >= 50, { problems, treasures: CONTENT.treasures.length });
+    return ok(!problems.length && CONTENT.treasures.length >= 40, { problems, treasures: CONTENT.treasures.length });
   },
 });
 story('content/treasure-mistakes-are-caught', {

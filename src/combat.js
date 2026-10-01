@@ -60,7 +60,7 @@ export class Lash {
   }
 
   // origin: world position tentacles come from. hits: what your treasures add to a sting
-  // (mods.hits.tentacles: slow, mark, crit; see words.js)
+  // (mods.hits.tentacles: mark, crit; see words.js)
   update(dt, origin, stats, hits, opts) {
     const speed = stats.lashSpeed * (opts.lashSpeedMul || 1);
     this.timer += dt * speed;
@@ -129,7 +129,6 @@ export class Lash {
     const id = s.target.id;
     if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: 0.008 });
     if (s.target.dead) return;
-    if (H.slow) bus.emit('status_applied', { targetId: id, status: 'slow', duration: H.slow });
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark });
     let dmg = s.dmg, color = '#fff';
     if (H.crit && Math.random() < H.crit.chance) { dmg *= H.crit.mult; color = '#ff6b6b'; this.fx.puff(b, 0xff6b6b, 0.01, 0.2); }

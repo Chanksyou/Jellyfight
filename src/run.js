@@ -21,10 +21,12 @@ const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summo
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
+// The treasures you own: a set of ids that also counts copies of stackable ones (stack=N)
 class Owned extends Set {
-  add(v) { super.add(v); this.version = (this.version || 0) + 1; return this; }
-  delete(v) { const r = super.delete(v); this.version = (this.version || 0) + 1; return r; }
-  clear() { super.clear(); this.version = (this.version || 0) + 1; }
+  add(v) { super.add(v); (this.n ||= new Map()).set(v, this.count(v) + 1); this.version = (this.version || 0) + 1; return this; }
+  delete(v) { const r = super.delete(v); this.n?.delete(v); this.version = (this.version || 0) + 1; return r; }
+  clear() { super.clear(); this.n?.clear(); this.version = (this.version || 0) + 1; }
+  count(v) { return this.n?.get(v) || 0; }
 }
 
 export class Run {
@@ -241,7 +243,7 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, pullDew: () => { this.dew.magnetAll = true; this.fx.puff(origin, 0x9fe2ff, 0.05, 0.4); }, heal: (n) => this.heal(n), dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         const found = this.lost.update(dt, this.t, P.position);
@@ -264,7 +266,7 @@ export class Run {
 
     // --- dew
     const got = this.dew.update(dt, origin, this.mods.dewReach);
-    if (got) { this.gainDew(got); sfx.dew(juice.combo); if (this.mods.healOnDew) this.heal(got * this.mods.healOnDew); }
+    if (got) { this.gainDew(got); sfx.dew(juice.combo); }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
@@ -381,7 +383,7 @@ export class Run {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
-    const dew = Math.round((baseDew * this.mods.dewMult + this.mods.dewBonus) * juice.bonus);
+    const dew = Math.round(baseDew * this.mods.dewMult * juice.bonus);
     this.dew.drop(c, 1, dew);
     this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
@@ -459,17 +461,21 @@ export class Run {
     if (!this.ui.open) this.onResume?.();
   }
 
-  // Pick 1 of 3 treasures you don't have yet (from a Moon Drop or an elite)
+  // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
+  // their stack=N) from a Moon Drop or an elite
   // attack: make sure one of the three changes how you attack (the starting pick)
   pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.', attack = false) {
-    let left = shuffle(TREASURES.filter((t) => !this.owned.has(t.id))).slice(0, 3);
+    const can = (t) => this.owned.count(t.id) < t.stack;
+    let left = shuffle(TREASURES.filter(can)).slice(0, 3);
     if (attack && !left.some((t) => ATTACK_TREASURES.includes(t.id))) {
-      const a = shuffle(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && !this.owned.has(t.id)))[0];
+      const a = shuffle(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && can(t)))[0];
       if (a) left = shuffle([a, ...left.slice(0, 2)]);
     }
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
+    // stackable ones say how many you'd have
+    left = left.map((t) => (t.stack > 1 ? { ...t, name: `${t.name} <small>${this.owned.count(t.id) + 1}/${t.stack}</small>` } : t));
     this.ui.choose(title, sub, left, (t) => {
       const before = this.S.moisture;
       this.owned.add(t.id);
@@ -625,7 +631,7 @@ export class Run {
       ['Level', this.level],
       ['Moon Drops', `${this.drops} / ${TOTAL_DROPS}`],
       ['Dry things cleared', this.kills],
-      ['Treasures', [...this.owned].map((id) => TREASURES.find((t) => t.id === id).icon).join(' ') || 'none'],
+      ['Treasures', [...this.owned].map((id) => TREASURES.find((t) => t.id === id).icon + (this.owned.count(id) > 1 ? `×${this.owned.count(id)}` : '')).join(' ') || 'none'],
     ];
   }
 
@@ -634,7 +640,7 @@ export class Run {
     const h = this.hud;
     h.setMoisture(this.moisture, this.S.moisture);
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
-    h.setItems([...this.owned].map((id) => TREASURES.find((t) => t.id === id)));
+    h.setItems([...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; }));
     const [c0, c1] = this.stage.clock;
     const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);

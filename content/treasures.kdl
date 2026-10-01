@@ -5,6 +5,8 @@
 // Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
 //
 //   attack=#true   it changes how you attack: the starting pick always offers one of these
+//   stack=N        you can own up to N copies and their effects add up (default 1: unique).
+//                  Keep stacking for plain number boosts; anything with its own trick stays unique.
 //
 // A new treasure that combines existing words needs no code: add it here and a story.
 
@@ -20,9 +22,6 @@ treasure "goldRing" name="Gold Ring" icon="💍" text="Every 10th bubble is gold
 }
 treasure "reedStick" name="Reed Stick" icon="🎋" attack=#true text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
     giant-bubble every=6 size=2.5 dmg=4 speed=0.6
-}
-treasure "qtip" name="Q-tip" icon="🦴" text="Enemies your bubbles hit are slowed." {
-    slow-on-hit 2 by="bubbles"
 }
 
 // --- elements for your bubbles (bubbles.js); they stack
@@ -52,7 +51,7 @@ treasure "nailClipper" name="Nail Clipper" icon="✂️" text="1 in 5 hits (bubb
 treasure "stickyNote" name="Sticky Note" icon="🗒️" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
     mark-on-hit 3 by="all"
 }
-treasure "penSpring" name="Pen Spring" icon="🌀" text="One more jump in mid-air: a triple jump." {
+treasure "penSpring" name="Pen Spring" icon="🌀" text="One more jump in mid-air (a triple jump; a second one makes it quadruple)." stack=2 {
     extra-jumps 1
 }
 treasure "cottonBall" name="Cotton Ball" icon="☁️" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
@@ -113,15 +112,7 @@ treasure "glowStick" name="Glow Stick" icon="🟢" attack=#true text="A soft glo
 }
 
 // --- things that bend the rules
-treasure "lintRoller" name="Lint Roller" icon="🧻" text="Every 20 s, all dew nearby sticks to you at once." {
-    every 20 first=20 {
-        pull-dew
-    }
-}
-treasure "loofah" name="Loofah" icon="🧽" text="Dew soaks into you from much farther away." {
-    dew-reach 2.5
-}
-treasure "coin" name="Lucky Penny" icon="🪙" text="Enemies drop 25% more dew." {
+treasure "coin" name="Lucky Penny" icon="🪙" text="Enemies drop 25% more dew." stack=3 {
     dew-mult 1.25
 }
 treasure "dice" name="Game Die" icon="🎲" text="Level-up cards roll one rarity higher." {
@@ -129,82 +120,29 @@ treasure "dice" name="Game Die" icon="🎲" text="Level-up cards roll one rarity
 }
 
 // --- found later: more lost things
-treasure "handCream" name="Hand Cream" icon="🧴" text="Your moisture slowly refills: +0.3 a second." {
+treasure "handCream" name="Hand Cream" icon="🧴" text="Your moisture slowly refills: +0.3 a second." stack=3 {
     stat regen 0.3
 }
-treasure "sock" name="Odd Sock" icon="🧦" text="Slippery: 15% of hits miss you entirely." {
+treasure "sock" name="Odd Sock" icon="🧦" text="Slippery: 15% of hits miss you entirely." stack=3 {
     stat dodge 15
 }
-treasure "feather" name="Feather" icon="🪶" text="Light as a feather: 10% of hits miss you, and you swim 10% faster." {
-    stat dodge 10
-    stat swim-speed 10 percent=#true
-}
-treasure "seashell" name="Seashell" icon="🐚" text="Hold it to your bell: +0.5 moisture a second, but you swim 10% slower." {
-    stat regen 0.5
-    stat swim-speed -10 percent=#true
-}
-treasure "bandage" name="Bandage" icon="🩹" text="Every 5 enemies you clear, +1 max moisture for good." {
+treasure "bandage" name="Bandage" icon="🩹" text="Every 5 enemies you clear, +1 max moisture for good." stack=2 {
     grow-on-kills moisture 1 kills=5
 }
-treasure "coffeeBean" name="Coffee Bean" icon="🫘" attack=#true text="Bubbles blow 25% faster." {
+treasure "coffeeBean" name="Coffee Bean" icon="🫘" attack=#true text="Bubbles blow 25% faster." stack=3 {
     stat blow-rate 25 percent=#true
 }
-treasure "straw" name="Drinking Straw" icon="🥤" text="Blow through a straw: bubbles reach 40% farther." {
+treasure "straw" name="Drinking Straw" icon="🥤" text="Blow through a straw: bubbles reach 40% farther." stack=3 {
     stat range 40 percent=#true
 }
-treasure "lemon" name="Lemon Slice" icon="🍋" attack=#true text="Sour bubbles: +2 pop damage." {
+treasure "lemon" name="Lemon Slice" icon="🍋" attack=#true text="Sour bubbles: +2 pop damage." stack=3 {
     stat pop 2
 }
-treasure "bubbleWand" name="Bubble Wand" icon="🪄" attack=#true text="One more bubble in the stream." {
+treasure "bubbleWand" name="Bubble Wand" icon="🪄" attack=#true text="One more bubble in the stream." stack=2 {
     stat bubbles 1
 }
-treasure "thumbtack" name="Thumbtack" icon="📌" attack=#true text="Sharp bubbles: they pierce 2 enemies and slow what they hit." {
-    pierce 2
-    slow-on-hit 1 by="bubbles"
-}
-treasure "clover" name="Four-Leaf Clover" icon="🍀" text="1 in 4 hits does double damage (stacks with the Nail Clipper)." {
-    crit chance=0.25 mult=2 by="all"
-}
-treasure "magnet" name="Fridge Magnet" icon="🧲" text="Dew flies to you from three times as far, and enemies drop 25% more." {
+treasure "magnet" name="Fridge Magnet" icon="🧲" text="Dew flies to you from three times as far." {
     dew-reach 3
-    dew-mult 1.25
-}
-treasure "piggyBank" name="Piggy Bank" icon="🐷" text="Every enemy you clear drops 1 more dew." {
-    dew-bonus 1
-}
-treasure "mirror" name="Compact Mirror" icon="🪞" text="When you get hit, everything close is stung for 5. (3 s)" {
-    squeak-when-hit radius=0.12 push=0 dmg=5 cooldown=3
-}
-treasure "pocketWatch" name="Pocket Watch" icon="⏱️" attack=#true text="Every 10 s, time stops around you: everything close freezes for 3 s." {
-    every 10 {
-        ring 0.2 dmg=0 freeze=3 color="#e0d8ff" show=0.7
-    }
-}
-treasure "firecracker" name="Firecracker" icon="🧨" attack=#true text="Every 4 s, a bang where you are: a big hit to everything very close." {
-    every 4 {
-        ring 0.07 dmg=3 color="#ff7a3a" look="puff"
-    }
-}
-treasure "flashlight" name="Flashlight" icon="🔦" attack=#true text="Every 3 s, a flash of light stings everything near you." {
-    every 3 {
-        ring 0.11 dmg=0.8 color="#fff6b0" show=0.3
-    }
-}
-treasure "dart" name="Dart" icon="🎯" attack=#true text="Every 3 s, the nearest enemy takes a huge hit." {
-    every 3 {
-        zap 1 range=0.4 dmg=4
-    }
-}
-treasure "alarmClock" name="Alarm Clock" icon="⏰" attack=#true text="Every 12 s it rings: everything close is knocked far back." {
-    every 12 {
-        ring 0.18 dmg=0.5 push=0.08 color="#ffd23a" show=0.5
-    }
-}
-treasure "snowGlobe" name="Snow Globe" icon="🌨️" attack=#true text="Every 6 s a flurry freezes everything close for 1 s, and you refill 1 moisture." {
-    every 6 {
-        ring 0.12 dmg=0.3 freeze=1 color="#dff4ff" show=0.5
-        heal 1
-    }
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
@@ -217,26 +155,19 @@ treasure "chili" name="Hot Chili" icon="🌶️" attack=#true text="+25% pop dam
     stat blow-rate 10 percent=#true
     stat range -15 percent=#true
 }
-treasure "glasses" name="Reading Glasses" icon="👓" text="Bubbles reach 50% farther, but blow 10% slower." {
-    stat range 50 percent=#true
-    stat blow-rate -10 percent=#true
-}
-treasure "flipFlop" name="Flip Flop" icon="🩴" text="Swim 20% faster, but -4 max moisture." {
+treasure "flipFlop" name="Flip Flop" icon="🩴" text="Swim 20% faster, but -4 max moisture." stack=2 {
     stat swim-speed 20 percent=#true
     stat moisture -4
 }
-treasure "fangs" name="Plastic Fangs" icon="🦷" text="Life steal: 1 in 10 bubble or tentacle hits gives back 1 moisture. -3 max moisture." {
+treasure "fangs" name="Plastic Fangs" icon="🦷" text="Life steal: 1 in 10 bubble or tentacle hits gives back 1 moisture. -3 max moisture." stack=2 {
     heal-on-hit chance=0.1 moisture=1
     stat moisture -3
 }
-treasure "trophy" name="Little Trophy" icon="🏆" attack=#true text="Every 10 enemies you clear, +0.25 pop damage for good." {
+treasure "trophy" name="Little Trophy" icon="🏆" attack=#true text="Every 10 enemies you clear, +0.25 pop damage for good." stack=2 {
     grow-on-kills pop 0.25 kills=10
 }
-treasure "stopwatch" name="Kitchen Timer" icon="⏲️" attack=#true text="Every 15 enemies you clear, +0.03 blow rate (about 3%) for good." {
+treasure "stopwatch" name="Kitchen Timer" icon="⏲️" attack=#true text="Every 15 enemies you clear, +0.03 blow rate (about 3%) for good." stack=2 {
     grow-on-kills blow-rate 0.03 kills=15
-}
-treasure "juiceBox" name="Juice Box" icon="🧃" text="Every dew you soak up gives back 0.25 moisture." {
-    heal-on-dew 0.25
 }
 treasure "houseplant" name="Houseplant" icon="🪴" text="Every 12 s it drips 2 dew at your feet." {
     every 12 {
@@ -253,9 +184,4 @@ treasure "snailShell" name="Snail Shell" icon="🐌" text="Bugs crawl 15% slower
 treasure "sugar" name="Spilled Sugar" icon="🍬" text="Bait: 30% more bugs come out, and each drops 30% more dew." {
     more-bugs 1.3
     dew-mult 1.3
-}
-treasure "sprinkler" name="Sprinkler" icon="🚿" attack=#true text="Every 4 s it sprays the 5 nearest enemies close by." {
-    every 4 {
-        zap 5 range=0.25 dmg=0.8
-    }
 }
