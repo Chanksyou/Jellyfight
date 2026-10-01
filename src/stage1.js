@@ -29,12 +29,12 @@ export const STAGE1 = {
 
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Vent by the sofa', at: [1.0, 0, 2.6], radius: 0.045, land: [1.35, 0.511, 2.15], to: 'the sofa' },
-    { name: 'Vent by the coffee table', at: [3.0, 0, 2.8], radius: 0.045, land: [2.6, 0.46, 3.0], to: 'the coffee table' },
-    { name: 'Vent by the TV', at: [1.0, 0, 4.05], radius: 0.045, land: [1.0, 0.603, 4.45], to: 'the media console' },
-    { name: 'Vent by the desk', at: [1.2, 0, 2.95], radius: 0.04, land: [0.6, 0.775, 3.2], to: 'the desk' },
-    { name: 'Vent by the lounge chair', at: [3.2, 0, 2.3], radius: 0.045, land: [3.2, 0.435, 1.5], to: 'the lounge chair' },
-    { name: 'Vent by the stove', at: [4.05, 0, 3.4], radius: 0.045, land: [4.5, 0.9, 3.35], to: 'the stovetop' },
+    { name: 'Vent by the sofa', at: [1.268, 0, 2.463], radius: 0.045, land: [1.35, 0.511, 2.15], to: 'the sofa' },
+    { name: 'Vent by the coffee table', at: [2.706, 0, 3.109], radius: 0.045, land: [2.6, 0.46, 3.0], to: 'the coffee table' },
+    { name: 'Vent by the TV', at: [0.887, 0, 4.246], radius: 0.045, land: [1.0, 0.603, 4.45], to: 'the media console' },
+    { name: 'Vent by the desk', at: [0.927, 0, 3.661], radius: 0.04, land: [0.6, 0.775, 3.2], to: 'the desk' },
+    { name: 'Vent by the lounge chair', at: [3.432, 0, 1.877], radius: 0.045, land: [3.2, 0.435, 1.5], to: 'the lounge chair' },
+    { name: 'Vent by the stove', at: [4.221, 0.013, 2.78], radius: 0.045, land: [4.5, 0.9, 3.35], to: 'the stovetop' },
   ],
 
   // Fabric you can climb: hold jump inside the box

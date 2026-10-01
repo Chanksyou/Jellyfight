@@ -160,7 +160,7 @@ for (const [label, from] of [['kitchen counter', [4.5, 0.95, 3.35]], ['arm of th
 // --- movement
 story('movement/jelly-steady-speed', {
   about: 'The jelly swims at a steady 0.42 m/s: the bell pulses, the speed does not.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.4, 0.05, 2.3, 0); },
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.7, 0); },
   play() {
     const { player, input } = G();
     input.keys = new Set(['KeyW']);

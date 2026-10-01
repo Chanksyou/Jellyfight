@@ -14,7 +14,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
-| Vents, gift boxes, Moon Drop spots, elite spots, boss arena | `src/stage1.js` | Plain data. Vents can also be dragged in the layout editor; exported `vent:<name>` entries go in `src/layout-baked.js` |
+| Vents, gift boxes, Moon Drop spots, elite spots, boss arena | `src/stage1.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
 | Treasures | `content/treasures.kdl` | Effect words from `src/words.js` (`TREASURE_WORDS`, `TIMED_WORDS` for `every N { … }`). Systems read the run's combined effects (`run.mods`), never treasure ids. Unique by default; `stack=N` only for plain number boosts. Give it a `rarity=`: for damage, run `node tests/clear.mjs <id>` and compare with `tests/clear-baseline.txt` (legendary 3.5x+, epic 2x+, rare 1.4x+ faster clearing 10 clumped cockroaches; it's quick, no need to ask); for anything else, by how unique the effect is. Before adding one, check no existing treasure already does nearly the same thing |

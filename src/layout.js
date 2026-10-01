@@ -69,6 +69,7 @@ const same3 = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-4);
 // Call before the vents are built (Traversal): the baked layout first (that becomes each vent's
 // "home"), then your saved edits. Changes the stage's vent list in place.
 export function applyVentLayout(vents, data = loadLayout()) {
+  let pruned = false;
   for (const v of vents) {
     if (!v.home) {
       const b = BAKED_LAYOUT[VENT(v)];
@@ -76,8 +77,12 @@ export function applyVentLayout(vents, data = loadLayout()) {
       v.home = { at: [...v.at], land: [...v.land] };
     }
     const e = data[VENT(v)];
-    if (e) { v.at = [...e.at]; v.land = [...e.land]; }
+    if (!e) continue;
+    // a saved edit that has since been baked in is no longer an edit
+    if (same3(e.at, v.home.at) && same3(e.land, v.home.land)) { delete data[VENT(v)]; pruned = true; continue; }
+    v.at = [...e.at]; v.land = [...e.land];
   }
+  if (pruned) saveLayout(data);
 }
 
 // Call once after the apartment loads, before the collision world is built
