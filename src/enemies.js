@@ -3,7 +3,7 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler } from './critters.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -12,11 +12,12 @@ import { CONTENT } from './content.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
 export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v]) => [k, LOOK.list('guts-' + k, v)]));
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -200,6 +201,7 @@ function makeLooks() {
     roach: buildRoach,
     ants: buildAnts,
     mosquito: buildMosquito,
+    stapler: buildStapler,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -228,6 +230,10 @@ export class Enemies {
     this.aimCoreGeo = new THREE.CylinderGeometry(aw / 6, aw / 6, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m long along +z
     this.aimGlowGeo = new THREE.CylinderGeometry(aw / 2, aw / 2, 1, 10, 1, true).rotateX(Math.PI / 2);
     this.aimBeams = [];       // pooled: one per mosquito aiming this frame
+    // a staple: a thin steel U (the crown and two legs), 16 mm across
+    const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+    this.stapleGeo = mergeGeometries([box(0.016, 0.0018, 0.0018, 0, 0, 0), box(0.0018, 0.0018, 0.008, -0.0071, 0, -0.004), box(0.0018, 0.0018, 0.008, 0.0071, 0, -0.004)]);   // a little oversized, so you can see them coming
+    this.stapleMat = new THREE.MeshStandardMaterial({ color: 0xd8dde4, metalness: 0.85, roughness: 0.25, emissive: 0xb8c4d8, emissiveIntensity: 1.4, toneMapped: false });   // glints in the dark
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -374,17 +380,24 @@ export class Enemies {
     this.shots = [];
   }
 
-  // a laser bolt from e at the jelly's middle (the spit word): a streak of light, pointing the way
-  // it flies, with a flash at the muzzle
-  spit(e, pc, speed, life, dmg) {
-    const m = batcher.track(new THREE.Mesh(this.shotGeo, this.shotMat));
-    m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
-    const v = pc.clone().sub(e.pos).normalize().multiplyScalar(speed);
-    m.position.copy(e.pos).addScaledVector(v, 0.03 / speed);           // leaves from in front of its nose
-    m.lookAt(m.position.clone().add(v));
-    this.scene.add(m);
-    this.fx.puff(m.position, this.laserColor.getHex(), 0.012, 0.12);
-    this.shots.push({ m, v, t: life, dmg });
+  // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
+  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle; a staple
+  // is a little bent wire that tumbles as it flies.
+  spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0 }) {
+    const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
+    const aim = at.clone().sub(from).normalize();
+    for (let i = 0; i < count; i++) {
+      const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
+      const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
+      const staple = shot === 'staple';
+      const m = batcher.track(new THREE.Mesh(staple ? this.stapleGeo : this.shotGeo, staple ? this.stapleMat : this.shotMat));
+      if (!staple) m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
+      m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
+      m.lookAt(m.position.clone().add(v));
+      this.scene.add(m);
+      this.shots.push({ m, v, t: life, dmg, spin: staple ? 18 + Math.random() * 8 : 0, source: staple ? 'staple' : 'spit' });
+    }
+    this.fx.puff(from.addScaledVector(aim, 0.03), shot === 'staple' ? 0xdfe6ee : this.laserColor.getHex(), 0.012, 0.12);
   }
 
   // the aiming beam of every mosquito about to fire (the spit word sets e.aimT, e.aimMax and e.aimAt):
@@ -392,7 +405,7 @@ export class Enemies {
   drawAim(t) {
     let n = 0;
     for (const e of this.list) {
-      if (e.dead || !(e.aimT > 0) || !e.aimAt) continue;
+      if (e.dead || !(e.aimT > 0) || !e.aimAt || e.aimBeam === false) continue;
       let B = this.aimBeams[n];
       if (!B) {
         const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
@@ -422,8 +435,8 @@ export class Enemies {
     for (const s of this.shots) {
       if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
-      this.fx.puff(s.m.position, this.laserColor.getHex(), 0.014, 0.2);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: 'spit' });
+      this.fx.puff(s.m.position, s.spin ? 0xdfe6ee : this.laserColor.getHex(), 0.014, 0.2);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit' });
     }
   }
 
@@ -431,8 +444,9 @@ export class Enemies {
     for (const s of this.shots) {
       s.t -= dt;
       const step = s.v.length() * dt;
-      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.puff(s.m.position, this.laserColor.getHex(), 0.01, 0.15); }   // scorches the wall
+      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.puff(s.m.position, s.spin ? 0xdfe6ee : this.laserColor.getHex(), 0.01, 0.15); }   // scorches (or pings off) the wall
       s.m.position.addScaledVector(s.v, dt);
+      if (s.spin) s.m.rotateX(s.spin * dt);              // staples tumble end over end
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
     }

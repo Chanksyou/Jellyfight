@@ -85,20 +85,24 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, fires a laser bolt at you (`speed` m/s, lasts `life` s, `dmg` damage). For `aim` s first it dips its nose and a flickering beam shows where the bolt will go; the bolt flies down that line, so moving off it dodges.',
-    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35 },
-    make: (_, p) => ({
-      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; },
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go) or "staple" (a tumbling staple). For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0 },
+    make: (_, p, where) => {
+      if (!['laser', 'staple'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser" or "staple", not "${p.shot}"`);
+      return {
+      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {
         e.shootT -= c.dt * (c.slow > 0 ? 1 : 0);
         e.aimT = Math.max(0, e.aimT - c.dt);
         if (e.shootT <= p.aim && e.aimT <= 0 && e.shootT > 0 && c.dist < p.reach) e.aimT = e.aimMax = p.aim;
         // the aim locks on half way through the warning, so the line shows where it will really go
         if (e.aimT > p.aim * 0.5) (e.aimAt ||= new THREE.Vector3()).copy(c.pc);
-        if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p.speed, p.life, p.dmg); e.aimAt = null; e.aimT = 0; }
+        if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.25; }
         else if (e.shootT <= 0) e.shootT = 0.5;
+        if (e.firedT > 0) e.firedT -= c.dt;
       },
-    }),
+      };
+    },
   },
 
   rolls: {

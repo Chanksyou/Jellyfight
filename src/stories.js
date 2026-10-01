@@ -224,6 +224,30 @@ story('enemies/mosquito-spits', {
   },
 });
 
+story('enemies/stapler-fans-five-staples', {
+  about: 'A standing stapler fires a fan of five staples, about 50 degrees across, from its head.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('stapler', near(0, -0.35)); e.shootT = 0.8; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    let shots = [];
+    step(60 * 3, () => { if (enemies.shots.length >= 5) { shots = enemies.shots.slice(0, 5); return true; } });
+    const angle = (s) => Math.atan2(s.v.x, s.v.z) * 180 / Math.PI, a = shots.map(angle);
+    const fan = a.length ? Math.max(...a) - Math.min(...a) : 0, high = shots.every((s) => s.m.position.y > e.pos.y + e.r * 1.8);
+    return ok(shots.length === 5 && Math.abs(fan - 50) < 3 && high && shots.every((s) => s.source === 'staple'), { shots: shots.length, fan: +fan.toFixed(1), high, hp: e.maxHp });
+  },
+});
+story('enemies/stapler-staples-hurt', {
+  about: 'A staple costs you 5 moisture; a stapler takes 80 damage to clear.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('stapler', near(0, -0.3)); e.shootT = 0.8; },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0];
+    run.iFrames = 0;
+    const m0 = run.moisture;
+    step(60 * 4, () => run.moisture < m0);
+    return ok(m0 - run.moisture === 5 && e.T.hp === 80, { lost: m0 - run.moisture, hp: e.T.hp });
+  },
+});
+
 // --- progression
 story('progression/luck', {
   about: 'Luck (a level-up card) makes rarer level-up cards and treasures come up more often.',

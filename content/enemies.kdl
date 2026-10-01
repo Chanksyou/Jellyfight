@@ -18,6 +18,13 @@ enemy "mosquito" name="Mosquito" hp=22 r=0.04 dmg=1 dew=5 model="mosquito" {
     spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=1 aim=0.5
 }
 
+// A tougher regular: an office stapler, opened out and standing on its hinge. It hops after you
+// slowly and fires a fan of five staples; stand in a gap between them, or get out of its reach.
+enemy "stapler" name="Standing stapler" hp=80 r=0.04 dmg=5 dew=8 model="stapler" {
+    chase 0.16
+    spit every=3.2 reach=0.5 speed=0.6 life=0.9 dmg=5 aim=0.6 count=5 spread=50 shot="staple" height=1.3
+}
+
 // The dust enemies, kept for the bathroom stage (src/stage-bathroom.js)
 enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
     drift 0.255
