@@ -57,7 +57,7 @@ Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied o
 
 ## Controls
 
-WASD move · mouse look · Space jump (hold to climb fabric; again in the air with Pen Spring) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, finish, spots, face and hat. On phones: left thumb moves, right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
+WASD move · mouse look · Space jump (hold to climb fabric; again in the air with Pen Spring) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, eyes (dots, big, sleepy, fierce or cyclops: flat on the bell, sized to fit each species), mouth and something on top (16 hats and toppers: antennae, sprout, party hat, bow, crown, horns, top hat, beanie, witch hat, cowboy hat, a spinning halo, flower, propeller cap with a spinning propeller, chef hat, cat ears, unicorn horn). Every jelly glows and is the same size. On phones: left thumb moves, right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
 
 ## How it fits together
 

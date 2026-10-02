@@ -84,16 +84,13 @@ export class Creator {
       <div class="sec"><div class="lbl">Name</div><input type="text" data-k="name" maxlength="16" value="${escapeAttr(L.name)}"></div>
       ${chips('body', 'Jellyfish')}
       <div class="blurb">${SPECIES[L.body].blurb}</div>
-      ${chips('finish', 'Finish')}
       ${colors('color', COLOR_ROWS[0][1])}
-      ${chips('pattern', 'Pattern')}
       ${colors('accent', COLOR_ROWS[1][1])}
       ${chips('eyes', 'Eyes')}
       ${colors('eyeColor', COLOR_ROWS[2][1])}
       ${chips('mouth', 'Mouth')}
       ${chips('top', 'On top')}
-      ${L.top !== 'none' && L.top !== 'sprout' ? colors('topColor', COLOR_ROWS[3][1]) : ''}
-      <div class="sec"><div class="lbl">Size</div><input type="range" data-k="size" min="0.8" max="1.2" step="0.01" value="${L.size}"></div>`;
+      ${!['none', 'sprout', 'chef'].includes(L.top) ? colors('topColor', COLOR_ROWS[3][1]) : ''}`;
   }
 
   set(key, value, rerender = true) {
@@ -121,8 +118,7 @@ export class Creator {
     const t = e.target;
     const k = t.dataset.k;
     if (!k) return;
-    if (k === 'size') this.set(k, parseFloat(t.value), false);
-    else if (k === 'name') this.set(k, t.value, false);
+    if (k === 'name') this.set(k, t.value, false);
     else if (t.type === 'color') this.set(k, t.value, false);
   }
 }

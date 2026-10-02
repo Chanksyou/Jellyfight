@@ -70,11 +70,11 @@ export const SPECIES = {
 
 export const OPTIONS = {
   body: Object.entries(SPECIES).map(([id, s]) => [id, s.name]),
-  finish: [['jelly', 'Jelly'], ['matte', 'Soft'], ['glow', 'Glow']],
-  pattern: [['none', 'None'], ['spots', 'Spots']],
   eyes: [['round', 'Dots'], ['big', 'Big'], ['sleepy', 'Sleepy'], ['angry', 'Fierce'], ['cyclops', 'Cyclops']],
   mouth: [['smile', 'Smile'], ['open', 'Open'], ['fangs', 'Fangs'], ['none', 'None']],
-  top: [['none', 'None'], ['antennae', 'Antennae'], ['sprout', 'Sprout'], ['partyhat', 'Party hat'], ['bow', 'Bow'], ['crown', 'Crown'], ['horns', 'Horns']],
+  top: [['none', 'None'], ['antennae', 'Antennae'], ['sprout', 'Sprout'], ['partyhat', 'Party hat'], ['bow', 'Bow'], ['crown', 'Crown'], ['horns', 'Horns'],
+    ['tophat', 'Top hat'], ['beanie', 'Beanie'], ['witch', 'Witch hat'], ['cowboy', 'Cowboy hat'], ['halo', 'Halo'], ['flower', 'Flower'],
+    ['propeller', 'Propeller cap'], ['chef', 'Chef hat'], ['catears', 'Cat ears'], ['unicorn', 'Unicorn horn']],
 };
 
 export const SWATCHES = ['#ff6fb5', '#ff5a4e', '#ffa23a', '#ffd23a', '#8ee07a', '#37c6a8', '#4fb3ff', '#6b6bff', '#b77bff', '#f4efe6', '#6b5b4f', '#2a2a33'];
@@ -106,7 +106,10 @@ export function normalizeLook(look) {
     out[k] = v;
   }
   out.name = String(out.name).slice(0, 16) || DEFAULT_LOOK.name;
-  out.size = THREE.MathUtils.clamp(out.size, 0.8, 1.2);
+  // no longer chosen in the creator: every jelly glows, has no spots and is the same size
+  out.finish = DEFAULT_LOOK.finish;
+  out.pattern = DEFAULT_LOOK.pattern;
+  out.size = DEFAULT_LOOK.size;
   for (const k of ['color', 'accent', 'eyeColor', 'topColor']) if (!/^#[0-9a-f]{6}$/i.test(out[k])) out[k] = DEFAULT_LOOK[k];
   return out;
 }
@@ -118,16 +121,13 @@ export function randomLook() {
   return normalizeLook({
     name: pick(['Blip', 'Wobble', 'Gloop', 'Pip', 'Mochi', 'Dot', 'Squish', 'Nib', 'Boba', 'Fizz', 'Medusa', 'Ripple']),
     body: pick(OPTIONS.body)[0],
-    finish: pick(['jelly', 'glow', 'glow', 'matte']),
     color: hsl(h, 0.8, 0.6),
     accent: hsl((h + 0.08) % 1, 0.6, 0.85),
-    pattern: pick(OPTIONS.pattern)[0],
     eyes: pick(OPTIONS.eyes)[0],
     eyeColor: hsl(Math.random(), 0.5, 0.25),
     mouth: pick(OPTIONS.mouth)[0],
     top: pick(OPTIONS.top)[0],
     topColor: hsl((h + 0.5) % 1, 0.8, 0.6),
-    size: 0.9 + Math.random() * 0.2,
   });
 }
 
@@ -140,7 +140,7 @@ function placement(sp) {
   const front = sp.square ? 0.8 : 1;                        // a box bell's flat side is nearer than its corners
   return {
     faceY: BELL_Y + h * R, faceZ: r * R * front * 0.97, spread: 0.1 * R / 0.27, faceScale: 0.7 * Math.min(1.15, R / 0.27),
-    topY: BELL_Y + top * R + (sp.extra === 'yolk' ? 0.06 : 0) - 0.02,
+    topY: BELL_Y + top * R + (sp.extra === 'yolk' ? 0.06 : 0) - 0.02, bellTop: BELL_Y + top * R,
     spots: { c: [0, BELL_Y + top * R * 0.3, 0], r: [R, top * R * 0.7, R], upper: true },
     halo: BELL_Y + top * R * 0.4,
   };
@@ -175,7 +175,12 @@ function makeMaterials(look) {
     accent: body(look.accent),
     top: std(look.topColor, { roughness: 0.35, metalness: look.top === 'crown' ? 0.8 : 0 }),
     white: std('#ffffff', { roughness: 0.15 }),
-    iris: std(look.eyeColor, { roughness: 0.2 }),
+    eyeWhite: std('#ffffff', { roughness: 0.2, emissive: new THREE.Color('#ffffff'), emissiveIntensity: 0.35 }),   // reads white in a warm room
+    iris: std(look.eyeColor, { roughness: 0.2, emissive: new THREE.Color(look.eyeColor), emissiveIntensity: 0.15 }),
+    lid: std('#' + new THREE.Color(look.color).lerp(new THREE.Color('#000000'), 0.35).getHexString(), { roughness: 0.5 }),
+    gold: std('#ffd23a', { roughness: 0.3, metalness: 0.6 }),
+    pink: std('#ff9ab8', { roughness: 0.6 }),
+    halo: new THREE.MeshBasicMaterial({ color: new THREE.Color(look.topColor), toneMapped: false }),
     black: std('#121018', { roughness: 0.15 }),
     mouth: std('#3a1020', { roughness: 0.6 }),
     tongue: std('#ff7a9a', { roughness: 0.6 }),
@@ -242,6 +247,7 @@ export function buildCharacter(look, heightMeters) {
   squash.add(lean);
 
   const wobblers = [];                       // things that sway: [object, axis, phase, amount]
+  const spinners = [];                       // things that turn: [object, axis, speed]
   let bell = null, rig = null;               // jellyfish only: the pulsing bell and its tentacles
 
   // --- Body: the jellyfish -------------------------------------------------
@@ -381,24 +387,6 @@ export function buildCharacter(look, heightMeters) {
   halo.position.y = shape.halo;
   lean.add(halo);
 
-  // --- Spots ----------------------------------------------------------------
-  if (look.pattern === 'spots' && shape.spots) {
-    const r = rng(hash(look.body + look.color));
-    const { c, r: rad, upper } = shape.spots;
-    for (let i = 0, placed = 0; i < 80 && placed < 11; i++) {
-      const d = new THREE.Vector3(r() * 2 - 1, r() * 2 - 1, r() * 2 - 1);
-      if (d.lengthSq() > 1 || d.lengthSq() < 0.05) continue;
-      d.normalize();
-      if (upper ? d.y < 0.15 : d.y < -0.5) continue;
-      if (d.z > 0.55 && d.y < 0.55) continue; // keep the face clear
-      const s = mesh(new THREE.SphereGeometry(0.075 + r() * 0.05, 14, 8), M.accent, lean,
-        c[0] + d.x * rad[0] * 0.97, c[1] + d.y * rad[1] * 0.97, c[2] + d.z * rad[2] * 0.97);
-      s.lookAt(s.position.clone().add(d));
-      s.scale.z = 0.3;
-      placed++;
-    }
-  }
-
   // --- Face -----------------------------------------------------------------
   const face = new THREE.Group();
   face.position.set(0, shape.faceY, shape.faceZ);
@@ -406,41 +394,48 @@ export function buildCharacter(look, heightMeters) {
   lean.add(face);
   const k = 1;
   const eyes = [];
-  const eyeAt = (x, big) => {
-    const g = new THREE.Group();
-    g.position.x = x;
+  // Each eye is a flat disc pressed onto the bell (not a ball sticking out), sized per style and
+  // spaced so a pair never overlaps
+  // (on a flat bell, like a moon jelly's, they shrink so they stay below its top; a fierce eye
+  // leaves room for its brow)
+  const room = (shape.bellTop - shape.faceY) / (shape.faceScale || 1);
+  const eyeR = Math.min({ round: 0.075, big: 0.12, sleepy: 0.11, angry: 0.11, cyclops: 0.17 }[look.eyes] ?? 0.11, room * (look.eyes === 'angry' ? 0.5 : 0.68));
+  const eyeAt = (x) => {
+    const g = new THREE.Group(), R = eyeR;
+    g.position.set(x, 0, -R * 0.12);
     face.add(g);
     eyes.push(g);
-    const R = (big ? 0.13 : 0.075) * k;
-    if (look.eyes === 'round' && !big) {
-      mesh(new THREE.SphereGeometry(R, 16, 12), M.black, g);
-      mesh(new THREE.SphereGeometry(R * 0.32, 8, 6), M.white, g, R * 0.35, R * 0.4, R * 0.8);
+    if (look.eyes === 'round') {
+      mesh(new THREE.SphereGeometry(R, 16, 12), M.black, g).scale.z = 0.5;
+      mesh(new THREE.SphereGeometry(R * 0.3, 8, 6), M.eyeWhite, g, R * 0.32, R * 0.36, R * 0.42);
       return g;
     }
-    mesh(new THREE.SphereGeometry(R, 20, 14), M.white, g).scale.z = 0.6;
-    mesh(new THREE.SphereGeometry(R * 0.66, 16, 12), M.iris, g, 0, 0, R * 0.42).scale.z = 0.5;
-    mesh(new THREE.SphereGeometry(R * 0.36, 12, 8), M.black, g, 0, 0, R * 0.6).scale.z = 0.5;
-    mesh(new THREE.SphereGeometry(R * 0.2, 8, 6), M.white, g, R * 0.3, R * 0.32, R * 0.72);
+    mesh(new THREE.SphereGeometry(R, 24, 16), M.eyeWhite, g).scale.z = 0.38;
+    mesh(new THREE.SphereGeometry(R * 0.62, 20, 12), M.iris, g, 0, -R * 0.05, R * 0.24).scale.z = 0.3;
+    mesh(new THREE.SphereGeometry(R * 0.33, 14, 10), M.black, g, 0, -R * 0.05, R * 0.36).scale.z = 0.3;
+    mesh(new THREE.SphereGeometry(R * 0.17, 8, 6), M.eyeWhite, g, R * 0.26, R * 0.24, R * 0.46);
     if (look.eyes === 'sleepy') {
-      const lid = mesh(new THREE.SphereGeometry(R * 1.08, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), M.body, g);
-      lid.rotation.x = 0.5;
-      lid.scale.z = 0.7;
+      // a heavy lid over the top half, in a darker shade of the bell, the same flat shape as the eye
+      const lid = mesh(new THREE.SphereGeometry(R * 1.06, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.56), M.lid, g, 0, 0, R * 0.02);
+      lid.scale.z = 0.44;
+      const lash = mesh(new THREE.TorusGeometry(R * 1.04, R * 0.07, 6, 24, Math.PI), M.black, g, 0, -R * 0.2, R * 0.38);
+      lash.rotation.z = Math.PI;
+      lash.scale.y = 0.25;
     }
     if (look.eyes === 'angry') {
-      const brow = mesh(new THREE.BoxGeometry(R * 1.9, R * 0.45, R * 0.4), M.black, g, 0, R * 1.05, R * 0.3);
-      brow.rotation.z = x < 0 ? -0.45 : 0.45;
+      const brow = mesh(new THREE.BoxGeometry(R * 1.7, R * 0.32, R * 0.25), M.black, g, x < 0 ? R * 0.1 : -R * 0.1, R * 1.02, R * 0.25);
+      brow.rotation.z = x < 0 ? -0.4 : 0.4;
     }
     return g;
   };
-  if (look.eyes === 'cyclops') {
-    const g = eyeAt(0, true);
-    g.scale.setScalar(1.45);
-  } else {
-    eyeAt(-shape.spread * k, look.eyes !== 'round');
-    eyeAt(shape.spread * k, look.eyes !== 'round');
+  if (look.eyes === 'cyclops') eyeAt(0);
+  else {
+    const gap = Math.max(shape.spread * k, eyeR * 1.2);
+    eyeAt(-gap);
+    eyeAt(gap);
   }
 
-  const mouthY = (look.eyes === 'cyclops' ? -0.2 : -0.15) * k;
+  const mouthY = (look.eyes === 'cyclops' ? -0.23 : -0.16) * k;
   if (look.mouth === 'smile' || look.mouth === 'fangs') {
     const m = mesh(new THREE.TorusGeometry(0.06 * k, 0.014 * k, 6, 16, Math.PI), M.mouth, face, 0, mouthY + 0.03 * k, 0.005);
     m.rotation.z = Math.PI;
@@ -510,6 +505,120 @@ export function buildCharacter(look, heightMeters) {
         h.rotation.z = -s * 0.55;
       }
       break;
+    case 'tophat': {
+      const hat = new THREE.Group();
+      hat.rotation.z = -0.12;
+      top.add(hat);
+      mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.016, 28), M.top, hat, 0, 0.008, 0);
+      mesh(new THREE.CylinderGeometry(0.105, 0.11, 0.22, 24), M.top, hat, 0, 0.12, 0);
+      mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.035, 24), M.black, hat, 0, 0.035, 0);
+      break;
+    }
+    case 'beanie': {
+      const cap = mesh(new THREE.SphereGeometry(0.15, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.top, top, 0, -0.03, 0);
+      cap.scale.y = 0.9;
+      const rim = mesh(new THREE.TorusGeometry(0.148, 0.028, 8, 28), M.top, top, 0, -0.025, 0);
+      rim.rotation.x = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.048, 12, 10), M.white, top, 0, 0.12, 0);
+      break;
+    }
+    case 'witch': {
+      const hat = new THREE.Group();
+      hat.rotation.z = 0.1;
+      top.add(hat);
+      mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.012, 28), M.top, hat, 0, 0.006, 0);
+      mesh(new THREE.CylinderGeometry(0.06, 0.115, 0.18, 20), M.top, hat, 0, 0.1, 0);
+      const bend = new THREE.Group();                                     // the floppy tip, hinged where the crown ends
+      bend.position.y = 0.19;
+      bend.rotation.z = -0.55;
+      hat.add(bend);
+      mesh(new THREE.ConeGeometry(0.06, 0.17, 16).translate(0, 0.085, 0), M.top, bend);
+      mesh(new THREE.CylinderGeometry(0.117, 0.117, 0.03, 20), M.black, hat, 0, 0.025, 0);
+      mesh(new THREE.BoxGeometry(0.04, 0.035, 0.01), M.gold, hat, 0, 0.025, 0.117);
+      break;
+    }
+    case 'cowboy': {
+      const hat = new THREE.Group();
+      hat.rotation.x = -0.12;
+      top.add(hat);
+      // a wide brim bent up at the sides (a shallow bowl), and a tall pinched crown
+      // (a band from the bottom of a sphere: its inner edge at the crown, its outer edge higher)
+      const brim = mesh(new THREE.SphereGeometry(0.3, 32, 6, 0, Math.PI * 2, 2.32, 0.52), M.top, hat, 0, 0.31, 0);
+      brim.scale.z = 0.8;
+      brim.material.side = THREE.DoubleSide;
+      const crown = mesh(new THREE.CylinderGeometry(0.075, 0.1, 0.2, 20), M.top, hat, 0, 0.1, 0);
+      crown.scale.z = 0.8;
+      mesh(new THREE.BoxGeometry(0.03, 0.02, 0.16), M.lid, hat, 0, 0.2, 0);   // the pinch on top
+      mesh(new THREE.CylinderGeometry(0.102, 0.102, 0.025, 20), M.black, hat, 0, 0.022, 0).scale.z = 0.85;
+      break;
+    }
+    case 'halo': {
+      const ring = mesh(new THREE.TorusGeometry(0.13, 0.018, 10, 40), M.halo, top, 0, 0.1, 0);
+      ring.rotation.x = Math.PI / 2 - 0.4;                                  // tipped toward the front so it reads as a ring
+      ring.castShadow = false;
+      spinners.push([ring, 'z', 0.8]);
+      wobblers.push([ring, 'y', 0, 0.12]);
+      break;
+    }
+    case 'flower': {
+      const f = new THREE.Group();
+      f.position.set(0.11, -0.02, 0.06);
+      f.rotation.set(-0.4, 0.5, -0.3);
+      top.add(f);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const petal = mesh(new THREE.SphereGeometry(0.05, 12, 8), M.top, f, Math.cos(a) * 0.055, Math.sin(a) * 0.055, 0);
+        petal.scale.set(1, 0.55, 0.25);
+        petal.rotation.z = a;
+      }
+      mesh(new THREE.SphereGeometry(0.032, 12, 8), M.gold, f, 0, 0, 0.012).scale.z = 0.5;
+      wobblers.push([f, 'z', 1, 0.1]);
+      break;
+    }
+    case 'propeller': {
+      const cap = mesh(new THREE.SphereGeometry(0.13, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.top, top, 0, -0.03, 0);
+      cap.scale.y = 0.75;
+      const visor = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.01, 20, 1, false, -Math.PI / 2, Math.PI), M.top, top, 0, -0.02, 0.1);
+      visor.scale.z = 0.8;
+      mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 8), M.black, top, 0, 0.1, 0);
+      const prop = new THREE.Group();
+      prop.position.y = 0.135;
+      top.add(prop);
+      for (const [s, mat] of [[1, M.top], [-1, M.gold]]) {
+        const blade = mesh(new THREE.BoxGeometry(0.17, 0.008, 0.045), mat, prop, s * 0.09, 0, 0);
+        blade.rotation.x = s * 0.35;
+      }
+      mesh(new THREE.SphereGeometry(0.014, 8, 6), M.black, prop, 0, 0.004, 0);
+      spinners.push([prop, 'y', 14]);
+      break;
+    }
+    case 'chef': {
+      mesh(new THREE.CylinderGeometry(0.11, 0.115, 0.1, 24), M.white, top, 0, 0.04, 0);
+      for (const [x, z] of [[0, 0], [-0.07, 0.03], [0.07, 0.03], [0, -0.07], [0.05, -0.05], [-0.05, -0.05]]) {
+        mesh(new THREE.SphereGeometry(0.075, 14, 10), M.white, top, x, 0.13, z).scale.y = 0.8;
+      }
+      break;
+    }
+    case 'catears':
+      for (const s of [-1, 1]) {
+        const ear = mesh(new THREE.ConeGeometry(0.065, 0.13, 4), M.top, top, s * 0.12, 0.02, 0);
+        ear.rotation.set(0, Math.PI / 4, -s * 0.35);
+        ear.scale.z = 0.45;
+        const inner = mesh(new THREE.ConeGeometry(0.04, 0.085, 4), M.pink, ear, 0, -0.012, 0.03);
+        inner.scale.z = 0.4;
+      }
+      break;
+    case 'unicorn': {
+      const horn = new THREE.Group();
+      horn.rotation.x = 0.35;
+      top.add(horn);
+      mesh(new THREE.ConeGeometry(0.035, 0.24, 16), M.top, horn, 0, 0.11, 0);
+      for (let i = 0; i < 4; i++) {                                       // the spiral ridge
+        const r = mesh(new THREE.TorusGeometry(0.03 - i * 0.006, 0.005, 6, 16), M.gold, horn, 0, 0.03 + i * 0.045, 0);
+        r.rotation.set(Math.PI / 2 + 0.3, 0, 0);
+      }
+      break;
+    }
   }
 
   // --- Animation --------------------------------------------------------------
@@ -560,6 +669,7 @@ export function buildCharacter(look, heightMeters) {
     lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
 
 
+    spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });
     wobblers.forEach(([o, ax, ph, amt], i) => {
       const drive = 0.3 + move * 0.7 + (s.grounded ? 0 : 0.6);
       o.rotation[ax] = baseRot[i] + Math.sin(t * 6 + ph) * amt * drive - (ax === 'x' ? move * amt : 0);
@@ -568,7 +678,7 @@ export function buildCharacter(look, heightMeters) {
     blinkIn -= dt;
     const closing = blinkIn < 0 && blinkIn > -0.12;
     if (blinkIn < -0.12) blinkIn = 2 + Math.random() * 3.5;
-    eyes.forEach((e) => { e.scale.y = closing ? 0.12 : 1; });
+    eyes.forEach((e) => { e.scale.y = closing ? 0.12 : 1; });   // eyes are built at scale 1, so blinking can't squash one
   }
 
   function land(strength) {
