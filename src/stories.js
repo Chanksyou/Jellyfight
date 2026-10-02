@@ -1034,6 +1034,86 @@ story('engine/music-renders-and-builds', {
   },
 });
 
+// a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
+function fakeClaude({ id = 'u_me', canWrite = true } = {}) {
+  const docs = new Map(), subs = new Set();
+  const snap = (p) => ({ id: p.split('/').pop(), exists: docs.has(p), data: () => docs.get(p) });
+  const notify = () => subs.forEach((f) => f());
+  const query = (col, field, dir, n) => ({
+    orderBy: (f, d) => query(col, f, d, n), limit: (k) => query(col, field, dir, k),
+    onSnapshot(next) {
+      const run = () => {
+        let list = [...docs.keys()].filter((p) => p.startsWith(col + '/')).map(snap);
+        if (field) list.sort((a, b) => (dir === 'desc' ? -1 : 1) * (a.data()[field] - b.data()[field]));
+        if (n) list = list.slice(0, n);
+        next({ docs: list, size: list.length, empty: !list.length });
+      };
+      subs.add(run); Promise.resolve().then(run);
+      return () => subs.delete(run);
+    },
+  });
+  const db = {
+    collection: (c) => query(c),
+    doc: (p) => ({
+      get: async () => snap(p),
+      set: async (d) => {
+        if (!canWrite || p !== 'scores/' + id) throw { code: 'invalid_argument', message: 'no' };
+        docs.set(p, d); notify();
+      },
+    }),
+  };
+  const user = { id: async () => id, can: async () => canWrite };
+  return { use: async (name) => ({ db, user })[name] || null, docs };
+}
+
+story('engine/leaderboard', {
+  about: 'Runs post their score to the shared leaderboard (one entry each, kept only when it beats your best), read-only viewers just see it, names are escaped, and off claude.ai it says where the board lives.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Leaderboard } = await import('./leaderboard.js');
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    try { localStorage.removeItem('jellyfight.best'); } catch {}
+    // signed in with write access
+    const fake = fakeClaude();
+    window.claude = fake;
+    const B = new Leaderboard();
+    await B.ready;
+    fake.docs.set('scores/u_other', { score: 900, name: '<b>Evil</b>' });
+    const first = await B.submit({ score: 500, name: 'Jelly' });
+    const lower = await B.submit({ score: 300, name: 'Jelly' });
+    const higher = await B.submit({ score: 1200, name: 'Jelly' });
+    await tick(); await tick();
+    const order = B.rows.map((r) => r.score).join(',');
+    const escaped = B.table().some(([k]) => k.includes('&lt;b&gt;Evil')) && !B.table().some(([k]) => k.includes('<b>Evil'));
+    // a viewer who can only read
+    window.claude = fakeClaude({ id: 'u_view', canWrite: false });
+    const R = new Leaderboard();
+    await R.ready;
+    const ro = await R.submit({ score: 9999, name: 'Viewer' });
+    // off claude.ai
+    delete window.claude;
+    const O = new Leaderboard();
+    await O.ready;
+    const off = await O.submit({ score: 50, name: 'Solo' });
+    // the game: dying shows the score and posts it
+    const { run, menus } = G();
+    const realBoard = run.board;
+    window.claude = fakeClaude({ id: 'u_game' });
+    run.board = new Leaderboard();
+    run.kills = 12; run.level = 3;
+    run.die();
+    await new Promise((r) => setTimeout(r, 800));
+    const shown = /Score/.test(document.querySelector('.jf-modal')?.innerText || '');
+    const posted = window.claude.docs.get('scores/u_game')?.score === run.score();
+    menus.close();
+    delete window.claude;
+    run.board = realBoard;
+    return ok(first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
+      && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && run.score() >= 12 * 10 + 200,
+      { first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout open and close cleanly.',

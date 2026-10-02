@@ -120,6 +120,10 @@ export class Run {
     this.moisture = this.stats.moisture;
     this.owned = new Owned();
     this.kills = 0;
+    this.eliteBugs = 0;               // golden elite bugs cleared (score)
+    this.elitesBeaten = 0;            // high-ground elites beaten (score)
+    this.bossStartT = null;
+    this.bossWon = false;
     this.pendingLevels = 0;
     this.iFrames = 0;
     this.slowT = 0;
@@ -394,6 +398,7 @@ export class Run {
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
     }
     if (elite) {                         // elites give back some moisture and drop a treasure
+      this.eliteBugs++;
       this.heal(4);
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
@@ -404,6 +409,7 @@ export class Run {
   // One of the high-ground elites (elites.js) is beaten
   eliteDefeated(e) {
     this.kills++;
+    this.elitesBeaten++;
     juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
     this.heal(4);
     this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
@@ -587,6 +593,7 @@ export class Run {
       this.enemies.addProxy(this.boss);
       setTimeout(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
+      this.bossStartT = this.t;
       this.bossStarted = false;
       this.hud.toast(B.intro || `${B.name} rises!`, 2400);
     }
@@ -594,6 +601,8 @@ export class Run {
 
   onBossDead() {
     this.bossDeadT = true;
+    this.bossWon = true;
+    this.bossTime = this.t - (this.bossStartT ?? this.t);
     juice.shake(1); juice.hitstop(0.25); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
@@ -613,9 +622,7 @@ export class Run {
       evo.apply(this.stats);
       this.moisture = this.stats.moisture;
       this.phase = 'won';
-      this.ui.message('Stage 1 complete', 'The living room is yours. The bathroom and hallway (stage 2) are coming soon.', this.summary(), [
-        { label: 'Play stage 1 again', go: true, onClick: () => { this.start(); this.resume(); } },
-      ]);
+      this.endRun('Stage 1 complete', 'The living room is yours. The bathroom and hallway (stage 2) are coming soon.', 'Play stage 1 again');
     });
   }
 
@@ -625,9 +632,52 @@ export class Run {
     this.moisture = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
-    setTimeout(() => this.ui.message('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', this.summary(), [
-      { label: 'Try again', go: true, onClick: () => { this.start(); this.resume(); } },
-    ]), 700);
+    setTimeout(() => this.endRun('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', 'Try again'), 700);
+  }
+
+  // ------------------------------------------------------------ score
+  // One number for the whole run (the leaderboard ranks by it), from its parts
+  scoreParts() {
+    const treasures = [...this.owned].reduce((n, id) => n + this.owned.count(id), 0);
+    const B = this.boss, bossDamage = B ? 1 - Math.max(0, B.hp) / B.maxHp : 0;
+    const parts = [
+      ['Bugs cleared', this.kills * 10],
+      ['Elite bugs', this.eliteBugs * 50],
+      ['Elites beaten', this.elitesBeaten * 300],
+      ['Levels', (this.level - 1) * 100],
+      ['Treasures', treasures * 150],
+      ['Survival', Math.round(Math.min(this.t, this.duration) * 2)],
+      [`${this.stage.boss.name} damage`, Math.round(bossDamage * 1500)],
+    ];
+    if (this.bossWon) parts.push([`${this.stage.boss.name} beaten`, 3000 + Math.round(Math.max(0, 180 - (this.bossTime || 180)) * 20)]);
+    return parts;
+  }
+
+  score() { return this.scoreParts().reduce((n, [, v]) => n + v, 0); }
+
+  // The end of a run: the summary with the score, posted to the leaderboard (board: the
+  // Leaderboard, given by main.js), and a button to see the board
+  endRun(title, sub, again) {
+    const score = this.score();
+    const entry = { score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const show = (result) => {
+      this.endView = 'summary';
+      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${result?.best ? ' <small>new best!</small>' : ''}`], ...this.summary()];
+      const buttons = [{ label: again, go: true, onClick: () => { this.start(); this.resume(); } }];
+      if (this.board) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
+      this.ui.message(title, sub, rows, buttons);
+    };
+    show(null);
+    // when the post comes back, refresh the summary (if it's still what's on screen) with "new best!"
+    this.board?.submit(entry).then((result) => { this.lastPost = result; if ((this.phase === 'dead' || this.phase === 'won') && this.endView === 'summary') show(result); });
+  }
+
+  // The leaderboard as a dialog; back() returns to where it was opened from
+  showBoard(back) {
+    const B = this.board;
+    this.endView = 'board';
+    const rows = B.table();
+    this.ui.message('🏆 Leaderboard', B.note(), rows.length ? rows : [], [{ label: 'Back', go: true, onClick: back }]);
   }
 
   summary() {

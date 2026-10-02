@@ -19,13 +19,14 @@ import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted, audio } from './sfx.js';
 import { Music } from './music.js';
+import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v72';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v73';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -85,7 +86,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -174,6 +175,12 @@ const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
 });
+
+// The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
+const board = new Leaderboard();
+run.board = board;
+run.playerName = () => state.look.name;
+run.playerBody = () => state.look.body;
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
@@ -337,6 +344,7 @@ overlay.addEventListener('click', (e) => {
     try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
     b.textContent = musicOn ? '🎵 Music on' : '🎵 Music off';
   }
+  else if (b.dataset.act === 'board') { overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {

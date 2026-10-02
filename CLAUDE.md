@@ -72,3 +72,10 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 ## Next (the same pattern, not done yet)
 
 - **Elites and the Vacuum as stacked words** (a telegraph shape + an effect per attack).
+
+## Leaderboard (claude.ai artifact)
+
+`src/leaderboard.js` keeps scores in the artifact's database. Publish the artifact with
+`capabilities: { db: { rules: [ { path: "scores", read: "view", write: "owner" }, { path: "scores/{self}", write: "interact" } ] }, user: {} }`
+(everyone reads the board; each player writes only `scores/<their id>`). Redeploys can omit
+`capabilities` to keep it. Off claude.ai the board shows as offline and the game still works.

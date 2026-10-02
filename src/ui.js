@@ -24,6 +24,9 @@ const CSS = `
 .jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
 .jf-modal .btns button:disabled { opacity: .35; cursor: default; }
 .jf-stats { margin: 4px auto 0; display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; opacity: .9; }
+.jf-stats b { text-align: right; }
+.jf-stats small { font-weight: 600; opacity: .75; }
+.jf-score { font-size: 1.5em; color: #ffd23a; }
 .jf-pop { position: fixed; left: 50%; top: 16%; transform: translateX(-50%); z-index: 25; background: #1d2034ee; border: 2px solid #ffd23a; border-radius: 16px;
   padding: 12px 18px; display: flex; gap: 12px; align-items: center; color: #fff; font-family: system-ui, sans-serif; box-shadow: 0 8px 28px #0009;
   pointer-events: none; animation: jfPop .25s ease-out; max-width: 90vw; }
