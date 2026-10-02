@@ -24,7 +24,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v63';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v64';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -358,6 +358,7 @@ async function warmUp() {
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
+  const warmLooks = run.bubbles.looks.warm(P.clone().setY(P.y + 0.03));   // every element projectile
   const warmFx = [new THREE.Mesh(run.bubbles.puddleGeo, run.bubbles.acidMat), new THREE.Line(new THREE.BufferGeometry().setFromPoints([P, P.clone().setY(P.y + 0.05)]), run.bubbles.zapMat)];
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
@@ -376,6 +377,7 @@ async function warmUp() {
   run.gadgets.warm(false);
   run.elites.warm(false);
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
+  warmLooks.forEach((m) => run.bubbles.looks.release(m));
   warmFx.forEach((m) => scene.remove(m));
   clog.dispose();
   scene.remove(flash);

@@ -14,7 +14,8 @@
 //                            (they take 50% more damage while in it).
 //   wind (Paper Fan)         faster bubbles that pierce once more and blast what they hit away.
 //   glitter (Glitter)        a sparkling burst: splash over twice as wide and much harder.
-// Every element bubble leaves a trail of its color, so you can tell them apart in flight.
+// Each element bubble flies as its own projectile (bubble-looks.js): a fireball, ball lightning,
+// an ice shard, an acid glob, a wind gust, a glitter bomb. Plain bubbles stay bubbles.
 // Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
@@ -23,6 +24,7 @@ import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleDamage } from './stats.js';
+import { BubbleLooks } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -57,7 +59,8 @@ export class Bubbles {
       emissive: glow, emissiveIntensity: 0.6, depthWrite: false,
     });
     this.mat = film(0xcfeeff, 0x4aa8ff);
-    this.elemMats = Object.fromEntries(ELEMENTS.map((e) => { const m = film(e.color, e.color); m.emissiveIntensity = 1.6; m.opacity = 0.75; return [e.id, m]; }));
+    this.looks = new BubbleLooks(scene, fx);   // the element projectiles
+    this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
     this.zaps = [];
     this.puddles = [];
@@ -82,7 +85,11 @@ export class Bubbles {
     this.volleys = 0;
   }
 
-  release(b) { b.m.visible = false; this.pool.push(b.m); }
+  release(b) {
+    if (b.m.userData.look) { this.looks.release(b.m); return; }
+    b.m.visible = false;
+    this.pool.push(b.m);
+  }
 
   mesh(mat) {
     let m = this.pool.pop();
@@ -154,7 +161,7 @@ export class Bubbles {
   }
 
   blow(origin, target, o) {
-    const m = this.mesh(o.golden ? this.goldMat : o.tint ? this.elemMats[o.tint] : this.mat);
+    const m = !o.golden && o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);
     m.position.copy(origin);
     const dir = this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
@@ -173,6 +180,8 @@ export class Bubbles {
   }
 
   fly(dt, stats, mods) {
+    this.clock += dt;
+    this.looks.frame();
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
@@ -192,16 +201,13 @@ export class Bubbles {
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
-      // a trail in the element's color
-      if (b.tint && (b.trailT -= dt) <= 0) {
-        b.trailT = 0.06;
-        this.fx.puff(b.m.position.clone().addScaledVector(b.vel, -0.03), EL[b.tint].color, b.r * (b.tint === 'fire' ? 0.9 : 0.6), b.tint === 'fire' ? 0.35 : 0.25);
+      if (b.m.userData.look) this.looks.update(b, dt, this.clock);   // an element projectile: its own look and particles
+      else {
+        // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
+        this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.friendly, b.r * (b.big ? 6 : 5), b.golden ? 0.55 : 0.4);
+        const grow = Math.min(1, b.t * 8);
+        b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       }
-      if (b.tint === 'lightning') b.m.material.emissiveIntensity = 1 + Math.random() * 2;   // crackles
-      // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
-      this.fx.glow.hold(b.m.position, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 6 : 5), b.golden || b.tint ? 0.55 : 0.4);
-      const grow = Math.min(1, b.t * 8);
-      b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       // touching an enemy?
       for (const e of E.list) {
         if (e.dead || b.hit.has(e)) continue;
@@ -213,6 +219,7 @@ export class Bubbles {
       }
       if (!b.done && b.travel > maxTravel) this.pop(b, null, stats, mods);
     }
+    this.looks.endFrame();
     const done = this.list.filter((b) => b.done);
     done.forEach((b) => this.release(b));
     if (done.length) this.list = this.list.filter((b) => !b.done);

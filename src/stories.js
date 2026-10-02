@@ -235,6 +235,25 @@ story('attack/side-by-side-bubbles', {
   },
 });
 
+story('attack/element-projectiles', {
+  about: 'Each element treasure turns the bubble into its own projectile (a fireball, ball lightning, an ice shard, an acid glob, a wind gust, a glitter bomb), and the lightning one crackles with arcs.',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 1e6 }); },
+  play() {
+    const { run } = G();
+    const seen = {};
+    let arcs = 0;
+    for (const [id, el] of [['candle', 'fire'], ['battery', 'lightning'], ['freezerPack', 'ice'], ['nailPolish', 'acid'], ['paperFan', 'wind'], ['glitter', 'glitter']]) {
+      run.owned = new (run.owned.constructor)(); run.owned.add(id);
+      run.bubbles.reset(); run.bubbles.timer = 1;
+      step(6);
+      seen[el] = run.bubbles.list.map((b) => b.m.userData.look).filter(Boolean)[0] || null;
+      if (el === 'lightning') arcs = run.bubbles.looks.arcN;
+    }
+    const all = Object.entries(seen).every(([el, look]) => el === look);
+    return ok(all && arcs > 0, { seen, arcs });
+  },
+});
+
 // --- the bugs
 story('enemies/ants-curl-and-roll', {
   about: 'An ant squad curls into a ball and rolls at you.',
