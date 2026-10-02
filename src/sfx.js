@@ -22,6 +22,9 @@ export function unlock() {
   } catch { /* no audio: the game still works */ }
 }
 
+// the audio context and master volume, for the music (music.js); null until unlocked
+export const audio = () => (ctx ? { ctx, master } : null);
+
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
 export const isMuted = () => muted;
 

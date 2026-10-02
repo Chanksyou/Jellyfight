@@ -1013,6 +1013,27 @@ story('engine/tentacles-swim-smoothly', {
   },
 });
 
+story('engine/music-renders-and-builds', {
+  about: 'The soundtrack (music.js) plays both songs, and more intensity brings in more layers (louder, busier).',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Music } = await import('./music.js');
+    const rms = async (song, I) => {
+      const ctx = new OfflineAudioContext(1, 16000 * 4, 16000), m = new Music(ctx, ctx.destination);
+      m.play(song, 0.05);
+      m.I = I;
+      m.schedule(4);
+      const d = (await ctx.startRendering()).getChannelData(0);
+      let sum = 0;
+      for (let i = 16000; i < d.length; i++) sum += d[i] * d[i];
+      return Math.sqrt(sum / (d.length - 16000));
+    };
+    const quiet = await rms('drift', 0), loud = await rms('drift', 1), boss = await rms('machinery', 0.9);
+    const st = G().run.musicState();
+    return ok(quiet > 0.002 && loud > quiet * 1.5 && boss > 0.01 && st.song === 'drift', { quiet: +quiet.toFixed(4), loud: +loud.toFixed(4), boss: +boss.toFixed(4), song: st.song });
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout open and close cleanly.',

@@ -17,14 +17,15 @@ import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
-import { unlock as unlockAudio, setMuted, isMuted } from './sfx.js';
+import { unlock as unlockAudio, setMuted, isMuted, audio } from './sfx.js';
+import { Music } from './music.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v65';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v66';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -84,7 +85,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -281,9 +282,23 @@ async function loadRooms(parts, onProgress) {
   return added;
 }
 
+// The soundtrack (music.js): which song and how intense comes from the run; muffled behind menus.
+// It starts once audio is unlocked (the Play button), and the 🎵 button turns it off.
+const MUSIC_KEY = 'jellyfight.music';
+let music = null, musicOn = true;
+try { musicOn = localStorage.getItem(MUSIC_KEY) !== 'off'; } catch {}
+function updateMusic(dt) {
+  if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
+  const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
+  music.play(st.song);
+  music.duck(menuOpen() || run.paused);
+  music.update(dt, st.intensity);
+}
+
 const GAME = {
   loadRooms,
   step(dt) {
+    updateMusic(dt);
     systems.traversal.update(dt);
     systems.fx.update(dt);
     systems.layout.update(dt);
@@ -315,6 +330,12 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'layout') openLayout();
   else if (b.dataset.act === 'boss') { run.start(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
+  else if (b.dataset.act === 'music') {
+    unlockAudio();
+    musicOn = !musicOn;
+    try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
+    b.textContent = musicOn ? '🎵 Music on' : '🎵 Music off';
+  }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 document.addEventListener('pointerlockchange', () => {
