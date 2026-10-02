@@ -682,24 +682,24 @@ export class Run {
     const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);
     const left = Math.max(0, Math.ceil(this.duration - this.t));
-    const boss = this.phase === 'explore' ? ` · ${this.stage.boss.name} in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
-    h.setClock(`${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM${boss}`, this.phase === 'explore' && left <= 20);
-    h.setStage(`Stage ${this.stage.id} · ${this.stage.name}`);
+    // big: how long until the boss; small: the night's clock and who's coming
+    const clock = `${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM`;
+    const exploring = this.phase === 'explore';
+    h.setClock(exploring ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
+    h.setStage(exploring ? `${clock} · ${this.stage.boss.name} is coming` : '');
     h.setDrops(this.drops, TOTAL_DROPS, this.phase === 'boss');
   }
 
   markers() {
     const out = [];
-    for (const v of this.traversal.vents) out.push({ kind: 'vent', x: v.x, y: v.y, z: v.z });
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) out.push({ kind: 'enemy', x: e.pos.x, y: e.pos.y, z: e.pos.z });
     if (this.moon.active) {
       const p = this.moon.position;
-      out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true, icon: this.moon.full ? '🌕' : '🌙' });
+      out.push({ x: p.x, y: p.y, z: p.z, color: this.moon.full ? '#ffb86a' : '#c4b2ff', big: true });
     }
-    if (this.phase === 'explore' && this.gift.active) { const g = this.gift.pos; out.push({ x: g.x, y: g.y, z: g.z, color: '#ffc93a', icon: '🎁', big: true }); }
-    const ICON = { controller: '🎮', mug: '☕', kettle: '🫖' };
-    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true, icon: ICON[e.kind] || '★' });
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true, icon: '🤖' }); }
+    if (this.phase === 'explore' && this.gift.active) { const g = this.gift.pos; out.push({ x: g.x, y: g.y, z: g.z, color: '#ffc93a', big: true }); }
+    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ff8a3a' });
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true }); }
     return out;
   }
 }

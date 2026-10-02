@@ -13,27 +13,33 @@ const CSS = `
 body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { font-size: 34px; }
 
 #hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
-#hud .tl { position: absolute; left: 18px; top: 16px; width: 240px; }
-#hud .bar { position: relative; height: 18px; border: 2px solid #f4f1e8; border-radius: 10px; background: #0007; overflow: hidden; box-shadow: 0 1px 4px #0009; }
-#hud .bar i { position: absolute; inset: 0; transform-origin: left; transition: transform .15s; }
-#hud .bar b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-#hud .moist i { background: linear-gradient(#8fe0ff, #2a8fe0); }
-#hud .xp { margin-top: 6px; height: 10px; }
-#hud .xp i { background: linear-gradient(#b8ff9a, #3fbf4a); }
-#hud .row { display: flex; gap: 12px; align-items: center; margin-top: 7px; font-weight: 700; font-size: 14px; text-shadow: 0 1px 3px #000b; }
-#hud .items { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 8px; }
-#hud .items span { width: 28px; height: 28px; display: grid; place-items: center; font-size: 17px; background: #0008; border: 1px solid #ffffff40; border-radius: 8px; }
-#hud .tc { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
-#hud .clock { font-size: 22px; font-weight: 800; letter-spacing: .02em; }
-#hud .clock.dry { color: #ff8a6a; }   /* the boss is almost here */
-#hud .stage { font-size: 12px; opacity: .85; letter-spacing: .08em; text-transform: uppercase; }
-#hud .drops { margin-top: 4px; font-size: 15px; font-weight: 700; }
+/* vitals: a level badge, the moisture bar with just its number, a thin gold line of XP under it */
+#hud .tl { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: center; width: 250px; }
+#hud .lvl { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 800 15px system-ui, sans-serif;
+  background: #0d1220cc; box-shadow: inset 0 0 0 2px #ffd25a; color: #ffe7a0; }
+#hud .bar { position: relative; height: 12px; border-radius: 6px; background: #0d1220b3; overflow: hidden; }
+#hud .bar i { position: absolute; inset: 0; transform-origin: left; transition: transform .15s; border-radius: inherit; }
+#hud .moist i { background: linear-gradient(90deg, #3aa8ff, #7fe8ff); }
+#hud .moist.low i { background: linear-gradient(90deg, #ff5a5a, #ff9a7a); }
+#hud .hpn { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font: 700 10px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
+#hud .xp { height: 4px; margin-top: 5px; background: #0d122099; }
+#hud .xp i { background: #ffd25a; }
+#hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+#hud .items span { width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; background: #0d122080; border-radius: 6px; }
+#hud .items sub { font-size: 8px; font-weight: 800; }
+/* top centre: how long until the boss, and the Moon Drops as pips */
+#hud .tc { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
+#hud .clock { font: 800 24px/1 system-ui, sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+#hud .clock.dry { color: #ff7a6a; }   /* the boss is almost here */
+#hud .stage { font-size: 11px; opacity: .7; margin-top: 3px; letter-spacing: .04em; }
+#hud .drops { margin-top: 5px; display: flex; gap: 5px; justify-content: center; }
+#hud .drops i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff30; }
+#hud .drops i.on { background: #fff3c4; box-shadow: 0 0 6px #fff3c4; }
 #hud .boss { position: absolute; left: 50%; top: 116px; transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
 #hud .boss .bar { height: 14px; border-color: #ffd9c9; }
 #hud .boss i { background: linear-gradient(#ff8a6a, #c2312a); }
 #hud .boss .nm { font-weight: 800; letter-spacing: .12em; font-size: 13px; margin-bottom: 4px; text-shadow: 0 1px 3px #000; }
-#hud .map { position: absolute; right: 18px; bottom: 18px; width: 230px; height: 230px; }
-#hud .room { position: absolute; right: 18px; bottom: 252px; width: 230px; text-align: center; font-weight: 600; font-size: 13px; text-shadow: 0 1px 3px #000a; }
+#hud .map { position: absolute; right: 18px; bottom: 18px; width: 190px; height: 190px; }
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
 #hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
@@ -44,22 +50,23 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; text-shadow: 0 1px 2px #000; opacity: .8; }
 /* phones: smaller, and keep the bottom corners free for the thumbs */
 @media (max-height: 520px), (max-width: 700px) {
-  #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 160px; }
-  #hud .bar { height: 14px; border-width: 1.5px; }
-  #hud .bar b { font-size: 10px; }
-  #hud .xp { height: 7px; margin-top: 4px; }
-  #hud .row { font-size: 12px; margin-top: 4px; gap: 8px; }
-  #hud .items span { width: 22px; height: 22px; font-size: 13px; border-radius: 6px; }
+  #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 170px; gap: 0 7px; }
+  #hud .lvl { width: 28px; height: 28px; font-size: 13px; }
+  #hud .bar { height: 10px; }
+  #hud .hpn { font-size: 9px; right: 5px; }
+  #hud .xp { height: 3px; margin-top: 4px; }
+  #hud .items { margin-top: 6px; gap: 3px; }
+  #hud .items span { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
   #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
-  #hud .clock { font-size: 16px; }
-  #hud .stage { font-size: 9.5px; }
-  #hud .drops { font-size: 12px; margin-top: 1px; }
+  #hud .clock { font-size: 18px; }
+  #hud .stage { font-size: 9.5px; margin-top: 2px; }
+  #hud .drops { margin-top: 3px; }
+  #hud .drops i { width: 6px; height: 6px; }
   #hud .boss { top: 70px; }
   #hud .toast { font-size: 17px; top: 30%; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
-body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 150px; height: 150px; }
-body.touch #hud .room { top: calc(env(safe-area-inset-top, 0px) + 212px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 150px; font-size: 11px; }
+body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 130px; height: 130px; }
 body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 `;
 
@@ -71,14 +78,14 @@ export class Hud {
     this.el.id = 'hud';
     this.el.innerHTML = `<style>${CSS}</style>
       <div class="tl">
-        <div class="bar moist"><i></i><b></b></div>
+        <div class="lvl"></div>
+        <div class="bar moist"><i></i><span class="hpn"></span></div>
         <div class="bar xp"><i></i></div>
-        <div class="row"><span class="lvl"></span><span class="dew"></span></div>
         <div class="items"></div>
       </div>
-      <div class="tc"><div class="stage"></div><div class="clock"></div><div class="drops"></div></div>
+      <div class="tc"><div class="clock"></div><div class="stage"></div><div class="drops"></div></div>
       <div class="boss" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
-      <div class="room"></div><canvas class="map"></canvas>
+      <canvas class="map"></canvas>
       <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>
       <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
     this.$ = (s) => this.el.querySelector(s);
@@ -123,13 +130,14 @@ export class Hud {
     }
     this.cache.hp = v;
     this.$('.moist i').style.transform = `scaleX(${Math.max(0, v / max)})`;
-    this.set('hpText', '.moist b', () => `💧 ${Math.ceil(v)} / ${Math.round(max)}`);
+    this.$('.moist').classList.toggle('low', v / max < 0.3);
+    this.set('hpText', '.hpn', () => `${Math.ceil(v)}`);
   }
 
   setXp(level, xp, need, purse) {
     this.$('.xp i').style.transform = `scaleX(${Math.min(1, xp / need)})`;
-    this.set('lvl', '.lvl', () => `Lv ${level}`);
-    this.set('dew', '.dew', () => `💧 ${purse} dew`);
+    this.set('lvl', '.lvl', () => `${level}`);
+    this.$('.lvl').title = `Level ${level} · ${xp} / ${need} dew`;
   }
 
   setItems(items) {
@@ -141,7 +149,7 @@ export class Hud {
     this.$('.clock').classList.toggle('dry', dry);
   }
   setStage(text) { this.set('stage', '.stage', () => text); }
-  setDrops(n, total, boss) { this.set('drops', '.drops', () => (boss ? '' : n >= total ? '🌙 The moon is calling…' : `🌙 Moon Drops ${n} / ${total}`)); }
+  setDrops(n, total, boss) { this.set('drops', '.drops', () => (boss ? '' : Array.from({ length: total }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join(''))); }
 
   setBoss(name, frac) {
     const b = this.$('.boss');
@@ -176,121 +184,91 @@ export class Hud {
     return null;
   }
 
-  // markers: [{ x, y, z, color, big }]; player y is used to show "above / below"
   // Furniture footprints for the map: [{ x0, z0, x1, z1, top }], drawn once into a cached layer
-  setFurniture(list) { this.furniture = list; this.mapBase = null; }
+  // (only the big pieces: small clutter just makes noise at this size)
+  setFurniture(list) { this.furniture = list.filter((f) => (f.x1 - f.x0) * (f.z1 - f.z0) > 0.06 && f.top > 0.12); this.mapBase = null; }
 
-  // The minimap: the room, the furniture (lighter = taller), vents, what's worth going to
-  // (icons, with how far above or below you), enemies as red dots, and you.
-  // markers: [{ x, y, z, icon?, color, big?, kind? }]
+  // The minimap, kept quiet: the room in one tone with faint furniture, small coloured dots for
+  // what matters (gold gift, lavender Moon Drop, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
+  // something is well above or below you, and you as a cyan arrow with a soft view cone.
+  // markers: [{ x, y, z, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {
-    const room = this.roomAt(pos.x, pos.z);
-    if (room !== this.room) { this.room = room; this.$('.room').textContent = room || ''; }
-
     const c = this.map, g = this.ctx;
     const dpr = Math.min(3, devicePixelRatio || 1);
-    const css = c.clientWidth || 220;
+    const css = c.clientWidth || 190;
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapBase = null; }
-    const b = this.bounds, pad = 8 * dpr;
+    const b = this.bounds, pad = 10 * dpr;
     const s = Math.min((W - 2 * pad) / (b.x1 - b.x0), (W - 2 * pad) / (b.z1 - b.z0));
     const ox = (W - (b.x1 - b.x0) * s) / 2, oz = (W - (b.z1 - b.z0) * s) / 2;
     const X = (x) => ox + (x - b.x0) * s, Z = (z) => oz + (z - b.z0) * s;
-    const u = W / 220;                                    // scale for sizes, so small maps stay readable
+    const u = W / 190;                                    // scale for sizes, so small maps stay readable
 
-    // the static layer: room + furniture
+    // the static layer: the room and faint furniture
     if (!this.mapBase) {
       const base = this.mapBase = document.createElement('canvas');
       base.width = base.height = W;
       const q = base.getContext('2d');
-      q.fillStyle = 'rgba(10, 14, 24, 0.82)';
-      q.beginPath(); q.roundRect(0, 0, W, W, 14 * u); q.fill();
-      for (const [, poly] of this.plan) {
-        q.beginPath();
-        poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z))));
-        q.closePath();
-        q.fillStyle = '#3a4250';
-        q.fill();
-        q.lineWidth = 3 * u;
-        q.strokeStyle = '#cfe8ff';
-        q.stroke();
-      }
+      q.fillStyle = 'rgba(13, 18, 32, 0.55)';
+      q.beginPath(); q.roundRect(0, 0, W, W, 16 * u); q.fill();
+      const room = () => { q.beginPath(); for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z)))); q.closePath(); } };
+      room();
+      q.fillStyle = 'rgba(120, 140, 170, 0.22)';
+      q.fill();
       q.save();
-      q.beginPath();
-      for (const [, poly] of this.plan) poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z))));
+      room();
       q.clip();
-      for (const f of (this.furniture || []).sort((a, z2) => a.top - z2.top)) {
-        const t = Math.min(1, f.top / 1.2);
-        q.fillStyle = `hsl(28, ${18 + t * 20}%, ${34 + t * 34}%)`;
-        q.strokeStyle = 'rgba(0,0,0,0.45)';
-        q.lineWidth = 1 * u;
+      for (const f of this.furniture || []) {
+        q.fillStyle = `rgba(200, 215, 235, ${0.07 + Math.min(1, f.top / 1.0) * 0.1})`;   // taller = a little lighter
         q.beginPath();
         q.roundRect(X(f.x0), Z(f.z0), Math.max(2, (f.x1 - f.x0) * s), Math.max(2, (f.z1 - f.z0) * s), 3 * u);
-        q.fill(); q.stroke();
+        q.fill();
       }
       q.restore();
+      room();
+      q.lineWidth = 1.5 * u;
+      q.strokeStyle = 'rgba(220, 235, 255, 0.55)';
+      q.stroke();
     }
     g.clearRect(0, 0, W, W);
     g.drawImage(this.mapBase, 0, 0);
 
     const t = performance.now() / 1000;
-    const label = (text, x, y) => {
-      g.font = `800 ${11 * u}px system-ui, sans-serif`;
-      g.textAlign = 'center';
-      g.lineWidth = 3.5 * u;
-      g.strokeStyle = '#000c';
-      g.strokeText(text, x, y);
-      g.fillStyle = '#fff';
-      g.fillText(text, x, y);
-    };
-    // small things first (vents, enemies), then what you're heading for on top
-    for (const m of markers) {
-      if (m.kind !== 'vent') continue;
-      g.fillStyle = '#7ff6ee';
-      g.fillRect(X(m.x) - 4 * u, Z(m.z) - 3 * u, 8 * u, 6 * u);
-      g.fillStyle = '#1a3a40';
-      for (let k = 0; k < 3; k++) g.fillRect(X(m.x) - 3 * u, Z(m.z) - 2 * u + k * 1.8 * u, 6 * u, 0.9 * u);
-    }
-    for (const m of markers) {
-      if (m.kind !== 'enemy') continue;
-      g.fillStyle = m.color || '#ff4a4a';
-      g.beginPath(); g.arc(X(m.x), Z(m.z), 2.4 * u, 0, Math.PI * 2); g.fill();
-    }
+    const dot = (x, y, r, color) => { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+    // bugs: small red dots
+    for (const m of markers) if (m.kind === 'enemy') dot(X(m.x), Z(m.z), 2 * u, 'rgba(255, 80, 80, 0.9)');
+    // what's worth going to: a dot in its colour with a soft glow (a slow pulse for the big ones)
     for (const m of markers) {
       if (m.kind === 'vent' || m.kind === 'enemy') continue;
-      const mx = X(m.x), mz = Z(m.z);
-      // a pulsing ring so the important ones pop
-      if (m.big) {
-        const k = (t * 1.5) % 1;
-        g.strokeStyle = m.color; g.globalAlpha = 1 - k; g.lineWidth = 2 * u;
-        g.beginPath(); g.arc(mx, mz, (8 + k * 10) * u, 0, Math.PI * 2); g.stroke();
-        g.globalAlpha = 1;
-      }
-      g.fillStyle = 'rgba(10,14,24,0.85)';
-      g.beginPath(); g.arc(mx, mz, 9 * u, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = m.color; g.lineWidth = 2 * u; g.stroke();
-      g.font = `${12 * u}px system-ui, "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(m.icon || '●', mx, mz + 0.5 * u);
-      g.textBaseline = 'alphabetic';
+      const mx = X(m.x), mz = Z(m.z), r = (m.big ? 4.5 : 3.5) * u;
+      if (m.big) { g.globalAlpha = 0.25 + 0.2 * Math.sin(t * 4); dot(mx, mz, r * 2.4, m.color); g.globalAlpha = 1; }
+      dot(mx, mz, r, m.color);
       const dy = m.y - pos.y;
-      if (Math.abs(dy) > 0.06) label(`${dy > 0 ? '▲' : '▼'}${Math.round(Math.abs(dy) * 100)}`, mx, mz - 12 * u);
+      if (Math.abs(dy) > 0.15) {
+        g.fillStyle = '#fff';
+        g.font = `700 ${8 * u}px system-ui, sans-serif`;
+        g.textAlign = 'center';
+        g.fillText(dy > 0 ? '▲' : '▼', mx, mz - r - 2.5 * u);
+      }
     }
 
-    // camera view cone and you
+    // you: a soft view cone and a cyan arrow
     const px = X(pos.x), pz = Z(pos.z);
     const ca = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw));
-    const grad = g.createRadialGradient(px, pz, 0, px, pz, 42 * u);
-    grad.addColorStop(0, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    const grad = g.createRadialGradient(px, pz, 0, px, pz, 34 * u);
+    grad.addColorStop(0, 'rgba(95,240,255,0.25)'); grad.addColorStop(1, 'rgba(95,240,255,0)');
     g.fillStyle = grad;
-    g.beginPath(); g.moveTo(px, pz); g.arc(px, pz, 42 * u, ca - 0.55, ca + 0.55); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(px, pz); g.arc(px, pz, 34 * u, ca - 0.5, ca + 0.5); g.closePath(); g.fill();
     g.save();
     g.translate(px, pz);
     g.rotate(Math.atan2(Math.cos(facing), Math.sin(facing)));
     g.beginPath();
-    g.moveTo(11 * u, 0); g.lineTo(-7 * u, -7 * u); g.lineTo(-3 * u, 0); g.lineTo(-7 * u, 7 * u); g.closePath();
-    g.fillStyle = '#ff5ab8'; g.strokeStyle = '#fff'; g.lineWidth = 2.2 * u;
-    g.stroke(); g.fill();
+    g.moveTo(8 * u, 0); g.lineTo(-5 * u, -5 * u); g.lineTo(-2 * u, 0); g.lineTo(-5 * u, 5 * u); g.closePath();
+    g.fillStyle = '#5ff0ff';
+    g.fill();
+    g.lineWidth = 1.2 * u;
+    g.strokeStyle = 'rgba(0, 20, 30, 0.8)';
+    g.stroke();
     g.restore();
   }
 
