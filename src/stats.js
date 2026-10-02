@@ -141,8 +141,10 @@ export function rollTreasures(pool, n = 3, luck = 0) {
 // Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)
 export const TREASURES = CONTENT.treasures;
 
-// Treasures that change how you attack (attack=#true): the starting pick always includes one
+// Treasures that change how you attack (attack=#true)
 export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t) => t.id);
+// Treasures that give your bubbles an element (the `element` word): the starting pick offers two
+export const ELEMENT_TREASURES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element')).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;

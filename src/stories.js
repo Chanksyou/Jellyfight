@@ -91,6 +91,7 @@ const spawn = (type, at, { still = false, hp } = {}) => {
   return e;
 };
 const ok = (pass, info = {}) => ({ ok: !!pass, info });
+const ELEMENTS_IDS = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
 
 // ------------------------------------------------------------------ the stories
 export const STORIES = {};
@@ -251,6 +252,24 @@ story('attack/element-projectiles', {
     }
     const all = Object.entries(seen).every(([el, look]) => el === look);
     return ok(all && arcs > 0, { seen, arcs });
+  },
+});
+
+story('treasures/start-pick-two-elements', {
+  about: 'The starting treasure pick offers two element treasures and one of anything else.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { run, menus } = G();
+    let good = 0, tries = 0, sample = null;
+    stub(menus, 'choose', (title, sub, list) => {
+      tries++;
+      const els = list.filter((t) => ELEMENTS_IDS.includes(t.id)).length;
+      if (list.length === 3 && els === 2) good++;
+      sample = list.map((t) => t.id);
+    });
+    for (let i = 0; i < 100; i++) run.pickTreasure('', '', true);
+    restore();
+    return ok(tries === 100 && good === 100, { tries, good, sample });
   },
 });
 

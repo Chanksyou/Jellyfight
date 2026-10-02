@@ -29,22 +29,22 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 }
 
 // --- elements for your bubbles (bubbles.js); they stack
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage." {
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each." {
     element "lightning"
 }
 treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true text="Ice bubbles: hits chill and slow; the 2nd chilled hit freezes the enemy solid." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid bubbles: pops leave a puddle that eats at anything standing in it." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true text="Acid bubbles: pops leave a puddle that eats at anything standing in it." {
     element "acid"
 }
 treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="common" attack=#true text="Wind bubbles: whatever they hit gets blown backward." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter bubbles: the splash is twice as wide and hits harder." {
+treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true text="Glitter bubbles: the splash is twice as wide and hits harder." {
     element "glitter"
 }
 

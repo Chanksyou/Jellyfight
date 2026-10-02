@@ -16,7 +16,9 @@
 //   glitter (Glitter)        a sparkling burst: splash over twice as wide and much harder.
 // Each element bubble flies as its own projectile (bubble-looks.js): a fireball, ball lightning,
 // an ice shard, an acid glob, a wind gust, a glitter bomb. Plain bubbles stay bubbles.
-// Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles.
+// Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles;
+// ELEMENT says how much of it each element deals. Tuned with tests/clear.mjs so each damaging
+// element clears a pack about 2x faster, like other rare treasures.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
@@ -41,6 +43,13 @@ export const ELEMENTS = [
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
 const _zero = new THREE.Vector3();
+// share of power each element deals (see the top of the file)
+export const ELEMENT = {
+  burn: 0.17,       // fire: damage a second while burning (3 s)
+  bolt: 0.09,       // lightning: each arc
+  puddle: 0.012,    // acid: each tick of the puddle (every 0.5 s, halved)
+  glitter: 0.08,    // glitter: the wide splash
+};
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -259,7 +268,7 @@ export class Bubbles {
       if (e.dead) {
         // burning things that die set their neighbors alight
         this.burning.delete(e);
-        if (!e.proxy) for (const n of this.inRange(E.center(e, c), 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.dps / 0.5); }
+        if (!e.proxy) for (const n of this.inRange(E.center(e, c), 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.dps / ELEMENT.burn); }
         continue;
       }
       f.t -= dt;
@@ -301,7 +310,7 @@ export class Bubbles {
 
   ignite(e, pw) {
     const had = this.burning.get(e);
-    this.burning.set(e, { t: 3, dps: pw * 0.5, tick: had?.tick ?? 0.25, flame: 0 });
+    this.burning.set(e, { t: 3, dps: pw * ELEMENT.burn, tick: had?.tick ?? 0.25, flame: 0 });
   }
 
   zap(from, to) {
@@ -341,7 +350,7 @@ export class Bubbles {
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
-      if (E.center(e, c).distanceTo(p) < splash + e.r) bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * 0.45 : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
+      if (E.center(e, c).distanceTo(p) < splash + e.r) bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
     }
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
@@ -353,7 +362,7 @@ export class Bubbles {
         hit.add(e);
         const to = E.center(e, c).clone();
         this.zap(from, to);
-        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * 0.5, color: '#fff27a', source: 'lightning' });
+        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt, color: '#fff27a', source: 'lightning' });
         bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: 0.5 });
         from = to;
       }
@@ -364,7 +373,7 @@ export class Bubbles {
       const m = new THREE.Mesh(this.puddleGeo, this.acidMat);
       m.position.copy(h ? h.point : p).setY((h ? h.point.y : p.y) + 0.0015);
       this.scene.add(m);
-      this.puddles.push({ m, t: 3.5, r: 0.05 * (b.r / RADIUS), dmg: b.pw * 0.35, tick: 0.25 });
+      this.puddles.push({ m, t: 3.5, r: 0.05 * (b.r / RADIUS), dmg: b.pw * ELEMENT.puddle, tick: 0.25 });
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
     // split-bubble: a smaller bubble spins off toward another enemy, once

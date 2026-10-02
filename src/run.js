@@ -1,7 +1,7 @@
 // One run of stage 1: grow until the timer runs out (grabbing golden gifts and beating elites for
 // treasures), then beat the stage's boss and evolve.
 import * as THREE from 'three';
-import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
@@ -197,7 +197,7 @@ export class Run {
     // every run starts with a treasure: pick 1 of 3 before anything happens
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      this.pickTreasure('🎁 Pick a starting treasure', 'Something lost, just within reach. Keep one to shape this run.', true);
+      this.pickTreasure('🎁 Pick a starting treasure', 'Two elements for your bubbles, or something else. Keep one to shape this run.', true);
       return;
     }
     this.t += dt;
@@ -459,14 +459,13 @@ export class Run {
 
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a golden gift or an elite
-  // attack: make sure one of the three changes how you attack (the starting pick)
-  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.', attack = false) {
+  // start: the starting pick, two elements for your bubbles and one of anything else
+  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.', start = false) {
     const can = (t) => this.owned.count(t.id) < t.stack;
-    let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
-    if (attack && !left.some((t) => ATTACK_TREASURES.includes(t.id))) {
-      const a = rollTreasures(TREASURES.filter((t) => ATTACK_TREASURES.includes(t.id) && can(t)), 1, this.S.luck)[0];
-      if (a) left = shuffle([a, ...left.slice(0, 2)]);
-    }
+    const elem = (t) => ELEMENT_TREASURES.includes(t.id);
+    let left = start
+      ? shuffle([...rollTreasures(TREASURES.filter((t) => elem(t) && can(t)), 2, this.S.luck), ...rollTreasures(TREASURES.filter((t) => !elem(t) && can(t)), 1, this.S.luck)])
+      : rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
