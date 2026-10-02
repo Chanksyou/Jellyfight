@@ -125,10 +125,10 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go) or "staple" (a tumbling staple). For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
-    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0 },
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "staple" (a tumbling staple) or "web" (a ball of silk). `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0 },
     make: (_, p, where) => {
-      if (!['laser', 'staple'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser" or "staple", not "${p.shot}"`);
+      if (!['laser', 'staple', 'web'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "staple" or "web", not "${p.shot}"`);
       return {
       init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {

@@ -32,6 +32,14 @@ enemy "lanternfly" name="Spotted lanternfly" hp=60 r=0.039 dmg=1 dew=8 model="la
     leap range=0.32 windup=0.55 height=0.2 time=0.75 radius=0.09 dmg=3 rest=0.9 every=1.5
 }
 
+// The giant house spider (from 2:30): it stalks after you on eight long legs; at range it rears
+// up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
+// and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
+enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 dew=7 model="spider" {
+    chase 0.27
+    spit every=2.8 reach=0.6 speed=0.5 life=2 dmg=2 aim=0.7 shot="web" height=1.2 arc=0.9 slow=1.5
+}
+
 // The dust enemies, kept for the bathroom stage (src/stage-bathroom.js)
 enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
     drift 0.255

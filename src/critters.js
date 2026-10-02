@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes and the standing stapler. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the standing stapler, the lanternfly and the house spider. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -505,6 +505,168 @@ export function buildLanternfly() {
     // (roll: negative drapes a wing down over the side, positive lifts it up and out)
     for (const W of foreW) { W.pivot.rotation.z = W.s * (-0.62 + crouch * 0.2 + open * 1.5 + flap); W.pivot.rotation.y = W.s * (0.04 + open * 0.5); }
     for (const W of hindW) { W.pivot.rotation.z = W.s * (-0.72 + crouch * 0.15 + open * 1.45 - flap); W.pivot.rotation.y = W.s * (0.02 + open * 0.9); }
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ giant house spider
+// After a giant house spider: a glossy brown carapace with dark marks radiating from a pale
+// middle stripe, a big mottled tan-and-black abdomen, dark hairy chelicerae with fangs, a cluster
+// of eyes, pedipalps, and eight long, hairy, banded legs (the front and back pairs longest).
+// It walks with a real spider's gait: two alternating sets of four legs (front left, second
+// right, third left, back right, then the others), each leg lifting at the hip and folding at
+// the knee as it swings forward. To shoot it rears up, front legs raised and the abdomen tipped
+// up, then flicks a web ball at you. About 2.4 radii long, legs spanning about 5.
+function spiderTexture(paint, w = 512, h = 256) { return wingTexture(w, h, paint); }
+
+function spiderParts() {
+  const R = seeded(11), dark = '#1e120c', leg = '#2e1a10', legDark = '#120a06', hair = '#0a0604';
+  // the carapace (u around, v from the top down): warm brown, dark marks radiating down from the
+  // middle, a pale stripe front to back, a pale rim low on the sides
+  const carapace = spiderTexture((g, w, h) => {
+    g.fillStyle = '#5e3820'; g.fillRect(0, 0, w, h);
+    const rim = g.createLinearGradient(0, h * 0.35, 0, h * 0.6); rim.addColorStop(0, 'rgba(0,0,0,0)'); rim.addColorStop(1, 'rgba(150,100,60,.8)');
+    g.fillStyle = rim; g.fillRect(0, h * 0.35, w, h * 0.3);
+    g.strokeStyle = 'rgba(40,20,10,.85)'; g.lineCap = 'round';
+    for (let k = 0; k < 10; k++) { const x = (k + 0.5) / 10 * w; g.lineWidth = 10 + R() * 8; g.beginPath(); g.moveTo(x, h * 0.08); g.lineTo(x + (R() - 0.5) * 20, h * 0.42); g.stroke(); }
+    g.fillStyle = 'rgba(200,150,95,.9)';                        // the pale middle stripe (front and back are u = 0.25 / 0.75)
+    for (const u of [0.25, 0.75]) { g.beginPath(); g.ellipse(u * w, h * 0.12, 16, h * 0.14, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#2a160c'; g.beginPath(); g.ellipse(w / 2, 0, w, h * 0.06, 0, 0, 7); g.fill();   // the dark top
+  });
+  // the abdomen: tan with dark blotches, a dark chevron band down the back, darker underneath
+  const abdomen = spiderTexture((g, w, h) => {
+    g.fillStyle = '#3a2416'; g.fillRect(0, 0, w, h);             // dark brown, blotched tan like the real thing
+    for (let k = 0; k < 160; k++) {
+      const x = R() * w, y = R() * h * 0.8, r = 4 + R() * 15;
+      g.fillStyle = R() < 0.6 ? 'rgba(176,138,88,.85)' : 'rgba(18,10,6,.85)';
+      g.beginPath(); g.ellipse(x, y, r, r * (0.5 + R() * 0.6), R() * 3, 0, 7); g.fill();
+    }
+    g.fillStyle = 'rgba(12,7,4,.8)';                            // chevrons along the back (u = 0.75 faces up/back)
+    for (let k = 0; k < 6; k++) { const y = h * (0.12 + k * 0.1), x = w * 0.75; g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x, y + 22); g.lineTo(x + 40, y); g.lineTo(x, y + 10); g.closePath(); g.fill(); }
+    const under = g.createLinearGradient(0, h * 0.65, 0, h); under.addColorStop(0, 'rgba(30,18,10,0)'); under.addColorStop(1, 'rgba(30,18,10,.95)');
+    g.fillStyle = under; g.fillRect(0, h * 0.65, w, h * 0.35);
+  });
+  // hairs: fine dark spines sticking out of a part, merged in with it
+  const hairs = (n, center, radius, len, spread = 1) => {
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const d = new THREE.Vector3(R() - 0.5, R() * spread, R() - 0.5).normalize();
+      const a = center.clone().add(d.clone().multiply(radius));
+      out.push(rod(a, a.clone().addScaledVector(d, len * (0.6 + R() * 0.6)), 0.008, 0.002, hair));
+    }
+    return out;
+  };
+  const head = [
+    // the stalk to the abdomen
+    rod(V(0, 0.58, -0.12), V(0, 0.62, -0.3), 0.1, 0.1, dark),
+    // chelicerae: two dark, hairy jaws hanging below the front, glossy fangs at their tips
+    ...[-1, 1].flatMap((s) => [
+      ellipsoid(0.12, 0.2, 0.12, V(s * 0.1, 0.42, 0.72), '#1c100a', 18),
+      rod(V(s * 0.1, 0.24, 0.76), V(s * 0.05, 0.16, 0.72), 0.03, 0.006, '#0a0604'),
+      ...hairs(10, V(s * 0.1, 0.44, 0.74), V(0.1, 0.16, 0.1), 0.08),
+    ]),
+    // the eye cluster on the front of the carapace: six small glossy black eyes around the big pair
+    ...[[-0.13, 0.84, 0.62], [0.13, 0.84, 0.62], [-0.2, 0.8, 0.56], [0.2, 0.8, 0.56], [-0.07, 0.88, 0.58], [0.07, 0.88, 0.58]].map(([x, y, z]) => ellipsoid(0.035, 0.035, 0.03, V(x, y, z), '#050304', 10)),
+    // spinnerets at the tip of the abdomen
+    rod(V(-0.05, 0.62, -1.38), V(-0.07, 0.6, -1.5), 0.04, 0.02, dark),
+    rod(V(0.05, 0.62, -1.38), V(0.07, 0.6, -1.5), 0.04, 0.02, dark),
+    ...hairs(26, V(0, 0.62, 0.25), V(0.42, 0.22, 0.52), 0.06, 1.2),       // bristles on the carapace
+    ...hairs(60, V(0, 0.72, -0.78), V(0.48, 0.44, 0.7), 0.07, 1.2),       // and the abdomen
+  ];
+  // a leg segment along +x, `len` long, tapering, with a darker band at its end and bristles
+  const segment = (len, r0, r1, nHair) => {
+    const parts = [rod(V(0, 0, 0), V(len, 0, 0), r0, r1, leg), rod(V(len * 0.82, 0, 0), V(len, 0, 0), r1 * 1.08, r1 * 1.05, legDark)];
+    for (let k = 0; k < nHair; k++) {
+      const x = len * (0.1 + R() * 0.85), a = R() * Math.PI * 2, d = V(0.35, Math.cos(a), Math.sin(a)).normalize();
+      const at = V(x, Math.cos(a) * r0 * 0.9, Math.sin(a) * r0 * 0.9);
+      parts.push(rod(at, at.clone().addScaledVector(d, 0.06 + R() * 0.05), 0.006, 0.0015, hair));
+    }
+    return merge(parts);
+  };
+  // the four leg pairs: [angle from straight ahead, length scale]; front and back pairs longest
+  const pairs = [[38, 1.18], [72, 1.0], [108, 0.92], [142, 1.12]];
+  const legs = pairs.map(([deg, sc]) => ({ deg, sc, femur: segment(0.75 * sc, 0.065, 0.05, 14), tibia: segment(0.85 * sc, 0.05, 0.035, 16), tarsus: segment(0.75 * sc, 0.034, 0.015, 10) }));
+  const palp = merge([rod(V(0, 0, 0), V(0.18, 0.12, 0.2), 0.04, 0.035, leg), rod(V(0.18, 0.12, 0.2), V(0.2, -0.12, 0.38), 0.035, 0.03, legDark), ...hairs(8, V(0.18, 0.05, 0.25), V(0.04, 0.1, 0.06), 0.06)]);
+  return {
+    head: merge(head), palp, legs, carapace, abdomen,
+    carapaceGeo: new THREE.SphereGeometry(1, 40, 24).scale(0.42, 0.22, 0.5).translate(0, 0.62, 0.25),
+    abdomenGeo: new THREE.SphereGeometry(1, 40, 28).scale(0.48, 0.42, 0.7).translate(0, 0.72, -0.78),
+  };
+}
+
+export function buildSpider() {
+  const G = (GEO.spider ||= spiderParts()), M = mats();
+  const skin = (map, rough) => { const m = new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0.05 }); standOut(m, { base: 0.25, rim: 0.7 }); return m; };
+  M.spCarapace ||= skin(G.carapace, 0.3);
+  M.spAbdomen ||= skin(G.abdomen, 0.55);
+  // the legs and head: dark brown and a little glossy, with less of the other bugs' glow so they stay dark
+  // (thin legs are nearly all rim, so a big rim light would wash them tan)
+  if (!M.spLeg) { M.spLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.spLeg, { base: 0.06, rim: 0.16 }); }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const front = new THREE.Group();                 // the carapace end: everything pitches about the waist
+  front.position.set(0, 0.6, -0.2);
+  body.add(front);
+  const rear = new THREE.Group();                  // the abdomen tips up separately when it shoots
+  rear.position.set(0, 0.62, -0.25);
+  body.add(rear);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  add(front, G.carapaceGeo, M.spCarapace, V(0, -0.6, 0.2));
+  add(front, G.head, M.spLeg, V(0, -0.6, 0.2));
+  add(rear, G.abdomenGeo, M.spAbdomen, V(0, -0.62, 0.25));
+  const face = angryEyes({ y: 0.82, z: 0.66, size: 0.11, gap: 0.08 });   // the big front pair of eyes, glaring
+  face.position.add(V(0, -0.6, 0.2));
+  front.add(face);
+  const palps = [-1, 1].map((s) => { const p = new THREE.Group(); p.position.set(s * 0.12, -0.12, 0.85); p.scale.x = s; add(p, G.palp, M.spLeg); front.add(p); return p; });
+
+  // legs: hip (yaw outward, then swing and lift) -> femur -> knee -> tibia -> ankle -> tarsus
+  const legs = [];
+  G.legs.forEach((P, pair) => {
+    for (const s of [-1, 1]) {
+      const a = THREE.MathUtils.degToRad(P.deg);
+      const hip = new THREE.Group();
+      hip.position.set(s * 0.34 * Math.sin(a), -0.04, 0.45 + 0.4 * Math.cos(a));
+      hip.rotation.y = Math.atan2(-Math.cos(a), s * Math.sin(a));
+      front.add(hip);
+      const swing = new THREE.Group(); hip.add(swing);
+      const lift = new THREE.Group(); swing.add(lift);
+      add(lift, P.femur, M.spLeg);
+      const knee = new THREE.Group(); knee.position.x = 0.75 * P.sc; lift.add(knee);
+      add(knee, P.tibia, M.spLeg);
+      const ankle = new THREE.Group(); ankle.position.x = 0.85 * P.sc; knee.add(ankle);
+      add(ankle, P.tarsus, M.spLeg);
+      // the rest pose: femur up, tibia down and out, the tarsus angled so the foot meets the floor
+      const e1 = 0.9, e2 = e1 - 1.55;
+      const reach = 0.75 * P.sc * Math.sin(e1) + 0.85 * P.sc * Math.sin(e2);
+      const e3 = Math.asin(THREE.MathUtils.clamp((-0.56 - reach) / (0.75 * P.sc), -1, 1));
+      // two alternating sets of four: front left, second right, third left, back right
+      const set = (pair % 2 === 0) === (s < 0) ? 0 : 1;
+      legs.push({ s, pair, swing, lift, knee, ankle, e1, k2: e2 - e1, k3: e3 - e2, phase: set ? Math.PI : 0 });
+    }
+  });
+
+  let t = 0, k = 0, rearUp = 0, recoil = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
+    rearUp += ((e.aimT > 0 ? 1 : 0) - rearUp) * (1 - Math.exp(-10 * dt));
+    recoil = e.firedT > 0 ? 1 : recoil * Math.exp(-7 * dt);
+    const step = t * (3 + 11 * k) + e.phase;
+    for (const L of legs) {
+      const ph = step + L.phase, up = Math.max(0, Math.sin(ph));          // lifted while it swings forward
+      L.swing.rotation.y = Math.cos(ph) * 0.28 * k * L.s;              // (forward while lifted, on both sides)
+      // rearing: the front pair lifts high and reaches forward, the second pair a little
+      const raise = L.pair === 0 ? rearUp * 0.55 : L.pair === 1 ? rearUp * 0.2 : 0;
+      L.lift.rotation.z = L.e1 + up * 0.35 * k + raise;
+      L.knee.rotation.z = L.k2 - up * 0.25 * k + raise * 0.6;
+      L.ankle.rotation.z = L.k3 + raise * 0.4;
+    }
+    // the body: a slight bob with each step set, nose up when it rears, a kick back when it fires
+    body.position.y = Math.abs(Math.sin(step)) * 0.02 * k;
+    front.rotation.x = -rearUp * 0.16 + recoil * 0.08;
+    rear.rotation.x = -rearUp * 0.35 - recoil * 0.15;                        // abdomen tipped up toward its target
+    for (const p of palps) p.rotation.x = Math.sin(t * 6 + e.phase) * 0.15 + rearUp * -0.4;   // palps twitch, lift when it rears
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

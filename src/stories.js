@@ -397,6 +397,30 @@ story('words/curl-dash', {
     return ok(seen.has('windup') && seen.has('dash') && dashSpeed > 0.5, { states: [...seen], dashSpeed: +dashSpeed.toFixed(2) });
   },
 });
+story('enemies/spider-web-ball', {
+  about: 'The house spider walks on alternating sets of legs, rears up to aim, and lobs a web ball that arcs (rising, then falling) onto you: it stings and slows you.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('spider', near(0, -0.4)); e.shootT = 99; },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0];
+    const log = record('damage_taken');
+    // walking: its legs move (the model animates with its speed)
+    step(40);
+    const moved = e.pos.distanceTo(G().player.position) < 0.4;
+    e.shootT = 0.7;
+    let reared = false, ys = [], hit = null, slowed = 0;
+    step(60 * 4, () => {
+      if (e.aimT > 0) reared = true;
+      const s = enemies.shots.find((q) => q.web);
+      if (s) ys.push(s.m.position.y);
+      e.pos.copy(near(0, -0.4));                     // hold it at range so it shoots
+      hit = log.find((d) => d.source === 'web');
+      if (hit) slowed = run.slowT;
+      return !!hit;
+    });
+    const peak = Math.max(...ys), arcs = ys.length > 3 && peak > ys[0] + 0.005 && ys[ys.length - 1] < peak;
+    return ok(moved && reared && arcs && hit && hit.amount === 2 && slowed > 1, { moved, reared, arcs, peak: +peak.toFixed(3), hit: hit?.amount, slowed: +slowed.toFixed(2) });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },

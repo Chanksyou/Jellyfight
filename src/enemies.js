@@ -3,7 +3,7 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider } from './critters.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -13,7 +13,7 @@ import { hostile, TeleMaterial } from './vfx.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
@@ -204,6 +204,7 @@ function makeLooks() {
     mosquito: buildMosquito,
     stapler: buildStapler,
     lanternfly: buildLanternfly,
+    spider: buildSpider,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -236,6 +237,18 @@ export class Enemies {
     const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
     this.stapleGeo = mergeGeometries([box(0.016, 0.0018, 0.0018, 0, 0, 0), box(0.0018, 0.0018, 0.008, -0.0071, 0, -0.004), box(0.0018, 0.0018, 0.008, 0.0071, 0, -0.004)]);   // a little oversized, so you can see them coming
     this.stapleMat = new THREE.MeshStandardMaterial({ color: 0xd8dde4, metalness: 0.85, roughness: 0.25, emissive: 0xb8c4d8, emissiveIntensity: 1.4, toneMapped: false });   // glints in the dark
+    // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
+    const wad = new THREE.IcosahedronGeometry(0.009, 2), wp = wad.attributes.position;
+    for (let i = 0; i < wp.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(wp, i); v.multiplyScalar(0.8 + 0.4 * Math.abs(Math.sin(v.x * 900 + v.y * 1300 + v.z * 700))); wp.setXYZ(i, v.x, v.y, v.z); }
+    wad.computeVertexNormals();
+    const strands = [];
+    for (let k = 0; k < 14; k++) {
+      const d = new THREE.Vector3().randomDirection(), len = 0.006 + Math.random() * 0.008;
+      strands.push(new THREE.CylinderGeometry(0.0004, 0.0007, len, 3).translate(0, len / 2 + 0.006, 0).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d)));
+    }
+    this.webGeo = mergeGeometries([wad.toNonIndexed(), ...strands.map((g) => g.toNonIndexed())]);
+    this.webGeo.computeVertexNormals();
+    this.webMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.9, emissive: 0xffe8f4, emissiveIntensity: 0.55, toneMapped: false });
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -386,21 +399,28 @@ export class Enemies {
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
   // across `spread` degrees. A laser is a streak of light with a flash at the muzzle; a staple
   // is a little bent wire that tumbles as it flies.
-  spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0 }) {
+  // A web ball is lobbed: it arcs up and falls onto where you were (gravity `arc` m/s²), and
+  // sticks: `slow` s of slowed swimming on a hit.
+  spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
+    const kind = shot === 'staple' ? 'staple' : shot === 'web' ? 'web' : 'laser';
+    const color = kind === 'laser' ? this.laserColor : hostile(kind);
+    const flight = at.distanceTo(from) / speed;
     for (let i = 0; i < count; i++) {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
-      const staple = shot === 'staple';
-      const m = batcher.track(new THREE.Mesh(staple ? this.stapleGeo : this.shotGeo, staple ? this.stapleMat : this.shotMat));
-      if (!staple) m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
+      if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
+      const geo = { staple: this.stapleGeo, web: this.webGeo, laser: this.shotGeo }[kind];
+      const mat = { staple: this.stapleMat, web: this.webMat, laser: this.shotMat }[kind];
+      const m = batcher.track(new THREE.Mesh(geo, mat));
+      if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
       m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, spin: staple ? 18 + Math.random() * 8 : 0, source: staple ? 'staple' : 'spit', c: staple ? hostile('staple') : this.laserColor, trailT: 0 });
+      this.shots.push({ m, v, t: life, dmg, spin: kind === 'staple' ? 18 + Math.random() * 8 : kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
-    this.fx.impact(from.addScaledVector(aim, 0.03), shot === 'staple' ? hostile('staple') : this.laserColor, 0.01, 4);   // the muzzle flash
+    this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
   }
 
   // A leaping bug comes down (the leap word): a thump, a ring of dust, and the jelly is hit if
@@ -477,6 +497,10 @@ export class Enemies {
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
       bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit' });
+      if (s.slow) {                                                      // webbed: stuck for a moment
+        bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: s.slow });
+        this.fx.puff(s.m.position, 0xf4f2ee, 0.035, 0.6);
+      }
     }
   }
 
@@ -485,8 +509,9 @@ export class Enemies {
       s.t -= dt;
       const step = s.v.length() * dt;
       if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.impact(s.m.position, s.c, 0.012, 6); }   // scorches (or pings off) the wall
+      if (s.arc) s.v.y -= s.arc * dt;                    // a lobbed web ball falls
       s.m.position.addScaledVector(s.v, dt);
-      if (s.spin) s.m.rotateX(s.spin * dt);              // staples tumble end over end
+      if (s.spin) s.m.rotateX(s.spin * dt);              // staples tumble end over end, web balls roll
       // a halo and a glowing trail, in the shooter's colour
       this.fx.glow.hold(s.m.position, s.c, s.spin ? 0.04 : 0.05, 0.9);
       if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
