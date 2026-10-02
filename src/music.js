@@ -2,8 +2,10 @@
 // of Rain 2: odd time signatures, glassy arpeggios over warm pads, a chunky synth bass, and drums
 // and a distorted "guitar" lead that build in as the fight heats up.
 //
-//   drift       "Puddle Drift", exploring. D Dorian, 7/8 (2+2+3) at 104 BPM. Layers come in with
-//               intensity: pad, then arpeggio, bass, drums, full drums, and the lead on top.
+//   drift       "Puddle Drift", exploring, after Shpongle's "Nothing Is Something Worth Doing".
+//               D Phrygian dominant, 4/4 at 124 BPM. Layers come in with intensity: drone, then a
+//               plucked guitar, hand drums, the rolling psy bass, kick and hats, the full groove
+//               with laser zaps, and a flute on top.
 //   machinery   "Domestic Machinery", the Vacuum. E Phrygian, 5/4 at 150 BPM: a chugging bass in
 //               3+3+4 accents, driving drums, and the lead once the fight gets desperate.
 //
@@ -15,43 +17,51 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // --------------------------------------------------------------------------- the songs
 // chords: { pad: [midi], arp: [midi], root: midi } each `per` bars; lead: [bar, step, midi, steps]
+// Inspired by Shpongle's "Nothing Is Something Worth Doing": psychedelic, a little Middle-Eastern.
+// D Phrygian dominant (Hijaz: D Eb F# G A Bb C), 4/4 at 124 BPM. Over a deep drone, a flamenco-ish
+// plucked guitar, tabla-style hand drums, a rolling psytrance bass (kick on the beat, bass on the
+// three 16ths after it), swirling laser zaps through the delay, and an airy flute that slides
+// between notes.
 const DRIFT = {
-  name: 'Puddle Drift', bpm: 104, steps: 14, per: 2,
-  layers: { pad: -1, arp: 0.12, bass: 0.32, drums: 0.48, full: 0.68, lead: 0.8 },
+  name: 'Puddle Drift', bpm: 124, steps: 16, per: 2, flute: true, arpWave: 'sawtooth',
+  layers: { pad: -1, arp: 0.1, perc: 0.22, bass: 0.36, drums: 0.5, full: 0.66, lead: 0.74 },
   chords: [
-    { pad: [50, 53, 57, 60, 64], arp: [62, 65, 69, 72, 76], root: 38 },   // Dm9
-    { pad: [46, 53, 57, 62, 64], arp: [62, 65, 69, 70, 76], root: 34 },   // Bbmaj7(#11)
-    { pad: [48, 53, 57, 60, 64], arp: [60, 65, 69, 72, 77], root: 41 },   // Fmaj7
-    { pad: [43, 50, 57, 60, 64], arp: [62, 67, 69, 72, 74], root: 43 },   // G6sus (Dorian's bright IV)
+    { pad: [38, 50, 57, 62], arp: [62, 66, 69, 74, 75], root: 38 },   // D (Hijaz home)
+    { pad: [39, 51, 58, 63], arp: [63, 67, 70, 75, 74], root: 39 },   // Eb (the b2 lean)
+    { pad: [38, 50, 57, 62], arp: [62, 66, 69, 74, 78], root: 38 },   // D
+    { pad: [36, 48, 55, 63], arp: [60, 63, 67, 72, 74], root: 36 },   // Cm (bVII minor, back down)
   ],
-  arp: [0, 2, 4, 1, 3, 0, 2, 4, 1, 3, 0, 2, 4, 3],                         // which chord tone, each 16th
+  arp: [0, 3, 2, 3, 1, 3, 2, 3, 0, 3, 2, 3, 4, 3, 2, 1],                 // a flamenco-ish tremolo figure
+  // tabla: [step, 'dha' (low) | 'tin' (high) | 'ta' (sharp)]
+  tabla: [[0, 'dha'], [3, 'tin'], [6, 'tin'], [8, 'dha'], [10, 'ta'], [11, 'tin'], [14, 'tin']],
   lead: [
-    [0, 0, 69, 6], [0, 6, 72, 2], [0, 8, 74, 6],
-    [1, 0, 76, 4], [1, 4, 74, 2], [1, 6, 72, 2], [1, 8, 69, 6],
-    [2, 0, 77, 6], [2, 6, 76, 2], [2, 8, 74, 3], [2, 11, 72, 3],
-    [3, 0, 74, 10], [3, 10, 69, 4],
-    [4, 0, 72, 4], [4, 4, 74, 2], [4, 6, 76, 2], [4, 8, 77, 6],
-    [5, 0, 79, 6], [5, 6, 77, 2], [5, 8, 76, 6],
-    [6, 0, 74, 4], [6, 4, 76, 4], [6, 8, 79, 3], [6, 11, 81, 3],
-    [7, 0, 81, 8], [7, 8, 79, 3], [7, 11, 76, 3],
+    [0, 0, 81, 6], [0, 6, 82, 2], [0, 8, 81, 4], [0, 12, 79, 2], [0, 14, 78, 2],
+    [1, 0, 79, 4], [1, 4, 78, 2], [1, 6, 75, 2], [1, 8, 74, 8],
+    [2, 0, 75, 2], [2, 2, 78, 2], [2, 4, 79, 4], [2, 8, 81, 6], [2, 14, 82, 2],
+    [3, 0, 81, 10], [3, 10, 79, 2], [3, 12, 78, 4],
+    [4, 0, 86, 6], [4, 6, 84, 2], [4, 8, 82, 4], [4, 12, 81, 4],
+    [5, 0, 82, 3], [5, 3, 81, 3], [5, 6, 79, 2], [5, 8, 78, 8],
+    [6, 0, 79, 2], [6, 2, 81, 2], [6, 4, 82, 2], [6, 6, 84, 2], [6, 8, 86, 4], [6, 12, 87, 4],
+    [7, 0, 86, 12], [7, 12, 81, 4],
   ],
   tick(m, s, bar, t, L) {
     const C = this.chords[Math.floor(bar / this.per) % this.chords.length], dur = m.stepDur;
-    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.034, 600 + 1700 * m.I);
-    if (L.arp) m.pluck(C.arp[this.arp[s]] + (s % 7 === 6 ? 12 : 0), t, 0.05 * L.arp, 0.5 + 0.5 * m.I, s % 2 ? 0.45 : -0.45);
-    if (L.bass) {
-      const B = { 0: [0, 3], 4: [0, 3], 8: [0, 2], 10: [7, 2], 12: [12, 2] }[s];
-      if (B) m.bass(C.root + B[0], t, dur * B[1] * 0.9, 0.16 * L.bass, 0.25 + 0.4 * m.I);
+    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.03, 380 + 1500 * m.I);
+    if (L.arp) m.pluck(C.arp[this.arp[s]], t, 0.045 * L.arp, 0.35 + 0.5 * m.I, s % 4 < 2 ? -0.35 : 0.35);
+    if (L.perc) for (const [st, k] of this.tabla) if (st === s) m.tabla(k, t, 0.16 * L.perc);
+    // the psy gallop: kick on the beat, the bass on the three 16ths after it
+    if (L.bass && s % 4) m.bass(C.root + (s % 16 === 15 && bar % 2 ? 12 : 0), t, dur * 0.7, 0.15 * L.bass, 0.3 + 0.45 * m.I);
+    if (L.drums && s % 4 === 0) m.kick(t, 0.55 * L.drums);
+    // the offbeat open hat, and with the full groove a shaker on every 16th (one hit a step)
+    const open = s % 4 === 2;
+    const hat = Math.max(open ? 0.05 * L.drums : 0, L.full ? (s % 2 ? 0.018 : 0.012) * L.full : 0);
+    if (hat > 0.008) m.hat(t, hat, open && L.drums > 0);
+    if (L.full) {
+      if (s === 4 || s === 12) m.snare(t, 0.13 * L.full);
+      if (s === 0 && bar % 8 === 0) m.crash(t, 0.1 * L.full);
+      if (s === 10 && bar % 4 === 3) m.zap(t, 0.05 * L.full);                  // psychedelic lasers
     }
-    if (L.drums) {
-      if (s === 0 || s === 8 || (L.full && s === 6)) m.kick(t, 0.5 * L.drums);
-      if (s === 4 || s === 11) m.snare(t, 0.22 * L.drums);
-      if (s % 2 === 0) m.hat(t, (s === 0 ? 0.05 : 0.035) * L.drums, false);
-      if (L.full && s % 2 === 1) m.hat(t, 0.02 * L.full, false);
-      if (L.full && s === 13) m.snare(t, 0.07 * L.full);
-      if (L.full && s === 0 && bar % 8 === 0) m.crash(t, 0.12 * L.full);
-    }
-    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.07 * L.lead);
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.085 * L.lead);
   },
 };
 
@@ -150,7 +160,7 @@ export class Music {
     const swap = !!this.song;
     if (swap) this.out.gain.linearRampToValueAtTime(0, now + 0.5);
     this.v?.stop(now + (swap ? 0.55 : 0.05));
-    this.v = this.voices(!!song.hardBass);
+    this.v = this.voices(song);
     this.song = song;
     this.step = 0;
     this.nextT = now + (swap ? 0.55 : 0.08);
@@ -226,8 +236,10 @@ export class Music {
   // The bass and the lead are monophonic, like a player on one string: one voice each that runs
   // the whole song, its pitch and envelopes moved for every note (far cheaper than new
   // oscillators per note, and the lead slides between notes)
-  voices(hard) {
-    const c = this.ctx, t = c.currentTime;
+  // song.hardBass: drive the bass (the boss); song.flute: the lead is a breathy flute, not a
+  // distorted guitar; song.arpWave: the arpeggio's waveform
+  voices(song) {
+    const c = this.ctx, t = c.currentTime, hard = !!song.hardBass, flute = !!song.flute;
     const bass = { f: c.createBiquadFilter(), g: c.createGain(), o: [] };
     bass.f.type = 'lowpass'; bass.f.Q.value = 3;
     bass.g.gain.value = 0;
@@ -240,20 +252,30 @@ export class Music {
       bass.o.push([o, mul]);
     }
     const lead = { f: c.createBiquadFilter(), g: c.createGain(), o: [], depth: c.createGain(), lfo: c.createOscillator() };
-    const w = c.createWaveShaper();
-    w.curve = this.drive;
-    lead.f.type = 'lowpass'; lead.f.frequency.value = 3000; lead.f.Q.value = 1;
+    // the guitar goes through the distortion; the flute is clean, with breath noise in it
+    const w = flute ? c.createGain() : c.createWaveShaper();
+    if (!flute) w.curve = this.drive;
+    lead.f.type = 'lowpass'; lead.f.frequency.value = flute ? 5000 : 3000; lead.f.Q.value = 1;
     lead.g.gain.value = 0;
     w.connect(lead.f).connect(lead.g);
     lead.g.connect(this.bus); lead.g.connect(this.dly); lead.g.connect(this.rev);
-    lead.lfo.frequency.value = 5.5; lead.lfo.connect(lead.depth); lead.depth.gain.value = 0; lead.lfo.start(t);
-    for (const det of [-9, 9]) {
-      const o = c.createOscillator();
-      o.type = 'sawtooth'; o.detune.value = det; lead.depth.connect(o.detune); o.connect(w); o.start(t);
+    lead.vib = flute ? 18 : 14;
+    lead.glide = flute ? 0.035 : 0.012;
+    lead.lfo.frequency.value = flute ? 5 : 5.5; lead.lfo.connect(lead.depth); lead.depth.gain.value = 0; lead.lfo.start(t);
+    for (const [type, det, v] of flute ? [['triangle', -4, 0.7], ['sine', 4, 0.9]] : [['sawtooth', -9, 1], ['sawtooth', 9, 1]]) {
+      const o = c.createOscillator(), og = c.createGain();
+      o.type = type; o.detune.value = det; og.gain.value = v; lead.depth.connect(o.detune); o.connect(og).connect(w); o.start(t);
       lead.o.push(o);
     }
+    if (flute) {
+      const br = c.createBufferSource(), bf = c.createBiquadFilter(), bg = c.createGain();
+      br.buffer = this.noise; br.loop = true;
+      bf.type = 'bandpass'; bf.frequency.value = 2200; bf.Q.value = 0.8; bg.gain.value = 0.25;
+      br.connect(bf).connect(bg).connect(w); br.start(t);
+      lead.o.push(br);
+    }
     const arp = { o: c.createOscillator(), f: c.createBiquadFilter(), g: c.createGain(), p: c.createStereoPanner() };
-    arp.o.type = 'square'; arp.f.type = 'lowpass'; arp.f.Q.value = 4; arp.g.gain.value = 0;
+    arp.o.type = song.arpWave || 'square'; arp.f.type = 'lowpass'; arp.f.Q.value = song.arpWave ? 1.2 : 4; arp.g.gain.value = 0;
     arp.o.connect(arp.f).connect(arp.g).connect(arp.p);
     arp.p.connect(this.bus); arp.p.connect(this.dly);
     arp.o.start(t);
@@ -280,10 +302,10 @@ export class Music {
   lead(n, t, dur, vol) {
     if (!this.v) return;
     const L = this.v.lead, f = mtof(n);
-    for (const o of L.o) { o.frequency.cancelScheduledValues(t); o.frequency.setTargetAtTime(f, t, 0.012); }
+    for (const o of L.o) if (o.frequency) { o.frequency.cancelScheduledValues(t); o.frequency.setTargetAtTime(f, t, L.glide); }
     L.depth.gain.cancelScheduledValues(t);
     L.depth.gain.setValueAtTime(0, t);
-    L.depth.gain.linearRampToValueAtTime(14, t + Math.min(0.5, dur));
+    L.depth.gain.linearRampToValueAtTime(L.vib, t + Math.min(0.5, dur));
     L.g.gain.cancelScheduledValues(t);
     L.g.gain.setTargetAtTime(vol, t, 0.01);
     L.g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
@@ -320,6 +342,37 @@ export class Music {
     this.env(g, t, 0.002, vol * 0.6, 0.01, t + 0.1);
     o.connect(g).connect(this.bus);
     o.start(t); o.stop(t + 0.12);
+  }
+
+  // hand drums: a tuned skin that bends down as it rings: dha (low, bassy), tin (high, ringing), ta (sharp)
+  tabla(kind, t, vol) {
+    if (vol <= 0.0005) return;
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    const [f0, f1, dur] = { dha: [190, 95, 0.32], tin: [620, 560, 0.22], ta: [880, 700, 0.07] }[kind];
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.6);
+    this.env(g, t, 0.002, vol, 0.004, t + dur);
+    o.connect(g).connect(this.bus);
+    o.start(t); o.stop(t + dur + 0.02);
+    this.noiseHit(t, 'bandpass', kind === 'dha' ? 900 : 3200, 1.5, 0.025, vol * 0.5, 0.1);   // the slap of the fingers
+  }
+
+  // a psychedelic laser: a resonant saw diving from high to low, panning across, into the delay
+  zap(t, vol) {
+    const c = this.ctx, o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(), p = c.createStereoPanner();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1400, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.9);
+    f.type = 'bandpass'; f.Q.value = 9;
+    f.frequency.setValueAtTime(4000, t);
+    f.frequency.exponentialRampToValueAtTime(250, t + 0.9);
+    p.pan.setValueAtTime(-0.8, t);
+    p.pan.linearRampToValueAtTime(0.8, t + 0.9);
+    this.env(g, t, 0.01, vol, 0.3, t + 0.95);
+    o.connect(f).connect(g).connect(p);
+    p.connect(this.bus); p.connect(this.dly);
+    o.start(t); o.stop(t + 1);
   }
 
   hat(t, vol, open) { if (vol > 0.0005) this.noiseHit(t, 'highpass', 7500, 0.8, open ? 0.25 : 0.04, vol); }
