@@ -55,7 +55,7 @@ treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
     mark-on-hit 3 by="all"
 }
-treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="One more jump in mid-air (a triple jump; a second one makes it quadruple)." stack=2 {
+treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="Get an additional jump in mid-air (take up to 3 for a quadruple jump)." stack=3 {
     extra-jumps 1
 }
 treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="Land from a jump to send out a soft shockwave that stings." {

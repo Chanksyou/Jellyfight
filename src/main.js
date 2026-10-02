@@ -24,7 +24,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v60';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v61';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -88,12 +88,12 @@ ui.innerHTML = `
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
-    ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
+    ⤴ jump (hold it to climb fabric; Pen Spring adds jumps in the air)<br>
     You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric<br>
     You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>

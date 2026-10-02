@@ -100,7 +100,7 @@ export class Player {
       this.flight = null;
       this.velocity.set(0, 0, 0);
       this.snapToGround(0.05);
-      this.airJumps = this.maxAirJumps ?? 1;
+      this.airJumps = this.maxAirJumps ?? 0;
       this.avatar?.land(0.6);
       this.onLand?.(0);
     }
@@ -112,7 +112,7 @@ export class Player {
   update(dt, input, cameraYaw, env = {}) {
     const c = this.cfg;
     this.time += dt;
-    this.maxAirJumps = env.airJumps ?? 1;
+    this.maxAirJumps = env.airJumps ?? 0;
 
     if (!this.flight && env.vent) this.launch(env.vent.land);
     if (this.flight) {
@@ -146,7 +146,7 @@ export class Player {
     this.velocity.z += (wish.z - this.velocity.z) * t;
 
     // --- Jump, climbing, updrafts, gravity --------------------------------
-    // Jump from the ground, or pulse the bell for a mid-air jump (double jump, more with treasure)
+    // Jump from the ground, or pulse the bell for a mid-air jump (only with Pen Spring: one per copy)
     if (this.grounded) { this.airJumps = this.maxAirJumps; this.coyote = 0.1; }
     else this.coyote = Math.max(0, (this.coyote ?? 0) - dt);
     if (input.consumeJump()) {

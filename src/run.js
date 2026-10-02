@@ -142,8 +142,10 @@ export class Run {
       this.spotRejects = [];
       for (const sp of s.spots) {
         const r = this.openSpot(sp.at);
-        if (r.ok) this.spots.push({ ...sp, y: r.y });
-        else this.spotRejects.push(`${sp.label}: ${r.why}`);
+        if (!r.ok) { this.spotRejects.push(`${sp.label}: ${r.why}`); continue; }
+        const moved = this.offLanding(sp, r.y);
+        if (moved) this.spots.push(moved);
+        else this.spotRejects.push(`${sp.label}: on a vent landing`);
       }
       if (!this.spots.length) this.spots = s.spots.map((sp) => ({ ...sp, y: sp.at[1] }));
     }
@@ -212,7 +214,7 @@ export class Run {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
-        airJumps: 1 + this.mods.extraJumps,
+        airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         slow: this.slowT > 0 ? 0.4 : 0, push,
       });
     }
@@ -513,6 +515,22 @@ export class Run {
   }
 
   // ------------------------------------------------------------ gift spots
+  // A gift on a vent's landing point would be grabbed just by taking the vent, so a spot that
+  // close to one moves over (15-35 cm, staying on the same surface and open), or is dropped
+  offLanding(sp, y) {
+    const lands = this.traversal.vents.map((v) => v.land);
+    const near = (x, z, yy) => lands.some((L) => Math.hypot(L[0] - x, L[2] - z) < 0.13 && Math.abs(L[1] - yy) < 0.08);
+    if (!near(sp.at[0], sp.at[2], y)) return { ...sp, y };
+    for (const d of [0.15, 0.2, 0.25, 0.3, 0.35]) {
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2, x = sp.at[0] + Math.cos(a) * d, z = sp.at[2] + Math.sin(a) * d;
+        const r = this.openSpot([x, y, z]);
+        if (r.ok && Math.abs(r.y - y) < 0.02 && !near(x, z, r.y)) return { ...sp, at: [x, r.y, z], y: r.y };
+      }
+    }
+    return null;
+  }
+
   // A gift spot must be easy to see and reach: open sky above it (the camera looks down),
   // nothing crowding it, and flat ground. Returns the surface height, or null with a reason.
   openSpot([x, y, z]) {

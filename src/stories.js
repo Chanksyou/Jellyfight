@@ -534,9 +534,16 @@ story('treasures/crit', {
   },
 });
 story('treasures/extra-jumps', {
-  about: 'extra-jumps (Pen Spring): one more jump in mid-air.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('penSpring'); },
-  play() { step(2); return ok(G().player.maxAirJumps === 2, { airJumps: G().player.maxAirJumps }); },
+  about: 'extra-jumps (Pen Spring): no mid-air jump without it; each copy adds one, up to a quadruple jump with 3.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, player } = G();
+    step(2);
+    const none = player.maxAirJumps;
+    const per = [];
+    for (let k = 0; k < 3; k++) { run.owned.add('penSpring'); step(2); per.push(player.maxAirJumps); }
+    return ok(none === 0 && per.join() === '1,2,3', { none, per });
+  },
 });
 story('treasures/landing-shockwave', {
   about: 'landing-shockwave (Cotton Ball): landing from a jump sends out a stinging ring.',
@@ -911,6 +918,19 @@ story('modes/dev-fight-boss', {
     document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
     step(240, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss'; });
     return ok(run.phase === 'boss' && !!run.boss && run.t < 10, { phase: run.phase, t: run.t });
+  },
+});
+
+story('gifts/not-on-vent-landings', {
+  about: 'No golden gift spot sits on a vent\'s landing point: the ones that did moved over, onto the same surface.',
+  setup() { fresh(); },
+  play() {
+    const { run, traversal } = G();
+    const lands = traversal.vents.map((v) => v.land);
+    const bad = run.spots.filter((sp) => lands.some((L) => Math.hypot(L[0] - sp.at[0], L[2] - sp.at[2]) < 0.13 && Math.abs(L[1] - sp.y) < 0.08)).map((sp) => sp.label);
+    const moved = run.spots.filter((sp) => { const o = run.stage.spots.find((q) => q.label === sp.label); return o && (o.at[0] !== sp.at[0] || o.at[2] !== sp.at[2]); })
+      .map((sp) => `${sp.label} ${sp.at.map((v) => v.toFixed(2)).join(',')}`);
+    return ok(!bad.length && moved.length >= 4 && run.spots.length >= 12, { bad, moved, kept: run.spots.length, rejects: run.spotRejects });
   },
 });
 
