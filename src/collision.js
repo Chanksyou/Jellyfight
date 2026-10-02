@@ -53,6 +53,11 @@ export class World {
   }
 
   // Add a mesh that isn't part of the apartment (invisible walls, props)
+  // Everything solid under these objects (an act's rooms arriving: apartment.js)
+  addObjects(roots) {
+    for (const r of roots) r.traverse((o) => { if (isSolid(o)) this.addCollider(o); });
+  }
+
   addCollider(mesh) {
     mesh.updateMatrixWorld(true);
     plainPositions(mesh.geometry);

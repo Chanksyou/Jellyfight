@@ -7,6 +7,7 @@ export const STAGE_BATHROOM = {
   name: 'Polyp',
   subtitle: 'Bathroom & hallway',
   rooms: ['Bathroom', 'Hallway', 'Laundry closet', 'Coat closet'],
+  parts: ['act1', 'act2'],           // apartment files to load (apartment.js): act 2's rooms on top of act 1's
   start: [1.0, 0.004, 6.8],          // bath mat
   duration: 120,                      // seconds until the boss comes, Moon Drops or not
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM

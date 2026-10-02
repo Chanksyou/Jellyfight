@@ -1,39 +1,78 @@
-// Loads the baked apartment (assets/apartment.glb + assets/apartment.json, made by
-// tools/export.mjs) and sets up its lighting. The apartment is static: geometry,
+// Loads the baked apartment (assets/apartment-act<N>.glb + assets/apartment.json, made by
+// tools/export.mjs and tools/split.mjs) and sets up its lighting. The apartment is static: geometry,
 // materials and textures, plus door nodes a stage can swing open or shut.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export async function loadApartment(scene, renderer, onProgress) {
-  // The small file needs a WebAssembly decoder; if WebAssembly is blocked, load the plain one
-  let file = 'assets/apartment.glb', decoder = null;
+// The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
+// the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
+// the bedroom. Load what the starting stage needs; apt.load([...]) brings in more later (the
+// next act), merging it into the same Apartment node and adding that part's lights.
+export async function loadApartment(scene, renderer, onProgress, parts = ['act1']) {
+  // The small files need a WebAssembly decoder; if WebAssembly is blocked, load the plain ones
+  let decoder = null;
   try {
     ({ MeshoptDecoder: decoder } = await import('three/addons/libs/meshopt_decoder.module.js'));
     await decoder.ready;
   } catch {
-    file = 'assets/apartment-q.glb';
     decoder = null;
   }
-  const loader = new GLTFLoader();
-  if (decoder) loader.setMeshoptDecoder(decoder);
-  const [buffer, meta] = await Promise.all([
-    fetchModel(file, onProgress),
-    fetch('assets/apartment.json').then((r) => r.json()),
-  ]);
-  // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
-  // and pages with a strict security policy (claude.ai artifacts) refuse that, so every texture
-  // silently went missing. Hiding createImageBitmap for the parse makes it use <img> instead,
-  // which those pages allow.
-  const bitmap = window.createImageBitmap;
-  let gltf;
-  try {
-    window.createImageBitmap = undefined;
-    gltf = await loader.parseAsync(buffer, '');
-  } finally {
-    window.createImageBitmap = bitmap;
+  const meta = await fetch('assets/apartment.json').then((r) => r.json());
+  const apt = { root: null, plan: meta.plan, doors: {}, loaded: new Set(), meta };
+  apt.load = (more, progress) => loadParts(apt, scene, renderer, decoder, more, progress);
+  await apt.load(parts, onProgress);
+  scene.background = new THREE.Color().fromArray(meta.background);
+  scene.environment = roomEnvironment(renderer);
+  return apt;
+}
+
+// Load the parts not loaded yet. Returns the objects they added to the Apartment node (for
+// collisions, the layout editor's edits and the minimap).
+async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
+  const todo = parts.filter((p) => !apt.loaded.has(p)), added = [], meta = apt.meta;
+  for (let n = 0; n < todo.length; n++) {
+    const part = todo[n];
+    const buffer = await fetchModel(`assets/apartment-${part}${decoder ? '' : '-q'}.glb`, (f) => onProgress?.((n + f) / todo.length));
+    const loader = new GLTFLoader();
+    if (decoder) loader.setMeshoptDecoder(decoder);
+    // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
+    // and pages with a strict security policy (claude.ai artifacts) refuse that, so every texture
+    // silently went missing. Hiding createImageBitmap for the parse makes it use <img> instead,
+    // which those pages allow.
+    const bitmap = window.createImageBitmap;
+    let gltf;
+    try {
+      window.createImageBitmap = undefined;
+      gltf = await loader.parseAsync(buffer, '');
+    } finally {
+      window.createImageBitmap = bitmap;
+    }
+    prepareMeshes(gltf.scene, meta, renderer);
+    const from = gltf.scene.getObjectByName('Apartment');
+    if (!apt.root) {
+      apt.root = gltf.scene;
+      scene.add(apt.root);
+      added.push(...from.children);
+    } else {
+      // move this part's objects into the Apartment node we already have (same place in the world)
+      const into = apt.root.getObjectByName('Apartment');
+      apt.root.updateMatrixWorld(true);
+      gltf.scene.updateMatrixWorld(true);
+      for (const o of [...from.children]) { into.attach(o); added.push(o); }
+    }
+    addLights(scene, meta.lights.filter((L) => (L.act || 'act1') === part));
+    findDoors(apt, added);
+    apt.loaded.add(part);
   }
-  const root = gltf.scene;
-  scene.add(root);
+  if (todo.length) window.APT?.lights?.rescan();
+  // Say so if textures failed to load, instead of showing plain white surfaces
+  let missing = 0;
+  for (const o of added) o.traverse((m) => { if (m.isMesh && m.material.map && !m.material.map.image) missing++; });
+  if (missing) window._jfError?.(new Error(`${missing} apartment surfaces are missing their textures`), 'loading');
+  return added;
+}
+
+function prepareMeshes(root, meta, renderer) {
   const unpacked = new Set();
   const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), matchMedia('(pointer: coarse)').matches ? 4 : 8);
   root.traverse((o) => {
@@ -60,11 +99,14 @@ export async function loadApartment(scene, renderer, onProgress) {
       if (bump && m.map) { m.bumpMap = m.map; m.bumpScale = parseFloat(bump[1]); m.needsUpdate = true; }
     }
   });
+}
 
-  // Lights, as captured at midnight. Intensities are in the apartment's legacy units;
-  // src/legacy-lighting.js renders them the way the apartment did.
+// Lights, as captured at midnight. Intensities are in the apartment's legacy units;
+// src/legacy-lighting.js renders them the way the apartment did. Each act brings its rooms'
+// lamps: a lamp in a room that isn't loaded would still be shaded on every pixel.
+function addLights(scene, lights) {
   const color = (c) => new THREE.Color().fromArray(c);
-  for (const L of meta.lights) {
+  for (const L of lights) {
     let light;
     if (L.type === 'HemisphereLight') light = new THREE.HemisphereLight(color(L.color), color(L.groundColor), L.intensity);
     else if (L.type === 'PointLight') light = new THREE.PointLight(color(L.color), L.intensity, L.distance, L.decay);
@@ -73,30 +115,24 @@ export async function loadApartment(scene, renderer, onProgress) {
     else if (L.type === 'AmbientLight') light = new THREE.AmbientLight(color(L.color), L.intensity);
     if (!light) continue;
     light.position.fromArray(L.position);
+    light.userData.act = L.act;
     if (L.target) { light.target.position.fromArray(L.target); scene.add(light.target); }
     scene.add(light);
   }
-  scene.background = color(meta.background);
-  scene.environment = roomEnvironment(renderer);
+}
 
-  // Doors: node rotated about its own Y from the closed pose
-  const doors = {};
-  root.traverse((o) => {
+// Doors: node rotated about its own Y from the closed pose
+function findDoors(apt, objects) {
+  for (const top of objects) top.traverse((o) => {
     if (!o.name.startsWith('door-')) return;
     const id = o.name.slice(5);
     const base = o.quaternion.clone();
-    doors[id] = {
+    apt.doors[id] = {
       node: o,
-      open: meta.doors[id]?.open ?? 1.5,
+      open: apt.meta.doors[id]?.open ?? 1.5,
       set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); o.updateMatrixWorld(true); },
     };
   });
-  // Say so if textures failed to load, instead of showing plain white surfaces
-  let missing = 0;
-  root.traverse((o) => { if (o.isMesh && o.material.map && !o.material.map.image) missing++; });
-  if (missing) window._jfError?.(new Error(`${missing} apartment surfaces are missing their textures`), 'loading');
-
-  return { root, plan: meta.plan, doors };
 }
 
 // Downloads the model with progress. Some hosts (claude.ai artifacts) don't serve .glb files,

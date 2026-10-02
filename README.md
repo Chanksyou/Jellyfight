@@ -54,7 +54,7 @@ WASD move · mouse look · Space jump, again in the air to double jump (hold to 
 
 ## How it fits together
 
-The apartment is a static 3D model, `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, door angles, the lights at midnight). `apartment.glb` is meshopt-compressed (~5 MB, needs WebAssembly); `apartment-q.glb` is the same model without that compression (~9 MB), loaded automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game.
+The apartment is a static 3D model, baked to `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, acts, door angles, the lights at midnight). The game doesn't load that whole file: `tools/split.mjs` cuts it into one file per act, and each act loads only its own rooms. `apartment-act1.glb` (~3 MB) is the living room plus every room's walls, floors and doors, so every view is solid; `apartment-act2.glb` (~1.7 MB) the hallway, bathroom and hall closets; `apartment-act3.glb` (~0.9 MB) the bedroom. A stage lists the parts it needs (`parts` in `src/stage1.js`); `GAME.loadRooms(['act2'])` brings in more at the start of a later act (solid, with layout edits, on the minimap, with that act's lamps). Each part is meshopt-compressed (needs WebAssembly) with a `-q` twin used automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game.
 
 `src/boot.js` sets up three.js (r170 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
 

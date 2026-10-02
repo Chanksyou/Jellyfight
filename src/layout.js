@@ -249,7 +249,12 @@ export class LayoutEditor {
     if (it) { visibleBox(it.node, this.box.box); this.box.visible = true; this.box.updateMatrixWorld(true); } else this.box.visible = false;
   }
 
-  open() { this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
+  // pick up objects that arrived since the editor was made (a later act's rooms)
+  refreshItems() {
+    for (const it of movables(this.root)) if (!this.byNode.has(it.node)) { this.items.push(it); this.byNode.set(it.node, it); }
+  }
+
+  open() { this.refreshItems(); this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
   close() { this.el.hidden = true; this.active = false; this.sel = null; this.box.visible = false; this.drag = null; this.showVents(false); }
   showVents(on) { for (const it of this.ventItems) { it.node.visible = on; it.arc.visible = on; } }
 

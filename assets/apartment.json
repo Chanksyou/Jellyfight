@@ -199,7 +199,8 @@
     0.023153366173251363,
     0.010329823026364548,
     0.0069954101845983935
-   ]
+   ],
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -215,7 +216,8 @@
     1.5
    ],
    "distance": 3.6,
-   "decay": 1.7
+   "decay": 1.7,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -231,7 +233,8 @@
     2.75
    ],
    "distance": 3.6,
-   "decay": 1.7
+   "decay": 1.7,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -247,7 +250,8 @@
     3.95
    ],
    "distance": 3.6,
-   "decay": 1.7
+   "decay": 1.7,
+   "act": "act1"
   },
   {
    "type": "SpotLight",
@@ -270,7 +274,8 @@
     4.691,
     0.23,
     3.3795
-   ]
+   ],
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -286,7 +291,8 @@
     1.8395
    ],
    "distance": 1.7,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -302,7 +308,8 @@
     2.6895
    ],
    "distance": 1.7,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -318,7 +325,8 @@
     3.9895
    ],
    "distance": 1.7,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -334,7 +342,8 @@
     1.9395
    ],
    "distance": 3.4,
-   "decay": 1.5
+   "decay": 1.5,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -350,7 +359,8 @@
     3.7395
    ],
    "distance": 3.4,
-   "decay": 1.5
+   "decay": 1.5,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -366,7 +376,8 @@
     3.197
    ],
    "distance": 2.2,
-   "decay": 1.8
+   "decay": 1.8,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -382,7 +393,8 @@
     2.0337
    ],
    "distance": 5,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -398,7 +410,8 @@
     1.261
    ],
    "distance": 3.2,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -414,7 +427,8 @@
     1.074
    ],
    "distance": 1.1,
-   "decay": 2
+   "decay": 2,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -430,7 +444,8 @@
     1.1336
    ],
    "distance": 2.6,
-   "decay": 2
+   "decay": 2,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -446,7 +461,8 @@
     0.77
    ],
    "distance": 4,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -462,7 +478,8 @@
     0.1806
    ],
    "distance": 5,
-   "decay": 1.5
+   "decay": 1.5,
+   "act": "act1"
   },
   {
    "type": "PointLight",
@@ -478,7 +495,8 @@
     10.937
    ],
    "distance": 4.2,
-   "decay": 1.6
+   "decay": 1.6,
+   "act": "act3"
   },
   {
    "type": "PointLight",
@@ -494,7 +512,8 @@
     9.1
    ],
    "distance": 3.2,
-   "decay": 1.7
+   "decay": 1.7,
+   "act": "act3"
   },
   {
    "type": "SpotLight",
@@ -517,7 +536,8 @@
     3.0475,
     0,
     6.325
-   ]
+   ],
+   "act": "act2"
   },
   {
    "type": "SpotLight",
@@ -540,7 +560,8 @@
     2.714,
     0,
     8.3375
-   ]
+   ],
+   "act": "act2"
   }
  ],
  "background": [
@@ -553,5 +574,19 @@
   "kept": 1305,
   "outside": 2,
   "hidden": 61
+ },
+ "acts": {
+  "act1": [
+   "Living room"
+  ],
+  "act2": [
+   "Hallway",
+   "Bathroom",
+   "Laundry closet",
+   "Coat closet"
+  ],
+  "act3": [
+   "Bedroom"
+  ]
  }
 }

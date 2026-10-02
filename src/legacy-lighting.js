@@ -33,4 +33,5 @@ export function scaleLightsOnRender(renderer, scene) {
       for (const l of lights) l.intensity /= Math.PI;
     }
   };
+  return { rescan() { age = Infinity; } };   // call after adding lights (an act's rooms loading)
 }

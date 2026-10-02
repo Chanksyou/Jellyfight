@@ -24,7 +24,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v50';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v51';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew, MoonDrop } from './pickups.js';
@@ -271,7 +271,19 @@ function closeCreator() {
 camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
 camera.updateProjectionMatrix();
 document.body.classList.add('game');
+// Bring in more of the apartment (a later act's rooms: stage.parts, apartment.js) and make it
+// part of the world: solid, with the layout editor's edits applied, on the minimap
+async function loadRooms(parts, onProgress) {
+  const added = await APT.load(parts, onProgress);
+  if (!added.length) return added;
+  applyLayout(APT.root);
+  world.addObjects(added);
+  mapFurniture();
+  return added;
+}
+
 const GAME = {
+  loadRooms,
   step(dt) {
     systems.traversal.update(dt);
     systems.fx.update(dt);

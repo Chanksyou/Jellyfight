@@ -919,15 +919,37 @@ story('engine/fight-draw-calls', {
     return ok(calls < 450, { calls, instanced: G().batcher.drawn });
   },
 });
+// (keep this one last among the in-room stories: it leaves act 2's rooms loaded)
+story('engine/act2-rooms-load-when-needed', {
+  about: 'Act 1 loads only the living room; act 2 (hallway, bathroom, closets) loads on demand, solid and in place.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { APT, world, GAME } = G();
+    const has = (n) => !!APT.root.getObjectByName(n);
+    const lights = () => { let n = 0; APT.scene.traverse((o) => { if (o.isPointLight || o.isSpotLight) n++; }); return n; };
+    const before = { act1Only: [...APT.loaded].join() === 'act1', sofa: has('Corduroy_sofa'), toilet: has('Toilet'), lights: lights(), colliders: world.colliders.length };
+    const t0 = performance.now();
+    const added = await GAME.loadRooms(['act2']);
+    const ms = Math.round(performance.now() - t0);
+    // the vanity top is solid where the bathroom's vent throws you
+    world._focusAge = Infinity; world.focus(new THREE.Vector3(1.5, 1, 5.52), 0);   // collision checks what's near; look in the bathroom
+    const hit = world.cast(new THREE.Vector3(1.5, 1.3, 5.52), new THREE.Vector3(0, -1, 0), 1);
+    const keys = (await import('./layout.js')).movables(APT.root).map((m) => m.key);
+    const after = { loaded: [...APT.loaded].join(), toilet: has('Toilet'), added: added.length, lights: lights(), colliders: world.colliders.length, vanityTop: hit ? +hit.point.y.toFixed(3) : null, toiletKey: keys.includes('Toilet#1'), ms };
+    const good = before.act1Only && before.sofa && !before.toilet && after.toilet && after.added > 50 && after.lights > before.lights && after.colliders > before.colliders && hit && Math.abs(hit.point.y - 0.88) < 0.03 && after.toiletKey;
+    return ok(good, { before, after });
+  },
+});
 
 // ------------------------------------------------------------------ running them
-// Headless: play one story, return { name, ok, info, ms } (errors fail the story)
-export function runStory(name) {
+// Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()
+// may be async (one that waits for a download).
+export async function runStory(name) {
   const s = STORIES[name];
   const t0 = performance.now();
   try {
     s.setup();
-    const r = s.play();
+    const r = await s.play();
     return { name, ok: r.ok, info: r.info, ms: Math.round(performance.now() - t0) };
   } catch (e) {
     return { name, ok: false, info: { error: String(e && e.stack || e).split('\n').slice(0, 3).join(' | ') }, ms: Math.round(performance.now() - t0) };
