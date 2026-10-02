@@ -19,6 +19,7 @@ import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
+import { FRIENDLY } from './vfx.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -32,7 +33,8 @@ export const ELEMENTS = [
   { id: 'wind', color: 0xeef2ff, text: '#ffffff' },
   { id: 'glitter', color: 0xff9ae8, text: '#ffb0f0' },
 ];
-const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, e]));
+const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
+const GOLD = new THREE.Color(0xffd86a);
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -61,6 +63,7 @@ export class Bubbles {
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
     this.goldMat = film(0xffe8a0, 0xffb020);
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
+    this.friendly = FRIENDLY();
   }
 
   reset() {
@@ -180,6 +183,8 @@ export class Bubbles {
         this.fx.puff(b.m.position.clone().addScaledVector(b.vel, -0.03), EL[b.tint].color, b.r * (b.tint === 'fire' ? 0.9 : 0.6), b.tint === 'fire' ? 0.35 : 0.25);
       }
       if (b.tint === 'lightning') b.m.material.emissiveIntensity = 1 + Math.random() * 2;   // crackles
+      // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
+      this.fx.glow.hold(b.m.position, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 6 : 5), b.golden || b.tint ? 0.55 : 0.4);
       const grow = Math.min(1, b.t * 8);
       b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       // touching an enemy?
@@ -296,6 +301,7 @@ export class Bubbles {
     const p = b.m.position;
     this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);
     if (!hitEnemy) return;
+    this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
     // pop: a splash of droplets, a plip, a tiny kick
     this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
     sfx.pop(b.big);

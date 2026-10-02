@@ -28,6 +28,16 @@
   --rim-color: #ffcc9e;
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
+  /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.
+     Every enemy shot is a white-hot core in its colour's glow, every warning on the floor an outline
+     in it that fills until the hit. One colour per source, so you know what's coming. */
+  --hostile-controller: #ff3ad0; /* the Controller's button barrage and rumble */
+  --hostile-mug: #ff8a1a;        /* the Mug's coffee lobs, spill and scalding puddles */
+  --hostile-kettle: #ffd23a;     /* the Kettle's steam blast and boiling drops */
+  --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
+  --hostile-staple: #ffb070;     /* the standing stapler's staples */
+  --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
+  --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
   --laser-length: 0.03;        /* meters: how long a bolt is */
   --laser-aim-width: 0.006;    /* meters: how wide the aiming beam's glow is (its bright core is a third of it) */

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
+import { hostile, TeleMaterial } from './vfx.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
@@ -93,11 +94,15 @@ export class Vacuum {
     scene.add(this.holder);
 
     // floor telegraphs: the charge line, the suction swirl, the sweep reach
-    this.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5),
-      new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0, depthWrite: false }));
+    // (vfx.js warnings in the boss's hostile colour: the charge is a strip, the suction a disc with
+    // stripes pouring into the middle)
+    this.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('vacuum'), 'strip'));
+    this.line.material.opacity = 0;
+    this.line.renderOrder = 3;
     scene.add(this.line);
-    this.swirl = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+    this.swirl = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('vacuum'), 'circle'));
+    this.swirl.material.opacity = 0;
+    this.swirl.renderOrder = 3;
     scene.add(this.swirl);
     this.shotGeo = new THREE.IcosahedronGeometry(0.008, 1);
     this.shotMat = std(0x8a8278, { roughness: 1 });
@@ -185,20 +190,22 @@ export class Vacuum {
         this.line.position.copy(p).setY(p.y + 0.002);
         this.line.rotation.y = this.heading;
         this.line.scale.set(this.r * 1.6, 1, 0.9);
-        this.line.material.opacity = 0.18 + Math.sin(this.t * 30) * 0.08;
-        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; }
+        this.chargeWind ??= Math.max(0.01, this.stateT);
+        this.line.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
+        this.line.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
+        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.chargeWind = null; }
       } else {
         this.setLight(0xff2a2a, 3);
         const wall = this.drive(dt, null, angry ? 1.275 : 1.05, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
-        if (wall || this.stateT <= 0) { this.locked = false; this.fx.ring(p.clone().setY(0.004), 0xffffff, this.r * 1.6, 0.4); this.toChase(); }
+        if (wall || this.stateT <= 0) { this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
       }
     } else if (this.state === 'suction') {
       // pull you in toward it; too close and it hurts
       this.setLight(0x9fd8ff, 3);
       this.swirl.position.copy(p).setY(0.003);
-      this.swirl.scale.setScalar(0.45 * (1 - ((this.t * 0.8) % 1)) + this.r);
-      this.swirl.material.opacity = 0.35;
+      this.swirl.scale.setScalar(0.45 + this.r);
+      this.swirl.material.opacity = 0.75;              // its stripes pour into the middle: you're being pulled in
       const pull = toP.clone().normalize().multiplyScalar(-(0.18 + (angry ? 0.06 : 0)) * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
       out.push = pull;
       if (dist < this.r + 0.04 && P.y < 0.1) out.hurt = 2 * dt;
@@ -216,7 +223,7 @@ export class Vacuum {
       for (const at of sweeps) {
         if (this.prevT > at && this.stateT <= at) {
           const reach = this.r + 0.1;
-          this.fx.ring(p.clone().setY(0.004), 0xffe24a, reach, 0.35);
+          this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
           if (dist < reach + 0.018 && P.y < 0.12) { out.hit = 3; this.knockBack(toP, 0.5); }
         }
       }
@@ -244,9 +251,8 @@ export class Vacuum {
       if (this.sprayT <= 0) {
         this.sprayT = 0.18;
         const dir = new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
-        const m = new THREE.Mesh(this.shotGeo, this.shotMat);
+        const m = this.fx.orb(hostile('vacuum'), 0.007);   // dust clumps, glowing so you can read them
         m.position.copy(p).addScaledVector(dir, this.r).setY(0.03);
-        this.scene.add(m);
         this.shots.push({ m, v: dir.multiplyScalar(0.525), t: 1.33 });
       }
       if (this.stateT <= 0) this.toChase();
@@ -269,9 +275,9 @@ export class Vacuum {
     for (const s of this.shots) {
       s.t -= dt;
       s.m.position.addScaledVector(s.v, dt);
-      s.m.rotation.x += dt * 8;
-      if (s.m.position.distanceTo(pc) < 0.025) { out.hit = Math.max(out.hit, 2); s.t = 0; this.fx.puff(s.m.position, 0x8a8278, 0.02, 0.3); }
-      if (s.t <= 0) this.scene.remove(s.m);
+      this.fx.orbTick(s.m, dt);
+      if (s.m.position.distanceTo(pc) < 0.025) { out.hit = Math.max(out.hit, 2); s.t = 0; }
+      if (s.t <= 0) { this.fx.impact(s.m.position, hostile('vacuum'), 0.015, 8); this.fx.free(s.m); }
     }
     this.shots = this.shots.filter((s) => s.t > 0);
     return out;
@@ -302,6 +308,6 @@ export class Vacuum {
     this.scene.remove(this.holder);
     this.scene.remove(this.line);
     this.scene.remove(this.swirl);
-    this.shots.forEach((s) => this.scene.remove(s.m));
+    this.shots.forEach((s) => this.fx.free(s.m));
   }
 }

@@ -8,6 +8,7 @@ import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
+import { hostile, TeleMaterial } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -397,16 +398,17 @@ export class Enemies {
       m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, spin: staple ? 18 + Math.random() * 8 : 0, source: staple ? 'staple' : 'spit' });
+      this.shots.push({ m, v, t: life, dmg, spin: staple ? 18 + Math.random() * 8 : 0, source: staple ? 'staple' : 'spit', c: staple ? hostile('staple') : this.laserColor, trailT: 0 });
     }
-    this.fx.puff(from.addScaledVector(aim, 0.03), shot === 'staple' ? 0xdfe6ee : this.laserColor.getHex(), 0.012, 0.12);
+    this.fx.impact(from.addScaledVector(aim, 0.03), shot === 'staple' ? hostile('staple') : this.laserColor, 0.01, 4);   // the muzzle flash
   }
 
   // A leaping bug comes down (the leap word): a thump, a ring of dust, and the jelly is hit if
   // it's standing inside the marked circle
   slam(e, c, radius, dmg) {
     const at = e.pos;
-    this.fx.ring(at.clone().setY(at.y + 0.003), 0xff5a3a, radius, 0.35);
+    this.fx.impact(at.clone().setY(at.y + 0.01), hostile('leap'), radius * 0.45, 16);
+    this.fx.ring(at.clone().setY(at.y + 0.003), hostile('leap'), radius * 1.05, 0.4);
     this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
     e.landT = 1;
     const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
@@ -421,9 +423,7 @@ export class Enemies {
       if (e.dead || !e.leapAt || (e.state !== 'crouch' && e.state !== 'leap')) continue;
       let M = this.leapMarks[n];
       if (!M) {
-        const mat = (o) => new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: o, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
-        M = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 40).rotateX(-Math.PI / 2), mat(0.85));
-        M.add(new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), mat(0.3)));
+        M = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('leap'), 'circle'));
         M.renderOrder = 3;
         this.scene.add(M);
         this.leapMarks.push(M);
@@ -432,8 +432,8 @@ export class Enemies {
       const k = e.state === 'crouch' ? (e.leapK || 0) * 0.5 : 0.5 + (e.leapK || 0) * 0.5;
       M.position.copy(e.leapAt).setY(e.leapAt.y + 0.003);
       M.scale.setScalar(r);
-      M.children[0].scale.setScalar(Math.max(0.01, k));
-      M.material.opacity = 0.55 + 0.35 * Math.abs(Math.sin(t * (e.state === 'leap' ? 24 : 12)));
+      M.material.progress = k;
+      M.material.opacity = 0.85 + 0.15 * Math.abs(Math.sin(t * (e.state === 'leap' ? 24 : 12)));
       M.visible = true;
       n++;
     }
@@ -475,7 +475,7 @@ export class Enemies {
     for (const s of this.shots) {
       if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
-      this.fx.puff(s.m.position, s.spin ? 0xdfe6ee : this.laserColor.getHex(), 0.014, 0.2);
+      this.fx.impact(s.m.position, s.c, 0.02, 10);
       bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit' });
     }
   }
@@ -484,9 +484,12 @@ export class Enemies {
     for (const s of this.shots) {
       s.t -= dt;
       const step = s.v.length() * dt;
-      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.puff(s.m.position, s.spin ? 0xdfe6ee : this.laserColor.getHex(), 0.01, 0.15); }   // scorches (or pings off) the wall
+      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.impact(s.m.position, s.c, 0.012, 6); }   // scorches (or pings off) the wall
       s.m.position.addScaledVector(s.v, dt);
       if (s.spin) s.m.rotateX(s.spin * dt);              // staples tumble end over end
+      // a halo and a glowing trail, in the shooter's colour
+      this.fx.glow.hold(s.m.position, s.c, s.spin ? 0.04 : 0.05, 0.9);
+      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
     }

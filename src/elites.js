@@ -27,6 +27,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER } from './events.js';
+import { hostile, TeleMaterial } from './vfx.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -195,20 +196,20 @@ export class Elites {
     this.bullets = [];
     this.blobs = [];
     this.puddles = [];
-    this.bulletGeo = new THREE.SphereGeometry(0.0055, 10, 8);
-    this.bulletColors = [0x3ad86a, 0xd83a3a, 0x3a8ad8, 0xf2c81a];
-    this.bulletMats = this.bulletColors.map((c) => glow(c, 1.2));
+    // projectiles are glowing orbs (fx.orb) in each elite's hostile colour (vfx.js, look.css)
     this.coffeeMat = std(0x3a2214, { roughness: 0.08 });
-    this.dropMat = glow(0xff8a3a, 1.2);
-    this.blobGeo = new THREE.SphereGeometry(0.008, 12, 8);
     this.flat = new THREE.CircleGeometry(1, 36).rotateX(-Math.PI / 2);
     this.ringGeo = new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2);
     this.stripGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
     // a 50° wedge pointing +z (Circle geometry's sector starts at +x, so rotate it round)
     this.coneGeo = new THREE.CircleGeometry(1, 24, -0.45, 0.9).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);
-    this.arrowGeo = (() => { const s = new THREE.Shape().moveTo(-0.3, 0).lineTo(0.3, 0).lineTo(0.3, 0.75).lineTo(0.7, 0.75).lineTo(0, 1).lineTo(-0.7, 0.75).lineTo(-0.3, 0.75).lineTo(-0.3, 0); const g = new THREE.ShapeGeometry(s); g.rotateX(Math.PI / 2); return g; })();
-    const tele = (c, o = 0.35) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide });
-    this.T = { brown: tele(0x8a5a2a), red: tele(0xff3a3a), orange: tele(0xff8a3a), steam: tele(0x7cc8ff, 0.4), aim: this.bulletColors.map((c) => tele(c, 0.5)) };
+    // floor warnings (vfx.js): outline, a fill that grows to the hit, stripes toward where it lands
+    this.T = {
+      brown: new TeleMaterial(hostile('mug'), 'strip'), red: new TeleMaterial(hostile('controller')), orange: new TeleMaterial(hostile('kettle')),
+      mugCircle: new TeleMaterial(hostile('mug')), steam: new TeleMaterial(hostile('kettle'), 'wedge', 0.45),
+      aim: [0, 1, 2].map(() => new TeleMaterial(hostile('controller'), 'strip')),
+      puddle: new TeleMaterial(hostile('mug')),
+    };
   }
 
   // Apartment objects are named after what they are; three.js's loader swaps spaces for underscores
@@ -231,7 +232,8 @@ export class Elites {
   clear() {
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
     this.list = [];
-    for (const b of [...this.bullets, ...this.blobs, ...this.puddles]) { this.scene.remove(b.m); if (b.warn) this.scene.remove(b.warn); }
+    for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); }
+    for (const p of this.puddles) this.scene.remove(p.m);
     this.bullets = []; this.blobs = []; this.puddles = [];
   }
 
@@ -240,8 +242,7 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...this.bulletMats.map((m) => new THREE.Mesh(this.bulletGeo, m)), new THREE.Mesh(this.blobGeo, this.coffeeMat), new THREE.Mesh(this.blobGeo, this.dropMat),
-        ...[this.T.brown, this.T.red, this.T.orange, this.T.steam, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat)];
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
     } else (this._warm || []).forEach((m) => this.scene.remove(m));
   }
@@ -265,25 +266,20 @@ export class Elites {
 
   // a warning circle that fills from the middle as the hit gets closer (k 0..1)
   warnCircle(pos, r, mat) {
-    const ring = new THREE.Mesh(this.ringGeo, mat.clone());
-    const fill = new THREE.Mesh(this.flat, mat.clone());
-    ring.scale.setScalar(r);
-    fill.scale.setScalar(0.001);
-    ring.renderOrder = fill.renderOrder = 3;
-    const g = new THREE.Group();
+    const g = new THREE.Mesh(this.flat, mat.clone());
+    g.scale.setScalar(r);
+    g.renderOrder = 3;
     g.position.copy(pos).setY(pos.y + 0.002);
-    g.add(ring, fill);
     g.updateMatrixWorld(true);
     this.scene.add(g);
-    g.userData.fill = (k) => { fill.scale.setScalar(Math.max(0.001, r * k)); fill.material.opacity = 0.2 + k * 0.25; ring.material.opacity = 0.5 + Math.sin(performance.now() / 60) * 0.2; };
+    g.userData.fill = (k) => { g.material.progress = k; g.material.opacity = 0.85 + Math.sin(performance.now() / 60) * 0.15; };
     return g;
   }
 
   // lob something in an arc to `to`; a warning circle fills until it lands
-  lob(from, to, T, mat, warnMat, r, onLand) {
-    const m = new THREE.Mesh(this.blobGeo, mat);
+  lob(from, to, T, color, warnMat, r, onLand) {
+    const m = this.fx.orb(color, 0.007);
     m.position.copy(from);
-    this.scene.add(m);
     this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), from: from.clone(), to: to.clone(), t: 0, T, onLand });
   }
 
@@ -291,6 +287,10 @@ export class Elites {
     const m = new THREE.Mesh(this.flat, this.coffeeMat);
     m.position.copy(at).setY(at.y + 0.0015);
     m.scale.setScalar(r);
+    const hot = new THREE.Mesh(this.flat, this.T.puddle.clone());   // scalding: a glowing hazard edge
+    hot.position.y = 0.0006;
+    hot.renderOrder = 3;
+    m.add(hot);
     this.scene.add(m);
     this.puddles.push({ m, r, t: life });
   }
@@ -359,16 +359,16 @@ export class Elites {
             M.buttons.forEach((b, i) => { b.material.emissiveIntensity = 0.5 + (Math.sin(e.t * 30 + i) * 0.5 + 0.5) * 3; });
             if (!e.tele.length) [-0.22, 0, 0.22].forEach((a, i) => this.mark(e, this.stripGeo, this.T.aim[i], surf, new THREE.Vector3(0.008, 1, 0.45), heading + a));
             if (s > 0.6) e.locked = true;
-            e.tele.forEach((m, i) => { m.position.copy(surf); m.rotation.y = e.holder.rotation.y + [-0.22, 0, 0.22][i]; m.material.opacity = e.locked ? 0.85 : 0.35 + Math.sin(e.t * 20) * 0.15; });
+            e.tele.forEach((m, i) => { m.position.copy(surf); m.rotation.y = e.holder.rotation.y + [-0.22, 0, 0.22][i]; m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
           } else {
             e.tele.forEach((m, i) => {
               const dir = new THREE.Vector3(Math.sin(m.rotation.y), 0, Math.cos(m.rotation.y));
-              const b = new THREE.Mesh(this.bulletGeo, this.bulletMats[i]);
+              const b = this.fx.orb(hostile('controller'), 0.0055);
               b.position.copy(muzzle);
-              this.scene.add(b);
               this.bullets.push({ m: b, v: dir.multiplyScalar(0.9), t: 1.0 });
             });
             M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
+            this.fx.impact(muzzle, hostile('controller'), 0.012, 6);
             e.clearTele(); e.hitPop = 0.8; sfx.zap();
             e.state = 'idle'; e.cool = 1.6; e.locked = false;
           }
@@ -383,8 +383,8 @@ export class Elites {
           } else {
             e.clearTele();
             M.barMat.emissive.setHex(0x3a8aff);
-            this.fx.ring(surf, 0xff5a5a, R, 0.4);
-            this.fx.burst(surf.clone().setY(surf.y + 0.02), ['#ff5a5a', '#ffffff'], 10, 0.004, 0.4, surf.y);
+            this.fx.ring(surf, hostile('controller'), R, 0.45);
+            this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
             juice.shake(0.35); sfx.kill(1.6);
             if (Math.hypot(P.x - e.base.x, P.z - e.base.z) < R + cfg.radius && sameLevel(e.base.y)) { hit(3, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
@@ -396,7 +396,7 @@ export class Elites {
       if (e.kind === 'mug') {
         if (e.attack === 0) {
           // Coffee lob: two lobs, a beat apart, each at where you're standing then
-          const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, this.coffeeMat, this.T.brown, 0.045, (at) => { this.puddle(at); sfx.acid(); }); e.hitPop = 0.6; };
+          const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, 0.045, (at) => { this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid(); }); e.hitPop = 0.6; };
           if (!e.thrown) { e.thrown = 1; throwAt(); }
           if (s > 0.6 && e.thrown === 1) { e.thrown = 2; throwAt(); }
           if (s > 1.2) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
@@ -404,8 +404,9 @@ export class Elites {
           // Spill: tips toward you (arrow on the surface shows the line), then pours a wave
           const wind = 0.9;
           if (s < wind) {
-            if (!e.tele.length) { e.locked = true; e.poured = -1; this.mark(e, this.arrowGeo, this.T.brown, surf.clone().addScaledVector(fwd, e.r), new THREE.Vector3(0.06, 1, 0.34), heading); }
-            e.tele[0].material.opacity = 0.3 + Math.sin(e.t * 18) * 0.15;
+            if (!e.tele.length) { e.locked = true; e.poured = -1; this.mark(e, this.stripGeo, this.T.brown, surf.clone().addScaledVector(fwd, e.r), new THREE.Vector3(0.08, 1, 0.34), heading); }
+            e.tele[0].material.opacity = 0.75 + Math.sin(e.t * 18) * 0.2;
+            e.tele[0].material.progress = s / wind;
             g.rotation.x = (s / wind) * 0.7;                                  // tipping over
           } else if (s < wind + 0.5) {
             g.rotation.x = 0.9;
@@ -431,13 +432,14 @@ export class Elites {
           const wind = 1.1, len = 0.5;
           if (s < wind) {
             if (!e.tele.length) { e.locked = true; this.mark(e, this.coneGeo, this.T.steam, surf.clone().addScaledVector(fwd, e.r * 0.8), new THREE.Vector3(len, 1, len), heading); }
-            e.tele[0].material.opacity = 0.3 + (s / wind) * 0.35 + Math.sin(e.t * 25) * 0.08;
+            e.tele[0].material.opacity = 0.7 + Math.sin(e.t * 25) * 0.15;
+            e.tele[0].material.progress = s / wind;
             g.rotation.z = Math.sin(e.t * 50) * 0.05;
             M.lid.position.y = 0.112 + Math.abs(Math.sin(e.t * 40)) * 0.004;
             if (Math.random() < dt * 20) this.fx.puff(muzzle, 0xffffff, 0.006, 0.3);
             if (Math.random() < dt * 6) sfx.wind();
           } else if (s < wind + 1.0) {
-            if (e.tele[0]) e.tele[0].material.opacity = 0.1;
+            if (e.tele[0]) { e.tele[0].material.opacity = 0.45; e.tele[0].material.progress = 1; }
             if (Math.random() < dt * 40) {
               const k = Math.random();
               const side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.5 * k);
@@ -457,8 +459,8 @@ export class Elites {
             for (let k = 0; k < 4; k++) {
               const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
               at.y = this.surfaceBelow(at);
-              this.lob(muzzle, at, 1.0 + k * 0.15, this.dropMat, this.T.orange, 0.035, (p) => {
-                this.fx.burst(p.clone().setY(p.y + 0.01), ['#ff8a3a', '#ffd23a', '#ffffff'], 6, 0.003, 0.3, p.y);
+              this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, 0.035, (p) => {
+                this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
                 if (Math.hypot(P.x - p.x, P.z - p.z) < 0.035 + cfg.radius && Math.abs(P.y - p.y) < 0.06) hit(2, 'kettle');
               });
@@ -476,8 +478,9 @@ export class Elites {
       const step = b.v.length() * dt;
       if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), step + 0.004)) b.t = 0;
       b.m.position.addScaledVector(b.v, dt);
-      if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hit(2, 'controller'); b.t = 0; this.fx.puff(b.m.position, 0xffffff, 0.01, 0.2); }
-      if (b.t <= 0) this.scene.remove(b.m);
+      this.fx.orbTick(b.m, dt);
+      if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hit(2, 'controller'); b.t = 0; }
+      if (b.t <= 0) { this.fx.impact(b.m.position, hostile('controller'), 0.015, 8); this.fx.free(b.m); }
     }
     this.bullets = this.bullets.filter((b) => b.t > 0);
 
@@ -487,9 +490,10 @@ export class Elites {
       const k = Math.min(1, b.t / b.T);
       b.m.position.lerpVectors(b.from, b.to, k);
       b.m.position.y += Math.sin(k * Math.PI) * 0.12;
+      this.fx.orbTick(b.m, dt, 1.2);
       b.warn.userData.fill(k);
       if (k >= 1) {
-        this.scene.remove(b.m);
+        this.fx.free(b.m);
         this.scene.remove(b.warn);
         b.onLand?.(b.to);
         b.done = true;

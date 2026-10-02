@@ -1,6 +1,10 @@
-// Little bits of feedback: floating damage numbers, poofs and expanding rings.
+// Little bits of feedback: floating damage numbers, poofs and expanding rings, and the combat
+// visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
+import { GlowPoints, TeleMaterial } from './vfx.js';
+
+const WHITE = new THREE.Color(1, 1, 1);
 
 export class Fx {
   constructor(scene, camera) {
@@ -20,7 +24,16 @@ export class Fx {
     const per = (m) => { m.userData.perInstance = true; return m; };
     this.puffMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
     this.chunkMat = per(new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
-    this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    // shockwave rings glow (additive, unlit): they're how an area attack shows its reach
+    this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));
+    // the combat visual language (vfx.js): every glow is one point in one draw call, and every
+    // projectile a white-hot core (instanced) inside one of them
+    this.glow = new GlowPoints(scene);
+    this.orbs = [];
+    this.orbGeo = new THREE.SphereGeometry(1, 12, 8);
+    this.orbMat = per(new THREE.MeshBasicMaterial({ toneMapped: false }));
+    this._c = new THREE.Color();
+    this._w = new THREE.Vector3();
     this._v = new THREE.Vector3();
   }
 
@@ -111,7 +124,47 @@ export class Fx {
     r.m.userData.color.set(color);
   }
 
+  // A projectile: a white-hot core of radius `size` that glows `color`. Move it yourself, call
+  // orbTick(m, dt) every frame (its halo and trail), and free(m) when it's gone.
+  orb(color, size = 0.005) {
+    let o = this.orbs.find((x) => !x.alive);
+    if (!o) {
+      o = { m: this.piece(this.orbGeo, this.orbMat) };
+      this.orbs.push(o);
+    }
+    o.alive = true;
+    const m = o.m;
+    m.visible = true;
+    m.scale.setScalar(size);
+    const c = new THREE.Color(color);
+    m.userData.color.copy(c).lerp(WHITE, 0.6);
+    m.userData.opacity = 1;
+    m.userData.orb = { o, c, size, trailT: 0 };
+    return m;
+  }
+  orbTick(m, dt, glow = 1) {
+    const O = m.userData.orb;
+    this.glow.hold(m.position, O.c, O.size * 9 * glow, 0.95);
+    if ((O.trailT -= dt) <= 0) { O.trailT = 0.018; this.glow.emit(m.position, O.c, O.size * 5 * glow, O.size * 1.5, 0.24, 0.75); }
+  }
+  free(m) { const O = m?.userData.orb; if (!O) return; O.o.alive = false; m.visible = false; }
+
+  // A hit landing: a flash, a ring of sparks flying out and a shockwave on the ground
+  impact(pos, color, size = 0.025, sparks = 10) {
+    const c = new THREE.Color(color);
+    this.glow.emit(pos, c, size * 2.2, size * 4, 0.16, 1.3);                     // the flash
+    for (let k = 0; k < sparks; k++) {
+      const v = this._w.set(Math.random() - 0.5, Math.random() * 0.9 + 0.2, Math.random() - 0.5).normalize().multiplyScalar(0.25 + Math.random() * 0.45);
+      this.glow.emit(pos, c, size * 0.45, size * 0.05, 0.3 + Math.random() * 0.25, 1, v, 1.4);
+    }
+    this.ring(pos.clone().setY(pos.y - size * 0.3), color, size * 2.4, 0.3);
+  }
+
+  // a floor warning (vfx.js TeleMaterial) of the given shape, ready to place
+  tele(color, shape = 'circle', half) { return new TeleMaterial(color, shape, half); }
+
   update(dt) {
+    this.glow.update(dt, this.camera, window.APT?.renderer);
     const w = innerWidth, h = innerHeight;
     for (const c of this.chunks) {
       if (!c.alive) continue;
@@ -130,7 +183,7 @@ export class Fx {
       const k = r.t / r.life;
       if (k >= 1) { r.alive = false; r.m.visible = false; continue; }
       r.m.scale.setScalar(r.r * (0.2 + 0.8 * Math.sqrt(k)));
-      r.m.userData.opacity = 0.7 * (1 - k);
+      r.m.userData.opacity = 0.9 * (1 - k);
     }
     for (const n of this.nums) {
       if (!n.alive) continue;
@@ -159,5 +212,7 @@ export class Fx {
     this.puffs.forEach((p) => { p.alive = false; p.m.visible = false; });
     this.rings.forEach((r) => { r.alive = false; r.m.visible = false; });
     this.chunks.forEach((c) => { c.alive = false; c.m.visible = false; });
+    this.orbs.forEach((o) => { o.alive = false; o.m.visible = false; });
+    this.glow.clear();
   }
 }

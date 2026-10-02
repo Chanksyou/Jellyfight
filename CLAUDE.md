@@ -45,22 +45,27 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked
    `three@0.170.0` npm package. The guard stories fail if a word has no doc, no user or no
    story, or if bad content doesn't produce a clear error.
-3. **Look values go in `content/look.css`**, not literals in code. Read them with
+3. **Attacks speak one visual language** (`src/vfx.js`, think Returnal): hostile is hot and
+   saturated, one `--hostile-*` colour per source; friendly is cool (`--friendly`); they never
+   share a colour. A new enemy projectile is `fx.orb(colour)` + `fx.orbTick` each frame + `fx.free`;
+   a new warning on the floor is a `TeleMaterial` (circle / wedge / strip) whose `progress` fills
+   to the moment of the hit; a hit landing is `fx.impact`. Don't add plain grey or brown attacks.
+4. **Look values go in `content/look.css`**, not literals in code. Read them with
    `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
-4. **Don't quietly re-balance.** If a change could make the game harder or easier, offer to
+5. **Don't quietly re-balance.** If a change could make the game harder or easier, offer to
    run the balance bot (**ask the owner first, never run it unasked**; it takes about 15 minutes) before and after (`node tests/balance.mjs 5`: an autopilot plays whole nights
    and reports how long it lasted, its level and kills, and which sources took its moisture),
    say what moved with those numbers (the last recorded run is `tests/balance-baseline.txt`),
    and name the one value to change. Don't tweak content
    numbers to make a test pass.
-5. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
+6. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
    `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
-6. **Phones first.** Phones run the `low` graphics setting (no bloom, no AO). Keep draw
+7. **Phones first.** Phones run the `low` graphics setting (no bloom, no AO). Keep draw
    calls low: small moving things are instanced through `src/batch.js` (`batcher.track(mesh)`);
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
-7. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
+8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
-8. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
+9. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
    run the stories, commit, push `main`, then publish to the artifact (copy changed files,
    including `content/`, next to `index.html`).
 

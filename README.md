@@ -101,6 +101,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/camera.js` | Orbit camera that follows the player and pulls in when furniture is in the way. |
 | `src/collision.js` | Raycast collision against the apartment's meshes, with a BVH per mesh and a nearby-object filter. `cast()` walks the BVH itself, reading triangles straight from the typed arrays, so a ray that misses allocates nothing (it runs 100+ times a frame in a fight). |
 | `src/batch.js` | Instanced drawing for the small moving things (bug parts, bubbles, puffs, gut chunks, rings, dew, tentacles, laser bolts). They stay normal meshes for the game code but are hidden from the camera; once a frame, before rendering, the batcher draws each geometry + material group as one InstancedMesh, with per-instance color and fade for effects. A big fight is ~300 draw calls instead of ~2,100. |
+| `src/vfx.js` | The combat visual language (Returnal-style): hostile attacks in hot colours, one per source (`--hostile-*` in look.css), friendly in cool ones; glowing projectiles (white-hot core, halo, trail), floor warnings that fill until the hit (`TeleMaterial`: circle, wedge, strip) and impacts (flash, sparks, shockwave). All the glows are one particle draw call. |
 | `src/input.js`, `src/touch.js` | Keyboard and pointer-lock mouse; phone joystick, look drag and buttons. |
 | `src/errors.js` | On-screen error panel and the Diagnostics readout (pause menu, or `#debug`). |
 | `src/legacy-lighting.js` | Renders r128-era lights under r170. |
