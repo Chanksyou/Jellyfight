@@ -253,12 +253,12 @@ export const sfx = {
     noise(300, 0.7, 0.9, 0.4, 'lowpass', 1.6, 60); tone('sine', 110, 30, 0.8, 0.4, 1.6);
   },
   // the combo ticking up at milestones
-  // a house fly darting at you: a buzz that whines up as it comes, two voices beating against each other
-  flyDive() {
-    if (!ready() || !gap('flyDive', 120)) return;
+  // a house fly's poke: a buzzy chirp up as the straw shoots out, and a wet little tick at the end
+  flyPoke() {
+    if (!ready() || !gap('flyPoke', 90)) return;
     const j = jitter(0.1);
-    tone('sawtooth', 190 * j, 330 * j, 0.32, 0.045); tone('sawtooth', 197 * j, 345 * j, 0.32, 0.035);
-    noise(2200 * j, 2, 0.28, 0.05, 'bandpass', 0, 3600);
+    tone('sawtooth', 240 * j, 520 * j, 0.09, 0.05); tone('sawtooth', 248 * j, 540 * j, 0.09, 0.035);
+    noise(3200 * j, 4, 0.04, 0.08, 'bandpass', 0.07);
   },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };

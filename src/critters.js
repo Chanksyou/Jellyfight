@@ -675,8 +675,9 @@ export function buildSpider() {
 // A common house fly: a bristly black thorax dusted grey, a big pair of glossy red-brown
 // compound eyes, a sponge-tipped proboscis, a short dark abdomen with tan sides, two clear
 // amber-veined wings and six spiny reddish-brown legs. It flies with its wings a blur and its
-// legs dangling; before it dives it hangs in the air rubbing its front legs together, then darts
-// at you nose first with its legs thrown forward. About 2.4 radii long.
+// legs dangling; to attack it hangs beside you rubbing its front legs, draws its head back, then
+// shoots its straw of a mouth out at you (the proboscis telescopes to several times its length).
+// About 2.4 radii long.
 function flyParts() {
   const R = seeded(29), hair = '#070606', leg = '#4e1c10', legDark = '#220a06';
   const hairs = (n, center, radius, len, up = 0.6) => {
@@ -731,9 +732,6 @@ function flyParts() {
     ellipsoid(0.3, 0.28, 0.2, V(0, 0.04, 0.66), '#18181c', 18),
     ellipsoid(0.12, 0.16, 0.06, V(0, -0.02, 0.84), '#3a3a40', 12),
     ...[-1, 1].flatMap((s) => [rod(V(s * 0.05, 0.1, 0.84), V(s * 0.07, 0.14, 0.92), 0.025, 0.02, '#2a2a2e'), rod(V(s * 0.07, 0.14, 0.92), V(s * 0.12, 0.2, 0.97), 0.01, 0.003, hair)]),
-    // the proboscis: a short trunk hanging under the head with the spongy pad at its tip
-    rod(V(0, -0.14, 0.74), V(0, -0.3, 0.82), 0.045, 0.035, '#241612'),
-    ellipsoid(0.07, 0.035, 0.06, V(0, -0.32, 0.83), '#3a2418', 10),
     // the neck and waist
     ellipsoid(0.14, 0.13, 0.12, V(0, 0.03, 0.52), '#101012', 10),
     ellipsoid(0.16, 0.14, 0.1, V(0, 0.0, -0.14), '#101012', 10),
@@ -759,6 +757,9 @@ function flyParts() {
   };
   return {
     body: merge(body), thorax, abdomen, eye, wing,
+    // the proboscis: a unit-long trunk along +z (stretched to length) and the spongy pad at its tip
+    trunk: merge([rod(V(0, 0, 0), V(0, 0, 1), 0.065, 0.045, '#5a3220'), rod(V(0, 0, 0.3), V(0, 0, 0.32), 0.072, 0.072, '#7a4a2c'), rod(V(0, 0, 0.65), V(0, 0, 0.67), 0.058, 0.058, '#7a4a2c')]),
+    pad: merge([ellipsoid(0.075, 0.04, 0.065, V(0, 0, 0.02), '#4a2c1c', 12), ellipsoid(0.05, 0.02, 0.045, V(0, -0.02, 0.03), '#6a3a24', 10)]),
     thoraxGeo: new THREE.SphereGeometry(1, 36, 24).scale(0.36, 0.32, 0.42).translate(0, 0.07, 0.16),
     abdomenGeo: new THREE.SphereGeometry(1, 36, 24).rotateX(Math.PI / 2).scale(0.32, 0.26, 0.46).translate(0, -0.02, -0.5),
     eyeGeo: new THREE.SphereGeometry(1, 28, 20).scale(0.19, 0.25, 0.2),
@@ -784,6 +785,11 @@ export function buildHouseFly() {
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.flyEye, V(s * 0.19, 0.08, 0.7)); e.rotation.y = s * 0.35; }
   const face = angryEyes({ y: 0.12, z: 0.88, size: 0.1, gap: 0.21 });   // glaring out of the big red eyes
   body.add(face);
+  // the proboscis hangs from under the head; it swings up to aim and telescopes out to poke
+  const straw = new THREE.Group();
+  straw.position.set(0, -0.14, 0.74);
+  body.add(straw);
+  const trunk = add(straw, G.trunk, M.flyLeg), pad = add(straw, G.pad, M.flyLeg);
   // wings: a sweep group at the root (spread into a V), and inside it the flap about the body's length
   const wings = [-1, 1].map((s) => {
     const sweep = new THREE.Group();
@@ -810,27 +816,34 @@ export function buildHouseFly() {
     }
   });
 
-  let t = 0, rub = 0, dart = 0;
+  let t = 0, rub = 0, lunge = 0, aim = 1.15;
   const anim = (dt, e) => {
     t += dt;
     rub += ((e.state === 'windup' ? 1 : 0) - rub) * (1 - Math.exp(-12 * dt));
-    dart += ((e.state === 'dash' ? 1 : 0) - dart) * (1 - Math.exp(-14 * dt));
+    lunge += ((e.state === 'poke' ? 1 : 0) - lunge) * (1 - Math.exp(-20 * dt));
+    // the straw: hanging down at rest, drawn back and curled in the windup, aimed and shot out in the poke
+    const k = e.pokeK || 0;
+    aim += ((e.state === 'windup' ? 1.45 : e.pokeK > 0 ? (e.pokePitch ?? 0.2) : 1.15) - aim) * (1 - Math.exp(-18 * dt));
+    straw.rotation.x = aim;
+    const len = THREE.MathUtils.lerp(e.state === 'windup' ? 0.14 : 0.22, e.pokeLen || 0.22, k);
+    trunk.scale.set(1, 1, len);
+    pad.position.z = len;
     for (const W of wings) W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 85 + (W.s > 0 ? 0 : 0.4)) * 0.75);   // a blur of wings
     for (const L of legs) {
       const sway = Math.sin(t * 3 + L.pair + e.phase) * 0.08;
       if (L.pair === 0) {
-        // the front pair: dangling, raised and rubbed together before a dive, thrown forward in it
-        L.hip.rotation.x = sway * (1 - rub) - rub * (1.15 + Math.sin(t * 32) * L.s * 0.18) - dart * 0.9;
+        // the front pair: dangling, raised and rubbed together before a poke
+        L.hip.rotation.x = sway * (1 - rub) - rub * (1.15 + Math.sin(t * 32) * L.s * 0.18) + lunge * 0.3;
         L.hip.rotation.z = -L.s * rub * (0.5 + Math.sin(t * 32 + 1) * 0.1);
       } else {
-        L.hip.rotation.x = sway + (L.pair === 2 ? 0.35 : 0.1) - dart * (L.pair === 1 ? 0.7 : 0.2);   // trailing back, reaching in a dive
+        L.hip.rotation.x = sway + (L.pair === 2 ? 0.35 : 0.1) + lunge * 0.15;   // trailing back
         L.hip.rotation.z = 0;
       }
     }
-    // the body: a hovering bob; nose down along a dive, hunched in the windup
-    const pitch = e.state === 'dash' ? Math.atan2(-e.vel.y, Math.hypot(e.vel.x, e.vel.z) + 1e-6) : 0;
-    body.position.y = Math.sin(t * 5 + e.phase) * 0.08 * (1 - dart);
-    body.rotation.x = 0.08 + rub * 0.12 + THREE.MathUtils.clamp(pitch, -0.6, 0.8) * dart;
+    // the body: a hovering bob; reared back in the windup, a jab forward with the poke
+    body.position.y = Math.sin(t * 5 + e.phase) * 0.08 * (1 - rub);
+    body.position.z = -rub * 0.12 + lunge * 0.18;
+    body.rotation.x = 0.08 - rub * 0.2 + lunge * 0.12;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

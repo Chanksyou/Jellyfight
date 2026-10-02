@@ -422,39 +422,40 @@ story('enemies/spider-web-ball', {
     return ok(moved && reared && arcs && hit && hit.amount === 2 && slowed > 1, { moved, reared, arcs, peak: +peak.toFixed(3), hit: hit?.amount, slowed: +slowed.toFixed(2) });
   },
 });
-story('words/dive', {
-  about: 'The house fly buzzes around you, hangs in the air rubbing its front legs while a line on the floor marks its path, then darts through you: 3 damage.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.25, 0, 0.05)); e.diveCd = 1; },
+story('words/poke', {
+  about: 'The house fly buzzes in beside you, rubs its front legs and draws back while a short line on the floor marks its strike, then pokes you with its straw of a mouth: 3 damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.2, 0, 0.03)); e.pokeCd = 0.8; },
   play() {
-    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    let warned = false, darted = false, hit = null;
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let warned = false, out = 0, hit = null, closest = 9;
     step(60 * 5, () => {
-      if (e.state === 'windup' && enemies.diveMarks.some((m) => m.visible)) warned = true;
-      if (e.state === 'dash') darted = true;
+      if (e.state === 'windup' && enemies.pokeMarks.some((m) => m.visible)) warned = true;
+      if (e.state === 'poke') out = Math.max(out, e.pokeK);
+      closest = Math.min(closest, e.pos.distanceTo(player.position.clone().setY(player.position.y + CONFIG.player.height * 0.5)));
       hit = log.find((d) => d.source === 'housefly' && d.amount === 3);
       return !!hit;
     });
-    return ok(warned && darted && hit, { warned, darted, hit: hit?.amount, states: e.state });
+    return ok(warned && out === 1 && hit && closest > 0.06, { warned, out, hit: hit?.amount, closest: +closest.toFixed(3) });
   },
 });
-story('enemies/housefly-dodge', {
-  about: 'Stepping off the fly\'s line once its aim locks makes it dart past you.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.25, 0, 0.05)); e.diveCd = 1; },
+story('enemies/housefly-poke-dodge', {
+  about: 'Backing out of the fly\'s reach once its aim locks makes the poke miss.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.2, 0, 0.03)); e.pokeCd = 0.8; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
-    let moved = false, darted = false;
+    let moved = false, poked = false;
     step(60 * 5, () => {
-      if (!moved && e.state === 'windup' && e.stateT < 0.25) {
-        // sidestep, square to its line
-        const d = e.diveTo.clone().sub(e.pos).setY(0).normalize(), P = player.position;
-        tp(P.x - d.z * 0.16, P.y, P.z + d.x * 0.16);
+      if (!moved && e.state === 'windup' && e.faceLock) {
+        // step straight back from it, out of reach
+        const d = player.position.clone().sub(e.pos).setY(0).normalize(), P = player.position;
+        tp(P.x + d.x * 0.12, P.y, P.z + d.z * 0.12);
         moved = true;
       }
-      if (e.state === 'dash') darted = true;
-      return moved && e.state === 'rest';
+      if (e.state === 'poke') poked = true;
+      return poked && e.state === 'rest';
     });
-    const dived = log.filter((d) => d.amount === 3);
-    return ok(moved && darted && !dived.length, { moved, darted, hits: log.map((d) => d.amount) });
+    const pokes = log.filter((d) => d.amount === 3);
+    return ok(moved && poked && !pokes.length, { moved, poked, hits: log.map((d) => d.amount) });
   },
 });
 story('enemies/spider-keeps-its-distance', {

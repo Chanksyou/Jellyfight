@@ -256,7 +256,7 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
-    this.diveMarks = [];      // pooled: the line under each diving fly's path (the dive word)
+    this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -438,36 +438,40 @@ export class Enemies {
     if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
   }
 
-  // A fly starts its dart (the dive word): a buzzing whine and a puff of air where it was
-  dart(e) {
-    sfx.flyDive();
-    this.fx.puff(e.pos.clone(), 0xd8d0c0, e.r * 1.2, 0.25);
+  // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
+  // still where it aimed (within your radius of the line from its head to the tip)
+  poke(e, c, dmg) {
+    sfx.flyPoke();
+    const a = e.pos, b = e.pokeAt, ab = S.dir.copy(b).sub(a), t = THREE.MathUtils.clamp(S.away.copy(c.pc).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
+    const near = S.spot.copy(a).addScaledVector(ab, t).distanceTo(c.pc) < (this.playerRadius || 0.03) + 0.008;
+    this.fx.impact(b.clone(), hostile('fly'), near ? 0.018 : 0.01, near ? 10 : 5);
+    if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
   }
 
-  // the warning under every fly about to dive at you: a line on the floor along its path, filling
-  // as the dart comes, then flashing while it flies
-  drawDives(t) {
+  // the warning under every fly about to poke you: a short line on the floor from it to where its
+  // straw will reach, filling as the poke comes, flashing while it's out
+  drawPokes(t) {
     let n = 0;
     for (const e of this.list) {
-      if (e.dead || !e.diveTo || (e.state !== 'windup' && e.state !== 'dash')) continue;
-      let M = this.diveMarks[n];
+      if (e.dead || !e.pokeAt || !['windup', 'poke'].includes(e.state)) continue;
+      let M = this.pokeMarks[n];
       if (!M) {
         M = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('fly'), 'strip'));
         M.renderOrder = 3;
         this.scene.add(M);
-        this.diveMarks.push(M);
+        this.pokeMarks.push(M);
       }
-      const from = e.state === 'dash' ? e.diveFrom : e.pos, to = e.diveTo;
-      const dx = to.x - from.x, dz = to.z - from.z, len = Math.max(0.02, Math.hypot(dx, dz));
-      M.position.set(from.x, e.diveFloor + 0.003, from.z);
+      const from = e.pos, to = e.pokeAt;
+      const dx = to.x - from.x, dz = to.z - from.z, len = Math.max(0.02, Math.hypot(dx, dz) + 0.015);
+      M.position.set(from.x, e.pokeFloor + 0.003, from.z);
       M.rotation.y = Math.atan2(dx, dz);
-      M.scale.set(e.r * 1.7, 1, len);
-      M.material.progress = e.state === 'dash' ? 1 : 1 - Math.max(0, e.stateT) / (e.diveMax || 0.6);
-      M.material.opacity = e.state === 'dash' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      M.scale.set(e.r * 1.2, 1, len);
+      M.material.progress = e.state === 'poke' ? 1 : 1 - Math.max(0, e.stateT) / (e.pokeMax || 0.5);
+      M.material.opacity = e.state === 'poke' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 16));
       M.visible = true;
       n++;
     }
-    for (let i = n; i < this.diveMarks.length; i++) this.diveMarks[i].visible = false;
+    for (let i = n; i < this.pokeMarks.length; i++) this.pokeMarks[i].visible = false;
   }
 
   // the warning under every bug about to land on you: a red ring with a disc filling in as the
@@ -559,6 +563,7 @@ export class Enemies {
   // player: { position, radius, height }
   update(dt, player, t) {
     this.frame++;
+    this.playerRadius = player.radius;
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
@@ -592,7 +597,7 @@ export class Enemies {
 
       // look at the player, pop when hit, grow in when spawned
       // turn smoothly toward the player (snapping every frame made them twitch up close)
-      if (dist > e.r * 0.5) {
+      if (dist > e.r * 0.5 && !e.faceLock) {
         let d = Math.atan2(pc.x - e.pos.x, pc.z - e.pos.z) - e.root.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
@@ -637,7 +642,7 @@ export class Enemies {
     this.updateShots(dt);
     this.drawAim(t);
     this.drawLeaps(t);
-    this.drawDives(t);
+    this.drawPokes(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 

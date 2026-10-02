@@ -265,7 +265,7 @@ export class Run {
         this.elites.update(dt, P, this.cfg);
       }
       this.enemies.pace = this.mods.bugSpeed;
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius }, this.t);
       this.contactDamage();
       this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }

@@ -106,7 +106,7 @@ export const ENEMY_WORDS = {
     make: ([distance], p) => ({
       fly: true,
       tick(e, c) {
-        if (e.flyHeld) return;              // another word is flying it (a dive)
+        if (e.flyHeld) return;              // another word is holding it still (a poke)
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
         away.normalize().applyAxisAngle(UP, c.dt * p.circle);
@@ -118,44 +118,39 @@ export const ENEMY_WORDS = {
     }),
   },
 
-  dive: {
-    doc: 'Up close (within `range` m) every `every` s or so, hangs in the air for `windup` s rubbing its front legs while a line on the floor marks its path (the aim locks halfway through), then darts along it at `speed` m/s to `reach` m past where you were: touching you on the way hits for `dmg`. Then it pulls back for `rest` s. List it after the flying word.',
-    props: { range: 0.3, windup: 0.6, speed: 1.0, reach: 0.12, dmg: 3, rest: 0.8, every: 2 },
+  poke: {
+    doc: 'Up close (within `range` m) every `every` s or so, hangs beside you rubbing its front legs for `windup` s while a short line on the floor shows where it will strike (the aim locks halfway through), then shoots its straw of a mouth out up to `reach` m in `time` s: you take `dmg` if you are at the end of it. It holds it out `hold` s, pulls it back and rests `rest` s. List it after the flying word.',
+    props: { range: 0.14, windup: 0.5, reach: 0.15, dmg: 3, time: 0.08, hold: 0.15, rest: 0.7, every: 1.4 },
     make: (_, p) => {
-      // aim at your middle, on through it, never into the floor
+      // aim at your middle (no farther than it reaches); how long the straw must get, and its tilt
       const lock = (e, c) => {
-        const d = _away.copy(c.pc).sub(e.pos).normalize();
-        (e.diveTo ||= new THREE.Vector3()).copy(c.pc).addScaledVector(d, p.reach);
-        e.diveTo.y = Math.max(e.diveTo.y, c.foot.y + e.r * 0.8);
-        e.diveFloor = c.foot.y;
+        const d = Math.min(p.reach, e.pos.distanceTo(c.pc) + 0.02);
+        (e.pokeAt ||= new THREE.Vector3()).copy(c.pc).sub(e.pos).normalize().multiplyScalar(d).add(e.pos);
+        e.pokeFloor = c.foot.y;
+        e.pokeLen = Math.max(0.3, d / e.r - 0.7);                       // radius units, from under its head
+        e.pokePitch = Math.atan2(e.pos.y - e.pokeAt.y, Math.hypot(e.pokeAt.x - e.pos.x, e.pokeAt.z - e.pos.z) + 1e-6);
       };
       return {
-        rollDmg: p.dmg,                   // touching you mid-dart hits this hard (Run.contactDamage)
-        diveWidth: p.reach,
-        init(e) { e.diveCd = 1 + Math.random() * 1.5; },
+        init(e) { e.pokeCd = 0.6 + Math.random(); e.pokeK = 0; },
         tick(e, c, en) {
-          const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it hangs where it is
+          const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it stays put
           e.stateT -= c.dt * live;
-          e.diveCd -= c.dt;
+          e.pokeCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.dist < p.range && e.diveCd <= 0 && live) { e.state = 'windup'; e.stateT = e.diveMax = p.windup; e.flyHeld = true; lock(e, c); }
+            if (c.dist < p.range && e.pokeCd <= 0 && live) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
           } else if (e.state === 'windup') {
-            e.vel.multiplyScalar(Math.exp(-8 * c.dt));       // drifts to a stop, buzzing
+            e.vel.multiplyScalar(Math.exp(-10 * c.dt));
             e.pos.addScaledVector(e.vel, c.dt * live);
             if (e.stateT > p.windup * 0.5) lock(e, c);
-            if (e.stateT <= 0) {
-              e.state = 'dash';
-              (e.diveFrom ||= new THREE.Vector3()).copy(e.pos);
-              e.diveLen = Math.max(0.01, e.diveFrom.distanceTo(e.diveTo));
-              e.diveGone = 0;
-              en.dart(e);
-            }
-          } else if (e.state === 'dash') {
-            e.diveGone += p.speed * c.slow * c.dt;
-            const u = Math.min(1, e.diveGone / e.diveLen);
-            e.pos.lerpVectors(e.diveFrom, e.diveTo, u);
-            e.vel.copy(e.diveTo).sub(e.diveFrom).normalize().multiplyScalar(p.speed);
-            if (u >= 1) { e.state = 'rest'; e.stateT = p.rest; e.flyHeld = false; e.diveCd = p.every; e.vel.multiplyScalar(0.3); }
+            else e.faceLock = true;                                     // locked on: it stops turning after you
+            if (e.stateT <= 0) { e.state = 'poke'; e.stateT = p.time + p.hold; e.pokeHit = false; }
+          } else if (e.state === 'poke') {
+            e.pokeK = Math.min(1, (p.time + p.hold - e.stateT) / p.time);
+            if (e.pokeK >= 1 && !e.pokeHit) { e.pokeHit = true; en.poke(e, c, p.dmg); }
+            if (e.stateT <= 0) { e.state = 'retract'; e.stateT = p.time * 2; }
+          } else if (e.state === 'retract') {
+            e.pokeK = Math.max(0, e.stateT / (p.time * 2));
+            if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.flyHeld = false; e.faceLock = false; e.pokeCd = p.every; e.pokeK = 0; }
           } else if (e.state === 'rest' && e.stateT <= 0) e.state = 'approach';
         },
       };

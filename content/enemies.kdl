@@ -40,12 +40,12 @@ enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 dew=7 model="spider" {
     spit every=2.8 reach=0.9 speed=0.6 life=2 dmg=2 aim=0.7 shot="web" height=1.2 arc=0.9 slow=1.5
 }
 
-// Act 2. The house fly (from 0:30): it buzzes around you just out of reach, then hangs in the
-// air rubbing its front legs while a line on the floor shows where it will dart, and darts
-// straight through where you were. Step off the line. A melee bug: it only hurts by hitting you.
+// Act 2. The house fly (from 0:30): it buzzes in close beside you, hangs there rubbing its front
+// legs and draws its head back while a short line on the floor shows where it will strike, then
+// pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
 enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 dew=5 model="housefly" {
-    hover 0.2 above=0.04 speed=0.42 circle=0.9
-    dive range=0.3 windup=0.6 speed=1.0 reach=0.12 dmg=3 rest=0.8 every=2
+    hover 0.1 above=0.01 speed=0.42 circle=0.9
+    poke range=0.14 windup=0.5 reach=0.15 dmg=3 time=0.08 hold=0.15 rest=0.7 every=1.4
 }
 
 // The dust enemies (the hair tangle comes out in act 2; the others are kept for later)
