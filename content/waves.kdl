@@ -8,6 +8,7 @@ spawning {
 }
 
 bug "roach" weight=1                // cockroaches from the start
-bug "ants" weight=0.5 from=45       // ant squads from 0:45
+bug "ants" weight=0.5 from=30       // ant squads from 0:30
 bug "mosquito" weight=0.45 from=90  // mosquitoes from 1:30
+bug "lanternfly" weight=0.3 from=120 // spotted lanternflies from 2:00
 // the standing stapler (content/enemies.kdl) is saved for act 2: add it to that act's waves
