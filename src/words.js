@@ -21,14 +21,22 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
   chase: {
-    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second.',
+    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c) {
         c.dir.copy(c.flatDir);
-        if (p.weave) c.dir.applyAxisAngle(UP, Math.sin(c.t * p.rate * Math.PI * 2 / 2 + e.phase) * p.weave);
+        if (p.weave) c.dir.applyAxisAngle(UP, Math.sin(c.t * p.rate * Math.PI + e.phase) * p.weave);
+        if (p.turn) {
+          // its heading swings toward where it wants to go, no faster than `turn`
+          const h = (e.heading ||= c.dir.clone()), cur = Math.atan2(h.x, h.z);
+          let d = Math.atan2(c.dir.x, c.dir.z) - cur;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          const a = cur + THREE.MathUtils.clamp(d, -p.turn * c.dt, p.turn * c.dt);
+          c.dir.copy(h.set(Math.sin(a), 0, Math.cos(a)));
+        }
         c.speed = speed * c.slow;
         if (!p.stop || c.flat > p.stop) return;
         if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
@@ -154,6 +162,7 @@ export const ENEMY_WORDS = {
           c.dir.copy(e.dashDir);
           e.spinV = 26;
           if (e.stateT <= 0) { e.state = 'uncurl'; e.stateT = p.uncurl; }
+          e.heading?.copy(e.dashDir);                            // it carries on the way it rolled
         } else if (e.state === 'uncurl') {
           c.speed = 0;
           e.spinV *= Math.exp(-6 * c.dt);

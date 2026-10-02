@@ -534,8 +534,32 @@ story('enemies/millipede-slithers', {
     // the tail lies back along the path, a body length behind the head
     e.root.updateMatrixWorld(true);
     const tail = e.mesh.children[0].children.at(-1).getWorldPosition(new THREE.Vector3());
-    const behind = tail.distanceTo(e.pos), along = path.some((p) => p.distanceTo(tail) < 0.03);
+    const behind = tail.distanceTo(e.pos), along = path.some((p) => p.distanceTo(tail) < 0.06);
     return ok(weave > 0.02 && behind > 0.15 && along, { weave: +weave.toFixed(3), behind: +behind.toFixed(3), along });
+  },
+});
+story('enemies/millipede-never-overlaps', {
+  about: 'However you dart round behind it, the millipede\'s body never folds through itself: it swings round in arcs and its rings keep apart.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.5)); e.ballCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0];
+    const segs = e.mesh.children[0].children, wide = 0.92 * e.r, v = new THREE.Vector3(), pts = segs.map(() => new THREE.Vector3());
+    let worst = 9, at = 0;
+    step(60 * 6, (i) => {
+      // keep darting round behind it, so it has to turn right round to follow
+      if (i % 50 === 0) {
+        const c = e.pos, side = (i / 50) % 2 ? 1 : -1;
+        tp(c.x - Math.sin(e.root.rotation.y) * 0.2 + Math.cos(e.root.rotation.y) * 0.06 * side, player.position.y, c.z - Math.cos(e.root.rotation.y) * 0.2 - Math.sin(e.root.rotation.y) * 0.06 * side);
+      }
+      if (i < 30) return;
+      e.root.updateMatrixWorld(true);
+      segs.forEach((s, k) => s.getWorldPosition(pts[k]));
+      for (let a2 = 0; a2 < pts.length; a2++) for (let b = a2 + 3; b < pts.length; b++) {
+        const d = v.copy(pts[a2]).sub(pts[b]).setY(0).length();
+        if (d < worst) { worst = d; at = i; }
+      }
+    });
+    return ok(worst > wide * 0.75, { worst: +worst.toFixed(4), wide: +wide.toFixed(4), frame: at });
   },
 });
 story('words/hover', {

@@ -943,36 +943,48 @@ export function buildMillipede() {
     segs.push({ seg, legs });
   }
 
-  // where the head has been (world x, z), newest first: the body lies along it
-  const trail = [];
+  // the body as a chain (world x, z per segment): each one follows the one in front at a fixed
+  // gap, like a rope pulled by the head, and segments that aren't neighbours push each other apart
+  // so the body never folds through itself
+  const W = [];
   const qWalk = new THREE.Quaternion(), qBall = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), Y = V(0, 1, 0), X = V(1, 0, 0);
   const pWalk = new THREE.Vector3(), pBall = new THREE.Vector3();
   let t = 0, move = 0;
   const anim = (dt, e) => {
     t += dt;
     const root = e.root, ry = root.rotation.y, sc = Math.max(1e-4, e.mesh.scale.x);
-    const hx = e.pos.x, hz = e.pos.z;
-    if (!trail.length) for (let k = 0; k <= 40; k++) trail.push([hx - Math.sin(ry) * k * 0.01, hz - Math.cos(ry) * k * 0.01]);
-    if (Math.hypot(trail[0][0] - hx, trail[0][1] - hz) > 0.003) { trail.unshift([hx, hz]); if (trail.length > 160) trail.pop(); }
+    const hx = e.pos.x, hz = e.pos.z, gap = MIL.gap * sc, wide = 0.92 * sc;   // wide: the body's thickness
+    if (!W.length) for (let k = 0; k < N; k++) W.push([hx - Math.sin(ry) * k * gap, hz - Math.cos(ry) * k * gap]);
+    W[0][0] = hx; W[0][1] = hz;
+    const follow = () => {
+      for (let k = 1; k < N; k++) {
+        const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
+        b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
+      }
+    };
+    follow();
+    for (let pass = 0; pass < 2; pass++) {
+      let pushed = false;
+      for (let a = 0; a < N; a++) for (let b = a + 3; b < N; b++) {
+        const A = W[a], B = W[b], dx = B[0] - A[0], dz = B[1] - A[1], d = Math.hypot(dx, dz);
+        if (d >= wide || d < 1e-7) continue;
+        const k = (wide - d) / d * 0.5;
+        if (a > 0) { A[0] -= dx * k; A[1] -= dz * k; B[0] += dx * k; B[1] += dz * k; }
+        else { B[0] += dx * k * 2; B[1] += dz * k * 2; }        // the head goes where it goes: the body gives way
+        pushed = true;
+      }
+      if (!pushed) break;
+      W[0][0] = hx; W[0][1] = hz;
+      follow();
+    }
     move += (Math.min(1, Math.hypot(e.vel.x, e.vel.z) * 8) - move) * (1 - Math.exp(-8 * dt));
     const curl = e.curlK || 0, spin = e.spinA || 0;
     qSpin.setFromAxisAngle(X, spin);
-    // walk the trail from the head back, placing each segment `gap` behind the one before
-    let k = 0, carried = 0, px = hx, pz = hz, need = 0;
     for (let i = 0; i < N; i++) {
-      need = i * MIL.gap * sc;
-      while (k < trail.length) {
-        const [qx, qz] = trail[k], d = Math.hypot(qx - px, qz - pz);
-        if (carried + d >= need) break;
-        carried += d; px = qx; pz = qz; k++;
-      }
-      let wx = px, wz = pz, tx = 0, tz = 1;
-      if (k < trail.length) {
-        const [qx, qz] = trail[k], d = Math.max(1e-6, Math.hypot(qx - px, qz - pz)), f = (need - carried) / d;
-        wx = px + (qx - px) * f; wz = pz + (qz - pz) * f;
-        tx = (px - qx) / d; tz = (pz - qz) / d;                  // forward: back toward the head
-      } else { tx = Math.sin(ry); tz = Math.cos(ry); wx = px - tx * (need - carried); wz = pz - tz * (need - carried); }
-      if (i === 0) { tx = Math.sin(ry); tz = Math.cos(ry); }       // the head looks where it's going (at you)
+      const [wx, wz] = W[i];
+      // each segment faces the one in front of it; the head faces away from the one behind (where it's going)
+      const f = i === 0 ? W[0] : W[i - 1], b = i === 0 ? W[1] : W[i];
+      const tx = f[0] - b[0], tz = f[1] - b[1];
       const dx = wx - hx, dz = wz - hz, c = Math.cos(ry), s = Math.sin(ry);
       pWalk.set((dx * c - dz * s) / sc, MIL.y, (dx * s + dz * c) / sc);
       qWalk.setFromAxisAngle(Y, Math.atan2(tx, tz) - ry);
