@@ -26,7 +26,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v76';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v77';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -86,7 +86,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="duel">🐞 1 on 1 (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -338,6 +338,12 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
   else if (b.dataset.act === 'act') goToAct(currentAct() === 1 ? 2 : 1);   // dev: jump between act 1 and act 2 (a fresh run)
+  else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
+    overlay.hidden = true;
+    const picks = run.duelChoices();
+    run.ui.message('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', [],
+      [...picks.map((p) => ({ label: p.name, onClick: () => { run.startDuel(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
+  }
   else if (b.dataset.act === 'boss') { run.start(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {

@@ -1041,6 +1041,36 @@ story('modes/dev-fight-boss', {
   },
 });
 
+story('modes/dev-one-on-one', {
+  about: 'The pause menu\'s 1 on 1 (dev) button lists every enemy; picking one starts a run with just it (it comes back after you clear it), and an elite puts you on its high ground.',
+  setup() { fresh(); },
+  play() {
+    const { run, enemies } = G();
+    const pickFrom = (name) => {
+      document.getElementById('g-over').hidden = false;
+      document.querySelector('#g-over [data-act="duel"]').click();
+      const btn = [...document.querySelectorAll('.btns button')].find((b) => b.textContent === name);
+      btn?.click();
+      document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
+      return !!btn;
+    };
+    const listed = pickFrom('House fly');
+    stub(run, 'hurt', () => {}); stub(run.bubbles, 'update', () => {}); stub(run.lash, 'update', () => {});
+    step(60 * 4);
+    const bugs = () => enemies.list.filter((e) => !e.dead && !e.proxy);
+    const alone = bugs().length === 1 && bugs()[0].type === 'housefly';
+    enemies.applyDamage(bugs()[0], 1e4);
+    step(30);
+    const gone = bugs().length === 0;
+    step(90);
+    const back = bugs().length === 1 && bugs()[0].type === 'housefly';
+    const elite = pickFrom('The Mug (elite)');
+    step(30);
+    const mug = run.elites.alive.length === 1 && run.elites.alive[0].spec.kind === 'mug' && G().player.position.y > 0.6 && bugs().length === 0;
+    return ok(listed && alone && gone && back && elite && mug, { listed, alone, gone, back, elite, mug, y: +G().player.position.y.toFixed(2) });
+  },
+});
+
 story('gifts/not-on-vent-landings', {
   about: 'No golden gift spot sits on a vent\'s landing point: the ones that did moved over, onto the same surface.',
   setup() { fresh(); },

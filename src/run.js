@@ -92,6 +92,7 @@ export class Run {
   // ------------------------------------------------------------ setup
   start() {
     const s = this.stage;
+    this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
     this.gift?.hide();
@@ -239,7 +240,8 @@ export class Run {
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
     // --- the night: waves, gifts, and the boss when time runs out
-    if (this.phase === 'explore') {
+    if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
+    else if (this.phase === 'explore') {
       this.spawnWaves(dt);
       this.updateGifts(dt);
       if (this.t >= this.duration && this.phase === 'explore') this.startBossIntro();
@@ -295,6 +297,50 @@ export class Run {
     if (this.phase === 'intro') this.updateBossIntro(dt);
     if (this.pendingLevels > 0 && !this.ui.open && this.phase !== 'intro') this.levelUp();
     this.refreshHud();
+  }
+
+  // ------------------------------------------------------------ dev: one on one
+  // A fresh run with nothing in it but one enemy, to see how it moves and attacks: a bug that
+  // turns up in front of you (another 1.5 s after you clear it), or one of this act's elites with
+  // you on its high ground (it comes back after you beat it). No waves, no gifts, no boss.
+  duelChoices() {
+    const bugs = Object.values(TYPES).map((T) => ({ name: T.name, bug: T.id }));
+    const elites = (this.stage.elites || []).map((spec) => ({ name: `The ${spec.kind[0].toUpperCase()}${spec.kind.slice(1)} (elite)`, elite: spec }));
+    return [...bugs, ...elites];
+  }
+
+  startDuel(pick) {
+    this.start();
+    this.startPicked = true;
+    this.duel = { ...pick, wait: 0 };
+    this.elites.start(pick.elite ? [pick.elite] : []);
+    if (pick.elite) {
+      // up on its high ground: where the vent that goes there lands you
+      const at = pick.elite.at, v = [...this.traversal.vents].sort((a, b) => Math.hypot(a.land[0] - at[0], a.land[2] - at[2]) - Math.hypot(b.land[0] - at[0], b.land[2] - at[2]))[0];
+      const p = new THREE.Vector3(...(v ? v.land : at));
+      this.world.focus(p, 1);
+      this.player.spawn(p);
+      this.player.snapToGround();
+      this.tpc.snapTo(this.player.position);
+    } else this.duelSpawn();
+    this.hud.toast(`🐞 1 on 1: ${pick.name}`, 2000);
+  }
+
+  // the duel's bug, a little way off where it can reach you (straight ahead if nowhere else)
+  duelSpawn() {
+    const type = this.duel.bug, P = this.player.position, f = this.player.facing;
+    const at = this.spawnPoint(type) || P.clone().add(new THREE.Vector3(Math.sin(f) * 0.4, TYPES[type].fly ? 0.08 : 0.02, Math.cos(f) * 0.4));
+    this.enemies.spawn(type, at, this.stage.toughness || 1);
+  }
+
+  updateDuel(dt) {
+    const D = this.duel;
+    const left = D.bug ? this.enemies.list.some((e) => !e.dead && !e.proxy) : this.elites.alive.length > 0;
+    if (left) { D.wait = 0; return; }
+    if ((D.wait += dt) < (D.bug ? 1.5 : 4)) return;
+    D.wait = 0;
+    if (D.bug) this.duelSpawn();
+    else this.elites.start([D.elite]);
   }
 
   // ------------------------------------------------------------ waves
@@ -749,7 +795,7 @@ export class Run {
     const clock = `${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM`;
     const exploring = this.phase === 'explore';
     h.setClock(exploring ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
-    h.setStage(exploring ? `${clock} · ${this.stage.boss.name} is coming` : '');
+    h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name} is coming` : '');
   }
 
   markers() {

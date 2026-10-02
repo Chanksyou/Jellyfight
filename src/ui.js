@@ -19,7 +19,7 @@ const CSS = `
 .jf-card .now { font-size: 12.5px; opacity: .7; }
 .jf-card .txt { font-size: 14px; line-height: 1.35; opacity: .92; }
 .jf-card .key { position: absolute; top: 8px; left: 10px; font-size: 12px; opacity: .55; font-weight: 700; }
-.jf-modal .btns { margin-top: 22px; display: flex; gap: 10px; justify-content: center; }
+.jf-modal .btns { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
 .jf-modal .btns button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
 .jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
 .jf-modal .btns button:disabled { opacity: .35; cursor: default; }
