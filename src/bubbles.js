@@ -1,5 +1,7 @@
-// Bubbles: the jelly's main attack. It blows a steady stream of small bubbles, one after
-// another (shots per second = blow rate x bubbles), each at the next of the nearest enemies. Bubbles drift toward their target (steering a
+// Bubbles: the jelly's main attack. It blows a steady stream of small bubbles at the nearest
+// enemy (blows per second = blow rate). With more than one bubble, each blow is that many
+// bubbles side by side, leaving at the same moment and flying parallel (every bubble a little
+// weaker: stats.js bubbleDamage). Bubbles drift toward their target (steering a
 // little, so they mostly land), pop on the first enemy they touch for damage plus a small
 // splash, and pop harmlessly on walls or when they run out of range. Treasures hook in here.
 //
@@ -20,6 +22,7 @@ import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
+import { bubbleDamage } from './stats.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -35,6 +38,7 @@ export const ELEMENTS = [
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
+const _zero = new THREE.Vector3();
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -108,8 +112,8 @@ export class Bubbles {
 
   // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
   update(dt, origin, stats, mods) {
-    // one bubble at a time: more bubbles or a faster blow rate = a faster stream
-    this.timer += dt * stats.blowRate * stats.bubbles;
+    // one blow at a time: a faster blow rate = a faster stream
+    this.timer += dt * stats.blowRate;
     if (this.timer >= 1) {
       if (this.volley(origin, stats, mods)) this.timer -= 1;
       else this.timer = 1;            // ready, waiting for something in range
@@ -125,15 +129,23 @@ export class Bubbles {
   volley(origin, stats, mods) {
     const near = this.inRange(origin, stats.range);
     if (!near.length) return false;
-    // the next of the nearest `bubbles` enemies, in turn
-    const target = near[this.volleys % Math.min(near.length, stats.bubbles)];
+    const target = near[0];
     this.volleys++;
     const n = this.volleys;
     const B = mods.bubbles;
     const golden = B.golden && n % B.golden.every === 0 ? B.golden.mult : 0;   // golden: its damage multiplier
     const size = stats.bubbleSize, elems = this.elements(mods);
     const tint = elems.length ? elems[n % elems.length] : null;
-    this.blow(origin, target, { size, dmg: stats.pop, golden, elems, tint, pierce: B.pierce, spread: (Math.random() - 0.5) * 0.12 });
+    // `bubbles` of them side by side, across the line to the target, all leaving now
+    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.pop * bubbleDamage(count);
+    const spread = (Math.random() - 0.5) * 0.12, gap = Math.max(0.014, RADIUS * size * 2.6);
+    const dir = this.enemies.center(target).sub(origin).setY(0);
+    if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+    const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    for (let k = 0; k < count; k++) {
+      const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
+      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, tint, pierce: B.pierce, spread, off });
+    }
     // Reed Stick: every 6th bubble is a giant, slow one
     const G = B.giant;
     if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.pop * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
@@ -144,12 +156,13 @@ export class Bubbles {
   blow(origin, target, o) {
     const m = this.mesh(o.golden ? this.goldMat : o.tint ? this.elemMats[o.tint] : this.mat);
     m.position.copy(origin);
-    const dir = this.enemies.center(target).sub(origin).normalize();
+    const dir = this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
     const b = {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.dmg * 4.5, golden: o.golden,
       pierce: o.pierce, hit: new Set(), travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
       elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
+      off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     };
     const wind = b.elems.has('wind');
     b.vel = dir.multiplyScalar(SPEED * (o.speed || 1) * (wind ? 1.4 : 1));
@@ -167,7 +180,9 @@ export class Bubbles {
       // steer gently toward the target while it lives, until the bubble has hit it (a piercing
       // bubble then flies straight on instead of turning back to it)
       if (b.target && !b.target.dead && !b.hit.has(b.target)) {
-        const want = E.center(b.target, c).sub(b.m.position).normalize().multiplyScalar(b.vel.length());
+        E.center(b.target, c);
+        if (b.off) c.add(b.off);                                       // side by side: keep its lane
+        const want = c.sub(b.m.position).normalize().multiplyScalar(b.vel.length());
         b.vel.lerp(want, 1 - Math.exp(-3 * dt));
       }
       const step = b.vel.length() * dt;

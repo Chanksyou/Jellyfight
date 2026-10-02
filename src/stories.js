@@ -198,7 +198,7 @@ story('movement/roach-slower-than-jelly', {
 
 // --- the bubble stream
 story('attack/bubble-stream', {
-  about: 'Bubbles come out one at a time (never two in a frame), about 1.76 a second to start.',
+  about: 'With one bubble, bubbles come out one at a time (never two in a frame), about 1.76 a second to start.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.2)), { still: true, hp: 9999 }); },
   play() {
     const { run, enemies } = G();
@@ -210,6 +210,28 @@ story('attack/bubble-stream', {
     const perSec = born.length / 10, sameFrame = born.filter((x, i) => i && born[i - 1] === x).length;
     const dps = (9999 - e.hp) / 10;
     return ok(Math.abs(perSec - 1.76) < 0.25 && sameFrame === 0 && dps > 8, { perSec, sameFrame, dps: +dps.toFixed(1) });
+  },
+});
+
+story('attack/side-by-side-bubbles', {
+  about: 'With 3 bubbles, each blow is 3 bubbles leaving at the same moment side by side, flying parallel, each doing 72% damage (15% less per extra bubble).',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 9999 }); G().run.stats.bubbles = 3; },
+  play() {
+    const { run } = G();
+    const born = [];
+    let f = 0;
+    const blow = run.bubbles.blow.bind(run.bubbles);
+    stub(run.bubbles, 'blow', (...a) => { const b = blow(...a); born.push({ f, b }); return b; });
+    for (f = 0; f < 120 && born.length < 3; f++) G().GAME.step(1 / 60);
+    const first = born.slice(0, 3), b = first.map((x) => x.b);
+    step(4);
+    const sameFrame = first.every((x) => x.f === first[0].f);
+    const dirs = b.map((x) => x.vel.clone().setY(0).normalize());
+    const parallel = dirs.every((d) => d.dot(dirs[0]) > 0.995);
+    const gaps = [b[0].m.position.distanceTo(b[1].m.position), b[1].m.position.distanceTo(b[2].m.position)];
+    const dmg = b[0].dmg / run.S.pop;
+    return ok(first.length === 3 && sameFrame && parallel && gaps.every((g) => g > 0.01) && Math.abs(dmg - 0.85 ** 2) < 1e-6,
+      { n: first.length, sameFrame, parallel, gaps: gaps.map((g) => +g.toFixed(3)), dmg: +dmg.toFixed(3) });
   },
 });
 

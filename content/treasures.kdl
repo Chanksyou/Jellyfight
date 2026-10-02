@@ -142,7 +142,7 @@ treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow th
 treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 pop damage." stack=3 {
     stat pop 2
 }
-treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="One more bubble in the stream." stack=2 {
+treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="Blow one more bubble side by side with the others (every bubble does 15% less damage)." stack=2 {
     stat bubbles 1
 }
 treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="Dew flies to you from three times as far." {

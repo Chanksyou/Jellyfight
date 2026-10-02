@@ -4,10 +4,10 @@ import { CONTENT } from './content.js';
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
-  bubbles: 2,       // more bubbles: a faster stream, spread across that many of the nearest enemies
+  bubbles: 1,       // bubbles blown side by side at once, flying parallel; each extra one costs damage (BUBBLE_PENALTY)
   range: 0.3,       // meters a bubble flies before it pops on its own
   pop: 6,           // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
-  blowRate: 0.88,   // stream speed: bubbles per second = blow rate x bubbles (1.76/s to start)
+  blowRate: 1.76,   // blows per second (each blow is `bubbles` bubbles at once)
   bubbleSize: 1.0,  // size multiplier: bigger bubbles are easier to land and splash wider
   moisture: 25,     // max health
   pulse: 1.0,       // swim speed multiplier
@@ -24,7 +24,7 @@ export const BASE_STATS = {
 
 // How each stat is shown on a card and in the stats panel
 export const STAT_INFO = {
-  bubbles:    { name: 'Bubbles',     icon: '🫧', fmt: (v) => `${v}` },
+  bubbles:    { name: 'Bubbles',     icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleDamage(v) * 100)}% damage each` : `${v}`) },
   range:      { name: 'Range',       icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
   pop:        { name: 'Pop damage',  icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
   blowRate:   { name: 'Blow rate',   icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
@@ -75,12 +75,17 @@ const CARD_VALUES = {
   luck:       { amounts: [10, 18, 30] },                     // see luckWeights
 };
 
+// Each bubble past the first makes every bubble in the blow 15% weaker (compounding): 2 bubbles
+// do 85% each (1.7x in all), 3 do 72% (2.2x), 6 do 44% (2.7x). More bubbles, more spread, less punch.
+export const BUBBLE_PENALTY = 0.15;
+export const bubbleDamage = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
+
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
   const v = CARD_VALUES[card.stat];
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
-  const unit = card.stat === 'bubbles' ? (card.amount === 1 ? ' Bubble' : ' Bubbles') : ` ${info.name}`;
-  return `+${amount}${unit}`;
+  if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleDamage(card.amount + 1)) * 100)}% less damage each`;
+  return `+${amount} ${info.name}`;
 }
 
 export function applyCard(stats, card) {
@@ -145,7 +150,7 @@ export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble, +15% Swim speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.pulse += 0.15; } },
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (15% less damage each), +15% Swim speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.pulse += 0.15; } },
   { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+1 Tentacle, +4 Sting, +25% Tentacle reach', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.sting += 4; s.reach += BASE_STATS.reach * 0.25; } },
   { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Moisture', apply: (s) => { s.moisture += 10; } },
   { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Blow rate, +25% Lash speed', apply: (s) => { s.blowRate += BASE_STATS.blowRate * 0.25; s.lashSpeed += 0.25; } },
