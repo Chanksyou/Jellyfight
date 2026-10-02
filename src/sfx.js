@@ -39,27 +39,6 @@ export function unlock() {
 // the audio context and master volume, for the music (music.js); null until unlocked
 export const audio = () => (ctx ? { ctx, master } : null);
 
-// The Vacuum's motor: a hum for the whole fight, higher and brighter the faster it drives.
-// Returns { set(speed 0..1, angry), stop() }, or a stand-in that does nothing without audio.
-export function vacMotor() {
-  if (!ready()) return { set() {}, stop() {} };
-  const t = now(), a = ctx.createOscillator(), b = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-  a.type = 'sawtooth'; b.type = 'square';
-  f.type = 'lowpass'; f.Q.value = 2;
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 1);
-  a.connect(f); b.connect(f); f.connect(g).connect(master);
-  a.start(t); b.start(t);
-  return {
-    set(speed, angry) {
-      const k = ctx.currentTime, base = angry ? 70 : 55;
-      a.frequency.setTargetAtTime(base * (1 + speed * 1.4), k, 0.1);
-      b.frequency.setTargetAtTime(base * 2.02 * (1 + speed * 1.4), k, 0.1);
-      f.frequency.setTargetAtTime(350 + 1800 * speed, k, 0.1);
-    },
-    stop() { const k = ctx.currentTime; g.gain.cancelScheduledValues(k); g.gain.setTargetAtTime(0.0001, k, 0.3); a.stop(k + 1.5); b.stop(k + 1.5); },
-  };
-}
-
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
 export const isMuted = () => muted;
 

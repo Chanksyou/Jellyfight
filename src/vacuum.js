@@ -15,7 +15,7 @@ import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial } from './vfx.js';
-import { sfx, vacMotor } from './sfx.js';
+import { sfx } from './sfx.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
@@ -183,7 +183,7 @@ export class Vacuum {
     const out = { push: null, hurt: 0, hit: 0, contact: false };
     const p = this.holder.position, P = player.position;
     if (this.dead) {
-      if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); this.motor?.stop(); this.motor = null; }
+      if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
       this.line.material.opacity = this.swirl.material.opacity = 0;
       this.dome.visible = this.tethers.visible = false;
@@ -194,7 +194,6 @@ export class Vacuum {
     if (this.rise < 1) {
       if (this.rise === 0) sfx.vacPowerOn();
       this.rise = Math.min(1, this.rise + dt * 0.8);
-      if (this.rise >= 1) this.motor = vacMotor();
       this.body.scale.setScalar(this.rise);
       this.heading = Math.atan2(P.x - p.x, P.z - p.z);
       this.body.rotation.y = this.heading;
@@ -298,9 +297,7 @@ export class Vacuum {
     }
     this.prevT = this.stateT;
     this.shield(dt);
-    // the motor follows what it's doing; crossing into angry sounds the siren
-    const speed = { chase: angry ? 0.6 : 0.45, charge: this.locked ? 1 : 0.75, suction: 0.85, brushes: 0.7, dump: 0.2, spin: 1, flies: 0.35 }[this.state] ?? 0.4;
-    this.motor?.set(speed, angry);
+    // crossing into angry sounds the siren
     if (angry && !this.wasAngry) sfx.vacAngry();
     this.wasAngry = angry;
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
@@ -406,8 +403,6 @@ export class Vacuum {
   }
 
   dispose() {
-    this.motor?.stop();
-    this.motor = null;
     this.scene.remove(this.holder);
     this.scene.remove(this.line);
     this.scene.remove(this.swirl);
