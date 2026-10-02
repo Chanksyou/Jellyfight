@@ -11,7 +11,7 @@
 //   enemy_frozen    { targetId, pos, r }
 //   enemy_killed    { targetId, type, elite, pos, floor, r, dew, silent }
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
-//   boss_health     { name, hp, maxHp }
+//   boss_health     { name, hp, maxHp, shielded? }
 export const PLAYER = 'player';
 
 const listeners = new Map();

@@ -1,4 +1,4 @@
-// Things you collect: dew (XP), the Moon Drop, and golden gifts.
+// Things you collect: dew (XP) and golden gifts.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 
@@ -61,54 +61,6 @@ export class Dew {
     if (got || this.list.some((d) => d.done)) this.list = this.list.filter((d) => !d.done);
     this.magnetAll = false;
     return got;
-  }
-}
-
-// ---------------------------------------------------------------- moon drop
-export class MoonDrop {
-  constructor(scene) {
-    this.group = new THREE.Group();
-    this.group.visible = false;
-    scene.add(this.group);
-    this.glow = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 3, roughness: 0.2 });
-    this.orb = new THREE.Mesh(new THREE.SphereGeometry(0.008, 24, 16), this.glow);
-    this.orb.scale.y = 1.25;
-    this.group.add(this.orb);
-    this.halo = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.group.add(this.halo);
-    this.beam = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.004, 0.012, 1.4, 12, 1, true).translate(0, 0.7, 0),
-      new THREE.MeshBasicMaterial({ color: 0xe8f0ff, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
-    );
-    this.group.add(this.beam);
-    this.spot = null;
-    this.t = 0;
-  }
-
-  // full: the last drop of the stage (summons the boss), bigger and warmer
-  show(spot, surfaceY, full = false) {
-    this.spot = spot;
-    this.full = full;
-    this.glow.emissive.setHex(full ? 0xffb060 : 0xfff0c0);
-    this.halo.material.color.setHex(full ? 0xffb060 : 0xfff0c0);
-    this.base = new THREE.Vector3(spot.at[0], surfaceY + 0.018, spot.at[2]);
-    this.group.position.copy(this.base);
-    this.group.visible = true;
-    this.t = 0;
-  }
-
-  hide() { this.group.visible = false; this.spot = null; }
-  get active() { return this.group.visible; }
-  get position() { return this.group.position; }
-
-  update(dt) {
-    if (!this.group.visible) return;
-    this.t += dt;
-    this.group.position.y = this.base.y + Math.sin(this.t * 2.2) * 0.004;
-    this.orb.rotation.y += dt;
-    const s = Math.min(1, this.t * 3) * (this.full ? 1.6 : 1);
-    this.group.scale.setScalar(s);
-    this.halo.scale.setScalar(1 + Math.sin(this.t * 4) * 0.15);
   }
 }
 

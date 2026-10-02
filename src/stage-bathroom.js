@@ -9,7 +9,7 @@ export const STAGE_BATHROOM = {
   rooms: ['Bathroom', 'Hallway', 'Laundry closet', 'Coat closet'],
   parts: ['act1', 'act2'],           // apartment files to load (apartment.js): the bathroom and closets on top of act 1's living room and hallway
   start: [1.0, 0.004, 6.8],          // bath mat
-  duration: 120,                      // seconds until the boss comes, Moon Drops or not
+  duration: 120,                      // seconds until the boss comes
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   // Things the player shouldn't bump into or can pass through
@@ -37,11 +37,9 @@ export const STAGE_BATHROOM = {
     { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
   ],
 
-  // Possible Moon Drop spots. One is active at a time; each of the first three gives a
-  // treasure, the fourth summons the boss. At the start of each run the game
-  // keeps only spots that are open: nothing overhead, nothing crowding them, flat ground
-  // (see Run.openSpot), so a drop is never tucked under or between things.
-  drops: [
+  // Where golden gifts can turn up. At the start of each run the game keeps only spots that
+  // are open: nothing overhead, nothing crowding them, flat ground (see Run.openSpot).
+  spots: [
     { area: 'Bathroom', at: [1.0, 0.004, 6.8], label: 'bath mat' },
     { area: 'Bathroom', at: [1.25, 0.025, 5.95], label: 'duck rug' },
     { area: 'Bathroom', at: [0.75, 0.004, 6.35], label: 'bathroom floor' },
@@ -60,7 +58,7 @@ export const STAGE_BATHROOM = {
   ],
 
 
-  // The boss arena: the bathtub. Moonlight carries you in once all 3 drops are collected.
+  // The boss arena: the bathtub. You're carried in when the timer runs out.
   boss: {
     name: 'The Clog',
     kind: 'hair',

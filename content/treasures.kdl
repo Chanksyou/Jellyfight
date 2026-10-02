@@ -1,4 +1,4 @@
-// Treasures: lost things you keep for the rest of the run, picked from Moon Drops, gift boxes
+// Treasures: lost things you keep for the rest of the run, picked from gift boxes
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
 // Damage numbers are multiples of your power (pop damage x 1.8) unless a word says otherwise.

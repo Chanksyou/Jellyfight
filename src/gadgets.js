@@ -87,7 +87,7 @@ export class Gadgets {
   near(center, radius, { proxies = true } = {}) {
     const E = this.enemies, out = [], c = new THREE.Vector3();
     for (const e of E.list) {
-      if (e.dead || (!proxies && e.proxy)) continue;
+      if (e.dead || (!proxies && e.proxy) || e.proxy?.shielded) continue;
       const d = E.center(e, c).distanceTo(center) - e.r;
       if (d <= radius) out.push([d, e]);
     }

@@ -39,10 +39,10 @@ function restore() {
   }
 }
 
-// A clean run with the noise switched off: no waves, no Moon Drop, no level-ups, no dying
+// A clean run with the noise switched off: no waves, no gifts, no level-ups, no dying
 // (each can be turned back on), and the start pick skipped.
-export function fresh({ waves = false, drops = false, gifts = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
-  const { run, menus, moon, enemies } = G();
+export function fresh({ waves = false, gifts = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
+  const { run, menus, enemies } = G();
   restore();
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
@@ -50,7 +50,6 @@ export function fresh({ waves = false, drops = false, gifts = false, hurt = fals
   run.startPicked = true;
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
-  if (!drops) { stub(run, 'updateDrops', () => {}); moon.hide(); }
   if (!gifts) stub(run, 'updateGifts', () => {});
   if (!hurt) stub(run, 'hurt', () => {});
   if (!levels) stub(run, 'levelUp', () => {});
@@ -865,7 +864,7 @@ story('events/elite-defeat-gives-treasure', {
 // --- the boss
 story('boss/vacuum-arena-and-kill', {
   about: 'The Vacuum fight: low walls keep you in front of the kitchen, and it can be beaten.',
-  setup() { fresh({ bubbles: true }); G().run.startMoonlift(true); },
+  setup() { fresh({ bubbles: true }); G().run.startBossIntro(); },
   play() {
     const { run, menus } = G();
     step(180);
@@ -876,6 +875,29 @@ story('boss/vacuum-arena-and-kill', {
     run.stats.sting = 60; run.stats.tentacles = 4;
     step(60 * 40, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.boss.dead; });
     return ok(phase === 'boss' && inside && run.boss.dead, { phase, esc, dead: run.boss.dead });
+  },
+});
+
+story('boss/vacuum-lanternfly-shield', {
+  about: 'The Vacuum launches 4 lanternflies and is immune until they are all dead, then can be hurt again.',
+  setup() { fresh({ bubbles: false, lash: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, enemies } = G();
+    step(180);
+    const V = run.boss;
+    V.state = 'flies'; V.stateT = 1.0; V.prevT = 1.0;
+    step(60);
+    const flies = V.guards.length, airborne = V.guards.filter((e) => e.airborne).length;
+    const hp0 = V.hp;
+    bus.emit('damage_taken', { targetId: enemies.list.find((e) => e.proxy === V).id, amount: 50, source: 'test' });
+    const immune = V.hp === hp0 && V.shielded;
+    step(60);
+    const landed = V.guards.every((e) => !e.airborne);
+    for (const e of [...V.guards]) enemies.applyDamage(e, 1e4);
+    step(5);
+    const down = !V.shielded;
+    V.damage(50);
+    return ok(flies === 4 && airborne === 4 && immune && landed && down && V.hp === hp0 - 50, { flies, airborne, immune, landed, down, hp: V.hp, hp0 });
   },
 });
 

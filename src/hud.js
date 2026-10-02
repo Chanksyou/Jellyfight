@@ -1,5 +1,5 @@
-// On-screen HUD: moisture, level and dew, night clock, Moon Drops, treasures,
-// minimap of the real floor plan (with the Moon Drop marker), boss bar, hints, toasts.
+// On-screen HUD: moisture, level and XP, the boss countdown and night clock, treasures,
+// minimap of the real floor plan, boss bar, hints, toasts.
 import { bus } from './events.js';
 
 const CSS = `
@@ -27,17 +27,16 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
 #hud .items span { width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; background: #0d122080; border-radius: 6px; }
 #hud .items sub { font-size: 8px; font-weight: 800; }
-/* top centre: how long until the boss, and the Moon Drops as pips */
+/* top centre: how long until the boss */
 #hud .tc { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
 #hud .clock { font: 800 24px/1 system-ui, sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 #hud .clock.dry { color: #ff7a6a; }   /* the boss is almost here */
 #hud .stage { font-size: 11px; opacity: .7; margin-top: 3px; letter-spacing: .04em; }
-#hud .drops { margin-top: 5px; display: flex; gap: 5px; justify-content: center; }
-#hud .drops i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff30; }
-#hud .drops i.on { background: #fff3c4; box-shadow: 0 0 6px #fff3c4; }
 #hud .boss { position: absolute; left: 50%; top: 116px; transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
 #hud .boss .bar { height: 14px; border-color: #ffd9c9; }
 #hud .boss i { background: linear-gradient(#ff8a6a, #c2312a); }
+#hud .boss.shield i { background: linear-gradient(#d6a8ff, #7a2ad0); }
+#hud .boss.shield .bar { border-color: #d6a8ff; }
 #hud .boss .nm { font-weight: 800; letter-spacing: .12em; font-size: 13px; margin-bottom: 4px; text-shadow: 0 1px 3px #000; }
 #hud .map { position: absolute; right: 18px; bottom: 18px; width: 190px; height: 190px; }
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
@@ -60,8 +59,6 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
   #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
   #hud .clock { font-size: 18px; }
   #hud .stage { font-size: 9.5px; margin-top: 2px; }
-  #hud .drops { margin-top: 3px; }
-  #hud .drops i { width: 6px; height: 6px; }
   #hud .boss { top: 70px; }
   #hud .toast { font-size: 17px; top: 30%; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
@@ -73,7 +70,7 @@ body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); 
 export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
-    bus.on('boss_health', ({ name, hp, maxHp }) => this.setBoss(name, hp / maxHp));
+    bus.on('boss_health', ({ name, hp, maxHp, shielded }) => this.setBoss(name, hp / maxHp, shielded));
     this.el = document.createElement('div');
     this.el.id = 'hud';
     this.el.innerHTML = `<style>${CSS}</style>
@@ -83,7 +80,7 @@ export class Hud {
         <div class="bar xp"><i></i></div>
         <div class="items"></div>
       </div>
-      <div class="tc"><div class="clock"></div><div class="stage"></div><div class="drops"></div></div>
+      <div class="tc"><div class="clock"></div><div class="stage"></div></div>
       <div class="boss" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
       <canvas class="map"></canvas>
       <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>
@@ -149,13 +146,14 @@ export class Hud {
     this.$('.clock').classList.toggle('dry', dry);
   }
   setStage(text) { this.set('stage', '.stage', () => text); }
-  setDrops(n, total, boss) { this.set('drops', '.drops', () => (boss ? '' : Array.from({ length: total }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join(''))); }
 
-  setBoss(name, frac) {
+  // shielded: the bar turns purple and says so (the Vacuum's lanternflies)
+  setBoss(name, frac, shielded = false) {
     const b = this.$('.boss');
     b.hidden = name == null;
     if (name == null) return;
-    this.set('bossName', '.boss .nm', () => name.toUpperCase());
+    b.classList.toggle('shield', shielded);
+    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · SHIELDED` : name.toUpperCase()));
     this.$('.boss i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 
@@ -189,7 +187,7 @@ export class Hud {
   setFurniture(list) { this.furniture = list.filter((f) => (f.x1 - f.x0) * (f.z1 - f.z0) > 0.06 && f.top > 0.12); this.mapBase = null; }
 
   // The minimap, kept quiet: the room in one tone with faint furniture, small coloured dots for
-  // what matters (gold gift, lavender Moon Drop, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
+  // what matters (gold gift, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
   // something is well above or below you, and you as a cyan arrow with a soft view cone.
   // markers: [{ x, y, z, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {

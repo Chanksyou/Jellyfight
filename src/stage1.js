@@ -15,7 +15,7 @@ export const STAGE1 = {
   rooms: ['Living room'],
   parts: ['act1'],                   // apartment files to load (apartment.js): the living room, plus the hallway to look at (the wall below keeps you out)
   start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
-  duration: 300,                      // seconds until the boss comes, Moon Drops or not
+  duration: 300,                      // seconds until the boss comes
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   noCollide: [],
@@ -43,10 +43,9 @@ export const STAGE1 = {
     { name: 'Corduroy sofa', min: [0.8, 0, 2.28], max: [2.4, 0.5, 2.45] },   // the front of the seat
   ],
 
-  // Possible Moon Drop spots. One is active at a time; each of the first three gives a
-  // treasure, the fourth summons the boss. At the start of each run the game keeps only
-  // spots that are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
-  drops: [
+  // Where golden gifts can turn up. At the start of each run the game keeps only spots that
+  // are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
+  spots: [
     { area: 'Floor', at: [3.2, 0, 3.0], label: 'middle of the room' },
     { area: 'Floor', at: [3.4, 0, 2.2], label: 'by the lounge chair' },
     { area: 'Floor', at: [1.15, 0, 3.5], label: 'by the desk' },

@@ -14,7 +14,7 @@
 // ball (where it throws you), joined by the arc of the jump. Drag either one and it sticks to
 // whatever surface is under the pointer; R/F nudge it up and down. Vent edits are saved and
 // exported with the furniture, keyed "vent:<name>" with `at` and `land` in world meters.
-// Other stage markers (Moon Drop spots, elites, gift boxes) don't follow moved furniture yet.
+// Other stage markers (gift spots, elites) don't follow moved furniture yet.
 import * as THREE from 'three';
 import { BAKED_LAYOUT } from './layout-baked.js';
 

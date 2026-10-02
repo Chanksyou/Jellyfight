@@ -5,6 +5,9 @@
 //   brushes   the side brushes whirr up, then two sweeping rings hit everything close
 //   dump      it stops and drops cockroaches out of its dust bin
 //   spin      (below 45% health) it spins in place, spraying dust clumps all around
+//   flies     its light flashes purple, then it launches 4 lanternflies out of the bin in high
+//             arcs (a ring marks each landing) and raises a shield: it can't be hurt until all
+//             4 are dead (a purple dome, with a tether to each fly; it gives up after 30 s)
 // Below 45% health it's angry: an orange light, faster driving, shorter pauses.
 // Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
@@ -32,6 +35,8 @@ export class Vacuum {
     this.knock = 0;
     this.knockDir = new THREE.Vector3();
     this.shots = [];
+    this.guards = [];         // the lanternflies holding up its shield
+    this.shieldT = 0;
 
     const root = new THREE.Group();
     const shell = std(0x2a2c31, { roughness: 0.25, metalness: 0.2 });
@@ -104,6 +109,18 @@ export class Vacuum {
     this.swirl.material.opacity = 0;
     this.swirl.renderOrder = 3;
     scene.add(this.swirl);
+    // the shield: a glowing dome, and a tether from it to each lanternfly keeping it up
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({
+      color: hostile('vacuum'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+    }));
+    this.dome.renderOrder = 4;
+    this.dome.visible = false;
+    scene.add(this.dome);
+    this.tethers = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 3), 3)),
+      new THREE.LineBasicMaterial({ color: hostile('vacuum'), transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false }));
+    this.tethers.frustumCulled = false;
+    this.tethers.visible = false;
+    scene.add(this.tethers);
     this.shotGeo = new THREE.IcosahedronGeometry(0.008, 1);
     this.shotMat = std(0x8a8278, { roughness: 1 });
   }
@@ -111,8 +128,15 @@ export class Vacuum {
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position).setY(this.holder.position.y + 0.045); }
 
+  // up while any of the lanternflies it launched is alive
+  get shielded() { return this.guards.length > 0; }
+
   damage(amount, color = '#fff') {
     if (this.dead || this.rise < 1) return;
+    if (this.shielded) {             // bounces off: a flash on the dome
+      this.domeFlash = 1;
+      return;
+    }
     this.hp -= amount;
     this.hitPop = 1;
     this.fx.number(this.center().setY(this.holder.position.y + 0.12), Math.round(amount), color, 16);
@@ -148,7 +172,7 @@ export class Vacuum {
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
     if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
-    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp });
+    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded });
     return { push: out.push };
   }
 
@@ -159,6 +183,7 @@ export class Vacuum {
     if (this.dead) {
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
       this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.dome.visible = this.tethers.visible = false;
       if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
       return out;
     }
@@ -241,6 +266,12 @@ export class Vacuum {
         this.fx.puff(p.clone().addScaledVector(back, this.r + 0.02).setY(0.03), 0x9c958b, 0.06, 0.5);
       }
       if (this.stateT <= 0) this.toChase();
+    } else if (this.state === 'flies') {
+      // the light flashes purple while it winds up, then 4 lanternflies spring out of the bin
+      this.drive(dt, P, 0, 2);
+      this.setLight(0xb04aff, Math.sin(this.t * 24) > 0 ? 3 : 0.8);
+      if (this.prevT > 0.4 && this.stateT <= 0.4) this.launch();
+      if (this.stateT <= 0) this.toChase();
     } else if (this.state === 'spin') {
       // spin in place, spraying dust clumps all around
       this.heading += dt * 9;
@@ -258,6 +289,7 @@ export class Vacuum {
       if (this.stateT <= 0) this.toChase();
     }
     this.prevT = this.stateT;
+    this.shield(dt);
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
 
     // bumping into it knocks you back
@@ -283,6 +315,56 @@ export class Vacuum {
     return out;
   }
 
+  // 4 lanternflies leap out of the bin in high arcs, landing around it (the leap word's own
+  // landing rings warn where), and the shield goes up until they're all dead
+  launch() {
+    const p = this.holder.position, a = this.arena;
+    this.guards = [];
+    for (let k = 0; k < 4; k++) {
+      const ang = this.heading + Math.PI / 4 + (k * Math.PI) / 2;
+      const d = 0.32 + Math.random() * 0.06;
+      const at = new THREE.Vector3(
+        THREE.MathUtils.clamp(p.x + Math.sin(ang) * d, a.arenaMin[0] + 0.05, a.arenaMax[0] - 0.05), p.y,
+        THREE.MathUtils.clamp(p.z + Math.cos(ang) * d, a.arenaMin[2] + 0.05, a.arenaMax[2] - 0.05));
+      const e = this.enemies.spawn('lanternfly', p.clone().setY(p.y + 0.09));
+      e.spawnT = 0.6;
+      (e.leapFrom ||= new THREE.Vector3()).copy(e.pos);
+      (e.leapAt ||= new THREE.Vector3()).copy(at);
+      e.state = 'leap';
+      e.stateT = 0.75;
+      e.leapK = 0;
+      e.airborne = true;
+      this.guards.push(e);
+    }
+    this.shieldT = 30;
+    this.fx.impact(p.clone().setY(p.y + 0.1), hostile('vacuum'), 0.05, 14);
+    this.fx.puff(p.clone().setY(p.y + 0.08), 0x9c958b, 0.06, 0.5);
+  }
+
+  // the shield: the dome breathes, flashes when hit, and a tether runs to each fly still alive
+  shield(dt) {
+    this.guards = this.guards.filter((e) => !e.dead);
+    this.shieldT -= dt;
+    if (this.shieldT <= 0 && this.guards.length) this.guards = [];       // never stuck forever
+    const on = this.shielded, p = this.holder.position;
+    if (this.wasShielded && !on) this.fx.impact(p.clone().setY(p.y + 0.05), hostile('vacuum'), this.r, 24);   // it breaks
+    this.wasShielded = on;
+    this.dome.visible = this.tethers.visible = on;
+    if (!on) return;
+    this.domeFlash = Math.max(0, (this.domeFlash || 0) - dt * 5);
+    this.dome.position.copy(p);
+    this.dome.scale.setScalar(this.r * 1.35);
+    this.dome.material.opacity = 0.22 + 0.06 * Math.sin(this.t * 5) + this.domeFlash * 0.35;
+    const A = this.tethers.geometry.attributes.position;
+    for (let k = 0; k < 4; k++) {
+      const e = this.guards[k];
+      const q = e ? e.pos : p;
+      A.setXYZ(k * 2, p.x, p.y + 0.1, p.z);
+      A.setXYZ(k * 2 + 1, q.x, q.y + (e ? e.r : 0.1), q.z);
+    }
+    A.needsUpdate = true;
+  }
+
   knockBack(toP, speed) {
     this.knock = 0.3;
     this.knockSpeed = speed;
@@ -297,9 +379,10 @@ export class Vacuum {
 
   // the next attack, in a loop (the spin joins once it's angry)
   pick() {
-    const order = this.angry ? ['charge', 'spin', 'suction', 'brushes', 'charge', 'dump'] : ['charge', 'suction', 'brushes', 'dump'];
+    const order = this.angry ? ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] : ['charge', 'suction', 'flies', 'brushes', 'dump'];
     this.state = order[this.next++ % order.length];
-    this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2 }[this.state];
+    if (this.state === 'flies' && this.shielded) this.state = order[this.next++ % order.length];   // one shield at a time
+    this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2, flies: 1.0 }[this.state];
     this.prevT = this.stateT;
     this.locked = false;
   }
@@ -308,6 +391,8 @@ export class Vacuum {
     this.scene.remove(this.holder);
     this.scene.remove(this.line);
     this.scene.remove(this.swirl);
+    this.scene.remove(this.dome);
+    this.scene.remove(this.tethers);
     this.shots.forEach((s) => this.fx.free(s.m));
   }
 }

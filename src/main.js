@@ -24,10 +24,10 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v58';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v59';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
-import { Dew, MoonDrop } from './pickups.js';
+import { Dew } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run } from './run.js';
@@ -89,12 +89,12 @@ ui.innerHTML = `
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump, tap again in the air to double jump (hold it to climb fabric)<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 5 minutes it comes anyway. Floor vents fling you up onto furniture.
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · again in the air to double jump · hold to climb fabric<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Each 🌙 Moon Drop gives a treasure; the 4th summons the boss, and after 5 minutes it comes anyway. Floor vents fling you up onto furniture.<br>
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -158,7 +158,6 @@ const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
 const dew = new Dew(scene, world);
-const moon = new MoonDrop(scene);
 
 function applyLook(l, hop) {
   state.look = normalizeLook(l);
@@ -171,7 +170,7 @@ function saveLook(l) {
 applyLook(state.look);
 
 const run = new Run({
-  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew, moon,
+  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
 });
 
@@ -240,8 +239,8 @@ function closeLayout() {
   state.mode = 'play';
   input.enabled = true;
   hud.el.hidden = false;
-  // things placed on furniture need checking again (Moon Drop spots, the player's footing)
-  if (layoutChanged) { run.dropSpots = null; run.start(); mapFurniture(); }
+  // things placed on furniture need checking again (gift spots, the player's footing)
+  if (layoutChanged) { run.spots = null; run.start(); mapFurniture(); }
   tpc.snapTo(player.position);
   overlay.hidden = false;
 }
@@ -345,7 +344,6 @@ async function warmUp() {
     return e;
   });
   dew.drop(P.clone(), 1, 1);
-  moon.show({ at: [P.x, P.y, P.z] }, P.y);
   const tentacles = [lash.mesh(), lash.mesh()];
   tentacles[1].material = lash.goldMat;
   tentacles.forEach((m) => { m.position.copy(P); m.scale.set(0.002, 0.05, 0.002); });
@@ -384,7 +382,6 @@ async function warmUp() {
   temp.forEach((e) => enemies.kill(e, true));
   enemies.list = enemies.list.filter((e) => !temp.includes(e));   // keep the elites run.start() registered
   dew.clear();
-  moon.hide();
   fx.clear();
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
   playBtn.disabled = false;
@@ -411,4 +408,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, moon, traversal, menus, fx });
+Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, traversal, menus, fx });

@@ -1,6 +1,5 @@
-// One run of stage 1: grow for 2 minutes, collect Moon Drops (the first 3 give treasures,
-// the 4th summons the boss early), then beat the stage's boss and evolve. When time runs out the boss
-// comes anyway.
+// One run of stage 1: grow until the timer runs out (grabbing golden gifts and beating elites for
+// treasures), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ATTACK_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
@@ -17,7 +16,6 @@ import { sfx } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const TOTAL_DROPS = 4;          // drops 1-3 each give a treasure; the 4th summons the boss
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
@@ -30,7 +28,7 @@ class Owned extends Set {
 }
 
 export class Run {
-  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, moon, traversal, hud, ui, fx, tpc, input, setNight }
+  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, traversal, hud, ui, fx, tpc, input, setNight }
   constructor(ctx) {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
@@ -108,7 +106,6 @@ export class Run {
     this.boss = null;
     this.traversal.bossMode = false;
     this.bossWalls.forEach((m) => { m.visible = false; });
-    this.moon.hide();
     this.hud.setBoss(null);
     this.ui.close();
     this.fade.style.opacity = 0;
@@ -122,7 +119,6 @@ export class Run {
     this.purse = 0;
     this.moisture = this.stats.moisture;
     this.owned = new Owned();
-    this.drops = 0;
     this.kills = 0;
     this.pendingLevels = 0;
     this.iFrames = 0;
@@ -131,8 +127,6 @@ export class Run {
     this.squeakCd = [];
     this.grown = {}; this.growCount = {};
     this.spawnAcc = 0;
-    this.dropTimer = 2;
-    this.lastArea = null;
     this.bursts = [];
     this.nightT = 0;
 
@@ -142,16 +136,16 @@ export class Run {
     this.player.snapToGround();
     this.tpc.snapTo(this.player.position);
 
-    // Only open, easy-to-reach Moon Drop spots (the apartment is static, so check once)
-    if (!this.dropSpots) {
-      this.dropSpots = [];
-      this.dropRejects = [];
-      for (const sp of s.drops) {
+    // Only open, easy-to-reach gift spots (the apartment is static, so check once)
+    if (!this.spots) {
+      this.spots = [];
+      this.spotRejects = [];
+      for (const sp of s.spots) {
         const r = this.openSpot(sp.at);
-        if (r.ok) this.dropSpots.push({ ...sp, y: r.y });
-        else this.dropRejects.push(`${sp.label}: ${r.why}`);
+        if (r.ok) this.spots.push({ ...sp, y: r.y });
+        else this.spotRejects.push(`${sp.label}: ${r.why}`);
       }
-      if (!this.dropSpots.length) this.dropSpots = s.drops.map((sp) => ({ ...sp, y: sp.at[1] }));
+      if (!this.spots.length) this.spots = s.spots.map((sp) => ({ ...sp, y: sp.at[1] }));
     }
     this.setNight(s.clock[0]);
     this.refreshHud();
@@ -214,7 +208,7 @@ export class Run {
       push = this.boss.update(dt, P).push;
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
     }
-    if (this.phase !== 'moonlift') {
+    if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
@@ -226,12 +220,11 @@ export class Run {
     // --- timers
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
-    // --- the night: waves, drops, and the boss when time runs out
+    // --- the night: waves, gifts, and the boss when time runs out
     if (this.phase === 'explore') {
       this.spawnWaves(dt);
-      this.updateDrops(dt);
       this.updateGifts(dt);
-      if (this.t >= this.duration && this.phase === 'explore') this.startMoonlift(true);
+      if (this.t >= this.duration && this.phase === 'explore') this.startBossIntro();
     }
     this.nightT -= dt;
     if (this.nightT <= 0) {
@@ -259,7 +252,7 @@ export class Run {
     for (const b of this.bursts.splice(0)) this.burst(b);
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
-    if (s.regen > 0 && this.phase !== 'moonlift') this.heal(s.regen * dt);   // moisture regen (cards, treasures)
+    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt);   // moisture regen (cards, treasures)
     const spout = this.mods.spout;
     if (spout) {
       this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;
@@ -281,9 +274,8 @@ export class Run {
     else if (P.flight) this.hud.hint(`Whoosh! Up to ${this.lastVent}`);
     else this.hud.hint(null);
 
-    this.moon.update(dt);
-    if (this.phase === 'moonlift') this.updateMoonlift(dt);
-    if (this.pendingLevels > 0 && !this.ui.open && this.phase !== 'moonlift') this.levelUp();
+    if (this.phase === 'intro') this.updateBossIntro(dt);
+    if (this.pendingLevels > 0 && !this.ui.open && this.phase !== 'intro') this.levelUp();
     this.refreshHud();
   }
 
@@ -464,9 +456,9 @@ export class Run {
   }
 
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
-  // their stack=N) from a Moon Drop or an elite
+  // their stack=N) from a golden gift or an elite
   // attack: make sure one of the three changes how you attack (the starting pick)
-  pickTreasure(title = `🌙 Moon Drop ${this.drops} / ${TOTAL_DROPS}`, sub = 'The moonlight shows you three lost things. Keep one.', attack = false) {
+  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.', attack = false) {
     const can = (t) => this.owned.count(t.id) < t.stack;
     let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (attack && !left.some((t) => ATTACK_TREASURES.includes(t.id))) {
@@ -508,34 +500,20 @@ export class Run {
   }
 
   // somewhere else: away from you, in another part of the room from the last one, not one of the
-  // last three spots, not on the Moon Drop
-  // (from the open spots the Moon Drops use: flat, nothing overhead)
+  // last three spots (from the stage's open spots: flat, nothing overhead)
   giftSpot() {
-    const P = this.player.position, moon = this.moon.active ? this.moon.position : null, last = this.lastGift;
+    const P = this.player.position, last = this.lastGift;
     const ok = (sp, far, elsewhere) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z) > far
-      && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentGifts.includes(sp.label)))
-      && (!moon || Math.hypot(sp.at[0] - moon.x, sp.at[2] - moon.z) > 0.3);
+      && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentGifts.includes(sp.label)));
     for (const [far, elsewhere] of [[0.8, true], [0.5, true], [0.5, false], [0, false]]) {
-      const c = (this.dropSpots || []).filter((sp) => ok(sp, far, elsewhere));
+      const c = (this.spots || []).filter((sp) => ok(sp, far, elsewhere));
       if (c.length) return c[Math.floor(Math.random() * c.length)];
     }
     return null;
   }
 
-  // ------------------------------------------------------------ moon drops
-  updateDrops(dt) {
-    if (this.moon.active) {
-      const P = this.player.position;
-      const d = this.moon.position.distanceTo(P.clone().setY(P.y + this.cfg.height * 0.5));
-      if (d < 0.02 + this.cfg.radius) this.collectDrop();
-      return;
-    }
-    if (this.drops >= TOTAL_DROPS) return;
-    this.dropTimer -= dt;
-    if (this.dropTimer <= 0) this.spawnDrop();
-  }
-
-  // A Moon Drop spot must be easy to see and reach: open sky above it (the camera looks down),
+  // ------------------------------------------------------------ gift spots
+  // A gift spot must be easy to see and reach: open sky above it (the camera looks down),
   // nothing crowding it, and flat ground. Returns the surface height, or null with a reason.
   openSpot([x, y, z]) {
     const W = this.world, V = (a, b, c) => new THREE.Vector3(a, b, c);
@@ -555,42 +533,16 @@ export class Run {
     return { ok: true, y: sy };
   }
 
-  spawnDrop() {
-    const P = this.player.position;
-    const [lo, hi] = this.drops === 0 ? [0.5, 2.0] : [1.0, 3.5];
-    const all = this.dropSpots;
-    const dist = (sp) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z);
-    let cands = all.filter((sp) => sp.area !== this.lastArea && dist(sp) >= lo && dist(sp) <= hi);
-    if (!cands.length) cands = all.filter((sp) => dist(sp) >= 0.5);
-    const spot = cands[(Math.random() * cands.length) | 0];
-    const last = this.drops === TOTAL_DROPS - 1;
-    this.moon.show(spot, spot.y, last);
-    this.lastArea = spot.area;
-    this.hud.toast(last ? `🌕 The full moon drop appeared: ${spot.label}. It will summon ${this.stage.boss.name}!` : `🌙 A Moon Drop appeared: ${spot.label}`, last ? 3200 : 2200);
-  }
-
-  collectDrop() {
-    this.drops++;
-    const p = this.moon.position.clone();
-    this.fx.puff(p, 0xfff0c0, 0.06, 0.5);
-    this.dew.drop(p, 1, 5);
-    this.moon.hide();
-    this.dropTimer = 1.2;
-    if (this.drops >= TOTAL_DROPS) this.startMoonlift();
-    else this.pickTreasure();
-  }
-
   // ------------------------------------------------------------ boss
-  startMoonlift(timeUp = false) {
-    this.phase = 'moonlift';
+  startBossIntro() {
+    this.phase = 'intro';
     this.liftT = 0;
-    this.moon.hide();
-    this.hud.toast(timeUp ? `🌕 Time's up! The moonlight drags you to ${this.stage.boss.name}…` : '🌙 The moonlight lifts you…', 2400);
+    this.hud.toast(`⏰ Time's up! ${this.stage.boss.name} is coming…`, 2400);
     for (const e of this.enemies.list) if (!e.dead) this.enemies.kill(e, true);
     this.dew.magnetAll = true;
   }
 
-  updateMoonlift(dt) {
+  updateBossIntro(dt) {
     this.liftT += dt;
     const P = this.player;
     this.dew.magnetAll = true;
@@ -666,7 +618,6 @@ export class Run {
     return [
       ['Time', `${m}:${sec}`],
       ['Level', this.level],
-      ['Moon Drops', `${this.drops} / ${TOTAL_DROPS}`],
       ['Dry things cleared', this.kills],
       ['Treasures', [...this.owned].map((id) => TREASURES.find((t) => t.id === id).icon + (this.owned.count(id) > 1 ? `×${this.owned.count(id)}` : '')).join(' ') || 'none'],
     ];
@@ -687,16 +638,11 @@ export class Run {
     const exploring = this.phase === 'explore';
     h.setClock(exploring ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
     h.setStage(exploring ? `${clock} · ${this.stage.boss.name} is coming` : '');
-    h.setDrops(this.drops, TOTAL_DROPS, this.phase === 'boss');
   }
 
   markers() {
     const out = [];
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) out.push({ kind: 'enemy', x: e.pos.x, y: e.pos.y, z: e.pos.z });
-    if (this.moon.active) {
-      const p = this.moon.position;
-      out.push({ x: p.x, y: p.y, z: p.z, color: this.moon.full ? '#ffb86a' : '#c4b2ff', big: true });
-    }
     if (this.phase === 'explore' && this.gift.active) { const g = this.gift.pos; out.push({ x: g.x, y: g.y, z: g.z, color: '#ffc93a', big: true }); }
     if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ff8a3a' });
     if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true }); }
