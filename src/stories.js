@@ -422,6 +422,41 @@ story('enemies/spider-web-ball', {
     return ok(moved && reared && arcs && hit && hit.amount === 2 && slowed > 1, { moved, reared, arcs, peak: +peak.toFixed(3), hit: hit?.amount, slowed: +slowed.toFixed(2) });
   },
 });
+story('words/dive', {
+  about: 'The house fly buzzes around you, hangs in the air rubbing its front legs while a line on the floor marks its path, then darts through you: 3 damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.25, 0, 0.05)); e.diveCd = 1; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let warned = false, darted = false, hit = null;
+    step(60 * 5, () => {
+      if (e.state === 'windup' && enemies.diveMarks.some((m) => m.visible)) warned = true;
+      if (e.state === 'dash') darted = true;
+      hit = log.find((d) => d.source === 'housefly' && d.amount === 3);
+      return !!hit;
+    });
+    return ok(warned && darted && hit, { warned, darted, hit: hit?.amount, states: e.state });
+  },
+});
+story('enemies/housefly-dodge', {
+  about: 'Stepping off the fly\'s line once its aim locks makes it dart past you.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.25, 0, 0.05)); e.diveCd = 1; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let moved = false, darted = false;
+    step(60 * 5, () => {
+      if (!moved && e.state === 'windup' && e.stateT < 0.25) {
+        // sidestep, square to its line
+        const d = e.diveTo.clone().sub(e.pos).setY(0).normalize(), P = player.position;
+        tp(P.x - d.z * 0.16, P.y, P.z + d.x * 0.16);
+        moved = true;
+      }
+      if (e.state === 'dash') darted = true;
+      return moved && e.state === 'rest';
+    });
+    const dived = log.filter((d) => d.amount === 3);
+    return ok(moved && darted && !dived.length, { moved, darted, hits: log.map((d) => d.amount) });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },
@@ -1276,7 +1311,7 @@ act2('closets-are-shut', {
 });
 
 act2('only-act-2-bugs', {
-  about: 'Act 2\'s waves bring its own bugs (spiders and staplers among them), none of act 1\'s.',
+  about: 'Act 2\'s waves bring its own bugs (spiders, house flies and staplers among them), none of act 1\'s.',
   setup() { fresh({ waves: true, elites: false }); G().run.t = 200; },
   play() {
     const { run, enemies } = G();
@@ -1284,7 +1319,7 @@ act2('only-act-2-bugs', {
     const seen = new Set();
     step(900, () => { for (const e of enemies.list) if (!e.proxy && !e.elite) seen.add(e.type); run.t = 200; });
     const stray = [...seen].filter((t) => !pool.has(t));
-    return ok(pool.has('spider') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
+    return ok(pool.has('spider') && pool.has('housefly') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
   },
 });
 

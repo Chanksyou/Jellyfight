@@ -35,8 +35,9 @@
   --hostile-mug: #ff8a1a;        /* the Mug's coffee lobs, spill and scalding puddles */
   --hostile-kettle: #ffd23a;     /* the Kettle's steam blast and boiling drops */
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
-  --hostile-staple: #ffb070;
-  --hostile-web: #ff5ad8;          /* the house spider's web balls: white silk in a hot pink glow */     /* the standing stapler's staples */
+  --hostile-staple: #ffb070;     /* the standing stapler's staples */
+  --hostile-web: #ff5ad8;        /* the house spider's web balls: white silk in a hot pink glow */
+  --hostile-fly: #ff5a14;        /* the house fly's dive: the line on the floor along its path */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */

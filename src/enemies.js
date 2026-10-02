@@ -3,7 +3,8 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly } from './critters.js';
+import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -13,7 +14,7 @@ import { hostile, TeleMaterial } from './vfx.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
@@ -205,6 +206,7 @@ function makeLooks() {
     stapler: buildStapler,
     lanternfly: buildLanternfly,
     spider: buildSpider,
+    housefly: buildHouseFly,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -254,6 +256,7 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
+    this.diveMarks = [];      // pooled: the line under each diving fly's path (the dive word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -435,6 +438,38 @@ export class Enemies {
     if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
   }
 
+  // A fly starts its dart (the dive word): a buzzing whine and a puff of air where it was
+  dart(e) {
+    sfx.flyDive();
+    this.fx.puff(e.pos.clone(), 0xd8d0c0, e.r * 1.2, 0.25);
+  }
+
+  // the warning under every fly about to dive at you: a line on the floor along its path, filling
+  // as the dart comes, then flashing while it flies
+  drawDives(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.diveTo || (e.state !== 'windup' && e.state !== 'dash')) continue;
+      let M = this.diveMarks[n];
+      if (!M) {
+        M = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('fly'), 'strip'));
+        M.renderOrder = 3;
+        this.scene.add(M);
+        this.diveMarks.push(M);
+      }
+      const from = e.state === 'dash' ? e.diveFrom : e.pos, to = e.diveTo;
+      const dx = to.x - from.x, dz = to.z - from.z, len = Math.max(0.02, Math.hypot(dx, dz));
+      M.position.set(from.x, e.diveFloor + 0.003, from.z);
+      M.rotation.y = Math.atan2(dx, dz);
+      M.scale.set(e.r * 1.7, 1, len);
+      M.material.progress = e.state === 'dash' ? 1 : 1 - Math.max(0, e.stateT) / (e.diveMax || 0.6);
+      M.material.opacity = e.state === 'dash' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      M.visible = true;
+      n++;
+    }
+    for (let i = n; i < this.diveMarks.length; i++) this.diveMarks[i].visible = false;
+  }
+
   // the warning under every bug about to land on you: a red ring with a disc filling in as the
   // leap comes (crouching: half full; in the air: filling to the brim)
   drawLeaps(t) {
@@ -602,6 +637,7 @@ export class Enemies {
     this.updateShots(dt);
     this.drawAim(t);
     this.drawLeaps(t);
+    this.drawDives(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 

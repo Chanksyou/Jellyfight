@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the standing stapler, the lanternfly and the house spider. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the standing stapler, the lanternfly, the house spider and the house fly. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -667,6 +667,170 @@ export function buildSpider() {
     front.rotation.x = -rearUp * 0.16 + recoil * 0.08;
     rear.rotation.x = -rearUp * 0.35 - recoil * 0.15;                        // abdomen tipped up toward its target
     for (const p of palps) p.rotation.x = Math.sin(t * 6 + e.phase) * 0.15 + rearUp * -0.4;   // palps twitch, lift when it rears
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ house fly
+// A common house fly: a bristly black thorax dusted grey, a big pair of glossy red-brown
+// compound eyes, a sponge-tipped proboscis, a short dark abdomen with tan sides, two clear
+// amber-veined wings and six spiny reddish-brown legs. It flies with its wings a blur and its
+// legs dangling; before it dives it hangs in the air rubbing its front legs together, then darts
+// at you nose first with its legs thrown forward. About 2.4 radii long.
+function flyParts() {
+  const R = seeded(29), hair = '#070606', leg = '#4e1c10', legDark = '#220a06';
+  const hairs = (n, center, radius, len, up = 0.6) => {
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const d = new THREE.Vector3(R() - 0.5, R() * up + (1 - up) * (R() - 0.5), R() - 0.5).normalize();
+      const a = center.clone().add(d.clone().multiply(radius));
+      out.push(rod(a, a.clone().addScaledVector(d, len * (0.5 + R() * 0.8)), 0.009, 0.002, hair));
+    }
+    return out;
+  };
+  // the thorax: black, dusted grey, with the house fly's dark stripes down the back (front u = 0.25)
+  const thorax = wingTexture(256, 128, (g, w, h) => {
+    g.fillStyle = '#16161a'; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${120 + R() * 60 | 0},${120 + R() * 60 | 0},${125 + R() * 60 | 0},${0.15 + R() * 0.25})`; g.fillRect(R() * w, R() * h * 0.7, 1.5, 1.5); }
+    g.fillStyle = 'rgba(95,95,104,.55)';                         // grey bands between the dark stripes
+    for (const u of [0.25, 0.75]) for (const off of [-0.07, 0.07]) { g.beginPath(); g.ellipse((u + off) * w, h * 0.22, 6, h * 0.24, 0, 0, 7); g.fill(); }
+  });
+  // the abdomen (its pole runs front to back: v = 0 at the waist): dark segments with a grey
+  // checkered sheen, tan patches on the sides (u = 0 / 0.5), darker on top (u = 0.75)
+  const abdomen = wingTexture(256, 128, (g, w, h) => {
+    g.fillStyle = '#1c1a1a'; g.fillRect(0, 0, w, h);
+    for (const u of [0, 0.5, 1]) { const gr = g.createRadialGradient(u * w, h * 0.35, 2, u * w, h * 0.35, w * 0.16); gr.addColorStop(0, 'rgba(176,132,70,.85)'); gr.addColorStop(1, 'rgba(176,132,70,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    for (let k = 0; k < 4; k++) {                                 // segments, each a checker of grey dust
+      const y = h * (0.12 + k * 0.2);
+      for (let i = 0; i < 16; i++) { g.fillStyle = (i + k) % 2 ? 'rgba(130,130,140,.35)' : 'rgba(0,0,0,.25)'; g.fillRect(i * w / 16, y, w / 16, h * 0.14); }
+      g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(0, y + h * 0.14, w, h * 0.04);
+    }
+  });
+  // compound eyes: hundreds of tiny glossy facets in deep red-brown
+  const eye = wingTexture(256, 128, (g, w, h) => {
+    g.fillStyle = '#5a1408'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < w; x += 4) {
+      g.fillStyle = `rgb(${150 + R() * 40 | 0},${48 + R() * 20 | 0},${18 + R() * 10 | 0})`;
+      g.beginPath(); g.arc(x + 2, y + 2, 1.5, 0, 7); g.fill();
+    }
+  });
+  // a wing: clear amber membrane, smoky at the base, with dark veins fanning to the tip
+  const wing = wingTexture(256, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0); m.addColorStop(0, 'rgba(120,96,60,.75)'); m.addColorStop(0.35, 'rgba(210,190,140,.45)'); m.addColorStop(1, 'rgba(225,215,180,.35)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(70,46,22,.9)'; g.lineCap = 'round';
+    for (const [y0, y1, lw] of [[0.04, 0.06, 3], [0.1, 0.3, 2.2], [0.14, 0.55, 2], [0.18, 0.78, 1.8], [0.2, 0.95, 1.5]]) {
+      g.lineWidth = lw; g.beginPath(); g.moveTo(2, h * y0); g.bezierCurveTo(w * 0.4, h * y0, w * 0.7, h * (y0 + y1) / 2, w * 0.98, h * y1); g.stroke();
+    }
+    g.lineWidth = 1.4;                                           // two cross veins
+    for (const x of [0.38, 0.62]) { g.beginPath(); g.moveTo(w * x, h * 0.12); g.lineTo(w * (x + 0.04), h * 0.6); g.stroke(); }
+  });
+  const body = [
+    // the head: a dark capsule between the eyes, the face plate and antennae
+    ellipsoid(0.3, 0.28, 0.2, V(0, 0.04, 0.66), '#18181c', 18),
+    ellipsoid(0.12, 0.16, 0.06, V(0, -0.02, 0.84), '#3a3a40', 12),
+    ...[-1, 1].flatMap((s) => [rod(V(s * 0.05, 0.1, 0.84), V(s * 0.07, 0.14, 0.92), 0.025, 0.02, '#2a2a2e'), rod(V(s * 0.07, 0.14, 0.92), V(s * 0.12, 0.2, 0.97), 0.01, 0.003, hair)]),
+    // the proboscis: a short trunk hanging under the head with the spongy pad at its tip
+    rod(V(0, -0.14, 0.74), V(0, -0.3, 0.82), 0.045, 0.035, '#241612'),
+    ellipsoid(0.07, 0.035, 0.06, V(0, -0.32, 0.83), '#3a2418', 10),
+    // the neck and waist
+    ellipsoid(0.14, 0.13, 0.12, V(0, 0.03, 0.52), '#101012', 10),
+    ellipsoid(0.16, 0.14, 0.1, V(0, 0.0, -0.14), '#101012', 10),
+    // the halteres: little knobbed balancers behind the wings
+    ...[-1, 1].flatMap((s) => [rod(V(s * 0.16, 0.12, -0.08), V(s * 0.24, 0.12, -0.18), 0.012, 0.01, '#3a3020'), ellipsoid(0.03, 0.03, 0.03, V(s * 0.25, 0.12, -0.19), '#c8b080', 8)]),
+    ...hairs(46, V(0, 0.08, 0.16), V(0.36, 0.3, 0.4), 0.13),      // the thorax's bristles
+    ...hairs(30, V(0, 0.0, -0.46), V(0.32, 0.26, 0.42), 0.09, 0.3),   // and the abdomen's, finer
+    ...hairs(14, V(0, 0.08, 0.66), V(0.24, 0.24, 0.14), 0.07),    // the head's
+  ];
+  // a leg, hanging down and out on the +x side from its hip; fwd tilts it toward the front (+z)
+  const legGeo = (fwd, sc) => {
+    const a = V(0, 0, 0), b = V(0.26 * sc, -0.1, fwd * 0.08), c = V(0.38 * sc, -0.42 * sc, fwd * 0.16), d = V(0.42 * sc, -0.7 * sc, fwd * 0.28);
+    const parts = [rod(a, b, 0.05, 0.042, leg), rod(b, c, 0.04, 0.03, leg), rod(c, d, 0.026, 0.014, legDark),
+      ellipsoid(0.045, 0.045, 0.045, b, legDark, 8), ellipsoid(0.034, 0.034, 0.034, c, legDark, 8),
+      ...[-1, 1].map((k) => rod(d, d.clone().add(V(k * 0.03, -0.03, 0.04)), 0.01, 0.003, legDark))];   // the claws
+    for (const [p, q, n] of [[a, b, 4], [b, c, 7], [c, d, 6]]) {   // spines along each segment
+      for (let k = 0; k < n; k++) {
+        const at = p.clone().lerp(q, 0.15 + R() * 0.8), dir = new THREE.Vector3(R() - 0.3, R() - 0.2, R() - 0.5).normalize();
+        parts.push(rod(at, at.clone().addScaledVector(dir, 0.05 + R() * 0.04), 0.006, 0.0015, hair));
+      }
+    }
+    return merge(parts);
+  };
+  return {
+    body: merge(body), thorax, abdomen, eye, wing,
+    thoraxGeo: new THREE.SphereGeometry(1, 36, 24).scale(0.36, 0.32, 0.42).translate(0, 0.07, 0.16),
+    abdomenGeo: new THREE.SphereGeometry(1, 36, 24).rotateX(Math.PI / 2).scale(0.32, 0.26, 0.46).translate(0, -0.02, -0.5),
+    eyeGeo: new THREE.SphereGeometry(1, 28, 20).scale(0.19, 0.25, 0.2),
+    wingGeo: wingGeometry(1.25, 0.46, 0.55),
+    legs: [[0.22, 1, 1.05], [0.08, 0, 1], [-0.08, -1, 1.1]].map(([z, fwd, sc]) => ({ z, geo: legGeo(fwd, sc) })),
+  };
+}
+
+export function buildHouseFly() {
+  const G = (GEO.housefly ||= flyParts()), M = mats();
+  const skin = (map, rough, lit = { base: 0.2, rim: 0.55 }) => { const m = new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0.05 }); standOut(m, lit); return m; };
+  M.flyThorax ||= skin(G.thorax, 0.45);
+  M.flyAbdomen ||= skin(G.abdomen, 0.3);
+  if (!M.flyEye) { M.flyEye = skin(G.eye, 0.18, { base: 0.35, rim: 0.5 }); M.flyEye.emissive = new THREE.Color(0x3a0a02); }
+  M.flyWing ||= new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.15, depthWrite: false });
+  if (!M.flyLeg) { M.flyLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.flyLeg, { base: 0.1, rim: 0.25 }); }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  add(body, G.thoraxGeo, M.flyThorax);
+  add(body, G.abdomenGeo, M.flyAbdomen);
+  add(body, G.body, M.flyLeg);
+  for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.flyEye, V(s * 0.19, 0.08, 0.7)); e.rotation.y = s * 0.35; }
+  const face = angryEyes({ y: 0.12, z: 0.88, size: 0.1, gap: 0.21 });   // glaring out of the big red eyes
+  body.add(face);
+  // wings: a sweep group at the root (spread into a V), and inside it the flap about the body's length
+  const wings = [-1, 1].map((s) => {
+    const sweep = new THREE.Group();
+    sweep.position.set(s * 0.12, 0.3, 0.26);
+    sweep.rotation.y = -s * 0.42;
+    const flap = new THREE.Group();
+    sweep.add(flap);
+    const w = add(flap, G.wingGeo, M.flyWing);
+    w.castShadow = false;
+    w.scale.x = s;
+    body.add(sweep);
+    return { s, sweep, flap };
+  });
+  // legs: three a side under the thorax, mirrored for the left
+  const legs = [];
+  G.legs.forEach((L, pair) => {
+    for (const s of [-1, 1]) {
+      const hip = new THREE.Group();
+      hip.position.set(s * 0.14, -0.14, L.z);
+      hip.scale.x = s;
+      add(hip, L.geo, M.flyLeg);
+      body.add(hip);
+      legs.push({ s, pair, hip });
+    }
+  });
+
+  let t = 0, rub = 0, dart = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    rub += ((e.state === 'windup' ? 1 : 0) - rub) * (1 - Math.exp(-12 * dt));
+    dart += ((e.state === 'dash' ? 1 : 0) - dart) * (1 - Math.exp(-14 * dt));
+    for (const W of wings) W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 85 + (W.s > 0 ? 0 : 0.4)) * 0.75);   // a blur of wings
+    for (const L of legs) {
+      const sway = Math.sin(t * 3 + L.pair + e.phase) * 0.08;
+      if (L.pair === 0) {
+        // the front pair: dangling, raised and rubbed together before a dive, thrown forward in it
+        L.hip.rotation.x = sway * (1 - rub) - rub * (1.15 + Math.sin(t * 32) * L.s * 0.18) - dart * 0.9;
+        L.hip.rotation.z = -L.s * rub * (0.5 + Math.sin(t * 32 + 1) * 0.1);
+      } else {
+        L.hip.rotation.x = sway + (L.pair === 2 ? 0.35 : 0.1) - dart * (L.pair === 1 ? 0.7 : 0.2);   // trailing back, reaching in a dive
+        L.hip.rotation.z = 0;
+      }
+    }
+    // the body: a hovering bob; nose down along a dive, hunched in the windup
+    const pitch = e.state === 'dash' ? Math.atan2(-e.vel.y, Math.hypot(e.vel.x, e.vel.z) + 1e-6) : 0;
+    body.position.y = Math.sin(t * 5 + e.phase) * 0.08 * (1 - dart);
+    body.rotation.x = 0.08 + rub * 0.12 + THREE.MathUtils.clamp(pitch, -0.6, 0.8) * dart;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

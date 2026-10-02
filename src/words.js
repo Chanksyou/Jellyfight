@@ -99,6 +99,7 @@ export const ENEMY_WORDS = {
     make: ([distance], p) => ({
       fly: true,
       tick(e, c) {
+        if (e.flyHeld) return;              // another word is flying it (a dive)
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
         away.normalize().applyAxisAngle(UP, c.dt * p.circle);
@@ -108,6 +109,50 @@ export const ENEMY_WORDS = {
         e.pos.addScaledVector(e.vel, c.dt);
       },
     }),
+  },
+
+  dive: {
+    doc: 'Up close (within `range` m) every `every` s or so, hangs in the air for `windup` s rubbing its front legs while a line on the floor marks its path (the aim locks halfway through), then darts along it at `speed` m/s to `reach` m past where you were: touching you on the way hits for `dmg`. Then it pulls back for `rest` s. List it after the flying word.',
+    props: { range: 0.3, windup: 0.6, speed: 1.0, reach: 0.12, dmg: 3, rest: 0.8, every: 2 },
+    make: (_, p) => {
+      // aim at your middle, on through it, never into the floor
+      const lock = (e, c) => {
+        const d = _away.copy(c.pc).sub(e.pos).normalize();
+        (e.diveTo ||= new THREE.Vector3()).copy(c.pc).addScaledVector(d, p.reach);
+        e.diveTo.y = Math.max(e.diveTo.y, c.foot.y + e.r * 0.8);
+        e.diveFloor = c.foot.y;
+      };
+      return {
+        rollDmg: p.dmg,                   // touching you mid-dart hits this hard (Run.contactDamage)
+        diveWidth: p.reach,
+        init(e) { e.diveCd = 1 + Math.random() * 1.5; },
+        tick(e, c, en) {
+          const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it hangs where it is
+          e.stateT -= c.dt * live;
+          e.diveCd -= c.dt;
+          if (e.state === 'approach') {
+            if (c.dist < p.range && e.diveCd <= 0 && live) { e.state = 'windup'; e.stateT = e.diveMax = p.windup; e.flyHeld = true; lock(e, c); }
+          } else if (e.state === 'windup') {
+            e.vel.multiplyScalar(Math.exp(-8 * c.dt));       // drifts to a stop, buzzing
+            e.pos.addScaledVector(e.vel, c.dt * live);
+            if (e.stateT > p.windup * 0.5) lock(e, c);
+            if (e.stateT <= 0) {
+              e.state = 'dash';
+              (e.diveFrom ||= new THREE.Vector3()).copy(e.pos);
+              e.diveLen = Math.max(0.01, e.diveFrom.distanceTo(e.diveTo));
+              e.diveGone = 0;
+              en.dart(e);
+            }
+          } else if (e.state === 'dash') {
+            e.diveGone += p.speed * c.slow * c.dt;
+            const u = Math.min(1, e.diveGone / e.diveLen);
+            e.pos.lerpVectors(e.diveFrom, e.diveTo, u);
+            e.vel.copy(e.diveTo).sub(e.diveFrom).normalize().multiplyScalar(p.speed);
+            if (u >= 1) { e.state = 'rest'; e.stateT = p.rest; e.flyHeld = false; e.diveCd = p.every; e.vel.multiplyScalar(0.3); }
+          } else if (e.state === 'rest' && e.stateT <= 0) e.state = 'approach';
+        },
+      };
+    },
   },
 
   drift: {
