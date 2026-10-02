@@ -5,6 +5,20 @@
 let ctx = null, master = null, noiseBuf = null;
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
+let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
+
+// Previews: play the sounds into another (offline) context, each at the time given by when(t)
+export function preview(c, dest) {
+  ctx = c;
+  master = c.createGain();
+  master.gain.value = 0.55;
+  master.connect(dest);
+  noiseBuf = c.createBuffer(1, c.sampleRate * 0.5, c.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return { when: (t) => { at = t; for (const k in last) delete last[k]; } };
+}
+const now = () => (at ?? ctx.currentTime);
 
 export function unlock() {
   try {
@@ -28,7 +42,7 @@ export const audio = () => (ctx ? { ctx, master } : null);
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
 export const isMuted = () => muted;
 
-const ready = () => ctx && ctx.state === 'running' && !muted;
+const ready = () => ctx && (at !== null || ctx.state === 'running') && !muted;
 const jitter = (k = 0.08) => 1 + (Math.random() - 0.5) * 2 * k;
 function gap(name, ms) {
   const now = performance.now();
@@ -39,7 +53,7 @@ function gap(name, ms) {
 
 // one tone: type, start/end frequency, duration, volume
 function tone(type, f0, f1, dur, vol, delay = 0) {
-  const t = ctx.currentTime + delay;
+  const t = now() + delay;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type;
   o.frequency.setValueAtTime(f0, t);
@@ -54,7 +68,7 @@ function tone(type, f0, f1, dur, vol, delay = 0) {
 
 // a burst of noise through a filter
 function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) {
-  const t = ctx.currentTime + delay;
+  const t = now() + delay;
   const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
   s.buffer = noiseBuf;
   f.type = type;
@@ -72,12 +86,14 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 export const sfx = {
   // blowing a bubble: a soft rising bloop
   blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
-  // a bubble popping on an enemy: a bright plip
+  // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
+  // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
   pop(big = false) {
     if (!ready() || !gap('pop', 25)) return;
-    const j = jitter(0.15);
-    tone('sine', (big ? 700 : 1300) * j, (big ? 250 : 500) * j, big ? 0.14 : 0.07, big ? 0.22 : 0.14);
-    noise(big ? 1800 : 3500, 2, 0.05, 0.1, 'highpass');
+    const j = jitter(0.12);
+    tone('sine', (big ? 380 : 900) * j, (big ? 1300 : 2600) * j, big ? 0.07 : 0.035, big ? 0.2 : 0.13);
+    if (big) tone('sine', 120 * j, 260 * j, 0.12, 0.18);            // a deep glorp under the big ones
+    for (let k = 0; k < (big ? 6 : 3); k++) noise(7000 + Math.random() * 4000, 4, 0.012, (big ? 0.06 : 0.045) * (1 - k * 0.15), 'bandpass', 0.02 + k * 0.016 + Math.random() * 0.01);
   },
   // a tentacle sting: a quick zip
   sting() { if (!ready() || !gap('sting', 40)) return; noise(2500 * jitter(), 6, 0.06, 0.08, 'bandpass', 0, 6000); },

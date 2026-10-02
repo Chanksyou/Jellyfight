@@ -1,6 +1,6 @@
 // Renders the soundtrack (src/music.js) to WAV files to listen to outside the game, each with
 // the intensity rising through the take so every layer comes in:
-//   node tools/music.mjs [out-folder] [seconds]
+//   node tools/music.mjs [out-folder] [seconds] [--hits]   (--hits: bubble hits over the music)
 // writes drift.wav ("Puddle Drift", exploring: intensity 0 -> 1) and machinery.wav ("Domestic
 // Machinery", the Vacuum: 0.6 -> 1).
 import fs from 'node:fs';
@@ -14,9 +14,12 @@ const env = await start();
 const page = await env.browser.newPage();
 await page.goto(env.url);   // any page on the server, so modules load from it
 
+// hits: also play bubble hits over it (a stream, every so often a big one), to hear they stand apart
+const hits = process.argv.includes('--hits');
 for (const [name, from, to] of [['drift', 0, 1], ['machinery', 0.6, 1]]) {
-  const b64 = await page.evaluate(async ({ name, from, to, secs }) => {
+  const b64 = await page.evaluate(async ({ name, from, to, secs, hits }) => {
     const { Music } = await import('/src/music.js');
+    const S = await import('/src/sfx.js');
     const rate = 32000, ctx = new OfflineAudioContext(2, rate * secs, rate);
     const comp = ctx.createDynamicsCompressor();
     comp.connect(ctx.destination);
@@ -27,6 +30,10 @@ for (const [name, from, to] of [['drift', 0, 1], ['machinery', 0.6, 1]]) {
     for (let t = 0; t < secs; t += 0.25) {
       m.I = from + (to - from) * Math.min(1, t / (secs * 0.8));
       m.schedule(t + 0.25);
+    }
+    if (hits) {
+      const fx = S.preview(ctx, comp);
+      for (let t = 2; t < secs; t += 0.45 + Math.random() * 0.5) { fx.when(t); S.sfx.pop(Math.random() < 0.15); }
     }
     const buf = await ctx.startRendering();
     // 16-bit stereo WAV
@@ -48,8 +55,8 @@ for (const [name, from, to] of [['drift', 0, 1], ['machinery', 0.6, 1]]) {
     const u8 = new Uint8Array(data.buffer);
     for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
     return { b64: btoa(s), peak };
-  }, { name, from, to, secs });
-  fs.writeFileSync(path.join(out, `${name}.wav`), Buffer.from(b64.b64, 'base64'));
+  }, { name, from, to, secs, hits });
+  fs.writeFileSync(path.join(out, `${name}${hits ? '-hits' : ''}.wav`), Buffer.from(b64.b64, 'base64'));
   console.log(`${name}.wav  peak ${b64.peak.toFixed(2)}`);
 }
 await env.close();
