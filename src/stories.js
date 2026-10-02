@@ -457,6 +457,28 @@ story('enemies/housefly-dodge', {
     return ok(moved && darted && !dived.length, { moved, darted, hits: log.map((d) => d.amount) });
   },
 });
+story('enemies/spider-keeps-its-distance', {
+  about: 'Left to itself, the house spider stalks to about 30 cm from you and stays there (backing off if you close in), lobbing webs from range instead of walking into you.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('spider', near(0, -0.55)); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let launched = 0, was = 0, closest = 9;
+    step(60 * 10, (i) => {
+      const n = enemies.shots.filter((q) => q.web).length;
+      if (n > was) launched++;
+      was = n;
+      if (i > 120) closest = Math.min(closest, Math.hypot(e.pos.x - player.position.x, e.pos.z - player.position.z));
+    });
+    // walk up to it: it backs away
+    const before = Math.hypot(e.pos.x - player.position.x, e.pos.z - player.position.z);
+    tp(e.pos.x + (player.position.x - e.pos.x) * 0.4, player.position.y, e.pos.z + (player.position.z - e.pos.z) * 0.4);
+    const p0 = e.pos.clone(), toMe = player.position.clone().sub(e.pos).setY(0).normalize();
+    step(30);
+    const backed = e.pos.clone().sub(p0).setY(0).dot(toMe) < -0.01;
+    const webs = log.filter((d) => d.source === 'web').length, bumps = log.filter((d) => d.source === 'spider').length;
+    return ok(closest > 0.2 && launched >= 2 && webs >= 1 && !bumps && backed, { closest: +closest.toFixed(3), launched, webs, bumps, backed, before: +before.toFixed(3) });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },

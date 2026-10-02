@@ -21,11 +21,18 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
   chase: {
-    doc: 'Walks straight at you at `speed` m/s.',
+    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it.',
     args: ['speed'],
-    make: ([speed]) => ({
+    props: { stop: 0, back: 0.6 },
+    make: ([speed], p) => ({
       ground: true,
-      tick(e, c) { c.dir.copy(c.flatDir); c.speed = speed * c.slow; },
+      tick(e, c) {
+        c.dir.copy(c.flatDir);
+        c.speed = speed * c.slow;
+        if (!p.stop || c.flat > p.stop) return;
+        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
+        else c.speed = 0;                                                      // in range: hold
+      },
     }),
   },
 
