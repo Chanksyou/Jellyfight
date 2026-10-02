@@ -901,6 +901,19 @@ story('boss/vacuum-lanternfly-shield', {
   },
 });
 
+story('modes/dev-fight-boss', {
+  about: 'The pause menu\'s Fight boss (dev) button starts a fresh run that goes straight to the boss.',
+  setup() { fresh(); },
+  play() {
+    const { run, menus } = G();
+    document.getElementById('g-over').hidden = false;
+    document.querySelector('#g-over [data-act="boss"]').click();
+    document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
+    step(240, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss'; });
+    return ok(run.phase === 'boss' && !!run.boss && run.t < 10, { phase: run.phase, t: run.t });
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout open and close cleanly.',

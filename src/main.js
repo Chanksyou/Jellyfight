@@ -24,7 +24,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v59';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v60';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -84,7 +84,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="layout">🛠 Layout (dev)</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -313,6 +313,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
+  else if (b.dataset.act === 'boss') { run.start(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
