@@ -21,13 +21,14 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
   chase: {
-    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it.',
+    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c) {
         c.dir.copy(c.flatDir);
+        if (p.weave) c.dir.applyAxisAngle(UP, Math.sin(c.t * p.rate * Math.PI * 2 / 2 + e.phase) * p.weave);
         c.speed = speed * c.slow;
         if (!p.stop || c.flat > p.stop) return;
         if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
@@ -114,6 +115,57 @@ export const ENEMY_WORDS = {
         const s = p.speed * c.slow;
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
         e.pos.addScaledVector(e.vel, c.dt);
+      },
+    }),
+  },
+
+  'ball-charge': {
+    doc: 'Up close (within `range` m) every `every` s or so, curls into an armoured ball over `curl` s (it takes no damage while curled up), spins up in place for `spin` s while a line on the floor shows where it will go (the aim locks halfway through), then rolls along it at `speed` m/s for `time` s, hitting for `dmg`. It uncurls over `uncurl` s and rests `rest` s. List it after the walking word.',
+    props: { range: 0.4, curl: 0.45, spin: 0.9, speed: 0.95, time: 0.7, dmg: 4, uncurl: 0.5, rest: 0.8, every: 2.5 },
+    make: (_, p) => ({
+      rollDmg: p.dmg,                     // touching you mid-roll hits this hard (Run.contactDamage)
+      chargeLen: p.speed * p.time,
+      init(e) { e.ballCd = 1 + Math.random() * 1.5; e.curlK = 0; e.spinA = 0; e.spinV = 0; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it holds whatever shape it's in
+        e.stateT -= c.dt * live;
+        e.ballCd -= c.dt;
+        if (e.state === 'rest' && e.curlK > 0) { e.state = 'uncurl'; e.stateT = p.uncurl; }   // rolled into a wall (Enemies.moveGround)
+        if (e.state === 'approach') {
+          if (c.flat < p.range && e.grounded && e.ballCd <= 0 && live) { e.state = 'curl'; e.stateT = p.curl; en.ballCurl(e); }
+        } else if (e.state === 'curl') {
+          c.speed = 0;
+          e.curlK = 1 - Math.max(0, e.stateT) / p.curl;
+          if (e.stateT <= 0) { e.state = 'spin'; e.stateT = e.spinMax = p.spin; e.curlK = 1; en.ballRev(e, p.spin); }
+        } else if (e.state === 'spin') {
+          c.speed = 0;
+          const u = 1 - Math.max(0, e.stateT) / p.spin;
+          e.spinV = 26 * u * u;                                   // revving up
+          if (u < 0.5) {                                          // aiming (locks halfway)
+            e.dashDir.copy(c.flatDir);
+            e.faceLock = true;
+            e.root.rotation.y = Math.atan2(c.flatDir.x, c.flatDir.z);
+            e.chargeFloor = e.pos.y;
+          }
+          if (u > 0.3 && live) en.ballDust(e);
+          if (e.stateT <= 0) { e.state = 'dash'; e.stateT = p.time; en.ballGo(e, p.time); }
+        } else if (e.state === 'dash') {
+          c.speed = p.speed * c.slow;
+          c.dir.copy(e.dashDir);
+          e.spinV = 26;
+          if (e.stateT <= 0) { e.state = 'uncurl'; e.stateT = p.uncurl; }
+        } else if (e.state === 'uncurl') {
+          c.speed = 0;
+          e.spinV *= Math.exp(-6 * c.dt);
+          e.curlK = Math.max(0, e.stateT) / p.uncurl;
+          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.curlK = 0; e.spinV = 0; e.faceLock = false; e.ballCd = p.every; }
+        } else if (e.state === 'rest') {
+          c.speed *= 0.3;
+          if (e.stateT <= 0) e.state = 'approach';
+        }
+        e.spinA += e.spinV * c.dt * live;
+        e.invuln = e.curlK > 0.5;                                 // curled up: armoured
+        e.hitR = e.invuln && e.ballR ? e.ballR : 0;              // and as big as its ball
       },
     }),
   },

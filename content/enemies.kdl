@@ -48,6 +48,15 @@ enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 dew=5 model="housefly" {
     poke range=0.14 windup=0.5 reach=0.15 dmg=3 time=0.08 hold=0.15 rest=0.7 every=1.4
 }
 
+// Act 2. The giant millipede (from 1:00): it slithers after you like a snake, its legs rippling
+// in waves. Up close it curls into an armoured ball standing on its edge (no damage gets through
+// while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
+// down it at you. Get out of the lane; hit it once it uncurls.
+enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 dew=9 model="millipede" {
+    chase 0.17 weave=0.6 rate=0.9
+    ball-charge range=0.4 curl=0.45 spin=0.9 speed=0.95 time=0.7 dmg=4 uncurl=0.5 rest=0.8 every=2.5
+}
+
 // The dust enemies (the hair tangle comes out in act 2; the others are kept for later)
 enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
     drift 0.255

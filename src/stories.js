@@ -480,6 +480,64 @@ story('enemies/spider-keeps-its-distance', {
     return ok(closest > 0.4 && launched >= 2 && webs >= 1 && !bumps && backed, { closest: +closest.toFixed(3), launched, webs, bumps, backed, before: +before.toFixed(3) });
   },
 });
+story('words/ball-charge', {
+  about: 'The millipede curls into a ball (taking no damage while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 4. Once it uncurls it can be hurt again.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.32)); e.ballCd = 0.3; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    const seen = new Set();
+    let warned = false, immune = null, spun = 0, hit = null;
+    step(60 * 6, () => {
+      seen.add(e.state);
+      if (e.state === 'spin' && enemies.chargeMarks.some((m) => m.visible)) warned = true;
+      if (e.state === 'spin' && immune === null) { const hp = e.hp; enemies.applyDamage(e, 25); immune = e.hp === hp; }
+      spun = Math.max(spun, e.spinA || 0);
+      hit = hit || log.find((d) => d.source === 'millipede' && d.amount === 4);
+      return hit && e.state === 'rest';
+    });
+    const hp = e.hp;
+    enemies.applyDamage(e, 10);
+    const hurtAfter = e.hp === hp - 10;
+    return ok(['curl', 'spin', 'dash'].every((s) => seen.has(s)) && warned && immune && spun > 5 && hit && hurtAfter,
+      { states: [...seen], warned, immune, spun: +spun.toFixed(1), hit: hit?.amount, hurtAfter });
+  },
+});
+story('enemies/millipede-dodge', {
+  about: 'Stepping out of the millipede\'s lane once its aim locks makes it roll past you.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.32)); e.ballCd = 0.3; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let moved = false, rolled = false;
+    step(60 * 6, () => {
+      if (!moved && e.state === 'spin' && e.stateT < (e.spinMax || 0.9) * 0.4) {
+        const d = e.dashDir, P = player.position;
+        tp(P.x - d.z * 0.16, P.y, P.z + d.x * 0.16);
+        moved = true;
+      }
+      if (e.state === 'dash') rolled = true;
+      return rolled && e.state === 'rest';
+    });
+    const rolls = log.filter((d) => d.amount === 4);
+    return ok(moved && rolled && !rolls.length, { moved, rolled, hits: log.map((d) => d.amount) });
+  },
+});
+story('enemies/millipede-slithers', {
+  about: 'The millipede snakes toward you from side to side, its body following the path its head took.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.9)); e.ballCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0];
+    const start = e.pos.clone(), path = [];
+    step(60 * 2.5, () => { path.push(e.pos.clone()); });
+    // sideways wander from the straight line toward you
+    const dir = player.position.clone().sub(start).setY(0).normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x);
+    const offs = path.map((p) => p.clone().sub(start).dot(side)), weave = Math.max(...offs) - Math.min(...offs);
+    // the tail lies back along the path, a body length behind the head
+    e.root.updateMatrixWorld(true);
+    const tail = e.mesh.children[0].children.at(-1).getWorldPosition(new THREE.Vector3());
+    const behind = tail.distanceTo(e.pos), along = path.some((p) => p.distanceTo(tail) < 0.03);
+    return ok(weave > 0.02 && behind > 0.15 && along, { weave: +weave.toFixed(3), behind: +behind.toFixed(3), along });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },

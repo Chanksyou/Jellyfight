@@ -260,5 +260,25 @@ export const sfx = {
     tone('sawtooth', 240 * j, 520 * j, 0.09, 0.05); tone('sawtooth', 248 * j, 540 * j, 0.09, 0.035);
     noise(3200 * j, 4, 0.04, 0.08, 'bandpass', 0.07);
   },
+  // the millipede: a clicking rattle as it coils (all those plates), a whirr that revs up, a rolling rumble
+  milliCurl() {
+    if (!ready()) return;
+    for (let k = 0; k < 10; k++) noise(3500 + Math.random() * 2500, 5, 0.012, 0.07, 'bandpass', k * 0.035 + Math.random() * 0.01);
+  },
+  milliRev(dur) {
+    if (!ready()) return;
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), trem = ctx.createOscillator(), tg = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(420, t + dur);
+    trem.frequency.setValueAtTime(8, t); trem.frequency.exponentialRampToValueAtTime(40, t + dur); tg.gain.value = 0.03; trem.connect(tg).connect(g.gain);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + 0.1); trem.start(t); trem.stop(t + dur + 0.1);
+  },
+  milliRoll(dur) {
+    if (!ready()) return;
+    noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
+  },
+  // a hit glancing off armour: a short metallic tink
+  clink() { if (!ready() || !gap('clink', 80)) return; const j = jitter(0.06); tone('triangle', 2600 * j, 2400 * j, 0.08, 0.05); tone('sine', 3900 * j, 3700 * j, 0.05, 0.03); },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };

@@ -3,7 +3,7 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly, buildMillipede } from './critters.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
@@ -14,13 +14,14 @@ import { hostile, TeleMaterial } from './vfx.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], millipede: ['#161a10', '#4a5428', '#d0581c', '#d6a074'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
 export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v]) => [k, LOOK.list('guts-' + k, v)]));
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const BLOCK = new THREE.Color('#dfe8ff');   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
@@ -207,6 +208,7 @@ function makeLooks() {
     lanternfly: buildLanternfly,
     spider: buildSpider,
     housefly: buildHouseFly,
+    millipede: buildMillipede,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -257,6 +259,7 @@ export class Enemies {
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
+    this.chargeMarks = [];    // pooled: the lane in front of each millipede about to roll (the ball-charge word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -292,7 +295,7 @@ export class Enemies {
   // elite: 35% bigger, 2.2x health, 4x dew, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
-    const { body: mesh, face, anim } = this.looks[T.model || type]();
+    const { body: mesh, face, anim, ballRadius } = this.looks[T.model || type]();
     const root = new THREE.Group();
     if (elite && !anim) {
       T = { ...T, dew: T.dew * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
@@ -319,6 +322,7 @@ export class Enemies {
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
       slowT: 0, pop: 0, spawnT: 0, phase: Math.random() * 10, baseScale: mesh.scale.x,
+      ballR: ballRadius ? ballRadius * T.r : 0,   // a millipede's rolling ball (meters)
     };
     mesh.scale.setScalar(0.001); // grows in
     face.scale.setScalar(0.001);
@@ -363,7 +367,7 @@ export class Enemies {
 
   center(e, out = new THREE.Vector3()) {
     if (e.proxy?.center) return e.proxy.center(out);     // bosses know where their middle is
-    return out.copy(e.pos).setY(e.pos.y + (e.T.fly ? 0 : e.r));
+    return out.copy(e.pos).setY(e.pos.y + (e.T.fly ? 0 : e.hitR || e.r));   // hitR: a bug that's changed size (a millipede's ball)
   }
 
   // (the damage_taken listener) elites and bosses keep their own HP
@@ -372,6 +376,16 @@ export class Enemies {
     if (e.proxy) {
       e.proxy.damage(amount, color);
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
+      return;
+    }
+    if (e.invuln) {                       // armoured (a curled-up millipede): a glancing spark, no damage
+      if (!(e.blockT > 0)) {
+        e.blockT = 0.35;
+        const c = this.center(e);
+        this.fx.impact(c, BLOCK, e.r * 0.4, 5);
+        this.fx.number(c.clone().setY(c.y + e.r * 1.6), 'IMMUNE', '#dfe8ff', 12);
+        sfx.clink();
+      }
       return;
     }
     if (e.markT > 0) amount *= 1.5;       // Sticky Note
@@ -436,6 +450,44 @@ export class Enemies {
     e.landT = 1;
     const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
     if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
+  }
+
+  // A millipede's ball (the ball-charge word): a clicking rattle as it coils, a rising whirr and
+  // kicked-up dust as it revs, a rumble as it rolls
+  ballCurl(e) { sfx.milliCurl(); }
+  ballRev(e, dur) { sfx.milliRev(dur); }
+  ballDust(e) {
+    if ((e.dustT = (e.dustT || 0) - 1) > 0) return;
+    e.dustT = 5;                                              // every few frames
+    const back = S.away.set(-Math.sin(e.root.rotation.y), 0, -Math.cos(e.root.rotation.y));
+    this.fx.puff(e.pos.clone().addScaledVector(back, e.r * 1.4).setY(e.pos.y + e.r * 0.3), 0xc8b8a0, e.r * 0.9, 0.3);
+  }
+  ballGo(e, dur) { sfx.milliRoll(dur); this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), hostile('millipede'), e.r * 2, 0.3); }
+
+  // the warning in front of every millipede revving up to roll: its lane on the floor, filling as
+  // the roll comes, then flashing while it rolls
+  drawCharges(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.faceLock || (e.state !== 'spin' && e.state !== 'dash')) continue;
+      let M = this.chargeMarks[n];
+      if (!M) {
+        M = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('millipede'), 'strip'));
+        M.renderOrder = 3;
+        this.scene.add(M);
+        this.chargeMarks.push(M);
+      }
+      if (e.state === 'spin') (e.chargeFrom ||= new THREE.Vector3()).copy(e.pos);
+      const len = e.T.words.find((w) => w.chargeLen)?.chargeLen ?? 0.6;
+      M.position.set(e.chargeFrom.x, (e.chargeFloor ?? e.pos.y) + 0.003, e.chargeFrom.z);
+      M.rotation.y = Math.atan2(e.dashDir.x, e.dashDir.z);
+      M.scale.set(e.r * 2.6, 1, len);
+      M.material.progress = e.state === 'dash' ? 1 : 1 - Math.max(0, e.stateT) / (e.spinMax || 0.9);
+      M.material.opacity = e.state === 'dash' ? 0.9 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      M.visible = true;
+      n++;
+    }
+    for (let i = n; i < this.chargeMarks.length; i++) this.chargeMarks[i].visible = false;
   }
 
   // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
@@ -571,6 +623,7 @@ export class Enemies {
     for (const e of list) {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
+      if (e.blockT > 0) e.blockT -= dt;
       e.slowT = Math.max(0, e.slowT - dt);
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
@@ -643,6 +696,7 @@ export class Enemies {
     this.drawAim(t);
     this.drawLeaps(t);
     this.drawPokes(t);
+    this.drawCharges(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 

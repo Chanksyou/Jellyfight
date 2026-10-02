@@ -19,6 +19,7 @@ bug "hair" weight=0.6 act=2                 // hair tangles from the drain, from
 bug "ants" weight=0.45 from=20 act=2        // ant squads from 0:20
 bug "housefly" weight=0.4 from=30 act=2     // house flies from 0:30
 bug "spider" weight=0.35 from=45 act=2      // house spiders from 0:45
+bug "millipede" weight=0.3 from=60 act=2    // giant millipedes from 1:00
 bug "mosquito" weight=0.35 from=75 act=2    // mosquitoes from 1:15
 bug "stapler" weight=0.3 from=105 act=2     // standing staplers from 1:45
 bug "lanternfly" weight=0.25 from=150 act=2 // spotted lanternflies from 2:30

@@ -847,3 +847,151 @@ export function buildHouseFly() {
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
+
+// ------------------------------------------------------------------ millipede
+// A giant millipede: a head with feelers, 22 thick glossy olive-black rings, each with an orange band at
+// its back edge, a pale belly and two pairs of little orange legs, and a pointed tail. Its body
+// follows the path its head took, so it slithers like a snake while the legs ripple down it in
+// waves. To attack it coils into a tight spiral standing on its edge like a wheel (head in the
+// middle, like the real thing), spins it up and rolls at you. The head is the enemy's middle; the
+// body trails about 9 radii behind it, and the coiled ball is about 4 radii across.
+const MIL = { rings: 22, gap: 0.36, a: 0.42, b: 0.9 / (Math.PI * 2), y: 0.5, fat: 1.35 };   // fat: how much thicker than the base parts   // spacing and the coil's spiral (radius units)
+function millipedeParts() {
+  const R = seeded(41);
+  // a ring (u around the body: 0.25 belly, 0.75 back; v front 0 -> back 1)
+  const ring = wingTexture(256, 128, (g, w, h) => {
+    g.fillStyle = '#12160c'; g.fillRect(0, 0, w, h);
+    for (const u of [0, 0.5, 1]) { const gr = g.createRadialGradient(u * w, h * 0.42, 2, u * w, h * 0.42, w * 0.2); gr.addColorStop(0, 'rgba(84,96,40,.9)'); gr.addColorStop(1, 'rgba(84,96,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    const belly = g.createRadialGradient(w * 0.25, h * 0.45, 2, w * 0.25, h * 0.45, w * 0.16); belly.addColorStop(0, 'rgba(214,160,116,.95)'); belly.addColorStop(1, 'rgba(214,160,116,0)');
+    g.fillStyle = belly; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(225,232,215,.45)';                       // the glossy highlight along the back
+    g.beginPath(); g.ellipse(w * 0.7, h * 0.4, w * 0.035, h * 0.22, 0, 0, 7); g.fill();
+    g.fillStyle = '#d0581c'; g.fillRect(0, h * 0.76, w, h * 0.1);  // the orange band at the back edge
+    g.fillStyle = '#2a0e06'; g.fillRect(0, h * 0.86, w, h * 0.14);
+    for (let k = 0; k < 120; k++) { g.fillStyle = `rgba(220,230,200,${0.1 + R() * 0.2})`; g.fillRect(R() * w, R() * h * 0.75, 1, 1); }   // a dusting of specks
+  });
+  const ringGeo = new THREE.SphereGeometry(1, 22, 14).rotateX(Math.PI / 2).scale(0.46, 0.42, 0.42);
+  // the legs under one ring: two pairs, splayed out and down to the floor
+  const leg = '#c06a2c', legTip = '#8a3a14', legs = [];
+  for (const s of [-1, 1]) for (const z of [-0.07, 0.08]) {
+    const a = V(s * 0.2, -0.17, z), b = V(s * 0.36, -0.2, z + 0.03), c = V(s * 0.42, -0.36, z + 0.06);
+    legs.push(rod(a, b, 0.032, 0.026, leg), rod(b, c, 0.026, 0.012, legTip));
+  }
+  // the head: a dark glossy dome, the orange collar behind it, jaws and segmented feelers
+  const head = [
+    ellipsoid(0.32, 0.27, 0.3, V(0, 0, 0.02), '#161a10', 18),
+    ellipsoid(0.36, 0.3, 0.1, V(0, 0.01, -0.2), '#c8541c', 16),
+    ellipsoid(0.12, 0.08, 0.08, V(-0.09, -0.16, 0.24), '#2a1a10', 10),
+    ellipsoid(0.12, 0.08, 0.08, V(0.09, -0.16, 0.24), '#2a1a10', 10),
+  ];
+  for (const s of [-1, 1]) {
+    const pts = [V(s * 0.12, 0.08, 0.26), V(s * 0.22, 0.2, 0.42), V(s * 0.3, 0.24, 0.6), V(s * 0.42, 0.2, 0.74)];
+    for (let k = 0; k < pts.length - 1; k++) head.push(rod(pts[k], pts[k + 1], 0.028 - k * 0.006, 0.022 - k * 0.006, '#2a1a10'), ellipsoid(0.03, 0.03, 0.03, pts[k + 1], '#5a3a20', 8));
+  }
+  // the tail: the last ring tapering to a point
+  const tail = [ellipsoid(0.27, 0.25, 0.28, V(0, 0, 0), '#161a10', 16), rod(V(0, 0.02, -0.22), V(0, 0.04, -0.46), 0.08, 0.008, '#2a2416')];
+  return { ring, ringGeo, legs: merge(legs), head: merge(head), tail: merge(tail) };
+}
+
+// the coil: where segment i sits (radius units) on a spiral in the y-z plane, head in the middle,
+// and which way it faces (toward the head) with its back turned outward
+function coilTable(n) {
+  const out = [], C = new THREE.Vector3(), P = new THREE.Vector3(), F = new THREE.Vector3(), U = new THREE.Vector3(), X = new THREE.Vector3(), M4 = new THREE.Matrix4();
+  const at = (th) => MIL.a + MIL.b * th;
+  // arc length for each segment, then the angle there (stepping along the spiral)
+  let th = 0, s = 0;
+  const ths = [];
+  for (let i = 0; i < n; i++) {
+    const want = 0.45 + i * MIL.gap;
+    while (s < want) { const d = 0.01; s += at(th) * d; th += d; }
+    ths.push(th);
+  }
+  const top = at(th) + 0.43;                     // the coil's outer edge rests on the floor
+  C.set(0, top, 0);
+  for (const t of ths) {
+    const r = at(t);
+    P.set(0, r * Math.sin(t), r * Math.cos(t));
+    F.set(0, -(MIL.b * Math.sin(t) + r * Math.cos(t)), -(MIL.b * Math.cos(t) - r * Math.sin(t))).normalize();   // toward smaller t: toward the head
+    U.copy(P).normalize();
+    U.addScaledVector(F, -U.dot(F)).normalize();
+    X.crossVectors(U, F);
+    out.push({ p: P.clone(), q: new THREE.Quaternion().setFromRotationMatrix(M4.makeBasis(X, U, F)) });
+  }
+  return { at: out, center: C.clone(), radius: top };
+}
+
+export function buildMillipede() {
+  const G = (GEO.millipede ||= millipedeParts()), M = mats();
+  if (!M.milRing) { M.milRing = new THREE.MeshStandardMaterial({ map: G.ring, roughness: 0.18, metalness: 0.1 }); standOut(M.milRing, { base: 0.18, rim: 0.55 }); }
+  if (!M.milPart) { M.milPart = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.08 }); standOut(M.milPart, { base: 0.16, rim: 0.4 }); }
+  const N = MIL.rings + 2;                       // head, rings, tail
+  const coil = (G.coil ||= coilTable(N));
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const segs = [];
+  for (let i = 0; i < N; i++) {
+    const seg = new THREE.Group();
+    const geo = i === 0 ? G.head : i === N - 1 ? G.tail : G.ringGeo;
+    const shell = new THREE.Mesh(geo, i === 0 || i === N - 1 ? M.milPart : M.milRing);
+    shell.castShadow = true;
+    if (i === 0 || i === N - 1) shell.scale.setScalar(MIL.fat);
+    seg.add(shell);
+    let legs = null;
+    if (i > 0 && i < N - 2) { legs = new THREE.Mesh(G.legs, M.milPart); seg.add(legs); }
+    if (i === 0) { const face = angryEyes({ y: 0.14, z: 0.36, size: 0.12, gap: 0.16 }); seg.add(face); }
+    body.add(seg);
+    segs.push({ seg, legs });
+  }
+
+  // where the head has been (world x, z), newest first: the body lies along it
+  const trail = [];
+  const qWalk = new THREE.Quaternion(), qBall = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), Y = V(0, 1, 0), X = V(1, 0, 0);
+  const pWalk = new THREE.Vector3(), pBall = new THREE.Vector3();
+  let t = 0, move = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const root = e.root, ry = root.rotation.y, sc = Math.max(1e-4, e.mesh.scale.x);
+    const hx = e.pos.x, hz = e.pos.z;
+    if (!trail.length) for (let k = 0; k <= 40; k++) trail.push([hx - Math.sin(ry) * k * 0.01, hz - Math.cos(ry) * k * 0.01]);
+    if (Math.hypot(trail[0][0] - hx, trail[0][1] - hz) > 0.003) { trail.unshift([hx, hz]); if (trail.length > 160) trail.pop(); }
+    move += (Math.min(1, Math.hypot(e.vel.x, e.vel.z) * 8) - move) * (1 - Math.exp(-8 * dt));
+    const curl = e.curlK || 0, spin = e.spinA || 0;
+    qSpin.setFromAxisAngle(X, spin);
+    // walk the trail from the head back, placing each segment `gap` behind the one before
+    let k = 0, carried = 0, px = hx, pz = hz, need = 0;
+    for (let i = 0; i < N; i++) {
+      need = i * MIL.gap * sc;
+      while (k < trail.length) {
+        const [qx, qz] = trail[k], d = Math.hypot(qx - px, qz - pz);
+        if (carried + d >= need) break;
+        carried += d; px = qx; pz = qz; k++;
+      }
+      let wx = px, wz = pz, tx = 0, tz = 1;
+      if (k < trail.length) {
+        const [qx, qz] = trail[k], d = Math.max(1e-6, Math.hypot(qx - px, qz - pz)), f = (need - carried) / d;
+        wx = px + (qx - px) * f; wz = pz + (qz - pz) * f;
+        tx = (px - qx) / d; tz = (pz - qz) / d;                  // forward: back toward the head
+      } else { tx = Math.sin(ry); tz = Math.cos(ry); wx = px - tx * (need - carried); wz = pz - tz * (need - carried); }
+      if (i === 0) { tx = Math.sin(ry); tz = Math.cos(ry); }       // the head looks where it's going (at you)
+      const dx = wx - hx, dz = wz - hz, c = Math.cos(ry), s = Math.sin(ry);
+      pWalk.set((dx * c - dz * s) / sc, MIL.y, (dx * s + dz * c) / sc);
+      qWalk.setFromAxisAngle(Y, Math.atan2(tx, tz) - ry);
+      // the coil, spun about its axle
+      const C = coil.at[i];
+      pBall.copy(C.p).applyQuaternion(qSpin).add(coil.center);
+      qBall.copy(qSpin).multiply(C.q);
+      // the tail curls in first, the head last
+      const ki = THREE.MathUtils.smoothstep(THREE.MathUtils.clamp(curl * 1.5 - (1 - i / N) * 0.5, 0, 1), 0, 1);
+      const S = segs[i];
+      S.seg.position.lerpVectors(pWalk, pBall, ki);
+      S.seg.position.y += Math.sin(t * 9 - i * 0.7) * 0.015 * move * (1 - ki);   // a slight ripple as it goes
+      S.seg.quaternion.slerpQuaternions(qWalk, qBall, ki);
+      if (S.legs) {
+        // the leg wave: each pair steps a little after the one in front of it
+        S.legs.rotation.x = Math.sin(t * 14 - i * 0.9) * 0.5 * (0.3 + move) * (1 - ki);
+        S.legs.scale.setScalar(MIL.fat * (1 - ki * 0.6));          // tucked in when coiled
+      }
+    }
+  };
+  return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius };   // radius units: how big the rolling ball is
+}
