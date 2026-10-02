@@ -333,3 +333,178 @@ export function buildStapler() {
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
+
+// ------------------------------------------------------------------ spotted lanternfly
+// The adult planthopper, in detail: a tent of pinkish-tan forewings with black spots and a
+// black-and-grey brick pattern at the tips, over red hindwings (black spots, a white band, a
+// black edge) that only show when it opens up to leap. A black head with a short beak and red
+// antennae, a yellow abdomen banded black, and six black legs, the back pair long for jumping.
+// It crawls with a tripod gait; to attack it crouches, then springs high, wings flared, and
+// slams down. About 2.6 radii long.
+function wingTexture(w, h, paint) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  paint(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+function seeded(seed) { let s = seed; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) + 0x9e3779b9 >>> 0) / 4294967296); }
+
+// a wing outline from its base (0, 0) back to the tip at (len, 0), `width` across at its widest;
+// laid flat with the base at the origin, pointing back (-z), spreading out to +x. UVs run base->tip
+function wingGeometry(len, width, tipRound, segs = 48) {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.bezierCurveTo(len * 0.3, -0.02, len * 0.75, -0.03, len * (1 - tipRound * 0.5), 0);   // the inner edge along the back
+  s.bezierCurveTo(len * 1.02, width * 0.15, len * 1.02, width * 0.75, len * (1 - tipRound), width * 0.95);   // the round tip
+  s.bezierCurveTo(len * 0.6, width * 1.05, len * 0.25, width * 0.85, 0.02, width * 0.25);   // the outer edge back to the base
+  s.closePath();
+  const g = new THREE.ShapeGeometry(s, segs);
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const u = p.getX(i), v = p.getY(i);
+    uv.setXY(i, u / len, v / width);
+    // a gentle curve across the wing, like a real one draped over the body
+    p.setXYZ(i, v, -Math.pow(v / width, 2) * width * 0.18 + Math.sin((u / len) * Math.PI) * 0.04, -u);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function lanternflyParts() {
+  const black = '#16141a', dark = '#2a2228', yellow = '#e6b81e', red = '#c8202a';
+  const body = [
+    ellipsoid(0.34, 0.26, 0.42, V(0, 0.42, 0.35), dark, 32),                // thorax
+    ellipsoid(0.36, 0.08, 0.3, V(0, 0.6, 0.38), '#3a3036', 24),             // its shield
+    ellipsoid(0.24, 0.2, 0.2, V(0, 0.4, 0.82), black, 28),                   // head
+    ellipsoid(0.07, 0.07, 0.05, V(-0.17, 0.46, 0.88), '#5a2a2a', 16),       // eyes
+    ellipsoid(0.07, 0.07, 0.05, V(0.17, 0.46, 0.88), '#5a2a2a', 16),
+    rod(V(0, 0.3, 0.92), V(0, 0.05, 0.98), 0.035, 0.015, black),           // the beak, pointing down
+    rod(V(-0.1, 0.48, 0.97), V(-0.2, 0.58, 1.12), 0.035, 0.03, red),       // short red antennae
+    rod(V(0.1, 0.48, 0.97), V(0.2, 0.58, 1.12), 0.035, 0.03, red),
+    ellipsoid(0.03, 0.03, 0.03, V(-0.2, 0.58, 1.12), black, 10),
+    ellipsoid(0.03, 0.03, 0.03, V(0.2, 0.58, 1.12), black, 10),
+  ];
+  // the abdomen: segments, yellow and black, tapering back under the wings
+  for (let k = 0; k < 8; k++) {
+    const z = 0.0 - k * 0.15, w = 0.3 - k * 0.026;
+    body.push(ellipsoid(w, w * 0.78, 0.1, V(0, 0.36 - k * 0.012, z), k % 2 ? black : yellow, 24));
+  }
+  // a leg built at its hip: femur out and down, tibia to the floor, a little foot
+  const leg = (s, reach, back, long) => merge([
+    rod(V(0, 0, 0), V(s * 0.38, 0.12, back * 0.3), 0.055, 0.045, black),
+    rod(V(s * 0.38, 0.12, back * 0.3), V(s * reach, -0.4, back * (long ? 0.9 : 0.5)), 0.04, 0.025, black),
+    rod(V(s * reach, -0.4, back * (long ? 0.9 : 0.5)), V(s * (reach + 0.08), -0.42, back * (long ? 1.05 : 0.6)), 0.025, 0.015, '#3a3036'),
+    ...(long ? [0.3, 0.5, 0.7].map((f) => ellipsoid(0.028, 0.028, 0.028, V(s * (0.38 + (reach - 0.38) * f) + s * 0.03, 0.12 - 0.52 * f, back * (0.3 + 0.6 * f)), '#3a3036', 8)) : []),   // spines on the jumping legs
+  ]);
+  const legs = [];
+  for (const s of [-1, 1]) legs.push({ s, i: 0, geo: leg(s, 0.62, 0.6, false), at: V(s * 0.16, 0.36, 0.55) }, { s, i: 1, geo: leg(s, 0.7, -0.1, false), at: V(s * 0.18, 0.34, 0.32) }, { s, i: 2, geo: leg(s, 0.78, -1, true), at: V(s * 0.18, 0.33, 0.1) });
+
+  // wing paintings (high resolution): u runs base -> tip, v the inner edge -> the outer edge
+  const R = seeded(7);
+  const fore = wingTexture(1024, 384, (g, w, h) => {
+    const grad = g.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, '#cdb6a6'); grad.addColorStop(0.6, '#bfa797'); grad.addColorStop(1, '#a8907f');
+    g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    // fine dark veins along the wing
+    g.strokeStyle = 'rgba(60,40,40,.35)'; g.lineWidth = 2;
+    for (let k = 1; k < 7; k++) { g.beginPath(); g.moveTo(0, h * k / 7); g.bezierCurveTo(w * 0.3, h * (k / 7 + 0.03), w * 0.5, h * (k / 7 - 0.02), w * 0.62, h * k / 7); g.stroke(); }
+    // black spots on the front two thirds
+    g.fillStyle = '#121014';
+    for (let k = 0; k < 16; k++) { const x = (0.06 + R() * 0.52) * w, y = (0.12 + R() * 0.76) * h, r = (0.022 + R() * 0.02) * w; g.beginPath(); g.ellipse(x, y, r, r * (0.8 + R() * 0.3), R() * 3, 0, 7); g.fill(); }
+    // the tips: a black net over grey "bricks"
+    const x0 = 0.63 * w;
+    g.fillStyle = '#141216'; g.fillRect(x0, 0, w - x0, h);
+    for (let row = 0; row < 7; row++) for (let col = 0; col < 9; col++) {
+      const cw = (w - x0) / 8.5, ch = h / 7, x = x0 + col * cw + (row % 2 ? cw / 2 : 0) + 3, y = row * ch + 3;
+      if (x > w) continue;
+      g.fillStyle = R() < 0.5 ? '#6e625a' : '#857870';
+      g.beginPath(); g.roundRect(x, y, cw - 7, ch - 7, 6); g.fill();
+    }
+    const fade = g.createLinearGradient(x0 - 30, 0, x0 + 20, 0);   // soft border into the spotted part
+    fade.addColorStop(0, 'rgba(18,16,20,0)'); fade.addColorStop(1, 'rgba(18,16,20,1)');
+    g.fillStyle = fade; g.fillRect(x0 - 30, 0, 50, h);
+  });
+  const hind = wingTexture(1024, 384, (g, w, h) => {
+    g.fillStyle = '#d01e2a'; g.fillRect(0, 0, w * 0.56, h);
+    const shade = g.createLinearGradient(0, 0, w * 0.56, 0); shade.addColorStop(0, 'rgba(120,0,10,.35)'); shade.addColorStop(1, 'rgba(255,60,60,0)');
+    g.fillStyle = shade; g.fillRect(0, 0, w * 0.56, h);
+    g.fillStyle = '#121014';
+    for (let k = 0; k < 8; k++) { const x = (0.08 + R() * 0.4) * w, y = (0.15 + R() * 0.7) * h, r = (0.03 + R() * 0.022) * w; g.beginPath(); g.ellipse(x, y, r, r, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#f1ede4'; g.fillRect(w * 0.56, 0, w * 0.12, h);          // the white band
+    g.fillStyle = '#121014'; g.fillRect(w * 0.68, 0, w * 0.32, h);          // the black edge
+  });
+  return { body: merge(body), legs, foreGeo: wingGeometry(1.95, 0.62, 0.25), hindGeo: wingGeometry(1.35, 0.8, 0.4), fore, hind };
+}
+
+export function buildLanternfly() {
+  const G = (GEO.lanternfly ||= lanternflyParts()), M = mats();
+  const wingMat = (map) => {
+    const m = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.05 });
+    standOut(m, { base: 0.25, rim: 0.6 });
+    return m;
+  };
+  M.lfFore ||= wingMat(G.fore);
+  M.lfHind ||= wingMat(G.hind);
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const shell = new THREE.Mesh(G.body, M.shell);
+  shell.castShadow = true;
+  body.add(shell);
+  const legs = G.legs.map((L) => {
+    const pivot = new THREE.Group();
+    pivot.position.copy(L.at);
+    pivot.add(new THREE.Mesh(L.geo, M.shell));
+    body.add(pivot);
+    return { ...L, pivot, phase: (L.i + (L.s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 };   // tripod gait
+  });
+  // wings hinge at the shoulders; at rest they make a roof over the back, the hindwings tucked under
+  const wing = (geo, mat, s, y) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.06, y, 0.55);
+    const m = new THREE.Mesh(geo, mat);
+    m.castShadow = true;
+    m.scale.x = s;
+    pivot.add(m);
+    body.add(pivot);
+    return { pivot, s };
+  };
+  const hindW = [-1, 1].map((s) => wing(G.hindGeo, M.lfHind, s, 0.6));
+  const foreW = [-1, 1].map((s) => wing(G.foreGeo, M.lfFore, s, 0.66));
+  const face = angryEyes({ y: 0.48, z: 0.96, size: 0.13, gap: 0.12 });
+  body.add(face);
+
+  let t = 0, k = 0, crouch = 0, open = 0, squash = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
+    const air = e.state === 'leap';
+    crouch += ((e.state === 'crouch' ? 1 : 0) - crouch) * (1 - Math.exp(-12 * dt));
+    open += ((air ? 1 : 0) - open) * (1 - Math.exp(-(air ? 18 : 6) * dt));
+    if (e.landT > 0) { squash = 1; e.landT = 0; }
+    squash *= Math.exp(-7 * dt);
+    const walk = (1 - crouch) * (1 - open);
+    const step = t * (4 + 14 * k);
+    for (const L of legs) {
+      const sw = Math.sin(step + L.phase) * 0.35 * k * walk;
+      L.pivot.rotation.y = sw * -L.s;
+      L.pivot.rotation.z = Math.max(0, Math.cos(step + L.phase)) * 0.25 * k * walk * L.s;
+      // crouching folds the jumping legs; in the air every leg trails back
+      L.pivot.rotation.x = (L.i === 2 ? -0.5 : -0.15) * crouch + (L.i === 2 ? 0.9 : 0.5) * open;
+    }
+    // the body: a crawl's sway, a crouch down and back, nose up in the air, a squash on landing
+    body.position.y = Math.abs(Math.sin(step)) * 0.02 * k * walk - crouch * 0.14 - squash * 0.1;
+    body.rotation.x = -crouch * 0.18 + open * (e.leapK < 0.5 ? -0.35 : 0.25);
+    body.rotation.z = Math.sin(step * 0.5) * 0.03 * k * walk;
+    body.scale.set(1 + squash * 0.12, 1 - squash * 0.2, 1 + squash * 0.06);
+    // wings: a roof at rest, lifted a little in the crouch, flared and beating mid-leap to flash the red
+    const flap = open * Math.sin(t * 38) * 0.35;
+    // (roll: negative drapes a wing down over the side, positive lifts it up and out)
+    for (const W of foreW) { W.pivot.rotation.z = W.s * (-0.62 + crouch * 0.2 + open * 1.5 + flap); W.pivot.rotation.y = W.s * (0.04 + open * 0.5); }
+    for (const W of hindW) { W.pivot.rotation.z = W.s * (-0.72 + crouch * 0.15 + open * 1.45 - flap); W.pivot.rotation.y = W.s * (0.02 + open * 0.9); }
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}

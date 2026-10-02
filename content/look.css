@@ -37,6 +37,7 @@
   --guts-ants: #1c0a06 #5a1a0c #3a1a10;
   --guts-mosquito: #15151a #f4f4f0 #b0202a #b0202a;
   --guts-stapler: #26262c #c8ccd4 #c0222c #d8dde4;
+  --guts-lanternfly: #cdb6a6 #16141a #d01e2a #e6b81e;
 
   /* --- the camera ------------------------------------------------------------ */
   --camera-distance: 0.6;      /* meters behind the jelly */

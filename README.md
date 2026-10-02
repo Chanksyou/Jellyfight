@@ -132,7 +132,7 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | `src/combat.js` | The Lash (close-range tentacle sting): targeting and picking which tentacle strikes. |
 | `src/vacuum.js` | The Vacuum, stage 1's boss, and its attacks. |
 | `src/boss.js` | Simpler bosses: The Clog (bathroom) and The Dust King. |
-| `src/critters.js` | Bug models with moving legs and wings: cockroach, ant squad, mosquito, and the hopping standing stapler (built and tested, saved for act 2: an office stapler opened out on its hinge, 80 health, firing a fan of five staples for 5 moisture each). |
+| `src/critters.js` | Bug models with moving legs and wings: cockroach, ant squad, mosquito, the spotted lanternfly (high detail: painted wings, flashes its red hindwings when it leaps; not in an act's waves yet), and the hopping standing stapler (built and tested, saved for act 2: an office stapler opened out on its hinge, 80 health, firing a fan of five staples for 5 moisture each). |
 | `src/traversal.js` | Vent launch pads, climbing, and per-stage apartment setup (doors, see-through curtain, walls). Objects are looked up by name, e.g. `Shower curtain`. |
 | `src/pickups.js` | Dew and the Moon Drop. |
 | `src/ui.js`, `src/hud.js`, `src/fx.js` | Menus, HUD and minimap, damage numbers and poofs. |

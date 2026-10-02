@@ -328,10 +328,10 @@ export class Run {
     const pc = P.clone().setY(P.y + this.cfg.height * 0.5);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
+      if (e.airborne) continue;                             // mid-leap: its landing does the hurting (the leap word)
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < e.r + this.cfg.radius) {
         if (e.T.slows) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
-        // Cactus Spine: whatever touches you gets stung (once per second each)
         // ant squads hit harder rolling
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type });
       }

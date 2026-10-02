@@ -3,7 +3,7 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly } from './critters.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -12,7 +12,7 @@ import { CONTENT } from './content.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
@@ -202,6 +202,7 @@ function makeLooks() {
     ants: buildAnts,
     mosquito: buildMosquito,
     stapler: buildStapler,
+    lanternfly: buildLanternfly,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -237,7 +238,8 @@ export class Enemies {
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
-    this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3() };   // the frame every word sees
+    this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
+    this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -400,6 +402,44 @@ export class Enemies {
     this.fx.puff(from.addScaledVector(aim, 0.03), shot === 'staple' ? 0xdfe6ee : this.laserColor.getHex(), 0.012, 0.12);
   }
 
+  // A leaping bug comes down (the leap word): a thump, a ring of dust, and the jelly is hit if
+  // it's standing inside the marked circle
+  slam(e, c, radius, dmg) {
+    const at = e.pos;
+    this.fx.ring(at.clone().setY(at.y + 0.003), 0xff5a3a, radius, 0.35);
+    this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
+    e.landT = 1;
+    const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
+    if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
+  }
+
+  // the warning under every bug about to land on you: a red ring with a disc filling in as the
+  // leap comes (crouching: half full; in the air: filling to the brim)
+  drawLeaps(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.leapAt || (e.state !== 'crouch' && e.state !== 'leap')) continue;
+      let M = this.leapMarks[n];
+      if (!M) {
+        const mat = (o) => new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: o, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+        M = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 40).rotateX(-Math.PI / 2), mat(0.85));
+        M.add(new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), mat(0.3)));
+        M.renderOrder = 3;
+        this.scene.add(M);
+        this.leapMarks.push(M);
+      }
+      const r = e.T.words.find((w) => w.leapRadius)?.leapRadius ?? 0.075;
+      const k = e.state === 'crouch' ? (e.leapK || 0) * 0.5 : 0.5 + (e.leapK || 0) * 0.5;
+      M.position.copy(e.leapAt).setY(e.leapAt.y + 0.003);
+      M.scale.setScalar(r);
+      M.children[0].scale.setScalar(Math.max(0.01, k));
+      M.material.opacity = 0.55 + 0.35 * Math.abs(Math.sin(t * (e.state === 'leap' ? 24 : 12)));
+      M.visible = true;
+      n++;
+    }
+    for (let i = n; i < this.leapMarks.length; i++) this.leapMarks[i].visible = false;
+  }
+
   // the aiming beam of every mosquito about to fire (the spit word sets e.aimT, e.aimMax and e.aimAt):
   // it flickers, and burns brighter and steadier as the shot gets close
   drawAim(t) {
@@ -474,7 +514,7 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.pc = pc; c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.pc = pc; c.foot.copy(player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
       c.flatDir.normalize();
@@ -533,10 +573,12 @@ export class Enemies {
 
     this.updateShots(dt);
     this.drawAim(t);
+    this.drawLeaps(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 
   moveGround(e, dt, near) {
+    if (e.airborne) return;               // mid-leap: the leap word flies it
     const w = this.world;
     const step = S.step.set(e.vel.x * dt, 0, e.vel.z * dt);
     const len = step.length();

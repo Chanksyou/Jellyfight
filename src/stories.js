@@ -362,6 +362,24 @@ story('words/spit-dodge', {
     return ok(shot && run.moisture === m0, { shot, lost: m0 - run.moisture });
   },
 });
+story('words/leap', {
+  about: 'leap: a lanternfly crawls up, crouches over a marked landing spot, springs high and slams down on you.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('lanternfly', near(0, -0.45)); e.leapCd = 0; },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], y0 = e.pos.y;
+    run.iFrames = 0;
+    const m0 = run.moisture, seen = new Set();
+    let top = 0, mark = null;
+    step(60 * 8, () => {
+      seen.add(e.state);
+      if (e.state === 'leap') top = Math.max(top, e.pos.y - y0);
+      if (e.state === 'crouch' && enemies.leapMarks[0]?.visible) mark = true;
+      return run.moisture < m0;
+    });
+    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.moisture === 3;
+    return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.moisture });
+  },
+});
 story('words/drift', {
   about: 'drift: a dust mote floats at your middle (bathroom stage).',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mote', near(0.4, 0, 0.15)); },

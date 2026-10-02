@@ -5,7 +5,7 @@
 // Enemy words run every frame for every bug that uses them, in the order the bug lists them.
 // A word's tick gets the bug `e`, the frame `c` and the Enemies system `en`:
 //   c.dt, c.t           frame time, seconds into the night
-//   c.pc                the jelly's middle (Vector3)
+//   c.pc                the jelly's middle (Vector3); c.foot where it stands
 //   c.toP, c.dist       from the bug to the jelly, and how far
 //   c.flatDir, c.flat   the same, flat on the floor (unit vector, meters)
 //   c.slow              1 normally, 0.55 slowed, 0 frozen or stunned
@@ -50,6 +50,46 @@ export const ENEMY_WORDS = {
         }
       },
     }),
+  },
+
+  leap: {
+    doc: 'Up close (within `range` m) every `every` s or so, crouches for `windup` s while a ring on the floor marks where it will land (the spot locks halfway through), then leaps `height` m high and comes down there `time` s later: you take `dmg` if you are within `radius` m of the landing. Then it rests `rest` s. List it after the walking word.',
+    props: { range: 0.3, windup: 0.55, height: 0.2, time: 0.75, radius: 0.075, dmg: 3, rest: 0.9, every: 1.5 },
+    make: (_, p) => {
+      const target = (e, c) => {
+        // where you stand, but no farther than it can jump
+        const t = (e.leapAt ||= new THREE.Vector3()).copy(c.foot), d = _away.copy(t).sub(e.pos).setY(0), max = p.range * 1.5;
+        if (d.length() > max) t.copy(e.pos).addScaledVector(d.normalize(), max).setY(c.foot.y);
+      };
+      return {
+        leapRadius: p.radius,
+        init(e) { e.leapCd = 1 + Math.random() * 1.5; },
+        tick(e, c, en) {
+          e.stateT -= c.dt;
+          e.leapCd -= c.dt;
+          if (e.state === 'approach') {
+            if (c.flat < p.range && e.grounded && e.leapCd <= 0) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
+          } else if (e.state === 'crouch') {
+            c.speed = 0;
+            e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
+            if (e.stateT > p.windup * 0.5) target(e, c);
+            if (e.stateT <= 0) { e.state = 'leap'; e.stateT = p.time; e.leapK = 0; (e.leapFrom ||= new THREE.Vector3()).copy(e.pos); e.airborne = true; }
+          } else if (e.state === 'leap') {
+            // a ballistic arc from where it crouched onto the marked spot (it flies itself: no walking, no gravity)
+            c.speed = 0;
+            e.vel.set(0, 0, 0);
+            const u = Math.min(1, 1 - e.stateT / p.time);
+            e.leapK = u;
+            e.pos.lerpVectors(e.leapFrom, e.leapAt, u);
+            e.pos.y += 4 * p.height * u * (1 - u);
+            if (u >= 1) { e.airborne = false; e.grounded = false; e.state = 'rest'; e.stateT = p.rest; e.leapCd = p.every; en.slam(e, c, p.radius, p.dmg); }
+          } else if (e.state === 'rest') {
+            c.speed *= 0.2;
+            if (e.stateT <= 0) e.state = 'approach';
+          }
+        },
+      };
+    },
   },
 
   hover: {

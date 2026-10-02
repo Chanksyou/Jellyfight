@@ -25,6 +25,13 @@ enemy "stapler" name="Standing stapler" hp=80 r=0.04 dmg=5 dew=8 model="stapler"
     spit every=3.2 reach=0.5 speed=0.6 life=0.9 dmg=5 aim=0.6 count=5 spread=50 shot="staple" height=1.3
 }
 
+// Not in any act's waves yet. The spotted lanternfly: it crawls after you, then crouches (a red
+// ring marks where it will land), springs high with its red wings flashing and slams down.
+enemy "lanternfly" name="Spotted lanternfly" hp=45 r=0.03 dmg=1 dew=6 model="lanternfly" {
+    chase 0.2
+    leap range=0.32 windup=0.55 height=0.2 time=0.75 radius=0.075 dmg=3 rest=0.9 every=1.5
+}
+
 // The dust enemies, kept for the bathroom stage (src/stage-bathroom.js)
 enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
     drift 0.255
