@@ -2,10 +2,10 @@
 // of Rain 2: odd time signatures, glassy arpeggios over warm pads, a chunky synth bass, and drums
 // and a distorted "guitar" lead that build in as the fight heats up.
 //
-//   drift       "Puddle Drift", exploring, after Shpongle's "Nothing Is Something Worth Doing".
-//               D Phrygian dominant, 4/4 at 124 BPM. Layers come in with intensity: drone, then a
-//               plucked guitar, hand drums, the rolling psy bass, kick and hats, the full groove
-//               with laser zaps, and a flute on top.
+//   drift       "Puddle Drift", exploring, after Daft Punk's Tron: Legacy score: C minor, 4/4 at
+//               100 BPM, dark and low. Layers come in with intensity: string pads, then the
+//               sequenced analog bass, a slow arpeggio, deep drums, toms and booms, and a low
+//               brass lead on top.
 //   machinery   "Domestic Machinery", the Vacuum, after deadmau5's "HR 8938 Cephei" with a dubby
 //               twist: F minor, 4/4 at 128 BPM, pumping supersaw chords, a wobbling reese bass,
 //               risers, and a supersaw lead once the fight gets desperate.
@@ -18,51 +18,46 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // --------------------------------------------------------------------------- the songs
 // chords: { pad: [midi], arp: [midi], root: midi } each `per` bars; lead: [bar, step, midi, steps]
-// Inspired by Shpongle's "Nothing Is Something Worth Doing": psychedelic, a little Middle-Eastern.
-// D Phrygian dominant (Hijaz: D Eb F# G A Bb C), 4/4 at 124 BPM. Over a deep drone, a flamenco-ish
-// plucked guitar, tabla-style hand drums, a rolling psytrance bass (kick on the beat, bass on the
-// three 16ths after it), swirling laser zaps through the delay, and an airy flute that slides
-// between notes.
+// Inspired by Daft Punk's Tron: Legacy score: dark, low and pulsing, the weight in the bass and
+// nothing sharp up top. C minor, 4/4 at 100 BPM, through Cm, Ab, Eb, Bb. A sequenced analog bass
+// in 16ths (root, octave, fifth; a sine sub under every note) carries it, its filter opening as
+// things heat up; dark string pads, a slow mid arpeggio, deep half-time drums with toms, and a
+// low swelling brass lead. The whole mix is rolled off above ~5 kHz (air).
 const DRIFT = {
-  name: 'Puddle Drift', bpm: 124, steps: 16, per: 2, flute: true, arpWave: 'sawtooth',
-  layers: { pad: -1, arp: 0.1, perc: 0.22, bass: 0.36, drums: 0.5, full: 0.66, lead: 0.74 },
+  name: 'Puddle Drift', bpm: 100, steps: 16, per: 2, brass: true, sub: 1, air: 5000, arpWave: 'triangle',
+  layers: { pad: -1, bass: 0.08, arp: 0.3, drums: 0.42, full: 0.62, lead: 0.74 },
   chords: [
-    { pad: [38, 50, 57, 62], arp: [62, 66, 69, 74, 75], root: 38 },   // D (Hijaz home)
-    { pad: [39, 51, 58, 63], arp: [63, 67, 70, 75, 74], root: 39 },   // Eb (the b2 lean)
-    { pad: [38, 50, 57, 62], arp: [62, 66, 69, 74, 78], root: 38 },   // D
-    { pad: [36, 48, 55, 63], arp: [60, 63, 67, 72, 74], root: 36 },   // Cm (bVII minor, back down)
+    { pad: [48, 55, 60, 63], arp: [60, 63, 67, 70], root: 36 },   // Cm
+    { pad: [44, 51, 56, 60], arp: [56, 60, 63, 67], root: 32 },   // Ab
+    { pad: [46, 51, 55, 58], arp: [58, 63, 67, 70], root: 39 },   // Eb
+    { pad: [46, 50, 53, 58], arp: [58, 62, 65, 69], root: 34 },   // Bb
   ],
-  arp: [0, 3, 2, 3, 1, 3, 2, 3, 0, 3, 2, 3, 4, 3, 2, 1],                 // a flamenco-ish tremolo figure
-  // tabla: [step, 'dha' (low) | 'tin' (high) | 'ta' (sharp)]
-  tabla: [[0, 'dha'], [3, 'tin'], [6, 'tin'], [8, 'dha'], [10, 'ta'], [11, 'tin'], [14, 'tin']],
+  seq: [0, 0, 12, 0, 7, 0, 12, 0, 0, 0, 12, 0, 7, 12, 10, 7],       // the bass sequence, 16ths
+  arp: [0, 1, 2, 3, 2, 1, 2, 3],                                     // 8ths, up and down
   lead: [
-    [0, 0, 81, 6], [0, 6, 82, 2], [0, 8, 81, 4], [0, 12, 79, 2], [0, 14, 78, 2],
-    [1, 0, 79, 4], [1, 4, 78, 2], [1, 6, 75, 2], [1, 8, 74, 8],
-    [2, 0, 75, 2], [2, 2, 78, 2], [2, 4, 79, 4], [2, 8, 81, 6], [2, 14, 82, 2],
-    [3, 0, 81, 10], [3, 10, 79, 2], [3, 12, 78, 4],
-    [4, 0, 86, 6], [4, 6, 84, 2], [4, 8, 82, 4], [4, 12, 81, 4],
-    [5, 0, 82, 3], [5, 3, 81, 3], [5, 6, 79, 2], [5, 8, 78, 8],
-    [6, 0, 79, 2], [6, 2, 81, 2], [6, 4, 82, 2], [6, 6, 84, 2], [6, 8, 86, 4], [6, 12, 87, 4],
-    [7, 0, 86, 12], [7, 12, 81, 4],
+    [0, 0, 67, 8], [0, 8, 72, 8],
+    [1, 0, 70, 6], [1, 6, 68, 2], [1, 8, 67, 8],
+    [2, 0, 68, 8], [2, 8, 72, 4], [2, 12, 75, 4],
+    [3, 0, 72, 12], [3, 12, 70, 4],
+    [4, 0, 70, 8], [4, 8, 75, 8],
+    [5, 0, 74, 6], [5, 6, 72, 2], [5, 8, 70, 8],
+    [6, 0, 65, 4], [6, 4, 70, 4], [6, 8, 74, 8],
+    [7, 0, 72, 16],
   ],
   tick(m, s, bar, t, L) {
     const C = this.chords[Math.floor(bar / this.per) % this.chords.length], dur = m.stepDur;
-    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.03, 380 + 1500 * m.I);
-    if (L.arp) m.pluck(C.arp[this.arp[s]], t, 0.045 * L.arp, 0.35 + 0.5 * m.I, s % 4 < 2 ? -0.35 : 0.35);
-    if (L.perc) for (const [st, k] of this.tabla) if (st === s) m.tabla(k, t, 0.16 * L.perc);
-    // the psy gallop: kick on the beat, the bass on the three 16ths after it
-    if (L.bass && s % 4) m.bass(C.root + (s % 16 === 15 && bar % 2 ? 12 : 0), t, dur * 0.7, 0.15 * L.bass, 0.3 + 0.45 * m.I);
-    if (L.drums && s % 4 === 0) m.kick(t, 0.55 * L.drums);
-    // the offbeat open hat, and with the full groove a shaker on every 16th (one hit a step)
-    const open = s % 4 === 2;
-    const hat = Math.max(open ? 0.05 * L.drums : 0, L.full ? (s % 2 ? 0.018 : 0.012) * L.full : 0);
-    if (hat > 0.008) m.hat(t, hat, open && L.drums > 0);
-    if (L.full) {
-      if (s === 4 || s === 12) m.snare(t, 0.13 * L.full);
-      if (s === 0 && bar % 8 === 0) m.crash(t, 0.1 * L.full);
-      if (s === 10 && bar % 4 === 3) m.zap(t, 0.05 * L.full);                  // psychedelic lasers
+    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.042, 420 + 650 * m.I);
+    // the pulse: accents on the beat, the filter opening with intensity
+    if (L.bass) m.bass(C.root + this.seq[s], t, dur * 0.85, (s % 4 === 0 ? 0.15 : 0.1) * L.bass, 0.08 + 0.3 * m.I);
+    if (L.arp && s % 2 === 0) m.pluck(C.arp[this.arp[(s / 2) % 8]], t, 0.05 * L.arp, 0.05 + 0.12 * m.I, (s / 2) % 2 ? 0.3 : -0.3);
+    if (L.drums) {
+      if (s === 0 || (L.full && (s === 6 || s === 10))) m.kick(t, 0.6 * L.drums);
+      if (s === 8) m.snare(t, 0.15 * L.drums, true);
+      if (bar % 4 === 3 && (s === 12 || s === 14)) m.tom(t, s === 12 ? 98 : 73, 0.3 * L.drums);
     }
-    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.085 * L.lead);
+    if (L.full && s === 4) m.kick(t, 0.3 * L.full);
+    if (L.full && s === 0 && bar % 8 === 0) m.drop(t, 0.1 * L.full);       // a deep boom at the top of each phrase
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.08 * L.lead);
   },
 };
 
@@ -132,6 +127,7 @@ export class Music {
     this.drumBus = ctx.createGain();
     this.drumBus.connect(this.tone);
     this.suckOn = false;
+    this.air = 18000;
     // a hall reverb (a generated impulse) and a ping-pong delay, shared by everything
     this.rev = ctx.createGain();
     const conv = ctx.createConvolver();
@@ -177,6 +173,8 @@ export class Music {
     if (swap) this.out.gain.linearRampToValueAtTime(0, now + 0.5);
     this.v?.stop(now + (swap ? 0.55 : 0.05));
     this.v = this.voices(song);
+    this.air = song.air || 18000;                   // the song's top end
+    this.tone.frequency.setTargetAtTime(this.ducked ? 700 : this.air, now, 0.3);
     this.pump.gain.cancelScheduledValues(now);
     this.pump.gain.setValueAtTime(1, now);
     this.song = song;
@@ -192,7 +190,7 @@ export class Music {
   suck(on, at) { if (on !== this.suckOn) { this.suckOn = on; this.filter(at); } }
   filter(at) {
     const now = at ?? this.ctx.currentTime, T = this.tone;
-    const f = this.ducked ? 700 : this.suckOn ? 480 : 18000;
+    const f = this.ducked ? 700 : this.suckOn ? 480 : this.air;
     T.frequency.cancelScheduledValues(now);
     T.frequency.setTargetAtTime(f, now, this.suckOn && !this.ducked ? 0.35 : 0.25);
     T.Q.setTargetAtTime(this.suckOn && !this.ducked ? 7 : 0.7, now, 0.2);
@@ -275,7 +273,7 @@ export class Music {
   // song.hardBass: drive the bass (the boss); song.flute: the lead is a breathy flute, not a
   // distorted guitar; song.arpWave: the arpeggio's waveform
   voices(song) {
-    const c = this.ctx, t = c.currentTime, hard = !!song.hardBass, flute = !!song.flute, saws = !!song.supersaw;
+    const c = this.ctx, t = c.currentTime, hard = !!song.hardBass, flute = !!song.flute, brass = !!song.brass, saws = !!song.supersaw || brass;
     const bass = { f: c.createBiquadFilter(), g: c.createGain(), o: [] };
     bass.f.type = 'lowpass'; bass.f.Q.value = 3;
     bass.g.gain.value = 0;
@@ -283,7 +281,7 @@ export class Music {
     if (hard) { const w = c.createWaveShaper(); w.curve = this.drive; bass.f.connect(w); head = w; }
     head.connect(bass.g).connect(this.bus);
     // a reese (two saws beating against each other) for the wobble bass, else one saw; a sine sub under both
-    for (const [type, mul, v, det] of song.wobble ? [['sawtooth', 1, 0.8, -18], ['sawtooth', 1, 0.8, 18], ['sine', 0.5, 1.5, 0]] : [['sawtooth', 1, 1, 0], ['sine', 0.5, 1.4, 0]]) {
+    for (const [type, mul, v, det] of song.wobble ? [['sawtooth', 1, 0.8, -18], ['sawtooth', 1, 0.8, 18], ['sine', 0.5, 1.5, 0]] : [['sawtooth', 1, 1, 0], ['sine', song.sub || 0.5, 1.4, 0]]) {
       const o = c.createOscillator(), og = c.createGain();
       o.type = type; o.detune.value = det; og.gain.value = v; o.connect(og).connect(bass.f); o.start(t);
       bass.o.push([o, mul]);
@@ -298,11 +296,12 @@ export class Music {
     // the guitar goes through the distortion; the flute is clean, with breath noise in it
     const w = flute || saws ? c.createGain() : c.createWaveShaper();
     if (!flute && !saws) w.curve = this.drive;
-    lead.f.type = 'lowpass'; lead.f.frequency.value = flute ? 5000 : saws ? 4500 : 3000; lead.f.Q.value = 1;
+    lead.f.type = 'lowpass'; lead.f.frequency.value = flute ? 5000 : brass ? 1500 : saws ? 4500 : 3000; lead.f.Q.value = 1;
     lead.g.gain.value = 0;
     w.connect(lead.f).connect(lead.g);
     lead.g.connect(this.bus); lead.g.connect(this.dly); lead.g.connect(this.rev);
-    lead.vib = flute ? 18 : saws ? 6 : 14;
+    lead.vib = flute ? 18 : brass ? 5 : saws ? 6 : 14;
+    lead.attack = brass ? 0.09 : 0.01;              // brass swells in
     lead.glide = flute ? 0.035 : 0.012;
     lead.lfo.frequency.value = flute ? 5 : 5.5; lead.lfo.connect(lead.depth); lead.depth.gain.value = 0; lead.lfo.start(t);
     const leadOsc = flute ? [['triangle', -4, 0.7], ['sine', 4, 0.9]] : saws ? [['sawtooth', -14, 0.6], ['sawtooth', 0, 0.6], ['sawtooth', 14, 0.6]] : [['sawtooth', -9, 1], ['sawtooth', 9, 1]];
@@ -358,7 +357,7 @@ export class Music {
     L.depth.gain.setValueAtTime(0, t);
     L.depth.gain.linearRampToValueAtTime(L.vib, t + Math.min(0.5, dur));
     L.g.gain.cancelScheduledValues(t);
-    L.g.gain.setTargetAtTime(vol, t, 0.01);
+    L.g.gain.setTargetAtTime(vol, t, L.attack);
     L.g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
   }
 
@@ -383,9 +382,9 @@ export class Music {
     this.noiseHit(t, 'highpass', 3000, 0.7, 0.012, vol * 0.25);
   }
 
-  snare(t, vol) {
+  snare(t, vol, dark = false) {
     if (vol <= 0.0005) return;
-    this.noiseHit(t, 'bandpass', 1900, 0.8, 0.2, vol, 0.25);
+    this.noiseHit(t, 'bandpass', dark ? 800 : 1900, 0.8, dark ? 0.32 : 0.2, vol, dark ? 0.45 : 0.25);
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
     o.type = 'triangle';
     o.frequency.setValueAtTime(210, t);
@@ -395,35 +394,21 @@ export class Music {
     o.start(t); o.stop(t + 0.12);
   }
 
-  // hand drums: a tuned skin that bends down as it rings: dha (low, bassy), tin (high, ringing), ta (sharp)
-  tabla(kind, t, vol) {
+
+
+
+
+  // a deep tom: a tuned skin falling in pitch, with a soft thud of noise
+  tom(t, f, vol) {
     if (vol <= 0.0005) return;
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
-    const [f0, f1, dur] = { dha: [190, 95, 0.32], tin: [620, 560, 0.22], ta: [880, 700, 0.07] }[kind];
-    o.type = 'sine';
-    o.frequency.setValueAtTime(f0, t);
-    o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.6);
-    this.env(g, t, 0.002, vol, 0.004, t + dur);
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 0.6, t + 0.35);
+    this.env(g, t, 0.003, vol, 0.02, t + 0.5);
     o.connect(g).connect(this.drumBus);
-    o.start(t); o.stop(t + dur + 0.02);
-    this.noiseHit(t, 'bandpass', kind === 'dha' ? 900 : 3200, 1.5, 0.025, vol * 0.5, 0.1);   // the slap of the fingers
-  }
-
-  // a psychedelic laser: a resonant saw diving from high to low, panning across, into the delay
-  zap(t, vol) {
-    const c = this.ctx, o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(), p = c.createStereoPanner();
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(1400, t);
-    o.frequency.exponentialRampToValueAtTime(70, t + 0.9);
-    f.type = 'bandpass'; f.Q.value = 9;
-    f.frequency.setValueAtTime(4000, t);
-    f.frequency.exponentialRampToValueAtTime(250, t + 0.9);
-    p.pan.setValueAtTime(-0.8, t);
-    p.pan.linearRampToValueAtTime(0.8, t + 0.9);
-    this.env(g, t, 0.01, vol, 0.3, t + 0.95);
-    o.connect(f).connect(g).connect(p);
-    p.connect(this.bus); p.connect(this.dly);
-    o.start(t); o.stop(t + 1);
+    const r = c.createGain(); r.gain.value = 0.3; g.connect(r).connect(this.rev);
+    o.start(t); o.stop(t + 0.55);
+    this.noiseHit(t, 'lowpass', 600, 0.7, 0.08, vol * 0.4);
   }
 
   clap(t, vol) {
