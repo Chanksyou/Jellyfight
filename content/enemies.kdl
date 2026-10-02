@@ -36,8 +36,8 @@ enemy "lanternfly" name="Spotted lanternfly" hp=60 r=0.039 dmg=1 dew=8 model="la
 // up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
 // and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
 enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 dew=7 model="spider" {
-    chase 0.27 stop=0.32               // keeps its distance (backs off if you close in) so it can lob webs
-    spit every=2.8 reach=0.6 speed=0.5 life=2 dmg=2 aim=0.7 shot="web" height=1.2 arc=0.9 slow=1.5
+    chase 0.27 stop=0.55               // keeps its distance (backs off if you close in) so it can lob webs
+    spit every=2.8 reach=0.9 speed=0.6 life=2 dmg=2 aim=0.7 shot="web" height=1.2 arc=0.9 slow=1.5
 }
 
 // Act 2. The house fly (from 0:30): it buzzes around you just out of reach, then hangs in the

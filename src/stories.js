@@ -400,20 +400,20 @@ story('words/curl-dash', {
 });
 story('enemies/spider-web-ball', {
   about: 'The house spider walks on alternating sets of legs, rears up to aim, and lobs a web ball that arcs (rising, then falling) onto you: it stings and slows you.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('spider', near(0, -0.4)); e.shootT = 99; },
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('spider', near(0, -0.85)); e.shootT = 99; },
   play() {
     const { run, enemies } = G(), e = enemies.list[0];
     const log = record('damage_taken');
     // walking: its legs move (the model animates with its speed)
     step(40);
-    const moved = e.pos.distanceTo(G().player.position) < 0.4;
+    const moved = e.pos.distanceTo(G().player.position) < 0.78;
     e.shootT = 0.7;
     let reared = false, ys = [], hit = null, slowed = 0;
     step(60 * 4, () => {
       if (e.aimT > 0) reared = true;
       const s = enemies.shots.find((q) => q.web);
       if (s) ys.push(s.m.position.y);
-      e.pos.copy(near(0, -0.4));                     // hold it at range so it shoots
+      e.pos.copy(near(0, -0.6));                     // hold it at range so it shoots
       hit = log.find((d) => d.source === 'web');
       if (hit) slowed = run.slowT;
       return !!hit;
@@ -476,7 +476,7 @@ story('enemies/spider-keeps-its-distance', {
     step(30);
     const backed = e.pos.clone().sub(p0).setY(0).dot(toMe) < -0.01;
     const webs = log.filter((d) => d.source === 'web').length, bumps = log.filter((d) => d.source === 'spider').length;
-    return ok(closest > 0.2 && launched >= 2 && webs >= 1 && !bumps && backed, { closest: +closest.toFixed(3), launched, webs, bumps, backed, before: +before.toFixed(3) });
+    return ok(closest > 0.4 && launched >= 2 && webs >= 1 && !bumps && backed, { closest: +closest.toFixed(3), launched, webs, bumps, backed, before: +before.toFixed(3) });
   },
 });
 story('words/hover', {
