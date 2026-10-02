@@ -41,7 +41,7 @@ function restore() {
 
 // A clean run with the noise switched off: no waves, no Moon Drop, no level-ups, no dying
 // (each can be turned back on), and the start pick skipped.
-export function fresh({ waves = false, drops = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
+export function fresh({ waves = false, drops = false, gifts = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
   const { run, menus, moon, enemies } = G();
   restore();
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
@@ -51,6 +51,7 @@ export function fresh({ waves = false, drops = false, hurt = false, levels = fal
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
   if (!drops) { stub(run, 'updateDrops', () => {}); moon.hide(); }
+  if (!gifts) stub(run, 'updateGifts', () => {});
   if (!hurt) stub(run, 'hurt', () => {});
   if (!levels) stub(run, 'levelUp', () => {});
   if (!bubbles) stub(run.bubbles, 'update', () => {});
@@ -137,26 +138,38 @@ story('traversal/hallway-walled', {
   setup() { fresh({ elites: false }); tp(3.0, 0.05, 4.6, Math.PI); },
   play() { const r = sim(3, ['KeyW']); return ok(r.pos[2] < 4.83, { end: r.pos }); },
 });
-for (const [label, from] of [['kitchen counter', [4.5, 0.95, 3.35]], ['arm of the sofa', [2.3, 0.56, 2.0]], ['top of the blue pillow', [2.2, 0.56, 1.95]], ['back of the lounge chair', [3.2, 0.5, 1.5]]]) {
-  story(`traversal/gift-${label.replace(/ /g, '-')}`, {
-    about: `The gift box on the ${label} can be reached from the nearest vent landing.`,
-    setup() { fresh({ elites: false }); tp(...from, 0); },
-    play() {
-      const { run, player, tpc, input, menus } = G();
-      const s = run.lost.list.find((x) => x.label === label);
-      let got = false;
-      step(60 * 8, (i) => {
-        const d = s.pos.clone().sub(player.position).setY(0);
-        tpc.yaw = Math.atan2(-d.x, -d.z);
-        input.keys = new Set(d.length() > 0.01 ? ['KeyW'] : []);
-        if (i % 50 === 0 || i % 50 === 18) input.jumpQueued = true;
-        if (menus.open) { got = true; menus.close(); return true; }
-      });
-      input.keys = new Set();
-      return ok(got, { end: r3(player.position), target: r3(s.pos) });
-    },
-  });
-}
+// --- golden gifts: on a schedule, somewhere else in the room, for a limited time
+story('gifts/appear-on-schedule', {
+  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:30, 3:00 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',
+  setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G(), seen = [], spots = new Set();
+    let gone = 0;
+    stub(run.hud, 'toast', (text) => { if (/faded/.test(text)) gone++; });
+    const wasActive = { v: false };
+    for (let i = 0; i < 60 * 240; i++) {
+      G().GAME.step(1 / 60);
+      if (run.gift.active && !wasActive.v) { seen.push(Math.round(run.t)); spots.add(run.gift.spot.label); }
+      wasActive.v = run.gift.active;
+    }
+    const want = [15, 60, 105, 150, 180, 225];
+    return ok(seen.length === 6 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 5 && spots.size >= 4, { seen, gone, spots: [...spots] });
+  },
+});
+story('gifts/touch-for-a-treasure', {
+  about: 'Touching a golden gift in time offers a treasure pick, and it goes away.',
+  setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); G().run.t = 14.9; },
+  play() {
+    const { run, menus } = G();
+    step(30, () => run.gift.active);
+    const p = run.gift.pos.clone();
+    let offered = false;
+    stub(run.ui, 'choose', () => { offered = true; });
+    tp(p.x, p.y + 0.01, p.z);
+    step(20, () => offered);
+    return ok(offered && !run.gift.active, { offered, at: r3(p) });
+  },
+});
 
 // --- movement
 story('movement/jelly-steady-speed', {

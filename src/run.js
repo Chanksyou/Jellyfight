@@ -11,7 +11,7 @@ import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
 import { Elites } from './elites.js';
 import { Bubbles } from './bubbles.js';
-import { LostThings } from './pickups.js';
+import { GoldGift } from './pickups.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER } from './events.js';
@@ -36,7 +36,7 @@ export class Run {
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles.grace = this.cfg.radius;
-    this.lost = new LostThings(ctx.scene);
+    this.gift = new GoldGift(ctx.scene, ctx.fx);   // golden gifts on a schedule (stage.gifts)
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     // low invisible walls around the boss arena, solid only during the fight
@@ -94,7 +94,10 @@ export class Run {
     const s = this.stage;
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
-    this.lost?.place(this.stage.lostThings || []);
+    this.gift?.hide();
+    this.giftsLeft = [...(this.stage.gifts?.at || [])];   // seconds into the night each golden gift appears
+    this.lastGift = null;
+    this.recentGifts = [];   // the last few gift spots, so each one turns up somewhere new
     this.dew.clear();
     this.fx.clear();
     this.lash.reset();
@@ -227,6 +230,7 @@ export class Run {
     if (this.phase === 'explore') {
       this.spawnWaves(dt);
       this.updateDrops(dt);
+      this.updateGifts(dt);
       if (this.t >= this.duration && this.phase === 'explore') this.startMoonlift(true);
     }
     this.nightT -= dt;
@@ -246,8 +250,6 @@ export class Run {
       this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
-        const found = this.lost.update(dt, this.t, P.position);
-        if (found) { this.fx.puff(found.pos.clone().setY(found.pos.y + 0.01), 0xffd23a, 0.04, 0.5); this.pickTreasure('🎁 A lost thing!', `Tucked away on the ${found.label}. Keep one.`); }
       }
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.update(dt, { position: P.position, height: this.cfg.height }, this.t);
@@ -485,6 +487,41 @@ export class Run {
     });
   }
 
+  // ------------------------------------------------------------ golden gifts
+  // At each time in stage.gifts.at a golden gift turns up somewhere else in the room and waits
+  // stage.gifts.stay seconds; touch it in time for a treasure pick
+  updateGifts(dt) {
+    const G = this.stage.gifts;
+    if (!G) return;
+    const r = this.gift.update(dt, this.t, this.player.position);
+    if (r === 'taken') this.pickTreasure('🎁 A golden gift!', 'You got there in time. Keep one.');
+    else if (r === 'gone') this.hud.toast('🎁 The golden gift faded away…', 1800);
+    if (!this.gift.active && this.giftsLeft.length && this.t >= this.giftsLeft[0]) {
+      this.giftsLeft.shift();
+      const spot = this.giftSpot();
+      if (!spot) return;
+      this.gift.show(spot, G.stay);
+      this.lastGift = spot;
+      this.recentGifts = [spot.label, ...this.recentGifts].slice(0, 3);
+      this.hud.toast(`🎁 A golden gift appeared: ${spot.label}. ${G.stay} seconds to grab it!`, 2800);
+    }
+  }
+
+  // somewhere else: away from you, in another part of the room from the last one, not one of the
+  // last three spots, not on the Moon Drop
+  // (from the open spots the Moon Drops use: flat, nothing overhead)
+  giftSpot() {
+    const P = this.player.position, moon = this.moon.active ? this.moon.position : null, last = this.lastGift;
+    const ok = (sp, far, elsewhere) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z) > far
+      && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentGifts.includes(sp.label)))
+      && (!moon || Math.hypot(sp.at[0] - moon.x, sp.at[2] - moon.z) > 0.3);
+    for (const [far, elsewhere] of [[0.8, true], [0.5, true], [0.5, false], [0, false]]) {
+      const c = (this.dropSpots || []).filter((sp) => ok(sp, far, elsewhere));
+      if (c.length) return c[Math.floor(Math.random() * c.length)];
+    }
+    return null;
+  }
+
   // ------------------------------------------------------------ moon drops
   updateDrops(dt) {
     if (this.moon.active) {
@@ -568,7 +605,7 @@ export class Run {
       this.enemies.clear();
       this.traversal.bossMode = true;
       this.elites.clear();
-      this.lost.clear();
+      this.gift.hide();
       this.bossWalls.forEach((m) => { m.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
@@ -659,7 +696,7 @@ export class Run {
       const p = this.moon.position;
       out.push({ x: p.x, y: p.y, z: p.z, color: '#fff3c4', big: true, icon: this.moon.full ? '🌕' : '🌙' });
     }
-    if (this.phase === 'explore') for (const s of this.lost.list) if (!s.taken) out.push({ x: s.pos.x, y: s.pos.y, z: s.pos.z, color: '#ff7a9a', icon: '🎁' });
+    if (this.phase === 'explore' && this.gift.active) { const g = this.gift.pos; out.push({ x: g.x, y: g.y, z: g.z, color: '#ffc93a', icon: '🎁', big: true }); }
     const ICON = { controller: '🎮', mug: '☕', kettle: '🫖' };
     if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ffc23a', big: true, icon: ICON[e.kind] || '★' });
     if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true, icon: '🤖' }); }
