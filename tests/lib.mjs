@@ -32,8 +32,10 @@ export async function start() {
 }
 
 // Open the game and wait until it's ready to play; exits with the on-screen error if it can't start
-export async function openGame({ url, browser }, opts = {}) {
+// (act: open that act, the way the game's own act change does: stages.js)
+export async function openGame({ url, browser }, { act, ...opts } = {}) {
   const page = await browser.newPage(opts);
+  if (act) await page.addInitScript((a) => sessionStorage.setItem('jellyfight.act', JSON.stringify(a)), act);
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|KHR_parallel/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push('page error: ' + e.message));

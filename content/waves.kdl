@@ -1,5 +1,6 @@
-// How the night fills with bugs (run.js spawnWaves). Times are seconds into the night.
-// Which bugs exist and how they behave: content/enemies.kdl.
+// How the night fills with bugs (run.js spawnWaves). Times are seconds into the act; `act` is
+// which act a bug comes out in (1 if left out). Which bugs exist and how they behave:
+// content/enemies.kdl. An act's own toughness (src/stage*.js) multiplies its bugs' health.
 
 spawning {
     rate 0.22 grow=0.0022       // bugs per second at midnight, and how much faster each second after
@@ -11,5 +12,12 @@ bug "roach" weight=1                // cockroaches from the start
 bug "ants" weight=0.5 from=30       // ant squads from 0:30
 bug "mosquito" weight=0.45 from=90  // mosquitoes from 1:30
 bug "lanternfly" weight=0.3 from=120 // spotted lanternflies from 2:00
-bug "spider" weight=0.25 from=150   // house spiders from 2:30
-// the standing stapler (content/enemies.kdl) is saved for act 2: add it to that act's waves
+
+// act 2: the hallway and the bathroom
+bug "roach" weight=0.8 act=2                // cockroaches from the start
+bug "hair" weight=0.6 act=2                 // hair tangles from the drain, from the start
+bug "ants" weight=0.45 from=20 act=2        // ant squads from 0:20
+bug "spider" weight=0.35 from=45 act=2      // house spiders from 0:45
+bug "mosquito" weight=0.35 from=75 act=2    // mosquitoes from 1:15
+bug "stapler" weight=0.3 from=105 act=2     // standing staplers from 1:45
+bug "lanternfly" weight=0.25 from=150 act=2 // spotted lanternflies from 2:30

@@ -16,6 +16,7 @@ import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext } from './s
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
+import { STAGES, currentAct, goToAct } from './stages.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1232,6 +1233,95 @@ story('engine/act2-rooms-load-when-needed', {
 });
 
 // ------------------------------------------------------------------ running them
+
+// --- act 1 hands over to act 2
+story('acts/act-1-leads-to-act-2', {
+  about: 'Beating the act 1 boss and growing offers the way on to act 2, with the score so far.',
+  setup() { fresh(); },
+  play() {
+    const { run, menus } = G();
+    run.kills = 12;
+    run.metamorph();
+    document.querySelector('.jf-card')?.click();
+    const text = document.querySelector('.jf-modal, .jf-panel, #g-ui')?.innerText || document.body.innerText;
+    const go = [...document.querySelectorAll('button')].some((b) => /On to act 2/.test(b.textContent));
+    menus.close();
+    return ok(go && /Act 1 complete/.test(text) && /Score so far/.test(text), { go, text: text.slice(0, 160) });
+  },
+});
+
+// --- act 2: the hallway and the bathroom (stage2.js). These play in a page opened on act 2,
+// carrying a level-6 run with a Candle (tests/run.mjs)
+const act2 = (name, s) => story('act2/' + name, { act: 2, ...s });
+for (const v of STAGES[1].vents) {
+  act2(`vent-to-${v.to.replace('the ', '').replace(/ /g, '-')}`, {
+    about: `Stepping on the ${v.name.toLowerCase()} flings you onto ${v.to}.`,
+    setup() { fresh({ elites: false }); tp(v.at[0], 0.05, v.at[2], 0); },
+    play() {
+      const r = sim(3);
+      const [x, y, z] = r.pos, [lx, ly, lz] = v.land;
+      return ok(Math.hypot(x - lx, z - lz) < 0.08 && Math.abs(y - ly) < 0.06 && r.grounded, { end: r.pos, target: v.land });
+    },
+  });
+}
+
+act2('closets-are-shut', {
+  about: 'The closet doors stand ajar to peek in, but a force field keeps you out of both (and out of the living room).',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const walk = (x, z, yaw) => { fresh({ elites: false }); tp(x, 0.05, z, yaw); return sim(3, ['KeyW']).pos; };
+    const laundry = walk(3.3, 5.3, -Math.PI / 2), coat = walk(2.8, 5.4, Math.PI / 2), living = walk(3.0, 5.3, 0);
+    return ok(laundry[0] < 3.6 && coat[0] > 2.5 && living[2] > 4.85, { laundry, coat, living });
+  },
+});
+
+act2('only-act-2-bugs', {
+  about: 'Act 2\'s waves bring its own bugs (spiders and staplers among them), none of act 1\'s.',
+  setup() { fresh({ waves: true, elites: false }); G().run.t = 200; },
+  play() {
+    const { run, enemies } = G();
+    const pool = new Set(CONTENT.waves.bugs.filter((b) => b.act === 2).map((b) => b.id));
+    const seen = new Set();
+    step(900, () => { for (const e of enemies.list) if (!e.proxy && !e.elite) seen.add(e.type); run.t = 200; });
+    const stray = [...seen].filter((t) => !pool.has(t));
+    return ok(pool.has('spider') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
+  },
+});
+
+act2('carries-the-run', {
+  about: 'Act 2 starts with what act 1 left you: level, treasures and the score so far.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    return ok(run.level === 6 && run.owned.has('candle') && run.score() >= 5000 && run.moisture === run.stats.moisture && run.stats.moisture === 130,
+      { level: run.level, owned: [...run.owned], score: run.score(), moisture: run.moisture });
+  },
+});
+
+act2('gift-spots', {
+  about: 'Golden gifts can turn up all over the hallway and bathroom, each on a real surface you can reach.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    return ok(run.spots.length >= 12 && !run.spotRejects.length && run.spots.every((sp) => run.inStage(sp.at[0], sp.at[2])),
+      { kept: run.spots.length, rejects: run.spotRejects });
+  },
+});
+
+act2('the-clog', {
+  about: 'When time is up, the Clog rises from the bathtub drain and you face it in the tub.',
+  setup() { fresh(); },
+  play() {
+    const { run, menus, player } = G();
+    run.startBossIntro();
+    step(240, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss'; });
+    step(60);
+    const B = run.stage.boss, P = player.position;
+    const inTub = P.x > B.arenaMin[0] && P.x < B.arenaMax[0] && P.z > B.arenaMin[2] && P.z < B.arenaMax[2];
+    return ok(run.phase === 'boss' && run.boss?.kind === 'hair' && inTub, { phase: run.phase, kind: run.boss?.kind, at: r3(P) });
+  },
+});
+
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()
 // may be async (one that waits for a download).
 export async function runStory(name) {
@@ -1253,6 +1343,7 @@ export async function runStory(name) {
 export function mount(name) {
   const s = STORIES[name];
   if (!s) return list(`No story called "${name}".`);
+  if ((s.act || 1) !== currentAct()) return goToAct(s.act || 1);   // it plays in another act: reload into it
   s.setup();
   document.getElementById('g-over').hidden = true;
   const tag = document.createElement('div');

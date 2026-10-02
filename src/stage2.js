@@ -1,24 +1,39 @@
-// The bathroom and hallway: the original stage 1, kept for a later stage. Not used yet.
+// Stage 2: Ephyra. The hallway and the bathroom, 2 am to 4 am. Reached by beating stage 1's boss
+// (the run carries on: your level, stats and treasures come with you).
 // All positions are world meters (x, y, z); y is the surface height, measured from the
 // apartment model. Surfaces are re-found at runtime with a downward ray, so small
 // errors in y are fine.
-export const STAGE_BATHROOM = {
-  id: 1,
-  name: 'Polyp',
-  subtitle: 'Bathroom & hallway',
-  rooms: ['Bathroom', 'Hallway', 'Laundry closet', 'Coat closet'],
-  parts: ['act1', 'act2'],           // apartment files to load (apartment.js): the bathroom and closets on top of act 1's living room and hallway
-  start: [1.0, 0.004, 6.8],          // bath mat
-  duration: 120,                      // seconds until the boss comes
-  clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
+//
+// Rough layout (x runs west to east, z from the living room toward the bedroom):
+//   hallway x 1.76-3.59, z 4.85-9.0 (its west wall steps in to x 2.52 by the coat closet, z < 6.03)
+//   bathroom x 0.06-1.6, z 5.08-7.9: vanity and sink at the north end (z 5.3-5.7), the toilet
+//     by the west wall (x 0.5, z 5.6), the tub along the south wall (z 7.22-7.84)
+//   laundry closet x 3.59-4.48, z 4.89-5.81 (off the hall's east wall), coat closet x 1.6-2.52,
+//     z 4.85-6.03 (off its west wall): both doors left ajar to peek in, but walled off
+//   sideboard on the hall's east wall (x 3.27, z 6.3-7.1, top 0.8), bench on its west (x 2.08, z 7.4)
+export const STAGE2 = {
+  id: 2,
+  name: 'Ephyra',
+  subtitle: 'Hallway & bathroom',
+  rooms: ['Hallway', 'Bathroom'],
+  parts: ['act1', 'act2'],           // apartment files to load (apartment.js): act 2 adds the bathroom and closets
+  evolve: 'Your ephyra grows into a young <b>Medusa</b>.',   // the metamorphosis after the Clog
+  start: [2.75, 0, 6.6],             // the middle of the hall
+  duration: 300,                      // seconds until the boss comes
+  clock: [120, 240],                  // in-game minutes after midnight: 2:00 AM -> 4:00 AM
+  toughness: 1.5,                     // bugs here start with 1.5x health (they toughen further with the hour)
 
   // Things the player shouldn't bump into or can pass through
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
   fade: { 'Shower curtain': 0.5 },    // make it see-through so the camera can look into the tub
-  doors: { bath: 'open', laundry: 'open', coat: 'open', bedroom: 'closed', front: 'closed' },
+  // the closets are left ajar (a fraction of fully open) so you can peek in; a wall keeps you out
+  doors: { bath: 'open', laundry: 0.3, coat: 0.3, bedroom: 'closed', front: 'closed' },
   walls: [
-    // where the hallway opens into the living room
+    // where the hallway opens into the living room: you can look back, not go back
     { min: [2.45, 0, 4.83], max: [3.65, 2.7, 4.87] },
+    // the closets: an invisible wall across each doorway (like act 1's wall into the hall)
+    { min: [3.57, 0, 4.85], max: [3.61, 2.7, 5.85] },    // laundry closet, off the hall's east wall
+    { min: [2.5, 0, 4.85], max: [2.54, 2.7, 6.05] },     // coat closet, off its west wall
     // a safety floor just under the real one: door thresholds have gaps you could fall into
     { min: [0, -0.05, 4.8], max: [4.55, 0, 9.05] },
   ],
@@ -26,19 +41,21 @@ export const STAGE_BATHROOM = {
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
     { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.5, 0.881, 5.52], to: 'the vanity' },   // beside the sink, not in it
+    { name: 'Bathroom vent by the toilet', at: [0.85, 0.004, 5.95], radius: 0.04, land: [0.5, 0.49, 5.58], to: 'the toilet lid' },
     { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
     { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
+    { name: 'Hall vent by the recycling bin', at: [3.1, 0, 5.6], radius: 0.04, land: [3.39, 0.696, 5.92], to: 'the recycling bin' },
   ],
 
-  // Fabric you can climb: hold Space inside the box
+  // Fabric you can climb: hold jump inside the box
   climbs: [
     { name: 'Drawstring bag', min: [0.2, 0, 7.0], max: [0.42, 0.83, 7.2] },
     { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [0.8, 0.62, 7.27], boss: false },   // the open bathroom door covers the rest of the tub
-    { name: 'Chenille duster', min: [3.84, 0, 4.84], max: [4.22, 1.8, 5.2] },
   ],
 
   // Where golden gifts can turn up. At the start of each run the game keeps only spots that
-  // are open: nothing overhead, nothing crowding them, flat ground (see Run.openSpot).
+  // are open: nothing overhead, nothing crowding them, flat ground (see Run.openSpot), and
+  // moves any on a vent's landing point over.
   spots: [
     { area: 'Bathroom', at: [1.0, 0.004, 6.8], label: 'bath mat' },
     { area: 'Bathroom', at: [1.25, 0.025, 5.95], label: 'duck rug' },
@@ -54,9 +71,13 @@ export const STAGE_BATHROOM = {
     { area: 'Hallway', at: [3.27, 0.8, 7.05], label: 'sideboard, by the carved bear' },
     { area: 'Hallway', at: [1.97, 0.46, 7.38], label: 'bench' },
     { area: 'Hallway', at: [3.39, 0.696, 5.92], label: 'recycling bin lid' },
-    { area: 'Laundry closet', at: [3.95, 1.7, 5.45], label: 'top of the dryer' },
   ],
 
+  // Golden gifts, as in stage 1
+  gifts: { at: [15, 60, 105, 150, 180, 225], stay: 15 },
+
+  // No high-ground elites here yet
+  elites: [],
 
   // The boss arena: the bathtub. You're carried in when the timer runs out.
   boss: {

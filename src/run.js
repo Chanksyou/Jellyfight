@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
+import { STAGES, goToAct } from './stages.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { TYPES } from './enemies.js';
@@ -84,6 +85,7 @@ export class Run {
       const P = this.player.position, f = this.player.facing;
       this.fx.puff(new THREE.Vector3(P.x - Math.sin(f) * this.cfg.radius * 1.4, P.y + this.cfg.height * 0.45, P.z - Math.cos(f) * this.cfg.radius * 1.4), 0xdff4ff, 0.008, 0.3);
     };
+    this.carry = ctx.carry || null;   // a later act: what the run brought from the act before (stages.js)
     this.start();
   }
 
@@ -130,6 +132,16 @@ export class Run {
     this.stillT = 0;
     this.squeakCd = [];
     this.grown = {}; this.growCount = {};
+    // a later act: the run carries on from the act before (main.js gives it: stages.js)
+    const C = this.carry;
+    if (C) {
+      this.stats = { ...BASE_STATS, ...C.stats };
+      this.level = C.level; this.xp = C.xp; this.purse = C.purse;
+      for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
+      this.grown = { ...C.grown }; this.growCount = { ...C.growCount };
+      this.moisture = this.stats.moisture;
+      this.startPicked = true;        // you already have your treasures
+    }
     this.spawnAcc = 0;
     this.bursts = [];
     this.nightT = 0;
@@ -288,7 +300,8 @@ export class Run {
   // ------------------------------------------------------------ waves
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
-    const W = CONTENT.waves;
+    const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
+    if (!bugs.length) return;
     const more = this.mods.moreBugs;   // more-bugs (treasures)
     const rate = (W.rate + this.t * W.grow) * more;
     const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery) * more;
@@ -296,11 +309,11 @@ export class Run {
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
       if (this.enemies.alive >= cap) continue;
-      const w = W.bugs.map((b) => [b.id, this.t >= b.from ? b.weight : 0]);
-      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = W.bugs[0].id;
+      const w = bugs.map((b) => [b.id, this.t >= b.from ? b.weight : 0]);
+      let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = bugs[0].id;
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
-      const pos = this.spawnPoint(type) || (type !== W.bugs[0].id ? this.spawnPoint((type = W.bugs[0].id)) : null);
-      if (pos) this.enemies.spawn(type, pos, 1 + this.t / 60 * W.toughen);
+      const pos = this.spawnPoint(type) || (type !== bugs[0].id ? this.spawnPoint((type = bugs[0].id)) : null);
+      if (pos) this.enemies.spawn(type, pos, (this.stage.toughness || 1) * (1 + this.t / 60 * W.toughen));
     }
   }
 
@@ -618,11 +631,13 @@ export class Run {
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
     const choices = shuffle([...EVOLUTIONS]).slice(0, 3);
-    this.ui.choose('Metamorphosis!', 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish. Choose how it grows.', choices, (evo) => {
+    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} Choose how it grows.`, choices, (evo) => {
       evo.apply(this.stats);
       this.moisture = this.stats.moisture;
       this.phase = 'won';
-      this.endRun('Stage 1 complete', 'The living room is yours. The bathroom and hallway (stage 2) are coming soon.', 'Play stage 1 again');
+      const next = STAGES[this.stage.id];         // the act after this one, if there is one
+      if (next) this.actComplete(next);
+      else this.endRun(`Act ${this.stage.id} complete`, 'The hallway and the bathroom are yours. The bedroom (act 3) is coming soon.', 'Play again from act 1');
     });
   }
 
@@ -641,6 +656,7 @@ export class Run {
     const treasures = [...this.owned].reduce((n, id) => n + this.owned.count(id), 0);
     const B = this.boss, bossDamage = B ? 1 - Math.max(0, B.hp) / B.maxHp : 0;
     const parts = [
+      ...(this.carry ? [['Earlier acts', this.carry.score]] : []),
       ['Bugs cleared', this.kills * 10],
       ['Elite bugs', this.eliteBugs * 50],
       ['Elites beaten', this.elitesBeaten * 300],
@@ -663,13 +679,28 @@ export class Run {
     const show = (result) => {
       this.endView = 'summary';
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${result?.best ? ' <small>new best!</small>' : ''}`], ...this.summary()];
-      const buttons = [{ label: again, go: true, onClick: () => { this.start(); this.resume(); } }];
+      // a run always starts over from act 1
+      const buttons = [{ label: again, go: true, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } }];
       if (this.board) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       this.ui.message(title, sub, rows, buttons);
     };
     show(null);
     // when the post comes back, refresh the summary (if it's still what's on screen) with "new best!"
     this.board?.submit(entry).then((result) => { this.lastPost = result; if ((this.phase === 'dead' || this.phase === 'won') && this.endView === 'summary') show(result); });
+  }
+
+  // An act beaten with another to come: the score so far goes on the board, and the run moves on
+  // with everything it has (level, stats, treasures, score)
+  actComplete(next) {
+    const score = this.score();
+    const carry = {
+      score, stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
+      owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount,
+    };
+    this.board?.submit({ score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: false, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' });
+    this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
+      [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry) }]);
   }
 
   // The leaderboard as a dialog; back() returns to where it was opened from

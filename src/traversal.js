@@ -27,7 +27,7 @@ export function prepareApartment(apt, stage) {
   }
   for (const [id, state] of Object.entries(stage.doors || {})) {
     const d = apt.doors[id];
-    if (d) d.set(state === 'open' ? d.open : 0);
+    if (d) d.set(state === 'open' ? d.open : typeof state === 'number' ? d.open * state : 0);   // a number: that fraction open (ajar)
   }
 }
 

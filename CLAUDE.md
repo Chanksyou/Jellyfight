@@ -14,7 +14,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
-| Vents, golden gift times, gift spots, elite spots, boss arena | `src/stage1.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
+| Vents, golden gift times, gift spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
@@ -40,6 +40,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    cd tests && npm install && npx playwright install chromium   # once
    node tests/run.mjs            # everything (about 5 minutes headless)
    node tests/run.mjs elites     # just stories whose name contains "elites"
+   # a story with `act: 2` (act2/... in stories.js) plays in a second page opened on act 2
    ```
 
    If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked

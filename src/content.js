@@ -36,7 +36,7 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
   return out;
 }
 
-// spawning { rate … cap … toughen … }  and  bug "id" weight= from=
+// spawning { rate … cap … toughen … }  and  bug "id" weight= from= act=
 export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
   const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, toughen: 0, bugs: [] };
   for (const n of nodes) {
@@ -51,7 +51,7 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
     } else if (n.name === 'bug') {
       const id = n.args[0];
       if (!enemies[id]) throw new Error(`${where}: no enemy called "${id}" in content/enemies.kdl`);
-      w.bugs.push({ id, weight: n.props.weight ?? 1, from: n.props.from ?? 0 });
+      w.bugs.push({ id, weight: n.props.weight ?? 1, from: n.props.from ?? 0, act: n.props.act ?? 1 });
     } else throw new Error(`${where}: expected "spawning" or "bug", got "${n.name}"`);
   }
   if (!w.bugs.length) throw new Error(`${file}: no bugs listed`);

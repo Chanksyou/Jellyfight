@@ -18,10 +18,12 @@ const env = await start();
 let failed = 0, passed = 0;
 const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${name}${ms != null ? `  (${ms} ms)` : ''}${good ? '' : '\n    ' + JSON.stringify(info)}`);
 
-// --- every story, in one page (booting the apartment takes a while)
-{
-  const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 } });
-  const names = await page.evaluate(async (f) => Object.keys((await import('/src/stories.js')).STORIES).filter((n) => n.includes(f)), filter);
+// --- every story, one page per act (booting the apartment takes a while). Later acts start as
+// if the act before was just beaten, carrying a level-6 run with a Candle
+for (const act of [1, 2]) {
+  const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 }, act: act > 1 && { act, carry: { score: 5000, level: 6, xp: 0, purse: 4, stats: { moisture: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 } } });
+  const names = await page.evaluate(async ([f, act]) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && (s.act || 1) === act).map(([n]) => n), [filter, act]);
+  if (!names.length) { await page.close(); continue; }
   for (const name of names) {
     const before = errors.length;
     const r = await page.evaluate(async (n) => (await import('/src/stories.js')).runStory(n), name);

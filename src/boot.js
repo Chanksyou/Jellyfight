@@ -6,7 +6,7 @@ import { loadApartment } from './apartment.js';
 import { IS_TOUCH } from './touch.js';
 import { loadLook } from './look.js';
 import { loadContent } from './content.js';
-import { STAGE1 } from './stage1.js';
+import { currentStage } from './stages.js';
 
 // The apartment's colors and lights were authored for three.js r128 conventions
 THREE.ColorManagement.enabled = false;
@@ -33,8 +33,8 @@ resize();
 
 const bar = document.querySelector('#loading .bar i');
 try {
-  // only the rooms the first act is played in (apartment.js); later acts load theirs when they start
-  const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; }, STAGE1.parts);
+  // only the rooms this act is played in (apartment.js; stages.js picks the act)
+  const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; }, currentStage().parts);
   const lights = scaleLightsOnRender(renderer, scene);
   window.APT = Object.assign(apt, { scene, renderer, camera, lights });
   await loadLook();                 // content/look.css: colours and render numbers

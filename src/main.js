@@ -10,7 +10,7 @@ import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { STAGE1 } from './stage1.js';
+import { currentStage, currentAct, carried, goToAct } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
@@ -26,7 +26,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v74';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v75';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -38,7 +38,7 @@ import { TouchControls, IS_TOUCH } from './touch.js';
 const APT = window.APT;
 const { scene, renderer, camera } = APT;
 batcher.scene = scene;
-const stage = STAGE1;
+const stage = currentStage();          // act 1, or a later act the run moved on to (stages.js)
 const LOOK_KEY = 'jellyfight.look.v2';   // v2: the fluorescent jelly is the new default
 
 // --- Saved character (the creator is optional, under C) ----------------------------
@@ -86,7 +86,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}</small></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button></div>
+  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
@@ -174,6 +174,7 @@ applyLook(state.look);
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
+  carry: carried(),                    // a later act: the run so far (stages.js)
 });
 
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
@@ -336,6 +337,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
+  else if (b.dataset.act === 'act') goToAct(currentAct() === 1 ? 2 : 1);   // dev: jump between act 1 and act 2 (a fresh run)
   else if (b.dataset.act === 'boss') { run.start(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {
