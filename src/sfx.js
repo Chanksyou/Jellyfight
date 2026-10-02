@@ -39,6 +39,27 @@ export function unlock() {
 // the audio context and master volume, for the music (music.js); null until unlocked
 export const audio = () => (ctx ? { ctx, master } : null);
 
+// The Vacuum's motor: a hum for the whole fight, higher and brighter the faster it drives.
+// Returns { set(speed 0..1, angry), stop() }, or a stand-in that does nothing without audio.
+export function vacMotor() {
+  if (!ready()) return { set() {}, stop() {} };
+  const t = now(), a = ctx.createOscillator(), b = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  a.type = 'sawtooth'; b.type = 'square';
+  f.type = 'lowpass'; f.Q.value = 2;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 1);
+  a.connect(f); b.connect(f); f.connect(g).connect(master);
+  a.start(t); b.start(t);
+  return {
+    set(speed, angry) {
+      const k = ctx.currentTime, base = angry ? 70 : 55;
+      a.frequency.setTargetAtTime(base * (1 + speed * 1.4), k, 0.1);
+      b.frequency.setTargetAtTime(base * 2.02 * (1 + speed * 1.4), k, 0.1);
+      f.frequency.setTargetAtTime(350 + 1800 * speed, k, 0.1);
+    },
+    stop() { const k = ctx.currentTime; g.gain.cancelScheduledValues(k); g.gain.setTargetAtTime(0.0001, k, 0.3); a.stop(k + 1.5); b.stop(k + 1.5); },
+  };
+}
+
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
 export const isMuted = () => muted;
 
@@ -129,6 +150,129 @@ export const sfx = {
   wind() { if (!ready() || !gap('wind', 80)) return; noise(1200, 0.7, 0.2, 0.12, 'bandpass', 0, 400); },
   // a big moment: boss or elite down
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
+  // ---------------------------------------------------------- the Vacuum (vacuum.js)
+  // booting up: a rising motor and a three-note startup chime
+  vacPowerOn() {
+    if (!ready()) return;
+    tone('sawtooth', 50, 220, 1.3, 0.12); tone('sine', 80, 330, 1.3, 0.14);
+    [660, 880, 1320].forEach((f, i) => tone('triangle', f, f, 0.16, 0.1, 0.9 + i * 0.13));
+  },
+  // the charge wind-up: a two-tone alarm over a motor revving up
+  vacChargeWind(dur) {
+    if (!ready()) return;
+    for (let k = 0; k * 0.12 < dur; k++) tone('square', k % 2 ? 900 : 1250, k % 2 ? 900 : 1250, 0.09, 0.05, k * 0.12);
+    tone('sawtooth', 90, 520, dur, 0.1);
+  },
+  // the ram itself: a roaring whoosh
+  vacRam() {
+    if (!ready()) return;
+    noise(300, 0.8, 0.8, 0.3, 'lowpass', 0, 3500);
+    tone('sawtooth', 70, 190, 0.8, 0.14); tone('square', 140, 300, 0.6, 0.05);
+  },
+  // slamming into a wall (or stopping hard): a boom, a crunch and a metal clang
+  vacImpact(hard = true) {
+    if (!ready() || !gap('vacImpact', 200)) return;
+    tone('sine', 130, 32, 0.5, hard ? 0.5 : 0.3);
+    noise(900, 0.7, 0.35, hard ? 0.35 : 0.2, 'lowpass', 0, 120);
+    if (hard) { tone('triangle', 1830, 1790, 0.5, 0.07); tone('triangle', 2470, 2400, 0.4, 0.05); tone('triangle', 3610, 3500, 0.3, 0.03); }
+  },
+  // suction: a dub-wobbling roar that swells in, a sub that breathes in, and a rising whistle
+  vacSuction(dur) {
+    if (!ready()) return;
+    const t = now(), src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    src.buffer = noiseBuf; src.loop = true;
+    f.type = 'lowpass'; f.Q.value = 9;
+    f.frequency.setValueAtTime(700, t);
+    lfo.frequency.setValueAtTime(7, t); lfo.frequency.linearRampToValueAtTime(2.5, t + dur);   // the wobble slows as it pulls harder
+    lg.gain.value = 600;
+    lfo.connect(lg).connect(f.frequency);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.5);
+    g.gain.setValueAtTime(0.3, t + dur - 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.2);
+    src.connect(f).connect(g).connect(master);
+    src.start(t); src.stop(t + dur + 0.25); lfo.start(t); lfo.stop(t + dur + 0.25);
+    const sub = ctx.createOscillator(), sg = ctx.createGain(), sl = ctx.createOscillator(), slg = ctx.createGain();
+    sub.frequency.setValueAtTime(55, t); sub.frequency.exponentialRampToValueAtTime(38, t + dur);
+    sl.frequency.value = 3.5; slg.gain.value = 0.12; sl.connect(slg).connect(sg.gain);
+    sg.gain.setValueAtTime(0.0001, t); sg.gain.linearRampToValueAtTime(0.22, t + 0.6); sg.gain.setValueAtTime(0.22, t + dur - 0.3); sg.gain.linearRampToValueAtTime(0, t + dur + 0.2);
+    sub.connect(sg).connect(master);
+    sub.start(t); sub.stop(t + dur + 0.25); sl.start(t); sl.stop(t + dur + 0.25);
+    tone('sawtooth', 180, 720, dur, 0.035);
+  },
+  // the side brushes whirring up (a rising, fluttering whine), and each sweep (a swish and a thump)
+  vacBrushes(dur) {
+    if (!ready()) return;
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), trem = ctx.createOscillator(), tg = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(1400, t + dur * 0.6);
+    trem.frequency.value = 32; tg.gain.value = 0.05; trem.connect(tg).connect(g.gain);
+    g.gain.setValueAtTime(0.06, t); g.gain.setValueAtTime(0.06, t + dur - 0.1); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + 0.05); trem.start(t); trem.stop(t + dur + 0.05);
+  },
+  vacSweep() {
+    if (!ready() || !gap('vacSweep', 120)) return;
+    noise(5000, 1.2, 0.28, 0.3, 'bandpass', 0, 700);
+    tone('sine', 160, 60, 0.18, 0.25);
+  },
+  // the bin dropping roaches: a clunk, the hatch hissing, a scatter of tiny legs
+  vacDump() {
+    if (!ready()) return;
+    tone('triangle', 320, 110, 0.16, 0.22);
+    noise(2500, 1, 0.3, 0.12, 'highpass', 0.05);
+    for (let k = 0; k < 8; k++) noise(4000 + Math.random() * 3000, 6, 0.01, 0.07, 'bandpass', 0.15 + k * 0.035 + Math.random() * 0.02);
+  },
+  // spinning: a whirling siren with a whoosh going round, and a pft for every dust clump
+  vacSpin(dur) {
+    if (!ready()) return;
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.value = 600;
+    lfo.frequency.value = 4.5; lg.gain.value = 260; lfo.connect(lg).connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.2); g.gain.setValueAtTime(0.06, t + dur - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
+    for (let k = 0; k * 0.22 < dur; k++) noise(800, 0.7, 0.2, 0.12, 'bandpass', k * 0.22, 2400);
+  },
+  vacSpray() { if (!ready() || !gap('vacSpray', 90)) return; noise(1400 * jitter(0.2), 1, 0.08, 0.12, 'bandpass', 0, 500); },
+  // launching the lanternflies: a rising alarm wail, then four pops out of the bin
+  vacFliesWind() {
+    if (!ready()) return;
+    tone('square', 420, 980, 0.32, 0.06); tone('square', 420, 980, 0.32, 0.06, 0.36);
+  },
+  vacFliesLaunch() {
+    if (!ready()) return;
+    for (let k = 0; k < 4; k++) { tone('sine', 260, 900, 0.09, 0.2, k * 0.07); noise(1800, 1, 0.06, 0.15, 'bandpass', k * 0.07); }
+  },
+  // the shield: up (a shimmering chord swelling in), hit (a ringing deflect), broken (shattering glass)
+  shieldUp() {
+    if (!ready()) return;
+    [880, 1108.7, 1318.5, 1760].forEach((f, i) => tone('sine', f * 0.98, f, 0.9, 0.06, i * 0.05));
+    noise(3000, 0.7, 0.6, 0.12, 'bandpass', 0, 9000);
+  },
+  shieldHit() {
+    if (!ready() || !gap('shieldHit', 90)) return;
+    const j = jitter(0.05);
+    tone('sine', 2640 * j, 2600 * j, 0.22, 0.07); tone('sine', 3960 * j, 3900 * j, 0.14, 0.04);
+  },
+  shieldBreak() {
+    if (!ready()) return;
+    noise(6000, 0.8, 0.6, 0.35, 'highpass');
+    [2400, 1800, 1300, 900].forEach((f, i) => tone('triangle', f, f * 0.7, 0.3, 0.07, i * 0.05));
+    tone('sine', 140, 40, 0.5, 0.3);
+  },
+  // below 45%: an angry two-tone siren
+  vacAngry() {
+    if (!ready()) return;
+    for (let k = 0; k < 6; k++) tone('sawtooth', k % 2 ? 620 : 830, k % 2 ? 620 : 830, 0.22, 0.07, k * 0.24);
+  },
+  // down: the motor winding down to nothing, crackles, a boom
+  vacDeath() {
+    if (!ready()) return;
+    tone('sawtooth', 420, 28, 1.8, 0.16); tone('square', 210, 20, 1.8, 0.06);
+    for (let k = 0; k < 10; k++) noise(3000 + Math.random() * 4000, 3, 0.02, 0.12, 'bandpass', 0.2 + Math.random() * 1.4);
+    noise(300, 0.7, 0.9, 0.4, 'lowpass', 1.6, 60); tone('sine', 110, 30, 0.8, 0.4, 1.6);
+  },
   // the combo ticking up at milestones
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };

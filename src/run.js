@@ -650,7 +650,7 @@ export class Run {
       for (const e of this.enemies.list) if (!e.dead && e.pos.distanceTo(P) < 0.7) near += e.proxy ? 4 : 1;   // elites count for more
       return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * Math.min(1, this.t / this.duration)) };
     }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp) };
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' };
     return { song: null, intensity: 0 };
   }
 

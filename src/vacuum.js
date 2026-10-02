@@ -15,6 +15,7 @@ import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial } from './vfx.js';
+import { sfx, vacMotor } from './sfx.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
@@ -135,6 +136,7 @@ export class Vacuum {
     if (this.dead || this.rise < 1) return;
     if (this.shielded) {             // bounces off: a flash on the dome
       this.domeFlash = 1;
+      sfx.shieldHit();
       return;
     }
     this.hp -= amount;
@@ -181,6 +183,7 @@ export class Vacuum {
     const out = { push: null, hurt: 0, hit: 0, contact: false };
     const p = this.holder.position, P = player.position;
     if (this.dead) {
+      if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); this.motor?.stop(); this.motor = null; }
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
       this.line.material.opacity = this.swirl.material.opacity = 0;
       this.dome.visible = this.tethers.visible = false;
@@ -189,7 +192,9 @@ export class Vacuum {
     }
     // power on: grow in with a puff
     if (this.rise < 1) {
+      if (this.rise === 0) sfx.vacPowerOn();
       this.rise = Math.min(1, this.rise + dt * 0.8);
+      if (this.rise >= 1) this.motor = vacMotor();
       this.body.scale.setScalar(this.rise);
       this.heading = Math.atan2(P.x - p.x, P.z - p.z);
       this.body.rotation.y = this.heading;
@@ -218,12 +223,12 @@ export class Vacuum {
         this.chargeWind ??= Math.max(0.01, this.stateT);
         this.line.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
         this.line.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
-        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.chargeWind = null; }
+        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.chargeWind = null; sfx.vacRam(); }
       } else {
         this.setLight(0xff2a2a, 3);
         const wall = this.drive(dt, null, angry ? 1.275 : 1.05, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
-        if (wall || this.stateT <= 0) { this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
+        if (wall || this.stateT <= 0) { sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
       }
     } else if (this.state === 'suction') {
       // pull you in toward it; too close and it hurts
@@ -249,6 +254,7 @@ export class Vacuum {
         if (this.prevT > at && this.stateT <= at) {
           const reach = this.r + 0.1;
           this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
+          sfx.vacSweep();
           if (dist < reach + 0.018 && P.y < 0.12) { out.hit = 3; this.knockBack(toP, 0.5); }
         }
       }
@@ -264,6 +270,7 @@ export class Vacuum {
           this.enemies.spawn('roach', q, 1.3);
         }
         this.fx.puff(p.clone().addScaledVector(back, this.r + 0.02).setY(0.03), 0x9c958b, 0.06, 0.5);
+        sfx.vacDump();
       }
       if (this.stateT <= 0) this.toChase();
     } else if (this.state === 'flies') {
@@ -285,11 +292,17 @@ export class Vacuum {
         const m = this.fx.orb(hostile('vacuum'), 0.007);   // dust clumps, glowing so you can read them
         m.position.copy(p).addScaledVector(dir, this.r).setY(0.03);
         this.shots.push({ m, v: dir.multiplyScalar(0.525), t: 1.33 });
+        sfx.vacSpray();
       }
       if (this.stateT <= 0) this.toChase();
     }
     this.prevT = this.stateT;
     this.shield(dt);
+    // the motor follows what it's doing; crossing into angry sounds the siren
+    const speed = { chase: angry ? 0.6 : 0.45, charge: this.locked ? 1 : 0.75, suction: 0.85, brushes: 0.7, dump: 0.2, spin: 1, flies: 0.35 }[this.state] ?? 0.4;
+    this.motor?.set(speed, angry);
+    if (angry && !this.wasAngry) sfx.vacAngry();
+    this.wasAngry = angry;
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
 
     // bumping into it knocks you back
@@ -337,6 +350,8 @@ export class Vacuum {
       this.guards.push(e);
     }
     this.shieldT = 30;
+    sfx.vacFliesLaunch();
+    sfx.shieldUp();
     this.fx.impact(p.clone().setY(p.y + 0.1), hostile('vacuum'), 0.05, 14);
     this.fx.puff(p.clone().setY(p.y + 0.08), 0x9c958b, 0.06, 0.5);
   }
@@ -347,7 +362,7 @@ export class Vacuum {
     this.shieldT -= dt;
     if (this.shieldT <= 0 && this.guards.length) this.guards = [];       // never stuck forever
     const on = this.shielded, p = this.holder.position;
-    if (this.wasShielded && !on) this.fx.impact(p.clone().setY(p.y + 0.05), hostile('vacuum'), this.r, 24);   // it breaks
+    if (this.wasShielded && !on) { this.fx.impact(p.clone().setY(p.y + 0.05), hostile('vacuum'), this.r, 24); sfx.shieldBreak(); }   // it breaks
     this.wasShielded = on;
     this.dome.visible = this.tethers.visible = on;
     if (!on) return;
@@ -383,11 +398,16 @@ export class Vacuum {
     this.state = order[this.next++ % order.length];
     if (this.state === 'flies' && this.shielded) this.state = order[this.next++ % order.length];   // one shield at a time
     this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2, flies: 1.0 }[this.state];
+    // every attack announces itself
+    ({ charge: () => sfx.vacChargeWind(this.stateT), suction: () => sfx.vacSuction(this.stateT), brushes: () => sfx.vacBrushes(this.stateT),
+      spin: () => sfx.vacSpin(this.stateT), flies: () => sfx.vacFliesWind() })[this.state]?.();
     this.prevT = this.stateT;
     this.locked = false;
   }
 
   dispose() {
+    this.motor?.stop();
+    this.motor = null;
     this.scene.remove(this.holder);
     this.scene.remove(this.line);
     this.scene.remove(this.swirl);
