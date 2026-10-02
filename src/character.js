@@ -371,7 +371,7 @@ export function buildCharacter(look, heightMeters) {
   // hang in bundles from its corners
   const T = sp.tentacles, corners = T.corners ? Array.from({ length: T.count }, (_, i) => Math.PI / 4 + Math.floor(i / 2) * Math.PI / 2 + (i % 2 ? 0.12 : -0.12)) : null;
   rig = new TentacleRig(lean, {
-    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * 0.92), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare, drag: 0.1,
+    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * 0.92), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare,
     angles: corners && corners.map((a) => Math.PI / 2 - a),   // rig angles: x = sin, z = cos
     material: lit(base.clone().lerp(rimCol, 0.3), 1.3),
   });

@@ -65,6 +65,7 @@ export class Player {
     this.position.copy(p);
     this.velocity.set(0, 0, 0);
     this.flight = null;
+    this.avatar?.tentacles?.reset();     // tentacles start on their pose, not dragged from the old spot
     this.peakY = p.y;
     this.grounded = false;
     this.syncMesh();

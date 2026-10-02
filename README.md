@@ -97,7 +97,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/config.js` | Tuning numbers: player size, speed, jump, gravity, camera. Units are meters. |
 | `src/character.js` | Character looks (options, defaults, random) and the procedural model + animation (the jellyfish's pulsing bell). |
 | `src/swim.js` | One bell stroke: the squeeze, the thrust, and how often strokes come. Shared by movement and animation. |
-| `src/tentacles.js` | The jellyfish's 6 live tentacles: hang, trail, stream when falling, whip out when the Lash strikes. |
+| `src/tentacles.js` | The jellyfish's 6 live tentacles: each a simulated chain (sprung toward a hanging pose, firm at the root and loose at the tip, slowed by the water, kept at its length), so bell pulses and turns travel down them as waves and the tips trail and swing; they stream when falling and whip out when the Lash strikes. |
 | `src/creator.js` | The jellyfish creator panel (species, colours, finish, face, hat). |
 | `src/hud.js` | Moisture, XP, boss countdown and night clock, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu. |

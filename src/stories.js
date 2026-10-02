@@ -934,6 +934,25 @@ story('gifts/not-on-vent-landings', {
   },
 });
 
+story('engine/tentacles-swim-smoothly', {
+  about: 'The jelly\'s tentacles are a simulated chain: swimming drags them out behind, and they move smoothly (no frame-to-frame jitter at the tips).',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.0, 3.0, 0); },
+  play() {
+    const { input, player } = G();
+    const rig = player.avatar.tentacles, tips = [];
+    step(30);
+    input.keys = new Set(['KeyW']);
+    for (let i = 0; i < 120; i++) { step(1); tips.push(rig.list.map((T) => T.sim[T.sim.length - 1].clone())); }
+    // trailing: the tips sit behind the roots, against the swim direction
+    const back = rig.list.reduce((a, T) => a + T.sim[T.sim.length - 1].clone().sub(T.sim[0]).dot(player.velocity.clone().setY(0).normalize()), 0) / rig.list.length;
+    input.keys = new Set();
+    let jerk = 0, n = 0;
+    for (let f = 2; f < tips.length; f++) for (let k = 0; k < tips[f].length; k++, n++) jerk += tips[f][k].clone().sub(tips[f - 1][k].clone().multiplyScalar(2)).add(tips[f - 2][k]).length();
+    jerk /= n;
+    return ok(jerk < 0.03 && back < -0.1, { jerk: +jerk.toFixed(4), back: +back.toFixed(3) });
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout open and close cleanly.',
