@@ -13,7 +13,7 @@ export const STAGE1 = {
   name: 'Polyp',
   subtitle: 'Living room',
   rooms: ['Living room'],
-  parts: ['act1'],                   // apartment files to load (apartment.js): just the living room
+  parts: ['act1'],                   // apartment files to load (apartment.js): the living room, plus the hallway to look at (the wall below keeps you out)
   start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
   duration: 300,                      // seconds until the boss comes, Moon Drops or not
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM

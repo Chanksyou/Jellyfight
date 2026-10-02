@@ -537,7 +537,7 @@
     0,
     6.325
    ],
-   "act": "act2"
+   "act": "act1"
   },
   {
    "type": "SpotLight",
@@ -561,7 +561,7 @@
     0,
     8.3375
    ],
-   "act": "act2"
+   "act": "act1"
   }
  ],
  "background": [
@@ -577,10 +577,10 @@
  },
  "acts": {
   "act1": [
-   "Living room"
+   "Living room",
+   "Hallway"
   ],
   "act2": [
-   "Hallway",
    "Bathroom",
    "Laundry closet",
    "Coat closet"

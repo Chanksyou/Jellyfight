@@ -1,15 +1,16 @@
 // Splits the baked apartment into one file per act, so the game only downloads the rooms the
 // current act is played in: node tools/split.mjs (export.mjs runs it after a re-bake).
 //
-//   assets/apartment-act1.glb   the living room (and kitchen strip), plus the whole shell (walls,
-//                               floors, ceilings of every room) and the doors, so every view out of
-//                               the living room is solid
-//   assets/apartment-act2.glb   what's in the hallway, the bathroom and the hall closets
+//   assets/apartment-act1.glb   the living room (and kitchen strip) and the hallway you can see down
+//                               from it, plus the whole shell (walls, floors, ceilings of every room)
+//                               and the doors, so every view out of the living room is solid
+//   assets/apartment-act2.glb   what's in the bathroom and the hall closets
 //   assets/apartment-act3.glb   what's in the bedroom
 //
 // Each also gets a -q twin (no meshopt compression) for browsers without WebAssembly, like
-// apartment.glb / apartment-q.glb. An object goes to the earliest act whose rooms it overlaps
-// (floor plan: assets/apartment.json). The furniture keeps its node names, which is what the
+// apartment.glb / apartment-q.glb. An object goes to the act of the room its middle is in (so a
+// washer poking out of its closet stays with the closet); one whose middle is in no room goes to
+// the earliest act it overlaps, and so does one that spans rooms (floor plan: assets/apartment.json). The furniture keeps its node names, which is what the
 // layout editor and stages look things up by.
 import { NodeIO, Logger, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -19,7 +20,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-export const ACTS = { 'Living room': 1, Hallway: 2, Bathroom: 2, 'Laundry closet': 2, 'Coat closet': 2, Bedroom: 3 };
+export const ACTS = { 'Living room': 1, Hallway: 1, Bathroom: 2, 'Laundry closet': 2, 'Coat closet': 2, Bedroom: 3 };
 const ALWAYS_ACT1 = /^(Shell|door-)/;   // the rooms' walls and floors, and the doors between them
 
 const inPoly = (x, z, poly) => {
@@ -47,6 +48,10 @@ export async function split(assets) {
     if (ALWAYS_ACT1.test(n.getName())) return 1;
     const { min, max } = getBounds(n);
     if (!Number.isFinite(min[0])) return 1;
+    const cx = (min[0] + max[0]) / 2, cz = (min[2] + max[2]) / 2;
+    const home = plan.find(([room, poly]) => ACTS[room] && inPoly(cx, cz, poly));
+    const spread = max[0] - min[0] > 1.5 || max[2] - min[2] > 1.5;   // one object across rooms (all the window shades)
+    if (home && !spread) return ACTS[home[0]];
     let best = Infinity;
     for (let i = 0; i <= 4; i++) for (let k = 0; k <= 4; k++) {
       const x = min[0] + ((max[0] - min[0]) * i) / 4, z = min[2] + ((max[2] - min[2]) * k) / 4;
