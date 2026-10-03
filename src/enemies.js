@@ -22,7 +22,8 @@ const GUTS_BUILTIN = {
 export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v]) => [k, LOOK.list('guts-' + k, v)]));
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const BLOCK = new THREE.Color('#dfe8ff');   // a hit glancing off armour
+const BLOCK = new THREE.Color('#dfe8ff');
+const EXHAUST = new THREE.Color('#ffa040');   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
@@ -536,7 +537,7 @@ export class Enemies {
         m.flame.scale.set(f, f, 0.8 + Math.random() * 0.7);
         dir.copy(m.vel).normalize();
         const tail = S.o.copy(P).addScaledVector(dir, -0.022);
-        this.fx.glow.hold(tail, 0xffa040, 0.04, 0.95);
+        this.fx.glow.hold(tail, EXHAUST, 0.04, 0.95);
         this.fx.glow.hold(P, red, 0.03, 0.5);
         if ((m.smokeT -= dt) <= 0) { m.smokeT = 0.03; this.fx.puff(tail.clone(), 0xcfcfcf, 0.007 + Math.random() * 0.004, 0.7); }
         if ((m.hissT -= dt) <= 0) { m.hissT = 0.22; sfx.missileHiss(); }
