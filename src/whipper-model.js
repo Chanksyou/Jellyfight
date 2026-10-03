@@ -160,6 +160,7 @@ export function buildBalloon(color = 0xb05aff) {
   const body = new THREE.Mesh(BALLOON_GEO.body, mat);
   const knot = new THREE.Mesh(BALLOON_GEO.knot, mat);
   const ribbon = new THREE.Mesh(BALLOON_GEO.ribbon, new THREE.MeshStandardMaterial({ color: 0xf4f0ff, roughness: 0.5 }));
+  ribbon.scale.set(1, 0.55, 1);                                         // short enough not to drag on the floor
   g.add(body, knot, ribbon);
   return { group: g, body, ribbon, mat };
 }

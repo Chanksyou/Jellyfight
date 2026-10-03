@@ -226,6 +226,8 @@ function whipperModel() {
   return { ...w, muzzle: new THREE.Vector3(0.09, 0.35, 0.02), r: 0.07, barY: 0.47 };
 }
 
+const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
+
 const KINDS = {
   controller: { name: 'The Controller', hp: 150, aggro: 0.7, scale: 1.5, build: controllerModel },
   mug: { name: 'The Mug', hp: 170, aggro: 0.8, build: mugModel },
@@ -868,18 +870,18 @@ export class Elites {
               const b = e.inflating, grow = THREE.MathUtils.smoothstep(Math.min(1, u), 0, 1);
               e.holder.updateMatrixWorld(true);
               M.tip.getWorldPosition(b.group.position);
-              b.group.scale.setScalar(0.004 + grow * 0.056);
+              b.group.scale.setScalar(0.004 + grow * BALLOON - 0.004 * grow);
               b.group.rotation.set(Math.sin(e.t * 9) * 0.1 * grow, 0, Math.sin(e.t * 7) * 0.1 * grow);
               gauges(grow);
               M.lever.rotation.z = -grow * 0.25;
               if (Math.random() < dt * 20) this.fx.puff(b.group.position.clone(), 0xe8e0ff, 0.006, 0.25);
               if (u >= 1) {
                 // let go: it drifts after you, and bursts 3 s later
-                const R = 0.16, warn = new THREE.Mesh(this.flat, this.T.blast.clone());
+                const R = 0.2, warn = new THREE.Mesh(this.flat, this.T.blast.clone());
                 warn.renderOrder = 3;
                 warn.scale.setScalar(R);
                 this.scene.add(warn);
-                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: 0.06, tick: 0 });
+                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: BALLOON, tick: 0 });
                 sfx.balloonLoose();
                 e.inflating = null;
                 M.lever.rotation.z = 0;
@@ -920,7 +922,7 @@ export class Elites {
     // them; at 3 s they burst, and caught in it your hearing goes deep for a while
     for (const b of this.balloons) {
       b.t += dt;
-      const want = pc.clone().setY(pc.y + 0.06).sub(b.m.position);
+      const want = pc.clone().setY(pc.y + 0.1).sub(b.m.position);   // its knot just over your head, the balloon above
       const flat = Math.hypot(want.x, want.z);
       b.vel.x += ((flat > 0.02 ? want.x / flat * 0.2 : 0) - b.vel.x) * (1 - Math.exp(-2.5 * dt));   // slower than you swim (0.42): you can always get away
       b.vel.z += ((flat > 0.02 ? want.z / flat * 0.2 : 0) - b.vel.z) * (1 - Math.exp(-2.5 * dt));
