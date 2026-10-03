@@ -36,6 +36,16 @@
 //                     she'll throw it (it locks halfway), then it flies out and comes back along it.
 //     Striking the hour (under half health): it chimes three times, each chime a golden ring
 //                     rolling out across the bench: jump each one.
+//   whipper     the cream whipper and its N2O cylinder on the hall floor by the front door (act 2;
+//               whipper-model.js). The cylinder has the face; the gauges' needles swing as it works.
+//     Balloon:        it blows a balloon up on its nozzle (a hiss, the gauges climbing), lets it go,
+//                     and the balloon drifts after you for 3 s with a circle on the floor showing
+//                     how far its burst reaches, filling and blinking faster, then bursts. Caught
+//                     in it: 2, and all the sound goes deep and muffled for 5 s (sfx.js deepen),
+//                     easing back to normal after.
+//     Cream spray:    it tips toward you while a cone fills on the floor, then sprays whipped cream
+//                     along it: 2, and the cream slows you.
+//     Under half health it's angry: two balloons each time, and a longer spray.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -44,10 +54,11 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
-import { sfx } from './sfx.js';
+import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
+import { buildWhipper, buildBalloon } from './whipper-model.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -209,12 +220,19 @@ function clockModel() {
   return { ...c, muzzle: new THREE.Vector3(0, CLOCK.maskY, 0.06), r: 0.07, hitAt: new THREE.Vector3(0, CLOCK.maskY, 0.05), barY: CLOCK.H + 0.06 };
 }
 
+// the cream whipper elite: the model, its health bar over the regulator
+function whipperModel() {
+  const w = buildWhipper();
+  return { ...w, muzzle: new THREE.Vector3(0.09, 0.35, 0.02), r: 0.07, barY: 0.47 };
+}
+
 const KINDS = {
   controller: { name: 'The Controller', hp: 150, aggro: 0.7, scale: 1.5, build: controllerModel },
   mug: { name: 'The Mug', hp: 170, aggro: 0.8, build: mugModel },
   kettle: { name: 'The Kettle', hp: 210, aggro: 0.6, scale: 1.2, build: kettleModel },
   soap: { name: 'The Soap Dispenser', hp: 240, aggro: 0.7, scale: 1.3, build: soapModel },
   clock: { name: 'The Wall Clock', hp: 300, aggro: 0.55, wall: true, build: clockModel },
+  whipper: { name: 'The Cream Whipper', hp: 260, aggro: 0.75, build: whipperModel },
 };
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
@@ -299,6 +317,7 @@ class Elite {
 
   remove() {
     this.clearTele();
+    if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
     this.owner.scene.remove(this.holder);
     if (this.hidden) this.hidden.visible = this.hiddenWas;   // back as it was (it may be hidden in the layout)
   }
@@ -316,6 +335,7 @@ export class Elites {
     this.decor = [];         // things that only hang there (the hall clock when it isn't fighting)
     this.decorSpecs = [];    // set by the run: this act's decor (stage.decor)
     this.thrown = [];        // the clock's wreath in flight
+    this.balloons = [];      // the Cream Whipper's balloons, drifting after you
     this.rings = [];         // and its chime rings rolling out
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
     this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
@@ -338,6 +358,7 @@ export class Elites {
       aim: [0, 1, 2].map(() => new TeleMaterial(hostile('controller'), 'strip')),
       puddle: new TeleMaterial(hostile('mug')),
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
+      blast: new TeleMaterial(hostile('whipper')), cream: new TeleMaterial(hostile('whipper'), 'wedge', 0.45),
       sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
     };
   }
@@ -368,7 +389,8 @@ export class Elites {
     this.decor = [];
     for (const w of this.thrown) this.scene.remove(w.m);
     for (const r of this.rings) this.scene.remove(r.m);
-    this.thrown = []; this.rings = [];
+    for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
+    this.thrown = []; this.rings = []; this.balloons = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); }
     for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
     this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
@@ -382,6 +404,10 @@ export class Elites {
       this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
       const soap = soapModel();
       soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
+      const whip = buildWhipper(), bal = buildBalloon();
+      whip.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      bal.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      this._warm.push(new THREE.Mesh(this.flat, this.T.blast), new THREE.Mesh(this.flat, this.T.cream));
       const clock = buildClock();
       clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
@@ -824,7 +850,108 @@ export class Elites {
           }
         }
       }
+
+      // ---------------------------------------------------------- cream whipper
+      if (e.kind === 'whipper') {
+        const M = e.model, angry = e.hp < e.maxHp * 0.5;
+        const gauges = (k) => M.needles.forEach((n, i) => { n.rotation.z = 1.2 - k * 2.3 + Math.sin(e.t * 30 + i) * 0.05 * k; });
+        if (e.attack === 0) {
+          // Balloon: blow one up on the nozzle, let it go; angry, a second straight after
+          const fill = 1.0, n = angry ? 2 : 1, k = Math.floor(s / (fill + 0.25)), u = (s % (fill + 0.25)) / fill;
+          if (k < n) {
+            if (!e.inflating && u < 1) {
+              e.inflating = buildBalloon(new THREE.Color().setHSL(0.72 + Math.random() * 0.2, 0.8, 0.6).getHex());
+              this.scene.add(e.inflating.group);
+              sfx.balloonFill(fill);
+            }
+            if (e.inflating) {
+              const b = e.inflating, grow = THREE.MathUtils.smoothstep(Math.min(1, u), 0, 1);
+              e.holder.updateMatrixWorld(true);
+              M.tip.getWorldPosition(b.group.position);
+              b.group.scale.setScalar(0.004 + grow * 0.056);
+              b.group.rotation.set(Math.sin(e.t * 9) * 0.1 * grow, 0, Math.sin(e.t * 7) * 0.1 * grow);
+              gauges(grow);
+              M.lever.rotation.z = -grow * 0.25;
+              if (Math.random() < dt * 20) this.fx.puff(b.group.position.clone(), 0xe8e0ff, 0.006, 0.25);
+              if (u >= 1) {
+                // let go: it drifts after you, and bursts 3 s later
+                const R = 0.16, warn = new THREE.Mesh(this.flat, this.T.blast.clone());
+                warn.renderOrder = 3;
+                warn.scale.setScalar(R);
+                this.scene.add(warn);
+                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: 0.06, tick: 0 });
+                sfx.balloonLoose();
+                e.inflating = null;
+                M.lever.rotation.z = 0;
+              }
+            }
+          } else { gauges(0); e.state = 'idle'; e.cool = angry ? 1.6 : 2.2; }
+        } else {
+          // Cream spray: it tips toward you while a cone fills on the floor, then sprays along it
+          const wind = 0.85, dur = angry ? 1.0 : 0.6, len = angry ? 0.42 : 0.34;
+          if (s < wind) {
+            if (!e.tele.length) { e.locked = true; this.mark(e, this.coneGeo, this.T.cream, surf.clone().addScaledVector(fwd, 0.05), new THREE.Vector3(len, 1, len), heading); }
+            e.tele[0].material.progress = s / wind;
+            e.tele[0].material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15;
+            M.whip.rotation.x = (s / wind) * 0.35;                       // tipping toward you
+            gauges(0.6 + Math.sin(e.t * 12) * 0.1);
+            if (!e.hissed) { e.hissed = true; sfx.balloonFill(0.4); }
+          } else if (s < wind + dur) {
+            M.whip.rotation.x = 0.4;
+            M.lever.rotation.z = -0.3;
+            if (!e.sprayed) { e.sprayed = true; sfx.creamSpray(dur); }
+            if (Math.random() < dt * 45) {
+              const kk = Math.random(), side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.7 * kk * len);
+              this.fx.puff(e.base.clone().addScaledVector(fwd, 0.08 + kk * len * 0.9).add(side).setY(e.base.y + 0.02 + (1 - kk) * 0.12), 0xfffaf0, 0.016 + kk * 0.028, 0.5);
+            }
+            const rel = pc.clone().sub(e.base).setY(0), along = rel.dot(fwd), ang = Math.acos(THREE.MathUtils.clamp(rel.clone().normalize().dot(fwd), -1, 1));
+            if (!e.creamed && along > 0 && along < len + 0.05 && ang < 0.47 && sameLevel(e.base.y)) {
+              e.creamed = true;
+              hit(2, 'cream');
+              bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
+              this.fx.puff(pc.clone(), 0xfffaf0, 0.05, 0.6);
+            }
+          } else { e.clearTele(); e.locked = false; e.hissed = e.sprayed = e.creamed = false; M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8; }
+        }
+      }
     }
+
+    // the Cream Whipper's balloons: drifting after you, bobbing, the burst circle filling under
+    // them; at 3 s they burst, and caught in it your hearing goes deep for a while
+    for (const b of this.balloons) {
+      b.t += dt;
+      const want = pc.clone().setY(pc.y + 0.06).sub(b.m.position);
+      const flat = Math.hypot(want.x, want.z);
+      b.vel.x += ((flat > 0.02 ? want.x / flat * 0.2 : 0) - b.vel.x) * (1 - Math.exp(-2.5 * dt));   // slower than you swim (0.42): you can always get away
+      b.vel.z += ((flat > 0.02 ? want.z / flat * 0.2 : 0) - b.vel.z) * (1 - Math.exp(-2.5 * dt));
+      b.vel.y += (THREE.MathUtils.clamp(want.y * 1.5, -0.16, 0.16) - b.vel.y) * (1 - Math.exp(-3 * dt));   // sinking to your height as it comes
+      b.m.position.addScaledVector(b.vel, dt);
+      const left = b.fuse - b.t, late = Math.max(0, 1 - left / 0.7);
+      b.m.scale.setScalar(b.size * (1 + late * 0.15 + Math.sin(b.t * (6 + late * 40)) * 0.02 * (1 + late * 3)));
+      b.m.rotation.set(Math.sin(b.t * 2.2) * 0.15 - b.vel.z * 1.5, 0, Math.cos(b.t * 1.7) * 0.15 + b.vel.x * 1.5);
+      b.b.mat.emissiveIntensity = 0.25 + late * 0.8;
+      // the burst circle on the floor under it
+      if ((b.floorT = (b.floorT || 0) - dt) <= 0) { b.floorT = 0.1; b.floor = this.surfaceBelow(b.m.position); }
+      b.warn.position.set(b.m.position.x, (b.floor ?? 0) + 0.003, b.m.position.z);
+      b.warn.material.progress = Math.min(1, b.t / b.fuse);
+      b.warn.material.opacity = 0.7 + 0.3 * Math.abs(Math.sin(b.t * (5 + late * 25)));
+      if ((b.tick -= dt) <= 0) { b.tick = Math.max(0.08, left * 0.18); sfx.balloonTick(); }
+      if (b.t >= b.fuse) {
+        b.done = true;
+        const at = b.m.position.clone();
+        this.scene.remove(b.m); this.scene.remove(b.warn);
+        const col = '#' + b.b.mat.color.getHexString();
+        this.fx.burst(at, [col, col, '#ffffff'], 14, 0.004, 0.35, b.floor ?? at.y - 0.1);           // scraps of rubber
+        this.fx.impact(at, hostile('whipper'), 0.05, 18);
+        this.fx.ring(new THREE.Vector3(at.x, (b.floor ?? 0) + 0.004, at.z), hostile('whipper'), b.R, 0.4);
+        this.fx.puff(at, 0xd8c8ff, b.R * 0.9, 0.9);                                                   // a cloud of gas
+        juice.shake(0.25);
+        sfx.balloonPop();
+        // caught: inside the circle it showed on the floor, and not far above or below the balloon
+        if (Math.hypot(pc.x - at.x, pc.z - at.z) < b.R + cfg.radius && Math.abs(pc.y - at.y) < 0.2) { hit(2, 'balloon'); deepen(5, 3); sfx.daze(); }
+      }
+    }
+    this.balloons = this.balloons.filter((b) => !b.done);
 
     // the clock's wreath: out along its line to where you were, spinning, then back to Victory's hand
     for (const w of this.thrown) {

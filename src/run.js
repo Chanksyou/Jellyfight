@@ -13,7 +13,7 @@ import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { GoldGift } from './pickups.js';
 import { juice } from './juice.js';
-import { sfx } from './sfx.js';
+import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -95,6 +95,7 @@ export class Run {
   start() {
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
+    calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
     this.gift?.hide();
@@ -322,9 +323,9 @@ export class Run {
     this.duel = { ...pick, wait: 0 };
     this.elites.start(pick.elite ? [pick.elite] : []);
     if (pick.elite) {
-      // up on its high ground: where the vent that goes there lands you
+      // up on its high ground: where the vent that goes there lands you (or its own standing spot, for one on the floor)
       const at = pick.elite.at, v = [...this.traversal.vents].sort((a, b) => Math.hypot(a.land[0] - at[0], a.land[2] - at[2]) - Math.hypot(b.land[0] - at[0], b.land[2] - at[2]))[0];
-      const p = new THREE.Vector3(...(v ? v.land : at));
+      const p = new THREE.Vector3(...(pick.elite.stand || (v ? v.land : at)));
       this.world.focus(p, 1);
       this.player.spawn(p);
       this.player.snapToGround();

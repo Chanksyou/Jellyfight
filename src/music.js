@@ -13,7 +13,9 @@
 // Intensity (0..1) is set by the game (run.js musicState: bugs close by, elites, how late the
 // night is, the boss's health); each layer fades in or out at the start of a bar, so changes
 // always land on the beat. The same code renders offline (tools/music.mjs) for previews.
-const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
+import { pitch } from './sfx.js';
+
+const mtof = (m) => 440 * 2 ** ((m - 69) / 12) * pitch();   // pitch(): lower while the sound is deepened (sfx.js deepen)
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // --------------------------------------------------------------------------- the songs

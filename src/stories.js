@@ -17,6 +17,7 @@ import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
 import { STAGES, currentAct, goToAct } from './stages.js';
+import { pitch, isDeep } from './sfx.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1191,7 +1192,7 @@ story('modes/dev-one-on-one', {
     const gone = bugs().length === 0;
     step(90);
     const back = bugs().length === 1 && bugs()[0].type === 'housefly';
-    const all = ['The Controller', 'The Mug', 'The Kettle', 'The Soap Dispenser'].every((n) => run.duelChoices().some((p) => p.name.startsWith(n + ' (elite')));
+    const all = ['The Controller', 'The Mug', 'The Kettle', 'The Soap Dispenser', 'The Wall Clock', 'The Cream Whipper'].every((n) => run.duelChoices().some((p) => p.name.startsWith(n + ' (elite')));
     const elite = pickFrom('The Mug (elite, act 1)');
     step(30);
     const mug = run.elites.alive.length === 1 && run.elites.alive[0].spec.kind === 'mug' && G().player.position.y > 0.6 && bugs().length === 0;
@@ -1629,6 +1630,78 @@ act2('clock-beaten-hangs-again', {
     menus.close();
     step(60 * 3);
     return ok(log.length === 1 && e.decor && !e.model.face.visible && !e.bar.visible && e.holder.position.y > 1.1 && run.elites.decor.includes(e) && picked, { defeated: log.length, decor: !!e.decor, y: +e.holder.position.y.toFixed(3), picked });
+  },
+});
+
+// the Cream Whipper by the front door (elites.js, whipper-model.js)
+const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
+const byDoor = () => tp(3.0, 0.02, 7.85, 0);
+act2('whipper-balloon-bursts-on-time', {
+  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its burst circle filling on the floor, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
+  play() {
+    const { run } = G(), log = record('damage_taken');
+    let loose = -1, burst = -1, followed = false, d0 = null;
+    step(60 * 6, (i) => {
+      const B = run.elites.balloons[0];
+      if (B && loose < 0) { loose = i; d0 = B.m.position.distanceTo(G().player.position); }
+      if (B && B.t > 1.5 && B.m.position.distanceTo(G().player.position) < d0 - 0.03) followed = true;
+      if (loose >= 0 && burst < 0 && !run.elites.balloons.length) burst = i;
+      return burst >= 0;
+    });
+    const fuse = (burst - loose) / 60, hits = log.filter((d) => d.source === 'balloon');
+    return ok(loose >= 0 && Math.abs(fuse - 3) < 0.1 && followed && hits[0]?.amount === 2 && isDeep(), { fuse: +fuse.toFixed(2), followed, hits: hits.map((d) => d.amount), deep: isDeep() });
+  },
+});
+act2('whipper-deep-sound-recovers', {
+  about: 'Caught in a burst, the sound stays deep for 5 s, then eases back to normal over the next few seconds.',
+  setup() { fresh(); },
+  play() {
+    let fake = performance.now();
+    stub(performance, 'now', () => fake);
+    G().run.elites.balloons.length = 0;
+    return import('./sfx.js').then(({ deepen }) => {
+      deepen(5, 3);
+      const at = (s) => { fake += s * 1000; return pitch(); };
+      const p1 = at(1), p4 = at(3.5), p6 = at(2), p7 = at(1), p9 = at(2);
+      return ok(p1 < 0.65 && p4 < 0.65 && p6 > p4 && p6 < p7 && p7 < 1 && p9 === 1, { p1, p4: +p4.toFixed(2), p6: +p6.toFixed(2), p7: +p7.toFixed(2), p9 });
+    });
+  },
+});
+act2('whipper-burst-misses-outside', {
+  about: 'Outside the burst circle, the balloon pops harmlessly and your hearing is fine.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); },
+  play() {
+    const { run } = G(), log = record('damage_taken');
+    const e = whipper(); e.cool = 0; e.next = 0;
+    let gone = false;
+    step(60 * 6, () => {
+      const B = run.elites.balloons[0];
+      if (B && B.t > 2.6 && !gone) { gone = true; tp(2.3, 0.02, 7.0, 0); }   // dash away just before it bursts
+      return gone && !run.elites.balloons.length;
+    });
+    return ok(gone && !log.some((d) => d.source === 'balloon') && !isDeep(), { gone, hits: log.map((d) => d.source), deep: isDeep() });
+  },
+});
+act2('whipper-cream-spray', {
+  about: 'Cream spray: the whipper tips toward you while a cone fills on the floor, then sprays whipped cream along it: 2, and it slows you.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.2, 0.02, 7.92, 0); const e = whipper(); e.cool = 0; e.next = 1; },
+  play() {
+    const { run } = G(), e = whipper(), log = record('damage_taken');
+    let warned = false, slowed = false;
+    step(60 * 3, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.slowT > 0) slowed = true; return e.sprayed && e.state === 'idle'; });
+    const hits = log.filter((d) => d.source === 'cream');
+    return ok(warned && hits[0]?.amount === 2 && slowed, { warned, hits: hits.map((d) => d.amount), slowed });
+  },
+});
+act2('whipper-angry-two-balloons', {
+  about: 'Under half health the Cream Whipper blows two balloons each time.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
+  play() {
+    const { run } = G();
+    let most = 0;
+    step(60 * 3.5, () => { most = Math.max(most, run.elites.balloons.length); });
+    return ok(most === 2, { most });
   },
 });
 

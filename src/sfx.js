@@ -2,7 +2,7 @@
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
 // from the Play button.
-let ctx = null, master = null, noiseBuf = null;
+let ctx = null, master = null, noiseBuf = null, deep = null;   // deep: a lowpass in the master chain (deepen)
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
@@ -27,7 +27,9 @@ export function unlock() {
       master = ctx.createGain();
       master.gain.value = 0.55;
       const comp = ctx.createDynamicsCompressor();     // keeps a big fight from clipping
-      master.connect(comp).connect(ctx.destination);
+      deep = ctx.createBiquadFilter();                  // wide open until something deepens the sound
+      deep.type = 'lowpass'; deep.frequency.value = 20000; deep.Q.value = 0.9;
+      master.connect(deep).connect(comp).connect(ctx.destination);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -43,6 +45,38 @@ export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 :
 export const isMuted = () => muted;
 
 const ready = () => ctx && (at !== null || ctx.state === 'running') && !muted;
+
+// Deepened sound (the Cream Whipper's balloon): for `hold` s everything (music and sound effects)
+// plays low and muffled, then eases back to normal over `ease` s. pitch() is the factor every
+// new note is played at right now (music.js and the sounds here use it).
+const daze = { from: 0, until: 0, back: 0 };
+const LOW = 0.6;
+export function pitch() {
+  const n = performance.now();
+  if (n < daze.from || n >= daze.back) return 1;
+  if (n < daze.from + 300) return 1 - (1 - LOW) * (n - daze.from) / 300;     // a quick dive down
+  if (n < daze.until) return LOW;
+  return LOW + (1 - LOW) * (n - daze.until) / (daze.back - daze.until);
+}
+export function deepen(hold = 5, ease = 3) {
+  const n = performance.now();
+  daze.from = pitch() < 1 ? n - 300 : n;                                   // already deep: stay down, start the clock again
+  daze.until = n + hold * 1000;
+  daze.back = daze.until + ease * 1000;
+  if (!deep) return;
+  const t = ctx.currentTime, f = deep.frequency;
+  f.cancelScheduledValues(t);
+  f.setValueAtTime(f.value, t);
+  f.exponentialRampToValueAtTime(650, t + 0.3);
+  f.setValueAtTime(650, t + hold);
+  f.exponentialRampToValueAtTime(20000, t + hold + ease);
+}
+export const isDeep = () => pitch() < 0.999;
+// back to normal at once (a new run)
+export function calm() {
+  daze.from = daze.until = daze.back = 0;
+  if (deep) { deep.frequency.cancelScheduledValues(ctx.currentTime); deep.frequency.value = 20000; }
+}
 const jitter = (k = 0.08) => 1 + (Math.random() - 0.5) * 2 * k;
 function gap(name, ms) {
   const now = performance.now();
@@ -56,8 +90,9 @@ function tone(type, f0, f1, dur, vol, delay = 0) {
   const t = now() + delay;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type;
-  o.frequency.setValueAtTime(f0, t);
-  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  const k = pitch();
+  o.frequency.setValueAtTime(f0 * k, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 * k), t + dur);
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -72,8 +107,10 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
   const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
   s.buffer = noiseBuf;
   f.type = type;
-  f.frequency.setValueAtTime(freq, t);
-  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+  const k = pitch();
+  f.frequency.setValueAtTime(freq * k, t);
+  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo * k, t + dur);
+  s.playbackRate.value = k;                          // slowed noise sounds lower too
   f.Q.value = q;
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
@@ -278,6 +315,24 @@ export const sfx = {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
   },
+  // the Cream Whipper: the regulator hissing as a balloon fills (rubber creaking as it stretches),
+  // the squeak as it lets go, the bang when it bursts, the cream spraying
+  balloonFill(dur = 1) {
+    if (!ready()) return;
+    noise(3500, 1.5, dur, 0.08, 'bandpass', 0, 5500);
+    for (let k = 0; k < 4; k++) tone('triangle', 300 + k * 90, 380 + k * 120, 0.08, 0.035, k * dur / 4 + 0.05);
+  },
+  balloonLoose() { if (!ready()) return; tone('square', 900, 1400, 0.12, 0.03); tone('sine', 600, 1100, 0.15, 0.04); },
+  balloonTick() { if (!ready() || !gap('balloonTick', 80)) return; tone('sine', 1800, 1700, 0.03, 0.03); },
+  balloonPop() {
+    if (!ready()) return;
+    noise(2500, 0.6, 0.18, 0.5, 'highpass'); noise(400, 0.8, 0.35, 0.35, 'lowpass', 0, 90);
+    tone('sine', 140, 40, 0.4, 0.35);
+    for (let k = 0; k < 5; k++) noise(5000 + Math.random() * 3000, 4, 0.015, 0.06, 'bandpass', 0.05 + k * 0.04);   // scraps of rubber
+  },
+  // your ears going funny: a long slide down
+  daze() { if (!ready()) return; tone('sine', 520, 180, 0.9, 0.08); tone('triangle', 260, 90, 1.1, 0.06); },
+  creamSpray(dur = 0.8) { if (!ready()) return; noise(2600, 0.9, dur, 0.18, 'bandpass', 0, 1600); noise(700, 1, dur * 0.6, 0.1, 'lowpass'); },
   // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
   // little lower each time), the wreath whirring through the air
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
