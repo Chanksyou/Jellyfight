@@ -18,6 +18,7 @@ import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
 import { STAGES, currentAct, goToAct } from './stages.js';
 import { pitch, isDeep } from './sfx.js';
+import { TouchControls } from './touch.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -139,6 +140,20 @@ story('traversal/hallway-walled', {
   about: 'The living room opening into the hallway is walled off in stage 1.',
   setup() { fresh({ elites: false }); tp(3.0, 0.05, 4.6, Math.PI); },
   play() { const r = sim(3, ['KeyW']); return ok(r.pos[2] < 4.83, { end: r.pos }); },
+});
+story('traversal/touch-stick-past-ring', {
+  about: 'On a phone, dragging the joystick past its ring still swims at full speed, not slower.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const fake = {}, tc = new TouchControls(fake);
+    tc.el.setPointerCapture = () => {};
+    const at = (type, x, y) => tc.el.dispatchEvent(new PointerEvent(type, { pointerId: 7, clientX: x, clientY: y, bubbles: true }));
+    at('pointerdown', 10, 300);
+    const mag = (dx) => { at('pointermove', 10 + dx, 300); return +Math.hypot(fake.touchMove.x, fake.touchMove.y).toFixed(3); };
+    const ring = mag(50), far = mag(150), farther = mag(400);
+    at('pointerup', 410, 300);
+    return ok(ring === 1 && far === 1 && farther === 1 && fake.touchMove === null, { ring, far, farther });
+  },
 });
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {

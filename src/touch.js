@@ -67,8 +67,11 @@ export class TouchControls {
         if (L > R) { dx *= R / L; dy *= R / L; }
         this.knob.style.transform = `translate(${dx}px, ${dy}px)`;
         // a little dead zone, then full speed past 70% of the ring
+        // (dx, dy are clamped to the ring, so the direction divides by the clamped length:
+        //  dragging past the ring stays full speed instead of shrinking)
         const m = Math.min(1, Math.max(0, (L / R - 0.12) / 0.58));
-        input.touchMove = L > 0 ? { x: (dx / Math.max(L, 1e-6)) * m, y: -(dy / Math.max(L, 1e-6)) * m } : null;
+        const len = Math.max(Math.hypot(dx, dy), 1e-6);
+        input.touchMove = L > 0 ? { x: (dx / len) * m, y: -(dy / len) * m } : null;
       } else if (this.look && e.pointerId === this.look.id) {
         input.mouseDX += (e.clientX - this.look.x) * this.lookSpeed;
         input.mouseDY += (e.clientY - this.look.y) * this.lookSpeed;
