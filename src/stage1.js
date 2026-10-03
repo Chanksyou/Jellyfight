@@ -21,7 +21,7 @@ export const STAGE1 = {
   rooms: ['Living room'],
   parts: ['act1'],                   // apartment files to load (apartment.js): the living room, plus the hallway to look at (the wall below keeps you out)
   start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
-  duration: 300,                      // seconds until the boss comes
+  duration: 260,                      // seconds until the boss comes (4:20)
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   noCollide: [],

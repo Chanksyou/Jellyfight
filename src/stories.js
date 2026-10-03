@@ -1786,6 +1786,23 @@ const clogAttack = (B, name, P) => {
   B.state = 'chase'; B.stateT = 0;
   B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
+act2('act-2-hits-harder', {
+  about: 'Act 2 is scaled for the stronger jelly that arrives: bugs, elites and the Clog have more health, and hits on you do 1.5x.',
+  setup() { fresh({ hurt: true }); },
+  play() {
+    const { run, enemies } = G(), stage = run.stage;
+    const fly = enemies.spawn('housefly', near(0.5, 0), stage.toughness);
+    const bugX = fly.maxHp / fly.T.hp;
+    const soap = run.elites.list.find((e) => e.kind === 'soap');
+    run.iFrames = 0;
+    const m0 = run.moisture;
+    import('./events.js').then(({ bus, PLAYER }) => bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'test' }));
+    return new Promise((res) => setTimeout(() => {
+      const took = m0 - run.moisture;
+      res(ok(bugX === 2 && soap.maxHp === Math.round(240 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
+    }, 50));
+  },
+});
 act2('bathroom-details', {
   about: 'The tub is dressed like the real one: tile, the striped mat, the spout, thermostat and shower rail, the smiley sponge, the Pantene bottles and the wire caddy with its loofah. None of it gets in your way.',
   setup() { fresh(); },
@@ -1939,7 +1956,7 @@ act2('closets-are-shut', {
 });
 
 act2('only-act-2-bugs', {
-  about: 'Act 2\'s waves bring its own bugs (spiders, house flies, ladybugs and staplers among them), none of act 1\'s.',
+  about: 'Act 2\'s waves are only its four bugs (house flies, spiders, millipedes, ladybugs), none of act 1\'s.',
   setup() { fresh({ waves: true, elites: false }); G().run.t = 200; },
   play() {
     const { run, enemies } = G();

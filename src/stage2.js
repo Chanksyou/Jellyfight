@@ -21,10 +21,16 @@ export const STAGE2 = {
   parts: ['act1', 'act2'],           // apartment files to load (apartment.js): act 2 adds the bathroom and closets
   evolve: 'Your ephyra grows into a young <b>Medusa</b>.',   // the metamorphosis after the Clog
   start: [2.75, 0, 6.6],             // the middle of the hall
-  duration: 300,                      // seconds until the boss comes
+  duration: 260,                      // seconds until the boss comes (4:20)
   clock: [120, 240],                  // in-game minutes after midnight: 2:00 AM -> 4:00 AM
   details: 'bathroom',                // the tub dressed after the real one (bathroom.js)
-  toughness: 1.5,                     // bugs here start with 1.5x health (they toughen further with the hour)
+  // you arrive levelled up with act 1's treasures, so everything here is tougher and hits harder:
+  // `toughness` the regular bugs' health (they toughen further with the hour), `eliteHp` and
+  // `bossHp` the elites' and the Clog's, `power` every hit you take (run.js)
+  toughness: 2,
+  eliteHp: 1.8,
+  bossHp: 1.6,
+  power: 1.5,
 
   // Things the player shouldn't bump into or can pass through
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
@@ -43,13 +49,14 @@ export const STAGE2 = {
     { min: [0, -0.05, 4.8], max: [4.55, 0, 9.05] },
   ],
 
-  // Floor vents: step on one and the air blows you up in an arc that lands on `land`
+  // Floor vents: step on one and the air blows you up in an arc that lands on `land` (positions
+  // placed in the layout editor)
   vents: [
-    { name: 'Vanity toe-kick vent', at: [1.3, 0.012, 5.67], radius: 0.045, land: [1.5, 0.881, 5.52], to: 'the vanity' },   // beside the sink, not in it
-    { name: 'Bathroom vent by the toilet', at: [0.85, 0.004, 5.95], radius: 0.04, land: [0.5, 0.49, 5.58], to: 'the toilet lid' },
-    { name: 'Hall vent by the sideboard', at: [2.98, 0, 6.95], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
-    { name: 'Hall vent by the bench', at: [2.26, 0, 7.4], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
-    { name: 'Hall vent by the recycling bin', at: [3.1, 0, 5.6], radius: 0.04, land: [3.39, 0.696, 5.92], to: 'the recycling bin' },
+    { name: 'Vanity toe-kick vent', at: [1.517, 0.004, 5.599], radius: 0.045, land: [1.5, 0.881, 5.52], to: 'the vanity' },   // beside the sink, not in it
+    { name: 'Bathroom vent by the toilet', at: [0.795, 0.004, 5.663], radius: 0.04, land: [0.5, 0.49, 5.58], to: 'the toilet lid' },
+    { name: 'Hall vent by the sideboard', at: [3.018, 0, 6.627], radius: 0.045, land: [3.27, 0.8, 6.8], to: 'the sideboard' },
+    { name: 'Hall vent by the bench', at: [2.215, 0, 7.361], radius: 0.04, land: [2.08, 0.46, 7.39], to: 'the bench' },
+    { name: 'Hall vent by the recycling bin', at: [3.203, 0, 5.779], radius: 0.04, land: [3.39, 0.696, 5.92], to: 'the recycling bin' },
   ],
 
   // Fabric you can climb: hold jump inside the box

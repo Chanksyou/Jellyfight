@@ -14,13 +14,8 @@ bug "mosquito" weight=0.45 from=90  // mosquitoes from 1:30
 bug "lanternfly" weight=0.3 from=120 // spotted lanternflies from 2:00
 
 // act 2: the hallway and the bathroom
-bug "roach" weight=0.8 act=2                // cockroaches from the start
-bug "hair" weight=0.6 act=2                 // hair tangles from the drain, from the start
-bug "ants" weight=0.45 from=20 act=2        // ant squads from 0:20
-bug "housefly" weight=0.4 from=30 act=2     // house flies from 0:30
-bug "spider" weight=0.35 from=45 act=2      // house spiders from 0:45
-bug "millipede" weight=0.3 from=60 act=2    // giant millipedes from 1:00
-bug "mosquito" weight=0.35 from=75 act=2    // mosquitoes from 1:15
-bug "ladybug" weight=0.25 from=90 act=2     // ladybugs from 1:30
-bug "stapler" weight=0.3 from=105 act=2     // standing staplers from 1:45
-bug "lanternfly" weight=0.25 from=150 act=2 // spotted lanternflies from 2:30
+// only these four, each joining in turn
+bug "housefly" weight=1 act=2               // house flies from the start
+bug "spider" weight=0.8 from=30 act=2       // house spiders from 0:30
+bug "millipede" weight=0.6 from=75 act=2    // giant millipedes from 1:15
+bug "ladybug" weight=0.5 from=120 act=2     // ladybugs from 2:00

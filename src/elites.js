@@ -244,7 +244,7 @@ class Elite {
   constructor(owner, spec) {
     const K = KINDS[spec.kind];
     Object.assign(this, { owner, spec, kind: spec.kind, name: K.name, aggro: K.aggro });
-    this.maxHp = this.hp = K.hp;
+    this.maxHp = this.hp = Math.round(K.hp * (owner.hpScale || 1));   // later acts: tougher (stage eliteHp)
     this.dead = false;
     this.base = new THREE.Vector3(...spec.at);
     const m = K.build();
