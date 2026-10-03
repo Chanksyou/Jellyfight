@@ -70,7 +70,7 @@ body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); 
 export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
-    bus.on('boss_health', ({ name, hp, maxHp, shielded }) => this.setBoss(name, hp / maxHp, shielded));
+    bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText }) => this.setBoss(name, hp / maxHp, shielded, shieldText));
     this.el = document.createElement('div');
     this.el.id = 'hud';
     this.el.innerHTML = `<style>${CSS}</style>
@@ -148,12 +148,12 @@ export class Hud {
   setStage(text) { this.set('stage', '.stage', () => text); }
 
   // shielded: the bar turns purple and says so (the Vacuum's lanternflies)
-  setBoss(name, frac, shielded = false) {
+  setBoss(name, frac, shielded = false, shieldText = 'SHIELDED') {
     const b = this.$('.boss');
     b.hidden = name == null;
     if (name == null) return;
     b.classList.toggle('shield', shielded);
-    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · SHIELDED` : name.toUpperCase()));
+    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : name.toUpperCase()));
     this.$('.boss i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 

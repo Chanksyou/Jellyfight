@@ -1773,6 +1773,128 @@ act2('whipper-angry-two-balloons', {
   },
 });
 
+// the Clog (clog.js): straight into the boss fight in the tub
+const clogFight = () => {
+  fresh({ hurt: true, bubbles: false, lash: false });
+  const { run, menus } = G();
+  run.startBossIntro();
+  step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.rise >= 1; });
+  return run.boss;
+};
+const clogAttack = (B, name, P) => {
+  if (P) tp(...P, 0);
+  B.state = 'chase'; B.stateT = 0;
+  B.next = ['lash', 'snare', 'roll', 'gurgle', 'shed'].indexOf(name);
+};
+act2('tub-is-clear', {
+  about: 'The bathtub (the Clog\'s arena) is empty: the green see-through blob that sat in it is gone.',
+  setup() { fresh(); },
+  play() {
+    let shown = false;
+    G().APT.root.traverse((o) => { if (o.name === 'Bathtub_3' && o.visible) shown = true; });
+    return ok(!shown, { shown });
+  },
+});
+act2('clog-rises-and-chases', {
+  about: 'When time runs out the Clog, a big wet matted hairball, rises out of the bathtub drain and rolls after you.',
+  setup() {},
+  play() {
+    const B = clogFight(), { player } = G();
+    tp(1.2, 0.16, 7.53, 0);
+    const d0 = B.position.distanceTo(player.position);
+    B.stateT = 99;
+    step(90);
+    const d1 = B.position.distanceTo(player.position);
+    return ok(B.constructor.name === 'Clog' && B.rise === 1 && d1 < d0 - 0.1, { boss: B.constructor.name, d0: +d0.toFixed(2), d1: +d1.toFixed(2) });
+  },
+});
+act2('clog-lash', {
+  about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor, then whips down along it: 3, and you\'re tangled (slowed).',
+  setup() {},
+  play() {
+    const B = clogFight(), { run } = G(), log = record('damage_taken');
+    clogAttack(B, 'lash', [0.62, 0.16, 7.53]);
+    let warned = false;
+    step(60 * 2, () => { if (B.state === 'lash' && B.lines[0].visible) warned = true; return B.struck; });
+    step(2);
+    const hit = log.find((d) => d.source === 'boss');
+    return ok(warned && hit?.amount === 3 && run.slowT > 0.5, { warned, hit: hit?.amount, slowed: +run.slowT.toFixed(2) });
+  },
+});
+act2('clog-snare', {
+  about: 'Snare: three circles fill on the floor round you, then hair springs up in them: 2 and slowed if you\'re caught.',
+  setup() {},
+  play() {
+    const B = clogFight(), { run } = G(), log = record('damage_taken');
+    clogAttack(B, 'snare', [0.9, 0.16, 7.53]);
+    let circles = 0;
+    step(60 * 2, () => { circles = Math.max(circles, B.snares.filter((m) => m.visible).length); return B.sprung; });
+    step(2);
+    const hit = log.find((d) => d.source === 'boss');
+    return ok(circles === 3 && hit?.amount === 2 && run.slowT > 0.5 && B.tufts.length > 0, { circles, hit: hit?.amount, tufts: B.tufts.length });
+  },
+});
+act2('clog-roll', {
+  about: 'Roll: it spins up while its lane lights up on the floor, then rolls down it at you: 4.',
+  setup() {},
+  play() {
+    const B = clogFight(), log = record('damage_taken');
+    clogAttack(B, 'roll', [1.1, 0.16, 7.53]);
+    let lane = false, rolled = false;
+    step(60 * 3, () => { if (B.state === 'roll' && B.lines[0].visible) lane = true; if (B.locked) rolled = true; return log.some((d) => d.source === 'boss'); });
+    const hit = log.find((d) => d.source === 'boss');
+    return ok(lane && rolled && hit?.amount === 4, { lane, rolled, hit: hit?.amount });
+  },
+});
+act2('clog-gurgle', {
+  about: 'Drain gurgle: the drain swirls and pulls you toward it.',
+  setup() {},
+  play() {
+    const B = clogFight(), { player } = G();
+    clogAttack(B, 'gurgle', [0.75, 0.16, 7.53]);
+    step(2);
+    const d0 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
+    step(90);
+    const d1 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
+    return ok(B.swirl.visible && d1 < d0 - 0.05, { swirl: B.swirl.visible, d0: +d0.toFixed(2), d1: +d1.toFixed(2) });
+  },
+});
+act2('clog-ladybug-swarm-once', {
+  about: 'The first time the Clog drops below 70% it roars, four ladybugs burst out of its hair, and it hides in the drain (it can\'t be hurt) until they\'re dead. It only happens once.',
+  setup() {},
+  play() {
+    const B = clogFight(), { enemies } = G();
+    tp(1.2, 0.16, 7.53, 0);
+    B.hp = B.maxHp * 0.69;
+    step(60 * 3);
+    const bugs = B.guards.length, hp = B.hp;
+    B.damage(100);
+    const immune = B.hp === hp && B.shielded;
+    for (const e of [...B.guards]) enemies.applyDamage(e, 1e5);
+    step(60 * 3);
+    B.damage(50);
+    const hurtAgain = B.hp === hp - 50, back = B.state !== 'swarm' && B.sink === 0;
+    B.hp = B.maxHp * 0.5;
+    step(60 * 2);
+    const again = B.guards.length;
+    return ok(bugs === 4 && immune && hurtAgain && back && again === 0, { bugs, immune, hurtAgain, back, again });
+  },
+});
+act2('clog-angry-spray', {
+  about: 'Below 45% the Clog is angry: faster, and it spins spraying globs of drain gunk all round.',
+  setup() {},
+  play() {
+    const B = clogFight();
+    tp(1.2, 0.16, 7.53, 0);
+    B.swarmed = true;
+    B.hp = B.maxHp * 0.4;
+    B.state = 'chase'; B.stateT = 0; B.next = 1;                         // the angry order: lash, spray, ...
+    let globs = 0;
+    step(60 * 2, () => { globs = Math.max(globs, B.shots.length); return B.state === 'spray' && globs >= 5; });
+    return ok(B.angry && globs >= 5, { angry: B.angry, globs, state: B.state });
+  },
+});
+
 act2('soap-slick-slides', {
   about: 'Soap underfoot: let go on a slick and you keep sliding a long way; off it you stop almost at once.',
   setup() { fresh({ elites: false }); tp(2.75, 0.05, 6.6, 0); },

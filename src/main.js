@@ -15,6 +15,7 @@ import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
+import { Clog } from './clog.js';
 import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted, audio } from './sfx.js';
@@ -26,7 +27,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v89';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v90';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -402,7 +403,7 @@ async function warmUp() {
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : new Boss(scene, enemies, fx, stage.boss);
+  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : stage.boss.kind === 'hair' ? new Clog(scene, enemies, fx, stage.boss, world) : new Boss(scene, enemies, fx, stage.boss);
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

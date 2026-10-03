@@ -6,6 +6,7 @@ import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
+import { Clog } from './clog.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
@@ -656,7 +657,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : new Boss(this.scene, this.enemies, this.fx, B);
+      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : B.kind === 'hair' ? new Clog(this.scene, this.enemies, this.fx, B, this.world) : new Boss(this.scene, this.enemies, this.fx, B);
       this.enemies.addProxy(this.boss);
       setTimeout(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
@@ -785,7 +786,7 @@ export class Run {
       for (const e of this.enemies.list) if (!e.dead && e.pos.distanceTo(P) < 0.7) near += e.proxy ? 4 : 1;   // elites count for more
       return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * Math.min(1, this.t / this.duration)) };
     }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' };
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' || this.boss.state === 'gurgle' };
     return { song: null, intensity: 0 };
   }
 

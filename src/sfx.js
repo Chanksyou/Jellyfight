@@ -315,6 +315,36 @@ export const sfx = {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
   },
+  // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
+  // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
+  clogRise() {
+    if (!ready()) return;
+    for (let k = 0; k < 10; k++) { const f = 90 + Math.random() * 160; tone('sine', f, f * 1.8, 0.09, 0.12, k * 0.12 + Math.random() * 0.05); }
+    noise(300, 0.8, 1.4, 0.18, 'lowpass', 0, 900);
+  },
+  clogRoar() {
+    if (!ready()) return;
+    tone('sawtooth', 75, 52, 1.0, 0.16); tone('square', 112, 70, 0.9, 0.06);
+    noise(500, 0.7, 1.0, 0.2, 'lowpass', 0, 200);
+    for (let k = 0; k < 6; k++) { const f = 120 + Math.random() * 120; tone('sine', f, f * 1.6, 0.06, 0.07, 0.1 + k * 0.14); }   // gurgling in it
+  },
+  clogLashWind() { if (!ready()) return; tone('sawtooth', 160, 420, 0.8, 0.04); noise(2200, 3, 0.8, 0.05, 'bandpass', 0, 4000); },
+  clogLash() { if (!ready()) return; noise(6000, 0.6, 0.06, 0.4, 'highpass'); noise(700, 0.9, 0.25, 0.3, 'lowpass', 0.03, 150); tone('sine', 160, 50, 0.25, 0.25, 0.03); },
+  clogRollWind() { if (!ready()) return; tone('sawtooth', 80, 300, 1.0, 0.06); noise(900, 1, 1.0, 0.08, 'bandpass', 0, 2500); },
+  clogRoll() { if (!ready()) return; noise(250, 0.7, 1.1, 0.28, 'lowpass', 0, 600); for (let k = 0; k < 8; k++) noise(500, 2, 0.06, 0.1, 'lowpass', k * 0.13); },
+  clogRustle() { if (!ready()) return; for (let k = 0; k < 8; k++) noise(3000 + Math.random() * 2000, 2, 0.08, 0.05, 'bandpass', k * 0.1); },
+  clogSnare() { if (!ready()) return; noise(4500, 0.8, 0.15, 0.3, 'highpass'); noise(1200, 1.5, 0.3, 0.15, 'bandpass', 0.03, 400); },
+  clogGurgle(dur = 3) {
+    if (!ready()) return;
+    noise(200, 0.8, dur, 0.22, 'lowpass', 0, 120);
+    for (let k = 0; k * 0.14 < dur; k++) { const f = 70 + Math.random() * 130; tone('sine', f, f * 2, 0.08, 0.1, k * 0.14 + Math.random() * 0.06); }
+  },
+  clogSplat() { if (!ready() || !gap('clogSplat', 70)) return; noise(900 * jitter(), 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140, 60, 0.1, 0.12); },
+  clogDeath() {
+    if (!ready()) return;
+    tone('sawtooth', 120, 30, 2.2, 0.15); noise(300, 0.7, 2.2, 0.25, 'lowpass', 0, 60);
+    for (let k = 0; k < 16; k++) { const f = 60 + Math.random() * 150; tone('sine', f, f * 1.5, 0.1, 0.1, k * 0.13 + Math.random() * 0.06); }
+  },
   // the ladybug and its missile: a buzz on take-off, a tap as it lands, the lock-on beeps (higher
   // as it closes in), the ignition roar, the rocket's hiss, the engine coughing out, the clink of
   // a spent one landing, the explosion
