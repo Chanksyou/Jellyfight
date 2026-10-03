@@ -562,6 +562,19 @@ story('enemies/millipede-never-overlaps', {
     return ok(worst > wide * 0.75, { worst: +worst.toFixed(4), wide: +wide.toFixed(4), frame: at });
   },
 });
+story('bubbles/never-linger', {
+  about: 'With six bubbles a blow, the outside ones (aimed to the side of the target) fly on past and pop at the end of their range: none slow down and hang in the air.',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.bubbles = 6; const e = spawn('roach', near(0, -0.25), { still: true, hp: 1e6 }); },
+  play() {
+    const { run } = G();
+    let oldest = 0, slowest = 9, blown = 0;
+    step(60 * 6, () => {
+      for (const b of run.bubbles.list) { oldest = Math.max(oldest, b.t); if (b.t > 0.1) slowest = Math.min(slowest, b.vel.length()); }
+      blown = Math.max(blown, run.bubbles.list.length);
+    });
+    return ok(blown >= 6 && oldest < 1.5 && slowest > 0.2, { blown, oldest: +oldest.toFixed(2), slowest: +slowest.toFixed(3) });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },

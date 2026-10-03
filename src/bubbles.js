@@ -181,7 +181,9 @@ export class Bubbles {
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     };
     const wind = b.elems.has('wind');
-    b.vel = dir.multiplyScalar(SPEED * (o.speed || 1) * (wind ? 1.4 : 1));
+    b.speed = SPEED * (o.speed || 1) * (wind ? 1.4 : 1);
+    b.vel = dir.multiplyScalar(b.speed);
+    b.homing = true;
     if (wind) b.pierce += 1;
     m.scale.setScalar(0.001);
     this.list.push(b);
@@ -196,12 +198,16 @@ export class Bubbles {
     for (const b of this.list) {
       b.t += dt;
       // steer gently toward the target while it lives, until the bubble has hit it (a piercing
-      // bubble then flies straight on instead of turning back to it)
-      if (b.target && !b.target.dead && !b.hit.has(b.target)) {
+      // bubble then flies straight on instead of turning back to it). Once it reaches its aim point
+      // or flies past it, it stops steering and carries straight on: an outside bubble aims to the
+      // side of the target, and circling back to that point it used to slow to a stop and hang
+      // there for good. Steering only turns it: it keeps its speed.
+      if (b.homing && b.target && !b.target.dead && !b.hit.has(b.target)) {
         E.center(b.target, c);
         if (b.off) c.add(b.off);                                       // side by side: keep its lane
-        const want = c.sub(b.m.position).normalize().multiplyScalar(b.vel.length());
-        b.vel.lerp(want, 1 - Math.exp(-3 * dt));
+        const to = c.sub(b.m.position), d = to.length();
+        if (d < b.r * 2 || to.dot(b.vel) <= 0) b.homing = false;
+        else b.vel.lerp(to.multiplyScalar(b.speed / d), 1 - Math.exp(-3 * dt)).setLength(b.speed);
       }
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
@@ -220,13 +226,13 @@ export class Bubbles {
       // touching an enemy?
       for (const e of E.list) {
         if (e.dead || b.hit.has(e)) continue;
-        if (E.center(e, c).distanceTo(b.m.position) < e.r + b.r) {
+        if (E.center(e, c).distanceTo(b.m.position) < (e.hitR || e.r) + b.r) {   // hitR: a millipede's ball
           b.hit.add(e);
           this.strike(b, e, mods);
           if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
         }
       }
-      if (!b.done && b.travel > maxTravel) this.pop(b, null, stats, mods);
+      if (!b.done && (b.travel > maxTravel || b.t > maxTravel / b.speed + 0.5)) this.pop(b, null, stats, mods);   // out of range, or (whatever happened) too long in the air
     }
     this.looks.endFrame();
     const done = this.list.filter((b) => b.done);
