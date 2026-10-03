@@ -76,7 +76,6 @@ export const STAGE2 = {
   // Golden gifts, as in stage 1
   gifts: { at: [15, 60, 105, 150, 180, 225], stay: 15 },
 
-  // No high-ground elites here yet
   // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
   // lands you beside it)
   elites: [
