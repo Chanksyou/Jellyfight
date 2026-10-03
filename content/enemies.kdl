@@ -57,6 +57,14 @@ enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 dew=9 model="millip
     ball-charge range=0.4 curl=0.45 spin=0.9 speed=0.95 time=0.7 dmg=4 uncurl=0.5 rest=0.8 every=2.5
 }
 
+// Act 2. The ladybug (from 1:30): it flies round you, then lands, lifts its red carapace and
+// locks on (a red reticle closes in round you, beeping faster), and fires a homing missile from
+// its back. The missile hunts you for 4 s, turning only so fast: outrun it or break sharply, and
+// it sputters out and falls. Hit it while it's grounded and locking on.
+enemy "ladybug" name="Ladybug" hp=50 r=0.035 dmg=1 dew=9 model="ladybug" {
+    sortie circle=0.3 height=0.12 speed=0.4 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=3
+}
+
 // The dust enemies (the hair tangle comes out in act 2; the others are kept for later)
 enemy "mote" name="Mote" hp=6 r=0.01 dmg=1 dew=3 model="mote" {
     drift 0.255

@@ -71,7 +71,7 @@ export function deepen(hold = 5, ease = 3) {
   f.setValueAtTime(650, t + hold);
   f.exponentialRampToValueAtTime(20000, t + hold + ease);
 }
-export const isDeep = () => pitch() < 0.999;
+export const isDeep = () => { const n = performance.now(); return n >= daze.from && n < daze.back; };
 // back to normal at once (a new run)
 export function calm() {
   daze.from = daze.until = daze.back = 0;
@@ -314,6 +314,29 @@ export const sfx = {
   milliRoll(dur) {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
+  },
+  // the ladybug and its missile: a buzz on take-off, a tap as it lands, the lock-on beeps (higher
+  // as it closes in), the ignition roar, the rocket's hiss, the engine coughing out, the clink of
+  // a spent one landing, the explosion
+  ladyBuzz() { if (!ready()) return; tone('sawtooth', 170, 230, 0.35, 0.035); tone('sawtooth', 176, 238, 0.35, 0.025); },
+  ladyLand() { if (!ready() || !gap('ladyLand', 80)) return; tone('triangle', 600, 300, 0.05, 0.05); },
+  lockBeep(k = 0) { if (!ready()) return; const f = 1500 + k * 900; tone('square', f, f, 0.045, 0.035); },
+  missileLaunch() {
+    if (!ready()) return;
+    noise(5000, 0.7, 0.08, 0.25, 'highpass');                         // the crack of ignition
+    noise(400, 0.7, 0.6, 0.3, 'lowpass', 0.02, 2600);                 // the roar, rising
+    tone('sawtooth', 110, 380, 0.5, 0.07, 0.02);
+  },
+  missileHiss() { if (!ready() || !gap('missileHiss', 150)) return; noise(3800 * jitter(), 1.4, 0.24, 0.035, 'bandpass'); },
+  missileSputter() { if (!ready()) return; tone('sawtooth', 300, 70, 0.7, 0.06); for (let k = 0; k < 5; k++) noise(700, 1, 0.05, 0.12, 'lowpass', 0.05 + k * 0.11 + Math.random() * 0.05); },
+  missileCough() { if (!ready() || !gap('missileCough', 90)) return; noise(500 * jitter(0.2), 1, 0.06, 0.1, 'lowpass'); },
+  missileClink() { if (!ready()) return; tone('triangle', 2300, 2200, 0.09, 0.05); tone('triangle', 3400, 3300, 0.06, 0.03, 0.05); noise(1500, 1, 0.3, 0.06, 'bandpass', 0.05, 600); },
+  missileBoom() {
+    if (!ready()) return;
+    noise(3000, 0.6, 0.15, 0.35, 'highpass');
+    noise(500, 0.7, 0.7, 0.45, 'lowpass', 0, 60);
+    tone('sine', 120, 35, 0.6, 0.4);
+    for (let k = 0; k < 6; k++) noise(2500 + Math.random() * 3000, 3, 0.02, 0.08, 'bandpass', 0.08 + Math.random() * 0.35);   // crackle
   },
   // the Cream Whipper: the regulator hissing as a balloon fills (rubber creaking as it stretches),
   // the squeak as it lets go, the bang when it bursts, the cream spraying

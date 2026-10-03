@@ -1007,3 +1007,185 @@ export function buildMillipede() {
   };
   return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius };   // radius units: how big the rolling ball is
 }
+
+// ------------------------------------------------------------------ homing missile
+// A little guided missile, `L` long along +z: a white body with red bands, a dark ogive nose with a
+// glowing seeker tip, four canards forward and four swept tail fins, a nozzle and a flame (two
+// additive cones, flickered by whoever flies it). Used in flight (meters, enemies.js) and loaded
+// on the ladybug's back (radius units).
+const MISSILE_MAT = {};
+export function buildMissile(L = 0.04) {
+  const M = MISSILE_MAT;
+  M.body ||= new THREE.MeshStandardMaterial({ color: 0xf2f3f5, metalness: 0.35, roughness: 0.3 });
+  M.nose ||= new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.5, roughness: 0.25 });
+  M.band ||= new THREE.MeshStandardMaterial({ color: 0xd8261a, metalness: 0.2, roughness: 0.3, emissive: 0x5a0800, emissiveIntensity: 0.6 });
+  M.fin ||= new THREE.MeshStandardMaterial({ color: 0x4a4f58, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
+  M.glass ||= new THREE.MeshStandardMaterial({ color: 0x1a0a0a, metalness: 0.2, roughness: 0.05, emissive: 0xff3a2a, emissiveIntensity: 1.4 });
+  M.flame ||= new THREE.MeshBasicMaterial({ color: 0xff8a30, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  M.core ||= new THREE.MeshBasicMaterial({ color: 0xfff4c8, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const r = 0.085 * L, g = new THREE.Group();
+  const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); g.add(m); return m; };
+  const alongZ = (geo) => geo.rotateX(Math.PI / 2);
+  add(alongZ(new THREE.CylinderGeometry(r, r, 0.6 * L, 20)).translate(0, 0, -0.08 * L), M.body);                    // fuselage
+  add(alongZ(new THREE.CylinderGeometry(r * 1.04, r * 1.04, 0.07 * L, 20)).translate(0, 0, 0.16 * L), M.band);       // red bands
+  add(alongZ(new THREE.CylinderGeometry(r * 1.04, r * 1.04, 0.03 * L, 20)).translate(0, 0, -0.3 * L), M.band);
+  const ogive = [[r, 0], [r * 0.96, 0.06 * L], [r * 0.82, 0.13 * L], [r * 0.58, 0.2 * L], [r * 0.3, 0.25 * L], [0.0001, 0.27 * L]].map(([x, y]) => new THREE.Vector2(x, y));
+  add(new THREE.LatheGeometry(ogive, 20).rotateX(Math.PI / 2).translate(0, 0, 0.22 * L), M.nose);                    // nose cone
+  add(new THREE.SphereGeometry(r * 0.38, 12, 8).translate(0, 0, 0.475 * L), M.glass);                                 // seeker
+  add(alongZ(new THREE.CylinderGeometry(r * 0.72, r * 0.86, 0.06 * L, 16)).translate(0, 0, -0.41 * L), M.fin);       // nozzle
+  const fin = (len, span, sweep, z) => {
+    const s = new THREE.Shape();
+    s.moveTo(0, 0); s.lineTo(span, -sweep); s.lineTo(span, -sweep - len * 0.35); s.lineTo(0, -len); s.closePath();
+    // shape in x (span) / y (length): lay its length along -z
+    return new THREE.ShapeGeometry(s).rotateX(Math.PI / 2).translate(r * 0.9, 0, z);
+  };
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2 + Math.PI / 4;
+    add(fin(0.2 * L, 0.17 * L, 0.06 * L, -0.2 * L).rotateZ(a), M.fin);                                                 // swept tail fins
+    add(fin(0.07 * L, 0.07 * L, 0.02 * L, 0.13 * L).rotateZ(a), M.fin);                                                // canards
+  }
+  const flame = new THREE.Group();
+  flame.position.z = -0.44 * L;
+  flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.85, 0.36 * L, 12, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.18 * L), M.flame));
+  flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.45, 0.2 * L, 10, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.1 * L), M.core));
+  g.add(flame);
+  return { group: g, flame, length: L };
+}
+
+// ------------------------------------------------------------------ ladybug
+// A seven-spot ladybird: two glossy clear-coated red elytra (the wing cases) hinged at the front,
+// each with three black spots and half of the shared one by the scutellum; a black pronotum with
+// cream corner patches; a small black head with cream eye-spots and clubbed feelers; six jointed
+// black legs; and smoky veined hind wings folded away under the elytra. It flies with the elytra
+// half raised and the hind wings a blur (like the photo); landed, it lifts its red carapace high
+// to show the missile on a rail on its back, and fires it. About 2.3 radii long; landed, its feet
+// are 0.76 radii below its middle.
+function ladybugParts() {
+  const wing = wingTexture(256, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0); m.addColorStop(0, 'rgba(60,50,46,.75)'); m.addColorStop(0.5, 'rgba(110,96,88,.45)'); m.addColorStop(1, 'rgba(150,140,130,.3)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(30,22,18,.9)'; g.lineCap = 'round';
+    for (const [y0, y1, lw] of [[0.06, 0.1, 3], [0.12, 0.4, 2.2], [0.18, 0.62, 1.8], [0.24, 0.85, 1.5]]) { g.lineWidth = lw; g.beginPath(); g.moveTo(2, h * y0); g.bezierCurveTo(w * 0.35, h * y0, w * 0.7, h * (y0 + y1) / 2, w * 0.97, h * y1); g.stroke(); }
+    g.fillStyle = 'rgba(30,22,18,.85)'; g.beginPath(); g.ellipse(w * 0.55, h * 0.12, w * 0.05, h * 0.05, 0, 0, 7); g.fill();   // the dark stigma
+  });
+  const leg = (s, fwd) => {
+    const a = V(0, 0, 0), b = V(s * 0.45, -0.12, fwd * 0.1), c = V(s * 0.7, -0.42, fwd * 0.18), d = V(s * 0.82, -0.52, fwd * 0.34);
+    const parts = [rod(a, b, 0.07, 0.06, '#0e0e10'), rod(b, c, 0.055, 0.04, '#141416'), rod(c, d, 0.035, 0.022, '#2a1c14'), ellipsoid(0.06, 0.06, 0.06, b, '#0e0e10', 8)];
+    for (const k of [-1, 1]) parts.push(rod(d, d.clone().add(V(k * 0.03, -0.04, 0.05)), 0.012, 0.004, '#2a1c14'));
+    for (let k = 0; k < 4; k++) { const at = b.clone().lerp(c, 0.2 + k * 0.2); parts.push(rod(at, at.clone().add(V(s * 0.04, 0.01, 0.03)), 0.008, 0.002, '#3a2a20')); }   // fine spines
+    return merge(parts);
+  };
+  return {
+    wing, wingGeo: wingGeometry(1.7, 0.7, 0.55),
+    legs: [[0.42, 1], [0.12, 0], [-0.2, -1]].map(([z, fwd]) => ({ z, geo: [leg(-1, fwd), leg(1, fwd)] })),
+    under: merge([ellipsoid(0.72, 0.32, 0.9, V(0, -0.14, -0.12), '#121214', 20), ellipsoid(0.5, 0.2, 0.4, V(0, -0.2, 0.42), '#1a1a1c', 14)]),
+    antenna: merge([rod(V(0, 0, 0), V(0.08, 0.06, 0.16), 0.022, 0.018, '#5a2a14'), rod(V(0.08, 0.06, 0.16), V(0.16, 0.1, 0.3), 0.018, 0.016, '#8a3a18'), ellipsoid(0.04, 0.035, 0.07, V(0.18, 0.11, 0.34), '#7a3214', 8)]),
+  };
+}
+
+export function buildLadybug() {
+  const G = (GEO.ladybug ||= ladybugParts()), M = mats();
+  if (!M.lbRed) {
+    M.lbRed = new THREE.MeshPhysicalMaterial({ color: 0xe8260e, roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08 });
+    M.lbBlack = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.25, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.1 });
+    M.lbInside = new THREE.MeshStandardMaterial({ color: 0x2a0c08, side: THREE.BackSide, roughness: 0.6 });
+    M.lbCream = new THREE.MeshStandardMaterial({ color: 0xf4e8c8, roughness: 0.4 });
+    M.lbLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.1 });
+    M.lbWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.2, depthWrite: false });
+    standOut(M.lbRed, { base: 0.22, rim: 0.5 }); standOut(M.lbBlack, { base: 0.08, rim: 0.35 }); standOut(M.lbCream, { base: 0.2, rim: 0.3 }); standOut(M.lbLeg, { base: 0.06, rim: 0.25 });
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  add(body, G.under, M.lbLeg);
+  // a disc lying on an ellipsoid (centre C, radii E) in direction d: the spots and patches
+  const onShell = (parent, C, E, d, r, mat, lift = 0.012) => {
+    const u = d.clone().normalize(), p = V(C.x + E.x * u.x, C.y + E.y * u.y, C.z + E.z * u.z);
+    const n = V(u.x / E.x, u.y / E.y, u.z / E.z).normalize();
+    const m = add(parent, new THREE.SphereGeometry(1, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(r, 0.035, r * 0.92), mat);
+    m.position.copy(p).addScaledVector(n, lift);
+    m.quaternion.setFromUnitVectors(V(0, 1, 0), n);
+    return m;
+  };
+  // pronotum and head
+  const PC = V(0, -0.02, 0.74), PE = V(0.6, 0.4, 0.34);
+  add(body, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(PE.x, PE.y, PE.z).translate(PC.x, PC.y, PC.z), M.lbBlack);
+  for (const s of [-1, 1]) { onShell(body, PC, PE, V(s * 0.75, 0.42, 0.5), 0.16, M.lbCream); onShell(body, PC, PE, V(s * 0.25, 0.4, 0.88), 0.07, M.lbCream); }
+  const HC = V(0, -0.1, 1.04), HE = V(0.32, 0.22, 0.2);
+  add(body, new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
+  for (const s of [-1, 1]) onShell(body, HC, HE, V(s * 0.6, 0.35, 0.7), 0.07, M.lbCream);
+  const antennae = [-1, 1].map((s) => { const a = add(body, G.antenna, M.lbLeg, V(s * 0.12, -0.04, 1.2)); a.scale.x = s; return a; });
+  body.add(angryEyes({ y: -0.06, z: 1.22, size: 0.1, gap: 0.12 }));
+  // the elytra: each a half dome on a hinge at its front inner corner, its spots riding on it
+  const EC = V(0, -0.02, -0.16), EE = V(0.92, 0.78, 1.0);
+  const elytra = [-1, 1].map((s) => {
+    const pivot = new THREE.Group(), hinge = V(s * 0.04, EC.y + 0.66, EC.z + 0.58);
+    pivot.position.copy(hinge);
+    body.add(pivot);
+    const shell = new THREE.Group();
+    shell.position.copy(hinge).negate();
+    pivot.add(shell);
+    const half = (k) => new THREE.SphereGeometry(1, 40, 24, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.58).scale(EE.x * k, EE.y * k, EE.z * k).translate(EC.x, EC.y, EC.z);
+    add(shell, half(1), M.lbRed);
+    add(shell, half(0.97), M.lbInside);
+    for (const [d, r] of [[V(s * 0.08, 0.82, 0.58), 0.13], [V(s * 0.72, 0.5, 0.38), 0.13], [V(s * 0.46, 0.86, -0.05), 0.19], [V(s * 0.62, 0.42, -0.62), 0.14]]) onShell(shell, EC, EE, d, r, M.lbBlack);
+    return { s, pivot };
+  });
+  // the hind wings, folded under the elytra until it flies
+  const wings = [-1, 1].map((s) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.12, 0.38, 0.36);
+    body.add(pivot);
+    const flap = new THREE.Group();
+    pivot.add(flap);
+    const w = add(flap, G.wingGeo, M.lbWing);
+    w.castShadow = false;
+    w.scale.x = s;
+    return { s, pivot, flap };
+  });
+  const legs = [];
+  G.legs.forEach((L, pair) => [-1, 1].forEach((s, side) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.32, -0.24, L.z);
+    add(hip, L.geo[side], M.lbLeg);
+    body.add(hip);
+    legs.push({ s, pair, hip });
+  }));
+  // the missile on its rail, between the raised elytra
+  const pod = new THREE.Group();
+  pod.position.set(0, 0.3, -0.2);
+  body.add(pod);
+  add(pod, new THREE.BoxGeometry(0.12, 0.05, 0.9), M.lbBlack).position.set(0, -0.03, 0);
+  const loaded = buildMissile(1.25);
+  loaded.group.rotation.x = -0.35;                                       // nose up over its head
+  loaded.group.position.set(0, 0.08, 0.05);
+  loaded.flame.visible = false;
+  pod.add(loaded.group);
+
+  let t = 0, shell = 0, fly = 0, flap = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    shell += ((e.shellK ?? 0) - shell) * (1 - Math.exp(-12 * dt));
+    fly += ((e.flyK ?? 0) - fly) * (1 - Math.exp(-9 * dt));
+    flap += ((e.wingK ?? 0) - flap) * (1 - Math.exp(-12 * dt));
+    // elytra: the back lifts on the front hinge and the outer edges swing up and out
+    for (const E of elytra) E.pivot.rotation.set(shell * 1.15, -E.s * shell * 0.2, E.s * shell * 0.7, 'YXZ');
+    // hind wings: unfold sideways and back, beating as a blur
+    for (const W of wings) {
+      W.pivot.scale.setScalar(Math.max(0.001, flap));
+      W.pivot.rotation.set(0.15, -W.s * (0.2 + 0.9 * flap), 0);
+      W.flap.rotation.z = W.s * (0.2 + Math.sin(t * 90 + (W.s > 0 ? 0 : 0.5)) * 0.85) * flap;
+    }
+    // legs: a shuffle on the ground, tucked up in flight
+    for (const L of legs) L.hip.rotation.set(fly * 0.9, Math.sin(t * 9 + L.pair * 2.1 + (L.s > 0 ? Math.PI : 0)) * 0.12 * (1 - fly) * (e.stepK ?? 0), L.s * fly * 0.5);
+    for (const a of antennae) a.rotation.y = Math.sin(t * 5 + e.phase) * 0.15 + (e.state === 'aim' ? Math.sin(t * 30) * 0.1 : 0);
+    // the body: nose up in flight with a wobble; a kick back as the missile goes
+    const kick = Math.max(0, e.firedT || 0);
+    body.rotation.x = -fly * 0.35 + Math.sin(t * 7 + e.phase) * 0.05 * fly - kick * 0.5;
+    body.position.y = Math.sin(t * 6 + e.phase) * 0.06 * fly;
+    pod.visible = shell > 0.55 && e.loaded !== false;
+    pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}

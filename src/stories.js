@@ -576,6 +576,62 @@ story('bubbles/never-linger', {
     return ok(blown >= 6 && oldest < 1.5 && slowest > 0.2, { blown, oldest: +oldest.toFixed(2), slowest: +slowest.toFixed(3) });
   },
 });
+story('words/sortie', {
+  about: 'The ladybug flies round you, lands, lifts its red carapace and locks on (a red reticle closing in round you), then fires a homing missile that hits you for 3.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 1.2; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    const seen = new Set();
+    let flewHigh = false, landedLow = false, raised = false, reticle = false, launched = false, hit = null;
+    step(60 * 8, () => {
+      seen.add(e.state);
+      if (e.state === 'approach' && e.pos.y > player.position.y + 0.07) flewHigh = true;
+      if (e.state === 'aim') { if (Math.abs(e.pos.y - 0.76 * e.r - player.position.y) < 0.02) landedLow = true; if (e.shellK === 1) raised = true; if (enemies.lockMarks.some((m) => m.visible)) reticle = true; }
+      if (enemies.missiles.length) launched = true;
+      hit = log.find((d) => d.source === 'missile');
+      return !!hit;
+    });
+    return ok(flewHigh && landedLow && raised && reticle && launched && hit?.amount === 3, { states: [...seen], flewHigh, landedLow, raised, reticle, launched, hit: hit?.amount });
+  },
+});
+story('enemies/ladybug-missile-runs-out', {
+  about: 'A homing missile hunts you for 4 s; if it hasn\'t caught you by then it sputters out, falls to the floor and fizzles away.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 0.3; },
+  play() {
+    const { enemies } = G(), log = record('damage_taken');
+    let m = null, sputterAt = null, minY = 9, down = false, gone = false;
+    step(60 * 14, () => {
+      if (!m && enemies.missiles.length) { m = enemies.missiles[0]; m.speed = 0.04; }   // too slow to ever catch you
+      if (m) {
+        if (m.state === 'sputter' && sputterAt === null) sputterAt = m.t;
+        if (m.state === 'sputter') minY = Math.min(minY, m.m.position.y);
+        if (m.state === 'down') down = true;
+        if (down && !enemies.missiles.includes(m)) gone = true;
+      }
+      return gone;
+    });
+    return ok(m && Math.abs(sputterAt - 4) < 0.05 && down && gone && !log.some((d) => d.source === 'missile'), { sputterAt: sputterAt && +sputterAt.toFixed(2), down, gone, hits: log.map((d) => d.source) });
+  },
+});
+story('enemies/ladybug-missile-can-be-shaken', {
+  about: 'The missile can only turn so fast: swimming hard across its path makes it overshoot.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 0.3; },
+  play() {
+    const { enemies, player } = G(), log = record('damage_taken');
+    let m = null, dodged = false;
+    step(60 * 12, (i) => {
+      if (!m && enemies.missiles.length) m = enemies.missiles[0];
+      if (m && m.state === 'home' && !dodged && m.m.position.distanceTo(player.position) < 0.12) {
+        // sidestep hard, square to its flight
+        const d = m.vel.clone().setY(0).normalize(), P = player.position;
+        tp(P.x - d.z * 0.12, P.y, P.z + d.x * 0.12);
+        dodged = true;
+      }
+      return m && !enemies.missiles.includes(m);
+    });
+    return ok(dodged && !log.some((d) => d.source === 'missile'), { dodged, hits: log.map((d) => d.source) });
+  },
+});
 story('words/hover', {
   about: 'hover: a mosquito circles about 20 cm from you, above your head.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },
@@ -1736,7 +1792,7 @@ act2('closets-are-shut', {
 });
 
 act2('only-act-2-bugs', {
-  about: 'Act 2\'s waves bring its own bugs (spiders, house flies and staplers among them), none of act 1\'s.',
+  about: 'Act 2\'s waves bring its own bugs (spiders, house flies, ladybugs and staplers among them), none of act 1\'s.',
   setup() { fresh({ waves: true, elites: false }); G().run.t = 200; },
   play() {
     const { run, enemies } = G();
@@ -1744,7 +1800,7 @@ act2('only-act-2-bugs', {
     const seen = new Set();
     step(900, () => { for (const e of enemies.list) if (!e.proxy && !e.elite) seen.add(e.type); run.t = 200; });
     const stray = [...seen].filter((t) => !pool.has(t));
-    return ok(pool.has('spider') && pool.has('housefly') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
+    return ok(pool.has('spider') && pool.has('housefly') && pool.has('ladybug') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
   },
 });
 

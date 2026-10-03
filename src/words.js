@@ -127,6 +127,72 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  sortie: {
+    doc: 'A flier that lands to shoot: it flies round you `circle` m out and `height` m up at up to `speed` m/s for about `fly` s, then lands on the floor `land` m from you, raises its carapace and locks on for `aim` s (a reticle closes in round you, beeping faster), and fires a homing missile: `rocket` m/s, turning `turn` radians a second, hunting you for `fuel` s (then it sputters out and falls), `dmg` if it hits. It closes up, rests `rest` s and takes off again.',
+    props: { circle: 0.3, height: 0.12, speed: 0.4, fly: 3, land: 0.35, aim: 0.9, rest: 0.7, rocket: 0.36, turn: 2.4, fuel: 4, dmg: 3 },
+    make: (_, p) => ({
+      fly: true,
+      init(e) {
+        e.state = 'approach'; e.stateT = p.fly * (0.6 + Math.random() * 0.6);
+        e.flyK = 1; e.wingK = 1; e.shellK = 0.35; e.loaded = true;
+        e.orbit = Math.random() * Math.PI * 2; e.orbitDir = Math.random() < 0.5 ? 1 : -1;
+      },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.stateT -= c.dt * live;
+        if (e.firedT > 0) e.firedT -= c.dt;
+        if (e.state === 'approach') {
+          // circling you, bobbing, wings a blur
+          e.flyK = 1; e.wingK = 1; e.shellK = 0.35;
+          e.orbit += c.dt * e.orbitDir * 1.2 * c.slow;
+          const to = _spot.set(c.foot.x + Math.cos(e.orbit) * p.circle, c.foot.y + p.height + Math.sin(c.t * 2 + e.phase) * 0.03, c.foot.z + Math.sin(e.orbit) * p.circle).sub(e.pos);
+          const s = p.speed * c.slow;
+          e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
+          e.pos.addScaledVector(e.vel, c.dt);
+          if (e.stateT <= 0) {
+            // land on the floor between it and you, `land` from you
+            const away = _away.copy(e.pos).sub(c.foot).setY(0);
+            if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
+            const spot = c.foot.clone().addScaledVector(away.normalize(), p.land);
+            const floor = en.floorBelow(spot, c.foot.y);
+            (e.landFrom ||= new THREE.Vector3()).copy(e.pos);
+            (e.landAt ||= new THREE.Vector3()).set(spot.x, floor + 0.76 * e.r, spot.z);
+            e.state = 'land'; e.stateT = e.landMax = 0.8;
+          }
+        } else if (e.state === 'land') {
+          const u = THREE.MathUtils.smoothstep(1 - Math.max(0, e.stateT) / e.landMax, 0, 1);
+          e.pos.lerpVectors(e.landFrom, e.landAt, u);
+          e.pos.y += Math.sin(u * Math.PI) * 0.03;
+          e.vel.set(0, 0, 0);
+          e.flyK = 1 - u * 0.6;
+          if (e.stateT <= 0) { e.state = 'raise'; e.stateT = 0.45; e.flyK = 0; e.wingK = 0; en.ladyLand(e); }
+        } else if (e.state === 'raise') {
+          e.vel.set(0, 0, 0); e.shellK = 1;
+          if (e.stateT <= 0) { e.state = 'aim'; e.stateT = e.aimMax = p.aim; e.beepT = 0; }
+        } else if (e.state === 'aim') {
+          // locking on: the reticle tracks you and closes in, the beeps quicken
+          e.vel.set(0, 0, 0);
+          (e.lockAt ||= new THREE.Vector3()).copy(c.foot);
+          const k = 1 - Math.max(0, e.stateT) / e.aimMax;
+          if ((e.beepT -= c.dt) <= 0) { e.beepT = 0.26 - 0.2 * k; en.lockBeep(k); }
+          if (e.stateT <= 0) { en.launchMissile(e, p); e.loaded = false; e.firedT = 0.35; e.state = 'close'; e.stateT = 0.5; }
+        } else if (e.state === 'close') {
+          e.vel.set(0, 0, 0);
+          if (e.stateT < 0.3) e.shellK = 0;
+          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; }
+        } else if (e.state === 'rest') {
+          e.vel.set(0, 0, 0);
+          e.stepK = 1;
+          if (e.stateT <= 0 && live) {
+            e.state = 'approach'; e.stateT = p.fly * (0.7 + Math.random() * 0.6);
+            e.loaded = true; e.stepK = 0; e.flyK = 1; e.wingK = 1; e.vel.set(0, 0.35, 0);
+            en.ladyTakeoff(e);
+          }
+        }
+      },
+    }),
+  },
+
   'ball-charge': {
     doc: 'Up close (within `range` m) every `every` s or so, curls into an armoured ball over `curl` s (it takes no damage while curled up), spins up in place for `spin` s while a line on the floor shows where it will go (the aim locks halfway through), then rolls along it at `speed` m/s for `time` s, hitting for `dmg`. It uncurls over `uncurl` s and rests `rest` s. List it after the walking word.',
     props: { range: 0.4, curl: 0.45, spin: 0.9, speed: 0.95, time: 0.7, dmg: 4, uncurl: 0.5, rest: 0.8, every: 2.5 },

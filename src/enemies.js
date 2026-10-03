@@ -3,7 +3,8 @@
 // dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly, buildMillipede } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildMissile } from './critters.js';
+import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
@@ -14,7 +15,7 @@ import { hostile, TeleMaterial } from './vfx.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], millipede: ['#161a10', '#4a5428', '#d0581c', '#d6a074'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], millipede: ['#161a10', '#4a5428', '#d0581c', '#d6a074'], ladybug: ['#e8260e', '#0a0a0c', '#f4e8c8', '#e8260e'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
   lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
@@ -209,6 +210,7 @@ function makeLooks() {
     spider: buildSpider,
     housefly: buildHouseFly,
     millipede: buildMillipede,
+    ladybug: buildLadybug,
     fuzz, glowFuzz, hairMat,
   };
 }
@@ -259,6 +261,8 @@ export class Enemies {
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
+    this.missiles = [];       // ladybugs' homing missiles in flight (the sortie word)
+    this.lockMarks = [];      // pooled: the reticle round you while a ladybug locks on
     this.chargeMarks = [];    // pooled: the lane in front of each millipede about to roll (the ball-charge word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
@@ -411,6 +415,8 @@ export class Enemies {
     this.byId.clear();
     this.shots.forEach((s) => this.scene.remove(s.m));
     this.shots = [];
+    this.missiles.forEach((m) => this.scene.remove(m.m));
+    this.missiles = [];
   }
 
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
@@ -450,6 +456,146 @@ export class Enemies {
     e.landT = 1;
     const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
     if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
+  }
+
+  // ---------------------------------------------------------------- ladybugs (the sortie word)
+  // the floor under a point (or `fallback`)
+  floorBelow(p, fallback) {
+    const h = this.world.cast(S.o.set(p.x, p.y + 0.3, p.z), DOWN, 0.6);
+    return h ? h.point.y : fallback;
+  }
+  ladyLand(e) { this.fx.puff(e.pos.clone().setY(e.pos.y - 0.7 * e.r), 0xd8c8b4, e.r * 1.5, 0.35); sfx.ladyLand(); }
+  ladyTakeoff(e) { sfx.ladyBuzz(); }
+  lockBeep(k) { sfx.lockBeep(k); }
+
+  // the missile leaves the rail on its back: a flash, a cloud of smoke, the ignition roar. It
+  // climbs for a moment, then turns to hunt you.
+  launchMissile(e, p) {
+    const M = buildMissile(0.04), yaw = e.root.rotation.y, fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const at = e.pos.clone().addScaledVector(fwd, -e.r * 0.2).setY(e.pos.y + e.r * 0.9);
+    M.group.position.copy(at);
+    const vel = fwd.clone().multiplyScalar(0.12).setY(0.5);
+    M.group.lookAt(at.clone().add(vel));
+    batcher.track(M.group);
+    this.scene.add(M.group);
+    this.missiles.push({ m: M.group, flame: M.flame, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 });
+    const red = hostile('missile');
+    this.fx.impact(at, 0xffd28a, 0.03, 12);
+    this.fx.puff(at.clone().setY(at.y - 0.01), 0xd0d0d0, 0.05, 0.7);
+    this.fx.ring(new THREE.Vector3(at.x, e.pos.y - 0.7 * e.r + 0.003, at.z), red, 0.07, 0.35);
+    sfx.missileLaunch();
+  }
+
+  // the reticle round you while a ladybug locks on: a red ring closing in, flashing faster
+  drawLocks(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || e.state !== 'aim' || !e.lockAt) continue;
+      let M = this.lockMarks[n];
+      if (!M) {
+        M = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('missile'), 'circle'));
+        M.renderOrder = 3;
+        this.scene.add(M);
+        this.lockMarks.push(M);
+      }
+      const k = 1 - Math.max(0, e.stateT) / (e.aimMax || 0.9);
+      M.position.copy(e.lockAt).setY(e.lockAt.y + 0.003);
+      M.scale.setScalar(0.15 - 0.09 * k);
+      M.rotation.y = t * 3;
+      M.material.progress = k;
+      M.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(t * (8 + k * 30)));
+      M.visible = true;
+      n++;
+    }
+    for (let i = n; i < this.lockMarks.length; i++) this.lockMarks[i].visible = false;
+  }
+
+  // homing missiles: hunting you for `fuel` s (turning at most `turn` a second, so a sharp turn
+  // can shake one off), exploding on you or on whatever they fly into; out of fuel they cough,
+  // sputter and fall, trailing black smoke, and fizzle out on the floor
+  updateMissiles(dt, pc, radius) {
+    const dir = S.dir, red = hostile('missile');
+    for (const m of this.missiles) {
+      m.t += dt;
+      const P = m.m.position;
+      if (m.state === 'boost' || m.state === 'home') {
+        if (m.state === 'boost' && m.t > 0.22) m.state = 'home';
+        if (m.state === 'home') {
+          const v = S.step.copy(m.vel).normalize(), want = S.want.copy(pc).sub(P).normalize();
+          const ang = Math.acos(THREE.MathUtils.clamp(v.dot(want), -1, 1));
+          if (ang > 1e-4) {
+            const axis = S.away.crossVectors(v, want);
+            if (axis.lengthSq() < 1e-8) axis.set(0, 1, 0);
+            v.applyAxisAngle(axis.normalize(), Math.min(ang, m.turn * dt));
+          }
+          const sp = m.vel.length() + (m.speed - m.vel.length()) * (1 - Math.exp(-4 * dt));
+          m.vel.copy(v).multiplyScalar(sp);
+        }
+        // the flame flickers; smoke streams behind
+        const f = 0.8 + Math.random() * 0.5;
+        m.flame.scale.set(f, f, 0.8 + Math.random() * 0.7);
+        dir.copy(m.vel).normalize();
+        const tail = S.o.copy(P).addScaledVector(dir, -0.022);
+        this.fx.glow.hold(tail, 0xffa040, 0.04, 0.95);
+        this.fx.glow.hold(P, red, 0.03, 0.5);
+        if ((m.smokeT -= dt) <= 0) { m.smokeT = 0.03; this.fx.puff(tail.clone(), 0xcfcfcf, 0.007 + Math.random() * 0.004, 0.7); }
+        if ((m.hissT -= dt) <= 0) { m.hissT = 0.22; sfx.missileHiss(); }
+        const step = m.vel.length() * dt;
+        if (P.distanceTo(pc) < radius + 0.014) { this.boom(m, pc, radius); continue; }
+        if (m.t > 0.15 && this.world.cast(P, dir, step + 0.008)) { this.boom(m, pc, radius); continue; }
+        P.addScaledVector(m.vel, dt);
+        m.m.lookAt(S.spot.copy(P).add(m.vel));
+        if (m.t >= m.fuel) { m.state = 'sputter'; m.coughT = 0; sfx.missileSputter(); }
+      } else if (m.state === 'sputter') {
+        // engine out: it noses over and falls, coughing smoke and the odd spit of flame
+        m.vel.y -= 1.1 * dt;
+        m.vel.x *= Math.exp(-0.8 * dt); m.vel.z *= Math.exp(-0.8 * dt);
+        m.flame.visible = Math.random() < 0.2;
+        m.flame.scale.setScalar(0.4 + Math.random() * 0.4);
+        if ((m.smokeT -= dt) <= 0) { m.smokeT = 0.035; this.fx.puff(P.clone(), 0x2a2a2a, 0.009 + Math.random() * 0.006, 0.9); }
+        if ((m.coughT -= dt) <= 0) { m.coughT = 0.15 + Math.random() * 0.2; sfx.missileCough(); }
+        dir.copy(m.vel).normalize();
+        const step = m.vel.length() * dt;
+        const hit = this.world.cast(P, dir, step + 0.004);
+        if (hit) {
+          // down: it lies on the floor, smoking, then fizzles out
+          P.copy(hit.point).addScaledVector(hit.normal, 0.004);
+          const flat = S.away.set(m.vel.x, 0, m.vel.z);
+          if (flat.lengthSq() < 1e-6) flat.set(1, 0, 0);
+          m.m.lookAt(S.spot.copy(P).add(flat));
+          m.state = 'down'; m.downT = 1.4; m.flame.visible = false;
+          this.fx.puff(P.clone(), 0x3a3a3a, 0.02, 0.6);
+          this.fx.burst(P.clone(), ['#ffb050', '#5a5a5a'], 5, 0.0025, 0.25, P.y);
+          sfx.missileClink();
+        } else {
+          P.addScaledVector(m.vel, dt);
+          m.m.lookAt(S.spot.copy(P).add(m.vel));
+        }
+        if (m.t > m.fuel + 4) m.done = true;                         // fell into nothing
+      } else if (m.state === 'down') {
+        m.downT -= dt;
+        if (Math.random() < dt * 6) this.fx.puff(P.clone().setY(P.y + 0.004), 0x4a4a4a, 0.006, 0.8);
+        if (m.downT < 0.3) m.m.scale.setScalar(Math.max(0.001, m.downT / 0.3));
+        if (m.downT <= 0) m.done = true;
+      }
+      if (m.done) this.scene.remove(m.m);
+    }
+    this.missiles = this.missiles.filter((m) => !m.done);
+  }
+
+  // a missile goes off: a fireball, sparks, a smoke cloud and a shockwave; you're hit if it got you
+  boom(m, pc, radius) {
+    const P = m.m.position.clone(), red = hostile('missile');
+    m.done = true;
+    this.scene.remove(m.m);
+    this.fx.impact(P, 0xffb040, 0.055, 22);
+    this.fx.impact(P, red, 0.035, 10);
+    this.fx.burst(P, ['#fff0b0', '#ffb040', '#ff4a20', '#3a3a3a'], 16, 0.003, 0.35, this.floorBelow(P, P.y - 0.1));
+    this.fx.puff(P, 0x5a5550, 0.06, 0.9);
+    this.fx.ring(new THREE.Vector3(P.x, this.floorBelow(P, P.y - 0.05) + 0.004, P.z), red, 0.09, 0.4);
+    juice.shake(0.35);
+    sfx.missileBoom();
+    if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile' });
   }
 
   // A millipede's ball (the ball-charge word): a clicking rattle as it coils, a rising whirr and
@@ -697,6 +843,8 @@ export class Enemies {
     this.drawLeaps(t);
     this.drawPokes(t);
     this.drawCharges(t);
+    this.updateMissiles(dt, pc, player.radius || 0.03);
+    this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 
