@@ -164,11 +164,19 @@ export class HudSystem {
 export class DebugSystem {
   constructor({ state, hud, player, run, enemies, dew, gfx }) {
     Object.assign(this, { state, hud, player, run, enemies, dew, gfx });
-    this.fps = 0; this.frames = 0; this.elapsed = 0;
+    this.fps = 0; this.frames = 0; this.since = performance.now();
+    this.playFps = 0;   // the last reading while actually playing, shown next to the build in the pause menu
   }
-  update(dt) {
-    this.frames++; this.elapsed += dt;
-    if (this.elapsed > 0.5) { this.fps = Math.round(this.frames / this.elapsed); this.frames = 0; this.elapsed = 0; }
+  update() {
+    // real time, not dt: dt is capped (Clock.maxDt), so it would hide a slow phone
+    this.frames++;
+    const now = performance.now(), secs = (now - this.since) / 1000;
+    if (secs > 0.5) {
+      this.fps = Math.round(this.frames / secs); this.frames = 0; this.since = now;
+      if (this.state.mode === 'play' && !this.run.paused && document.getElementById('g-over')?.hidden) this.playFps = this.fps;
+      const tag = document.getElementById('g-fps');
+      if (tag && this.playFps) tag.textContent = ` · ${this.playFps} fps`;
+    }
     if (!this.state.debug || this.state.mode !== 'play') return;
     const p = this.player.position, run = this.run;
     this.hud.setDebug(`${this.fps} fps | x ${p.x.toFixed(2)} y ${(p.y * 100).toFixed(1)} cm z ${p.z.toFixed(2)} | ${run.phase} t=${run.t.toFixed(0)}s | ${this.enemies.alive} enemies | ${this.dew.list.length} dew | ${this.gfx.quality}`);

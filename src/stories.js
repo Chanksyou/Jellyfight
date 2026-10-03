@@ -155,6 +155,20 @@ story('traversal/touch-stick-past-ring', {
     return ok(ring === 1 && far === 1 && farther === 1 && fake.touchMove === null, { ring, far, farther });
   },
 });
+story('traversal/touch-stick-lost-touch', {
+  about: 'If a thumb lifts and the phone never says so, the next thumb on the left still gets the stick.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const fake = {}, tc = new TouchControls(fake);
+    tc.el.setPointerCapture = () => {};
+    const at = (type, id, x, y) => tc.el.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true }));
+    at('pointerdown', 1, 10, 300); at('pointermove', 1, 10, 250);   // this finger's pointerup never comes
+    at('pointerdown', 2, 20, 300); at('pointermove', 2, 80, 300);   // a new thumb pushes right
+    const took = fake.touchMove && fake.touchMove.x > 0.9;
+    at('pointerup', 2, 80, 300);
+    return ok(took && fake.touchMove === null, { move: fake.touchMove });
+  },
+});
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
   about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:30, 3:00 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',

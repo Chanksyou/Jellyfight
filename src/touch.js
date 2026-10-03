@@ -49,7 +49,9 @@ export class TouchControls {
       if (e.target.closest('button')) return;
       e.preventDefault();
       const left = e.clientX < innerWidth * 0.45;
-      if (left && !this.move) {
+      // a new left thumb always takes the stick: if the last touch's end got lost (a system
+      // gesture, a notification), the stick would otherwise stay held by a finger that's gone
+      if (left) {
         this.move = { id: e.pointerId, x: e.clientX, y: e.clientY };
         this.stick.style.left = e.clientX + 'px';
         this.stick.style.top = e.clientY + 'px';
@@ -90,6 +92,7 @@ export class TouchControls {
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', end);
 
     const press = (btn, down, up) => {
       btn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); btn.setPointerCapture(e.pointerId); btn.classList.add('down'); down(); });
