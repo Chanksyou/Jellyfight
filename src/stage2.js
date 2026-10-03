@@ -23,6 +23,7 @@ export const STAGE2 = {
   start: [2.75, 0, 6.6],             // the middle of the hall
   duration: 300,                      // seconds until the boss comes
   clock: [120, 240],                  // in-game minutes after midnight: 2:00 AM -> 4:00 AM
+  details: 'bathroom',                // the tub dressed after the real one (bathroom.js)
   toughness: 1.5,                     // bugs here start with 1.5x health (they toughen further with the hour)
 
   // Things the player shouldn't bump into or can pass through

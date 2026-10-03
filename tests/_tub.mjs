@@ -1,0 +1,20 @@
+import { start, openGame } from './lib.mjs';
+const env = await start();
+const { page } = await openGame(env, { viewport: { width: 800, height: 500 }, act: { act: 2, carry: null } });
+console.log(await page.evaluate(() => {
+  const V = window.APT.root.position.constructor, w = window.world, out = {};
+  const c = (o, d, l = 2) => { const h = w.cast(new V(...o), new V(...d), l); return h && h.point.toArray().map((n) => +n.toFixed(3)); };
+  out.endWall = c([0.8, 0.8, 7.53], [-1, 0, 0]);
+  out.backWall = c([0.8, 0.8, 7.5], [0, 0, 1]);
+  out.backWallHigh = c([0.8, 1.5, 7.5], [0, 0, 1]);
+  out.farEnd = c([0.8, 0.8, 7.53], [1, 0, 0]);
+  out.floor = c([0.8, 0.5, 7.53], [0, -1, 0]);
+  out.floorDrain = c([0.3, 0.5, 7.53], [0, -1, 0]);
+  out.rimBack = c([0.8, 1.0, 7.86], [0, -1, 0]);
+  out.rimFront = c([0.8, 1.0, 7.18], [0, -1, 0]);
+  out.rimEnd = c([0.1, 1.0, 7.53], [0, -1, 0]);
+  out.rimFar = c([1.56, 1.0, 7.53], [0, -1, 0]);
+  out.ceiling = c([0.8, 1.0, 7.5], [0, 1, 0], 3);
+  return JSON.stringify(out);
+}));
+await env.close();

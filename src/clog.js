@@ -7,9 +7,10 @@
 //   snare     three circles fill on the floor round you, then tufts of hair spring up in them: 2
 //             and slowed if you're caught
 //   roll      it spins up while its lane lights up, then rolls down it at you: 4
-//   gurgle    the drain swirls and pulls you toward it; right by the drain it hurts
+//   flood     the spout gushes and the tub fills (a ring round the drain fills with it), then it
+//             all drains at once: a whirlpool drags you toward the drain; right by it, it hurts
 //   shed      it shakes off hair tangles that join the fight
-//   spray     (angry) it spins, spraying globs of drain gunk all round
+//   spray     (angry) it spins, spraying globs of drain gunk all round in three streams
 //   swarm     once, the first time it drops below 70%: it roars, four ladybugs burst out of its
 //             hair, and it sinks into the drain: it can't be hurt until they're dead (30 s at most)
 // Below 45% health it's angry: faster, shorter pauses, the spray and double lashes.
@@ -230,6 +231,36 @@ export class Clog {
     this.grate = new THREE.Mesh(new THREE.CircleGeometry(0.035, 24).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.4 }));
     this.grate.position.copy(this.drain).setY(this.floor + 0.0015);
     scene.add(this.grate);
+    // the bath water (flood): a sheet across the tub that rises and drains, the stream from the
+    // spout, and a whirlpool spiral over the drain while it drains
+    const a = arena;
+    this.waterY = this.floor;
+    this.water = new THREE.Mesh(new THREE.PlaneGeometry(a.arenaMax[0] - a.arenaMin[0], a.arenaMax[2] - a.arenaMin[2]).rotateX(-Math.PI / 2),
+      new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, clearcoat: 1, emissive: 0x2a6a8a, emissiveIntensity: 0.25, depthWrite: false }));
+    this.water.position.set((a.arenaMin[0] + a.arenaMax[0]) / 2, this.floor, (a.arenaMin[2] + a.arenaMax[2]) / 2);
+    this.water.renderOrder = 2;
+    this.water.visible = false;
+    scene.add(this.water);
+    this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshPhysicalMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.6, roughness: 0, emissive: 0x4a8aaa, emissiveIntensity: 0.3, depthWrite: false }));
+    this.stream.position.set(0.226, this.floor, 7.48);
+    this.stream.visible = false;
+    scene.add(this.stream);
+    const spiral = document.createElement('canvas');
+    spiral.width = spiral.height = 256;
+    const sg = spiral.getContext('2d');
+    sg.translate(128, 128);
+    for (let k = 0; k < 4; k++) {
+      sg.rotate(Math.PI / 2);
+      sg.strokeStyle = 'rgba(230,248,255,.8)'; sg.lineWidth = 7;
+      sg.beginPath();
+      for (let t = 0; t < 1; t += 0.02) { const r = 10 + t * 115, th = t * 4.2; sg[t ? 'lineTo' : 'moveTo'](Math.cos(th) * r, Math.sin(th) * r); }
+      sg.stroke();
+    }
+    const st = new THREE.CanvasTexture(spiral);
+    this.whirl = new THREE.Mesh(new THREE.CircleGeometry(0.2, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: st, transparent: true, depthWrite: false, opacity: 0.8 }));
+    this.whirl.renderOrder = 3;
+    this.whirl.visible = false;
+    scene.add(this.whirl);
   }
 
   get position() { return this.holder.position; }
@@ -278,7 +309,7 @@ export class Clog {
     this.t += dt;
     const out = { push: null, hurt: 0, hit: 0, slow: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
-    const hide = () => { for (const m of [...this.lines, ...this.snares]) { m.visible = false; } this.swirl.visible = false; };
+    const hide = () => { for (const m of [...this.lines, ...this.snares, this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; };
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.guards.forEach((e) => this.enemies.kill(e, true)); this.guards = []; }
       this.sink = Math.min(1, this.sink + dt * 0.6);
@@ -400,22 +431,51 @@ export class Clog {
         }
       }
       if (this.stateT <= 0) { this.sprung = false; hide(); this.toChase(); }
-    } else if (this.state === 'gurgle') {
-      // the drain swirls and pulls you toward it; right by the drain it hurts
-      this.drive(dt, this.drain, 0.06, 1.5);
-      const s = this.swirl;
+    } else if (this.state === 'flood') {
+      // Fill and drain: the spout gushes and the tub fills (a ring round the drain fills with it,
+      // showing where the whirlpool will be); then the plug pulls and it all drains at once, a
+      // whirlpool dragging you toward the drain. Right by the drain it hurts.
+      const fill = 1.8, hold = 0.3, drainT = 3.0, el = this.floodMax - this.stateT, W = this.water, s = this.swirl;
+      if (!this.floodOn) { this.floodOn = true; W.visible = true; sfx.clogPour(fill); }
+      this.drive(dt, this.drain, el < fill ? 0.05 : 0.12, 2);
       s.visible = true;
-      s.position.copy(this.drain).setY(this.floor + 0.003);
-      s.scale.setScalar(0.24);
-      s.material.progress = 0;
-      s.material.opacity = 0.8;
-      const toDrain = this.drain.clone().sub(P).setY(0), dd = toDrain.length();
-      out.push = toDrain.normalize().multiplyScalar(0.17 * THREE.MathUtils.clamp(1.3 - dd * 1.2, 0.35, 1.1) * (angry ? 1.2 : 1));
-      if (dd < 0.05 && Math.abs(P.y - this.floor) < 0.06) out.hurt = 2 * dt;
-      this.grate.rotation.y += dt * 8;
-      if (Math.random() < dt * 30) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.2; this.fx.puff(this.drain.clone().add(V(Math.cos(a) * rr, 0.008, Math.sin(a) * rr)), 0xb8c8a0, 0.007, 0.3); }
+      s.position.copy(this.drain).setY(this.waterY + 0.002);
+      s.scale.setScalar(0.32);
+      if (el < fill) {
+        // filling: the stream from the spout, the level rising, the ring filling
+        const u = el / fill;
+        this.waterY = this.floor + 0.004 + u * 0.1;
+        this.stream.visible = true;
+        this.stream.scale.y = Math.max(0.01, 0.633 - this.waterY);
+        this.stream.position.y = this.waterY;
+        s.material.progress = u;
+        s.material.opacity = 0.6 + 0.2 * Math.sin(this.t * 12);
+        if (Math.random() < dt * 40) this.fx.puff(V(0.226, this.waterY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), 0xdff4ff, 0.012, 0.35);
+      } else if (el < fill + hold) {
+        this.stream.visible = false;
+        s.material.progress = 1;
+        s.material.opacity = 1;
+        if (!this.plugged) { this.plugged = true; sfx.clogDrain(drainT); }
+      } else {
+        // draining: the level drops fast and the whirlpool pulls
+        const u = Math.min(1, (el - fill - hold) / drainT);
+        this.waterY = this.floor + 0.004 + 0.1 * (1 - u) * (1 - u);
+        s.material.progress = 1;
+        s.material.opacity = 0.9;
+        this.whirl.visible = true;
+        this.whirl.position.copy(this.drain).setY(this.waterY + 0.003);
+        this.whirl.rotation.y -= dt * 9;
+        const toDrain = this.drain.clone().sub(P).setY(0), dd = toDrain.length(), side = V(-toDrain.z, 0, toDrain.x).normalize();
+        const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your swim speed (0.42) up close
+        out.push = toDrain.normalize().multiplyScalar(0.34 * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
+        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = 3 * dt;
+        this.grate.rotation.y += dt * 14;
+        if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this.drain.clone().add(V(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }
+      }
+      W.position.y = this.waterY;
+      W.material.opacity = 0.55;
       mouth = 0.7;
-      if (this.stateT <= 0) { s.visible = false; this.toChase(); }
+      if (this.stateT <= 0) { this.floodOn = this.plugged = false; W.visible = this.whirl.visible = this.stream.visible = s.visible = false; this.toChase(); }
     } else if (this.state === 'shed') {
       // it shakes, and hair tangles fly off it
       mouth = 0.5;
@@ -439,11 +499,14 @@ export class Clog {
       mouth = 1;
       this.sprayT = (this.sprayT ?? 0) - dt;
       if (this.sprayT <= 0) {
-        this.sprayT = 0.16;
-        const dir = V(Math.sin(this.heading), 0, Math.cos(this.heading));
-        const m = this.fx.orb(hostile('clog'), 0.008);
-        m.position.copy(p).addScaledVector(dir, this.r).setY(this.floor + 0.03);
-        this.shots.push({ m, v: dir.multiplyScalar(0.5), t: 1.4 });
+        // three streams at once, a third of a turn apart, a glob every tenth of a second
+        this.sprayT = 0.1;
+        for (let k = 0; k < 3; k++) {
+          const a = this.heading + k * Math.PI * 2 / 3, dir = V(Math.sin(a), 0, Math.cos(a));
+          const m = this.fx.orb(hostile('clog'), 0.008);
+          m.position.copy(p).addScaledVector(dir, this.r).setY(this.floor + 0.03);
+          this.shots.push({ m, v: dir.multiplyScalar(0.5), t: 1.4 });
+        }
         sfx.clogSplat();
       }
       if (this.stateT <= 0) this.toChase();
@@ -565,17 +628,18 @@ export class Clog {
 
   // the next attack, in a loop (the spray joins once it's angry)
   pick() {
-    const order = this.angry ? ['lash', 'spray', 'roll', 'snare', 'gurgle', 'lash', 'shed'] : ['lash', 'snare', 'roll', 'gurgle', 'shed'];
+    const order = this.angry ? ['lash', 'spray', 'roll', 'snare', 'flood', 'lash', 'shed'] : ['lash', 'snare', 'roll', 'flood', 'shed'];
     this.state = order[this.next++ % order.length];
-    this.stateT = { lash: (this.angry ? 0.85 : 1.05) + 0.3, snare: 1.25, roll: 1.0, gurgle: 3.0, shed: 1.0, spray: 2.2 }[this.state];
-    ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), gurgle: () => sfx.clogGurgle(this.stateT), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar() })[this.state]?.();
+    this.stateT = { lash: (this.angry ? 0.85 : 1.05) + 0.3, snare: 1.25, roll: 1.0, flood: 5.1, shed: 1.0, spray: 2.2 }[this.state];
+    this.floodMax = this.stateT;
+    ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar() })[this.state]?.();
     this.prevT = this.stateT;
     this.locked = false;
   }
 
   dispose() {
     this.scene.remove(this.holder);
-    for (const m of [...this.lines, ...this.snares, this.swirl, this.grate]) this.scene.remove(m);
+    for (const m of [...this.lines, ...this.snares, this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
     this.tufts.forEach((f) => this.scene.remove(f.m));
     this.shots.forEach((s) => this.fx.free(s.m));
   }

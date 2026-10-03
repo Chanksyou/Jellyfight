@@ -339,6 +339,14 @@ export const sfx = {
     noise(200, 0.8, dur, 0.22, 'lowpass', 0, 120);
     for (let k = 0; k * 0.14 < dur; k++) { const f = 70 + Math.random() * 130; tone('sine', f, f * 2, 0.08, 0.1, k * 0.14 + Math.random() * 0.06); }
   },
+  // the tap running into the tub, then the plug pulled: a glugging rush and a deep sucking whirl
+  clogPour(dur = 2) { if (!ready()) return; noise(2600, 0.6, dur, 0.22, 'bandpass', 0, 1200); noise(600, 0.8, dur, 0.12, 'lowpass', 0, 300); },
+  clogDrain(dur = 2.4) {
+    if (!ready()) return;
+    noise(400, 1.2, dur, 0.3, 'lowpass', 0, 90);
+    tone('sine', 140, 45, dur, 0.18);
+    for (let k = 0; k * 0.11 < dur; k++) { const f = 60 + Math.random() * 120; tone('sine', f, f * 2.2, 0.07, 0.12, k * 0.11 + Math.random() * 0.04); }
+  },
   clogSplat() { if (!ready() || !gap('clogSplat', 70)) return; noise(900 * jitter(), 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140, 60, 0.1, 0.12); },
   clogDeath() {
     if (!ready()) return;

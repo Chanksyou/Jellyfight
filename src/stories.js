@@ -1784,8 +1784,17 @@ const clogFight = () => {
 const clogAttack = (B, name, P) => {
   if (P) tp(...P, 0);
   B.state = 'chase'; B.stateT = 0;
-  B.next = ['lash', 'snare', 'roll', 'gurgle', 'shed'].indexOf(name);
+  B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
+act2('bathroom-details', {
+  about: 'The tub is dressed like the real one: tile, the striped mat, the spout, thermostat and shower rail, the smiley sponge, the Pantene bottles and the wire caddy with its loofah. None of it gets in your way.',
+  setup() { fresh(); },
+  play() {
+    let g = null; G().APT.scene.traverse((o) => { if (o.name === 'Bathroom details') g = o; });
+    let meshes = 0, solid = 0; g?.traverse((o) => { if (o.isMesh) { meshes++; if (!o.userData.noCollide) solid++; } });
+    return ok(g && meshes > 45 && !solid, { found: !!g, meshes, solid });
+  },
+});
 act2('tub-is-clear', {
   about: 'The bathtub (the Clog\'s arena) is empty: the green see-through blob that sat in it is gone.',
   setup() { fresh(); },
@@ -1846,17 +1855,20 @@ act2('clog-roll', {
     return ok(lane && rolled && hit?.amount === 4, { lane, rolled, hit: hit?.amount });
   },
 });
-act2('clog-gurgle', {
-  about: 'Drain gurgle: the drain swirls and pulls you toward it.',
+act2('clog-flood', {
+  about: 'Fill and drain: the spout gushes and the tub fills, then it drains all at once and the whirlpool drags you to the drain, where the Clog sits waiting (it hurts).',
   setup() {},
   play() {
-    const B = clogFight(), { player } = G();
-    clogAttack(B, 'gurgle', [0.75, 0.16, 7.53]);
-    step(2);
+    const B = clogFight(), { player } = G(), log = record('damage_taken');
+    clogAttack(B, 'flood', [1.3, 0.16, 7.53]);
+    let filled = 0, poured = false;
+    step(60 * 2.2, () => { filled = Math.max(filled, B.waterY - B.floor); if (B.stream.visible) poured = true; });
     const d0 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
-    step(90);
+    step(60 * 1.6);
     const d1 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
-    return ok(B.swirl.visible && d1 < d0 - 0.05, { swirl: B.swirl.visible, d0: +d0.toFixed(2), d1: +d1.toFixed(2) });
+    step(60 * 2.2);
+    const drained = !B.water.visible, hurt = log.some((d) => d.source === 'boss');   // dragged into the drain (and the hairball sitting on it)
+    return ok(poured && filled > 0.08 && d1 < d0 - 0.3 && drained && hurt, { poured, filled: +filled.toFixed(3), d0: +d0.toFixed(2), d1: +d1.toFixed(2), drained, hurt });
   },
 });
 act2('clog-ladybug-swarm-once', {
@@ -1881,7 +1893,7 @@ act2('clog-ladybug-swarm-once', {
   },
 });
 act2('clog-angry-spray', {
-  about: 'Below 45% the Clog is angry: faster, and it spins spraying globs of drain gunk all round.',
+  about: 'Below 45% the Clog is angry: faster, and it spins spraying globs of drain gunk all round in three streams at once.',
   setup() {},
   play() {
     const B = clogFight();
@@ -1890,8 +1902,9 @@ act2('clog-angry-spray', {
     B.hp = B.maxHp * 0.4;
     B.state = 'chase'; B.stateT = 0; B.next = 1;                         // the angry order: lash, spray, ...
     let globs = 0;
-    step(60 * 2, () => { globs = Math.max(globs, B.shots.length); return B.state === 'spray' && globs >= 5; });
-    return ok(B.angry && globs >= 5, { angry: B.angry, globs, state: B.state });
+    step(60 * 2.5, () => { globs = Math.max(globs, B.shots.length); return B.state === 'spray' && globs >= 24; });
+    const dirs = new Set(B.shots.slice(-3).map((q) => Math.round(Math.atan2(q.v.x, q.v.z) * 2)));
+    return ok(B.angry && globs >= 24 && dirs.size === 3, { angry: B.angry, globs, streams: dirs.size, state: B.state });
   },
 });
 

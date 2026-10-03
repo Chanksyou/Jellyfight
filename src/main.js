@@ -12,6 +12,7 @@ import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { currentStage, currentAct, carried, goToAct, pendingAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
+import { addBathroomDetails } from './bathroom.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
@@ -27,7 +28,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v91';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v92';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -129,6 +130,7 @@ scene.fog = new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haz
 prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage);
+if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
