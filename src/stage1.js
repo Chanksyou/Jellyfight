@@ -8,6 +8,12 @@
 //   lounge chair x 2.9-3.5, z 1.1-1.9 (0.43) standing desk x 0.1-0.8, z 2.5-3.8 (0.78)
 //   media console x 0.9-2.4, z 4.35-4.8 (0.6) kitchen counters x 4.35-5.0 (0.94, under cabinets)
 //   stovetop x 4.4-4.65, z 3.0-3.8 (0.90), pans to its right, the kettle behind it
+// The ornate wall clock in the hallway, over the cubby bench (the one with the tennis ball on it).
+// It's an elite in act 2 (elites.js, kind 'clock'): it hangs at `wall`, and when you come onto the
+// bench it slides down the wall to fight you there; `at` is the bench top below it. It stands in
+// for the apartment's own simple clock, which every act hides (`hide`). Act 1 sees it down the hall.
+export const HALL_CLOCK = { kind: 'clock', at: [1.8, 0.46, 7.415], wall: { x: 1.76, y: 1.12, z: 7.415, yaw: Math.PI / 2 }, area: 'cubby bench' };
+
 export const STAGE1 = {
   id: 1,
   name: 'Polyp',
@@ -19,6 +25,8 @@ export const STAGE1 = {
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
 
   noCollide: [],
+  hide: ['Ornate wall clock'],         // replaced by the detailed clock (HALL_CLOCK, drawn as decor here)
+  decor: [HALL_CLOCK],
   fade: {},
   doors: { bath: 'closed', laundry: 'closed', coat: 'closed', bedroom: 'closed', front: 'closed' },
   walls: [

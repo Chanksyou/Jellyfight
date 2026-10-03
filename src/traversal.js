@@ -16,6 +16,7 @@ function meshesNamed(scene, name) {
 
 // Call before building the collision world
 export function prepareApartment(apt, stage) {
+  for (const name of stage.hide || []) meshesNamed(apt.scene, name).forEach((m) => { m.visible = false; m.userData.noCollide = true; });   // replaced by something of the game's own
   for (const name of stage.noCollide || []) meshesNamed(apt.scene, name).forEach((m) => { m.userData.noCollide = true; });
   for (const [name, opacity] of Object.entries(stage.fade || {})) {
     meshesNamed(apt.scene, name).forEach((m) => {

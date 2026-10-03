@@ -38,6 +38,7 @@ export class Run {
     this.gift = new GoldGift(ctx.scene, ctx.fx);   // golden gifts on a schedule (stage.gifts)
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
+    this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
       const size = w.max.map((v, i) => v - w.min[i]);

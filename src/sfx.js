@@ -278,6 +278,17 @@ export const sfx = {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
   },
+  // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
+  // little lower each time), the wreath whirring through the air
+  clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
+  clockSweep() { if (!ready()) return; noise(900, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160, 420, 0.45, 0.05); },
+  clockChime(k = 0) {
+    if (!ready()) return;
+    const f = 392 * Math.pow(2, -k * 2 / 12);
+    for (const [m, v, d] of [[1, 0.16, 1.6], [2.01, 0.07, 1.1], [2.76, 0.05, 0.8], [5.4, 0.025, 0.4]]) tone('sine', f * m, f * m * 0.998, d, v);
+    noise(3000, 2, 0.03, 0.08, 'bandpass');                              // the strike
+  },
+  wreathWhirr() { if (!ready()) return; for (let k = 0; k < 6; k++) noise(1600 + k * 100, 3, 0.09, 0.07, 'bandpass', k * 0.09, 800); },
   // the Soap Dispenser: a wet pump squelch, a squirt landing, a burst of bubbles let go, one popping
   soapPump() {
     if (!ready()) return;

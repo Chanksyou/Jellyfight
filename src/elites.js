@@ -26,6 +26,16 @@
 //                     bubbles drifting outward, with one gap to slip through.
 //     Under half health it's angry: quicker, four squirts, and a second ring right after the
 //     first with its gap somewhere else.
+//   clock       the ornate wall clock over the hallway's cubby bench (act 2; clock-model.js). It
+//               hangs on the wall; when you come onto the bench it slides down the wall to fight
+//               you there (its bearded mask is its face and the place to hit), and goes back up
+//               when you leave or beat it. Its hands keep real time.
+//     Sweeping hands: a half-circle fills on the bench while its hands spin, then a golden hand
+//                     sweeps right across it: jump it, or be in a far corner of the bench.
+//     Victory's wreath: Victory raises her laurel wreath while a line on the bench shows where
+//                     she'll throw it (it locks halfway), then it flies out and comes back along it.
+//     Striking the hour (under half health): it chimes three times, each chime a golden ring
+//                     rolling out across the bench: jump each one.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -37,6 +47,7 @@ import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial } from './vfx.js';
+import { buildClock, CLOCK } from './clock-model.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -192,11 +203,18 @@ function soapModel() {
   return { group: g, muzzle: new THREE.Vector3(0, H + 0.045, 0.048), r: 0.05, head, headY: H + 0.034, stem, liquid, liquidH, bubs };
 }
 
+// the clock elite: the model, its hit point (the mask), its health bar over the top
+function clockModel() {
+  const c = buildClock();
+  return { ...c, muzzle: new THREE.Vector3(0, CLOCK.maskY, 0.06), r: 0.07, hitAt: new THREE.Vector3(0, CLOCK.maskY, 0.05), barY: CLOCK.H + 0.06 };
+}
+
 const KINDS = {
   controller: { name: 'The Controller', hp: 150, aggro: 0.7, scale: 1.5, build: controllerModel },
   mug: { name: 'The Mug', hp: 170, aggro: 0.8, build: mugModel },
   kettle: { name: 'The Kettle', hp: 210, aggro: 0.6, scale: 1.2, build: kettleModel },
   soap: { name: 'The Soap Dispenser', hp: 240, aggro: 0.7, scale: 1.3, build: soapModel },
+  clock: { name: 'The Wall Clock', hp: 300, aggro: 0.55, wall: true, build: clockModel },
 };
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
@@ -218,6 +236,15 @@ class Elite {
     this.holder = new THREE.Group();
     this.holder.position.copy(this.base);
     this.holder.add(m.group);
+    if (K.wall) {
+      // hung on a wall (spec.wall): it faces out from it and never turns; it comes down to fight
+      const w = spec.wall;
+      this.wall = w;
+      this.hangY = w.y;
+      this.fightY = this.base.y + 0.02;
+      this.holder.position.set(w.x, w.y, w.z);
+      this.holder.rotation.y = w.yaw;
+    }
     m.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
     owner.scene.add(this.holder);
@@ -228,7 +255,7 @@ class Elite {
     this.fill.position.set(-0.033, 0, 0.0005);
     back.renderOrder = this.fill.renderOrder = 10;
     this.bar.add(back, this.fill);
-    this.bar.position.y = m.r * 2.2 + 0.03;
+    this.bar.position.y = m.barY ?? m.r * 2.2 + 0.03;
     this.holder.add(this.bar);
     this.t = 0;
     this.cool = 1.5;
@@ -242,12 +269,29 @@ class Elite {
   }
 
   get position() { return this.base; }
+  // where bubbles aim and land (enemies.center): a hanging elite's hit point, else just above its base
+  center(out = new THREE.Vector3()) {
+    const h = this.model.hitAt;
+    if (!h) return out.copy(this.base).setY(this.base.y + this.r);
+    const c = Math.cos(this.holder.rotation.y), s = Math.sin(this.holder.rotation.y);
+    return out.set(h.x * c + h.z * s, h.y, -h.x * s + h.z * c).add(this.holder.position);
+  }
+
+  // a hanging elite after it's beaten: back up on its wall as a plain clock (no face, no bar)
+  retire() {
+    this.clearTele();
+    this.decor = true;
+    this.bar.visible = false;
+    if (this.model.face) this.model.face.visible = false;
+    if (this.model.wreath) this.model.wreath.visible = true;
+  }
 
   damage(amount, color = '#fff') {
     if (this.dead) return;
     this.hp -= amount;
     this.hitPop = 1;
-    this.owner.fx.number(this.base.clone().setY(this.base.y + this.r * 1.6), Math.round(amount), color, 16);
+    const c = this.center();
+    this.owner.fx.number(c.setY(c.y + this.r * 0.6), Math.round(amount), color, 16);
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
@@ -269,6 +313,12 @@ export class Elites {
     this.bullets = [];
     this.blobs = [];
     this.puddles = [];
+    this.decor = [];         // things that only hang there (the hall clock when it isn't fighting)
+    this.decorSpecs = [];    // set by the run: this act's decor (stage.decor)
+    this.thrown = [];        // the clock's wreath in flight
+    this.rings = [];         // and its chime rings rolling out
+    this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
+    this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
     this.soapBubbles = [];   // the Soap Dispenser's bubble rings, drifting outward
     this.slicks = [];        // and the slippery soap its squirts leave
     this.bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
@@ -288,6 +338,7 @@ export class Elites {
       aim: [0, 1, 2].map(() => new TeleMaterial(hostile('controller'), 'strip')),
       puddle: new TeleMaterial(hostile('mug')),
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
+      sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
     };
   }
 
@@ -306,11 +357,18 @@ export class Elites {
       e.entry = this.enemies.addProxy(e);
       this.list.push(e);
     }
+    // what only hangs there (unless it's fighting this time)
+    for (const s of this.decorSpecs) if (!specs.some((q) => q.kind === s.kind)) { const d = new Elite(this, s); d.retire(); this.decor.push(d); }
   }
 
   clear() {
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
     this.list = [];
+    this.decor.forEach((e) => e.remove());
+    this.decor = [];
+    for (const w of this.thrown) this.scene.remove(w.m);
+    for (const r of this.rings) this.scene.remove(r.m);
+    this.thrown = []; this.rings = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); }
     for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
     this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
@@ -321,9 +379,12 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
       const soap = soapModel();
       soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
+      const clock = buildClock();
+      clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
     } else (this._warm || []).forEach((m) => this.scene.remove(m));
   }
@@ -401,6 +462,24 @@ export class Elites {
     this.soapBubbles.push({ m, v: dir.clone().multiplyScalar(speed), t: life, wob: Math.random() * 6, y: from.y });
   }
 
+  // the clock's hands: real time (hour and minute), or whirling while it winds up an attack
+  clockHands(e, dt) {
+    const M = e.model;
+    if (e.spin) { M.minuteHand.rotation.z -= dt * e.spin; M.hourHand.rotation.z -= dt * e.spin / 12; return; }
+    if (e.state !== 'idle' && !e.decor) return;                       // an attack is moving them
+    const d = new Date(), min = d.getMinutes() + d.getSeconds() / 60, hr = (d.getHours() % 12) + min / 60;
+    const ease = (cur, want) => cur + Math.atan2(Math.sin(want - cur), Math.cos(want - cur)) * (1 - Math.exp(-4 * dt));
+    M.minuteHand.rotation.z = ease(M.minuteHand.rotation.z, -min / 60 * Math.PI * 2);
+    M.hourHand.rotation.z = ease(M.hourHand.rotation.z, -hr / 12 * Math.PI * 2);
+  }
+
+  // where Victory's wreath is (world), for throwing it and catching it again
+  wreathWorld(e) {
+    if (!e?.model?.wreath) return null;
+    e.holder.updateMatrixWorld(true);
+    return e.model.wreath.getWorldPosition(new THREE.Vector3());
+  }
+
   // What they do to you goes out as events (damage_taken, knockback, status_applied); a beaten
   // elite sends elite_defeated
   update(dt, player, cfg) {
@@ -410,13 +489,24 @@ export class Elites {
     const hit = (amount, source) => bus.emit('damage_taken', { targetId: PLAYER, amount, source });
     const knock = (from, force) => bus.emit('knockback', { targetId: PLAYER, dir: P.clone().sub(from).setY(0).normalize(), force, launch: 0.25 });
 
+    // things that only hang there: a hanging elite goes back up its wall; clock hands keep time
+    for (const d of this.decor) {
+      if (d.wall) d.holder.position.y += (d.hangY - d.holder.position.y) * (1 - Math.exp(-2.5 * dt));
+      d.model.group.scale.setScalar(1);
+      d.model.group.position.set(0, 0, 0);
+      d.model.group.rotation.set(0, 0, 0);
+      if (d.kind === 'clock') this.clockHands(d, dt);
+    }
+
     for (const e of this.list) {
       if (e.dead) {
         if (!e.done) {
           e.done = true;
-          this.fx.puff(e.base.clone().setY(e.base.y + e.r), 0xffd23a, e.r * 2.5, 0.6);
+          const c = e.center();
+          this.fx.puff(c, 0xffd23a, e.r * 2.5, 0.6);
           this.fx.ring(e.base.clone().setY(e.base.y + 0.004), 0xffd23a, e.r * 3, 0.6);
-          e.remove();
+          if (e.wall) { e.retire(); this.decor.push(e); }   // back up on its wall, just a clock again
+          else e.remove();
           bus.emit('elite_defeated', { elite: e });
         }
         continue;
@@ -429,8 +519,16 @@ export class Elites {
       e.fill.scale.x = Math.max(0.001, e.hp / e.maxHp);
       const to = pc.clone().sub(e.base);
       const awake = to.length() < e.aggro;
-      // face you (unless an attack has locked its aim), and bob so it reads as alive
-      if (!e.locked) {
+      // a hanging elite comes down its wall while you're close (and fights only once it's down)
+      if (e.wall) {
+        if (awake || e.state !== 'idle') e.downT = 1.5; else e.downT = Math.max(0, (e.downT || 0) - dt);
+        const want = e.downT > 0 ? e.fightY : e.hangY, wasUp = e.holder.position.y > e.fightY + 0.05;
+        e.holder.position.y += (want - e.holder.position.y) * (1 - Math.exp(-3.5 * dt));
+        if (wasUp && e.holder.position.y <= e.fightY + 0.05 && want === e.fightY) { this.fx.puff(e.base.clone().setY(e.base.y + 0.02), 0xd8c8b0, 0.06, 0.5); sfx.clockChime(1); }
+        e.ready = Math.abs(e.holder.position.y - e.fightY) < 0.03;
+      }
+      // face you (unless an attack has locked its aim, or it hangs on a wall), and bob so it reads as alive
+      if (!e.locked && !e.wall) {
         let d = Math.atan2(to.x, to.z) - e.holder.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.holder.rotation.y += d * (1 - Math.exp(-(awake ? 6 : 1.5) * dt));
@@ -438,7 +536,8 @@ export class Elites {
       g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
       g.rotation.set(0, 0, 0);
       e.cool -= dt;
-      const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.base);
+      const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
+      if (e.kind === 'clock') this.clockHands(e, dt);
       const heading = e.holder.rotation.y, fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
       const surf = e.base.clone().setY(e.base.y + 0.002);
 
@@ -454,11 +553,11 @@ export class Elites {
 
       // start the next attack
       if (e.state === 'idle') {
-        if (!awake || e.cool > 0) continue;
+        if (!awake || e.cool > 0 || (e.wall && !e.ready)) continue;
         // finish turning to face you first, so the telegraph points where you are
         const off = Math.atan2(Math.sin(Math.atan2(to.x, to.z) - heading), Math.cos(Math.atan2(to.x, to.z) - heading));
-        if (Math.abs(off) > 0.15) continue;
-        e.attack = e.next++ % 2;
+        if (Math.abs(off) > 0.15 && !e.wall) continue;
+        e.attack = e.next++ % (e.kind === 'clock' && e.hp < e.maxHp * 0.5 ? 3 : 2);   // the clock strikes the hour too once it's angry
         e.state = 'windup';
         e.stateT = 0;
         e.locked = false;
@@ -638,7 +737,124 @@ export class Elites {
           if (s > wind + (angry ? 0.9 : 0.35)) { e.rings = 0; e.clearTele(); e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
         }
       }
+
+      // ---------------------------------------------------------- wall clock
+      if (e.kind === 'clock') {
+        const M = e.model, angry = e.hp < e.maxHp * 0.5, R = 0.42;
+        const flat = (v) => Math.atan2(v.x - e.base.x, v.z - e.base.z);     // the angle of a point round the pivot
+        if (e.attack === 0) {
+          // Sweeping hands: a half circle fills on the bench while the hands spin, then a golden hand sweeps across it
+          const wind = angry ? 0.8 : 1.0, dur = 0.55;
+          if (s < wind) {
+            if (!e.tele.length) { e.dirSweep = Math.random() < 0.5 ? 1 : -1; this.mark(e, this.halfGeo, this.T.sweep, surf, new THREE.Vector3(R, 1, R), heading); }
+            e.tele[0].material.progress = s / wind;
+            e.tele[0].material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15;
+            e.spin = 14;                                                         // the hands whirl
+            if (Math.random() < dt * 8) sfx.clockTick();
+          } else if (s < wind + dur) {
+            const u = (s - wind) / dur, b = heading + e.dirSweep * (-Math.PI / 2 + u * Math.PI);
+            if (!e.beam) {
+              e.beam = this.mark(e, this.stripGeo, this.T.beam, surf.clone().setY(surf.y + 0.002), new THREE.Vector3(0.03, 1, R), b);
+              e.beam.material.progress = 1;
+              e.prevB = b - e.dirSweep * 0.01;
+              sfx.clockSweep();
+            }
+            e.beam.rotation.y = b;
+            if (e.tele[0]) e.tele[0].material.opacity = 0.35;
+            const tip = surf.clone().add(new THREE.Vector3(Math.sin(b) * R, 0.01, Math.cos(b) * R));
+            this.fx.glow.emit(tip, hostile('clock'), 0.05, 0.01, 0.25, 0.9);
+            // did the hand pass you (you on the bench, within its reach, not in the air)?
+            const ang = flat(P), d = Math.hypot(P.x - e.base.x, P.z - e.base.z);
+            const between = (x, a0, a1) => { const w = (v) => Math.atan2(Math.sin(v - a0), Math.cos(v - a0)); const t = w(x), span = w(a1); return span >= 0 ? t >= 0 && t <= span : t <= 0 && t >= span; };
+            if (!e.swept && d < R + cfg.radius * 0.5 && sameLevel(e.base.y) && player.grounded && between(ang, e.prevB, b)) { e.swept = true; hit(3, 'clock'); knock(e.base, 0.7); }
+            e.prevB = b;
+            e.spin = 0;
+            M.minuteHand.rotation.z = -e.dirSweep * (u - 0.5) * Math.PI;                 // the dial's minute hand sweeps with it
+          } else { e.clearTele(); e.beam = null; e.swept = false; e.spin = 0; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+        } else if (e.attack === 1) {
+          // Victory's wreath: a line on the bench to you (locks halfway), then the wreath flies out along it and back
+          const wind = 0.8;
+          if (s < wind) {
+            const target = P.clone().setY(P.y + cfg.height * 0.5);
+            if (s < wind * 0.5 || !e.aim) e.aim = target;
+            const from = this.wreathWorld(e), dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, len = Math.max(0.05, Math.hypot(dx, dz));
+            if (!e.tele.length) this.mark(e, this.stripGeo, this.T.wreath, surf, new THREE.Vector3(0.05, 1, len), Math.atan2(dx, dz));
+            e.tele[0].rotation.y = Math.atan2(dx, dz);
+            e.tele[0].scale.z = len;
+            e.tele[0].material.progress = s / wind;
+            M.wreath.rotation.z += dt * 12;                                      // she brandishes it
+            M.wreath.scale.setScalar(1 + Math.sin(e.t * 20) * 0.08);
+            if (from && Math.random() < dt * 14) this.fx.glow.emit(from, hostile('clock'), 0.04, 0.01, 0.3, 0.8);
+          } else if (!e.threw) {
+            e.threw = true;
+            e.clearTele();
+            M.wreath.visible = false;
+            const m = M.wreath.clone(true);
+            m.visible = true;                                                    // (the one in her hand was just hidden)
+            m.scale.setScalar(3.2);                                             // bigger than life, so you can see it coming
+            m.rotation.set(Math.PI / 2, 0, 0);                                 // flat, spinning like a thrown ring
+            m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0xe0b048); o.material.emissive = hostile('clock').clone(); o.material.emissiveIntensity = 1.1; o.material.toneMapped = false; } });
+            const from = this.wreathWorld(e);
+            m.position.copy(from);
+            this.scene.add(m);
+            this.thrown.push({ m, from, to: e.aim.clone(), t: 0, T: 0.5, owner: e, hits: 0 });
+            sfx.wreathWhirr();
+          } else if (!this.thrown.some((w) => w.owner === e)) { e.threw = false; e.aim = null; M.wreath.visible = true; M.wreath.scale.setScalar(1); e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+        } else {
+          // Striking the hour: the hands snap to the hour, then three chimes, each a golden ring rolling out over the bench
+          const wind = 0.6, gap = 0.7;
+          if (s < wind) {
+            if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.06, this.T.chime));
+            e.tele[0].userData.fill(s / wind);
+            M.minuteHand.rotation.z += (0 - M.minuteHand.rotation.z) * (1 - Math.exp(-12 * dt));   // to twelve
+            g.rotation.z = Math.sin(e.t * 30) * 0.01;
+          } else {
+            const k = Math.floor((s - wind) / gap);
+            if (k < 3 && k !== e.chimed) {
+              e.chimed = k;
+              e.clearTele();
+              sfx.clockChime(k);
+              e.hitPop = 0.7;
+              const m = new THREE.Mesh(this.ringGeo, this.ringMat);
+              m.position.copy(surf).setY(surf.y + 0.006);
+              this.scene.add(m);
+              this.rings.push({ m, at: surf.clone(), r: 0.03, max: 0.55, owner: e, hit: false });
+            }
+            if (s > wind + gap * 3) { e.chimed = -1; e.state = 'idle'; e.cool = 1.6; }
+          }
+        }
+      }
     }
+
+    // the clock's wreath: out along its line to where you were, spinning, then back to Victory's hand
+    for (const w of this.thrown) {
+      w.t += dt;
+      const out = w.t < w.T, k = out ? w.t / w.T : Math.min(1, (w.t - w.T) / w.T);
+      const home = this.wreathWorld(w.owner) || w.from;
+      if (out) w.m.position.lerpVectors(w.from, w.to, k * (2 - k)); else w.m.position.lerpVectors(w.to, home, k * k);
+      w.m.position.y += Math.sin((out ? k : 1 - k) * Math.PI) * 0.03;
+      w.m.rotation.z += dt * 18;
+      this.fx.glow.hold(w.m.position, hostile('clock'), 0.11, 0.8);
+      if ((w.trail = (w.trail || 0) - dt) <= 0) { w.trail = 0.02; this.fx.glow.emit(w.m.position, hostile('clock'), 0.04, 0.01, 0.25, 0.8); }
+      const leg = out ? 1 : 2;
+      if (w.hits < leg && w.m.position.distanceTo(pc) < cfg.radius + 0.04) { w.hits = leg; hit(2, 'clock-wreath'); }
+      else if (w.hits < leg - 1) w.hits = leg - 1;
+      if (!out && k >= 1) { w.done = true; this.scene.remove(w.m); w.owner.model.wreath.visible = true; }
+      if (w.owner.dead) { w.done = true; this.scene.remove(w.m); }
+    }
+    this.thrown = this.thrown.filter((w) => !w.done);
+
+    // the clock's chime rings rolling out over the bench: jump them
+    for (const r of this.rings) {
+      r.r += dt * 0.75;
+      r.m.scale.setScalar(r.r);
+      r.m.material.opacity = 0.9 * (1 - r.r / r.max);
+      this.fx.glow.hold(r.m.position.clone().add(new THREE.Vector3(r.r, 0.004, 0)), hostile('clock'), 0.03, 0.5);
+      const d = Math.hypot(P.x - r.at.x, P.z - r.at.z);
+      if (!r.hit && Math.abs(d - r.r) < 0.025 + cfg.radius * 0.4 && Math.abs(P.y - r.at.y) < 0.03 && player.grounded) { r.hit = true; hit(2, 'clock-chime'); }
+      if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); }
+    }
+    this.rings = this.rings.filter((r) => !r.done);
 
     // soap bubbles drifting out from the Soap Dispenser: they pop on you, on walls, or when they've gone far enough
     for (const b of this.soapBubbles) {

@@ -1159,6 +1159,15 @@ story('modes/dev-fight-boss', {
   },
 });
 
+story('elites/hall-clock-hangs-in-act-1', {
+  about: 'In act 1 the detailed hall clock hangs over the cubby bench as a plain clock (you can see down the hall), in place of the apartment\'s simple one.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G(), c = run.elites.decor.find((d) => d.kind === 'clock');
+    let oldShown = false; G().APT.root.traverse((o) => { if (/^Ornate_wall_clock/.test(o.name) && o.isMesh && o.visible) oldShown = true; });
+    return ok(c && !oldShown && Math.abs(c.holder.position.y - 1.12) < 0.02 && !run.elites.list.some((e) => e.kind === 'clock'), { clock: !!c, oldShown, y: c && +c.holder.position.y.toFixed(3) });
+  },
+});
 story('modes/dev-one-on-one', {
   about: 'The pause menu\'s 1 on 1 (dev) button lists every enemy; picking one starts a run with just it (it comes back after you clear it), and an elite puts you on its high ground.',
   setup() { fresh(); },
@@ -1525,6 +1534,104 @@ act2('one-on-one-soap-dispenser', {
     return ok(run.elites.alive.length === 1 && e && d < 0.5 && player.position.y > 0.8, { elites: run.elites.alive.length, near: +d.toFixed(2), y: +player.position.y.toFixed(2) });
   },
 });
+// the Wall Clock over the cubby bench (elites.js, clock-model.js): the bench vent lands you below it
+const hallClock = () => G().run.elites.list.find((e) => e.kind === 'clock');
+const onBench = (x = 2.06, z = 7.5) => tp(x, 0.5, z, 0);
+const oldClockShown = () => { let shown = false; G().APT.root.traverse((o) => { if (/^Ornate_wall_clock/.test(o.name) && o.isMesh && o.visible) shown = true; }); return shown; };
+act2('clock-hangs-on-the-wall', {
+  about: 'The detailed wall clock hangs over the cubby bench in place of the apartment\'s simple one, its hands showing the real time.',
+  setup() { fresh(); tp(2.75, 0.05, 6.6, 0); },
+  play() {
+    const e = hallClock();
+    if (!e) return ok(false, { clock: 'missing' });
+    step(120);
+    const d = new Date(), want = -(d.getMinutes() + d.getSeconds() / 60) / 60 * Math.PI * 2, got = e.model.minuteHand.rotation.z;
+    const off = Math.abs(Math.atan2(Math.sin(want - got), Math.cos(want - got)));
+    return ok(!oldClockShown() && Math.abs(e.holder.position.y - 1.12) < 0.01 && off < 0.1, { oldShown: oldClockShown(), y: +e.holder.position.y.toFixed(3), handOff: +off.toFixed(3) });
+  },
+});
+act2('clock-comes-down-to-fight', {
+  about: 'Land on the cubby bench and the clock comes alive: it slides down the wall to fight you there, and goes back up once you leave.',
+  setup() { fresh(); onBench(); },
+  play() {
+    const e = hallClock();
+    step(90);
+    const down = e.holder.position.y, ready = e.ready;
+    e.cool = 99;
+    tp(2.75, 0.05, 6.6, 0);
+    step(60 * 4);
+    const up = e.holder.position.y;
+    return ok(down < 0.5 && ready && up > 1.1, { down: +down.toFixed(3), ready, up: +up.toFixed(3) });
+  },
+});
+act2('clock-can-be-hit', {
+  about: 'Down on the bench, the clock\'s mask is in reach: your bubbles hurt it.',
+  setup() { fresh(); onBench(1.9, 7.42); G().run.hurt = () => {}; const e = hallClock(); e.cool = 99; },
+  play() {
+    const e = hallClock();
+    step(60 * 5);
+    return ok(e.hp < e.maxHp, { hp: Math.round(e.hp), max: e.maxHp });
+  },
+});
+act2('clock-sweeping-hands', {
+  about: 'Sweeping hands: a half circle fills on the bench while the hands whirl, then a golden hand sweeps across it for 3. In a far front corner of the bench it can\'t reach you.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
+  play() {
+    const sweep = (x, z) => {
+      fresh({ hurt: true, bubbles: false, lash: false }); onBench(x, z);
+      const e = hallClock(), log = record('damage_taken');
+      step(90); e.cool = 0; e.next = 0;
+      let warned = false, swept = false;
+      step(60 * 3, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (e.beam) swept = true; return swept && e.state === 'idle'; });
+      return { warned, swept, hits: log.filter((d) => d.source === 'clock').map((d) => d.amount) };
+    };
+    const mid = sweep(2.0, 7.42), corner = sweep(2.14, 7.08);
+    return ok(mid.warned && mid.swept && mid.hits[0] === 3 && corner.swept && !corner.hits.length, { mid, corner });
+  },
+});
+act2('clock-wreath-boomerang', {
+  about: 'Victory\'s wreath: a line on the bench shows where she\'ll throw it, then the wreath flies out along it and comes back to her hand: 2 if it catches you.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
+  play() {
+    const { run } = G(), e = hallClock(), log = record('damage_taken');
+    step(90); e.cool = 0; e.next = 1;
+    let warned = false, flew = false;
+    step(60 * 4, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle'; });
+    const hits = log.filter((d) => d.source === 'clock-wreath').map((d) => d.amount);
+    return ok(warned && flew && hits[0] === 2 && e.model.wreath.visible && !run.elites.thrown.length, { warned, flew, hits, back: e.model.wreath.visible });
+  },
+});
+act2('clock-strikes-the-hour', {
+  about: 'Under half health the clock also strikes the hour: three chimes, each a golden ring rolling out across the bench (2 if it rolls over you).',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
+  play() {
+    const { run } = G(), e = hallClock(), log = record('damage_taken');
+    e.hp = e.maxHp * 0.4;
+    step(90); e.cool = 0; e.next = 2;
+    let rings = 0;
+    const ring = run.elites.rings;
+    step(60 * 4, () => { rings = Math.max(rings, e.chimed + 1 || 0); return rings >= 3 && e.state === 'idle'; });
+    const hits = log.filter((d) => d.source === 'clock-chime');
+    // and its attacks now go round three ways
+    const order = [0, 1, 2, 3].map(() => e.next++ % (e.hp < e.maxHp * 0.5 ? 3 : 2));
+    return ok(rings === 3 && hits.length >= 1 && order.includes(2), { rings, hits: hits.length, order });
+  },
+});
+act2('clock-beaten-hangs-again', {
+  about: 'Beat the clock and it goes back up its wall as a plain clock (no face, no health bar), still keeping time; you get a treasure pick.',
+  setup() { fresh(); onBench(); },
+  play() {
+    const { run, enemies, menus } = G(), e = hallClock(), log = record('elite_defeated');
+    step(90);
+    enemies.applyDamage(e.entry, e.maxHp + 1);
+    step(10);
+    const picked = menus.open;
+    menus.close();
+    step(60 * 3);
+    return ok(log.length === 1 && e.decor && !e.model.face.visible && !e.bar.visible && e.holder.position.y > 1.1 && run.elites.decor.includes(e) && picked, { defeated: log.length, decor: !!e.decor, y: +e.holder.position.y.toFixed(3), picked });
+  },
+});
+
 act2('soap-slick-slides', {
   about: 'Soap underfoot: let go on a slick and you keep sliding a long way; off it you stop almost at once.',
   setup() { fresh({ elites: false }); tp(2.75, 0.05, 6.6, 0); },

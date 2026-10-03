@@ -11,6 +11,8 @@
 //   laundry closet x 3.59-4.48, z 4.89-5.81 (off the hall's east wall), coat closet x 1.6-2.52,
 //     z 4.85-6.03 (off its west wall): both doors left ajar to peek in, but walled off
 //   sideboard on the hall's east wall (x 3.27, z 6.3-7.1, top 0.8), bench on its west (x 2.08, z 7.4)
+import { HALL_CLOCK } from './stage1.js';
+
 export const STAGE2 = {
   id: 2,
   name: 'Ephyra',
@@ -25,6 +27,8 @@ export const STAGE2 = {
 
   // Things the player shouldn't bump into or can pass through
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
+  hide: ['Ornate wall clock'],         // replaced by the detailed clock below (an elite here)
+  decor: [HALL_CLOCK],                // it still hangs there when it isn't fighting (a 1 on 1 with another elite)
   fade: { 'Shower curtain': 0.5 },    // make it see-through so the camera can look into the tub
   // the closets are left ajar (a fraction of fully open) so you can peek in; a wall keeps you out
   doors: { bath: 'open', laundry: 0.3, coat: 0.3, bedroom: 'closed', front: 'closed' },
@@ -80,6 +84,7 @@ export const STAGE2 = {
   // lands you beside it)
   elites: [
     { kind: 'soap', at: [1.53, 0.88, 5.18], hide: 'Soap dispenser', area: 'vanity' },
+    HALL_CLOCK,                       // the ornate clock over the cubby bench: the bench vent lands you below it
   ],
 
   // The boss arena: the bathtub. You're carried in when the timer runs out.
