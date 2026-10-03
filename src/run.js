@@ -9,7 +9,7 @@ import { Vacuum } from './vacuum.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
-import { Elites } from './elites.js';
+import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { GoldGift } from './pickups.js';
 import { juice } from './juice.js';
@@ -61,6 +61,7 @@ export class Run {
     });
     bus.on('status_applied', ({ targetId, status, duration }) => {
       if (targetId === PLAYER && status === 'slow') this.slowT = Math.max(this.slowT, duration);
+      if (targetId === PLAYER && status === 'slip') this.slipT = Math.max(this.slipT, duration);   // soap underfoot: you slide
     });
     bus.on('knockback', ({ targetId, dir, force, launch }) => {
       if (targetId !== PLAYER) return;
@@ -130,6 +131,7 @@ export class Run {
     this.pendingLevels = 0;
     this.iFrames = 0;
     this.slowT = 0;
+    this.slipT = 0;
     this.stillT = 0;
     this.squeakCd = [];
     this.grown = {}; this.growCount = {};
@@ -233,12 +235,14 @@ export class Run {
         speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         slow: this.slowT > 0 ? 0.4 : 0, push,
+        slip: this.slipT > 0 ? 1 : 0,
       });
     }
 
     // --- timers
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
+    this.slipT = Math.max(0, this.slipT - dt);
     // --- the night: waves, gifts, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
     else if (this.phase === 'explore') {
@@ -305,11 +309,13 @@ export class Run {
   // you on its high ground (it comes back after you beat it). No waves, no gifts, no boss.
   duelChoices() {
     const bugs = Object.values(TYPES).map((T) => ({ name: T.name, bug: T.id }));
-    const elites = (this.stage.elites || []).map((spec) => ({ name: `The ${spec.kind[0].toUpperCase()}${spec.kind.slice(1)} (elite)`, elite: spec }));
+    // every act's elites: one from another act reloads the game into that act first (startDuel)
+    const elites = STAGES.flatMap((st) => (st.elites || []).map((spec) => ({ name: `${ELITE_NAMES[spec.kind]} (elite, act ${st.id})`, elite: spec, act: st.id })));
     return [...bugs, ...elites];
   }
 
   startDuel(pick) {
+    if (pick.act && pick.act !== this.stage.id) { goToAct(pick.act, null, { duel: pick.name }); return; }   // its room is in another act
     this.start();
     this.startPicked = true;
     this.duel = { ...pick, wait: 0 };

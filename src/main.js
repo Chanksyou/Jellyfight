@@ -10,7 +10,7 @@ import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { currentStage, currentAct, carried, goToAct } from './stages.js';
+import { currentStage, currentAct, carried, goToAct, pendingAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
@@ -26,7 +26,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v83';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v84';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -433,6 +433,9 @@ overlay.hidden = false;
 // Stories (stories.js): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 warmUp().then(() => {
+  // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
+  const then = pendingAction();
+  if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
   if (!storyParams.has('story') && !storyParams.has('stories')) return;
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
 });

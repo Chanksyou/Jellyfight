@@ -17,6 +17,15 @@
 //                     the blast will go (it's locked in: step out of it), then blasts.
 //     Boil over:      the lid pops and orange circles fill around you; boiling drops land in
 //                     each one.
+//   soap        on the bathroom vanity (act 2): the glass soap dispenser by the tap. The pink soap
+//               inside drains as it's hurt (its level is its health).
+//     Soap squirt:    it pumps three times; each squirt lobs a glob of soap onto a pink circle
+//                     filling where you stand. A hit stings, and it leaves a slick: soap underfoot
+//                     takes away your grip, so you slide.
+//     Bubble ring:    it foams up while a pink ring fills around it, then lets go a ring of soap
+//                     bubbles drifting outward, with one gap to slip through.
+//     Under half health it's angry: quicker, four squirts, and a second ring right after the
+//     first with its gap somewhere else.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -122,11 +131,75 @@ function kettleModel() {
   return { group: g, muzzle: new THREE.Vector3(0, 0.1, 0.1), r: 0.065, lid, led };
 }
 
+// the soap dispenser's label: a pastel citrus print with its name across it
+function soapLabel() {
+  const c = document.createElement('canvas');
+  c.width = 160; c.height = 112;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fbf3e6'; g.fillRect(0, 0, 160, 112);
+  g.strokeStyle = '#e86aa0'; g.lineWidth = 6; g.strokeRect(3, 3, 154, 106);
+  const slice = (x, y, r, rind, flesh) => {
+    g.fillStyle = rind; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    g.fillStyle = flesh; g.beginPath(); g.arc(x, y, r * 0.82, 0, 7); g.fill();
+    g.strokeStyle = rind; g.lineWidth = 1.5;
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * r * 0.82, y + Math.sin(a) * r * 0.82); g.stroke(); }
+  };
+  slice(28, 30, 15, '#e8b81a', '#fff2a0'); slice(132, 28, 13, '#f07a2a', '#ffc890'); slice(30, 86, 12, '#f07a2a', '#ffc890'); slice(130, 84, 15, '#e8b81a', '#fff2a0');
+  g.fillStyle = '#6aa83a'; for (const [x, y, a] of [[50, 20, 0.6], [112, 40, -0.5], [48, 74, -0.4], [110, 96, 0.5]]) { g.save(); g.translate(x, y); g.rotate(a); g.beginPath(); g.ellipse(0, 0, 9, 4, 0, 0, 7); g.fill(); g.restore(); }
+  g.fillStyle = '#c8326e'; g.font = 'bold 30px Georgia, serif'; g.textAlign = 'center'; g.fillText('SOAP', 80, 64);
+  g.font = '11px sans-serif'; g.fillStyle = '#8a5a6a'; g.fillText('citrus · hand wash', 80, 80);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// A square glass pump bottle: thick clear glass, pink soap inside (its level shows the health
+// left) with bubbles drifting up through it, a printed label, a white collar and pump with the
+// nozzle out the front. The pump head presses down when it squirts. About 13 cm tall.
+function soapModel() {
+  const g = new THREE.Group();
+  const W = 0.07, H = 0.085;
+  const glass = new THREE.MeshStandardMaterial({ color: 0xdaebe7, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.1, depthWrite: false });
+  const white = std(0xefefea, { roughness: 0.35 });
+  add(g, new RoundedBoxGeometry(W, H, W, 4, 0.008), glass, 0, H / 2, 0).renderOrder = 2;
+  add(g, new RoundedBoxGeometry(W * 0.96, 0.009, W * 0.96, 2, 0.003), std(0xcfe2de, { transparent: true, opacity: 0.65, roughness: 0.05 }), 0, 0.0045, 0);   // the thick glass base
+  // the soap: a box from the base up, as tall as the soap left
+  const liquidH = H * 0.8;
+  const liquid = add(g, new THREE.BoxGeometry(W * 0.86, 1, W * 0.86).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0xff6aa8, emissive: 0xff2a7a, emissiveIntensity: 0.5, transparent: true, opacity: 0.82, roughness: 0.12 }), 0, 0.009, 0);
+  liquid.scale.y = liquidH;
+  const bubs = [];
+  const bubMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, roughness: 0.05, emissive: 0xffd0e4, emissiveIntensity: 0.4 });
+  for (let k = 0; k < 7; k++) {
+    const b = add(g, new THREE.SphereGeometry(1, 10, 8), bubMat, (Math.random() - 0.5) * W * 0.6, 0.02, (Math.random() - 0.5) * W * 0.6);
+    b.scale.setScalar(0.0025 + Math.random() * 0.003);
+    b.userData.rise = Math.random();
+    bubs.push(b);
+  }
+  add(g, new THREE.PlaneGeometry(W * 0.82, H * 0.48), new THREE.MeshStandardMaterial({ map: soapLabel(), roughness: 0.6 }), 0, H * 0.4, W / 2 + 0.0008);
+  // collar, stem, and the pump head with its nozzle pointing out the front
+  add(g, new THREE.CylinderGeometry(0.014, 0.016, 0.012, 20), white, 0, H + 0.006, 0);
+  const stem = add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.024, 10), std(0xdadad6, { metalness: 0.3 }), 0, H + 0.024, 0);
+  const head = new THREE.Group();
+  head.position.y = H + 0.034;
+  g.add(head);
+  add(head, new RoundedBoxGeometry(0.03, 0.016, 0.028, 3, 0.005), white, 0, 0.008, 0);
+  add(head, new THREE.CylinderGeometry(0.0042, 0.005, 0.036, 10), white, 0, 0.011, 0.026).rotation.x = Math.PI / 2;
+  add(head, new THREE.SphereGeometry(0.0035, 8, 6), std(0xff6aa8, { emissive: 0xff2a7a, emissiveIntensity: 0.8 }), 0, 0.011, 0.045);   // a bead of soap at the tip
+  const face = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.42 });
+  face.scale.setScalar(0.034);
+  face.position.set(0, H * 0.78, W / 2 + 0.002);
+  g.add(face);
+  return { group: g, muzzle: new THREE.Vector3(0, H + 0.045, 0.048), r: 0.05, head, headY: H + 0.034, stem, liquid, liquidH, bubs };
+}
+
 const KINDS = {
   controller: { name: 'The Controller', hp: 150, aggro: 0.7, scale: 1.5, build: controllerModel },
   mug: { name: 'The Mug', hp: 170, aggro: 0.8, build: mugModel },
   kettle: { name: 'The Kettle', hp: 210, aggro: 0.6, scale: 1.2, build: kettleModel },
+  soap: { name: 'The Soap Dispenser', hp: 240, aggro: 0.7, scale: 1.3, build: soapModel },
 };
+
+export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
 
 // ------------------------------------------------------------------ one elite
 class Elite {
@@ -196,6 +269,11 @@ export class Elites {
     this.bullets = [];
     this.blobs = [];
     this.puddles = [];
+    this.soapBubbles = [];   // the Soap Dispenser's bubble rings, drifting outward
+    this.slicks = [];        // and the slippery soap its squirts leave
+    this.bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
+    this.bubbleMat = new THREE.MeshStandardMaterial({ color: 0xffe0ee, transparent: true, opacity: 0.4, roughness: 0.02, metalness: 0.3, emissive: 0xff4a9a, emissiveIntensity: 0.35, depthWrite: false });
+    this.soapMat = new THREE.MeshStandardMaterial({ color: 0xffb8d4, transparent: true, opacity: 0.75, roughness: 0.05, emissive: 0xff4a9a, emissiveIntensity: 0.25 });
     // projectiles are glowing orbs (fx.orb) in each elite's hostile colour (vfx.js, look.css)
     this.coffeeMat = std(0x3a2214, { roughness: 0.08 });
     this.flat = new THREE.CircleGeometry(1, 36).rotateX(-Math.PI / 2);
@@ -209,6 +287,7 @@ export class Elites {
       mugCircle: new TeleMaterial(hostile('mug')), steam: new TeleMaterial(hostile('kettle'), 'wedge', 0.45),
       aim: [0, 1, 2].map(() => new TeleMaterial(hostile('controller'), 'strip')),
       puddle: new TeleMaterial(hostile('mug')),
+      soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
     };
   }
 
@@ -233,8 +312,8 @@ export class Elites {
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
     this.list = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); }
-    for (const p of this.puddles) this.scene.remove(p.m);
-    this.bullets = []; this.blobs = []; this.puddles = [];
+    for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
+    this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
   }
 
   get alive() { return this.list.filter((e) => !e.dead); }
@@ -242,7 +321,9 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
+      const soap = soapModel();
+      soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
     } else (this._warm || []).forEach((m) => this.scene.remove(m));
   }
@@ -295,6 +376,31 @@ export class Elites {
     this.puddles.push({ m, r, t: life });
   }
 
+  // a slick of soap where a squirt landed: slippery underfoot for `life` s (a glossy pink pool
+  // with a hazard edge)
+  slick(at, r = 0.05, life = 5) {
+    const m = new THREE.Mesh(this.flat, this.soapMat);
+    m.position.copy(at).setY(at.y + 0.0015);
+    m.scale.setScalar(r);
+    const edge = new THREE.Mesh(this.flat, this.T.slick.clone());
+    edge.position.y = 0.0006;
+    edge.renderOrder = 3;
+    edge.material.progress = 0;
+    m.add(edge);
+    this.scene.add(m);
+    this.slicks.push({ m, r, t: life });
+  }
+
+  // a soap bubble drifting outward from `from` along `dir` (unit, flat)
+  bubble(from, dir, speed, life) {
+    const m = new THREE.Mesh(this.bubbleGeo, this.bubbleMat);
+    m.scale.setScalar(0.011);
+    m.position.copy(from);
+    m.renderOrder = 4;
+    this.scene.add(m);
+    this.soapBubbles.push({ m, v: dir.clone().multiplyScalar(speed), t: life, wob: Math.random() * 6, y: from.y });
+  }
+
   // What they do to you goes out as events (damage_taken, knockback, status_applied); a beaten
   // elite sends elite_defeated
   update(dt, player, cfg) {
@@ -335,6 +441,16 @@ export class Elites {
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.base);
       const heading = e.holder.rotation.y, fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
       const surf = e.base.clone().setY(e.base.y + 0.002);
+
+      // the Soap Dispenser, attacking or not: the soap left is its health, bubbles drift up through it
+      if (e.kind === 'soap') {
+        const M = e.model, level = M.liquidH * Math.max(0.06, e.hp / e.maxHp);
+        M.liquid.scale.y += (level - M.liquid.scale.y) * (1 - Math.exp(-6 * dt));
+        for (const b of M.bubs) {
+          b.userData.rise = (b.userData.rise + dt * (e.hp < e.maxHp * 0.5 ? 0.6 : 0.3)) % 1;
+          b.position.y = 0.012 + b.userData.rise * M.liquid.scale.y;
+        }
+      }
 
       // start the next attack
       if (e.state === 'idle') {
@@ -470,7 +586,89 @@ export class Elites {
           if (s > 1.6) { e.popped = false; M.led.material.emissiveIntensity = 2; M.lid.position.y = 0.112; e.state = 'idle'; e.cool = 1.8; }
         }
       }
+
+      // ---------------------------------------------------------- soap dispenser
+      if (e.kind === 'soap') {
+        const M = e.model, angry = e.hp < e.maxHp * 0.5;
+        const press = (k) => { M.head.position.y = M.headY - k * 0.012; M.stem.scale.y = 1 - k * 0.5; M.stem.position.y = M.headY - 0.012 - k * 0.006; };
+        if (e.attack === 0) {
+          // Soap squirt: a pump stroke for each glob, each lobbed where you stand then
+          const n = angry ? 4 : 3, gap = angry ? 0.32 : 0.42;
+          const k = Math.floor(s / gap), ph = (s % gap) / gap;
+          press(k < n ? Math.sin(Math.min(1, ph * 1.6) * Math.PI) : 0);
+          if (k < n && k !== e.squirted) {
+            e.squirted = k;
+            const target = P.clone(); target.y = this.surfaceBelow(P);
+            this.lob(muzzle, target, 0.75, hostile('soap'), this.T.soap, 0.04, (at) => {
+              this.fx.impact(at.clone().setY(at.y + 0.008), hostile('soap'), 0.02, 8);
+              this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
+              sfx.soapSplat();
+              if (Math.hypot(P.x - at.x, P.z - at.z) < 0.04 + cfg.radius && Math.abs(P.y - at.y) < 0.06) hit(2, 'soap');
+              this.slick(at);
+            });
+            this.fx.puff(muzzle, 0xffd0e4, 0.008, 0.3);
+            sfx.soapPump();
+            e.hitPop = 0.5;
+          }
+          if (s > n * gap + 0.25) { press(0); e.squirted = -1; e.state = 'idle'; e.cool = angry ? 1.1 : 1.6; }
+        } else {
+          // Bubble ring: foams up (pumping fast, the ring filling round it), then lets go a ring
+          // of 16 bubbles drifting outward with a gap; angry, a second ring with its gap elsewhere
+          const wind = 1.0;
+          if (s < wind) {
+            if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.17, this.T.soapRing));
+            e.tele[0].userData.fill(s / wind);
+            press(Math.abs(Math.sin(e.t * 26)) * 0.7);
+            g.rotation.z = Math.sin(e.t * 40) * 0.03;
+            if (Math.random() < dt * 25) this.fx.puff(muzzle.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.02, 0, (Math.random() - 0.5) * 0.02)), 0xffe0ee, 0.009, 0.5);   // foam spilling out
+          } else if ((e.rings || 0) < (angry ? 2 : 1) && s > wind + (e.rings || 0) * 0.55) {
+            e.rings = (e.rings || 0) + 1;
+            e.clearTele();
+            press(0);
+            const slots = 18, skip = Math.floor(Math.random() * slots), y = e.base.y + cfg.height * 0.5;
+            for (let k = 0; k < slots; k++) {
+              if (k === skip || k === (skip + 1) % slots) continue;          // the gap: two slots wide
+              const a = (k / slots) * Math.PI * 2 + (e.rings - 1) * 0.6, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+              this.bubble(e.base.clone().addScaledVector(dir, e.r * 1.1).setY(y), dir, 0.26, 2.3);
+            }
+            this.fx.ring(surf, hostile('soap'), 0.17, 0.35);
+            sfx.soapBubbles();
+            e.hitPop = 0.8;
+          }
+          if (s > wind + (angry ? 0.9 : 0.35)) { e.rings = 0; e.clearTele(); e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
+        }
+      }
     }
+
+    // soap bubbles drifting out from the Soap Dispenser: they pop on you, on walls, or when they've gone far enough
+    for (const b of this.soapBubbles) {
+      b.t -= dt;
+      b.m.position.addScaledVector(b.v, dt);
+      b.m.position.y = b.y + Math.sin(b.t * 5 + b.wob) * 0.006;   // bobbing as it drifts
+      b.m.scale.setScalar(0.011 * (1 + Math.sin(b.t * 9 + b.wob) * 0.06));
+      this.fx.glow.hold(b.m.position, hostile('soap'), 0.05, 0.55);
+      if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + 0.011)) b.t = 0;
+      if (b.m.position.distanceTo(pc) < cfg.radius + 0.011) { hit(2, 'soap-bubble'); b.t = 0; b.hitYou = true; }
+      if (b.t <= 0) {
+        this.scene.remove(b.m);
+        this.fx.burst(b.m.position, ['#ffe0ee', '#ff8ac0', '#ffffff'], 4, 0.003, 0.2, b.m.position.y - 0.03);
+        this.fx.ring(b.m.position.clone(), hostile('soap'), 0.014, 0.18);
+        sfx.bubblePop();
+      }
+    }
+    this.soapBubbles = this.soapBubbles.filter((b) => b.t > 0);
+
+    // soap slicks: standing in one, you slip
+    for (const p of this.slicks) {
+      p.t -= dt;
+      p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (5 - p.t) * 8 + 0.2));
+      const edge = p.m.children[0].material;
+      edge.opacity = 0.35 + Math.sin(performance.now() / 200) * 0.1;
+      const d = Math.hypot(P.x - p.m.position.x, P.z - p.m.position.z);
+      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) bus.emit('status_applied', { targetId: PLAYER, status: 'slip', duration: 0.35 });
+      if (p.t <= 0) this.scene.remove(p.m);
+    }
+    this.slicks = this.slicks.filter((p) => p.t > 0);
 
     // button shots
     for (const b of this.bullets) {

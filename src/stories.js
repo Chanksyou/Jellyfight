@@ -1182,10 +1182,11 @@ story('modes/dev-one-on-one', {
     const gone = bugs().length === 0;
     step(90);
     const back = bugs().length === 1 && bugs()[0].type === 'housefly';
-    const elite = pickFrom('The Mug (elite)');
+    const all = ['The Controller', 'The Mug', 'The Kettle', 'The Soap Dispenser'].every((n) => run.duelChoices().some((p) => p.name.startsWith(n + ' (elite')));
+    const elite = pickFrom('The Mug (elite, act 1)');
     step(30);
     const mug = run.elites.alive.length === 1 && run.elites.alive[0].spec.kind === 'mug' && G().player.position.y > 0.6 && bugs().length === 0;
-    return ok(listed && alone && gone && back && elite && mug, { listed, alone, gone, back, elite, mug, y: +G().player.position.y.toFixed(2) });
+    return ok(listed && alone && gone && back && elite && mug && all, { listed, alone, gone, back, elite, mug, all, y: +G().player.position.y.toFixed(2) });
   },
 });
 
@@ -1447,6 +1448,102 @@ for (const v of STAGES[1].vents) {
     },
   });
 }
+
+// the Soap Dispenser on the vanity (elites.js): you land beside it off the vanity vent
+const soapElite = () => G().run.elites.alive.find((e) => e.kind === 'soap');
+const besideSoap = () => tp(1.5, 0.9, 5.47, 0);
+act2('soap-dispenser-stands-in', {
+  about: 'The soap dispenser by the tap comes alive as an elite (the real one hides while it fights), and the pink soap inside drains as it\'s hurt.',
+  setup() { fresh(); besideSoap(); },
+  play() {
+    const e = soapElite();
+    if (!e) return ok(false, { elite: 'missing' });
+    step(10);
+    const full = e.model.liquid.scale.y;
+    G().enemies.applyDamage(e.entry, e.maxHp * 0.6);
+    step(60);
+    const drained = e.model.liquid.scale.y < full * 0.5;
+    return ok(e.hidden && !e.hidden.visible && e.name === 'The Soap Dispenser' && drained, { hidden: !!e.hidden, realShown: e.hidden?.visible, full: +full.toFixed(3), now: +e.model.liquid.scale.y.toFixed(3) });
+  },
+});
+act2('soap-dispenser-squirt', {
+  about: 'Soap squirt: it pumps three times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 2 and leaves a slick that makes you slip.',
+  setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 0; },
+  play() {
+    const { run } = G(), log = record('damage_taken');
+    let circles = 0, slipped = false, slicks = 0;
+    step(60 * 3, () => {
+      circles = Math.max(circles, run.elites.blobs.length);
+      slicks = Math.max(slicks, run.elites.slicks.length);
+      if (run.slipT > 0) slipped = true;
+    });
+    const hits = log.filter((d) => d.source === 'soap');
+    return ok(circles >= 1 && hits.length >= 1 && hits[0].amount === 2 && slicks >= 1 && slipped, { circles, hits: hits.map((d) => d.amount), slicks, slipped });
+  },
+});
+act2('soap-dispenser-bubble-ring', {
+  about: 'Bubble ring: it foams up while a pink ring fills round it, then lets go a ring of soap bubbles drifting outward with one gap to slip through. They all pop before long.',
+  setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 1; },
+  play() {
+    const { run } = G(), e = soapElite(), dirs = [], bub = run.elites.bubble.bind(run.elites);
+    stub(run.elites, 'bubble', (from, dir, ...rest) => { dirs.push(Math.atan2(dir.x, dir.z)); return bub(from, dir, ...rest); });
+    let warned = false;
+    step(60 * 4, () => { if (e.state === 'windup' && e.tele.length) warned = true; });
+    if (!dirs.length) return ok(false, { warned, bubbles: 'none' });
+    const angles = dirs.sort((a, b) => a - b);
+    // the widest gap between neighbouring bubbles (going round) is the way through
+    const gaps = angles.map((a, i) => (i ? a - angles[i - 1] : a + Math.PI * 2 - angles.at(-1)));
+    const widest = Math.max(...gaps) * 180 / Math.PI;
+    return ok(warned && angles.length === 16 && widest > 50 && run.elites.soapBubbles.length === 0, { warned, count: angles.length, widest: Math.round(widest), left: run.elites.soapBubbles.length });
+  },
+});
+act2('soap-dispenser-angry', {
+  about: 'Under half health the Soap Dispenser is angry: four squirts instead of three, and a second bubble ring right after the first.',
+  setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
+  play() {
+    const { run } = G(), e = soapElite();
+    let globs = 0, bubbles = 0;
+    const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
+    stub(run.elites, 'lob', (...a) => { globs++; return lob(...a); });
+    stub(run.elites, 'bubble', (...a) => { bubbles++; return bub(...a); });
+    step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
+    e.cool = 0; e.next = 1;
+    step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
+    return ok(globs === 4 && bubbles === 32, { globs, bubbles });
+  },
+});
+act2('one-on-one-soap-dispenser', {
+  about: 'The 1 on 1 (dev) picker puts you on the vanity beside the Soap Dispenser, alone with it.',
+  setup() { fresh(); },
+  play() {
+    const { run, player } = G();
+    const pick = run.duelChoices().find((p) => p.name === 'The Soap Dispenser (elite, act 2)');
+    if (!pick) return ok(false, { pick: 'missing' });
+    run.startDuel(pick);
+    step(30);
+    const e = soapElite(), d = e ? Math.hypot(player.position.x - e.base.x, player.position.z - e.base.z) : 9;
+    return ok(run.elites.alive.length === 1 && e && d < 0.5 && player.position.y > 0.8, { elites: run.elites.alive.length, near: +d.toFixed(2), y: +player.position.y.toFixed(2) });
+  },
+});
+act2('soap-slick-slides', {
+  about: 'Soap underfoot: let go on a slick and you keep sliding a long way; off it you stop almost at once.',
+  setup() { fresh({ elites: false }); tp(2.75, 0.05, 6.6, 0); },
+  play() {
+    const { run, player } = G();
+    const glide = (soapy) => {
+      tp(2.75, 0.05, 7.2, Math.PI);
+      if (soapy) for (let k = 0; k < 7; k++) run.elites.slick(player.position.clone().setZ(player.position.z + 0.24 + k * 0.08), 0.07, 9);   // ahead, where you let go
+      sim(0.6, ['KeyW']);
+      const p0 = player.position.clone();
+      sim(0.5);
+      const d = player.position.distanceTo(p0);
+      run.elites.clear();
+      return d;
+    };
+    const dry = glide(false), wet = glide(true);
+    return ok(wet > dry * 2.5 && wet > 0.05, { dry: +dry.toFixed(3), wet: +wet.toFixed(3) });
+  },
+});
 
 act2('closets-are-shut', {
   about: 'The closet doors stand ajar to peek in, but a force field keeps you out of both (and out of the living room).',

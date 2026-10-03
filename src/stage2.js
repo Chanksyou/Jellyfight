@@ -77,7 +77,11 @@ export const STAGE2 = {
   gifts: { at: [15, 60, 105, 150, 180, 225], stay: 15 },
 
   // No high-ground elites here yet
-  elites: [],
+  // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
+  // lands you beside it)
+  elites: [
+    { kind: 'soap', at: [1.53, 0.88, 5.18], hide: 'Soap dispenser', area: 'vanity' },
+  ],
 
   // The boss arena: the bathtub. You're carried in when the timer runs out.
   boss: {

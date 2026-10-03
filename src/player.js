@@ -141,7 +141,8 @@ export class Player {
     const walk = c.walkSpeed * (env.speedMul ?? 1) * (1 - (env.slow ?? 0));   // steady: the bell still pulses, the speed doesn't
     wish.multiplyScalar(walk);
 
-    const accel = this.grounded ? c.groundAccel : c.airAccel;
+    // slipping (soap underfoot): almost no grip, so you keep sliding the way you were going
+    const accel = this.grounded ? c.groundAccel * (1 - 0.88 * (env.slip ?? 0)) : c.airAccel;
     const t = 1 - Math.exp(-accel * dt);
     this.velocity.x += (wish.x - this.velocity.x) * t;
     this.velocity.z += (wish.z - this.velocity.z) * t;

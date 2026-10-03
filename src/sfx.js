@@ -278,6 +278,18 @@ export const sfx = {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
   },
+  // the Soap Dispenser: a wet pump squelch, a squirt landing, a burst of bubbles let go, one popping
+  soapPump() {
+    if (!ready()) return;
+    const j = jitter(0.08);
+    noise(700 * j, 1.5, 0.14, 0.18, 'lowpass', 0, 180); tone('sine', 320 * j, 140 * j, 0.12, 0.12);
+  },
+  soapSplat() { if (!ready() || !gap('soapSplat', 60)) return; noise(1400 * jitter(), 1.2, 0.1, 0.16, 'bandpass', 0, 500); tone('sine', 220, 110, 0.08, 0.08); },
+  soapBubbles() {
+    if (!ready()) return;
+    for (let k = 0; k < 9; k++) { const f = 500 + Math.random() * 700; tone('sine', f, f * 1.8, 0.05, 0.05, k * 0.025 + Math.random() * 0.02); }
+  },
+  bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); },
   // a hit glancing off armour: a short metallic tink
   clink() { if (!ready() || !gap('clink', 80)) return; const j = jitter(0.06); tone('triangle', 2600 * j, 2400 * j, 0.08, 0.05); tone('sine', 3900 * j, 3700 * j, 0.05, 0.03); },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
