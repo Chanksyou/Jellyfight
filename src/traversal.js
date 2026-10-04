@@ -1,6 +1,7 @@
 // Getting around a world built for giants: floor vents that launch you onto furniture, and fabric you can climb.
 // Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
 import * as THREE from 'three';
+import { addForceField } from './forcefield.js';
 
 // Apartment objects are named after what they are ("Shower curtain"); three.js's loader
 // swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
@@ -32,8 +33,9 @@ export function prepareApartment(apt, stage) {
   }
 }
 
-export function addStageWalls(world, stage) {
+export function addStageWalls(world, stage, scene) {
   for (const w of stage.walls || []) {
+    if (scene) addForceField(scene, w);   // so you can see it's there (forcefield.js)
     const size = w.max.map((v, i) => v - w.min[i]);
     const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
     m.position.set(...w.min.map((v, i) => v + size[i] / 2));

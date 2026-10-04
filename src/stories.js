@@ -169,6 +169,18 @@ story('traversal/touch-stick-lost-touch', {
     return ok(took && fake.touchMove === null, { move: fake.touchMove });
   },
 });
+story('traversal/force-fields-show', {
+  about: 'Every invisible wall in the act (and the boss arena, once the fight starts) has a glowing force field you can see.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, APT } = G(), fields = [];
+    APT.scene.traverse((o) => { if (o.name === 'Force field') fields.push(o); });
+    const walls = (run.stage.walls || []).filter((w) => w.max[1] - w.min[1] > 0.2).length;
+    const shown = fields.filter((f) => f.visible).length;
+    const boss = run.bossWalls.filter((m) => m.userData.field).length;
+    return ok(shown === walls && walls > 0 && boss === run.bossWalls.length && fields.every((f) => f.userData.noCollide), { walls, shown, fields: fields.length, boss });
+  },
+});
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
   about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:30, 3:00 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',
@@ -1730,9 +1742,9 @@ act2('clock-beaten-hangs-again', {
   },
 });
 
-// the Cream Whipper by the front door (elites.js, whipper-model.js)
+// the Cream Whipper in the hall's far corner by the front door (elites.js, whipper-model.js)
 const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
-const byDoor = () => tp(3.0, 0.02, 7.85, 0);
+const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts you (stage2.js stand)
 act2('whipper-balloon-bursts-on-time', {
   about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its burst circle filling on the floor, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
@@ -1782,7 +1794,7 @@ act2('whipper-burst-misses-outside', {
 });
 act2('whipper-cream-spray', {
   about: 'Cream spray: the whipper tips toward you while a cone fills on the floor, then sprays whipped cream along it: 2, and it slows you.',
-  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.2, 0.02, 7.92, 0); const e = whipper(); e.cool = 0; e.next = 1; },
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = whipper(), log = record('damage_taken');
     let warned = false, slowed = false;

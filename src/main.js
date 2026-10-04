@@ -10,8 +10,9 @@ import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { currentStage, currentAct, carried, goToAct, pendingAction } from './stages.js';
+import { currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
+import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Boss } from './boss.js';
@@ -28,7 +29,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v95';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v96';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -83,22 +84,27 @@ ui.innerHTML = `
   }
   @media (orientation: portrait) { body.touch #g-over .rotate { display: block; } }
   #g-over .rotate { display: none; margin-top: 8px; color: #ffd23a; font-size: 13px; }
+  /* straight on from the act before: no menu, just the act's name while it loads */
+  #g-over .cont-note { display: none; margin: 0; opacity: .85; }
+  #g-over.cont .cont-note { display: block; }
+  #g-over.cont .tag, #g-over.cont .row, #g-over.cont .keys { display: none !important; }
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
   <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}<span id="g-fps"></span></small></p>
+  <p class="cont-note"></p>
   <button class="play">Play</button>
   <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="duel">🐞 1 on 1 (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump (hold it to climb fabric; Pen Spring adds jumps in the air)<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 4:20 the boss comes. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 5 minutes the boss comes. Floor vents fling you up onto furniture.<br>
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 4:20 the boss comes. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -129,7 +135,7 @@ scene.background = new THREE.Color(LOOK.color('night-sky', '#05060c'));
 scene.fog = new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
 prepareApartment(APT, stage);
 const world = new World(scene);
-addStageWalls(world, stage);
+addStageWalls(world, stage, scene);
 if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 addSurfaceDetail(world.colliders, {
@@ -316,6 +322,7 @@ const GAME = {
     systems.layout.update(dt);
     systems.touch.update(dt);
     systems.gameplay.update(dt);
+    updateForceFields(player.position);
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
@@ -335,7 +342,7 @@ renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.classList.contains('play')) play();
+  if (b.classList.contains('play')) { play(); endContinue(); }
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
@@ -433,11 +440,33 @@ async function warmUp() {
 }
 
 overlay.hidden = false;
+// On from the act before (run.actComplete): no main menu, just the act's name while it loads,
+// then straight into it. Phones start on their own; desktop needs one click to lock the mouse.
+const continuing = !!peekAction()?.continue && !!carried();
+const titleEl = overlay.querySelector('h1');
+if (continuing) {
+  overlay.classList.add('cont');
+  titleEl.textContent = `Act ${stage.id}`;
+  overlay.querySelector('.cont-note').textContent = stage.subtitle;
+}
+function endContinue() {
+  if (!overlay.classList.contains('cont')) return;
+  overlay.classList.remove('cont');
+  titleEl.textContent = 'Jelly Fight';
+}
 // Stories (stories.js): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 warmUp().then(() => {
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
   const then = pendingAction();
+  if (then?.continue && continuing) {
+    if (IS_TOUCH) {
+      play();
+      endContinue();
+      // the reload lost the tap that allowed sound: the next touch turns it back on
+      addEventListener('pointerdown', () => unlockAudio(), { once: true, capture: true });
+    } else playBtn.textContent = 'Click to dive in';
+  }
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
   if (!storyParams.has('story') && !storyParams.has('stories')) return;
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));

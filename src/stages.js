@@ -30,6 +30,8 @@ export function goToAct(act, carry = null, then = null) {
   save({ act, carry, then });
   location.reload();
 }
+// the same, without using it up (main.js shows a different loading screen for { continue: true })
+export const peekAction = () => load()?.then || null;
 export function pendingAction() {
   const v = load();
   if (!v?.then) return null;

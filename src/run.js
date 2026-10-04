@@ -1,6 +1,7 @@
 // One run of stage 1: grow until the timer runs out (grabbing golden gifts and beating elites for
 // treasures), then beat the stage's boss and evolve.
 import * as THREE from 'three';
+import { addForceField } from './forcefield.js';
 import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
@@ -49,6 +50,9 @@ export class Run {
       m.visible = false;
       m.updateMatrixWorld();
       ctx.world.addCollider(m);
+      // and what you see of it: up only while the fight is (forcefield.js)
+      const field = addForceField(ctx.scene, w);
+      if (field) { field.visible = false; m.userData.field = field; }
       return m;
     });
     this.rooms = ctx.plan;
@@ -114,7 +118,7 @@ export class Run {
     this.boss?.dispose();
     this.boss = null;
     this.traversal.bossMode = false;
-    this.bossWalls.forEach((m) => { m.visible = false; });
+    this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) m.userData.field.visible = false; });
     this.hud.setBoss(null);
     this.ui.close();
     this.fade.style.opacity = 0;
@@ -651,7 +655,7 @@ export class Run {
       this.traversal.bossMode = true;
       this.elites.clear();
       this.gift.hide();
-      this.bossWalls.forEach((m) => { m.visible = true; });
+      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) m.userData.field.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);
@@ -758,7 +762,7 @@ export class Run {
     this.board?.submit({ score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: false, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' });
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry) }]);
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry, { continue: true }) }]);   // straight into it, no main menu
   }
 
   // The leaderboard as a dialog; back() returns to where it was opened from
