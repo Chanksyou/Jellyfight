@@ -748,7 +748,8 @@ export class Run {
     const entry = { score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const show = (result) => {
       this.endView = 'summary';
-      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${result?.best ? ' <small>new best!</small>' : ''}`], ...this.summary()];
+      const posted = result?.posted ? ' <small>· on the leaderboard</small>' : result?.why === 'readonly' ? ' <small>· view-only here, not posted</small>' : '';
+      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${result?.best ? ' <small>new best!</small>' : ''}${posted}`], ...this.summary()];
       // a run always starts over from act 1
       const buttons = [{ label: again, go: true, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } }];
       if (this.board) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });

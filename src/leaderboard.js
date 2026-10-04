@@ -97,8 +97,8 @@ export class Leaderboard {
   note() {
     if (this.status === 'offline') return 'The shared leaderboard lives on the game\'s claude.ai page (signed in). Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (this.status === 'loading') return 'Loading the leaderboard…';
+    if (!this.id || this.canWrite === false) return 'You can see the board, but this game\'s page is view-only for you, so your scores stay in this browser. Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (!this.shown().length) return 'No scores yet. Be the first!';
-    if (!this.id || this.canWrite === false) return 'You can see the board; posting scores needs edit access to the game\'s page. Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     return this.mine ? `Your best: ${this.mine.score.toLocaleString()}${this.rank() ? ` (#${this.rank()})` : ''}` : 'Finish a run to get on the board.';
   }
 }

@@ -1406,7 +1406,7 @@ story('engine/music-renders-and-builds', {
 });
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
-function fakeClaude({ id = 'u_me', canWrite = true, silent = false } = {}) {
+function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
   const docs = new Map(), subs = new Set();
   const snap = (p) => ({ id: p.split('/').pop(), exists: docs.has(p), data: () => docs.get(p) });
   const notify = () => subs.forEach((f) => f());
@@ -1435,7 +1435,7 @@ function fakeClaude({ id = 'u_me', canWrite = true, silent = false } = {}) {
       },
     }),
   };
-  const user = { id: async () => id, can: async () => canWrite };
+  const user = { id: async () => id, can: async () => (told ? canWrite : null) };
   return { use: async (name) => ({ db, user })[name] || null, docs };
 }
 
@@ -1463,6 +1463,17 @@ story('engine/leaderboard', {
     const R = new Leaderboard();
     await R.ready;
     const ro = await R.submit({ score: 9999, name: 'Viewer' });
+    // a brand-new player the platform tells nothing about (can() is null): tries, and posts
+    window.claude = fakeClaude({ id: 'u_new', told: false });
+    const N = new Leaderboard();
+    await N.ready;
+    const fresh = await N.submit({ score: 120, name: 'Newbie' });
+    // the same, but the rules refuse: read-only from then on
+    window.claude = fakeClaude({ id: 'u_new2', told: false, canWrite: false });
+    const M = new Leaderboard();
+    await M.ready;
+    const refused = await M.submit({ score: 120, name: 'Newbie' });
+    const refusedNote = /view-only/.test(M.note());
     // off claude.ai
     delete window.claude;
     const O = new Leaderboard();
@@ -1491,9 +1502,9 @@ story('engine/leaderboard', {
     menus.close();
     delete window.claude;
     run.board = realBoard;
-    return ok(home && listed && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
+    return ok(home && listed && fresh.posted && !refused.posted && refused.why === 'readonly' && refusedNote && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
       && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && run.score() >= 12 * 10 + 200,
-      { home, listed, first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
+      { home, listed, fresh, refused, refusedNote, first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
   },
 });
 
