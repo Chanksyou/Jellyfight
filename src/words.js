@@ -359,6 +359,7 @@ export function newMods() {
   return {
     bubbles: { pierce: 1, split: false, golden: null, giant: null },
     elements: new Set(),
+    elementLevel: {},                // element -> its level, 1-3 (one per copy of its treasure)
     hits: { bubbles: { mark: 0, crit: null }, tentacles: { mark: 0, crit: null } },
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
     landingShockwave: null, extraJumps: 0,
@@ -416,9 +417,9 @@ export const TREASURE_WORDS = {
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
-    doc: 'Infuses your bubbles with an element: fire, lightning, ice, acid, wind or glitter (see bubbles.js). Elements stack.',
+    doc: 'Infuses your bubbles with an element: fire, lightning, ice, acid, wind or glitter (see bubbles.js). Elements stack, and each copy of the same one is a level (up to 3) that makes it stronger.',
     args: ['name'],
-    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); }; },
+    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.elementLevel[name] = Math.min(3, (m.elementLevel[name] || 0) + 1); }; },
   },
   'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },

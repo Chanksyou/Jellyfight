@@ -10,41 +10,63 @@
 //                  tests/clear.mjs (x faster at clearing 10 clumped cockroaches: legendary 3.5x+,
 //                  epic 2x+, rare 1.4x+); rate the rest by how unique the effect is.
 //   stack=N        you can own up to N copies and their effects add up (default 1: unique).
-//                  Keep stacking for plain number boosts; anything with its own trick stays unique.
+//                  Keep stacking for plain number boosts.
+//   level 2 text="…" { words }, level 3 …   a treasure with its own trick can level up instead:
+//                  take it again for its next level (only ever the one after the level you have),
+//                  each level being its whole word list. The pick card shows its text.
 //
 // A new treasure that combines existing words needs no code: add it here and a story.
 
 // --- your bubbles (bubbles.js)
 treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true text="Bubbles pierce, popping on up to 3 enemies in a line." {
     pierce 3
+    level 2 text="Level 2: pierce up to 4 enemies." {
+        pierce 4
+    }
+    level 3 text="Level 3: pierce up to 5 enemies." {
+        pierce 5
+    }
 }
 treasure "hairTie" name="Hair Tie" icon="➰" rarity="rare" attack=#true text="Each bubble that pops blows a smaller one at another enemy nearby." {
     split-bubble
 }
 treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10th bubble is golden and does 5x damage." {
     golden-bubble every=10 mult=5
+    level 2 text="Level 2: every 8th bubble is golden." {
+        golden-bubble every=8 mult=5
+    }
+    level 3 text="Level 3: every 7th bubble is golden, for 6x damage." {
+        golden-bubble every=7 mult=6
+    }
 }
 treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
     giant-bubble every=6 size=2.5 dmg=4 speed=0.6
+    level 2 text="Level 2: a giant one every 5th bubble." {
+        giant-bubble every=5 size=2.5 dmg=4 speed=0.6
+    }
+    level 3 text="Level 3: a bigger giant every 4th bubble, 5x damage." {
+        giant-bubble every=4 size=2.8 dmg=5 speed=0.6
+    }
 }
 
-// --- elements for your bubbles (bubbles.js); they stack
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage." {
+// --- elements for your bubbles (bubbles.js); they stack, and each has three levels (stack=3):
+// take the same one again and it gets stronger (bubbles.js LEVEL)
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true stack=3 text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage. Levels 2-3: burns 1.5x / 2x as hard, for 4 / 5 s." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true stack=3 text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each. Levels 2-3: arcs to 4 / 5, harder, longer stuns." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true text="Ice bubbles: hits chill and slow; the 2nd chilled hit freezes the enemy solid." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true stack=3 text="Ice bubbles: hits chill and slow; the 2nd chilled hit freezes the enemy solid. Levels 2-3: longer chills, +15% / +30% hit damage." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true text="Acid bubbles: pops leave a puddle that eats at anything standing in it." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true stack=3 text="Acid bubbles: pops leave a puddle that eats at anything standing in it. Levels 2-3: bigger, longer puddles that eat 1.5x / 2x as fast." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="common" attack=#true text="Wind bubbles: whatever they hit gets blown backward." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="common" attack=#true stack=3 text="Wind bubbles: whatever they hit gets blown backward. Levels 2-3: blown harder, and bubbles pierce one more enemy each level." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true text="Glitter bubbles: the splash is twice as wide and hits harder." {
+treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true stack=3 text="Glitter bubbles: the splash is twice as wide and hits harder. Levels 2-3: wider still, 1.4x / 1.8x as hard." {
     element "glitter"
 }
 
@@ -54,24 +76,60 @@ treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
     mark-on-hit 3 by="all"
+    level 2 text="Level 2: marks last 4.5 s." {
+        mark-on-hit 4.5 by="all"
+    }
+    level 3 text="Level 3: marks last 6 s." {
+        mark-on-hit 6 by="all"
+    }
 }
 treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="Get an additional jump in mid-air (take up to 3 for a quadruple jump)." stack=3 {
     extra-jumps 1
 }
 treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
     landing-shockwave 0.08 dmg=2 drop=0.04
+    level 2 text="Level 2: a wider shockwave that stings harder." {
+        landing-shockwave 0.1 dmg=2.6 drop=0.04
+    }
+    level 3 text="Level 3: wider still, and 3.2x damage." {
+        landing-shockwave 0.12 dmg=3.2 drop=0.04
+    }
 }
 treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When you get hit, a squeak knocks nearby enemies back. (5 s)" {
     squeak-when-hit radius=0.09 push=0.06 dmg=3 cooldown=5
+    level 2 text="Level 2: a louder squeak, every 4 s." {
+        squeak-when-hit radius=0.11 push=0.07 dmg=4 cooldown=4
+    }
+    level 3 text="Level 3: louder still, every 3 s." {
+        squeak-when-hit radius=0.13 push=0.08 dmg=5 cooldown=3
+    }
 }
 treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for a second and you start spouting, refilling moisture." {
     spout after=1 heal=0.5
+    level 2 text="Level 2: spouts sooner and refills faster." {
+        spout after=0.8 heal=0.75
+    }
+    level 3 text="Level 3: spouts after half a second, refilling twice as fast." {
+        spout after=0.5 heal=1
+    }
 }
 treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of moisture." {
     heal-on-kill 0.5
+    level 2 text="Level 2: a bigger sip (0.75)." {
+        heal-on-kill 0.75
+    }
+    level 3 text="Level 3: a full sip (1)." {
+        heal-on-kill 1
+    }
 }
 treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Enemies you finish off burst and hurt their neighbors." {
     burst-on-kill 0.045 dmg=0.5
+    level 2 text="Level 2: wider, harder bursts." {
+        burst-on-kill 0.055 dmg=0.65
+    }
+    level 3 text="Level 3: wider and harder still." {
+        burst-on-kill 0.065 dmg=0.8
+    }
 }
 
 // --- things that attack on their own (gadgets.js)
@@ -79,40 +137,118 @@ treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true 
     every 5 {
         ring 0.13 dmg=1.2 push=0.035 color="#c08aff" show=0.45
     }
+    level 2 text="Level 2: a chord every 4.5 s, wider and harder." {
+        every 4.5 {
+            ring 0.145 dmg=1.5 push=0.04 color="#c08aff" show=0.45
+        }
+    }
+    level 3 text="Level 3: a chord every 4 s, wider and harder still." {
+        every 4 {
+            ring 0.16 dmg=1.8 push=0.045 color="#c08aff" show=0.45
+        }
+    }
 }
 treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s you fizz, stinging everything close around you." {
     every 6 first=6 {
         ring 0.09 dmg=1.5 color="#ff9ad8" look="puff" elites=#false
+    }
+    level 2 text="Level 2: fizz every 5 s, harder." {
+        every 5 first=5 {
+            ring 0.1 dmg=1.9 color="#ff9ad8" look="puff" elites=#false
+        }
+    }
+    level 3 text="Level 3: fizz every 4 s, harder still." {
+        every 4 first=4 {
+            ring 0.11 dmg=2.3 color="#ff9ad8" look="puff" elites=#false
+        }
     }
 }
 treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 8 s a cold snap freezes everything close for 2 s. Frozen things can't hurt you." {
     every 8 {
         ring 0.16 dmg=0.5 freeze=2 color="#bff4ff" show=0.6
     }
+    level 2 text="Level 2: a cold snap every 7 s, freezing for 2.5 s." {
+        every 7 {
+            ring 0.17 dmg=0.6 freeze=2.5 color="#bff4ff" show=0.6
+        }
+    }
+    level 3 text="Level 3: a cold snap every 6 s, freezing for 3 s." {
+        every 6 {
+            ring 0.18 dmg=0.7 freeze=3 color="#bff4ff" show=0.6
+        }
+    }
 }
 treasure "remote" name="TV Remote" icon="📺" rarity="rare" attack=#true text="Every 7 s, zap the 3 nearest enemies for double damage." {
     every 7 {
         zap 3 range=0.45 dmg=2
+    }
+    level 2 text="Level 2: zap the 4 nearest every 6 s." {
+        every 6 {
+            zap 4 range=0.45 dmg=2
+        }
+    }
+    level 3 text="Level 3: zap the 5 nearest every 5 s, for 2.5x damage." {
+        every 5 {
+            zap 5 range=0.5 dmg=2.5
+        }
     }
 }
 treasure "legoBrick" name="Lego Brick" icon="🧱" rarity="common" attack=#true text="Drop a brick every 4 s. Anything that steps on it takes a huge hit." {
     every 4 {
         brick dmg=4 last=14 most=5
     }
+    level 2 text="Level 2: a brick every 3.5 s, harder, up to 6 down." {
+        every 3.5 {
+            brick dmg=5 last=14 most=6
+        }
+    }
+    level 3 text="Level 3: a brick every 3 s, harder still, up to 7 down." {
+        every 3 {
+            brick dmg=6 last=14 most=7
+        }
+    }
 }
 treasure "marble" name="Marble" icon="🔮" rarity="common" attack=#true text="Every 5 s a marble rolls out ahead of you, bouncing off walls and bowling through enemies." {
     every 5 {
         marble dmg=2 speed=0.825 life=1.47
     }
+    level 2 text="Level 2: a marble every 4 s, hitting harder." {
+        every 4 {
+            marble dmg=2.5 speed=0.825 life=1.47
+        }
+    }
+    level 3 text="Level 3: a marble every 3 s, hitting harder still." {
+        every 3 {
+            marble dmg=3 speed=0.825 life=1.47
+        }
+    }
 }
 treasure "fairyLights" name="Fairy Lights" icon="💡" rarity="epic" attack=#true text="Three little bulbs circle you and sting whatever they touch." {
     orbit-lights 3 radius=0.07 dmg=0.6
+    level 2 text="Level 2: four bulbs." {
+        orbit-lights 4 radius=0.075 dmg=0.6
+    }
+    level 3 text="Level 3: five bulbs that sting harder." {
+        orbit-lights 5 radius=0.08 dmg=0.75
+    }
 }
 treasure "magnifier" name="Magnifying Glass" icon="🔍" rarity="epic" attack=#true text="Focused moonlight burns the nearest enemy, nonstop." {
     beam range=0.35 dmg=0.3 tick=0.25
+    level 2 text="Level 2: burns 40% hotter." {
+        beam range=0.37 dmg=0.42 tick=0.25
+    }
+    level 3 text="Level 3: burns 80% hotter, reaching farther." {
+        beam range=0.4 dmg=0.54 tick=0.25
+    }
 }
 treasure "glowStick" name="Glow Stick" icon="🟢" rarity="legendary" attack=#true text="A soft glow around you stings anything inside it." {
     aura 0.08 dmg=0.4 tick=0.5
+    level 2 text="Level 2: a wider glow that stings harder." {
+        aura 0.095 dmg=0.5 tick=0.5
+    }
+    level 3 text="Level 3: wider and harder still." {
+        aura 0.11 dmg=0.6 tick=0.5
+    }
 }
 
 // --- things that bend the rules
@@ -147,6 +283,12 @@ treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true 
 }
 treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="Dew flies to you from three times as far." {
     dew-reach 3
+    level 2 text="Level 2: dew flies from four times as far." {
+        dew-reach 4
+    }
+    level 3 text="Level 3: five times as far." {
+        dew-reach 5
+    }
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
@@ -176,6 +318,16 @@ treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#tr
 treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 12 s it drips 2 dew at your feet." {
     every 12 {
         dew 2
+    }
+    level 2 text="Level 2: drips every 10 s." {
+        every 10 {
+            dew 2
+        }
+    }
+    level 3 text="Level 3: drips 3 dew every 8 s." {
+        every 8 {
+            dew 3
+        }
     }
 }
 treasure "notebook" name="Notebook" icon="📓" rarity="epic" text="Level-ups offer 4 cards instead of 3." {

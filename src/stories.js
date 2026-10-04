@@ -183,7 +183,7 @@ story('traversal/force-fields-show', {
 });
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
-  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:30, 3:00 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',
+  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',
   setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), seen = [], spots = new Set();
@@ -195,8 +195,8 @@ story('gifts/appear-on-schedule', {
       if (run.gift.active && !wasActive.v) { seen.push(Math.round(run.t)); spots.add(run.gift.spot.label); }
       wasActive.v = run.gift.active;
     }
-    const want = [15, 60, 105, 150, 180, 225];
-    return ok(seen.length === 6 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 5 && spots.size >= 4, { seen, gone, spots: [...spots] });
+    const want = [15, 60, 105, 165, 225];
+    return ok(seen.length === 5 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 4 && spots.size >= 4, { seen, gone, spots: [...spots] });
   },
 });
 story('gifts/touch-for-a-treasure', {
@@ -406,7 +406,7 @@ story('progression/dodge', {
   },
 });
 story('progression/level-curve', {
-  about: 'Each level needs 1.5x the dew of the last, starting at 3: three cockroaches (1 dew each) is level 2.',
+  about: 'Each level needs 1.45x the dew of the last, starting at 3: three cockroaches (1 dew each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
@@ -418,7 +418,7 @@ story('progression/level-curve', {
       tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the dew
       step(120);
     }
-    const ok1 = curve.join() === '3,5,7,10,15,23' && killed === 3 && run.level === 2 && xpToNext(run.level) === 5;
+    const ok1 = curve.join() === '3,4,6,9,13,19' && killed === 3 && run.level === 2 && xpToNext(run.level) === 4;
     return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });
@@ -866,6 +866,49 @@ story('treasures/element', {
     return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
   },
 });
+story('treasures/element-levels', {
+  about: 'Element treasures have three levels: taking the Candle again burns harder and longer (level 3: twice as hard, 5 s), it stops being offered at level 3, and an element you own comes up as its next level about 1.5x as often.',
+  setup() { setupFight({ lash: false }); give('candle'); roachAt(0, -0.15); },
+  play() {
+    const { run, enemies } = G(), B = run.bubbles, e = enemies.list[0];
+    const burnAt = (L) => { B.burning.clear(); B.ignite(e, 10, L); const f = B.burning.get(e); return [f.t, +(f.dps / 10).toFixed(3)]; };
+    const lv1 = burnAt(1), lv3 = burnAt(3);
+    run.owned.add('candle'); run.owned.add('candle');
+    step(2);
+    const level = run.mods.elementLevel.fire;
+    const maxed = run.owned.count('candle') >= CONTENT.treasures.find((t) => t.id === 'candle').stack;
+    // the favored roll: how often the Paper Fan is in a 3-card pick, as usual and favored 1.5x
+    const pool = CONTENT.treasures.filter((t) => t.id !== 'candle');
+    const fan = pool.find((t) => t.id === 'paperFan');
+    let plain = 0, favored = 0;
+    for (let i = 0; i < 4000; i++) {
+      if (rollTreasures(pool, 3).includes(fan)) plain++;
+      if (rollTreasures(pool, 3, 0, (t) => (t === fan ? 1.5 : 1)).includes(fan)) favored++;
+    }
+    const ratio = +(favored / plain).toFixed(2);
+    return ok(lv1.join() === '3,0.17' && lv3.join() === '5,0.34' && level === 3 && maxed && ratio > 1.25 && ratio < 1.8, { lv1, lv3, level, maxed, ratio });
+  },
+});
+story('treasures/levels', {
+  about: 'Treasures with level blocks (Fairy Lights) level up when taken again: 3 bulbs, then 4, then 5; the pick offers only the next level ("Lv 2" with what it adds), and nothing past level 3.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G(), TREASURES_ALL = () => CONTENT.treasures;
+    const bulbs = [], cards = [];
+    // what the pick card would say: the only treasure left to offer is the Fairy Lights
+    stub(run.ui, 'choose', (title, sub, list) => { cards.push(list.map((t) => `${t.name} | ${t.text}`).join()); });
+    const all = TREASURES_ALL();
+    for (let k = 0; k < 3; k++) {
+      all.forEach((t) => { if (t.id !== 'fairyLights') while (run.owned.count(t.id) < t.stack) run.owned.add(t.id); });
+      run.pickTreasure();
+      run.owned.add('fairyLights'); step(2); bulbs.push(run.mods.orbit?.count);
+    }
+    const before = cards.length; run.pickTreasure();
+    const offeredPast3 = cards.length > before && cards[cards.length - 1].includes('Fairy');
+    const lv2 = /Lv 2/.test(cards[1]) && /four bulbs/.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /five bulbs/.test(cards[2]);
+    return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });
+  },
+});
 story('treasures/mark-on-hit', {
   about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
   setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
@@ -949,8 +992,8 @@ story('treasures/card-rarity', {
   },
 });
 story('treasures/stacking', {
-  about: 'stack=N: a stackable treasure (Lemon Slice, stack=3) adds up per copy and stops being offered at 3; a unique one is never offered twice.',
-  setup() { setupFight(); give('lemon', 'lemon', 'bobbyPin'); },
+  about: 'stack=N: a stackable treasure (Lemon Slice, stack=3) adds up per copy and stops being offered at 3; a unique one (Hair Tie) is never offered twice.',
+  setup() { setupFight(); give('lemon', 'lemon', 'hairTie'); },
   play() {
     const { run } = G(), b = run.stats.pop;
     const two = run.S.pop;
@@ -962,7 +1005,7 @@ story('treasures/stacking', {
     give('lemon');
     seen.clear();
     for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
-    return ok(two === b + 4 && run.S.pop === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('bobbyPin'), { two, three: run.S.pop, lemonOffered, afterFull: seen.has('lemon'), pin: seen.has('bobbyPin') });
+    return ok(two === b + 4 && run.S.pop === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie'), { two, three: run.S.pop, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie') });
   },
 });
 story('treasures/stat', {

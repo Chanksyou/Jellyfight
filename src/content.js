@@ -59,6 +59,7 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 }
 
 // treasure "id" name="…" icon="…" text="…" rarity="…" attack=#true stack=N { effect words… }
+//   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
 const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
@@ -72,11 +73,23 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     for (const k of ['name', 'icon', 'text']) if (typeof n.props[k] !== 'string') throw new Error(`${where}: "${id}" needs ${k}="…"`);
     if (n.props.stack !== undefined && !(Number.isInteger(n.props.stack) && n.props.stack >= 1)) throw new Error(`${where}: "${id}" stack= must be a whole number, 1 or more`);
     if (n.props.rarity !== undefined && !TIERS.includes(n.props.rarity)) throw new Error(`${where}: "${id}" rarity= must be one of ${TIERS.join(', ')}, not "${n.props.rarity}"`);
-    if (!n.children.length) throw new Error(`${where}: "${id}" does nothing (give it effect words)`);
+    // `level 2 text="…" { words }`, `level 3 …`: the treasure levels up when you take it again,
+    // and each level is its whole word list (replacing the one before)
+    const base = n.children.filter((w) => w.name !== 'level'), lv = n.children.filter((w) => w.name === 'level');
+    if (!base.length) throw new Error(`${where}: "${id}" does nothing (give it effect words)`);
+    lv.forEach((L, i) => {
+      const at = `${file}:${L.line}`;
+      if (L.args[0] !== i + 2) throw new Error(`${at}: "${id}" levels go in order: expected level ${i + 2}, got level ${L.args[0]}`);
+      if (typeof L.props.text !== 'string') throw new Error(`${at}: "${id}" level ${i + 2} needs text="…" (what it adds, for the pick card)`);
+      if (!L.children.length) throw new Error(`${at}: "${id}" level ${i + 2} does nothing (give it effect words)`);
+    });
+    if (lv.length && n.props.stack !== undefined) throw new Error(`${where}: "${id}" has levels, so it doesn't take stack= (its levels are its copies)`);
+    const words = (list) => list.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`));
+    const levels = [words(base), ...lv.map((L) => words(L.children))];
     out.push({
-      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: n.props.stack ?? 1, rarity: n.props.rarity ?? 'common',
-      effects: n.children.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`)),
-      vocabulary: n.children.map((w) => w.name),
+      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : n.props.stack ?? 1, rarity: n.props.rarity ?? 'common',
+      effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
+      vocabulary: [...base, ...lv.flatMap((L) => L.children)].map((w) => w.name),
     });
   }
   return out;
@@ -86,8 +99,10 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
 export function compileMods(ids) {
   const m = newMods();
   for (const t of CONTENT.treasures) {
-    const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;   // stackable treasures apply once per copy
-    for (let copy = 0; copy < n; copy++) for (const fx of t.effects) fx(m, copy);
+    const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;
+    if (!n) continue;
+    if (t.levels.length > 1) { for (const fx of t.levels[Math.min(n, t.levels.length) - 1]) fx(m, 0); continue; }   // a levelled treasure: its level's words, once
+    for (let copy = 0; copy < n; copy++) for (const fx of t.effects) fx(m, copy);   // stackable treasures apply once per copy
   }
   return m;
 }

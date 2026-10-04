@@ -14,6 +14,9 @@
 //                            (they take 50% more damage while in it).
 //   wind (Paper Fan)         faster bubbles that pierce once more and blast what they hit away.
 //   glitter (Glitter)        a sparkling burst: splash over twice as wide and much harder.
+// Each element treasure has three levels (take it again to level it up; bubbles.js LEVEL says
+// what each level scales): level 1 is as above, levels 2 and 3 burn, chain, chill, eat, blast
+// and splash harder, longer or wider.
 // Each element bubble flies as its own projectile (bubble-looks.js): a fireball, ball lightning,
 // an ice shard, an acid glob, a wind gust, a glitter bomb. Plain bubbles stay bubbles.
 // Element damage scales with "power" (pop damage x 4.5), so it stays strong with fast, light bubbles;
@@ -50,6 +53,17 @@ export const ELEMENT = {
   puddle: 0.012,    // acid: each tick of the puddle (every 0.5 s, halved)
   glitter: 0.08,    // glitter: the wide splash
 };
+
+// what each element's level (1-3, mods.elementLevel) scales; index 0 is level 1
+export const LEVEL = {
+  fire: { dps: [1, 1.5, 2], time: [3, 4, 5] },                          // burn damage, seconds burning
+  lightning: { chain: [3, 4, 5], dmg: [1, 1.3, 1.6], stun: [0.5, 0.7, 0.9] },
+  ice: { time: [2, 2.5, 3], dmg: [1, 1.15, 1.3] },                       // chill and slow seconds, hit damage
+  acid: { dmg: [1, 1.5, 2], size: [1, 1.2, 1.4], time: [3.5, 4.5, 5.5] },
+  wind: { push: [1, 1.4, 1.8], pierce: [1, 2, 3], speed: [1.4, 1.5, 1.6] },
+  glitter: { width: [2.2, 2.6, 3], dmg: [1, 1.4, 1.8] },
+};
+const lv = (b, id, key) => LEVEL[id][key][Math.min(3, Math.max(1, b.lv?.[id] || 1)) - 1];
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -160,11 +174,11 @@ export class Bubbles {
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
     for (let k = 0; k < count; k++) {
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, tint, pierce: B.pierce, spread, off });
+      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, lv: mods.elementLevel, tint, pierce: B.pierce, spread, off });
     }
     // Reed Stick: every 6th bubble is a giant, slow one
     const G = B.giant;
-    if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.pop * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
+    if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.pop * G.dmg, golden, elems, lv: mods.elementLevel, tint, pierce: 1, speed: G.speed, big: true });
     this.onBlow?.();
     return true;
   }
@@ -177,14 +191,14 @@ export class Bubbles {
     const b = {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.dmg * 4.5, golden: o.golden,
       pierce: o.pierce, hit: new Set(), travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
-      elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
+      elems: new Set(o.elems || []), lv: o.lv || null, tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     };
     const wind = b.elems.has('wind');
-    b.speed = SPEED * (o.speed || 1) * (wind ? 1.4 : 1);
+    b.speed = SPEED * (o.speed || 1) * (wind ? lv(b, 'wind', 'speed') : 1);
     b.vel = dir.multiplyScalar(b.speed);
     b.homing = true;
-    if (wind) b.pierce += 1;
+    if (wind) b.pierce += lv(b, 'wind', 'pierce');
     m.scale.setScalar(0.001);
     this.list.push(b);
     return b;
@@ -250,15 +264,17 @@ export class Bubbles {
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
       if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
-      this.ignite(e, b.pw);
+      this.ignite(e, b.pw, b.lv?.fire || 1);
     }
     if (el.has('ice') && !e.proxy) {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
-      bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: 2 });
-      bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: 2 });   // the 2nd chill freezes
+      const t = lv(b, 'ice', 'time');
+      dmg *= lv(b, 'ice', 'dmg');
+      bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: t });
+      bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });   // the 2nd chill freezes
     }
     if (el.has('wind') && !e.proxy) {
-      bus.emit('knockback', { targetId: e.id, dir, force: 0.07 });
+      bus.emit('knockback', { targetId: e.id, dir, force: 0.07 * lv(b, 'wind', 'push') });
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
@@ -274,7 +290,7 @@ export class Bubbles {
       if (e.dead) {
         // burning things that die set their neighbors alight
         this.burning.delete(e);
-        if (!e.proxy) for (const n of this.inRange(E.center(e, c), 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.dps / ELEMENT.burn); }
+        if (!e.proxy) for (const n of this.inRange(E.center(e, c), 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.pw, f.L); }
         continue;
       }
       f.t -= dt;
@@ -292,7 +308,7 @@ export class Bubbles {
     this.zaps = this.zaps.filter((z) => z.t > 0);
     for (const p of this.puddles) {
       p.t -= dt;
-      p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (3 - p.t) * 6 + 0.3));
+      p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (p.life - 0.5 - p.t) * 6 + 0.3));
       p.tick -= dt;
       if (Math.random() < dt * 12) {       // it bubbles
         const a = Math.random() * 6.3, rr = Math.random() * p.r * 0.8;
@@ -314,9 +330,10 @@ export class Bubbles {
     this.puddles = this.puddles.filter((p) => p.t > 0);
   }
 
-  ignite(e, pw) {
-    const had = this.burning.get(e);
-    this.burning.set(e, { t: 3, dps: pw * ELEMENT.burn, tick: had?.tick ?? 0.25, flame: 0 });
+  // set an enemy burning: pw the power it was lit with, L the fire level (1-3)
+  ignite(e, pw, L = 1) {
+    const had = this.burning.get(e), k = Math.min(3, Math.max(1, L)) - 1;
+    this.burning.set(e, { t: LEVEL.fire.time[k], dps: pw * ELEMENT.burn * LEVEL.fire.dps[k], pw, L, tick: had?.tick ?? 0.25, flame: 0 });
   }
 
   zap(from, to) {
@@ -350,26 +367,26 @@ export class Bubbles {
     if (el.has('wind')) sfx.wind();
     // splash: a share of the damage to everything close by (Glitter: twice as wide, harder)
     const glitter = b.elems.has('glitter');
-    const splash = SPLASH * (b.r / RADIUS) * (glitter ? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();
+    const splash = SPLASH * (b.r / RADIUS) * (glitter ? lv(b, 'glitter', 'width') : 1), E = this.enemies, c = new THREE.Vector3();
     if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
     if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
-      if (E.center(e, c).distanceTo(p) < splash + e.r) bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
+      if (E.center(e, c).distanceTo(p) < splash + e.r) bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * lv(b, 'glitter', 'dmg') : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
     }
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
       let from = p.clone();
       const hit = new Set(b.hit);
-      for (let k = 0; k < 3; k++) {
+      for (let k = 0, n = lv(b, 'lightning', 'chain'); k < n; k++) {
         const e = this.inRange(from, 0.16, hit)[0];
         if (!e) break;
         hit.add(e);
         const to = E.center(e, c).clone();
         this.zap(from, to);
-        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt, color: '#fff27a', source: 'lightning' });
-        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: 0.5 });
+        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * lv(b, 'lightning', 'dmg'), color: '#fff27a', source: 'lightning' });
+        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: lv(b, 'lightning', 'stun') });
         from = to;
       }
     }
@@ -379,7 +396,8 @@ export class Bubbles {
       const m = new THREE.Mesh(this.puddleGeo, this.acidMat);
       m.position.copy(h ? h.point : p).setY((h ? h.point.y : p.y) + 0.0015);
       this.scene.add(m);
-      this.puddles.push({ m, t: 3.5, r: 0.05 * (b.r / RADIUS), dmg: b.pw * ELEMENT.puddle, tick: 0.25 });
+      const life = lv(b, 'acid', 'time');
+      this.puddles.push({ m, t: life, life, r: 0.05 * (b.r / RADIUS) * lv(b, 'acid', 'size'), dmg: b.pw * ELEMENT.puddle * lv(b, 'acid', 'dmg'), tick: 0.25 });
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
     // split-bubble: a smaller bubble spins off toward another enemy, once

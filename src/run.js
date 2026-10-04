@@ -2,7 +2,7 @@
 // treasures), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_LEVEL_FAVOR, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Boss } from './boss.js';
@@ -543,14 +543,22 @@ export class Run {
   pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.', start = false) {
     const can = (t) => this.owned.count(t.id) < t.stack;
     const elem = (t) => ELEMENT_TREASURES.includes(t.id);
+    // an element you already have is a little likelier to come up again, as its next level
+    const favor = (t) => (elem(t) && this.owned.count(t.id) > 0 ? ELEMENT_LEVEL_FAVOR : 1);
     let left = start
       ? shuffle([...rollTreasures(TREASURES.filter((t) => elem(t) && can(t)), 2, this.S.luck), ...rollTreasures(TREASURES.filter((t) => !elem(t) && can(t)), 1, this.S.luck)])
-      : rollTreasures(TREASURES.filter(can), 3, this.S.luck);
+      : rollTreasures(TREASURES.filter(can), 3, this.S.luck, favor);
     if (!left.length) return;
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     // stackable ones say how many you'd have
-    left = left.map((t) => ({ ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity), name: t.stack > 1 ? `${t.name} <small>${this.owned.count(t.id) + 1}/${t.stack}</small>` : t.name }));
+    left = left.map((t) => {
+      // levelled ones (elements, and any with level blocks) say which level it'd be and what it adds
+      const next = this.owned.count(t.id) + 1, levelled = elem(t) || t.levels.length > 1;
+      const name = levelled ? `${t.name} <small>Lv ${next}${next > 1 ? ' ⬆' : ''}</small>` : t.stack > 1 ? `${t.name} <small>${next}/${t.stack}</small>` : t.name;
+      const text = t.levels.length > 1 && next > 1 ? t.levelText[next - 1] : t.text;
+      return { ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity), name, text };
+    });
     this.ui.choose(title, sub, left, (t) => {
       const before = this.S.moisture;
       this.owned.add(t.id);

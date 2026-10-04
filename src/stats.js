@@ -120,22 +120,25 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
 }
 
 // Dew needed to go from `level` to the next one
-export const xpToNext = (level) => Math.round(3 * 1.5 ** (level - 1));   // 3, 5, 7, 10, 15, 23, 34, 51…: each level 1.5x the last
+export const xpToNext = (level) => Math.round(3 * 1.45 ** (level - 1));   // 3, 4, 6, 9, 13, 19, 28, 40…: each level 1.45x the last
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities
 // still in the pool, then one treasure of that rarity
-export function rollTreasures(pool, n = 3, luck = 0) {
+// favor(t): how much likelier than usual t is (1 = as usual); a tier's chance is its rarity
+// weight, shared across what's left in it, so with every favor at 1 this is the plain roll
+export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1) {
   const left = [...pool], out = [], w = luckWeights(TREASURE_RARITY, luck);
   while (out.length < n && left.length) {
-    const tiers = TREASURE_RARITY.filter((r) => left.some((t) => t.rarity === r.id));
-    const tier = pickWeighted(tiers, (r) => w[TREASURE_RARITY.indexOf(r)]);
-    const some = left.filter((t) => t.rarity === tier.id);
-    const t = some[Math.floor(Math.random() * some.length)];
+    const inTier = (t) => left.filter((o) => o.rarity === t.rarity).length;
+    const t = pickWeighted(left, (o) => w[TREASURE_RARITY.findIndex((r) => r.id === o.rarity)] / inTier(o) * favor(o));
     left.splice(left.indexOf(t), 1);
     out.push(t);
   }
   return out;
 }
+
+// An element treasure you already have comes up as its next level this much more often
+export const ELEMENT_LEVEL_FAVOR = 1.5;
 
 // Treasures: lost things with their own effects; unique ones once per run, stackable ones up to stack=N.
 // Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)

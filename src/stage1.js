@@ -73,7 +73,7 @@ export const STAGE1 = {
   // Golden gifts (pickups.js GoldGift): one turns up at each of these times (seconds into the
   // night) at an open spot somewhere else in the room, and waits `stay` seconds. Touch it in time
   // for a treasure pick; if you don't, it fades away.
-  gifts: { at: [15, 60, 105, 150, 180, 225], stay: 15 },
+  gifts: { at: [15, 60, 105, 165, 225], stay: 15 },   // five a run: treasures stay a little rare
 
   // High-ground elites (elites.js): real objects that came alive, one on each raised area.
   // `hide` is the apartment object each one stands in for while it's alive.
