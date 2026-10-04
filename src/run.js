@@ -744,6 +744,7 @@ export class Run {
       // a run always starts over from act 1
       const buttons = [{ label: again, go: true, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } }];
       if (this.board) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
+      if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
       this.ui.message(title, sub, rows, buttons);
     };
     show(null);
@@ -769,8 +770,13 @@ export class Run {
   showBoard(back) {
     const B = this.board;
     this.endView = 'board';
-    const rows = B.table();
-    this.ui.message('🏆 Leaderboard', B.note(), rows.length ? rows : [], [{ label: 'Back', go: true, onClick: back }]);
+    const draw = () => {
+      if (this.endView !== 'board') return;
+      this.ui.message('🏆 Leaderboard', B.note(), B.table(), [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }]);
+    };
+    draw();
+    B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)
+    B.ready.then(() => B.refresh());
   }
 
   summary() {

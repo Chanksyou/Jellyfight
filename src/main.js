@@ -29,7 +29,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v96';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v97';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -189,6 +189,13 @@ const run = new Run({
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
 const board = new Leaderboard();
 run.board = board;
+// the end-of-run screen's 🏠 Main menu: back to act 1's menu (a later act reloads into act 1)
+run.onMainMenu = () => {
+  if (currentAct() > 1) { goToAct(1); return; }
+  run.start();
+  if (document.pointerLockElement) document.exitPointerLock();
+  overlay.hidden = false;
+};
 run.playerName = () => state.look.name;
 run.playerBody = () => state.look.body;
 

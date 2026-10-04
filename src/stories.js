@@ -1363,19 +1363,21 @@ story('engine/music-renders-and-builds', {
 });
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
-function fakeClaude({ id = 'u_me', canWrite = true } = {}) {
+function fakeClaude({ id = 'u_me', canWrite = true, silent = false } = {}) {
   const docs = new Map(), subs = new Set();
   const snap = (p) => ({ id: p.split('/').pop(), exists: docs.has(p), data: () => docs.get(p) });
   const notify = () => subs.forEach((f) => f());
   const query = (col, field, dir, n) => ({
     orderBy: (f, d) => query(col, f, d, n), limit: (k) => query(col, field, dir, k),
+    async get() {
+      let list = [...docs.keys()].filter((p) => p.startsWith(col + '/')).map(snap);
+      if (field) list.sort((a, b) => (dir === 'desc' ? -1 : 1) * (a.data()[field] - b.data()[field]));
+      if (n) list = list.slice(0, n);
+      return { docs: list, size: list.length, empty: !list.length };
+    },
     onSnapshot(next) {
-      const run = () => {
-        let list = [...docs.keys()].filter((p) => p.startsWith(col + '/')).map(snap);
-        if (field) list.sort((a, b) => (dir === 'desc' ? -1 : 1) * (a.data()[field] - b.data()[field]));
-        if (n) list = list.slice(0, n);
-        next({ docs: list, size: list.length, empty: !list.length });
-      };
+      const run = () => this.get().then(next);
+      if (silent) return () => {};             // a viewer whose live feed never delivers
       subs.add(run); Promise.resolve().then(run);
       return () => subs.delete(run);
     },
@@ -1433,12 +1435,22 @@ story('engine/leaderboard', {
     await new Promise((r) => setTimeout(r, 800));
     const shown = /Score/.test(document.querySelector('.jf-modal')?.innerText || '');
     const posted = window.claude.docs.get('scores/u_game')?.score === run.score();
+    const home = [...document.querySelectorAll('.jf-modal button')].some((b) => /Main menu/.test(b.textContent));
+    menus.close();
+    // the board opened with no live feed at all still shows what's in the table (it read it)
+    const quiet = fakeClaude({ id: 'u_quiet', silent: true });
+    quiet.docs.set('scores/u_someone', { score: 24718, name: 'Jelly' });
+    window.claude = quiet;
+    run.board = new Leaderboard();
+    run.showBoard(() => menus.close());
+    await new Promise((r) => setTimeout(r, 300));
+    const listed = /24,718/.test(document.querySelector('.jf-modal')?.innerText || '');
     menus.close();
     delete window.claude;
     run.board = realBoard;
-    return ok(first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
+    return ok(home && listed && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
       && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && run.score() >= 12 * 10 + 200,
-      { first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
+      { home, listed, first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
   },
 });
 

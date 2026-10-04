@@ -28,17 +28,37 @@ export class Leaderboard {
     this.db = db;
     this.id = user ? await user.id() : null;
     this.canWrite = user && this.id ? await user.can('data.write') : false;
-    db.collection('scores').orderBy('score', 'desc').limit(10).onSnapshot((snap) => {
-      this.rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      this.status = 'live';
-      this.onChange?.();
-    }, () => { this.status = 'offline'; this.onChange?.(); });
+    this.top = db.collection('scores').orderBy('score', 'desc').limit(10);
+    // live updates when the viewer delivers them; refresh() also reads the table directly, so
+    // the board never depends on a snapshot having arrived
+    this.top.onSnapshot((snap) => { this.take(snap); }, () => { this.onChange?.(); });
     if (this.id) {
       const me = await db.doc('scores/' + this.id).get();
       this.mine = me.exists ? me.data() : null;
     }
-    this.status = 'live';
+    await this.refresh();
     return true;
+  }
+
+  take(snap) {
+    this.rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    this.status = 'live';
+    this.onChange?.();
+  }
+
+  // Read the top 10 now (opening the board calls this). Resolves once the rows are in.
+  async refresh() {
+    if (!this.top) return;
+    try { this.take(await this.top.get()); } catch { if (this.status === 'loading') { this.status = 'offline'; this.onChange?.(); } }
+  }
+
+  // The table with your own entry in it: a score you just posted shows even before the
+  // table read catches up with it
+  shown() {
+    const rows = this.rows.filter((r) => r.id !== this.id);
+    if (this.mine && this.id) rows.push({ id: this.id, ...this.mine });
+    else rows.push(...this.rows.filter((r) => r.id === this.id));
+    return rows.sort((a, b) => b.score - a.score).slice(0, 10);
   }
 
   // Record a finished run. Resolves { best, posted, why }: best = whether it beat your personal
@@ -62,12 +82,12 @@ export class Leaderboard {
   }
 
   // Your place on the board (1-based), or null when you're not in the top 10
-  rank() { const i = this.rows.findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1; }
+  rank() { const i = this.shown().findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1; }
 
   // Rows for the in-game table: [label, value] pairs, names escaped (they're other players' input)
   table() {
     if (this.status === 'offline') return [];
-    return this.rows.map((r, i) => [
+    return this.shown().map((r, i) => [
       `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}`,
       `${Number(r.score).toLocaleString()}${r.won ? ' 🏆' : ''}`,
     ]);
@@ -77,7 +97,7 @@ export class Leaderboard {
   note() {
     if (this.status === 'offline') return 'The shared leaderboard lives on the game\'s claude.ai page (signed in). Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (this.status === 'loading') return 'Loading the leaderboard…';
-    if (!this.rows.length) return 'No scores yet. Be the first!';
+    if (!this.shown().length) return 'No scores yet. Be the first!';
     if (!this.id || this.canWrite === false) return 'You can see the board; posting scores needs edit access to the game\'s page. Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     return this.mine ? `Your best: ${this.mine.score.toLocaleString()}${this.rank() ? ` (#${this.rank()})` : ''}` : 'Finish a run to get on the board.';
   }
