@@ -29,7 +29,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v103';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v104';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -63,6 +63,9 @@ ui.innerHTML = `
   #g-over[hidden] { display: none; }
   #g-over h1 { margin: 0 0 4px; font-size: 46px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0008; }
   #g-over .tag { margin: 0; opacity: .85; }
+  /* the version, always in the corner of the main screen (and the act's loading screen) */
+  #g-over .ver { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 12px); bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    font: 600 13px system-ui, sans-serif; color: #fff; background: #0008; border: 1px solid #ffffff33; border-radius: 8px; padding: 4px 9px; }
   #g-over .play { margin: 16px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
     border-radius: 14px; padding: 12px 34px; cursor: pointer; }
   #g-over .play:disabled { opacity: .6; cursor: progress; }
@@ -91,7 +94,8 @@ ui.innerHTML = `
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
-  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up. <small style="opacity:.6">${BUILD}<span id="g-fps"></span></small></p>
+  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
+  <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <button class="play">Play</button>
   <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="duel">🐞 1 on 1 (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
