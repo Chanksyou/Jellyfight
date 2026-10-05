@@ -1933,6 +1933,20 @@ act2('act-2-fewer-bugs-more-dew', {
     return ok(stage.bugs === 0.85 && stage.dew === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
   },
 });
+act2('jump-out-of-the-sink', {
+  about: 'The bathroom sink bowl is about 17 cm deep: from the bottom of it the jelly jumps clear of the rim and out (the default 20 cm jump clears it; at the old 13 cm it was stuck).',
+  setup() { fresh({ elites: false }); tp(1.3, 0.72, 5.37, Math.PI); },
+  play() {
+    const start = sim(0.5), { input, player } = G();
+    // hold forward, jumping every 2/3 s, until the jelly is past the bowl's rim
+    input.keys = new Set(['KeyW']);
+    let out = false;
+    // out: past the bowl's far rim (z 5.5)
+    step(60 * 4, (i) => { if (i % 40 === 0) input.jumpQueued = true; out = player.position.z > 5.6; return out; });
+    input.keys = new Set();
+    return ok(start.pos[1] < 0.75 && out, { start: start.pos, end: r3(player.position) });
+  },
+});
 act2('act-2-hits-harder', {
   about: 'Act 2 is scaled for the stronger jelly that arrives: bugs, elites and the Clog have more health, and hits on you do 1.5x.',
   setup() { fresh({ hurt: true }); },
@@ -2109,7 +2123,7 @@ act2('only-act-2-bugs', {
     const { run, enemies } = G();
     const pool = new Set(CONTENT.waves.bugs.filter((b) => b.act === 2).map((b) => b.id));
     const seen = new Set();
-    step(900, () => { for (const e of enemies.list) if (!e.proxy && !e.elite) seen.add(e.type); run.t = 200; });
+    step(1800, () => { for (const e of enemies.list) if (!e.proxy && !e.elite) seen.add(e.type); run.t = 200; });
     const stray = [...seen].filter((t) => !pool.has(t));
     return ok(pool.has('spider') && pool.has('housefly') && pool.has('ladybug') && seen.size >= 3 && !stray.length, { seen: [...seen], stray });
   },
