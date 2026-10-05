@@ -183,7 +183,7 @@ story('traversal/force-fields-show', {
 });
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
-  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 15 s if nobody takes them.',
+  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
   setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), seen = [], spots = new Set();
@@ -523,16 +523,16 @@ story('enemies/spider-keeps-its-distance', {
   },
 });
 story('words/ball-charge', {
-  about: 'The millipede curls into a ball (taking no damage while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 4. Once it uncurls it can be hurt again.',
+  about: 'The millipede curls into a ball (hits on it do 75% less while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 4. Once it uncurls it can be hurt again.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.32)); e.ballCd = 0.3; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     const seen = new Set();
-    let warned = false, immune = null, spun = 0, hit = null;
+    let warned = false, armored = null, spun = 0, hit = null;
     step(60 * 6, () => {
       seen.add(e.state);
       if (e.state === 'spin' && enemies.chargeMarks.some((m) => m.visible)) warned = true;
-      if (e.state === 'spin' && immune === null) { const hp = e.hp; enemies.applyDamage(e, 25); immune = e.hp === hp; }
+      if (e.state === 'spin' && armored === null) { const hp = e.hp; enemies.applyDamage(e, 20); armored = Math.abs(hp - e.hp - 5) < 1e-6; }   // 20 hits for 5
       spun = Math.max(spun, e.spinA || 0);
       hit = hit || log.find((d) => d.source === 'millipede' && d.amount === 4);
       return hit && e.state === 'rest';
@@ -540,8 +540,8 @@ story('words/ball-charge', {
     const hp = e.hp;
     enemies.applyDamage(e, 10);
     const hurtAfter = e.hp === hp - 10;
-    return ok(['curl', 'spin', 'dash'].every((s) => seen.has(s)) && warned && immune && spun > 5 && hit && hurtAfter,
-      { states: [...seen], warned, immune, spun: +spun.toFixed(1), hit: hit?.amount, hurtAfter });
+    return ok(['curl', 'spin', 'dash'].every((s) => seen.has(s)) && warned && armored && spun > 5 && hit && hurtAfter,
+      { states: [...seen], warned, armored, spun: +spun.toFixed(1), hit: hit?.amount, hurtAfter });
   },
 });
 story('enemies/millipede-dodge', {
@@ -1309,6 +1309,63 @@ story('boss/vacuum-lanternfly-shield', {
     const down = !V.shielded;
     V.damage(50);
     return ok(flies === 4 && airborne === 4 && immune && landed && down && V.hp === hp0 - 50, { flies, airborne, immune, landed, down, hp: V.hp, hp0 });
+  },
+});
+
+story('boss/vacuum-enrages-at-half', {
+  about: 'Below half health the Vacuum enrages: it stops and shudders for a moment (ENRAGED!), then does everything twice as fast.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
+  play() {
+    const { run } = G();
+    step(180);
+    const V = run.boss;
+    const calm = V.pace;
+    V.hp = V.maxHp * 0.49;
+    step(2);
+    const enraging = V.enrageT > 0, still = V.pace === 1;
+    const at = V.holder.position.clone();
+    step(30);
+    const stood = V.holder.position.distanceTo(at) < 1e-6;
+    step(90);                                       // the enrage is over
+    V.state = 'chase'; V.stateT = 2.6;
+    step(30);                                       // half a second of real time
+    const used = 2.6 - V.stateT;                    // a calm Vacuum would use 0.5 s of its chase
+    return ok(calm === 1 && enraging && still && stood && V.pace === 2 && used > 0.9 && used < 1.1, { calm, enraging, stood, pace: V.pace, used: +used.toFixed(2) });
+  },
+});
+
+story('boss/vacuum-two-shields-max', {
+  about: 'The Vacuum raises its lanternfly shield twice a fight at most.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, enemies } = G();
+    step(180);
+    const V = run.boss;
+    let flies = 0;
+    for (let k = 0; k < 12; k++) {                  // plenty of picks: the flies come up every 5th normally
+      for (const e of [...V.guards]) enemies.applyDamage(e, 1e4);
+      step(2);
+      V.pick();
+      if (V.state === 'flies') { flies++; V.launch(); }
+    }
+    return ok(V.shields === 2 && flies === 2, { shields: V.shields, flies });
+  },
+});
+
+story('boss/dew-comes-to-you', {
+  about: 'Once a boss is beaten, all the dew around the arena (its own and its summons\') flies to you, and any still on its way counts when the metamorphosis opens.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, dew } = G();
+    step(180);
+    const A = run.stage.boss;
+    for (let k = 0; k < 6; k++) dew.drop(V(A.arenaMin[0] + 0.1 + k * 0.2, 0.02, A.arenaMax[2] - 0.1), 1, 3);   // dew from summons, far from you
+    const before = run.purse;
+    run.boss.hp = 0; run.boss.dead = true;
+    step(90);
+    const flewIn = run.purse - before;
+    const leftWhenDone = dew.list.length;
+    return ok(flewIn >= 18 + 30 - 5 && leftWhenDone === 0, { flewIn, leftWhenDone });
   },
 });
 

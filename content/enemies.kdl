@@ -49,7 +49,7 @@ enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 dew=5 model="housefly" {
 }
 
 // Act 2. The giant millipede (from 1:00): it slithers after you like a snake, its legs rippling
-// in waves. Up close it curls into an armoured ball standing on its edge (no damage gets through
+// in waves. Up close it curls into an armoured ball standing on its edge (hits do 75% less
 // while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
 // down it at you. Get out of the lane; hit it once it uncurls.
 enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 dew=9 model="millipede" {

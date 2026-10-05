@@ -137,6 +137,7 @@ export class Run {
     this.elitesBeaten = 0;            // high-ground elites beaten (score)
     this.bossStartT = null;
     this.bossWon = false;
+    this.collectAll = false;
     this.pendingLevels = 0;
     this.iFrames = 0;
     this.slowT = 0;
@@ -293,6 +294,7 @@ export class Run {
     }
 
     // --- dew
+    if (this.collectAll) this.dew.magnetAll = true;   // the boss is down: everything on the floor flies to you
     const got = this.dew.update(dt, origin, this.mods.dewReach);
     if (got) { this.gainDew(got); sfx.dew(juice.combo); }
     juice.update(dt);
@@ -684,6 +686,7 @@ export class Run {
 
   onBossDead() {
     this.bossDeadT = true;
+    this.collectAll = true;           // the boss's dew and its summons' all come to you
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     juice.shake(1); juice.hitstop(0.25); sfx.boom();
@@ -698,6 +701,11 @@ export class Run {
   metamorph() {
     this.phase = 'metamorph';
     this.bossDeadT = false;
+    // whatever dew hadn't reached you yet still counts
+    const left = this.dew.list.reduce((n, d) => n + d.value, 0);
+    this.dew.clear();
+    this.collectAll = false;
+    if (left) this.gainDew(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
     const choices = shuffle([...EVOLUTIONS]).slice(0, 3);

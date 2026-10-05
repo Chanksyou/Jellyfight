@@ -383,15 +383,13 @@ export class Enemies {
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
       return;
     }
-    if (e.invuln) {                       // armoured (a curled-up millipede): a glancing spark, no damage
+    if (e.armor) {                        // armoured (a curled-up millipede): a glancing spark, most of the hit is lost
+      amount *= 1 - e.armor;
       if (!(e.blockT > 0)) {
         e.blockT = 0.35;
-        const c = this.center(e);
-        this.fx.impact(c, BLOCK, e.r * 0.4, 5);
-        this.fx.number(c.clone().setY(c.y + e.r * 1.6), 'IMMUNE', '#dfe8ff', 12);
+        this.fx.impact(this.center(e), BLOCK, e.r * 0.4, 5);
         sfx.clink();
       }
-      return;
     }
     if (e.markT > 0) amount *= 1.5;       // Sticky Note
     e.hp -= amount;

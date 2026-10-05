@@ -7,8 +7,11 @@
 //   spin      (below 45% health) it spins in place, spraying dust clumps all around
 //   flies     its light flashes purple, then it launches 4 lanternflies out of the bin in high
 //             arcs (a ring marks each landing) and raises a shield: it can't be hurt until all
-//             4 are dead (a purple dome, with a tether to each fly; it gives up after 30 s)
-// Below 45% health it's angry: an orange light, faster driving, shorter pauses.
+//             4 are dead (a purple dome, with a tether to each fly; it gives up after 30 s).
+//             Twice a fight at most.
+// Below 50% health it enrages: it stops and shudders, its light strobing red, sparks and dust
+// flying, a siren and ENRAGED!, then does everything twice as fast (orange light), with the spin
+// and an extra cockroach in each dump.
 // Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
@@ -38,6 +41,8 @@ export class Vacuum {
     this.shots = [];
     this.guards = [];         // the lanternflies holding up its shield
     this.shieldT = 0;
+    this.shields = 0;         // fly shields raised so far: two at most
+    this.enrageT = 0;         // the enrage animation, when it drops below half health
 
     const root = new THREE.Group();
     const shell = std(0x2a2c31, { roughness: 0.25, metalness: 0.2 });
@@ -145,7 +150,9 @@ export class Vacuum {
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
-  get angry() { return this.hp < this.maxHp * 0.45; }
+  get angry() { return this.hp < this.maxHp * 0.5; }
+  // how fast it does everything: twice as fast once it's enraged (not during the enrage itself)
+  get pace() { return this.angry && this.enrageT <= 0 ? 2 : 1; }
 
   // drive forward along the heading, turning toward `target` at most `turn` rad/s
   drive(dt, target, speed, turn) {
@@ -170,7 +177,9 @@ export class Vacuum {
 
   // What it does to you goes out as events; the pull on the player comes back as `push`
   update(dt, player) {
-    const out = this.tick(dt, player);
+    const k = this.pace;
+    const out = this.tick(dt * k, player);
+    out.hurt /= k;                     // damage over time stays per real second
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
     if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
@@ -203,13 +212,23 @@ export class Vacuum {
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 6);
     this.body.scale.setScalar(1 + this.hitPop * 0.03);
     this.lidar.rotation.y += dt * 8;
+    // dropping below half health: it enrages (once), then does everything twice as fast
+    if (this.angry && !this.wasAngry) {
+      this.wasAngry = true;
+      this.enrageT = 1.8;
+      this.state = 'chase'; this.locked = false; this.chargeWind = null;
+      this.line.material.opacity = this.swirl.material.opacity = 0;
+      sfx.vacAngry();
+      this.fx.number(this.center().setY(p.y + 0.22), 'ENRAGED!', '#ff5a2a', 26);
+    }
+    if (this.enrageT > 0) return this.enrage(dt, out);
     const angry = this.angry, toP = P.clone().sub(p).setY(0), dist = toP.length();
     let brushSpin = 6;
     this.stateT -= dt;
 
     if (this.state === 'chase') {
       this.setLight(angry ? 0xff8a2a : 0x4ab8ff, 2);
-      this.drive(dt, P, angry ? 0.195 : 0.15, angry ? 2.2 : 1.6);
+      this.drive(dt, P, 0.15, 1.6);
       if (this.stateT <= 0) this.pick();
     } else if (this.state === 'charge') {
       // wind up (flashing red, a strip on the floor shows the line), then ram along it
@@ -225,7 +244,7 @@ export class Vacuum {
         if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.chargeWind = null; sfx.vacRam(); }
       } else {
         this.setLight(0xff2a2a, 3);
-        const wall = this.drive(dt, null, angry ? 1.275 : 1.05, 0);
+        const wall = this.drive(dt, null, 1.05, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
         if (wall || this.stateT <= 0) { sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
       }
@@ -235,7 +254,7 @@ export class Vacuum {
       this.swirl.position.copy(p).setY(0.003);
       this.swirl.scale.setScalar(0.45 + this.r);
       this.swirl.material.opacity = 0.75;              // its stripes pour into the middle: you're being pulled in
-      const pull = toP.clone().normalize().multiplyScalar(-(0.18 + (angry ? 0.06 : 0)) * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
+      const pull = toP.clone().normalize().multiplyScalar(-0.18 * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
       out.push = pull;
       if (dist < this.r + 0.04 && P.y < 0.1) out.hurt = 2 * dt;
       if (Math.random() < dt * 30) {
@@ -297,9 +316,6 @@ export class Vacuum {
     }
     this.prevT = this.stateT;
     this.shield(dt);
-    // crossing into angry sounds the siren
-    if (angry && !this.wasAngry) sfx.vacAngry();
-    this.wasAngry = angry;
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
 
     // bumping into it knocks you back
@@ -347,6 +363,7 @@ export class Vacuum {
       this.guards.push(e);
     }
     this.shieldT = 30;
+    this.shields++;
     sfx.vacFliesLaunch();
     sfx.shieldUp();
     this.fx.impact(p.clone().setY(p.y + 0.1), hostile('vacuum'), 0.05, 14);
@@ -377,6 +394,29 @@ export class Vacuum {
     A.needsUpdate = true;
   }
 
+  // The enrage: it stops dead and shudders, rearing up, its light strobing red, sparks and dust
+  // bursting off it and the lidar whirling, then settles into its orange angry light
+  enrage(dt, out) {
+    this.enrageT -= dt;
+    const p = this.holder.position, k = 1 - this.enrageT / 1.8;
+    const shake = Math.sin(this.t * 70) * 0.04 * (1 - k * 0.5);
+    this.body.rotation.y = this.heading + shake;
+    this.body.rotation.x = -0.12 * Math.sin(Math.min(1, k * 1.6) * Math.PI);   // rears up and slams down
+    this.body.position.y = Math.abs(Math.sin(this.t * 40)) * 0.006;
+    this.lidar.rotation.y += dt * 40;
+    for (const b of this.brushes) b.rotation.y += dt * 50;
+    this.setLight(Math.sin(this.t * 28) > 0 ? 0xff2a2a : 0xff8a2a, 3.5);
+    if (Math.random() < dt * 30) this.fx.impact(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(this.r * 0.8)).setY(p.y + 0.06), hostile('vacuum'), 0.012, 4);
+    if (Math.random() < dt * 14) this.fx.puff(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * this.r * 2, 0.01, (Math.random() - 0.5) * this.r * 2)), 0x9c958b, 0.03, 0.4);
+    if (this.enrageT <= 0) {
+      this.body.rotation.x = 0; this.body.position.y = 0;
+      this.fx.impact(p.clone().setY(p.y + 0.04), hostile('vacuum'), this.r * 1.2, 26);
+      this.toChase();
+    }
+    this.shield(dt);
+    return out;
+  }
+
   knockBack(toP, speed) {
     this.knock = 0.3;
     this.knockSpeed = speed;
@@ -385,7 +425,7 @@ export class Vacuum {
 
   toChase() {
     this.state = 'chase';
-    this.stateT = this.angry ? 1.6 : 2.6;
+    this.stateT = 2.6;
     this.setLight(this.angry ? 0xff8a2a : 0x4ab8ff, 2);
   }
 
@@ -393,7 +433,7 @@ export class Vacuum {
   pick() {
     const order = this.angry ? ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] : ['charge', 'suction', 'flies', 'brushes', 'dump'];
     this.state = order[this.next++ % order.length];
-    if (this.state === 'flies' && this.shielded) this.state = order[this.next++ % order.length];   // one shield at a time
+    if (this.state === 'flies' && (this.shielded || this.shields >= 2)) this.state = order[this.next++ % order.length];   // one shield at a time, two a fight
     this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2, flies: 1.0 }[this.state];
     // every attack announces itself
     ({ charge: () => sfx.vacChargeWind(this.stateT), suction: () => sfx.vacSuction(this.stateT), brushes: () => sfx.vacBrushes(this.stateT),

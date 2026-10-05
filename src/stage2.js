@@ -90,7 +90,7 @@ export const STAGE2 = {
   ],
 
   // Golden gifts, as in stage 1
-  gifts: { at: [15, 60, 105, 165, 225], stay: 15 },   // five a run: treasures stay a little rare
+  gifts: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
 
   // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
   // lands you beside it)

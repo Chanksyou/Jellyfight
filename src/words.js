@@ -194,7 +194,7 @@ export const ENEMY_WORDS = {
   },
 
   'ball-charge': {
-    doc: 'Up close (within `range` m) every `every` s or so, curls into an armoured ball over `curl` s (it takes no damage while curled up), spins up in place for `spin` s while a line on the floor shows where it will go (the aim locks halfway through), then rolls along it at `speed` m/s for `time` s, hitting for `dmg`. It uncurls over `uncurl` s and rests `rest` s. List it after the walking word.',
+    doc: 'Up close (within `range` m) every `every` s or so, curls into an armoured ball over `curl` s (hits on it do 75% less while it is curled up), spins up in place for `spin` s while a line on the floor shows where it will go (the aim locks halfway through), then rolls along it at `speed` m/s for `time` s, hitting for `dmg`. It uncurls over `uncurl` s and rests `rest` s. List it after the walking word.',
     props: { range: 0.4, curl: 0.45, spin: 0.9, speed: 0.95, time: 0.7, dmg: 4, uncurl: 0.5, rest: 0.8, every: 2.5 },
     make: (_, p) => ({
       rollDmg: p.dmg,                     // touching you mid-roll hits this hard (Run.contactDamage)
@@ -239,8 +239,8 @@ export const ENEMY_WORDS = {
           if (e.stateT <= 0) e.state = 'approach';
         }
         e.spinA += e.spinV * c.dt * live;
-        e.invuln = e.curlK > 0.5;                                 // curled up: armoured
-        e.hitR = e.invuln && e.ballR ? e.ballR : 0;              // and as big as its ball
+        e.armor = e.curlK > 0.5 ? 0.75 : 0;                       // curled up: armoured, hits do 75% less
+        e.hitR = e.armor && e.ballR ? e.ballR : 0;               // and as big as its ball
       },
     }),
   },
