@@ -363,7 +363,7 @@ export class Run {
   spawnWaves(dt) {
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
-    const more = this.mods.moreBugs;   // more-bugs (treasures)
+    const more = this.mods.moreBugs * (this.stage.bugs || 1);   // more-bugs (treasures), and the act's own `bugs`
     const rate = (W.rate + this.t * W.grow) * more;
     const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery) * more;
     this.spawnAcc += rate * dt;
@@ -457,7 +457,7 @@ export class Run {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
-    const dew = Math.round(baseDew * this.mods.dewMult * juice.bonus);
+    const dew = Math.round(baseDew * this.mods.dewMult * (this.stage.dew || 1) * juice.bonus);   // the act's own `dew` too
     this.dew.drop(c, 1, dew);
     this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);

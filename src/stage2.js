@@ -31,6 +31,10 @@ export const STAGE2 = {
   eliteHp: 1.8,
   bossHp: 1.6,
   power: 1.5,
+  // a little fewer bugs than act 1's waves (spawn rate and how many at once), each dropping a
+  // little more dew (run.js spawnWaves, onKill)
+  bugs: 0.85,
+  dew: 1.2,
 
   // Things the player shouldn't bump into or can pass through
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it

@@ -909,6 +909,19 @@ story('treasures/levels', {
     return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });
   },
 });
+story('pickups/big-dew', {
+  about: 'Dew comes as big drops worth 5 and small ones for the rest: 12 dew is two big drops and two small ones, and picking them all up gives 12.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, dew } = G(), xp0 = run.xp, lv0 = run.level;
+    dew.drop(near(0.05, 0, 0.01), 1, 12);
+    const sizes = dew.list.map((d) => d.value).sort().join();
+    const bigger = dew.list.find((d) => d.big)?.m.geometry.parameters.radius > dew.list.find((d) => !d.big)?.m.geometry.parameters.radius;
+    step(240);
+    const gained = run.level > lv0 ? null : run.xp - xp0;
+    return ok(sizes === '1,1,5,5' && bigger && dew.list.length === 0 && (gained === null || gained === 12), { sizes, bigger, left: dew.list.length, gained });
+  },
+});
 story('treasures/mark-on-hit', {
   about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
   setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
@@ -1893,6 +1906,33 @@ const clogAttack = (B, name, P) => {
   B.state = 'chase'; B.stateT = 0;
   B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
+act2('act-2-fewer-bugs-more-dew', {
+  about: 'Act 2 sends a little fewer bugs (0.85x the spawn rate and how many at once) and each drops a little more dew (1.2x).',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, enemies, dew } = G(), stage = run.stage;
+    // spawns over the same minute of the night, with and without the act's `bugs`
+    const count = (bugs) => {
+      let n = 0;
+      const was = stage.bugs, spawn = enemies.spawn, point = run.spawnPoint;
+      stage.bugs = bugs;
+      enemies.spawn = () => { n++; return null; };
+      run.spawnPoint = () => near(0.4, 0);
+      run.spawnAcc = 0; run.t = 60;
+      const waves = Object.getPrototypeOf(run).spawnWaves;   // fresh() switches the waves off: call the real one
+      for (let i = 0; i < 60 * 60; i++) waves.call(run, 1 / 60);
+      stage.bugs = was; enemies.spawn = spawn;
+      if (Object.getPrototypeOf(run).spawnPoint === point) delete run.spawnPoint; else run.spawnPoint = point;
+      return n;
+    };
+    const plain = count(1), act2 = count(stage.bugs);
+    // dew from a 5-dew kill
+    let dropped = 0;
+    stub(dew, 'drop', (p, v, n) => { dropped += v * n; });
+    run.onKill({ pos: near(0.1, 0), r: 0.01, dew: 5 });
+    return ok(stage.bugs === 0.85 && stage.dew === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
+  },
+});
 act2('act-2-hits-harder', {
   about: 'Act 2 is scaled for the stronger jelly that arrives: bugs, elites and the Clog have more health, and hits on you do 1.5x.',
   setup() { fresh({ hurt: true }); },
