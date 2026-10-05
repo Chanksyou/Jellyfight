@@ -4,11 +4,12 @@
 // Damage numbers are multiples of your power (pop damage x 1.8) unless a word says otherwise.
 // Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
 //
-//   attack=#true   it changes how you attack: the starting pick always offers one of these
-//   rarity="…"     common, rare, epic or legendary: how often it's offered (stats.js
+//   attack=#true   it changes how you attack
+//   rarity="…"     common, rare or epic: how often it's offered (stats.js
 //                  TREASURE_RARITY; Luck shifts the odds up). Rate damage treasures with
-//                  tests/clear.mjs (x faster at clearing 10 clumped cockroaches: legendary 3.5x+,
-//                  epic 2x+, rare 1.4x+); rate the rest by how unique the effect is.
+//                  tests/clear.mjs (x faster at clearing 10 clumped cockroaches: epic 2x+,
+//                  rare 1.4x+); rate the rest by how unique the effect is.
+//   needs="id"     offered only once you own that treasure (an element's upgrades need its base)
 //   stack=N        you can own up to N copies and their effects add up (default 1: unique).
 //                  Keep stacking for plain number boosts.
 //   level 2 text="…" { words }, level 3 …   a treasure with its own trick can level up instead:
@@ -49,25 +50,125 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
     }
 }
 
-// --- elements for your bubbles (bubbles.js); they stack, and each has three levels (stack=3):
-// take the same one again and it gets stronger (bubbles.js LEVEL)
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true stack=3 text="Fire bubbles: enemies burn for 3 s. Fire on a frozen enemy shatters it for triple damage. Levels 2-3: burns 1.5x / 2x as hard, for 4 / 5 s." {
+// --- element attacks (bubbles.js): each fires its own projectile on its own timer, separate from
+// your bubbles. You pick one at the start of a run and another after each boss (element rewards),
+// never from gifts or elites. Pop damage, Blow rate, Range, Bubble size and extra Bubbles all
+// apply to them. Their numbers: ELEMENT_BASE in src/words.js.
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true stack=3 text="Lightning bubbles: every pop arcs to 3 more enemies nearby, stunning each. Levels 2-3: arcs to 4 / 5, harder, longer stuns." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true text="Lightning attack: you also shoot ball lightning; every pop arcs to 3 more enemies nearby, stunning each." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true stack=3 text="Ice bubbles: hits chill and slow; the 2nd chilled hit freezes the enemy solid. Levels 2-3: longer chills, +15% / +30% hit damage." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true text="Ice attack: you also shoot ice shards that chill and slow; the 2nd chilled hit freezes the enemy solid." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true stack=3 text="Acid bubbles: pops leave a puddle that eats at anything standing in it. Levels 2-3: bigger, longer puddles that eat 1.5x / 2x as fast." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="common" attack=#true stack=3 text="Wind bubbles: whatever they hit gets blown backward. Levels 2-3: blown harder, and bubbles pierce one more enemy each level." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="rare" attack=#true text="Wind attack: you also shoot fast gusts that pierce and blow what they hit backward." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true stack=3 text="Glitter bubbles: the splash is twice as wide and hits harder. Levels 2-3: wider still, 1.4x / 1.8x as hard." {
+treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true text="Glitter attack: you also lob glitter bombs that burst in a wide, hard-hitting splash." {
     element "glitter"
+}
+
+// --- element upgrades: offered (by gifts and elites) only once you own the element (needs=…)
+// fire
+treasure "lighterFluid" name="Lighter Fluid" icon="🛢️" rarity="common" needs="candle" attack=#true text="Fire: burns 50% hotter." {
+    element-up "fire" burn=1.5
+}
+treasure "longMatches" name="Long Matches" icon="🪵" rarity="common" needs="candle" attack=#true text="Fire: enemies burn 2 s longer." {
+    element-up "fire" burnTime=2
+}
+treasure "kindling" name="Kindling" icon="🔥" rarity="rare" needs="candle" attack=#true text="Fire: burning enemies that die set everything twice as far away alight." {
+    element-up "fire" spread=2
+}
+treasure "hotSauce" name="Hot Sauce" icon="🫙" rarity="rare" needs="candle" attack=#true text="Fire: fireballs fly 30% faster and hit 25% harder." {
+    element-up "fire" speed=1.3 dmg=1.25
+}
+treasure "birthdayCake" name="Birthday Cake" icon="🎂" rarity="epic" needs="candle" attack=#true text="Fire: one more fireball every shot." {
+    element-up "fire" count=1
+}
+// lightning
+treasure "nineVolt" name="9V Battery" icon="🪫" rarity="rare" needs="battery" attack=#true text="Lightning: each pop arcs to 2 more enemies." {
+    element-up "lightning" chain=2
+}
+treasure "copperWire" name="Copper Wire" icon="🧶" rarity="common" needs="battery" attack=#true text="Lightning: arcs jump 50% farther." {
+    element-up "lightning" chainRange=1.5
+}
+treasure "staticSock" name="Static Sock" icon="⚡" rarity="common" needs="battery" attack=#true text="Lightning: stuns last twice as long." {
+    element-up "lightning" stun=2
+}
+treasure "powerStrip" name="Power Strip" icon="🔌" rarity="rare" needs="battery" attack=#true text="Lightning: arcs hit 50% harder." {
+    element-up "lightning" bolt=1.5
+}
+treasure "phoneCharger" name="Phone Charger" icon="📱" rarity="epic" needs="battery" attack=#true text="Lightning: ball lightning fires 40% faster." {
+    element-up "lightning" rate=1.4
+}
+// ice
+treasure "iceTray" name="Ice Tray" icon="🍧" rarity="common" needs="freezerPack" attack=#true text="Ice: chills (and the slow) last 50% longer." {
+    element-up "ice" chill=1.5
+}
+treasure "frozenPeas" name="Frozen Peas" icon="🫛" rarity="common" needs="freezerPack" attack=#true text="Ice: shards hit 40% harder." {
+    element-up "ice" dmg=1.4
+}
+treasure "snowGlobe" name="Snow Globe" icon="🌨️" rarity="rare" needs="freezerPack" attack=#true text="Ice: each shard's burst chills everything around where it hits." {
+    element-up "ice" frost=1
+}
+treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 2 more enemies." {
+    element-up "ice" pierce=2
+}
+treasure "freezerBurn" name="Freezer Burn" icon="🥶" rarity="epic" needs="freezerPack" attack=#true text="Ice: shards do double damage to frozen enemies." {
+    element-up "ice" frozenMul=1
+}
+// acid
+treasure "polishRemover" name="Polish Remover" icon="🧪" rarity="common" needs="nailPolish" attack=#true text="Acid: puddles eat 60% faster." {
+    element-up "acid" puddleDmg=1.6
+}
+treasure "spilledBottle" name="Spilled Bottle" icon="🍾" rarity="common" needs="nailPolish" attack=#true text="Acid: puddles are 40% wider." {
+    element-up "acid" puddleSize=1.4
+}
+treasure "slowDry" name="Slow-Dry Formula" icon="⏳" rarity="rare" needs="nailPolish" attack=#true text="Acid: puddles last 2 s longer." {
+    element-up "acid" puddleTime=2
+}
+treasure "topCoat" name="Top Coat" icon="💎" rarity="rare" needs="nailPolish" attack=#true text="Acid: up to 4 more puddles at once, and globs hit 30% harder." {
+    element-up "acid" puddles=4 dmg=1.3
+}
+treasure "quickDry" name="Quick-Dry Spray" icon="💨" rarity="epic" needs="nailPolish" attack=#true text="Acid: globs fire 40% faster." {
+    element-up "acid" rate=1.4
+}
+// wind
+treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts blow enemies back 60% harder." {
+    element-up "wind" push=1.6
+}
+treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 2 more enemies." {
+    element-up "wind" pierce=2
+}
+treasure "deskFan" name="Desk Fan" icon="🌪️" rarity="common" needs="paperFan" attack=#true text="Wind: gusts fire 30% faster." {
+    element-up "wind" rate=1.3
+}
+treasure "pinwheel" name="Pinwheel" icon="🎐" rarity="epic" needs="paperFan" attack=#true text="Wind: one more gust every shot." {
+    element-up "wind" count=1
+}
+treasure "draft" name="Draft Stopper" icon="🚪" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts fly 30% faster and reach 30% farther." {
+    element-up "wind" speed=1.3 range=1.3
+}
+// glitter
+treasure "craftGlitter" name="Craft Glitter" icon="🎨" rarity="common" needs="glitter" attack=#true text="Glitter: the splash is 30% wider." {
+    element-up "glitter" width=1.3
+}
+treasure "holoGlitter" name="Holo Glitter" icon="🪩" rarity="rare" needs="glitter" attack=#true text="Glitter: the splash hits 50% harder." {
+    element-up "glitter" splash=1.5
+}
+treasure "glitterGlue" name="Glitter Glue" icon="🫗" rarity="common" needs="glitter" attack=#true text="Glitter: the splash slows everything it hits for 1 s." {
+    element-up "glitter" slow=1
+}
+treasure "confetti" name="Confetti" icon="🎊" rarity="epic" needs="glitter" attack=#true text="Glitter: one more glitter bomb every shot." {
+    element-up "glitter" count=1
+}
+treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" attack=#true text="Glitter: bombs fire 30% faster." {
+    element-up "glitter" rate=1.3
 }
 
 // --- hits, jumps and your body
@@ -241,7 +342,7 @@ treasure "magnifier" name="Magnifying Glass" icon="🔍" rarity="epic" attack=#t
         beam range=0.4 dmg=0.54 tick=0.25
     }
 }
-treasure "glowStick" name="Glow Stick" icon="🟢" rarity="legendary" attack=#true text="A soft glow around you stings anything inside it." {
+treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true text="A soft glow around you stings anything inside it." {
     aura 0.08 dmg=0.4 tick=0.5
     level 2 text="Level 2: a wider glow that stings harder." {
         aura 0.095 dmg=0.5 tick=0.5

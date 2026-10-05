@@ -12,7 +12,8 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext } from './stats.js';
+import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS } from './stats.js';
+const BASE_BLOW_RATE = BASE_STATS.blowRate;
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
@@ -280,43 +281,46 @@ story('attack/side-by-side-bubbles', {
 });
 
 story('attack/element-projectiles', {
-  about: 'Each element treasure turns the bubble into its own projectile (a fireball, ball lightning, an ice shard, an acid glob, a wind gust, a glitter bomb), and the lightning one crackles with arcs.',
+  about: 'Each element is an attack of its own: it fires its own projectile (a fireball, ball lightning, an ice shard, an acid glob, a wind gust, a glitter bomb) on its own timer, while the bubbles stay plain bubbles; the lightning one crackles with arcs.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 1e6 }); },
   play() {
     const { run } = G();
     const seen = {};
-    let arcs = 0;
+    let arcs = 0, plainOnly = true;
     for (const [id, el] of [['candle', 'fire'], ['battery', 'lightning'], ['freezerPack', 'ice'], ['nailPolish', 'acid'], ['paperFan', 'wind'], ['glitter', 'glitter']]) {
       run.owned = new (run.owned.constructor)(); run.owned.add(id);
-      run.bubbles.reset(); run.bubbles.timer = 1;
+      run.bubbles.reset(); run.bubbles.timer = 1; run.bubbles.elTimers[el] = 1;
       step(6);
-      seen[el] = run.bubbles.list.map((b) => b.m.userData.look).filter(Boolean)[0] || null;
+      const looks = run.bubbles.list.map((b) => b.m.userData.look || null);
+      seen[el] = looks.find(Boolean) || null;
+      if (!looks.includes(null)) plainOnly = false;            // a plain bubble flew alongside it
       if (el === 'lightning') arcs = run.bubbles.looks.arcN;
     }
     const all = Object.entries(seen).every(([el, look]) => el === look);
-    return ok(all && arcs > 0, { seen, arcs });
+    return ok(all && plainOnly && arcs > 0, { seen, plainOnly, arcs });
   },
 });
-
-story('treasures/start-pick-two-elements', {
-  about: 'The starting treasure pick offers two element treasures and one of anything else.',
+story('treasures/element-rewards', {
+  about: 'Base elements only come from element rewards: the start of a run offers 3 elements you don\'t have (and only elements), and gifts and elites never offer a base element, nor an upgrade for an element you don\'t own.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { run, menus } = G();
-    let good = 0, tries = 0, sample = null;
+    let starts = 0, gifts = 0, bad = [], sample = null;
     stub(menus, 'choose', (title, sub, list) => {
-      tries++;
-      const els = list.filter((t) => ELEMENTS_IDS.includes(t.id)).length;
-      if (list.length === 3 && els === 2) good++;
-      sample = list.map((t) => t.id);
+      if (title === 'start') { if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id))) starts++; sample = list.map((t) => t.id); return; }
+      gifts++;
+      for (const t of list) if (ELEMENTS_IDS.includes(t.id) || (t.needs && !run.owned.has(t.needs))) bad.push(t.id);
     });
-    for (let i = 0; i < 100; i++) run.pickTreasure('', '', true);
+    run.owned.add('candle');
+    for (let i = 0; i < 60; i++) run.pickElement('start', '');
+    for (let i = 0; i < 300; i++) run.pickTreasure('gift', '');
+    const fireUpgradesSeen = new Set();
+    stub(menus, 'choose', (title, sub, list) => { for (const t of list) if (t.needs === 'candle') fireUpgradesSeen.add(t.id); });
+    for (let i = 0; i < 400; i++) run.pickTreasure('gift', '');
     restore();
-    return ok(tries === 100 && good === 100, { tries, good, sample });
+    return ok(starts === 60 && gifts === 300 && !bad.length && fireUpgradesSeen.size >= 4, { starts, gifts, bad: [...new Set(bad)], fireUpgrades: [...fireUpgradesSeen], sample });
   },
 });
-
-// --- the bugs
 story('enemies/ants-curl-and-roll', {
   about: 'An ant squad curls into a ball and rolls at you.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('ants', P.clone().add(V(0.25, 0, 0))); },
@@ -372,16 +376,16 @@ story('progression/luck', {
       let epic = 0, cards = 0, top = 0, treasures = 0;
       for (let i = 0; i < 1500; i++) {
         for (const c of rollCards({ bubbles: 2 }, 3, 0, luck)) { cards++; if (c.rarity.id === 'epic') epic++; }
-        for (const t of rollTreasures(CONTENT.treasures, 3, luck)) { treasures++; if (t.rarity === 'epic' || t.rarity === 'legendary') top++; }
+        for (const t of rollTreasures(CONTENT.treasures, 3, luck)) { treasures++; if (t.rarity === 'epic') top++; }
       }
-      return { epicCards: +(epic / cards).toFixed(3), epicOrLegendaryTreasures: +(top / treasures).toFixed(3) };
+      return { epicCards: +(epic / cards).toFixed(3), epicTreasures: +(top / treasures).toFixed(3) };
     };
     const none = share(0), lucky = share(60);
-    return ok(lucky.epicCards > none.epicCards * 1.6 && lucky.epicOrLegendaryTreasures > none.epicOrLegendaryTreasures * 1.4, { none, lucky });
+    return ok(lucky.epicCards > none.epicCards * 1.6 && lucky.epicTreasures > none.epicTreasures * 1.4, { none, lucky });
   },
 });
 story('content/every-treasure-has-a-rarity', {
-  about: 'Every treasure is rated common, rare, epic or legendary, and every rarity has treasures.',
+  about: 'Every treasure is rated common, rare or epic (no legendaries), and every rarity has treasures.',
   setup() {},
   play() {
     const ids = TREASURE_RARITY.map((r) => r.id), count = Object.fromEntries(ids.map((id) => [id, 0]));
@@ -866,27 +870,27 @@ story('treasures/element', {
     return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
   },
 });
-story('treasures/element-levels', {
-  about: 'Element treasures have three levels: taking the Candle again burns harder and longer (level 3: twice as hard, 5 s), it stops being offered at level 3, and an element you own comes up as its next level about 1.5x as often.',
-  setup() { setupFight({ lash: false }); give('candle'); roachAt(0, -0.15); },
+story('treasures/element-up', {
+  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns 50% hotter, Long Matches burns 2 s longer, Birthday Cake fires two fireballs a shot; your Blow rate speeds every element attack up too.',
+  setup() { setupFight({ lash: false, bubbles: true }); give('candle'); roachAt(0, -0.15); },
   play() {
     const { run, enemies } = G(), B = run.bubbles, e = enemies.list[0];
-    const burnAt = (L) => { B.burning.clear(); B.ignite(e, 10, L); const f = B.burning.get(e); return [f.t, +(f.dps / 10).toFixed(3)]; };
-    const lv1 = burnAt(1), lv3 = burnAt(3);
-    run.owned.add('candle'); run.owned.add('candle');
     step(2);
-    const level = run.mods.elementLevel.fire;
-    const maxed = run.owned.count('candle') >= CONTENT.treasures.find((t) => t.id === 'candle').stack;
-    // the favored roll: how often the Paper Fan is in a 3-card pick, as usual and favored 1.5x
-    const pool = CONTENT.treasures.filter((t) => t.id !== 'candle');
-    const fan = pool.find((t) => t.id === 'paperFan');
-    let plain = 0, favored = 0;
-    for (let i = 0; i < 4000; i++) {
-      if (rollTreasures(pool, 3).includes(fan)) plain++;
-      if (rollTreasures(pool, 3, 0, (t) => (t === fan ? 1.5 : 1)).includes(fan)) favored++;
-    }
-    const ratio = +(favored / plain).toFixed(2);
-    return ok(lv1.join() === '3,0.17' && lv3.join() === '5,0.34' && level === 3 && maxed && ratio > 1.25 && ratio < 1.8, { lv1, lv3, level, maxed, ratio });
+    const base = { ...run.mods.element.fire };
+    give('lighterFluid'); give('longMatches'); give('birthdayCake');
+    step(2);
+    const up = run.mods.element.fire;
+    B.burning.clear(); B.ignite(e, 10, up);
+    const f = B.burning.get(e), burnT = f.t, burnDps = f.dps;
+    // a shot: how many fireballs leave at once
+    B.list.length = 0; B.elTimers.fire = 1; B.timer = 0;
+    step(1);
+    const fireballs = B.list.filter((b) => b.tint === 'fire').length;
+    // Blow rate: shots a second scale with it (count the fire timer's progress over 1 s)
+    const rateAt = (blow) => { run.stats.blowRate = blow; B.elTimers.fire = 0; let shots = 0; for (let i = 0; i < 60; i++) { const before = B.elTimers.fire; step(1); if (B.elTimers.fire < before) shots++; } return shots + B.elTimers.fire; };
+    const slow = rateAt(BASE_BLOW_RATE), fast = rateAt(BASE_BLOW_RATE * 2);
+    return ok(base.burn === 1 && up.burn === 1.5 && up.burnTime === 5 && burnT === 5 && Math.abs(burnDps - 10 * 0.17 * 1.5) < 1e-9 && up.count === 1 && fireballs === 2 && fast > slow * 1.7,
+      { base, up, burnT, fireballs, slow: +slow.toFixed(2), fast: +fast.toFixed(2) });
   },
 });
 story('treasures/levels', {
@@ -1352,6 +1356,26 @@ story('boss/vacuum-two-shields-max', {
   },
 });
 
+story('boss/element-reward', {
+  about: 'After a boss (and its metamorphosis), you pick a new element attack you don\'t have yet, then the act is complete.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false }); },
+  play() {
+    const { run } = G();
+    run.owned.add('candle');
+    const modal = () => document.querySelector('.jf-modal');
+    run.metamorph();
+    const first = modal().querySelector('h2')?.textContent;
+    modal().querySelector('.jf-card').click();                        // an evolution
+    const second = modal().querySelector('h2')?.textContent;
+    const offered = [...modal().querySelectorAll('.jf-card .big')].map((n) => n.textContent);
+    modal().querySelector('.jf-card').click();                        // an element
+    const third = modal().querySelector('h2')?.textContent;
+    const els = ['battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'].filter((id) => run.owned.has(id)).length;
+    G().menus.close();
+    return ok(/Metamorphosis/.test(first) && /new element/.test(second) && offered.length === 3 && !offered.includes('Birthday Candle') && els === 1 && /Act 1 complete/.test(third), { first, second, offered, third, els });
+  },
+});
+
 story('boss/dew-comes-to-you', {
   about: 'Once a boss is beaten, all the dew around the arena (its own and its summons\') flies to you, and any still on its way counts when the metamorphosis opens.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
@@ -1702,13 +1726,14 @@ story('engine/act2-rooms-load-when-needed', {
 
 // --- act 1 hands over to act 2
 story('acts/act-1-leads-to-act-2', {
-  about: 'Beating the act 1 boss and growing offers the way on to act 2, with the score so far.',
+  about: 'Beating the act 1 boss, growing and taking a new element offers the way on to act 2, with the score so far.',
   setup() { fresh(); },
   play() {
     const { run, menus } = G();
     run.kills = 12;
     run.metamorph();
-    document.querySelector('.jf-card')?.click();
+    document.querySelector('.jf-card')?.click();     // the evolution
+    document.querySelector('.jf-card')?.click();     // the boss's element reward
     const text = document.querySelector('.jf-modal, .jf-panel, #g-ui')?.innerText || document.body.innerText;
     const go = [...document.querySelectorAll('button')].some((b) => /On to act 2/.test(b.textContent));
     menus.close();

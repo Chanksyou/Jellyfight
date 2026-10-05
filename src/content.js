@@ -60,7 +60,7 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 
 // treasure "id" name="…" icon="…" text="…" rarity="…" attack=#true stack=N { effect words… }
 //   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
-const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
+const TIERS = ['common', 'rare', 'epic'];   // the ids of TREASURE_RARITY (stats.js)
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
   for (const n of nodes) {
@@ -87,11 +87,13 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     const words = (list) => list.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`));
     const levels = [words(base), ...lv.map((L) => words(L.children))];
     out.push({
+      needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
       id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : n.props.stack ?? 1, rarity: n.props.rarity ?? 'common',
       effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
       vocabulary: [...base, ...lv.flatMap((L) => L.children)].map((w) => w.name),
     });
   }
+  for (const t of out) if (t.needs && !seen.has(t.needs)) throw new Error(`${file}: "${t.id}" needs="${t.needs}", but there is no treasure called that`);
   return out;
 }
 

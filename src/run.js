@@ -2,7 +2,7 @@
 // treasures), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_LEVEL_FAVOR, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Boss } from './boss.js';
@@ -226,7 +226,7 @@ export class Run {
     // every run starts with a treasure: pick 1 of 3 before anything happens
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      this.pickTreasure('🎁 Pick a starting treasure', 'Two elements for your bubbles, or something else. Keep one to shape this run.', true);
+      this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in gifts. You get another after each boss.');
       return;
     }
     this.t += dt;
@@ -542,31 +542,42 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a golden gift or an elite
   // start: the starting pick, two elements for your bubbles and one of anything else
-  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.', start = false) {
-    const can = (t) => this.owned.count(t.id) < t.stack;
-    const elem = (t) => ELEMENT_TREASURES.includes(t.id);
-    // an element you already have is a little likelier to come up again, as its next level
-    const favor = (t) => (elem(t) && this.owned.count(t.id) > 0 ? ELEMENT_LEVEL_FAVOR : 1);
-    let left = start
-      ? shuffle([...rollTreasures(TREASURES.filter((t) => elem(t) && can(t)), 2, this.S.luck), ...rollTreasures(TREASURES.filter((t) => !elem(t) && can(t)), 1, this.S.luck)])
-      : rollTreasures(TREASURES.filter(can), 3, this.S.luck, favor);
+  // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
+  // their stack=N, an element's upgrades only once you own the element) from a golden gift or an
+  // elite. Base elements never come from here: they're element rewards (pickElement).
+  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.') {
+    const can = (t) => this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
+    let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (!left.length) return;
-    if (document.pointerLockElement) document.exitPointerLock();
-    sfx.treasure();
-    // stackable ones say how many you'd have
+    // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
-      // levelled ones (elements, and any with level blocks) say which level it'd be and what it adds
-      const next = this.owned.count(t.id) + 1, levelled = elem(t) || t.levels.length > 1;
+      const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
       const name = levelled ? `${t.name} <small>Lv ${next}${next > 1 ? ' ⬆' : ''}</small>` : t.stack > 1 ? `${t.name} <small>${next}/${t.stack}</small>` : t.name;
-      const text = t.levels.length > 1 && next > 1 ? t.levelText[next - 1] : t.text;
+      const text = levelled && next > 1 ? t.levelText[next - 1] : t.text;
       return { ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity), name, text };
     });
-    this.ui.choose(title, sub, left, (t) => {
+    this.offer(title, sub, left);
+  }
+
+  // An element reward: the start of a run, and after each boss. Pick the base version of one
+  // element attack you don't have yet (1 of 3); its upgrades can turn up in gifts from then on.
+  // then: what happens after the pick (or straight away, if you already have every element)
+  pickElement(title, sub, then = () => this.resume()) {
+    const left = shuffle(TREASURES.filter((t) => ELEMENT_TREASURES.includes(t.id) && !this.owned.has(t.id))).slice(0, 3)
+      .map((t) => ({ ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity) }));
+    if (!left.length) { then(); return; }
+    this.offer(title, sub, left, then);
+  }
+
+  offer(title, sub, choices, then = () => this.resume()) {
+    if (document.pointerLockElement) document.exitPointerLock();
+    sfx.treasure();
+    this.ui.choose(title, sub, choices, (t) => {
       const before = this.S.moisture;
       this.owned.add(t.id);
       if (this.S.moisture > before) this.heal(this.S.moisture - before);
       this.ui.treasure(t);
-      this.resume();
+      then();
     });
   }
 
@@ -714,7 +725,8 @@ export class Run {
       this.moisture = this.stats.moisture;
       this.phase = 'won';
       const next = STAGES[this.stage.id];         // the act after this one, if there is one
-      if (next) this.actComplete(next);
+      // the boss's element reward: one more element attack, before moving on
+      if (next) this.pickElement('🔥 A new element', `${this.stage.boss.name} is beaten. Take another element attack into act ${next.id}.`, () => this.actComplete(next));
       else this.endRun(`Act ${this.stage.id} complete`, 'The hallway and the bathroom are yours. The bedroom (act 3) is coming soon.', 'Play again from act 1');
     });
   }

@@ -359,7 +359,7 @@ export function newMods() {
   return {
     bubbles: { pierce: 1, split: false, golden: null, giant: null },
     elements: new Set(),
-    elementLevel: {},                // element -> its level, 1-3 (one per copy of its treasure)
+    element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, crit: null }, tentacles: { mark: 0, crit: null } },
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
     landingShockwave: null, extraJumps: 0,
@@ -376,6 +376,24 @@ const scopes = (by, where) => {
   return by === 'all' ? ['bubbles', 'tentacles'] : [by];
 };
 const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
+
+// Each element is its own attack (bubbles.js): a projectile it fires on its own timer, separate
+// from the bubbles. Its numbers start here; upgrade treasures (element-up) raise them. Every
+// element has the common ones; `rate` shots a second and `dmg` x pop damage per hit are at your
+// starting Blow rate and Pop damage, and scale with them (and Range, Bubble size and extra
+// Bubbles count too).
+export const ELEMENT_BASE = {
+  common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
+  fire: { burn: 1, burnTime: 3, spread: 0.06 },                       // burn dps x, seconds, how far a death spreads it
+  lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16 },      // arcs, arc damage x, stun s, arc reach m
+  ice: { chill: 2, frost: 0, frozenMul: 1 },                          // chill s, frost: chills the whole splash, frozen enemies take x
+  acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6 }, // puddle damage x, size x, seconds, most at once
+  wind: { push: 1, pierce: 1, speed: 1.4, rate: 1 },                  // push x; gusts pierce once and fly fast
+  glitter: { width: 2.2, splash: 1, slow: 0, rate: 0.6 },             // splash width x, splash damage x, slow s
+};
+// element-up numbers that add (the rest multiply)
+const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'frozenMul']);
+export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
@@ -417,9 +435,21 @@ export const TREASURE_WORDS = {
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
-    doc: 'Infuses your bubbles with an element: fire, lightning, ice, acid, wind or glitter (see bubbles.js). Elements stack, and each copy of the same one is a level (up to 3) that makes it stronger.',
+    doc: 'An element attack of its own: fire, lightning, ice, acid, wind or glitter (bubbles.js). It fires its own projectile on its own timer, separate from your bubbles. You get these from element rewards (the start of a run and after each boss), not from gifts.',
     args: ['name'],
-    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.elementLevel[name] = Math.min(3, (m.elementLevel[name] || 0) + 1); }; },
+    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
+  },
+  'element-up': {
+    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow and frozenMul add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
+    args: ['name'],
+    props: Object.fromEntries([...new Set(Object.values(ELEMENT_BASE).flatMap((o) => Object.keys(o)))].map((k) => [k, null])),
+    make: ([name], p) => {
+      if (!ELEMENT_IDS.includes(name)) throw new Error(`element-up needs an element (${ELEMENT_IDS.join(', ')}), not "${name}"`);
+      const has = elementParams(name), set = Object.entries(p).filter(([, v]) => v != null);
+      for (const [k] of set) if (!(k in has)) throw new Error(`element-up "${name}" has no "${k}" (it has: ${Object.keys(has).join(', ')})`);
+      if (!set.length) throw new Error(`element-up "${name}" changes nothing`);
+      return (m) => { const P = (m.element[name] ||= elementParams(name)); for (const [k, v] of set) P[k] = ELEMENT_ADD.has(k) ? P[k] + v : P[k] * v; };
+    },
   },
   'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
