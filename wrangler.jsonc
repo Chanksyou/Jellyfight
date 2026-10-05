@@ -1,0 +1,20 @@
+{
+  // Jelly Fight on Cloudflare: one Worker serves the game's files from the CDN (assets) and
+  // answers /api/scores for the public leaderboard (worker/index.js, scores kept in D1).
+  // Deployed by Cloudflare Workers Builds on every push to main: deploy command `npx wrangler deploy`.
+  // No database_id: wrangler creates the D1 database on the first deploy and remembers it.
+  "name": "jelly-fight",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-12",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jelly-fight-scores"
+    }
+  ]
+}

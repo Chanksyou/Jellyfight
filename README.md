@@ -63,6 +63,15 @@ Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied o
 
 WASD move · mouse look · Space jump (hold to climb fabric; again in the air with Pen Spring) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. The pause menu shows the build and the frame rate while you were playing (below 20 fps the whole game runs in slow motion). "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, eyes (dots, big, sleepy, fierce or cyclops: flat on the bell, sized to fit each species), mouth and something on top (16 hats and toppers: antennae, sprout, party hat, bow, crown, horns, top hat, beanie, witch hat, cowboy hat, a spinning halo, flower, propeller cap with a spinning propeller, chef hat, cat ears, unicorn horn). Every jelly glows and is the same size. On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
 
+## Hosting on Cloudflare (public leaderboard)
+
+The game also runs as a Cloudflare Worker named `jelly-fight` (`wrangler.jsonc`). The Worker serves the game's files from Cloudflare's CDN and answers `api/scores` (`worker/index.js`) from a D1 database called `jelly-fight-scores`, so anyone can post a score: signed in or not, any organization. On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
+
+- **Deploys:** Cloudflare Workers Builds, connected to this GitHub repo. Every push to `main` redeploys. Build command: none. Deploy command: `npx wrangler deploy`. Wrangler creates the D1 database on the first deploy (no ID to paste), and the Worker creates its tables on the first request.
+- **What's served:** the repo root, minus what `.assetsignore` lists (`tests/`, `tools/`, `worker/`, the config, the docs, and the unused whole-apartment models).
+- **The board's rules:** a player is a random id kept in their browser. Scores are capped at 60,000, names are trimmed to 20 characters with HTML stripped, and each player can post once every 15 s and each address once every 5 s (addresses are stored only as a salted hash; set an `IP_SALT` secret on the Worker to choose your own salt). Scores come from the player's browser, so this stops casual cheating, not a determined cheater.
+- **Try it locally:** `npx wrangler dev`, then open http://localhost:8787.
+
 ## How it fits together
 
 The apartment is a static 3D model, baked to `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, acts, door angles, the lights at midnight). The game doesn't load that whole file: `tools/split.mjs` cuts it into one file per act, and each act loads only its own rooms. `apartment-act1.glb` (~3.6 MB) is the living room and the hallway you can see down from it (seen only: an invisible wall keeps you out of it in act 1), plus every room's walls, floors and doors, so every view is solid; `apartment-act2.glb` (~1.1 MB) the bathroom and hall closets; `apartment-act3.glb` (~0.9 MB) the bedroom. A stage lists the parts it needs (`parts` in `src/stage1.js`); `GAME.loadRooms(['act2'])` brings in more at the start of a later act (solid, with layout edits, on the minimap, with that act's lamps). Each part is meshopt-compressed (needs WebAssembly) with a `-q` twin used automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game.
@@ -147,6 +156,7 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 | `src/combat.js` | The Lash (close-range tentacle sting): targeting and picking which tentacle strikes. |
 | `src/vacuum.js` | The Vacuum, stage 1's boss, and its attacks. |
 | `src/boss.js` | Simpler bosses: The Clog (bathroom) and The Dust King. |
+| `worker/index.js` | The Cloudflare Worker: serves the game and the public leaderboard API (`wrangler.jsonc`, `.assetsignore`). |
 | `src/forcefield.js` | The glowing force field drawn over each invisible wall. |
 | `src/whipper-model.js` | The Cream Whipper elite's model (N2O cylinder, regulator and gauges, hose, whipper) and its balloons. |
 | `src/clock-model.js` | The detailed hall clock (the Wall Clock elite's model, and decor in act 1). |

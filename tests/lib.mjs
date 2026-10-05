@@ -20,6 +20,8 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 // A static server for the repo and a headless Chromium (software WebGL, works anywhere)
 export async function start() {
   const server = http.createServer((req, res) => {
+    // no leaderboard here (like a plain file host): answer without JSON, so the game goes offline quietly
+    if (req.url.startsWith('/api/')) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('no board'); }
     const file = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });

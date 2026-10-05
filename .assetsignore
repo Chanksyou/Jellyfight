@@ -1,0 +1,14 @@
+# What the Worker must NOT serve as game files (wrangler.jsonc serves the repo root)
+.git
+.wrangler
+.gitignore
+.assetsignore
+wrangler.jsonc
+worker
+tests
+tools
+node_modules
+CLAUDE.md
+README.md
+assets/apartment.glb
+assets/apartment-q.glb

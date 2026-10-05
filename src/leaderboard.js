@@ -1,12 +1,16 @@
-// The leaderboard: everyone's best score in one shared table, kept in the artifact's database
-// (the claude.ai `db` capability: one document per player at scores/<their id>, readable by
-// everyone, writable only by its own player; see the publish rules in CLAUDE.md). Off claude.ai
-// (a saved copy, another host, signed out) there is no database: the game still shows your
-// score and keeps your personal best in this browser, and the board says where it lives.
+// The leaderboard: everyone's best score in one shared table. Two homes, whichever the page has:
+//  - on claude.ai: the artifact's database (the `db` capability: one document per player at
+//    scores/<their id>, readable by everyone, writable only by its own player; see CLAUDE.md)
+//  - on the game's own site (Cloudflare, worker/index.js): GET/POST api/scores, open to anyone;
+//    a player there is a random id kept in this browser
+// Anywhere else (a saved copy, a plain file server) there is no board: the game still shows your
+// score and keeps your personal best in this browser.
 //
 // The score itself is Run.score() (run.js). A run only replaces your entry when it beats it.
 const BEST_KEY = 'jellyfight.best';
 const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
+const PLAYER_KEY = 'jellyfight.player';
+const API = 'api/scores';  // relative: works wherever the game is served from
 
 export class Leaderboard {
   constructor() {
@@ -22,7 +26,7 @@ export class Leaderboard {
 
   async init() {
     const c = typeof window !== 'undefined' ? window.claude : null;
-    if (!c?.use) { this.status = 'offline'; return false; }
+    if (!c?.use) return this.initWeb();
     const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
     if (!db) { this.status = 'offline'; return false; }
     this.db = db;
@@ -40,6 +44,35 @@ export class Leaderboard {
     return true;
   }
 
+  // The game's own site: the Worker's api/scores. No answer (a plain file server) = offline.
+  async initWeb() {
+    let id = null;
+    try { id = localStorage.getItem(PLAYER_KEY); } catch {}
+    if (!/^[a-z0-9-]{8,48}$/.test(id || '')) {
+      id = (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).toLowerCase();
+      try { localStorage.setItem(PLAYER_KEY, id); } catch {}
+    }
+    this.id = id;
+    if (!(await this.fetchWeb())) { this.status = 'offline'; return false; }
+    this.web = true;
+    this.canWrite = true;
+    return true;
+  }
+
+  async fetchWeb() {
+    try {
+      const r = await fetch(`${API}?me=${encodeURIComponent(this.id)}`, { cache: 'no-store' });
+      if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return false;
+      const d = await r.json();
+      if (!Array.isArray(d.top)) return false;
+      this.rows = d.top;
+      if (d.mine && (!this.mine || d.mine.score >= this.mine.score)) this.mine = d.mine;
+      this.status = 'live';
+      this.onChange?.();
+      return true;
+    } catch { return false; }
+  }
+
   take(snap) {
     this.rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     this.status = 'live';
@@ -48,6 +81,7 @@ export class Leaderboard {
 
   // Read the top 10 now (opening the board calls this). Resolves once the rows are in.
   async refresh() {
+    if (this.web) { await this.fetchWeb(); return; }
     if (!this.top) return;
     try { this.take(await this.top.get()); } catch { if (this.status === 'loading') { this.status = 'offline'; this.onChange?.(); } }
   }
@@ -68,6 +102,7 @@ export class Leaderboard {
     const best = !this.localBest || entry.score > this.localBest.score;
     if (best) { this.localBest = entry; try { localStorage.setItem(BEST_KEY, JSON.stringify(entry)); } catch {} }
     await this.ready;
+    if (this.web) return { best, ...(await this.postWeb(entry)) };
     if (!this.db) return { best, posted: false, why: 'offline' };
     if (!this.id || this.canWrite === false) return { best, posted: false, why: 'readonly' };
     if (this.mine && this.mine.score >= entry.score) return { best, posted: false, why: 'lower' };
@@ -79,6 +114,16 @@ export class Leaderboard {
       if (e?.code === 'invalid_argument') this.canWrite = false;   // the rules said no: read-only for this visit
       return { best, posted: false, why: e?.code === 'invalid_argument' ? 'readonly' : 'error' };
     }
+  }
+
+  async postWeb(entry) {
+    if (this.mine && this.mine.score >= entry.score) return { posted: false, why: 'lower' };
+    try {
+      const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) });
+      const d = await r.json().catch(() => ({}));
+      if (d.posted) { this.mine = entry; this.fetchWeb(); return { posted: true }; }
+      return { posted: false, why: d.why === 'lower' ? 'lower' : 'error' };
+    } catch { return { posted: false, why: 'error' }; }
   }
 
   // Your place on the board (1-based), or null when you're not in the top 10
@@ -95,7 +140,7 @@ export class Leaderboard {
 
   // One line about where things stand, for under the table
   note() {
-    if (this.status === 'offline') return 'The shared leaderboard lives on the game\'s claude.ai page (signed in). Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
+    if (this.status === 'offline') return 'The shared leaderboard isn\'t reachable from here. Your best in this browser: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (this.status === 'loading') return 'Loading the leaderboard…';
     if (!this.id || this.canWrite === false) return 'You can see the board, but this game\'s page is view-only for you, so your scores stay in this browser. Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (!this.shown().length) return 'No scores yet. Be the first!';
