@@ -29,7 +29,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v102';   // shown in the pause menu so we know which version a phone is running
+const BUILD = 'v103';   // shown in the pause menu so we know which version a phone is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -196,7 +196,6 @@ run.onMainMenu = () => {
   if (document.pointerLockElement) document.exitPointerLock();
   overlay.hidden = false;
 };
-run.playerName = () => state.look.name;
 run.playerBody = () => state.look.body;
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls

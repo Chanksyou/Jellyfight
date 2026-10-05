@@ -1492,18 +1492,45 @@ story('engine/leaderboard', {
     const O = new Leaderboard();
     await O.ready;
     const off = await O.submit({ score: 50, name: 'Solo' });
-    // the game: dying shows the score and posts it
+    // the game: dying shows the score; it goes on the board only when you submit it, under the
+    // name you type (or Guest)
     const { run, menus } = G();
     const realBoard = run.board;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const modal = () => document.querySelector('.jf-modal');
+    const press = (re) => [...modal().querySelectorAll('button')].find((b) => re.test(b.textContent))?.click();
+    try { localStorage.removeItem('jellyfight.name'); } catch {}
     window.claude = fakeClaude({ id: 'u_game' });
     run.board = new Leaderboard();
+    await run.board.ready;
     run.kills = 12; run.level = 3;
     run.die();
-    await new Promise((r) => setTimeout(r, 800));
-    const shown = /Score/.test(document.querySelector('.jf-modal')?.innerText || '');
-    const posted = window.claude.docs.get('scores/u_game')?.score === run.score();
-    const home = [...document.querySelectorAll('.jf-modal button')].some((b) => /Main menu/.test(b.textContent));
+    await wait(800);
+    const shown = /Score/.test(modal()?.innerText || '');
+    const notYet = !window.claude.docs.has('scores/u_game');
+    const box = modal().querySelector('input[name="player"]');
+    const home = [...modal().querySelectorAll('button')].some((b) => /Main menu/.test(b.textContent));
+    box.value = 'Squid';
+    press(/Submit score/);
+    await wait(300);
+    const doc = window.claude.docs.get('scores/u_game');
+    const firstScore = run.score();
+    const posted = doc?.score === firstScore && doc?.name === 'Squid' && /on the leaderboard/.test(modal()?.innerText || '') && !/Submit score/.test(modal()?.innerText || '');
     menus.close();
+    // a second player who leaves the name empty is Guest (the box offers the last name typed: clear it)
+    window.claude = fakeClaude({ id: 'u_guest' });
+    run.board = new Leaderboard();
+    await run.board.ready;
+    run.start(); run.kills = 5;
+    run.die();
+    await wait(800);
+    const remembered = modal().querySelector('input[name="player"]')?.value === 'Squid';
+    modal().querySelector('input[name="player"]').value = '';
+    press(/Submit score/);
+    await wait(300);
+    const guest = window.claude.docs.get('scores/u_guest')?.name === 'Guest';
+    menus.close();
+    try { localStorage.removeItem('jellyfight.name'); } catch {}
     // the board opened with no live feed at all still shows what's in the table (it read it)
     const quiet = fakeClaude({ id: 'u_quiet', silent: true });
     quiet.docs.set('scores/u_someone', { score: 24718, name: 'Jelly' });
@@ -1515,9 +1542,9 @@ story('engine/leaderboard', {
     menus.close();
     delete window.claude;
     run.board = realBoard;
-    return ok(home && listed && fresh.posted && !refused.posted && refused.why === 'readonly' && refusedNote && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
-      && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && run.score() >= 12 * 10 + 200,
-      { home, listed, fresh, refused, refusedNote, first, lower, higher, order, escaped, ro, off, shown, posted, score: run.score() });
+    return ok(notYet && remembered && guest && home && listed && fresh.posted && !refused.posted && refused.why === 'readonly' && refusedNote && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
+      && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && firstScore >= 12 * 10 + 200,
+      { notYet, remembered, guest, home, listed, fresh, refused, refusedNote, first, lower, higher, order, escaped, ro, off, shown, posted, score: firstScore });
   },
 });
 

@@ -745,31 +745,45 @@ export class Run {
   // Leaderboard, given by main.js), and a button to see the board
   endRun(title, sub, again) {
     const score = this.score();
-    const entry = { score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const B = this.board;
+    const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
+    let typed = savedName();
+    // result: what came of a Submit (null until you submit)
     const show = (result) => {
       this.endView = 'summary';
-      const posted = result?.posted ? ' <small>· on the leaderboard</small>' : result?.why === 'readonly' ? ' <small>· view-only here, not posted</small>' : '';
-      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${result?.best ? ' <small>new best!</small>' : ''}${posted}`], ...this.summary()];
+      const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
+        : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
+      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`], ...this.summary()];
+      const canPost = B && B.status !== 'offline' && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
+      // your name for the board: whatever you typed last time, or Guest if you leave it empty
+      if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${escAttr(typed)}">`]);
+      const buttons = [];
+      if (canPost) {
+        buttons.push({ label: '📤 Submit score', go: true, onClick: (v) => {
+          typed = (v.player || '').trim().slice(0, 20);
+          saveName(typed);
+          show({ posted: false, why: 'sending' });
+          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = r; if (this.endView === 'summary') show(r); });
+        } });
+      }
       // a run always starts over from act 1
-      const buttons = [{ label: again, go: true, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } }];
-      if (this.board) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
+      buttons.push({ label: again, go: !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } });
+      if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
-      this.ui.message(title, sub, rows, buttons);
+      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons);
     };
     show(null);
-    // when the post comes back, refresh the summary (if it's still what's on screen) with "new best!"
-    this.board?.submit(entry).then((result) => { this.lastPost = result; if ((this.phase === 'dead' || this.phase === 'won') && this.endView === 'summary') show(result); });
   }
 
-  // An act beaten with another to come: the score so far goes on the board, and the run moves on
-  // with everything it has (level, stats, treasures, score)
+  // An act beaten with another to come: the run moves on with everything it has (level, stats,
+  // treasures, score so far); you submit the score at the end of the run
   actComplete(next) {
     const score = this.score();
     const carry = {
       score, stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount,
     };
-    this.board?.submit({ score, name: this.playerName?.() || 'Jelly', body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: false, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' });
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry, { continue: true }) }]);   // straight into it, no main menu
@@ -838,3 +852,9 @@ export class Run {
     return out;
   }
 }
+
+// The name you put on the leaderboard, kept in this browser for next time ('' = Guest)
+const NAME_KEY = 'jellyfight.name';
+function savedName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
+function saveName(n) { try { localStorage.setItem(NAME_KEY, n); } catch {} }
+const escAttr = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

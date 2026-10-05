@@ -27,6 +27,9 @@ const CSS = `
 .jf-stats b { text-align: right; }
 .jf-stats small { font-weight: 600; opacity: .75; }
 .jf-score { font-size: 1.5em; color: #ffd23a; }
+.jf-name { font: 600 15px system-ui, sans-serif; width: 11em; max-width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; text-align: right; }
+.jf-name::placeholder { color: #ffffff80; }
+.jf-name:focus { outline: 2px solid #ffd23a; outline-offset: 1px; }
 .jf-pop { position: fixed; left: 50%; top: 16%; transform: translateX(-50%); z-index: 25; background: #1d2034ee; border: 2px solid #ffd23a; border-radius: 16px;
   padding: 12px 18px; display: flex; gap: 12px; align-items: center; color: #fff; font-family: system-ui, sans-serif; box-shadow: 0 8px 28px #0009;
   pointer-events: none; animation: jfPop .25s ease-out; max-width: 90vw; }
@@ -138,12 +141,16 @@ export class UI {
     this.modal.onclick = (e) => {
       const b = e.target.closest('button');
       if (!b) return;
-      const btn = buttons[+b.dataset.i];
+      const btn = buttons[+b.dataset.i], vals = this.values();
       this.close();
-      btn.onClick();
+      btn.onClick(vals);
     };
-    this.keyHandler = (e) => { if (e.code === 'Enter') { const btn = buttons.find((b) => b.go) || buttons[0]; this.close(); btn.onClick(); } };
+    this.keyHandler = (e) => { if (e.code === 'Enter') { const btn = buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
+    if (!matchMedia('(pointer: coarse)').matches) this.modal.querySelector('input')?.focus({ preventScroll: true });   // not on phones: it would pop the keyboard up
   }
+
+  // what's typed into the dialog's named inputs: { name: value }
+  values() { return Object.fromEntries([...this.modal.querySelectorAll('input[name]')].map((i) => [i.name, i.value])); }
 
   treasure(t) {
     this.pop.innerHTML = `<span class="ic">${t.icon}</span><div><b>${t.name}</b><span>${t.text}</span></div>`;

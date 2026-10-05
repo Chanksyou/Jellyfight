@@ -98,21 +98,32 @@ export class Leaderboard {
   // Record a finished run. Resolves { best, posted, why }: best = whether it beat your personal
   // best; posted = whether it went on the shared board ('why' says why not)
   async submit(entry) {
+    return { best: this.keepBest(entry), ...(await this.post(entry)) };
+  }
+
+  // Your best in this browser (whether or not you post it): true when this run beat it
+  keepBest(entry) {
+    const score = Math.max(0, Math.min(MAX_SCORE, Math.round(entry.score)));
+    const best = !this.localBest || score > this.localBest.score;
+    if (best) { this.localBest = { ...entry, score, at: Date.now() }; try { localStorage.setItem(BEST_KEY, JSON.stringify(this.localBest)); } catch {} }
+    return best;
+  }
+
+  // Put a run on the shared board (the end screen's Submit score). Resolves { posted, why }
+  async post(entry) {
     entry = { ...entry, score: Math.max(0, Math.min(MAX_SCORE, Math.round(entry.score))), at: Date.now() };
-    const best = !this.localBest || entry.score > this.localBest.score;
-    if (best) { this.localBest = entry; try { localStorage.setItem(BEST_KEY, JSON.stringify(entry)); } catch {} }
     await this.ready;
-    if (this.web) return { best, ...(await this.postWeb(entry)) };
-    if (!this.db) return { best, posted: false, why: 'offline' };
-    if (!this.id || this.canWrite === false) return { best, posted: false, why: 'readonly' };
-    if (this.mine && this.mine.score >= entry.score) return { best, posted: false, why: 'lower' };
+    if (this.web) return this.postWeb(entry);
+    if (!this.db) return { posted: false, why: 'offline' };
+    if (!this.id || this.canWrite === false) return { posted: false, why: 'readonly' };
+    if (this.mine && this.mine.score >= entry.score) return { posted: false, why: 'lower' };
     try {
       await this.db.doc('scores/' + this.id).set(entry);
       this.mine = entry;
-      return { best, posted: true };
+      return { posted: true };
     } catch (e) {
       if (e?.code === 'invalid_argument') this.canWrite = false;   // the rules said no: read-only for this visit
-      return { best, posted: false, why: e?.code === 'invalid_argument' ? 'readonly' : 'error' };
+      return { posted: false, why: e?.code === 'invalid_argument' ? 'readonly' : 'error' };
     }
   }
 
