@@ -110,19 +110,24 @@ export class World {
   // Walks each nearby collider's BVH itself instead of going through Raycaster (which built and
   // sorted hit objects for every mesh a ray touched) or the BVH's shapecast (which wraps its
   // node buffer in three new typed arrays per call). A miss allocates nothing; a hit, the result.
-  cast(origin, dir, far) {
+  // skip: a Set of meshes to see straight through (the camera, looking out from under a table)
+  cast(origin, dir, far, skip = null) {
     const ray = this._ray.set(origin, dir);
     this._best = far;
     this._hit = false;
+    let mesh = null;
     for (let i = 0; i < this.nearby.length; i++) {
       const m = this.nearby[i], sp = this.nearbySpheres[i];
       if (ray.distanceSqToPoint(sp.center) > sp.radius * sp.radius) continue;
       if (sp.center.distanceTo(origin) - sp.radius > this._best) continue;   // entirely beyond the best hit
       if (!visibleChain(m)) continue;                                          // hidden since we collected it
+      if (skip && skip.has(m)) continue;
+      const was = this._best;
       this.castMesh(m, origin);
+      if (this._best < was) mesh = m;
     }
     if (!this._hit) return null;
-    return { distance: this._best, point: dir.clone().multiplyScalar(this._best).add(origin), normal: this._hitN.clone() };
+    return { distance: this._best, point: dir.clone().multiplyScalar(this._best).add(origin), normal: this._hitN.clone(), mesh };
   }
 
   castMesh(m, origin) {

@@ -27,6 +27,12 @@ export const CONFIG = {
     height: 0.051,       // look-at point above the player's feet
     minPitch: 0.45,      // never lower than ~26 degrees, so the floor around you stays in view
     maxPitch: 1.3,       // never fully overhead (~75 degrees)
+    minClear: 0.3,       // against a wall it tilts up toward top-down rather than closer than this
+    maxAutoPitch: 1.55,  // how far it may tilt up to look over something (~89 degrees)
+    seeThrough: true,    // furniture the jelly is under fades out instead of blocking the view
+    clearRadius: 0.015,  // keeps this much room around the camera so walls don't slice the frame edge
+    lookAhead: 0.06,     // starts tilting up (or gliding in) when a wall comes this close, before it blocks the view
+    pullSpeed: 2.5,      // m/s: how fast it glides in toward a wall that's coming near
     sensitivity: 0.0025,
     fov: 60,
     near: 0.002,         // tiny near plane so walls don't vanish when the camera is close
