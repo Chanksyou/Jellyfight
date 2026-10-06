@@ -1424,6 +1424,26 @@ story('modes/dev-fight-boss', {
   },
 });
 
+story('elites/hud-health-bar', {
+  about: 'While an elite fights you, its name and health show on the HUD under the clock (and drop as you hit it); walk away and the bar goes. Its own bar over it turns from green toward red.',
+  setup() { fresh({ bubbles: false, lash: false }); tp(0.66, 0.78, 2.95, 0); },
+  play() {
+    const { run } = G(), mug = run.elites.list.find((e) => e.kind === 'mug');
+    const bar = () => document.querySelector('#hud .elite');
+    step(20);
+    const shown = !bar().hidden && /MUG/.test(bar().innerText);
+    const full = bar().querySelector('i').style.transform;
+    const green = mug.fill.material.color.g > mug.fill.material.color.r;
+    mug.hp = mug.maxHp * 0.3;
+    step(2);
+    const after = bar().querySelector('i').style.transform, red = mug.fill.material.color.r > mug.fill.material.color.g;
+    tp(3.2, 0.05, 3.0, 0);
+    step(20);
+    const gone = bar().hidden;
+    return ok(shown && full === 'scaleX(1)' && /scaleX\(0\.3/.test(after) && green && red && gone, { shown, full, after, green, red, gone });
+  },
+});
+
 story('elites/hall-clock-hangs-in-act-1', {
   about: 'In act 1 the detailed hall clock hangs over the cubby bench as a plain clock (you can see down the hall), in place of the apartment\'s simple one.',
   setup() { fresh(); },

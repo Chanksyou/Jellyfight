@@ -268,13 +268,17 @@ class Elite {
     m.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
     owner.scene.add(this.holder);
-    // a little health bar that faces the camera
+    // its health bar over it, facing the camera: big, outlined and drawn over everything, going
+    // green -> yellow -> red as it loses health (the HUD shows it too while it fights you)
     this.bar = new THREE.Group();
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.008), new THREE.MeshBasicMaterial({ color: 0x1a1a22, transparent: true, opacity: 0.7, depthTest: false }));
-    this.fill = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.005).translate(0.033, 0, 0), new THREE.MeshBasicMaterial({ color: 0xffc23a, depthTest: false }));
-    this.fill.position.set(-0.033, 0, 0.0005);
-    back.renderOrder = this.fill.renderOrder = 10;
-    this.bar.add(back, this.fill);
+    const W = 0.11, H = 0.014;
+    const edge = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.006, H + 0.006), new THREE.MeshBasicMaterial({ color: 0xfff2d0, depthTest: false, toneMapped: false }));
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.002, H + 0.002), new THREE.MeshBasicMaterial({ color: 0x14121a, depthTest: false }));
+    this.fill = new THREE.Mesh(new THREE.PlaneGeometry(W, H).translate(W / 2, 0, 0), new THREE.MeshBasicMaterial({ color: 0x5ae05a, depthTest: false, toneMapped: false }));
+    back.position.z = 0.0003;
+    this.fill.position.set(-W / 2, 0, 0.0006);
+    edge.renderOrder = 10; back.renderOrder = 11; this.fill.renderOrder = 12;
+    this.bar.add(edge, back, this.fill);
     this.bar.position.y = m.barY ?? m.r * 2.2 + 0.03;
     this.holder.add(this.bar);
     this.t = 0;
@@ -544,9 +548,12 @@ export class Elites {
       const g = e.model.group;
       g.scale.setScalar(e.size * (1 + e.hitPop * 0.08));
       e.bar.quaternion.copy(camQ);
-      e.fill.scale.x = Math.max(0.001, e.hp / e.maxHp);
+      const k = Math.max(0, e.hp / e.maxHp);
+      e.fill.scale.x = Math.max(0.001, k);
+      e.fill.material.color.setHSL(0.33 * k, 0.85, 0.55);          // green -> yellow -> red
       const to = pc.clone().sub(e.base);
       const awake = to.length() < e.aggro;
+      e.awake = awake;
       // a hanging elite comes down its wall while you're close (and fights only once it's down)
       if (e.wall) {
         if (awake || e.state !== 'idle') e.downT = 1.5; else e.downT = Math.max(0, (e.downT || 0) - dt);

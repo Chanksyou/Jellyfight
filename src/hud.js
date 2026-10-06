@@ -38,6 +38,11 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .boss.shield i { background: linear-gradient(#d6a8ff, #7a2ad0); }
 #hud .boss.shield .bar { border-color: #d6a8ff; }
 #hud .boss .nm { font-weight: 800; letter-spacing: .12em; font-size: 13px; margin-bottom: 4px; text-shadow: 0 1px 3px #000; }
+/* an elite you're fighting: its name and health, under the clock */
+#hud .elite { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); width: min(320px, 56vw); text-align: center; }
+#hud .elite .bar { height: 12px; border-color: #ffe6a0; }
+#hud .elite i { background: linear-gradient(#ffd86a, #e08a1a); }
+#hud .elite .nm { font-weight: 800; letter-spacing: .1em; font-size: 12px; margin-bottom: 3px; text-shadow: 0 1px 3px #000; color: #ffe6a0; }
 #hud .map { position: absolute; right: 18px; bottom: 18px; width: 190px; height: 190px; }
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
@@ -82,6 +87,7 @@ export class Hud {
       </div>
       <div class="tc"><div class="clock"></div><div class="stage"></div></div>
       <div class="boss" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
+      <div class="elite" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
       <canvas class="map"></canvas>
       <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>
       <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
@@ -155,6 +161,15 @@ export class Hud {
     b.classList.toggle('shield', shielded);
     this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : name.toUpperCase()));
     this.$('.boss i').style.transform = `scaleX(${Math.max(0, frac)})`;
+  }
+
+  // the elite you're fighting (null: none)
+  setElite(name, frac) {
+    const b = this.$('.elite');
+    b.hidden = name == null;
+    if (name == null) return;
+    this.set('eliteName', '.elite .nm', () => `✨ ${name.toUpperCase()}`);
+    this.$('.elite i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 
   hint(html) {

@@ -120,6 +120,7 @@ export class Run {
     this.traversal.bossMode = false;
     this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) m.userData.field.visible = false; });
     this.hud.setBoss(null);
+    this.hud.setElite(null);
     this.ui.close();
     this.fade.style.opacity = 0;
 
@@ -278,7 +279,11 @@ export class Run {
       this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
-      }
+        // the elite fighting you (the closest awake one): its name and health on the HUD
+        const fe = this.elites.list.filter((e) => !e.dead && !e.decor && !e.beaten && (e.awake || e.state !== 'idle'))
+          .sort((a, b) => a.base.distanceTo(P.position) - b.base.distanceTo(P.position))[0];
+        this.hud.setElite(fe ? fe.name : null, fe ? fe.hp / fe.maxHp : 0);
+      } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius }, this.t);
       this.contactDamage();

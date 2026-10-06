@@ -337,20 +337,22 @@ export class Enemies {
     return e;
   }
 
-  // Sticky Note mark: a little yellow note above the enemy while it lasts; Ice Cube frost: a
-  // pale blue tint on the eyes' whites is enough to read "frozen"
+  // The mark (Sticky Note, acid): a little skull over the enemy while it takes extra damage, always
+  // facing the camera and bobbing; Ice Cube frost: a pale blue tint on the eyes' whites is enough
+  // to read "frozen"
   markLook(e, dt) {
     e.markT = Math.max(0, (e.markT || 0) - dt);
     if (e.markT > 0 && !e.note) {
-      this.noteGeo ||= new THREE.PlaneGeometry(1, 1);
-      this.noteMat ||= new THREE.MeshStandardMaterial({ color: 0xffe45a, emissive: 0x6a5a00, side: THREE.DoubleSide, roughness: 0.8 });
-      e.note = new THREE.Mesh(this.noteGeo, this.noteMat);
-      e.note.scale.setScalar(e.r * 0.9);
-      e.note.position.y = e.r * 2.3;
-      e.note.rotation.z = 0.2;
+      this.skullMat ||= new THREE.SpriteMaterial({ map: skullTexture(), transparent: true, depthWrite: false, toneMapped: false });
+      e.note = new THREE.Sprite(this.skullMat);
+      e.note.scale.setScalar(Math.max(0.034, e.r * 1.7));
+      e.note.renderOrder = 6;
       e.root.add(e.note);
     }
-    if (e.note) e.note.visible = e.markT > 0;
+    if (e.note) {
+      e.note.visible = e.markT > 0;
+      e.note.position.y = e.r * 2.7 + Math.sin(performance.now() / 180 + e.id) * e.r * 0.12;
+    }
     if (e.freezeT > 0 && !e.frost) {
       this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, roughness: 0.1 });
       this.frostGeo ||= new THREE.IcosahedronGeometry(1, 1);   // shared: one per enemy leaked GPU buffers
@@ -884,3 +886,35 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
 const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3() };
+
+// The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
+let _skull = null;
+function skullTexture() {
+  if (_skull) return _skull;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const glow = g.createRadialGradient(64, 62, 8, 64, 62, 62);
+  glow.addColorStop(0, '#ff3a3aaa'); glow.addColorStop(1, '#ff3a3a00');
+  g.fillStyle = glow; g.fillRect(0, 0, 128, 128);
+  g.lineWidth = 6; g.strokeStyle = '#1a0a0e'; g.fillStyle = '#f4efe6';
+  // cranium and jaw
+  g.beginPath(); g.ellipse(64, 54, 36, 34, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.beginPath(); g.roundRect(42, 72, 44, 28, 8); g.fill(); g.stroke();
+  g.beginPath(); g.ellipse(64, 60, 33, 30, 0, 0, Math.PI * 2); g.fill();      // join them without a line
+  // eye sockets and nose
+  g.fillStyle = '#1a0a0e';
+  g.beginPath(); g.ellipse(50, 58, 10, 12, 0.15, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(78, 58, 10, 12, -0.15, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.moveTo(64, 70); g.lineTo(58, 80); g.lineTo(70, 80); g.closePath(); g.fill();
+  // teeth
+  g.lineWidth = 3;
+  for (const x of [52, 60, 68, 76]) { g.beginPath(); g.moveTo(x, 86); g.lineTo(x, 98); g.stroke(); }
+  // a red glint in each socket
+  g.fillStyle = '#ff4a4a';
+  g.beginPath(); g.arc(52, 60, 3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(76, 60, 3, 0, Math.PI * 2); g.fill();
+  _skull = new THREE.CanvasTexture(c);
+  _skull.colorSpace = THREE.SRGBColorSpace;
+  return _skull;
+}
