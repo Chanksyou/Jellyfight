@@ -1356,6 +1356,24 @@ story('boss/vacuum-two-shields-max', {
   },
 });
 
+story('modes/quick-restart-after-death', {
+  about: 'Starting a new run right after dying: the old run\'s death screen (it comes 0.7 s after) doesn\'t land on the new run.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  async play() {
+    const { run, menus } = G();
+    run.die();
+    run.start();                                   // straight away, before the death screen
+    run.startPicked = true;
+    await new Promise((r) => setTimeout(r, 1000));
+    const stale = /dried out/.test(document.querySelector('.jf-modal')?.innerText || '');
+    const t0 = run.t;
+    step(60);
+    const runs = run.phase === 'explore' && run.t > t0;
+    menus.close();
+    return ok(!stale && runs, { stale, phase: run.phase, runs });
+  },
+});
+
 story('boss/element-reward', {
   about: 'After a boss (and its metamorphosis), you pick a new element attack you don\'t have yet, then the act is complete.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); },

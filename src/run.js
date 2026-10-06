@@ -138,6 +138,7 @@ export class Run {
     this.bossStartT = null;
     this.bossWon = false;
     this.collectAll = false;
+    this.runId = (this.runId || 0) + 1;    // delayed steps (later()) belong to this run only
     this.pendingLevels = 0;
     this.iFrames = 0;
     this.slowT = 0;
@@ -687,7 +688,7 @@ export class Run {
       this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : B.kind === 'hair' ? new Clog(this.scene, this.enemies, this.fx, B, this.world) : new Boss(this.scene, this.enemies, this.fx, B);
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
       this.enemies.addProxy(this.boss);
-      setTimeout(() => { this.fade.style.opacity = 0; }, 150);
+      this.later(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
       this.bossStartT = this.t;
       this.bossStarted = false;
@@ -706,7 +707,7 @@ export class Run {
     this.dew.drop(c, 1, 30);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200);
-    setTimeout(() => this.metamorph(), 2200);
+    this.later(() => this.metamorph(), 2200);
   }
 
   metamorph() {
@@ -731,13 +732,20 @@ export class Run {
     });
   }
 
+  // A delayed step (real time, ms) that only happens if this run is still the one being played:
+  // restart quickly after dying and the old death screen won't land on the new run
+  later(fn, ms) {
+    const id = this.runId;
+    setTimeout(() => { if (this.runId === id) fn(); }, ms);
+  }
+
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
     this.moisture = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
-    setTimeout(() => this.endRun('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', 'Try again'), 700);
+    this.later(() => this.endRun('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', 'Try again'), 700);
   }
 
   // ------------------------------------------------------------ score
