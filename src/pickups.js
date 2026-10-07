@@ -84,15 +84,15 @@ function chestParts(fx) {
   const gold = new THREE.Color(0xffc93a);
   CHEST = {
     gold,
-    body: lit(0xf0a018, 0.7),                  // deep gold that glows without blowing out to white
-    trim: lit(0xffe08a, 1.0),                  // paler bands, rim and lock
+    body: lit(0xffc23a, 1.05),                 // bright gold that glows without blowing out to white
+    trim: lit(0x9a5a10, 0.45, 0.8),            // dark brass straps and lock, so it reads as a chest
     dark: lit(0x5a3208, 0.25, 0.3),            // the seam under the lid
     box: new THREE.BoxGeometry(0.036, 0.018, 0.024),
-    lid: new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2),
+    lid: new THREE.CylinderGeometry(0.0122, 0.0122, 0.0362, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2),   // a half-round lid along x, domed up
     band: new THREE.BoxGeometry(0.004, 0.0185, 0.0248),
-    lidBand: new THREE.CylinderGeometry(0.0124, 0.0124, 0.004, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2),
+    lidBand: new THREE.CylinderGeometry(0.0124, 0.0124, 0.004, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2),   // a half-round lid along x, domed up
     seam: new THREE.BoxGeometry(0.0365, 0.0015, 0.0245),
-    lock: new THREE.BoxGeometry(0.007, 0.008, 0.002),
+    lock: new THREE.BoxGeometry(0.008, 0.009, 0.003),
     ring: new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2),
   };
   return CHEST;
@@ -112,7 +112,7 @@ export class RoomTreasure {
     add(C.seam, C.dark, 0, 0.018, 0);
     for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); add(C.lidBand, C.trim, x, 0.018, 0); }
     add(C.lock, C.trim, 0, 0.016, 0.0125);
-    this.chest.scale.setScalar(1.25);
+    this.chest.scale.setScalar(1.5);
     this.ring = new THREE.Mesh(C.ring, fx.tele(this.gold, 'circle'));   // each chest's own timer (same shader)
     this.ring.material.uniforms.uFlow.value = -1;   // its stripes run outward: something good, not an incoming hit
     this.ring.scale.setScalar(0.055);
