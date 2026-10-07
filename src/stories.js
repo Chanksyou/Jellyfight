@@ -343,6 +343,27 @@ story('first-run/element-pick-after-first-card', {
       { quietStart, levelTitle, elementTitle, owned, secondTitle, after });
   },
 });
+const hintShown = () => { const h = document.querySelector('#hud .hint'); return h && h.classList.contains('on') ? h.textContent : ''; };
+const hitJelly = (n = 1) => { G().run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: n, source: 'story' }); };
+story('first-run/health-hint-on-first-hit', {
+  about: 'On a player\'s first run, the first hit shows one plain line about the Health bar for a few seconds; later hits don\'t show it again, and other runs never do.',
+  setup() { fresh({ elites: false, firstRun: true, hurt: true }); tp(3.2, 0.05, 3.0, 0); G().run.startPicked = true; },
+  play() {
+    step(2);
+    const before = hintShown();
+    hitJelly(); step(2);
+    const shown = hintShown();
+    step(60 * 6);
+    const gone = !/Health/.test(hintShown());
+    hitJelly(); step(2);
+    const again = /Health/.test(hintShown());
+    // another run: never
+    fresh({ elites: false, hurt: true }); tp(3.2, 0.05, 3.0, 0);
+    hitJelly(); step(2);
+    const other = /Health/.test(hintShown());
+    return ok(!/Health/.test(before) && /That's your Health, top left\. Run out and the run ends\./.test(shown) && gone && !again && !other, { before, shown, gone, again, other });
+  },
+});
 story('first-run/other-runs-unchanged', {
   about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
   setup() { fresh({ elites: false }); G().run.startPicked = false; },

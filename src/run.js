@@ -130,6 +130,7 @@ export class Run {
     this.t = 0;
     this.startPicked = false;         // the starting Element pick is offered on the run's first frame
     this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
+    this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
     this.stats = { ...BASE_STATS };
     this.level = 1;
@@ -316,7 +317,8 @@ export class Run {
     this.touchAction = null;
     const jumpKey = this.touch ? '⤴' : '<kbd>Space</kbd>';
     if (tr.vent) this.lastVent = tr.vent.to;
-    if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
+    if (this.hintT > 0) { this.hintT -= dt; this.hud.hint(this.hint); }   // a timed line (first-run.js) wins for its few seconds
+    else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
     else if (P.flight) this.hud.hint(`Whoosh! Up to ${this.lastVent}`);
     else this.hud.hint(null);
 
@@ -458,6 +460,8 @@ export class Run {
 
   hurt(amount, silent = false) {
     this.health -= amount;
+    const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
+    if (hint) { this.hint = hint; this.hintT = 4.5; }
     if (!silent) { juice.shake(0.55); sfx.hurt(); }
     if (!silent) this.player.avatar?.land(1.5);
     if (this.health <= 0) this.die();
