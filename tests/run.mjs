@@ -22,7 +22,7 @@ const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${na
 // when it has a story to play). Later acts start as if the act before was just beaten, carrying a
 // level-6 run with a Candle; stories with `phone: true` (phone/...) play in a page that looks
 // like a phone. The first page that opens lists every story for the rest.
-const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { moisture: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
+const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
 const PAGES = [
   { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },
   { key: 'act2', opts: { viewport: { width: 1100, height: 650 }, act: { act: 2, carry: CARRY } } },

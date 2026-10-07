@@ -1,7 +1,7 @@
 // Treasures: lost things you keep for the rest of the run, picked from gift boxes
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
-// Damage numbers are multiples of your power (pop damage x 1.8) unless a word says otherwise.
+// Damage numbers are multiples of your power (bubble damage x 1.8) unless a word says otherwise.
 // Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
 //
 //   attack=#true   it changes how you attack
@@ -52,7 +52,7 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 
 // --- element attacks (bubbles.js): each fires its own projectile on its own timer, separate from
 // your bubbles. You pick one at the start of a run and another after each boss (element rewards),
-// never from gifts or elites. Pop damage, Blow rate, Range, Bubble size and extra Bubbles all
+// never from gifts or elites. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
 treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
     element "fire"
@@ -205,7 +205,7 @@ treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When 
         squeak-when-hit radius=0.13 push=0.08 dmg=5 cooldown=3
     }
 }
-treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for a second and you start spouting, refilling moisture." {
+treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for a second and you start spouting, refilling health." {
     spout after=1 heal=0.5
     level 2 text="Level 2: spouts sooner and refills faster." {
         spout after=0.8 heal=0.75
@@ -214,7 +214,7 @@ treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand sti
         spout after=0.5 heal=1
     }
 }
-treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of moisture." {
+treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
     heal-on-kill 0.5
     level 2 text="Level 2: a bigger sip (0.75)." {
         heal-on-kill 0.75
@@ -361,23 +361,23 @@ treasure "dice" name="Game Die" icon="🎲" rarity="epic" text="Level-up cards r
 }
 
 // --- found later: more lost things
-treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Your moisture slowly refills: +0.3 a second." stack=3 {
-    stat regen 0.3
+treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Your health slowly refills: +0.3 a second." stack=3 {
+    stat health-regen 0.3
 }
 treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely." stack=3 {
     stat dodge 15
 }
-treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 5 enemies you clear, +1 max moisture for good." stack=2 {
-    grow-on-kills moisture 1 kills=5
+treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 5 enemies you clear, +1 max health for good." stack=2 {
+    grow-on-kills health 1 kills=5
 }
 treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Bubbles blow 25% faster." stack=3 {
-    stat blow-rate 25 percent=#true
+    stat fire-rate 25 percent=#true
 }
 treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow through a straw: bubbles reach 40% farther." stack=3 {
     stat range 40 percent=#true
 }
-treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 pop damage." stack=3 {
-    stat pop 2
+treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 bubble damage." stack=3 {
+    stat bubble-damage 2
 }
 treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="Blow one more bubble side by side with the others (every bubble does 15% less damage)." stack=2 {
     stat bubbles 1
@@ -393,28 +393,28 @@ treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="Dew fli
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
-treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="common" attack=#true text="Glass cannon: +40% pop damage, but hits take 25% more moisture." {
-    stat pop 40 percent=#true
+treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="common" attack=#true text="Glass cannon: +40% bubble damage, but hits take 25% more health." {
+    stat bubble-damage 40 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+25% pop damage and +10% blow rate, but bubbles reach 15% less far." {
-    stat pop 25 percent=#true
-    stat blow-rate 10 percent=#true
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+25% bubble damage and +10% fire rate, but bubbles reach 15% less far." {
+    stat bubble-damage 25 percent=#true
+    stat fire-rate 10 percent=#true
     stat range -15 percent=#true
 }
-treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster, but -4 max moisture." stack=2 {
-    stat swim-speed 20 percent=#true
-    stat moisture -4
+treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster, but -4 max health." stack=2 {
+    stat move-speed 20 percent=#true
+    stat health -4
 }
-treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="Life steal: 1 in 10 bubble or tentacle hits gives back 1 moisture. -3 max moisture." stack=2 {
-    heal-on-hit chance=0.1 moisture=1
-    stat moisture -3
+treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="Life steal: 1 in 10 bubble or tentacle hits gives back 1 health. -3 max health." stack=2 {
+    heal-on-hit chance=0.1 health=1
+    stat health -3
 }
-treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 enemies you clear, +0.25 pop damage for good." stack=2 {
-    grow-on-kills pop 0.25 kills=10
+treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 enemies you clear, +0.25 bubble damage for good." stack=2 {
+    grow-on-kills bubble-damage 0.25 kills=10
 }
-treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 15 enemies you clear, +0.03 blow rate (about 3%) for good." stack=2 {
-    grow-on-kills blow-rate 0.03 kills=15
+treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 15 enemies you clear, +0.03 fire rate (about 3%) for good." stack=2 {
+    grow-on-kills fire-rate 0.03 kills=15
 }
 treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 12 s it drips 2 dew at your feet." {
     every 12 {
@@ -434,9 +434,9 @@ treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 12
 treasure "notebook" name="Notebook" icon="📓" rarity="epic" text="Level-ups offer 4 cards instead of 3." {
     card-choices 1
 }
-treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 15% slower, but so do you (-10% swim speed)." {
+treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 15% slower, but so do you (-10% move speed)." {
     bug-speed 0.85
-    stat swim-speed -10 percent=#true
+    stat move-speed -10 percent=#true
 }
 treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 30% more bugs come out, and each drops 30% more dew." {
     more-bugs 1.3

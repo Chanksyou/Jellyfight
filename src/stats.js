@@ -4,41 +4,41 @@ import { CONTENT } from './content.js';
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
-  bubbles: 1,       // bubbles blown side by side at once, flying parallel; each extra one costs damage (BUBBLE_PENALTY)
-  range: 0.3,       // meters a bubble flies before it pops on its own
-  pop: 6,           // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
-  blowRate: 1.76,   // blows per second (each blow is `bubbles` bubbles at once)
-  bubbleSize: 1.0,  // size multiplier: bigger bubbles are easier to land and splash wider
-  moisture: 25,     // max health
-  pulse: 1.0,       // swim speed multiplier
-  bounce: 1.0,      // jump height multiplier
-  regen: 0,         // moisture refilled per second
-  dodge: 0,         // % chance a hit misses you entirely (60% at most)
-  luck: 0,          // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
-  // Tentacles: an automatic sting at close range. Only treasures improve these.
-  tentacles: 1,     // tentacles that lash out at once (the jelly has 6 in all)
-  reach: 0.083,     // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
-  sting: 4,         // damage per tentacle
-  lashSpeed: 1.0,   // lashes per second
+  bubbles: 1,         // bubbles blown side by side at once, flying parallel; each extra one costs damage (BUBBLE_PENALTY)
+  range: 0.3,         // meters a bubble flies before it pops on its own
+  bubbleDamage: 6,    // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
+  fireRate: 1.76,     // blows per second (each blow is `bubbles` bubbles at once)
+  bubbleSize: 1.0,    // size multiplier: bigger bubbles are easier to land and splash wider
+  health: 25,         // max health
+  moveSpeed: 1.0,     // move speed multiplier
+  jumpHeight: 1.0,    // jump height multiplier
+  regen: 0,           // health refilled per second
+  dodge: 0,           // % chance a hit misses you entirely (60% at most)
+  luck: 0,            // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
+  // Tentacles: an automatic lash at close range. Only treasures improve these.
+  tentacles: 1,       // tentacles that lash out at once (the jelly has 6 in all)
+  reach: 0.083,       // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
+  tentacleDamage: 4,  // damage per tentacle
+  tentacleSpeed: 1.0, // lashes per second
 };
 
 // How each stat is shown on a card and in the stats panel
 export const STAT_INFO = {
-  bubbles:    { name: 'Bubbles',     icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleDamage(v) * 100)}% damage each` : `${v}`) },
-  range:      { name: 'Range',       icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
-  pop:        { name: 'Pop damage',  icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
-  blowRate:   { name: 'Blow rate',   icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
-  bubbleSize: { name: 'Bubble size', icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
-  moisture:   { name: 'Moisture',    icon: '💧', fmt: (v) => `${Math.round(v)}` },
-  pulse:      { name: 'Swim speed',  icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
-  bounce:     { name: 'Bounce',      icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
-  regen:      { name: 'Moisture regen', icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
-  dodge:      { name: 'Dodge',       icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
-  luck:       { name: 'Luck',        icon: '🍀', fmt: (v) => `${Math.round(v)}` },
-  tentacles:  { name: 'Tentacles',   icon: '🪼', fmt: (v) => `${v}` },
-  reach:      { name: 'Tentacle reach', icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
-  sting:      { name: 'Sting',       icon: '⚡', fmt: (v) => `${Math.round(v)}` },
-  lashSpeed:  { name: 'Lash speed',  icon: '🌀', fmt: (v) => `${v.toFixed(2)}/s` },
+  bubbles:         { name: 'Bubbles',         icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },
+  range:           { name: 'Range',           icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
+  bubbleDamage:    { name: 'Bubble damage',   icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
+  fireRate:        { name: 'Fire rate',       icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
+  bubbleSize:      { name: 'Bubble size',     icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
+  health:          { name: 'Health',          icon: '💧', fmt: (v) => `${Math.round(v)}` },
+  moveSpeed:       { name: 'Move speed',      icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
+  jumpHeight:      { name: 'Jump height',     icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
+  regen:           { name: 'Health regen',    icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
+  dodge:           { name: 'Dodge',           icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
+  luck:            { name: 'Luck',            icon: '🍀', fmt: (v) => `${Math.round(v)}` },
+  tentacles:       { name: 'Tentacles',       icon: '🪼', fmt: (v) => `${v}` },
+  reach:           { name: 'Tentacle reach',  icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
+  tentacleDamage:  { name: 'Tentacle damage', icon: '⚡', fmt: (v) => `${Math.round(v)}` },
+  tentacleSpeed:   { name: 'Tentacle speed',  icon: '🌀', fmt: (v) => `${v.toFixed(2)}/s` },
 };
 
 // Level-up card rarities, and how often each rolls with no luck
@@ -63,27 +63,27 @@ export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * M
 
 // [common, rare, epic] amounts. `pct` = percent of the base value, added.
 const CARD_VALUES = {
-  bubbles:    { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
-  range:      { amounts: [10, 18, 30], pct: true },
-  pop:        { amounts: [1.25, 2, 3.25] },   // scaled with the base (6) so each card is worth the same share
-  blowRate:   { amounts: [10, 18, 30], pct: true },
-  moisture:   { amounts: [4, 8, 14] },
-  pulse:      { amounts: [8, 14, 22], pct: true, weight: 1.2 },
-  regen:      { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // moisture a second
-  dodge:      { amounts: [3, 5, 8], suffix: '%' },           // percentage points
-  luck:       { amounts: [10, 18, 30] },                     // see luckWeights
+  bubbles:       { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
+  range:         { amounts: [10, 18, 30], pct: true },
+  bubbleDamage:  { amounts: [1.25, 2, 3.25] },   // scaled with the base (6) so each card is worth the same share
+  fireRate:      { amounts: [10, 18, 30], pct: true },
+  health:        { amounts: [4, 8, 14] },
+  moveSpeed:     { amounts: [8, 14, 22], pct: true, weight: 1.2 },
+  regen:         { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // health a second
+  dodge:         { amounts: [3, 5, 8], suffix: '%' },           // percentage points
+  luck:          { amounts: [10, 18, 30] },                     // see luckWeights
 };
 
 // Each bubble past the first makes every bubble in the blow 15% weaker (compounding): 2 bubbles
 // do 85% each (1.7x in all), 3 do 72% (2.2x), 6 do 44% (2.7x). More bubbles, more spread, less punch.
 export const BUBBLE_PENALTY = 0.15;
-export const bubbleDamage = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
+export const bubbleShare = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
 
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
   const v = CARD_VALUES[card.stat];
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
-  if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleDamage(card.amount + 1)) * 100)}% less damage each`;
+  if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
   return `+${amount} ${info.name}`;
 }
 
@@ -152,9 +152,9 @@ export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (15% less damage each), +15% Swim speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.pulse += 0.15; } },
-  { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+1 Tentacle, +4 Sting, +25% Tentacle reach', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.sting += 4; s.reach += BASE_STATS.reach * 0.25; } },
-  { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Moisture', apply: (s) => { s.moisture += 10; } },
-  { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Blow rate, +25% Lash speed', apply: (s) => { s.blowRate += BASE_STATS.blowRate * 0.25; s.lashSpeed += 0.25; } },
-  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Bounce, +10% Swim speed', apply: (s) => { s.bounce += 0.25; s.pulse += 0.1; } },
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (15% less damage each), +15% Move speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.moveSpeed += 0.15; } },
+  { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+1 Tentacle, +4 Tentacle damage, +25% Tentacle reach', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.tentacleDamage += 4; s.reach += BASE_STATS.reach * 0.25; } },
+  { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Health', apply: (s) => { s.health += 10; } },
+  { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Fire rate, +25% Tentacle speed', apply: (s) => { s.fireRate += BASE_STATS.fireRate * 0.25; s.tentacleSpeed += 0.25; } },
+  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Jump height, +10% Move speed', apply: (s) => { s.jumpHeight += 0.25; s.moveSpeed += 0.1; } },
 ];

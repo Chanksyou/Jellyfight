@@ -1,7 +1,7 @@
 // Bubbles: the jelly's main attack. It blows a steady stream of small bubbles at the nearest
-// enemy (blows per second = blow rate). With more than one bubble, each blow is that many
+// enemy (blows per second = fire rate). With more than one bubble, each blow is that many
 // bubbles side by side, leaving at the same moment and flying parallel (every bubble a little
-// weaker: stats.js bubbleDamage). Bubbles drift toward their target (steering a
+// weaker: stats.js bubbleShare). Bubbles drift toward their target (steering a
 // little, so they mostly land), pop on the first enemy they touch for damage plus a small
 // splash, and pop harmlessly on walls or when they run out of range. Treasures hook in here.
 //
@@ -16,16 +16,16 @@
 //   wind (Paper Fan)         a fast gust that pierces once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
 // Each element's numbers (rate, damage, burn, chain…) come from mods.element (ELEMENT_BASE in
-// words.js, raised by its upgrade treasures), and scale with your stats: Pop damage, Blow rate,
+// words.js, raised by its upgrade treasures), and scale with your stats: Bubble damage, Fire rate,
 // Range, Bubble size and extra Bubbles all apply to them as they do to bubbles.
-// Effect damage scales with "power" (pop damage x 4.5); ELEMENT says each element's share of it.
+// Effect damage scales with "power" (bubble damage x 4.5); ELEMENT says each element's share of it.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
-import { bubbleDamage, BASE_STATS } from './stats.js';
+import { bubbleShare, BASE_STATS } from './stats.js';
 import { BubbleLooks } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
@@ -51,8 +51,8 @@ export const ELEMENT = {
   glitter: 0.08,    // glitter: the wide splash
 };
 
-// your starting Blow rate: element attacks fire faster as yours goes up
-const BASE_BLOW = BASE_STATS.blowRate;
+// your starting Fire rate: element attacks fire faster as yours goes up
+const BASE_FIRE_RATE = BASE_STATS.fireRate;
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -133,18 +133,18 @@ export class Bubbles {
 
   // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
   update(dt, origin, stats, mods) {
-    // one blow at a time: a faster blow rate = a faster stream
-    this.timer += dt * stats.blowRate;
+    // one blow at a time: a faster fire rate = a faster stream
+    this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
       if (this.volley(origin, stats, mods)) this.timer -= 1;
       else this.timer = 1;            // ready, waiting for something in range
       this.timer = Math.min(this.timer, 1);
     }
-    // each element you own fires on its own timer, at its own rate (scaled by your Blow rate)
+    // each element you own fires on its own timer, at its own rate (scaled by your Fire rate)
     for (const id of this.elements(mods)) {
       const P = mods.element[id];
       if (!P) continue;
-      let t = (this.elTimers[id] ??= Math.random() * 0.5) + dt * P.rate * stats.blowRate / BASE_BLOW;
+      let t = (this.elTimers[id] ??= Math.random() * 0.5) + dt * P.rate * stats.fireRate / BASE_FIRE_RATE;
       if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
       this.elTimers[id] = Math.min(t, 1);
     }
@@ -165,7 +165,7 @@ export class Bubbles {
     const golden = B.golden && n % B.golden.every === 0 ? B.golden.mult : 0;   // golden: its damage multiplier
     const size = stats.bubbleSize, elems = [], tint = null;   // bubbles are plain: elements fire their own shots
     // `bubbles` of them side by side, across the line to the target, all leaving now
-    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.pop * bubbleDamage(count);
+    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.bubbleDamage * bubbleShare(count);
     const spread = (Math.random() - 0.5) * 0.12, gap = Math.max(0.014, RADIUS * size * 2.6);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
@@ -176,7 +176,7 @@ export class Bubbles {
     }
     // Reed Stick: every 6th bubble is a giant, slow one
     const G = B.giant;
-    if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.pop * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
+    if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.bubbleDamage * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
     this.onBlow?.();
     return true;
   }
@@ -187,7 +187,7 @@ export class Bubbles {
     const near = this.inRange(origin, stats.range * P.range);
     if (!near.length) return false;
     const target = near[0];
-    const n = Math.max(1, Math.round(stats.bubbles)), count = n + Math.round(P.count), each = stats.pop * bubbleDamage(n);
+    const n = Math.max(1, Math.round(stats.bubbles)), count = n + Math.round(P.count), each = stats.bubbleDamage * bubbleShare(n);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), gap = Math.max(0.016, RADIUS * stats.bubbleSize * 3);

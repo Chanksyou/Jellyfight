@@ -94,9 +94,9 @@ export class Gadgets {
     return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   }
 
-  // ctx: { mods, feet: Vector3, center: Vector3, facing, sting (your power), dropDew(dew) }
+  // ctx: { mods, feet: Vector3, center: Vector3, facing, power (your bubbles' power), dropDew(dew) }
   update(dt, ctx) {
-    const { mods: M, feet, center, sting } = ctx;
+    const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
 
     // timed effects: every N s, do what's in the block
@@ -115,7 +115,7 @@ export class Gadgets {
       for (const e of this.near(b.position, 0.008)) {
         if ((e.fairyT || 0) > 0) continue;
         e.fairyT = 0.4;
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * O.dmg, color: '#ffe7a8', source: 'orbit-lights' });
+        bus.emit('damage_taken', { targetId: e.id, amount: power * O.dmg, color: '#ffe7a8', source: 'orbit-lights' });
       }
     });
     if (n) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
@@ -130,7 +130,7 @@ export class Gadgets {
         this.beam.visible = true;
         this.beam.position.copy(c).setY(c.y - e.r * 0.5);
         this.beam.material.opacity = 0.25 + Math.random() * 0.15;
-        if (this.every('beam', dt, Bm.tick)) { bus.emit('damage_taken', { targetId: e.id, amount: sting * Bm.dmg, color: '#ffd27a', source: 'beam' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
+        if (this.every('beam', dt, Bm.tick)) { bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
       }
     }
 
@@ -140,14 +140,14 @@ export class Gadgets {
     if (A) {
       this.aura.position.copy(feet).setY(feet.y + 0.002);
       this.aura.scale.setScalar(A.radius * (1 + Math.sin(this.orbit * 2) * 0.05));
-      if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: sting * A.dmg, color: '#8aff9f', source: 'aura' });
+      if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });
     }
 
     // bricks on the floor: the first walking enemy to step on one takes the hit
     for (const b of this.bricks) {
       b.t -= dt;
       const hit = this.near(b.m.position, 0.012, { proxies: false }).find((e) => !e.T.fly);
-      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: sting * b.dmg, color: '#ff8a6a', source: 'brick' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
+      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: power * b.dmg, color: '#ff8a6a', source: 'brick' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
       if (b.t <= 0) this.group.remove(b.m);
     }
     this.bricks = this.bricks.filter((b) => b.t > 0);
@@ -163,7 +163,7 @@ export class Gadgets {
       for (const e of this.near(mb.m.position, 0.008)) {
         if (mb.hit.has(e)) continue;
         mb.hit.add(e);
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * mb.dmg, color: '#9fd8ff', source: 'marble' });
+        bus.emit('damage_taken', { targetId: e.id, amount: power * mb.dmg, color: '#9fd8ff', source: 'marble' });
       }
       if (mb.t <= 0) this.group.remove(mb.m);
     }
@@ -172,14 +172,14 @@ export class Gadgets {
 
   // one timed effect going off (TIMED_WORDS in words.js)
   fire(ef, ctx) {
-    const { feet, center, sting } = ctx;
+    const { feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
     if (ef.kind === 'ring') {
       const col = new THREE.Color(ef.color);
       if (ef.look === 'puff') fx.puff(feet.clone().setY(feet.y + 0.01), col.getHex(), ef.radius, 0.35);
       else fx.ring(feet.clone().setY(feet.y + 0.004), col.getHex(), ef.radius, ef.show);
       for (const e of this.near(center, ef.radius, { proxies: ef.elites })) {
-        if (ef.dmg) bus.emit('damage_taken', { targetId: e.id, amount: sting * ef.dmg, color: ef.color, source: 'ring' });
+        if (ef.dmg) bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: ef.color, source: 'ring' });
         if (ef.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: ef.push });
         if (ef.freeze) bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: ef.freeze });
       }
@@ -191,7 +191,7 @@ export class Gadgets {
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
         this.group.add(line);
         this.zaps.push({ line, t: 0.25 });
-        bus.emit('damage_taken', { targetId: e.id, amount: sting * ef.dmg, color: '#9fd8ff', source: 'zap' });
+        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
     } else if (ef.kind === 'brick') {
       const g = new THREE.Group(), mat = this.brickMats[(Math.random() * 3) | 0];

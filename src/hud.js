@@ -1,4 +1,4 @@
-// On-screen HUD: moisture, level and XP, the boss countdown and night clock, treasures,
+// On-screen HUD: health, level and XP, the boss countdown and night clock, treasures,
 // minimap of the real floor plan, boss bar, hints, toasts.
 import { bus } from './events.js';
 
@@ -13,7 +13,7 @@ const CSS = `
 body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { font-size: 34px; }
 
 #hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
-/* vitals: a level badge, the moisture bar with just its number, a thin gold line of XP under it */
+/* vitals: a level badge, the health bar with just its number, a thin gold line of XP under it */
 #hud .tl { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 12px; align-items: center; width: 340px; }
 #hud .lvl { grid-row: span 2; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 800 19px system-ui, sans-serif;
   background: #0d1220cc; box-shadow: inset 0 0 0 3px #ffd25a, 0 0 10px #ffd25a55; color: #ffe7a0; }
@@ -125,7 +125,7 @@ export class Hud {
     c.querySelector('i').style.transform = `scaleX(${frac})`;
   }
 
-  setMoisture(v, max) {
+  setHealth(v, max) {
     if (this.cache.hp !== undefined && v < this.cache.hp - 0.01) {
       const h = this.$('.hurt');
       h.classList.add('on');

@@ -21,7 +21,7 @@ for (let n = 0; n < RUNS; n++) {
     document.getElementById('g-over').hidden = true;
     menus.close();
     run.start();
-    // what hurt the jelly: moisture actually lost each frame, credited to whatever hit it that
+    // what hurt the jelly: health actually lost each frame, credited to whatever hit it that
     // frame (the bus tags every hit with its source; touching bugs report every frame, and the
     // invincibility window ignores most of those, so counting reports would overcount)
     window.__bot?.off?.();
@@ -50,10 +50,10 @@ for (let n = 0; n < RUNS; n++) {
         if (Math.hypot(tx, tz) > 0.01) { tpc.yaw = Math.atan2(-tx, -tz); input.keys = new Set(['KeyW']); } else input.keys = new Set();
         // hop when stuck against furniture
         if (i % 30 === 0) { if (B.prev && P.distanceTo(B.prev) < 0.01 && input.keys.size) input.jumpQueued = true; B.prev = P.clone(); }
-        const m0 = run.moisture;
+        const m0 = run.health;
         B.src = null;
         GAME.step(1 / 60);
-        if (run.moisture < m0 && B.src) { B.hurt[B.src] = (B.hurt[B.src] || 0) + (m0 - run.moisture); B.last = B.src; }
+        if (run.health < m0 && B.src) { B.hurt[B.src] = (B.hurt[B.src] || 0) + (m0 - run.health); B.last = B.src; }
       }
       if (run.t > 600) return 'timeout';
       // nothing moved for a whole chunk: something is holding the game (report it, don't hang)
@@ -84,6 +84,6 @@ for (const r of results) for (const [k, v] of Object.entries(r.hurt)) hurt[k] = 
 const total = Object.values(hurt).reduce((a, b) => a + b, 0) || 1;
 console.log(`\n${RUNS} nights: ${results.filter((r) => r.outcome === 'beat the boss').length} beat the boss, ${results.filter((r) => r.outcome === 'died').length} died`);
 console.log(`median: survived to ${med(results.map((r) => r.at))} s, level ${med(results.map((r) => r.level))}, ${med(results.map((r) => r.kills))} kills`);
-console.log('moisture lost, by source: ' + Object.entries(hurt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(100 * v / total)}%`).join(', '));
+console.log('health lost, by source: ' + Object.entries(hurt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(100 * v / total)}%`).join(', '));
 if (errors.length) console.log('page errors: ' + errors.slice(0, 3).join(' | '));
 await env.close();

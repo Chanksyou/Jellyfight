@@ -152,7 +152,7 @@ export class ShadowSystem {
   }
 }
 
-// Moisture, clock, minimap and markers
+// Health, clock, minimap and markers
 export class HudSystem {
   constructor({ state, hud, player, tpc, run }) { Object.assign(this, { state, hud, player, tpc, run }); }
   update() {

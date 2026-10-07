@@ -334,7 +334,7 @@ export function makeWord(registry, node, where) {
 // ------------------------------------------------------------------ treasure words
 // A treasure (content/treasures.kdl) is a few of these. Each one adds its effect to the run's
 // combined effects, `mods` (see newMods): the systems read mods, never treasure ids. Damage
-// numbers are multiples of the run's power (pop damage x 1.8) unless the doc says otherwise.
+// numbers are multiples of the run's power (bubble damage x 1.8) unless the doc says otherwise.
 
 // What a run has with no treasures
 export function newMods() {
@@ -361,8 +361,8 @@ const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
 
 // Each element is its own attack (bubbles.js): a projectile it fires on its own timer, separate
 // from the bubbles. Its numbers start here; upgrade treasures (element-up) raise them. Every
-// element has the common ones; `rate` shots a second and `dmg` x pop damage per hit are at your
-// starting Blow rate and Pop damage, and scale with them (and Range, Bubble size and extra
+// element has the common ones; `rate` shots a second and `dmg` x bubble damage per hit are at your
+// starting Fire rate and Bubble damage, and scale with them (and Range, Bubble size and extra
 // Bubbles count too).
 export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
@@ -409,7 +409,7 @@ export const TIMED_WORDS = {
 };
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', pop: 'pop', 'blow-rate': 'blowRate', moisture: 'moisture', 'swim-speed': 'pulse', regen: 'regen', dodge: 'dodge', luck: 'luck' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', dodge: 'dodge', luck: 'luck' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -438,13 +438,13 @@ export const TREASURE_WORDS = {
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
-  'damage-taken': { doc: 'Hits take `times` as much moisture.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
-  spout: { doc: 'Stand still for `after` s and you refill `heal` moisture a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
-  'heal-on-kill': { doc: 'Every enemy you clear gives back `moisture`.', args: ['moisture'], make: ([n]) => (m) => { m.healOnKill += n; } },
+  'damage-taken': { doc: 'Hits take `times` as much health.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
+  spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
+  'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
   'dew-reach': { doc: 'Dew drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.dewReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, pop, blow-rate, moisture, swim-speed, regen (moisture a second), dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {
@@ -457,9 +457,9 @@ export const TREASURE_WORDS = {
   'dew-mult': { doc: 'Enemies drop `times` as much dew.', args: ['times'], make: ([k]) => (m) => { m.dewMult *= k; } },
   'card-rarity': { doc: 'Level-up cards roll `steps` rarity higher.', args: ['steps'], make: ([n]) => (m) => { m.cardRarity += n; } },
   'card-choices': { doc: 'Level-ups offer `count` more cards to pick from.', args: ['count'], make: ([n]) => (m) => { m.cardChoices += n; } },
-  'heal-on-hit': { doc: '`chance` that a bubble or tentacle hit gives back `moisture` (life steal).', props: { chance: 0.1, moisture: 1 }, make: (_, p) => (m) => { m.healOnHit = m.healOnHit ? { chance: m.healOnHit.chance + p.chance, moisture: Math.max(m.healOnHit.moisture, p.moisture) } : { ...p }; } },
+  'heal-on-hit': { doc: '`chance` that a bubble or tentacle hit gives back `health` (life steal).', props: { chance: 0.1, health: 1 }, make: (_, p) => (m) => { m.healOnHit = m.healOnHit ? { chance: m.healOnHit.chance + p.chance, health: Math.max(m.healOnHit.health, p.health) } : { ...p }; } },
   'grow-on-kills': {
-    doc: 'Every `kills` enemies you clear, a stat grows by `amount` for the rest of the run (stat names as in `stat`; max moisture also refills by as much).',
+    doc: 'Every `kills` enemies you clear, a stat grows by `amount` for the rest of the run (stat names as in `stat`; max health also refills by as much).',
     args: ['name', 'amount'],
     props: { kills: 10 },
     make: ([name, amount], p, where) => {

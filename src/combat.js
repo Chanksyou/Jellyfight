@@ -62,7 +62,7 @@ export class Lash {
   // origin: world position tentacles come from. hits: what your treasures add to a sting
   // (mods.hits.tentacles: mark, crit; see words.js)
   update(dt, origin, stats, hits, opts) {
-    const speed = stats.lashSpeed * (opts.lashSpeedMul || 1);
+    const speed = stats.tentacleSpeed * (opts.lashSpeedMul || 1);
     this.timer += dt * speed;
     if (this.timer >= 1) {
       if (this.fire(origin, stats, hits)) this.timer = 0;
@@ -85,7 +85,7 @@ export class Lash {
     const targets = this.inReach(origin, stats.reach).slice(0, stats.tentacles);
     if (!targets.length) return false;
     this.count++;
-    for (const e of targets) this.strike(origin, e, stats.sting, hits);
+    for (const e of targets) this.strike(origin, e, stats.tentacleDamage, hits);
     return true;
   }
 

@@ -13,7 +13,7 @@ import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
 import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS } from './stats.js';
-const BASE_BLOW_RATE = BASE_STATS.blowRate;
+const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
@@ -331,7 +331,7 @@ story('attack/side-by-side-bubbles', {
     const dirs = b.map((x) => x.vel.clone().setY(0).normalize());
     const parallel = dirs.every((d) => d.dot(dirs[0]) > 0.995);
     const gaps = [b[0].m.position.distanceTo(b[1].m.position), b[1].m.position.distanceTo(b[2].m.position)];
-    const dmg = b[0].dmg / run.S.pop;
+    const dmg = b[0].dmg / run.S.bubbleDamage;
     return ok(first.length === 3 && sameFrame && parallel && gaps.every((g) => g > 0.01) && Math.abs(dmg - 0.85 ** 2) < 1e-6,
       { n: first.length, sameFrame, parallel, gaps: gaps.map((g) => +g.toFixed(3)), dmg: +dmg.toFixed(3) });
   },
@@ -389,14 +389,14 @@ story('enemies/ants-curl-and-roll', {
   },
 });
 story('enemies/mosquito-spits', {
-  about: 'A mosquito hovers out of reach and its spit costs you moisture.',
+  about: 'A mosquito hovers out of reach and its spit costs you health.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('mosquito', P.clone().add(V(0, 0.1, -0.15))); },
   play() {
     const { run } = G();
     run.iFrames = 0;
-    const m0 = run.moisture;
-    step(60 * 10, () => run.moisture < m0);
-    return ok(run.moisture < m0, { lost: +(m0 - run.moisture).toFixed(2) });
+    const m0 = run.health;
+    step(60 * 10, () => run.health < m0);
+    return ok(run.health < m0, { lost: +(m0 - run.health).toFixed(2) });
   },
 });
 
@@ -427,9 +427,9 @@ story('content/every-treasure-has-a-rarity', {
   },
 });
 story('progression/regen', {
-  about: 'Moisture regen (a card or Hand Cream) refills moisture every second.',
-  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.regen = 0.5; G().run.moisture = 10; },
-  play() { step(60 * 4); const m = G().run.moisture; return ok(Math.abs(m - 12) < 0.05, { moisture: +m.toFixed(2) }); },
+  about: 'Health regen (a card or Hand Cream) refills health every second.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.regen = 0.5; G().run.health = 10; },
+  play() { step(60 * 4); const m = G().run.health; return ok(Math.abs(m - 12) < 0.05, { health: +m.toFixed(2) }); },
 });
 story('progression/dodge', {
   about: 'Dodge % makes that share of hits miss (starts at 0, capped at 60).',
@@ -437,7 +437,7 @@ story('progression/dodge', {
   play() {
     const { run } = G();
     let missed = 0;
-    for (let i = 0; i < 200; i++) { run.moisture = 50; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' }); if (run.moisture === 50) missed++; }
+    for (let i = 0; i < 200; i++) { run.health = 50; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' }); if (run.health === 50) missed++; }
     run.stats.dodge = 500;
     return ok(missed > 70 && missed < 130 && run.S.dodge === 60, { missed, of: 200, capped: run.S.dodge });
   },
@@ -733,15 +733,15 @@ story('words/hover', {
   },
 });
 story('words/spit', {
-  about: 'spit: a mosquito dips its nose and spits; the shot costs you moisture.',
+  about: 'spit: a mosquito dips its nose and spits; the shot costs you health.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mosquito', near(0, -0.15, 0.1)); },
   play() {
     const { run } = G();
     run.iFrames = 0;
-    const m0 = run.moisture, e = G().enemies.list[0];
+    const m0 = run.health, e = G().enemies.list[0];
     let aimed = false;
-    step(60 * 10, () => { if (e.aimT > 0) aimed = true; return run.moisture < m0; });
-    return ok(aimed && run.moisture < m0, { aimed, lost: +(m0 - run.moisture).toFixed(2) });
+    step(60 * 10, () => { if (e.aimT > 0) aimed = true; return run.health < m0; });
+    return ok(aimed && run.health < m0, { aimed, lost: +(m0 - run.health).toFixed(2) });
   },
 });
 story('words/spit-dodge', {
@@ -750,13 +750,13 @@ story('words/spit-dodge', {
   play() {
     const { run, enemies } = G(), e = enemies.list[0], P = G().player.position;
     run.iFrames = 0;
-    const m0 = run.moisture;
+    const m0 = run.health;
     let shot = false;
     // wait until the aim has locked, then slip 6 cm to the side
     step(60, () => e.aimT > 0 && e.aimT < 0.2);
     tp(P.x + 0.06, P.y, P.z);
     step(90, () => { if (enemies.shots.length) shot = true; });
-    return ok(shot && run.moisture === m0, { shot, lost: m0 - run.moisture });
+    return ok(shot && run.health === m0, { shot, lost: m0 - run.health });
   },
 });
 story('words/leap', {
@@ -765,16 +765,16 @@ story('words/leap', {
   play() {
     const { run, enemies } = G(), e = enemies.list[0], y0 = e.pos.y;
     run.iFrames = 0;
-    const m0 = run.moisture, seen = new Set();
+    const m0 = run.health, seen = new Set();
     let top = 0, mark = null;
     step(60 * 8, () => {
       seen.add(e.state);
       if (e.state === 'leap') top = Math.max(top, e.pos.y - y0);
       if (e.state === 'crouch' && enemies.leapMarks[0]?.visible) mark = true;
-      return run.moisture < m0;
+      return run.health < m0;
     });
-    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.moisture === 3;
-    return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.moisture });
+    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 3;
+    return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.health });
   },
 });
 story('words/rolls', {
@@ -894,7 +894,7 @@ story('treasures/element', {
   },
 });
 story('treasures/element-up', {
-  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns 50% hotter, Long Matches burns 2 s longer, Birthday Cake fires two fireballs a shot; your Blow rate speeds every element attack up too.',
+  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns 50% hotter, Long Matches burns 2 s longer, Birthday Cake fires two fireballs a shot; your Fire rate speeds every element attack up too.',
   setup() { setupFight({ lash: false, bubbles: true }); give('candle'); roachAt(0, -0.15); },
   play() {
     const { run, enemies } = G(), B = run.bubbles, e = enemies.list[0];
@@ -909,9 +909,9 @@ story('treasures/element-up', {
     B.list.length = 0; B.elTimers.fire = 1; B.timer = 0;
     step(1);
     const fireballs = B.list.filter((b) => b.tint === 'fire').length;
-    // Blow rate: shots a second scale with it (count the fire timer's progress over 1 s)
-    const rateAt = (blow) => { run.stats.blowRate = blow; B.elTimers.fire = 0; let shots = 0; for (let i = 0; i < 60; i++) { const before = B.elTimers.fire; step(1); if (B.elTimers.fire < before) shots++; } return shots + B.elTimers.fire; };
-    const slow = rateAt(BASE_BLOW_RATE), fast = rateAt(BASE_BLOW_RATE * 2);
+    // Fire rate: shots a second scale with it (count the fire timer's progress over 1 s)
+    const rateAt = (blow) => { run.stats.fireRate = blow; B.elTimers.fire = 0; let shots = 0; for (let i = 0; i < 60; i++) { const before = B.elTimers.fire; step(1); if (B.elTimers.fire < before) shots++; } return shots + B.elTimers.fire; };
+    const slow = rateAt(BASE_FIRE_RATE), fast = rateAt(BASE_FIRE_RATE * 2);
     return ok(base.burn === 1 && up.burn === 1.5 && up.burnTime === 5 && burnT === 5 && Math.abs(burnDps - 10 * 0.17 * 1.5) < 1e-9 && up.count === 1 && fireballs === 2 && fast > slow * 1.7,
       { base, up, burnT, fireballs, slow: +slow.toFixed(2), fast: +fast.toFixed(2) });
   },
@@ -958,7 +958,7 @@ story('treasures/crit', {
   about: 'crit (Nail Clipper): about 1 hit in 5 does triple damage.',
   setup() { setupFight({ lash: false }); give('nailClipper'); roachAt(0, -0.15); },
   play() {
-    const log = record('damage_taken'), pop = G().run.stats.pop;
+    const log = record('damage_taken'), pop = G().run.stats.bubbleDamage;
     step(60 * 20);
     const hits = dmgBy(log, 'bubble'), crits = hits.filter((d) => Math.abs(d.amount - pop * 3) < 1e-6).length;
     return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
@@ -993,19 +993,19 @@ story('treasures/squeak-when-hit', {
   },
 });
 story('treasures/damage-taken', {
-  about: 'damage-taken (Shot Glass): hits take 25% more moisture.',
+  about: 'damage-taken (Shot Glass): hits take 25% more health.',
   setup() { setupFight({ hurt: true }); give('shotGlass'); },
-  play() { const { run } = G(), m0 = run.moisture; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'story' }); return ok(Math.abs(m0 - run.moisture - 5) < 1e-9, { lost: m0 - run.moisture }); },
+  play() { const { run } = G(), m0 = run.health; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'story' }); return ok(Math.abs(m0 - run.health - 5) < 1e-9, { lost: m0 - run.health }); },
 });
 story('treasures/spout', {
-  about: 'spout (Whale Bath Toy): stand still and you refill moisture.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('whale'); G().run.moisture = 10; },
-  play() { step(60 * 3); return ok(G().run.moisture > 10.5, { moisture: +G().run.moisture.toFixed(2) }); },
+  about: 'spout (Whale Bath Toy): stand still and you refill health.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('whale'); G().run.health = 10; },
+  play() { step(60 * 3); return ok(G().run.health > 10.5, { health: +G().run.health.toFixed(2) }); },
 });
 story('treasures/heal-on-kill', {
-  about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of moisture.',
-  setup() { setupFight({ lash: false }); give('babyBottle'); G().run.moisture = 10; roachAt(0, -0.15, { still: true }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.moisture === 10.5, { moisture: G().run.moisture }); },
+  about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of health.',
+  setup() { setupFight({ lash: false }); give('babyBottle'); G().run.health = 10; roachAt(0, -0.15, { still: true }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.health === 10.5, { health: G().run.health }); },
 });
 story('treasures/burst-on-kill', {
   about: 'burst-on-kill (Bath Salt): bugs you finish off burst and hurt their neighbours.',
@@ -1035,8 +1035,8 @@ story('treasures/stacking', {
   about: 'stack=N: a stackable treasure (Lemon Slice, stack=3) adds up per copy and stops being offered at 3; a unique one (Hair Tie) is never offered twice.',
   setup() { setupFight(); give('lemon', 'lemon', 'hairTie'); },
   play() {
-    const { run } = G(), b = run.stats.pop;
-    const two = run.S.pop;
+    const { run } = G(), b = run.stats.bubbleDamage;
+    const two = run.S.bubbleDamage;
     let offered = [];
     stub(run.ui, 'choose', (title, sub, choices) => { offered = choices.map((c) => c.id); });
     const seen = new Set();
@@ -1045,7 +1045,7 @@ story('treasures/stacking', {
     give('lemon');
     seen.clear();
     for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
-    return ok(two === b + 4 && run.S.pop === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie'), { two, three: run.S.pop, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie') });
+    return ok(two === b + 4 && run.S.bubbleDamage === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie'), { two, three: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie') });
   },
 });
 story('treasures/stat', {
@@ -1053,29 +1053,29 @@ story('treasures/stat', {
   setup() { setupFight({ lash: false }); give('lemon'); give('coffeeBean'); },
   play() {
     const { run } = G(), b = run.stats;
-    return ok(run.S.pop === b.pop + 2 && Math.abs(run.S.blowRate - b.blowRate * 1.25) < 1e-9, { pop: [b.pop, run.S.pop], blowRate: [b.blowRate, +run.S.blowRate.toFixed(3)] });
+    return ok(run.S.bubbleDamage === b.bubbleDamage + 2 && Math.abs(run.S.fireRate - b.fireRate * 1.25) < 1e-9, { pop: [b.bubbleDamage, run.S.bubbleDamage], blowRate: [b.fireRate, +run.S.fireRate.toFixed(3)] });
   },
 });
 story('treasures/grow-on-kills', {
-  about: 'grow-on-kills (Bandage): every 5 bugs you clear, +1 max moisture for good (and it refills).',
+  about: 'grow-on-kills (Bandage): every 5 bugs you clear, +1 max health for good (and it refills).',
   setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
   play() {
-    const { run } = G(), max0 = run.S.moisture;
+    const { run } = G(), max0 = run.S.health;
     const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, dew: 1 });
     for (let i = 0; i < 4; i++) kill();
-    const after4 = run.S.moisture;
+    const after4 = run.S.health;
     for (let i = 0; i < 6; i++) kill();
-    return ok(after4 === max0 && run.S.moisture === max0 + 2 && run.moisture === run.S.moisture, { max0, after4, after10: run.S.moisture });
+    return ok(after4 === max0 && run.S.health === max0 + 2 && run.health === run.S.health, { max0, after4, after10: run.S.health });
   },
 });
 story('treasures/heal-on-hit', {
-  about: 'heal-on-hit (Plastic Fangs): about 1 bubble or tentacle hit in 10 gives back 1 moisture.',
+  about: 'heal-on-hit (Plastic Fangs): about 1 bubble or tentacle hit in 10 gives back 1 health.',
   setup() { setupFight({ bubbles: false, lash: false }); give('fangs'); roachAt(0.3, 0); },
   play() {
     const { run } = G(), e = G().enemies.list[0];
     let heals = 0;
-    for (let i = 0; i < 300; i++) { run.moisture = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'bubble' }); if (run.moisture > 5) heals++; }
-    run.moisture = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'zap' });
+    for (let i = 0; i < 300; i++) { run.health = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'bubble' }); if (run.health > 5) heals++; }
+    run.health = 5; bus.emit('damage_taken', { targetId: e.id, amount: 0.01, source: 'zap' });
     return ok(heals > 12 && heals < 55, { heals, of: 300 });
   },
 });
@@ -1276,13 +1276,13 @@ story('events/iframes-and-drain', {
   play() {
     const { run } = G();
     run.iFrames = 0;
-    const m0 = run.moisture;
+    const m0 = run.health;
     bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
-    const m1 = run.moisture;
+    const m1 = run.health;
     bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
-    const m2 = run.moisture;
+    const m2 = run.health;
     bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story', drain: true });
-    return ok(m1 === m0 - 3 && m2 === m1 && run.moisture === m2 - 1, { m0, m1, m2, m3: run.moisture });
+    return ok(m1 === m0 - 3 && m2 === m1 && run.health === m2 - 1, { m0, m1, m2, m3: run.health });
   },
 });
 story('events/elite-defeat-gives-treasure', {
@@ -1310,7 +1310,7 @@ story('boss/vacuum-arena-and-kill', {
     const esc = sim(4, ['KeyD']).pos;
     const A = run.stage.boss;
     const inside = esc[0] > A.arenaMin[0] - 0.1 && esc[0] < A.arenaMax[0] + 0.1 && esc[2] > A.arenaMin[2] - 0.1 && esc[2] < A.arenaMax[2] + 0.1;
-    run.stats.sting = 60; run.stats.tentacles = 4;
+    run.stats.tentacleDamage = 60; run.stats.tentacles = 4;
     step(60 * 40, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.boss.dead; });
     return ok(phase === 'boss' && inside && run.boss.dead, { phase, esc, dead: run.boss.dead });
   },
@@ -1857,7 +1857,7 @@ story('engine/fight-draw-calls', {
     tp(3.2, 0.05, 3.0, 0);
     const { run } = G(), P = G().player.position;
     for (const t of ['candle', 'glitter', 'battery', 'fairyLights']) run.owned.add(t);
-    Object.assign(run.stats, { bubbles: 6, blowRate: 3 });
+    Object.assign(run.stats, { bubbles: 6, fireRate: 3 });
     for (let k = 0; k < 25; k++) { const a = k * 0.9, d = 0.15 + (k % 5) * 0.06; spawn(['roach', 'ants', 'mosquito'][k % 3], P.clone().add(V(Math.cos(a) * d, 0, Math.sin(a) * d)), { hp: 9999 }); }
   },
   play() {
@@ -2235,10 +2235,10 @@ act2('act-2-hits-harder', {
     const bugX = fly.maxHp / fly.T.hp;
     const soap = run.elites.list.find((e) => e.kind === 'soap');
     run.iFrames = 0;
-    const m0 = run.moisture;
+    const m0 = run.health;
     import('./events.js').then(({ bus, PLAYER }) => bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'test' }));
     return new Promise((res) => setTimeout(() => {
-      const took = m0 - run.moisture;
+      const took = m0 - run.health;
       res(ok(bugX === 2 && soap.maxHp === Math.round(240 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
     }, 50));
   },
@@ -2413,8 +2413,8 @@ act2('carries-the-run', {
   setup() { fresh(); },
   play() {
     const { run } = G();
-    return ok(run.level === 6 && run.owned.has('candle') && run.score() >= 5000 && run.moisture === run.stats.moisture && run.stats.moisture === 130,
-      { level: run.level, owned: [...run.owned], score: run.score(), moisture: run.moisture });
+    return ok(run.level === 6 && run.owned.has('candle') && run.score() >= 5000 && run.health === run.stats.health && run.stats.health === 130,
+      { level: run.level, owned: [...run.owned], score: run.score(), health: run.health });
   },
 });
 

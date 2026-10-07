@@ -465,7 +465,7 @@ export class Clog {
         this.whirl.position.copy(this.drain).setY(this.waterY + 0.003);
         this.whirl.rotation.y -= dt * 9;
         const toDrain = this.drain.clone().sub(P).setY(0), dd = toDrain.length(), side = V(-toDrain.z, 0, toDrain.x).normalize();
-        const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your swim speed (0.42) up close
+        const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your move speed (0.42) up close
         out.push = toDrain.normalize().multiplyScalar(0.34 * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
         if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = 3 * dt;
         this.grate.rotation.y += dt * 14;

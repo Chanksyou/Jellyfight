@@ -133,7 +133,7 @@ export class Player {
     if (wish.lengthSq() > 1) wish.normalize();
     // Swimming: each stroke of the bell (swim.js) is a surge and then a glide, and the avatar
     // squeezes its bell in time with it. Strokes come faster the harder you push and the higher
-    // your swim speed. Averages out to walk speed.
+    // your move speed. Averages out to walk speed.
     const push = Math.min(1, wish.length());
     const before = this.swim;
     this.swim = (this.swim + dt * strokeRate(push, env.speedMul ?? 1)) % 1;

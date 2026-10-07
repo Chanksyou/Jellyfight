@@ -59,7 +59,7 @@ export class Run {
     this.fade.style.cssText = 'position:fixed;inset:0;background:radial-gradient(#fffbe8,#cfe2ff);opacity:0;pointer-events:none;z-index:20;transition:opacity .5s';
     document.body.appendChild(this.fade);
 
-    // The run owns the jelly's moisture, slow and knockback, and what kills are worth
+    // The run owns the jelly's health, slow and knockback, and what kills are worth
     bus.on('damage_taken', ({ targetId, amount, drain }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
@@ -77,10 +77,10 @@ export class Run {
       if (launch) { v.y = Math.max(v.y, launch); this.player.grounded = false; }
     });
     bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
-    // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back moisture
+    // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
     bus.on('damage_taken', (d) => {
       const H = this.mods.healOnHit;
-      if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.moisture);
+      if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.health);
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     this.player.onLand = (drop) => {
@@ -130,7 +130,7 @@ export class Run {
     this.level = 1;
     this.xp = 0;
     this.purse = 0;
-    this.moisture = this.stats.moisture;
+    this.health = this.stats.health;
     this.owned = new Owned();
     this.kills = 0;
     this.eliteBugs = 0;               // golden elite bugs cleared (score)
@@ -153,7 +153,7 @@ export class Run {
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
       for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount };
-      this.moisture = this.stats.moisture;
+      this.health = this.stats.health;
       this.startPicked = true;        // you already have your treasures
     }
     this.spawnAcc = 0;
@@ -184,7 +184,7 @@ export class Run {
   }
 
   get paused() { return this.ui.open; }
-  // how hard treasures that attack on their own hit: scales with pop damage
+  // how hard treasures that attack on their own hit: scales with bubble damage
   // Your stats as they stand: the starting values plus level-up cards (this.stats) plus what
   // your treasures add (stat words). One object, refilled on each read: no garbage per frame.
   get S() {
@@ -196,7 +196,7 @@ export class Run {
     return S;
   }
 
-  get power() { return this.S.pop * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
+  get power() { return this.S.bubbleDamage * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
   // The tentacles' stats, with their treasures applied
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
@@ -214,8 +214,8 @@ export class Run {
     return {
       tentacles: Math.min(6, s.tentacles),
       reach: s.reach,
-      sting: s.sting,
-      lashSpeed: s.lashSpeed,
+      tentacleDamage: s.tentacleDamage,
+      tentacleSpeed: s.tentacleSpeed,
     };
   }
   // seconds until the boss comes (treasures can make the night longer)
@@ -243,7 +243,7 @@ export class Run {
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
-        speedMul: s.pulse, jumpMul: s.bounce, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
+        speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         slow: this.slowT > 0 ? 0.4 : 0, push,
         slip: this.slipT > 0 ? 1 : 0,
@@ -275,7 +275,7 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, sting: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD
@@ -291,7 +291,7 @@ export class Run {
     for (const b of this.bursts.splice(0)) this.burst(b);
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
-    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt);   // moisture regen (cards, treasures)
+    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt);   // health regen (cards, treasures)
     const spout = this.mods.spout;
     if (spout) {
       this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;
@@ -450,13 +450,13 @@ export class Run {
   }
 
   hurt(amount, silent = false) {
-    this.moisture -= amount;
+    this.health -= amount;
     if (!silent) { juice.shake(0.55); sfx.hurt(); }
     if (!silent) this.player.avatar?.land(1.5);
-    if (this.moisture <= 0) this.die();
+    if (this.health <= 0) this.die();
   }
 
-  heal(amount) { this.moisture = Math.min(this.S.moisture, this.moisture + amount); }
+  heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
 
   // an enemy_killed event: { pos, r, dew, elite }
   onKill({ pos: c, r, dew: baseDew, elite }) {
@@ -473,15 +473,15 @@ export class Run {
       this.growCount[g.key] = n % g.kills;
       if (n < g.kills) continue;
       this.grown[g.stat] = (this.grown[g.stat] || 0) + g.amount;
-      if (g.stat === 'moisture') this.heal(g.amount);
+      if (g.stat === 'health') this.heal(g.amount);
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
     }
-    if (elite) {                         // elites give back some moisture and drop a treasure
+    if (elite) {                         // elites give back some health and drop a treasure
       this.eliteBugs++;
       this.heal(4);
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
-      if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 moisture)');
+      if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 health)');
     }
     if (this.mods.burstOnKill) this.bursts.push(c);
   }
@@ -494,7 +494,7 @@ export class Run {
     this.heal(4);
     this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
-    this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 moisture)`);
+    this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 health)`);
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
@@ -532,9 +532,9 @@ export class Run {
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
     this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, 1, (card) => {
-      const before = this.stats.moisture;
+      const before = this.stats.health;
       applyCard(this.stats, card);
-      if (this.stats.moisture > before) this.heal(this.stats.moisture - before);
+      if (this.stats.health > before) this.heal(this.stats.health - before);
       this.resume();
     }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck));
   }
@@ -577,9 +577,9 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     this.ui.choose(title, sub, choices, (t) => {
-      const before = this.S.moisture;
+      const before = this.S.health;
       this.owned.add(t.id);
-      if (this.S.moisture > before) this.heal(this.S.moisture - before);
+      if (this.S.health > before) this.heal(this.S.health - before);
       this.ui.treasure(t);
       then();
     });
@@ -726,7 +726,7 @@ export class Run {
     const choices = shuffle([...EVOLUTIONS]).slice(0, 3);
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} Choose how it grows.`, choices, (evo) => {
       evo.apply(this.stats);
-      this.moisture = this.stats.moisture;
+      this.health = this.stats.health;
       this.phase = 'won';
       const next = STAGES[this.stage.id];         // the act after this one, if there is one
       // the boss's element reward: one more element attack, before moving on
@@ -745,7 +745,7 @@ export class Run {
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
-    this.moisture = 0;
+    this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
     this.later(() => this.endRun('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', 'Try again'), 700);
@@ -860,7 +860,7 @@ export class Run {
   // ------------------------------------------------------------ HUD
   refreshHud() {
     const h = this.hud;
-    h.setMoisture(this.moisture, this.S.moisture);
+    h.setHealth(this.health, this.S.health);
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; }));
     const [c0, c1] = this.stage.clock;
