@@ -5,8 +5,10 @@
 // Numbers per treasure and pack, each the average of a few tries:
 //   clear    seconds to kill all ten (real cockroach health; 30 s if it can't)
 //   dmg      damage dealt to the pack in 10 s (cockroaches that can't die, so nothing runs out)
-// Use it to rate treasures against each other. Treasures that don't hurt anything (dodge, XP,
-// regen…) show the same numbers as no treasure at all.
+// Use it to rate treasures against each other: x times faster clearing than no treasure suggests
+// a rarity (legendary 3.5x+, epic 2x+, rare 1.4x+, else common). Treasures that don't hurt
+// anything (dodge, XP, regen…) show the same numbers as no treasure at all: rate those by how
+// unique the effect is.
 //
 //   node tests/clear.mjs            every treasure
 //   node tests/clear.mjs lemon      just the ones whose id contains "lemon"
@@ -67,6 +69,7 @@ const base = rows[0];
 const x = (r) => Math.max(base.rangeClear / r.rangeClear, base.swarmClear / r.swarmClear);
 const dx = (r) => Math.max(r.rangeDmg / base.rangeDmg, r.swarmDmg / base.swarmDmg);
 console.log(`\nby clear strength (x = times faster than no treasure: ${base.rangeClear} s at range, ${base.swarmClear} s swarmed):`);
-for (const r of [...rows.slice(1)].sort((a, b) => x(b) - x(a))) console.log(`  ${r.icon} ${r.name.padEnd(20)} x${x(r).toFixed(2)} clear   x${dx(r).toFixed(2)} damage   (range ${r.rangeClear} s, swarm ${r.swarmClear} s)`);
+const tier = (v) => (v >= 3.5 ? 'legendary' : v >= 2 ? 'epic' : v >= 1.4 ? 'rare' : 'common');
+for (const r of [...rows.slice(1)].sort((a, b) => x(b) - x(a))) console.log(`  ${r.icon} ${r.name.padEnd(20)} x${x(r).toFixed(2)} clear   x${dx(r).toFixed(2)} damage   ${('(' + tier(x(r)) + ')').padEnd(12)} (range ${r.rangeClear} s, swarm ${r.swarmClear} s)`);
 if (errors.length) console.log('page errors: ' + errors.slice(0, 3).join(' | '));
 await env.close();

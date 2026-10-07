@@ -2,7 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -558,14 +558,14 @@ export class Run {
   devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.',
+    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. A Boss can bring you another.',
       () => { this.firstRun.elementChosen = true; this.resume(); });
   }
 
   // start: the starting pick, two elements for your bubbles and one of anything else
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N, an element's upgrades only once you own the element) from a treasure in the
-  // room. Base elements never come from here: they're element rewards (pickElement).
+  // room. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
   pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.') {
     const can = (t) => this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
     let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
@@ -575,19 +575,29 @@ export class Run {
       const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
       const name = levelled ? `${t.name} <small>Lv ${next}${next > 1 ? ' ⬆' : ''}</small>` : t.stack > 1 ? `${t.name} <small>${next}/${t.stack}</small>` : t.name;
       const text = levelled && next > 1 ? t.levelText[next - 1] : t.text;
-      return { ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity), name, text };
+      return { ...t, tier: treasureTier(t), name, text };
     });
     this.offer(title, sub, left);
   }
 
-  // An element reward: the start of a run, and after each boss. Pick the base version of one
-  // element attack you don't have yet (1 of 3); its upgrades can turn up in treasures from then on.
+  // The start of a run: pick the base version of one element attack you don't have yet (1 of 3,
+  // all Legendary); its upgrades can turn up in treasures from then on.
   // then: what happens after the pick (or straight away, if you already have every element)
   pickElement(title, sub, then = () => this.resume()) {
     const left = shuffle(TREASURES.filter((t) => ELEMENT_TREASURES.includes(t.id) && !this.owned.has(t.id))).slice(0, 3)
-      .map((t) => ({ ...t, tier: TREASURE_RARITY.find((r) => r.id === t.rarity) }));
+      .map((t) => ({ ...t, tier: treasureTier(t) }));
     if (!left.length) { then(); return; }
     this.offer(title, sub, left, then);
+  }
+
+  // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
+  // (while any are left); the rest from the other Legendary treasures and elements you can take
+  pickLegendary(title, sub, then = () => this.resume()) {
+    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs));
+    const pool = shuffle(TREASURES.filter(can)), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
+    const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
+    if (!left.length) { then(); return; }
+    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
 
   offer(title, sub, choices, then = () => this.resume()) {
@@ -768,8 +778,8 @@ export class Run {
       this.health = this.stats.health;
       this.phase = 'won';
       const next = STAGES[this.stage.id];         // the act after this one, if there is one
-      // the boss's element reward: one more element attack, before moving on
-      if (next) this.pickElement('🔥 A new element', `${this.stage.boss.name} is beaten. Take another element attack into act ${next.id}.`, () => this.actComplete(next));
+      // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
+      if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
       else this.endRun(`Act ${this.stage.id} complete`, 'The hallway and the bathroom are yours. The bedroom (act 3) is coming soon.', 'Play again from act 1');
     });
   }

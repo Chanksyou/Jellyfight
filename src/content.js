@@ -59,7 +59,7 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 
 // treasure "id" name="…" icon="…" text="…" rarity="…" attack=#true stack=N { effect words… }
 //   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
-const TIERS = ['common', 'rare', 'epic'];   // the ids of TREASURE_RARITY (stats.js)
+const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
   for (const n of nodes) {

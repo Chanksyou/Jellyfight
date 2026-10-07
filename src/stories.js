@@ -604,13 +604,13 @@ story('attack/element-projectiles', {
   },
 });
 story('treasures/element-rewards', {
-  about: 'Base elements only come from element rewards: the start of a run offers 3 elements you don\'t have (and only elements), and treasures in the room never offer a base element, nor an upgrade for an element you don\'t own.',
+  about: 'Base elements are Legendary and never come from treasures in the room: the start of a run offers 3 Legendary elements you don\'t have (and only elements), and treasures in the room never offer a base element, nor an upgrade for an element you don\'t own.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { run, menus } = G();
     let starts = 0, picks = 0, bad = [], sample = null;
     stub(menus, 'choose', (title, sub, list) => {
-      if (title === 'start') { if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id))) starts++; sample = list.map((t) => t.id); return; }
+      if (title === 'start') { if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id) && t.tier?.name === 'Legendary')) starts++; sample = list.map((t) => t.id); return; }
       picks++;
       for (const t of list) if (ELEMENTS_IDS.includes(t.id) || (t.needs && !run.owned.has(t.needs))) bad.push(t.id);
     });
@@ -664,12 +664,13 @@ story('progression/luck', {
   },
 });
 story('content/every-treasure-has-a-rarity', {
-  about: 'Every treasure is rated common, rare or epic (no legendaries), and every rarity has treasures.',
+  about: 'Every treasure is rated common, rare, epic or legendary, every rarity has treasures, and every element is Legendary.',
   setup() {},
   play() {
     const ids = TREASURE_RARITY.map((r) => r.id), count = Object.fromEntries(ids.map((id) => [id, 0]));
     for (const t of CONTENT.treasures) count[t.rarity] = (count[t.rarity] ?? NaN) + 1;
-    return ok(ids.every((id) => count[id] > 0) && Object.keys(count).length === ids.length, count);
+    const plainElements = CONTENT.treasures.filter((t) => t.vocabulary.includes('element') && t.rarity !== 'legendary').map((t) => t.id);
+    return ok(ids.every((id) => count[id] > 0) && Object.keys(count).length === ids.length && !plainElements.length, { ...count, plainElements });
   },
 });
 story('progression/regen', {
@@ -1674,8 +1675,8 @@ story('modes/quick-restart-after-death', {
   },
 });
 
-story('boss/element-reward', {
-  about: 'After a boss (and its metamorphosis), you pick a new element attack you don\'t have yet, then the act is complete.',
+story('boss/legendary-reward', {
+  about: 'The Boss reward: after the metamorphosis, a Legendary pick of three with at least one element you don\'t have yet, then the act is complete.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); },
   play() {
     const { run } = G();
@@ -1686,11 +1687,26 @@ story('boss/element-reward', {
     modal().querySelector('.jf-card').click();                        // an evolution
     const second = modal().querySelector('h2')?.textContent;
     const offered = [...modal().querySelectorAll('.jf-card .big')].map((n) => n.textContent);
-    modal().querySelector('.jf-card').click();                        // an element
+    const tiers = [...modal().querySelectorAll('.jf-card .rar')].map((n) => n.textContent);
+    modal().querySelector('.jf-card').click();                        // a Legendary
     const third = modal().querySelector('h2')?.textContent;
-    const els = ['battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'].filter((id) => run.owned.has(id)).length;
     G().menus.close();
-    return ok(/Metamorphosis/.test(first) && /new element/.test(second) && offered.length === 3 && !offered.includes('Birthday Candle') && els === 1 && /Act 1 complete/.test(third), { first, second, offered, third, els });
+    // the rule over many rolls: Legendary only, never one you own, always an element while any are left
+    const els = ['battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
+    for (const id of els) run.owned.delete(id);                       // back to owning just fire
+    let bad = 0, rolls = 0, lastOnly = 0;
+    stub(run.ui, 'choose', (t, s, list) => {
+      rolls++;
+      if (list.some((c) => c.rarity !== 'legendary' || run.owned.has(c.id)) || !list.some((c) => ELEMENTS_IDS.includes(c.id))) bad++;
+    });
+    for (let i = 0; i < 100; i++) run.pickLegendary('', '', () => {});
+    for (const id of els.slice(0, 4)) run.owned.add(id);              // one element left
+    stub(run.ui, 'choose', (t, s, list) => { if (list.some((c) => c.id === 'glitter')) lastOnly++; else bad++; });
+    for (let i = 0; i < 50; i++) run.pickLegendary('', '', () => {});
+    restore();
+    return ok(/Metamorphosis/.test(first) && /Legendary/.test(second) && offered.length === 3 && !offered.includes('Birthday Candle')
+      && tiers.every((t) => t === 'Legendary') && /Act 1 complete/.test(third) && !bad && rolls === 100 && lastOnly === 50,
+      { first, second, offered, tiers, third, bad, rolls, lastOnly });
   },
 });
 

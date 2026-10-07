@@ -6,10 +6,11 @@
 // Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
 //
 //   attack=#true   it changes how you attack
-//   rarity="…"     common, rare or epic: how often it's offered (stats.js
+//   rarity="…"     common, rare, epic or legendary: how often it's offered (stats.js
 //                  TREASURE_RARITY; Luck shifts the odds up). Rate damage treasures with
-//                  tests/clear.mjs (x faster at clearing 10 clumped cockroaches: epic 2x+,
-//                  rare 1.4x+); rate the rest by how unique the effect is.
+//                  tests/clear.mjs (x faster at clearing 10 clumped cockroaches: legendary 3.5x+,
+//                  epic 2x+, rare 1.4x+); rate the rest by how unique the effect is. Legendary is
+//                  for unique rule-changers and the Elements: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure (an element's upgrades need its base)
 //   stack=N        you can own up to N copies and their effects add up (default 1: unique).
 //                  Keep stacking for plain number boosts.
@@ -52,25 +53,25 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 }
 
 // --- element attacks (bubbles.js): each fires its own projectile on its own timer, separate from
-// your bubbles. You pick one at the start of a run and another after each boss (element rewards),
-// never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
+// your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
+// Legendary pick) always offers at least one you don't have; never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="rare" attack=#true text="Lightning attack: you also shoot ball lightning; every pop arcs to 3 more enemies nearby, stunning each." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning attack: you also shoot ball lightning; every pop arcs to 3 more enemies nearby, stunning each." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="rare" attack=#true text="Ice attack: you also shoot ice shards that chill and slow; the 2nd chilled hit freezes the enemy solid." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice attack: you also shoot ice shards that chill and slow; the 2nd chilled hit freezes the enemy solid." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="rare" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="rare" attack=#true text="Wind attack: you also shoot fast gusts that pierce and blow what they hit backward." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind attack: you also shoot fast gusts that pierce and blow what they hit backward." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true text="Glitter attack: you also lob glitter bombs that burst in a wide, hard-hitting splash." {
+treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter attack: you also lob glitter bombs that burst in a wide, hard-hitting splash." {
     element "glitter"
 }
 

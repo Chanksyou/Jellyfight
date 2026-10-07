@@ -55,7 +55,10 @@ export const TREASURE_RARITY = [
   { id: 'common', name: 'Common', color: '#cfd6e0', weight: 55 },
   { id: 'rare', name: 'Rare', color: '#5fb4ff', weight: 30 },
   { id: 'epic', name: 'Epic', color: '#c77bff', weight: 12 },
+  { id: 'legendary', name: 'Legendary', color: '#ffe9a0', weight: 3 },   // unique rule-changers and the Elements
 ];
+const TREASURE_TIER = Object.fromEntries(TREASURE_RARITY.map((r, i) => [r.id, i]));
+export const treasureTier = (t) => TREASURE_RARITY[TREASURE_TIER[t.rarity]];
 
 // Luck: each tier above common is (1 + luck/100)x likelier per step up, so 30 luck makes rares
 // 1.3x, epics 1.69x and legendaries 2.2x as likely (before the shares are re-normalised)
@@ -129,7 +132,7 @@ export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1) {
   const left = [...pool], out = [], w = luckWeights(TREASURE_RARITY, luck);
   while (out.length < n && left.length) {
     const inTier = (t) => left.filter((o) => o.rarity === t.rarity).length;
-    const t = pickWeighted(left, (o) => w[TREASURE_RARITY.findIndex((r) => r.id === o.rarity)] / inTier(o) * favor(o));
+    const t = pickWeighted(left, (o) => w[TREASURE_TIER[o.rarity]] / inTier(o) * favor(o));
     left.splice(left.indexOf(t), 1);
     out.push(t);
   }
@@ -142,8 +145,8 @@ export const TREASURES = CONTENT.treasures;
 
 // Treasures that change how you attack (attack=#true)
 export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t) => t.id);
-// The element attacks' base treasures (the `element` word): only from element rewards (the start
-// of a run, after each boss), never from treasures in the room
+// The element attacks' base treasures (the `element` word): Legendary, only from the start-of-run
+// pick and the Boss reward, never from treasures in the room
 export const ELEMENT_TREASURES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element')).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;
