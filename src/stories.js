@@ -1316,17 +1316,17 @@ story('events/iframes-and-drain', {
     return ok(m1 === m0 - 3 && m2 === m1 && run.health === m2 - 1, { m0, m1, m2, m3: run.health });
   },
 });
-story('events/elite-defeat-gives-treasure', {
-  about: 'Beating an elite opens a treasure pick.',
+story('events/elite-defeat-leaves-a-treasure', {
+  about: 'Beating an elite leaves a treasure (a golden chest) on its high ground, not a pick right away.',
   setup() { fresh(); },
   play() {
     const { run, enemies, menus } = G();
     const mug = run.elites.list.find((e) => e.kind === 'mug'), entry = enemies.list.find((e) => e.proxy === mug);
     bus.emit('damage_taken', { targetId: entry.id, amount: 9999, source: 'story' });
     step(5);
-    const pick = menus.open;
-    menus.close();
-    return ok(mug.dead && pick, { dead: mug.dead, pick });
+    const pick = menus.open, chest = run.roomTreasures.find((t) => t.active && !t.timed);
+    const near = chest && Math.hypot(chest.pos.x - mug.base.x, chest.pos.z - mug.base.z) < 0.05 && Math.abs(chest.pos.y - mug.base.y) < 0.05;
+    return ok(mug.dead && !pick && near, { dead: mug.dead, pick, chest: chest && r3(chest.pos), base: r3(mug.base) });
   },
 });
 
@@ -2116,17 +2116,16 @@ act2('clock-strikes-the-hour', {
   },
 });
 act2('clock-beaten-hangs-again', {
-  about: 'Beat the clock and it goes back up its wall as a plain clock (no face, no health bar), still keeping time; you get a treasure pick.',
+  about: 'Beat the clock and it goes back up its wall as a plain clock (no face, no health bar), still keeping time; its treasure lands on the bench below, in reach.',
   setup() { fresh(); onBench(); },
   play() {
     const { run, enemies, menus } = G(), e = hallClock(), log = record('elite_defeated');
     step(90);
     enemies.applyDamage(e.entry, e.maxHp + 1);
     step(10);
-    const picked = menus.open;
-    menus.close();
+    const chest = run.roomTreasures.find((t) => t.active && !t.timed), picked = !!chest && chest.pos.y < 0.8 && !menus.open;
     step(60 * 3);
-    return ok(log.length === 1 && e.decor && !e.model.face.visible && !e.bar.visible && e.holder.position.y > 1.1 && run.elites.decor.includes(e) && picked, { defeated: log.length, decor: !!e.decor, y: +e.holder.position.y.toFixed(3), picked });
+    return ok(log.length === 1 && e.decor && !e.model.face.visible && !e.bar.visible && e.holder.position.y > 1.1 && run.elites.decor.includes(e) && picked, { chestY: chest && +chest.pos.y.toFixed(2), defeated: log.length, decor: !!e.decor, y: +e.holder.position.y.toFixed(3), picked });
   },
 });
 

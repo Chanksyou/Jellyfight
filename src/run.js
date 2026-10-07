@@ -601,8 +601,13 @@ export class Run {
     this.hud.toast(`✨ A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
   }
 
-  // A beaten elite leaves its treasure where it fell; it waits there for the rest of the act
-  dropTreasure(at) { this.placeTreasure(at.clone(), Infinity, Math.random() * Math.PI * 2); }
+  // A beaten elite leaves its treasure where it fell, settled on the surface under it (the wall
+  // clock's lands on the bench below); it waits there for the rest of the act
+  dropTreasure(at) {
+    const p = at.clone(), hit = this.world.castAll(_drop.set(p.x, p.y + 0.03, p.z), DOWN, 2.5);
+    if (hit) p.y = hit.point.y;
+    this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
+  }
 
   placeTreasure(at, stay, facing) {
     let t = this.roomTreasures.find((x) => !x.active);
