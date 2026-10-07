@@ -415,6 +415,49 @@ story('first-run/minimap-with-the-first-treasure', {
       { hiddenAtStart, shownWithChest, stays, hiddenAgain, shownWithScheduled, other });
   },
 });
+// The whole first minute of a player's first run, played like a player would (desktop and phone):
+// the real waves run, cards and Element picks are taken as they come, and the story records when
+// each thing first happens, then checks the order: moving only at first (no menu, no minimap), the
+// Health hint on the first hit, the first card, the Element pick straight after it, then the first
+// Treasure at the first scheduled time after that, with the minimap. Plenty of Health, so the
+// minute can't end early; a nudge of XP if no Level-up has come by 0:40.
+function firstMinute() {
+  fresh({ elites: false, firstRun: true, waves: true, treasures: true, levels: true, hurt: true });
+  tp(3.2, 0.05, 3.0, 0);
+  const { run, menus, enemies } = G(), T = {};
+  run.stats.health = run.health = 500;
+  spawn('roach', near(0, -0.2), { hp: 9999 });            // in range from the start, for the bubbles
+  let blown = 0;
+  const was = run.bubbles.onBlow; run.bubbles.onBlow = () => { blown++; was(); };
+  for (let i = 0; i < 60 * 90 && !T.treasure; i++) {
+    G().GAME.step(1 / 60);
+    const t = +run.t.toFixed(2);
+    if (t < 5) { if (menus.open || mapShown() || enemies.list.some((e) => e.type !== 'roach')) T.busyEarly = t; }
+    if (t >= 6 && !T.hint && !run.firstRun.hitHintShown) hitJelly();          // no roach reached us yet: a hit
+    if (T.hint === undefined && /That's your Health/.test(hintShown())) T.hint = t;
+    if (menus.open) {
+      const title = modalTitle();
+      if (/element/i.test(title)) T.element ??= t;
+      else if (/level/i.test(title)) T.card ??= t;
+      pickFirstCard();
+    }
+    if (t >= 40 && T.card === undefined && !menus.open) run.gainXp(xpToNext(run.level));
+    if (T.map === undefined && mapShown()) T.map = t;
+    if (run.roomTreasures.some((x) => x.active && x.timed)) T.treasure = t;
+    if (T.element === undefined && run.roomTreasures.some((x) => x.active)) T.treasureBeforeElement = t;
+  }
+  run.bubbles.onBlow = was;
+  menus.close();
+  const due = (run.stage.treasures.at || []).find((x) => x >= T.element);
+  const good = T.busyEarly === undefined && blown > 0 && T.hint !== undefined && T.card !== undefined && T.element >= T.card && T.element - T.card < 0.5
+    && T.treasureBeforeElement === undefined && Math.abs(T.treasure - due) <= 0.1 && Math.abs(T.map - T.treasure) <= 0.1;
+  return ok(good, { ...T, due, blown });
+}
+story('first-run/the-first-minute', {
+  about: 'A player\'s first minute, in order: swimming among roaches with bubbles firing on their own (no menu, no minimap), the Health hint on the first hit, the first card, the Element pick, then the first Treasure at 1:00 with the minimap.',
+  setup() {},
+  play: firstMinute,
+});
 story('first-run/other-runs-unchanged', {
   about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
   setup() { fresh({ elites: false }); G().run.startPicked = false; },
@@ -2677,6 +2720,11 @@ phone('light-slots-follow-the-jelly', {
     return ok(S.slots.length === 6 && S.lit().length <= 6 && eastLit && westLit && fading.length > 0 && same,
       { slots: S.slots.length, lamps: S.lamps.length, lit: S.lit().length, eastLit, westLit, fading, programs, lights, nowPrograms: APT.renderer.info.programs.length });
   },
+});
+phone('the-first-minute', {
+  about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, the first card, the Element pick, then the first Treasure with the minimap.',
+  setup() {},
+  play: firstMinute,
 });
 phone('graphics-reset-recovers', {
   about: 'When the graphics chip resets (iOS backgrounding), the game pauses with a note, rebuilds once the browser gives the GPU back, and draws again; no error panel.',
