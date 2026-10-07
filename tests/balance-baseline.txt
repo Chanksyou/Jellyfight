@@ -1,17 +1,17 @@
-# Balance baseline: v36 (2026-10-01), node tests/balance.mjs 5
+# Balance baseline: v123 (2026-10-07), node tests/balance.mjs 5 — before the treasure overhaul (#8)
 # Compare a change's run against this; the bot is crude, so look at medians and sources, not single nights.
 
-night 1: died at 5:21, level 6, 29 kills, 1 treasures, finished by roach
-    hurt by {"roach":12,"spit":7,"ants":3,"boss":3}
-night 2: died at 6:33, level 6, 33 kills, 3 treasures, finished by roach
-    hurt by {"roach":17.9,"spit":4,"boss":3.6}
-night 3: died at 4:03, level 6, 42 kills, 2 treasures, finished by spit
-    hurt by {"roach":13,"ants":9,"spit":6}
-night 4: died at 5:27, level 7, 37 kills, 2 treasures, finished by boss
-    hurt by {"roach":12.5,"kettle":8,"spit":5,"boss":3,"coffee":0.5}
-night 5: died at 5:56, level 11, 49 kills, 4 treasures, finished by roach
-    hurt by {"roach":9,"boss":7,"ants":6,"spit":3}
+night 1: died at 3:55, level 4, 23 kills, 1 treasures, finished by ants
+    hurt by {"ants":16.7,"roach":6,"coffee":3.3,"spit":2,"lanternfly":1}
+night 2: died at 6:55, level 7, 29 kills, 1 treasures, finished by boss
+    hurt by {"roach":10.4,"lanternfly":10.2,"boss":6.5,"kettle":2}
+night 3: died at 7:15, level 9, 79 kills, 1 treasures, finished by roach
+    hurt by {"boss":26,"roach":18.2,"ants":9,"lanternfly":8,"spit":4}
+night 4: died at 4:52, level 7, 41 kills, 4 treasures, finished by boss
+    hurt by {"roach":9,"ants":5,"boss":5,"spit":3,"mosquito":1,"lanternfly":1}
+night 5: died at 7:00, level 8, 60 kills, 2 treasures, finished by boss
+    hurt by {"roach":27.9,"boss":20.5,"lanternfly":9.4,"spit":4,"ants":3,"mosquito":2,"coffee":0.5}
 
 5 nights: 0 beat the boss, 5 died
-median: survived to 327 s, level 6, 37 kills
-moisture lost, by source: roach 49%, spit 19%, ants 14%, boss 13%, kettle 6%, coffee 0%
+median: survived to 415 s, level 7, 41 kills
+health lost, by source: roach 33%, boss 27%, ants 16%, lanternfly 14%, spit 6%, coffee 2%, mosquito 1%, kettle 1%
