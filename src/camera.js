@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
-// Orbit camera that follows the player and keeps the view clear of the furniture.
-// When something is in the way (the jelly backed against a wall, up on the vanity, in the
-// sink), it tilts up toward top-down to look over it. Furniture the jelly is underneath (the
-// coffee table, the media console, the kitchen counter's overhang) it sees through instead,
-// fading it out while you're under it. Only when all that still leaves something in the way
-// does it pull in closer. Several rays, not one, so walls beside the camera count too, not
-// just ones straight behind it.
+// Orbit camera that follows the player and keeps the view clear of the furniture. It sits
+// high and fairly far back (look.css --camera-tilt, --camera-distance) and keeps that tilt:
+// furniture the jelly is underneath (the coffee table, the media console, the kitchen counter's
+// overhang) it sees through, fading it out while you're under it, and a wall behind the jelly
+// makes it glide in closer. It can also tilt up on its own to look over a wall
+// (--camera-lift), but that's off: the view swinging overhead felt like losing control. Several
+// rays, not one, so walls beside the camera count too, not just ones straight behind it.
 const PITCH_STEP = 0.1;        // how finely it searches upward for a clear tilt
 const HOLD = 0.3;              // seconds a pull-in or tilt-up holds before easing back
 const SEE_THROUGH = 0.22;      // how solid furniture over the jelly looks while the camera sees through it
@@ -113,7 +113,7 @@ export class ThirdPersonCamera {
     // one where the jelly is hugging a wall and the wide margin never fits
     this.findOver();
     const floor = Math.min(c.minClear ?? 0.3, this.distance);
-    const top = Math.max(this.pitch, c.maxAutoPitch ?? 1.5);
+    const top = Math.min(c.maxPitch + 0.25, this.pitch + (c.autoLift ?? 0));
     let goalPitch = this.pitch, tight = null, most = -1;
     for (let p = this.pitch; ; p = Math.min(top, p + PITCH_STEP)) {
       this.dirAt(p, this._dir);
@@ -146,6 +146,31 @@ export class ThirdPersonCamera {
     this.camera.position.copy(this.focus).addScaledVector(this._dir, this.currentDistance);
     this.camera.lookAt(this.focus);
     this.fade(dt);
+  }
+
+  // A see-through copy of everything the jelly can get under, standing where the original is, so
+  // main.js can build their shaders behind the Play button: building one the first time the
+  // camera sees through it stalled a phone for a frame or more. Casts up from a grid over the floor.
+  seeThroughWarmers(box, step = 0.1) {
+    const w = this.world, keep = [w.nearby, w.nearbySpheres];
+    w.nearby = w.colliders; w.nearbySpheres = w.spheres;   // every collider, not just the ones near the jelly
+    const found = new Map(), o = new THREE.Vector3(), skip = new Set();
+    try {
+      for (let x = box.min.x; x <= box.max.x; x += step) for (let z = box.min.z; z <= box.max.z; z += step) {
+        o.set(x, box.min.y + 0.03 + this.cfg.height, z); skip.clear();
+        for (let i = 0; i < 3; i++) {
+          const h = w.cast(o, UP, this.cfg.maxDistance, skip);
+          if (!h?.mesh) break;
+          skip.add(h.mesh);
+          if (!found.has(h.mesh.material)) found.set(h.mesh.material, h.mesh);
+        }
+      }
+    } finally { [w.nearby, w.nearbySpheres] = keep; }
+    return [...found.values()].map((m) => {
+      const copy = new THREE.Mesh(m.geometry, Array.isArray(m.material) ? m.material.map(faded) : faded(m.material));
+      m.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale);
+      return copy;
+    });
   }
 
   snapTo(target) {

@@ -31,7 +31,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v113';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v114';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -212,7 +212,7 @@ run.playerBody = () => state.look.body;
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = LOOK.num('camera-distance-phone', 0.52);   // phone screens are small: sit a bit closer
+  tpc.distance = LOOK.num('camera-distance-phone', 0.6);   // phone screens are small: sit a bit closer
 }
 input.touchOnly = IS_TOUCH;
 function play() {
@@ -315,6 +315,13 @@ async function loadRooms(parts, onProgress) {
   applyLayout(APT.root);
   world.addObjects(added);
   mapFurniture();
+  // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
+  const box = new THREE.Box3();
+  added.forEach((o) => box.expandByObject(o));
+  const seeThrough = tpc.seeThroughWarmers(box);
+  seeThrough.forEach((m) => scene.add(m));
+  try { await renderer.compileAsync(scene, camera); uploadAll(); } catch (e) { reportError(e, 'preparing graphics'); }
+  seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   return added;
 }
 
@@ -437,11 +444,16 @@ async function warmUp() {
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);
   batcher.sync();                                // build the instanced batches so they compile too
+  // furniture the camera sees through, as the see-through copies it will swap in (camera.js)
+  const seeThrough = tpc.seeThroughWarmers(new THREE.Box3().setFromObject(APT.root));
+  seeThrough.forEach((m) => scene.add(m));
   try {
     await renderer.compileAsync(scene, camera);
+    uploadAll();
   } catch (e) {
     reportError(e, 'preparing graphics');
   }
+  seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   run.gadgets.warm(false);
   run.elites.warm(false);
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
@@ -457,6 +469,22 @@ async function warmUp() {
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
   playBtn.disabled = false;
   playBtn.textContent = 'Play';
+}
+
+// Put every texture and mesh on the GPU now. Otherwise each goes up the first time it comes into
+// view, and a turn of the camera that brings in a corner of the room stalls a phone for a frame.
+const tiny = new THREE.WebGLRenderTarget(4, 4);
+function uploadAll() {
+  scene.traverse((o) => {
+    for (const m of [].concat(o.material || [])) for (const k in m) if (m[k]?.isTexture) renderer.initTexture(m[k]);
+  });
+  const culled = [];
+  scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
+  const was = renderer.getRenderTarget();
+  renderer.setRenderTarget(tiny);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(was);
+  culled.forEach((o) => { o.frustumCulled = true; });
 }
 
 overlay.hidden = false;

@@ -198,13 +198,20 @@ function cameraSpots(extra = []) {
   return spots;
 }
 function cameraTour(spots, old) {
-  const { tpc } = G(), cfg = tpc.cfg, was = [cfg.maxAutoPitch, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead], seen = new Set();
-  if (old) { cfg.maxAutoPitch = 0; cfg.clearRadius = 0; cfg.seeThrough = false; cfg.lookAhead = 0; }   // the old camera: one ray, never tilts or sees through
+  const { tpc, world } = G(), cfg = tpc.cfg, was = [cfg.autoLift, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead], seen = new Set();
+  if (old) { cfg.autoLift = 0; cfg.clearRadius = 0; cfg.seeThrough = false; cfg.lookAhead = 0; }   // the old camera: one ray, never sees through
+  let maxTilt = 0, blocked = 0;
+  const toCam = V(0, 0, 0);
   const want = tpc.distance, ds = [], cam = tpc.camera.position, last = V(0, 0, 0);
   let jumps = 0, maxJump = 0, ms = 0, frames = 0;
   try {
     for (const p of spots) {
-      for (let k = 0; k < 16; k++) { tp(...p, (k * Math.PI) / 8); step(30); ds.push(cam.distanceTo(tpc.focus)); for (const m of tpc.over) seen.add(m.name); }
+      for (let k = 0; k < 16; k++) {
+        tp(...p, (k * Math.PI) / 8); step(30); ds.push(cam.distanceTo(tpc.focus)); for (const m of tpc.over) seen.add(m.name);
+        maxTilt = Math.max(maxTilt, tpc.viewPitch - tpc.pitch);
+        const len = toCam.subVectors(cam, tpc.focus).length();
+        if (world.cast(tpc.focus, toCam.normalize(), len, tpc.over)) blocked++;   // something solid between the jelly and the camera
+      }
       tp(...p, 0); step(20); last.copy(cam);
       for (let i = 0; i < 240; i++) {
         tpc.yaw += (Math.PI * 2) / 240;
@@ -214,13 +221,13 @@ function cameraTour(spots, old) {
         maxJump = Math.max(maxJump, j);
       }
     }
-  } finally { [cfg.maxAutoPitch, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead] = was; }
+  } finally { [cfg.autoLift, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead] = was; }
   const frac = (f) => +(ds.filter(f).length / ds.length).toFixed(3);
-  return { views: ds.length, mean: +(ds.reduce((a, b) => a + b, 0) / ds.length / want).toFixed(2), under60: frac((d) => d < want * 0.6), under25cm: frac((d) => d < 0.25), jumps, maxJump: +maxJump.toFixed(3), msPerFrame: +(ms / frames).toFixed(3), seeThrough: [...seen] };
+  return { views: ds.length, mean: +(ds.reduce((a, b) => a + b, 0) / ds.length / want).toFixed(2), under60: frac((d) => d < want * 0.6), under25cm: frac((d) => d < 0.25), jumps, maxJump: +maxJump.toFixed(3), msPerFrame: +(ms / frames).toFixed(3), maxTilt: +maxTilt.toFixed(3), blocked, seeThrough: [...seen] };
 }
 // `under`: a piece of furniture the jelly gets underneath on the tour, which it should see through
 const cameraStory = (extra, under) => ({
-  about: `Against walls and up on furniture, the camera tilts up to look over what is behind it instead of collapsing onto the jelly; under furniture (${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()}) it sees through it, which fades out until you leave; turning around does not make it pop in.`,
+  about: `The camera keeps its tilt: against walls and up on furniture it never swings overhead, it glides in instead, and nothing solid is ever left between it and the jelly; under furniture (${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()}) it sees through it, which fades out until you leave; turning around pops it in less than a one-ray camera.`,
   setup() { fresh({ elites: false }); },
   play() {
     const { tpc, run } = G(), spots = cameraSpots(extra), was = cameraTour(spots, true), now = cameraTour(spots, false);
@@ -228,10 +235,10 @@ const cameraStory = (extra, under) => ({
     const s = run.stage.start;
     tp(s[0], 0.05, s[2], 0); step(60);
     const restored = tpc._fades.size === 0;
-    return ok(now.under25cm < was.under25cm / 2.5 && now.mean > was.mean && now.jumps < was.jumps && now.maxJump < was.maxJump * 0.75 && now.seeThrough.includes(under) && restored, { spots: spots.length, was, now, restored });
+    return ok(now.maxTilt === 0 && now.blocked === 0 && now.under25cm < was.under25cm && now.mean > was.mean && now.jumps < was.jumps && now.maxJump < was.maxJump * 0.75 && now.seeThrough.includes(under) && restored, { spots: spots.length, was, now, restored });
   },
 });
-story('camera/looks-over-walls', cameraStory([], 'Media_console_6'));
+story('camera/keeps-its-tilt', cameraStory([], 'Media_console_6'));
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
   about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
@@ -2165,7 +2172,7 @@ act2('act-2-fewer-bugs-more-dew', {
     return ok(stage.bugs === 0.85 && stage.dew === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
   },
 });
-act2('camera-looks-over-walls', cameraStory([[1.3, 0.72, 5.37]], 'Fluted_sideboard_8'));   // plus the bottom of the sink
+act2('camera-keeps-its-tilt', cameraStory([[1.3, 0.72, 5.37]], 'Fluted_sideboard_8'));   // plus the bottom of the sink
 act2('jump-out-of-the-sink', {
   about: 'The bathroom sink bowl is about 17 cm deep: from the bottom of it the jelly jumps clear of the rim and out (the default 20 cm jump clears it; at the old 13 cm it was stuck).',
   setup() { fresh({ elites: false }); tp(1.3, 0.72, 5.37, Math.PI); },

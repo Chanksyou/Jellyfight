@@ -69,7 +69,8 @@
   --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
 
   /* --- the camera ------------------------------------------------------------ */
-  --camera-distance: 0.6;      /* meters behind the jelly */
-  --camera-distance-phone: 0.52;
-  --camera-tilt: 0.9;          /* radians down from level at the start */
+  --camera-distance: 0.68;     /* meters behind the jelly */
+  --camera-distance-phone: 0.6;
+  --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
+  --camera-lift: 0;            /* radians the camera may tilt up on its own to look over a wall (0 = never; it glides in instead) */
 }
