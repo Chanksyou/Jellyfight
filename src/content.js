@@ -12,7 +12,7 @@ export const CONTENT = { enemies: {}, waves: null, treasures: [] };
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
-// enemy "id" name="…" hp= r= dmg= dew= model="…" { words… }
+// enemy "id" name="…" hp= r= dmg= xp= model="…" { words… }
 export function compileEnemies(nodes, file = 'content/enemies.kdl') {
   const out = {};
   for (const n of nodes) {
@@ -20,11 +20,11 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
     if (n.name !== 'enemy') throw new Error(`${where}: expected "enemy", got "${n.name}"`);
     const id = n.args[0];
     if (typeof id !== 'string') throw new Error(`${where}: enemy needs an id, like enemy "roach"`);
-    need(n, ['hp', 'r', 'dmg', 'dew'], where);
+    need(n, ['hp', 'r', 'dmg', 'xp'], where);
     const words = n.children.map((w) => makeWord(ENEMY_WORDS, w, `${file}:${w.line}`));
     if (!words.some((w) => w.ground || w.fly)) throw new Error(`${where}: "${id}" has no way to move (give it chase, hover or sortie)`);
     out[id] = {
-      id, name: n.props.name || id, hp: n.props.hp, r: n.props.r, dmg: n.props.dmg, dew: n.props.dew, model: n.props.model || id,
+      id, name: n.props.name || id, hp: n.props.hp, r: n.props.r, dmg: n.props.dmg, xp: n.props.xp, model: n.props.model || id,
       words,
       fly: words.some((w) => w.fly),
       rolls: words.some((w) => w.rolls),

@@ -443,7 +443,7 @@ story('progression/dodge', {
   },
 });
 story('progression/level-curve', {
-  about: 'Each level needs 1.45x the dew of the last, starting at 3: three cockroaches (1 dew each) is level 2.',
+  about: 'Each level needs 1.45x the XP of the last, starting at 3: three cockroaches (1 XP each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
@@ -452,7 +452,7 @@ story('progression/level-curve', {
       const e = spawn('roach', near(0, -0.15), { still: true, hp: 1 });
       step(240, () => e.dead);
       if (e.dead) killed++;
-      tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the dew
+      tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the XP
       step(120);
     }
     const ok1 = curve.join() === '3,4,6,9,13,19' && killed === 3 && run.level === 2 && xpToNext(run.level) === 4;
@@ -803,10 +803,10 @@ story('content/mistakes-are-caught', {
   setup() {},
   play() {
     const tryIt = (src) => { try { compileEnemies(parse(src, 'test.kdl'), 'test.kdl'); return null; } catch (e) { return e.message; } };
-    const unknown = tryIt('enemy "x" hp=1 r=0.01 dmg=1 dew=1 {\n    lurk 3\n}');
-    const badArgs = tryIt('enemy "x" hp=1 r=0.01 dmg=1 dew=1 {\n    chase\n}');
-    const badProp = tryIt('enemy "x" hp=1 r=0.01 dmg=1 dew=1 {\n    chase 0.3\n    curl-dash wndup=1\n}');
-    const noMove = tryIt('enemy "x" hp=1 r=0.01 dmg=1 dew=1 {\n    rolls\n}');
+    const unknown = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    lurk 3\n}');
+    const badArgs = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    chase\n}');
+    const badProp = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    chase 0.3\n    curl-dash wndup=1\n}');
+    const noMove = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    rolls\n}');
     const good = /test\.kdl:2: unknown word "lurk"/.test(unknown) && /"chase" takes speed/.test(badArgs) && /no setting "wndup"/.test(badProp) && /no way to move/.test(noMove);
     return ok(good, { unknown, badArgs, badProp, noMove });
   },
@@ -936,17 +936,17 @@ story('treasures/levels', {
     return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });
   },
 });
-story('pickups/big-dew', {
-  about: 'Dew comes as big drops worth 5 and small ones for the rest: 12 dew is two big drops and two small ones, and picking them all up gives 12.',
+story('pickups/big-xp-drops', {
+  about: 'XP comes as big drops worth 5 and small ones for the rest: 12 XP is two big drops and two small ones, and picking them all up gives 12.',
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
-    const { run, dew } = G(), xp0 = run.xp, lv0 = run.level;
-    dew.drop(near(0.05, 0, 0.01), 1, 12);
-    const sizes = dew.list.map((d) => d.value).sort().join();
-    const bigger = dew.list.find((d) => d.big)?.m.geometry.parameters.radius > dew.list.find((d) => !d.big)?.m.geometry.parameters.radius;
+    const { run, xpDrops } = G(), xp0 = run.xp, lv0 = run.level;
+    xpDrops.drop(near(0.05, 0, 0.01), 1, 12);
+    const sizes = xpDrops.list.map((d) => d.value).sort().join();
+    const bigger = xpDrops.list.find((d) => d.big)?.m.geometry.parameters.radius > xpDrops.list.find((d) => !d.big)?.m.geometry.parameters.radius;
     step(240);
     const gained = run.level > lv0 ? null : run.xp - xp0;
-    return ok(sizes === '1,1,5,5' && bigger && dew.list.length === 0 && (gained === null || gained === 12), { sizes, bigger, left: dew.list.length, gained });
+    return ok(sizes === '1,1,5,5' && bigger && xpDrops.list.length === 0 && (gained === null || gained === 12), { sizes, bigger, left: xpDrops.list.length, gained });
   },
 });
 story('treasures/mark-on-hit', {
@@ -1012,15 +1012,15 @@ story('treasures/burst-on-kill', {
   setup() { setupFight({ lash: false }); give('bathSalt'); G().run.stats.bubbles = 1; roachAt(0, -0.12, { still: true, hp: 12 }); roachAt(0.035, -0.12); },
   play() { const log = record('damage_taken'); step(400, () => dmgBy(log, 'burst').length > 0); return ok(dmgBy(log, 'burst').length > 0, { bursts: dmgBy(log, 'burst').length }); },
 });
-story('treasures/dew-reach', {
-  about: 'dew-reach (Fridge Magnet): dew flies to you from much farther away.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('magnet'); G().dew.drop(near(0.18, 0, 0.01), 1, 1); },
-  play() { step(120); return ok(G().dew.list.length === 0, { left: G().dew.list.length }); },
+story('treasures/xp-reach', {
+  about: 'xp-reach (Fridge Magnet): XP flies to you from much farther away.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('magnet'); G().xpDrops.drop(near(0.18, 0, 0.01), 1, 1); },
+  play() { step(120); return ok(G().xpDrops.list.length === 0, { left: G().xpDrops.list.length }); },
 });
-story('treasures/dew-mult', {
-  about: 'dew-mult (Spilled Sugar): bugs drop 30% more dew.',
+story('treasures/xp-mult', {
+  about: 'xp-mult (Spilled Sugar): bugs drop 30% more XP.',
   setup() { setupFight({ lash: false }); give('sugar'); spawn('mosquito', near(0, -0.15), { still: true, hp: 1 }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().dew.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.dew * 1.3), { dew: total, base: e.T.dew }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().xpDrops.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.xp * 1.3), { xp: total, base: e.T.xp }); },
 });
 story('treasures/card-rarity', {
   about: 'card-rarity (Game Die): level-up cards roll one rarity higher (never common).',
@@ -1061,7 +1061,7 @@ story('treasures/grow-on-kills', {
   setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
   play() {
     const { run } = G(), max0 = run.S.health;
-    const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, dew: 1 });
+    const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, xp: 1 });
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
     for (let i = 0; i < 6; i++) kill();
@@ -1117,8 +1117,8 @@ story('treasures/more-bugs', {
     return ok(plain > 20 && Math.abs(more / plain - 1.3) < 0.08, { plain, more });
   },
 });
-story('treasures/dew', {
-  about: 'dew inside every (Houseplant): every 12 s, 2 dew drips at your feet.',
+story('treasures/xp', {
+  about: 'xp inside every (Houseplant): every 12 s, 2 XP drips at your feet.',
   setup() { setupFight({ bubbles: false, lash: false }); give('houseplant'); },
   play() { const { run } = G(), p0 = run.purse; step(60 * 9); return ok(run.purse - p0 === 2, { gained: run.purse - p0 }); },
 });
@@ -1249,14 +1249,14 @@ for (const kind of ['controller', 'mug', 'kettle']) {
 }
 
 // --- the event bus: what hits, kills, freezes and rewards do
-story('events/kill-drops-dew', {
-  about: 'Bubbles kill a roach: it bursts, counts as a kill and drops dew.',
+story('events/kill-drops-xp', {
+  about: 'Bubbles kill a roach: it bursts, counts as a kill and drops XP.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.18)), { still: true }); },
   play() {
-    const { run, enemies, dew } = G();
+    const { run, enemies, xpDrops } = G();
     const e = enemies.list[0], k0 = run.kills;
     step(300, () => e.dead);
-    return ok(e.dead && run.kills === k0 + 1 && dew.list.length > 0 && !enemies.byId.has(e.id), { dead: e.dead, dew: dew.list.length });
+    return ok(e.dead && run.kills === k0 + 1 && xpDrops.list.length > 0 && !enemies.byId.has(e.id), { dead: e.dead, xp: xpDrops.list.length });
   },
 });
 story('events/ice-freezes-on-second-chill', {
@@ -1417,19 +1417,19 @@ story('boss/element-reward', {
   },
 });
 
-story('boss/dew-comes-to-you', {
-  about: 'Once a boss is beaten, all the dew around the arena (its own and its summons\') flies to you, and any still on its way counts when the metamorphosis opens.',
+story('boss/xp-comes-to-you', {
+  about: 'Once a boss is beaten, all the XP around the arena (its own and its summons\') flies to you, and any still on its way counts when the metamorphosis opens.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
   play() {
-    const { run, dew } = G();
+    const { run, xpDrops } = G();
     step(180);
     const A = run.stage.boss;
-    for (let k = 0; k < 6; k++) dew.drop(V(A.arenaMin[0] + 0.1 + k * 0.2, 0.02, A.arenaMax[2] - 0.1), 1, 3);   // dew from summons, far from you
+    for (let k = 0; k < 6; k++) xpDrops.drop(V(A.arenaMin[0] + 0.1 + k * 0.2, 0.02, A.arenaMax[2] - 0.1), 1, 3);   // XP from summons, far from you
     const before = run.purse;
     run.boss.hp = 0; run.boss.dead = true;
     step(90);
     const flewIn = run.purse - before;
-    const leftWhenDone = dew.list.length;
+    const leftWhenDone = xpDrops.list.length;
     return ok(flewIn >= 18 + 30 - 5 && leftWhenDone === 0, { flewIn, leftWhenDone });
   },
 });
@@ -2184,11 +2184,11 @@ const clogAttack = (B, name, P) => {
   B.state = 'chase'; B.stateT = 0;
   B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
-act2('act-2-fewer-bugs-more-dew', {
-  about: 'Act 2 sends a little fewer bugs (0.85x the spawn rate and how many at once) and each drops a little more dew (1.2x).',
+act2('act-2-fewer-bugs-more-xp', {
+  about: 'Act 2 sends a little fewer bugs (0.85x the spawn rate and how many at once) and each drops a little more XP (1.2x).',
   setup() { fresh({ elites: false }); },
   play() {
-    const { run, enemies, dew } = G(), stage = run.stage;
+    const { run, enemies, xpDrops } = G(), stage = run.stage;
     // spawns over the same minute of the night, with and without the act's `bugs`
     const count = (bugs) => {
       let n = 0;
@@ -2204,11 +2204,11 @@ act2('act-2-fewer-bugs-more-dew', {
       return n;
     };
     const plain = count(1), act2 = count(stage.bugs);
-    // dew from a 5-dew kill
+    // XP from a 5-XP kill
     let dropped = 0;
-    stub(dew, 'drop', (p, v, n) => { dropped += v * n; });
-    run.onKill({ pos: near(0.1, 0), r: 0.01, dew: 5 });
-    return ok(stage.bugs === 0.85 && stage.dew === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
+    stub(xpDrops, 'drop', (p, v, n) => { dropped += v * n; });
+    run.onKill({ pos: near(0.1, 0), r: 0.01, xp: 5 });
+    return ok(stage.bugs === 0.85 && stage.xpMult === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
   },
 });
 act2('camera-fixed-view-fades-what-blocks', cameraStory([[1.3, 0.72, 5.37]], 'Fluted_sideboard_8'));   // plus the bottom of the sink

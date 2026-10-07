@@ -30,7 +30,7 @@ class Owned extends Set {
 }
 
 export class Run {
-  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, dew, traversal, hud, ui, fx, tpc, input, setNight }
+  // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, xpDrops, traversal, hud, ui, fx, tpc, input, setNight }
   constructor(ctx) {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
@@ -108,7 +108,7 @@ export class Run {
     this.giftsLeft = [...(this.stage.gifts?.at || [])];   // seconds into the night each golden gift appears
     this.lastGift = null;
     this.recentGifts = [];   // the last few gift spots, so each one turns up somewhere new
-    this.dew.clear();
+    this.xpDrops.clear();
     this.fx.clear();
     this.lash.reset();
     juice.reset();
@@ -275,7 +275,7 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropDew: (n) => this.dew.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD
@@ -298,10 +298,10 @@ export class Run {
       if (this.stillT > spout.after) this.heal(spout.heal * dt);
     }
 
-    // --- dew
-    if (this.collectAll) this.dew.magnetAll = true;   // the boss is down: everything on the floor flies to you
-    const got = this.dew.update(dt, origin, this.mods.dewReach);
-    if (got) { this.gainDew(got); sfx.dew(juice.combo); }
+    // --- XP
+    if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
+    const got = this.xpDrops.update(dt, origin, this.mods.xpReach);
+    if (got) { this.gainXp(got); sfx.xp(juice.combo); }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
@@ -458,14 +458,14 @@ export class Run {
 
   heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
 
-  // an enemy_killed event: { pos, r, dew, elite }
-  onKill({ pos: c, r, dew: baseDew, elite }) {
+  // an enemy_killed event: { pos, r, xp, elite }
+  onKill({ pos: c, r, xp: baseXp, elite }) {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
-    const dew = Math.round(baseDew * this.mods.dewMult * (this.stage.dew || 1) * juice.bonus);   // the act's own `dew` too
-    this.dew.drop(c, 1, dew);
-    this.fx.number(c.clone().setY(c.y + r * 1.5), `+${dew}💧`, '#9fe2ff', elite ? 20 : 14);
+    const xp = Math.round(baseXp * this.mods.xpMult * (this.stage.xpMult || 1) * juice.bonus);   // the act's own xpMult too
+    this.xpDrops.drop(c, 1, xp);
+    this.fx.number(c.clone().setY(c.y + r * 1.5), `+${xp} XP`, '#ffe27a', elite ? 20 : 14);
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
     // grow-on-kills: every N kills a stat grows for good
     for (const g of this.mods.growth) {
@@ -492,8 +492,8 @@ export class Run {
     this.elitesBeaten++;
     juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
     this.heal(4);
-    this.dew.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
-    this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20💧', '#9fe2ff', 20);
+    this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
+    this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 health)`);
   }
 
@@ -517,7 +517,7 @@ export class Run {
   }
 
   // ------------------------------------------------------------ growth
-  gainDew(n) {
+  gainXp(n) {
     this.purse += n;
     this.xp += n;
     while (this.xp >= xpToNext(this.level)) {
@@ -661,13 +661,13 @@ export class Run {
     this.liftT = 0;
     this.hud.toast(`⏰ Time's up! ${this.stage.boss.name} is coming…`, 2400);
     for (const e of this.enemies.list) if (!e.dead) this.enemies.kill(e, true);
-    this.dew.magnetAll = true;
+    this.xpDrops.magnetAll = true;
   }
 
   updateBossIntro(dt) {
     this.liftT += dt;
     const P = this.player;
-    this.dew.magnetAll = true;
+    this.xpDrops.magnetAll = true;
     if (this.liftT < 1.4) {
       P.position.y += dt * 0.1;
       P.syncMesh();
@@ -701,13 +701,13 @@ export class Run {
 
   onBossDead() {
     this.bossDeadT = true;
-    this.collectAll = true;           // the boss's dew and its summons' all come to you
+    this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     juice.shake(1); juice.hitstop(0.25); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
-    this.dew.drop(c, 1, 30);
+    this.xpDrops.drop(c, 1, 30);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200);
     this.later(() => this.metamorph(), 2200);
@@ -716,11 +716,11 @@ export class Run {
   metamorph() {
     this.phase = 'metamorph';
     this.bossDeadT = false;
-    // whatever dew hadn't reached you yet still counts
-    const left = this.dew.list.reduce((n, d) => n + d.value, 0);
-    this.dew.clear();
+    // whatever XP hadn't reached you yet still counts
+    const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);
+    this.xpDrops.clear();
     this.collectAll = false;
-    if (left) this.gainDew(left);
+    if (left) this.gainXp(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
     const choices = shuffle([...EVOLUTIONS]).slice(0, 3);

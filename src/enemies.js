@@ -266,13 +266,13 @@ export class Enemies {
 
   get alive() { return this.list.length; }
 
-  // elite: 35% bigger, 2.2x health, 4x dew, gold, with a spinning halo and glowing eyes
+  // elite: 35% bigger, 2.2x health, 4x XP, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
     const { body: mesh, face, anim, ballRadius } = this.looks[T.model || type]();
     const root = new THREE.Group();
     if (elite && !anim) {
-      T = { ...T, dew: T.dew * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
+      T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
       const m = mesh.children[0];
       this.eliteMats[type] ||= Object.assign(m.material.clone(), { emissive: new THREE.Color(0xffb020), emissiveIntensity: 0.35 });
@@ -376,7 +376,7 @@ export class Enemies {
     e.dead = true;
     this.byId.delete(e.id);
     this.scene.remove(e.root);
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, dew: e.T.dew, silent });
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent });
   }
 
   clear() {

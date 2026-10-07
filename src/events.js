@@ -9,7 +9,7 @@
 //   knockback       { targetId, dir, force, launch? } dir: unit Vector3. launch: minimum upward speed
 //   enemy_hit       { targetId, amount, color, pos }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
-//   enemy_killed    { targetId, type, elite, pos, floor, r, dew, silent }
+//   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent }
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded? }
 export const PLAYER = 'player';

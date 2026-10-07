@@ -2,25 +2,25 @@
 // in src/words.js (ENEMY_WORDS), with what its numbers mean. Colours and glow: content/look.css.
 //
 //   hp     health            r      body radius (m)        dmg    damage when it touches you
-//   dew    XP it drops       model  which model to build (src/critters.js, src/enemies.js)
+//   xp     XP it drops       model  which model to build (src/critters.js, src/enemies.js)
 
-enemy "roach" name="Cockroach" hp=30 r=0.024 dmg=1 dew=1 model="roach" {
+enemy "roach" name="Cockroach" hp=30 r=0.024 dmg=1 xp=1 model="roach" {
     chase 0.3                       // a little slower than you swim (0.42), so you can always get away
 }
 
-enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 dew=2 model="ants" {
+enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 xp=2 model="ants" {
     chase 0.225
     curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3
 }
 
-enemy "mosquito" name="Mosquito" hp=22 r=0.04 dmg=1 dew=5 model="mosquito" {
+enemy "mosquito" name="Mosquito" hp=22 r=0.04 dmg=1 xp=5 model="mosquito" {
     hover 0.2 above=0.07 speed=0.33
     spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=1 aim=0.5
 }
 
 // The spotted lanternfly (from 2:00): it crawls after you, then crouches (a red
 // ring marks where it will land), springs high with its red wings flashing and slams down.
-enemy "lanternfly" name="Spotted lanternfly" hp=60 r=0.039 dmg=1 dew=8 model="lanternfly" {
+enemy "lanternfly" name="Spotted lanternfly" hp=60 r=0.039 dmg=1 xp=8 model="lanternfly" {
     chase 0.2
     leap range=0.32 windup=0.55 height=0.2 time=0.75 radius=0.09 dmg=3 rest=0.9 every=1.5
 }
@@ -28,7 +28,7 @@ enemy "lanternfly" name="Spotted lanternfly" hp=60 r=0.039 dmg=1 dew=8 model="la
 // Act 2. The giant house spider: it stalks after you on eight long legs; at range it rears
 // up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
 // and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
-enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 dew=7 model="spider" {
+enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 xp=7 model="spider" {
     chase 0.27 stop=0.55               // keeps its distance (backs off if you close in) so it can lob webs
     spit every=2.8 reach=0.9 speed=0.6 life=2 dmg=2 aim=0.7 shot="web" height=1.2 arc=0.9 slow=1.5
 }
@@ -36,7 +36,7 @@ enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 dew=7 model="spider" {
 // Act 2. The house fly (from 0:30): it buzzes in close beside you, hangs there rubbing its front
 // legs and draws its head back while a short line on the floor shows where it will strike, then
 // pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
-enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 dew=5 model="housefly" {
+enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 xp=5 model="housefly" {
     hover 0.1 above=0.01 speed=0.42 circle=0.9
     poke range=0.14 windup=0.5 reach=0.15 dmg=3 time=0.08 hold=0.15 rest=0.7 every=1.4
 }
@@ -45,7 +45,7 @@ enemy "housefly" name="House fly" hp=32 r=0.03 dmg=1 dew=5 model="housefly" {
 // in waves. Up close it curls into an armoured ball standing on its edge (hits do 75% less
 // while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
 // down it at you. Get out of the lane; hit it once it uncurls.
-enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 dew=9 model="millipede" {
+enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 xp=9 model="millipede" {
     chase 0.17 weave=0.6 rate=0.9 turn=2.2   // swings round in arcs, never pivots on the spot
     ball-charge range=0.4 curl=0.45 spin=0.9 speed=0.95 time=0.7 dmg=4 uncurl=0.5 rest=0.8 every=2.5
 }
@@ -54,12 +54,12 @@ enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 dew=9 model="millip
 // locks on (a red reticle closes in round you, beeping faster), and fires a homing missile from
 // its back. The missile hunts you for 4 s, turning only so fast: outrun it or break sharply, and
 // it sputters out and falls. Hit it while it's grounded and locking on.
-enemy "ladybug" name="Ladybug" hp=50 r=0.035 dmg=1 dew=9 model="ladybug" {
+enemy "ladybug" name="Ladybug" hp=50 r=0.035 dmg=1 xp=9 model="ladybug" {
     sortie circle=0.3 height=0.12 speed=0.4 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=3
 }
 
 // The Clog (act 2 boss) sheds hair tangles into the fight
-enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 dew=3 model="hair" {
+enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
     chase 0.3
     rolls
 }

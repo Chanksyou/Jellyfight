@@ -118,7 +118,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
   return cards;
 }
 
-// Dew needed to go from `level` to the next one
+// XP needed to go from `level` to the next one
 export const xpToNext = (level) => Math.round(3 * 1.45 ** (level - 1));   // 3, 4, 6, 9, 13, 19, 28, 40…: each level 1.45x the last
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities

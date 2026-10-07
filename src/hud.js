@@ -118,7 +118,7 @@ export class Hud {
     if (this.cache.combo !== n) {
       this.cache.combo = n;
       c.querySelector('b').textContent = `x${n}`;
-      c.querySelector('span').textContent = bonus > 1.01 ? `combo · +${Math.round((bonus - 1) * 100)}% dew` : 'combo';
+      c.querySelector('span').textContent = bonus > 1.01 ? `combo · +${Math.round((bonus - 1) * 100)}% XP` : 'combo';
       c.classList.remove('punch'); void c.offsetWidth; c.classList.add('punch');
       c.style.setProperty('--hue', String(Math.max(0, 50 - n * 2)));
     }
@@ -140,7 +140,7 @@ export class Hud {
   setXp(level, xp, need, purse) {
     this.$('.xp i').style.transform = `scaleX(${Math.min(1, xp / need)})`;
     this.set('lvl', '.lvl', () => `${level}`);
-    this.$('.lvl').title = `Level ${level} · ${xp} / ${need} dew`;
+    this.$('.lvl').title = `Level ${level} · ${xp} / ${need} XP`;
   }
 
   setItems(items) {

@@ -162,8 +162,8 @@ export class HudSystem {
 
 // FPS counter and the F3 readout
 export class DebugSystem {
-  constructor({ state, hud, player, run, enemies, dew, gfx, extra = () => '' }) {
-    Object.assign(this, { state, hud, player, run, enemies, dew, gfx, extra });
+  constructor({ state, hud, player, run, enemies, xpDrops, gfx, extra = () => '' }) {
+    Object.assign(this, { state, hud, player, run, enemies, xpDrops, gfx, extra });
     this.fps = 0; this.frames = 0; this.since = performance.now();
     this.playFps = 0;   // the last reading while actually playing, shown next to the build in the pause menu
   }
@@ -180,7 +180,7 @@ export class DebugSystem {
     if (!this.state.debug || this.state.mode !== 'play') return;
     const p = this.player.position, run = this.run;
     const r = this.gfx.renderer, f = this.gfx.frameInfo, m = r.info.memory, c = r.domElement;
-    this.hud.setDebug(`${this.fps} fps | x ${p.x.toFixed(2)} y ${(p.y * 100).toFixed(1)} cm z ${p.z.toFixed(2)} | ${run.phase} t=${run.t.toFixed(0)}s | ${this.enemies.alive} enemies | ${this.dew.list.length} dew | ${this.gfx.quality}\n`
+    this.hud.setDebug(`${this.fps} fps | x ${p.x.toFixed(2)} y ${(p.y * 100).toFixed(1)} cm z ${p.z.toFixed(2)} | ${run.phase} t=${run.t.toFixed(0)}s | ${this.enemies.alive} enemies | ${this.xpDrops.list.length} XP | ${this.gfx.quality}\n`
       + `${f.calls} draws | ${(f.triangles / 1000).toFixed(0)}k tris | ${r.info.programs.length} shaders | ${m.geometries} geo ${m.textures} tex | dpr ${r.getPixelRatio().toFixed(2)} ${c.width}x${c.height}\n${this.extra()}`);
   }
 }

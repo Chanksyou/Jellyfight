@@ -1,5 +1,5 @@
 // Instanced drawing for the many small moving things: bug parts, bubbles, puffs, gut chunks,
-// rings, dew drops, tentacles, spit. Each one stays an ordinary mesh in the scene graph, so
+// rings, XP drops, tentacles, spit. Each one stays an ordinary mesh in the scene graph, so
 // the code that moves, animates, hides or re-colors it doesn't change, but the renderer no
 // longer draws it (it's moved to a camera layer nobody renders). Once a frame, before the
 // render, sync() gathers every visible tracked mesh, groups them by geometry + material, and

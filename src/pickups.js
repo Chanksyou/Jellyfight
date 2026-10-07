@@ -1,20 +1,20 @@
-// Things you collect: dew (XP) and golden gifts.
+// Things you collect: XP (XP) and golden gifts.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const MAGNET = 0.09;          // meters: dew drifts to you from this far
-const BIG = 5;                // dew a big drop is worth: every 5 dew comes as one big drop, easier to read
+const MAGNET = 0.09;          // meters: XP drifts to you from this far
+const BIG = 5;                // XP a big drop is worth: every 5 XP comes as one big drop, easier to read
 
-// ---------------------------------------------------------------- dew
-export class Dew {
+// ---------------------------------------------------------------- XP
+export class XpDrops {
   constructor(scene, world) {
     this.scene = scene;
     this.world = world;
     this.list = [];
     this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
     this.mat = new THREE.MeshStandardMaterial({ color: 0x9fe2ff, emissive: 0x3aa8ff, emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
-    // a big drop (worth BIG): about twice as wide and brighter, so a 5-dew drop reads as one thing
+    // a big drop (worth BIG): about twice as wide and brighter, so a 5-XP drop reads as one thing
     this.bigGeo = new THREE.SphereGeometry(0.0035 * 1.9, 16, 12);
     this.bigMat = new THREE.MeshStandardMaterial({ color: 0xc8f0ff, emissive: 0x5ac8ff, emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
     this.magnetAll = false;
@@ -45,7 +45,7 @@ export class Dew {
     this.list = [];
   }
 
-  // returns dew collected this frame
+  // returns XP collected this frame
   update(dt, target, magnetMul = 1) {
     let got = 0;
     for (const d of this.list) {

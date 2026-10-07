@@ -5,7 +5,7 @@
 // Numbers per treasure and pack, each the average of a few tries:
 //   clear    seconds to kill all ten (real cockroach health; 30 s if it can't)
 //   dmg      damage dealt to the pack in 10 s (cockroaches that can't die, so nothing runs out)
-// Use it to rate treasures against each other. Treasures that don't hurt anything (dodge, dew,
+// Use it to rate treasures against each other. Treasures that don't hurt anything (dodge, XP,
 // regen…) show the same numbers as no treasure at all.
 //
 //   node tests/clear.mjs            every treasure

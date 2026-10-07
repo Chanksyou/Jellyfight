@@ -345,7 +345,7 @@ export function newMods() {
     hits: { bubbles: { mark: 0, crit: null }, tentacles: { mark: 0, crit: null } },
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
     landingShockwave: null, extraJumps: 0,
-    dewReach: 1, dewMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
+    xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], spout: null, burstOnKill: null, cardRarity: 0,
     timed: [], orbit: null, beam: null, aura: null,
@@ -401,10 +401,10 @@ export const TIMED_WORDS = {
     props: { dmg: 2, speed: 0.825, life: 1.47 },
     make: (_, p) => ({ kind: 'marble', ...p }),
   },
-  dew: {
-    doc: 'Drops `dew` worth of dew at your feet.',
-    args: ['dew'],
-    make: ([n]) => ({ kind: 'dew', dew: n }),
+  xp: {
+    doc: 'Drops `xp` worth of XP at your feet.',
+    args: ['xp'],
+    make: ([n]) => ({ kind: 'xp', xp: n }),
   },
 };
 
@@ -442,7 +442,7 @@ export const TREASURE_WORDS = {
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
-  'dew-reach': { doc: 'Dew drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.dewReach *= k; } },
+  'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
     doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
@@ -454,7 +454,7 @@ export const TREASURE_WORDS = {
       return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; };
     },
   },
-  'dew-mult': { doc: 'Enemies drop `times` as much dew.', args: ['times'], make: ([k]) => (m) => { m.dewMult *= k; } },
+  'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },
   'card-rarity': { doc: 'Level-up cards roll `steps` rarity higher.', args: ['steps'], make: ([n]) => (m) => { m.cardRarity += n; } },
   'card-choices': { doc: 'Level-ups offer `count` more cards to pick from.', args: ['count'], make: ([n]) => (m) => { m.cardChoices += n; } },
   'heal-on-hit': { doc: '`chance` that a bubble or tentacle hit gives back `health` (life steal).', props: { chance: 0.1, health: 1 }, make: (_, p) => (m) => { m.healOnHit = m.healOnHit ? { chance: m.healOnHit.chance + p.chance, health: Math.max(m.healOnHit.health, p.health) } : { ...p }; } },
@@ -471,7 +471,7 @@ export const TREASURE_WORDS = {
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, dew.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, xp.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,

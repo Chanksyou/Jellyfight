@@ -144,9 +144,9 @@ export const sfx = {
     tone('square', 180 * j / size, 50, 0.1 + size * 0.04, 0.08);
     tone('sine', 520 * j, 1040 * j, 0.08, 0.06, 0.03);
   },
-  // dew collected: a chime that climbs with the combo
-  dew(combo = 0) {
-    if (!ready() || !gap('dew', 45)) return;
+  // XP collected: a chime that climbs with the combo
+  xp(combo = 0) {
+    if (!ready() || !gap('xp', 45)) return;
     const step = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24][Math.min(10, Math.floor(combo / 3))];
     const f = 880 * Math.pow(2, step / 12);
     tone('sine', f, f, 0.12, 0.08);

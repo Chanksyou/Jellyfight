@@ -34,7 +34,7 @@ import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSy
 const BUILD = 'v117';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
-import { Dew } from './pickups.js';
+import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run } from './run.js';
@@ -179,7 +179,7 @@ if (lightSlots) APT.lights.rescan();
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
-const dew = new Dew(scene, world);
+const xpDrops = new XpDrops(scene, world);
 
 function applyLook(l, hop) {
   state.look = normalizeLook(l);
@@ -192,7 +192,7 @@ function saveLook(l) {
 applyLook(state.look);
 
 const run = new Run({
-  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, dew,
+  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
   carry: carried(),                    // a later act: the run so far (stages.js)
 });
@@ -248,7 +248,7 @@ const systems = {
   camera: camSys,
   shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player }),
   hud: new HudSystem({ state, hud, player, tpc, run }),
-  debug: new DebugSystem({ state, hud, player, run, enemies, dew, gfx, extra: () => pacingReadout() }),
+  debug: new DebugSystem({ state, hud, player, run, enemies, xpDrops, gfx, extra: () => pacingReadout() }),
   render: new RenderSystem({ gfx }),
 };
 
@@ -419,7 +419,7 @@ async function warmUp() {
     e.face.scale.setScalar(e.baseScale);
     return e;
   });
-  dew.drop(P.clone(), 1, 1);
+  xpDrops.drop(P.clone(), 1, 1);
   const tentacles = [lash.mesh(), lash.mesh()];
   tentacles[1].material = lash.goldMat;
   tentacles.forEach((m) => { m.position.copy(P); m.scale.set(0.002, 0.05, 0.002); });
@@ -464,7 +464,7 @@ async function warmUp() {
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
   enemies.list = enemies.list.filter((e) => !temp.includes(e));   // keep the elites run.start() registered
-  dew.clear();
+  xpDrops.clear();
   fx.clear();
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
   playBtn.disabled = false;
@@ -571,4 +571,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, traversal, menus, fx, gpu });
+Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu });
