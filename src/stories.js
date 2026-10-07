@@ -204,13 +204,13 @@ function cameraSpots(extra = []) {
 }
 function cameraTour(spots) {
   const { tpc, world, APT } = G(), cam = tpc.camera.position, last = V(0, 0, 0), toCam = V(0, 0, 0), seen = new Set();
-  const gfx = G().gfx, tier = gfx.quality;
-  gfx.setTier('low');                     // the same scene shaders, drawn without the slow post-processing
   const want = [tpc.pitch, tpc.distance], programs = APT.renderer.info.programs.length;
   let moved = 0, blocked = 0, jumps = 0, maxJump = 0, views = 0;
   for (const p of spots) {
     for (let k = 0; k < 16; k++) {
-      tp(...p, (k * Math.PI) / 8); step(30); G().GAME.render(); views++;
+      // build the shaders this view needs (see-through copies included) without drawing it: in a
+      // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
+      tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); views++;
       if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || tpc.pitch !== want[0]) moved++;
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();
@@ -226,7 +226,6 @@ function cameraTour(spots) {
     }
   }
   const newShaders = APT.renderer.info.programs.length - programs;
-  gfx.setTier(tier);
   return { views, moved, blocked, jumps, maxJump: +maxJump.toFixed(3), newShaders, seeThrough: [...seen] };
 }
 // `under`: a piece of furniture the jelly gets underneath on the tour, which it should see through
