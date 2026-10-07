@@ -35,6 +35,9 @@ for (const P of PAGES) {
   if (!all && filter && pageOf(filter) !== P.key && pageOf(filter) !== 'act1') continue;
   if (all && !all.some(([n, k]) => k === P.key && n.includes(filter))) continue;
   const { page, errors } = await openGame(env, P.opts);
+  // stories step and draw the game themselves; the game's own frame loop running between them
+  // only adds slow software-rendered frames (seconds each) and timing noise
+  await page.evaluate(() => APT.renderer.setAnimationLoop(null));
   all ||= await page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.phone ? 'phone' : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
   await playAll(page, errors, all.filter(([n, k]) => k === P.key && n.includes(filter)).map(([n]) => n));
   await page.close();
