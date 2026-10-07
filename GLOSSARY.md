@@ -48,8 +48,15 @@ _Avoid_: Lash speed
 ### Things the jelly meets
 
 **Treasure**:
-An item the jelly keeps for the rest of the run, chosen from a pick of three.
+An item the jelly keeps for the rest of the run, chosen from a pick of three. A treasure waiting in the room looks like a small golden chest; touching it offers the pick.
 _Avoid_: Gift, golden gift, lost things, item
+
+**Bug**:
+An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug), as opposed to an Elite or the boss.
+_Avoid_: Mob, critter
+
+**Boss**:
+The one big enemy that ends each act, arriving when the countdown runs out (the Vacuum, the Clog).
 
 **Element**:
 A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the bubbles.
