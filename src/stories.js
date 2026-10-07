@@ -389,6 +389,32 @@ story('first-run/treasures-wait-for-the-element-pick', {
       { before, elementOpen, t0: Math.round(t0), at, first, told, eliteChest, otherAt });
   },
 });
+const mapShown = () => { const m = document.querySelector('#hud .map'); return !!m && !m.hidden && getComputedStyle(m).display !== 'none'; };
+story('first-run/minimap-with-the-first-treasure', {
+  about: 'On a player\'s first run the minimap is hidden until the first Treasure appears in the room (scheduled, or left by an Elite), then stays; other runs show it from the start.',
+  setup() { fresh({ elites: false, firstRun: true }); tp(3.2, 0.05, 3.0, 0); G().run.startPicked = true; },
+  play() {
+    const { run } = G();
+    step(5);
+    const hiddenAtStart = !mapShown();
+    run.dropTreasure(near(0.3, 0)); step(3);               // an Elite's Treasure counts as the first
+    const shownWithChest = mapShown();
+    run.roomTreasures.forEach((t) => t.hide()); step(60 * 3);
+    const stays = mapShown();
+    // a scheduled one also counts
+    fresh({ elites: false, firstRun: true, treasures: true }); tp(3.2, 0.05, 3.0, 0); G().run.startPicked = true;
+    run.firstRun.elementChosen = true;                     // past the Element pick, so the 0:15 one comes
+    step(5);
+    const hiddenAgain = !mapShown();
+    step(60 * 16, () => run.roomTreasures.some((t) => t.active));
+    const shownWithScheduled = mapShown();
+    // another run: shown from the start
+    fresh({ elites: false }); step(3);
+    const other = mapShown();
+    return ok(hiddenAtStart && shownWithChest && stays && hiddenAgain && shownWithScheduled && other,
+      { hiddenAtStart, shownWithChest, stays, hiddenAgain, shownWithScheduled, other });
+  },
+});
 story('first-run/other-runs-unchanged', {
   about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
   setup() { fresh({ elites: false }); G().run.startPicked = false; },

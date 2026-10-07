@@ -631,6 +631,7 @@ export class Run {
     let t = this.roomTreasures.find((x) => !x.active);
     if (!t) this.roomTreasures.push(t = new RoomTreasure(this.scene, this.fx));
     t.show(at, stay, facing);
+    this.firstRun.treasureAppeared();
     return t;
   }
 
@@ -898,6 +899,7 @@ export class Run {
 
   // ------------------------------------------------------------ HUD
   refreshHud() {
+    this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
     h.setHealth(this.health, this.S.health);
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);

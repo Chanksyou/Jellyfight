@@ -197,6 +197,9 @@ export class Hud {
     return null;
   }
 
+  // the minimap on or off (a player's first run hides it until the first Treasure: first-run.js)
+  showMap(on) { if (this.map.hidden === !on) return; this.map.hidden = !on; }
+
   // Furniture footprints for the map: [{ x0, z0, x1, z1, top }], drawn once into a cached layer
   // (only the big pieces: small clutter just makes noise at this size)
   setFurniture(list) { this.furniture = list.filter((f) => (f.x1 - f.x0) * (f.z1 - f.z0) > 0.06 && f.top > 0.12); this.mapBase = null; }
@@ -208,6 +211,7 @@ export class Hud {
   // its edge sits on the rim, pointing the way.
   // markers: [{ x, y, z, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {
+    if (this.map.hidden) return;
     const c = this.map, g = this.ctx;
     const dpr = Math.min(3, devicePixelRatio || 1);
     const css = c.clientWidth || 285;

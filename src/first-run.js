@@ -6,6 +6,7 @@
 //   - the first hit shows one plain line about the Health bar, once
 //   - no Treasure turns up in the room before the Element pick is done (scheduled times before it
 //     are skipped; an Elite's Treasure still drops)
+//   - the minimap stays hidden until the first Treasure appears in the room, then stays
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so
@@ -30,7 +31,11 @@ export class FirstRun {
     this.elementPicked = !this.active;   // a normal run's Element pick is the start pick, as before
     this.hitHintShown = !this.active;
     this.elementChosen = false;          // the run sets it when the start Element pick is made
+    this.mapShown = !this.active;
   }
+
+  // a Treasure just appeared in the room (scheduled, or left by an Elite): the minimap comes with it
+  treasureAppeared() { this.mapShown = true; }
 
   // Run.start: a player's first run is act 1, for a new player
   static forStage(stage) { return new FirstRun(stage.id === 1 && isNewPlayer()); }
