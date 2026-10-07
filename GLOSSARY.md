@@ -45,6 +45,10 @@ _Avoid_: Sting
 How many tentacle lashes the jelly makes each second.
 _Avoid_: Lash speed
 
+**First run**:
+A new player's first run of act 1, which introduces the game's systems one at a time; it ends for good once one of their runs ends.
+_Avoid_: Tutorial, onboarding run
+
 ### Things the jelly meets
 
 **Treasure**:

@@ -129,7 +129,8 @@ export class Run {
     this.phase = 'explore';
     this.t = 0;
     this.startPicked = false;         // the starting Element pick is offered on the run's first frame
-    this.first = this.carry ? new FirstRun(false) : FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
+    this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
+    this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
     this.stats = { ...BASE_STATS };
     this.level = 1;
     this.xp = 0;
@@ -232,7 +233,7 @@ export class Run {
     // run it waits for the first Level-up instead: first-run.js)
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      if (this.first.startElementPick) { this.pickStartElement(); return; }
+      if (this.firstRun.startElementPick) { this.pickStartElement(); return; }
     }
     this.t += dt;
     const P = this.player, s = this.S;
@@ -338,6 +339,7 @@ export class Run {
   startDuel(pick) {
     if (pick.act && pick.act !== this.stage.id) { goToAct(pick.act, null, { duel: pick.name }); return; }   // its room is in another act
     this.start();
+    this.devRun();
     this.startPicked = true;
     this.duel = { ...pick, wait: 0 };
     this.elites.start(pick.elite ? [pick.elite] : []);
@@ -539,7 +541,7 @@ export class Run {
       const before = this.stats.health;
       applyCard(this.stats, card);
       if (this.stats.health > before) this.heal(this.stats.health - before);
-      if (this.first.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
+      if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
     }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck));
   }
@@ -547,6 +549,9 @@ export class Run {
   resume() {
     if (!this.ui.open) this.onResume?.();
   }
+
+  // a dev mode's run (1 on 1, fight the boss): played as a normal run, and not counted as one
+  devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
     this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.');
@@ -741,7 +746,7 @@ export class Run {
 
   metamorph() {
     this.phase = 'metamorph';
-    markPlayed();                     // a run ended: the player isn't new any more (first-run.js)
+    if (!this.dev) markPlayed();      // a run ended: the player isn't new any more (first-run.js)
     this.bossDeadT = false;
     // whatever XP hadn't reached you yet still counts
     const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);
@@ -772,7 +777,7 @@ export class Run {
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
-    markPlayed();
+    if (!this.dev) markPlayed();
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);

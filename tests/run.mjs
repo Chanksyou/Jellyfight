@@ -54,6 +54,22 @@ async function playAll(page, errors, names) {
   }
 }
 
+// --- a player's first run survives a real reload, and ends for good once a run ends (first-run.js)
+if ('first-run/survives-a-reload'.includes(filter)) {
+  const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 }, newPlayer: true });
+  const ready = () => page.waitForFunction(() => window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
+  const out = { first: await page.evaluate(() => run.firstRun.active) };
+  await page.reload(); await ready();
+  out.afterReload = await page.evaluate(() => run.firstRun.active);
+  await page.evaluate(() => run.die());
+  await page.reload(); await ready();
+  out.afterARun = await page.evaluate(() => run.firstRun.active);
+  const good = out.first && out.afterReload && !out.afterARun && !errors.length;
+  line(good, 'first-run/survives-a-reload', null, { ...out, errors });
+  good ? passed++ : failed++;
+  await page.close();
+}
+
 // --- on a phone: tap Play, pick a starting treasure, swim with the joystick, jump
 if (MOBILE && (!filter || 'mobile'.includes(filter))) {
   const { page, errors } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });

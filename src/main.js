@@ -381,7 +381,7 @@ overlay.addEventListener('click', (e) => {
     run.ui.message('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', [],
       [...picks.map((p) => ({ label: p.name, onClick: () => { run.startDuel(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
   }
-  else if (b.dataset.act === 'boss') { run.start(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
+  else if (b.dataset.act === 'boss') { run.start(); run.devRun(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {
     unlockAudio();

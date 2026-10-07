@@ -22,7 +22,8 @@ import { pitch, isDeep } from './sfx.js';
 import { TouchControls } from './touch.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { checkBvhLayout } from './collision.js';
-import { FirstRun, isNewPlayer, markPlayed } from './first-run.js';
+import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
+import { BEST_KEY } from './leaderboard.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -54,7 +55,7 @@ export function fresh({ waves = false, treasures = false, hurt = false, levels =
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
   run.start();
-  run.first = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
+  run.firstRun = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
   run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
@@ -353,26 +354,52 @@ story('first-run/other-runs-unchanged', {
     return ok(/element/i.test(title), { title });
   },
 });
+// play as a brand-new player for a moment: no record of a finished run, no saved best (put back after)
+function asNewPlayer(fn) {
+  const keys = [PLAYED_KEY, BEST_KEY], saved = keys.map((k) => localStorage.getItem(k));
+  try { keys.forEach((k) => localStorage.removeItem(k)); return fn(); }
+  finally { keys.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]))); }
+}
 story('first-run/who-is-new', {
-  about: 'A player is new until a run of theirs ends (dried out, or the boss beaten); one with a saved best score is not new; reloading mid-run keeps them new; act 2 is never a first run.',
+  about: 'A player is new until a run of theirs ends (dried out, or the boss beaten); one with a saved best score is not new; a new run (as after a reload) keeps them new.',
   setup() { fresh({ elites: false }); },
   play() {
-    const keys = ['jellyfight.played', 'jellyfight.best'], saved = keys.map((k) => localStorage.getItem(k));
-    const set = (k, v) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v));
-    try {
-      keys.forEach((k) => set(k, null));
+    const { run } = G();
+    stub(run.ui, 'choose', () => {});                     // the metamorphosis pick
+    const r = asNewPlayer(() => {
       const fresh0 = isNewPlayer();
-      const { run } = G();
-      run.start();                                         // a new run (a reload starts one the same way)
-      const firstOn = run.first.on, still = isNewPlayer();
+      run.start();
+      const active = run.firstRun.active, still = isNewPlayer();
       run.die();
       const afterDeath = isNewPlayer();
-      keys.forEach((k) => set(k, null)); set('jellyfight.best', JSON.stringify({ score: 10 }));
+      localStorage.removeItem(PLAYED_KEY);
+      run.start(); run.metamorph();                       // the boss beaten
+      const afterBoss = isNewPlayer();
+      localStorage.removeItem(PLAYED_KEY); localStorage.setItem(BEST_KEY, JSON.stringify({ score: 10 }));
       const withBest = isNewPlayer();
-      keys.forEach((k) => set(k, null)); markPlayed();
+      localStorage.removeItem(BEST_KEY); markPlayed();
       const marked = isNewPlayer();
-      return ok(fresh0 && firstOn && still && !afterDeath && !withBest && !marked, { fresh0, firstOn, still, afterDeath, withBest, marked });
-    } finally { keys.forEach((k, i) => set(k, saved[i])); }
+      return { fresh0, active, still, afterDeath, afterBoss, withBest, marked };
+    });
+    return ok(r.fresh0 && r.active && r.still && !r.afterDeath && !r.afterBoss && !r.withBest && !r.marked, r);
+  },
+});
+story('first-run/dev-runs-dont-count', {
+  about: 'The dev modes (1 on 1, fight the boss) never run in first-run mode, and dying in one doesn\'t use up a new player\'s first run.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G();
+    const r = asNewPlayer(() => {
+      run.startDuel(run.duelChoices().find((p) => !p.elite && !p.act) || run.duelChoices()[0]);
+      const duelActive = run.firstRun.active;
+      run.die();
+      const stillNew = isNewPlayer();
+      run.start(); run.devRun(); run.startBossIntro();
+      const bossActive = run.firstRun.active;
+      return { duelActive, stillNew, bossActive };
+    });
+    G().menus.close();
+    return ok(!r.duelActive && r.stillNew && !r.bossActive, r);
   },
 });
 
@@ -2525,15 +2552,8 @@ act2('never-a-first-run', {
   about: 'Act 2 never runs in first-run mode, even for a browser with no record of a finished run.',
   setup() { fresh(); },
   play() {
-    const saved = localStorage.getItem('jellyfight.played'), best = localStorage.getItem('jellyfight.best');
-    try {
-      localStorage.removeItem('jellyfight.played'); localStorage.removeItem('jellyfight.best');
-      G().run.start();
-      return ok(!G().run.first.on, { on: G().run.first.on });
-    } finally {
-      if (saved !== null) localStorage.setItem('jellyfight.played', saved);
-      if (best !== null) localStorage.setItem('jellyfight.best', best);
-    }
+    const active = asNewPlayer(() => { G().run.start(); return G().run.firstRun.active; });
+    return ok(!active, { active });
   },
 });
 

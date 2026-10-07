@@ -8,29 +8,30 @@
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so
 // reloading mid-run keeps a new player new. The leaderboard's player id can't tell: it's made on
 // the first load. Act 2 and later are never a first run: getting there means a run was played.
+// The dev modes (1 on 1, fight the boss) never are either, and never count as a played run.
+import { BEST_KEY } from './leaderboard.js';
 
-const PLAYED = 'jellyfight.played';
-const BEST = 'jellyfight.best';   // leaderboard.js: written when a finished run posts its score
+export const PLAYED_KEY = 'jellyfight.played';
 
 export function isNewPlayer() {
-  try { return !localStorage.getItem(PLAYED) && !localStorage.getItem(BEST); } catch { return false; }
+  try { return !localStorage.getItem(PLAYED_KEY) && !localStorage.getItem(BEST_KEY); } catch { return false; }
 }
 
 export function markPlayed() {
-  try { localStorage.setItem(PLAYED, '1'); } catch {}
+  try { localStorage.setItem(PLAYED_KEY, '1'); } catch {}
 }
 
 export class FirstRun {
-  constructor(on) {
-    this.on = !!on;
-    this.elementPicked = !this.on;   // a normal run's Element pick is the start pick, as before
+  constructor(active) {
+    this.active = !!active;
+    this.elementPicked = !this.active;   // a normal run's Element pick is the start pick, as before
   }
 
   // Run.start: a player's first run is act 1, for a new player
   static forStage(stage) { return new FirstRun(stage.id === 1 && isNewPlayer()); }
 
   // the starting Element pick opens on the first frame?
-  get startElementPick() { return !this.on; }
+  get startElementPick() { return !this.active; }
 
   // a Level-up's card was just picked: open the Element pick now? (once, after the first card)
   elementPickAfterCard() {
