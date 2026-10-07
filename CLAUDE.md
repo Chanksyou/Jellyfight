@@ -91,3 +91,17 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 `capabilities: { db: { rules: [ { path: "scores", read: "view", write: "owner" }, { path: "scores/{self}", write: "interact" } ] }, user: {} }`
 (everyone reads the board; each player writes only `scores/<their id>`). Redeploys can omit
 `capabilities` to keep it. Off claude.ai the board shows as offline and the game still works.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `Chanksyou/Jellyfight` (no `gh` in cloud sessions: use the GitHub MCP tools). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five defaults: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created when first needed. See `docs/agents/domain.md`.
