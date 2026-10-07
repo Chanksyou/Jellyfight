@@ -5,7 +5,6 @@ import { addForceField } from './forcefield.js';
 import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
-import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { TYPES } from './enemies.js';
@@ -234,7 +233,7 @@ export class Run {
     this.t += dt;
     const P = this.player, s = this.S;
 
-    // --- movement, with vents, fabric, lint, and the drain's pull
+    // --- movement, with vents, fabric, and the drain's pull
     const tr = this.traversal.query(P.position);
     let push = null;
     if (this.phase === 'boss' && this.boss) {
@@ -413,7 +412,6 @@ export class Run {
       if (e.airborne) continue;                             // mid-leap: its landing does the hurting (the leap word)
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
-        if (e.T.slows) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
         // ant squads hit harder rolling
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type });
       }
@@ -690,7 +688,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : B.kind === 'hair' ? new Clog(this.scene, this.enemies, this.fx, B, this.world) : new Boss(this.scene, this.enemies, this.fx, B);
+      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : new Clog(this.scene, this.enemies, this.fx, B, this.world);
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
       this.enemies.addProxy(this.boss);
       this.later(() => { this.fade.style.opacity = 0; }, 150);

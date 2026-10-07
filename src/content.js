@@ -22,13 +22,12 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
     if (typeof id !== 'string') throw new Error(`${where}: enemy needs an id, like enemy "roach"`);
     need(n, ['hp', 'r', 'dmg', 'dew'], where);
     const words = n.children.map((w) => makeWord(ENEMY_WORDS, w, `${file}:${w.line}`));
-    if (!words.some((w) => w.ground || w.fly)) throw new Error(`${where}: "${id}" has no way to move (give it chase, hover or drift)`);
+    if (!words.some((w) => w.ground || w.fly)) throw new Error(`${where}: "${id}" has no way to move (give it chase, hover or sortie)`);
     out[id] = {
       id, name: n.props.name || id, hp: n.props.hp, r: n.props.r, dmg: n.props.dmg, dew: n.props.dew, model: n.props.model || id,
       words,
       fly: words.some((w) => w.fly),
       rolls: words.some((w) => w.rolls),
-      slows: words.some((w) => w.slows),
       rollDmg: words.find((w) => w.rollDmg != null)?.rollDmg ?? null,
       vocabulary: n.children.map((w) => w.name),
     };

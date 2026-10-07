@@ -35,7 +35,6 @@
   --hostile-mug: #ff8a1a;        /* the Mug's coffee lobs, spill and scalding puddles */
   --hostile-kettle: #ffd23a;     /* the Kettle's steam blast and boiling drops */
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
-  --hostile-staple: #ffb070;     /* the standing stapler's staples */
   --hostile-web: #ff5ad8;        /* the house spider's web balls: white silk in a hot pink glow */
   --hostile-clog: #d8ff3a;       /* the Clog's lashes, snares, roll lane, drain swirl and gunk: sickly yellow-green */
   --hostile-missile: #ff2020;    /* the ladybug's lock-on reticle and missile glow */
@@ -54,7 +53,6 @@
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;
   --guts-ants: #1c0a06 #5a1a0c #3a1a10;
   --guts-mosquito: #15151a #f4f4f0 #b0202a #b0202a;
-  --guts-stapler: #26262c #c8ccd4 #c0222c #d8dde4;
   --guts-lanternfly: #cdb6a6 #16141a #d01e2a #e6b81e;
 
   /* --- the camera ------------------------------------------------------------ */

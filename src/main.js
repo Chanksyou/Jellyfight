@@ -15,7 +15,6 @@ import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
-import { Boss } from './boss.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { juice } from './juice.js';
@@ -29,7 +28,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v110';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v111';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -422,7 +421,7 @@ async function warmUp() {
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : stage.boss.kind === 'hair' ? new Clog(scene, enemies, fx, stage.boss, world) : new Boss(scene, enemies, fx, stage.boss);
+  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : new Clog(scene, enemies, fx, stage.boss, world);
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

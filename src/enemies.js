@@ -1,9 +1,9 @@
-// Enemies. The bugs of the living room (critters.js) are the waves: cockroaches, ant squads
-// that curl into a ball and roll at you, and mosquitoes that hover out of reach and spit. The
-// dust types (motes, bunnies, lint, hair) belong to the bathroom stage and the bosses.
+// Enemies. The bugs (critters.js) are the waves: cockroaches, ant squads that curl into a ball
+// and roll at you, mosquitoes that hover out of reach and spit, and the act 2 bugs. The hair
+// tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildStapler, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildMissile } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildMissile } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -15,8 +15,8 @@ import { hostile, TeleMaterial } from './vfx.js';
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
   roach: ['#4a2210', '#8a4a1c', '#b27a40', '#e8d070'], ants: ['#1c0a06', '#5a1a0c', '#3a1a10'],
-  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], stapler: ['#26262c', '#c8ccd4', '#c0222c', '#d8dde4'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], millipede: ['#161a10', '#4a5428', '#d0581c', '#d6a074'], ladybug: ['#e8260e', '#0a0a0c', '#f4e8c8', '#e8260e'], mote: ['#e9e1d2', '#d4cab8'], bunny: ['#8f887e', '#a59e94', '#c0392b'],
-  lint: ['#8a9bb0', '#b4c2d2'], hair: ['#3b2618', '#5a3a24'],
+  mosquito: ['#15151a', '#f4f4f0', '#b0202a', '#b0202a'], lanternfly: ['#cdb6a6', '#16141a', '#d01e2a', '#e6b81e'], spider: ['#4a2c1c', '#9a7448', '#2a1a12', '#e8e4dc'], housefly: ['#16161a', '#6a6a72', '#8a2a12', '#d8c8a0'], millipede: ['#161a10', '#4a5428', '#d0581c', '#d6a074'], ladybug: ['#e8260e', '#0a0a0c', '#f4e8c8', '#e8260e'],
+  hair: ['#3b2618', '#5a3a24'],
 };
 // --guts-<type> in content/look.css overrides these
 export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v]) => [k, LOOK.list('guts-' + k, v)]));
@@ -151,36 +151,15 @@ function curl(rand, r, turns, spread) {
 }
 
 const GEO = {};
-// The shared fuzz geometry for an enemy type (the Dust King borrows the dust bunny's)
-export function fuzzGeometry(type) { return (GEO[type] ||= buildGeometry(type)); }
+// The shared fuzz geometry for an enemy type
+function fuzzGeometry(type) { return (GEO[type] ||= buildGeometry(type)); }
 function buildGeometry(type) {
-  const rand = rng({ mote: 11, bunny: 23, lint: 37, hair: 51 }[type]);
+  const rand = rng({ hair: 51 }[type]);
   const parts = [];
-  if (type === 'mote') {          // a pale wisp of dust
-    parts.push(core(0.5, 0.25, '#b9ae9c', '#efe8da', 1));
-    parts.push(...fibers(70, 0.5, 0.75, 0.035, ['#e9e1d2', '#d4cab8', '#fff8ea'], rand, 0.2));
-  } else if (type === 'bunny') {  // a grey dust bunny with a red thread and a crumb caught in it
-    parts.push(core(0.72, 0.3, '#6e6760', '#aaa399', 2));
-    parts.push(...fibers(260, 0.72, 0.7, 0.04, ['#8f887e', '#a59e94', '#7a746c', '#bdb6ab'], rand, 0.35));
-    parts.push(strand(curl(rand, 0.75, 1.3, 0.5), 0.025, '#c0392b'));
-    parts.push(paint(new THREE.DodecahedronGeometry(0.14, 0).translate(0.45, 0.45, 0.35), new THREE.Color('#b08858')));
-  } else if (type === 'lint') {   // a flat, pilled puff of dryer lint with a thread loop
-    const c = core(0.8, 0.18, '#6f8296', '#a9b8c8', 3);
-    c.scale(1, 0.55, 1);
-    parts.push(c);
-    for (let k = 0; k < 14; k++) {
-      const a = rand() * 6.3, y = (rand() - 0.3) * 0.35;
-      parts.push(paint(new THREE.IcosahedronGeometry(0.1 + rand() * 0.06, 1).translate(Math.cos(a) * 0.72, y, Math.sin(a) * 0.72), new THREE.Color('#c6d0dc').offsetHSL(0, 0, (rand() - 0.5) * 0.1)));
-    }
-    const f = fibers(160, 0.8, 0.55, 0.035, ['#8a9bb0', '#b4c2d2', '#76889c'], rand, 0.75);
-    f.forEach((g) => g.scale(1, 0.6, 1));
-    parts.push(...f);
-    parts.push(strand(curl(rand, 0.6, 0.8, 0.2).map((p) => p.add(new THREE.Vector3(0.5, 0.15, 0))), 0.03, '#e7b73a'));
-  } else {                        // hair: curly strands wrapped round a small clump
-    parts.push(core(0.4, 0.3, '#2a1c14', '#4a3222', 4));
-    for (let k = 0; k < 9; k++) parts.push(strand(curl(rand, 0.55 + rand() * 0.3, 1.5 + rand(), 0.8), 0.022, k < 7 ? (k % 2 ? '#3b2618' : '#5a3a24') : '#9a948e', 60));
-    parts.push(...fibers(40, 0.4, 0.5, 0.03, ['#3b2618', '#5a3a24'], rand, 0.5));
-  }
+  // hair: curly strands wrapped round a small clump
+  parts.push(core(0.4, 0.3, '#2a1c14', '#4a3222', 4));
+  for (let k = 0; k < 9; k++) parts.push(strand(curl(rand, 0.55 + rand() * 0.3, 1.5 + rand(), 0.8), 0.022, k < 7 ? (k % 2 ? '#3b2618' : '#5a3a24') : '#9a948e', 60));
+  parts.push(...fibers(40, 0.4, 0.5, 0.03, ['#3b2618', '#5a3a24'], rand, 0.5));
   const g = mergeGeometries(parts);
   g.computeBoundingSphere();
   return g;
@@ -188,7 +167,6 @@ function buildGeometry(type) {
 
 function makeLooks() {
   const fuzz = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  const glowFuzz = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: 0x3a3426, emissiveIntensity: 1 });
   const hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
   const body = (type, mat) => {
     const m = new THREE.Mesh(fuzzGeometry(type), mat);
@@ -199,20 +177,16 @@ function makeLooks() {
   };
   // body: the fuzz (may spin and roll); face: where the angry eyes go
   return {
-    mote: () => ({ body: body('mote', glowFuzz), face: angryEyes({ y: 0.15, z: 0.75, size: 0.4, gap: 0.38 }) }),
-    bunny: () => ({ body: body('bunny', fuzz), face: angryEyes({ y: 0.3, z: 0.95 }) }),
-    lint: () => ({ body: body('lint', fuzz), face: angryEyes({ y: 0.12, z: 0.85 }) }),
     hair: () => ({ body: body('hair', hairMat), face: angryEyes({ y: 0.2, z: 0.75 }) }),
     roach: buildRoach,
     ants: buildAnts,
     mosquito: buildMosquito,
-    stapler: buildStapler,
     lanternfly: buildLanternfly,
     spider: buildSpider,
     housefly: buildHouseFly,
     millipede: buildMillipede,
     ladybug: buildLadybug,
-    fuzz, glowFuzz, hairMat,
+    fuzz, hairMat,
   };
 }
 
@@ -240,10 +214,6 @@ export class Enemies {
     this.aimCoreGeo = new THREE.CylinderGeometry(aw / 6, aw / 6, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m long along +z
     this.aimGlowGeo = new THREE.CylinderGeometry(aw / 2, aw / 2, 1, 10, 1, true).rotateX(Math.PI / 2);
     this.aimBeams = [];       // pooled: one per mosquito aiming this frame
-    // a staple: a thin steel U (the crown and two legs), 16 mm across
-    const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
-    this.stapleGeo = mergeGeometries([box(0.016, 0.0018, 0.0018, 0, 0, 0), box(0.0018, 0.0018, 0.008, -0.0071, 0, -0.004), box(0.0018, 0.0018, 0.008, 0.0071, 0, -0.004)]);   // a little oversized, so you can see them coming
-    this.stapleMat = new THREE.MeshStandardMaterial({ color: 0xd8dde4, metalness: 0.85, roughness: 0.25, emissive: 0xb8c4d8, emissiveIntensity: 1.4, toneMapped: false });   // glints in the dark
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
     const wad = new THREE.IcosahedronGeometry(0.009, 2), wp = wad.attributes.position;
     for (let i = 0; i < wp.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(wp, i); v.multiplyScalar(0.8 + 0.4 * Math.abs(Math.sin(v.x * 900 + v.y * 1300 + v.z * 700))); wp.setXYZ(i, v.x, v.y, v.z); }
@@ -421,28 +391,27 @@ export class Enemies {
   }
 
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
-  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle; a staple
-  // is a little bent wire that tumbles as it flies.
+  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle.
   // A web ball is lobbed: it arcs up and falls onto where you were (gravity `arc` m/s²), and
   // sticks: `slow` s of slowed swimming on a hit.
   spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
-    const kind = shot === 'staple' ? 'staple' : shot === 'web' ? 'web' : 'laser';
+    const kind = shot === 'web' ? 'web' : 'laser';
     const color = kind === 'laser' ? this.laserColor : hostile(kind);
     const flight = at.distanceTo(from) / speed;
     for (let i = 0; i < count; i++) {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const geo = { staple: this.stapleGeo, web: this.webGeo, laser: this.shotGeo }[kind];
-      const mat = { staple: this.stapleMat, web: this.webMat, laser: this.shotMat }[kind];
+      const geo = { web: this.webGeo, laser: this.shotGeo }[kind];
+      const mat = { web: this.webMat, laser: this.shotMat }[kind];
       const m = batcher.track(new THREE.Mesh(geo, mat));
       if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
       m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, spin: kind === 'staple' ? 18 + Math.random() * 8 : kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
   }
@@ -749,7 +718,7 @@ export class Enemies {
       if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.impact(s.m.position, s.c, 0.012, 6); }   // scorches (or pings off) the wall
       if (s.arc) s.v.y -= s.arc * dt;                    // a lobbed web ball falls
       s.m.position.addScaledVector(s.v, dt);
-      if (s.spin) s.m.rotateX(s.spin * dt);              // staples tumble end over end, web balls roll
+      if (s.spin) s.m.rotateX(s.spin * dt);              // web balls roll
       // a halo and a glowing trail, in the shooter's colour
       this.fx.glow.hold(s.m.position, s.c, s.spin ? 0.04 : 0.05, 0.9);
       if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }

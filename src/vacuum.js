@@ -12,7 +12,7 @@
 // Below 50% health it enrages: it stops and shudders, its light strobing red, sparks and dust
 // flying, a siren and ENRAGED!, then does everything twice as fast (orange light), with the spin
 // and an extra cockroach in each dump.
-// Same interface as Boss (boss.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
+// Same interface as the Clog (clog.js): position, r, center(), damage(), dead, update() -> {push, hurt, hit}.
 import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';

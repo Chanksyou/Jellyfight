@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the standing stapler, the lanternfly, the house spider and the house fly. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider and the house fly. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -264,72 +264,6 @@ export function buildMosquito() {
     legs.rotation.x = Math.sin(t * 2.3) * 0.08;
     body.position.y = Math.sin(t * 4 + e.phase) * 0.1;                  // radius units: a gentle hover bob
     body.rotation.x = -0.15 + (e.aimT > 0 ? -0.35 : 0);                 // dips its nose to shoot
-  };
-  return { body: outer, face: new THREE.Group(), anim };
-}
-
-// ------------------------------------------------------------------ standing stapler
-// An office stapler opened all the way out and stood on its hinge: the black base rises at the
-// back, the red top arm rises in front with the chrome head at its tip, the eyes just under it.
-// It hops toward you; to shoot it rocks its arm forward like an open mouth, then snaps it shut
-// as the staples fly. About 3 radii (12 cm) tall.
-function staplerGeometry() {
-  const black = '#3a3a44', red = '#d0242e', redDark = '#7a1218', chrome = '#c8ccd4', steel = '#8a909a';
-  const box = (w, h, d, x, y, z, hex, bevel = 0) => tint(new THREE.BoxGeometry(w, h, d, 1, 1, 1).translate(x, y, z), hex);
-  // the hinge: a chunky barrel at the bottom, its feet
-  const hinge = [
-    tint(new THREE.CylinderGeometry(0.2, 0.2, 0.86, 14).rotateZ(Math.PI / 2).translate(0, 0.22, 0), steel),
-    box(0.9, 0.12, 0.7, 0, 0.06, 0, black),                                  // a little rubber foot
-  ];
-  // the base, standing at the back: black plastic with the steel anvil plate on its front
-  const base = [
-    box(0.78, 2.2, 0.2, 0, 1.1, 0, black),
-    box(0.3, 0.5, 0.04, 0, 1.9, 0.12, chrome),                                // the anvil, where staples fold
-    box(0.8, 0.1, 0.24, 0, 2.2, 0, black),
-  ];
-  // the top arm, standing in front: red cover over a steel magazine, the chrome head at the top
-  const arm = [
-    box(0.74, 2.3, 0.3, 0, 1.15, 0, red),
-    box(0.62, 2.1, 0.08, 0, 1.1, -0.18, steel),                               // the magazine rail
-    box(0.76, 0.06, 0.32, 0, 0.5, 0, redDark),                                // a seam in the cover
-    box(0.8, 0.42, 0.42, 0, 2.38, 0.02, chrome),                              // the head
-    box(0.5, 0.06, 0.08, 0, 2.2, 0.24, '#1a1a1e'),                            // the slot the staples come out of
-  ];
-  return { hinge: merge(hinge), base: merge(base), arm: merge(arm) };
-}
-
-export function buildStapler() {
-  const G = (GEO.stapler ||= staplerGeometry()), M = mats();
-  const outer = new THREE.Group(), body = new THREE.Group();
-  outer.add(body);
-  const hinge = new THREE.Mesh(G.hinge, M.shell);
-  // base and arm swing about the hinge barrel
-  const basePivot = new THREE.Group(), armPivot = new THREE.Group();
-  basePivot.position.set(0, 0.22, -0.18);
-  armPivot.position.set(0, 0.22, 0.2);
-  const base = new THREE.Mesh(G.base, M.shell), arm = new THREE.Mesh(G.arm, M.shell);
-  base.position.y = -0.1; arm.position.y = -0.1;
-  basePivot.add(base); armPivot.add(arm);
-  for (const m of [hinge, base, arm]) m.castShadow = true;
-  body.add(hinge, basePivot, armPivot);
-  // angry eyes on the front of the arm, just under the head
-  const face = angryEyes({ y: 1.85, z: 0.18, size: 0.26, gap: 0.2 });
-  armPivot.add(face);
-  let t = 0, hop = 0, open = 0, snap = 0;
-  const anim = (dt, e) => {
-    t += dt;
-    const speed = Math.hypot(e.vel.x, e.vel.z);
-    hop += (Math.min(1, speed * 8) - hop) * (1 - Math.exp(-6 * dt));
-    // hopping: up off the floor and a squash on landing, about 2.5 hops a second
-    const ph = (t * 2.5 + e.phase) % 1, air = Math.sin(ph * Math.PI);
-    body.position.y = air * 0.35 * hop;
-    body.scale.y = 1 - (1 - air) * 0.12 * hop;
-    // aiming: the arm rocks forward like an opening jaw; firing snaps it back past upright
-    open += ((e.aimT > 0 ? 1 : 0) - open) * (1 - Math.exp(-10 * dt));
-    snap = e.firedT > 0 ? 1 : snap * Math.exp(-8 * dt);
-    armPivot.rotation.x = 0.22 + open * 0.5 - snap * 0.4;      // splayed open: a clear V from the side
-    basePivot.rotation.x = -0.45 - open * 0.15;
-    body.rotation.z = Math.sin(t * 5 + e.phase) * 0.04 * hop;                 // a little wobble as it hops
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

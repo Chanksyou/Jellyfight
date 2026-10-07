@@ -284,25 +284,11 @@ export const ENEMY_WORDS = {
     },
   },
 
-  drift: {
-    doc: 'Flies at your middle at `speed` m/s with a lazy wobble.',
-    args: ['speed'],
-    make: ([speed]) => ({
-      fly: true,
-      tick(e, c) {
-        const s = speed * c.slow, d = _away.copy(c.toP).normalize();
-        const wob = Math.sin(c.t * 3 + e.phase) * 0.35;
-        e.vel.lerp(_want.set(d.x + wob * d.z, d.y + Math.sin(c.t * 2 + e.phase) * 0.3, d.z - wob * d.x).multiplyScalar(s), 1 - Math.exp(-3 * c.dt));
-        e.pos.addScaledVector(e.vel, c.dt);
-      },
-    }),
-  },
-
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "staple" (a tumbling staple) or "web" (a ball of silk). `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go) or "web" (a ball of silk). `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
     props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0 },
     make: (_, p, where) => {
-      if (!['laser', 'staple', 'web'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "staple" or "web", not "${p.shot}"`);
+      if (!['laser', 'web'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser" or "web", not "${p.shot}"`);
       return {
       init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {
@@ -324,10 +310,6 @@ export const ENEMY_WORDS = {
     make: () => ({ rolls: true }),
   },
 
-  'slows-on-touch': {
-    doc: 'Touching it slows you down for a moment (sticky lint).',
-    make: () => ({ slows: true }),
-  },
 };
 
 // Check one word use from a content file and build it. Throws a message that names the file

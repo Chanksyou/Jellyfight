@@ -392,30 +392,6 @@ story('enemies/mosquito-spits', {
   },
 });
 
-story('enemies/stapler-fans-five-staples', {
-  about: 'A standing stapler fires a fan of five staples, about 50 degrees across, from its head.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('stapler', near(0, -0.35)); e.shootT = 0.8; },
-  play() {
-    const { enemies } = G(), e = enemies.list[0];
-    let shots = [];
-    step(60 * 3, () => { if (enemies.shots.length >= 5) { shots = enemies.shots.slice(0, 5); return true; } });
-    const angle = (s) => Math.atan2(s.v.x, s.v.z) * 180 / Math.PI, a = shots.map(angle);
-    const fan = a.length ? Math.max(...a) - Math.min(...a) : 0, high = shots.every((s) => s.m.position.y > e.pos.y + e.r * 1.8);
-    return ok(shots.length === 5 && Math.abs(fan - 50) < 3 && high && shots.every((s) => s.source === 'staple'), { shots: shots.length, fan: +fan.toFixed(1), high, hp: e.maxHp });
-  },
-});
-story('enemies/stapler-staples-hurt', {
-  about: 'A staple costs you 5 moisture; a stapler takes 80 damage to clear.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('stapler', near(0, -0.3)); e.shootT = 0.8; },
-  play() {
-    const { run, enemies } = G(), e = enemies.list[0];
-    run.iFrames = 0;
-    const m0 = run.moisture;
-    step(60 * 4, () => run.moisture < m0);
-    return ok(m0 - run.moisture === 5 && e.T.hp === 80, { lost: m0 - run.moisture, hp: e.T.hp });
-  },
-});
-
 // --- progression
 story('progression/luck', {
   about: 'Luck (a level-up card) makes rarer level-up cards and treasures come up more often.',
@@ -793,20 +769,10 @@ story('words/leap', {
     return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.moisture });
   },
 });
-story('words/drift', {
-  about: 'drift: a dust mote floats at your middle (bathroom stage).',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mote', near(0.4, 0, 0.15)); },
-  play() { const e = G().enemies.list[0], d0 = e.pos.distanceTo(G().player.position); step(90); const d1 = e.pos.distanceTo(G().player.position); return ok(d0 - d1 > 0.15 && e.T.fly, { before: +d0.toFixed(3), after: +d1.toFixed(3) }); },
-});
 story('words/rolls', {
-  about: 'rolls: a dust bunny tumbles along the floor as it comes at you (bathroom stage).',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('bunny', near(0.4, 0)); },
+  about: 'rolls: a hair tangle tumbles along the floor as it comes at you.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('hair', near(0.4, 0)); },
   play() { const e = G().enemies.list[0], a = e.mesh.rotation.x; step(30); return ok(Math.abs(e.mesh.rotation.x - a) > 1, { turned: +(e.mesh.rotation.x - a).toFixed(2) }); },
-});
-story('words/slows-on-touch', {
-  about: 'slows-on-touch: brushing against lint slows you down (bathroom stage).',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('lint', near(0.03, 0), { still: true }); },
-  play() { step(10); return ok(G().run.slowT > 0, { slowT: +G().run.slowT.toFixed(2) }); },
 });
 
 // --- guards: the vocabulary stays complete, and content mistakes are caught
