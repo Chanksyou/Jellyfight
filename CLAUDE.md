@@ -7,7 +7,7 @@ The game is meant to be changed by short requests to agents that have never seen
 works because every kind of change has **one home**, things are described in **plain-text
 content** with a small **vocabulary**, and **stories** prove behaviour. Keep it that way.
 
-Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. Use it; don't bring back the words it lists under _Avoid_.
+Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. The story `vocabulary/no-retired-words` fails if player text uses a word it lists under _Avoid_.
 
 ## Where each kind of change lives
 
@@ -16,6 +16,7 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
+| What a new player's first run introduces, and when | `src/first-run.js` | The run asks it at a few points; stories use `fresh({ firstRun: true })` |
 | Frame-rate cap, pixel ratio range, lamps lit at once on phones | `content/look.css` (`--phone-fps`, `--*-pixel-ratio`, `--phone-lights`) | Logic in `src/pacing.js` and `src/light-slots.js`; graphics-reset recovery in `src/gpu-recovery.js` |
 | Vents, treasure times and spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
@@ -54,9 +55,9 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    # one with `phone: true` (phone/...) in a page that looks like a phone
    ```
 
-   If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked
-   `three@0.186.1` npm package. The guard stories fail if a word has no doc, no user or no
-   story, or if bad content doesn't produce a clear error.
+   `node tests/check.mjs` is the fast check (modules parse, guard stories pass); the pre-push hook
+   (`.githooks/pre-push`) runs it on every push and refuses a push to `main` whose commit hasn't
+   passed a full run. The session start hook sets up three.js and the hooks in cloud sessions.
 3. **Attacks speak one visual language** (`src/vfx.js`, think Returnal): hostile is hot and
    saturated, one `--hostile-*` colour per source; friendly is cool (`--friendly`); they never
    share a colour. A new enemy projectile is `fx.orb(colour)` + `fx.orbTick` each frame + `fx.free`;
@@ -80,19 +81,12 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
 9. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
-   run the stories (rule 2), commit, push `main` (no need to ask), then publish to the artifact (copy changed files,
-   including `content/`, next to `index.html`).
+   run the stories (rule 2), commit, push `main` (no need to ask), then republish the artifact
+   (`docs/agents/publishing.md`).
 
 ## Next (the same pattern, not done yet)
 
 - **Elites and the Vacuum as stacked words** (a telegraph shape + an effect per attack).
-
-## Leaderboard (claude.ai artifact)
-
-`src/leaderboard.js` keeps scores in the artifact's database. Publish the artifact with
-`capabilities: { db: { rules: [ { path: "scores", read: "view", write: "owner" }, { path: "scores/{self}", write: "interact" } ] }, user: {} }`
-(everyone reads the board; each player writes only `scores/<their id>`). Redeploys can omit
-`capabilities` to keep it. Off claude.ai the board shows as offline and the game still works.
 
 ## Agent skills
 

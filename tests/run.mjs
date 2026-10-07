@@ -2,16 +2,22 @@
 // fails if any story fails or the page logs an error.
 //
 //   node tests/run.mjs                 everything
-//   node tests/run.mjs elites          only stories whose name contains "elites"
+//   node tests/run.mjs elites          only stories whose name contains "elites" (a,b: either)
 //   node tests/run.mjs --no-mobile     skip the phone check
 //
 // Needs Playwright (cd tests && npm install && npx playwright install chromium).
-// If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three@0.186.1
-// npm package and its files are served from there instead.
-import { start, openGame } from './lib.mjs';
+// If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three npm package (the
+// version in index.html's import map), or put one in tests/.three (the session start hook does);
+// its files are served from there instead.
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { start, openGame, ROOT } from './lib.mjs';
 
 const args = process.argv.slice(2);
-const filter = args.find((a) => !a.startsWith('--')) || '';
+// filters: comma-separated; a story runs if its name contains any of them (none = everything)
+const filters = (args.find((a) => !a.startsWith('--')) || '').split(',');
+const wants = (name) => filters.some((f) => name.includes(f));
 const MOBILE = !args.includes('--no-mobile');
 
 const env = await start();
@@ -32,14 +38,14 @@ const pageOf = (n) => (n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') 
 let all = null;   // [name, page key] for every story, once a page has listed them
 for (const P of PAGES) {
   // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
-  if (!all && filter && pageOf(filter) !== P.key && pageOf(filter) !== 'act1') continue;
-  if (all && !all.some(([n, k]) => k === P.key && n.includes(filter))) continue;
+  if (!all && filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1')) continue;
+  if (all && !all.some(([n, k]) => k === P.key && wants(n))) continue;
   const { page, errors } = await openGame(env, P.opts);
   // stories step and draw the game themselves; the game's own frame loop running between them
   // only adds slow software-rendered frames (seconds each) and timing noise
   await page.evaluate(() => APT.renderer.setAnimationLoop(null));
   all ||= await page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.phone ? 'phone' : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
-  await playAll(page, errors, all.filter(([n, k]) => k === P.key && n.includes(filter)).map(([n]) => n));
+  await playAll(page, errors, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n));
   await page.close();
 }
 
@@ -55,7 +61,7 @@ async function playAll(page, errors, names) {
 }
 
 // --- a player's first run survives a real reload, and ends for good once a run ends (first-run.js)
-if ('first-run/survives-a-reload'.includes(filter)) {
+if (wants('first-run/survives-a-reload')) {
   const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 }, newPlayer: true });
   const ready = () => page.waitForFunction(() => window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
   const out = { first: await page.evaluate(() => run.firstRun.active) };
@@ -71,7 +77,7 @@ if ('first-run/survives-a-reload'.includes(filter)) {
 }
 
 // --- on a phone: tap Play, pick a starting treasure, swim with the joystick, jump
-if (MOBILE && (!filter || 'mobile'.includes(filter))) {
+if (MOBILE && wants('mobile/touch-controls')) {
   const { page, errors } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
   const cdp = await page.context().newCDPSession(page);
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i })) });
@@ -104,4 +110,12 @@ if (MOBILE && (!filter || 'mobile'.includes(filter))) {
 
 await env.close();
 console.log(`\n${passed} passed, ${failed} failed`);
+// a full green run on a clean checkout records its commit: the pre-push hook (.githooks/pre-push)
+// lets that commit go to main
+if (!failed && filters.join('') === '' && MOBILE) {
+  try {
+    const clean = !execSync('git status --porcelain --untracked-files=no', { cwd: ROOT }).toString().trim();
+    if (clean) fs.writeFileSync(path.join(ROOT, 'tests/.last-green'), execSync('git rev-parse HEAD', { cwd: ROOT }).toString());
+  } catch {}
+}
 process.exit(failed ? 1 : 0);

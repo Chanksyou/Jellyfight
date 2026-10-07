@@ -23,7 +23,7 @@ The jelly's rank within a run; each new Level offers a choice of cards that rais
 
 **Bubble damage**:
 How hard each of the jelly's bubbles hits when it pops.
-_Avoid_: Pop damage, pop
+_Avoid_: Pop damage
 
 **Fire rate**:
 How many bubbles the jelly blows each second.
@@ -31,15 +31,14 @@ _Avoid_: Blow rate
 
 **Move speed**:
 How fast the jelly swims.
-_Avoid_: Swim speed, pulse
+_Avoid_: Swim speed
 
 **Jump height**:
 How high the jelly jumps.
 _Avoid_: Bounce
 
 **Tentacle damage**:
-How hard each tentacle lash hits.
-_Avoid_: Sting
+How hard each tentacle lash hits. ("Sting" was its old stat name; stinging is still fine as a verb.)
 
 **Tentacle speed**:
 How many tentacle lashes the jelly makes each second.

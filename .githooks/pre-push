@@ -1,0 +1,16 @@
+#!/bin/bash
+# The guardrail for main, which goes live on every push (Cloudflare redeploys it):
+#  - every push: the fast check (tests/check.mjs: modules parse, guard stories pass)
+#  - a push to main: the commit must have passed a full story run (node tests/run.mjs, which
+#    records a clean green commit in tests/.last-green)
+# The session start hook turns this on (git config core.hooksPath .githooks).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+node "$root/tests/check.mjs" >/dev/null 2>&1 || { echo "pre-push: the fast check failed. Run: node tests/check.mjs" >&2; exit 1; }
+green="$(cat "$root/tests/.last-green" 2>/dev/null || true)"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ] && [ "$local_sha" != "$green" ]; then
+    echo "pre-push: $local_sha hasn't passed a full story run. Run: node tests/run.mjs (on a clean checkout), then push again." >&2
+    exit 1
+  fi
+done

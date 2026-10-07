@@ -17,6 +17,24 @@ function playwright() {
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.txt': 'text/plain', '.png': 'image/png', '.jpg': 'image/jpeg', '.kdl': 'text/plain' };
 
+// three.js for the tests: JF_THREE (an unpacked three@0.186.1 npm package), else the copy the
+// session start hook unpacks (.claude/hooks/session-start.sh), else the CDN
+export const THREE_DIR = process.env.JF_THREE || (fs.existsSync(path.join(ROOT, 'tests/.three/package/build')) ? path.join(ROOT, 'tests/.three/package') : null);
+
+function installedChromium() {
+  const roots = [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers', path.join(process.env.HOME || '', '.cache/ms-playwright')].filter(Boolean);
+  for (const r of roots) {
+    if (!fs.existsSync(r)) continue;
+    for (const d of fs.readdirSync(r).filter((n) => n.startsWith('chromium_headless_shell-')).sort().reverse()) {
+      for (const exe of ['chrome-headless-shell-linux64/chrome-headless-shell', 'chrome-linux/headless_shell']) {
+        const f = path.join(r, d, exe);
+        if (fs.existsSync(f)) return f;
+      }
+    }
+  }
+  return null;
+}
+
 // A static server for the repo and a headless Chromium (software WebGL, works anywhere)
 export async function start() {
   const server = http.createServer((req, res) => {
@@ -29,7 +47,16 @@ export async function start() {
   });
   await new Promise((r) => server.listen(0, r));
   const url = `http://localhost:${server.address().port}/index.html`;
-  const browser = await playwright().chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const args = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  let browser;
+  try { browser = await playwright().chromium.launch({ args }); }
+  catch (e) {
+    // the installed Playwright expects another Chromium build than the one on this machine (a cloud
+    // image): use whichever headless shell is installed
+    const exe = installedChromium();
+    if (!exe || !/Executable doesn't exist/.test(String(e))) throw e;
+    browser = await playwright().chromium.launch({ args, executablePath: exe });
+  }
   return { url, browser, close: async () => { await browser.close(); server.close(); } };
 }
 
@@ -45,10 +72,10 @@ export async function openGame({ url, browser }, { act, newPlayer = false, ...op
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|KHR_parallel/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push('page error: ' + e.message));
-  if (process.env.JF_THREE) {
+  if (THREE_DIR) {
     await page.route(/cdn\.jsdelivr\.net\/npm\/three@0\.186\.1\/(.*)$/, (r) => {
       const rel = r.request().url().match(/three@0\.186\.1\/(.*)$/)[1];
-      r.fulfill({ path: path.join(process.env.JF_THREE, rel), contentType: 'text/javascript' });
+      r.fulfill({ path: path.join(THREE_DIR, rel), contentType: 'text/javascript' });
     });
   }
   await page.goto(url);

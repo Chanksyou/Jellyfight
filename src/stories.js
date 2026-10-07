@@ -12,7 +12,7 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS } from './stats.js';
+import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS, STAT_INFO, EVOLUTIONS, TREASURES } from './stats.js';
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
@@ -80,7 +80,8 @@ export function tp(x, y, z, yaw) {
   if (yaw !== undefined) tpc.yaw = yaw;
 }
 
-const step = (n, each) => { for (let i = 0; i < n; i++) { G().GAME.step(1 / 60); if (each && each(i) === true) return i; } return n; };
+// step the game n frames; `until(i)` stops it early the first frame it returns anything truthy
+const step = (n, until) => { for (let i = 0; i < n; i++) { G().GAME.step(1 / 60); if (until && until(i)) return i; } return n; };
 // hold keys for some seconds (jumpEvery: queue a jump every n frames); picks any card that opens
 function sim(secs, keys = [], jumpEvery = 0) {
   const { input, menus, player } = G();
@@ -377,13 +378,13 @@ story('first-run/treasures-wait-for-the-element-pick', {
     const elementOpen = /element/i.test(modalTitle());
     pickFirstCard(); step(3);
     const t0 = run.t;
-    step(60 * 45, () => !!sched());                        // the next scheduled time is 1:00
+    step(60 * 45, () => sched());                          // the next scheduled time is 1:00
     const at = Math.round(run.t), first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
     run.dropTreasure(near(0.2, 0));                        // an Elite's Treasure still drops on a first run
     const eliteChest = run.roomTreasures.some((t) => t.active && !t.timed);
     // another run: the first one at 0:15
     fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0);
-    step(60 * 17, () => !!sched());
+    step(60 * 17, () => sched());
     const otherAt = Math.round(G().run.t);
     return ok(!before && elementOpen && first && Math.abs(at - 60) <= 1 && told && eliteChest && Math.abs(otherAt - 15) <= 1,
       { before, elementOpen, t0: Math.round(t0), at, first, told, eliteChest, otherAt });
@@ -1030,6 +1031,37 @@ story('words/rolls', {
 });
 
 // --- guards: the vocabulary stays complete, and content mistakes are caught
+// The words GLOSSARY.md retires (its _Avoid_ lists) stay out of what players read: content names and
+// texts, stat names, cards and evolutions, and the prose strings the HUD, menus and run show.
+story('vocabulary/no-retired-words', {
+  about: 'No word GLOSSARY.md lists under _Avoid_ shows up in what players read (content, stats, cards, evolutions, and the HUD, menu and run text).',
+  setup() {},
+  async play() {
+    const get = async (f) => (await fetch(f)).text();
+    const avoid = [...(await get('/GLOSSARY.md')).matchAll(/^_Avoid_:(.*)$/gm)]
+      .flatMap((m) => m[1].replace(/\([^)]*\)/g, '').split(',')).map((w) => w.trim()).filter(Boolean);
+    const texts = [];
+    for (const t of TREASURES) texts.push([`treasure ${t.id}`, [t.name, t.text, ...(t.levelText || [])].join(' · ')]);
+    for (const [id, e] of Object.entries(CONTENT.enemies)) texts.push([`enemy ${id}`, e.name]);
+    for (const [k, v] of Object.entries(STAT_INFO)) texts.push([`stat ${k}`, v.name]);
+    for (const e of EVOLUTIONS) texts.push([`evolution ${e.id}`, `${e.name} · ${e.text}`]);
+    // prose in the code players read: quoted strings with a space in them, comments stripped
+    for (const f of ['run.js', 'hud.js', 'ui.js', 'main.js', 'stats.js', 'first-run.js']) {
+      const src = (await get(`/src/${f}`)).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
+      // one line at a time; a string that reads as prose (words and spaces, no code or CSS in it)
+      for (const line of src.split('\n')) for (const m of line.matchAll(/'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) {
+        const text = (m[1] ?? m[2]).replace(/\$\{[^}]*\}/g, '');
+        if (/[A-Za-z]{3,} [A-Za-z]{2,}/.test(text) && !/[;{}=]|=>|<style|\.jf-|#[a-z-]+ \{/.test(text)) texts.push([`src/${f}`, text]);
+      }
+    }
+    const hits = [];
+    for (const w of avoid) {
+      const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      for (const [where, text] of texts) if (re.test(text)) hits.push(`${w} in ${where}: "${text.slice(0, 70)}"`);
+    }
+    return ok(avoid.length > 10 && !hits.length, { avoid: avoid.length, hits: hits.slice(0, 12) });
+  },
+});
 story('vocabulary/every-word-documented-used-and-proven', {
   about: 'Every behaviour word has a description, is used by some bug, and has a words/ story.',
   setup() {},
