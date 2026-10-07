@@ -13,6 +13,7 @@ import { Gadgets } from './gadgets.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure } from './pickups.js';
+import { FirstRun, markPlayed } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
@@ -127,7 +128,8 @@ export class Run {
 
     this.phase = 'explore';
     this.t = 0;
-    this.startPicked = false;         // the starting treasure is offered on the run's first frame
+    this.startPicked = false;         // the starting Element pick is offered on the run's first frame
+    this.first = this.carry ? new FirstRun(false) : FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.stats = { ...BASE_STATS };
     this.level = 1;
     this.xp = 0;
@@ -226,11 +228,11 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
-    // every run starts with a treasure: pick 1 of 3 before anything happens
+    // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
+    // run it waits for the first Level-up instead: first-run.js)
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.');
-      return;
+      if (this.first.startElementPick) { this.pickStartElement(); return; }
     }
     this.t += dt;
     const P = this.player, s = this.S;
@@ -537,12 +539,17 @@ export class Run {
       const before = this.stats.health;
       applyCard(this.stats, card);
       if (this.stats.health > before) this.heal(this.stats.health - before);
+      if (this.first.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
     }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck));
   }
 
   resume() {
     if (!this.ui.open) this.onResume?.();
+  }
+
+  pickStartElement() {
+    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.');
   }
 
   // start: the starting pick, two elements for your bubbles and one of anything else
@@ -734,6 +741,7 @@ export class Run {
 
   metamorph() {
     this.phase = 'metamorph';
+    markPlayed();                     // a run ended: the player isn't new any more (first-run.js)
     this.bossDeadT = false;
     // whatever XP hadn't reached you yet still counts
     const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);
@@ -764,6 +772,7 @@ export class Run {
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
+    markPlayed();
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);

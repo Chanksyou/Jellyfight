@@ -22,6 +22,7 @@ import { pitch, isDeep } from './sfx.js';
 import { TouchControls } from './touch.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { checkBvhLayout } from './collision.js';
+import { FirstRun, isNewPlayer, markPlayed } from './first-run.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -47,13 +48,14 @@ function restore() {
 
 // A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
 // (each can be turned back on), and the start pick skipped.
-export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
+export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false } = {}) {
   const { run, menus, enemies } = G();
   restore();
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
   run.start();
-  run.startPicked = true;
+  run.first = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
+  run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
   if (!treasures) stub(run, 'scheduleTreasures', () => {});   // elites' chests still work
@@ -300,6 +302,77 @@ story('treasures/elites-leave-a-chest', {
     tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(20, () => picks);
     return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active,
       { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, health: run.health });
+  },
+});
+
+// --- a player's first run (first-run.js): systems arrive one at a time
+const modalTitle = () => document.querySelector('.jf-modal h2')?.textContent || '';
+const pickFirstCard = () => document.querySelector('.jf-modal .jf-card')?.click();
+story('first-run/no-element-pick-at-start', {
+  about: 'On a player\'s first run nothing opens on the first frame: no Element pick, just the jelly swimming among roaches while its bubbles fire on their own.',
+  setup() { fresh({ elites: false, firstRun: true }); tp(3.2, 0.05, 3.0, 0); spawn('roach', near(0, -0.2), { still: true, hp: 9999 }); },
+  play() {
+    const { menus, run } = G();
+    let blown = 0;
+    const was = run.bubbles.onBlow; run.bubbles.onBlow = () => { blown++; was(); };
+    step(60 * 3);
+    run.bubbles.onBlow = was;
+    return ok(!menus.open && run.startPicked && blown > 0, { menu: menus.open, title: modalTitle(), blown });
+  },
+});
+story('first-run/element-pick-after-first-card', {
+  about: 'On a first run the Element pick opens right after the first Level-up\'s card, once; the next Level-up is just cards.',
+  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { menus, run } = G();
+    step(5);
+    const quietStart = !menus.open;
+    run.gainXp(3); step(5);
+    const levelTitle = modalTitle();
+    pickFirstCard(); step(5);
+    const elementTitle = menus.open ? modalTitle() : '';
+    pickFirstCard(); step(5);
+    const owned = run.owned.size;
+    run.gainXp(20); step(5);
+    const secondTitle = modalTitle();
+    pickFirstCard(); step(5);
+    const after = menus.open ? modalTitle() : '';
+    menus.close();
+    return ok(quietStart && /level/i.test(levelTitle) && /element/i.test(elementTitle) && owned >= 1 && /level/i.test(secondTitle) && !/element/i.test(after),
+      { quietStart, levelTitle, elementTitle, owned, secondTitle, after });
+  },
+});
+story('first-run/other-runs-unchanged', {
+  about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
+  setup() { fresh({ elites: false }); G().run.startPicked = false; },
+  play() {
+    const { menus } = G();
+    step(2);
+    const title = modalTitle();
+    menus.close();
+    return ok(/element/i.test(title), { title });
+  },
+});
+story('first-run/who-is-new', {
+  about: 'A player is new until a run of theirs ends (dried out, or the boss beaten); one with a saved best score is not new; reloading mid-run keeps them new; act 2 is never a first run.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const keys = ['jellyfight.played', 'jellyfight.best'], saved = keys.map((k) => localStorage.getItem(k));
+    const set = (k, v) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v));
+    try {
+      keys.forEach((k) => set(k, null));
+      const fresh0 = isNewPlayer();
+      const { run } = G();
+      run.start();                                         // a new run (a reload starts one the same way)
+      const firstOn = run.first.on, still = isNewPlayer();
+      run.die();
+      const afterDeath = isNewPlayer();
+      keys.forEach((k) => set(k, null)); set('jellyfight.best', JSON.stringify({ score: 10 }));
+      const withBest = isNewPlayer();
+      keys.forEach((k) => set(k, null)); markPlayed();
+      const marked = isNewPlayer();
+      return ok(fresh0 && firstOn && still && !afterDeath && !withBest && !marked, { fresh0, firstOn, still, afterDeath, withBest, marked });
+    } finally { keys.forEach((k, i) => set(k, saved[i])); }
   },
 });
 
@@ -2445,6 +2518,22 @@ act2('carries-the-run', {
     const { run } = G();
     return ok(run.level === 6 && run.owned.has('candle') && run.score() >= 5000 && run.health === run.stats.health && run.stats.health === 130,
       { level: run.level, owned: [...run.owned], score: run.score(), health: run.health });
+  },
+});
+
+act2('never-a-first-run', {
+  about: 'Act 2 never runs in first-run mode, even for a browser with no record of a finished run.',
+  setup() { fresh(); },
+  play() {
+    const saved = localStorage.getItem('jellyfight.played'), best = localStorage.getItem('jellyfight.best');
+    try {
+      localStorage.removeItem('jellyfight.played'); localStorage.removeItem('jellyfight.best');
+      G().run.start();
+      return ok(!G().run.first.on, { on: G().run.first.on });
+    } finally {
+      if (saved !== null) localStorage.setItem('jellyfight.played', saved);
+      if (best !== null) localStorage.setItem('jellyfight.best', best);
+    }
   },
 });
 

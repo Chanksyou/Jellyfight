@@ -35,9 +35,13 @@ export async function start() {
 
 // Open the game and wait until it's ready to play; exits with the on-screen error if it can't start
 // (act: open that act, the way the game's own act change does: stages.js)
-export async function openGame({ url, browser }, { act, ...opts } = {}) {
+// (newPlayer: play as a first-time player: first-run.js)
+export async function openGame({ url, browser }, { act, newPlayer = false, ...opts } = {}) {
   const page = await browser.newPage(opts);
   if (act) await page.addInitScript((a) => sessionStorage.setItem('jellyfight.act', JSON.stringify(a)), act);
+  // a fresh browser is a brand-new player to the game (first-run.js); pages play as a returning one
+  // unless a test asks for a first run
+  if (!newPlayer) await page.addInitScript(() => { try { localStorage.setItem('jellyfight.played', '1'); } catch {} });
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|KHR_parallel/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push('page error: ' + e.message));
