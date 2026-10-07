@@ -52,10 +52,8 @@ export class TentacleRig {
       const a = opts.angles?.[i] ?? (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face (unless placed)
       const mat = opts.material.clone();                                   // same shader, own glow
       const mesh = new THREE.Mesh(tubeGeometry(), mat);
-      mesh.castShadow = true;
       mesh.frustumCulled = false;
       const tip = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), mat);
-      tip.castShadow = true;
       parent.add(mesh, tip);
       this.list.push({
         mesh, tip, mat, baseEmissive: mat.emissive.clone(), baseGlow: mat.emissiveIntensity,

@@ -74,7 +74,6 @@ export class Traversal {
         new THREE.MeshStandardMaterial({ map: grille, roughness: 0.5, metalness: 0.4 }),
       );
       plate.position.set(x, y + 0.001, z);
-      plate.receiveShadow = true;
       this.group.add(plate);
 
       // shimmer column + rising specks so the vent reads from across the room

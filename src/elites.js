@@ -265,7 +265,6 @@ class Elite {
       this.holder.position.set(w.x, w.y, w.z);
       this.holder.rotation.y = w.yaw;
     }
-    m.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
     owner.scene.add(this.holder);
     // its health bar over it, facing the camera: big, outlined and drawn over everything, going

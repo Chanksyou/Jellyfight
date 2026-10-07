@@ -38,7 +38,7 @@ const tileTex = (rx, ry) => tex(256, 256, (g, w, h) => {
 export function addBathroomDetails(scene) {
   const g = new THREE.Group();
   g.name = 'Bathroom details';
-  const add = (geo, mat, at, rot) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); if (rot) m.rotation.set(...rot); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
+  const add = (geo, mat, at, rot) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); if (rot) m.rotation.set(...rot); g.add(m); return m; };
   const steel = new THREE.MeshStandardMaterial({ color: 0xe4e6ea, metalness: 0.45, roughness: 0.3, emissive: 0x3a3c40, emissiveIntensity: 0.4 });   // brushed steel: kept bright in the dark room
   const black = new THREE.MeshStandardMaterial({ color: 0x141416, metalness: 0.4, roughness: 0.4 });
   const wood = new THREE.MeshStandardMaterial({ color: 0xc8a070, roughness: 0.6 });
@@ -90,7 +90,7 @@ export function addBathroomDetails(scene) {
   sponge.position.set(0.11, 0.55, 7.85);
   g.add(sponge);
   const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.037, 0.03, 28), new THREE.MeshStandardMaterial({ color: 0x2c2c30, roughness: 1 }));
-  sp.position.y = 0.015; sp.rotation.x = -0.25; sp.castShadow = true; sponge.add(sp);
+  sp.position.y = 0.015; sp.rotation.x = -0.25; sponge.add(sp);
   const face = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
   for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.CircleGeometry(0.004, 10), face); e.position.set(s * 0.011, 0.024, 0.04); sponge.add(e); }
   const smile = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0022, 6, 16, Math.PI), face);
@@ -102,7 +102,7 @@ export function addBathroomDetails(scene) {
     g.add(b);
     const lab = tex(128, 256, label);
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.038, h, 24), [new THREE.MeshStandardMaterial({ map: lab, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: body, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: body, roughness: 0.3 })]);
-    m.position.y = h / 2; m.castShadow = true; b.add(m);
+    m.position.y = h / 2; b.add(m);
     const pump = new THREE.MeshStandardMaterial({ color: cap, roughness: 0.4 });
     for (const [geo, y] of [[new THREE.CylinderGeometry(0.02, 0.03, 0.025, 20), h + 0.012], [new THREE.CylinderGeometry(0.006, 0.006, 0.035, 10), h + 0.04], [new THREE.BoxGeometry(0.014, 0.012, 0.05), h + 0.06]]) { const p = new THREE.Mesh(geo, pump); p.position.y = y; if (y > h + 0.05) p.position.z = 0.015; b.add(p); }
     return b;
@@ -133,7 +133,7 @@ export function addBathroomDetails(scene) {
   for (const x of [-0.15, 0.15]) wire([V(x, 0, -0.004), V(x, 0.45, -0.004)]);
   const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.012, 24), black);
   hook.rotation.x = Math.PI / 2; hook.position.set(0, 0.36, -0.006); caddy.add(hook);
-  const put = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; caddy.add(m); return m; };
+  const put = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); caddy.add(m); return m; };
   // top shelf: an amber bottle and a pink jar
   put(new THREE.BoxGeometry(0.07, 0.07, 0.05), new THREE.MeshPhysicalMaterial({ color: 0x9a7020, roughness: 0.1, transparent: true, opacity: 0.8, clearcoat: 1 }), -0.08, 0.34, -0.05);
   put(new THREE.CylinderGeometry(0.03, 0.03, 0.045, 20), new THREE.MeshStandardMaterial({ color: 0xf0a0a8, roughness: 0.4 }), 0.1, 0.33, -0.05);

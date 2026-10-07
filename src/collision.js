@@ -50,6 +50,7 @@ export class World {
     this.nearbySpheres = this.spheres;
     this._focus = new THREE.Vector3(Infinity, 0, 0);
     this._focusAge = 0;
+    checkBvhLayout(this);
   }
 
   // Add a mesh that isn't part of the apartment (invisible walls, props)
@@ -179,6 +180,35 @@ export class World {
     }
     this._best = Math.min(this._best, bestT * k);
   }
+}
+
+// castMesh walks the BVH's node buffers itself, which only works with the node layout of the
+// three-mesh-bvh in vendor/ (0.8.3; 0.9.4 changed it). Once, at boot, cast a few rays at a test
+// sphere both ways and fail loudly if they disagree, instead of every ray quietly missing after
+// an upgrade.
+let bvhChecked = false;
+export function checkBvhLayout(world, force = false) {
+  if (bvhChecked && !force) return;
+  bvhChecked = true;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  m.position.set(0.3, -0.2, 0.1);
+  m.updateMatrixWorld(true);
+  const bvh = m.geometry.boundsTree = new MeshBVH(m.geometry, BVH_OPTIONS);
+  const fail = (why) => { throw new Error(`three-mesh-bvh's internals aren't what src/collision.js reads (${why}): port castMesh to the vendored version, or put back 0.8.3`); };
+  if (!Array.isArray(bvh._roots) || !(bvh._roots[0] instanceof ArrayBuffer)) fail('no _roots node buffers');
+  const rc = new THREE.Raycaster(), o = new THREE.Vector3(), d = new THREE.Vector3();
+  for (let i = 0; i < 6; i++) {
+    o.set(Math.sin(i * 1.7) * 3, Math.cos(i * 2.3) * 3, 3 - i);
+    d.set(0.3 - o.x, -0.2 - o.y, 0.1 - o.z).add(new THREE.Vector3(Math.sin(i), Math.cos(i * 3), 0).multiplyScalar(0.3)).normalize();
+    rc.set(o, d);
+    const hits = [];
+    THREE.Mesh.prototype.raycast.call(m, rc, hits);
+    world._ray.set(o, d); world._best = 100; world._hit = false;
+    world.castMesh(m, o);
+    const want = hits.length ? Math.min(...hits.map((h) => h.distance)) : null, got = world._hit ? world._best : null;
+    if ((want === null) !== (got === null) || (want !== null && Math.abs(want - got) > 1e-4)) fail(`ray ${i}: ${got} vs ${want}`);
+  }
+  m.geometry.dispose();
 }
 
 function isSolid(o) {

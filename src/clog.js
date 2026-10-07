@@ -184,7 +184,6 @@ function buildClog(r) {
     }
     return { base, joints, i, x };
   });
-  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   standOut(root, { base: LOOK.num('boss-glow', 0.15) * 0.5, rim: LOOK.num('boss-rim', 0.6) * 0.4 });   // dimmer than other bosses: a thin strand is nearly all rim, and it washed the hair out pale
   return { root, roll, face, maw, teeth, drips, ropes, eyes };
 }

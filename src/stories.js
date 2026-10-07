@@ -21,6 +21,7 @@ import { STAGES, currentAct, goToAct } from './stages.js';
 import { pitch, isDeep } from './sfx.js';
 import { TouchControls } from './touch.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
+import { checkBvhLayout } from './collision.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1781,6 +1782,19 @@ story('engine/reversed-depth', {
     gfx.setQuality(was);
     const good = can ? caps.reversedDepthBuffer && !caps.logarithmicDepthBuffer && APT.camera.near === CONFIG.camera.near && mode === 2 : !caps.reversedDepthBuffer;
     return ok(good, { can, reversed: caps.reversedDepthBuffer, log: caps.logarithmicDepthBuffer, near: APT.camera.near, mode });
+  },
+});
+story('engine/bvh-layout-checked-at-boot', {
+  about: 'world.cast reads three-mesh-bvh\'s internals; a check at boot casts test rays both ways and stops the game with a clear message if they disagree (a library upgrade changed the layout), instead of every ray quietly missing.',
+  setup() {},
+  play() {
+    const { world } = G();
+    let passes = true, caught = '';
+    try { checkBvhLayout(world, true); } catch { passes = false; }
+    const real = world.castMesh;
+    world.castMesh = function () {};                     // a walk that misreads the layout: never hits
+    try { checkBvhLayout(world, true); } catch (e) { caught = e.message; } finally { world.castMesh = real; }
+    return ok(passes && /three-mesh-bvh/.test(caught), { passes, caught });
   },
 });
 story('engine/raycast-matches-reference', {

@@ -94,7 +94,6 @@ export class GoldGift {
       this.box.add(loop);
     }
     this.box.scale.setScalar(1.4);
-    this.box.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     // a tall column of gold light, so you can spot it from across the room
     this.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 1.6, 16, 1, true).translate(0, 0.8, 0),
       new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));

@@ -94,7 +94,6 @@ export class Vacuum {
     face.position.set(0, 0.092, this.r * 0.55);
     face.rotation.x = -1.0;
     root.add(face);
-    root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     standOut(root, { base: LOOK.num('boss-glow', 0.15), rim: LOOK.num('boss-rim', 0.6) });     // readable in the dark room
 
     this.body = root;

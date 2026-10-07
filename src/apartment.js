@@ -88,7 +88,6 @@ function prepareMeshes(root, meta, renderer) {
       o.geometry.computeBoundingSphere();
       unpacked.add(o.geometry);
     }
-    o.receiveShadow = true;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
       // Sharp textures at grazing angles: the jelly looks along the floor, and without

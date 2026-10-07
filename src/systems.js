@@ -119,8 +119,8 @@ export class CameraSystem {
   }
 }
 
-// Soft blob shadow under the player. The apartment only re-renders its shadow map when
-// furniture moves, so the player can't rely on a real cast shadow.
+// Soft blob shadow under the player. The game draws no real shadows (no shadow maps: too costly
+// on phones with this many lamps), so this blob is what grounds the jelly.
 export class ShadowSystem {
   constructor({ state, scene, world, player, cfg }) {
     Object.assign(this, { state, world, player, cfg });

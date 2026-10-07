@@ -55,7 +55,7 @@ export function buildWhipper() {
   const brass = new THREE.MeshStandardMaterial({ color: 0xc8a050, metalness: 1, roughness: 0.25 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xc8cace, map: brushed(), metalness: 0.9, roughness: 0.32 });
   const g = new THREE.Group();
-  const add = (geo, mat, parent = g) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; parent.add(m); return m; };
+  const add = (geo, mat, parent = g) => { const m = new THREE.Mesh(geo, mat); parent.add(m); return m; };
 
   // --- the N2O cylinder, on the left
   const tank = new THREE.Group();

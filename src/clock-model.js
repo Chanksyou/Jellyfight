@@ -120,7 +120,7 @@ export function buildClock() {
   const latticeMat = (rx, ry) => { const t = lattice.clone(); t.repeat.set(rx, ry); t.needsUpdate = true; return new THREE.MeshStandardMaterial({ map: t, metalness: 0.4, roughness: 0.6, color: 0xbba080 }); };
 
   const g = new THREE.Group();
-  const add = (geo, mat, parent = g) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; parent.add(m); return m; };
+  const add = (geo, mat, parent = g) => { const m = new THREE.Mesh(geo, mat); parent.add(m); return m; };
   const B = [], D = [];      // merged bronze / dark bronze parts
 
   // --- the acanthus drop at the bottom

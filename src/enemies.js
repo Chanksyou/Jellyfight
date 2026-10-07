@@ -170,7 +170,6 @@ function makeLooks() {
   const hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
   const body = (type, mat) => {
     const m = new THREE.Mesh(fuzzGeometry(type), mat);
-    m.castShadow = true;
     const g = new THREE.Group();
     g.add(m);
     return g;

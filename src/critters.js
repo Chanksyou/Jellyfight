@@ -76,7 +76,6 @@ export function buildRoach() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   const shell = new THREE.Mesh(G.body, M.shell);
-  shell.castShadow = true;
   body.add(shell);
   const legs = [];
   [[G.legL, -1], [G.legR, 1]].forEach(([set, s]) => set.forEach((geo, i) => {
@@ -147,7 +146,6 @@ export function buildAnts() {
   const ants = FORMATION.map(([x, z], i) => {
     const a = new THREE.Group();
     const shell = new THREE.Mesh(G.body, M.shell);
-    shell.castShadow = true;
     a.add(shell);
     const legs = LEGS.map((L, j) => {
       const pivot = new THREE.Group();
@@ -241,7 +239,6 @@ export function buildMosquito() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   const shell = new THREE.Mesh(G.body, M.shell);
-  shell.castShadow = true;
   const legs = new THREE.Mesh(G.legs, M.matte);
   body.add(shell, legs);
   const wings = [-1, 1].map((s) => {
@@ -385,7 +382,6 @@ export function buildLanternfly() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   const shell = new THREE.Mesh(G.body, M.shell);
-  shell.castShadow = true;
   body.add(shell);
   const legs = G.legs.map((L) => {
     const pivot = new THREE.Group();
@@ -399,7 +395,6 @@ export function buildLanternfly() {
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.06, y, 0.55);
     const m = new THREE.Mesh(geo, mat);
-    m.castShadow = true;
     m.scale.x = s;
     pivot.add(m);
     body.add(pivot);
@@ -544,7 +539,7 @@ export function buildSpider() {
   const rear = new THREE.Group();                  // the abdomen tips up separately when it shoots
   rear.position.set(0, 0.62, -0.25);
   body.add(rear);
-  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(front, G.carapaceGeo, M.spCarapace, V(0, -0.6, 0.2));
   add(front, G.head, M.spLeg, V(0, -0.6, 0.2));
   add(rear, G.abdomenGeo, M.spAbdomen, V(0, -0.62, 0.25));
@@ -712,7 +707,7 @@ export function buildHouseFly() {
   if (!M.flyLeg) { M.flyLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.flyLeg, { base: 0.1, rim: 0.25 }); }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(body, G.thoraxGeo, M.flyThorax);
   add(body, G.abdomenGeo, M.flyAbdomen);
   add(body, G.body, M.flyLeg);
@@ -732,7 +727,6 @@ export function buildHouseFly() {
     const flap = new THREE.Group();
     sweep.add(flap);
     const w = add(flap, G.wingGeo, M.flyWing);
-    w.castShadow = false;
     w.scale.x = s;
     body.add(sweep);
     return { s, sweep, flap };
@@ -867,7 +861,6 @@ export function buildMillipede() {
     const seg = new THREE.Group();
     const geo = i === 0 ? G.head : i === N - 1 ? G.tail : G.ringGeo;
     const shell = new THREE.Mesh(geo, i === 0 || i === N - 1 ? M.milPart : M.milRing);
-    shell.castShadow = true;
     if (i === 0 || i === N - 1) shell.scale.setScalar(MIL.fat);
     seg.add(shell);
     let legs = null;
@@ -1031,7 +1024,7 @@ export function buildLadybug() {
   }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (at) m.position.copy(at); parent.add(m); return m; };
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(body, G.under, M.lbLeg);
   // a disc lying on an ellipsoid (centre C, radii E) in direction d: the spots and patches
   const onShell = (parent, C, E, d, r, mat, lift = 0.012) => {
@@ -1074,7 +1067,6 @@ export function buildLadybug() {
     const flap = new THREE.Group();
     pivot.add(flap);
     const w = add(flap, G.wingGeo, M.lbWing);
-    w.castShadow = false;
     w.scale.x = s;
     return { s, pivot, flap };
   });

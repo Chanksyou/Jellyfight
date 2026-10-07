@@ -47,7 +47,7 @@ export class Batcher {
     let g = this.groups.get(key);
     if (!g) {
       const per = !!mat.userData.perInstance;
-      g = { geo, src: mat, per, mat: per ? withInstanceOpacity(mat) : mat, mesh: null, cap: 0, n: 0, list: [], shadow: false };
+      g = { geo, src: mat, per, mat: per ? withInstanceOpacity(mat) : mat, mesh: null, cap: 0, n: 0, list: [] };
       this.groups.set(key, g);
     }
     return g;
@@ -79,12 +79,11 @@ export class Batcher {
     if (o.layers.mask !== 1 << HIDDEN) o.layers.set(HIDDEN);
     const g = this.group(o.geometry, o.material);
     g.list[g.n++] = o;
-    if (o.castShadow) g.shadow = true;
   }
 
   // Gather this frame's instances. Call once per frame, right before rendering.
   sync() {
-    for (const g of this.groups.values()) { g.n = 0; g.shadow = false; }
+    for (const g of this.groups.values()) g.n = 0;
     for (const root of this.roots) {
       if (!root.parent) { this.roots.delete(root); continue; }
       if (!root.visible) continue;
@@ -98,7 +97,6 @@ export class Batcher {
       const m = g.mesh;
       m.count = g.n;
       m.visible = g.n > 0;
-      m.castShadow = g.shadow;
       if (!g.n) continue;
       const op = g.per ? m.geometry.attributes.instanceOpacity : null;
       for (let i = 0; i < g.n; i++) {

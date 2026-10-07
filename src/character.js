@@ -203,7 +203,6 @@ function canvasTexture(w, h, draw) {
 function mesh(geo, mat, parent, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
-  m.castShadow = true;
   parent.add(m);
   return m;
 }
@@ -289,7 +288,6 @@ export function buildCharacter(look, heightMeters) {
   // outer bell: clear and glossy, a tint of the body color
   const outer = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: look.finish === 'matte' ? Math.max(0.5, sp.outer * 2) : sp.outer, depthWrite: false, emissive: base, emissiveIntensity: 0.25 * glow });
   const shell = mesh(lathe(1), outer, bell);
-  shell.castShadow = false;
   shell.renderOrder = 2;
   // underside (the subumbrella), seen when it jumps
   const underGeo = new THREE.CircleGeometry(R * 0.95, 40);
@@ -310,7 +308,6 @@ export function buildCharacter(look, heightMeters) {
     rimGeo.computeVertexNormals(); }
   const rim = mesh(rimGeo, lit(rimCol, 2.2), bell);
   rim.rotation.x = Math.PI / 2;
-  rim.castShadow = false;
   // around the rim (angle a, measured like the rim: x = cos, z = sin) and a little in
   const onRim = (a, k = 1) => [Math.cos(a) * edge(a) * k, Math.sin(a) * edge(a) * k];
   // a fringe of fine glowing marginal tentacles
@@ -320,13 +317,13 @@ export function buildCharacter(look, heightMeters) {
       const a = (k / n) * Math.PI * 2, len = short + (long - short) * rnd(), [x, z] = onRim(a);
       parts.push(new THREE.CylinderGeometry(thick * 0.5, thick, len, 4, 1).translate(0, -len / 2, 0).rotateX(0.18).rotateY(Math.PI / 2 - a).translate(x, -0.01, z));
     }
-    mesh(mergeGeometries(parts), lit(base, 1.4), bell).castShadow = false;
+    mesh(mergeGeometries(parts), lit(base, 1.4), bell);
   }
   // bright sense organs around the rim
   const dot = lit(new THREE.Color('#fff6b0'), 3);
   for (let k = 0; k < sp.organs; k++) {
     const a = (k / sp.organs) * Math.PI * 2 + (box ? 0 : Math.PI / 16), [x, z] = onRim(a, 0.98);
-    mesh(new THREE.SphereGeometry(box ? 0.02 : 0.012, 8, 6), dot, bell, x, box ? 0.03 : -0.015, z).castShadow = false;
+    mesh(new THREE.SphereGeometry(box ? 0.02 : 0.012, 8, 6), dot, bell, x, box ? 0.03 : -0.015, z);
   }
   // oral arms twisting down from the middle
   const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: 0.9 * glow, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
@@ -347,7 +344,7 @@ export function buildCharacter(look, heightMeters) {
       ap.setXYZ(q, xx * Math.cos(tw) - zz * Math.sin(tw), y, xx * Math.sin(tw) + zz * Math.cos(tw));
     }
     armGeo.computeVertexNormals();
-    mesh(armGeo, armMat, pivot).castShadow = false;
+    mesh(armGeo, armMat, pivot);
     wobblers.push([pivot, 'x', k * 1.3, 0.16], [pivot, 'z', k * 2.1, 0.1]);
   }
   // the species' own feature
@@ -358,7 +355,6 @@ export function buildCharacter(look, heightMeters) {
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2 + Math.PI / 4, r = mesh(new THREE.TorusGeometry(R * 0.2, 0.012, 6, 24, Math.PI * 1.6), ringMat, bell, Math.sin(a) * R * 0.32, crownH * 0.9, Math.cos(a) * R * 0.32);   // between the inner and outer bell
       r.rotation.set(-Math.PI / 2 + 0.25, 0, a + Math.PI * 0.7);
-      r.castShadow = false;
     }
   } else if (sp.extra === 'yolk') {
     // fried egg jelly: a raised golden yolk on the crown
@@ -370,7 +366,6 @@ export function buildCharacter(look, heightMeters) {
       const a = Math.PI / 4 + (k * Math.PI) / 2, [x, z] = onRim(a, 0.95);
       const pad = mesh(new THREE.SphereGeometry(0.03, 10, 8), lit(rimCol, 1.4), bell, x, -0.02, z);
       pad.scale.set(0.8, 1.5, 0.8);
-      pad.castShadow = false;
     }
   }
   // the long, glowing hunting tentacles the Lash strikes with (see tentacles.js); a box jelly's
@@ -555,7 +550,6 @@ export function buildCharacter(look, heightMeters) {
     case 'halo': {
       const ring = mesh(new THREE.TorusGeometry(0.13, 0.018, 10, 40), M.halo, top, 0, 0.1, 0);
       ring.rotation.x = Math.PI / 2 - 0.4;                                  // tipped toward the front so it reads as a ring
-      ring.castShadow = false;
       spinners.push([ring, 'z', 0.8]);
       wobblers.push([ring, 'y', 0, 0.12]);
       break;
