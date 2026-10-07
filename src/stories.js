@@ -272,11 +272,12 @@ story('treasures/touch-the-chest', {
     const t = waiting(true)[0], p = t.pos.clone();
     const size = new THREE.Box3().setFromObject(t.chest).getSize(V(0, 0, 0));
     const small = size.y < 0.05 && size.x < 0.06;            // a chest, not a tall beam
-    let offered = false;
-    stub(run.ui, 'choose', () => { offered = true; });
+    let offered = false, tiers = [];
+    stub(run.ui, 'choose', (tt, s, list) => { offered = true; tiers = list.map((c) => c.rarity); });
     tp(p.x, p.y + 0.01, p.z);
     step(20, () => offered);
-    return ok(offered && !t.active && small, { offered, small, size: r3(size), at: r3(p) });
+    const roomTiers = tiers.every((r) => r === 'common' || r === 'rare');   // a room chest: Common and Rare
+    return ok(offered && !t.active && small && roomTiers, { offered, small, tiers, size: r3(size), at: r3(p) });
   },
 });
 story('treasures/elites-leave-a-chest', {
@@ -284,8 +285,8 @@ story('treasures/elites-leave-a-chest', {
   setup() { fresh({ treasures: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run, enemies } = G();
-    let picks = 0;
-    stub(run.ui, 'choose', () => { picks++; });
+    let picks = 0, tiers = [];
+    stub(run.ui, 'choose', (t, s, list) => { picks++; tiers.push(...list.map((c) => c.rarity)); });
     stub(run.hud, 'toast', () => {});
     const h0 = run.health = 20;
     // an elite bug, 25 cm away
@@ -301,8 +302,9 @@ story('treasures/elites-leave-a-chest', {
     step(60 * 60);                                          // a minute later, both still wait
     const stayed = waiting(false).length === 2;
     tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(20, () => picks);
-    return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active,
-      { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, health: run.health });
+    const eliteTiers = tiers.every((r) => r === 'rare' || r === 'epic');   // an Elite's chest: Rare and Epic
+    return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active && eliteTiers,
+      { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, tiers, health: run.health });
   },
 });
 
@@ -1194,6 +1196,25 @@ story('treasures/element-up', {
       { base, up, burnT, fireballs, slow: +slow.toFixed(2), fast: +fast.toFixed(2) });
   },
 });
+story('treasures/rarity-by-source', {
+  about: 'A chest that turns up in the room offers Common and Rare treasures; one a beaten Elite leaves offers Rare and Epic; neither ever offers a Legendary. Luck still favours the rarer of the two.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G();
+    const seen = { room: {}, elite: {} };
+    let src = 'room';
+    stub(run.ui, 'choose', (t, s, list) => { for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; });
+    for (src of ['room', 'elite']) for (let i = 0; i < 300; i++) run.pickTreasure('', '', src);
+    // luck: the rarer tier's share of the room's picks goes up
+    const rareShare = (luck) => { run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) run.pickTreasure('', '', 'room'); return seen.room.rare / (seen.room.rare + seen.room.common); };
+    const plain = rareShare(0), lucky = rareShare(100);
+    run.stats.luck = 0;
+    restore();
+    const R = seen.elite, rooms = Object.keys(seen.room), elites = Object.keys(R);
+    return ok(rooms.every((r) => r === 'common' || r === 'rare') && elites.every((r) => r === 'rare' || r === 'epic') && R.rare > 0 && R.epic > 0 && lucky > plain * 1.3,
+      { elite: R, plain: +plain.toFixed(2), lucky: +lucky.toFixed(2) });
+  },
+});
 story('treasures/levels', {
   about: 'Treasures with level blocks (Fairy Lights) level up when taken again: 3 bulbs, then 4, then 5; the pick offers only the next level ("Lv 2" with what it adds), and nothing past level 3.',
   setup() { setupFight({ lash: false }); },
@@ -1205,10 +1226,10 @@ story('treasures/levels', {
     const all = TREASURES_ALL();
     for (let k = 0; k < 3; k++) {
       all.forEach((t) => { if (t.id !== 'fairyLights') while (run.owned.count(t.id) < t.stack) run.owned.add(t.id); });
-      run.pickTreasure();
+      run.pickTreasure(undefined, undefined, 'elite');   // Fairy Lights is Epic: an Elite's chest
       run.owned.add('fairyLights'); step(2); bulbs.push(run.mods.orbit?.count);
     }
-    const before = cards.length; run.pickTreasure();
+    const before = cards.length; run.pickTreasure(undefined, undefined, 'elite');
     const offeredPast3 = cards.length > before && cards[cards.length - 1].includes('Fairy');
     const lv2 = /Lv 2/.test(cards[1]) && /four bulbs/.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /five bulbs/.test(cards[2]);
     return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });

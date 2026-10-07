@@ -22,6 +22,10 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3();
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
+// Which rarities a treasure pick offers, by where it came from: a chest that turned up in the room
+// (on the schedule) or one a beaten Elite left. The Boss reward is Legendary only (pickLegendary).
+const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
+
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
 // The treasures you own: a set of ids that also counts copies of stackable ones (stack=N)
 class Owned extends Set {
@@ -566,8 +570,10 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N, an element's upgrades only once you own the element) from a treasure in the
   // room. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
-  pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.') {
-    const can = (t) => this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
+  // source: where the pick came from, which decides the rarities it offers (PICK_TIERS)
+  pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.', source = 'room') {
+    const tiers = PICK_TIERS[source];
+    const can = (t) => tiers.includes(t.rarity) && this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
     let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
@@ -648,7 +654,7 @@ export class Run {
   updateRoomTreasures(dt) {
     for (const t of this.roomTreasures) {
       const r = t.update(dt, this.t, this.player.position);
-      if (r === 'taken') this.pickTreasure('✨ A treasure!', t.timed ? 'You got there in time. Pick one to keep.' : 'Pick one to keep.');
+      if (r === 'taken') this.pickTreasure('✨ A treasure!', t.timed ? 'You got there in time. Pick one to keep.' : 'Pick one to keep.', t.timed ? 'room' : 'elite');
       else if (r === 'gone') this.hud.toast('✨ The treasure faded away…', 1800);
     }
   }
