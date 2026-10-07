@@ -22,8 +22,21 @@ const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${na
 // if the act before was just beaten, carrying a level-6 run with a Candle
 for (const act of [1, 2]) {
   const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 }, act: act > 1 && { act, carry: { score: 5000, level: 6, xp: 0, purse: 4, stats: { moisture: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 } } });
-  const names = await page.evaluate(async ([f, act]) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && (s.act || 1) === act).map(([n]) => n), [filter, act]);
+  const names = await page.evaluate(async ([f, act]) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && (s.act || 1) === act && !s.phone).map(([n]) => n), [filter, act]);
   if (!names.length) { await page.close(); continue; }
+  await playAll(page, errors, names);
+  await page.close();
+}
+
+// --- stories with `phone: true` (phone/... in stories.js): in a page that looks like a phone
+{
+  const { page, errors } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
+  const names = await page.evaluate(async (f) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && s.phone).map(([n]) => n), filter);
+  await playAll(page, errors, names);
+  await page.close();
+}
+
+async function playAll(page, errors, names) {
   for (const name of names) {
     const before = errors.length;
     const r = await page.evaluate(async (n) => (await import('/src/stories.js')).runStory(n), name);
@@ -32,7 +45,6 @@ for (const act of [1, 2]) {
     line(good, name, r.ms, newErrors.length ? { ...r.info, errors: newErrors } : r.info);
     good ? passed++ : failed++;
   }
-  await page.close();
 }
 
 // --- on a phone: tap Play, pick a starting treasure, swim with the joystick, jump

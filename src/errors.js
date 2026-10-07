@@ -30,11 +30,10 @@ export function reportError(e, where = '') {
   show(`${where ? where + ': ' : ''}${err?.message || err}${stack ? '\n   ' + stack : ''}`);
 }
 
+// Lets the browser give a lost context back (it won't unless the loss is preventDefault-ed).
+// Once the game runs, gpu-recovery.js pauses it and rebuilds when that happens.
 export function watchCanvas(canvas) {
-  canvas.addEventListener('webglcontextlost', (e) => {
-    e.preventDefault();
-    show('The graphics chip reset (WebGL context lost). Usually this means it ran out of memory or a frame took too long. Try Low graphics, or reload.');
-  });
+  canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
 }
 
 addEventListener('error', (e) => reportError(e));
@@ -62,7 +61,7 @@ export function enableDebug() {
     const r = window.APT?.renderer;
     const since = Math.round(performance.now() - last);
     box.textContent = `${window.JF_BUILD || ''} | up ${Math.round(performance.now() / 1000)}s | alive ${beats} | ${frames * 2} fps | last frame ${since} ms ago | dpr ${r ? r.getPixelRatio().toFixed(2) : '-'}`
-      + ` | draws ${r ? r.info.render.calls : '-'} | logdepth ${r ? r.capabilities.logarithmicDepthBuffer : '-'}`;
+      + ` | draws ${r ? r.info.render.calls : '-'} | depth ${r ? (r.capabilities.reversedDepthBuffer ? 'reversed' : r.capabilities.logarithmicDepthBuffer ? 'log' : 'normal') : '-'}`;
     box.style.color = since > 1000 ? '#f99' : '#9f9';
     frames = 0;
   }, 500);

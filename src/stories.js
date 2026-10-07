@@ -20,6 +20,7 @@ import { SPECIES, buildCharacter, normalizeLook } from './character.js';
 import { STAGES, currentAct, goToAct } from './stages.js';
 import { pitch, isDeep } from './sfx.js';
 import { TouchControls } from './touch.js';
+import { FramePacer, FrameGovernor } from './pacing.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1708,6 +1709,74 @@ story('modes/creator-layout-debug', {
 });
 
 // --- the engine
+// How often and how sharp (pacing.js): fed made-up frame times, so these hold on any machine
+const feed = (g, ms, secs) => { const out = []; for (let t = 0; t < secs * 1000; t += ms) { const c = g.sample(ms); if (c) out.push(c); } return out; };
+story('engine/frame-cap-60', {
+  about: 'Phones draw at most 60 frames a second, even on a 120 Hz screen, and slowly behind a menu; a 60 Hz screen with jittery timestamps loses no frames.',
+  setup() {},
+  play() {
+    const count = (p, hz, secs, menu, jitter = 0) => { let n = 0; for (let i = 0; i < hz * secs; i++) if (p.due(i * 1000 / hz + (i % 2 ? jitter : -jitter), menu)) n++; return n; };
+    const at120 = count(new FramePacer({ fps: 60 }), 120, 2);
+    const at60 = count(new FramePacer({ fps: 60 }), 60, 2, false, 1);
+    const menu = count(new FramePacer({ fps: 60, menuFps: 20 }), 60, 2, true);
+    const free = count(new FramePacer({ fps: 0 }), 144, 1);
+    return ok(at120 === 120 && at60 === 120 && menu >= 38 && menu <= 42 && free === 144, { at120, at60, menu, free });
+  },
+});
+story('engine/governor-sheds-pixels-when-slow', {
+  about: 'Frames running long (25 ms at a 60 fps aim) make the governor draw at a lower pixel ratio, and it keeps it when frames get faster.',
+  setup() {},
+  play() {
+    const g = new FrameGovernor({ fps: 60, scale: 1.5, min: 1, max: 1.5 });
+    const first = feed(g, 25, 2.5);
+    const down = g.scale;
+    feed(g, 15, 2.5);                       // the lower resolution helped
+    return ok(first[0]?.scale === 1.375 && down === 1.375 && g.scale <= 1.375 && g.target < 17, { first, down, now: g.scale, log: g.log });
+  },
+});
+story('engine/governor-learns-a-frame-cap', {
+  about: 'A steady 30 fps that drawing fewer pixels doesn\'t speed up (iPhone Low Power Mode) is a cap, not a slow GPU: the governor undoes its step, aims for 30, and aims for 60 again once the cap lifts.',
+  setup() {},
+  play() {
+    const g = new FrameGovernor({ fps: 60, scale: 1.5, min: 1, max: 1.5 });
+    feed(g, 33.3, 6);
+    const capped = g.log.some((l) => l.why === 'capped'), keptSharp = g.scale === 1.5, aim = Math.round(1000 / g.target);
+    feed(g, 33.3, 20);
+    const settled = g.scale === 1.5;
+    feed(g, 16.7, 3);
+    const back = Math.round(1000 / g.target);
+    return ok(capped && keptSharp && aim === 30 && settled && back === 60, { capped, keptSharp, aim, settled, back, log: g.log });
+  },
+});
+story('engine/governor-tries-medium-then-backs-off', {
+  about: 'Under graphics Auto a phone with headroom tries the medium tier; it stays while frames hold, and drops back to low when frames run long (heat, a big fight), before giving up any sharpness.',
+  setup() {},
+  play() {
+    const g = new FrameGovernor({ fps: 60, scale: 1.5, min: 1, max: 1.5, tier: 'low' });
+    const tried = feed(g, 16, 4).some((c) => c.tier === 'medium');
+    feed(g, 16, 10);
+    const stayed = g.tier === 'medium';
+    const back = feed(g, 26, 2.5);
+    const dropped = back[0]?.tier === 'low' && g.scale === 1.5;
+    feed(g, 16, 30);                       // too soon to try again
+    const waited = g.tier === 'low';
+    return ok(tried && stayed && dropped && waited, { tried, stayed, dropped, waited, log: g.log });
+  },
+});
+story('engine/reversed-depth', {
+  about: 'With EXT_clip_control the game draws with a reversed depth buffer: the camera keeps its 2 mm near plane without log depth, and depth of field reads depth the reversed way.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT, gfx } = G(), caps = APT.renderer.capabilities;
+    const can = !!APT.renderer.getContext().getExtension('EXT_clip_control');
+    const was = gfx.choice;
+    gfx.setQuality('high'); G().GAME.render();
+    const mode = gfx.dof?.uniforms.depthMode.value;
+    gfx.setQuality(was);
+    const good = can ? caps.reversedDepthBuffer && !caps.logarithmicDepthBuffer && APT.camera.near === CONFIG.camera.near && mode === 2 : !caps.reversedDepthBuffer;
+    return ok(good, { can, reversed: caps.reversedDepthBuffer, log: caps.logarithmicDepthBuffer, near: APT.camera.near, mode });
+  },
+});
 story('engine/raycast-matches-reference', {
   about: 'world.cast (our own BVH walk) gives the same hits, distances and normals as three.js Raycaster.',
   setup() { fresh({ elites: false }); },
@@ -2324,6 +2393,53 @@ act2('the-clog', {
     const B = run.stage.boss, P = player.position;
     const inTub = P.x > B.arenaMin[0] && P.x < B.arenaMax[0] && P.z > B.arenaMin[2] && P.z < B.arenaMax[2];
     return ok(run.phase === 'boss' && run.boss?.kind === 'hair' && inTub, { phase: run.phase, kind: run.boss?.kind, at: r3(P) });
+  },
+});
+
+// --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
+const phone = (name, s) => story('phone/' + name, { phone: true, ...s });
+phone('light-slots-follow-the-jelly', {
+  about: 'A phone lights the room with 6 shared lights: the lamps lighting the jelly most fade into them as it swims across the room (and the far ones out), and no shader is rebuilt on the way.',
+  setup() { fresh({ elites: false }); tp(4.2, 0.05, 3.5, 0); },
+  play() {
+    const { pacing, APT, GAME } = G(), S = pacing.lightSlots;
+    const pointLights = () => { let n = 0; APT.scene.traverse((o) => { if (o.isPointLight && o.visible) n++; }); return n; };
+    step(40); GAME.render();
+    const best = () => [...S.lamps].sort((a, b) => b.score - a.score)[0].light;   // the lamp lighting the jelly most
+    const east = best(), eastLit = S.lit().includes(east), eastSet = S.lit();
+    const programs = APT.renderer.info.programs.length, lights = pointLights();
+    const fading = [];
+    for (let i = 0; i < 40; i++) {   // swim, not teleport: a few cm a frame
+      G().player.position.x = 4.2 - (3.5 * i) / 40; G().player.position.z = 3.5 - (2.2 * i) / 40; GAME.step(1 / 60); }
+    for (const s of S.slots) if (s.lamp && s.lamp.w > 0 && s.lamp.w < 1) fading.push(+s.lamp.w.toFixed(2));
+    step(60); GAME.render();
+    const west = best(), westLit = west !== east && S.lit().includes(west) && eastSet.some((l) => !S.lit().includes(l));
+    // the light count never changed, so no shader was rebuilt for it (a rebuild would add ~100
+    // programs; a new effect appearing on the way may add one)
+    const same = APT.renderer.info.programs.length - programs < 5 && pointLights() === lights;
+    return ok(S.slots.length === 6 && S.lit().length <= 6 && eastLit && westLit && fading.length > 0 && same,
+      { slots: S.slots.length, lamps: S.lamps.length, lit: S.lit().length, eastLit, westLit, fading, programs, lights, nowPrograms: APT.renderer.info.programs.length });
+  },
+});
+phone('graphics-reset-recovers', {
+  about: 'When the graphics chip resets (iOS backgrounding), the game pauses with a note, rebuilds once the browser gives the GPU back, and draws again; no error panel.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { APT, GAME, gpu, gfx } = G();
+    const ext = APT.renderer.getContext().getExtension('WEBGL_lose_context');
+    const wait = (f, ms = 60000) => new Promise((res) => { const t0 = performance.now(); const tick = () => (f() || performance.now() - t0 > ms ? res(f()) : setTimeout(tick, 50)); tick(); });
+    const before = gpu.restores;
+    ext.loseContext();
+    const lost = await wait(() => gpu.lost, 5000);
+    const note = document.querySelector('.gpu-note'), noteShown = !note.hidden;
+    const paused = !document.querySelector('#g-over').hidden;
+    ext.restoreContext();
+    const back = await wait(() => gpu.restores > before);
+    document.querySelector('#g-over').hidden = true;
+    step(5); GAME.render();
+    const drew = gfx.frameInfo.calls > 0;
+    const panel = [...document.querySelectorAll('.jf-keep')].some((e) => /⚠/.test(e.textContent));
+    return ok(lost && noteShown && paused && back && note.hidden && drew && !panel, { lost, noteShown, paused, back, noteHidden: note.hidden, drew, calls: gfx.frameInfo.calls, panel });
   },
 });
 

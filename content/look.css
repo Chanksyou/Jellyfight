@@ -55,6 +55,19 @@
   --guts-mosquito: #15151a #f4f4f0 #b0202a #b0202a;
   --guts-lanternfly: #cdb6a6 #16141a #d01e2a #e6b81e;
 
+  /* --- how often and how sharp (src/pacing.js, src/light-slots.js) ------------- */
+  --phone-fps: 60;             /* frame-rate cap on phones (0 = none): a 120 Hz screen gains nothing but heat */
+  --desktop-fps: 0;
+  --menu-fps: 20;              /* how often the game behind a menu redraws */
+  --phone-pixel-ratio: 1.5;    /* the sharpest a phone draws (an iPhone's screen is 3) */
+  --desktop-pixel-ratio: 2;
+  --min-pixel-ratio: 1;        /* the governor never draws blurrier than this */
+  --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
+  --desktop-lights: 0;
+  --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
+  --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
+  --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
+
   /* --- the camera ------------------------------------------------------------ */
   --camera-distance: 0.6;      /* meters behind the jelly */
   --camera-distance-phone: 0.52;

@@ -1,7 +1,7 @@
 # Jelly Fight: how to change this game
 
 A jellyfish roguelike in a real-scale 3D apartment. Three.js, plain ES modules, no build step.
-Players are on phones (Pixel, Chrome) as much as desktops.
+Players are on phones (iPhone 13+ in Safari, Pixel 8+ in Chrome) as much as desktops.
 
 The game is meant to be changed by short requests to agents that have never seen it. That
 works because every kind of change has **one home**, things are described in **plain-text
@@ -14,6 +14,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
+| Frame-rate cap, pixel ratio range, lamps lit at once on phones | `content/look.css` (`--phone-fps`, `--*-pixel-ratio`, `--phone-lights`) | Logic in `src/pacing.js` and `src/light-slots.js`; graphics-reset recovery in `src/gpu-recovery.js` |
 | Vents, golden gift times, gift spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
@@ -61,7 +62,9 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    numbers to make a test pass.
 6. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
    `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
-7. **Phones first.** Phones run the `low` graphics setting (no bloom, no AO). Keep draw
+7. **Phones first.** Phones run graphics Auto: `low` (no bloom, no AO), stepping up to `medium` only while
+   frames stay quick (`src/pacing.js`). Never add or remove a light during play (a new light count rebuilds
+   every shader and stalls a phone); a new lamp is a `userData.lamp` point light that `src/light-slots.js` shares. Keep draw
    calls low: small moving things are instanced through `src/batch.js` (`batcher.track(mesh)`);
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,

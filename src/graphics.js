@@ -10,7 +10,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { N8AOPass } from 'n8ao';
 
 export const QUALITY = ['low', 'medium', 'high'];
-const STORE = 'jellyfight.quality';
+// what the player picked: a tier, or 'auto' (phones: pacing.js moves between low and medium).
+// A new key: the old one stored every phone's default as 'low', which would hide Auto from them.
+export const CHOICES = ['auto', ...QUALITY];
+const STORE = 'jellyfight.graphics';
 
 // Depth of field that reads the logarithmic depth buffer. Blur grows with how far a pixel's
 // depth is from the focus distance (the player), with a golden-angle disk of samples.
@@ -20,7 +23,7 @@ const DofShader = {
     tDepth: { value: null },
     resolution: { value: new THREE.Vector2(1, 1) },
     logFar: { value: Math.log2(561) }, // log2(camera.far + 1)
-    logDepth: { value: 1 },            // 0 when the renderer uses a normal depth buffer (phones)
+    depthMode: { value: 1 },           // 0 normal depth buffer, 1 logarithmic, 2 reversed (boot.js)
     near: { value: 0.005 },
     far: { value: 560 },
     focus: { value: 0.16 },            // meters from the camera
@@ -34,11 +37,12 @@ const DofShader = {
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse, tDepth;
     uniform vec2 resolution;
-    uniform float logFar, focus, strength, maxBlur, vignette, logDepth, near, far;
+    uniform float logFar, focus, strength, maxBlur, vignette, depthMode, near, far;
     varying vec2 vUv;
     float viewDist(vec2 uv) {
       float d = texture2D(tDepth, uv).x;
-      if (logDepth > 0.5) return exp2(d * logFar) - 1.0;
+      if (depthMode > 1.5) return (near * far) / (d * (far - near) + near);   // reversed: 1 at near, 0 at far
+      if (depthMode > 0.5) return exp2(d * logFar) - 1.0;
       return (near * far) / ((far - near) * d - far) * -1.0;   // perspective depth -> distance
     }
     float coc(float z) {
@@ -101,13 +105,23 @@ export class Graphics {
     this.focus = 0.16;
     let q = defaultQuality;
     try { q = localStorage.getItem(STORE) || q; } catch {}
-    this.setQuality(QUALITY.includes(q) ? q : 'high');
+    this.choose(CHOICES.includes(q) ? q : defaultQuality, false);
     addEventListener('resize', () => this.resize());
   }
 
-  setQuality(q) {
+  // the player's pick from the pause menu: a tier, or 'auto' (starts on low)
+  setQuality(q) { this.choose(q, true); }
+
+  choose(q, remember) {
+    this.choice = q;
+    this.auto = q === 'auto';
+    if (remember) try { localStorage.setItem(STORE, q); } catch {}
+    this.setTier(this.auto ? 'low' : q);
+  }
+
+  // the tier actually drawn (the frame governor changes it under 'auto')
+  setTier(q) {
     this.quality = q;
-    try { localStorage.setItem(STORE, q); } catch {}
     this.build();
   }
 
@@ -188,7 +202,8 @@ export class Graphics {
       const u = this.dof.uniforms;
       u.focus.value = this.focus;
       u.logFar.value = Math.log2(this.camera.far + 1);
-      u.logDepth.value = this.renderer.capabilities.logarithmicDepthBuffer ? 1 : 0;
+      const caps = this.renderer.capabilities;
+      u.depthMode.value = caps.reversedDepthBuffer ? 2 : caps.logarithmicDepthBuffer ? 1 : 0;
       u.near.value = this.camera.near;
       u.far.value = this.camera.far;
     }

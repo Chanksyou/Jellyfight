@@ -116,6 +116,7 @@ function addLights(scene, lights) {
     if (!light) continue;
     light.position.fromArray(L.position);
     light.userData.act = L.act;
+    if (light.isPointLight) light.userData.lamp = true;   // phones share a few lights among the lamps (light-slots.js)
     if (L.target) { light.target.position.fromArray(L.target); scene.add(light.target); }
     scene.add(light);
   }

@@ -5,7 +5,10 @@ import { World } from './collision.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Input } from './input.js';
-import { Graphics, QUALITY } from './graphics.js';
+import { Graphics, CHOICES } from './graphics.js';
+import { FramePacer, FrameGovernor } from './pacing.js';
+import { LightSlots } from './light-slots.js';
+import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
@@ -28,7 +31,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v112';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v113';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -167,7 +170,12 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'auto' : 'high');
+// Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
+// before the shaders are built (warmUp) so they're built for this light count, once.
+const slotCount = IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);
+const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
+if (lightSlots) APT.lights.rescan();
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
@@ -240,7 +248,7 @@ const systems = {
   camera: camSys,
   shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player }),
   hud: new HudSystem({ state, hud, player, tpc, run }),
-  debug: new DebugSystem({ state, hud, player, run, enemies, dew, gfx }),
+  debug: new DebugSystem({ state, hud, player, run, enemies, dew, gfx, extra: () => pacingReadout() }),
   render: new RenderSystem({ gfx }),
 };
 
@@ -292,9 +300,10 @@ function closeCreator() {
 }
 
 // --- The frame loop -------------------------------------------------------------------
-// Log depth lets the camera sit 2 mm from a wall without flicker. Phones don't use it
-// (too slow on their GPUs), so they get a 5 mm near plane instead.
-camera.near = renderer.capabilities.logarithmicDepthBuffer ? CONFIG.camera.near : 0.005;
+// Reversed or log depth lets the camera sit 2 mm from a wall without flicker (boot.js). A phone
+// without reversed depth gets a 5 mm near plane instead.
+const deepDepth = renderer.capabilities.reversedDepthBuffer || renderer.capabilities.logarithmicDepthBuffer;
+camera.near = deepDepth ? CONFIG.camera.near : 0.005;
 camera.updateProjectionMatrix();
 document.body.classList.add('game');
 // Bring in more of the apartment (a later act's rooms: stage.parts, apartment.js) and make it
@@ -302,6 +311,7 @@ document.body.classList.add('game');
 async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
+  lightSlots?.rescan();               // the new rooms' lamps share the same slots
   applyLayout(APT.root);
   world.addObjects(added);
   mapFurniture();
@@ -335,6 +345,7 @@ const GAME = {
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
+    lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
     systems.hud.update(dt);
     systems.debug.update(dt);
@@ -345,14 +356,14 @@ window.GAME = GAME;
 
 // --- Menus + keys ---------------------------------------------------------------
 function renderQuality() {
-  qualityRow.innerHTML = 'Graphics: ' + QUALITY.map((q) => `<button data-q="${q}" class="${gfx.quality === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('');
+  qualityRow.innerHTML = 'Graphics: ' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('');
 }
 renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.classList.contains('play')) { play(); endContinue(); }
-  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
+  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); governor.tier = gfx.auto ? gfx.quality : null; renderQuality(); }
   else if (b.dataset.act === 'restart') { run.start(); play(); }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
@@ -481,16 +492,55 @@ warmUp().then(() => {
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
 });
 
+// How often and how sharp (pacing.js): phones cap at 60 fps (a 120 Hz Pixel would otherwise do
+// twice the GPU work), everything draws slowly behind a menu, and the governor lowers the pixel
+// ratio when frames run long (and, under graphics Auto, moves between low and medium).
+const pacer = new FramePacer({ fps: IS_TOUCH ? LOOK.num('phone-fps', 60) : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
+const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2));
+const governor = new FrameGovernor({
+  fps: pacer.fps || 60, scale: maxRatio, max: maxRatio, min: Math.min(maxRatio, LOOK.num('min-pixel-ratio', 1)),
+  tier: gfx.auto ? gfx.quality : null,
+});
+renderer.setPixelRatio(maxRatio);
+gfx.resize();
+function adapt(ms) {
+  const c = governor.sample(ms);
+  if (c?.scale) { renderer.setPixelRatio(c.scale); gfx.resize(); }
+  if (c?.tier && gfx.auto) { gfx.setTier(c.tier); renderQuality(); }
+}
+function pacingReadout() {
+  const g = governor, last = g.log[g.log.length - 1];
+  return `${gfx.auto ? 'auto ' : ''}${gfx.quality} | cap ${pacer.fps || 'none'} | aim ${(1000 / g.target).toFixed(0)} fps`
+    + (lightSlots ? ` | lamps ${lightSlots.lit().length}/${lightSlots.lamps.length}` : '')
+    + (last ? ` | last: ${last.why} ${last.scale ?? last.tier}` : '');
+}
+window.pacing = { pacer, governor, lightSlots };
+
+// The graphics chip resetting (iOS backgrounding, out of GPU memory): pause, rebuild, resume
+const gpu = recoverGpu({ renderer, scene, camera, gfx, pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
+// iOS can lose the context while the page is hidden without telling the page: check on return
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && renderer.getContext().isContextLost() && !gpu.lost) {
+    renderer.domElement.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  }
+});
+
 const clock = new Clock();
+let lastFrame = 0;
 renderer.setAnimationLoop((now) => {
+  const covered = !overlay.hidden || menus.open;
+  if (!pacer.due(now, covered)) return;
+  const ms = now - lastFrame;
+  lastFrame = now;
   const dt = clock.tick(now);
   try {
     GAME.step(dt);
     GAME.render();
+    if (!covered && state.mode === 'play' && !run.paused) adapt(ms);
   } catch (e) {
     reportError(e, 'frame');
   }
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, traversal, menus, fx });
+Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, dew, traversal, menus, fx, gpu });

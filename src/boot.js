@@ -13,9 +13,18 @@ THREE.ColorManagement.enabled = false;
 patchLegacyFalloff(THREE);
 
 const canvas = document.getElementById('c');
-// Log depth lets the camera sit 2 mm from a wall without flicker, but it's too slow for
-// phone GPUs, which get a slightly bigger near plane instead (see main.js).
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: !IS_TOUCH });
+// The camera sits 2 mm from walls, which a normal depth buffer can't resolve (walls flicker).
+// A reversed depth buffer can, at no cost, on any GPU with EXT_clip_control (Safari 17.4+ on
+// iPhone, desktop Chrome). Without it: desktop uses log depth (slower, it turns off early depth
+// tests) and phones a bigger near plane (main.js). Asked on a spare canvas, since a renderer
+// can't switch afterwards.
+const clipControl = (() => {
+  try { return !!document.createElement('canvas').getContext('webgl2')?.getExtension('EXT_clip_control'); } catch { return false; }
+})();
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias: true, powerPreference: 'high-performance',
+  reversedDepthBuffer: clipControl, logarithmicDepthBuffer: !clipControl && !IS_TOUCH,
+});
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
