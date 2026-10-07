@@ -197,48 +197,47 @@ function cameraSpots(extra = []) {
   }
   return spots;
 }
-function cameraTour(spots, old) {
-  const { tpc, world } = G(), cfg = tpc.cfg, was = [cfg.autoLift, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead], seen = new Set();
-  if (old) { cfg.autoLift = 0; cfg.clearRadius = 0; cfg.seeThrough = false; cfg.lookAhead = 0; }   // the old camera: one ray, never sees through
-  let maxTilt = 0, blocked = 0;
-  const toCam = V(0, 0, 0);
-  const want = tpc.distance, ds = [], cam = tpc.camera.position, last = V(0, 0, 0);
-  let jumps = 0, maxJump = 0, ms = 0, frames = 0;
-  try {
-    for (const p of spots) {
-      for (let k = 0; k < 16; k++) {
-        tp(...p, (k * Math.PI) / 8); step(30); ds.push(cam.distanceTo(tpc.focus)); for (const m of tpc.over) seen.add(m.name);
-        maxTilt = Math.max(maxTilt, tpc.viewPitch - tpc.pitch);
-        const len = toCam.subVectors(cam, tpc.focus).length();
-        if (world.cast(tpc.focus, toCam.normalize(), len, tpc.over)) blocked++;   // something solid between the jelly and the camera
-      }
-      tp(...p, 0); step(20); last.copy(cam);
-      for (let i = 0; i < 240; i++) {
-        tpc.yaw += (Math.PI * 2) / 240;
-        const t0 = performance.now(); tpc.update(1 / 60, { x: 0, y: 0, wheel: 0 }, G().player.position); ms += performance.now() - t0; frames++;
-        const j = cam.distanceTo(last); last.copy(cam);
-        if (j > 0.1) jumps++;   // a pop: easing moves it a few cm a frame at most
-        maxJump = Math.max(maxJump, j);
-      }
+function cameraTour(spots) {
+  const { tpc, world, APT } = G(), cam = tpc.camera.position, last = V(0, 0, 0), toCam = V(0, 0, 0), seen = new Set();
+  const gfx = G().gfx, tier = gfx.quality;
+  gfx.setTier('low');                     // the same scene shaders, drawn without the slow post-processing
+  const want = [tpc.pitch, tpc.distance], programs = APT.renderer.info.programs.length;
+  let moved = 0, blocked = 0, jumps = 0, maxJump = 0, views = 0;
+  for (const p of spots) {
+    for (let k = 0; k < 16; k++) {
+      tp(...p, (k * Math.PI) / 8); step(30); G().GAME.render(); views++;
+      if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || tpc.pitch !== want[0]) moved++;
+      for (const m of tpc.over) seen.add(m.name);
+      const len = toCam.subVectors(cam, tpc.focus).length();
+      if (world.cast(tpc.focus, toCam.normalize(), len, tpc.over)) blocked++;   // something solid left between the jelly and the camera
     }
-  } finally { [cfg.autoLift, cfg.clearRadius, cfg.seeThrough, cfg.lookAhead] = was; }
-  const frac = (f) => +(ds.filter(f).length / ds.length).toFixed(3);
-  return { views: ds.length, mean: +(ds.reduce((a, b) => a + b, 0) / ds.length / want).toFixed(2), under60: frac((d) => d < want * 0.6), under25cm: frac((d) => d < 0.25), jumps, maxJump: +maxJump.toFixed(3), msPerFrame: +(ms / frames).toFixed(3), maxTilt: +maxTilt.toFixed(3), blocked, seeThrough: [...seen] };
+    tp(...p, 0); step(20); last.copy(cam);
+    for (let i = 0; i < 240; i++) {
+      tpc.yaw += (Math.PI * 2) / 240;
+      tpc.update(1 / 60, { x: 0, y: 0, wheel: 0 }, G().player.position);
+      const j = cam.distanceTo(last); last.copy(cam);
+      if (j > 0.05) jumps++;   // a snap: turning moves it under 2 cm a frame
+      maxJump = Math.max(maxJump, j);
+    }
+  }
+  const newShaders = APT.renderer.info.programs.length - programs;
+  gfx.setTier(tier);
+  return { views, moved, blocked, jumps, maxJump: +maxJump.toFixed(3), newShaders, seeThrough: [...seen] };
 }
 // `under`: a piece of furniture the jelly gets underneath on the tour, which it should see through
 const cameraStory = (extra, under) => ({
-  about: `The camera keeps its tilt: against walls and up on furniture it never swings overhead, it glides in instead, and nothing solid is ever left between it and the jelly; under furniture (${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()}) it sees through it, which fades out until you leave; turning around pops it in less than a one-ray camera.`,
+  about: `The camera never moves on its own: same tilt and distance at every spot and heading, no snaps while turning. Whatever would block the view fades out instead (furniture over the jelly like the ${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()}, a wall behind it), with no shader built on the spot, and turns solid again once clear.`,
   setup() { fresh({ elites: false }); },
   play() {
-    const { tpc, run } = G(), spots = cameraSpots(extra), was = cameraTour(spots, true), now = cameraTour(spots, false);
+    const { tpc, run } = G(), spots = cameraSpots(extra), now = cameraTour(spots);
     // back out in the open, whatever faded is solid again, on its own material
     const s = run.stage.start;
     tp(s[0], 0.05, s[2], 0); step(60);
-    const restored = tpc._fades.size === 0;
-    return ok(now.maxTilt === 0 && now.blocked === 0 && now.under25cm < was.under25cm && now.mean > was.mean && now.jumps < was.jumps && now.maxJump < was.maxJump * 0.75 && now.seeThrough.includes(under) && restored, { spots: spots.length, was, now, restored });
+    const restored = [...tpc._fades.keys()].every((m) => tpc.over.has(m)) && tpc._fades.size <= tpc.over.size;
+    return ok(now.moved === 0 && now.blocked === 0 && now.jumps === 0 && now.newShaders === 0 && now.seeThrough.includes(under) && restored, { spots: spots.length, ...now, restored });
   },
 });
-story('camera/keeps-its-tilt', cameraStory([], 'Media_console_6'));
+story('camera/fixed-view-fades-what-blocks', cameraStory([], 'Media_console_6'));
 // --- golden gifts: on a schedule, somewhere else in the room, for a limited time
 story('gifts/appear-on-schedule', {
   about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
@@ -2172,7 +2171,7 @@ act2('act-2-fewer-bugs-more-dew', {
     return ok(stage.bugs === 0.85 && stage.dew === 1.2 && act2 < plain && act2 >= Math.floor(plain * 0.85) - 1 && dropped === 6, { plain, act2, dropped });
   },
 });
-act2('camera-keeps-its-tilt', cameraStory([[1.3, 0.72, 5.37]], 'Fluted_sideboard_8'));   // plus the bottom of the sink
+act2('camera-fixed-view-fades-what-blocks', cameraStory([[1.3, 0.72, 5.37]], 'Fluted_sideboard_8'));   // plus the bottom of the sink
 act2('jump-out-of-the-sink', {
   about: 'The bathroom sink bowl is about 17 cm deep: from the bottom of it the jelly jumps clear of the rim and out (the default 20 cm jump clears it; at the old 13 cm it was stuck).',
   setup() { fresh({ elites: false }); tp(1.3, 0.72, 5.37, Math.PI); },

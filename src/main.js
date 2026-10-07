@@ -31,7 +31,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v114';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v115';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { Dew } from './pickups.js';
@@ -445,7 +445,7 @@ async function warmUp() {
   scene.add(spit);
   batcher.sync();                                // build the instanced batches so they compile too
   // furniture the camera sees through, as the see-through copies it will swap in (camera.js)
-  const seeThrough = tpc.seeThroughWarmers(new THREE.Box3().setFromObject(APT.root));
+  const seeThrough = tpc.seeThroughWarmers();
   seeThrough.forEach((m) => scene.add(m));
   try {
     await renderer.compileAsync(scene, camera);
