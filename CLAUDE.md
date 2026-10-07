@@ -35,13 +35,21 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    a new treasure is often just a new combination, e.g. `every 3 { ring 0.1 freeze=1 }`.
 2. **Prove it with a story.** `src/stories.js` holds named situations in the real game; each
    `play()` steps the game and asserts what should happen. Add or update a story for every
-   behaviour you change. Run them all before you push:
+   behaviour you change. While you work, run just the stories for what you're touching. Before
+   you push `main`:
+   - **A code change** (anything in `src/`, `index.html`, `vendor/`, `tests/`): run them all. Every
+     push to `main` goes live, and a change in one place (loading, the frame loop) breaks stories
+     far from it.
+   - **Only `content/` or docs**: run the stories for what you changed plus the guards
+     (`node tests/run.mjs content/` and `node tests/run.mjs vocabulary/`); a `look.css` number or
+     a README edit needs nothing.
 
    ```
    cd tests && npm install && npx playwright install chromium   # once
-   node tests/run.mjs            # everything (about 5 minutes headless)
+   node tests/run.mjs            # everything
    node tests/run.mjs elites     # just stories whose name contains "elites"
-   # a story with `act: 2` (act2/... in stories.js) plays in a second page opened on act 2
+   # a story with `act: 2` (act2/... in stories.js) plays in a second page opened on act 2;
+   # one with `phone: true` (phone/...) in a page that looks like a phone
    ```
 
    If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked
@@ -70,7 +78,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
 9. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
-   run the stories, commit, push `main`, then publish to the artifact (copy changed files,
+   run the stories (rule 2), commit, push `main` (no need to ask), then publish to the artifact (copy changed files,
    including `content/`, next to `index.html`).
 
 ## Next (the same pattern, not done yet)
