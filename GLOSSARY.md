@@ -65,7 +65,7 @@ _Avoid_: Duplicates
 A Treasure that improves an Element the jelly already has. It never turns up in a treasure pick; it's offered on its own.
 
 **Boss reward**:
-What beating a Boss gives: the metamorphosis, then a Legendary pick of three (Legendary treasures, and Elements the jelly doesn't have yet).
+What beating a Boss gives: the metamorphosis, then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
 
 **Bug**:
 An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug), as opposed to an Elite or the boss.
