@@ -2,7 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -156,6 +156,7 @@ export class Run {
     this.stillT = 0;
     this.squeakCd = [];
     this.grown = {}; this.growCount = {};
+    this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
     if (C) {
@@ -163,6 +164,7 @@ export class Run {
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
       for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount };
+      this.chestsOpened = C.chestsOpened || 0;
       this.health = this.stats.health;
       this.startPicked = true;        // you already have your treasures
     }
@@ -562,19 +564,22 @@ export class Run {
   devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. A Boss can bring you another.',
+    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Every third treasure you find offers one of its upgrades. A Boss can bring you another.',
       () => { this.firstRun.elementChosen = true; this.resume(); });
   }
 
   // start: the starting pick, two elements for your bubbles and one of anything else
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
-  // their stack=N, an element's upgrades only once you own the element) from a treasure in the
-  // room. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
+  // their stack=N) from a treasure chest; every 3rd chest, one of them is an Element upgrade. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
   // source: where the pick came from, which decides the rarities it offers (PICK_TIERS)
   pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.', source = 'room') {
     const tiers = PICK_TIERS[source];
-    const can = (t) => tiers.includes(t.rarity) && this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
-    let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
+    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs));
+    const can = (t) => tiers.includes(t.rarity) && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
+    // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
+    const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
+    const up = ups.length ? rollTreasures(ups, 1, this.S.luck) : [];
+    let left = shuffle([...up, ...rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck)]);
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
@@ -587,7 +592,7 @@ export class Run {
   }
 
   // The start of a run: pick the base version of one element attack you don't have yet (1 of 3,
-  // all Legendary); its upgrades can turn up in treasures from then on.
+  // all Legendary); every 3rd treasure chest then offers one of its upgrades.
   // then: what happens after the pick (or straight away, if you already have every element)
   pickElement(title, sub, then = () => this.resume()) {
     const left = shuffle(TREASURES.filter((t) => ELEMENT_TREASURES.includes(t.id) && !this.owned.has(t.id))).slice(0, 3)
@@ -870,6 +875,7 @@ export class Run {
     const carry = {
       score, stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount,
+      chestsOpened: this.chestsOpened,
     };
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],

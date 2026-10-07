@@ -75,7 +75,8 @@ treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true tex
     element "glitter"
 }
 
-// --- element upgrades: offered (by treasures in the room) only once you own the element (needs=…)
+// --- element upgrades: never in an ordinary treasure pick. Every 3rd treasure chest opened offers one
+// among its three, for an element you own (needs=…), rolled by its own rarity.
 // fire
 treasure "lighterFluid" name="Lighter Fluid" icon="🛢️" rarity="common" needs="candle" attack=#true text="Fire: burns 50% hotter." {
     element-up "fire" burn=1.5

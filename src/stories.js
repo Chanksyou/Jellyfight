@@ -606,24 +606,37 @@ story('attack/element-projectiles', {
   },
 });
 story('treasures/element-rewards', {
-  about: 'Base elements are Legendary and never come from treasures in the room: the start of a run offers 3 Legendary elements you don\'t have (and only elements), and treasures in the room never offer a base element, nor an upgrade for an element you don\'t own.',
+  about: 'Base elements are Legendary and never come from treasure chests: the start of a run offers 3 Legendary elements you don\'t have (and only elements). Element upgrades never turn up in an ordinary pick: owning fire, chests 1, 2, 4 and 5 offer none and chests 3 and 6 offer exactly one (a fire one); with no element, the 3rd chest is three ordinary treasures.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { run, menus } = G();
-    let starts = 0, picks = 0, bad = [], sample = null;
+    const isUp = (t) => t.vocabulary.includes('element-up');
+    let starts = 0, sample = null;
     stub(menus, 'choose', (title, sub, list) => {
-      if (title === 'start') { if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id) && t.tier?.name === 'Legendary')) starts++; sample = list.map((t) => t.id); return; }
-      picks++;
-      for (const t of list) if (ELEMENTS_IDS.includes(t.id) || (t.needs && !run.owned.has(t.needs))) bad.push(t.id);
+      if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id) && t.tier?.name === 'Legendary')) starts++;
+      sample = list.map((t) => t.id);
     });
-    run.owned.add('candle');
     for (let i = 0; i < 60; i++) run.pickElement('start', '');
-    for (let i = 0; i < 300; i++) run.pickTreasure('treasure', '');
-    const fireUpgradesSeen = new Set();
-    stub(menus, 'choose', (title, sub, list) => { for (const t of list) if (t.needs === 'candle') fireUpgradesSeen.add(t.id); });
-    for (let i = 0; i < 400; i++) run.pickTreasure('treasure', '');
+    // a run with fire: count upgrades per chest, over many runs' first six chests
+    let wrong = [], baseEl = 0;
+    let ups = [];
+    stub(menus, 'choose', (title, sub, list) => { ups.push(list.filter(isUp)); if (list.some((t) => ELEMENTS_IDS.includes(t.id))) baseEl++; });
+    for (let r = 0; r < 40; r++) {
+      run.owned.clear(); run.owned.add('candle'); run.chestsOpened = 0; ups = [];
+      for (let c = 0; c < 6; c++) run.pickTreasure('', '', c % 2 ? 'elite' : 'room');
+      ups.forEach((u, i) => {
+        const want = (i + 1) % 3 === 0 ? 1 : 0;
+        if (u.length !== want || u.some((t) => t.needs !== 'candle')) wrong.push(`chest ${i + 1}: ${u.map((t) => t.id)}`);
+      });
+    }
+    // no element: the 3rd chest is three ordinary treasures
+    run.owned.clear(); run.chestsOpened = 2; ups = [];
+    let third = null;
+    stub(menus, 'choose', (title, sub, list) => { third = list; });
+    run.pickTreasure('', '', 'room');
     restore();
-    return ok(starts === 60 && picks === 300 && !bad.length && fireUpgradesSeen.size >= 4, { starts, picks, bad: [...new Set(bad)], fireUpgrades: [...fireUpgradesSeen], sample });
+    const plainThird = third?.length === 3 && !third.some(isUp);
+    return ok(starts === 60 && !wrong.length && !baseEl && plainThird, { starts, wrong: wrong.slice(0, 5), baseEl, plainThird, sample });
   },
 });
 story('enemies/ants-curl-and-roll', {
