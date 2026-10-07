@@ -5,7 +5,7 @@
 //   node tests/balance.mjs          5 nights
 //   node tests/balance.mjs 10       10 nights
 //
-// The bot is simple on purpose: it keeps away from bugs, elites and spit, goes for golden gifts when it's
+// The bot is simple on purpose: it keeps away from bugs, elites and spit, goes for treasures (golden chests) when it's
 // safe, takes the first card or treasure it's offered, and hops when it gets stuck. A real
 // player does better; compare runs of the bot with each other, not with people.
 import { start, openGame } from './lib.mjs';
@@ -37,7 +37,7 @@ for (let n = 0; n < RUNS; n++) {
         // take the first card, or a dialog's main button
         if (menus.open) document.querySelector('.jf-modal .jf-card, .jf-modal button.go, .jf-modal button')?.click();
         document.getElementById('g-over').hidden = true;   // desktop pauses when the mouse isn't locked after a pick: a player would click Play
-        // steer: away from everything close (closer = stronger), else toward a golden gift or the middle
+        // steer: away from everything close (closer = stronger), else toward the nearest treasure or the middle
         let fx = 0, fz = 0;
         const push = (x, z, w) => { const dx = P.x - x, dz = P.z - z, d = Math.max(0.03, Math.hypot(dx, dz)); if (d < 0.45) { fx += dx / d * w / (d * d); fz += dz / d * w / (d * d); } };
         for (const e of enemies.list) if (!e.dead) { const c = enemies.center(e); push(c.x, c.z, e.proxy ? 3 : 1); }   // elites count for more
@@ -45,7 +45,10 @@ for (let n = 0; n < RUNS; n++) {
         if (run.boss && !run.boss.dead) { const c = run.boss.center(); push(c.x, c.z, 4); }
         let tx, tz;
         if (Math.hypot(fx, fz) > 1e-6) { tx = fx; tz = fz; const k = 0.02 / (Math.hypot(fx, fz)); tx += (3.2 - P.x) * k * 40; tz += (3.0 - P.z) * k * 40; }
-        else if (run.gift.active) { tx = run.gift.pos.x - P.x; tz = run.gift.pos.z - P.z; }
+        else if (run.roomTreasures.some((t) => t.active)) {
+          const t = run.roomTreasures.filter((x) => x.active).sort((a, b) => a.pos.distanceTo(P) - b.pos.distanceTo(P))[0];
+          tx = t.pos.x - P.x; tz = t.pos.z - P.z;
+        }
         else { tx = 3.2 - P.x + Math.sin(run.t * 0.3) * 0.3; tz = 3.0 - P.z + Math.cos(run.t * 0.23) * 0.3; }
         if (Math.hypot(tx, tz) > 0.01) { tpc.yaw = Math.atan2(-tx, -tz); input.keys = new Set(['KeyW']); } else input.keys = new Set();
         // hop when stuck against furniture

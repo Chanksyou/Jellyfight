@@ -202,9 +202,9 @@ export class Hud {
   setFurniture(list) { this.furniture = list.filter((f) => (f.x1 - f.x0) * (f.z1 - f.z0) > 0.06 && f.top > 0.12); this.mapBase = null; }
 
   // The minimap, kept quiet: the room in one tone with faint furniture, small coloured dots for
-  // what matters (gold gift, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
+  // what matters (gold treasures, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
   // something is well above or below you, and you as a cyan arrow. Round, centred on you, and
-  // turned so up is where the camera looks (the way "forward" moves you); a gift or an elite past
+  // turned so up is where the camera looks (the way "forward" moves you); a treasure or an elite past
   // its edge sits on the rim, pointing the way.
   // markers: [{ x, y, z, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {

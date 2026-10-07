@@ -136,14 +136,14 @@ export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1) {
   return out;
 }
 
-// Treasures: lost things with their own effects; unique ones once per run, stackable ones up to stack=N.
+// Treasures: things you keep, each with its own effects; unique ones once per run, stackable ones up to stack=N.
 // Treasures live in content/treasures.kdl (name, icon, text and effect words; src/words.js)
 export const TREASURES = CONTENT.treasures;
 
 // Treasures that change how you attack (attack=#true)
 export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t) => t.id);
 // The element attacks' base treasures (the `element` word): only from element rewards (the start
-// of a run, after each boss), never from gifts or elites
+// of a run, after each boss), never from treasures in the room
 export const ELEMENT_TREASURES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element')).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;

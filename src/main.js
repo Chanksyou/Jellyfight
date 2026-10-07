@@ -31,7 +31,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v117';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v118';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -105,12 +105,12 @@ ui.innerHTML = `
   <div class="keys touch-only">
     Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
     ⤴ jump (hold it to climb fabric; Pen Spring adds jumps in the air)<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 4:20 the boss comes. Floor vents fling you up onto furniture.
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab the ✨ treasures that turn up and the ones elites leave; after 4:20 the boss comes. Floor vents fling you up onto furniture.
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab 🎁 golden gifts and beat elites for treasures; after 4:20 the boss comes. Floor vents fling you up onto furniture.<br>
+    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab the ✨ treasures that turn up and the ones elites leave; after 4:20 the boss comes. Floor vents fling you up onto furniture.<br>
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
   </div>
 </div></div>`;
@@ -274,7 +274,7 @@ function closeLayout() {
   state.mode = 'play';
   input.enabled = true;
   hud.el.hidden = false;
-  // things placed on furniture need checking again (gift spots, the player's footing)
+  // things placed on furniture need checking again (treasure spots, the player's footing)
   if (layoutChanged) { run.spots = null; run.start(); mapFurniture(); }
   tpc.snapTo(player.position);
   overlay.hidden = false;
@@ -431,6 +431,7 @@ async function warmUp() {
   scene.add(flash);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
+  run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
   const warmLooks = run.bubbles.looks.warm(P.clone().setY(P.y + 0.03));   // every element projectile
@@ -456,6 +457,7 @@ async function warmUp() {
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   run.gadgets.warm(false);
   run.elites.warm(false);
+  run.roomTreasures[0].hide();
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));
   warmFx.forEach((m) => scene.remove(m));

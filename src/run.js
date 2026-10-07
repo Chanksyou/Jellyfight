@@ -1,5 +1,5 @@
-// One run of stage 1: grow until the timer runs out (grabbing golden gifts and beating elites for
-// treasures), then beat the stage's boss and evolve.
+// One run of stage 1: grow until the timer runs out (grabbing treasures that turn up in the room and
+// the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
 import { BASE_STATS, rollCards, rollTreasures, TREASURE_RARITY, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
@@ -12,12 +12,13 @@ import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
-import { GoldGift } from './pickups.js';
+import { RoomTreasure } from './pickups.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const _drop = new THREE.Vector3();
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
@@ -36,7 +37,8 @@ export class Run {
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles.grace = this.cfg.radius;
-    this.gift = new GoldGift(ctx.scene, ctx.fx);   // golden gifts on a schedule (stage.gifts)
+    // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
+    this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
@@ -104,10 +106,10 @@ export class Run {
     calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
-    this.gift?.hide();
-    this.giftsLeft = [...(this.stage.gifts?.at || [])];   // seconds into the night each golden gift appears
-    this.lastGift = null;
-    this.recentGifts = [];   // the last few gift spots, so each one turns up somewhere new
+    this.roomTreasures?.forEach((t) => t.hide());
+    this.treasureTimesLeft = [...(this.stage.treasures?.at || [])];   // seconds into the night each scheduled treasure appears
+    this.lastTreasureSpot = null;
+    this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
     this.fx.clear();
     this.lash.reset();
@@ -166,7 +168,7 @@ export class Run {
     this.player.snapToGround();
     this.tpc.snapTo(this.player.position);
 
-    // Only open, easy-to-reach gift spots (the apartment is static, so check once)
+    // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
     if (!this.spots) {
       this.spots = [];
       this.spotRejects = [];
@@ -227,7 +229,7 @@ export class Run {
     // every run starts with a treasure: pick 1 of 3 before anything happens
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
-      this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in gifts. You get another after each boss.');
+      this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.');
       return;
     }
     this.t += dt;
@@ -254,11 +256,12 @@ export class Run {
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
     this.slipT = Math.max(0, this.slipT - dt);
-    // --- the night: waves, gifts, and the boss when time runs out
+    // --- the night: waves, treasures, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
     else if (this.phase === 'explore') {
       this.spawnWaves(dt);
-      this.updateGifts(dt);
+      this.scheduleTreasures();
+      this.updateRoomTreasures(dt);
       if (this.t >= this.duration && this.phase === 'explore') this.startBossIntro();
     }
     this.nightT -= dt;
@@ -322,7 +325,7 @@ export class Run {
   // ------------------------------------------------------------ dev: one on one
   // A fresh run with nothing in it but one enemy, to see how it moves and attacks: a bug that
   // turns up in front of you (another 1.5 s after you clear it), or one of this act's elites with
-  // you on its high ground (it comes back after you beat it). No waves, no gifts, no boss.
+  // you on its high ground (it comes back after you beat it). No waves, no scheduled treasures, no boss.
   duelChoices() {
     const bugs = Object.values(TYPES).map((T) => ({ name: T.name, bug: T.id }));
     // every act's elites: one from another act reloads the game into that act first (startDuel)
@@ -459,7 +462,7 @@ export class Run {
   heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
 
   // an enemy_killed event: { pos, r, xp, elite }
-  onKill({ pos: c, r, xp: baseXp, elite }) {
+  onKill({ pos: c, r, xp: baseXp, elite, floor = c.y }) {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
@@ -477,11 +480,10 @@ export class Run {
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
     }
-    if (elite) {                         // elites give back some health and drop a treasure
+    if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
-      this.heal(4);
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
-      if (this.phase === 'explore') this.pickTreasure('✨ Elite cleared!', 'It dropped three lost things. Keep one. (+4 health)');
+      if (this.phase === 'explore') { this.dropTreasure(_drop.set(c.x, floor, c.z)); this.hud.toast('✨ Elite cleared! It left a treasure.', 1800); }
     }
     if (this.mods.burstOnKill) this.bursts.push(c);
   }
@@ -491,10 +493,10 @@ export class Run {
     this.kills++;
     this.elitesBeaten++;
     juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
-    this.heal(4);
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
-    this.pickTreasure(`✨ ${e.name} is beaten!`, `It was guarding the ${e.spec.area}. It dropped three lost things: keep one. (+4 health)`);
+    this.dropTreasure(e.base);
+    this.hud.toast(`✨ ${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
@@ -543,13 +545,11 @@ export class Run {
     if (!this.ui.open) this.onResume?.();
   }
 
-  // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
-  // their stack=N) from a golden gift or an elite
   // start: the starting pick, two elements for your bubbles and one of anything else
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
-  // their stack=N, an element's upgrades only once you own the element) from a golden gift or an
-  // elite. Base elements never come from here: they're element rewards (pickElement).
-  pickTreasure(title = '🎁 A treasure', sub = 'Three lost things. Keep one.') {
+  // their stack=N, an element's upgrades only once you own the element) from a treasure in the
+  // room. Base elements never come from here: they're element rewards (pickElement).
+  pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.') {
     const can = (t) => this.owned.count(t.id) < t.stack && !ELEMENT_TREASURES.includes(t.id) && (!t.needs || this.owned.has(t.needs));
     let left = rollTreasures(TREASURES.filter(can), 3, this.S.luck);
     if (!left.length) return;
@@ -564,7 +564,7 @@ export class Run {
   }
 
   // An element reward: the start of a run, and after each boss. Pick the base version of one
-  // element attack you don't have yet (1 of 3); its upgrades can turn up in gifts from then on.
+  // element attack you don't have yet (1 of 3); its upgrades can turn up in treasures from then on.
   // then: what happens after the pick (or straight away, if you already have every element)
   pickElement(title, sub, then = () => this.resume()) {
     const left = shuffle(TREASURES.filter((t) => ELEMENT_TREASURES.includes(t.id) && !this.owned.has(t.id))).slice(0, 3)
@@ -585,32 +585,46 @@ export class Run {
     });
   }
 
-  // ------------------------------------------------------------ golden gifts
-  // At each time in stage.gifts.at a golden gift turns up somewhere else in the room and waits
-  // stage.gifts.stay seconds; touch it in time for a treasure pick
-  updateGifts(dt) {
-    const G = this.stage.gifts;
-    if (!G) return;
-    const r = this.gift.update(dt, this.t, this.player.position);
-    if (r === 'taken') this.pickTreasure('🎁 A golden gift!', 'You got there in time. Keep one.');
-    else if (r === 'gone') this.hud.toast('🎁 The golden gift faded away…', 1800);
-    if (!this.gift.active && this.giftsLeft.length && this.t >= this.giftsLeft[0]) {
-      this.giftsLeft.shift();
-      const spot = this.giftSpot();
-      if (!spot) return;
-      this.gift.show(spot, G.stay);
-      this.lastGift = spot;
-      this.recentGifts = [spot.label, ...this.recentGifts].slice(0, 3);
-      this.hud.toast(`🎁 A golden gift appeared: ${spot.label}. ${G.stay} seconds to grab it!`, 2800);
+  // ------------------------------------------------------------ treasures in the room
+  // At each time in stage.treasures.at a treasure turns up somewhere else in the room and waits
+  // stage.treasures.stay seconds; touch it in time for a treasure pick
+  scheduleTreasures() {
+    const T = this.stage.treasures;
+    if (!T || !this.treasureTimesLeft.length || this.t < this.treasureTimesLeft[0]) return;
+    if (this.roomTreasures.some((t) => t.active && t.timed)) return;   // one scheduled at a time: the next waits
+    this.treasureTimesLeft.shift();
+    const spot = this.nextTreasureSpot();
+    if (!spot) return;
+    this.placeTreasure(spot, T.stay);
+    this.lastTreasureSpot = spot;
+    this.recentTreasureSpots = [spot.label, ...this.recentTreasureSpots].slice(0, 3);
+    this.hud.toast(`✨ A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
+  }
+
+  // A beaten elite leaves its treasure where it fell; it waits there for the rest of the act
+  dropTreasure(at) { this.placeTreasure(at.clone(), Infinity, Math.random() * Math.PI * 2); }
+
+  placeTreasure(at, stay, facing) {
+    let t = this.roomTreasures.find((x) => !x.active);
+    if (!t) this.roomTreasures.push(t = new RoomTreasure(this.scene, this.fx));
+    t.show(at, stay, facing);
+    return t;
+  }
+
+  updateRoomTreasures(dt) {
+    for (const t of this.roomTreasures) {
+      const r = t.update(dt, this.t, this.player.position);
+      if (r === 'taken') this.pickTreasure('✨ A treasure!', t.timed ? 'You got there in time. Pick one to keep.' : 'Pick one to keep.');
+      else if (r === 'gone') this.hud.toast('✨ The treasure faded away…', 1800);
     }
   }
 
   // somewhere else: away from you, in another part of the room from the last one, not one of the
   // last three spots (from the stage's open spots: flat, nothing overhead)
-  giftSpot() {
-    const P = this.player.position, last = this.lastGift;
+  nextTreasureSpot() {
+    const P = this.player.position, last = this.lastTreasureSpot;
     const ok = (sp, far, elsewhere) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z) > far
-      && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentGifts.includes(sp.label)));
+      && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentTreasureSpots.includes(sp.label)));
     for (const [far, elsewhere] of [[0.8, true], [0.5, true], [0.5, false], [0, false]]) {
       const c = (this.spots || []).filter((sp) => ok(sp, far, elsewhere));
       if (c.length) return c[Math.floor(Math.random() * c.length)];
@@ -618,8 +632,8 @@ export class Run {
     return null;
   }
 
-  // ------------------------------------------------------------ gift spots
-  // A gift on a vent's landing point would be grabbed just by taking the vent, so a spot that
+  // ------------------------------------------------------------ treasure spots
+  // A treasure on a vent's landing point would be grabbed just by taking the vent, so a spot that
   // close to one moves over (15-35 cm, staying on the same surface and open), or is dropped
   offLanding(sp, y) {
     const lands = this.traversal.vents.map((v) => v.land);
@@ -635,7 +649,7 @@ export class Run {
     return null;
   }
 
-  // A gift spot must be easy to see and reach: open sky above it (the camera looks down),
+  // A treasure spot must be easy to see and reach: open sky above it (the camera looks down),
   // nothing crowding it, and flat ground. Returns the surface height, or null with a reason.
   openSpot([x, y, z]) {
     const W = this.world, V = (a, b, c) => new THREE.Vector3(a, b, c);
@@ -679,7 +693,7 @@ export class Run {
       this.enemies.clear();
       this.traversal.bossMode = true;
       this.elites.clear();
-      this.gift.hide();
+      this.roomTreasures.forEach((t) => t.hide());
       this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) m.userData.field.visible = true; });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
@@ -870,14 +884,14 @@ export class Run {
     // big: how long until the boss; small: the night's clock and who's coming
     const clock = `${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM`;
     const exploring = this.phase === 'explore';
-    h.setClock(exploring ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
-    h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name} is coming` : '');
+    h.setClock(exploring ? `Boss in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
+    h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
   }
 
   markers() {
     const out = [];
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) out.push({ kind: 'enemy', x: e.pos.x, y: e.pos.y, z: e.pos.z });
-    if (this.phase === 'explore' && this.gift.active) { const g = this.gift.pos; out.push({ x: g.x, y: g.y, z: g.z, color: '#ffc93a', big: true }); }
+    if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) out.push({ kind: 'treasure', x: t.pos.x, y: t.pos.y, z: t.pos.z, color: '#ffc93a', big: true });
     if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ff8a3a' });
     if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true }); }
     return out;

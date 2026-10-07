@@ -417,7 +417,7 @@ export const TREASURE_WORDS = {
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
-    doc: 'An element attack of its own: fire, lightning, ice, acid, wind or glitter (bubbles.js). It fires its own projectile on its own timer, separate from your bubbles. You get these from element rewards (the start of a run and after each boss), not from gifts.',
+    doc: 'An element attack of its own: fire, lightning, ice, acid, wind or glitter (bubbles.js). It fires its own projectile on its own timer, separate from your bubbles. You get these from element rewards (the start of a run and after each boss), not from treasures.',
     args: ['name'],
     make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
   },

@@ -51,7 +51,7 @@ export const STAGE1 = {
     { name: 'Corduroy sofa', min: [0.8, 0, 2.28], max: [2.4, 0.5, 2.45] },   // the front of the seat
   ],
 
-  // Where golden gifts can turn up. At the start of each run the game keeps only spots that
+  // Where treasures can turn up. At the start of each run the game keeps only spots that
   // are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
   spots: [
     { area: 'Floor', at: [3.2, 0, 3.0], label: 'middle of the room' },
@@ -70,10 +70,11 @@ export const STAGE1 = {
     { area: 'Furniture', at: [1.0, 0.603, 4.45], label: 'media console' },
   ],
 
-  // Golden gifts (pickups.js GoldGift): one turns up at each of these times (seconds into the
-  // night) at an open spot somewhere else in the room, and waits `stay` seconds. Touch it in time
-  // for a treasure pick; if you don't, it fades away.
-  gifts: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
+  // Treasures in the room (pickups.js RoomTreasure, a golden chest): one turns up at each of these
+  // times (seconds into the night) at an open spot somewhere else in the room, and waits `stay`
+  // seconds. Touch it in time for a treasure pick; if you don't, it fades away. (Elites also leave
+  // one where they fall, which waits for good.)
+  treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
 
   // High-ground elites (elites.js): real objects that came alive, one on each raised area.
   // `hide` is the apartment object each one stands in for while it's alive.

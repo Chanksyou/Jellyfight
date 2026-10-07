@@ -1,4 +1,4 @@
-// Things you collect: XP (XP) and golden gifts.
+// Things you collect: XP and treasures (each waiting in the room as a golden chest).
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 
@@ -71,39 +71,54 @@ export class XpDrops {
   }
 }
 
-// ---------------------------------------------------------------- golden gift
-// A treasure that turns up on a schedule (stage.gifts) somewhere in the room and waits `stay`
-// seconds: a bright gold gift box under a tall beam of light, with a ring on the floor that
-// drains as its time runs out (it blinks for the last few seconds). Touch it for a treasure pick.
-export class GoldGift {
+// ---------------------------------------------------------------- treasure
+// A treasure waiting in the room, shown as a small golden chest that glows softly and twinkles.
+// Touch it for a treasure pick. One that turns up on the schedule (stage.treasures) waits `stay`
+// seconds, with a gold ring on the floor that drains as its time runs out (blinking for the last
+// few seconds); one an elite drops waits for good (stay = Infinity, no ring).
+// The chest's materials and shapes are shared by every chest, so a second one needs no new shaders.
+let CHEST = null;
+function chestParts(fx) {
+  if (CHEST) return CHEST;
+  const lit = (c, k, metal = 0.6) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, roughness: 0.3, metalness: metal, toneMapped: false });
+  const gold = new THREE.Color(0xffc93a);
+  CHEST = {
+    gold,
+    body: lit(0xf0a018, 0.7),                  // deep gold that glows without blowing out to white
+    trim: lit(0xffe08a, 1.0),                  // paler bands, rim and lock
+    dark: lit(0x5a3208, 0.25, 0.3),            // the seam under the lid
+    box: new THREE.BoxGeometry(0.036, 0.018, 0.024),
+    lid: new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2),
+    band: new THREE.BoxGeometry(0.004, 0.0185, 0.0248),
+    lidBand: new THREE.CylinderGeometry(0.0124, 0.0124, 0.004, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2),
+    seam: new THREE.BoxGeometry(0.0365, 0.0015, 0.0245),
+    lock: new THREE.BoxGeometry(0.007, 0.008, 0.002),
+    ring: new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2),
+  };
+  return CHEST;
+}
+
+export class RoomTreasure {
   constructor(scene, fx) {
     this.scene = scene;
     this.fx = fx;
-    this.gold = new THREE.Color(0xffc93a);
-    const lit = (c, k) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, roughness: 0.25, metalness: 0.6, toneMapped: false });
+    const C = chestParts(fx);
+    this.gold = C.gold;
     this.g = new THREE.Group();
-    this.box = new THREE.Group();
-    // deep gold that glows without blowing out to white, under paler ribbons
-    this.box.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.024, 0.03), lit(0xff9a00, 0.85)));
-    const ribbon = lit(0xffe08a, 1.1);
-    for (const [w, d] of [[0.032, 0.007], [0.007, 0.032]]) this.box.add(new THREE.Mesh(new THREE.BoxGeometry(w, 0.025, d), ribbon));
-    for (const s of [-1, 1]) {
-      const loop = new THREE.Mesh(new THREE.TorusGeometry(0.0055, 0.0018, 8, 16), ribbon);
-      loop.position.set(s * 0.005, 0.015, 0);
-      loop.rotation.set(0, Math.PI / 2, s * 0.6);
-      this.box.add(loop);
-    }
-    this.box.scale.setScalar(1.4);
-    // a tall column of gold light, so you can spot it from across the room
-    this.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 1.6, 16, 1, true).translate(0, 0.8, 0),
-      new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));
-    // the countdown on the floor: full when it appears, draining to nothing as it's about to go
-    this.ring = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), fx.tele(this.gold, 'circle'));
+    this.chest = new THREE.Group();
+    const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); this.chest.add(m); return m; };
+    add(C.box, C.body, 0, 0.009, 0);
+    add(C.lid, C.body, 0, 0.018, 0);
+    add(C.seam, C.dark, 0, 0.018, 0);
+    for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); add(C.lidBand, C.trim, x, 0.018, 0); }
+    add(C.lock, C.trim, 0, 0.016, 0.0125);
+    this.chest.scale.setScalar(1.25);
+    this.ring = new THREE.Mesh(C.ring, fx.tele(this.gold, 'circle'));   // each chest's own timer (same shader)
     this.ring.material.uniforms.uFlow.value = -1;   // its stripes run outward: something good, not an incoming hit
     this.ring.scale.setScalar(0.055);
     this.ring.position.y = 0.002;
     this.ring.renderOrder = 3;
-    this.g.add(this.box, this.beam, this.ring);
+    this.g.add(this.chest, this.ring);
     this.g.visible = false;
     scene.add(this.g);
     this.active = false;
@@ -112,39 +127,39 @@ export class GoldGift {
   }
 
   get pos() { return this.g.position; }
+  get timed() { return Number.isFinite(this.stay); }
 
-  show(spot, stay) {
-    this.spot = spot;
+  // at: { at: [x, y, z], y, label } (a spot) or a Vector3; stay: seconds, or Infinity
+  show(at, stay = Infinity, facing = 0) {
+    this.spot = at.isVector3 ? null : at;
     this.stay = stay;
     this.left = stay;
     this.active = true;
-    this.g.position.set(spot.at[0], spot.y, spot.at[2]);
+    if (at.isVector3) this.g.position.copy(at); else this.g.position.set(at.at[0], at.y, at.at[2]);
+    this.chest.rotation.y = facing;
+    this.ring.visible = this.timed;
     this.g.visible = true;
     this.g.updateMatrixWorld(true);
-    this.fx.impact(this.g.position.clone().setY(spot.y + 0.02), this.gold, 0.04, 16);
+    this.fx.impact(_v.copy(this.g.position).setY(this.g.position.y + 0.02), this.gold, 0.04, 16);
   }
 
   hide() { this.active = false; this.g.visible = false; }
 
-  // 'taken', 'gone' (time ran out) or null
+  // 'taken', 'gone' (its time ran out) or null
   update(dt, t, feet) {
     if (!this.active) return null;
     this.left -= dt;
     const p = this.g.position;
-    this.box.rotation.y += dt * 1.5;
-    this.box.position.y = 0.014 + Math.abs(Math.sin(t * 2.5)) * 0.006;
-    const k = Math.max(0, this.left / this.stay);
-    this.ring.material.progress = k;
     // blink for the last 4 seconds, faster as it goes
-    const blink = this.left < 4 ? (Math.sin(t * (10 + (4 - this.left) * 6)) > 0 ? 1 : 0.25) : 1;
-    this.beam.material.opacity = 0.4 * blink;
-    this.ring.material.opacity = blink;
-    // a warm halo, and sparkles rising up the beam
-    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.02), this.gold, 0.16 * (0.6 + 0.4 * blink), 0.9);
+    const blink = this.timed && this.left < 4 ? (Math.sin(t * (10 + (4 - this.left) * 6)) > 0 ? 1 : 0.25) : 1;
+    if (this.timed) { this.ring.material.progress = Math.max(0, this.left / this.stay); this.ring.material.opacity = blink; }
+    // a soft gold glow that breathes, and a twinkle now and then on the chest
+    const breathe = 0.75 + 0.25 * Math.sin(t * 2.2);
+    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.018), this.gold, 0.09 * breathe * (0.6 + 0.4 * blink), 0.9);
     if ((this.sparkT -= dt) <= 0) {
-      this.sparkT = 0.06;
-      _w.set((Math.random() - 0.5) * 0.04, 0.05 + Math.random() * 0.12, (Math.random() - 0.5) * 0.04);
-      this.fx.glow.emit(_v.copy(p).setY(p.y + 0.02), this.gold, 0.012, 0.002, 0.9, 0.9, _w, -0.05);
+      this.sparkT = 0.18 + Math.random() * 0.2;
+      _w.set((Math.random() - 0.5) * 0.008, 0.01 + Math.random() * 0.012, (Math.random() - 0.5) * 0.008);
+      this.fx.glow.emit(_v.set(p.x + (Math.random() - 0.5) * 0.04, p.y + 0.012 + Math.random() * 0.02, p.z + (Math.random() - 0.5) * 0.03), this.gold, 0.007, 0.001, 0.5, 1, _w, -0.02);
     }
     if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < 0.045 || p.distanceTo(feet) < 0.04) {
       this.fx.impact(_v.copy(p).setY(p.y + 0.02), this.gold, 0.05, 24);

@@ -69,7 +69,7 @@ export const STAGE2 = {
     { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [0.8, 0.62, 7.27], boss: false },   // the open bathroom door covers the rest of the tub
   ],
 
-  // Where golden gifts can turn up. At the start of each run the game keeps only spots that
+  // Where treasures can turn up. At the start of each run the game keeps only spots that
   // are open: nothing overhead, nothing crowding them, flat ground (see Run.openSpot), and
   // moves any on a vent's landing point over.
   spots: [
@@ -89,8 +89,8 @@ export const STAGE2 = {
     { area: 'Hallway', at: [3.39, 0.696, 5.92], label: 'recycling bin lid' },
   ],
 
-  // Golden gifts, as in stage 1
-  gifts: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
+  // Treasures in the room, as in stage 1
+  treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
 
   // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
   // lands you beside it)

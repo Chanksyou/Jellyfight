@@ -45,9 +45,9 @@ function restore() {
   }
 }
 
-// A clean run with the noise switched off: no waves, no gifts, no level-ups, no dying
+// A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
 // (each can be turned back on), and the start pick skipped.
-export function fresh({ waves = false, gifts = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
+export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true } = {}) {
   const { run, menus, enemies } = G();
   restore();
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
@@ -56,7 +56,7 @@ export function fresh({ waves = false, gifts = false, hurt = false, levels = fal
   run.startPicked = true;
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
-  if (!gifts) stub(run, 'updateGifts', () => {});
+  if (!treasures) stub(run, 'scheduleTreasures', () => {});   // elites' chests still work
   if (!hurt) stub(run, 'hurt', () => {});
   if (!levels) stub(run, 'levelUp', () => {});
   if (!bubbles) stub(run.bubbles, 'update', () => {});
@@ -239,10 +239,12 @@ const cameraStory = (extra, under) => ({
   },
 });
 story('camera/fixed-view-fades-what-blocks', cameraStory([], 'Media_console_6'));
-// --- golden gifts: on a schedule, somewhere else in the room, for a limited time
-story('gifts/appear-on-schedule', {
-  about: 'Golden gifts appear at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
-  setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); },
+// --- treasures in the room: golden chests, on a schedule (each somewhere else, for a limited
+// time) and where elites fall (for good)
+const waiting = (timed) => G().run.roomTreasures.filter((t) => t.active && (timed === undefined || t.timed === timed));
+story('treasures/appear-on-schedule', {
+  about: 'Treasures turn up in the room at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
+  setup() { fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), seen = [], spots = new Set();
     let gone = 0;
@@ -250,25 +252,54 @@ story('gifts/appear-on-schedule', {
     const wasActive = { v: false };
     for (let i = 0; i < 60 * 240; i++) {
       G().GAME.step(1 / 60);
-      if (run.gift.active && !wasActive.v) { seen.push(Math.round(run.t)); spots.add(run.gift.spot.label); }
-      wasActive.v = run.gift.active;
+      const t = waiting(true)[0];
+      if (t && !wasActive.v) { seen.push(Math.round(run.t)); spots.add(t.spot.label); }
+      wasActive.v = !!t;
     }
     const want = [15, 60, 105, 165, 225];
     return ok(seen.length === 5 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 4 && spots.size >= 4, { seen, gone, spots: [...spots] });
   },
 });
-story('gifts/touch-for-a-treasure', {
-  about: 'Touching a golden gift in time offers a treasure pick, and it goes away.',
-  setup() { fresh({ elites: false, gifts: true }); tp(3.2, 0.05, 3.0, 0); G().run.t = 14.9; },
+story('treasures/touch-the-chest', {
+  about: 'A treasure waits in the room as a small golden chest (no beam of light): touching it in time offers a treasure pick, and it goes away.',
+  setup() { fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0); G().run.t = 14.9; },
   play() {
-    const { run, menus } = G();
-    step(30, () => run.gift.active);
-    const p = run.gift.pos.clone();
+    const { run } = G();
+    step(30, () => waiting(true).length);
+    const t = waiting(true)[0], p = t.pos.clone();
+    const size = new THREE.Box3().setFromObject(t.chest).getSize(V(0, 0, 0));
+    const small = size.y < 0.05 && size.x < 0.06;            // a chest, not a tall beam
     let offered = false;
     stub(run.ui, 'choose', () => { offered = true; });
     tp(p.x, p.y + 0.01, p.z);
     step(20, () => offered);
-    return ok(offered && !run.gift.active, { offered, at: r3(p) });
+    return ok(offered && !t.active && small, { offered, small, size: r3(size), at: r3(p) });
+  },
+});
+story('treasures/elites-leave-a-chest', {
+  about: 'A beaten elite (an elite bug, or one on its high ground) leaves a golden chest where it fell, with no pick right away and no bonus health; the chest waits for good, and touching it offers the pick.',
+  setup() { fresh({ treasures: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run, enemies } = G();
+    let picks = 0;
+    stub(run.ui, 'choose', () => { picks++; });
+    stub(run.hud, 'toast', () => {});
+    const h0 = run.health = 20;
+    // an elite bug, 25 cm away
+    const bug = enemies.spawn('roach', near(0.25, 0), 1, true); bug.spawnT = 1; bug.hold = true;
+    enemies.kill(bug);
+    step(2);
+    const fromBug = waiting(false)[0], bugSpot = fromBug && Math.hypot(fromBug.pos.x - bug.pos.x, fromBug.pos.z - bug.pos.z) < 0.05;
+    // a high-ground elite
+    const E = run.elites.alive[0];
+    run.eliteDefeated(E);
+    const fromElite = waiting(false).find((t) => t !== fromBug), eliteSpot = fromElite && fromElite.pos.distanceTo(E.base) < 0.02;
+    const noPickYet = picks === 0, noHeal = run.health === h0;
+    step(60 * 60);                                          // a minute later, both still wait
+    const stayed = waiting(false).length === 2;
+    tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(20, () => picks);
+    return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active,
+      { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, health: run.health });
   },
 });
 
@@ -358,24 +389,24 @@ story('attack/element-projectiles', {
   },
 });
 story('treasures/element-rewards', {
-  about: 'Base elements only come from element rewards: the start of a run offers 3 elements you don\'t have (and only elements), and gifts and elites never offer a base element, nor an upgrade for an element you don\'t own.',
+  about: 'Base elements only come from element rewards: the start of a run offers 3 elements you don\'t have (and only elements), and treasures in the room never offer a base element, nor an upgrade for an element you don\'t own.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { run, menus } = G();
-    let starts = 0, gifts = 0, bad = [], sample = null;
+    let starts = 0, picks = 0, bad = [], sample = null;
     stub(menus, 'choose', (title, sub, list) => {
       if (title === 'start') { if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id))) starts++; sample = list.map((t) => t.id); return; }
-      gifts++;
+      picks++;
       for (const t of list) if (ELEMENTS_IDS.includes(t.id) || (t.needs && !run.owned.has(t.needs))) bad.push(t.id);
     });
     run.owned.add('candle');
     for (let i = 0; i < 60; i++) run.pickElement('start', '');
-    for (let i = 0; i < 300; i++) run.pickTreasure('gift', '');
+    for (let i = 0; i < 300; i++) run.pickTreasure('treasure', '');
     const fireUpgradesSeen = new Set();
     stub(menus, 'choose', (title, sub, list) => { for (const t of list) if (t.needs === 'candle') fireUpgradesSeen.add(t.id); });
-    for (let i = 0; i < 400; i++) run.pickTreasure('gift', '');
+    for (let i = 0; i < 400; i++) run.pickTreasure('treasure', '');
     restore();
-    return ok(starts === 60 && gifts === 300 && !bad.length && fireUpgradesSeen.size >= 4, { starts, gifts, bad: [...new Set(bad)], fireUpgrades: [...fireUpgradesSeen], sample });
+    return ok(starts === 60 && picks === 300 && !bad.length && fireUpgradesSeen.size >= 4, { starts, picks, bad: [...new Set(bad)], fireUpgrades: [...fireUpgradesSeen], sample });
   },
 });
 story('enemies/ants-curl-and-roll', {
@@ -1507,8 +1538,8 @@ story('modes/dev-one-on-one', {
   },
 });
 
-story('gifts/not-on-vent-landings', {
-  about: 'No golden gift spot sits on a vent\'s landing point: the ones that did moved over, onto the same surface.',
+story('treasures/spots-not-on-vent-landings', {
+  about: 'No treasure spot sits on a vent\'s landing point: the ones that did moved over, onto the same surface.',
   setup() { fresh(); },
   play() {
     const { run, traversal } = G();
@@ -1785,13 +1816,13 @@ story('engine/reversed-depth', {
   },
 });
 story('hud/minimap-turns-with-the-camera', {
-  about: 'The minimap is centred on the jelly and turned so up is where the camera looks: a gift just ahead of the camera shows straight up from the middle at any heading, and one far away waits on the rim in its direction. The health and XP bars are big enough to read at a glance.',
+  about: 'The minimap is centred on the jelly and turned so up is where the camera looks: a treasure just ahead of the camera shows straight up from the middle at any heading, and one far away waits on the rim in its direction. The health and XP bars are big enough to read at a glance.',
   setup() { fresh({ elites: false }); tp(2.4, 0.05, 2.2, 0); },
   play() {
     const { hud, player } = G(), P = player.position, c = hud.map, g = c.getContext('2d');
     // where a pure-green marker lands on the map: the centroid of its pixels, relative to the centre
     const find = (mx, mz, yaw) => {
-      hud.update(P, 0, yaw, [{ x: mx, y: P.y, z: mz, color: '#00ff00', kind: 'gift' }]);
+      hud.update(P, 0, yaw, [{ x: mx, y: P.y, z: mz, color: '#00ff00', kind: 'treasure' }]);
       const W = c.width, d = g.getImageData(0, 0, W, W).data;
       let sx = 0, sy = 0, n = 0;
       for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 200 && d[i] < 60 && d[i + 2] < 60) { const k = i / 4; sx += k % W; sy += (k / W) | 0; n++; }
@@ -2418,8 +2449,8 @@ act2('carries-the-run', {
   },
 });
 
-act2('gift-spots', {
-  about: 'Golden gifts can turn up all over the hallway and bathroom, each on a real surface you can reach.',
+act2('treasure-spots', {
+  about: 'Treasures can turn up all over the hallway and bathroom, each on a real surface you can reach.',
   setup() { fresh(); },
   play() {
     const { run } = G();

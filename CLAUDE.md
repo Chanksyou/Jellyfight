@@ -7,6 +7,8 @@ The game is meant to be changed by short requests to agents that have never seen
 works because every kind of change has **one home**, things are described in **plain-text
 content** with a small **vocabulary**, and **stories** prove behaviour. Keep it that way.
 
+Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. Use it; don't bring back the words it lists under _Avoid_.
+
 ## Where each kind of change lives
 
 | To change… | Edit | Notes |
@@ -15,7 +17,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
 | Frame-rate cap, pixel ratio range, lamps lit at once on phones | `content/look.css` (`--phone-fps`, `--*-pixel-ratio`, `--phone-lights`) | Logic in `src/pacing.js` and `src/light-slots.js`; graphics-reset recovery in `src/gpu-recovery.js` |
-| Vents, golden gift times, gift spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
+| Vents, treasure times and spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
 | Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |
@@ -64,7 +66,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
 5. **Don't quietly re-balance.** If a change could make the game harder or easier, offer to
    run the balance bot (**ask the owner first, never run it unasked**; it takes about 15 minutes) before and after (`node tests/balance.mjs 5`: an autopilot plays whole nights
-   and reports how long it lasted, its level and kills, and which sources took its moisture),
+   and reports how long it lasted, its level and kills, and which sources took its Health),
    say what moved with those numbers (the last recorded run is `tests/balance-baseline.txt`),
    and name the one value to change. Don't tweak content
    numbers to make a test pass.

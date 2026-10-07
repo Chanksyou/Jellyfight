@@ -1,4 +1,5 @@
-// Treasures: lost things you keep for the rest of the run, picked from gift boxes
+// Treasures: things you keep for the rest of the run, picked when you open a treasure (a golden
+// chest that turns up in the room, or one an elite leaves)
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
 // Damage numbers are multiples of your power (bubble damage x 1.8) unless a word says otherwise.
@@ -52,7 +53,7 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 
 // --- element attacks (bubbles.js): each fires its own projectile on its own timer, separate from
 // your bubbles. You pick one at the start of a run and another after each boss (element rewards),
-// never from gifts or elites. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
+// never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
 treasure "candle" name="Birthday Candle" icon="🕯️" rarity="rare" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
     element "fire"
@@ -73,7 +74,7 @@ treasure "glitter" name="Glitter" icon="✨" rarity="rare" attack=#true text="Gl
     element "glitter"
 }
 
-// --- element upgrades: offered (by gifts and elites) only once you own the element (needs=…)
+// --- element upgrades: offered (by treasures in the room) only once you own the element (needs=…)
 // fire
 treasure "lighterFluid" name="Lighter Fluid" icon="🛢️" rarity="common" needs="candle" attack=#true text="Fire: burns 50% hotter." {
     element-up "fire" burn=1.5
@@ -360,7 +361,7 @@ treasure "dice" name="Game Die" icon="🎲" rarity="epic" text="Level-up cards r
     card-rarity 1
 }
 
-// --- found later: more lost things
+// --- found later: more treasures
 treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Your health slowly refills: +0.3 a second." stack=3 {
     stat health-regen 0.3
 }
