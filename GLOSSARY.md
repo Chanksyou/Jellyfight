@@ -19,7 +19,7 @@ Health the jelly gets back each second on its own.
 _Avoid_: Moisture regen
 
 **Level**:
-The jelly's rank within a run; each new Level offers a choice of cards that raise its stats (every 3rd Level offers Element upgrades instead, while the jelly has any left to take).
+The jelly's rank within a run; each new Level offers a choice of cards that raise its stats (on every 3rd Level, one of the three is an Element upgrade, while the jelly has any left to take).
 
 **Bubble damage**:
 How hard each of the jelly's bubbles hits when it pops.
@@ -62,7 +62,7 @@ Taking the same Treasure again. A treasure with levels goes up a level; one with
 _Avoid_: Duplicates
 
 **Element upgrade**:
-A Treasure that improves an Element the jelly already has. It never turns up in a treasure pick; it's offered on its own.
+A Treasure that improves an Element the jelly already has. It never turns up in a treasure pick; on every 3rd Level, one of the three cards is an Element upgrade instead.
 
 **Boss reward**:
 What beating a Boss gives: the metamorphosis, then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
