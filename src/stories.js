@@ -1391,6 +1391,21 @@ story('treasures/per', {
       { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
   },
 });
+story('treasures/while', {
+  about: 'while (Dry Sock, High Stool): Dry Sock adds 40% Bubble damage in the air and none once landed; High Stool adds 30% standing on a table and none on the floor.',
+  setup() { setupFight({ lash: false }); give('drySock', 'highStool'); },
+  play() {
+    const { run, player } = G(), bd = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
+    tp(3.2, 0.05, 3.0); player.position.y = 0.25; player.grounded = false; step(2);   // falling: in the air
+    const air = bd(), grounded0 = player.grounded;
+    step(120, () => player.grounded);
+    const floor = bd();                                            // landed on the floor
+    tp(0.66, 0.85, 2.84); step(120, () => player.grounded);        // onto the kitchen table (the Mug's high ground)
+    const table = bd(), tableY = player.position.y;
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    return ok(!grounded0 && near(air, 40) && near(floor, 0) && near(table, 30) && tableY > 0.5, { air, floor, table, tableY: +tableY.toFixed(2), grounded0 });
+  },
+});
 story('treasures/found-count-carries-over', {
   about: 'The count of treasures found (each one opened adds 1) carries into the next act with the rest of the run.',
   setup() { setupFight({ lash: false }); },

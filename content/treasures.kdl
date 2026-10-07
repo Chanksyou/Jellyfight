@@ -460,3 +460,11 @@ treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text=
 treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+2% Bubble damage for every treasure found this run." stack=5 {
     per "bubble-damage" 2 every=1 of="chests" percent=#true
 }
+
+// --- conditionals (while): a bonus only while something holds
+treasure "drySock" name="Dry Sock" icon="🧦" rarity="epic" text="+40% Bubble damage while you're in the air." stack=3 {
+    while "airborne" "bubble-damage" 40 percent=#true
+}
+treasure "highStool" name="High Stool" icon="🪑" rarity="epic" text="+30% Bubble damage while you stand on furniture above the floor." stack=3 {
+    while "high-ground" "bubble-damage" 30 percent=#true
+}

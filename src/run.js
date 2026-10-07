@@ -24,6 +24,10 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 
 // Which rarities a treasure pick offers, by where it came from: a chest that turned up in the room
 // (on the schedule) or one a beaten Elite left. The Boss reward is Legendary only (pickLegendary).
+// Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
+// not a rug or a threshold
+const HIGH_GROUND = 0.1;
+
 const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
@@ -203,6 +207,12 @@ export class Run {
     const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
     const grown = this.grown || {};
     for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
+    // while: conditionals, true right now or not (the jelly in the air, or up on furniture)
+    const whiles = this.mods.whiles;
+    if (whiles.length) {
+      const P = this.player, air = !P.grounded && !P.climbing, high = P.grounded && P.position.y > (this.stage.floorY || 0) + HIGH_GROUND;
+      for (const c of whiles) if (c.when === 'airborne' ? air : high) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+    }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
     if (per.length) {

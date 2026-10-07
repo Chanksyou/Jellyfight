@@ -348,6 +348,7 @@ export function newMods() {
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], spout: null, burstOnKill: null, cardRarity: 0,
+    whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
   };
@@ -409,6 +410,9 @@ export const TIMED_WORDS = {
   },
 };
 
+// When a `while` holds (Run.S checks it each time the stats are read)
+export const WHILE_WHEN = ['airborne', 'high-ground'];
+
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
 
@@ -468,6 +472,17 @@ export const TREASURE_WORDS = {
       if (!PER_SOURCES.includes(p.of)) throw new Error(`per: of= must be one of ${PER_SOURCES.join(', ')}, not "${p.of}"`);
       if (!(p.every > 0)) throw new Error('per: every= must be more than 0');
       return (m) => { m.per.push({ stat: key, amount, every: p.every, of: p.of, percent: p.percent }); };
+    },
+  },
+  while: {
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground) or high-ground (standing on furniture, above the floor). Stat names as in `stat`.',
+    args: ['when', 'name', 'amount'],
+    props: { percent: false },
+    make: ([when, name, amount], p) => {
+      if (!WHILE_WHEN.includes(when)) throw new Error(`while: when must be one of ${WHILE_WHEN.join(', ')}, not "${when}"`);
+      const key = STAT_NAMES[name];
+      if (!key) throw new Error(`while: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },
