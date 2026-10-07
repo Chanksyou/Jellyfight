@@ -48,8 +48,8 @@ _Avoid_: Lash speed
 ### Things the jelly meets
 
 **Treasure**:
-An item the jelly keeps for the rest of the run, chosen from a pick of three. A treasure waiting in the room looks like a small golden chest; touching it offers the pick.
-_Avoid_: Gift, golden gift, lost things, item
+An item the jelly keeps for the rest of the run, chosen from a pick of three. Treasures turn up in the room on a schedule, as a small golden chest the jelly touches to open the pick, and beaten Elites give a pick too; either way it's the same pick of treasures.
+_Avoid_: Gift, golden gift, lost things, item, chest (the chest is just how a treasure looks before it's picked)
 
 **Bug**:
 An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug), as opposed to an Elite or the boss.
