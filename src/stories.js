@@ -1784,6 +1784,32 @@ story('engine/reversed-depth', {
     return ok(good, { can, reversed: caps.reversedDepthBuffer, log: caps.logarithmicDepthBuffer, near: APT.camera.near, mode });
   },
 });
+story('hud/minimap-turns-with-the-camera', {
+  about: 'The minimap is centred on the jelly and turned so up is where the camera looks: a gift just ahead of the camera shows straight up from the middle at any heading, and one far away waits on the rim in its direction. The health and XP bars are big enough to read at a glance.',
+  setup() { fresh({ elites: false }); tp(2.4, 0.05, 2.2, 0); },
+  play() {
+    const { hud, player } = G(), P = player.position, c = hud.map, g = c.getContext('2d');
+    // where a pure-green marker lands on the map: the centroid of its pixels, relative to the centre
+    const find = (mx, mz, yaw) => {
+      hud.update(P, 0, yaw, [{ x: mx, y: P.y, z: mz, color: '#00ff00', kind: 'gift' }]);
+      const W = c.width, d = g.getImageData(0, 0, W, W).data;
+      let sx = 0, sy = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 200 && d[i] < 60 && d[i + 2] < 60) { const k = i / 4; sx += k % W; sy += (k / W) | 0; n++; }
+      return n ? { x: (sx / n - W / 2) / (W / 2), y: (sy / n - W / 2) / (W / 2) } : null;   // -1..1 across the map
+    };
+    const ahead = [0, 1.3, 2.6, -2].map((yaw) => {
+      const p = find(P.x - Math.sin(yaw) * 0.6, P.z - Math.cos(yaw) * 0.6, yaw);
+      return p && Math.abs(p.x) < 0.08 && p.y < -0.15 ? 1 : 0;
+    });
+    const far = find(P.x - 30, P.z, Math.PI / 2);          // 30 m dead ahead of a camera turned 90 degrees
+    const onRim = far && Math.hypot(far.x, far.y) > 0.85 && far.y < -0.8;
+    const bar = document.querySelector('#hud .moist');
+    const xp = document.querySelector('#hud .xp');
+    const big = bar.getBoundingClientRect().height >= 15 && xp.getBoundingClientRect().height >= 7;
+    const mapSize = c.getBoundingClientRect().width;
+    return ok(ahead.every(Boolean) && onRim && big && mapSize >= 190, { ahead, far, onRim, bar: bar.getBoundingClientRect().height, xp: xp.getBoundingClientRect().height, mapSize });
+  },
+});
 story('engine/bvh-layout-checked-at-boot', {
   about: 'world.cast reads three-mesh-bvh\'s internals; a check at boot casts test rays both ways and stops the game with a clear message if they disagree (a library upgrade changed the layout), instead of every ray quietly missing.',
   setup() {},

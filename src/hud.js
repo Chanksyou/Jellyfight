@@ -14,16 +14,16 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 
 #hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
 /* vitals: a level badge, the moisture bar with just its number, a thin gold line of XP under it */
-#hud .tl { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: center; width: 250px; }
-#hud .lvl { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 800 15px system-ui, sans-serif;
-  background: #0d1220cc; box-shadow: inset 0 0 0 2px #ffd25a; color: #ffe7a0; }
-#hud .bar { position: relative; height: 12px; border-radius: 6px; background: #0d1220b3; overflow: hidden; }
+#hud .tl { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 12px; align-items: center; width: 340px; }
+#hud .lvl { grid-row: span 2; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 800 19px system-ui, sans-serif;
+  background: #0d1220cc; box-shadow: inset 0 0 0 3px #ffd25a, 0 0 10px #ffd25a55; color: #ffe7a0; }
+#hud .bar { position: relative; height: 20px; border-radius: 10px; background: #0d1220c0; overflow: hidden; box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008; }
 #hud .bar i { position: absolute; inset: 0; transform-origin: left; transition: transform .15s; border-radius: inherit; }
-#hud .moist i { background: linear-gradient(90deg, #3aa8ff, #7fe8ff); }
+#hud .moist i { background: linear-gradient(90deg, #3aa8ff, #7fe8ff); box-shadow: inset 0 -4px 0 #0002; }
 #hud .moist.low i { background: linear-gradient(90deg, #ff5a5a, #ff9a7a); }
-#hud .hpn { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font: 700 10px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
-#hud .xp { height: 4px; margin-top: 5px; background: #0d122099; }
-#hud .xp i { background: #ffd25a; }
+#hud .hpn { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 800 13px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
+#hud .xp { height: 10px; margin-top: 6px; background: #0d1220b3; box-shadow: 0 0 0 1.5px #ffd25a55, 0 2px 6px #0008; }
+#hud .xp i { background: linear-gradient(90deg, #f0b12a, #ffe27a); }
 #hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
 #hud .items span { width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; background: #0d122080; border-radius: 6px; }
 #hud .items sub { font-size: 8px; font-weight: 800; }
@@ -43,7 +43,7 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .elite .bar { height: 12px; border-color: #ffe6a0; }
 #hud .elite i { background: linear-gradient(#ffd86a, #e08a1a); }
 #hud .elite .nm { font-weight: 800; letter-spacing: .1em; font-size: 12px; margin-bottom: 3px; text-shadow: 0 1px 3px #000; color: #ffe6a0; }
-#hud .map { position: absolute; right: 18px; bottom: 18px; width: 190px; height: 190px; }
+#hud .map { position: absolute; right: 18px; bottom: 18px; width: 285px; height: 285px; opacity: .88; }
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
 #hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
@@ -54,11 +54,11 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; white-space: pre; text-shadow: 0 1px 2px #000; opacity: .8; }
 /* phones: smaller, and keep the bottom corners free for the thumbs */
 @media (max-height: 520px), (max-width: 700px) {
-  #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 170px; gap: 0 7px; }
-  #hud .lvl { width: 28px; height: 28px; font-size: 13px; }
-  #hud .bar { height: 10px; }
-  #hud .hpn { font-size: 9px; right: 5px; }
-  #hud .xp { height: 3px; margin-top: 4px; }
+  #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 235px; gap: 0 8px; }
+  #hud .lvl { width: 36px; height: 36px; font-size: 15px; }
+  #hud .bar { height: 15px; }
+  #hud .hpn { font-size: 11px; right: 7px; }
+  #hud .xp { height: 7px; margin-top: 5px; }
   #hud .items { margin-top: 6px; gap: 3px; }
   #hud .items span { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
   #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
@@ -68,7 +68,7 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
   #hud .toast { font-size: 17px; top: 30%; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
-body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 130px; height: 130px; }
+body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 195px; height: 195px; }
 body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 `;
 
@@ -203,30 +203,30 @@ export class Hud {
 
   // The minimap, kept quiet: the room in one tone with faint furniture, small coloured dots for
   // what matters (gold gift, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
-  // something is well above or below you, and you as a cyan arrow with a soft view cone.
+  // something is well above or below you, and you as a cyan arrow. Round, centred on you, and
+  // turned so up is where the camera looks (the way "forward" moves you); a gift or an elite past
+  // its edge sits on the rim, pointing the way.
   // markers: [{ x, y, z, color, big?, kind? }]
   update(pos, facing, cameraYaw, markers = []) {
     const c = this.map, g = this.ctx;
     const dpr = Math.min(3, devicePixelRatio || 1);
-    const css = c.clientWidth || 190;
+    const css = c.clientWidth || 285;
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapBase = null; }
-    const b = this.bounds, pad = 10 * dpr;
-    const s = Math.min((W - 2 * pad) / (b.x1 - b.x0), (W - 2 * pad) / (b.z1 - b.z0));
-    const ox = (W - (b.x1 - b.x0) * s) / 2, oz = (W - (b.z1 - b.z0) * s) / 2;
-    const X = (x) => ox + (x - b.x0) * s, Z = (z) => oz + (z - b.z0) * s;
+    const b = this.bounds, R = W / 2;
+    // the whole room fits across the map; centred on you, the far side of it can run off the edge
+    const s = W / Math.max(b.x1 - b.x0, b.z1 - b.z0);
+    const X = (x) => (x - b.x0) * s, Z = (z) => (z - b.z0) * s;
     const u = W / 190;                                    // scale for sizes, so small maps stay readable
 
-    // the static layer: the room and faint furniture
+    // the static layer: the room and faint furniture, in world orientation
     if (!this.mapBase) {
       const base = this.mapBase = document.createElement('canvas');
-      base.width = base.height = W;
+      base.width = Math.ceil(X(b.x1)); base.height = Math.ceil(Z(b.z1));
       const q = base.getContext('2d');
-      q.fillStyle = 'rgba(13, 18, 32, 0.55)';
-      q.beginPath(); q.roundRect(0, 0, W, W, 16 * u); q.fill();
       const room = () => { q.beginPath(); for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z)))); q.closePath(); } };
       room();
-      q.fillStyle = 'rgba(120, 140, 170, 0.22)';
+      q.fillStyle = 'rgba(120, 140, 170, 0.18)';
       q.fill();
       q.save();
       room();
@@ -240,20 +240,37 @@ export class Hud {
       q.restore();
       room();
       q.lineWidth = 1.5 * u;
-      q.strokeStyle = 'rgba(220, 235, 255, 0.55)';
+      q.strokeStyle = 'rgba(220, 235, 255, 0.5)';
       q.stroke();
     }
-    g.clearRect(0, 0, W, W);
-    g.drawImage(this.mapBase, 0, 0);
+    // turn so the camera's forward, (-sin yaw, -cos yaw) on the floor, points up
+    const turn = -Math.PI / 2 - Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw));
+    const cs = Math.cos(turn), sn = Math.sin(turn), px = X(pos.x), pz = Z(pos.z);
+    const out = this._pt || (this._pt = { x: 0, y: 0, d: 0 });
+    const toMap = (x, z) => { const dx = X(x) - px, dz = Z(z) - pz; out.x = R + dx * cs - dz * sn; out.y = R + dx * sn + dz * cs; out.d = Math.hypot(dx, dz); return out; };
 
-    const t = performance.now() / 1000;
+    g.clearRect(0, 0, W, W);
+    g.save();
+    g.beginPath(); g.arc(R, R, R - 1, 0, Math.PI * 2); g.clip();
+    g.fillStyle = 'rgba(13, 18, 32, 0.4)';
+    g.fillRect(0, 0, W, W);
+    g.translate(R, R); g.rotate(turn); g.translate(-px, -pz);
+    g.drawImage(this.mapBase, 0, 0);
+    g.restore();
+    g.lineWidth = 1.5 * u; g.strokeStyle = 'rgba(220, 235, 255, 0.35)';
+    g.beginPath(); g.arc(R, R, R - 1, 0, Math.PI * 2); g.stroke();
+
+    const t = performance.now() / 1000, rim = R - 6 * u;
     const dot = (x, y, r, color) => { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
-    // bugs: small red dots
-    for (const m of markers) if (m.kind === 'enemy') dot(X(m.x), Z(m.z), 2 * u, 'rgba(255, 80, 80, 0.9)');
-    // what's worth going to: a dot in its colour with a soft glow (a slow pulse for the big ones)
+    // bugs: small red dots (only those on the map)
+    for (const m of markers) if (m.kind === 'enemy') { const p = toMap(m.x, m.z); if (p.d < rim) dot(p.x, p.y, 2 * u, 'rgba(255, 80, 80, 0.9)'); }
+    // what's worth going to: a dot in its colour with a soft glow (a slow pulse for the big ones),
+    // held on the rim when it's further away than the map shows
     for (const m of markers) {
       if (m.kind === 'vent' || m.kind === 'enemy') continue;
-      const mx = X(m.x), mz = Z(m.z), r = (m.big ? 4.5 : 3.5) * u;
+      const p = toMap(m.x, m.z);
+      if (p.d > rim) { p.x = R + (p.x - R) * rim / p.d; p.y = R + (p.y - R) * rim / p.d; }
+      const mx = p.x, mz = p.y, r = (m.big ? 4.5 : 3.5) * u;
       if (m.big) { g.globalAlpha = 0.25 + 0.2 * Math.sin(t * 4); dot(mx, mz, r * 2.4, m.color); g.globalAlpha = 1; }
       dot(mx, mz, r, m.color);
       const dy = m.y - pos.y;
@@ -265,16 +282,15 @@ export class Hud {
       }
     }
 
-    // you: a soft view cone and a cyan arrow
-    const px = X(pos.x), pz = Z(pos.z);
-    const ca = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw));
-    const grad = g.createRadialGradient(px, pz, 0, px, pz, 34 * u);
+    // you: a soft view cone (always up: it's where the camera looks) and a cyan arrow for the
+    // way the jelly faces
+    const grad = g.createRadialGradient(R, R, 0, R, R, 34 * u);
     grad.addColorStop(0, 'rgba(95,240,255,0.25)'); grad.addColorStop(1, 'rgba(95,240,255,0)');
     g.fillStyle = grad;
-    g.beginPath(); g.moveTo(px, pz); g.arc(px, pz, 34 * u, ca - 0.5, ca + 0.5); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(R, R); g.arc(R, R, 34 * u, -Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5); g.closePath(); g.fill();
     g.save();
-    g.translate(px, pz);
-    g.rotate(Math.atan2(Math.cos(facing), Math.sin(facing)));
+    g.translate(R, R);
+    g.rotate(turn + Math.atan2(Math.cos(facing), Math.sin(facing)));
     g.beginPath();
     g.moveTo(8 * u, 0); g.lineTo(-5 * u, -5 * u); g.lineTo(-2 * u, 0); g.lineTo(-5 * u, 5 * u); g.closePath();
     g.fillStyle = '#5ff0ff';
@@ -283,6 +299,7 @@ export class Hud {
     g.strokeStyle = 'rgba(0, 20, 30, 0.8)';
     g.stroke();
     g.restore();
+    this.mapTurn = turn;
   }
 
 }
