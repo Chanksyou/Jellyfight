@@ -1344,11 +1344,12 @@ story('treasures/card-rarity', {
   },
 });
 story('treasures/stacking', {
-  about: 'stack=N: a stackable treasure (Lemon Slice, stack=3) adds up per copy and stops being offered at 3; a unique one (Hair Tie) is never offered twice.',
-  setup() { setupFight(); give('lemon', 'lemon', 'hairTie'); },
+  about: 'Stacking: a treasure without levels (Lemon Slice, stack=5) adds up per copy and stops being offered at its cap; a rule-changer (Hair Tie, stack=1) is never offered twice; with no stack= a treasure without levels stacks to 3.',
+  setup() { setupFight(); give('lemon', 'lemon', 'lemon', 'lemon', 'hairTie'); },
   play() {
     const { run } = G(), b = run.stats.bubbleDamage;
-    const two = run.S.bubbleDamage;
+    const four = run.S.bubbleDamage;
+    const byDefault = compileTreasures(parse('treasure "x" name="X" icon="x" text="x" {\n    pierce 3\n}', 't.kdl'), 't.kdl')[0].stack;
     let offered = [];
     stub(run.ui, 'choose', (title, sub, choices) => { offered = choices.map((c) => c.id); });
     const seen = new Set();
@@ -1357,7 +1358,8 @@ story('treasures/stacking', {
     give('lemon');
     seen.clear();
     for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
-    return ok(two === b + 4 && run.S.bubbleDamage === b + 6 && run.owned.count('lemon') === 3 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie'), { two, three: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie') });
+    return ok(four === b + 8 && run.S.bubbleDamage === b + 10 && run.owned.count('lemon') === 5 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie') && byDefault === 3,
+      { four, five: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie'), byDefault });
   },
 });
 story('treasures/stat', {
@@ -1509,15 +1511,24 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
   },
 });
 story('content/treasure-mistakes-are-caught', {
-  about: 'A typo in treasures.kdl names the file, line and problem.',
+  about: 'A typo in treasures.kdl names the file, line and problem, and so does breaking a stacking rule (stack= on a treasure with levels, more than 5, a Legendary or element that stacks, an element that isn\'t Legendary, an unknown rarity).',
   setup() {},
   play() {
     const tryIt = (src) => { try { compileTreasures(parse(src, 'test.kdl'), 'test.kdl'); return null; } catch (e) { return e.message; } };
     const unknown = tryIt('treasure "x" name="X" icon="x" text="x" {\n    pierce 3\n    sparkle\n}');
     const element = tryIt('treasure "x" name="X" icon="x" text="x" {\n    element "plasma"\n}');
     const block = tryIt('treasure "x" name="X" icon="x" text="x" {\n    every 5 {\n        explode\n    }\n}');
-    const good = /test\.kdl:3: unknown word "sparkle"/.test(unknown) && /test\.kdl:2: element must be one of/.test(element) && /test\.kdl:3: unknown word "explode"/.test(block);
-    return ok(good, { unknown, element, block });
+    // the stacking rules: no stack= on a treasure with levels, at most 5, Legendary and elements one of a kind
+    const levelled = tryIt('treasure "x" name="X" icon="x" text="x" stack=2 {\n    pierce 3\n    level 2 text="y" {\n        pierce 4\n    }\n}');
+    const tooMany = tryIt('treasure "x" name="X" icon="x" text="x" stack=6 {\n    pierce 3\n}');
+    const legendStack = tryIt('treasure "x" name="X" icon="x" text="x" rarity="legendary" stack=2 {\n    pierce 3\n}');
+    const plainElement = tryIt('treasure "x" name="X" icon="x" text="x" rarity="rare" {\n    element "fire"\n}');
+    const badTier = tryIt('treasure "x" name="X" icon="x" text="x" rarity="mythic" {\n    pierce 3\n}');
+    const fine = tryIt('treasure "x" name="X" icon="x" text="x" stack=5 {\n    pierce 3\n}');
+    const rules = /levels, so it doesn't take stack=/.test(levelled) && /stack=6 is too many/.test(tooMany) && /one of a kind/.test(legendStack)
+      && /is an element, so it's rarity="legendary"/.test(plainElement) && /rarity= must be one of common, rare, epic, legendary/.test(badTier) && fine === null;
+    const good = /test\.kdl:3: unknown word "sparkle"/.test(unknown) && /test\.kdl:2: element must be one of/.test(element) && /test\.kdl:3: unknown word "explode"/.test(block) && rules;
+    return ok(good, { unknown, element, block, levelled, tooMany, legendStack, plainElement, badTier, fine });
   },
 });
 

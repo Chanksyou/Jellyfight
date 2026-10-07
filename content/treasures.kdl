@@ -12,8 +12,9 @@
 //                  epic 2x+, rare 1.4x+); rate the rest by how unique the effect is. Legendary is
 //                  for unique rule-changers and the Elements: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure (an element's upgrades need its base)
-//   stack=N        you can own up to N copies and their effects add up (default 1: unique).
-//                  Keep stacking for plain number boosts.
+//   stack=N        you can own up to N copies and their effects add up. A treasure without levels
+//                  stacks by default (3 copies; at most 5); stack=1 makes a rule-changer one of a
+//                  kind. Legendary treasures, the elements and their upgrades are always unique.
 //   level 2 text="…" { words }, level 3 …   a treasure with its own trick can level up instead:
 //                  take it again for its next level (only ever the one after the level you have),
 //                  each level being its whole word list. The pick card shows its text.
@@ -30,7 +31,7 @@ treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true text
         pierce 5
     }
 }
-treasure "hairTie" name="Hair Tie" icon="➰" rarity="rare" attack=#true text="Each bubble that pops blows a smaller one at another enemy nearby." {
+treasure "hairTie" name="Hair Tie" icon="➰" rarity="rare" attack=#true text="Each bubble that pops blows a smaller one at another enemy nearby." stack=1 {
     split-bubble
 }
 treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10th bubble is golden and does 5x damage." {
@@ -175,7 +176,7 @@ treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" atta
 }
 
 // --- hits, jumps and your body
-treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (bubbles and tentacles) does triple damage." {
+treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (bubbles and tentacles) does triple damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
@@ -356,15 +357,15 @@ treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true te
 }
 
 // --- things that bend the rules
-treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Enemies drop 25% more XP." stack=3 {
+treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Enemies drop 25% more XP." stack=5 {
     xp-mult 1.25
 }
-treasure "dice" name="Game Die" icon="🎲" rarity="epic" text="Level-up cards roll one rarity higher." {
+treasure "dice" name="Game Die" icon="🎲" rarity="epic" text="Level-up cards roll one rarity higher." stack=2 {
     card-rarity 1
 }
 
 // --- found later: more treasures
-treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Your health slowly refills: +0.3 a second." stack=3 {
+treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Your health slowly refills: +0.3 a second." stack=5 {
     stat health-regen 0.3
 }
 treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely." stack=3 {
@@ -373,13 +374,13 @@ treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% 
 treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 5 enemies you clear, +1 max health for good." stack=2 {
     grow-on-kills health 1 kills=5
 }
-treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Bubbles blow 25% faster." stack=3 {
+treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Bubbles blow 25% faster." stack=5 {
     stat fire-rate 25 percent=#true
 }
 treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow through a straw: bubbles reach 40% farther." stack=3 {
     stat range 40 percent=#true
 }
-treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 bubble damage." stack=3 {
+treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 bubble damage." stack=5 {
     stat bubble-damage 2
 }
 treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="Blow one more bubble side by side with the others (every bubble does 15% less damage)." stack=2 {
@@ -396,11 +397,11 @@ treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flie
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
-treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="common" attack=#true text="Glass cannon: +40% bubble damage, but hits take 25% more health." {
+treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="common" attack=#true text="Glass cannon: +40% bubble damage, but hits take 25% more health." stack=3 {
     stat bubble-damage 40 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+25% bubble damage and +10% fire rate, but bubbles reach 15% less far." {
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+25% bubble damage and +10% fire rate, but bubbles reach 15% less far." stack=3 {
     stat bubble-damage 25 percent=#true
     stat fire-rate 10 percent=#true
     stat range -15 percent=#true
@@ -434,14 +435,14 @@ treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 12
         }
     }
 }
-treasure "notebook" name="Notebook" icon="📓" rarity="epic" text="Level-ups offer 4 cards instead of 3." {
+treasure "notebook" name="Notebook" icon="📓" rarity="epic" text="Level-ups offer 4 cards instead of 3." stack=2 {
     card-choices 1
 }
-treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 15% slower, but so do you (-10% move speed)." {
+treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 15% slower, but so do you (-10% move speed)." stack=2 {
     bug-speed 0.85
     stat move-speed -10 percent=#true
 }
-treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 30% more bugs come out, and each drops 30% more XP." {
+treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 30% more bugs come out, and each drops 30% more XP." stack=2 {
     more-bugs 1.3
     xp-mult 1.3
 }

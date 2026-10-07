@@ -60,6 +60,7 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 // treasure "id" name="…" icon="…" text="…" rarity="…" attack=#true stack=N { effect words… }
 //   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
 const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
+const STACK_DEFAULT = 3, STACK_MAX = 5;
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
   for (const n of nodes) {
@@ -83,13 +84,20 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
       if (!L.children.length) throw new Error(`${at}: "${id}" level ${i + 2} does nothing (give it effect words)`);
     });
     if (lv.length && n.props.stack !== undefined) throw new Error(`${where}: "${id}" has levels, so it doesn't take stack= (its levels are its copies)`);
+    const rarity = n.props.rarity ?? 'common', vocabulary = [...base, ...lv.flatMap((L) => L.children)].map((w) => w.name);
+    // Stacking: a treasure without levels stacks (STACK_DEFAULT copies unless stack= says), up to
+    // STACK_MAX; Legendary treasures, the elements and their upgrades are one of a kind
+    const unique = rarity === 'legendary' || vocabulary.includes('element') || vocabulary.includes('element-up');
+    if (n.props.stack > STACK_MAX) throw new Error(`${where}: "${id}" stack=${n.props.stack} is too many (at most ${STACK_MAX})`);
+    if (unique && n.props.stack > 1) throw new Error(`${where}: "${id}" is ${rarity === 'legendary' ? 'Legendary' : 'an element or its upgrade'}, so it's one of a kind (no stack=)`);
     const words = (list) => list.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`));
     const levels = [words(base), ...lv.map((L) => words(L.children))];
+    if (vocabulary.includes('element') && rarity !== 'legendary') throw new Error(`${where}: "${id}" is an element, so it's rarity="legendary"`);
     out.push({
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
-      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : n.props.stack ?? 1, rarity: n.props.rarity ?? 'common',
+      id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : unique ? 1 : n.props.stack ?? STACK_DEFAULT, rarity,
       effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
-      vocabulary: [...base, ...lv.flatMap((L) => L.children)].map((w) => w.name),
+      vocabulary,
     });
   }
   for (const t of out) if (t.needs && !seen.has(t.needs)) throw new Error(`${file}: "${t.id}" needs="${t.needs}", but there is no treasure called that`);
