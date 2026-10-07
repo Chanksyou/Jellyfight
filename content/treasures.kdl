@@ -3,7 +3,7 @@
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
 // Damage numbers are multiples of your power (bubble damage x 1.8) unless a word says otherwise.
-// Tentacles aren't improved by treasures (the Stinging Frills evolution is the way).
+// Tentacles are mostly improved by the Stinging Frills evolution; Paperclip Chain (per) adds Tentacle damage.
 //
 //   attack=#true   it changes how you attack
 //   rarity="…"     common, rare, epic or legendary: how often it's offered (stats.js
@@ -445,4 +445,18 @@ treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs cr
 treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 30% more bugs come out, and each drops 30% more XP." stack=2 {
     more-bugs 1.3
     xp-mult 1.3
+}
+
+// --- converters (per): one stat grows with another, live
+treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Bubble damage for every 10 max Health." stack=3 {
+    per "bubble-damage" 1 every=10 of="max-health"
+}
+treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+2% Fire rate for every 10% Move speed above your start." stack=3 {
+    per "fire-rate" 2 every=10 of="move-speed-bonus" percent=#true
+}
+treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage for every Level gained this run." stack=3 {
+    per "tentacle-damage" 1 every=1 of="levels"
+}
+treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+2% Bubble damage for every treasure found this run." stack=5 {
+    per "bubble-damage" 2 every=1 of="chests" percent=#true
 }

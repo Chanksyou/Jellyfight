@@ -1362,6 +1362,53 @@ story('treasures/stacking', {
       { four, five: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie'), byDefault });
   },
 });
+story('treasures/per', {
+  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 10), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G(), S = () => run.S;
+    const bd0 = S().bubbleDamage, hp = S().health;
+    give('medicineBall');
+    const ball = S().bubbleDamage - bd0;                       // 25 max Health: +2.5
+    run.stats.health += 10;                                    // a Health card
+    const ballAfterCard = S().bubbleDamage - bd0;              // 35: +3.5
+    const td0 = run.tentacleStats.tentacleDamage;
+    give('paperclipChain');
+    const clip0 = run.tentacleStats.tentacleDamage - td0;
+    run.level += 2;
+    const clip2 = run.tentacleStats.tentacleDamage - td0;      // two Levels gained: +2
+    const fr0 = S().fireRate;
+    give('rollerSkate');
+    const skate0 = S().fireRate - fr0;
+    run.stats.moveSpeed += 0.2;                                // +20% Move speed: +4% Fire rate
+    const skate = (S().fireRate - fr0) / BASE_STATS.fireRate * 100;
+    const bd1 = S().bubbleDamage;
+    give('piggyBank');
+    run.chestsOpened = 5;                                      // five treasures found: +10%
+    const piggy = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    return ok(near(ball, hp / 10) && near(ballAfterCard, (hp + 10) / 10) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 4) && near(piggy, 10),
+      { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
+  },
+});
+story('treasures/found-count-carries-over', {
+  about: 'The count of treasures found (each one opened adds 1) carries into the next act with the rest of the run.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G();
+    stub(run.ui, 'choose', () => {});
+    run.chestsOpened = 0;
+    for (let i = 0; i < 4; i++) run.pickTreasure('', '', 'room');
+    const counted = run.chestsOpened;
+    restore();
+    const carry = run.carryOver();
+    run.carry = carry; run.start();
+    const after = run.chestsOpened;
+    run.carry = null; run.start();
+    const fresh = run.chestsOpened;
+    return ok(counted === 4 && carry.chestsOpened === 4 && after === 4 && fresh === 0, { counted, carried: carry.chestsOpened, after, fresh });
+  },
+});
 story('treasures/stat', {
   about: 'stat (Lemon Slice, Coffee Bean): a treasure adds to a stat, flat or by a percent.',
   setup() { setupFight({ lash: false }); give('lemon'); give('coffeeBean'); },

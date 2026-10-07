@@ -348,6 +348,7 @@ export function newMods() {
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], spout: null, burstOnKill: null, cardRarity: 0,
+    per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
   };
 }
@@ -408,8 +409,11 @@ export const TIMED_WORDS = {
   },
 };
 
+// What `per` can count (Run.S works each one out)
+export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
+
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', dodge: 'dodge', luck: 'luck' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -444,7 +448,7 @@ export const TREASURE_WORDS = {
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), tentacle-damage, dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {
@@ -452,6 +456,18 @@ export const TREASURE_WORDS = {
       if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
       return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; };
+    },
+  },
+  per: {
+    doc: 'A stat grows by `amount` (a % of its starting value with percent=#true) for every `every` of `of`: max-health, move-speed-bonus (% above your starting Move speed), levels (gained this run) or chests (treasures found this run). Stat names as in `stat`, plus tentacle-damage. Recomputed live, so it follows the stat it reads.',
+    args: ['name', 'amount'],
+    props: { every: 1, of: null, percent: false },
+    make: ([name, amount], p) => {
+      const key = STAT_NAMES[name];
+      if (!key) throw new Error(`per: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      if (!PER_SOURCES.includes(p.of)) throw new Error(`per: of= must be one of ${PER_SOURCES.join(', ')}, not "${p.of}"`);
+      if (!(p.every > 0)) throw new Error('per: every= must be more than 0');
+      return (m) => { m.per.push({ stat: key, amount, every: p.every, of: p.of, percent: p.percent }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },

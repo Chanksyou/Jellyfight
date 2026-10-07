@@ -203,6 +203,15 @@ export class Run {
     const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
     const grown = this.grown || {};
     for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
+    // per: converters read the stats above (not each other's results), so the order doesn't matter
+    const per = this.mods.per;
+    if (per.length) {
+      const health = S.health, speedBonus = (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100;
+      for (const c of per) {
+        const src = c.of === 'max-health' ? health : c.of === 'move-speed-bonus' ? Math.max(0, speedBonus) : c.of === 'levels' ? this.level - 1 : this.chestsOpened || 0;
+        S[c.stat] += (src / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
+      }
+    }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
     return S;
@@ -226,7 +235,7 @@ export class Run {
     return {
       tentacles: Math.min(6, s.tentacles),
       reach: s.reach,
-      tentacleDamage: s.tentacleDamage,
+      tentacleDamage: this.S.tentacleDamage,   // treasures can raise it (Paperclip Chain: per)
       tentacleSpeed: s.tentacleSpeed,
     };
   }
@@ -868,15 +877,19 @@ export class Run {
     show(null);
   }
 
-  // An act beaten with another to come: the run moves on with everything it has (level, stats,
-  // treasures, score so far); you submit the score at the end of the run
-  actComplete(next) {
-    const score = this.score();
-    const carry = {
-      score, stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
+  // What the run takes into the next act (stages.js; Run.start reads it back as this.carry)
+  carryOver() {
+    return {
+      score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount,
       chestsOpened: this.chestsOpened,
     };
+  }
+
+  // An act beaten with another to come: the run moves on with everything it has (level, stats,
+  // treasures, score so far); you submit the score at the end of the run
+  actComplete(next) {
+    const carry = this.carryOver(), score = carry.score;
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry, { continue: true }) }]);   // straight into it, no main menu
