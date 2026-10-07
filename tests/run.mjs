@@ -18,21 +18,25 @@ const env = await start();
 let failed = 0, passed = 0;
 const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${name}${ms != null ? `  (${ms} ms)` : ''}${good ? '' : '\n    ' + JSON.stringify(info)}`);
 
-// --- every story, one page per act (booting the apartment takes a while). Later acts start as
-// if the act before was just beaten, carrying a level-6 run with a Candle
-for (const act of [1, 2]) {
-  const { page, errors } = await openGame(env, { viewport: { width: 1100, height: 650 }, act: act > 1 && { act, carry: { score: 5000, level: 6, xp: 0, purse: 4, stats: { moisture: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 } } });
-  const names = await page.evaluate(async ([f, act]) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && (s.act || 1) === act && !s.phone).map(([n]) => n), [filter, act]);
-  if (!names.length) { await page.close(); continue; }
-  await playAll(page, errors, names);
-  await page.close();
-}
-
-// --- stories with `phone: true` (phone/... in stories.js): in a page that looks like a phone
-{
-  const { page, errors } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
-  const names = await page.evaluate(async (f) => Object.entries((await import('/src/stories.js')).STORIES).filter(([n, s]) => n.includes(f) && s.phone).map(([n]) => n), filter);
-  await playAll(page, errors, names);
+// --- every story, one page per act (booting the apartment takes a while, so a page only opens
+// when it has a story to play). Later acts start as if the act before was just beaten, carrying a
+// level-6 run with a Candle; stories with `phone: true` (phone/...) play in a page that looks
+// like a phone. The first page that opens lists every story for the rest.
+const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { moisture: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
+const PAGES = [
+  { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },
+  { key: 'act2', opts: { viewport: { width: 1100, height: 650 }, act: { act: 2, carry: CARRY } } },
+  { key: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
+];
+const pageOf = (n) => (n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : 'act1');
+let all = null;   // [name, page key] for every story, once a page has listed them
+for (const P of PAGES) {
+  // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
+  if (!all && filter && pageOf(filter) !== P.key && pageOf(filter) !== 'act1') continue;
+  if (all && !all.some(([n, k]) => k === P.key && n.includes(filter))) continue;
+  const { page, errors } = await openGame(env, P.opts);
+  all ||= await page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.phone ? 'phone' : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
+  await playAll(page, errors, all.filter(([n, k]) => k === P.key && n.includes(filter)).map(([n]) => n));
   await page.close();
 }
 
