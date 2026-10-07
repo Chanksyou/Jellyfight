@@ -1684,7 +1684,7 @@ story('engine/leaderboard', {
 
 // --- modes
 story('modes/creator-layout-debug', {
-  about: 'The Look screen, the layout editor and the F3 readout open and close cleanly.',
+  about: 'The Look screen, the layout editor and the F3 readout (with the whole frame\'s draw calls and shaders) open and close cleanly.',
   setup() { fresh({ elites: false }); },
   play() {
     const { menus, player, gfx } = G();
@@ -1700,7 +1700,8 @@ story('modes/creator-layout-debug', {
     window.layout.onDone();
     dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
     over.hidden = true; menus.close(); step(40);
-    const readout = /\d+ fps/.test(document.querySelector('#hud')?.innerText || '');
+    const text = document.querySelector('#hud')?.innerText || '';
+    const readout = /\d+ fps/.test(text) && /[1-9]\d* draws \| \d+k tris \| [1-9]\d* shaders/.test(text);
     dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
     return ok(creatorCam > 0 && creatorCam < 0.6 && back && layoutOpen && readout, { creatorCam, back, layoutOpen, readout });
   },

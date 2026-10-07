@@ -94,6 +94,7 @@ const FiniteShader = {
 export class Graphics {
   constructor(renderer, scene, camera, defaultQuality = 'high') {
     this.renderer = renderer;
+    this.frameInfo = { calls: 0, triangles: 0, points: 0 };
     this.scene = scene;
     this.camera = camera;
     this.composer = null;
@@ -167,7 +168,18 @@ export class Graphics {
     }
   }
 
+  // Draws one frame and keeps what it cost in this.frameInfo (for the F3 readout). three resets
+  // renderer.info on every render() call, so with a composer it would only count the last pass.
   render() {
+    const info = this.renderer.info, auto = info.autoReset;
+    info.autoReset = false; info.reset();
+    this._draw();
+    const f = this.frameInfo;
+    f.calls = info.render.calls; f.triangles = info.render.triangles; f.points = info.render.points;
+    info.autoReset = auto;
+  }
+
+  _draw() {
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);
       return;

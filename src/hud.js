@@ -51,7 +51,7 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .toast.on { opacity: 1; }
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity .5s; }
 #hud .hurt.on { opacity: .5; transition: none; }
-#hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; text-shadow: 0 1px 2px #000; opacity: .8; }
+#hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; white-space: pre; text-shadow: 0 1px 2px #000; opacity: .8; }
 /* phones: smaller, and keep the bottom corners free for the thumbs */
 @media (max-height: 520px), (max-width: 700px) {
   #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 170px; gap: 0 7px; }

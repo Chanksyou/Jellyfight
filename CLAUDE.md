@@ -44,7 +44,7 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
    ```
 
    If the machine can't reach the three.js CDN, set `JF_THREE` to an unpacked
-   `three@0.170.0` npm package. The guard stories fail if a word has no doc, no user or no
+   `three@0.186.1` npm package. The guard stories fail if a word has no doc, no user or no
    story, or if bad content doesn't produce a clear error.
 3. **Attacks speak one visual language** (`src/vfx.js`, think Returnal): hostile is hot and
    saturated, one `--hostile-*` colour per source; friendly is cool (`--friendly`); they never

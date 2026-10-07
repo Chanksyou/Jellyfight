@@ -61,7 +61,7 @@ Edits are saved in the browser (`localStorage` key `jf-layout-v1`) and applied o
 
 ## Controls
 
-WASD move · mouse look · Space jump (hold to climb fabric; again in the air with Pen Spring) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout. The main screen shows the version in its bottom-right corner ("Version 104": `BUILD` in `src/main.js`, bumped with every update), with the frame rate while you were playing (below 20 fps the whole game runs in slow motion). "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, eyes (dots, big, sleepy, fierce or cyclops: flat on the bell, sized to fit each species), mouth and something on top (16 hats and toppers: antennae, sprout, party hat, bow, crown, horns, top hat, beanie, witch hat, cowboy hat, a spinning halo, flower, propeller cap with a spinning propeller, chef hat, cat ears, unicorn horn). Every jelly glows and is the same size. On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
+WASD move · mouse look · Space jump (hold to climb fabric; again in the air with Pen Spring) · 1/2/3 pick a card · R reroll · wheel zoom · Esc pause · F3 debug readout (position, wave, enemies, and a second line with what the last frame cost: draw calls and triangles across every render pass, compiled shaders, geometries and textures in GPU memory, pixel ratio and canvas size). The main screen shows the version in its bottom-right corner ("Version 112": `BUILD` in `src/main.js`, bumped with every update), with the frame rate while you were playing (below 20 fps the whole game runs in slow motion). "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, eyes (dots, big, sleepy, fierce or cyclops: flat on the bell, sized to fit each species), mouth and something on top (16 hats and toppers: antennae, sprout, party hat, bow, crown, horns, top hat, beanie, witch hat, cowboy hat, a spinning halo, flower, propeller cap with a spinning propeller, chef hat, cat ears, unicorn horn). Every jelly glows and is the same size. On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
 
 ## Hosting on Cloudflare (public leaderboard)
 
@@ -76,7 +76,7 @@ The game also runs as a Cloudflare Worker named `jelly-fight` (`wrangler.jsonc`)
 
 The apartment is a static 3D model, baked to `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, acts, door angles, the lights at midnight). The game doesn't load that whole file: `tools/split.mjs` cuts it into one file per act, and each act loads only its own rooms. `apartment-act1.glb` (~3.6 MB) is the living room and the hallway you can see down from it (seen only: an invisible wall keeps you out of it in act 1), plus every room's walls, floors and doors, so every view is solid; `apartment-act2.glb` (~1.1 MB) the bathroom and hall closets; `apartment-act3.glb` (~0.9 MB) the bedroom. A stage lists the parts it needs (`parts` in `src/stage1.js`); `GAME.loadRooms(['act2'])` brings in more at the start of a later act (solid, with layout edits, on the minimap, with that act's lamps). Each part is meshopt-compressed (needs WebAssembly) with a `-q` twin used automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game.
 
-`src/boot.js` sets up three.js (r170 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
+`src/boot.js` sets up three.js (r186 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
 
 The apartment's colors and lights were authored for three.js r128, so the game keeps color management off and `src/legacy-lighting.js` renders the lights with r128's falloff and scaling.
 
@@ -125,7 +125,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `src/vfx.js` | The combat visual language (Returnal-style): hostile attacks in hot colours, one per source (`--hostile-*` in look.css), friendly in cool ones; glowing projectiles (white-hot core, halo, trail), floor warnings that fill until the hit (`TeleMaterial`: circle, wedge, strip) and impacts (flash, sparks, shockwave). All the glows are one particle draw call. |
 | `src/input.js`, `src/touch.js` | Keyboard and pointer-lock mouse; phone joystick, look drag and buttons. |
 | `src/errors.js` | On-screen error panel and the Diagnostics readout (pause menu, or `#debug`). |
-| `src/legacy-lighting.js` | Renders r128-era lights under r170. |
+| `src/legacy-lighting.js` | Renders r128-era lights under r186. |
 | `vendor/` | three-mesh-bvh 0.8.3, n8ao 2.0.1 (plus a stub for its unused `postprocessing` import). |
 
 ## Characters and swapping in a real model

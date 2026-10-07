@@ -6,7 +6,7 @@
 //   node tests/run.mjs --no-mobile     skip the phone check
 //
 // Needs Playwright (cd tests && npm install && npx playwright install chromium).
-// If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three@0.170.0
+// If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three@0.186.1
 // npm package and its files are served from there instead.
 import { start, openGame } from './lib.mjs';
 

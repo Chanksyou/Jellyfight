@@ -42,8 +42,8 @@ export async function openGame({ url, browser }, { act, ...opts } = {}) {
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|KHR_parallel/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push('page error: ' + e.message));
   if (process.env.JF_THREE) {
-    await page.route(/cdn\.jsdelivr\.net\/npm\/three@0\.170\.0\/(.*)$/, (r) => {
-      const rel = r.request().url().match(/three@0\.170\.0\/(.*)$/)[1];
+    await page.route(/cdn\.jsdelivr\.net\/npm\/three@0\.186\.1\/(.*)$/, (r) => {
+      const rel = r.request().url().match(/three@0\.186\.1\/(.*)$/)[1];
       r.fulfill({ path: path.join(process.env.JF_THREE, rel), contentType: 'text/javascript' });
     });
   }
