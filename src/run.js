@@ -558,7 +558,8 @@ export class Run {
   devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.');
+    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Its upgrades can turn up in treasures. You get another after each boss.',
+      () => { this.firstRun.elementChosen = true; this.resume(); });
   }
 
   // start: the starting pick, two elements for your bubbles and one of anything else
@@ -609,6 +610,7 @@ export class Run {
     if (!T || !this.treasureTimesLeft.length || this.t < this.treasureTimesLeft[0]) return;
     if (this.roomTreasures.some((t) => t.active && t.timed)) return;   // one scheduled at a time: the next waits
     this.treasureTimesLeft.shift();
+    if (!this.firstRun.treasuresDue) return;           // a first run, before its Element pick: this one's skipped (first-run.js)
     const spot = this.nextTreasureSpot();
     if (!spot) return;
     this.placeTreasure(spot, T.stay);

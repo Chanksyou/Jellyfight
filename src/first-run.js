@@ -4,6 +4,8 @@
 //
 //   - the Element pick waits until right after the first Level-up's card (not the first frame)
 //   - the first hit shows one plain line about the Health bar, once
+//   - no Treasure turns up in the room before the Element pick is done (scheduled times before it
+//     are skipped; an Elite's Treasure still drops)
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so
@@ -27,6 +29,7 @@ export class FirstRun {
     this.active = !!active;
     this.elementPicked = !this.active;   // a normal run's Element pick is the start pick, as before
     this.hitHintShown = !this.active;
+    this.elementChosen = false;          // the run sets it when the start Element pick is made
   }
 
   // Run.start: a player's first run is act 1, for a new player
@@ -41,6 +44,9 @@ export class FirstRun {
     this.hitHintShown = true;
     return "That's your Health, top left. Run out and the run ends.";
   }
+
+  // a scheduled Treasure's time has come: place it, or (before the Element pick) skip it?
+  get treasuresDue() { return !this.active || this.elementChosen; }
 
   // a Level-up's card was just picked: open the Element pick now? (once, after the first card)
   elementPickAfterCard() {

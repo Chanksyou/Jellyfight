@@ -364,6 +364,31 @@ story('first-run/health-hint-on-first-hit', {
     return ok(!/Health/.test(before) && /That's your Health, top left\. Run out and the run ends\./.test(shown) && gone && !again && !other, { before, shown, gone, again, other });
   },
 });
+story('first-run/treasures-wait-for-the-element-pick', {
+  about: 'On a player\'s first run no Treasure turns up before the Element pick is done; the first comes at the next scheduled time after it. An Elite still leaves its Treasure, and other runs get theirs at 0:15.',
+  setup() { fresh({ elites: false, firstRun: true, treasures: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G(), toasts = [];
+    stub(run.hud, 'toast', (text) => toasts.push(text));
+    const sched = () => run.roomTreasures.find((t) => t.active && t.timed);
+    step(60 * 20);                                         // past 0:15, no Element pick yet
+    const before = !!sched();
+    run.gainXp(3); step(3); pickFirstCard(); step(3);      // the first card, then the Element pick
+    const elementOpen = /element/i.test(modalTitle());
+    pickFirstCard(); step(3);
+    const t0 = run.t;
+    step(60 * 45, () => !!sched());                        // the next scheduled time is 1:00
+    const at = Math.round(run.t), first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
+    run.dropTreasure(near(0.2, 0));                        // an Elite's Treasure still drops on a first run
+    const eliteChest = run.roomTreasures.some((t) => t.active && !t.timed);
+    // another run: the first one at 0:15
+    fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0);
+    step(60 * 17, () => !!sched());
+    const otherAt = Math.round(G().run.t);
+    return ok(!before && elementOpen && first && Math.abs(at - 60) <= 1 && told && eliteChest && Math.abs(otherAt - 15) <= 1,
+      { before, elementOpen, t0: Math.round(t0), at, first, told, eliteChest, otherAt });
+  },
+});
 story('first-run/other-runs-unchanged', {
   about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
   setup() { fresh({ elites: false }); G().run.startPicked = false; },
