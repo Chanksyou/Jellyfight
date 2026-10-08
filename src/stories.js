@@ -1804,13 +1804,13 @@ story('treasures/every', {
   },
 });
 story('treasures/ring', {
-  about: 'ring (Bath Bomb, every 6 s): you fizz, stinging everything close for 5x your power, and nothing farther out.',
+  about: 'ring (Bath Bomb, every 6 s): you fizz, stinging everything close for 2x your power, and nothing farther out.',
   setup() { setupFight({ bubbles: false, lash: false }); give('bathBomb'); roachAt(0.06, 0); roachAt(0.3, 0); },
   play() {
     const { run, enemies } = G(), [close, far] = enemies.list, log = record('damage_taken');
     step(60 * 7, () => dmgBy(log, 'ring').length > 0);
     const hits = dmgBy(log, 'ring');
-    return ok(hits.length === 1 && hits[0].targetId === close.id && Math.abs(hits[0].amount - run.power * 5) < 1e-6, { hits: hits.map((d) => [d.targetId === close.id ? 'close' : 'far', +d.amount.toFixed(1)]) });
+    return ok(hits.length === 1 && hits[0].targetId === close.id && Math.abs(hits[0].amount - run.power * 2) < 1e-6, { hits: hits.map((d) => [d.targetId === close.id ? 'close' : 'far', +d.amount.toFixed(1)]) });
   },
 });
 story('treasures/zap', {
