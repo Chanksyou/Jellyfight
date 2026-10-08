@@ -496,3 +496,11 @@ treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=
 treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="Critical hits pin the bug in place for 0.8 s." stack=1 {
     pin-on-crit 0.8
 }
+
+// --- Legendary: rule-changers, one of a kind (the Boss reward offers these)
+treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 20 s, the first hit you take bounces back at whatever dealt it, and you can't be hurt for 1 s." {
+    reflect every=20 invuln=1
+}
+treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
+    death-save health=0.5
+}

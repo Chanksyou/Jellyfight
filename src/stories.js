@@ -1352,6 +1352,37 @@ story('treasures/when-hit', {
       { sprayed, again, later, zaps: zaps.map((z) => [z.targetId === biter.id ? 'biter' : z.targetId === far.id ? 'other' : z.targetId, z.amount]) });
   },
 });
+story('treasures/reflect', {
+  about: 'reflect (Hand Mirror): the first hit bounces back at the bug that dealt it, you take none of it and can\'t be hurt for 1 s; another hit within 20 s lands as usual.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('handMirror'); roachAt(0.1, 0); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    run.health = 20;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
+    const back = dmgBy(log, 'reflect'), h1 = run.health, inv = run.iFrames;
+    step(70);                                                   // past the 1 s, well inside the 20 s
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
+    const p = run.stage.power || 1, h2 = run.health;
+    return ok(back.length === 1 && back[0].targetId === e.id && h1 === 20 && inv === 1 && Math.abs(h2 - (20 - 3 * p)) < 1e-6 && dmgBy(log, 'reflect').length === 1,
+      { back: back.map((d) => d.amount), h1, inv, h2 });
+  },
+});
+story('treasures/death-save', {
+  about: 'death-save (Snooze Button): the first hit that would take your last Health leaves you at half your max Health instead; the next one ends the run.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('snooze'); },
+  play() {
+    const { run } = G();
+    stub(run.hud, 'toast', () => {});
+    run.health = 2; run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 5, source: 'story' });
+    const saved = run.health, phase1 = run.phase;
+    run.health = 2; run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 5, source: 'story' });
+    const phase2 = run.phase;
+    restore();
+    return ok(Math.abs(saved - run.S.health / 2) < 1e-6 && phase1 !== 'dead' && phase2 === 'dead', { saved, max: run.S.health, phase1, phase2 });
+  },
+});
 story('treasures/damage-taken', {
   about: 'damage-taken (Shot Glass): hits take 25% more health.',
   setup() { setupFight({ hurt: true }); give('shotGlass'); },
@@ -1881,13 +1912,16 @@ story('boss/legendary-reward', {
       if (list.some((c) => c.rarity !== 'legendary' || run.owned.has(c.id)) || !list.some((c) => ELEMENTS_IDS.includes(c.id))) bad++;
     });
     for (let i = 0; i < 100; i++) run.pickLegendary('', '', () => {});
+    let treasures = 0;
+    stub(run.ui, 'choose', (t, s, list) => { if (list.some((c) => !ELEMENTS_IDS.includes(c.id))) treasures++; });
+    for (let i = 0; i < 100; i++) run.pickLegendary('', '', () => {});   // Legendary treasures turn up too (Hand Mirror, Snooze Button)
     for (const id of els.slice(0, 4)) run.owned.add(id);              // one element left
     stub(run.ui, 'choose', (t, s, list) => { if (list.some((c) => c.id === 'glitter')) lastOnly++; else bad++; });
     for (let i = 0; i < 50; i++) run.pickLegendary('', '', () => {});
     restore();
     return ok(/Metamorphosis/.test(first) && /Legendary/.test(second) && offered.length === 3 && !offered.includes('Birthday Candle')
-      && tiers.every((t) => t === 'Legendary') && /Act 1 complete/.test(third) && !bad && rolls === 100 && lastOnly === 50,
-      { first, second, offered, tiers, third, bad, rolls, lastOnly });
+      && tiers.every((t) => t === 'Legendary') && /Act 1 complete/.test(third) && !bad && rolls === 100 && lastOnly === 50 && treasures > 30,
+      { first, second, offered, tiers, third, bad, rolls, lastOnly, treasures });
   },
 });
 

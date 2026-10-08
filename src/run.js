@@ -17,6 +17,7 @@ import { FirstRun, markPlayed } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
+import { FRIENDLY as friendlyColor } from './vfx.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3();
@@ -48,6 +49,7 @@ export class Run {
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
+    this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
@@ -161,6 +163,8 @@ export class Run {
     this.slipT = 0;
     this.stillT = 0;
     this.squeakCd = []; this.hurtCd = {};
+    this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
+    this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
@@ -171,6 +175,7 @@ export class Run {
       for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
+      this.saved = !!C.saved;
       this.health = this.stats.health;
       this.startPicked = true;        // you already have your treasures
     }
@@ -469,6 +474,17 @@ export class Run {
       this.fx.number(P.clone().setY(P.y + this.cfg.height), 'DODGE', '#bfffd0', 15);
       return;
     }
+    // reflect: the first hit every so often goes back where it came from, and you take none of it
+    if (M.reflect && this.t >= this.reflectAt) {
+      this.reflectAt = this.t + M.reflect.every;
+      this.iFrames = M.reflect.invuln;
+      const P = this.player.position, at = P.clone().setY(P.y + this.cfg.height * 0.5);
+      this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.06, 0.4);
+      this.fx.number(at.clone().setY(at.y + 0.04), 'REFLECT', '#cfe8ff', 18);
+      const e = from != null && this.enemies.list.find((x) => x.id === from && !x.dead);
+      if (e) { this.fx.impact(this.enemies.center(e), this.friendly, 0.02, 8); bus.emit('damage_taken', { targetId: e.id, amount, color: '#cfe8ff', source: 'reflect' }); }
+      return;
+    }
     // squeak-when-hit effects (they stack), each on its own cooldown
     M.squeaks.forEach((Q, i) => {
       if ((this.squeakCd[i] || 0) > this.t) return;
@@ -501,6 +517,18 @@ export class Run {
     if (hint) { this.hint = hint; this.hintT = 4.5; }
     if (!silent) { juice.shake(0.55); sfx.hurt(); }
     if (!silent) this.player.avatar?.land(1.5);
+    // death-save: once per run, the last of your Health holds
+    const D = this.mods.deathSave;
+    if (this.health <= 0 && D && !this.saved && this.phase !== 'dead') {
+      this.saved = true;
+      this.health = this.S.health * D.health;
+      this.iFrames = 1.5;
+      const P = this.player.position;
+      this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.12, 0.6);
+      this.fx.impact(P.clone().setY(P.y + this.cfg.height * 0.5), this.friendly, 0.05, 16);
+      this.hud.toast('⏰ Snooze! Back up with half your Health.', 2400);
+      return;
+    }
     if (this.health <= 0) this.die();
   }
 
@@ -913,7 +941,7 @@ export class Run {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
-      chestsOpened: this.chestsOpened,
+      chestsOpened: this.chestsOpened, saved: this.saved,
     };
   }
 
