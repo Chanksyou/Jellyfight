@@ -28,7 +28,7 @@ evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once each act, a 
 }
 evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2.5 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Bubbles reach 30% less far." {
     every 2.5 {
-        ring 0.13 dmg=1.5 push=0.05 color="#dff4ff" show=0.4
+        ring 0.13 dmg=1 push=0.05 color="#dff4ff" show=0.4
         dash 0.8 time=0.35
     }
     stat range -30 percent=#true
@@ -36,7 +36,7 @@ evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2.5 s your bell 
 }
 evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung twice a second. -15% Move speed." {
     stat health 60 percent=#true
-    touch-sting dmg=0.6 every=0.5 reach=0.02
+    touch-sting dmg=0.25 every=0.5 reach=0.02
     stat move-speed -15 percent=#true
     adorn "mane"
 }

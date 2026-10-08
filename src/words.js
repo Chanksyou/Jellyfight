@@ -342,7 +342,7 @@ export function newMods() {
     bubbles: { pierce: 1, echo: null, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
-    hits: { bubbles: { mark: 0, crit: null, pin: 0 }, tentacles: { mark: 0, crit: null, pin: 0, venom: null } },
+    hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null } },
     popZap: null,
     mouse: null,                     // toy-mouse: { every, dmg, speed }
     reflect: null,                   // reflect: { every, invuln }
@@ -475,7 +475,7 @@ export const TREASURE_WORDS = {
       return (m) => { const P = (m.element[name] ||= elementParams(name)); for (const [k, v] of set) P[k] = ELEMENT_ADD.has(k) ? P[k] + v : P[k] * v; };
     },
   },
-  'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
+  'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take `more` (0.5 = 50%) more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all', more: 0.5 }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { m.hits[k].mark = Math.max(m.hits[k].mark, s); m.hits[k].markMore = Math.max(m.hits[k].markMore, p.more); } }; } },
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
   'pin-on-crit': { doc: 'A critical hit pins the enemy in place for `seconds` (it can\'t move or attack). `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].pin = Math.max(m.hits[k].pin, s); }; } },
   'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your bubble damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },

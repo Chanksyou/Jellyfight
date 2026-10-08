@@ -71,7 +71,7 @@ const CARD_VALUES = {
   bubbles:       { amounts: [0, 0, 1], weight: 0.6 },   // too strong for anything but Epic: always an Epic +1
   range:         { amounts: [15, 20, 25], pct: true },
   bubbleDamage:  { amounts: [1, 2, 3] },
-  fireRate:      { amounts: [10, 15, 20], pct: true },
+  fireRate:      { amounts: [12, 18, 25], pct: true },
   health:        { amounts: [3, 6, 9] },
   moveSpeed:     { amounts: [10, 15, 20], pct: true, weight: 1.2 },
   regen:         { amounts: [0.25, 0.5, 0.75], suffix: '/s' },   // health a second

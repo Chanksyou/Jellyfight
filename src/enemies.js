@@ -240,11 +240,11 @@ export class Enemies {
     bus.on('damage_taken', ({ targetId, amount, color }) => {
       if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color);
     });
-    bus.on('status_applied', ({ targetId, status, duration }) => {
+    bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
       if (!e || e.dead || e.proxy) return;
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
-      else if (status === 'mark') e.markT = Math.max(e.markT || 0, duration);
+      else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
       else if (status === 'freeze') e.freezeT = duration;
@@ -376,7 +376,7 @@ export class Enemies {
         sfx.clink();
       }
     }
-    if (e.markT > 0) amount *= 1.5;       // Sticky Note
+    if (e.markT > 0) amount *= 1 + (e.markMore ?? 0.5);   // Sticky Note
     e.hp -= amount;
     e.pop = 1;
     e.flashT = 0.07;                      // flashes white for a moment

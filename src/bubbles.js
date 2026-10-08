@@ -240,7 +240,7 @@ export class Bubbles {
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
     const b = {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
-      pierce: o.pierce, hit: new Set(), travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
+      pierce: o.pierce, hit: new Set(), splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
       elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     };
@@ -294,6 +294,7 @@ export class Bubbles {
           b.hit.add(e);
           this.strike(b, e, mods);
           if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
+          if (b.hit.size === 1) this.splash(b);   // a piercing bubble splashes where it first hits, then flies on
         }
       }
       const reach = b.range ? b.range * 1.4 : maxTravel;
@@ -325,7 +326,7 @@ export class Bubbles {
       this.fx.crit(this.enemies.center(e), e.r);
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
-    if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
+    if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
@@ -415,6 +416,24 @@ export class Bubbles {
     this.fx.puff(to, 0xfff6a0, 0.012, 0.15);
   }
 
+  // splash: a share of the damage to everything close by (Glitter: twice as wide, harder). Once a
+  // bubble: where it pops, or where a piercing one first hits
+  splash(b) {
+    b.splashed = true;
+    const p = b.m.position, glitter = b.elems.has('glitter');
+    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();
+    if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
+    if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
+    this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
+    for (const e of E.list) {
+      if (e.dead || b.hit.has(e)) continue;
+      if (E.center(e, c).distanceTo(p) >= splash + e.r) continue;
+      if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
+      if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
+      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
+    }
+  }
+
   pop(b, hitEnemy, stats, mods) {
     if (b.done) return;
     b.done = true;
@@ -431,19 +450,8 @@ export class Bubbles {
     if (el.has('lightning')) sfx.zap();
     if (el.has('acid')) sfx.acid();
     if (el.has('wind')) sfx.wind();
-    // splash: a share of the damage to everything close by (Glitter: twice as wide, harder)
-    const glitter = b.elems.has('glitter');
-    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();
-    if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
-    if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
-    this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
-    for (const e of E.list) {
-      if (e.dead || b.hit.has(e)) continue;
-      if (E.center(e, c).distanceTo(p) >= splash + e.r) continue;
-      if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
-      if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
-      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
-    }
+    if (!b.splashed) this.splash(b);
+    const E = this.enemies, c = new THREE.Vector3();
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
       let from = p.clone();

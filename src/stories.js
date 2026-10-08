@@ -1173,6 +1173,16 @@ story('treasures/pierce', {
   setup() { setupFight({ lash: false }); give('bobbyPin'); G().run.stats.bubbles = 1; [0.2, 0.25, 0.3].forEach((z) => roachAt(0, -z)); },
   play() { step(240); const hurt = G().enemies.list.filter((e) => e.hp < e.maxHp).length; return ok(hurt >= 2, { hurt }); },
 });
+story('treasures/pierce-splash', {
+  about: 'pierce (Bobby Pin): a piercing bubble still splashes, where it first hits, so a bug beside the one it pierces takes the splash.',
+  setup() { setupFight({ lash: false }); give('bobbyPin'); Object.assign(G().run.stats, { bubbles: 1, bubbleSize: 2 }); roachAt(0, -0.2); roachAt(0.02, -0.2); },   // big bubbles: a wide splash, so the bugs' own spacing can't dodge it
+  play() {
+    const log = record('damage_taken');
+    step(120, () => dmgBy(log, 'splash').length > 0);
+    const splash = dmgBy(log, 'splash').length, direct = dmgBy(log, 'bubble').length;
+    return ok(splash > 0 && direct > 0, { splash, direct });
+  },
+});
 story('treasures/golden-bubble', {
   about: 'golden-bubble (Gold Ring): every 10th bubble is golden and hits 5x.',
   setup() { setupFight({ lash: false }); give('goldRing'); roachAt(0, -0.15); },
@@ -1305,6 +1315,18 @@ story('treasures/mark-on-hit', {
   about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
   setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
   play() { const e = G().enemies.list[0]; step(120, () => e.markT > 0); return ok(e.markT > 0 && !!e.note, { markT: +e.markT.toFixed(2) }); },
+});
+story('treasures/mark-on-hit-levels', {
+  about: 'mark-on-hit more= (Sticky Note level 3): marked bugs take 80% more damage, and a hit on one lands 1.8x.',
+  setup() { setupFight({ lash: false }); give('stickyNote', 'stickyNote', 'stickyNote'); roachAt(0, -0.15); },
+  play() {
+    const e = G().enemies.list[0];
+    step(120, () => e.markT > 0);
+    const hp = e.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'test' });
+    const landed = +(hp - e.hp).toFixed(3);
+    return ok(e.markT > 0 && landed === 18, { markT: +e.markT.toFixed(2), landed });
+  },
 });
 story('treasures/crit', {
   about: 'crit (Nail Clipper): about 1 hit in 5 does triple damage.',

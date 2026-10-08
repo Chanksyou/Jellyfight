@@ -146,7 +146,7 @@ export class Lash {
     const id = s.target.id;
     if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: 0.008 });
     if (s.target.dead) return;
-    if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark });
+    if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
     let dmg = s.dmg, color = '#fff';
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r);

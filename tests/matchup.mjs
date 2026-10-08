@@ -8,7 +8,7 @@
 // Prints a JSON line per item to stdout (collect with > file), progress to stderr.
 //
 //   node tests/matchup.mjs              everything
-//   node tests/matchup.mjs lemon        just items whose id contains "lemon"
+//   node tests/matchup.mjs lemon        just items whose id contains "lemon" (or "lemon,pin": either)
 //   BUGS=roach node tests/matchup.mjs   just against cockroaches
 import { start, openGame } from './lib.mjs';
 
@@ -21,7 +21,7 @@ const { page, errors } = await openGame(env, { viewport: { width: 800, height: 5
 const { items, bugs } = await page.evaluate(async () => {
   const { CONTENT } = await import('/src/content.js');
   // the Epic card of each stat (src/stats.js CARD_VALUES, which isn't exported)
-  const CARD_VALUES = { bubbles: { amounts: [1] }, range: { amounts: [25], pct: true }, bubbleDamage: { amounts: [3] }, fireRate: { amounts: [20], pct: true }, health: { amounts: [9] }, moveSpeed: { amounts: [20], pct: true }, regen: { amounts: [0.75] }, dodge: { amounts: [15] }, luck: { amounts: [30] }, bubbleSize: { amounts: [30], pct: true } };
+  const CARD_VALUES = { bubbles: { amounts: [1] }, range: { amounts: [25], pct: true }, bubbleDamage: { amounts: [3] }, fireRate: { amounts: [25], pct: true }, health: { amounts: [9] }, moveSpeed: { amounts: [20], pct: true }, regen: { amounts: [0.75] }, dodge: { amounts: [15] }, luck: { amounts: [30] }, bubbleSize: { amounts: [30], pct: true } };
   const items = [{ kind: 'none', id: 'none', name: '(nothing)' }];
   for (const t of CONTENT.treasures) {
     const n = t.levels?.length || 1;
@@ -39,11 +39,11 @@ const { items, bugs } = await page.evaluate(async () => {
 const BUGS = process.env.BUGS ? process.env.BUGS.split(',') : bugs;   // BUGS=roach: just those
 console.error(`bugs: ${BUGS.join(', ')}; items: ${items.length}`);
 
-for (const it of items.filter((i) => i.kind === 'none' || i.id.toLowerCase().includes(only)).filter((_, n) => n % shards === shard)) {
+for (const it of items.filter((i) => i.kind === 'none' || only.split(',').some((o) => i.id.toLowerCase().includes(o))).filter((_, n) => n % shards === shard)) {
   const t0 = Date.now();
   const res = await page.evaluate(async ({ it, BUGS, TRIES }) => {
     const { fresh, tp } = await import('/src/stories.js');
-    const { bus, PLAYER } = await import('/src/events.js');
+    const { bus } = await import('/src/events.js');
     const { applyCard } = await import('/src/stats.js');
     const setup = () => {
       fresh({ elites: false, hurt: true });
@@ -80,7 +80,7 @@ for (const it of items.filter((i) => i.kind === 'none' || i.id.toLowerCase().inc
         setup();
         const imm = spawn(type, big, 1e7), ids = new Set(imm.map((e) => e.id));
         let sum = 0, hurt = 0;
-        const off = bus.on('damage_taken', (d) => { if (d.targetId !== PLAYER && ids.has(d.targetId)) sum += d.amount; });
+        const off = bus.on('enemy_hit', (d) => { if (ids.has(d.targetId)) sum += d.amount; });   // what landed (after marks and armour)
         const orig = run.hurt.bind(run);
         run.hurt = (a, s) => { if (!(run.polypT > 0)) hurt += a; const r = orig(a, s); run.health = run.S.health; return r; };
         for (let j = 0; j < 600; j++) GAME.step(1 / 60);

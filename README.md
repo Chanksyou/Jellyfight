@@ -43,12 +43,14 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 
 - **`content/enemies.kdl`**: every bug as a few numbers and a few behaviour words, e.g. `chase 0.3`, or `curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3`. Each word is defined once in `src/words.js` with what its numbers mean. A typo stops loading with a message naming the file and line.
 - **`content/waves.kdl`**: how fast bugs arrive, how many at once, how much tougher they get, and from when each kind appears.
-- **`content/treasures.kdl`**: all 102 treasures, each a name, icon, text and effect words (and `stack=N` for stackable ones, or `level 2 text="…" { … }` / `level 3 …` blocks for ones that level up), e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1.2 push=0.035 }`. A new treasure that combines existing effects needs no code.
+- **`content/treasures.kdl`**: all 102 treasures, each a name, icon, text and effect words (and `stack=N` for stackable ones, or `level 2 text="…" { … }` / `level 3 …` blocks for ones that level up), e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1 push=0.035 }`. A new treasure that combines existing effects needs no code.
 - **`content/look.css`**: colours and render numbers: the night fill, haze, bloom, the jelly's size, colour, glow and light, how much enemies glow, gut colours, the camera, and how often and how sharp the game draws (frame-rate cap, pixel ratio range, how many lamps a phone lights at once).
 
 **Stories** (`src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
 
 **The balance bot** (`node tests/balance.mjs 5`) plays whole nights on autopilot and reports how long it lasted, its level and kills, whether it beat the boss, and which sources took its Health. Run it before and after anything that could make the game harder or easier.
+
+**The matchup test** (`BUGS=roach node tests/matchup.mjs`) puts every treasure (at level 1 and its top level), every Epic level-up card and every evolution against one big bug and a chasing clump of ten, and reports how much faster each clears them than nothing does. Leave out `BUGS=` to try every bug. Use it to spot outliers; rate a single treasure with `tests/clear.mjs`.
 
 ## Dev: layout editor
 
