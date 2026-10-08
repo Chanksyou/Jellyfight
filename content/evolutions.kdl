@@ -1,0 +1,48 @@
+// Evolutions: what the jelly becomes after an act's boss (the metamorphosis). Pick 1 of 3; each is
+// taken once a run and kept to the end. They're meant to change how you play, not just add numbers:
+// each has its own trick, a cost, and an adorn piece that shows on the jelly (src/adornments.js),
+// on top of the player's own look, which they never change.
+//
+// The same effect words as treasures (src/words.js, TREASURE_WORDS); damage numbers are multiples of
+// your power (bubble damage x 1.8) unless a word says otherwise.
+//
+//   evolution "id" name="…" icon="…" text="…" { effect words… }
+
+evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 40% slower." {
+    stat tentacles 3
+    stat tentacle-reach 100 percent=#true
+    venom dps=0.5 time=3 stacks=5
+    stat fire-rate -40 percent=#true
+    adorn "venom-tips"
+}
+evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you and shoot with you: every bubble and element shot, each fires one more at half damage. -20% max Health." {
+    polyps 2 dmg=0.5
+    stat health -20 percent=#true
+    adorn "sail"
+}
+evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once each act, a killing blow turns you back into a polyp for 5 s (nothing can hurt you, but you can't attack), then you bloom back with full Health. -25% max Health, and no Health regen." {
+    rebirth time=5
+    stat health -25 percent=#true
+    no-regen
+    adorn "halo"
+}
+evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2.5 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Bubbles reach 30% less far." {
+    every 2.5 {
+        ring 0.13 dmg=1.5 push=0.05 color="#dff4ff" show=0.4
+        dash 0.8 time=0.35
+    }
+    stat range -30 percent=#true
+    adorn "moon-ring"
+}
+evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung twice a second. -15% Move speed." {
+    stat health 60 percent=#true
+    touch-sting dmg=0.6 every=0.5 reach=0.02
+    stat move-speed -15 percent=#true
+    adorn "mane"
+}
+evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="Stand still for a second to root: +80% Fire rate, +1 Health a second, and bubbles pierce one more bug. Move and it's gone." {
+    while "rooted" "fire-rate" 80 percent=#true
+    while "rooted" "health-regen" 1
+    while "rooted" "pierce" 1
+    adorn "fronds"
+}

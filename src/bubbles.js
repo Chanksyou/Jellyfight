@@ -134,7 +134,10 @@ export class Bubbles {
   }
 
   // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
-  update(dt, origin, stats, mods) {
+  // paused: a polyp (rebirth) doesn't shoot; what's already flying carries on
+  update(dt, origin, stats, mods, paused = false) {
+    this.origin = origin;              // where the polyps (adornments.js) circle
+    if (paused) { this.fly(dt, stats, mods); this.effects(dt, stats); return; }
     // one blow at a time: a faster fire rate = a faster stream
     this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
@@ -172,10 +175,13 @@ export class Bubbles {
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    const pierce = B.pierce + Math.round(stats.pierce || 0);
     for (let k = 0; k < count; k++) {
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, tint, pierce: B.pierce, spread, off });
+      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, tint, pierce, spread, off });
     }
+    // polyps (Man o' War): each blows one of the same at the enemy nearest it
+    this.forPolyps(mods, origin, stats.range, (from, t, k) => this.blow(from, t, { size: size * 0.75, dmg: dmg * k, golden, elems, tint, pierce }));
     // Reed Stick: every 6th bubble is a giant, slow one
     const G = B.giant;
     if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.bubbleDamage * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
@@ -198,7 +204,23 @@ export class Bubbles {
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
       this.blow(origin.clone().add(off), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range, spread, off });
     }
+    this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     return true;
+  }
+
+  // Where polyp i of n circles (polyps word): around the bell, a little above it
+  polypPos(i, n, origin, out = new THREE.Vector3()) {
+    const a = this.clock * 1.8 + (i / n) * Math.PI * 2;
+    return out.set(origin.x + Math.cos(a) * 0.055, origin.y + 0.012 + Math.sin(this.clock * 3 + i) * 0.004, origin.z + Math.sin(a) * 0.055);
+  }
+  // each polyp, with the enemy nearest it in `range` and its share of the damage
+  forPolyps(mods, origin, range, shoot) {
+    const Pl = mods.polyps;
+    if (!Pl) return;
+    for (let i = 0; i < Pl.count; i++) {
+      const from = this.polypPos(i, Pl.count, origin), t = this.inRange(from, range)[0];
+      if (t) shoot(from, t, Pl.dmg);
+    }
   }
 
   // bubble-ring: `count` bubbles at once, evenly around you, flying straight out

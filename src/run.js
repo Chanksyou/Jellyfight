@@ -10,6 +10,7 @@ import { Clog } from './clog.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
+import { Adornments } from './adornments.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -28,6 +29,7 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
 // not a rug or a threshold
 // Under this share of max Health counts as low (a `while low-health` treasure)
+const ROOTED = 1;          // seconds standing still on the ground before a `while "rooted"` holds
 const LOW_HEALTH = 0.3;
 
 const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
@@ -52,6 +54,7 @@ export class Run {
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
+    this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
@@ -164,11 +167,16 @@ export class Run {
     this.slowT = 0;
     this.slipT = 0;
     this.stillT = 0;
+    this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
+    this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
+    this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
+    this.player.avatar?.root.scale.setScalar(1);
     this.squeakCd = []; this.hurtCd = {};
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
     this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
+    this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
     if (C) {
@@ -177,8 +185,9 @@ export class Run {
       for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
+      this.evolved = [...(C.evolved || [])];
       this.saved = !!C.saved;
-      this.health = this.stats.health;
+      this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
     }
     this.spawnAcc = 0;
@@ -219,9 +228,9 @@ export class Run {
     // while: conditionals, true right now or not (the jelly in the air, or low on Health)
     const whiles = this.mods.whiles;
     if (whiles.length) {
-      const P = this.player, air = !P.grounded && !P.climbing;
+      const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
       const low = this.health < S.health * LOW_HEALTH;
-      for (const c of whiles) if (c.when === 'airborne' ? air : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
     }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
@@ -235,6 +244,8 @@ export class Run {
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
+    if (this.mods.noRegen) S.regen = 0;                           // no-regen (Immortal Jelly)
+    if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
   }
 
@@ -243,10 +254,11 @@ export class Run {
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
   get mods() {
-    if (this._modsOf !== this.owned || this._modsV !== this.owned.version) {
-      this._mods = compileMods(this.owned);
+    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== (this.evolved?.length || 0)) {
+      this._mods = compileMods(this.owned, this.evolved || []);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
+      this._modsE = this.evolved?.length || 0;
     }
     return this._mods;
   }
@@ -260,6 +272,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
+    this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
     // run it waits for the first Level-up instead: first-run.js)
@@ -290,6 +303,9 @@ export class Run {
     // --- timers
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
+    this.dashT = Math.max(0, (this.dashT || 0) - dt);
+    this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
+    if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
     // --- the night: waves, treasures, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
@@ -309,11 +325,15 @@ export class Run {
     // --- attacks and enemies
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
     if (this.phase === 'explore' || this.phase === 'boss') {
+      const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
       // main attack: bubbles, blown from the top of the bell
-      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
+      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp);
       // close-range sting: tentacles, improved only by treasures
-      this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods) });
+      if (!polyp) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
+      else this.lash.animate(dt, origin);
+      if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
+        dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
+        dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD
@@ -332,10 +352,7 @@ export class Run {
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
     if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt);   // health regen (cards, treasures)
     const spout = this.mods.spout;
-    if (spout) {
-      this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;
-      if (this.stillT > spout.after) this.heal(spout.heal * dt);
-    }
+    if (spout && this.stillT > spout.after) this.heal(spout.heal * dt);
 
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
@@ -514,6 +531,7 @@ export class Run {
   }
 
   hurt(amount, silent = false) {
+    if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
@@ -531,7 +549,32 @@ export class Run {
       this.hud.toast('⏰ Snooze! Back up with half your Health.', 2400);
       return;
     }
+    // rebirth (Immortal Jelly): once an act, back to a polyp instead, then bloom with full Health
+    const R = this.mods.rebirth;
+    if (this.health <= 0 && R && !this.rebornThisAct && this.phase !== 'dead') {
+      this.rebornThisAct = true;
+      this.health = 1;
+      this.polypT = R.time;
+      this.iFrames = R.time + 0.5;
+      this.player.avatar?.root.scale.setScalar(0.45);
+      const P = this.player.position;
+      this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.1, 0.8);
+      this.hud.toast(`♾️ Back to a polyp… you bloom again in ${R.time} s.`, 2400);
+      return;
+    }
     if (this.health <= 0) this.die();
+  }
+
+  // rebirth's end: the polyp blooms back into a jelly with full Health
+  bloom() {
+    this.polypT = 0;
+    this.health = this.S.health;
+    this.iFrames = 1;
+    this.player.avatar?.root.scale.setScalar(1);
+    const P = this.player.position, c = P.clone().setY(P.y + this.cfg.height * 0.5);
+    this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.18, 0.7);
+    this.fx.impact(c, this.friendly, 0.05, 18);
+    this.hud.toast('♾️ You bloom again, whole.', 2000);
   }
 
   heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
@@ -883,10 +926,10 @@ export class Run {
     if (left) this.gainXp(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
-    const choices = shuffle([...EVOLUTIONS]).slice(0, 3);
-    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} Choose how it grows.`, choices, (evo) => {
-      evo.apply(this.stats);
-      this.health = this.stats.health;
+    const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
+    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} Choose what it becomes: it changes how you play for the rest of the run.`, choices, (evo) => {
+      this.evolved.push(evo.id);
+      this.health = this.S.health;
       this.phase = 'won';
       const next = STAGES[this.stage.id];         // the act after this one, if there is one
       // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
@@ -973,7 +1016,7 @@ export class Run {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
-      chestsOpened: this.chestsOpened, saved: this.saved,
+      chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved,
     };
   }
 
@@ -1005,6 +1048,7 @@ export class Run {
       ['Time', `${m}:${sec}`],
       ['Level', this.level],
       ['Dry things cleared', this.kills],
+      ...(this.evolved.length ? [['Evolutions', this.evolved.map((id) => { const e = EVOLUTIONS.find((x) => x.id === id); return `${e.icon} ${e.name}`; }).join(', ')]] : []),
       ['Treasures', [...this.owned].map((id) => TREASURES.find((t) => t.id === id).icon + (this.owned.count(id) > 1 ? `×${this.owned.count(id)}` : '')).join(' ') || 'none'],
     ];
   }
@@ -1029,7 +1073,7 @@ export class Run {
     const h = this.hud;
     h.setHealth(this.health, this.S.health);
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
-    h.setItems([...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; }));
+    h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
     const [c0, c1] = this.stage.clock;
     const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);

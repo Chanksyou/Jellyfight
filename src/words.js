@@ -342,7 +342,7 @@ export function newMods() {
     bubbles: { pierce: 1, echo: null, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
-    hits: { bubbles: { mark: 0, crit: null, pin: 0 }, tentacles: { mark: 0, crit: null, pin: 0 } },
+    hits: { bubbles: { mark: 0, crit: null, pin: 0 }, tentacles: { mark: 0, crit: null, pin: 0, venom: null } },
     popZap: null,
     mouse: null,                     // toy-mouse: { every, dmg, speed }
     reflect: null,                   // reflect: { every, invuln }
@@ -357,6 +357,11 @@ export function newMods() {
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
+    polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
+    rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
+    noRegen: false,                  // no-regen: Health regen does nothing
+    touch: null,                     // touch-sting: { dmg, every, reach }
+    adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
   };
 }
@@ -421,6 +426,12 @@ export const TIMED_WORDS = {
     props: { dmg: 1 },
     make: ([count], p) => ({ kind: 'bubble-ring', count, ...p }),
   },
+  dash: {
+    doc: 'A burst of speed: +`speed` Move speed (1 = +100% of your starting speed) for `time` s.',
+    args: ['speed'],
+    props: { time: 0.35 },
+    make: ([speed], p) => ({ kind: 'dash', speed, time: p.time }),
+  },
   xp: {
     doc: 'Drops `xp` worth of XP at your feet.',
     args: ['xp'],
@@ -429,13 +440,16 @@ export const TIMED_WORDS = {
 };
 
 // When a `while` holds (Run.S checks it each time the stats are read)
-export const WHILE_WHEN = ['airborne', 'low-health'];
+// the extra pieces adorn can add (src/adornments.js builds each)
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds'];
+
+export const WHILE_WHEN = ['airborne', 'low-health', 'rooted'];
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -474,6 +488,12 @@ export const TREASURE_WORDS = {
     make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
   },
   reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did), and you take none of it, then can\'t be hurt for `invuln` s.', props: { every: 20, invuln: 1 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
+  venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
+  polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
+  rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
+  'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else).', make: () => (m) => { m.noRegen = true; } },
+  'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
+  adorn: { doc: 'Adds a piece to the jelly\'s look on top of the player\'s own design (src/adornments.js): venom-tips, sail, halo, moon-ring, mane or fronds.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
   'death-save': { doc: 'Once per run, a hit that would take your last Health leaves you at `health` (a share of your max Health) instead.', props: { health: 0.5 }, make: (_, p) => (m) => { m.deathSave = { ...p }; } },
   'damage-taken': { doc: 'Hits take `times` as much health.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
@@ -505,7 +525,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground) or low-health (under 30% of your max Health). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health or rooted (standing still on the ground for 1 s or more) (under 30% of your max Health). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false },
     make: ([when, name, amount], p) => {

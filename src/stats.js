@@ -1,4 +1,4 @@
-// The jelly's stats, level-up cards, treasures and evolution choices.
+// The jelly's stats, level-up cards, treasures and evolutions.
 // Everything a player reads is here, so tuning lives in one place.
 import { CONTENT } from './content.js';
 
@@ -15,6 +15,7 @@ export const BASE_STATS = {
   regen: 0,           // health refilled per second
   dodge: 0,           // % chance a hit misses you entirely (60% at most)
   luck: 0,            // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
+  pierce: 0,          // more enemies each bubble pops on, on top of Bobby Pin (Upside-down Jelly, rooted)
   // Tentacles: an automatic lash at close range. Only treasures improve these.
   tentacles: 1,       // tentacles that lash out at once (the jelly has 6 in all)
   reach: 0.083,       // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
@@ -35,6 +36,7 @@ export const STAT_INFO = {
   regen:           { name: 'Health regen',    icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
   dodge:           { name: 'Dodge',           icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
   luck:            { name: 'Luck',            icon: '🍀', fmt: (v) => `${Math.round(v)}` },
+  pierce:          { name: 'Pierce',          icon: '🧷', fmt: (v) => `+${Math.round(v)}` },
   tentacles:       { name: 'Tentacles',       icon: '🪼', fmt: (v) => `${v}` },
   reach:           { name: 'Tentacle reach',  icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
   tentacleDamage:  { name: 'Tentacle damage', icon: '⚡', fmt: (v) => `${Math.round(v)}` },
@@ -157,11 +159,5 @@ export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;
 export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
-// Offered after beating a stage's boss; pick one
-export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (25% less damage each), +15% Move speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.moveSpeed += 0.15; } },
-  { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+1 Tentacle, +4 Tentacle damage, +25% Tentacle reach', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.tentacleDamage += 4; s.reach += BASE_STATS.reach * 0.25; } },
-  { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Health', apply: (s) => { s.health += 10; } },
-  { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Fire rate, +25% Tentacle speed', apply: (s) => { s.fireRate += BASE_STATS.fireRate * 0.25; s.tentacleSpeed += 0.25; } },
-  { id: 'spring', name: 'Springy Bell', icon: '🪀', text: '+25% Jump height, +10% Move speed', apply: (s) => { s.jumpHeight += 0.25; s.moveSpeed += 0.1; } },
-];
+// What the jelly can become after an act's boss (content/evolutions.kdl): pick 1 of 3, one per act
+export const EVOLUTIONS = CONTENT.evolutions;

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
+import { LOOK } from './look.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 
@@ -25,6 +26,8 @@ export class Lash {
     this._a = new THREE.Vector3();
     this._b = new THREE.Vector3();
     this.getRig = () => null;     // main.js: () => player.avatar.tentacles
+    this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
+    this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
   }
 
   reset() {
@@ -32,6 +35,7 @@ export class Lash {
     this.count = 0;
     this.strikes.forEach((s) => this.release(s));
     this.strikes = [];
+    this.venom.clear();
   }
 
   release(s) {
@@ -100,7 +104,20 @@ export class Lash {
     this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits });
   }
 
+  // venom: each stack burns its share every 0.25 s until the stacks run out
+  tickVenom(dt) {
+    for (const [e, V] of this.venom) {
+      if (e.dead || (V.t -= dt) <= 0) { this.venom.delete(e); continue; }
+      if ((V.tick -= dt) > 0) continue;
+      V.tick += 0.25;
+      const c = this.enemies.center(e, this._b);
+      bus.emit('damage_taken', { targetId: e.id, amount: V.stacks * V.perStack * 0.25, color: '#b8ff8a', source: 'venom' });
+      this.fx.puff(c, this.venomColor.getHex(), 0.004 + V.stacks * 0.0012, 0.3);
+    }
+  }
+
   animate(dt, origin) {
+    this.tickVenom(dt);
     for (const s of this.strikes) {
       s.t += dt;
       const a = s.fixedFrom || origin;
@@ -136,6 +153,15 @@ export class Lash {
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle' });
+    // venom (Box Jelly): another stack, and they all last a while longer
+    const Vn = H.venom;
+    if (Vn && !s.target.dead) {
+      const V = this.venom.get(s.target) || { stacks: 0, tick: 0.25 };
+      V.stacks = Math.min(Vn.stacks, V.stacks + 1);
+      V.perStack = Vn.dps * s.dmg;
+      V.t = Vn.time;
+      this.venom.set(s.target, V);
+    }
   }
 }
 

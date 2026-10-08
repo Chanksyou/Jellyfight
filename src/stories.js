@@ -1163,6 +1163,7 @@ story('look/tokens-reach-the-game', {
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
 const give = (...ids) => { for (const id of ids) G().run.owned.add(id); };
+const evolve = (id) => { G().run.evolved.push(id); };   // take an evolution (content/evolutions.kdl)
 const dmgBy = (log, source) => log.filter((d) => d.source === source && d.targetId !== PLAYER);
 const roachAt = (dx, dz, opts = { still: true, hp: 9999 }) => spawn('roach', near(dx, dz), opts);
 const setupFight = (opts = {}) => { fresh({ elites: false, ...opts }); tp(3.2, 0.05, 3.0, 0); };
@@ -1832,13 +1833,121 @@ story('treasures/aura', {
   setup() { setupFight({ bubbles: false, lash: false }); give('glowStick'); roachAt(0.06, 0); },
   play() { const log = record('damage_taken'); step(90); return ok(dmgBy(log, 'aura').length >= 2, { stings: dmgBy(log, 'aura').length }); },
 });
+// --- evolutions (content/evolutions.kdl): one story per word they brought
+story('treasures/venom', {
+  about: 'venom (Box Jelly): each tentacle sting adds a venom stack (up to 5) that burns half your Tentacle damage a second per stack; Box Jelly lashes with 4 tentacles reaching twice as far.',
+  setup() { setupFight({ bubbles: false }); evolve('boxJelly'); roachAt(0.13, 0); },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
+    step(60 * 6);
+    const venom = dmgBy(log, 'venom'), stacks = run.lash.venom.get(e)?.stacks, T = run.tentacleStats;
+    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 2) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
+  },
+});
+story('treasures/polyps', {
+  about: 'polyps (Man o\' War): two polyps circle the jelly and each blows a bubble with yours, at half damage; max Health is 20% lower.',
+  setup() { setupFight({ lash: false }); evolve('manOWar'); G().run.stats.bubbles = 1; roachAt(0, -0.15); },
+  play() {
+    const { run } = G(), B = run.bubbles;
+    let blown = 0; const orig = B.blow.bind(B); stub(B, 'blow', (...a) => { blown++; return orig(...a); });
+    B.timer = 1; step(1);
+    restore();                                                   // (stops records too: record after)
+    const log = record('damage_taken');
+    step(60 * 3, () => dmgBy(log, 'bubble').length >= 3);
+    const hits = dmgBy(log, 'bubble').map((d) => +d.amount.toFixed(2)), full = run.S.bubbleDamage;
+    return ok(blown === 3 && hits.some((h) => Math.abs(h - full * 0.5) < 0.01) && Math.abs(run.S.health - BASE_STATS.health * 0.8) < 1e-9 && run.adorn.pieces.polyps?.group.visible, { blown, hits, health: run.S.health });
+  },
+});
+story('treasures/rebirth', {
+  about: 'rebirth (Immortal Jelly): a killing blow makes you a polyp instead: you can\'t be hurt or attack for 5 s, then bloom back with full Health. Once an act: the next killing blow is the end.',
+  setup() { setupFight({ hurt: true }); evolve('immortal'); },
+  play() {
+    const { run } = G(), hit = (n) => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: n, source: 'story' }); };
+    hit(999);
+    const polyp = run.polypT > 0 && run.phase !== 'dead' && run.player.avatar.root.scale.x < 0.5;
+    hit(999);                                                    // can't be hurt as a polyp
+    const safe = run.phase !== 'dead';
+    step(60 * 5 + 10);
+    const bloomed = run.polypT === 0 && run.health === run.S.health && run.player.avatar.root.scale.x === 1;
+    step(90); hit(999);
+    return ok(polyp && safe && bloomed && run.phase === 'dead', { polyp, safe, bloomed, phase: run.phase });
+  },
+});
+story('treasures/no-regen', {
+  about: 'no-regen (Immortal Jelly): Health regen does nothing, even from a card.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); evolve('immortal'); G().run.stats.regen = 1; G().run.health = 5; },
+  play() { const { run } = G(); step(120); return ok(run.S.regen === 0 && run.health === 5, { regen: run.S.regen, health: run.health }); },
+});
+story('treasures/dash', {
+  about: 'every + ring + dash (Moon Jelly): every 2.5 s the bell pulses, stinging and pushing back bugs close by, and the jelly surges (+80% Move speed for 0.35 s).',
+  setup() { setupFight({ bubbles: false, lash: false }); evolve('moonJelly'); roachAt(0.08, 0); },
+  play() {
+    const { run } = G(), log = record('damage_taken');
+    let surge = 0;
+    step(60 * 3, () => { if (run.dashT > 0) surge = Math.max(surge, run.S.moveSpeed); return dmgBy(log, 'ring').length > 0 && surge > 0; });
+    return ok(dmgBy(log, 'ring').length === 1 && Math.abs(surge - BASE_STATS.moveSpeed * 1.8) < 1e-6, { rings: dmgBy(log, 'ring').length, surge });
+  },
+});
+story('treasures/touch-sting', {
+  about: 'touch-sting (Lion\'s Mane): bugs touching the jelly are stung twice a second; ones a little farther off aren\'t. +60% max Health.',
+  setup() { setupFight({ bubbles: false, lash: false }); evolve('lionsMane'); roachAt(0.035, 0); roachAt(0.15, 0); },
+  play() {
+    const { run, enemies } = G(), [close, far] = enemies.list, log = record('damage_taken');
+    step(61);
+    const stings = dmgBy(log, 'touch');
+    return ok(stings.length === 2 && stings.every((d) => d.targetId === close.id) && Math.abs(run.S.health - BASE_STATS.health * 1.6) < 1e-9, { stings: stings.map((d) => (d.targetId === far.id ? 'far' : 'close')), health: run.S.health });
+  },
+});
+story('treasures/while-rooted', {
+  about: 'while "rooted" (Upside-down Jelly): standing still for a second adds 80% Fire rate, 1 Health a second and 1 pierce; moving takes them away. Fronds grow on the floor while rooted.',
+  setup() { setupFight({ lash: false }); evolve('upsideDown'); },
+  play() {
+    const { run, player } = G(), b = run.stats;
+    step(30);
+    const early = run.S.fireRate;
+    step(60);
+    const rooted = [run.S.fireRate, run.S.regen, run.S.pierce];
+    const fronds = run.adorn.pieces.fronds?.group.visible;
+    run.stillT = 0; player.speed = 0.1;                          // it moves
+    const moving = run.S.fireRate;
+    const near = (a, c) => Math.abs(a - c) < 1e-6;
+    return ok(near(early, b.fireRate) && near(rooted[0], b.fireRate + BASE_STATS.fireRate * 0.8) && near(rooted[1], b.regen + 1) && rooted[2] === 1 && near(moving, b.fireRate) && fronds,
+      { early, rooted, moving, fronds });
+  },
+});
+story('treasures/adorn', {
+  about: 'adorn: an evolution adds its piece on top of the jelly, and the player\'s own model is untouched (same meshes before and after).',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, player } = G(), count = () => { let n = 0; player.avatar.root.traverse(() => n++); return n; };
+    const before = count(), avatar = player.avatar;
+    evolve('lionsMane'); step(2);
+    const mane = run.adorn.pieces.mane?.group.visible;
+    return ok(mane && player.avatar === avatar && count() === before, { mane, sameAvatar: player.avatar === avatar, before, after: count() });
+  },
+});
+story('evolutions/one-of-each-and-carried', {
+  about: 'The metamorphosis offers 3 evolutions you don\'t have yet; the one you pick goes with the run into the next act (and shows in the HUD).',
+  setup() { setupFight(); },
+  play() {
+    const { run } = G();
+    run.evolved.push('boxJelly');
+    let offered = [];
+    stub(run.ui, 'choose', (t, s, choices) => { offered = choices.map((c) => c.id); });
+    run.metamorph();
+    restore();
+    const carry = run.carryOver();
+    return ok(offered.length === 3 && !offered.includes('boxJelly') && carry.evolved.includes('boxJelly'), { offered, carried: carry.evolved });
+  },
+});
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
   about: 'Every treasure word has a description, is used by some treasure, and has a treasures/ story.',
   setup() {},
   play() {
-    const used = new Set(CONTENT.treasures.flatMap((t) => t.vocabulary));
+    const users = [...CONTENT.treasures, ...CONTENT.evolutions];   // evolutions use the same words
+    const used = new Set(users.flatMap((t) => t.vocabulary));
     const usedTimed = new Set();
-    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt]) for (const ef of T.effects) usedTimed.add(ef.kind); }
+    for (const t of users) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt]) for (const ef of T.effects) usedTimed.add(ef.kind); }
     const problems = [];
     for (const [w, def] of Object.entries(TREASURE_WORDS)) {
       if (!def.doc) problems.push(`${w}: no doc`);

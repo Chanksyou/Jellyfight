@@ -4,11 +4,13 @@
 //
 //   content/enemies.kdl   the bugs: numbers + behaviour words (src/words.js)
 //   content/waves.kdl     how the night fills with them
+//   content/treasures.kdl the treasures (effect words: src/words.js)
+//   content/evolutions.kdl what the jelly can become after an act's boss (the same effect words)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
 import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [] };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [] };
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
@@ -104,9 +106,19 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   return out;
 }
 
-// The combined effects of the treasures you own (ids): what the systems read
-export function compileMods(ids) {
+// evolution "id" name="…" icon="…" text="…" { effect words… }: one is picked after each act's boss
+// (Run.metamorph) and kept for the rest of the run. The same words as treasures; one of a kind.
+export function compileEvolutions(nodes, file = 'content/evolutions.kdl') {
+  for (const n of nodes) if (n.name !== 'evolution') throw new Error(`${file}:${n.line}: expected "evolution", got "${n.name}"`);
+  const asTreasures = nodes.map((n) => ({ ...n, name: 'treasure', props: { ...n.props, rarity: 'legendary' } }));
+  return compileTreasures(asTreasures, file).map((t) => ({ ...t, evolution: true }));
+}
+
+// The combined effects of the treasures you own (ids) and the evolutions you've taken: what the
+// systems read
+export function compileMods(ids, evolved = []) {
   const m = newMods();
+  for (const e of CONTENT.evolutions) if (evolved.includes(e.id)) for (const fx of e.effects) fx(m, 0);
   for (const t of CONTENT.treasures) {
     const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;
     if (!n) continue;
@@ -118,9 +130,10 @@ export function compileMods(ids) {
 
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves, treasures] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl')]);
+  const [enemies, waves, treasures, evolutions] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl')]);
   CONTENT.enemies = compileEnemies(parse(enemies, 'content/enemies.kdl'));
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
   CONTENT.treasures = compileTreasures(parse(treasures, 'content/treasures.kdl'));
+  CONTENT.evolutions = compileEvolutions(parse(evolutions, 'content/evolutions.kdl'));
   return CONTENT;
 }

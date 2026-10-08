@@ -165,6 +165,13 @@ export class Gadgets {
       if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });
     }
 
+    // touch-sting (Lion's Mane): whatever touches you gets stung
+    const Tc = M.touch;
+    if (Tc && this.every('touch', dt, Tc.every)) for (const e of this.near(center, (ctx.radius || 0.03) + Tc.reach)) {
+      bus.emit('damage_taken', { targetId: e.id, amount: power * Tc.dmg, color: '#ffc8e6', source: 'touch' });
+      fx.puff(E.center(e), 0xffc2e6, 0.006, 0.2);
+    }
+
     // toy-mouse: now and then it scurries to the nearest enemy and hits it
     const Mo = M.mouse;
     if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
@@ -274,6 +281,8 @@ export class Gadgets {
     } else if (ef.kind === 'lash') {
       const e = ctx.from != null && this.near(center, ef.range).find((x) => x.id === ctx.from);
       if (e) ctx.lash?.(e, ef.dmg);
+    } else if (ef.kind === 'dash') {
+      ctx.dash?.(ef.speed, ef.time);
     } else if (ef.kind === 'bubble-ring') {
       ctx.bubbleRing?.(ef.count, ef.dmg);
     } else if (ef.kind === 'xp') {
