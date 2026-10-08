@@ -165,7 +165,9 @@ export class RoomTreasure {
       _w.set((Math.random() - 0.5) * 0.008, 0.01 + Math.random() * 0.012, (Math.random() - 0.5) * 0.008);
       this.fx.glow.emit(_v.set(p.x + (Math.random() - 0.5) * 0.04, p.y + 0.012 + Math.random() * 0.02, p.z + (Math.random() - 0.5) * 0.03), this.gold, 0.007, 0.001, 0.5, 1, _w, -0.02);
     }
-    if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < 0.045 || p.distanceTo(feet) < 0.04) {
+    // touched: close to it, or right over it (standing on something beside it, up to 12 cm up)
+    const flat = Math.hypot(feet.x - p.x, feet.z - p.z), up = feet.y - p.y;
+    if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < 0.045 || p.distanceTo(feet) < 0.04 || (flat < 0.04 && up > -0.02 && up < 0.12)) {
       this.fx.impact(_v.copy(p).setY(p.y + 0.02), this.gold, 0.05, 24);
       this.hide();
       return 'taken';

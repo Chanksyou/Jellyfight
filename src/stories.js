@@ -2526,7 +2526,52 @@ story('acts/act-1-leads-to-act-2', {
 
 // --- act 2: the hallway and the bathroom (stage2.js). These play in a page opened on act 2,
 // carrying a level-6 run with a Candle (tests/run.mjs)
+// Beat every elite in this act and walk (jumping now and then) to the chest it leaves, from an
+// open spot 25 cm away: the chest must be on an open spot and touchable, never inside or under
+// anything (the Kettle's once landed inside the kettle, the Controller's under an overhang)
+function eliteChestsReachable() {
+  const { run } = G(), out = {};
+  stub(run.ui, 'choose', () => {});
+  stub(run.hud, 'toast', () => {});
+  for (const E of [...run.elites.list]) {
+    for (const t of run.roomTreasures) t.hide();
+    E.dead = true;
+    step(10);
+    const t = run.roomTreasures.find((x) => x.active);
+    if (!t) { out[E.kind] = 'no chest'; continue; }
+    const p = t.pos.clone(), open = run.openSpot([p.x, p.y, p.z]).ok;
+    let taken = false;
+    for (let k = 0; k < 16 && !taken; k++) {
+      const a = (k / 16) * Math.PI * 2, sx = p.x + Math.cos(a) * 0.25, sz = p.z + Math.sin(a) * 0.25;
+      const o = run.openSpot([sx, p.y, sz]);
+      if (!o.ok || Math.abs(o.y - p.y) > 0.15) continue;
+      tp(sx, o.y + 0.02, sz, 0);
+      for (let i = 0; i < 60 * 5 && t.active; i++) {
+        const P = G().player.position;
+        G().player.facing = Math.atan2(p.x - P.x, p.z - P.z); G().tpc.yaw = G().player.facing + Math.PI;
+        G().input.keys = new Set(['KeyW']);
+        if (i % 40 === 0) G().input.jumpQueued = true;
+        G().GAME.step(1 / 60);
+      }
+      G().input.keys = new Set();
+      taken = !t.active;
+    }
+    out[E.kind] = open && taken ? 'ok' : `open ${open}, taken ${taken}`;
+  }
+  restore();
+  return ok(Object.keys(out).length > 0 && Object.values(out).every((v) => v === 'ok'), out);
+}
+story('elites/every-chest-reachable', {
+  about: 'Every act 1 elite (Controller, Mug, Kettle) leaves its chest on an open spot the jelly can walk or jump to and touch: never inside the kettle or under the controllers.',
+  setup() { fresh({ treasures: false }); },
+  play: eliteChestsReachable,
+});
 const act2 = (name, s) => story('act2/' + name, { act: 2, ...s });
+act2('every-elite-chest-reachable', {
+  about: 'Every act 2 elite (Soap Dispenser, Wall Clock, Cream Whipper) leaves its chest on an open spot the jelly can walk or jump to and touch.',
+  setup() { fresh({ treasures: false }); },
+  play: eliteChestsReachable,
+});
 for (const v of STAGES[1].vents) {
   act2(`vent-to-${v.to.replace('the ', '').replace(/ /g, '-')}`, {
     about: `Stepping on the ${v.name.toLowerCase()} flings you onto ${v.to}.`,

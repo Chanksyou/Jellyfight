@@ -791,9 +791,14 @@ export class Run {
     if (!hit) return { ok: false, why: 'no surface' };
     const sy = hit.point.y;
     if (W.castAll(V(x, sy + 0.01, z), V(0, 1, 0), 0.3)) return { ok: false, why: 'covered overhead' };
-    for (let i = 0; i < 8; i++) {
+    // a ray that starts inside something (a kettle standing on the spot) passes through its faces
+    // without a hit, so also look down from well above: the first thing below must be the surface
+    const top = W.castAll(V(x, sy + 0.3, z), DOWN, 0.31);
+    if (!top || top.point.y > sy + 0.01) return { ok: false, why: 'inside or under something' };
+    // nothing beside it, low down or overhanging at the jelly's height (it would stand on it, too high to touch)
+    for (const h of [0.015, 0.05, 0.09]) for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      if (W.castAll(V(x, sy + 0.015, z), V(Math.cos(a), 0, Math.sin(a)), 0.06)) return { ok: false, why: 'crowded' };
+      if (W.castAll(V(x, sy + h, z), V(Math.cos(a), 0, Math.sin(a)), 0.06)) return { ok: false, why: 'crowded' };
     }
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2 + 0.4;
