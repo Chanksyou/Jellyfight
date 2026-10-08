@@ -339,11 +339,12 @@ export function makeWord(registry, node, where) {
 // What a run has with no treasures
 export function newMods() {
   return {
-    bubbles: { pierce: 1, split: false, golden: null, giant: null },
+    bubbles: { pierce: 1, split: false, echo: false, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, crit: null, pin: 0 }, tentacles: { mark: 0, crit: null, pin: 0 } },
     popZap: null,
+    mouse: null,                     // toy-mouse: { every, dmg, trip, tripDmg, speed }
     reflect: null,                   // reflect: { every, invuln }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
@@ -386,9 +387,9 @@ export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s. `elites=#false` spares elites and the boss; `look` is "ring" or "puff".',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; `look` is "ring" or "puff".',
     args: ['radius'],
-    props: { dmg: 1, push: 0, freeze: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
+    props: { dmg: 1, push: 0, freeze: 0, slow: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
   },
   zap: {
@@ -407,6 +408,12 @@ export const TIMED_WORDS = {
     props: { dmg: 2, speed: 0.825, life: 1.47 },
     make: (_, p) => ({ kind: 'marble', ...p }),
   },
+  'bubble-ring': {
+    doc: 'Blows `count` bubbles at once, spread evenly in every direction around you, each doing `dmg` times your Bubble damage.',
+    args: ['count'],
+    props: { dmg: 1 },
+    make: ([count], p) => ({ kind: 'bubble-ring', count, ...p }),
+  },
   xp: {
     doc: 'Drops `xp` worth of XP at your feet.',
     args: ['xp'],
@@ -415,7 +422,7 @@ export const TIMED_WORDS = {
 };
 
 // When a `while` holds (Run.S checks it each time the stats are read)
-export const WHILE_WHEN = ['airborne', 'high-ground'];
+export const WHILE_WHEN = ['airborne', 'high-ground', 'low-health'];
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
@@ -426,6 +433,8 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'split-bubble': { doc: 'Each bubble that pops blows a smaller one at another enemy nearby, once.', make: () => (m) => { m.bubbles.split = true; } },
+  'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, at full damage, once.', make: () => (m) => { m.bubbles.echo = true; } },
+  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse scurries (`speed` m/s) to the nearest enemy and hits it for `dmg` (a flat number); `trip` of the time it runs into you instead, for `tripDmg`.', props: { every: 12, dmg: 30, trip: 0.15, tripDmg: 2, speed: 0.6 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
@@ -490,7 +499,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground) or high-ground (standing on furniture, above the floor). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), high-ground (standing on furniture, above the floor) or low-health (under 30% of your max Health). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false },
     make: ([when, name, amount], p) => {

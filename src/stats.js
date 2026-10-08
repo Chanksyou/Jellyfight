@@ -150,7 +150,8 @@ export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t
 export const ELEMENT_TREASURES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element')).map((t) => t.id);
 // Element upgrades (the `element-up` word): never in an ordinary treasure pick; every 3rd treasure
 // chest opened offers one of them among its three (Run.pickTreasure)
-export const ELEMENT_UPGRADES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element-up')).map((t) => t.id);
+// (a Legendary that raises every element, like the Power Bank, isn't one: it needs no element)
+export const ELEMENT_UPGRADES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element-up') && t.needs).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;

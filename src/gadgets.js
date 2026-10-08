@@ -3,9 +3,10 @@
 // and their numbers, come from the run's combined treasure effects (mods; see words.js and
 // content/treasures.kdl): nothing here knows a treasure by name.
 import * as THREE from 'three';
-import { bus } from './events.js';
+import { bus, PLAYER } from './events.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
+const _to = new THREE.Vector3();
 
 export class Gadgets {
   constructor(scene, enemies, fx, world) {
@@ -45,6 +46,18 @@ export class Gadgets {
     this.marbleGeo = new THREE.SphereGeometry(0.007, 16, 12);
     // Remote Control zaps
     this.zapMat = new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true });
+    // Cat Toy Mouse: a little grey wind-up mouse with pink ears, a tail and a brass key
+    const grey = new THREE.MeshStandardMaterial({ color: 0x9a948c, roughness: 0.8 }), pink = new THREE.MeshStandardMaterial({ color: 0xf2a0b0, roughness: 0.6 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xd8b04a, roughness: 0.3, metalness: 0.6 });
+    const mouse = this.mouse = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.008, 14, 10), grey); body.scale.set(0.8, 0.7, 1.3); body.position.y = 0.006; mouse.add(body);
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 8, 6), pink); nose.position.set(0, 0.006, 0.0105); mouse.add(nose);
+    for (const x of [-0.0045, 0.0045]) { const ear = new THREE.Mesh(new THREE.CircleGeometry(0.003, 12), pink); ear.position.set(x, 0.0115, 0.004); mouse.add(ear); }
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0004, 0.014, 6).rotateX(Math.PI / 2), pink); tail.position.set(0, 0.004, -0.017); mouse.add(tail);
+    const key = new THREE.Mesh(new THREE.TorusGeometry(0.0025, 0.0007, 6, 12), brass); key.position.set(0, 0.0135, -0.003); mouse.add(key);
+    this.mouseKey = key;
+    mouse.visible = false;
+    this.group.add(mouse);
     this.reset();
   }
 
@@ -57,6 +70,8 @@ export class Gadgets {
     this.marbles = [];
     this.zaps = [];
     this.orbit = 0;
+    this.mouseRun = null;
+    this.mouse.visible = false;
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
   }
@@ -64,8 +79,9 @@ export class Gadgets {
   // Show everything for a frame so its shaders get compiled up front (main.js warmUp)
   warm(on, at) {
     this.bulbs.forEach((b) => { b.visible = on; });
-    this.beam.visible = this.aura.visible = on;
+    this.beam.visible = this.aura.visible = this.mouse.visible = on;
     if (on) {
+      this.mouse.position.copy(at);
       this.bulbs.forEach((b) => b.position.copy(at));
       this.beam.position.copy(at);
       this.aura.position.copy(at);
@@ -143,6 +159,40 @@ export class Gadgets {
       if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });
     }
 
+    // toy-mouse: now and then it scurries to the nearest enemy and hits it (or trips over you)
+    const Mo = M.mouse;
+    if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
+    else {
+      if (!this.mouseRun && this.every('mouse', dt, Mo.every)) {
+        const trip = Math.random() < Mo.trip, prey = trip ? null : this.near(center, 1.2, { proxies: false })[0];
+        if (trip || prey) {
+          this.mouseRun = { trip, prey, t: 0 };
+          const a = Math.random() * Math.PI * 2;
+          this.mouse.position.set(feet.x + Math.cos(a) * 0.06, feet.y, feet.z + Math.sin(a) * 0.06);   // it winds up beside you
+          this.mouse.visible = true;
+        }
+      }
+      const run = this.mouseRun;
+      if (run) {
+        run.t += dt;
+        if (run.prey?.dead) run.prey = this.near(this.mouse.position, 0.6, { proxies: false })[0] || null;
+        const to = run.trip ? _to.copy(feet) : run.prey ? _to.copy(run.prey.pos) : null;
+        if (!to || run.t > 4) { this.mouseRun = null; this.mouse.visible = false; }
+        else {
+          const m = this.mouse.position, d = Math.hypot(to.x - m.x, to.z - m.z), step = Math.min(d, Mo.speed * dt);
+          if (d > 1e-6) { m.x += (to.x - m.x) / d * step; m.z += (to.z - m.z) / d * step; this.mouse.rotation.y = Math.atan2(to.x - m.x, to.z - m.z); }
+          m.y += (to.y - m.y) * Math.min(1, dt * 10);
+          this.mouseKey.rotation.z += dt * 18;                    // the key winds down as it runs
+          if (d < (run.trip ? 0.02 : 0.012 + (run.prey?.r || 0))) {
+            fx.puff(m.clone().setY(m.y + 0.008), 0xd8d0c8, 0.02, 0.3);
+            if (run.trip) bus.emit('damage_taken', { targetId: PLAYER, amount: Mo.tripDmg, source: 'toy-mouse' });
+            else bus.emit('damage_taken', { targetId: run.prey.id, amount: Mo.dmg, color: '#ffe7a8', source: 'toy-mouse' });
+            this.mouseRun = null; this.mouse.visible = false;
+          }
+        }
+      }
+    }
+
     // bricks on the floor: the first walking enemy to step on one takes the hit
     for (const b of this.bricks) {
       b.t -= dt;
@@ -182,6 +232,7 @@ export class Gadgets {
         if (ef.dmg) bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: ef.color, source: 'ring' });
         if (ef.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: ef.push });
         if (ef.freeze) bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: ef.freeze });
+        if (ef.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: ef.slow });
       }
     } else if (ef.kind === 'zap') {
       let targets = this.near(center, ef.range);
@@ -209,6 +260,8 @@ export class Gadgets {
       m.position.copy(feet).setY(feet.y + 0.007);
       this.group.add(m);
       this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, hit: new Set() });
+    } else if (ef.kind === 'bubble-ring') {
+      ctx.bubbleRing?.(ef.count, ef.dmg);
     } else if (ef.kind === 'xp') {
       ctx.dropXp?.(ef.xp);
     }

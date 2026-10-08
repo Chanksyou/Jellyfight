@@ -12,7 +12,7 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS, STAT_INFO, EVOLUTIONS, TREASURES } from './stats.js';
+import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS, STAT_INFO, EVOLUTIONS, TREASURES, ELEMENT_UPGRADES } from './stats.js';
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
@@ -1276,6 +1276,45 @@ story('treasures/crit', {
     return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
   },
 });
+story('treasures/echo-bubble', {
+  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, at full damage.',
+  setup() { setupFight({ lash: false }); give('discoBall'); roachAt(0, -0.15); roachAt(0.06, -0.24); },
+  play() {
+    const { enemies, run } = G(), [first, second] = enemies.list, log = record('damage_taken');
+    step(60 * 3, () => dmgBy(log, 'bubble').some((d) => d.targetId === second.id));
+    const echoes = dmgBy(log, 'bubble').filter((d) => d.targetId === second.id), full = run.S.bubbleDamage;
+    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full) < 1e-6 || d.amount >= full), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
+  },
+});
+story('treasures/bubble-ring', {
+  about: 'bubble-ring (Bubble Bath, every 5 s): 8 bubbles at once, spread evenly all around the jelly.',
+  setup() { setupFight({ lash: false }); give('bubbleBath'); roachAt(0, -0.15); },
+  play() {
+    const { run } = G(), B = run.bubbles, orig = B.ring.bind(B);
+    let rings = 0, out = 0;
+    stub(B, 'ring', (...a) => { const n0 = B.list.length; orig(...a); rings++; out = B.list.length - n0; });
+    step(60 * 6, () => rings);
+    const dirs = B.list.filter((b) => !b.target).map((b) => Math.atan2(b.vel.z, b.vel.x));
+    restore();
+    return ok(rings === 1 && out === 8 && dirs.length === 8, { rings, out, dirs: dirs.map((a) => +a.toFixed(2)) });
+  },
+});
+story('treasures/toy-mouse', {
+  about: 'toy-mouse (Cat Toy Mouse): a wind-up mouse scurries to the nearest bug and hits it for 30; sometimes it trips over the jelly instead, for 2.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('toyMouse'); roachAt(0.25, 0.1); },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], log = record('damage_taken'), real = Math.random;
+    const send = (r) => { run.gadgets.t.mouse = 0.001; Math.random = () => r; step(1); Math.random = real; };
+    send(0.5);                                                   // not a trip: off to the bug
+    const out = run.gadgets.mouse.visible;
+    step(60 * 3, () => log.some((d) => d.source === 'toy-mouse'));
+    const bit = log.find((d) => d.source === 'toy-mouse');
+    send(0.05);                                                  // a trip
+    step(60 * 3, () => log.some((d) => d.source === 'toy-mouse' && d.targetId === PLAYER));
+    const trip = log.find((d) => d.source === 'toy-mouse' && d.targetId === PLAYER);
+    return ok(out && bit?.targetId === e.id && bit.amount === 30 && trip?.amount === 2, { out, bit: bit && [bit.targetId === e.id, bit.amount], trip: trip?.amount });
+  },
+});
 story('treasures/pin-on-crit', {
   about: 'pin-on-crit (Thumbtack, with a Nail Clipper\'s crits): a critical hit pins the bug in place for 0.8 s; it stops dead and doesn\'t walk while pinned (bubble hits can still nudge it).',
   setup() { setupFight({ lash: false }); give('nailClipper', 'thumbtack'); roachAt(0, -0.15, { hp: 9999 }); },
@@ -1354,6 +1393,16 @@ story('treasures/when-hit', {
     const zaps = dmgBy(log, 'zap');
     return ok(sprayed === 2 && again === 2 && later === 4 && zaps.length === 1 && zaps[0].targetId === biter.id && Math.abs(zaps[0].amount - 2 * (run.stage.power || 1)) < 1e-6,
       { sprayed, again, later, zaps: zaps.map((z) => [z.targetId === biter.id ? 'biter' : z.targetId === far.id ? 'other' : z.targetId, z.amount]) });
+  },
+});
+story('treasures/ring-slow', {
+  about: 'ring slow= (Stress Ball, when hit): the bugs within 12 cm are slowed for 1 s, once every 4 s.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('stressBall'); roachAt(0.08, 0); roachAt(0.3, 0); },
+  play() {
+    const { run, enemies } = G(), [close, far] = enemies.list, log = record('status_applied');
+    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
+    const slowed = log.filter((s) => s.status === 'slow').map((s) => s.targetId);
+    return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 1, { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)) });
   },
 });
 story('treasures/reflect', {
@@ -1487,6 +1536,29 @@ story('treasures/while', {
     const table = bd(), tableY = player.position.y;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
     return ok(!grounded0 && near(air, 40) && near(floor, 0) && near(table, 30) && tableY > 0.5, { air, floor, table, tableY: +tableY.toFixed(2), grounded0 });
+  },
+});
+story('treasures/while-low-health', {
+  about: 'while low-health (Hot Water Bottle): +50% Fire rate and +20% Move speed only while under 30% of max Health.',
+  setup() { setupFight({ lash: false }); give('hotWaterBottle'); },
+  play() {
+    const { run } = G(), pct = (k) => (run.S[k] - run.stats[k]) / BASE_STATS[k] * 100;
+    run.health = run.S.health;
+    const full = [pct('fireRate'), pct('moveSpeed')];
+    run.health = run.S.health * 0.2;
+    const low = [pct('fireRate'), pct('moveSpeed')];
+    const same = (a, b) => Math.abs(a - b) < 1e-6;
+    return ok(same(full[0], 0) && same(full[1], 0) && same(low[0], 50) && same(low[1], 20), { full, low });
+  },
+});
+story('treasures/power-bank', {
+  about: 'Power Bank (element-up for every element, Legendary): the elements you own fire 50% faster; it needs no element, so it\'s never offered as an Element upgrade.',
+  setup() { setupFight({ lash: false }); give('candle'); },
+  play() {
+    const { run } = G(), before = run.mods.element.fire.rate;
+    give('powerBank');
+    const after = run.mods.element.fire.rate, owns = [...run.mods.elements];
+    return ok(Math.abs(after - before * 1.5) < 1e-9 && owns.join() === 'fire' && !ELEMENT_UPGRADES.includes('powerBank'), { before, after, owns });
   },
 });
 story('treasures/found-count-carries-over', {

@@ -28,6 +28,8 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
 // not a rug or a threshold
 const HIGH_GROUND = 0.1;
+// Under this share of max Health counts as low (a `while low-health` treasure)
+const LOW_HEALTH = 0.3;
 
 const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
 
@@ -218,7 +220,8 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, high = P.grounded && P.position.y > (this.stage.floorY || 0) + HIGH_GROUND;
-      for (const c of whiles) if (c.when === 'airborne' ? air : high) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      const low = this.health < S.health * LOW_HEALTH;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'high-ground' ? high : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
     }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
@@ -314,7 +317,7 @@ export class Run {
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods);
       // close-range sting: tentacles, improved only by treasures
       this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
-      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n) });
+      this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD

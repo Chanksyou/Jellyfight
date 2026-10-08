@@ -199,10 +199,20 @@ export class Bubbles {
     return true;
   }
 
+  // bubble-ring: `count` bubbles at once, evenly around you, flying straight out
+  ring(origin, count, dmg, stats, mods) {
+    const a0 = Math.random() * Math.PI * 2;
+    for (let k = 0; k < count; k++) {
+      const a = a0 + (k / count) * Math.PI * 2;
+      this.blow(origin, null, { size: stats.bubbleSize, dmg, pierce: mods.bubbles.pierce, dir: new THREE.Vector3(Math.cos(a), 0, Math.sin(a)) });
+    }
+    this.onBlow?.();
+  }
+
   blow(origin, target, o) {
     const m = !o.golden && o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);
     m.position.copy(origin);
-    const dir = this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
+    const dir = o.dir ? o.dir.clone().normalize() : this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
     const b = {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
@@ -430,10 +440,16 @@ export class Bubbles {
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }
     }
+    // echo-bubble: the pop fires again, full strength, at the next enemy close by (once)
+    if (mods.bubbles.echo && !b.child) {
+      const next = this.inRange(p, 0.2, b.hit)[0];
+      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
+    }
     // split-bubble: a smaller bubble spins off toward another enemy, once
     if (mods.bubbles.split && !b.child) {
       const next = this.inRange(p, 0.15, b.hit)[0];
-      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS * 0.7, dmg: b.dmg * 0.7, golden: b.golden, pierce: 1 }); k.child = true; }
+      // (it starts inside the enemy it popped on: it skips the ones its parent already hit)
+      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS * 0.7, dmg: b.dmg * 0.7, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
     }
   }
 }

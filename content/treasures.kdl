@@ -435,7 +435,7 @@ treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 12
         }
     }
 }
-treasure "notebook" name="Notebook" icon="📓" rarity="epic" text="Level-ups offer 4 cards instead of 3." stack=2 {
+treasure "notebook" name="Notebook" icon="📓" rarity="legendary" text="Level-ups offer 4 cards instead of 3." {
     card-choices 1
 }
 treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 15% slower, but so do you (-10% move speed)." stack=2 {
@@ -503,4 +503,51 @@ treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Ev
 }
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
+}
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, at full damage." {
+    echo-bubble
+}
+treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 bubbles bursts out from you in every direction." {
+    every 5 {
+        bubble-ring 8
+    }
+}
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below 30% Health: +50% Fire rate and +20% Move speed." {
+    while "low-health" "fire-rate" 50 percent=#true
+    while "low-health" "move-speed" 20 percent=#true
+}
+treasure "powerBank" name="Power Bank" icon="🔋" rarity="legendary" attack=#true text="Every element you own fires 50% faster." {
+    element-up "fire" rate=1.5
+    element-up "lightning" rate=1.5
+    element-up "ice" rate=1.5
+    element-up "acid" rate=1.5
+    element-up "wind" rate=1.5
+    element-up "glitter" rate=1.5
+}
+treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 12 s a wind-up mouse scurries to the nearest bug and hits it for 30. Now and then it trips over you instead (2 damage)." {
+    toy-mouse every=12 dmg=30 trip=0.15 tripDmg=2
+}
+
+// --- more combinations of the words above (no new code)
+treasure "trampoline" name="Trampoline Sticker" icon="🩰" rarity="epic" text="+25% Move speed while you're in the air, and one more jump in mid-air." stack=2 {
+    while "airborne" "move-speed" 25 percent=#true
+    extra-jumps 1
+}
+treasure "bookshelf" name="Bookshelf" icon="📚" rarity="rare" text="Your Health refills 0.5 a second while you stand on furniture." stack=3 {
+    while "high-ground" "health-regen" 0.5
+}
+treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+2 Luck for every treasure found this run." stack=3 {
+    per "luck" 2 every=1 of="chests"
+}
+treasure "stressBall" name="Stress Ball" icon="🧶" rarity="rare" text="When you're hit, bugs within 12 cm are slowed for 1 s (once every 4 s)." stack=3 {
+    when-hit cooldown=4 {
+        ring 0.12 dmg=0 slow=1 color="#9fd8ff" show=0.4
+    }
+}
+treasure "teaBag" name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every Level gained this run." stack=3 {
+    per "health-regen" 0.05 every=1 of="levels"
+}
+treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (triple damage) and pin the bug for 0.4 s." stack=2 {
+    crit chance=0.1 mult=3
+    pin-on-crit 0.4
 }
