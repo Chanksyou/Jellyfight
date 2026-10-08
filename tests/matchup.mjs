@@ -9,6 +9,7 @@
 //
 //   node tests/matchup.mjs              everything
 //   node tests/matchup.mjs lemon        just items whose id contains "lemon"
+//   BUGS=roach node tests/matchup.mjs   just against cockroaches
 import { start, openGame } from './lib.mjs';
 
 const only = (process.argv[2] || '').toLowerCase();
@@ -35,7 +36,7 @@ const { items, bugs } = await page.evaluate(async () => {
   const bugs = Object.keys(CONTENT.enemies);
   return { items, bugs };
 });
-const BUGS = bugs.length ? bugs : ['roach', 'ants', 'mosquito', 'lanternfly', 'spider', 'housefly', 'millipede', 'ladybug', 'hair'];
+const BUGS = process.env.BUGS ? process.env.BUGS.split(',') : bugs;   // BUGS=roach: just those
 console.error(`bugs: ${BUGS.join(', ')}; items: ${items.length}`);
 
 for (const it of items.filter((i) => i.kind === 'none' || i.id.toLowerCase().includes(only)).filter((_, n) => n % shards === shard)) {
