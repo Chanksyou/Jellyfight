@@ -73,8 +73,8 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    numbers to make a test pass.
 6. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
    `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
-7. **Phones first.** Phones run graphics Auto: `low` (no bloom, no AO), stepping up to `medium` only while
-   frames stay quick (`src/pacing.js`). Never add or remove a light during play (a new light count rebuilds
+7. **Phones first.** Phones start on graphics `low` (no bloom, no AO; the player can pick Medium or High),
+   and the frame governor trades sharpness for smoothness (`src/pacing.js`). Never add or remove a light during play (a new light count rebuilds
    every shader and stalls a phone); a new lamp is a `userData.lamp` point light that `src/light-slots.js` shares. Keep draw
    calls low: small moving things are instanced through `src/batch.js` (`batcher.track(mesh)`);
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).

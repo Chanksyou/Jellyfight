@@ -10,9 +10,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { N8AOPass } from 'n8ao';
 
 export const QUALITY = ['low', 'medium', 'high'];
-// what the player picked: a tier, or 'auto' (phones: pacing.js moves between low and medium).
-// A new key: the old one stored every phone's default as 'low', which would hide Auto from them.
-export const CHOICES = ['auto', ...QUALITY];
+// what the player can pick in the pause menu (a phone starts on low, a desktop on high); a stored
+// pick that's no longer offered (the old 'auto') falls back to the default
+export const CHOICES = QUALITY;
 const STORE = 'jellyfight.graphics';
 
 // Depth of field that reads the logarithmic depth buffer. Blur grows with how far a pixel's
@@ -109,17 +109,16 @@ export class Graphics {
     addEventListener('resize', () => this.resize());
   }
 
-  // the player's pick from the pause menu: a tier, or 'auto' (starts on low)
+  // the player's pick from the pause menu
   setQuality(q) { this.choose(q, true); }
 
   choose(q, remember) {
     this.choice = q;
-    this.auto = q === 'auto';
     if (remember) try { localStorage.setItem(STORE, q); } catch {}
-    this.setTier(this.auto ? 'low' : q);
+    this.setTier(q);
   }
 
-  // the tier actually drawn (the frame governor changes it under 'auto')
+  // the tier actually drawn
   setTier(q) {
     this.quality = q;
     this.build();

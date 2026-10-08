@@ -31,7 +31,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v124';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v125';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -63,6 +63,8 @@ ui.innerHTML = `
   #g-over { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(10,12,20,.55); color: #fff;
     text-align: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; z-index: 10; }
   #g-over[hidden] { display: none; }
+  /* the main screen (and the pause menu) shows just itself: the HUD waits behind it */
+  #g-over:not([hidden]) ~ #hud { visibility: hidden; }
   #g-over h1 { margin: 0 0 4px; font-size: 46px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0008; }
   #g-over .tag { margin: 0; opacity: .85; }
   /* the version, always in the corner of the main screen (and the act's loading screen) */
@@ -75,7 +77,22 @@ ui.innerHTML = `
   #g-over .row button { font: 14px system-ui, sans-serif; color: #fff; background: #ffffff1a; border: 1px solid #ffffff30;
     border-radius: 10px; padding: 8px 14px; cursor: pointer; }
   #g-over .row button.on { background: #fff; color: #111; }
-  #g-over .keys { margin-top: 14px; opacity: .8; font-size: 13.5px; line-height: 2; }
+  #g-over .tag { margin-bottom: 4px; }
+  /* graphics: a small segmented switch, quieter than the main buttons */
+  #g-quality { gap: 0 !important; margin-top: 10px !important; font: 12px system-ui, sans-serif; opacity: .85; }
+  #g-quality span { margin-right: 8px; }
+  #g-quality button { border-radius: 0 !important; padding: 5px 12px !important; font-size: 12px !important; margin: 0 -1px 0 0; }
+  #g-quality button:first-of-type { border-radius: 8px 0 0 8px !important; }
+  #g-quality button:last-of-type { border-radius: 0 8px 8px 0 !important; }
+  /* dev tools: one 🔒 Dev button; the password opens the rest */
+  #g-over .dev-lock, #g-over .dev-tools { display: none; }
+  #g-over.dev-ask .dev-lock { display: flex; }
+  #g-over.dev-open .dev-tools { display: flex; }
+  #g-over.dev-open .dev-btn { display: none; }
+  #g-over .dev-lock input { font: 14px system-ui, sans-serif; width: 140px; padding: 7px 10px; border-radius: 10px; border: 1px solid #ffffff40; background: #0006; color: #fff; }
+  #g-over .dev-lock input.wrong { border-color: #ff6b6b; }
+  #g-over .dev-tools button { font-size: 13px !important; padding: 6px 11px !important; background: #ffffff10 !important; }
+  #g-over .keys { margin-top: 14px; opacity: .6; font-size: 12.5px; line-height: 1.9; }
   #g-over kbd { background: #fff2; border: 1px solid #fff4; border-radius: 4px; padding: 1px 6px; font-size: 12.5px; }
   #g-over > div { max-height: 100%; overflow-y: auto; padding: 12px 16px; box-sizing: border-box; }
   #g-over .touch-only { display: none; }
@@ -100,18 +117,16 @@ ui.innerHTML = `
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="restart">↺ Restart stage</button><button data-act="creator">🎨 Look</button><button data-act="diag">🩺 Diagnostics</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="layout">🛠 Layout (dev)</button><button data-act="boss">👹 Fight boss (dev)</button><button data-act="duel">🐞 1 on 1 (dev)</button><button data-act="act">🚪 Other act (dev)</button></div>
+  <div class="row"><button data-act="creator">🎨 Look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
+  <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
-    Left thumb: move &nbsp;·&nbsp; right thumb: drag to look<br>
-    ⤴ jump (hold it to climb fabric; Pen Spring adds jumps in the air)<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab the ✨ treasures that turn up and the ones elites leave; after 4:20 the boss comes. Floor vents fling you up onto furniture.
+    Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
     <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump · hold to climb fabric<br>
-    You blow bubbles at enemies on your own, and your tentacles sting anything that gets close. Grab the ✨ treasures that turn up and the ones elites leave; after 4:20 the boss comes. Floor vents fling you up onto furniture.<br>
-    <kbd>Wheel</kbd> zoom &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>F3</kbd> debug
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause
   </div>
 </div></div>`;
 document.body.appendChild(ui);
@@ -170,7 +185,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'auto' : 'high');
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
 const slotCount = IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);
@@ -363,15 +378,16 @@ window.GAME = GAME;
 
 // --- Menus + keys ---------------------------------------------------------------
 function renderQuality() {
-  qualityRow.innerHTML = 'Graphics: ' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('');
+  qualityRow.innerHTML = '<span>Graphics</span>' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('');
 }
 renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.classList.contains('play')) { play(); endContinue(); }
-  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); governor.tier = gfx.auto ? gfx.quality : null; renderQuality(); }
-  else if (b.dataset.act === 'restart') { run.start(); play(); }
+  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
+  else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
+  else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
   else if (b.dataset.act === 'act') goToAct(currentAct() === 1 ? 2 : 1);   // dev: jump between act 1 and act 2 (a fresh run)
@@ -392,6 +408,18 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'board') { overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
+// Dev tools (layout editor, boss and 1-on-1 fights, the other act, diagnostics) wait behind one
+// 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
+const DEV_PASS = 'chan', DEV_KEY = 'jellyfight.dev';
+function unlockDev() {
+  const box = overlay.querySelector('[name="dev-pass"]');
+  if (box.value.trim().toLowerCase() !== DEV_PASS) { box.value = ''; box.classList.add('wrong'); box.placeholder = 'Wrong password'; box.focus(); return; }
+  overlay.classList.remove('dev-ask');
+  overlay.classList.add('dev-open');
+  try { sessionStorage.setItem(DEV_KEY, '1'); } catch {}
+}
+overlay.querySelector('[name="dev-pass"]').addEventListener('keydown', (e) => { if (e.key === 'Enter') unlockDev(); });
+try { if (sessionStorage.getItem(DEV_KEY)) overlay.classList.add('dev-open'); } catch {}   // still open after a reload into the other act
 document.addEventListener('pointerlockchange', () => {
   if (state.mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
@@ -524,25 +552,23 @@ warmUp().then(() => {
 
 // How often and how sharp (pacing.js): phones cap at 60 fps (a 120 Hz Pixel would otherwise do
 // twice the GPU work), everything draws slowly behind a menu, and the governor lowers the pixel
-// ratio when frames run long (and, under graphics Auto, moves between low and medium).
+// ratio when frames run long and raises it back with headroom.
 const pacer = new FramePacer({ fps: IS_TOUCH ? LOOK.num('phone-fps', 60) : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
 const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2));
 const governor = new FrameGovernor({
   fps: pacer.fps || 60, scale: maxRatio, max: maxRatio, min: Math.min(maxRatio, LOOK.num('min-pixel-ratio', 1)),
-  tier: gfx.auto ? gfx.quality : null,
 });
 renderer.setPixelRatio(maxRatio);
 gfx.resize();
 function adapt(ms) {
   const c = governor.sample(ms);
   if (c?.scale) { renderer.setPixelRatio(c.scale); gfx.resize(); }
-  if (c?.tier && gfx.auto) { gfx.setTier(c.tier); renderQuality(); }
 }
 function pacingReadout() {
   const g = governor, last = g.log[g.log.length - 1];
-  return `${gfx.auto ? 'auto ' : ''}${gfx.quality} | cap ${pacer.fps || 'none'} | aim ${(1000 / g.target).toFixed(0)} fps`
+  return `${gfx.quality} | cap ${pacer.fps || 'none'} | aim ${(1000 / g.target).toFixed(0)} fps`
     + (lightSlots ? ` | lamps ${lightSlots.lit().length}/${lightSlots.lamps.length}` : '')
-    + (last ? ` | last: ${last.why} ${last.scale ?? last.tier}` : '');
+    + (last ? ` | last: ${last.why} ${last.scale}` : '');
 }
 window.pacing = { pacer, governor, lightSlots };
 

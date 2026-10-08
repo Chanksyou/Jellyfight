@@ -20,7 +20,7 @@ import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const _drop = new THREE.Vector3();
+const _drop = new THREE.Vector3(), p0 = new THREE.Vector3();
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // Which rarities a treasure pick offers, by where it came from: a chest that turned up in the room
@@ -711,12 +711,30 @@ export class Run {
     this.hud.toast(`✨ A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
   }
 
-  // A beaten elite leaves its treasure where it fell, settled on the surface under it (the wall
-  // clock's lands on the bench below); it waits there for the rest of the act
+  // A beaten elite leaves its treasure where it fell, on the nearest open spot (openSpot: open
+  // overhead, nothing crowding it, flat), so it's never inside or under furniture; it waits there
+  // for the rest of the act. Nothing open close by: it settles on the surface under where it fell
+  // (the wall clock's lands on the bench below).
   dropTreasure(at) {
-    const p = at.clone(), hit = this.world.castAll(_drop.set(p.x, p.y + 0.03, p.z), DOWN, 2.5);
-    if (hit) p.y = hit.point.y;
-    this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
+    const p = this.openSpotNear(at);
+    if (!p) { const hit = this.world.castAll(_drop.set(at.x, at.y + 0.03, at.z), DOWN, 2.5); p0.copy(at); if (hit) p0.y = hit.point.y; }
+    this.placeTreasure((p || p0).clone(), Infinity, Math.random() * Math.PI * 2);
+  }
+
+  // The closest open spot to `at` (rings out to 50 cm), on the same surface if there is one there
+  openSpotNear(at) {
+    let other = null;
+    for (const d of [0, 0.04, 0.08, 0.12, 0.16, 0.2, 0.25, 0.3, 0.4, 0.5]) {
+      const n = d ? 16 : 1;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2, x = at.x + Math.cos(a) * d, z = at.z + Math.sin(a) * d;
+        const r = this.openSpot([x, at.y, z]);
+        if (!r.ok) continue;
+        if (Math.abs(r.y - at.y) < 0.1) return new THREE.Vector3(x, r.y, z);
+        other ||= new THREE.Vector3(x, r.y, z);
+      }
+    }
+    return other;
   }
 
   placeTreasure(at, stay, facing) {

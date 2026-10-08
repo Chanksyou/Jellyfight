@@ -263,6 +263,25 @@ story('treasures/appear-on-schedule', {
     return ok(seen.length === 5 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 4 && spots.size >= 4, { seen, gone, spots: [...spots] });
   },
 });
+story('treasures/elite-chest-never-inside-furniture', {
+  about: 'An elite bug beaten under furniture (a covered spot) leaves its chest on the nearest open spot instead: nothing over it or crowding it, easy to touch.',
+  setup() { fresh({ treasures: false, elites: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run, enemies } = G();
+    stub(run.hud, 'toast', () => {});
+    // find a covered spot on the floor nearby (under a table, the sofa…)
+    let at = null;
+    for (let x = 1; x <= 5 && !at; x += 0.1) for (let z = 1.5; z <= 5 && !at; z += 0.1) {
+      const r = run.openSpot([x, 0.02, z]);
+      if (!r.ok && r.why === 'covered overhead') { const h = run.world.castAll(V(x, 0.15, z), V(0, -1, 0), 0.4); if (h && h.point.y < 0.02) at = V(x, h.point.y, z); }
+    }
+    const bug = enemies.spawn('roach', at, 1, true); bug.spawnT = 1; bug.hold = true;
+    enemies.kill(bug);
+    step(2);
+    const t = waiting(false)[0], open = t && run.openSpot([t.pos.x, t.pos.y, t.pos.z]).ok, d = t && Math.hypot(t.pos.x - at.x, t.pos.z - at.z);
+    return ok(!!at && open && d < 0.5, { at: at && r3(at), chest: t && r3(t.pos), open, moved: d && +d.toFixed(2) });
+  },
+});
 story('treasures/touch-the-chest', {
   about: 'A treasure waits in the room as a small golden chest (no beam of light): touching it in time offers a treasure pick, and it goes away.',
   setup() { fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0); G().run.t = 14.9; },
@@ -281,7 +300,7 @@ story('treasures/touch-the-chest', {
   },
 });
 story('treasures/elites-leave-a-chest', {
-  about: 'A beaten elite (an elite bug, or one on its high ground) leaves a golden chest where it fell, with no pick right away and no bonus health; the chest waits for good, and touching it offers the pick.',
+  about: 'A beaten elite (an elite bug, or one on its high ground) leaves a golden chest near where it fell, on an open spot, with no pick right away and no bonus health; the chest waits for good, and touching it offers the pick.',
   setup() { fresh({ treasures: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run, enemies } = G();
@@ -293,11 +312,13 @@ story('treasures/elites-leave-a-chest', {
     const bug = enemies.spawn('roach', near(0.25, 0), 1, true); bug.spawnT = 1; bug.hold = true;
     enemies.kill(bug);
     step(2);
-    const fromBug = waiting(false)[0], bugSpot = fromBug && Math.hypot(fromBug.pos.x - bug.pos.x, fromBug.pos.z - bug.pos.z) < 0.05;
+    // near where it fell, on an open spot (nothing over or around it)
+    const open = (t) => run.openSpot([t.pos.x, t.pos.y, t.pos.z]).ok;
+    const fromBug = waiting(false)[0], bugSpot = fromBug && Math.hypot(fromBug.pos.x - bug.pos.x, fromBug.pos.z - bug.pos.z) < 0.5 && open(fromBug);
     // a high-ground elite
     const E = run.elites.alive[0];
     run.eliteDefeated(E);
-    const fromElite = waiting(false).find((t) => t !== fromBug), eliteSpot = fromElite && fromElite.pos.distanceTo(E.base) < 0.02;
+    const fromElite = waiting(false).find((t) => t !== fromBug), eliteSpot = fromElite && fromElite.pos.distanceTo(E.base) < 0.5 && open(fromElite);
     const noPickYet = picks === 0, noHeal = run.health === h0;
     step(60 * 60);                                          // a minute later, both still wait
     const stayed = waiting(false).length === 2;
@@ -2274,6 +2295,30 @@ story('engine/leaderboard', {
   },
 });
 
+// --- the main screen
+story('menu/dev-tools-locked', {
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Other act, Diagnostics).',
+  setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },
+  play() {
+    const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
+    over.classList.remove('dev-ask', 'dev-open');
+    over.hidden = false;
+    const restart = !!over.querySelector('[data-act="restart"]'), graphics = [...over.querySelectorAll('[data-q]')].map((b) => b.dataset.q);
+    const hiddenAtFirst = !shown('.dev-tools');
+    over.querySelector('[data-act="dev"]').click();
+    const asks = shown('.dev-lock');
+    const box = over.querySelector('[name="dev-pass"]');
+    box.value = 'nope'; over.querySelector('[data-act="dev-unlock"]').click();
+    const stillHidden = !shown('.dev-tools');
+    box.value = 'chan'; over.querySelector('[data-act="dev-unlock"]').click();
+    const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
+    over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
+    try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,act,diag',
+      { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout (with the whole frame\'s draw calls and shaders) open and close cleanly.',
@@ -2337,21 +2382,6 @@ story('engine/governor-learns-a-frame-cap', {
     feed(g, 16.7, 3);
     const back = Math.round(1000 / g.target);
     return ok(capped && keptSharp && aim === 30 && settled && back === 60, { capped, keptSharp, aim, settled, back, log: g.log });
-  },
-});
-story('engine/governor-tries-medium-then-backs-off', {
-  about: 'Under graphics Auto a phone with headroom tries the medium tier; it stays while frames hold, and drops back to low when frames run long (heat, a big fight), before giving up any sharpness.',
-  setup() {},
-  play() {
-    const g = new FrameGovernor({ fps: 60, scale: 1.5, min: 1, max: 1.5, tier: 'low' });
-    const tried = feed(g, 16, 4).some((c) => c.tier === 'medium');
-    feed(g, 16, 10);
-    const stayed = g.tier === 'medium';
-    const back = feed(g, 26, 2.5);
-    const dropped = back[0]?.tier === 'low' && g.scale === 1.5;
-    feed(g, 16, 30);                       // too soon to try again
-    const waited = g.tier === 'low';
-    return ok(tried && stayed && dropped && waited, { tried, stayed, dropped, waited, log: g.log });
   },
 });
 story('engine/reversed-depth', {

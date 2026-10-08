@@ -3,8 +3,8 @@
 //  - FramePacer: skips animation frames to hold a frame-rate cap (phones: 60, so a 120 Hz Pixel
 //    doesn't do twice the GPU work for no gameplay gain) and draws slowly behind a menu.
 //  - FrameGovernor: watches how long frames really take and trades sharpness for smoothness:
-//    lowers the pixel ratio when frames run long, raises it back with headroom, and (on phones,
-//    graphics "Auto") tries the medium tier and drops back to low when the phone heats up.
+//    lowers the pixel ratio when frames run long and raises it back with headroom. (The graphics
+//    tier is the player's pick in the pause menu; the governor never changes it.)
 //
 // Frame times alone can't tell "the GPU is slow" from "the browser caps us" (Low Power Mode on an
 // iPhone, or a claude.ai frame before its first tap, both run at a steady 30 fps). So every step
@@ -36,23 +36,22 @@ export class FrameGovernor {
     scale = 1,           // pixel ratio now
     min = 1, max = 1,    // pixel ratio range (max = min turns resolution steps off)
     step = 0.125,
-    tier = null,         // 'low' | 'medium' when the governor may change the tier, else null
     window = 1000,       // ms of frames judged together
     slow = 1.2,          // a window's median frame this much over target counts as slow
     fast = 1.08,         // at or under this much of target counts as having headroom
   } = {}) {
-    Object.assign(this, { scale, min, max, step, tier, windowMs: window, slowF: slow, fastF: fast });
+    Object.assign(this, { scale, min, max, step, windowMs: window, slowF: slow, fastF: fast });
     this.base = 1000 / fps;
     this.target = this.base;   // learned: rises to a browser cap we can't beat, falls back when it lifts
     this.t = 0;                // ms of play the governor has seen
     this.frames = []; this.windowT = 0;
     this.slowN = 0; this.fastN = 0;
     this.probe = null;
-    this.holdUp = 0; this.holdTier = 0; this.tierFails = 0;
+    this.holdUp = 0;
     this.log = [];             // what it did and why (F3 readout, stories)
   }
 
-  // one frame's interval in ms; returns a change to apply ({ scale } or { tier }) or null
+  // one frame's interval in ms; returns a change to apply ({ scale }) or null
   sample(ms) {
     if (!(ms > 0) || ms > 250) return null;   // a hitch, a tab switch, a menu: not a frame time
     this.t += ms;
@@ -79,10 +78,6 @@ export class FrameGovernor {
         this.scale = p.from; this.holdUp = this.t + 20000;
         return this._do({ scale: this.scale }, 'no-headroom');
       }
-      if (p.kind === 'tier' && m > this.target * this.slowF) {
-        this.tier = 'low'; this.tierFails++; this.holdTier = this.t + 120000;
-        return this._do({ tier: 'low' }, 'medium-too-slow');
-      }
       return null;
     }
     if (p) return null;
@@ -92,10 +87,6 @@ export class FrameGovernor {
       this.fastN = 0;
       if (++this.slowN < 2) return null;
       this.slowN = 0;
-      if (this.tier === 'medium') {   // heat or a big fight: the cheaper tier first, it costs more than pixels
-        this.tier = 'low'; this.holdTier = this.t + 120000;
-        return this._do({ tier: 'low' }, 'slow-on-medium');
-      }
       if (this.scale > this.min) {
         const from = this.scale;
         this.scale = Math.max(this.min, +(this.scale - this.step).toFixed(3));
@@ -113,11 +104,6 @@ export class FrameGovernor {
       this.scale = Math.min(this.max, +(this.scale + this.step).toFixed(3));
       this.probe = { kind: 'up', from, before: m, windows: 0 };
       return this._do({ scale: this.scale }, 'headroom');
-    }
-    if (this.tier === 'low' && this.scale >= this.max && this.t >= this.holdTier && this.tierFails < 2) {
-      this.tier = 'medium';
-      this.probe = { kind: 'tier', from: 'low', before: m, windows: 0 };
-      return this._do({ tier: 'medium' }, 'try-medium');
     }
     return null;
   }
