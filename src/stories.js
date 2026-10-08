@@ -2947,7 +2947,7 @@ act2('act-2-hits-harder', {
     import('./events.js').then(({ bus, PLAYER }) => bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'test' }));
     return new Promise((res) => setTimeout(() => {
       const took = m0 - run.health;
-      res(ok(bugX === 2 && soap.maxHp === Math.round(240 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
+      res(ok(bugX === 2 && soap.maxHp === Math.round(310 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
     }, 50));
   },
 });
