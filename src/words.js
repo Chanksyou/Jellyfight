@@ -348,6 +348,7 @@ export function newMods() {
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], spout: null, burstOnKill: null, cardRarity: 0,
+    crumbs: null,                    // crumb-on-kill: { chance, health }
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
@@ -450,6 +451,7 @@ export const TREASURE_WORDS = {
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
+  'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
     doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), tentacle-damage, dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
@@ -490,13 +492,13 @@ export const TREASURE_WORDS = {
   'card-choices': { doc: 'Level-ups offer `count` more cards to pick from.', args: ['count'], make: ([n]) => (m) => { m.cardChoices += n; } },
   'heal-on-hit': { doc: '`chance` that a bubble or tentacle hit gives back `health` (life steal).', props: { chance: 0.1, health: 1 }, make: (_, p) => (m) => { m.healOnHit = m.healOnHit ? { chance: m.healOnHit.chance + p.chance, health: Math.max(m.healOnHit.health, p.health) } : { ...p }; } },
   'grow-on-kills': {
-    doc: 'Every `kills` enemies you clear, a stat grows by `amount` for the rest of the run (stat names as in `stat`; max health also refills by as much).',
+    doc: 'Every `kills` enemies you clear, a stat grows by `amount` (a % of its starting value with percent=#true) for the rest of the run (stat names as in `stat`; max health also refills by as much). With `cap`, each copy stops once it has grown that much in all.',
     args: ['name', 'amount'],
-    props: { kills: 10 },
+    props: { kills: 10, percent: false, cap: null },
     make: ([name, amount], p, where) => {
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`grow-on-kills: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
-      return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, key: `${where}#${copy}` }); };
+      return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },

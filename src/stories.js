@@ -1433,7 +1433,7 @@ story('treasures/stat', {
   },
 });
 story('treasures/grow-on-kills', {
-  about: 'grow-on-kills (Bandage): every 5 bugs you clear, +1 max health for good (and it refills).',
+  about: 'grow-on-kills (Bandage, Dustpan): every 5 bugs you clear, +1 max health for good (and it refills); with a cap (Dustpan) a copy stops growing at +100% and a second copy grows on.',
   setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
   play() {
     const { run } = G(), max0 = run.S.health;
@@ -1441,7 +1441,33 @@ story('treasures/grow-on-kills', {
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
     for (let i = 0; i < 6; i++) kill();
-    return ok(after4 === max0 && run.S.health === max0 + 2 && run.health === run.S.health, { max0, after4, after10: run.S.health });
+    // with a cap (Dustpan: +0.1% Bubble damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
+    give('dustpan');
+    const pct = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
+    for (let i = 0; i < 1100; i++) kill();
+    const capped = pct();
+    give('dustpan');
+    for (let i = 0; i < 300; i++) kill();
+    const second = pct();
+    const same = (a, b) => Math.abs(a - b) < 1e-6;
+    return ok(after4 === max0 && run.S.health >= max0 + 2 && same(capped, 100) && same(second, 130),
+      { max0, after4, after10: run.S.health, capped: +capped.toFixed(3), second: +second.toFixed(3) });
+  },
+});
+story('treasures/crumb-on-kill', {
+  about: 'crumb-on-kill (Meatball, Leftover): a bug you clear sometimes leaves a crumb; it drifts to you like XP and gives back 1 Health.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('meatball'); },
+  play() {
+    const { run, player } = G();
+    const none = run.crumbs.list.length;
+    run.health = 10;
+    const real = Math.random;
+    Math.random = () => 0.001;                                 // this kill's 2% comes up
+    bus.emit('enemy_killed', { type: 'roach', pos: near(0.04, 0, 0.02), floor: player.position.y, r: 0.02, xp: 1 });
+    Math.random = real;
+    const dropped = run.crumbs.list.length;
+    step(240, () => !run.crumbs.list.length);
+    return ok(none === 0 && dropped === 1 && run.crumbs.list.length === 0 && Math.abs(run.health - 11) < 0.01, { dropped, health: +run.health.toFixed(2), left: run.crumbs.list.length });
   },
 });
 story('treasures/heal-on-hit', {

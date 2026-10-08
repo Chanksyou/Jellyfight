@@ -45,6 +45,7 @@
   --hostile-fly: #ff5a14;        /* the house fly's poke: the short line on the floor to where its mouth will reach */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
+  --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): warm, not XP blue */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
   --laser-length: 0.03;        /* meters: how long a bolt is */
   --laser-aim-width: 0.006;    /* meters: how wide the aiming beam's glow is (its bright core is a third of it) */

@@ -468,3 +468,11 @@ treasure "drySock" name="Dry Sock" icon="🧦" rarity="epic" text="+40% Bubble d
 treasure "highStool" name="High Stool" icon="🪑" rarity="epic" text="+30% Bubble damage while you stand on furniture above the floor." stack=3 {
     while "high-ground" "bubble-damage" 30 percent=#true
 }
+
+// --- on-kill: grows with every bug cleared, up to a cap per copy; or leaves something behind
+treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="Every bug you clear adds 0.1% Bubble damage for good, up to +100%." stack=3 {
+    grow-on-kills "bubble-damage" 0.1 kills=1 percent=#true cap=100
+}
+treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="2% of the bugs you clear leave a crumb: +1 Health." stack=5 {
+    crumb-on-kill chance=0.02 health=1
+}

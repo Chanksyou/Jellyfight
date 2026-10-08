@@ -12,7 +12,7 @@ import { CONTENT, compileMods } from './content.js';
 import { Gadgets } from './gadgets.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
-import { RoomTreasure } from './pickups.js';
+import { RoomTreasure, XpDrops } from './pickups.js';
 import { FirstRun, markPlayed } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
@@ -48,6 +48,7 @@ export class Run {
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
+    this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
@@ -120,6 +121,7 @@ export class Run {
     this.lastTreasureSpot = null;
     this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
+    this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
     juice.reset();
@@ -159,7 +161,7 @@ export class Run {
     this.slipT = 0;
     this.stillT = 0;
     this.squeakCd = [];
-    this.grown = {}; this.growCount = {};
+    this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
@@ -167,7 +169,7 @@ export class Run {
       this.stats = { ...BASE_STATS, ...C.stats };
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
       for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
-      this.grown = { ...C.grown }; this.growCount = { ...C.growCount };
+      this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
       this.health = this.stats.health;
       this.startPicked = true;        // you already have your treasures
@@ -334,6 +336,8 @@ export class Run {
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
     const got = this.xpDrops.update(dt, origin, this.mods.xpReach);
     if (got) { this.gainXp(got); sfx.xp(juice.combo); }
+    const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
+    if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
@@ -504,15 +508,24 @@ export class Run {
     this.fx.number(c.clone().setY(c.y + r * 1.5), `+${xp} XP`, '#ffe27a', elite ? 20 : 14);
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
     // grow-on-kills: every N kills a stat grows for good
+    // (with a cap: that copy stops growing once it has added `cap` in all)
     for (const g of this.mods.growth) {
+      if (g.cap != null && (this.growTotal[g.key] || 0) >= g.cap) continue;
       const n = (this.growCount[g.key] || 0) + 1;
       this.growCount[g.key] = n % g.kills;
       if (n < g.kills) continue;
-      this.grown[g.stat] = (this.grown[g.stat] || 0) + g.amount;
-      if (g.stat === 'health') this.heal(g.amount);
+      const step = g.cap != null ? Math.min(g.amount, g.cap - (this.growTotal[g.key] || 0)) : g.amount;
+      this.growTotal[g.key] = (this.growTotal[g.key] || 0) + step;
+      const amount = g.percent ? BASE_STATS[g.stat] * step / 100 : step;
+      this.grown[g.stat] = (this.grown[g.stat] || 0) + amount;
+      if (g.stat === 'health') this.heal(amount);
+      if (g.percent) continue;             // a percent grows in small steps: no number for each one
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
     }
+    // crumb-on-kill: now and then a bug leaves a Health crumb to pick up
+    const cr = this.mods.crumbs;
+    if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
@@ -891,7 +904,7 @@ export class Run {
   carryOver() {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
-      owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount,
+      owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened,
     };
   }
