@@ -75,6 +75,7 @@ const CARD_VALUES = {
   regen:         { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // health a second
   dodge:         { amounts: [3, 5, 8], suffix: '%' },           // percentage points
   luck:          { amounts: [10, 18, 30] },                     // see luckWeights
+  bubbleSize:    { amounts: [10, 18, 30], pct: true, weight: 0.8 },   // bigger bubbles land easier and splash wider
 };
 
 // Each bubble past the first makes every bubble in the blow 15% weaker (compounding): 2 bubbles

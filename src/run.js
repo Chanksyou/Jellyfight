@@ -2,7 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -234,6 +234,7 @@ export class Run {
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
+    S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
     return S;
   }
 
@@ -251,13 +252,8 @@ export class Run {
   }
 
   get tentacleStats() {
-    const s = this.stats;
-    return {
-      tentacles: Math.min(6, s.tentacles),
-      reach: s.reach,
-      tentacleDamage: this.S.tentacleDamage,   // treasures can raise it (Paperclip Chain: per)
-      tentacleSpeed: s.tentacleSpeed,
-    };
+    const s = this.S;   // treasures can raise all four (stat, per)
+    return { tentacles: s.tentacles, reach: s.reach, tentacleDamage: s.tentacleDamage, tentacleSpeed: s.tentacleSpeed };
   }
   // seconds until the boss comes (treasures can make the night longer)
   get duration() { return this.stage.duration; }
@@ -326,6 +322,7 @@ export class Run {
         this.hud.setElite(fe ? fe.name : null, fe ? fe.hp / fe.maxHp : 0);
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
+      this.enemies.eliteDamage = this.mods.eliteDamage;
       this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius }, this.t);
       this.contactDamage();
       this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);

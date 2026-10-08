@@ -3,7 +3,7 @@
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
 // Damage numbers are multiples of your power (bubble damage x 1.8) unless a word says otherwise.
-// Tentacles are mostly improved by the Stinging Frills evolution; Paperclip Chain (per) adds Tentacle damage.
+// Tentacles grow with the Stinging Frills evolution and their own treasures (Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle, Paperclip Chain).
 //
 //   attack=#true   it changes how you attack
 //   rarity="…"     common, rare, epic or legendary: how often it's offered (stats.js
@@ -162,7 +162,7 @@ treasure "draft" name="Draft Stopper" icon="🚪" rarity="rare" needs="paperFan"
 treasure "craftGlitter" name="Craft Glitter" icon="🎨" rarity="common" needs="glitter" attack=#true text="Glitter: the splash is 30% wider." {
     element-up "glitter" width=1.3
 }
-treasure "holoGlitter" name="Holo Glitter" icon="🪩" rarity="rare" needs="glitter" attack=#true text="Glitter: the splash hits 50% harder." {
+treasure "holoGlitter" name="Holo Glitter" icon="🌈" rarity="rare" needs="glitter" attack=#true text="Glitter: the splash hits 50% harder." {
     element-up "glitter" splash=1.5
 }
 treasure "glitterGlue" name="Glitter Glue" icon="🫗" rarity="common" needs="glitter" attack=#true text="Glitter: the splash slows everything it hits for 1 s." {
@@ -397,13 +397,13 @@ treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flie
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
-treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="common" attack=#true text="Glass cannon: +40% bubble damage, but hits take 25% more health." stack=3 {
-    stat bubble-damage 40 percent=#true
+treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true text="Glass cannon: +70% bubble damage, but hits take 25% more health." stack=3 {
+    stat bubble-damage 70 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+25% bubble damage and +10% fire rate, but bubbles reach 15% less far." stack=3 {
-    stat bubble-damage 25 percent=#true
-    stat fire-rate 10 percent=#true
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% bubble damage and +15% fire rate, but bubbles reach 15% less far." stack=3 {
+    stat bubble-damage 40 percent=#true
+    stat fire-rate 15 percent=#true
     stat range -15 percent=#true
 }
 treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster, but -4 max health." stack=2 {
@@ -462,7 +462,7 @@ treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+2% Bub
 }
 
 // --- conditionals (while): a bonus only while something holds
-treasure "drySock" name="Dry Sock" icon="🧦" rarity="epic" text="+40% Bubble damage while you're in the air." stack=3 {
+treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Bubble damage while you're in the air." stack=3 {
     while "airborne" "bubble-damage" 40 percent=#true
 }
 treasure "highStool" name="High Stool" icon="🪑" rarity="epic" text="+30% Bubble damage while you stand on furniture above the floor." stack=3 {
@@ -483,7 +483,7 @@ treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When 
         ring 0.25 dmg=0.6 color="#8fffc8" show=0.35
     }
 }
-treasure "kettleCord" name="Electric Kettle Cord" icon="🔌" rarity="rare" attack=#true text="When a bug hits you, lightning arcs back at it for half the damage you took (once every 2 s)." stack=3 {
+treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When a bug hits you, lightning arcs back at it for half the damage you took (once every 2 s)." stack=3 {
     when-hit cooldown=2 {
         zap 1 range=0.3 at="attacker" share=0.5
     }
@@ -516,7 +516,7 @@ treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary"
     while "low-health" "fire-rate" 50 percent=#true
     while "low-health" "move-speed" 20 percent=#true
 }
-treasure "powerBank" name="Power Bank" icon="🔋" rarity="legendary" attack=#true text="Every element you own fires 50% faster." {
+treasure "powerBank" name="Power Bank" icon="🔆" rarity="legendary" attack=#true text="Every element you own fires 50% faster." {
     element-up "fire" rate=1.5
     element-up "lightning" rate=1.5
     element-up "ice" rate=1.5
@@ -539,7 +539,7 @@ treasure "bookshelf" name="Bookshelf" icon="📚" rarity="rare" text="Your Healt
 treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+2 Luck for every treasure found this run." stack=3 {
     per "luck" 2 every=1 of="chests"
 }
-treasure "stressBall" name="Stress Ball" icon="🧶" rarity="rare" text="When you're hit, bugs within 12 cm are slowed for 1 s (once every 4 s)." stack=3 {
+treasure "stressBall" name="Stress Ball" icon="🥎" rarity="rare" text="When you're hit, bugs within 12 cm are slowed for 1 s (once every 4 s)." stack=3 {
     when-hit cooldown=4 {
         ring 0.12 dmg=0 slow=1 color="#9fd8ff" show=0.4
     }
@@ -550,4 +550,32 @@ treasure "teaBag" name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health 
 treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (triple damage) and pin the bug for 0.4 s." stack=2 {
     crit chance=0.1 mult=3
     pin-on-crit 0.4
+}
+
+// --- size, jumps and tentacles (stat): stats that nothing raised before
+treasure "bikePump" name="Bike Pump" icon="🚲" rarity="common" attack=#true text="Pumped-up bubbles: +20% Bubble size, so they land easier and splash wider." stack=3 {
+    stat bubble-size 20 percent=#true
+}
+treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+20% Jump height." stack=3 {
+    stat jump-height 20 percent=#true
+}
+treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="rare" attack=#true text="+1 Tentacle lashes out at once." stack=3 {
+    stat tentacles 1
+}
+treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+25% Tentacle reach." stack=3 {
+    stat tentacle-reach 25 percent=#true
+}
+treasure "chopsticks" name="Chopsticks" icon="🥢" rarity="common" attack=#true text="+25% Tentacle speed." stack=3 {
+    stat tentacle-speed 25 percent=#true
+}
+treasure "nettle" name="Stinging Nettle" icon="🌿" rarity="common" attack=#true text="+2 Tentacle damage." stack=5 {
+    stat tentacle-damage 2
+}
+
+// --- timers and big targets
+treasure "windUpKey" name="Wind-Up Key" icon="🔑" rarity="rare" text="Treasures on a timer go off 20% more often." stack=3 {
+    gadget-haste 20
+}
+treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="Everything you do hurts Elites and the Boss 40% more." stack=3 {
+    elite-damage 40
 }

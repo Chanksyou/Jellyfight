@@ -351,7 +351,7 @@ export class Enemies {
   applyDamage(e, amount, color = '#fff') {
     if (!e || e.dead) return;
     if (e.proxy) {
-      e.proxy.damage(amount, color);
+      e.proxy.damage(amount * (this.eliteDamage ?? 1), color);   // elite-damage (treasures)
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
       return;
     }

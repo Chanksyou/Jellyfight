@@ -116,7 +116,7 @@ export class Gadgets {
     const E = this.enemies, fx = this.fx;
 
     // timed effects: every N s, do what's in the block
-    for (const T of M.timed) if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
+    for (const T of M.timed) if (this.every(T.key, dt * M.gadgetHaste, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
     for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
     this.zaps = this.zaps.filter((z) => z.t > 0);
 
@@ -163,7 +163,7 @@ export class Gadgets {
     const Mo = M.mouse;
     if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
     else {
-      if (!this.mouseRun && this.every('mouse', dt, Mo.every)) {
+      if (!this.mouseRun && this.every('mouse', dt * M.gadgetHaste, Mo.every)) {
         const trip = Math.random() < Mo.trip, prey = trip ? null : this.near(center, 1.2, { proxies: false })[0];
         if (trip || prey) {
           this.mouseRun = { trip, prey, t: 0 };

@@ -1395,7 +1395,7 @@ story('treasures/squeak-when-hit', {
   },
 });
 story('treasures/when-hit', {
-  about: 'when-hit (Windowsill Cactus, Electric Kettle Cord): getting hit sprays needles at the bugs around you, once a second at most; the Kettle Cord arcs back at the bug that hit you for half the damage you took.',
+  about: 'when-hit (Windowsill Cactus, Toaster Cord): getting hit sprays needles at the bugs around you, once a second at most; the Toaster Cord arcs back at the bug that hit you for half the damage you took.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('cactus'); roachAt(0.1, 0); roachAt(-0.12, 0.05); },
   play() {
     const { run, enemies } = G(), log = record('damage_taken');
@@ -1406,7 +1406,7 @@ story('treasures/when-hit', {
     const again = dmgBy(log, 'ring').length;
     step(70); hitMe(1);                                         // a second later: again
     const later = dmgBy(log, 'ring').length;
-    // the Kettle Cord: a bug hits you for 4, it takes 2 back (and not the other bug, closer to you)
+    // the Toaster Cord: a bug hits you for 4, it takes 2 back (and not the other bug, closer to you)
     run.owned.delete('cactus'); give('kettleCord');
     const far = enemies.list[1], biter = roachAt(0.2, 0.05);
     log.length = 0;
@@ -1606,6 +1606,45 @@ story('treasures/stat', {
   play() {
     const { run } = G(), b = run.stats;
     return ok(run.S.bubbleDamage === b.bubbleDamage + 2 && Math.abs(run.S.fireRate - b.fireRate * 1.25) < 1e-9, { pop: [b.bubbleDamage, run.S.bubbleDamage], blowRate: [b.fireRate, +run.S.fireRate.toFixed(3)] });
+  },
+});
+story('treasures/stat-size-jump-tentacles', {
+  about: 'stat reaches the stats nothing raised before: Bubble size, Jump height and the tentacles (Bike Pump, Spring Insole, Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle), and the lash uses them: two tentacles sting two bugs at once.',
+  setup() { setupFight({ bubbles: false }); give('bikePump', 'insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
+  play() {
+    const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
+    const stats = near(S.bubbleSize, b.bubbleSize * 1.2) && near(S.jumpHeight, b.jumpHeight * 1.2) && T.tentacles === b.tentacles + 1
+      && near(T.reach, b.reach * 1.25) && near(T.tentacleSpeed, b.tentacleSpeed * 1.25) && T.tentacleDamage === b.tentacleDamage + 2;
+    const log = record('damage_taken');
+    step(60 * 2);
+    const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
+    return ok(stats && stung === 2, { size: S.bubbleSize, jump: S.jumpHeight, T: { ...T }, stung });
+  },
+});
+story('treasures/gadget-haste', {
+  about: 'gadget-haste (Wind-Up Key): treasures on a timer go off 20% more often; a Guitar Pick\'s first chord comes at 2.5 s instead of 3 s.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('guitarPick'); roachAt(0.08, 0); },
+  play() {
+    const first = () => { const log = record('damage_taken'); return step(60 * 6, () => dmgBy(log, 'ring').length > 0) / 60; };
+    const plain = first();
+    setupFight({ bubbles: false, lash: false }); give('guitarPick', 'windUpKey'); roachAt(0.08, 0);
+    const keyed = first();
+    return ok(Math.abs(plain / keyed - 1.2) < 0.03, { plain: +plain.toFixed(2), keyed: +keyed.toFixed(2) });
+  },
+});
+story('treasures/elite-damage', {
+  about: 'elite-damage (Can Opener): hits on Elites and the boss do 40% more; ordinary bugs take the same as before.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('canOpener'); roachAt(0.3, 0); },
+  play() {
+    const { enemies } = G(), roach = enemies.list[0];
+    const big = { position: near(-0.3, 0), r: 0.02, dead: false, hp: 1000, damage(a) { this.hp -= a; } };
+    const e = enemies.addProxy(big);
+    step(1);
+    const hp0 = roach.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' });
+    bus.emit('damage_taken', { targetId: roach.id, amount: 10, source: 'story' });
+    big.dead = e.dead = true; enemies.list.splice(enemies.list.indexOf(e), 1); enemies.byId.delete(e.id);
+    return ok(Math.abs(1000 - big.hp - 14) < 1e-9 && hp0 - roach.hp === 10, { elite: 1000 - big.hp, bug: hp0 - roach.hp });
   },
 });
 story('treasures/grow-on-kills', {

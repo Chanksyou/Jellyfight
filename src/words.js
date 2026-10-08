@@ -356,6 +356,8 @@ export function newMods() {
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
+    gadgetHaste: 1,                  // gadget-haste: how much faster `every` timers and the toy mouse run
+    eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
   };
 }
 
@@ -428,7 +430,7 @@ export const WHILE_WHEN = ['airborne', 'high-ground', 'low-health'];
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -476,7 +478,7 @@ export const TREASURE_WORDS = {
   'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), tentacle-damage, dodge (% chance a hit misses) or luck (rarer cards and treasures). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed or tentacle-damage. `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {
@@ -523,6 +525,8 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
+  'gadget-haste': { doc: 'Treasures on a timer (`every N { … }` blocks and the toy mouse) go off `percent`% more often. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.gadgetHaste += n / 100; } },
+  'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
