@@ -362,6 +362,7 @@ export function newMods() {
     noRegen: false,                  // no-regen: Health regen does nothing
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
+    owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
     eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
   };
 }

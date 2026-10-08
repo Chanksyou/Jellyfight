@@ -1962,6 +1962,24 @@ story('dev/test-kit', {
     return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'boxJelly' && got.tentacles === 4 && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
   },
 });
+story('hud/treasure-timers', {
+  about: 'Treasures show big in the HUD, and a timed one wears a clock face: Guitar Pick (every 5 s) greys out and its dark wedge shrinks as the chord comes round, lighting up when it goes off; Snooze Button stays lit until it saves you, then greys out for good; one with no timer (Lemon Slice) has no face.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('guitarPick', 'snooze', 'lemon'); },
+  play() {
+    const { run } = G(), span = (id) => document.querySelector(`#hud .items span[data-id="${id}"]`), cd = (id) => +span(id).style.getPropertyValue('--cd');
+    step(2);
+    const big = span('lemon').getBoundingClientRect().width >= 26;
+    const a = cd('guitarPick'); step(60); const b = cd('guitarPick');
+    const counting = span('guitarPick').classList.contains('wait') && b < a;
+    step(60 * 5, () => cd('guitarPick') > 0.9);                      // it went off: the wait starts over
+    const went = cd('guitarPick') > 0.9;
+    const snoozeReady = span('snooze').classList.contains('timed') && !span('snooze').classList.contains('wait');
+    run.health = 1; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 5, source: 'story' }); step(2);
+    const spent = span('snooze').classList.contains('spent');
+    const plain = !span('lemon').classList.contains('timed');
+    return ok(big && counting && went && snoozeReady && spent && plain, { big, a, b, counting, went, snoozeReady, spent, plain });
+  },
+});
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
   about: 'Every treasure word has a description, is used by some treasure, and has a treasures/ story.',
   setup() {},

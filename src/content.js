@@ -118,14 +118,27 @@ export function compileEvolutions(nodes, file = 'content/evolutions.kdl') {
 // systems read
 export function compileMods(ids, evolved = []) {
   const m = newMods();
-  for (const e of CONTENT.evolutions) if (evolved.includes(e.id)) for (const fx of e.effects) fx(m, 0);
+  for (const e of CONTENT.evolutions) if (evolved.includes(e.id)) owned(m, e.id, () => { for (const fx of e.effects) fx(m, 0); });
   for (const t of CONTENT.treasures) {
     const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;
     if (!n) continue;
-    if (t.levels.length > 1) { for (const fx of t.levels[Math.min(n, t.levels.length) - 1]) fx(m, 0); continue; }   // a levelled treasure: its level's words, once
-    for (let copy = 0; copy < n; copy++) for (const fx of t.effects) fx(m, copy);   // stackable treasures apply once per copy
+    owned(m, t.id, () => {
+      if (t.levels.length > 1) { for (const fx of t.levels[Math.min(n, t.levels.length) - 1]) fx(m, 0); return; }   // a levelled treasure: its level's words, once
+      for (let copy = 0; copy < n; copy++) for (const fx of t.effects) fx(m, copy);   // stackable treasures apply once per copy
+    });
   }
   return m;
+}
+
+// Notes which treasure (or evolution) each timer it adds belongs to, so the HUD can show that
+// treasure's countdown (Run.cooldowns): what it adds to the timed, when-hit and squeak lists, and
+// the one-off effects it sets. Only for showing: the systems still read the combined effects.
+const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth'];
+function owned(m, id, apply) {
+  const at = [m.timed.length, m.onHurt.length, m.squeaks.length], had = SINGLES.map((k) => m[k]);
+  apply();
+  [m.timed, m.onHurt, m.squeaks].forEach((list, i) => { for (const x of list.slice(at[i])) x.owner = id; });
+  SINGLES.forEach((k, i) => { if (m[k] !== had[i]) m.owners[k] = id; });
 }
 
 export async function loadContent(base = './content/') {

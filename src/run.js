@@ -1072,12 +1072,35 @@ export class Run {
   }
 
   // ------------------------------------------------------------ HUD
+  // How far along each timed treasure or evolution is, by its id: { left, spent }, where left is the
+  // share of its wait still to go (0 = ready or going off now, 1 = just went off) and spent is a
+  // once-a-run (or once-an-act) effect already used. The HUD draws them as clock faces.
+  cooldowns() {
+    const M = this.mods, G = this.gadgets, out = (this._cd ||= {});
+    for (const k in out) delete out[k];
+    const put = (id, left, spent = false) => {
+      if (!id) return;
+      left = Math.max(0, Math.min(1, left));
+      if (!out[id] || left < out[id].left) out[id] = { left, spent };   // several copies: the soonest
+    };
+    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first) / T.every);
+    for (const H of M.onHurt) put(H.owner, ((this.hurtCd[H.key] || 0) - this.t) / H.cooldown);
+    M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / Q.cooldown));
+    const O = M.owners;
+    if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * 0.6) / M.mouse.every);
+    if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
+    if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
+    if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
+    return out;
+  }
+
   refreshHud() {
     this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
     h.setHealth(this.health, this.S.health);
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
+    h.setCooldowns(this.cooldowns());
     const [c0, c1] = this.stage.clock;
     const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);

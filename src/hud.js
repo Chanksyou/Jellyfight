@@ -25,8 +25,19 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .xp { height: 10px; margin-top: 6px; background: #0d1220b3; box-shadow: 0 0 0 1.5px #ffd25a55, 0 2px 6px #0008; }
 #hud .xp i { background: linear-gradient(90deg, #f0b12a, #ffe27a); }
 #hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-#hud .items span { width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; background: #0d122080; border-radius: 6px; }
-#hud .items sub { font-size: 8px; font-weight: 800; }
+#hud .items span { position: relative; width: 34px; height: 34px; display: grid; place-items: center; font-size: 22px; background: #0d122080; border-radius: 9px; }
+#hud .items span b { font-weight: 400; transition: filter .15s; }
+#hud .items sub { position: absolute; right: 2px; bottom: 1px; font-size: 10px; font-weight: 800; z-index: 1; text-shadow: 0 1px 2px #000; }
+/* a timed treasure: a clock face over it. The dark wedge is the wait still to go, sweeping away
+   clockwise from 12; while it waits the icon is greyed, and it lights up when it's ready or going off */
+#hud .items span.timed::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: conic-gradient(rgba(6, 9, 20, .72) calc(var(--cd, 0) * 1turn), transparent 0); }
+#hud .items span.timed.wait b { filter: grayscale(1) brightness(.8); }
+#hud .items span.timed:not(.wait) { box-shadow: 0 0 0 2px #5ff0ff, 0 0 10px #5ff0ff88; }
+#hud .items span.timed.spent b { filter: grayscale(1) brightness(.5); }
+#hud .items span.timed.spent { box-shadow: none; }
+#hud .items span.pop { animation: jf-pop .35s ease-out; }
+@keyframes jf-pop { 0% { transform: scale(1.3); box-shadow: 0 0 0 3px #fff, 0 0 16px #5ff0ff; } 100% { transform: scale(1); } }
 /* top centre: how long until the boss */
 #hud .tc { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
 #hud .clock { font: 800 24px/1 system-ui, sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
@@ -60,7 +71,8 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
   #hud .hpn { font-size: 11px; right: 7px; }
   #hud .xp { height: 7px; margin-top: 5px; }
   #hud .items { margin-top: 6px; gap: 3px; }
-  #hud .items span { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
+  #hud .items span { width: 26px; height: 26px; font-size: 17px; border-radius: 7px; }
+  #hud .items sub { font-size: 8px; }
   #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
   #hud .clock { font-size: 18px; }
   #hud .stage { font-size: 9.5px; margin-top: 2px; }
@@ -144,7 +156,26 @@ export class Hud {
   }
 
   setItems(items) {
-    this.set('items', '.items', () => items.map((t) => `<span title="${t.name}: ${t.text}">${t.icon}</span>`).join(''));
+    const before = this.cache.items;
+    this.set('items', '.items', () => items.map((t) => `<span data-id="${t.id}" title="${t.name}: ${t.text}"><b>${t.icon}</b></span>`).join(''));
+    if (this.cache.items !== before) this.cd = {};     // new spans: draw every face again
+  }
+
+  // cds: Run.cooldowns() — for each timed item, the share of its wait still to go, and whether a
+  // once-only effect is spent. Only touches a span when what it shows changes.
+  setCooldowns(cds) {
+    const was = (this.cd ||= {});
+    for (const el of this.$('.items').children) {
+      const id = el.dataset.id, c = cds[id], prev = was[id];
+      const left = c ? Math.round(c.left * 50) / 50 : -1, spent = !!c?.spent;
+      if (prev && prev.left === left && prev.spent === spent) continue;
+      el.classList.toggle('timed', !!c);
+      el.classList.toggle('wait', left > 0 && !spent);
+      el.classList.toggle('spent', spent);
+      el.style.setProperty('--cd', c ? String(left) : '0');
+      if (prev && prev.left >= 0 && prev.left < 0.15 && left > 0.85 && !spent) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }   // it just went off
+      was[id] = { left, spent };
+    }
   }
 
   setClock(text, dry) {
