@@ -10,6 +10,7 @@ import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
 import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
+import { TestKit } from './test-kit.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
@@ -31,7 +32,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v131';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v132';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -119,7 +120,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">🎨 Look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
@@ -248,7 +249,7 @@ touch.mount(ui);
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
-const menuOpen = () => !overlay.hidden || menus.open || state.mode === 'creator' || state.mode === 'layout';
+const menuOpen = () => !overlay.hidden || menus.open || kit.open || state.mode === 'creator' || state.mode === 'layout';
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
@@ -397,6 +398,10 @@ overlay.addEventListener('click', (e) => {
     run.ui.message('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', [],
       [...picks.map((p) => ({ label: p.name, onClick: () => { run.startDuel(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
   }
+  else if (b.dataset.act === 'kit') {    // dev: try any treasure or evolution on this run (test-kit.js)
+    overlay.hidden = true;
+    kit.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
+  }
   else if (b.dataset.act === 'boss') { run.start(); run.devRun(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {
@@ -408,7 +413,8 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'board') { overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
-// Dev tools (layout editor, boss and 1-on-1 fights, the other act, diagnostics) wait behind one
+const kit = new TestKit(document.body);
+// Dev tools (layout editor, boss and 1-on-1 fights, test kit, the other act, diagnostics) wait behind one
 // 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
 const DEV_PASS = 'chan', DEV_KEY = 'jellyfight.dev';
 function unlockDev() {
@@ -584,7 +590,7 @@ document.addEventListener('visibilitychange', () => {
 const clock = new Clock();
 let lastFrame = 0;
 renderer.setAnimationLoop((now) => {
-  const covered = !overlay.hidden || menus.open;
+  const covered = !overlay.hidden || menus.open || kit.open;
   if (!pacer.due(now, covered)) return;
   const ms = now - lastFrame;
   lastFrame = now;
@@ -599,4 +605,4 @@ renderer.setAnimationLoop((now) => {
 });
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu });
+Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });

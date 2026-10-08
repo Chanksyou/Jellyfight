@@ -39,6 +39,7 @@ const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
 class Owned extends Set {
   add(v) { super.add(v); (this.n ||= new Map()).set(v, this.count(v) + 1); this.version = (this.version || 0) + 1; return this; }
   delete(v) { const r = super.delete(v); this.n?.delete(v); this.version = (this.version || 0) + 1; return r; }
+  remove(v) { if (this.count(v) > 1) { this.n.set(v, this.count(v) - 1); this.version++; } else this.delete(v); }   // one copy (or level) fewer
   clear() { super.clear(); this.n?.clear(); this.version = (this.version || 0) + 1; }
   count(v) { return this.n?.get(v) || 0; }
 }
@@ -170,6 +171,7 @@ export class Run {
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
     this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
+    this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
     this.player.avatar?.root.scale.setScalar(1);
     this.squeakCd = []; this.hurtCd = {};
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
@@ -428,6 +430,7 @@ export class Run {
   // ------------------------------------------------------------ waves
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
+    if (this.devCalm) return;         // dev test kit: waves off
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
     const more = this.mods.moreBugs * (this.stage.bugs || 1);   // more-bugs (treasures), and the act's own `bugs`
@@ -532,6 +535,7 @@ export class Run {
 
   hurt(amount, silent = false) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
+    if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }

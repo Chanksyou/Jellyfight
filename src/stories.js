@@ -1940,6 +1940,28 @@ story('evolutions/one-of-each-and-carried', {
     return ok(offered.length === 3 && !offered.includes('boxJelly') && carry.evolved.includes('boxJelly'), { offered, carried: carry.evolved });
   },
 });
+story('dev/test-kit', {
+  about: 'The dev test kit: a new test run has no waves and you can\'t die; + and − add and take away treasure copies, levels and evolutions; it spawns a pack to try them on; the game holds still while it\'s open.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G(), kit = window.kit, tap = (sel) => kit.el.querySelector(sel).click();
+    kit.show(run, {});
+    tap('[data-k="new"]');
+    const calm = run.devCalm && run.devGod;
+    const row = (id, k) => tap(`.row[data-id="${id}"] [data-k="${k}"]`);
+    row('lemon', 'plus'); row('lemon', 'plus'); row('lemon', 'minus');
+    row('bobbyPin', 'plus'); row('bobbyPin', 'plus');
+    row('boxJelly', 'plus');
+    const t0 = run.t; G().GAME.step(1 / 60); const held = run.t === t0;
+    tap('[data-k="pack"]');
+    const bugs = G().enemies.list.filter((e) => e.type === 'roach').length;
+    run.health = 1; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 50, source: 'story' });
+    const alive = run.health >= 1 && run.phase !== 'dead';
+    const got = { lemon: run.owned.count('lemon'), pin: run.owned.count('bobbyPin'), evolved: [...run.evolved], tentacles: run.tentacleStats.tentacles };
+    kit.hide();
+    return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'boxJelly' && got.tentacles === 4 && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
+  },
+});
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
   about: 'Every treasure word has a description, is used by some treasure, and has a treasures/ story.',
   setup() {},

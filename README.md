@@ -56,6 +56,8 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 
 **👹 Fight boss** starts a fresh run and goes straight to the boss (level 1, no treasures), for testing the fight.
 
+**🧪 Test kit** (`src/test-kit.js`) tries any treasure or evolution on the run in front of you: search or filter by rarity, **+** adds a copy (or the next level, or an evolution), **−** takes one away, and the row up top shows what you have. **New test run** starts a clean one with the waves off and you unable to die (both are toggles); **Spawn 10 roaches** or **a mixed pack** of this act's bugs puts something in front of you to try it on. The game holds still while it's open; **▶ Play with this** carries on.
+
 **🐞 1 on 1** lists every enemy (each bug, plus every act's elites; picking an elite from another act reloads the game into that act first): pick one and a fresh run starts with just it, no waves, scheduled treasures or boss. A bug turns up near you and another comes 1.5 s after you clear it; an elite puts you on its high ground and comes back 4 s after you beat it. Pause to pick another; Restart goes back to a normal run (`Run.startDuel` in `src/run.js`).
 
 **🛠 Layout** (dev tools) lets you move, rotate, raise/lower and hide the furniture and objects. Tap or click an object to select it (a yellow box shows it), drag it to move it. Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo. Touch: drag empty space to pan, pinch to zoom, and use the toolbar.
