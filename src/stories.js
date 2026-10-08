@@ -1277,14 +1277,18 @@ story('treasures/crit', {
   },
 });
 story('treasures/pin-on-crit', {
-  about: 'pin-on-crit (Thumbtack, with a Nail Clipper\'s crits): a critical hit pins the bug in place for 0.8 s; it doesn\'t move while pinned.',
+  about: 'pin-on-crit (Thumbtack, with a Nail Clipper\'s crits): a critical hit pins the bug in place for 0.8 s; it doesn\'t walk while pinned (bubble hits can still nudge it).',
   setup() { setupFight({ lash: false }); give('nailClipper', 'thumbtack'); roachAt(0, -0.15, { hp: 9999 }); },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('status_applied');
     step(60 * 10, () => log.some((s) => s.status === 'stun' && s.targetId === e.id));
     const pin = log.find((s) => s.status === 'stun' && s.targetId === e.id);
+    // a pin stops the bug moving itself; bubble hits still nudge it, so stop blowing and let the
+    // ones in the air land before measuring
+    G().run.bubbles.timer = -1e6;
+    step(15);
     const at = e.pos.clone();
-    step(30);                                                       // half a second into the pin
+    step(30);                                                       // 0.25 s to 0.75 s into the 0.8 s pin
     const moved = e.pos.distanceTo(at);
     return ok(pin?.duration === 0.8 && moved < 0.002, { pin: pin?.duration, moved: +moved.toFixed(4) });
   },
