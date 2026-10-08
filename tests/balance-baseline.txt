@@ -1,17 +1,18 @@
-# Balance baseline: v123 (2026-10-07), node tests/balance.mjs 5 — before the treasure overhaul (#8)
+# Balance baseline: v124 (2026-10-08), node tests/balance.mjs 5 — after the treasure overhaul (#8)
+# Before it (v123): median 415 s, level 7, 41 kills, 0 of 5 beat the boss.
 # Compare a change's run against this; the bot is crude, so look at medians and sources, not single nights.
 
-night 1: died at 3:55, level 4, 23 kills, 1 treasures, finished by ants
-    hurt by {"ants":16.7,"roach":6,"coffee":3.3,"spit":2,"lanternfly":1}
-night 2: died at 6:55, level 7, 29 kills, 1 treasures, finished by boss
-    hurt by {"roach":10.4,"lanternfly":10.2,"boss":6.5,"kettle":2}
-night 3: died at 7:15, level 9, 79 kills, 1 treasures, finished by roach
-    hurt by {"boss":26,"roach":18.2,"ants":9,"lanternfly":8,"spit":4}
-night 4: died at 4:52, level 7, 41 kills, 4 treasures, finished by boss
-    hurt by {"roach":9,"ants":5,"boss":5,"spit":3,"mosquito":1,"lanternfly":1}
-night 5: died at 7:00, level 8, 60 kills, 2 treasures, finished by boss
-    hurt by {"roach":27.9,"boss":20.5,"lanternfly":9.4,"spit":4,"ants":3,"mosquito":2,"coffee":0.5}
+night 1: died at 2:41, level 2, 22 kills, 1 treasures, finished by roach
+    hurt by {"ants":15,"roach":9,"spit":1}
+night 2: died at 8:13, level 9, 70 kills, 1 treasures, finished by boss
+    hurt by {"boss":41.9,"roach":21.5,"lanternfly":5.1,"spit":4,"ants":2}
+night 3: beat the boss at 9:21, level 10, 97 kills, 2 treasures
+    hurt by {"roach":29.7,"boss":12.5,"ants":11,"lanternfly":7.1,"spit":2}
+night 4: beat the boss at 8:30, level 10, 80 kills, 2 treasures
+    hurt by {"roach":32.4,"boss":17.8,"lanternfly":15.3,"spit":6,"ants":5}
+night 5: died at 7:17, level 8, 53 kills, 2 treasures, finished by boss
+    hurt by {"roach":12.1,"boss":11.8,"lanternfly":8.2,"spit":5,"ants":3,"coffee":2.1}
 
-5 nights: 0 beat the boss, 5 died
-median: survived to 415 s, level 7, 41 kills
-health lost, by source: roach 33%, boss 27%, ants 16%, lanternfly 14%, spit 6%, coffee 2%, mosquito 1%, kettle 1%
+5 nights: 2 beat the boss, 3 died
+median: survived to 493 s, level 9, 70 kills
+health lost, by source: roach 37%, boss 30%, ants 13%, lanternfly 13%, spit 6%, coffee 1%
