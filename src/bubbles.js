@@ -273,7 +273,10 @@ export class Bubbles {
   strike(b, e, mods) {
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
-    if (H.crit && Math.random() < H.crit.chance) { dmg *= H.crit.mult; color = '#ff6b6b'; }
+    if (H.crit && Math.random() < H.crit.chance) {
+      dmg *= H.crit.mult; color = '#ff6b6b';
+      if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: H.pin });   // pin-on-crit
+    }
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
@@ -417,6 +420,15 @@ export class Bubbles {
       const life = b.ep?.puddleTime ?? 3.5;
       this.puddles.push({ m, t: life, life, r: 0.05 * (b.r / RADIUS) * (b.ep?.puddleSize ?? 1), dmg: b.pw * ELEMENT.puddle * (b.ep?.puddleDmg ?? 1), tick: 0.25 });
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
+    }
+    // zap-on-pop: now and then the pop snaps static to enemies close by, stunning them
+    const Z = mods.popZap;
+    if (Z && Math.random() < Z.chance) {
+      for (const e of this.inRange(p, Z.range, b.hit).slice(0, Z.count)) {
+        this.zap(p, E.center(e, c));
+        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Z.stun });
+        if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
+      }
     }
     // split-bubble: a smaller bubble spins off toward another enemy, once
     if (mods.bubbles.split && !b.child) {

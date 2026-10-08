@@ -1276,6 +1276,32 @@ story('treasures/crit', {
     return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
   },
 });
+story('treasures/pin-on-crit', {
+  about: 'pin-on-crit (Thumbtack, with a Nail Clipper\'s crits): a critical hit pins the bug in place for 0.8 s; it doesn\'t move while pinned.',
+  setup() { setupFight({ lash: false }); give('nailClipper', 'thumbtack'); roachAt(0, -0.15, { hp: 9999 }); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('status_applied');
+    step(60 * 10, () => log.some((s) => s.status === 'stun' && s.targetId === e.id));
+    const pin = log.find((s) => s.status === 'stun' && s.targetId === e.id);
+    const at = e.pos.clone();
+    step(30);                                                       // half a second into the pin
+    const moved = e.pos.distanceTo(at);
+    return ok(pin?.duration === 0.8 && moved < 0.002, { pin: pin?.duration, moved: +moved.toFixed(4) });
+  },
+});
+story('treasures/zap-on-pop', {
+  about: 'zap-on-pop (Static Balloon): a bubble popping on a bug sometimes snaps static to another bug close by, stunning it for 0.5 s.',
+  setup() { setupFight({ lash: false }); give('staticBalloon'); roachAt(0, -0.15); roachAt(0.08, -0.17); },
+  play() {
+    const { enemies } = G(), log = record('status_applied');
+    const real = Math.random;
+    Math.random = () => 0.05;                                       // every pop's 20% comes up
+    step(60 * 4, () => log.some((s) => s.status === 'stun'));
+    Math.random = real;
+    const stuns = log.filter((s) => s.status === 'stun');
+    return ok(stuns.length >= 1 && stuns.every((s) => s.duration === 0.5) && enemies.list.some((e) => e.id === stuns[0].targetId), { stuns: stuns.map((s) => [s.targetId, s.duration]) });
+  },
+});
 story('treasures/extra-jumps', {
   about: 'extra-jumps (Pen Spring): no mid-air jump without it; each copy adds one, up to a quadruple jump with 3.',
   setup() { setupFight({ bubbles: false, lash: false }); },

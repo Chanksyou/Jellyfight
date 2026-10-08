@@ -488,3 +488,11 @@ treasure "kettleCord" name="Electric Kettle Cord" icon="🔌" rarity="rare" atta
         zap 1 range=0.3 at="attacker" share=0.5
     }
 }
+
+// --- procs: now and then a hit does something more
+treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true text="20% of your bubble pops snap static to a bug within 30 cm, stunning it for 0.5 s. A second one adds a second bug." stack=2 {
+    zap-on-pop chance=0.2 count=1 range=0.3 stun=0.5
+}
+treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="Critical hits pin the bug in place for 0.8 s." stack=1 {
+    pin-on-crit 0.8
+}
