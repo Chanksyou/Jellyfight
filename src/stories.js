@@ -2535,7 +2535,7 @@ story('menu/dev-tools-locked', {
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,act,diag',
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,act,diag',
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
   },
 });
