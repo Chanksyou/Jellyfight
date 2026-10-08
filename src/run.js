@@ -27,7 +27,6 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 // (on the schedule) or one a beaten Elite left. The Boss reward is Legendary only (pickLegendary).
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
 // not a rug or a threshold
-const HIGH_GROUND = 0.1;
 // Under this share of max Health counts as low (a `while low-health` treasure)
 const LOW_HEALTH = 0.3;
 
@@ -122,6 +121,7 @@ export class Run {
     this.elites?.start(this.stage.elites);
     this.roomTreasures?.forEach((t) => t.hide());
     this.treasureTimesLeft = [...(this.stage.treasures?.at || [])];   // seconds into the night each scheduled treasure appears
+    this.bonusTreasureAt = new Set();                                  // which of those a Wind-Up Key added (they don't bring more)
     this.lastTreasureSpot = null;
     this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
@@ -216,12 +216,12 @@ export class Run {
     const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
     const grown = this.grown || {};
     for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
-    // while: conditionals, true right now or not (the jelly in the air, or up on furniture)
+    // while: conditionals, true right now or not (the jelly in the air, or low on Health)
     const whiles = this.mods.whiles;
     if (whiles.length) {
-      const P = this.player, air = !P.grounded && !P.climbing, high = P.grounded && P.position.y > (this.stage.floorY || 0) + HIGH_GROUND;
+      const P = this.player, air = !P.grounded && !P.climbing;
       const low = this.health < S.health * LOW_HEALTH;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'high-ground' ? high : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
     }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
@@ -505,7 +505,9 @@ export class Run {
     for (const H of M.onHurt) {
       if ((this.hurtCd[H.key] || 0) > this.t) continue;
       this.hurtCd[H.key] = this.t + H.cooldown;
-      const P = this.player.position, ctx = { feet: P, center: P.clone().setY(P.y + this.cfg.height * 0.5), facing: this.player.facing, power: this.power, from, taken: amount };
+      const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
+      const lash = (e, k) => this.lash.strike(center, e, this.S.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
+      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount);
@@ -698,11 +700,18 @@ export class Run {
     const T = this.stage.treasures;
     if (!T || !this.treasureTimesLeft.length || this.t < this.treasureTimesLeft[0]) return;
     if (this.roomTreasures.some((t) => t.active && t.timed)) return;   // one scheduled at a time: the next waits
-    this.treasureTimesLeft.shift();
+    const at = this.treasureTimesLeft.shift(), bonus = this.bonusTreasureAt.delete(at);
     if (!this.firstRun.treasuresDue) return;           // a first run, before its Element pick: this one's skipped (first-run.js)
     const spot = this.nextTreasureSpot();
     if (!spot) return;
     this.placeTreasure(spot, T.stay);
+    // more-treasures (Wind-Up Key): a scheduled one may bring another, a little after it goes
+    if (!bonus && Math.random() < this.mods.moreTreasures) {
+      const next = this.t + T.stay + 5;
+      this.bonusTreasureAt.add(next);
+      this.treasureTimesLeft.push(next);
+      this.treasureTimesLeft.sort((a, b) => a - b);
+    }
     this.lastTreasureSpot = spot;
     this.recentTreasureSpots = [spot.label, ...this.recentTreasureSpots].slice(0, 3);
     this.hud.toast(`✨ A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);

@@ -24,6 +24,8 @@ export function hostile(name) {
   return (HOSTILE[name] ||= new THREE.Color(LOOK.color('hostile-' + name, DEFAULTS[name] || '#ff3a3a')));
 }
 export const FRIENDLY = () => new THREE.Color(LOOK.color('friendly', '#5ff0ff'));
+// a critical hit: brighter than an ordinary friendly hit, still cool
+export const CRIT = () => new THREE.Color(LOOK.color('crit', '#e6fbff'));
 
 // logarithmic depth (desktop) needs these chunks in custom shaders, or depth comes out wrong
 const LOGV_PARS = '#include <common>\n#include <logdepthbuf_pars_vertex>';

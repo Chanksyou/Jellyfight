@@ -308,8 +308,8 @@ export class Enemies {
   }
 
   // The mark (Sticky Note, acid): a little skull over the enemy while it takes extra damage, always
-  // facing the camera and bobbing; Ice Cube frost: a pale blue tint on the eyes' whites is enough
-  // to read "frozen"
+  // facing the camera and bobbing; frozen: a shell of frost; slowed (Ice Cube, Glitter Glue):
+  // a pale frost ring on the floor under it, turning slowly
   markLook(e, dt) {
     e.markT = Math.max(0, (e.markT || 0) - dt);
     if (e.markT > 0 && !e.note) {
@@ -332,6 +332,19 @@ export class Enemies {
       e.root.add(e.frost);
     }
     if (e.frost) e.frost.visible = e.freezeT > 0;
+    const slowed = e.slowT > 0 && !(e.freezeT > 0);
+    if (slowed && !e.slowRing) {
+      this.slowMat ||= new THREE.MeshBasicMaterial({ color: LOOK.color('slowed', '#9fe4ff'), transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      this.slowGeo ||= new THREE.RingGeometry(0.75, 1, 24, 1, 0, Math.PI * 1.6).rotateX(-Math.PI / 2);   // an open ring, so its turning shows
+      e.slowRing = new THREE.Mesh(this.slowGeo, this.slowMat);
+      e.slowRing.scale.setScalar(e.r * 1.6);
+      e.slowRing.position.y = (e.T.fly ? -e.r : 0) + 0.002;
+      e.root.add(e.slowRing);
+    }
+    if (e.slowRing) {
+      e.slowRing.visible = slowed;
+      if (slowed) e.slowRing.rotation.y += dt * 2.5;
+    }
   }
 
   // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color).

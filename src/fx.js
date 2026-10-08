@@ -2,7 +2,7 @@
 // visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
-import { GlowPoints, TeleMaterial } from './vfx.js';
+import { GlowPoints, TeleMaterial, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
 
@@ -158,6 +158,14 @@ export class Fx {
       this.glow.emit(pos, c, size * 0.45, size * 0.05, 0.3 + Math.random() * 0.25, 1, v, 1.4);
     }
     this.ring(pos.clone().setY(pos.y - size * 0.3), color, size * 2.4, 0.3);
+  }
+
+  // A critical hit (crit): a bright star-flash bigger than the bug, a burst of sparks and a fast ring,
+  // so a crit reads at a glance even in a crowd
+  crit(pos, r = 0.01) {
+    const c = (this._crit ||= CRIT());
+    this.glow.emit(pos, c, r * 6, r * 9, 0.14, 1.6);
+    this.impact(pos, c, Math.max(0.012, r * 1.4), 14);
   }
 
   // a floor warning (vfx.js TeleMaterial) of the given shape, ready to place

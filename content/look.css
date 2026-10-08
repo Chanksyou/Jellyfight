@@ -45,6 +45,9 @@
   --hostile-fly: #ff5a14;        /* the house fly's poke: the short line on the floor to where its mouth will reach */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
+  --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
+  --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
+  --slowed: #9fe4ff;             /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
   --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): warm, not XP blue */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
   --laser-length: 0.03;        /* meters: how long a bolt is */

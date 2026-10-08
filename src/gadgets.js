@@ -3,7 +3,8 @@
 // and their numbers, come from the run's combined treasure effects (mods; see words.js and
 // content/treasures.kdl): nothing here knows a treasure by name.
 import * as THREE from 'three';
-import { bus, PLAYER } from './events.js';
+import { bus } from './events.js';
+import { LOOK } from './look.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _to = new THREE.Vector3();
@@ -42,7 +43,8 @@ export class Gadgets {
     this.brickGeo = new THREE.BoxGeometry(0.02, 0.012, 0.01).translate(0, 0.006, 0);
     this.studGeo = new THREE.CylinderGeometry(0.0028, 0.0028, 0.003, 10).translate(0, 0.0135, 0);
     this.brickMats = [0xd8342a, 0x2a6ad8, 0xf2c81a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.35 }));
-    this.marbleMat = new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, roughness: 0.05, clearcoat: 1, emissive: 0x1a3a5a, emissiveIntensity: 0.5 });
+    const mc = LOOK.color('marble', '#6affd2');   // bright and glowing, so it reads against any floor
+    this.marbleMat = new THREE.MeshPhysicalMaterial({ color: mc, roughness: 0.05, clearcoat: 1, emissive: mc, emissiveIntensity: 0.9 });
     this.marbleGeo = new THREE.SphereGeometry(0.007, 16, 12);
     // Remote Control zaps
     this.zapMat = new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true });
@@ -116,7 +118,7 @@ export class Gadgets {
     const E = this.enemies, fx = this.fx;
 
     // timed effects: every N s, do what's in the block
-    for (const T of M.timed) if (this.every(T.key, dt * M.gadgetHaste, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
+    for (const T of M.timed) if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
     for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
     this.zaps = this.zaps.filter((z) => z.t > 0);
 
@@ -146,7 +148,11 @@ export class Gadgets {
         this.beam.visible = true;
         this.beam.position.copy(c).setY(c.y - e.r * 0.5);
         this.beam.material.opacity = 0.25 + Math.random() * 0.15;
-        if (this.every('beam', dt, Bm.tick)) { bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam' }); if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4); }
+        if (this.every('beam', dt, Bm.tick)) {
+          bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam' });
+          fx.impact(c, 0xfff0a0, Math.max(0.006, e.r * 0.7), 4);   // every burn shows where it lands
+          if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4);
+        }
       }
     }
 
@@ -159,14 +165,14 @@ export class Gadgets {
       if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });
     }
 
-    // toy-mouse: now and then it scurries to the nearest enemy and hits it (or trips over you)
+    // toy-mouse: now and then it scurries to the nearest enemy and hits it
     const Mo = M.mouse;
     if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
     else {
-      if (!this.mouseRun && this.every('mouse', dt * M.gadgetHaste, Mo.every)) {
-        const trip = Math.random() < Mo.trip, prey = trip ? null : this.near(center, 1.2, { proxies: false })[0];
-        if (trip || prey) {
-          this.mouseRun = { trip, prey, t: 0 };
+      if (!this.mouseRun && this.every('mouse', dt, Mo.every)) {
+        const prey = this.near(center, 1.2, { proxies: false })[0];
+        if (prey) {
+          this.mouseRun = { prey, t: 0 };
           const a = Math.random() * Math.PI * 2;
           this.mouse.position.set(feet.x + Math.cos(a) * 0.06, feet.y, feet.z + Math.sin(a) * 0.06);   // it winds up beside you
           this.mouse.visible = true;
@@ -176,17 +182,16 @@ export class Gadgets {
       if (run) {
         run.t += dt;
         if (run.prey?.dead) run.prey = this.near(this.mouse.position, 0.6, { proxies: false })[0] || null;
-        const to = run.trip ? _to.copy(feet) : run.prey ? _to.copy(run.prey.pos) : null;
+        const to = run.prey ? _to.copy(run.prey.pos) : null;
         if (!to || run.t > 4) { this.mouseRun = null; this.mouse.visible = false; }
         else {
           const m = this.mouse.position, d = Math.hypot(to.x - m.x, to.z - m.z), step = Math.min(d, Mo.speed * dt);
           if (d > 1e-6) { m.x += (to.x - m.x) / d * step; m.z += (to.z - m.z) / d * step; this.mouse.rotation.y = Math.atan2(to.x - m.x, to.z - m.z); }
           m.y += (to.y - m.y) * Math.min(1, dt * 10);
           this.mouseKey.rotation.z += dt * 18;                    // the key winds down as it runs
-          if (d < (run.trip ? 0.02 : 0.012 + (run.prey?.r || 0))) {
+          if (d < 0.012 + run.prey.r) {
             fx.puff(m.clone().setY(m.y + 0.008), 0xd8d0c8, 0.02, 0.3);
-            if (run.trip) bus.emit('damage_taken', { targetId: PLAYER, amount: Mo.tripDmg, source: 'toy-mouse' });
-            else bus.emit('damage_taken', { targetId: run.prey.id, amount: Mo.dmg, color: '#ffe7a8', source: 'toy-mouse' });
+            bus.emit('damage_taken', { targetId: run.prey.id, amount: Mo.dmg, color: '#ffe7a8', source: 'toy-mouse' });
             this.mouseRun = null; this.mouse.visible = false;
           }
         }
@@ -196,8 +201,14 @@ export class Gadgets {
     // bricks on the floor: the first walking enemy to step on one takes the hit
     for (const b of this.bricks) {
       b.t -= dt;
-      const hit = this.near(b.m.position, 0.012, { proxies: false }).find((e) => !e.T.fly);
-      if (hit) { bus.emit('damage_taken', { targetId: hit.id, amount: power * b.dmg, color: '#ff8a6a', source: 'brick' }); fx.puff(b.m.position, 0xd8342a, 0.02, 0.3); b.t = 0; }
+      const hit = this.near(b.m.position, 0.012 * b.size, { proxies: false }).find((e) => !e.T.fly);
+      if (hit) {
+        const hurt = b.burst ? this.near(b.m.position, b.burst, { proxies: false }) : [hit];
+        for (const e of hurt) bus.emit('damage_taken', { targetId: e.id, amount: power * b.dmg, color: '#ff8a6a', source: 'brick' });
+        fx.puff(b.m.position, 0xd8342a, 0.02 * b.size, 0.3);
+        if (b.burst) fx.ring(b.m.position.clone().setY(b.m.position.y + 0.003), 0xff8a6a, b.burst, 0.35);
+        b.t = 0;
+      }
       if (b.t <= 0) this.group.remove(b.m);
     }
     this.bricks = this.bricks.filter((b) => b.t > 0);
@@ -206,11 +217,11 @@ export class Gadgets {
     for (const mb of this.marbles) {
       mb.t -= dt;
       const step = mb.speed * dt;
-      const wall = this.world.cast(mb.m.position, mb.dir, step + 0.007);
+      const R = 0.007 * mb.size, wall = this.world.cast(mb.m.position, mb.dir, step + R);
       if (wall) { const nrm = wall.normal.clone().setY(0).normalize(); mb.dir.addScaledVector(nrm, -2 * mb.dir.dot(nrm)).normalize(); }
       mb.m.position.addScaledVector(mb.dir, step);
-      mb.m.rotateOnAxis(new THREE.Vector3(mb.dir.z, 0, -mb.dir.x), step / 0.007);
-      for (const e of this.near(mb.m.position, 0.008)) {
+      mb.m.rotateOnAxis(new THREE.Vector3(mb.dir.z, 0, -mb.dir.x), step / R);
+      for (const e of this.near(mb.m.position, R + 0.001)) {
         if (mb.hit.has(e)) continue;
         mb.hit.add(e);
         bus.emit('damage_taken', { targetId: e.id, amount: power * mb.dmg, color: '#9fd8ff', source: 'marble' });
@@ -235,16 +246,14 @@ export class Gadgets {
         if (ef.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: ef.slow });
       }
     } else if (ef.kind === 'zap') {
-      let targets = this.near(center, ef.range);
-      if (ef.at === 'attacker' && ctx.from != null) { const a = targets.find((e) => e.id === ctx.from); if (a) targets = [a, ...targets.filter((e) => e !== a)]; }
-      for (const e of targets.slice(0, ef.count)) {
+      for (const e of this.near(center, ef.range).slice(0, ef.count)) {
         const to = E.center(e), pts = [center.clone()];
         for (let k = 1; k < 6; k++) pts.push(center.clone().lerp(to, k / 6).add(new THREE.Vector3().randomDirection().multiplyScalar(0.008)));
         pts.push(to);
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
         this.group.add(line);
         this.zaps.push({ line, t: 0.25 });
-        bus.emit('damage_taken', { targetId: e.id, amount: ef.share && ctx.taken ? ctx.taken * ef.share : power * ef.dmg, color: '#9fd8ff', source: 'zap' });
+        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
     } else if (ef.kind === 'brick') {
       const g = new THREE.Group(), mat = this.brickMats[(Math.random() * 3) | 0];
@@ -252,14 +261,19 @@ export class Gadgets {
       for (const x of [-0.005, 0.005]) { const st = new THREE.Mesh(this.studGeo, mat); st.position.x = x; g.add(st); }
       g.position.copy(feet);
       g.rotation.y = Math.random() * Math.PI;
+      g.scale.setScalar(ef.size);
       this.group.add(g);
-      this.bricks.push({ m: g, t: ef.last, dmg: ef.dmg });
+      this.bricks.push({ m: g, t: ef.last, dmg: ef.dmg, size: ef.size, burst: ef.burst });
       while (this.bricks.length > ef.most) this.group.remove(this.bricks.shift().m);
     } else if (ef.kind === 'marble') {
       const m = new THREE.Mesh(this.marbleGeo, this.marbleMat);
-      m.position.copy(feet).setY(feet.y + 0.007);
+      m.scale.setScalar(ef.size);
+      m.position.copy(feet).setY(feet.y + 0.007 * ef.size);
       this.group.add(m);
-      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, hit: new Set() });
+      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, hit: new Set() });
+    } else if (ef.kind === 'lash') {
+      const e = ctx.from != null && this.near(center, ef.range).find((x) => x.id === ctx.from);
+      if (e) ctx.lash?.(e, ef.dmg);
     } else if (ef.kind === 'bubble-ring') {
       ctx.bubbleRing?.(ef.count, ef.dmg);
     } else if (ef.kind === 'xp') {

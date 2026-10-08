@@ -13,7 +13,8 @@
 //   ice (Freezer Pack)       an ice shard: chills and slows; the 2nd chilled hit freezes it solid.
 //   acid (Nail Polish)       an acid glob: leaves a bubbling puddle that eats at enemies and softens
 //                            them (they take 50% more damage while in it).
-//   wind (Paper Fan)         a fast gust that pierces once more and blasts what it hits away.
+//   wind (Paper Fan)         a fast crescent wind blade that hits across its whole width, pierces
+//                            once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
 // Each element's numbers (rate, damage, burn, chain…) come from mods.element (ELEMENT_BASE in
 // words.js, raised by its upgrade treasures), and scale with your stats: Bubble damage, Fire rate,
@@ -26,7 +27,7 @@ import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleShare, BASE_STATS } from './stats.js';
-import { BubbleLooks } from './bubble-looks.js';
+import { BubbleLooks, WIND_ARC } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -62,6 +63,7 @@ export class Bubbles {
     this._dir = new THREE.Vector3();   // scratch for fly(): no garbage per bubble per frame
     this.grace = 0.03;                 // run.js: the jelly's radius
     this._c = new THREE.Vector3();
+    this._t = new THREE.Vector3();     // scratch for touches()
     this.timer = 0;
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
@@ -220,6 +222,8 @@ export class Bubbles {
       elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     };
+    // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
+    b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
     b.speed = SPEED * (o.speed || 1);
     b.vel = dir.multiplyScalar(b.speed);
     b.homing = true;
@@ -264,7 +268,7 @@ export class Bubbles {
       // touching an enemy?
       for (const e of E.list) {
         if (e.dead || b.hit.has(e)) continue;
-        if (E.center(e, c).distanceTo(b.m.position) < (e.hitR || e.r) + b.r) {   // hitR: a millipede's ball
+        if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
           this.strike(b, e, mods);
           if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
@@ -279,12 +283,24 @@ export class Bubbles {
     if (done.length) this.list = this.list.filter((b) => !b.done);
   }
 
+  // does bubble b touch an enemy at c with radius er? A plain bubble is a ball; a wind blade is a
+  // flat bar across its flight, b.side to each side of its middle
+  touches(b, c, er) {
+    const p = b.m.position;
+    if (!b.side) return c.distanceTo(p) < er + b.r;
+    const d = this._t.copy(c).sub(p), v = b.vel, s = v.length();
+    const along = (d.x * v.x + d.y * v.y + d.z * v.z) / s;
+    const across = Math.sqrt(Math.max(0, d.lengthSq() - along * along));
+    return Math.abs(along) < er + b.r && across < er + b.side;
+  }
+
   // damage one enemy
   strike(b, e, mods) {
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
     if (H.crit && Math.random() < H.crit.chance) {
-      dmg *= H.crit.mult; color = '#ff6b6b';
+      dmg *= H.crit.mult; color = '#e6fbff';
+      this.fx.crit(this.enemies.center(e), e.r);
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
@@ -440,16 +456,12 @@ export class Bubbles {
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }
     }
-    // echo-bubble: the pop fires again, full strength, at the next enemy close by (once)
-    if (mods.bubbles.echo && !b.child) {
+    // echo-bubble: the pop fires again at the next enemy close by (once), at a share of its damage
+    // (it starts inside the enemy it popped on: it skips the ones its parent already hit)
+    const echo = mods.bubbles.echo;
+    if (echo && !b.child) {
       const next = this.inRange(p, 0.2, b.hit)[0];
-      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
-    }
-    // split-bubble: a smaller bubble spins off toward another enemy, once
-    if (mods.bubbles.split && !b.child) {
-      const next = this.inRange(p, 0.15, b.hit)[0];
-      // (it starts inside the enemy it popped on: it skips the ones its parent already hit)
-      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS * 0.7, dmg: b.dmg * 0.7, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
+      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg * echo.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
     }
   }
 }

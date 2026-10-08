@@ -78,9 +78,9 @@ const CARD_VALUES = {
   bubbleSize:    { amounts: [10, 18, 30], pct: true, weight: 0.8 },   // bigger bubbles land easier and splash wider
 };
 
-// Each bubble past the first makes every bubble in the blow 15% weaker (compounding): 2 bubbles
-// do 85% each (1.7x in all), 3 do 72% (2.2x), 6 do 44% (2.7x). More bubbles, more spread, less punch.
-export const BUBBLE_PENALTY = 0.15;
+// Each bubble past the first makes every bubble in the blow 25% weaker (compounding): 2 bubbles
+// do 75% each (1.5x in all), 3 do 56% (1.7x), 6 do 24% (1.4x). More bubbles, more spread, less punch.
+export const BUBBLE_PENALTY = 0.25;
 export const bubbleShare = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
 
 export function cardText(card) {
@@ -159,7 +159,7 @@ export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
 // Offered after beating a stage's boss; pick one
 export const EVOLUTIONS = [
-  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (15% less damage each), +15% Move speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.moveSpeed += 0.15; } },
+  { id: 'bell', name: 'Ephyra Bell', icon: '🔔', text: '+1 Bubble side by side (25% less damage each), +15% Move speed', apply: (s) => { s.bubbles = Math.min(MAX_BUBBLES, s.bubbles + 1); s.moveSpeed += 0.15; } },
   { id: 'frills', name: 'Stinging Frills', icon: '✨', text: '+1 Tentacle, +4 Tentacle damage, +25% Tentacle reach', apply: (s) => { s.tentacles = Math.min(MAX_TENTACLES, s.tentacles + 1); s.tentacleDamage += 4; s.reach += BASE_STATS.reach * 0.25; } },
   { id: 'breath', name: 'Deep Breath', icon: '🌊', text: '+10 Health', apply: (s) => { s.health += 10; } },
   { id: 'rhythm', name: 'Quick Rhythm', icon: '🥁', text: '+25% Fire rate, +25% Tentacle speed', apply: (s) => { s.fireRate += BASE_STATS.fireRate * 0.25; s.tentacleSpeed += 0.25; } },

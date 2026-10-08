@@ -7,7 +7,8 @@
 //              sparks spitting off
 //   ice        a spinning crystal shard pointed along its flight, a frosty trail and snow
 //   acid       a wobbling green glob with a bubble rolling over it, dripping as it flies
-//   wind       a pale core inside two spinning rings, two wisps spiralling behind it
+//   wind       a crescent wind blade, flat and bowed forward, with a fainter one behind it and wisps
+//              trailing off both tips (bubbles.js hits everything its arc passes through)
 //   glitter    a hot pink orb shedding twinkling sparks in every colour
 //
 // Every mesh is drawn instanced (batch.js) and every glow is a GlowPoints particle (vfx.js);
@@ -27,6 +28,13 @@ const COL = {
   glitter: [C(0xff2ab0), C(0xffc81a), C(0x2ae0ff), C(0xb04aff), C(0x6aff6a)],
 };
 const SIZE = 1.3;    // element projectiles read a little bigger than a plain bubble
+// The wind blade: an arc of radius R (in bubble radii) lying flat, bowed forward (+z), its middle at
+// the projectile and its tips swept back. WIND_ARC is also how far to each side it hits (bubbles.js).
+export const WIND_ARC = 2.6;
+function crescent(R, tube) {
+  const arc = Math.PI * 0.75;
+  return new THREE.TorusGeometry(R, tube, 6, 28, arc).rotateZ(Math.PI / 2 - arc / 2).rotateX(Math.PI / 2).translate(0, 0, -R);
+}
 
 // unlit (they're lights, not things); additive ones glow over whatever is behind
 const lit = (hex, opacity = 1, add = false) => new THREE.MeshBasicMaterial({
@@ -62,9 +70,9 @@ export class BubbleLooks {
         [ball, lit(0xc8ff6a), { name: 'bub', s: [0.36, 0.36, 0.36] }],
       ],
       wind: [
-        [ball, lit(0xeef6ff, 0.75, true), { s: [0.8, 0.8, 0.8] }],
-        [new THREE.TorusGeometry(1.7, 0.15, 6, 32), lit(0xffffff, 0.8, true), { name: 'ring' }],
-        [new THREE.TorusGeometry(1.2, 0.12, 6, 28), lit(0xbfe8ff, 0.65, true), { name: 'ring2', at: [0, 0, -1.3] }],
+        [crescent(WIND_ARC, 0.32), lit(0xffffff, 0.85, true), { name: 'blade', s: [1, 0.35, 1] }],
+        [crescent(WIND_ARC * 0.8, 0.22), lit(0xbfe8ff, 0.6, true), { name: 'blade2', s: [1, 0.3, 1], at: [0, 0, -1.1] }],
+        [ball, lit(0xeef6ff, 0.6, true), { s: [0.6, 0.6, 0.6] }],
       ],
       glitter: [
         [ball, lit(0xff2ab0)],
@@ -191,20 +199,18 @@ export class BubbleLooks {
         break;
       }
       case 'wind': {
-        U.ring.rotation.z += dt * 16;
-        U.ring2.rotation.z -= dt * 22;
-        const p = 1 + 0.15 * Math.sin(t * 20 + w);
-        U.ring.scale.set(p, p, 1);
-        glow.hold(m.position, COL.wisp[1], r * 3, 0.4);
+        const p = 1 + 0.08 * Math.sin(t * 24 + w);                        // the blade breathes as it flies
+        U.blade.scale.set(p, 0.35, p);
+        U.blade2.scale.set(2 - p, 0.3, 2 - p);
+        glow.hold(m.position, COL.wisp[1], r * 4, 0.4);
         if (tick) {
-          // two wisps spiralling round the flight line
+          // wisps peel off both tips, and a faint streak behind the middle
           _a.set(1, 0, 0).applyQuaternion(m.quaternion);
-          _b.set(0, 1, 0).applyQuaternion(m.quaternion);
-          for (let s = 0; s < 2; s++) {
-            const ph = t * 20 + w + s * Math.PI;
-            _v.copy(tail).addScaledVector(_a, Math.cos(ph) * r * 1.6).addScaledVector(_b, Math.sin(ph) * r * 1.6);
-            glow.emit(_v, COL.wisp[s], r * 0.9, r * 0.2, 0.3, 0.85);
+          for (let s = -1; s <= 1; s += 2) {
+            _v.copy(m.position).addScaledVector(_a, s * r * WIND_ARC * 0.85).addScaledVector(dir, -r * WIND_ARC * 0.5);
+            glow.emit(_v, COL.wisp[s > 0 ? 0 : 1], r * 1.1, r * 0.3, 0.3, 0.8);
           }
+          glow.emit(tail, COL.wisp[1], r * 1.4, r * 0.4, 0.22, 0.6);
         }
         break;
       }

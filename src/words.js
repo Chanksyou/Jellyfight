@@ -339,12 +339,12 @@ export function makeWord(registry, node, where) {
 // What a run has with no treasures
 export function newMods() {
   return {
-    bubbles: { pierce: 1, split: false, echo: false, golden: null, giant: null },
+    bubbles: { pierce: 1, echo: null, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, crit: null, pin: 0 }, tentacles: { mark: 0, crit: null, pin: 0 } },
     popZap: null,
-    mouse: null,                     // toy-mouse: { every, dmg, trip, tripDmg, speed }
+    mouse: null,                     // toy-mouse: { every, dmg, speed }
     reflect: null,                   // reflect: { every, invuln }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
@@ -356,7 +356,7 @@ export function newMods() {
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
-    gadgetHaste: 1,                  // gadget-haste: how much faster `every` timers and the toy mouse run
+    moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
   };
 }
@@ -395,20 +395,25 @@ export const TIMED_WORDS = {
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
   },
   zap: {
-    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each. In a when-hit block, at="attacker" zaps whoever hit you first (if it\'s in range), and share= makes each bolt that share of the damage you took instead of `dmg`.',
+    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each.',
     args: ['count'],
-    props: { range: 0.45, dmg: 2, at: 'nearest', share: 0 },
+    props: { range: 0.45, dmg: 2 },
     make: ([count], p) => ({ kind: 'zap', count, ...p }),
   },
   brick: {
-    doc: 'Drops a brick at your feet; the first walking enemy to step on it takes `dmg`. Lasts `last` s, at most `most` on the floor.',
-    props: { dmg: 4, last: 14, most: 5 },
+    doc: 'Drops a brick at your feet, `size` times the usual size; the first walking enemy to step on it takes `dmg`, and with `burst` (m) so does every enemy within that of the brick. Lasts `last` s, at most `most` on the floor.',
+    props: { dmg: 4, last: 14, most: 5, size: 1, burst: 0 },
     make: (_, p) => ({ kind: 'brick', ...p }),
   },
   marble: {
-    doc: 'Rolls a marble out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`.',
-    props: { dmg: 2, speed: 0.825, life: 1.47 },
+    doc: 'Rolls a marble `size` times the usual size out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`.',
+    props: { dmg: 2, speed: 0.825, life: 1.47, size: 1 },
     make: (_, p) => ({ kind: 'marble', ...p }),
+  },
+  lash: {
+    doc: 'In a when-hit block: one of your tentacles lashes the enemy that hit you (if it\'s within `range` m) for `dmg` times your Tentacle damage.',
+    props: { dmg: 2, range: 0.2 },
+    make: (_, p) => ({ kind: 'lash', ...p }),
   },
   'bubble-ring': {
     doc: 'Blows `count` bubbles at once, spread evenly in every direction around you, each doing `dmg` times your Bubble damage.',
@@ -424,7 +429,7 @@ export const TIMED_WORDS = {
 };
 
 // When a `while` holds (Run.S checks it each time the stats are read)
-export const WHILE_WHEN = ['airborne', 'high-ground', 'low-health'];
+export const WHILE_WHEN = ['airborne', 'low-health'];
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
@@ -434,9 +439,8 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
-  'split-bubble': { doc: 'Each bubble that pops blows a smaller one at another enemy nearby, once.', make: () => (m) => { m.bubbles.split = true; } },
-  'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, at full damage, once.', make: () => (m) => { m.bubbles.echo = true; } },
-  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse scurries (`speed` m/s) to the nearest enemy and hits it for `dmg` (a flat number); `trip` of the time it runs into you instead, for `tripDmg`.', props: { every: 12, dmg: 30, trip: 0.15, tripDmg: 2, speed: 0.6 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
+  'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage.', props: { dmg: 1 }, make: (_, p) => (m) => { m.bubbles.echo = { dmg: p.dmg }; } },
+  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse scurries (`speed` m/s) to the nearest enemy and hits it for `dmg` (a flat number).', props: { every: 12, dmg: 30, speed: 0.6 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
@@ -459,7 +463,7 @@ export const TREASURE_WORDS = {
   'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take 50% more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].mark = Math.max(m.hits[k].mark, s); }; } },
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
   'pin-on-crit': { doc: 'A critical hit pins the enemy in place for `seconds` (it can\'t move or attack). `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].pin = Math.max(m.hits[k].pin, s); }; } },
-  'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your bubble damage). Copies add their chances and targets.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: z.count + p.count } : { ...p }; } },
+  'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your bubble damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
@@ -501,7 +505,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), high-ground (standing on furniture, above the floor) or low-health (under 30% of your max Health). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground) or low-health (under 30% of your max Health). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false },
     make: ([when, name, amount], p) => {
@@ -525,7 +529,7 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
-  'gadget-haste': { doc: 'Treasures on a timer (`every N { … }` blocks and the toy mouse) go off `percent`% more often. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.gadgetHaste += n / 100; } },
+  'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },

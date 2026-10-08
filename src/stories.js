@@ -585,7 +585,7 @@ story('attack/bubble-stream', {
 });
 
 story('attack/side-by-side-bubbles', {
-  about: 'With 3 bubbles, each blow is 3 bubbles leaving at the same moment side by side, flying parallel, each doing 72% damage (15% less per extra bubble).',
+  about: 'With 3 bubbles, each blow is 3 bubbles leaving at the same moment side by side, flying parallel, each doing 56% damage (25% less per extra bubble).',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 9999 }); G().run.stats.bubbles = 3; },
   play() {
     const { run } = G();
@@ -601,7 +601,7 @@ story('attack/side-by-side-bubbles', {
     const parallel = dirs.every((d) => d.dot(dirs[0]) > 0.995);
     const gaps = [b[0].m.position.distanceTo(b[1].m.position), b[1].m.position.distanceTo(b[2].m.position)];
     const dmg = b[0].dmg / run.S.bubbleDamage;
-    return ok(first.length === 3 && sameFrame && parallel && gaps.every((g) => g > 0.01) && Math.abs(dmg - 0.85 ** 2) < 1e-6,
+    return ok(first.length === 3 && sameFrame && parallel && gaps.every((g) => g > 0.01) && Math.abs(dmg - 0.75 ** 2) < 1e-6,
       { n: first.length, sameFrame, parallel, gaps: gaps.map((g) => +g.toFixed(3)), dmg: +dmg.toFixed(3) });
   },
 });
@@ -1172,11 +1172,6 @@ story('treasures/pierce', {
   setup() { setupFight({ lash: false }); give('bobbyPin'); G().run.stats.bubbles = 1; [0.2, 0.25, 0.3].forEach((z) => roachAt(0, -z)); },
   play() { step(240); const hurt = G().enemies.list.filter((e) => e.hp < e.maxHp).length; return ok(hurt >= 2, { hurt }); },
 });
-story('treasures/split-bubble', {
-  about: 'split-bubble (Hair Tie): each pop blows a smaller bubble at another bug nearby.',
-  setup() { setupFight({ lash: false }); give('hairTie'); G().run.stats.bubbles = 1; roachAt(0, -0.12); roachAt(0.1, -0.14); },
-  play() { step(360); const side = G().enemies.list[1]; return ok(side.hp < side.maxHp, { sideDamage: Math.round(side.maxHp - side.hp) }); },
-});
 story('treasures/golden-bubble', {
   about: 'golden-bubble (Gold Ring): every 10th bubble is golden and hits 5x.',
   setup() { setupFight({ lash: false }); give('goldRing'); roachAt(0, -0.15); },
@@ -1215,6 +1210,19 @@ story('treasures/element', {
       return burned && puddles && zapped && frozen;
     });
     return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
+  },
+});
+story('treasures/wind-blade', {
+  about: 'Wind (Paper Fan) throws a crescent blade: it hits a bug 1.5 cm to the side of its flight line, where a plain bubble of the same size would miss.',
+  setup() { setupFight({ lash: false }); roachAt(0, -0.3); },
+  play() {
+    const { run, player } = G(), B = run.bubbles, e = G().enemies.list[0], from = player.position.clone().setY(player.position.y + 0.03);
+    const wind = B.blow(from, e, { size: 1, dmg: 1, tint: 'wind', elems: ['wind'], pierce: 2 });
+    const plain = B.blow(from, e, { size: 1, dmg: 1, pierce: 1 });
+    const side = wind.m.position.clone().add(V(0.015, 0, 0));
+    const hits = [B.touches(wind, side, 0.005), B.touches(plain, side, 0.005)];
+    B.release(wind); B.release(plain); B.list = B.list.filter((b) => b !== wind && b !== plain);
+    return ok(hits[0] && !hits[1] && wind.m.userData.blade, { wind: hits[0], plain: hits[1], halfWidth: +wind.side.toFixed(4) });
   },
 });
 story('treasures/element-up', {
@@ -1308,13 +1316,13 @@ story('treasures/crit', {
   },
 });
 story('treasures/echo-bubble', {
-  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, at full damage.',
+  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 65% of its damage.',
   setup() { setupFight({ lash: false }); give('discoBall'); roachAt(0, -0.15); roachAt(0.06, -0.24); },
   play() {
     const { enemies, run } = G(), [first, second] = enemies.list, log = record('damage_taken');
     step(60 * 3, () => dmgBy(log, 'bubble').some((d) => d.targetId === second.id));
     const echoes = dmgBy(log, 'bubble').filter((d) => d.targetId === second.id), full = run.S.bubbleDamage;
-    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full) < 1e-6 || d.amount >= full), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
+    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.65) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
   },
 });
 story('treasures/bubble-ring', {
@@ -1331,19 +1339,18 @@ story('treasures/bubble-ring', {
   },
 });
 story('treasures/toy-mouse', {
-  about: 'toy-mouse (Cat Toy Mouse): a wind-up mouse scurries to the nearest bug and hits it for 30; sometimes it trips over the jelly instead, for 2.',
+  about: 'toy-mouse (Cat Toy Mouse): a wind-up mouse scurries to the nearest bug and hits it for 30; it never trips over the jelly.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('toyMouse'); roachAt(0.25, 0.1); },
   play() {
-    const { run } = G(), e = G().enemies.list[0], log = record('damage_taken'), real = Math.random;
-    const send = (r) => { run.gadgets.t.mouse = 0.001; Math.random = () => r; step(1); Math.random = real; };
-    send(0.5);                                                   // not a trip: off to the bug
-    const out = run.gadgets.mouse.visible;
-    step(60 * 3, () => log.some((d) => d.source === 'toy-mouse'));
-    const bit = log.find((d) => d.source === 'toy-mouse');
-    send(0.05);                                                  // a trip
-    step(60 * 3, () => log.some((d) => d.source === 'toy-mouse' && d.targetId === PLAYER));
-    const trip = log.find((d) => d.source === 'toy-mouse' && d.targetId === PLAYER);
-    return ok(out && bit?.targetId === e.id && bit.amount === 30 && trip?.amount === 2, { out, bit: bit && [bit.targetId === e.id, bit.amount], trip: trip?.amount });
+    const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
+    let sent = 0, bit = 0, me = 0;
+    for (let k = 0; k < 4; k++) {
+      run.gadgets.t.mouse = 0.001; step(1);
+      if (run.gadgets.mouse.visible) sent++;
+      step(60 * 3, () => log.some((d) => d.source === 'toy-mouse' && !d.counted && (d.counted = true)));
+    }
+    for (const d of log) if (d.source === 'toy-mouse') d.targetId === PLAYER ? me++ : d.targetId === e.id && d.amount === 30 && bit++;
+    return ok(sent === 4 && bit === 4 && me === 0, { sent, bit, me });
   },
 });
 story('treasures/pin-on-crit', {
@@ -1364,7 +1371,7 @@ story('treasures/pin-on-crit', {
   },
 });
 story('treasures/zap-on-pop', {
-  about: 'zap-on-pop (Static Balloon): a bubble popping on a bug sometimes snaps static to another bug close by, stunning it for 0.5 s.',
+  about: 'zap-on-pop (Static Balloon): 20% of bubble pops snap static to another bug close by, stunning it for 0.5 s; a second Static Balloon makes it 40% (still one bug).',
   setup() { setupFight({ lash: false }); give('staticBalloon'); roachAt(0, -0.15); roachAt(0.08, -0.17); },
   play() {
     const { enemies } = G(), log = record('status_applied');
@@ -1373,7 +1380,9 @@ story('treasures/zap-on-pop', {
     step(60 * 4, () => log.some((s) => s.status === 'stun'));
     Math.random = real;
     const stuns = log.filter((s) => s.status === 'stun');
-    return ok(stuns.length >= 1 && stuns.every((s) => s.duration === 0.5) && enemies.list.some((e) => e.id === stuns[0].targetId), { stuns: stuns.map((s) => [s.targetId, s.duration]) });
+    give('staticBalloon');                                          // a second one: 40%, still one bug
+    const Z = G().run.mods.popZap;
+    return ok(Math.abs(Z.chance - 0.4) < 1e-9 && Z.count === 1 && stuns.length >= 1 && stuns.every((s) => s.duration === 0.5) && enemies.list.some((e) => e.id === stuns[0].targetId), { stuns: stuns.map((s) => [s.targetId, s.duration]) });
   },
 });
 story('treasures/extra-jumps', {
@@ -1405,7 +1414,7 @@ story('treasures/squeak-when-hit', {
   },
 });
 story('treasures/when-hit', {
-  about: 'when-hit (Windowsill Cactus, Toaster Cord): getting hit sprays needles at the bugs around you, once a second at most; the Toaster Cord arcs back at the bug that hit you for half the damage you took.',
+  about: 'when-hit (Windowsill Cactus): getting hit sprays needles at the bugs around you, once a second at most.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('cactus'); roachAt(0.1, 0); roachAt(-0.12, 0.05); },
   play() {
     const { run, enemies } = G(), log = record('damage_taken');
@@ -1416,24 +1425,32 @@ story('treasures/when-hit', {
     const again = dmgBy(log, 'ring').length;
     step(70); hitMe(1);                                         // a second later: again
     const later = dmgBy(log, 'ring').length;
-    // the Toaster Cord: a bug hits you for 4, it takes 2 back (and not the other bug, closer to you)
-    run.owned.delete('cactus'); give('kettleCord');
-    const far = enemies.list[1], biter = roachAt(0.2, 0.05);
-    log.length = 0;
-    hitMe(4, biter.id);
-    const zaps = dmgBy(log, 'zap');
-    return ok(sprayed === 2 && again === 2 && later === 4 && zaps.length === 1 && zaps[0].targetId === biter.id && Math.abs(zaps[0].amount - 2 * (run.stage.power || 1)) < 1e-6,
-      { sprayed, again, later, zaps: zaps.map((z) => [z.targetId === biter.id ? 'biter' : z.targetId === far.id ? 'other' : z.targetId, z.amount]) });
+    return ok(sprayed === 2 && again === 2 && later === 4, { sprayed, again, later });
+  },
+});
+story('treasures/lash', {
+  about: 'lash (Toaster Cord, when hit): a tentacle lashes back at the bug that hit you, for twice your Tentacle damage, and not at the other bug closer to you; once a second at most.',
+  setup() { setupFight({ hurt: true, bubbles: false }); give('kettleCord'); roachAt(0.12, 0); roachAt(0.16, 0.05); },   // both out of the tentacles' own reach
+  play() {
+    const { run, enemies } = G(), [other, biter] = enemies.list, log = record('damage_taken');
+    const hitMe = () => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'story', from: biter.id }); };
+    hitMe(); step(30);
+    hitMe(); step(30);                                          // within the second: no second lash
+    const lashes = dmgBy(log, 'tentacle');
+    return ok(lashes.length === 1 && lashes[0].targetId === biter.id && Math.abs(lashes[0].amount - run.S.tentacleDamage * 2) < 1e-6,
+      { lashes: lashes.map((d) => [d.targetId === biter.id ? 'biter' : d.targetId === other.id ? 'other' : d.targetId, d.amount]), want: run.S.tentacleDamage * 2 });
   },
 });
 story('treasures/ring-slow', {
-  about: 'ring slow= (Stress Ball, when hit): the bugs within 12 cm are slowed for 1 s, once every 4 s.',
-  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('stressBall'); roachAt(0.08, 0); roachAt(0.3, 0); },
+  about: 'ring slow= (Ice Cube): a cold snap slows the bugs close by for 2 s (not the ones farther out), and a slowed bug shows a frost ring under it.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('iceCube'); roachAt(0.1, 0); roachAt(0.4, 0); },
   play() {
-    const { run, enemies } = G(), [close, far] = enemies.list, log = record('status_applied');
-    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
+    const { enemies } = G(), [close, far] = enemies.list, log = record('status_applied');
+    step(60 * 6, () => log.some((s) => s.status === 'slow'));
+    step(2);
     const slowed = log.filter((s) => s.status === 'slow').map((s) => s.targetId);
-    return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 1, { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)) });
+    return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 2 && !(close.freezeT > 0) && close.slowRing?.visible,
+      { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)), ring: !!close.slowRing?.visible });
   },
 });
 story('treasures/reflect', {
@@ -1493,9 +1510,9 @@ story('treasures/xp-reach', {
   play() { step(120); return ok(G().xpDrops.list.length === 0, { left: G().xpDrops.list.length }); },
 });
 story('treasures/xp-mult', {
-  about: 'xp-mult (Spilled Sugar): bugs drop 30% more XP.',
+  about: 'xp-mult (Spilled Sugar): bugs drop 15% more XP.',
   setup() { setupFight({ lash: false }); give('sugar'); spawn('mosquito', near(0, -0.15), { still: true, hp: 1 }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().xpDrops.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.xp * 1.3), { xp: total, base: e.T.xp }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); const total = G().xpDrops.list.reduce((a, d) => a + d.value, 0); return ok(e.dead && total === Math.round(e.T.xp * 1.15), { xp: total, base: e.T.xp }); },
 });
 story('treasures/card-rarity', {
   about: 'card-rarity (Game Die): level-up cards roll one rarity higher (never common).',
@@ -1507,8 +1524,8 @@ story('treasures/card-rarity', {
   },
 });
 story('treasures/stacking', {
-  about: 'Stacking: a treasure without levels (Lemon Slice, stack=5) adds up per copy and stops being offered at its cap; a rule-changer (Hair Tie, stack=1) is never offered twice; with no stack= a treasure without levels stacks to 3.',
-  setup() { setupFight(); give('lemon', 'lemon', 'lemon', 'lemon', 'hairTie'); },
+  about: 'Stacking: a treasure without levels (Lemon Slice, stack=5) adds up per copy and stops being offered at its cap; a rule-changer (Thumbtack, stack=1) is never offered twice; with no stack= a treasure without levels stacks to 3.',
+  setup() { setupFight(); give('lemon', 'lemon', 'lemon', 'lemon', 'thumbtack'); },
   play() {
     const { run } = G(), b = run.stats.bubbleDamage;
     const four = run.S.bubbleDamage;
@@ -1521,20 +1538,20 @@ story('treasures/stacking', {
     give('lemon');
     seen.clear();
     for (let i = 0; i < 200; i++) { run.pickTreasure(); offered.forEach((id) => seen.add(id)); }
-    return ok(four === b + 8 && run.S.bubbleDamage === b + 10 && run.owned.count('lemon') === 5 && lemonOffered && !seen.has('lemon') && !seen.has('hairTie') && byDefault === 3,
-      { four, five: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tie: seen.has('hairTie'), byDefault });
+    return ok(four === b + 8 && run.S.bubbleDamage === b + 10 && run.owned.count('lemon') === 5 && lemonOffered && !seen.has('lemon') && !seen.has('thumbtack') && byDefault === 3,
+      { four, five: run.S.bubbleDamage, lemonOffered, afterFull: seen.has('lemon'), tack: seen.has('thumbtack'), byDefault });
   },
 });
 story('treasures/per', {
-  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 10), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
+  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 8), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G(), S = () => run.S;
     const bd0 = S().bubbleDamage, hp = S().health;
     give('medicineBall');
-    const ball = S().bubbleDamage - bd0;                       // 25 max Health: +2.5
+    const ball = S().bubbleDamage - bd0;                       // 25 max Health: +3.125
     run.stats.health += 10;                                    // a Health card
-    const ballAfterCard = S().bubbleDamage - bd0;              // 35: +3.5
+    const ballAfterCard = S().bubbleDamage - bd0;              // 35: +4.375
     const td0 = run.tentacleStats.tentacleDamage;
     give('paperclipChain');
     const clip0 = run.tentacleStats.tentacleDamage - td0;
@@ -1547,26 +1564,24 @@ story('treasures/per', {
     const skate = (S().fireRate - fr0) / BASE_STATS.fireRate * 100;
     const bd1 = S().bubbleDamage;
     give('piggyBank');
-    run.chestsOpened = 5;                                      // five treasures found: +10%
+    run.chestsOpened = 5;                                      // five treasures found: +15%
     const piggy = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(near(ball, hp / 10) && near(ballAfterCard, (hp + 10) / 10) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 4) && near(piggy, 10),
+    return ok(near(ball, hp / 8) && near(ballAfterCard, (hp + 10) / 8) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 4) && near(piggy, 15),
       { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
   },
 });
 story('treasures/while', {
-  about: 'while (Dry Sock, High Stool): Dry Sock adds 40% Bubble damage in the air and none once landed; High Stool adds 30% standing on a table and none on the floor.',
-  setup() { setupFight({ lash: false }); give('drySock', 'highStool'); },
+  about: 'while (Dry Sock): Dry Sock adds 40% Bubble damage in the air and none once landed.',
+  setup() { setupFight({ lash: false }); give('drySock'); },
   play() {
     const { run, player } = G(), bd = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
     tp(3.2, 0.05, 3.0); player.position.y = 0.25; player.grounded = false; step(2);   // falling: in the air
     const air = bd(), grounded0 = player.grounded;
     step(120, () => player.grounded);
     const floor = bd();                                            // landed on the floor
-    tp(0.66, 0.85, 2.84); step(120, () => player.grounded);        // onto the kitchen table (the Mug's high ground)
-    const table = bd(), tableY = player.position.y;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(!grounded0 && near(air, 40) && near(floor, 0) && near(table, 30) && tableY > 0.5, { air, floor, table, tableY: +tableY.toFixed(2), grounded0 });
+    return ok(!grounded0 && near(air, 40) && near(floor, 0), { air, floor, grounded0 });
   },
 });
 story('treasures/while-low-health', {
@@ -1623,27 +1638,33 @@ story('treasures/stat-size-jump-tentacles', {
   setup() { setupFight({ bubbles: false }); give('bikePump', 'insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
-    const stats = near(S.bubbleSize, b.bubbleSize * 1.2) && near(S.jumpHeight, b.jumpHeight * 1.2) && T.tentacles === b.tentacles + 1
-      && near(T.reach, b.reach * 1.25) && near(T.tentacleSpeed, b.tentacleSpeed * 1.25) && T.tentacleDamage === b.tentacleDamage + 2;
+    const stats = near(S.bubbleSize, b.bubbleSize * 1.25) && near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 1
+      && near(T.reach, b.reach * 1.5) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
     const log = record('damage_taken');
     step(60 * 2);
     const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
     return ok(stats && stung === 2, { size: S.bubbleSize, jump: S.jumpHeight, T: { ...T }, stung });
   },
 });
-story('treasures/gadget-haste', {
-  about: 'gadget-haste (Wind-Up Key): treasures on a timer go off 20% more often; a Guitar Pick\'s first chord comes at 2.5 s instead of 3 s.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('guitarPick'); roachAt(0.08, 0); },
+story('treasures/more-treasures', {
+  about: 'more-treasures (Wind-Up Key): a treasure that turns up in the room on the schedule may bring another one 5 s after it goes (here the 20% always comes up); the extra one brings no more.',
+  setup() { fresh({ treasures: true, elites: false, bubbles: false, lash: false }); give('windUpKey'); },
   play() {
-    const first = () => { const log = record('damage_taken'); return step(60 * 6, () => dmgBy(log, 'ring').length > 0) / 60; };
-    const plain = first();
-    setupFight({ bubbles: false, lash: false }); give('guitarPick', 'windUpKey'); roachAt(0.08, 0);
-    const keyed = first();
-    return ok(Math.abs(plain / keyed - 1.2) < 0.03, { plain: +plain.toFixed(2), keyed: +keyed.toFixed(2) });
+    const { run } = G(), stay = run.stage.treasures.stay, first = run.treasureTimesLeft[0], real = Math.random;
+    const before = run.treasureTimesLeft.length;
+    Math.random = () => 0.01;
+    run.t = first; run.scheduleTreasures();
+    const queued = run.treasureTimesLeft.includes(first + stay + 5) && run.treasureTimesLeft.length === before;   // one used, one added
+    run.roomTreasures.forEach((t) => { t.active = false; });         // the first one went
+    const bonusAt = first + stay + 5, nextIsBonus = run.treasureTimesLeft[0] === bonusAt, n = run.treasureTimesLeft.length;
+    run.t = bonusAt; run.scheduleTreasures();                          // the extra one turns up…
+    Math.random = real;
+    const noMore = run.treasureTimesLeft.length === n - 1;             // …and brings none of its own
+    return ok(queued && nextIsBonus && noMore && run.roomTreasures.some((t) => t.active), { queued, nextIsBonus, noMore, left: run.treasureTimesLeft.map((x) => +x.toFixed(1)) });
   },
 });
 story('treasures/elite-damage', {
-  about: 'elite-damage (Can Opener): hits on Elites and the boss do 40% more; ordinary bugs take the same as before.',
+  about: 'elite-damage (Can Opener): hits on Elites and the boss do 15% more; ordinary bugs take the same as before.',
   setup() { setupFight({ lash: false, bubbles: false }); give('canOpener'); roachAt(0.3, 0); },
   play() {
     const { enemies } = G(), roach = enemies.list[0];
@@ -1654,7 +1675,7 @@ story('treasures/elite-damage', {
     bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' });
     bus.emit('damage_taken', { targetId: roach.id, amount: 10, source: 'story' });
     big.dead = e.dead = true; enemies.list.splice(enemies.list.indexOf(e), 1); enemies.byId.delete(e.id);
-    return ok(Math.abs(1000 - big.hp - 14) < 1e-9 && hp0 - roach.hp === 10, { elite: 1000 - big.hp, bug: hp0 - roach.hp });
+    return ok(Math.abs(1000 - big.hp - 11.5) < 1e-9 && hp0 - roach.hp === 10, { elite: 1000 - big.hp, bug: hp0 - roach.hp });
   },
 });
 story('treasures/grow-on-kills', {
@@ -1666,7 +1687,7 @@ story('treasures/grow-on-kills', {
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
     for (let i = 0; i < 6; i++) kill();
-    // with a cap (Dustpan: +0.1% Bubble damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
+    // with a cap (Dustpan: +0.2% Bubble damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
     give('dustpan');
     const pct = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
     for (let i = 0; i < 1100; i++) kill();
@@ -1675,7 +1696,7 @@ story('treasures/grow-on-kills', {
     for (let i = 0; i < 300; i++) kill();
     const second = pct();
     const same = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(after4 === max0 && run.S.health >= max0 + 2 && same(capped, 100) && same(second, 130),
+    return ok(after4 === max0 && run.S.health >= max0 + 2 && same(capped, 100) && same(second, 160),
       { max0, after4, after10: run.S.health, capped: +capped.toFixed(3), second: +second.toFixed(3) });
   },
 });
@@ -1760,9 +1781,14 @@ story('treasures/every', {
   },
 });
 story('treasures/ring', {
-  about: 'ring with freeze (Ice Cube): a cold snap freezes everything close.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('iceCube'); roachAt(0.1, 0); },
-  play() { const e = G().enemies.list[0]; step(60 * 6, () => e.freezeT > 0); return ok(e.freezeT > 0, { freezeT: +e.freezeT.toFixed(2) }); },
+  about: 'ring (Bath Bomb, every 6 s): you fizz, stinging everything close for 5x your power, and nothing farther out.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('bathBomb'); roachAt(0.06, 0); roachAt(0.3, 0); },
+  play() {
+    const { run, enemies } = G(), [close, far] = enemies.list, log = record('damage_taken');
+    step(60 * 7, () => dmgBy(log, 'ring').length > 0);
+    const hits = dmgBy(log, 'ring');
+    return ok(hits.length === 1 && hits[0].targetId === close.id && Math.abs(hits[0].amount - run.power * 5) < 1e-6, { hits: hits.map((d) => [d.targetId === close.id ? 'close' : 'far', +d.amount.toFixed(1)]) });
+  },
 });
 story('treasures/zap', {
   about: 'zap (TV Remote): every 7 s, the 3 nearest bugs get zapped.',
@@ -1770,16 +1796,20 @@ story('treasures/zap', {
   play() { const log = record('damage_taken'); step(60 * 5); return ok(dmgBy(log, 'zap').length === 3, { zapped: dmgBy(log, 'zap').length }); },
 });
 story('treasures/brick', {
-  about: 'brick (Lego Brick): a dropped brick hurts the first bug that steps on it.',
+  about: 'brick (Lego Brick): a dropped brick, twice the size, goes off when a bug steps on it and hurts every bug close by (not ones farther off).',
   setup() { setupFight({ bubbles: false, lash: false }); give('legoBrick'); },
   play() {
     const { gadgets } = G().run;
     step(60 * 3, () => gadgets.bricks.length > 0);
     const log = record('damage_taken');
     const b = gadgets.bricks[0];
-    if (b) { const e = spawn('roach', b.m.position.clone(), { still: true, hp: 9999 }); e.pos.copy(b.m.position); }
+    if (b) {
+      const e = spawn('roach', b.m.position.clone(), { still: true, hp: 9999 }); e.pos.copy(b.m.position);
+      spawn('roach', b.m.position.clone().add(V(0.015, 0, 0)), { still: true, hp: 9999 });   // close by: caught in the burst
+      spawn('roach', b.m.position.clone().add(V(0.08, 0, 0)), { still: true, hp: 9999 });    // farther: not
+    }
     step(5);
-    return ok(!!b && dmgBy(log, 'brick').length === 1, { bricks: gadgets.bricks.length, hits: dmgBy(log, 'brick').length });
+    return ok(!!b && b.m.scale.x === 2 && dmgBy(log, 'brick').length === 2, { bricks: gadgets.bricks.length, size: b?.m.scale.x, hits: dmgBy(log, 'brick').length });
   },
 });
 story('treasures/marble', {
@@ -1789,7 +1819,7 @@ story('treasures/marble', {
 });
 story('treasures/orbit-lights', {
   about: 'orbit-lights (Fairy Lights): bulbs circle you and sting what they touch.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('fairyLights'); roachAt(0.07, 0); },
+  setup() { setupFight({ bubbles: false, lash: false }); give('fairyLights'); roachAt(0.1, 0); },
   play() { const log = record('damage_taken'); step(120); return ok(dmgBy(log, 'orbit-lights').length > 0, { stings: dmgBy(log, 'orbit-lights').length }); },
 });
 story('treasures/beam', {
@@ -1808,7 +1838,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
   play() {
     const used = new Set(CONTENT.treasures.flatMap((t) => t.vocabulary));
     const usedTimed = new Set();
-    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of m.timed) for (const ef of T.effects) usedTimed.add(ef.kind); }
+    for (const t of CONTENT.treasures) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt]) for (const ef of T.effects) usedTimed.add(ef.kind); }
     const problems = [];
     for (const [w, def] of Object.entries(TREASURE_WORDS)) {
       if (!def.doc) problems.push(`${w}: no doc`);

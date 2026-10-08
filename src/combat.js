@@ -132,7 +132,7 @@ export class Lash {
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark });
     let dmg = s.dmg, color = '#fff';
     if (H.crit && Math.random() < H.crit.chance) {
-      dmg *= H.crit.mult; color = '#ff6b6b'; this.fx.puff(b, 0xff6b6b, 0.01, 0.2);
+      dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r);
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle' });
