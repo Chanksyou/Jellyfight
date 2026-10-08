@@ -347,7 +347,7 @@ export function newMods() {
     landingShockwave: null, extraJumps: 0,
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
-    squeaks: [], spout: null, burstOnKill: null, cardRarity: 0,
+    squeaks: [], onHurt: [], spout: null, burstOnKill: null, cardRarity: 0,
     crumbs: null,                    // crumb-on-kill: { chance, health }
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
@@ -389,9 +389,9 @@ export const TIMED_WORDS = {
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
   },
   zap: {
-    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each.',
+    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each. In a when-hit block, at="attacker" zaps whoever hit you first (if it\'s in range), and share= makes each bolt that share of the damage you took instead of `dmg`.',
     args: ['count'],
-    props: { range: 0.45, dmg: 2 },
+    props: { range: 0.45, dmg: 2, at: 'nearest', share: 0 },
     make: ([count], p) => ({ kind: 'zap', count, ...p }),
   },
   brick: {
@@ -447,6 +447,12 @@ export const TREASURE_WORDS = {
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
+  'when-hit': {
+    doc: 'When you get hit (not a dodge), does the effects in its { block } (ring, zap…), then waits `cooldown` s before it can again. Copies each have their own.',
+    props: { cooldown: 1 },
+    block: TIMED_WORDS,
+    make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
+  },
   'damage-taken': { doc: 'Hits take `times` as much health.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },

@@ -1304,6 +1304,28 @@ story('treasures/squeak-when-hit', {
     return ok(dmgBy(log, 'squeak').length === 1 && d1 > d0 + 0.03, { pushed: +(d1 - d0).toFixed(3) });
   },
 });
+story('treasures/when-hit', {
+  about: 'when-hit (Windowsill Cactus, Electric Kettle Cord): getting hit sprays needles at the bugs around you, once a second at most; the Kettle Cord arcs back at the bug that hit you for half the damage you took.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('cactus'); roachAt(0.1, 0); roachAt(-0.12, 0.05); },
+  play() {
+    const { run, enemies } = G(), log = record('damage_taken');
+    const hitMe = (amount, from) => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount, source: 'story', from }); };
+    hitMe(1);
+    const sprayed = new Set(dmgBy(log, 'ring').map((d) => d.targetId)).size;
+    hitMe(1);                                                   // within its 1 s cooldown: nothing
+    const again = dmgBy(log, 'ring').length;
+    step(70); hitMe(1);                                         // a second later: again
+    const later = dmgBy(log, 'ring').length;
+    // the Kettle Cord: a bug hits you for 4, it takes 2 back (and not the other bug, closer to you)
+    run.owned.delete('cactus'); give('kettleCord');
+    const far = enemies.list[1], biter = roachAt(0.2, 0.05);
+    log.length = 0;
+    hitMe(4, biter.id);
+    const zaps = dmgBy(log, 'zap');
+    return ok(sprayed === 2 && again === 2 && later === 4 && zaps.length === 1 && zaps[0].targetId === biter.id && Math.abs(zaps[0].amount - 2 * (run.stage.power || 1)) < 1e-6,
+      { sprayed, again, later, zaps: zaps.map((z) => [z.targetId === biter.id ? 'biter' : z.targetId === far.id ? 'other' : z.targetId, z.amount]) });
+  },
+});
 story('treasures/damage-taken', {
   about: 'damage-taken (Shot Glass): hits take 25% more health.',
   setup() { setupFight({ hurt: true }); give('shotGlass'); },

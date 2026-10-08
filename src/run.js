@@ -72,11 +72,11 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-      else this.hit(amount);                // i-frames, Thimble, Soap Bubble, Rubber Duck
+      else this.hit(amount, from);          // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
     });
     bus.on('status_applied', ({ targetId, status, duration }) => {
       if (targetId === PLAYER && status === 'slow') this.slowT = Math.max(this.slowT, duration);
@@ -160,7 +160,7 @@ export class Run {
     this.slowT = 0;
     this.slipT = 0;
     this.stillT = 0;
-    this.squeakCd = [];
+    this.squeakCd = []; this.hurtCd = {};
     this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
@@ -451,12 +451,13 @@ export class Run {
       const d = this.enemies.center(e).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // ant squads hit harder rolling
-        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type });
+        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id });
       }
     }
   }
 
-  hit(amount) {
+  // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
+  hit(amount, from = null) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
     const M = this.mods;
@@ -484,6 +485,13 @@ export class Run {
         bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
       }
     });
+    // when-hit effects: a { ring, zap … } block on its own cooldown, aimed at whoever hit you
+    for (const H of M.onHurt) {
+      if ((this.hurtCd[H.key] || 0) > this.t) continue;
+      this.hurtCd[H.key] = this.t + H.cooldown;
+      const P = this.player.position, ctx = { feet: P, center: P.clone().setY(P.y + this.cfg.height * 0.5), facing: this.player.facing, power: this.power, from, taken: amount };
+      for (const ef of H.effects) this.gadgets.fire(ef, ctx);
+    }
     this.hurt(amount);
   }
 

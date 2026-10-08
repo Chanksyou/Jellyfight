@@ -410,7 +410,7 @@ export class Enemies {
       m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
   }
@@ -424,7 +424,7 @@ export class Enemies {
     this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
     e.landT = 1;
     const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
-    if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
+    if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
 
   // ---------------------------------------------------------------- ladybugs (the sortie word)
@@ -612,7 +612,7 @@ export class Enemies {
     const a = e.pos, b = e.pokeAt, ab = S.dir.copy(b).sub(a), t = THREE.MathUtils.clamp(S.away.copy(c.pc).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
     const near = S.spot.copy(a).addScaledVector(ab, t).distanceTo(c.pc) < (this.playerRadius || 0.03) + 0.008;
     this.fx.impact(b.clone(), hostile('fly'), near ? 0.018 : 0.01, near ? 10 : 5);
-    if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type });
+    if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
 
   // the warning under every fly about to poke you: a short line on the floor from it to where its
@@ -702,7 +702,7 @@ export class Enemies {
       if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit' });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit', from: s.from });
       if (s.slow) {                                                      // webbed: stuck for a moment
         bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: s.slow });
         this.fx.puff(s.m.position, 0xf4f2ee, 0.035, 0.6);

@@ -184,14 +184,16 @@ export class Gadgets {
         if (ef.freeze) bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: ef.freeze });
       }
     } else if (ef.kind === 'zap') {
-      for (const e of this.near(center, ef.range).slice(0, ef.count)) {
+      let targets = this.near(center, ef.range);
+      if (ef.at === 'attacker' && ctx.from != null) { const a = targets.find((e) => e.id === ctx.from); if (a) targets = [a, ...targets.filter((e) => e !== a)]; }
+      for (const e of targets.slice(0, ef.count)) {
         const to = E.center(e), pts = [center.clone()];
         for (let k = 1; k < 6; k++) pts.push(center.clone().lerp(to, k / 6).add(new THREE.Vector3().randomDirection().multiplyScalar(0.008)));
         pts.push(to);
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
         this.group.add(line);
         this.zaps.push({ line, t: 0.25 });
-        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
+        bus.emit('damage_taken', { targetId: e.id, amount: ef.share && ctx.taken ? ctx.taken * ef.share : power * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
     } else if (ef.kind === 'brick') {
       const g = new THREE.Group(), mat = this.brickMats[(Math.random() * 3) | 0];

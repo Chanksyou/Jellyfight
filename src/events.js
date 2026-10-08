@@ -3,7 +3,8 @@
 // damage has landed (and a kill has been counted) before the next bubble checks its target.
 //
 // Events (payloads):
-//   damage_taken    { targetId, amount, color?, source, drain? }   targetId 'player' or an enemy id.
+//   damage_taken    { targetId, amount, color?, source, drain?, from? }   targetId 'player' or an enemy id;
+//                   from: the enemy id that dealt it, when one did (on-hurt treasures answer it)
 //                   drain: ongoing damage that skips i-frames and the flinch (puddles, suction)
 //   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'chill' | 'freeze' | 'thaw'
 //   knockback       { targetId, dir, force, launch? } dir: unit Vector3. launch: minimum upward speed
