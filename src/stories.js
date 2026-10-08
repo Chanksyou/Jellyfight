@@ -2111,6 +2111,17 @@ story('elites/hud-health-bar', {
   },
 });
 
+story('elites/tougher-and-quicker', {
+  about: 'Elites have about 30% more health than before (the Mug: 220 in act 1) and rest 1.4x quicker between attacks: a 1.4 s rest is over in 1 s.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  play() {
+    const { run } = G(), mug = run.elites.list.find((e) => e.kind === 'mug');
+    const hp = mug?.maxHp === Math.round(220 * (run.elites.hpScale || 1));
+    mug.cool = 1.4;
+    step(60);
+    return ok(hp && Math.abs(mug.cool) < 0.03, { maxHp: mug?.maxHp, cool: +mug.cool.toFixed(3) });
+  },
+});
 story('elites/hall-clock-hangs-in-act-1', {
   about: 'In act 1 the detailed hall clock hangs over the cubby bench as a plain clock (you can see down the hall), in place of the apartment\'s simple one.',
   setup() { fresh(); },

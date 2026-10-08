@@ -229,13 +229,17 @@ function whipperModel() {
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 
 const KINDS = {
-  controller: { name: 'The Controller', hp: 150, aggro: 0.7, scale: 1.5, build: controllerModel },
-  mug: { name: 'The Mug', hp: 170, aggro: 0.8, build: mugModel },
-  kettle: { name: 'The Kettle', hp: 210, aggro: 0.6, scale: 1.2, build: kettleModel },
-  soap: { name: 'The Soap Dispenser', hp: 240, aggro: 0.7, scale: 1.3, build: soapModel },
-  clock: { name: 'The Wall Clock', hp: 300, aggro: 0.55, wall: true, build: clockModel },
-  whipper: { name: 'The Cream Whipper', hp: 260, aggro: 0.75, build: whipperModel },
+  controller: { name: 'The Controller', hp: 195, aggro: 0.7, scale: 1.5, build: controllerModel },
+  mug: { name: 'The Mug', hp: 220, aggro: 0.8, build: mugModel },
+  kettle: { name: 'The Kettle', hp: 275, aggro: 0.6, scale: 1.2, build: kettleModel },
+  soap: { name: 'The Soap Dispenser', hp: 310, aggro: 0.7, scale: 1.3, build: soapModel },
+  clock: { name: 'The Wall Clock', hp: 390, aggro: 0.55, wall: true, build: clockModel },
+  whipper: { name: 'The Cream Whipper', hp: 340, aggro: 0.75, build: whipperModel },
 };
+// How fast every elite fights: its rest between attacks runs down RECOVER times as fast, and each
+// attack (telegraph, strike, follow-through) plays TEMPO times as fast. Telegraphs stay readable:
+// their `progress` still fills to the moment of the hit, just sooner.
+const RECOVER = 1.4, TEMPO = 1.15;
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
 
@@ -569,7 +573,7 @@ export class Elites {
       }
       g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
       g.rotation.set(0, 0, 0);
-      e.cool -= dt;
+      e.cool -= dt * RECOVER;
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
       if (e.kind === 'clock') this.clockHands(e, dt);
       const heading = e.holder.rotation.y, fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
@@ -596,7 +600,7 @@ export class Elites {
         e.stateT = 0;
         e.locked = false;
       }
-      e.stateT += dt;
+      e.stateT += dt * TEMPO;
       const s = e.stateT;
 
       // ---------------------------------------------------------- controller
