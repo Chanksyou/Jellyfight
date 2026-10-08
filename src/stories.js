@@ -683,6 +683,16 @@ story('enemies/mosquito-spits', {
 });
 
 // --- progression
+story('progression/card-tiers', {
+  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 12.5 / 15%), and the Bubbles card only ever comes as Epic +1.',
+  setup() {},
+  play() {
+    const seen = {};
+    for (let i = 0; i < 3000; i++) for (const c of rollCards({ bubbles: 1 }, 3)) (seen[c.stat] ||= new Set()).add(`${c.rarity.id}:${c.amount}`);
+    const bubbles = [...(seen.bubbles || [])], dodge = [...(seen.dodge || [])].sort();
+    return ok(bubbles.join() === 'epic:1' && dodge.join() === 'common:10,epic:15,rare:12.5', { bubbles, dodge });
+  },
+});
 story('progression/luck', {
   about: 'Luck (a level-up card) makes rarer level-up cards and treasures come up more often.',
   setup() {},
@@ -690,7 +700,7 @@ story('progression/luck', {
     const share = (luck) => {
       let epic = 0, cards = 0, top = 0, treasures = 0;
       for (let i = 0; i < 1500; i++) {
-        for (const c of rollCards({ bubbles: 2 }, 3, 0, luck)) { cards++; if (c.rarity.id === 'epic') epic++; }
+        for (const c of rollCards({ bubbles: 6 }, 3, 0, luck)) { cards++; if (c.rarity.id === 'epic') epic++; }
         for (const t of rollTreasures(CONTENT.treasures, 3, luck)) { treasures++; if (t.rarity === 'epic') top++; }
       }
       return { epicCards: +(epic / cards).toFixed(3), epicTreasures: +(top / treasures).toFixed(3) };

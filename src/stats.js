@@ -66,14 +66,14 @@ export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * M
 
 // [common, rare, epic] amounts. `pct` = percent of the base value, added.
 const CARD_VALUES = {
-  bubbles:       { amounts: [0, 1, 2], weight: 0.6 },   // too strong to be common
-  range:         { amounts: [10, 18, 30], pct: true },
-  bubbleDamage:  { amounts: [1.25, 2, 3.25] },   // scaled with the base (6) so each card is worth the same share
-  fireRate:      { amounts: [10, 18, 30], pct: true },
-  health:        { amounts: [4, 8, 14] },
-  moveSpeed:     { amounts: [8, 14, 22], pct: true, weight: 1.2 },
-  regen:         { amounts: [0.1, 0.2, 0.35], suffix: '/s' },   // health a second
-  dodge:         { amounts: [3, 5, 8], suffix: '%' },           // percentage points
+  bubbles:       { amounts: [0, 0, 1], weight: 0.6 },   // too strong for anything but Epic: always an Epic +1
+  range:         { amounts: [15, 20, 25], pct: true },
+  bubbleDamage:  { amounts: [1, 2, 3] },
+  fireRate:      { amounts: [10, 15, 20], pct: true },
+  health:        { amounts: [3, 6, 9] },
+  moveSpeed:     { amounts: [10, 15, 20], pct: true, weight: 1.2 },
+  regen:         { amounts: [0.25, 0.5, 0.75], suffix: '/s' },   // health a second
+  dodge:         { amounts: [10, 12.5, 15], suffix: '%' },           // percentage points
   luck:          { amounts: [10, 18, 30] },                     // see luckWeights
   bubbleSize:    { amounts: [10, 18, 30], pct: true, weight: 0.8 },   // bigger bubbles land easier and splash wider
 };
@@ -115,8 +115,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
     pool.splice(pool.indexOf(stat), 1);
     const rarity = pickWeighted(RARITY, (r) => w[RARITY.indexOf(r)]);
     let ri = Math.min(RARITY.length - 1, RARITY.indexOf(rarity) + bonus);
-    if (CARD_VALUES[stat].amounts[ri] === 0) ri = 1; // extra bubbles start at rare
-    if (stat === 'bubbles') ri = Math.min(ri, 1 + (MAX_BUBBLES - stats.bubbles >= 2 ? 1 : 0));
+    while (CARD_VALUES[stat].amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
     cards.push({ stat, rarity: RARITY[ri], amount: CARD_VALUES[stat].amounts[ri] });
   }
   return cards;
