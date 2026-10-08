@@ -246,6 +246,7 @@ export class Enemies {
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
       else if (status === 'mark') e.markT = Math.max(e.markT || 0, duration);
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
+      else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {

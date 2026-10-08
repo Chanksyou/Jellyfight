@@ -6,7 +6,7 @@
 //   damage_taken    { targetId, amount, color?, source, drain?, from? }   targetId 'player' or an enemy id;
 //                   from: the enemy id that dealt it, when one did (on-hurt treasures answer it)
 //                   drain: ongoing damage that skips i-frames and the flinch (puddles, suction)
-//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'chill' | 'freeze' | 'thaw'
+//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw'
 //   knockback       { targetId, dir, force, launch? } dir: unit Vector3. launch: minimum upward speed
 //   enemy_hit       { targetId, amount, color, pos }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }

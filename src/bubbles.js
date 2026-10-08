@@ -275,7 +275,7 @@ export class Bubbles {
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#ff6b6b';
-      if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: H.pin });   // pin-on-crit
+      if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
