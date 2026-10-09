@@ -2865,6 +2865,29 @@ for (const v of STAGES[1].vents) {
   });
 }
 
+// The fluted sideboard's flutes and dark body are one instanced mesh, which nothing collides with
+// (so no camera ray finds it): when the camera sees through the sideboard, they fade with it
+act2('camera-sees-through-the-sideboard', {
+  about: 'In the hallway, whenever the camera looks through the fluted sideboard, its flutes and dark body fade too (not just its solid parts), with no shader built on the spot.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, APT } = G(), programs = APT.renderer.info.programs.length;
+    const parts = new Set(), flutes = [];
+    APT.scene.getObjectByName('Fluted_sideboard').traverse((o) => { if (!o.isMesh) return; parts.add(o); if (o.isInstancedMesh) flutes.push(o); });
+    let through = 0, missed = 0;
+    for (const [x, y, z] of [[2.95, 0.05, 6.4], [2.95, 0.05, 6.75], [2.95, 0.05, 7.05], [3.27, 0.85, 6.8]]) {
+      for (let k = 0; k < 16; k++) {
+        tp(x, y, z, (k * Math.PI) / 8); step(20); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+        if (![...tpc.over].some((m) => parts.has(m))) continue;
+        through++;
+        if (!flutes.every((m) => tpc.over.has(m))) missed++;
+      }
+    }
+    const newShaders = APT.renderer.info.programs.length - programs;
+    return ok(flutes.length > 0 && through > 0 && missed === 0 && newShaders === 0, { flutes: flutes.length, through, missed, newShaders });
+  },
+});
+
 // the Soap Dispenser on the vanity (elites.js): you land beside it off the vanity vent
 const soapElite = () => G().run.elites.alive.find((e) => e.kind === 'soap');
 const besideSoap = () => tp(1.5, 0.9, 5.47, 0);

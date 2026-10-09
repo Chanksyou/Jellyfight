@@ -10,6 +10,7 @@ import * as THREE from 'three';
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
 const LAYERS = 3;              // how many things one ray may look through
 const UP = new THREE.Vector3(0, 1, 0);
+const NONE = [];
 
 const faded = (mat) => {
   const c = mat.clone();
@@ -66,6 +67,10 @@ export class ThirdPersonCamera {
       const h = this.world.cast(this.focus, dir, far, this.over);
       if (!h?.mesh) return;
       this.over.add(h.mesh);
+      // and the instanced parts of the same piece (a sideboard's flutes): nothing collides with
+      // instanced meshes, so no ray finds them
+      const kin = h.mesh.parent && !h.mesh.parent.isScene ? h.mesh.parent.children : NONE;   // not the scene's: the bugs are instanced
+      for (let k = 0; k < kin.length; k++) if (kin[k].isInstancedMesh && kin[k].visible) this.over.add(kin[k]);
     }
   }
 
@@ -117,12 +122,15 @@ export class ThirdPersonCamera {
   seeThroughWarmers(within = null) {
     const found = new Map(), box = new THREE.Box3();
     for (const m of this.world.colliders) {
-      if (!m.isMesh || found.has(m.material)) continue;
+      if (!m.isMesh) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
-      found.set(m.material, m);
+      if (!found.has(m.material)) found.set(m.material, m);
+      // and the instanced parts that fade along with it (look)
+      if (m.parent && !m.parent.isScene) for (const k of m.parent.children) if (k.isInstancedMesh && !found.has(k.material)) found.set(k.material, k);
     }
     return [...found.values()].map((m) => {
-      const copy = new THREE.Mesh(m.geometry, Array.isArray(m.material) ? m.material.map(faded) : faded(m.material));
+      const mat = Array.isArray(m.material) ? m.material.map(faded) : faded(m.material);
+      const copy = m.isInstancedMesh ? new THREE.InstancedMesh(m.geometry, mat, 1) : new THREE.Mesh(m.geometry, mat);
       m.matrixWorld.decompose(copy.position, copy.quaternion, copy.scale);
       return copy;
     });
