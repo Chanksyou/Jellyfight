@@ -81,5 +81,19 @@ A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongsi
 A mini-boss: a household object that fights back, tougher than a bug and weaker than the boss.
 _Avoid_: Miniboss
 
+### Attacks
+
+**Warning**:
+What shows where an Elite's or the Boss's attack will land before it does: a shape on the floor, with the space it will fill above it, both filling up to the moment of the hit.
+_Avoid_: Telegraph
+
+**Blast**:
+An attack that hits everything inside a sphere centred where it goes off: half a sphere when it lands on a surface, a whole one in mid-air. A low enough one can be jumped over.
+_Avoid_: AoE
+
+**Shot**:
+Something an Elite or the Boss fires that hits when it touches the jelly, aimed at where the jelly is, in the air or on the ground.
+_Avoid_: Projectile
+
 **Polyp, Ephyra, Medusa**:
 The jelly's growth stages, one per act; growing from one to the next is its metamorphosis.
