@@ -19,9 +19,10 @@ import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
+import { esc } from './leaderboard.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
-const _drop = new THREE.Vector3(), p0 = new THREE.Vector3();
+const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // Which rarities a treasure pick offers, by where it came from: a chest that turned up in the room
@@ -161,6 +162,7 @@ export class Run {
     this.elitesBeaten = 0;            // high-ground elites beaten (score)
     this.bossStartT = null;
     this.bossWon = false;
+    this.bossDeadT = false;           // a death left over from a restarted run would keep this boss from ending
     this.collectAll = false;
     this.runId = (this.runId || 0) + 1;    // delayed steps (later()) belong to this run only
     this.pendingLevels = 0;
@@ -347,7 +349,7 @@ export class Run {
       this.enemies.eliteDamage = this.mods.eliteDamage;
       this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius }, this.t);
       this.contactDamage();
-      this.enemies.shotHits(P.position.clone().setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
+      this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }
     for (const b of this.bursts.splice(0)) this.burst(b);
 
@@ -469,11 +471,11 @@ export class Run {
   // ------------------------------------------------------------ damage
   contactDamage() {
     const P = this.player.position;
-    const pc = P.clone().setY(P.y + this.cfg.height * 0.5);
+    const pc = _mid.copy(P).setY(P.y + this.cfg.height * 0.5);
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
       if (e.airborne) continue;                             // mid-leap: its landing does the hurting (the leap word)
-      const d = this.enemies.center(e).distanceTo(pc);
+      const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // ant squads hit harder rolling
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id });
@@ -996,7 +998,7 @@ export class Run {
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`], ...this.summary()];
       const canPost = B && B.status !== 'offline' && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
-      if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${escAttr(typed)}">`]);
+      if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
       if (canPost) {
         buttons.push({ label: '📤 Submit score', go: true, onClick: (v) => {
@@ -1126,4 +1128,3 @@ export class Run {
 const NAME_KEY = 'jellyfight.name';
 function savedName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function saveName(n) { try { localStorage.setItem(NAME_KEY, n); } catch {} }
-const escAttr = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

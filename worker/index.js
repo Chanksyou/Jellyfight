@@ -47,7 +47,8 @@ async function top(db, me) {
     db.prepare(`SELECT ${ROW} FROM scores ORDER BY score DESC, at ASC LIMIT 10`),
     db.prepare(`SELECT ${ROW} FROM scores WHERE id = ?`).bind(me && ID.test(me) ? me : ''),
   ]);
-  return { top: list.results.map(shape), mine: shape(mine.results[0]) || null };
+  // only your own id comes back: an id is all it takes to post as that player
+  return { top: list.results.map((r) => shape({ ...r, id: r.id === me ? r.id : undefined })), mine: shape(mine.results[0]) || null };
 }
 
 async function post(request, env) {

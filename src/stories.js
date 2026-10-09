@@ -2289,6 +2289,26 @@ story('boss/xp-comes-to-you', {
   },
 });
 
+story('boss/ends-after-a-quick-restart', {
+  about: 'A run restarted in the moment between a boss falling and the metamorphosis (dying to a stray shot, then Try again): the next boss still ends when it\'s beaten.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, menus } = G();
+    step(180);
+    run.boss.hp = 0; run.boss.dead = true;
+    step(2);                                       // the boss is down; its metamorphosis is 2.2 s away
+    const first = run.bossWon;
+    run.start(); run.startPicked = true;           // restarted before it comes
+    run.startBossIntro();
+    step(180);
+    const second = run.phase === 'boss' && !run.bossWon;
+    run.boss.hp = 0; run.boss.dead = true;
+    step(2);
+    menus.close();
+    return ok(first && second && run.bossWon, { first, second, wonAgain: run.bossWon });
+  },
+});
+
 story('modes/dev-fight-boss', {
   about: 'The pause menu\'s Fight boss (dev) button starts a fresh run that goes straight to the boss.',
   setup() { fresh(); },

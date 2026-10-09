@@ -1,6 +1,7 @@
 // Character creator panel. Edits a look object and reports every change so the
 // game can rebuild the model live; main.js handles the camera and saving.
 import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, randomLook, normalizeLook } from './character.js';
+import { esc } from './leaderboard.js';
 
 const CSS = `
 #creator { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100vw); display: flex; flex-direction: column;
@@ -81,7 +82,7 @@ export class Creator {
       SWATCHES.map((c) => `<button data-k="${key}" data-v="${c}" style="background:${c}" class="${L[key].toLowerCase() === c ? 'on' : ''}" aria-label="${c}"></button>`).join('')
     }<input type="color" data-k="${key}" value="${L[key]}" title="Any color"></div></div>`;
     this.body.innerHTML = `
-      <div class="sec"><div class="lbl">Name</div><input type="text" data-k="name" maxlength="16" value="${escapeAttr(L.name)}"></div>
+      <div class="sec"><div class="lbl">Name</div><input type="text" data-k="name" maxlength="16" value="${esc(L.name)}"></div>
       ${chips('body', 'Jellyfish')}
       <div class="blurb">${SPECIES[L.body].blurb}</div>
       ${colors('color', COLOR_ROWS[0][1])}
@@ -121,8 +122,4 @@ export class Creator {
     if (k === 'name') this.set(k, t.value, false);
     else if (t.type === 'color') this.set(k, t.value, false);
   }
-}
-
-function escapeAttr(s) {
-  return String(s).replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
 }

@@ -265,7 +265,8 @@ export class Enemies {
     });
   }
 
-  get alive() { return this.list.length; }
+  // living bugs (the wave cap): not the elites or the boss, nor the dead the list still holds
+  get alive() { let n = 0; for (const e of this.list) if (!e.dead && !e.proxy) n++; return n; }
 
   // elite: 35% bigger, 2.2x health, 4x XP, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {

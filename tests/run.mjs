@@ -114,7 +114,7 @@ console.log(`\n${passed} passed, ${failed} failed`);
 // lets that commit go to main
 if (!failed && filters.join('') === '' && MOBILE) {
   try {
-    const clean = !execSync('git status --porcelain --untracked-files=no', { cwd: ROOT }).toString().trim();
+    const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
     if (clean) fs.writeFileSync(path.join(ROOT, 'tests/.last-green'), execSync('git rev-parse HEAD', { cwd: ROOT }).toString());
   } catch {}
 }

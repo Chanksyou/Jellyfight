@@ -19,8 +19,7 @@ const listeners = new Map();
 
 export const bus = {
   on(type, fn) {
-    if (!listeners.has(type)) listeners.set(type, []);
-    listeners.get(type).push(fn);
+    listeners.set(type, [...(listeners.get(type) || []), fn]);   // a new list: an emit in progress keeps its own
     return () => this.off(type, fn);
   },
   off(type, fn) {
@@ -30,7 +29,7 @@ export const bus = {
   emit(type, payload) {
     const list = listeners.get(type);
     if (!list) return;
-    for (const fn of [...list]) fn(payload);   // a copy: listeners may subscribe or emit while we loop
+    for (const fn of list) fn(payload);   // on/off replace the list, so a listener may subscribe or emit while we loop
   },
 };
 

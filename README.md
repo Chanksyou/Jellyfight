@@ -42,7 +42,7 @@ It's night: the room is lit only by its lamps (warm pools of light, dark corners
 Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full map (agents read it automatically):
 
 - **`content/enemies.kdl`**: every bug as a few numbers and a few behaviour words, e.g. `chase 0.3`, or `curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3`. Each word is defined once in `src/words.js` with what its numbers mean. A typo stops loading with a message naming the file and line.
-- **`content/waves.kdl`**: how fast bugs arrive, how many at once, how much tougher they get, and from when each kind appears.
+- **`content/waves.kdl`**: how fast bugs arrive, how many at once (living bugs only: the elites and the boss don't take a place), how much tougher they get, and from when each kind appears.
 - **`content/treasures.kdl`**: all 102 treasures, each a name, icon, text and effect words (and `stack=N` for stackable ones, or `level 2 text="…" { … }` / `level 3 …` blocks for ones that level up), e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1 push=0.035 }`. A new treasure that combines existing effects needs no code.
 - **`content/look.css`**: colours and render numbers: the night fill, haze, bloom, the jelly's size, colour, glow and light, how much enemies glow, gut colours, the camera, and how often and how sharp the game draws (frame-rate cap, pixel ratio range, how many lamps a phone lights at once).
 
@@ -76,7 +76,7 @@ The game also runs as a Cloudflare Worker named `jelly-fight` (`wrangler.jsonc`)
 
 - **Deploys:** Cloudflare Workers Builds, connected to this GitHub repo (`Chanksyou/Jellyfight`; the Cloudflare GitHub app needs access to it). Don't use the dashboard's "Import a repository": it makes a separate copy that never gets updates. Every push to `main` redeploys. Build command: none. Deploy command: `npx wrangler deploy`. Wrangler creates the D1 database on the first deploy (no ID to paste), and the Worker creates its tables on the first request.
 - **What's served:** the repo root, minus what `.assetsignore` lists (`tests/`, `tools/`, `worker/`, the config, the docs, and the unused whole-apartment models).
-- **The board's rules:** a player is a random id kept in their browser. Scores are capped at 60,000, names are trimmed to 20 characters with HTML stripped, and each player can post once every 15 s and each address once every 5 s (addresses are stored only as a salted hash; set an `IP_SALT` secret on the Worker to choose your own salt). Scores come from the player's browser, so this stops casual cheating, not a determined cheater.
+- **The board's rules:** a player is a random id kept in their browser, and the board only ever sends back your own (an id is all it takes to post as that player). Scores are capped at 60,000, names are trimmed to 20 characters with HTML stripped, and each player can post once every 15 s and each address once every 5 s (addresses are stored only as a salted hash; set an `IP_SALT` secret on the Worker to choose your own salt). Scores come from the player's browser, so this stops casual cheating, not a determined cheater.
 - **Try it locally:** `npx wrangler dev`, then open http://localhost:8787.
 
 ## How it fits together
