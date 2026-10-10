@@ -20,10 +20,12 @@
 //   soap        on the bathroom vanity (act 2): the glass soap dispenser by the tap. The pink soap
 //               inside drains as it's hurt (its level is its health).
 //     Soap squirt:    it pumps three times; each squirt lobs a glob of soap onto a pink circle
-//                     filling where you stand. A hit stings, and it leaves a slick: soap underfoot
-//                     takes away your grip, so you slide.
+//                     (and a half sphere over it) filling where you stand. It lands as a floor
+//                     Blast (jump it), and leaves a slick: soap underfoot takes away your grip,
+//                     so you slide.
 //     Bubble ring:    it foams up while a pink ring fills around it, then lets go a ring of soap
-//                     bubbles drifting outward, with one gap to slip through.
+//                     bubbles drifting outward, with one gap to slip through; they alternate
+//                     floor level (jump them) and jump height (stay down).
 //     Under half health it's angry: quicker, four squirts, and a second ring right after the
 //     first with its gap somewhere else.
 //   clock       the ornate wall clock over the hallway's cubby bench (act 2; clock-model.js). It
@@ -56,7 +58,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, shotHits } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 
@@ -354,6 +356,7 @@ export class Elites {
     this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
     this.soapBubbles = [];   // the Soap Dispenser's bubble rings, drifting outward
     this.slicks = [];        // and the slippery soap its squirts leave
+    this._dir = new THREE.Vector3();   // scratch for the bubbles' wall raycasts
     this.bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
     this.bubbleMat = new THREE.MeshStandardMaterial({ color: 0xffe0ee, transparent: true, opacity: 0.4, roughness: 0.02, metalness: 0.3, emissive: 0xff4a9a, emissiveIntensity: 0.35, depthWrite: false });
     this.soapMat = new THREE.MeshStandardMaterial({ color: 0xffb8d4, transparent: true, opacity: 0.75, roughness: 0.05, emissive: 0xff4a9a, emissiveIntensity: 0.25 });
@@ -766,20 +769,21 @@ export class Elites {
         const M = e.model, angry = e.hp < e.maxHp * 0.5;
         const press = (k) => { M.head.position.y = M.headY - k * 0.012; M.stem.scale.y = 1 - k * 0.5; M.stem.position.y = M.headY - 0.012 - k * 0.006; };
         if (e.attack === 0) {
-          // Soap squirt: a pump stroke for each glob, each lobbed where you stand then
-          const n = angry ? 4 : 3, gap = angry ? 0.32 : 0.42;
+          // Soap squirt: a pump stroke for each glob, each lobbed where you stand then; each lands
+          // as a floor Blast (a 4 cm half sphere: jump it) and leaves a slick
+          const R = 0.04, n = angry ? 4 : 3, gap = angry ? 0.32 : 0.42;
           const k = Math.floor(s / gap), ph = (s % gap) / gap;
           press(k < n ? Math.sin(Math.min(1, ph * 1.6) * Math.PI) : 0);
           if (k < n && k !== e.squirted) {
             e.squirted = k;
             const target = P.clone(); target.y = this.surfaceBelow(P);
-            this.lob(muzzle, target, 0.75, hostile('soap'), this.T.soap, 0.04, (at) => {
+            this.lob(muzzle, target, 0.75, hostile('soap'), this.T.soap, R, (at) => {
               this.fx.impact(at.clone().setY(at.y + 0.008), hostile('soap'), 0.02, 8);
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
               sfx.soapSplat();
-              if (Math.hypot(P.x - at.x, P.z - at.z) < 0.04 + cfg.radius && Math.abs(P.y - at.y) < 0.06) hit(2, 'soap');
+              if (blastHits(at, R, P, cfg)) hit(2, 'soap');
               this.slick(at);
-            });
+            }, { dome: true });
             this.fx.puff(muzzle, 0xffd0e4, 0.008, 0.3);
             sfx.soapPump();
             e.hitPop = 0.5;
@@ -787,7 +791,9 @@ export class Elites {
           if (s > n * gap + 0.25) { press(0); e.squirted = -1; e.state = 'idle'; e.cool = angry ? 1.1 : 1.6; }
         } else {
           // Bubble ring: foams up (pumping fast, the ring filling round it), then lets go a ring
-          // of 16 bubbles drifting outward with a gap; angry, a second ring with its gap elsewhere
+          // of 16 bubbles drifting outward with a gap; angry, a second ring with its gap elsewhere.
+          // They alternate floor level (the jelly's middle on the floor: jump them) and jump height
+          // (the barrage's high Shots: stay down)
           const wind = 1.0;
           if (s < wind) {
             if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.17, this.T.soapRing));
@@ -799,10 +805,11 @@ export class Elites {
             e.rings = (e.rings || 0) + 1;
             e.clearTele();
             press(0);
-            const slots = 18, skip = Math.floor(Math.random() * slots), y = e.base.y + cfg.height * 0.5;
+            const slots = 18, skip = Math.floor(Math.random() * slots);
             for (let k = 0; k < slots; k++) {
               if (k === skip || k === (skip + 1) % slots) continue;          // the gap: two slots wide
               const a = (k / slots) * Math.PI * 2 + (e.rings - 1) * 0.6, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+              const y = e.base.y + (k % 2 ? BARRAGE.high : cfg.height * 0.5);
               this.bubble(e.base.clone().addScaledVector(dir, e.r * 1.1).setY(y), dir, 0.26, 2.3);
             }
             this.fx.ring(surf, hostile('soap'), 0.17, 0.35);
@@ -1040,7 +1047,7 @@ export class Elites {
       b.m.scale.setScalar(0.011 * (1 + Math.sin(b.t * 9 + b.wob) * 0.06));
       this.fx.glow.hold(b.m.position, hostile('soap'), 0.05, 0.55);
       if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + 0.011)) b.t = 0;
-      if (b.m.position.distanceTo(pc) < cfg.radius + 0.011) { hit(2, 'soap-bubble'); b.t = 0; b.hitYou = true; }
+      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(2, 'soap-bubble'); b.t = 0; b.hitYou = true; }
       if (b.t <= 0) {
         this.scene.remove(b.m);
         this.fx.burst(b.m.position, ['#ffe0ee', '#ff8ac0', '#ffffff'], 4, 0.003, 0.2, b.m.position.y - 0.03);

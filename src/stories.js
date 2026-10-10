@@ -3292,18 +3292,115 @@ act2('soap-dispenser-bubble-ring', {
   },
 });
 act2('soap-dispenser-angry', {
-  about: 'Under half health the Soap Dispenser is angry: four squirts instead of three, and a second bubble ring right after the first.',
+  about: 'Under half health the Soap Dispenser is angry: four squirts instead of three, each landing as a floor Blast, and a second bubble ring right after the first, both mixing floor-level and jump-height bubbles.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
-    let globs = 0, bubbles = 0;
+    let globs = 0, domes = 0, bubbles = 0;
+    const heights = [0, 0].map(() => ({ low: 0, high: 0 }));
     const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
-    stub(run.elites, 'lob', (...a) => { globs++; return lob(...a); });
-    stub(run.elites, 'bubble', (...a) => { bubbles++; return bub(...a); });
+    stub(run.elites, 'lob', (...a) => { globs++; if (a[7]?.dome) domes++; return lob(...a); });
+    stub(run.elites, 'bubble', (from, ...a) => { heights[bubbles++ < 16 ? 0 : 1][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
     e.cool = 0; e.next = 1;
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
-    return ok(globs === 4 && bubbles === 32, { globs, bubbles });
+    const mixed = heights.every((h) => h.low === 8 && h.high === 8);
+    return ok(globs === 4 && domes === 4 && bubbles === 32 && mixed, { globs, domes, bubbles, heights });
+  },
+});
+// --- 3D attacks: each soap glob lands as a floor Blast (a 4 cm half sphere over its pink circle),
+// and the bubble ring drifts out at mixed heights: floor level (jump them) and jump height (stay down)
+function startSoap(atk, { angry = false } = {}) {
+  fresh({ bubbles: false, lash: false }); besideSoap();
+  const e = soapElite(); if (angry) e.hp = e.maxHp * 0.4;
+  e.next = atk; e.cool = 0;
+  return e;
+}
+const firstGlob = () => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
+function soapHits(source = 'soap') { const s = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) s.push(d); })); return s; }
+act2('soap-squirt-warning-has-volume', {
+  about: "A soap glob's Warning is its pink floor circle with a half-sphere volume over it, filling together; both go when it lands.",
+  setup() { startSoap(0); },
+  play() {
+    const b = firstGlob(), to = b.to.clone();
+    holdJelly().position.x += 0.12;   // so the next globs land elsewhere
+    step(12);
+    const w1 = warningsAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(12);
+    const w2 = warningsAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const dome = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
+    const domed = !!dome && dome.min.y > to.y - 0.005 && dome.max.y > to.y + 0.03 && dome.max.y < to.y + 0.05;   // a 4 cm half sphere
+    step(200, () => !G().run.elites.blobs.includes(b));
+    const w3 = warningsAt(to), gone = !w3.floor && !w3.volume;
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    return ok(filling && domed && gone, { p1, p2, domed, gone });
+  },
+});
+act2('soap-squirt-hits-standing-not-jumping', {
+  about: "A jelly standing where a soap glob lands is hit by its Blast (2 Health); one in the air just above its 4 cm half sphere isn't.",
+  setup() { startSoap(0); },
+  play() {
+    const { run } = G(), hits = soapHits(), b1 = firstGlob();
+    const player = holdJelly();
+    player.position.copy(b1.to); player.grounded = true;
+    step(200, () => !run.elites.blobs.includes(b1));
+    const standing = hits.length;
+    step(200, () => run.elites.blobs.some((b) => b !== b1));
+    const b2 = run.elites.blobs.find((b) => b !== b1);
+    step(200, () => b2.t > b2.T - 0.1);
+    player.position.set(b2.to.x, b2.to.y + 0.05, b2.to.z); player.grounded = false;   // feet 5 cm up: above a 4 cm dome
+    step(30, () => !run.elites.blobs.includes(b2));
+    const jumping = hits.length - standing;
+    return ok(standing === 1 && hits[0].amount === 2 && jumping === 0, { standing, jumping, amount: hits[0]?.amount });
+  },
+});
+// let a ring go, then put the jelly 20 cm out in the path of one low and one high bubble in turn
+function bubbleVsJelly(jump) {
+  const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble'), out = {};
+  const floor = e.base.y, toYou = Math.atan2(player.position.x - e.base.x, player.position.z - e.base.z);
+  for (const kind of ['low', 'high']) {
+    e.state = 'idle'; e.next = 1; e.cool = 0; e.rings = 0; e.clearTele();
+    player.position.set(e.base.x + Math.sin(toYou) * 0.12, floor, e.base.z + Math.cos(toYou) * 0.12); player.grounded = true;
+    step(400, () => run.elites.soapBubbles.length > 0);
+    // the bubble of this height drifting nearest the open vanity (where you stood)
+    const mine = run.elites.soapBubbles.filter((b) => (b.y - floor > 0.1 ? 'high' : 'low') === kind);
+    const off = (b) => Math.abs(Math.atan2(Math.sin(Math.atan2(b.v.x, b.v.z) - toYou), Math.cos(Math.atan2(b.v.x, b.v.z) - toYou)));
+    const b = mine.sort((x, y) => off(x) - off(y))[0];
+    if (!b) { out[kind] = 'none'; continue; }
+    const dir = b.v.clone().normalize();
+    player.position.set(e.base.x + dir.x * 0.2, floor + (jump ? JUMP_FEET : 0), e.base.z + dir.z * 0.2); player.grounded = !jump;
+    const h0 = hits.length;
+    step(150, () => !run.elites.soapBubbles.length);
+    out[kind] = hits.length - h0;
+  }
+  return out;
+}
+act2('soap-bubble-ring-low-and-high', {
+  about: 'A bubble ring mixes floor-level and jump-height bubbles: low ones pass under a jumping jelly and hit a grounded one; high ones pass over a grounded jelly and hit a jumping one.',
+  setup() { startSoap(1); },
+  play() {
+    const grounded = bubbleVsJelly(false), jumping = bubbleVsJelly(true);
+    const pass = grounded.low === 1 && grounded.high === 0 && jumping.low === 0 && jumping.high === 1;
+    return ok(pass, { grounded, jumping });
+  },
+});
+act2('soap-attacks-build-no-shader', {
+  about: "Starting the Soap Dispenser's squirt and bubble ring builds no new shader: their Warnings (floor circles, the glob's volume) and bubbles were built behind Play.",
+  setup() { startSoap(0); },
+  play() {
+    const { APT, batcher, run } = G(), programs = APT.renderer.info.programs.length, e = soapElite();
+    const b = firstGlob(), to = b.to.clone();
+    step(5);
+    const w = warningsAt(to);
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    step(200, () => e.state === 'idle');
+    e.next = 1; e.cool = 0;
+    step(400, () => e.state === 'windup' && e.tele.length > 0);   // the ring's Warning shown
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    step(400, () => run.elites.soapBubbles.length > 0);            // and its bubbles
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    const newShaders = APT.renderer.info.programs.length - programs;
+    return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
   },
 });
 act2('one-on-one-soap-dispenser', {
