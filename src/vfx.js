@@ -225,20 +225,32 @@ export function blastHits(centre, r, feet, body) {
 // Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading;
 // or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
 // volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
+// The two volley heights (m above the floor), shared by every volley that mixes them: the
+// Controller's barrage, the Soap Dispenser's bubble rings, the Vacuum's spin, the Clog's spray.
+export const SHOT_HEIGHT = { floor: 0.045, jump: 0.16 };
 export function shotTarget(feet, body, height = null, floor = feet.y, out = new THREE.Vector3()) {
   return height == null ? out.set(feet.x, feet.y + body.height * 0.5, feet.z) : out.set(feet.x, floor + height, feet.z);
 }
 // does a Shot (a ball of radius `size` at `pos`) touch the jelly's body (its capsule)?
 export const shotHits = (pos, size, feet, body) => blastHits(pos, size, feet, body);
 // The hit rule for a cone (see CONE_RISE): anything of the jelly over its floor wedge (apex, unit
-// `dir` along the floor, `len` long, `half` its half-angle), at any height up to the cone's top at
-// the far end, so jumping doesn't clear it but stepping out of the wedge does.
+// `dir` along the floor, `len` long, `half` its half-angle), under the drawn cone's top: CONE_RISE
+// times its half-width as far out as the jelly's body reaches, so it is low near the muzzle (jump
+// over it there) and too tall to jump further out; stepping out of the wedge clears it too.
 export function coneHits(apex, dir, len, half, feet, body) {
   const dx = feet.x - apex.x, dz = feet.z - apex.z;
   const along = dx * dir.x + dz * dir.z, across = Math.abs(dx * dir.z - dz * dir.x);
-  const top = apex.y + CONE_RISE * len * Math.tan(half);
+  const top = apex.y + CONE_RISE * Math.min(len, along + body.radius) * Math.tan(half);
   return along > 0 && along < len + body.radius && across < along * Math.tan(half) + body.radius / Math.cos(half)
     && feet.y > apex.y - body.height && feet.y < top;
+}
+// A cone volume (kind 'cone') from `apex` along `heading` (rad, like the floor wedge's rotation.y),
+// `len` long, its sides following a wedge of half-angle `half`. Added by `fx`; returns it.
+const _cone = new THREE.Vector3();
+export function coneVolume(fx, color, apex, heading, len, half) {
+  const w = len * Math.tan(half), m = fx.volume(color, 'cone', apex, _cone.set(w, w, len));
+  m.rotation.y = heading;
+  return m;
 }
 // The hit rule for a lane (volume 'lane'): anything of the jelly in the box over a floor strip from
 // `start` along unit `dir` (flat), `len` long, `width` wide, `height` tall from start.y. Jumping

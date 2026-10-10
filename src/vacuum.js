@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, laneHits, ringHits, shotTarget } from './vfx.js';
+import { hostile, TeleMaterial, laneHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -123,12 +123,15 @@ export class Vacuum {
     // over them, the space each attack fills (vfx.js volumes): the charge's lane, as tall as the
     // Vacuum, over its strip; the brushes' sweep, a low wall spreading out from it
     this.chargeLen = 0.9;
+    // (hidden, not faded out, when not in use: a hidden mesh is no draw call)
     this.lane = fx.volume(hostile('vacuum'), 'lane', this.holder.position, new THREE.Vector3(this.r * 1.6, this.h, this.chargeLen));
-    this.lane.material.opacity = 0;
+    this.lane.visible = false;
     this.sweepH = 0.02;
+    this.sweepLife = LOOK.num('vacuum-sweep-life', 0.25);
+    this.sweepReach = LOOK.num('vacuum-sweep-reach', 0.1);
     this.sweep = fx.volume(hostile('vacuum'), 'ring', this.holder.position, new THREE.Vector3(this.r, this.sweepH, this.r));
-    this.sweep.material.opacity = 0;
-    this.sweepT = 1;
+    this.sweep.visible = false;
+    this.sweepT = this.sweepLife;
     this.laneAt = new THREE.Vector3();
     this.laneDir = new THREE.Vector3();
     // the shield: a glowing dome, and a tether from it to each lanternfly keeping it up
@@ -210,7 +213,8 @@ export class Vacuum {
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
-      this.line.material.opacity = this.swirl.material.opacity = this.lane.material.opacity = this.sweep.material.opacity = 0;
+      this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.lane.visible = this.sweep.visible = false;
       this.dome.visible = this.tethers.visible = false;
       if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
       return out;
@@ -233,8 +237,9 @@ export class Vacuum {
       this.wasAngry = true;
       this.enrageT = 1.8;
       this.state = 'chase'; this.locked = false; this.chargeWind = null;
-      this.line.material.opacity = this.swirl.material.opacity = this.lane.material.opacity = this.sweep.material.opacity = 0;
-      this.sweepT = 1;
+      this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.lane.visible = this.sweep.visible = false;
+      this.sweepT = this.sweepLife;
       sfx.vacAngry();
       this.fx.number(this.center().setY(p.y + 0.22), 'ENRAGED!', '#ff5a2a', 26);
     }
@@ -259,10 +264,10 @@ export class Vacuum {
         this.lane.rotation.y = this.heading;
         this.chargeWind ??= Math.max(0.01, this.stateT);
         this.line.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
-        this.lane.material.opacity = 1;
+        this.lane.visible = true;
         this.line.material.progress = this.lane.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
         if (this.stateT <= 0) {
-          this.locked = true; this.stateT = 1.3; this.line.material.opacity = this.lane.material.opacity = 0; this.chargeWind = null; sfx.vacRam();
+          this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
           this.laneAt.copy(p); this.laneDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.laneHit = false;
         }
       } else {
@@ -300,7 +305,7 @@ export class Vacuum {
       const sweeps = [0.9, 0.35];
       for (const at of sweeps) {
         if (this.prevT > at && this.stateT <= at) {
-          const reach = this.r + 0.1;
+          const reach = this.r + this.sweepReach;
           this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
           this.sweepT = 0;
           sfx.vacSweep();
@@ -340,7 +345,7 @@ export class Vacuum {
         this.sprayT = 0.18;
         const dir = new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
         this.volley = ((this.volley || 0) + 1) % 2;
-        const y = shotTarget(P, player.cfg, this.volley ? 0.16 : 0.045, p.y).y;   // the volley's height over its floor
+        const y = shotTarget(P, player.cfg, this.volley ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor, p.y).y;   // the volley's height over its floor
         const from = p.clone().addScaledVector(dir, this.r).setY(Math.min(y, p.y + this.h));   // out of its bumper, or its lid for a high one
         const to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);       // at that height by the jelly's distance
         this.shots.push(this.fx.shot(hostile('vacuum'), from, to, { speed: 0.525, size: 0.007, life: 1.33 }));   // dust clumps, glowing so you can read them
@@ -354,7 +359,9 @@ export class Vacuum {
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
 
     // bumping into it knocks you back
-    if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < 0.1) {   // feet over its floor: a jump clears it
+    // (while it rams, the charge's lane is its hit: the bump reaches no higher than the lane)
+    const ramming = this.state === 'charge' && this.locked;
+    if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < (ramming ? this.h : 0.1)) {   // feet over its floor: a jump clears it
       out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? 4 : 2);
       this.knockBack(toP, this.state === 'charge' && this.locked ? 1.0 : 0.6);
     }
@@ -371,10 +378,11 @@ export class Vacuum {
 
   // the brush sweep's wall: spreads from its body out to its reach in a moment, fading
   sweepTick(dt) {
-    const life = 0.25, m = this.sweep;
-    if (this.sweepT >= life) { m.material.opacity = 0; return; }
+    const life = this.sweepLife, m = this.sweep;
+    if (this.sweepT >= life) { m.visible = false; return; }
     this.sweepT += dt;
-    const k = Math.min(1, this.sweepT / life), R = this.r + 0.1 * (1 - (1 - k) * (1 - k));
+    const k = Math.min(1, this.sweepT / life), R = this.r + this.sweepReach * (1 - (1 - k) * (1 - k));
+    m.visible = true;
     m.position.copy(this.holder.position);
     m.scale.set(R, this.sweepH, R);
     m.material.progress = 1;

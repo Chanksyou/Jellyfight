@@ -44,6 +44,11 @@
   --hostile-millipede: #ffa000;  /* the millipede's roll: the lane on the floor it will roll down */
   --hostile-fly: #ff5a14;        /* the house fly's poke: the short line on the floor to where its mouth will reach */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
+  --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
+  --wreath-glow: 1.1;            /* how bright it glows in its hostile colour */
+  --wreath-scale: 3.2;           /* how much bigger than the one in her hand, so you can see it coming */
+  --vacuum-sweep-life: 0.25;     /* seconds a brush sweep's wall takes to spread out and fade */
+  --vacuum-sweep-reach: 0.1;     /* meters a brush sweep reaches past the Vacuum's edge */
   /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
      space the attack will fill, in the source's hostile colour, filling up from the floor */
   --warning-volume-hex: 90;      /* hex cells per metre (about 1.1 cm across) */

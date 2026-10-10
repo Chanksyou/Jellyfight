@@ -22,7 +22,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, laneHits, blastHits, shotTarget } from './vfx.js';
+import { hostile, TeleMaterial, laneHits, blastHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -529,7 +529,7 @@ export class Clog {
         // (fx.shot), each volley alternating floor level (jump it) and jump height (stay down)
         this.sprayT = 0.1;
         this.volley = ((this.volley || 0) + 1) % 2;
-        const y = shotTarget(P, player.cfg, this.volley ? 0.16 : 0.045, this.floor).y;
+        const y = shotTarget(P, player.cfg, this.volley ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor, this.floor).y;
         for (let k = 0; k < 3; k++) {
           const a = this.heading + k * Math.PI * 2 / 3, dir = V(Math.sin(a), 0, Math.cos(a));
           const from = p.clone().addScaledVector(dir, this.r).setY(y), to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);

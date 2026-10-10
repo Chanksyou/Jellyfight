@@ -63,7 +63,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, shotHits, ringHits, shotTarget } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 
@@ -80,9 +80,10 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 function thrownWreath(wreath) {
   const m = wreath.clone(true);
   m.visible = true;                                                    // (the one in her hand was just hidden)
-  m.scale.setScalar(3.2);                                             // bigger than life, so you can see it coming
+  m.scale.setScalar(LOOK.num('wreath-scale', 3.2));                  // bigger than life, so you can see it coming
   m.rotation.set(Math.PI / 2, 0, 0);                                 // flat, spinning like a thrown ring
-  m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0xe0b048); o.material.emissive = hostile('clock').clone(); o.material.emissiveIntensity = 1.1; o.material.toneMapped = false; } });
+  const gold = LOOK.color('wreath-color', '#e0b048'), glowK = LOOK.num('wreath-glow', 1.1);
+  m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.set(gold); o.material.emissive = hostile('clock').clone(); o.material.emissiveIntensity = glowK; o.material.toneMapped = false; } });
   return m;
 }
 const UP = new THREE.Vector3(0, 1, 0);
@@ -265,14 +266,13 @@ const KINDS = {
 // attack (telegraph, strike, follow-through) plays TEMPO times as fast. Telegraphs stay readable:
 // their `progress` still fills to the moment of the hit, just sooner.
 const RECOVER = 1.4, TEMPO = 1.15;
-// the Controller's button barrage: the aim lines' spread (rad) and how high a jump-height Shot flies
-// (m above the floor; a floor-level one flies at the jelly's middle)
-const BARRAGE = { spread: [-0.22, 0, 0.22], high: 0.16 };
+// the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
+const BARRAGE = { spread: [-0.22, 0, 0.22] };
 const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
-// high over the bench (jump them); the wreath is a Shot this big (its hit radius), out in `out` s
-const CLOCK_HITS = { sweepH: 0.02, chimeH: 0.03, wreath: 0.04, out: 0.5 };
-const NOWHERE = new THREE.Vector3(0, -99, 0);   // where a Shot that already hit this leg looks for the jelly
+// high over the bench (jump them); the wreath is a Shot with this hit radius, flying out in this many s
+const CLOCK_HITS = { sweepH: 0.02, chimeH: 0.03, wreathRadius: 0.04, wreathFlight: 0.5 };
+const NOWHERE = new THREE.Vector3(0, -99, 0);   // where a wreath that already hit you this way (out or back) looks for the jelly
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
 
@@ -542,11 +542,11 @@ export class Elites {
     this.soapBubbles.push({ m, v: dir.clone().multiplyScalar(speed), t: life, wob: Math.random() * 6, y: from.y });
   }
 
-  // the clock's wreath in flight, a Shot (fx.shot) from `from` to `to`: there in CLOCK_HITS.out s, or at
+  // the clock's wreath in flight, a Shot (fx.shot) from `from` to `to`: there in CLOCK_HITS.wreathFlight s, or at
   // `speed` (the way back); it hits with the wreath's size, its glowing core the orb
   wreathShot(from, to, speed) {
-    const dist = from.distanceTo(to), v = speed || Math.max(0.2, dist / CLOCK_HITS.out);
-    return Object.assign(this.fx.shot(hostile('clock'), from, to, { speed: v, life: Math.max(0.001, dist / v) }), { size: CLOCK_HITS.wreath });
+    const dist = from.distanceTo(to), v = speed || Math.max(0.2, dist / CLOCK_HITS.wreathFlight);
+    return Object.assign(this.fx.shot(hostile('clock'), from, to, { speed: v, life: Math.max(0.001, dist / v) }), { size: CLOCK_HITS.wreathRadius });
   }
 
   // the clock's hands: real time (hour and minute), or whirling while it winds up an attack
@@ -670,7 +670,7 @@ export class Elites {
             if (!e.locked) {
               const floor = this.surfaceBelow(P), reach = Math.max(0.1, Math.hypot(P.x - muzzle.x, P.z - muzzle.z));
               e.tele.forEach((m, i) => {
-                const rise = floor + ((i + e.volley) % 2 ? BARRAGE.high : cfg.height * 0.5) - muzzle.y;
+                const rise = floor + ((i + e.volley) % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor) - muzzle.y;
                 m.position.copy(muzzle);
                 m.rotation.set(-Math.atan2(rise, reach), e.holder.rotation.y + BARRAGE.spread[i], 0);
                 m.scale.set(0.008, 1, Math.hypot(reach, rise));
@@ -750,16 +750,14 @@ export class Elites {
         if (e.attack === 0) {
           // Steam blast: whistle for 1.1 s with its Warning where it'll go (a wedge on the counter from
           // under the spout, and the cone of steam rising over it as it spreads), then blast: anything
-          // of the jelly in the cone is hit, so jumping doesn't clear it but stepping out of it does
+          // of the jelly in the cone is hit, so stepping out of it clears it, and jumping only near the spout
           const wind = 1.1, len = 0.5, half = 0.45;   // half: the wedge's half-angle (T.steam, coneGeo)
           if (s < wind) {
             if (!e.tele.length) {
               e.locked = true;
-              const apex = new THREE.Vector3(muzzle.x, surf.y, muzzle.z), w = len * Math.tan(half);
+              const apex = new THREE.Vector3(muzzle.x, surf.y, muzzle.z);
               this.mark(e, this.coneGeo, this.T.steam, apex, new THREE.Vector3(len, 1, len), heading);
-              const vol = this.fx.volume(hostile('kettle'), 'cone', apex, new THREE.Vector3(w, w, len));
-              vol.rotation.y = heading;
-              e.tele.push(vol);
+              e.tele.push(coneVolume(this.fx, hostile('kettle'), apex, heading, len, half));
             }
             for (const m of e.tele) { m.material.opacity = 0.7 + Math.sin(e.t * 25) * 0.15; m.material.progress = s / wind; }
             g.rotation.z = Math.sin(e.t * 50) * 0.05;
@@ -844,7 +842,7 @@ export class Elites {
             for (let k = 0; k < slots; k++) {
               if (k === skip || k === (skip + 1) % slots) continue;          // the gap: two slots wide
               const a = (k / slots) * Math.PI * 2 + (e.rings - 1) * 0.6, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
-              const y = e.base.y + (k % 2 ? BARRAGE.high : cfg.height * 0.5);
+              const y = e.base.y + (k % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor);
               this.bubble(e.base.clone().addScaledVector(dir, e.r * 1.1).setY(y), dir, 0.26, 2.3);
             }
             this.fx.ring(surf, hostile('soap'), 0.17, 0.35);
@@ -923,7 +921,7 @@ export class Elites {
             const from = this.wreathWorld(e);
             m.position.copy(from);
             this.scene.add(m);
-            this.thrown.push({ m, shot: this.wreathShot(from, e.aim, 0), owner: e, leg: 1, hit: false });
+            this.thrown.push({ m, shot: this.wreathShot(from, e.aim, 0), owner: e, aim: e.aim.clone(), out: true, hitOut: false, hitBack: false });
             sfx.wreathWhirr();
           } else if (!this.thrown.some((w) => w.owner === e)) { e.threw = false; e.aim = null; M.wreath.visible = true; M.wreath.scale.setScalar(1); e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
         } else {
@@ -994,16 +992,14 @@ export class Elites {
         } else {
           // Cream spray: it tips toward you while its Warning fills (a wedge on the floor and the cone
           // of cream rising over it as it spreads), then sprays along it: anything of the jelly in the
-          // cone is hit, so jumping doesn't clear it but stepping out does
+          // cone is hit, so stepping out clears it, and jumping only near the nozzle
           const wind = 0.85, dur = angry ? 1.0 : 0.6, len = angry ? 0.42 : 0.34, half = 0.45;   // half: the wedge's half-angle (T.cream)
           if (s < wind) {
             if (!e.tele.length) {
               e.locked = true;
-              const apex = surf.clone().addScaledVector(fwd, 0.05), w = len * Math.tan(half);
+              const apex = surf.clone().addScaledVector(fwd, 0.05);
               this.mark(e, this.coneGeo, this.T.cream, apex, new THREE.Vector3(len, 1, len), heading);
-              const vol = this.fx.volume(hostile('whipper'), 'cone', apex, new THREE.Vector3(w, w, len));
-              vol.rotation.y = heading;
-              e.tele.push(vol);
+              e.tele.push(coneVolume(this.fx, hostile('whipper'), apex, heading, len, half));
             }
             for (const m of e.tele) { m.material.progress = s / wind; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
             M.whip.rotation.x = (s / wind) * 0.35;                       // tipping toward you
@@ -1067,16 +1063,20 @@ export class Elites {
     }
     this.balloons = this.balloons.filter((b) => !b.done);
 
-    // the clock's wreath: a Shot out along its line to where you were (until then, or until it hits you
-    // or a wall), spinning, then back to Victory's hand; it hits you once a throw at most
+    // the clock's wreath: a Shot out along its line to where you were (until then, or a wall), spinning,
+    // then back to Victory's hand; it flies on through you, hitting you at most once going out and
+    // once coming back (2 each), the way it did before it was a Shot
     for (const w of this.thrown) {
-      if (this.fx.shotStep(w.shot, dt, this.world, w.hit ? NOWHERE : P, cfg)) { w.hit = true; hit(2, 'clock-wreath'); }
+      const way = w.out ? 'hitOut' : 'hitBack';
+      const struck = this.fx.shotStep(w.shot, dt, this.world, w[way] ? NOWHERE : P, cfg);
+      if (struck) { w[way] = true; hit(2, 'clock-wreath'); }
       w.m.position.copy(w.shot.m.position);
       w.m.rotation.z += dt * 18;
       if (w.shot.done) {
-        const home = this.wreathWorld(w.owner) || w.m.position;
-        // turn back (or carry on back, through you, if you stopped it on the way): at most twice
-        if (w.leg < 3 && w.m.position.distanceTo(home) > 0.01) { w.leg++; w.shot = this.wreathShot(w.m.position, home, w.shot.v.length()); }
+        const home = this.wreathWorld(w.owner) || w.m.position, at = w.m.position, v = w.shot.v.length();
+        if (struck && w.out && at.distanceTo(w.aim) > 0.01) w.shot = this.wreathShot(at, w.aim, v);        // on through you to where it was thrown
+        else if (w.out && at.distanceTo(home) > 0.01) { w.out = false; w.shot = this.wreathShot(at, home, v); }   // there (or a wall): turn back
+        else if (struck && at.distanceTo(home) > 0.01) w.shot = this.wreathShot(at, home, v);                // on back through you
         else { w.done = true; this.scene.remove(w.m); w.owner.model.wreath.visible = true; }
       }
       if (w.owner.dead && !w.done) { w.done = true; this.scene.remove(w.m); this.fx.free(w.shot.m); }

@@ -2388,7 +2388,26 @@ story('elites/kettle-steam-hits-inside-the-cone-even-mid-jump', {
     return ok(inside >= 1 && hits[0].amount === 2 && beside === 0, { inside, beside });
   },
 });
-const firstDrop = () => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
+story('elites/kettle-steam-jumped-over-near-the-spout', {
+  about: "Near the spout the steam cone is low (it rises as it spreads): a jelly 5 cm out from the spout with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (2).",
+  setup() { startKettle(0); },
+  play() {
+    const hits = kettleHits();
+    steamStarted();
+    const { apex, dir } = steamAim();
+    steamBlowing();
+    const player = holdJelly();
+    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.1); player.grounded = false;   // the cone is about 6 cm tall there
+    const h0 = hits.length;
+    step(10);
+    const above = hits.length - h0;
+    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.01);
+    step(10);
+    const inside = hits.length - h0 - above;
+    return ok(above === 0 && inside >= 1 && hits.every((h) => h.amount === 2), { above, inside });
+  },
+});
+const firstDrop =() => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
 story('elites/kettle-drop-warning-has-volume', {
   about: "Each boiling drop's Warning is its orange floor circle with a half-sphere volume over it, filling together; both go when it lands.",
   setup() { startKettle(1); },
@@ -2642,6 +2661,21 @@ story('boss/vacuum-charge-jumped-clear', {
     }
     const pass = out.standing.hits[0] === 4 && out.jumping.hits.length === 0 && out.jumping.passed;
     return ok(pass, out);
+  },
+});
+story('boss/vacuum-charge-just-cleared-no-bump', {
+  about: "The charge's lane (8 cm) is its hit while it rams: a jelly in the air with its feet 9 cm up, just over the lane, isn't hit by the lane or by bumping into it as it rams underneath.",
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, player = holdJelly(), hits = bossHits();
+    againVacuum(B, 'charge');
+    step(120, () => B.locked);
+    player.position.y = B.position.y + 0.09; player.grounded = false;
+    const from = B.position.clone();
+    step(120, () => B.state !== 'charge');
+    const passed = B.position.distanceTo(from) > from.distanceTo(player.position);
+    const got = hits.map((h) => h.amount);
+    return ok(passed && !got.length, { passed, hits: got });
   },
 });
 story('boss/vacuum-brushes-sweep-a-low-wall', {
@@ -3717,7 +3751,7 @@ act2('clock-sweep-jumped-clear', {
   },
 });
 act2('clock-wreath-flies-at-jump-height', {
-  about: "Victory's wreath is a Shot aimed at the jelly's middle where it is, mid-jump included: its line tilts from her hand to that height and the wreath hits a jelly held mid-jump (2); if that jelly drops to the bench after the aim locks, the wreath flies through where its middle was, over it.",
+  about: "Victory's wreath is a Shot aimed at the jelly's middle where it is, mid-jump included: its line tilts from her hand to that height and the wreath hits a jelly held mid-jump (2 going out and 2 coming back); if that jelly drops to the bench after the aim locks, the wreath flies through where its middle was, over it.",
   setup() { startClock(1); },
   play() {
     const out = {};
@@ -3738,7 +3772,19 @@ act2('clock-wreath-flies-at-jump-height', {
       out[drop ? 'dropped' : 'midJump'] = { line: end ? +(end.y - bench).toFixed(3) : null, closest: peak && +peak.d.toFixed(3), atY: peak && +(peak.y - bench).toFixed(3), hits: hits.map((h) => h.amount), back: e.model.wreath.visible };
     }
     const m = out.midJump, d = out.dropped, high = (y) => y != null && Math.abs(y - (JUMP_FEET + CONFIG.player.height * 0.5)) < 0.01;
-    return ok(high(m.line) && m.hits.length === 1 && m.hits[0] === 2 && m.back && high(d.line) && d.closest < 0.01 && !d.hits.length && d.back, out);
+    return ok(high(m.line) && m.hits.length === 2 && m.hits.every((h) => h === 2) && m.back && high(d.line) && d.closest < 0.01 && !d.hits.length && d.back, out);
+  },
+});
+act2('clock-wreath-hits-going-out-and-coming-back', {
+  about: "Victory's wreath hits a jelly that stays where she threw it twice, 2 each: once going out and once coming back, never twice on the same leg.",
+  setup() { startClock(1); },
+  play() {
+    const e = hallClock(), run = G().run, hits = [];
+    offs.push(bus.on('damage_taken', (d) => { if (d.source === 'clock-wreath') hits.push({ amount: d.amount, way: run.elites.thrown.find((w) => w.owner === e)?.out ? 'out' : 'back' }); }));
+    let flew = false;
+    step(60 * 4, () => { if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle' && !run.elites.thrown.length; });
+    const out = hits.filter((h) => h.way === 'out'), back = hits.filter((h) => h.way === 'back');
+    return ok(flew && out.length === 1 && back.length === 1 && hits.every((h) => h.amount === 2), { hits });
   },
 });
 act2('clock-chime-jumped-clear', {
@@ -3961,6 +4007,24 @@ act2('whipper-cream-hits-inside-the-cone-even-mid-jump', {
     step(10);
     const inside = hits.length - beside;
     return ok(beside === 0 && inside === 1 && hits[0]?.amount === 2 && G().run.slowT > 0, { beside, inside, slowed: G().run.slowT > 0 });
+  },
+});
+act2('whipper-cream-jumped-over-near-the-nozzle', {
+  about: "Near the nozzle the cream cone is low (it rises as it spreads): a jelly 5 cm out along it with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (2).",
+  setup() { startSpray(); },
+  play() {
+    const hits = whipperHits('cream');
+    step(400, () => creamWarning().floor);
+    const { floor } = creamWarning(), a = floor.rotation.y, apex = floor.position.clone(), dir = V(Math.sin(a), 0, Math.cos(a));
+    step(400, () => whipper().state === 'windup' && whipper().stateT >= 0.8);   // just before it sprays (0.85)
+    const player = holdJelly();
+    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.1); player.grounded = false;   // the cone is about 6 cm tall there
+    step(10);
+    const above = hits.length;
+    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.01);
+    step(10);
+    const inside = hits.length - above;
+    return ok(above === 0 && inside === 1 && hits[0]?.amount === 2, { above, inside });
   },
 });
 for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
