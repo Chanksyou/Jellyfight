@@ -116,11 +116,30 @@ export class TeleMaterial extends THREE.ShaderMaterial {
 // hostile colour, filling as a band rising from the floor to the moment of the hit (progress 0..1,
 // set with the floor shape's). Every kind shares one shader and one set of flags, so all of them
 // cost one GPU program, built behind Play (Elites.warm). A kind is a unit geometry plus where its
-// bottom is and how tall it is in local units: to add one (a lane, a ring wall, a cone), add an
-// entry here.
+// bottom is and how tall it is in local units: to add one (a lane, a ring wall), add an entry here.
+// A cone (a spray from a muzzle: the Kettle's steam, the Cream Whipper's cream) lies on the floor
+// from its apex along +z to z = 1, as wide as its floor wedge (half-width z at z) and rising as it
+// spreads: each cross-section is a half ellipse CONE_RISE times as tall as it is half wide. Scale it
+// (w, w, length) with w = length * tan(the wedge's half-angle), so its sides follow the wedge's.
+export const CONE_RISE = 1.5;
+function coneGeometry(segZ = 8, segA = 16) {
+  const pos = [], idx = [], row = segA + 1;
+  const ring = (z) => { for (let j = 0; j <= segA; j++) { const a = Math.PI * j / segA; pos.push(Math.cos(a) * z, CONE_RISE * Math.sin(a) * z, z); } };
+  for (let i = 0; i <= segZ; i++) ring(i / segZ);
+  for (let i = 0; i < segZ; i++) for (let j = 0; j < segA; j++) { const a = i * row + j, b = a + row; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  const cap = pos.length / 3;            // the far end: a half-ellipse fan round its floor centre (own vertices, own normals)
+  ring(1); pos.push(0, 0, 1);
+  for (let j = 0; j < segA; j++) idx.push(cap + row, cap + j, cap + j + 1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
 const VOLUME = {
   dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius
   sphere: { bottom: -1, height: 2, geo: () => new THREE.SphereGeometry(1, 28, 16) },                                // a mid-air Blast: centred; scale = radius
+  cone: { bottom: 0, height: CONE_RISE, geo: () => coneGeometry() },   // a cone over a floor wedge: see coneGeometry; scale (half-width, half-width, length) at the far end
 };
 const VOLUME_GEO = {};
 // the shared unit geometry of a kind of volume (scale and place the mesh, never the geometry)
@@ -194,6 +213,17 @@ export function blastHits(centre, r, feet, body) {
   const lo = feet.y + body.radius, hi = feet.y + Math.max(body.radius, body.height - body.radius);
   _spine.set(feet.x, Math.min(hi, Math.max(lo, centre.y)), feet.z);   // the capsule's spine point nearest the centre
   return _spine.distanceTo(centre) < r + body.radius;
+}
+
+// The hit rule for a cone (see CONE_RISE): anything of the jelly over its floor wedge (apex, unit
+// `dir` along the floor, `len` long, `half` its half-angle), at any height up to the cone's top at
+// the far end, so jumping doesn't clear it but stepping out of the wedge does.
+export function coneHits(apex, dir, len, half, feet, body) {
+  const dx = feet.x - apex.x, dz = feet.z - apex.z;
+  const along = dx * dir.x + dz * dir.z, across = Math.abs(dx * dir.z - dz * dir.x);
+  const top = apex.y + CONE_RISE * len * Math.tan(half);
+  return along > 0 && along < len + body.radius && across < along * Math.tan(half) + body.radius / Math.cos(half)
+    && feet.y > apex.y - body.height && feet.y < top;
 }
 
 // ------------------------------------------------------------------ glow particles

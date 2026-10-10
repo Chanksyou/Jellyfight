@@ -2178,6 +2178,128 @@ story('elites/mug-coffee-builds-no-shader', {
   },
 });
 
+// --- 3D attacks: the Kettle's steam blast is a cone rising from the spout as it spreads (jumping
+// doesn't clear it, stepping out does); its boiling drops land as small floor Blasts (jump them)
+const KETTLE_AT = [4.5, 0.91, 3.45];
+const theKettle = () => G().run.elites.list.find((x) => x.kind === 'kettle');
+function startKettle(atk) {
+  fresh({ bubbles: false, lash: false });
+  tp(KETTLE_AT[0], KETTLE_AT[1] + 0.05, KETTLE_AT[2], 0);
+  const e = theKettle();
+  e.next = atk; e.cool = 0;
+}
+// the steam blast's Warning, as the scene holds it: its floor wedge and its cone volume
+function steamWarning() {
+  const kids = G().APT.scene.children, e = theKettle();
+  const mine = (o) => e.tele.includes(o);
+  return { floor: kids.find((o) => mine(o) && o.material instanceof TeleMaterial), volume: kids.find((o) => mine(o) && o.material instanceof VolumeMaterial) };
+}
+// where the steam cone starts on the counter, which way it points, and the way to its side
+function steamAim() {
+  const { floor } = steamWarning(), a = floor.rotation.y;
+  return { apex: floor.position.clone(), dir: V(Math.sin(a), 0, Math.cos(a)), side: V(Math.cos(a), 0, -Math.sin(a)) };
+}
+const steamStarted = () => step(400, () => steamWarning().floor);
+const steamBlowing = () => step(400, () => theKettle().state === 'windup' && theKettle().stateT >= 1.15);
+function kettleHits() { const k = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'kettle') k.push(d); })); return k; }
+story('elites/kettle-steam-warning-has-cone', {
+  about: "The steam blast's Warning is a floor wedge with a cone volume over it, rising as it spreads to about 1.5x its half-width at the far end, filling together; both go after the blast.",
+  setup() { startKettle(0); },
+  play() {
+    steamStarted();
+    step(15);
+    const w1 = steamWarning(), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(15);
+    const w2 = steamWarning(), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    let shape = {};
+    if (w1.volume) {
+      const { apex, dir } = steamAim(), vol = new THREE.Box3().setFromObject(w1.volume), y0 = apex.y;
+      const tall = vol.max.y - y0, near = apex.clone().addScaledVector(dir, 0.05), far = apex.clone().addScaledVector(dir, 0.45);
+      const covers = (p) => p.x > vol.min.x && p.x < vol.max.x && p.z > vol.min.z && p.z < vol.max.z;
+      // on the counter, about 0.5 * sin(0.45) * 1.5 = 33 cm tall at the far end, over the whole wedge
+      shape = { onCounter: vol.min.y > y0 - 0.01, tall: +tall.toFixed(3), spans: covers(near) && covers(far) };
+      shape.ok = shape.onCounter && tall > 0.28 && tall < 0.4 && shape.spans;
+    }
+    step(400, () => theKettle().state !== 'windup');
+    const w3 = steamWarning(), gone = !w3.floor && !w3.volume;
+    return ok(filling && shape.ok && gone, { p1, p2, shape, gone });
+  },
+});
+story('elites/kettle-steam-hits-inside-the-cone-even-mid-jump', {
+  about: "A jelly in the air inside the steam cone is still hit (2, source kettle); one beside the cone on the counter isn't.",
+  setup() { startKettle(0); },
+  play() {
+    const hits = kettleHits();
+    steamStarted();
+    const { apex, dir, side } = steamAim();
+    steamBlowing();
+    const player = holdJelly();
+    player.position.copy(apex).addScaledVector(dir, 0.25).setY(apex.y + 0.18); player.grounded = false;   // feet 18 cm up: near the top of a jump
+    step(10);
+    const inside = hits.length;
+    player.position.copy(apex).addScaledVector(dir, 0.25).addScaledVector(side, 0.2).setY(apex.y); player.grounded = true;   // 20 cm to the side, the wedge is 12 cm wide there
+    const before = hits.length;
+    step(10);
+    const beside = hits.length - before;
+    return ok(inside >= 1 && hits[0].amount === 2 && beside === 0, { inside, beside });
+  },
+});
+const firstDrop = () => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
+story('elites/kettle-drop-warning-has-volume', {
+  about: "Each boiling drop's Warning is its orange floor circle with a half-sphere volume over it, filling together; both go when it lands.",
+  setup() { startKettle(1); },
+  play() {
+    const b = firstDrop(), to = b.to.clone();
+    step(20);
+    const w1 = warningsAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(20);
+    const w2 = warningsAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const dome = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
+    const domed = !!dome && dome.min.y > to.y - 0.005 && dome.max.y > to.y + 0.025 && dome.max.y < to.y + 0.045;   // a 3.5 cm half sphere
+    step(200, () => !G().run.elites.blobs.includes(b));
+    const w3 = warningsAt(to), gone = !w3.floor && !w3.volume;
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    return ok(filling && domed && gone, { p1, p2, domed, gone });
+  },
+});
+story('elites/kettle-drop-hits-standing-jelly', {
+  about: 'A jelly standing in a boiling drop\'s circle is hit by its Blast (2 Health).',
+  setup() { startKettle(1); },
+  play() {
+    const hits = kettleHits(), b = firstDrop();
+    holdJelly().position.copy(b.to);
+    step(200, () => !G().run.elites.blobs.includes(b));
+    return ok(hits.length >= 1 && hits[0].amount === 2, { hits: hits.map((h) => h.amount) });
+  },
+});
+story('elites/kettle-drop-jumped-clear', {
+  about: "A jelly in the air just above a boiling drop's 3.5 cm Blast when it lands is not hit.",
+  setup() { startKettle(1); },
+  play() {
+    const hits = kettleHits(), b = firstDrop();
+    const player = holdJelly();
+    player.position.set(b.to.x, b.to.y + 0.045, b.to.z); player.grounded = false;   // feet 4.5 cm up: above a 3.5 cm dome
+    step(200, () => !G().run.elites.blobs.includes(b));
+    const landed = !G().run.elites.blobs.includes(b);
+    return ok(landed && hits.length === 0, { landed, hits: hits.length });
+  },
+});
+for (const [atk, name] of [[0, 'steam'], [1, 'boil-over']]) {
+  story(`elites/kettle-${name}-builds-no-shader`, {
+    about: `Starting the Kettle's ${name} builds no new shader: its Warning's floor shape and volume were built behind Play.`,
+    setup() { startKettle(atk); },
+    play() {
+      const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
+      let shown;
+      if (atk === 0) { steamStarted(); step(5); shown = steamWarning(); } else { const b = firstDrop(); step(5); shown = warningsAt(b.to); }
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      const newShaders = APT.renderer.info.programs.length - programs;
+      return ok(shown.floor && shown.volume && newShaders === 0, { newShaders, volume: !!shown.volume });
+    },
+  });
+}
+
 // --- the event bus: what hits, kills, freezes and rewards do
 story('events/kill-drops-xp', {
   about: 'Bubbles kill a roach: it bursts, counts as a kill and drops XP.',
