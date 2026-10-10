@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D Warnings prototype</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #0d1020; overflow: hidden; }
+  body { color: #fff; font: 15px system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; background: #0d1020; z-index: 50; transition: opacity .4s; }
+  #loading.gone { opacity: 0; pointer-events: none; }
+  #loading h1 { margin: 0 0 12px; font-size: 38px; }
+  #loading .bar { width: min(260px, 70vw); height: 8px; border-radius: 4px; background: #ffffff22; overflow: hidden; margin: 0 auto; }
+  #loading .bar i { display: block; height: 100%; width: 0; background: #ff8ad0; transition: width .2s; }
+  #loading p { opacity: .7; font-size: 13px; margin-top: 10px; }
+</style>
+<script type="importmap">{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "three/examples/jsm/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "three-mesh-bvh":"./vendor/three-mesh-bvh.module.js",
+  "n8ao":"./vendor/n8ao.module.js",
+  "postprocessing":"./vendor/postprocessing-stub.js"
+}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading"><div><h1>Jelly Fight</h1><div class="bar"><i></i></div><p>Loading the apartment…</p></div></div>
+<script>/* PROTOTYPE page: opens the 3D Warnings prototype story (prototype/3d-warnings branch) */ if (!/story=/.test(location.search)) history.replaceState(null, "", "?story=prototype/3d-warnings&variant=A");</script>
+<script type="module" src="./src/boot.js"></script>
+</body>
+</html>

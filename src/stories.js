@@ -3506,3 +3506,20 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
+
+// PROTOTYPE (prototype/3d-warnings branch only): three looks for a Warning's volume, flipped with
+// the bar at the bottom or ← →. index.html?story=prototype/3d-warnings&variant=A|B|C
+story('prototype/3d-warnings', {
+  about: 'Prototype: three looks for the see-through volume over a Warning (A hex shell, B soft bubble, C bright rim), on the coffee Blast, a big floor Blast, a mid-air balloon Blast and the Clog\'s lash lane.',
+  setup() {
+    fresh({ elites: false });
+    const s = G().run.stage.start;
+    tp(s[0], 0.05, s[2], 0); step(30);
+    return import('./prototype-3d-warnings.js').then((M) => M.start({ scene: G().APT.scene, player: G().player, tpc: G().tpc, fx: G().fx }));
+  },
+  async play() {
+    await this.setup();
+    step(60); G().APT.renderer.compile(G().APT.scene, G().APT.camera);
+    return ok(true, {});
+  },
+});
