@@ -41,12 +41,14 @@
 //   whipper     the cream whipper and its N2O cylinder on the hall floor by the front door (act 2;
 //               whipper-model.js). The cylinder has the face; the gauges' needles swing as it works.
 //     Balloon:        it blows a balloon up on its nozzle (a hiss, the gauges climbing), lets it go,
-//                     and the balloon drifts after you for 3 s with a circle on the floor showing
-//                     how far its burst reaches, filling and blinking faster, then bursts. Caught
-//                     in it: 2, and all the sound goes deep and muffled for 5 s (sfx.js deepen),
-//                     easing back to normal after.
-//     Cream spray:    it tips toward you while a cone fills on the floor, then sprays whipped cream
-//                     along it: 2, and the cream slows you.
+//                     and the balloon drifts after you for 3 s with its Warning, a circle on the
+//                     floor and a sphere round it showing how far its burst reaches, filling and
+//                     blinking faster, then bursts: a whole-sphere Blast round it. Caught in it
+//                     (beside, under or level): 2, and all the sound goes deep and muffled for 5 s
+//                     (sfx.js deepen), easing back to normal after.
+//     Cream spray:    it tips toward you while a wedge fills on the floor with a cone over it, then
+//                     sprays whipped cream along it: 2, and the cream slows you. Jumping doesn't
+//                     clear the cone, stepping out does.
 //     Under half health it's angry: two balloons each time, and a longer spray.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
@@ -229,6 +231,7 @@ function whipperModel() {
 }
 
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
+const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
 const KINDS = {
   controller: { name: 'The Controller', hp: 195, aggro: 0.7, scale: 1.5, build: controllerModel },
@@ -405,7 +408,7 @@ export class Elites {
     this.decor = [];
     for (const w of this.thrown) this.scene.remove(w.m);
     for (const r of this.rings) this.scene.remove(r.m);
-    for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
+    for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); this.scene.remove(b.vol); }
     this.thrown = []; this.rings = []; this.balloons = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); if (b.vol) this.scene.remove(b.vol); }
     for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
@@ -930,12 +933,14 @@ export class Elites {
               M.lever.rotation.z = -grow * 0.25;
               if (Math.random() < dt * 20) this.fx.puff(b.group.position.clone(), 0xe8e0ff, 0.006, 0.25);
               if (u >= 1) {
-                // let go: it drifts after you, and bursts 3 s later
+                // let go: it drifts after you, and bursts 3 s later as a whole-sphere Blast of radius R
+                // round it: its Warning is the circle on the floor under it and the sphere round it
                 const R = 0.2, warn = new THREE.Mesh(this.flat, this.T.blast.clone());
                 warn.renderOrder = 3;
                 warn.scale.setScalar(R);
                 this.scene.add(warn);
-                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: BALLOON, tick: 0 });
+                const vol = this.fx.volume(hostile('whipper'), 'sphere', b.group.position, R);
+                this.balloons.push({ m: b.group, b, warn, vol, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: BALLOON, tick: 0 });
                 sfx.balloonLoose();
                 e.inflating = null;
                 M.lever.rotation.z = 0;
@@ -943,12 +948,20 @@ export class Elites {
             }
           } else { gauges(0); e.state = 'idle'; e.cool = angry ? 1.6 : 2.2; }
         } else {
-          // Cream spray: it tips toward you while a cone fills on the floor, then sprays along it
-          const wind = 0.85, dur = angry ? 1.0 : 0.6, len = angry ? 0.42 : 0.34;
+          // Cream spray: it tips toward you while its Warning fills (a wedge on the floor and the cone
+          // of cream rising over it as it spreads), then sprays along it: anything of the jelly in the
+          // cone is hit, so jumping doesn't clear it but stepping out does
+          const wind = 0.85, dur = angry ? 1.0 : 0.6, len = angry ? 0.42 : 0.34, half = 0.45;   // half: the wedge's half-angle (T.cream)
           if (s < wind) {
-            if (!e.tele.length) { e.locked = true; this.mark(e, this.coneGeo, this.T.cream, surf.clone().addScaledVector(fwd, 0.05), new THREE.Vector3(len, 1, len), heading); }
-            e.tele[0].material.progress = s / wind;
-            e.tele[0].material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15;
+            if (!e.tele.length) {
+              e.locked = true;
+              const apex = surf.clone().addScaledVector(fwd, 0.05), w = len * Math.tan(half);
+              this.mark(e, this.coneGeo, this.T.cream, apex, new THREE.Vector3(len, 1, len), heading);
+              const vol = this.fx.volume(hostile('whipper'), 'cone', apex, new THREE.Vector3(w, w, len));
+              vol.rotation.y = heading;
+              e.tele.push(vol);
+            }
+            for (const m of e.tele) { m.material.progress = s / wind; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
             M.whip.rotation.x = (s / wind) * 0.35;                       // tipping toward you
             gauges(0.6 + Math.sin(e.t * 12) * 0.1);
             if (!e.hissed) { e.hissed = true; sfx.balloonFill(0.4); }
@@ -960,8 +973,7 @@ export class Elites {
               const kk = Math.random(), side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.7 * kk * len);
               this.fx.puff(e.base.clone().addScaledVector(fwd, 0.08 + kk * len * 0.9).add(side).setY(e.base.y + 0.02 + (1 - kk) * 0.12), 0xfffaf0, 0.016 + kk * 0.028, 0.5);
             }
-            const rel = pc.clone().sub(e.base).setY(0), along = rel.dot(fwd), ang = Math.acos(THREE.MathUtils.clamp(rel.clone().normalize().dot(fwd), -1, 1));
-            if (!e.creamed && along > 0 && along < len + 0.05 && ang < 0.47 && sameLevel(e.base.y)) {
+            if (!e.creamed && e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) {
               e.creamed = true;
               hit(2, 'cream');
               bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
@@ -991,11 +1003,13 @@ export class Elites {
       b.warn.position.set(b.m.position.x, (b.floor ?? 0) + 0.003, b.m.position.z);
       b.warn.material.progress = Math.min(1, b.t / b.fuse);
       b.warn.material.opacity = 0.7 + 0.3 * Math.abs(Math.sin(b.t * (5 + late * 25)));
+      b.vol.position.copy(b.m.position).y += b.m.scale.y * BALLOON_MID;   // round the balloon's middle, above its knot
+      b.vol.material.progress = b.warn.material.progress;
       if ((b.tick -= dt) <= 0) { b.tick = Math.max(0.08, left * 0.18); sfx.balloonTick(); }
       if (b.t >= b.fuse) {
         b.done = true;
-        const at = b.m.position.clone();
-        this.scene.remove(b.m); this.scene.remove(b.warn);
+        const at = b.vol.position.clone();
+        this.scene.remove(b.m); this.scene.remove(b.warn); this.scene.remove(b.vol);
         const col = '#' + b.b.mat.color.getHexString();
         this.fx.burst(at, [col, col, '#ffffff'], 14, 0.004, 0.35, b.floor ?? at.y - 0.1);           // scraps of rubber
         this.fx.impact(at, hostile('whipper'), 0.05, 18);
@@ -1003,8 +1017,8 @@ export class Elites {
         this.fx.puff(at, 0xd8c8ff, b.R * 0.9, 0.9);                                                   // a cloud of gas
         juice.shake(0.25);
         sfx.balloonPop();
-        // caught: inside the circle it showed on the floor, and not far above or below the balloon
-        if (Math.hypot(pc.x - at.x, pc.z - at.z) < b.R + cfg.radius && Math.abs(pc.y - at.y) < 0.2) { hit(2, 'balloon'); deepen(5, 3); sfx.daze(); }
+        // caught: anything of the jelly inside the sphere round it (beside, below or level with it)
+        if (blastHits(at, b.R, P, cfg)) { hit(2, 'balloon'); deepen(5, 3); sfx.daze(); }
       }
     }
     this.balloons = this.balloons.filter((b) => !b.done);
