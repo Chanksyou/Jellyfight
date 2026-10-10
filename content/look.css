@@ -44,6 +44,10 @@
   --hostile-millipede: #ffa000;  /* the millipede's roll: the lane on the floor it will roll down */
   --hostile-fly: #ff5a14;        /* the house fly's poke: the short line on the floor to where its mouth will reach */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
+  /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
+     space the attack will fill, in the source's hostile colour, filling up from the floor */
+  --warning-volume-hex: 90;      /* hex cells per metre (about 1.1 cm across) */
+  --warning-volume-glow: 1.5;    /* brightness boost (the floor Warning's is 1.7) */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */

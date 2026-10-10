@@ -56,7 +56,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 
@@ -400,7 +400,7 @@ export class Elites {
     for (const r of this.rings) this.scene.remove(r.m);
     for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
     this.thrown = []; this.rings = []; this.balloons = [];
-    for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); }
+    for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); if (b.vol) this.scene.remove(b.vol); }
     for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
     this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
   }
@@ -420,6 +420,7 @@ export class Elites {
       const clock = buildClock();
       clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
+      this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
     } else (this._warm || []).forEach((m) => this.scene.remove(m));
   }
@@ -453,11 +454,13 @@ export class Elites {
     return g;
   }
 
-  // lob something in an arc to `to`; a warning circle fills until it lands
-  lob(from, to, T, color, warnMat, r, onLand) {
+  // lob something in an arc to `to`; a warning circle fills until it lands. dome: it lands as a
+  // floor Blast of radius r, so its Warning has the half-sphere volume over the circle too
+  lob(from, to, T, color, warnMat, r, onLand, { dome = false } = {}) {
     const m = this.fx.orb(color, 0.007);
     m.position.copy(from);
-    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), from: from.clone(), to: to.clone(), t: 0, T, onLand });
+    const vol = dome ? this.fx.volume(color, 'dome', to, r) : null;
+    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand });
   }
 
   puddle(at, r = 0.045, life = 3.5) {
@@ -648,8 +651,14 @@ export class Elites {
       // ---------------------------------------------------------- mug
       if (e.kind === 'mug') {
         if (e.attack === 0) {
-          // Coffee lob: two lobs, a beat apart, each at where you're standing then
-          const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, 0.045, (at) => { this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid(); }); e.hitPop = 0.6; };
+          // Coffee lob: two lobs, a beat apart, each at where you're standing then; each lands as a
+          // floor Blast (jump it) and leaves a scalding puddle
+          const R = 0.045;
+          const land = (at) => {
+            if (blastHits(at, R, P, cfg)) hit(2, 'mug');
+            this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid();
+          };
+          const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true }); e.hitPop = 0.6; };
           if (!e.thrown) { e.thrown = 1; throwAt(); }
           if (s > 0.6 && e.thrown === 1) { e.thrown = 2; throwAt(); }
           if (s > 1.2) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
@@ -1045,9 +1054,11 @@ export class Elites {
       b.m.position.y += Math.sin(k * Math.PI) * 0.12;
       this.fx.orbTick(b.m, dt, 1.2);
       b.warn.userData.fill(k);
+      if (b.vol) b.vol.material.progress = k;
       if (k >= 1) {
         this.fx.free(b.m);
         this.scene.remove(b.warn);
+        if (b.vol) this.scene.remove(b.vol);
         b.onLand?.(b.to);
         b.done = true;
       }

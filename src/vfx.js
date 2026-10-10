@@ -9,6 +9,10 @@
 //   warnings              a flat shape on the floor (circle, wedge or strip) with a crisp bright
 //                         outline, a fill that grows until the moment it hits, and stripes
 //                         sweeping toward where it lands (TeleMaterial)
+//                         and over it a faint hex shell of the space the attack will fill
+//                         (VolumeMaterial), filling up from the floor with it
+//   blasts                a hit is anything of the jelly inside a sphere round where it goes off
+//                         (blastHits): half a sphere on a surface, a whole one in mid-air
 //   impacts               a flash, sparks and a shockwave (Fx.impact)
 //
 // Every glow (halos, trails, sparks, flashes) is one particle in one GlowPoints draw call, so a
@@ -105,6 +109,91 @@ export class TeleMaterial extends THREE.ShaderMaterial {
   set progress(v) { this.uniforms.uProgress.value = v; }
   clone() { const m = new TeleMaterial(this.uniforms.uColor.value, this.shape, this.uniforms.uHalf.value); m.opacity = this.opacity; return m; }
   onBeforeRender() { this.uniforms.uTime.value = performance.now() / 1000; }
+}
+
+// ------------------------------------------------------------------ warning volumes
+// The space an attack will fill, drawn over its floor Warning as a faint hex shell in the same
+// hostile colour, filling as a band rising from the floor to the moment of the hit (progress 0..1,
+// set with the floor shape's). Every kind shares one shader and one set of flags, so all of them
+// cost one GPU program, built behind Play (Elites.warm). A kind is a unit geometry plus where its
+// bottom is and how tall it is in local units: to add one (a lane, a ring wall, a cone), add an
+// entry here.
+const VOLUME = {
+  dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius
+  sphere: { bottom: -1, height: 2, geo: () => new THREE.SphereGeometry(1, 28, 16) },                                // a mid-air Blast: centred; scale = radius
+};
+const VOLUME_GEO = {};
+// the shared unit geometry of a kind of volume (scale and place the mesh, never the geometry)
+export const volumeGeometry = (kind) => (VOLUME_GEO[kind] ||= VOLUME[kind].geo());
+export class VolumeMaterial extends THREE.ShaderMaterial {
+  constructor(color = '#ff3a3a', kind = 'dome') {
+    const k = VOLUME[kind];
+    super({
+      uniforms: {
+        uColor: { value: new THREE.Color(color) },
+        uProgress: { value: 0 },
+        uOpacity: { value: 1 },
+        uBottom: { value: k.bottom },
+        uHeight: { value: k.height },
+        uHex: { value: LOOK.num('warning-volume-hex', 90) },
+        uGlow: { value: LOOK.num('warning-volume-glow', 1.5) },
+      },
+      vertexShader: /* glsl */`
+        ${LOGV_PARS}
+        varying vec3 vLocal, vWorld, vN;
+        void main() {
+          vLocal = position;                                 // unit-geometry coords: how far up the volume
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          vWorld = w.xyz;                                    // the hex grid is in world space: cells keep their size at any scale
+          vN = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * viewMatrix * w;
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader: /* glsl */`
+        ${LOGF_PARS}
+        uniform vec3 uColor; uniform float uProgress, uOpacity, uBottom, uHeight, uHex, uGlow;
+        varying vec3 vLocal, vWorld, vN;
+        float hex(vec2 p) {                                  // distance to the nearest hex cell edge (0 on the line)
+          p *= vec2(1.0, 1.1547);
+          vec2 a = mod(p, vec2(1.0, 1.732)) - vec2(0.5, 0.866), b = mod(p - vec2(0.5, 0.866), vec2(1.0, 1.732)) - vec2(0.5, 0.866);
+          vec2 g = abs(dot(a, a) < dot(b, b) ? a : b);
+          return 0.5 - max(dot(g, normalize(vec2(1.0, 1.732))), g.x);
+        }
+        void main() {
+          #include <logdepthbuf_fragment>
+          float h = (vLocal.y - uBottom) / uHeight;          // 0 at the bottom of the volume, 1 at the top
+          vec3 view = normalize(cameraPosition - vWorld);
+          float rim = pow(1.0 - abs(dot(normalize(vN), view)), 2.0);
+          float lines = 1.0 - smoothstep(0.0, 0.07, hex(vWorld.xz * uHex + vec2(vWorld.y * uHex, 0.0)));
+          float filled = step(h, uProgress), front = smoothstep(0.08, 0.0, abs(h - uProgress));
+          float a = clamp(lines * (0.18 + filled * 0.55) + front * 0.8 + rim * 0.25 + filled * 0.08, 0.0, 1.0) * uOpacity;
+          vec3 col = uColor * (1.0 + a * 0.6);
+          gl_FragColor = vec4(col * a * uGlow, a);           // premultiplied and boosted, like the floor Warning
+        }`,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,   // the floor Warning's over-blend
+    });
+    this.kind = kind;
+  }
+  get opacity() { return this.uniforms ? this.uniforms.uOpacity.value : 1; }
+  set opacity(v) { if (this.uniforms) this.uniforms.uOpacity.value = v; }
+  get progress() { return this.uniforms.uProgress.value; }
+  set progress(v) { this.uniforms.uProgress.value = v; }
+  clone() { const m = new VolumeMaterial(this.uniforms.uColor.value, this.kind); m.opacity = this.opacity; return m; }
+}
+
+// ------------------------------------------------------------------ blasts
+// The one hit rule for a Blast: anything of the jelly inside a sphere of radius r round `centre`.
+// On a surface (centre on it) that is a half sphere, in mid-air a whole one. The jelly is its
+// collision capsule: `feet` (player.position) up to body.height, body.radius round (CONFIG.player).
+const _spine = new THREE.Vector3();
+export function blastHits(centre, r, feet, body) {
+  const lo = feet.y + body.radius, hi = feet.y + Math.max(body.radius, body.height - body.radius);
+  _spine.set(feet.x, Math.min(hi, Math.max(lo, centre.y)), feet.z);   // the capsule's spine point nearest the centre
+  return _spine.distanceTo(centre) < r + body.radius;
 }
 
 // ------------------------------------------------------------------ glow particles

@@ -24,6 +24,7 @@ import { FramePacer, FrameGovernor } from './pacing.js';
 import { checkBvhLayout } from './collision.js';
 import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
+import { TeleMaterial, VolumeMaterial } from './vfx.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -2084,6 +2085,98 @@ for (const kind of ['controller', 'mug', 'kettle']) {
     });
   }
 }
+
+// --- 3D attacks: the Mug's coffee lob lands as a floor Blast (a half sphere), and its Warning shows
+// that dome over the floor circle, both filling to the moment it lands
+const MUG_AT = [0.62, 0.78, 2.95];
+function startCoffeeLob() {
+  fresh({ bubbles: false, lash: false });
+  tp(MUG_AT[0], MUG_AT[1] + 0.05, MUG_AT[2], 0);
+  const e = G().run.elites.list.find((x) => x.kind === 'mug');
+  e.next = 0; e.cool = 0;
+}
+const firstCoffee = () => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
+// the Warning meshes in the scene over a landing spot: its floor shape and its volume
+function warningsAt(to) {
+  const near = (o) => Math.hypot(o.position.x - to.x, o.position.z - to.z) < 0.01;
+  const kids = G().APT.scene.children.filter(near);
+  return { floor: kids.find((o) => o.material instanceof TeleMaterial), volume: kids.find((o) => o.material instanceof VolumeMaterial) };
+}
+// hold the jelly still where it is put (its own update is switched off for this story)
+function holdJelly() { const { player } = G(); stub(player, 'update', () => {}); player.velocity.set(0, 0, 0); return player; }
+// every coffee Blast hit from now on (the log keeps filling as the story steps)
+function coffeeHits() { const mug = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'mug') mug.push(d); })); return mug; }
+story('elites/mug-coffee-warning-has-volume', {
+  about: "The coffee lob's Warning is a floor circle with a half-sphere volume over it, filling together; both go when it lands.",
+  setup() { startCoffeeLob(); },
+  play() {
+    const b = firstCoffee(), to = b.to.clone();
+    holdJelly().position.x += 0.12;   // so the second lob lands elsewhere
+    step(20);
+    const w1 = warningsAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(20);
+    const w2 = warningsAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const dome = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
+    const domed = !!dome && dome.min.y > to.y - 0.005 && dome.max.y > to.y + 0.03;   // a half sphere standing on the surface
+    step(200, () => !G().run.elites.blobs.includes(b));
+    const w3 = warningsAt(to), gone = !w3.floor && !w3.volume;
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    return ok(filling && domed && gone, { p1, p2, domed, gone });
+  },
+});
+story('elites/mug-coffee-blast-hits-standing-jelly', {
+  about: 'A jelly standing where the coffee lands is hit by its Blast (2 Health).',
+  setup() { startCoffeeLob(); },
+  play() {
+    const hits = coffeeHits(), b = firstCoffee();
+    step(200, () => !G().run.elites.blobs.includes(b));
+    return ok(hits.length >= 1 && hits[0].amount === 2, { hits: hits.map((h) => h.amount) });
+  },
+});
+story('elites/mug-coffee-blast-jumped-clear', {
+  about: "A jelly in the air above the coffee Blast's radius when it lands is not hit.",
+  setup() { startCoffeeLob(); },
+  play() {
+    const hits = coffeeHits(), b = firstCoffee();
+    step(200, () => b.t > b.T - 0.1);
+    const player = holdJelly();
+    player.position.set(b.to.x, b.to.y + 0.06, b.to.z); player.grounded = false;   // feet 6 cm up: above a 4.5 cm dome
+    step(30, () => !G().run.elites.blobs.includes(b));
+    const landed = !G().run.elites.blobs.includes(b);
+    return ok(landed && hits.length === 0, { landed, hits: hits.length });
+  },
+});
+story('elites/mug-coffee-blast-misses-just-outside', {
+  about: "A jelly on the floor just outside the coffee Blast's radius is not hit; one whose body reaches into it is.",
+  setup() { startCoffeeLob(); },
+  play() {
+    const hits = coffeeHits(), b = firstCoffee();
+    step(200, () => b.t > b.T - 0.1);
+    const player = holdJelly();
+    player.position.set(b.to.x + 0.085, b.to.y, b.to.z); player.grounded = true;   // body edge 5.4 cm out: clear of 4.5 cm
+    step(30, () => !G().run.elites.blobs.includes(b));
+    const outside = hits.length;
+    const b2 = G().run.elites.blobs[0] || firstCoffee();
+    step(200, () => b2.t > b2.T - 0.1);
+    player.position.set(b2.to.x + 0.065, b2.to.y, b2.to.z);                      // body edge 3.5 cm out: inside
+    step(30, () => !G().run.elites.blobs.includes(b2));
+    const edge = hits.length - outside;
+    return ok(outside === 0 && edge === 1, { outside, edge });
+  },
+});
+story('elites/mug-coffee-builds-no-shader', {
+  about: "Starting the coffee lob builds no new shader: its Warning's floor circle and volume were built behind Play.",
+  setup() { startCoffeeLob(); },
+  play() {
+    const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
+    const b = firstCoffee(), to = b.to.clone();
+    step(10);
+    const w = warningsAt(to);
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    const newShaders = APT.renderer.info.programs.length - programs;
+    return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
+  },
+});
 
 // --- the event bus: what hits, kills, freezes and rewards do
 story('events/kill-drops-xp', {

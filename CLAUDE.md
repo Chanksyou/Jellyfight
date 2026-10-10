@@ -61,9 +61,15 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    passed a full run. The session start hook sets up three.js and the hooks in cloud sessions.
 3. **Attacks speak one visual language** (`src/vfx.js`, think Returnal): hostile is hot and
    saturated, one `--hostile-*` colour per source; friendly is cool (`--friendly`); they never
-   share a colour. A new enemy projectile is `fx.orb(colour)` + `fx.orbTick` each frame + `fx.free`;
-   a new warning on the floor is a `TeleMaterial` (circle / wedge / strip) whose `progress` fills
-   to the moment of the hit; a hit landing is `fx.impact`. Don't add plain grey or brown attacks.
+   share a colour. Elite and Boss attacks take up 3D space (`docs/adr/0001-warnings-show-volume.md`):
+   each is a **Blast** (hits anything of the jelly inside a sphere round where it goes off, half a
+   sphere on a surface, a whole one in mid-air: `blastHits(centre, r, player.position, cfg)`), a
+   **Shot** (aimed in 3D at the jelly, in the air or on the ground: `fx.orb(colour)` + `fx.orbTick`
+   each frame + `fx.free`), or a lane or cone with a real height. A **Warning** is a floor shape (a
+   `TeleMaterial`: circle / wedge / strip) plus a hex-shell volume of the space the attack will fill
+   (`fx.volume(colour, kind, pos, r)`, a `VolumeMaterial`; a new kind is one entry in vfx.js's
+   `VOLUME`), both in the source's colour, their `progress` filling together to the moment of the
+   hit and removed together. A hit landing is `fx.impact`. Don't add plain grey or brown attacks.
 4. **Look values go in `content/look.css`**, not literals in code. Read them with
    `LOOK.num(name, fallback)` / `LOOK.color(...)` / `LOOK.list(...)`.
 5. **Don't quietly re-balance.** If a change could make the game harder or easier, offer to

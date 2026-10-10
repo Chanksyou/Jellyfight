@@ -2,7 +2,7 @@
 // visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
-import { GlowPoints, TeleMaterial, CRIT } from './vfx.js';
+import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
 
@@ -170,6 +170,18 @@ export class Fx {
 
   // a floor warning (vfx.js TeleMaterial) of the given shape, ready to place
   tele(color, shape = 'circle', half) { return new TeleMaterial(color, shape, half); }
+
+  // a Warning's volume (vfx.js VolumeMaterial) over its floor shape: kind 'dome' (a floor Blast,
+  // standing on `pos`) or 'sphere' (a mid-air Blast, centred on `pos`), `r` its radius. Added to
+  // the scene; set `material.progress` with the floor shape's, and remove it with it.
+  volume(color, kind, pos, r) {
+    const m = new THREE.Mesh(volumeGeometry(kind), new VolumeMaterial(color, kind));
+    m.position.copy(pos);
+    m.scale.setScalar(r);
+    m.renderOrder = 4;   // over the floor shape (3)
+    this.scene.add(m);
+    return m;
+  }
 
   update(dt) {
     this.glow.update(dt, this.camera, window.APT?.renderer);
