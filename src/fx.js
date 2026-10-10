@@ -203,7 +203,8 @@ export class Fx {
   // (a spray over a floor wedge from its apex `pos`, `r` = Vector3(w, w, length) with w its far
   // half-width; turn it with rotation.y like the wedge); or 'lane' (a box over a floor strip from
   // `pos`, `r` = Vector3(width, height, length), turned like the strip); or 'ring' (a low wall round
-  // `pos`, `r` = Vector3(radius, height, radius)). Added to the scene; set
+  // `pos`, `r` = Vector3(radius, height, radius)); or 'half' (a low slab over a floor half circle
+  // pointing +z, `r` = Vector3(radius, height, radius), turned like it). Added to the scene; set
   // `material.progress` with the floor shape's, and remove it with it.
   volume(color, kind, pos, r) {
     const m = new THREE.Mesh(volumeGeometry(kind), new VolumeMaterial(color, kind));
