@@ -199,12 +199,14 @@ export class Fx {
   tele(color, shape = 'circle', half) { return new TeleMaterial(color, shape, half); }
 
   // a Warning's volume (vfx.js VolumeMaterial) over its floor shape: kind 'dome' (a floor Blast,
-  // standing on `pos`) or 'sphere' (a mid-air Blast, centred on `pos`), `r` its radius. Added to
-  // the scene; set `material.progress` with the floor shape's, and remove it with it.
+  // standing on `pos`) or 'sphere' (a mid-air Blast, centred on `pos`), `r` its radius; or 'cone'
+  // (a spray over a floor wedge from its apex `pos`, `r` = Vector3(w, w, length) with w its far
+  // half-width; turn it with rotation.y like the wedge). Added to the scene; set
+  // `material.progress` with the floor shape's, and remove it with it.
   volume(color, kind, pos, r) {
     const m = new THREE.Mesh(volumeGeometry(kind), new VolumeMaterial(color, kind));
     m.position.copy(pos);
-    m.scale.setScalar(r);
+    if (typeof r === 'number') m.scale.setScalar(r); else m.scale.copy(r);
     m.renderOrder = 4;   // over the floor shape (3)
     this.scene.add(m);
     return m;

@@ -56,7 +56,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 
@@ -710,29 +710,36 @@ export class Elites {
       if (e.kind === 'kettle') {
         const M = e.model;
         if (e.attack === 0) {
-          // Steam blast: whistle for 1.1 s with the cone drawn where it'll go, then blast
-          const wind = 1.1, len = 0.5;
+          // Steam blast: whistle for 1.1 s with its Warning where it'll go (a wedge on the counter from
+          // under the spout, and the cone of steam rising over it as it spreads), then blast: anything
+          // of the jelly in the cone is hit, so jumping doesn't clear it but stepping out of it does
+          const wind = 1.1, len = 0.5, half = 0.45;   // half: the wedge's half-angle (T.steam, coneGeo)
           if (s < wind) {
-            if (!e.tele.length) { e.locked = true; this.mark(e, this.coneGeo, this.T.steam, surf.clone().addScaledVector(fwd, e.r * 0.8), new THREE.Vector3(len, 1, len), heading); }
-            e.tele[0].material.opacity = 0.7 + Math.sin(e.t * 25) * 0.15;
-            e.tele[0].material.progress = s / wind;
+            if (!e.tele.length) {
+              e.locked = true;
+              const apex = new THREE.Vector3(muzzle.x, surf.y, muzzle.z), w = len * Math.tan(half);
+              this.mark(e, this.coneGeo, this.T.steam, apex, new THREE.Vector3(len, 1, len), heading);
+              const vol = this.fx.volume(hostile('kettle'), 'cone', apex, new THREE.Vector3(w, w, len));
+              vol.rotation.y = heading;
+              e.tele.push(vol);
+            }
+            for (const m of e.tele) { m.material.opacity = 0.7 + Math.sin(e.t * 25) * 0.15; m.material.progress = s / wind; }
             g.rotation.z = Math.sin(e.t * 50) * 0.05;
             M.lid.position.y = 0.112 + Math.abs(Math.sin(e.t * 40)) * 0.004;
             if (Math.random() < dt * 20) this.fx.puff(muzzle, 0xffffff, 0.006, 0.3);
             if (Math.random() < dt * 6) sfx.wind();
           } else if (s < wind + 1.0) {
-            if (e.tele[0]) { e.tele[0].material.opacity = 0.45; e.tele[0].material.progress = 1; }
+            for (const m of e.tele) { m.material.opacity = 0.45; m.material.progress = 1; }
             if (Math.random() < dt * 40) {
               const k = Math.random();
               const side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.5 * k);
               this.fx.puff(muzzle.clone().addScaledVector(fwd, 0.05 + k * len * 0.9).add(side).setY(muzzle.y - k * 0.06), 0xf2f6ff, 0.015 + k * 0.03, 0.45);
             }
-            const rel = pc.clone().sub(muzzle).setY(0);
-            const along = rel.dot(fwd), ang = Math.acos(THREE.MathUtils.clamp(rel.clone().normalize().dot(fwd), -1, 1));
-            if (along > 0 && along < len + 0.04 && ang < 0.47 && Math.abs(pc.y - muzzle.y) < 0.15) { hit(2, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
+            if (e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) { hit(2, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
           } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; }
         } else {
-          // Boil over: the lid pops, four boiling drops fall on filling orange circles around you
+          // Boil over: the lid pops, four boiling drops fall on filling orange circles around you, each
+          // landing as a small floor Blast (jump it)
           if (!e.popped) {
             e.popped = true;
             M.led.material.emissiveIntensity = 4;
@@ -741,11 +748,12 @@ export class Elites {
             for (let k = 0; k < 4; k++) {
               const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
               at.y = this.surfaceBelow(at);
-              this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, 0.035, (p) => {
+              const R = 0.035;
+              this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, R, (p) => {
                 this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
-                if (Math.hypot(P.x - p.x, P.z - p.z) < 0.035 + cfg.radius && Math.abs(P.y - p.y) < 0.06) hit(2, 'kettle');
-              });
+                if (blastHits(p, R, P, cfg)) hit(2, 'kettle');
+              }, { dome: true });
             }
           }
           M.lid.position.y = 0.112 + Math.max(0, Math.sin(Math.min(1, s * 2) * Math.PI)) * 0.04;
