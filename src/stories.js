@@ -24,7 +24,7 @@ import { FramePacer, FrameGovernor } from './pacing.js';
 import { checkBvhLayout } from './collision.js';
 import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
-import { TeleMaterial, VolumeMaterial } from './vfx.js';
+import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -2177,6 +2177,146 @@ story('elites/mug-coffee-builds-no-shader', {
     return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
   },
 });
+
+// --- 3D attacks: Shots aim in 3D (the shared Shot, vfx.js / fx.js), and the Controller is built on
+// them: its button barrage mixes floor-level and jump-height Shots, and its rumble is a dome Blast
+const CONTROLLER_AT = [1.62, 0.61, 4.47];
+const JUMP_FEET = 0.12;   // feet 12 cm up: a jelly near the top of its jump (body 12 to 21 cm)
+// every Controller hit from now on (the log keeps filling as the story steps)
+function controllerHits() { const c = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'controller') c.push(d); })); return c; }
+function startController(atk) {
+  fresh({ bubbles: false, lash: false });
+  tp(CONTROLLER_AT[0], CONTROLLER_AT[1] + 0.05, CONTROLLER_AT[2], 0);
+  const e = G().run.elites.list.find((x) => x.kind === 'controller');
+  e.next = atk; e.cool = 0;
+  return e;
+}
+story('elites/shot-hits-jelly-mid-jump', {
+  about: "A Shot fired from the floor at a jelly held mid-jump flies up to the jelly's height and hits it.",
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(CONTROLLER_AT[0], CONTROLLER_AT[1] + 0.05, CONTROLLER_AT[2], 0); },
+  play() {
+    const { run } = G(), player = holdJelly(), floor = player.position.y;
+    player.position.y = floor + JUMP_FEET; player.grounded = false;
+    const hits = controllerHits(), P = player.position;
+    const from = V(P.x - 0.25, floor + 0.045, P.z);   // a muzzle on the floor, 25 cm away
+    const s = run.elites.shoot(from, shotTarget(P, CONFIG.player), hostile('controller'), 'controller', 2);
+    let y = null;
+    step(90, () => { if (!s.done) y = s.m.position.y; return hits.length > 0; });
+    // it was fired from 4.5 cm up and struck the body 12 to 21 cm up: it flew up to the jelly
+    const inBody = y !== null && y > P.y && y < P.y + CONFIG.player.height;
+    return ok(hits.length === 1 && inBody, { hits: hits.length, shotY: y && +(y - floor).toFixed(3), feet: JUMP_FEET });
+  },
+});
+// a barrage's aim lines once they've locked: where each starts and ends, and the floor under the jelly
+function lockedBarrage(e) {
+  step(400, () => e.state === 'windup' && e.locked);
+  const floor = G().run.elites.surfaceBelow(G().player.position);
+  return { floor, ends: e.tele.map((m) => (m.updateMatrixWorld(), m.localToWorld(V(0, 0, 1)))), starts: e.tele.map((m) => m.localToWorld(V(0, 0, 0))) };
+}
+story('elites/controller-aim-lines-show-height', {
+  about: "The Controller's aim lines tilt to each button's height: they alternate floor level (4.5 cm) and jump height (16 cm), and each Shot flies along its line.",
+  setup() { startController(0); },
+  play() {
+    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
+    holdJelly();
+    const { floor, ends, starts } = lockedBarrage(e);
+    const heights = ends.map((p) => +(p.y - floor).toFixed(3));
+    const n0 = run.elites.bullets.length;
+    step(60, () => run.elites.bullets.length > n0);
+    const shots = run.elites.bullets.slice(-3);
+    // each Shot's path passes through its line's end
+    const along = shots.map((s, i) => {
+      const dir = s.v.clone().normalize(), rel = ends[i].clone().sub(starts[i]);
+      return +rel.sub(dir.multiplyScalar(rel.dot(dir))).length().toFixed(4);
+    });
+    const low = (h) => Math.abs(h - 0.045) < 0.006, high = (h) => Math.abs(h - 0.16) < 0.006;
+    const mixed = heights.every((h) => low(h) || high(h)) && low(heights[0]) !== low(heights[1]) && low(heights[1]) !== low(heights[2]);
+    return ok(ends.length === 3 && shots.length === 3 && mixed && along.every((d) => d < 0.004), { heights, along });
+  },
+});
+story('elites/controller-barrage-low-and-high', {
+  about: 'In a barrage, floor-level buttons pass under a jumping jelly and jump-height buttons pass over a grounded one (and each hits the jelly that doesn\'t dodge it).',
+  setup() { startController(0); },
+  play() {
+    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
+    const player = holdJelly(), hits = controllerHits(), result = {};
+    player.position.x = e.base.x + 0.3;   // far enough that only the middle line reaches you
+    // four barrages: the middle line (the one aimed at you) alternates low and high, and the jelly
+    // stays down for two and jumps for two
+    for (const jump of [false, false, true, true]) {
+      e.next = 0; e.cool = 0;
+      player.position.y = run.elites.surfaceBelow(player.position); player.grounded = true;
+      const { floor, ends } = lockedBarrage(e);
+      const kind = ends[1].y - floor > 0.1 ? 'high' : 'low';
+      if (jump) { player.position.y = floor + JUMP_FEET; player.grounded = false; }
+      const h0 = hits.length;
+      step(120, () => e.state === 'idle' && !run.elites.bullets.length);
+      result[`${kind} vs ${jump ? 'jumping' : 'grounded'}`] = hits.length - h0;
+    }
+    const pass = result['low vs jumping'] === 0 && result['high vs grounded'] === 0 && result['low vs grounded'] === 1 && result['high vs jumping'] === 1;
+    return ok(pass, result);
+  },
+});
+// the rumble's Warning meshes round the Controller: its floor circle and its volume
+function rumbleWarning(e) {
+  const near = (o) => Math.hypot(o.position.x - e.base.x, o.position.z - e.base.z) < 0.01;
+  const kids = G().APT.scene.children.filter(near);
+  return { floor: kids.find((o) => o.material instanceof TeleMaterial), volume: kids.find((o) => o.material instanceof VolumeMaterial) };
+}
+story('elites/controller-rumble-is-a-dome', {
+  about: "The rumble's Warning is a floor circle with a dome over it (22 cm), filling together; both go when it hits.",
+  setup() { startController(1); },
+  play() {
+    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
+    step(400, () => e.state === 'windup' && e.stateT > 0.3);
+    const w1 = rumbleWarning(e), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(15);
+    const p2 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    const box = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
+    const dome = !!box && box.min.y > e.base.y - 0.005 && Math.abs(box.max.y - e.base.y - 0.22) < 0.01 && Math.abs(box.max.x - box.min.x - 0.44) < 0.01;
+    step(120, () => e.state === 'idle');
+    const w3 = rumbleWarning(e), gone = !w3.floor && !w3.volume;
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    return ok(filling && dome && gone, { p1, p2, dome, gone });
+  },
+});
+story('elites/controller-rumble-hits-inside-the-dome', {
+  about: 'The rumble hits (3 Health) and knocks back a jelly with any of it inside the dome, even in the air over it; one outside the dome isn\'t touched.',
+  setup() { startController(1); },
+  play() {
+    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
+    const player = holdJelly(), hits = controllerHits(), knocks = record('knockback'), B = e.base, out = {};
+    // where the jelly is as the rumble goes off: offset from the Controller, feet height
+    const spots = { 'in the air inside': [0.1, 0.12], 'on the floor inside': [0.2, 0], 'on the floor outside': [0.3, 0], 'in the air above': [0.05, 0.24] };
+    for (const [name, [dx, up]] of Object.entries(spots)) {
+      e.next = 1; e.cool = 0;
+      player.position.set(B.x + 0.18, B.y, B.z); player.grounded = true;   // where it sees you
+      step(400, () => e.state === 'windup' && e.stateT > 1.0);
+      player.position.set(B.x + dx, B.y + up, B.z); player.grounded = up === 0;
+      const h0 = hits.length, k0 = knocks.length;
+      step(60, () => e.state === 'idle');
+      out[name] = [hits.length - h0, knocks.length - k0, hits[h0]?.amount ?? 0];
+    }
+    const yes = (r) => r[0] === 1 && r[1] === 1 && r[2] === 3, no = (r) => r[0] === 0 && r[1] === 0;
+    const pass = yes(out['in the air inside']) && yes(out['on the floor inside']) && no(out['on the floor outside']) && no(out['in the air above']);
+    return ok(pass, out);
+  },
+});
+for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
+  story(`elites/controller-${name}-builds-no-shader`, {
+    about: `Starting the Controller's ${name} builds no new shader: its Warning and Shots were built behind Play.`,
+    setup() { startController(atk); },
+    play() {
+      const { run, APT, batcher } = G(), e = run.elites.list.find((x) => x.kind === 'controller'), programs = APT.renderer.info.programs.length;
+      step(400, () => e.state === 'windup' && e.stateT > 0.5);
+      const shown = e.tele.length;
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      if (atk === 0) { step(30, () => run.elites.bullets.length > 0); batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); }
+      const newShaders = APT.renderer.info.programs.length - programs;
+      return ok(shown > 0 && newShaders === 0, { shown, newShaders });
+    },
+  });
+}
 
 // --- 3D attacks: the Kettle's steam blast is a cone rising from the spout as it spreads (jumping
 // doesn't clear it, stepping out does); its boiling drops land as small floor Blasts (jump them)

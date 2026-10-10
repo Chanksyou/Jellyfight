@@ -243,6 +243,10 @@ const KINDS = {
 // attack (telegraph, strike, follow-through) plays TEMPO times as fast. Telegraphs stay readable:
 // their `progress` still fills to the moment of the hit, just sooner.
 const RECOVER = 1.4, TEMPO = 1.15;
+// the Controller's button barrage: the aim lines' spread (rad) and how high a jump-height Shot flies
+// (m above the floor; a floor-level one flies at the jelly's middle)
+const BARRAGE = { spread: [-0.22, 0, 0.22], high: 0.16 };
+const ONE = new THREE.Vector3(1, 1, 1);
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
 
@@ -291,6 +295,7 @@ class Elite {
     this.cool = 1.5;
     this.state = 'idle';
     this.next = 0;                       // which attack comes next (they alternate)
+    this.volley = 0;                     // the Controller's barrages so far: which lines fly low, which high
     this.hitPop = 0;
     this.tele = [];                      // telegraph meshes for the current attack
     // stand in for the real object while alive
@@ -338,7 +343,6 @@ class Elite {
 // ------------------------------------------------------------------ manager
 export class Elites {
   constructor(scene, enemies, fx, world, camera, apartmentRoot) {
-    this._dir = new THREE.Vector3();   // scratch for the shot raycasts
     Object.assign(this, { scene, enemies, fx, world, camera, root: apartmentRoot });
     this.list = [];
     this.bullets = [];
@@ -464,6 +468,13 @@ export class Elites {
     m.position.copy(from);
     const vol = dome ? this.fx.volume(color, 'dome', to, r) : null;
     this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand });
+  }
+
+  // fire a Shot (fx.shot) from `from` at `to`; it hits for `damage` as `source`
+  shoot(from, to, color, source, damage, opts) {
+    const s = Object.assign(this.fx.shot(color, from, to, opts), { source, damage });
+    this.bullets.push(s);
+    return s;
   }
 
   puddle(at, r = 0.045, life = 3.5) {
@@ -613,30 +624,39 @@ export class Elites {
       if (e.kind === 'controller') {
         const M = e.model;
         if (e.attack === 0) {
-          // Button barrage: aim lines sweep toward you for 0.6 s, lock for 0.25 s, then fire
+          // Button barrage: three aim lines sweep toward you for 0.6 s, lock for 0.25 s, then each
+          // fires a Shot along its line. The lines alternate floor level (the jelly's middle on the
+          // floor: jump it) and jump height (stay down), and the middle one flips each barrage; each
+          // line tilts from the muzzle up or down to its Shot's height where you are.
           if (s < 0.85) {
             M.buttons.forEach((b, i) => { b.material.emissiveIntensity = 0.5 + (Math.sin(e.t * 30 + i) * 0.5 + 0.5) * 3; });
-            if (!e.tele.length) [-0.22, 0, 0.22].forEach((a, i) => this.mark(e, this.stripGeo, this.T.aim[i], surf, new THREE.Vector3(0.008, 1, 0.45), heading + a));
+            if (!e.tele.length) BARRAGE.spread.forEach((_, i) => { this.mark(e, this.stripGeo, this.T.aim[i], muzzle, ONE).rotation.order = 'YXZ'; });
             if (s > 0.6) e.locked = true;
-            e.tele.forEach((m, i) => { m.position.copy(surf); m.rotation.y = e.holder.rotation.y + [-0.22, 0, 0.22][i]; m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
+            if (!e.locked) {
+              const floor = this.surfaceBelow(P), reach = Math.max(0.1, Math.hypot(P.x - muzzle.x, P.z - muzzle.z));
+              e.tele.forEach((m, i) => {
+                const rise = floor + ((i + e.volley) % 2 ? BARRAGE.high : cfg.height * 0.5) - muzzle.y;
+                m.position.copy(muzzle);
+                m.rotation.set(-Math.atan2(rise, reach), e.holder.rotation.y + BARRAGE.spread[i], 0);
+                m.scale.set(0.008, 1, Math.hypot(reach, rise));
+              });
+            }
+            e.tele.forEach((m) => { m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
           } else {
-            e.tele.forEach((m, i) => {
-              const dir = new THREE.Vector3(Math.sin(m.rotation.y), 0, Math.cos(m.rotation.y));
-              const b = this.fx.orb(hostile('controller'), 0.0055);
-              b.position.copy(muzzle);
-              this.bullets.push({ m: b, v: dir.multiplyScalar(0.9), t: 1.0 });
-            });
+            for (const m of e.tele) this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', 2);
             M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
             this.fx.impact(muzzle, hostile('controller'), 0.012, 6);
             e.clearTele(); e.hitPop = 0.8; sfx.zap();
-            e.state = 'idle'; e.cool = 1.6; e.locked = false;
+            e.state = 'idle'; e.cool = 1.6; e.locked = false; e.volley++;
           }
         } else {
-          // Rumble: buzz while a red circle fills around it, then a shockwave
+          // Rumble: buzz while a red dome fills over its circle, then a shockwave: a floor Blast
+          // too tall to jump over (get out of it), knocking back whatever of you is inside
           const R = 0.22, wind = 1.1;
           if (s < wind) {
-            if (!e.tele.length) e.tele.push(this.warnCircle(surf, R, this.T.red));
+            if (!e.tele.length) e.tele.push(this.warnCircle(surf, R, this.T.red), this.fx.volume(hostile('controller'), 'dome', surf, R));
             e.tele[0].userData.fill(s / wind);
+            e.tele[1].material.progress = s / wind;
             g.position.x = (Math.random() - 0.5) * 0.004; g.position.z = (Math.random() - 0.5) * 0.004;
             M.barMat.emissive.setHex(Math.sin(e.t * 25) > 0 ? 0xff2a2a : 0x3a8aff);
           } else {
@@ -645,7 +665,7 @@ export class Elites {
             this.fx.ring(surf, hostile('controller'), R, 0.45);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
             juice.shake(0.35); sfx.kill(1.6);
-            if (Math.hypot(P.x - e.base.x, P.z - e.base.z) < R + cfg.radius && sameLevel(e.base.y)) { hit(3, 'controller'); knock(e.base, 0.9); }
+            if (blastHits(e.base, R, P, cfg)) { hit(3, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
         }
@@ -1056,17 +1076,9 @@ export class Elites {
     }
     this.slicks = this.slicks.filter((p) => p.t > 0);
 
-    // button shots
-    for (const b of this.bullets) {
-      b.t -= dt;
-      const step = b.v.length() * dt;
-      if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), step + 0.004)) b.t = 0;
-      b.m.position.addScaledVector(b.v, dt);
-      this.fx.orbTick(b.m, dt);
-      if (b.m.position.distanceTo(pc) < cfg.radius + 0.006) { hit(2, 'controller'); b.t = 0; }
-      if (b.t <= 0) { this.fx.impact(b.m.position, hostile('controller'), 0.015, 8); this.fx.free(b.m); }
-    }
-    this.bullets = this.bullets.filter((b) => b.t > 0);
+    // Shots in flight (the Controller's buttons): each hits the jelly's whole body
+    for (const b of this.bullets) if (this.fx.shotStep(b, dt, this.world, P, cfg)) hit(b.damage, b.source);
+    this.bullets = this.bullets.filter((b) => !b.done);
 
     // lobbed things in flight, with their warning circles filling
     for (const b of this.blobs) {

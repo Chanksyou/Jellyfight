@@ -215,6 +215,15 @@ export function blastHits(centre, r, feet, body) {
   return _spine.distanceTo(centre) < r + body.radius;
 }
 
+// ------------------------------------------------------------------ shots
+// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading;
+// or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
+// volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
+export function shotTarget(feet, body, height = null, floor = feet.y, out = new THREE.Vector3()) {
+  return height == null ? out.set(feet.x, feet.y + body.height * 0.5, feet.z) : out.set(feet.x, floor + height, feet.z);
+}
+// does a Shot (a ball of radius `size` at `pos`) touch the jelly's body (its capsule)?
+export const shotHits = (pos, size, feet, body) => blastHits(pos, size, feet, body);
 // The hit rule for a cone (see CONE_RISE): anything of the jelly over its floor wedge (apex, unit
 // `dir` along the floor, `len` long, `half` its half-angle), at any height up to the cone's top at
 // the far end, so jumping doesn't clear it but stepping out of the wedge does.
