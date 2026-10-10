@@ -2,15 +2,17 @@
 // the Vacuum (vacuum.js): it rolls after you and bumps you back, and between chases it cycles
 // through telegraphed attacks:
 //   lash      a hair rope rears up while a line on the tub floor shows where it will land (the
-//             aim locks halfway), then whips down along it: 3, and it tangles you (slowed).
-//             Angry, two ropes lash at once.
-//   snare     three circles fill on the floor round you, then tufts of hair spring up in them: 2
-//             and slowed if you're caught
-//   roll      it spins up while its lane lights up, then rolls down it at you: 4
+//             aim locks halfway), under a low lane (3 cm: jump it), then whips down along it: 3,
+//             and it tangles you (slowed). Angry, two ropes lash at once.
+//   snare     three circles fill on the floor round you, each a floor Blast (a half sphere: jump
+//             clear of it), then tufts of hair spring up in them: 2 and slowed if you're caught
+//   roll      it spins up while its lane lights up, a lane as tall as the hairball (a jump doesn't
+//             clear it: get out of it), then rolls down it at you: 4
 //   flood     the spout gushes and the tub fills (a ring round the drain fills with it), then it
 //             all drains at once: a whirlpool drags you toward the drain; right by it, it hurts
 //   shed      it shakes off hair tangles that join the fight
-//   spray     (angry) it spins, spraying globs of drain gunk all round in three streams
+//   spray     (angry) it spins, spraying globs of drain gunk all round in three streams: Shots
+//             alternating floor level and jump height
 //   swarm     once, the first time it drops below 70%: it roars, four ladybugs burst out of its
 //             hair, and it sinks into the drain: it can't be hurt until they're dead (30 s at most)
 // Below 45% health it's angry: faster, shorter pauses, the spray and double lashes.
@@ -20,10 +22,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial } from './vfx.js';
+import { hostile, TeleMaterial, laneHits, blastHits, shotTarget } from './vfx.js';
 import { sfx } from './sfx.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const _rel = new THREE.Vector3();
 const HAIR = ['#1e130c', '#2a1a10', '#33200f', '#3b2618', '#24160e', '#4a2a16', '#5a3418', '#7a7470', '#b8904a'];   // mostly dark brown; a grey and a blonde one
 
 function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
@@ -224,6 +227,18 @@ export class Clog {
     this.lines = [tele('strip', strip()), tele('strip', strip())];
     this.swirl = tele('circle', new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2));
     this.snares = [0, 1, 2].map(() => tele('circle', new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)));
+    // over them, the space each attack fills (vfx.js volumes), shown and filled with its floor
+    // shape (syncVolumes): the lash's low lane (3 cm: jump it), the roll's lane as tall as the
+    // hairball (a jump doesn't clear it), each snare's half sphere
+    this.lashH = 0.03; this.lashLen = 0.48; this.lashW = 0.07;
+    this.rollH = this.r * 2; this.rollLen = 0.8; this.rollW = this.r * 1.8;
+    this.snareR = 0.05;
+    const vol = (kind, s) => { const m = fx.volume(hostile('clog'), kind, this.drain, s); m.visible = false; return m; };
+    this.lashVols = [0, 1].map(() => vol('lane', V(this.lashW, this.lashH, this.lashLen)));
+    this.rollVol = vol('lane', V(this.rollW, this.rollH, this.rollLen));
+    this.snareVols = [0, 1, 2].map(() => vol('dome', this.snareR));
+    this.rollAt = new THREE.Vector3();
+    this.rollDir = new THREE.Vector3();
     this.tuftGeo = new THREE.ConeGeometry(0.004, 0.05, 5).translate(0, 0.025, 0);
     this.tuftMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.8 });
     // the drain itself: a dark grate that churns while it gurgles
@@ -308,7 +323,7 @@ export class Clog {
     this.t += dt;
     const out = { push: null, hurt: 0, hit: 0, slow: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
-    const hide = () => { for (const m of [...this.lines, ...this.snares, this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; };
+    const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; };
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.guards.forEach((e) => this.enemies.kill(e, true)); this.guards = []; }
       this.sink = Math.min(1, this.sink + dt * 0.6);
@@ -363,12 +378,12 @@ export class Clog {
           this.lines.forEach((L, i) => {
             if (!L.visible) return;
             L.material.progress = 1;
-            const a = L.rotation.y, d = V(Math.sin(a), 0, Math.cos(a)), rel = P.clone().sub(p).setY(0);
-            const along = rel.dot(d), side = Math.abs(rel.x * d.z - rel.z * d.x);
+            const a = L.rotation.y, d = V(Math.sin(a), 0, Math.cos(a));
             const tip = p.clone().addScaledVector(d, 0.42).setY(this.floor + 0.01);
             this.fx.impact(tip, hostile('clog'), 0.03, 12);
             this.fx.burst(tip, ['#3b2618', '#8a9a5a', '#5a3a24'], 6, 0.003, 0.25, this.floor);
-            if (along > 0 && along < 0.5 && side < 0.035 + 0.03 && Math.abs(P.y - this.floor) < 0.08) { out.hit = 3; out.slow = 1.2; }
+            // anything of the jelly in the low lane along the line (jumping over it clears it)
+            if (laneHits(L.position.clone().setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = 3; out.slow = 1.2; }
           });
         }
         this.rearing = -1;                                              // slammed down along the line
@@ -388,8 +403,17 @@ export class Clog {
         L.material.progress = 1 - this.stateT / this.rollWind;
         L.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
         if (Math.random() < dt * 20) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x8a9a5a, 0.02, 0.3);
-        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.1; this.rollWind = null; L.visible = false; sfx.clogRoll(); }
+        if (this.stateT <= 0) {
+          this.locked = true; this.stateT = 1.1; this.rollWind = null; L.visible = false; sfx.clogRoll();
+          this.rollAt.copy(p).setY(this.floor); this.rollDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.rollHit = false;
+        }
       } else {
+        // the lane it rolls down, as far as its front has got: anything of the jelly in it is hit
+        // (once a roll), at any height up to the top of the hairball, so a jump doesn't clear it
+        const reached = Math.min(this.rollLen, _rel.copy(p).sub(this.rollAt).dot(this.rollDir) + this.r);
+        if (!this.rollHit && this.knock <= 0 && laneHits(this.rollAt, this.rollDir, reached, this.rollW, this.rollH, P, player.cfg)) {
+          this.rollHit = true; out.hit = 4; this.knockBack(toP, 1.0);
+        }
         const wall = this.drive(dt, null, angry ? 1.0 : 0.85, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x6a5a3a, 0.025, 0.35);
         if (wall || this.stateT <= 0) { this.locked = false; sfx.clogSplat(); this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16); this.toChase(); }
@@ -425,7 +449,7 @@ export class Clog {
             this.tufts.push({ m: tuft, t: 0 });
           }
           this.fx.burst(c.clone().setY(this.floor + 0.01), ['#3b2618', '#2a1a10', '#8a9a5a'], 6, 0.003, 0.3, this.floor);
-          if (Math.hypot(P.x - c.x, P.z - c.z) < 0.05 + 0.025 && Math.abs(P.y - this.floor) < 0.06) { out.hit = 2; out.slow = 1.5; }
+          if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = 2; out.slow = 1.5; }   // a floor Blast: its half sphere
           m.visible = false;
         }
       }
@@ -498,13 +522,15 @@ export class Clog {
       mouth = 1;
       this.sprayT = (this.sprayT ?? 0) - dt;
       if (this.sprayT <= 0) {
-        // three streams at once, a third of a turn apart, a glob every tenth of a second
+        // three streams at once, a third of a turn apart, a glob every tenth of a second: Shots
+        // (fx.shot), each volley alternating floor level (jump it) and jump height (stay down)
         this.sprayT = 0.1;
+        this.volley = ((this.volley || 0) + 1) % 2;
+        const y = shotTarget(P, player.cfg, this.volley ? 0.16 : 0.045, this.floor).y;
         for (let k = 0; k < 3; k++) {
           const a = this.heading + k * Math.PI * 2 / 3, dir = V(Math.sin(a), 0, Math.cos(a));
-          const m = this.fx.orb(hostile('clog'), 0.008);
-          m.position.copy(p).addScaledVector(dir, this.r).setY(this.floor + 0.03);
-          this.shots.push({ m, v: dir.multiplyScalar(0.5), t: 1.4 });
+          const from = p.clone().addScaledVector(dir, this.r).setY(y), to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);
+          this.shots.push(this.fx.shot(hostile('clog'), from, to, { speed: 0.5, size: 0.008, life: 1.4 }));
         }
         sfx.clogSplat();
       }
@@ -543,6 +569,7 @@ export class Clog {
         }
       }
     }
+    this.syncVolumes();
     this.prevT = this.stateT;
     if (this.state !== 'swarm' && this.sink > 0) this.sink = Math.max(0, this.sink - dt);
     if (angry && !this.wasAngry) sfx.clogRoar();
@@ -559,15 +586,8 @@ export class Clog {
     if (this.knock > 0) { this.knock -= dt; out.push = (out.push || new THREE.Vector3()).clone().addScaledVector(this.knockDir, this.knockSpeed); }
 
     // gunk globs
-    const pc = P.clone().setY(P.y + 0.026);
-    for (const s of this.shots) {
-      s.t -= dt;
-      s.m.position.addScaledVector(s.v, dt);
-      this.fx.orbTick(s.m, dt);
-      if (s.m.position.distanceTo(pc) < 0.026) { out.hit = Math.max(out.hit, 2); s.t = 0; }
-      if (s.t <= 0) { this.fx.impact(s.m.position, hostile('clog'), 0.015, 8); this.fx.free(s.m); }
-    }
-    this.shots = this.shots.filter((s) => s.t > 0);
+    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, 2);
+    this.shots = this.shots.filter((s) => !s.done);
     // hair tufts from a snare: up, then back down
     for (const f of this.tufts) {
       f.t += dt;
@@ -576,6 +596,22 @@ export class Clog {
     }
     this.tufts = this.tufts.filter((f) => !f.done);
     return out;
+  }
+
+  volumes() { return [...this.lashVols, this.rollVol, ...this.snareVols]; }
+  // each volume shows, sits, turns and fills with the floor Warning it stands over
+  syncVolumes() {
+    const pair = (v, f, on) => {
+      v.visible = on && f.visible;
+      if (!v.visible) return;
+      v.position.copy(f.position).setY(this.floor);
+      v.rotation.y = f.rotation.y;
+      v.material.progress = f.material.progress;
+      v.material.opacity = f.material.opacity;
+    };
+    this.lashVols.forEach((v, i) => pair(v, this.lines[i], this.state === 'lash'));
+    pair(this.rollVol, this.lines[0], this.state === 'roll');
+    this.snareVols.forEach((v, i) => pair(v, this.snares[i], true));
   }
 
   // how high it sits: on the tub floor, sunk into the drain as `sink` goes to 1
@@ -638,7 +674,7 @@ export class Clog {
 
   dispose() {
     this.scene.remove(this.holder);
-    for (const m of [...this.lines, ...this.snares, this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
+    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
     this.tufts.forEach((f) => this.scene.remove(f.m));
     this.shots.forEach((s) => this.fx.free(s.m));
   }

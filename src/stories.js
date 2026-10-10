@@ -3963,7 +3963,7 @@ act2('clog-rises-and-chases', {
   },
 });
 act2('clog-lash', {
-  about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor, then whips down along it: 3, and you\'re tangled (slowed).',
+  about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor (a low lane over it), then whips down along it: 3, and you\'re tangled (slowed).',
   setup() {},
   play() {
     const B = clogFight(), { run } = G(), log = record('damage_taken');
@@ -4046,12 +4046,167 @@ act2('clog-angry-spray', {
     B.swarmed = true;
     B.hp = B.maxHp * 0.4;
     B.state = 'chase'; B.stateT = 0; B.next = 1;                         // the angry order: lash, spray, ...
-    let globs = 0;
-    step(60 * 2.5, () => { globs = Math.max(globs, B.shots.length); return B.state === 'spray' && globs >= 24; });
+    // every glob it sprays (they end on the tub's walls, so count them as they're fired)
+    const fired = new Set();
+    step(60 * 2.5, () => { if (B.state === 'spray') B.shots.forEach((s) => fired.add(s)); return B.state === 'spray' && fired.size >= 24; });
+    const spraying = +(2.2 - B.stateT).toFixed(2), globs = fired.size;
     const dirs = new Set(B.shots.slice(-3).map((q) => Math.round(Math.atan2(q.v.x, q.v.z) * 2)));
-    return ok(B.angry && globs >= 24 && dirs.size === 3, { angry: B.angry, globs, streams: dirs.size, state: B.state });
+    return ok(B.angry && globs >= 24 && spraying < 0.85 && dirs.size === 3, { angry: B.angry, globs, spraying, streams: dirs.size, state: B.state });
   },
 });
+// --- 3D attacks: the Clog's lash is a low lane (3 cm: jump it), its roll a lane as tall as the
+// hairball (a jump doesn't clear it), its snares floor Blasts, and its gunk spray Shots at mixed heights
+// the Clog's Warnings showing in the scene (it hides its own, never removes them)
+function clogWarnings() {
+  const w = shownWarnings(), mine = (o) => o.material.uniforms.uColor.value.getHex() === hostile('clog').getHex();
+  return { floor: w.floor.filter(mine), volume: w.volume.filter(mine) };
+}
+// start a Clog attack with the jelly held still (feet `up` m over the tub floor) at x on the drain's line
+function clogAgain(B, name, x, up = 0) {
+  B.position.copy(B.drain); B.knock = 0; B.heading = Math.PI / 2;
+  const player = holdJelly();
+  player.position.set(x, B.floor + up, B.drain.z); player.grounded = !up;
+  clogAttack(B, name);
+  return player;
+}
+act2('clog-lash-warning-is-a-low-lane', {
+  about: "The lash's Warning is its floor strip with a lane volume 3 cm high over it, filling together; angry, both ropes' lines have one.",
+  setup() {},
+  play() {
+    const B = clogFight(), out = {};
+    for (const angry of [false, true]) {
+      if (angry) { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+      clogAgain(B, 'lash', 0.62);
+      step(20, () => B.state === 'lash' && clogWarnings().volume.length);
+      step(10);
+      const w1 = clogWarnings(), strip = w1.floor[0], lane = w1.volume[0], p1 = [strip?.material.progress, lane?.material.progress];
+      step(15);
+      const p2 = [strip?.material.progress, lane?.material.progress];
+      let shape = {};
+      if (strip && lane) {
+        const s = new THREE.Box3().setFromObject(strip), l = new THREE.Box3().setFromObject(lane), same = (a, b) => Math.abs(a - b) < 0.005;
+        shape = { tall: +(l.max.y - B.floor).toFixed(3), onFloor: Math.abs(l.min.y - B.floor) < 0.005, over: same(s.min.x, l.min.x) && same(s.max.x, l.max.x) && same(s.min.z, l.min.z) && same(s.max.z, l.max.z) };
+        shape.ok = Math.abs(shape.tall - 0.03) < 0.003 && shape.onFloor && shape.over;
+      }
+      const filling = !!(strip && lane) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+      out[angry ? 'angry' : 'calm'] = { floors: w1.floor.length, volumes: w1.volume.length, filling, shape };
+      step(120, () => B.state !== 'lash');
+      out[angry ? 'angry' : 'calm'].gone = clogWarnings().volume.length === 0;
+    }
+    const c = out.calm, a = out.angry;
+    return ok(c.floors === 1 && c.volumes === 1 && c.filling && c.shape.ok && c.gone && a.floors === 2 && a.volumes === 2 && a.filling && a.shape.ok && a.gone, out);
+  },
+});
+act2('clog-lash-jumped-clear', {
+  about: "A jelly standing in the lash's lane is hit (3, slowed); one in the air over it (feet 5 cm up, over a 3 cm lane) isn't.",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), out = {};
+    for (const up of [0, 0.05]) {
+      clogAgain(B, 'lash', 0.62, up);
+      const h0 = hits.length;
+      step(150, () => B.state === 'lash' && B.struck);
+      step(5);
+      out[up ? 'jumping' : 'standing'] = hits.slice(h0).map((h) => h.amount);
+      step(60, () => B.state !== 'lash');
+    }
+    return ok(out.standing[0] === 3 && out.standing.length === 1 && out.jumping.length === 0, out);
+  },
+});
+act2('clog-roll-lane-is-as-tall-as-it-is', {
+  about: "The roll's Warning is its floor strip with a lane volume as tall as the hairball (20 cm) over it, filling together. A jelly in the air inside the lane (feet 15 cm up) is still hit (4); one 20 cm beside it on the floor isn't.",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), out = {};
+    clogAgain(B, 'roll', 0.75);
+    step(30);
+    const w = clogWarnings(), lane = w.volume[0], tall = lane ? +(new THREE.Box3().setFromObject(lane).max.y - B.floor).toFixed(3) : 0;
+    out.warning = { floors: w.floor.length, volumes: w.volume.length, tall, filling: !!lane && Math.abs(w.floor[0]?.material.progress - lane.material.progress) < 1e-6 };
+    for (const side of [false, true]) {
+      const player = clogAgain(B, 'roll', 0.75, side ? 0 : 0.15);
+      step(120, () => B.locked);
+      if (side) player.position.z += 0.2;
+      const h0 = hits.length, from = B.position.clone();
+      step(120, () => B.state !== 'roll');
+      out[side ? 'beside' : 'jumping'] = { hits: hits.slice(h0).map((h) => h.amount), rolled: +B.position.distanceTo(from).toFixed(2) };
+    }
+    const W = out.warning;
+    return ok(W.floors === 1 && W.volumes === 1 && Math.abs(W.tall - 0.2) < 0.005 && W.filling && out.jumping.hits[0] === 4 && out.beside.hits.length === 0 && out.beside.rolled > 0.45, out);
+  },
+});
+act2('clog-snare-is-a-floor-blast', {
+  about: "Each snare circle has a half-sphere volume of its radius (5 cm) over it, filling together. A jelly standing in one is hit (2, slowed); one in the air over it (feet 12 cm up) isn't.",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), out = {};
+    for (const up of [0, JUMP_FEET]) {
+      clogAgain(B, 'snare', 0.9, up);
+      step(40);
+      const w = clogWarnings(), dome = w.volume[0], b = dome && new THREE.Box3().setFromObject(dome);
+      const h0 = hits.length;
+      step(120, () => B.state === 'snare' && B.sprung);
+      step(3);
+      out[up ? 'jumping' : 'standing'] = {
+        floors: w.floor.length, volumes: w.volume.length, r: b ? +((b.max.x - b.min.x) / 2).toFixed(3) : 0, tall: b ? +(b.max.y - B.floor).toFixed(3) : 0,
+        filling: !!dome && w.floor.some((f) => Math.abs(f.material.progress - dome.material.progress) < 1e-6), hits: hits.slice(h0).map((h) => h.amount),
+      };
+      step(60, () => B.state !== 'snare');
+    }
+    const s = out.standing;
+    return ok(s.floors === 3 && s.volumes === 3 && Math.abs(s.r - 0.05) < 0.003 && Math.abs(s.tall - 0.05) < 0.003 && s.filling && s.hits[0] === 2 && s.hits.length === 1 && out.jumping.hits.length === 0, out);
+  },
+});
+act2('clog-spray-low-and-high', {
+  about: "The angry gunk spray's globs are Shots alternating floor level (4.5 cm) and jump height (16 cm): the low ones pass under a jumping jelly and the high ones over a grounded one (each hits the jelly that doesn't dodge it, 2).",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), out = {};
+    B.swarmed = true; B.hp = B.maxHp * 0.4;
+    for (const up of [0, JUMP_FEET]) {
+      const player = clogAgain(B, 'spray', 0.75, up);
+      B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0;
+      const h0 = hits.length, seen = new Set(), aimed = [];
+      // keep one stream facing the jelly, so a glob from it comes straight at it every tenth of a second
+      const aim = () => { B.heading = Math.atan2(player.position.x - B.position.x, player.position.z - B.position.z) - 8 / 60; };
+      aim();
+      step(200, () => {
+        for (const s of B.shots) {
+          if (seen.has(s)) continue;
+          seen.add(s);
+          const to = player.position.clone().sub(s.m.position).setY(0).normalize(), v = s.v.clone().setY(0).normalize();
+          if (to.dot(v) > 0.99) aimed.push(s.m.position.y - B.floor);
+        }
+        if (B.state === 'spray') aim();
+        return B.state !== 'spray' && !B.shots.length;
+      });
+      const low = aimed.filter((h) => h < 0.07).length, high = aimed.length - low;
+      const alternate = aimed.every((h, i) => i === 0 || (h < 0.07) !== (aimed[i - 1] < 0.07));
+      out[up ? 'jumping' : 'grounded'] = { low, high, alternate, hits: hits.slice(h0).map((h) => h.amount) };
+    }
+    const g = out.grounded, j = out.jumping, twos = (r) => r.hits.every((n) => n === 2);
+    const pass = g.low > 0 && g.high > 0 && j.low > 0 && j.high > 0 && g.alternate && j.alternate && twos(g) && twos(j)
+      && g.hits.length === g.low && j.hits.length === j.high;   // grounded: only the low ones hit; jumping: only the high ones
+    return ok(pass, out);
+  },
+});
+for (const attack of ['lash', 'snare', 'roll', 'spray']) {
+  act2(`clog-${attack}-builds-no-shader`, {
+    about: `Starting the Clog's ${attack} builds no new shader: its Warning's floor shape and volume${attack === 'spray' ? ', and its Shots,' : ''} were built behind Play.`,
+    setup() {},
+    play() {
+      const B = clogFight(), { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
+      if (attack === 'spray') { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+      clogAgain(B, attack, 0.75);
+      if (attack === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
+      const showing = () => (attack === 'spray' ? B.shots.length > 3 : clogWarnings().volume.length > 0 && clogWarnings().floor.length > 0);
+      step(60, showing);
+      const shown = !!showing();
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      const newShaders = APT.renderer.info.programs.length - programs;
+      return ok(shown && newShaders === 0, { shown, newShaders });
+    },
+  });
+}
 
 act2('soap-slick-slides', {
   about: 'Soap underfoot: let go on a slick and you keep sliding a long way; off it you stop almost at once.',
