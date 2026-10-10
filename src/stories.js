@@ -3660,6 +3660,122 @@ act2('clock-beaten-hangs-again', {
     return ok(log.length === 1 && e.decor && !e.model.face.visible && !e.bar.visible && e.holder.position.y > 1.1 && run.elites.decor.includes(e) && picked, { chestY: chest && +chest.pos.y.toFixed(2), defeated: log.length, decor: !!e.decor, y: +e.holder.position.y.toFixed(3), picked });
   },
 });
+// the Wall Clock's attacks in 3D: start one with the jelly held where it stands on the bench
+function startClock(atk, { x = 2.0, z = 7.42, angry = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onBench(x, z);
+  const e = hallClock(), player = holdJelly();
+  if (angry) e.hp = e.maxHp * 0.4;
+  step(90); step(400, () => e.state === 'idle');   // (it may have started one of its own coming down)
+  e.cool = 0; e.next = atk;
+  return { e, player, bench: player.position.y };
+}
+function clockHits(source) { const c = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) c.push(d); })); return c; }
+// the clock's Warning, as the scene holds it: its floor shapes and volumes
+function clockWarning(e) {
+  const kids = G().APT.scene.children, mine = (o) => e.tele.includes(o);
+  return { floor: kids.filter((o) => mine(o) && o.material instanceof TeleMaterial), volume: kids.filter((o) => mine(o) && o.material instanceof VolumeMaterial) };
+}
+act2('clock-sweep-warning-has-volume', {
+  about: "The sweeping hands' Warning is the half circle on the bench with a low volume over it (2 cm), filling together; both go after the sweep.",
+  setup() { startClock(0); },
+  play() {
+    const e = hallClock();
+    step(200, () => clockWarning(e).floor.length);
+    step(10);
+    const w1 = clockWarning(e), p1 = [w1.floor[0]?.material.progress, w1.volume[0]?.material.progress];
+    step(10);
+    const w2 = clockWarning(e), p2 = [w2.floor[0]?.material.progress, w2.volume[0]?.material.progress];
+    const filling = !!(w1.floor[0] && w1.volume[0]) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    let shape = {};
+    if (w1.volume[0]) {
+      const f = new THREE.Box3().setFromObject(w1.floor[0]), v = new THREE.Box3().setFromObject(w1.volume[0]), same = (a, b) => Math.abs(a - b) < 0.01;
+      shape = { tall: +(v.max.y - e.base.y).toFixed(3), onBench: Math.abs(v.min.y - e.base.y) < 0.005, over: same(f.min.x, v.min.x) && same(f.max.x, v.max.x) && same(f.min.z, v.min.z) && same(f.max.z, v.max.z), color: w1.volume[0].material.uniforms.uColor.value.getHex() === hostile('clock').getHex() };
+      shape.ok = Math.abs(shape.tall - 0.02) < 0.004 && shape.onBench && shape.over && shape.color;
+    }
+    step(200, () => e.state === 'idle');
+    const w3 = clockWarning(e), gone = !w3.floor.length && !w3.volume.length;
+    return ok(filling && shape.ok && gone, { p1, p2, shape, gone });
+  },
+});
+act2('clock-sweep-jumped-clear', {
+  about: "A jelly standing in the sweeping hand's path is hit (3), and so is one barely off the bench (feet 1 cm up, still in its 2 cm volume); one in the air over it (feet 5 cm up) isn't.",
+  setup() { startClock(0); },
+  play() {
+    const out = {};
+    for (const [name, up] of [['standing', 0], ['hopping', 0.01], ['jumping', 0.05]]) {
+      const { e, player, bench } = startClock(0), hits = clockHits('clock');
+      if (up) { player.position.y = bench + up; player.grounded = false; }
+      let swept = false;
+      step(60 * 3, () => { if (e.beam) swept = true; return swept && e.state === 'idle'; });
+      out[name] = { swept, hits: hits.map((h) => h.amount) };
+    }
+    const { standing: s, hopping: h, jumping: j } = out;
+    return ok(s.swept && s.hits[0] === 3 && h.swept && h.hits[0] === 3 && j.swept && !j.hits.length, out);
+  },
+});
+act2('clock-wreath-flies-at-jump-height', {
+  about: "Victory's wreath is a Shot aimed at the jelly's middle where it is, mid-jump included: its line tilts from her hand to that height and the wreath hits a jelly held mid-jump (2); if that jelly drops to the bench after the aim locks, the wreath flies through where its middle was, over it.",
+  setup() { startClock(1); },
+  play() {
+    const out = {};
+    for (const drop of [false, true]) {
+      const { e, player, bench } = startClock(1), hits = clockHits('clock-wreath'), run = G().run;
+      player.position.y = bench + JUMP_FEET; player.grounded = false;   // feet 12 cm up: middle at about 16.5 cm
+      const mid = bench + JUMP_FEET + CONFIG.player.height * 0.5;
+      step(200, () => e.state === 'windup' && e.stateT > 0.6);           // the aim has locked (halfway)
+      const line = clockWarning(e).floor.find((m) => (m.updateMatrixWorld(), Math.abs(m.localToWorld(V(0, 0, 1)).y - m.position.y) > 0.01));
+      const end = line && line.localToWorld(V(0, 0, 1));
+      if (drop) { player.position.y = bench; player.grounded = true; }
+      let peak = null;
+      step(60 * 3, () => {
+        const w = run.elites.thrown[0];
+        if (w) { const d = w.m.position.distanceTo(V(player.position.x, mid, player.position.z)); if (!peak || d < peak.d) peak = { d, y: w.m.position.y }; }
+        return e.state === 'idle' && !run.elites.thrown.length;
+      });
+      out[drop ? 'dropped' : 'midJump'] = { line: end ? +(end.y - bench).toFixed(3) : null, closest: peak && +peak.d.toFixed(3), atY: peak && +(peak.y - bench).toFixed(3), hits: hits.map((h) => h.amount), back: e.model.wreath.visible };
+    }
+    const m = out.midJump, d = out.dropped, high = (y) => y != null && Math.abs(y - (JUMP_FEET + CONFIG.player.height * 0.5)) < 0.01;
+    return ok(high(m.line) && m.hits.length === 1 && m.hits[0] === 2 && m.back && high(d.line) && d.closest < 0.01 && !d.hits.length && d.back, out);
+  },
+});
+act2('clock-chime-jumped-clear', {
+  about: "Each chime is a ring wall 3 cm high rolling out over the bench: a jelly standing in its path is hit (2), and so is one barely off the bench (feet 2 cm up); one in the air over it (feet 5 cm up) isn't hit by any of the three.",
+  setup() { startClock(2, { angry: true }); },
+  play() {
+    const out = {};
+    for (const [name, up] of [['standing', 0], ['hopping', 0.02], ['jumping', 0.05]]) {
+      const { e, player, bench } = startClock(2, { angry: true, x: 2.06, z: 7.5 }), hits = clockHits('clock-chime'), run = G().run;
+      if (up) { player.position.y = bench + up; player.grounded = false; }
+      const walls = [];
+      let warned = false;
+      step(60 * 4, () => {
+        const w = clockWarning(e);
+        if (w.floor.length && w.volume.length) warned = true;
+        for (const r of run.elites.rings) if (r.vol) { const b = new THREE.Box3().setFromObject(r.vol); walls.push(+(b.max.y - r.at.y).toFixed(3)); }
+        return e.chimed === -1 && e.state === 'idle' && !run.elites.rings.length;
+      });
+      out[name] = { warned, walls: walls.length, tall: walls.length ? Math.max(...walls) : null, hits: hits.map((h) => h.amount) };
+    }
+    const { standing: s, hopping: h, jumping: j } = out, low = (r) => r.walls > 0 && Math.abs(r.tall - 0.03) < 0.006, twos = (r) => r.hits.length >= 1 && r.hits.every((n) => n === 2);
+    return ok(s.warned && low(s) && twos(s) && twos(h) && low(j) && !j.hits.length, out);
+  },
+});
+for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
+  act2(`clock-${name}-builds-no-shader`, {
+    about: `Starting the Wall Clock's ${name} builds no new shader: its Warning's floor shape and volume (the wreath: its lines) were built behind Play.`,
+    setup() { startClock(atk, { angry: atk === 2 }); },
+    play() {
+      const { APT, batcher } = G(), e = hallClock(), programs = APT.renderer.info.programs.length;
+      step(200, () => clockWarning(e).floor.length);
+      step(5);
+      const w = clockWarning(e);
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      const newShaders = APT.renderer.info.programs.length - programs;
+      const shown = atk === 1 ? w.floor.length >= 2 : w.floor.length && w.volume.length;
+      return ok(!!shown && newShaders === 0, { newShaders, floor: w.floor.length, volume: w.volume.length });
+    },
+  });
+}
 
 // the Cream Whipper in the hall's far corner by the front door (elites.js, whipper-model.js)
 const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');

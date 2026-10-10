@@ -145,6 +145,7 @@ const VOLUME = {
   cone: { bottom: 0, height: CONE_RISE, geo: () => coneGeometry() },   // a cone over a floor wedge: see coneGeometry; scale (half-width, half-width, length) at the far end
   lane: { bottom: 0, height: 1, geo: () => new THREE.BoxGeometry(1, 1, 1, 1, 1, 4).translate(0, 0.5, 0.5) },   // a box over a floor strip, from its start along +z; scale (width, height, length), turn it like the strip
   ring: { bottom: 0, height: 1, geo: () => new THREE.CylinderGeometry(1, 1, 1, 48, 1, true).translate(0, 0.5, 0) },   // a low wall round its centre; scale (radius, height, radius)
+  half: { bottom: 0, height: 1, geo: () => new THREE.CylinderGeometry(1, 1, 1, 24, 1, false, -Math.PI / 2, Math.PI).translate(0, 0.5, 0) },   // a low slab over a floor half circle pointing +z; scale (radius, height, radius), turn it like the half circle
 };
 const VOLUME_GEO = {};
 // the shared unit geometry of a kind of volume (scale and place the mesh, never the geometry)
