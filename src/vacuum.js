@@ -1,10 +1,12 @@
 // The Vacuum: stage 1's boss, a robot vacuum that powers on in front of the kitchen.
 // It chases you and bumps you back, and between chases it cycles through attacks:
-//   charge    the ring light flashes red and a strip on the floor shows its line, then it rams
+//   charge    the ring light flashes red and a strip on the floor shows its line, under a lane as
+//             tall as the Vacuum (8 cm: jump it), then it rams
 //   suction   it pulls you in toward itself; caught close, it hurts
-//   brushes   the side brushes whirr up, then two sweeping rings hit everything close
+//   brushes   the side brushes whirr up, then two sweeps: low walls (2 cm: jump them) spreading out round it
 //   dump      it stops and drops cockroaches out of its dust bin
-//   spin      (below 45% health) it spins in place, spraying dust clumps all around
+//   spin      (below 45% health) it spins in place, spraying dust clumps all around: Shots
+//             alternating floor level and jump height
 //   flies     its light flashes purple, then it launches 4 lanternflies out of the bin in high
 //             arcs (a ring marks each landing) and raises a shield: it can't be hurt until all
 //             4 are dead (a purple dome, with a tether to each fly; it gives up after 30 s).
@@ -17,10 +19,11 @@ import * as THREE from 'three';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial } from './vfx.js';
+import { hostile, TeleMaterial, laneHits, ringHits, shotTarget } from './vfx.js';
 import { sfx } from './sfx.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
+const _rel = new THREE.Vector3();
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
 
 export class Vacuum {
@@ -114,6 +117,17 @@ export class Vacuum {
     this.swirl.material.opacity = 0;
     this.swirl.renderOrder = 3;
     scene.add(this.swirl);
+    // over them, the space each attack fills (vfx.js volumes): the charge's lane, as tall as the
+    // Vacuum, over its strip; the brushes' sweep, a low wall spreading out from it
+    this.chargeLen = 0.9;
+    this.lane = fx.volume(hostile('vacuum'), 'lane', this.holder.position, new THREE.Vector3(this.r * 1.6, this.h, this.chargeLen));
+    this.lane.material.opacity = 0;
+    this.sweepH = 0.02;
+    this.sweep = fx.volume(hostile('vacuum'), 'ring', this.holder.position, new THREE.Vector3(this.r, this.sweepH, this.r));
+    this.sweep.material.opacity = 0;
+    this.sweepT = 1;
+    this.laneAt = new THREE.Vector3();
+    this.laneDir = new THREE.Vector3();
     // the shield: a glowing dome, and a tether from it to each lanternfly keeping it up
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({
       color: hostile('vacuum'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
@@ -193,7 +207,7 @@ export class Vacuum {
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
-      this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.line.material.opacity = this.swirl.material.opacity = this.lane.material.opacity = this.sweep.material.opacity = 0;
       this.dome.visible = this.tethers.visible = false;
       if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
       return out;
@@ -216,7 +230,8 @@ export class Vacuum {
       this.wasAngry = true;
       this.enrageT = 1.8;
       this.state = 'chase'; this.locked = false; this.chargeWind = null;
-      this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.line.material.opacity = this.swirl.material.opacity = this.lane.material.opacity = this.sweep.material.opacity = 0;
+      this.sweepT = 1;
       sfx.vacAngry();
       this.fx.number(this.center().setY(p.y + 0.22), 'ENRAGED!', '#ff5a2a', 26);
     }
@@ -236,13 +251,25 @@ export class Vacuum {
         this.setLight(0xff2a2a, Math.sin(this.t * 30) > 0 ? 3 : 0.6);
         this.line.position.copy(p).setY(p.y + 0.002);
         this.line.rotation.y = this.heading;
-        this.line.scale.set(this.r * 1.6, 1, 0.9);
+        this.line.scale.set(this.r * 1.6, 1, this.chargeLen);
+        this.lane.position.copy(p);
+        this.lane.rotation.y = this.heading;
         this.chargeWind ??= Math.max(0.01, this.stateT);
         this.line.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
-        this.line.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
-        if (this.stateT <= 0) { this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.chargeWind = null; sfx.vacRam(); }
+        this.lane.material.opacity = 1;
+        this.line.material.progress = this.lane.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
+        if (this.stateT <= 0) {
+          this.locked = true; this.stateT = 1.3; this.line.material.opacity = this.lane.material.opacity = 0; this.chargeWind = null; sfx.vacRam();
+          this.laneAt.copy(p); this.laneDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.laneHit = false;
+        }
       } else {
         this.setLight(0xff2a2a, 3);
+        // the lane it rams down, as far as its front has got: standing in it is a hit (once a
+        // charge), jumping over it isn't
+        const reached = Math.min(this.chargeLen, _rel.copy(p).sub(this.laneAt).dot(this.laneDir) + this.r);
+        if (!this.laneHit && this.knock <= 0 && laneHits(this.laneAt, this.laneDir, reached, this.r * 1.6, this.h, P, player.cfg)) {
+          this.laneHit = true; out.hit = 4; this.knockBack(toP, 1.0);
+        }
         const wall = this.drive(dt, null, 1.05, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
         if (wall || this.stateT <= 0) { sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
@@ -262,7 +289,8 @@ export class Vacuum {
       }
       if (this.stateT <= 0) { this.swirl.material.opacity = 0; this.toChase(); }
     } else if (this.state === 'brushes') {
-      // brushes whirr up (the warning), then two sweeps
+      // brushes whirr up (the warning), then two sweeps: each a low wall spreading out to its reach,
+      // hitting everything close on the floor (jumping it clears it)
       this.drive(dt, P, 0.045, 1);
       this.setLight(0xffe24a, 2.5);
       brushSpin = 60;
@@ -271,8 +299,9 @@ export class Vacuum {
         if (this.prevT > at && this.stateT <= at) {
           const reach = this.r + 0.1;
           this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
+          this.sweepT = 0;
           sfx.vacSweep();
-          if (dist < reach + 0.018 && P.y < 0.12) { out.hit = 3; this.knockBack(toP, 0.5); }
+          if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) { out.hit = 3; this.knockBack(toP, 0.5); }
         }
       }
       if (this.stateT <= 0) this.toChase();
@@ -297,7 +326,8 @@ export class Vacuum {
       if (this.prevT > 0.4 && this.stateT <= 0.4) this.launch();
       if (this.stateT <= 0) this.toChase();
     } else if (this.state === 'spin') {
-      // spin in place, spraying dust clumps all around
+      // spin in place, spraying dust clumps all around: Shots (fx.shot) alternating floor level
+      // (jump them) and jump height (stay down), straight out at the height they're aimed at
       this.heading += dt * 9;
       this.body.rotation.y = this.heading;
       this.setLight(0xff8a2a, 3);
@@ -306,19 +336,22 @@ export class Vacuum {
       if (this.sprayT <= 0) {
         this.sprayT = 0.18;
         const dir = new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
-        const m = this.fx.orb(hostile('vacuum'), 0.007);   // dust clumps, glowing so you can read them
-        m.position.copy(p).addScaledVector(dir, this.r).setY(0.03);
-        this.shots.push({ m, v: dir.multiplyScalar(0.525), t: 1.33 });
+        this.volley = ((this.volley || 0) + 1) % 2;
+        const y = shotTarget(P, player.cfg, this.volley ? 0.16 : 0.045, p.y).y;   // the volley's height over its floor
+        const from = p.clone().addScaledVector(dir, this.r).setY(Math.min(y, p.y + this.h));   // out of its bumper, or its lid for a high one
+        const to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);       // at that height by the jelly's distance
+        this.shots.push(this.fx.shot(hostile('vacuum'), from, to, { speed: 0.525, size: 0.007, life: 1.33 }));   // dust clumps, glowing so you can read them
         sfx.vacSpray();
       }
       if (this.stateT <= 0) this.toChase();
     }
     this.prevT = this.stateT;
+    this.sweepTick(dt);
     this.shield(dt);
     for (const b of this.brushes) b.rotation.y += dt * brushSpin;
 
     // bumping into it knocks you back
-    if (this.knock <= 0 && dist < this.r + 0.018 && P.y < 0.1) {
+    if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < 0.1) {   // feet over its floor: a jump clears it
       out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? 4 : 2);
       this.knockBack(toP, this.state === 'charge' && this.locked ? 1.0 : 0.6);
     }
@@ -328,16 +361,21 @@ export class Vacuum {
     }
 
     // dust clumps
-    const pc = P.clone().setY(P.y + 0.026);
-    for (const s of this.shots) {
-      s.t -= dt;
-      s.m.position.addScaledVector(s.v, dt);
-      this.fx.orbTick(s.m, dt);
-      if (s.m.position.distanceTo(pc) < 0.025) { out.hit = Math.max(out.hit, 2); s.t = 0; }
-      if (s.t <= 0) { this.fx.impact(s.m.position, hostile('vacuum'), 0.015, 8); this.fx.free(s.m); }
-    }
-    this.shots = this.shots.filter((s) => s.t > 0);
+    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, 2);
+    this.shots = this.shots.filter((s) => !s.done);
     return out;
+  }
+
+  // the brush sweep's wall: spreads from its body out to its reach in a moment, fading
+  sweepTick(dt) {
+    const life = 0.25, m = this.sweep;
+    if (this.sweepT >= life) { m.material.opacity = 0; return; }
+    this.sweepT += dt;
+    const k = Math.min(1, this.sweepT / life), R = this.r + 0.1 * (1 - (1 - k) * (1 - k));
+    m.position.copy(this.holder.position);
+    m.scale.set(R, this.sweepH, R);
+    m.material.progress = 1;
+    m.material.opacity = k < 1 ? 1 - k * k : 0;
   }
 
   // 4 lanternflies leap out of the bin in high arcs, landing around it (the leap word's own
@@ -445,6 +483,8 @@ export class Vacuum {
     this.scene.remove(this.holder);
     this.scene.remove(this.line);
     this.scene.remove(this.swirl);
+    this.scene.remove(this.lane);
+    this.scene.remove(this.sweep);
     this.scene.remove(this.dome);
     this.scene.remove(this.tethers);
     this.shots.forEach((s) => this.fx.free(s.m));

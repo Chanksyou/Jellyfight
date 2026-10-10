@@ -201,7 +201,9 @@ export class Fx {
   // a Warning's volume (vfx.js VolumeMaterial) over its floor shape: kind 'dome' (a floor Blast,
   // standing on `pos`) or 'sphere' (a mid-air Blast, centred on `pos`), `r` its radius; or 'cone'
   // (a spray over a floor wedge from its apex `pos`, `r` = Vector3(w, w, length) with w its far
-  // half-width; turn it with rotation.y like the wedge). Added to the scene; set
+  // half-width; turn it with rotation.y like the wedge); or 'lane' (a box over a floor strip from
+  // `pos`, `r` = Vector3(width, height, length), turned like the strip); or 'ring' (a low wall round
+  // `pos`, `r` = Vector3(radius, height, radius)). Added to the scene; set
   // `material.progress` with the floor shape's, and remove it with it.
   volume(color, kind, pos, r) {
     const m = new THREE.Mesh(volumeGeometry(kind), new VolumeMaterial(color, kind));

@@ -13,6 +13,9 @@
 //                         (VolumeMaterial), filling up from the floor with it
 //   blasts                a hit is anything of the jelly inside a sphere round where it goes off
 //                         (blastHits): half a sphere on a surface, a whole one in mid-air
+//   lanes, rings, cones   a box over a floor strip (laneHits), a low wall spreading out
+//                         (ringHits), a spray rising as it spreads (coneHits), each with the
+//                         height the attack really has: jumping clears a low one
 //   impacts               a flash, sparks and a shockwave (Fx.impact)
 //
 // Every glow (halos, trails, sparks, flashes) is one particle in one GlowPoints draw call, so a
@@ -140,6 +143,8 @@ const VOLUME = {
   dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius
   sphere: { bottom: -1, height: 2, geo: () => new THREE.SphereGeometry(1, 28, 16) },                                // a mid-air Blast: centred; scale = radius
   cone: { bottom: 0, height: CONE_RISE, geo: () => coneGeometry() },   // a cone over a floor wedge: see coneGeometry; scale (half-width, half-width, length) at the far end
+  lane: { bottom: 0, height: 1, geo: () => new THREE.BoxGeometry(1, 1, 1, 1, 1, 4).translate(0, 0.5, 0.5) },   // a box over a floor strip, from its start along +z; scale (width, height, length), turn it like the strip
+  ring: { bottom: 0, height: 1, geo: () => new THREE.CylinderGeometry(1, 1, 1, 48, 1, true).translate(0, 0.5, 0) },   // a low wall round its centre; scale (radius, height, radius)
 };
 const VOLUME_GEO = {};
 // the shared unit geometry of a kind of volume (scale and place the mesh, never the geometry)
@@ -233,6 +238,22 @@ export function coneHits(apex, dir, len, half, feet, body) {
   const top = apex.y + CONE_RISE * len * Math.tan(half);
   return along > 0 && along < len + body.radius && across < along * Math.tan(half) + body.radius / Math.cos(half)
     && feet.y > apex.y - body.height && feet.y < top;
+}
+// The hit rule for a lane (volume 'lane'): anything of the jelly in the box over a floor strip from
+// `start` along unit `dir` (flat), `len` long, `width` wide, `height` tall from start.y. Jumping
+// higher than the lane clears it.
+export function laneHits(start, dir, len, width, height, feet, body) {
+  const dx = feet.x - start.x, dz = feet.z - start.z;
+  const along = dx * dir.x + dz * dir.z, across = Math.abs(dx * dir.z - dz * dir.x);
+  return along > -body.radius && along < len + body.radius && across < width / 2 + body.radius
+    && feet.y < start.y + height && feet.y + body.height > start.y;
+}
+// The hit rule for a ring wall (volume 'ring'): anything of the jelly where the wall round `centre`
+// passes as it spreads from radius `from` to `to` (flat), up to `height` above centre.y. Jumping
+// higher than the wall clears it.
+export function ringHits(centre, from, to, height, feet, body) {
+  const d = Math.hypot(feet.x - centre.x, feet.z - centre.z);
+  return d > from - body.radius && d < to + body.radius && feet.y < centre.y + height && feet.y + body.height > centre.y;
 }
 
 // ------------------------------------------------------------------ glow particles

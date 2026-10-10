@@ -2571,6 +2571,154 @@ story('boss/vacuum-two-shields-max', {
   },
 });
 
+// --- 3D attacks: the Vacuum's charge is a lane as tall as it is (8 cm: jump it), its brush sweeps
+// are low walls (2 cm: jump them), and its spin's dust clumps are Shots at mixed heights
+const VAC_JELLY = [3.6, 0, 3.6];   // in front of where it powers on, 50 cm away
+function startVacuum(attack, at = VAC_JELLY) {
+  fresh({ bubbles: false, lash: false });
+  G().run.startBossIntro();
+  step(180);
+  tp(at[0], at[1] + 0.05, at[2], 0);
+  const B = G().run.boss;
+  B.heading = Math.atan2(at[0] - B.position.x, at[2] - B.position.z);
+  B.state = attack; B.stateT = { charge: 1.0, brushes: 1.4, spin: 2.2 }[attack]; B.prevT = B.stateT; B.locked = false;
+  return B;
+}
+// every hit the Vacuum lands from now on (not the suction's drain)
+function bossHits() { const b = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'boss' && !d.drain) b.push(d); })); return b; }
+// the Warnings showing in the scene: floor shapes and volumes (the Vacuum hides its own, never removes them)
+function shownWarnings() {
+  const shown = (o) => o.visible && o.material?.opacity > 0;
+  const kids = G().APT.scene.children.filter(shown);
+  return { floor: kids.filter((o) => o.material instanceof TeleMaterial), volume: kids.filter((o) => o.material instanceof VolumeMaterial) };
+}
+story('boss/vacuum-charge-warning-is-a-lane', {
+  about: "The charge's Warning is its floor strip with a lane volume over it as tall as the Vacuum (8 cm), filling together; both go when it rams.",
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, floorY = B.position.y;
+    step(20);
+    const w1 = shownWarnings(), strip = w1.floor[0], lane = w1.volume[0], p1 = [strip?.material.progress, lane?.material.progress];
+    step(20);
+    const p2 = [strip?.material.progress, lane?.material.progress];
+    let shape = {};
+    if (strip && lane) {
+      const s = new THREE.Box3().setFromObject(strip), l = new THREE.Box3().setFromObject(lane);
+      const same = (a, b) => Math.abs(a - b) < 0.005;
+      shape = { tall: +(l.max.y - floorY).toFixed(3), onFloor: l.min.y > floorY - 0.005, over: same(s.min.x, l.min.x) && same(s.max.x, l.max.x) && same(s.min.z, l.min.z) && same(s.max.z, l.max.z) };
+      shape.ok = Math.abs(shape.tall - 0.08) < 0.003 && shape.onFloor && shape.over;
+    }
+    step(60, () => B.locked);
+    const w3 = shownWarnings(), gone = B.locked && !w3.floor.includes(strip) && !w3.volume.includes(lane);
+    const filling = !!(strip && lane) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    return ok(filling && shape.ok && gone, { p1, p2, shape, gone, floors: w1.floor.length, volumes: w1.volume.length });
+  },
+});
+// start an attack again from where the Vacuum powers on, with the jelly held on the floor `away` m in front
+function againVacuum(B, attack, away = 0.5) {
+  B.position.set(...G().run.stage.boss.drain);
+  const player = G().player;
+  player.position.set(B.position.x, B.position.y, B.position.z + away); player.grounded = true; player.velocity.set(0, 0, 0);
+  B.heading = 0;
+  B.knock = 0; B.state = attack; B.stateT = { charge: 1.0, brushes: 1.4, spin: 2.2 }[attack]; B.prevT = B.stateT; B.locked = false;
+  return player;
+}
+story('boss/vacuum-charge-jumped-clear', {
+  about: "A jelly standing in the charge's lane is hit (4) when the Vacuum gets there; one in the air above it (feet 12 cm up, over an 8 cm Vacuum) isn't, by the lane or the bump, as it rams underneath.",
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, player = holdJelly(), hits = bossHits(), out = {};
+    for (const jump of [false, true]) {
+      againVacuum(B, 'charge');
+      step(120, () => B.locked);
+      if (jump) { player.position.y = B.position.y + JUMP_FEET; player.grounded = false; }
+      const h0 = hits.length, from = B.position.clone();
+      step(120, () => B.state !== 'charge');
+      const passed = B.position.distanceTo(from) > from.distanceTo(player.position);   // it rammed on past the jelly
+      out[jump ? 'jumping' : 'standing'] = { hits: hits.slice(h0).map((h) => h.amount), passed };
+    }
+    const pass = out.standing.hits[0] === 4 && out.jumping.hits.length === 0 && out.jumping.passed;
+    return ok(pass, out);
+  },
+});
+story('boss/vacuum-brushes-sweep-a-low-wall', {
+  about: "Each brush sweep shows as a low wall (2 cm) spreading out round the Vacuum to its reach (27 cm), in its hostile colour, then gone.",
+  setup() { startVacuum('brushes'); },
+  play() {
+    const B = G().run.boss;
+    holdJelly(); againVacuum(B, 'brushes', 0.4);
+    const seen = [];
+    step(120, () => {
+      const v = shownWarnings().volume[0];
+      if (v) { const b = new THREE.Box3().setFromObject(v); seen.push({ r: (b.max.x - b.min.x) / 2, tall: b.max.y - B.position.y, low: b.min.y - B.position.y, color: v.material.uniforms.uColor.value.getHex() }); }
+      return B.state !== 'brushes';
+    });
+    const after = shownWarnings().volume.length;
+    const walls = seen.length > 0 && seen.every((w) => Math.abs(w.tall - 0.02) < 0.002 && Math.abs(w.low) < 0.002 && w.color === hostile('vacuum').getHex());
+    const spreads = seen.length > 2 && seen[1].r > seen[0].r && Math.abs(Math.max(...seen.map((w) => w.r)) - 0.27) < 0.01;
+    return ok(walls && spreads && after === 0, { frames: seen.length, first: seen[0] && +seen[0].r.toFixed(3), widest: seen.length && +Math.max(...seen.map((w) => w.r)).toFixed(3), walls, after });
+  },
+});
+story('boss/vacuum-brushes-jumped-clear', {
+  about: "A jelly standing in a brush sweep's reach is hit by both sweeps (3 each); one in the air above it (feet 5 cm up, over a 2 cm wall) isn't.",
+  setup() { startVacuum('brushes'); },
+  play() {
+    const B = G().run.boss, player = holdJelly(), hits = bossHits(), out = {};
+    for (const jump of [false, true]) {
+      againVacuum(B, 'brushes', 0.26);
+      if (jump) { player.position.y = B.position.y + 0.05; player.grounded = false; }
+      const h0 = hits.length;
+      step(120, () => B.state !== 'brushes');
+      out[jump ? 'jumping' : 'standing'] = hits.slice(h0).map((h) => h.amount).filter((n) => n === 3).length;   // a sweep's hit (the bump is 2)
+    }
+    return ok(out.standing === 2 && out.jumping === 0, out);
+  },
+});
+story('boss/vacuum-spin-low-and-high', {
+  about: "The spin's dust clumps are Shots alternating floor level (4.5 cm) and jump height (16 cm): the low ones pass under a jumping jelly and the high ones over a grounded one (each hits the jelly that doesn't dodge it, 2).",
+  setup() { startVacuum('spin'); },
+  play() {
+    const B = G().run.boss, player = holdJelly(), hits = bossHits(), out = {};
+    for (const jump of [false, true]) {
+      againVacuum(B, 'spin', 0.45);
+      B.stateT = 1.0;
+      if (jump) { player.position.y = B.position.y + JUMP_FEET; player.grounded = false; }
+      const h0 = hits.length, seen = new Set(), heights = [];
+      // keep it facing the jelly as each clump flies, so every one comes straight at it
+      const aim = () => { B.heading = Math.atan2(player.position.x - B.position.x, player.position.z - B.position.z) - 9 / 60; };
+      aim();
+      step(200, () => {
+        for (const s of B.shots) if (!seen.has(s)) { seen.add(s); heights.push(s.m.position.y - B.position.y); }
+        if (B.state === 'spin') aim();
+        return B.state !== 'spin' && !B.shots.length;
+      });
+      const low = heights.filter((h) => h < 0.07).length, high = heights.length - low;
+      const alternate = heights.every((h, i) => i === 0 || (h < 0.07) !== (heights[i - 1] < 0.07));
+      out[jump ? 'jumping' : 'grounded'] = { low, high, alternate, hits: hits.slice(h0).map((h) => h.amount) };
+    }
+    const g = out.grounded, j = out.jumping, twos = (r) => r.hits.every((n) => n === 2);
+    const pass = g.low > 0 && g.high > 0 && j.low > 0 && j.high > 0 && g.alternate && j.alternate && twos(g) && twos(j)
+      && g.hits.length === g.low && j.hits.length === j.high;   // grounded: only the low ones hit; jumping: only the high ones
+    return ok(pass, out);
+  },
+});
+for (const attack of ['charge', 'brushes', 'spin']) {
+  story(`boss/vacuum-${attack}-builds-no-shader`, {
+    about: `Starting the Vacuum's ${attack} builds no new shader: its Warning, volume and Shots were built behind Play.`,
+    setup() { startVacuum(attack); },
+    play() {
+      const { APT, batcher } = G(), B = G().run.boss, programs = APT.renderer.info.programs.length;
+      holdJelly(); againVacuum(B, attack, 0.4);
+      const showing = () => (attack === 'spin' ? B.shots.length > 1 : shownWarnings().volume.length > 0);
+      step(120, showing);
+      const shown = showing();
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      const newShaders = APT.renderer.info.programs.length - programs;
+      return ok(shown && newShaders === 0, { shown, newShaders });
+    },
+  });
+}
+
 story('modes/quick-restart-after-death', {
   about: 'Starting a new run right after dying: the old run\'s death screen (it comes 0.7 s after) doesn\'t land on the new run.',
   setup() { fresh({ bubbles: false, lash: false }); },
