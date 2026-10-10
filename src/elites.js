@@ -67,7 +67,24 @@ import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneH
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 
+// every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
+// hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
+export const ATTACKS = {
+  controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam', 'boil-over'],
+  soap: ['squirt', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
+};
+
 const DOWN = new THREE.Vector3(0, -1, 0);
+
+// the Wall Clock's wreath as Victory throws it: a glowing copy of the one in her hand
+function thrownWreath(wreath) {
+  const m = wreath.clone(true);
+  m.visible = true;                                                    // (the one in her hand was just hidden)
+  m.scale.setScalar(3.2);                                             // bigger than life, so you can see it coming
+  m.rotation.set(Math.PI / 2, 0, 0);                                 // flat, spinning like a thrown ring
+  m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0xe0b048); o.material.emissive = hostile('clock').clone(); o.material.emissiveIntensity = 1.1; o.material.toneMapped = false; } });
+  return m;
+}
 const UP = new THREE.Vector3(0, 1, 0);
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.45, ...o });
 const glow = (color, k = 1.5) => std(color, { emissive: color, emissiveIntensity: k });
@@ -436,6 +453,7 @@ export class Elites {
       this._warm.push(new THREE.Mesh(this.flat, this.T.blast), new THREE.Mesh(this.flat, this.T.cream));
       const clock = buildClock();
       clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      thrownWreath(clock.wreath).traverse((o) => { if (o.isMesh) this._warm.push(o); });   // glowing, not tone mapped: its own program
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
@@ -629,7 +647,7 @@ export class Elites {
         // finish turning to face you first, so the telegraph points where you are
         const off = Math.atan2(Math.sin(Math.atan2(to.x, to.z) - heading), Math.cos(Math.atan2(to.x, to.z) - heading));
         if (Math.abs(off) > 0.15 && !e.wall) continue;
-        e.attack = e.next++ % (e.kind === 'clock' && e.hp < e.maxHp * 0.5 ? 3 : 2);   // the clock strikes the hour too once it's angry
+        e.attack = e.next++ % (ATTACKS[e.kind].length - (e.kind === 'clock' && e.hp >= e.maxHp * 0.5 ? 1 : 0));   // the clock strikes the hour only once it's angry
         e.state = 'windup';
         e.stateT = 0;
         e.locked = false;
@@ -901,11 +919,7 @@ export class Elites {
             e.threw = true;
             e.clearTele();
             M.wreath.visible = false;
-            const m = M.wreath.clone(true);
-            m.visible = true;                                                    // (the one in her hand was just hidden)
-            m.scale.setScalar(3.2);                                             // bigger than life, so you can see it coming
-            m.rotation.set(Math.PI / 2, 0, 0);                                 // flat, spinning like a thrown ring
-            m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0xe0b048); o.material.emissive = hostile('clock').clone(); o.material.emissiveIntensity = 1.1; o.material.toneMapped = false; } });
+            const m = thrownWreath(M.wreath);
             const from = this.wreathWorld(e);
             m.position.copy(from);
             this.scene.add(m);

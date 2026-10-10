@@ -191,6 +191,9 @@ function buildClog(r) {
   return { root, roll, face, maw, teeth, drips, ropes, eyes };
 }
 
+// its attacks in the order it takes them, calm and angry (pick); the stories check each one's Warning
+export const ATTACKS = { calm: ['lash', 'snare', 'roll', 'flood', 'shed'], angry: ['lash', 'spray', 'roll', 'snare', 'flood', 'lash', 'shed'] };
+
 export class Clog {
   constructor(scene, enemies, fx, arena, world) {
     Object.assign(this, { scene, enemies, fx, arena, world });
@@ -663,7 +666,7 @@ export class Clog {
 
   // the next attack, in a loop (the spray joins once it's angry)
   pick() {
-    const order = this.angry ? ['lash', 'spray', 'roll', 'snare', 'flood', 'lash', 'shed'] : ['lash', 'snare', 'roll', 'flood', 'shed'];
+    const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
     this.stateT = { lash: (this.angry ? 0.85 : 1.05) + 0.3, snare: 1.25, roll: 1.0, flood: 5.1, shed: 1.0, spray: 2.2 }[this.state];
     this.floodMax = this.stateT;

@@ -26,6 +26,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 const _rel = new THREE.Vector3();
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.4, ...o });
 
+// its attacks in the order it takes them, calm and angry (pick); the stories check each one's Warning
+export const ATTACKS = { calm: ['charge', 'suction', 'flies', 'brushes', 'dump'], angry: ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] };
+
 export class Vacuum {
   constructor(scene, enemies, fx, arena, world) {
     Object.assign(this, { scene, enemies, fx, arena, world });
@@ -468,7 +471,7 @@ export class Vacuum {
 
   // the next attack, in a loop (the spin joins once it's angry)
   pick() {
-    const order = this.angry ? ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] : ['charge', 'suction', 'flies', 'brushes', 'dump'];
+    const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
     if (this.state === 'flies' && (this.shielded || this.shields >= 2)) this.state = order[this.next++ % order.length];   // one shield at a time, two a fight
     this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2, flies: 1.0 }[this.state];

@@ -25,6 +25,9 @@ import { checkBvhLayout } from './collision.js';
 import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
 import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
+import { ATTACKS as ELITE_ATTACKS } from './elites.js';
+import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
+import { ATTACKS as CLOG_ATTACKS } from './clog.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -4323,6 +4326,127 @@ for (const attack of ['lash', 'snare', 'roll', 'spray']) {
     },
   });
 }
+
+// --- 3D attacks, every one checked per act: each Elite and Boss attack is listed here with what it
+// warns with, and one story per act starts every one in turn. A Warning before a Blast, a lane, a
+// ring, a half slab or a cone shows its floor shape with its volume over it, filling together, and
+// both go after the hit; starting any attack builds no new shader. An attack the game has (elites.js
+// ATTACKS, vacuum.js / clog.js ATTACKS) that isn't listed here fails its act's story, so a new one
+// has to say what it warns with.
+//   volume  a floor Warning with its volume over it
+//   sweep   a volume with no floor Warning (the Vacuum's brushes, by decision): it must show
+//   shot    a Warning (if any) before Shots: no volume, the Shots are what you watch
+//   hazard  a floor hazard (spec #22, Out of Scope): it only hurts while you stand in it
+//   none    no Warning: it lets bugs out
+const eliteOf = (kind) => G().run.elites.list.find((x) => x.kind === kind);
+const held = (start) => () => { start(); holdJelly(); };
+const atVacuum = (a) => () => { const B = startVacuum(a); holdJelly(); againVacuum(B, a, 0.4); };
+const atClog = (a) => () => {
+  const B = clogFight();
+  if (a === 'spray') { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+  clogAgain(B, a, 0.75);
+  if (a === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
+};
+const EVERY_ATTACK = {
+  1: {
+    controller: { barrage: { is: 'shot', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
+    mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'hazard' } },
+    kettle: { steam: { is: 'volume', start: held(() => startKettle(0)) }, 'boil-over': { is: 'volume', start: held(() => startKettle(1)) } },
+    vacuum: {
+      charge: { is: 'volume', start: atVacuum('charge') }, brushes: { is: 'sweep', start: atVacuum('brushes') }, spin: { is: 'shot', start: atVacuum('spin') },
+      suction: { is: 'hazard' }, flies: { is: 'none' }, dump: { is: 'none' },
+    },
+  },
+  2: {
+    soap: { squirt: { is: 'volume', start: held(() => startSoap(0)) }, 'bubble-ring': { is: 'shot', start: held(() => startSoap(1)) } },
+    clock: { sweep: { is: 'volume', start: () => startClock(0) }, wreath: { is: 'shot', start: () => startClock(1) }, hour: { is: 'volume', start: () => startClock(2, { angry: true }) } },
+    whipper: { balloon: { is: 'volume', start: held(startBalloon) }, cream: { is: 'volume', start: held(startSpray) } },
+    clog: {
+      lash: { is: 'volume', start: atClog('lash') }, snare: { is: 'volume', start: atClog('snare') }, roll: { is: 'volume', start: atClog('roll') }, spray: { is: 'shot', start: atClog('spray') },
+      flood: { is: 'hazard' }, shed: { is: 'none' },
+    },
+  },
+};
+// which Boss this act has (main.js: the Vacuum by name, else the Clog)
+const bossKind = () => (G().run.stage.boss.kind === 'vacuum' ? 'vacuum' : 'clog');
+// the attacks the game has this act: each fighting Elite's, and the Boss's (calm and angry)
+function attacksInGame() {
+  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS }[boss];
+  for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
+  out[boss] = [...new Set([...A.calm, ...A.angry])];
+  return out;
+}
+// Elite and Boss Shots in flight
+const shotsFlying = () => { const { run } = G(), els = run.elites; return els.bullets.length + els.soapBubbles.length + els.thrown.length + (run.boss?.shots?.length || 0); };
+// each volume showing, with the floor Warning under it (same spot, same fill), if there is one
+function volumePairs() {
+  const w = shownWarnings(), under = (v) => (f) => Math.hypot(f.position.x - v.position.x, f.position.z - v.position.z) < 0.01 && Math.abs(f.material.progress - v.material.progress) < 1e-6;
+  return w.volume.map((v) => [v, w.floor.find(under(v))]);
+}
+// start one attack; check its Warning as it shows and fills, the shaders, and that it's gone after
+function checkAttack(who, name, a) {
+  const { APT, batcher, run } = G(), r = {};
+  a.start();
+  const boss = who === bossKind() ? run.boss : null, e = boss ? null : eliteOf(who);
+  const programs = APT.renderer.info.programs.length;
+  const shows = {
+    volume: () => volumePairs().some(([, f]) => f && f.material.progress > 0.05),
+    sweep: () => shownWarnings().volume.length > 0,
+    shot: () => shotsFlying() > 0,
+  }[a.is];
+  // while this attack is the one going (not the next one after it)
+  const during = boss ? () => boss.state === name : () => e.state === 'windup' && ELITE_ATTACKS[who][e.attack] === name;
+  // (an Elite's Shots fly as its attack ends: those count once it has started)
+  const now = a.is === 'shot' ? () => started && shows() : () => during() && shows();
+  const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+  let started = false, warned = false;
+  step(60 * 8, () => {
+    if (during()) started = true;
+    if (!warned && during() && shownWarnings().floor.length) { warned = true; compile(); }   // its floor Warning, as soon as it shows
+    return now() || (a.is !== 'shot' && started && !during());
+  });
+  r.shown = now();
+  compile();   // and with its volume, or its Shots
+  r.newShaders = APT.renderer.info.programs.length - programs;
+  if (a.is === 'volume') {
+    // every volume showing sits over its floor Warning, and the two fill on together
+    const p1 = volumePairs(), was = p1.map(([v]) => v.material.progress);
+    step(6);
+    r.volumes = p1.length;
+    r.filling = p1.length > 0 && p1.every(([v, f], i) => f && f.parent && v.parent && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]);
+  }
+  // after the hit: keep it from starting another, let what's in flight land, then nothing shows
+  if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; }
+  const els = run.elites;
+  step(60 * 6, () => !els.blobs.length && !els.balloons.length && !els.rings.length && !shotsFlying());
+  step(20);
+  const w = shownWarnings();
+  r.gone = !w.floor.length && !w.volume.length;
+  return r;
+}
+function everyAttack(act) {
+  const listed = EVERY_ATTACK[act], inGame = attacksInGame(), out = {}, bad = [];
+  for (const [who, names] of Object.entries(inGame)) for (const n of names) if (!listed[who]?.[n]) bad.push(`${who} ${n}: not listed`);
+  for (const [who, attacks] of Object.entries(listed)) {
+    for (const [name, a] of Object.entries(attacks)) {
+      if (!inGame[who]?.includes(name)) { bad.push(`${who} ${name}: not in the game`); continue; }
+      if (!a.start) continue;   // a floor hazard, or no Warning
+      const r = out[`${who} ${name}`] = checkAttack(who, name, a);
+      if (!(r.shown && r.newShaders === 0 && r.gone && (a.is !== 'volume' || r.filling))) bad.push(`${who} ${name}`);
+    }
+  }
+  return ok(!bad.length, { bad, ...out });
+}
+story('attacks/act-1-every-warning-has-volume', {
+  about: 'Every Controller, Mug, Kettle and Vacuum attack in turn: each Warning before a Blast, lane, ring or cone shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  play() { return everyAttack(1); },
+});
+act2('attacks-every-warning-has-volume', {
+  about: 'Every Soap Dispenser, Wall Clock, Cream Whipper and Clog attack in turn: each Warning before a Blast, lane, ring, half slab or cone shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  play() { return everyAttack(2); },
+});
 
 act2('soap-slick-slides', {
   about: 'Soap underfoot: let go on a slick and you keep sliding a long way; off it you stop almost at once.',
