@@ -2,9 +2,10 @@
 // visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
 import * as THREE from 'three';
 import { batcher } from './batch.js';
-import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, CRIT } from './vfx.js';
+import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, shotHits, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
+const _ahead = new THREE.Vector3();   // scratch: which way a Shot is flying
 
 export class Fx {
   constructor(scene, camera) {
@@ -148,6 +149,32 @@ export class Fx {
     if ((O.trailT -= dt) <= 0) { O.trailT = 0.018; this.glow.emit(m.position, O.c, O.size * 5 * glow, O.size * 1.5, 0.24, 0.75); }
   }
   free(m) { const O = m?.userData.orb; if (!O) return; O.o.alive = false; m.visible = false; }
+
+  // A Shot: an orb fired from `from` straight at `to`, a point in 3D (vfx.js shotTarget: the
+  // jelly's middle, or a volley height), flying on past it at `speed` m/s for `life` s. Keep the
+  // returned shot and call shotStep every frame until it's `done`.
+  shot(color, from, to, { speed = 0.9, size = 0.0055, life = 1 } = {}) {
+    const m = this.orb(color, size);
+    m.position.copy(from);
+    const v = to.clone().sub(from);
+    v.multiplyScalar(speed / (v.length() || 1));
+    return { m, v, t: life, size, color, done: false };
+  }
+  // Moves a Shot one frame; true the frame it touches the jelly's body (`feet` = player.position,
+  // `body` = CONFIG.player). It ends (an impact, then back to the pool) on the jelly, a wall
+  // (`world.cast`) or its life running out.
+  shotStep(s, dt, world, feet, body) {
+    if (s.done) return false;
+    s.t -= dt;
+    const step = s.v.length() * dt;
+    if (world.cast(s.m.position, _ahead.copy(s.v).normalize(), step + 0.004)) s.t = 0;
+    s.m.position.addScaledVector(s.v, dt);
+    this.orbTick(s.m, dt);
+    const hit = shotHits(s.m.position, s.size, feet, body);
+    if (hit) s.t = 0;
+    if (s.t <= 0) { this.impact(s.m.position, s.color, 0.015, 8); this.free(s.m); s.done = true; }
+    return hit;
+  }
 
   // A hit landing: a flash, a ring of sparks flying out and a shockwave on the ground
   impact(pos, color, size = 0.025, sparks = 10) {

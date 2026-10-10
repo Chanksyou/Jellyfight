@@ -196,6 +196,16 @@ export function blastHits(centre, r, feet, body) {
   return _spine.distanceTo(centre) < r + body.radius;
 }
 
+// ------------------------------------------------------------------ shots
+// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading;
+// or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
+// volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
+export function shotTarget(feet, body, height = null, floor = feet.y, out = new THREE.Vector3()) {
+  return height == null ? out.set(feet.x, feet.y + body.height * 0.5, feet.z) : out.set(feet.x, floor + height, feet.z);
+}
+// does a Shot (a ball of radius `size` at `pos`) touch the jelly's body (its capsule)?
+export const shotHits = (pos, size, feet, body) => blastHits(pos, size, feet, body);
+
 // ------------------------------------------------------------------ glow particles
 // Every soft light the combat makes, drawn as one THREE.Points: transient particles (trails,
 // sparks, flashes) that move and fade on their own, plus "holds" submitted each frame (the halo
