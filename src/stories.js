@@ -3280,7 +3280,7 @@ act2('clock-beaten-hangs-again', {
 const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
 const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts you (stage2.js stand)
 act2('whipper-balloon-bursts-on-time', {
-  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its burst circle filling on the floor, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
+  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle and a sphere round it) filling, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -3312,7 +3312,7 @@ act2('whipper-deep-sound-recovers', {
   },
 });
 act2('whipper-burst-misses-outside', {
-  about: 'Outside the burst circle, the balloon pops harmlessly and your hearing is fine.',
+  about: 'Outside the burst sphere, the balloon pops harmlessly and your hearing is fine.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -3327,7 +3327,7 @@ act2('whipper-burst-misses-outside', {
   },
 });
 act2('whipper-cream-spray', {
-  about: 'Cream spray: the whipper tips toward you while a cone fills on the floor, then sprays whipped cream along it: 2, and it slows you.',
+  about: 'Cream spray: the whipper tips toward you while a wedge and its cone fill on the floor, then sprays whipped cream along it: 2, and it slows you.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = whipper(), log = record('damage_taken');
@@ -3338,15 +3338,141 @@ act2('whipper-cream-spray', {
   },
 });
 act2('whipper-angry-two-balloons', {
-  about: 'Under half health the Cream Whipper blows two balloons each time.',
+  about: 'Under half health the Cream Whipper blows two balloons each time, each with its own floor circle and sphere volume.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G();
-    let most = 0;
-    step(60 * 3.5, () => { most = Math.max(most, run.elites.balloons.length); });
-    return ok(most === 2, { most });
+    let most = 0, warned = 0;
+    step(60 * 3.5, () => {
+      most = Math.max(most, run.elites.balloons.length);
+      warned = Math.max(warned, run.elites.balloons.filter((B) => { const w = balloonWarning(B); return w.floor && w.volume; }).length);
+    });
+    return ok(most === 2 && warned === 2, { most, warned });
   },
 });
+
+// --- 3D attacks: the balloon bursts as a whole-sphere Blast round it (beside, below or level all
+// count), shown by a sphere volume that follows it over its floor circle; the cream spray is a cone
+// rising as it spreads (jumping doesn't clear it, stepping out does)
+function balloonLoose() { step(60 * 3, () => G().run.elites.balloons.length > 0); return G().run.elites.balloons[0]; }
+// the balloon's Warning as the scene holds it: its floor circle and its volume, under and round it
+function balloonWarning(B) { return warningsAt(B.m.position); }
+function whipperHits(source) { const k = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) k.push(d); })); return k; }
+const startBalloon = () => { fresh({ bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; };
+act2('whipper-balloon-warning-has-sphere', {
+  about: "The balloon's Warning is a floor circle with a whole-sphere volume round the balloon (its burst reach, 20 cm), filling together and following it; both go when it bursts.",
+  setup() { startBalloon(); },
+  play() {
+    const B = balloonLoose();
+    if (!B) return ok(false, { loose: false });
+    step(30);
+    const w1 = balloonWarning(B), p1 = [w1.floor?.material.progress, w1.volume?.material.progress], at1 = B.m.position.clone();
+    step(60);
+    const w2 = balloonWarning(B), p2 = [w2.floor?.material.progress, w2.volume?.material.progress], moved = B.m.position.distanceTo(at1);
+    const filling = !!(w1.floor && w1.volume && w2.volume === w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    let shape = {};
+    if (w2.volume) {
+      const box = new THREE.Box3().setFromObject(w2.volume), size = box.getSize(V(0, 0, 0)), mid = box.getCenter(V(0, 0, 0));
+      // a whole sphere 40 cm across, round the balloon (above its knot, within a balloon's height), over the floor circle
+      shape = {
+        size: r3(size),
+        round: Math.abs(size.y - size.x) < 0.01 && Math.abs(size.x - 0.4) < 0.02,
+        onBalloon: Math.hypot(mid.x - B.m.position.x, mid.z - B.m.position.z) < 0.01 && mid.y >= B.m.position.y && mid.y < B.m.position.y + 0.2,
+        overFloor: w2.floor.position.y < mid.y,
+      };
+      shape.ok = shape.round && shape.onBalloon && shape.overFloor;
+    }
+    step(60 * 3, () => !G().run.elites.balloons.includes(B));
+    const w3 = balloonWarning(B), gone = !w3.floor && !w3.volume;
+    return ok(filling && moved > 0.01 && shape.ok && gone, { p1, p2, moved: +moved.toFixed(3), shape, gone });
+  },
+});
+act2('whipper-balloon-blast-is-a-sphere', {
+  about: "A jelly level with the balloon or below it, inside its 20 cm sphere, is caught when it bursts (2, and the sound goes deep); one off to the side and below, outside the sphere, isn't.",
+  setup() { fresh({ bubbles: false, lash: false }); byDoor(); },
+  play() {
+    const hits = whipperHits('balloon'), player = holdJelly(), home = player.position.clone(), e = whipper();
+    const top = CONFIG.player.height - CONFIG.player.radius;   // feet to the top of the body's spine
+    // one balloon per case: it drifts after you, and just before it bursts the jelly is put with its
+    // body's top at `off` from the sphere's centre
+    const burstWith = (off) => {
+      player.position.copy(home); player.grounded = true;
+      e.cool = 0; e.next = 0;
+      const B = balloonLoose();
+      if (!B) return -1;
+      step(60 * 4, () => B.t > B.fuse - 0.05);
+      const c = (balloonWarning(B).volume ?? B.m).position, before = hits.length;
+      player.position.set(c.x + off[0], c.y + off[1] - top, c.z); player.grounded = false;
+      step(30, () => !G().run.elites.balloons.includes(B));
+      return hits.length - before;
+    };
+    const beside = burstWith([0.18, 0]);          // level with it, 18 cm to the side
+    const below = burstWith([0, -0.2]);           // straight under it, the jelly's top 20 cm down
+    const corner = burstWith([0.19, -0.16]);      // off to the side and below: 25 cm away, outside the sphere
+    return ok(beside === 1 && below === 1 && corner === 0 && hits[0]?.amount === 2 && isDeep(), { beside, below, corner, deep: isDeep() });
+  },
+});
+// the cream spray's Warning, as the scene holds it: its floor wedge and its cone volume
+function creamWarning() {
+  const kids = G().APT.scene.children, e = whipper(), mine = (o) => e.tele.includes(o);
+  return { floor: kids.find((o) => mine(o) && o.material instanceof TeleMaterial), volume: kids.find((o) => mine(o) && o.material instanceof VolumeMaterial) };
+}
+const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; };
+act2('whipper-cream-warning-has-cone', {
+  about: "The cream spray's Warning is a floor wedge with a cone volume over it, rising as it spreads, filling together; both go after the spray.",
+  setup() { startSpray(); },
+  play() {
+    step(400, () => creamWarning().floor);
+    step(10);
+    const w1 = creamWarning(), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(10);
+    const w2 = creamWarning(), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
+    let shape = {};
+    if (w1.volume) {
+      const vol = new THREE.Box3().setFromObject(w1.volume), y0 = w1.floor.position.y, tall = vol.max.y - y0;
+      // 34 cm long: about 0.34 * tan(0.45) * 1.5 = 25 cm tall at the far end, standing on the floor
+      shape = { onFloor: vol.min.y > y0 - 0.01, tall: +tall.toFixed(3) };
+      shape.ok = shape.onFloor && tall > 0.2 && tall < 0.3;
+    }
+    step(400, () => whipper().state !== 'windup');
+    const w3 = creamWarning(), gone = !w3.floor && !w3.volume;
+    return ok(filling && shape.ok && gone, { p1, p2, shape, gone });
+  },
+});
+act2('whipper-cream-hits-inside-the-cone-even-mid-jump', {
+  about: "A jelly in the air inside the cream cone is still hit (2, and slowed); one beside the cone on the floor isn't.",
+  setup() { startSpray(); },
+  play() {
+    const hits = whipperHits('cream');
+    step(400, () => creamWarning().floor);
+    const { floor } = creamWarning(), a = floor.rotation.y, apex = floor.position.clone();
+    const dir = V(Math.sin(a), 0, Math.cos(a)), side = V(Math.cos(a), 0, -Math.sin(a));
+    step(400, () => whipper().state === 'windup' && whipper().stateT >= 0.8);   // just before it sprays (0.85)
+    const player = holdJelly();
+    player.position.copy(apex).addScaledVector(dir, 0.2).addScaledVector(side, 0.2).setY(apex.y); player.grounded = true;   // 20 cm to the side, the wedge is 10 cm wide there
+    step(10);
+    const beside = hits.length;
+    player.position.copy(apex).addScaledVector(dir, 0.2).setY(apex.y + 0.15); player.grounded = false;                     // feet 15 cm up: high in a jump
+    step(10);
+    const inside = hits.length - beside;
+    return ok(beside === 0 && inside === 1 && hits[0]?.amount === 2 && G().run.slowT > 0, { beside, inside, slowed: G().run.slowT > 0 });
+  },
+});
+for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
+  act2(`whipper-${name}-builds-no-shader`, {
+    about: `Starting the Cream Whipper's ${name} builds no new shader: its Warning's floor shape and volume were built behind Play.`,
+    setup() { if (atk) startSpray(); else startBalloon(); },
+    play() {
+      const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
+      let shown = {};
+      if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); } else { step(400, () => creamWarning().floor); step(5); shown = creamWarning(); }
+      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      const newShaders = APT.renderer.info.programs.length - programs;
+      return ok(shown.floor && shown.volume && newShaders === 0, { newShaders, volume: !!shown.volume });
+    },
+  });
+}
 
 // the Clog (clog.js): straight into the boss fight in the tub
 const clogFight = () => {
