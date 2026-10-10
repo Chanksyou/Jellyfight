@@ -25,7 +25,7 @@ import { checkBvhLayout } from './collision.js';
 import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
 import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
-import { ATTACKS as ELITE_ATTACKS } from './elites.js';
+import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
 
@@ -3830,7 +3830,7 @@ for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
 const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
 const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts you (stage2.js stand)
 act2('whipper-balloon-bursts-on-time', {
-  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle and a sphere round it) filling, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
+  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle) filling, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -3888,53 +3888,44 @@ act2('whipper-cream-spray', {
   },
 });
 act2('whipper-angry-two-balloons', {
-  about: 'Under half health the Cream Whipper blows two balloons each time, each with its own floor circle and sphere volume.',
+  about: 'Under half health the Cream Whipper blows two balloons each time, each with its own floor circle (and no volume).',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G();
     let most = 0, warned = 0;
     step(60 * 3.5, () => {
       most = Math.max(most, run.elites.balloons.length);
-      warned = Math.max(warned, run.elites.balloons.filter((B) => { const w = balloonWarning(B); return w.floor && w.volume; }).length);
+      warned = Math.max(warned, run.elites.balloons.filter((B) => { const w = balloonWarning(B); return w.floor && !w.volume; }).length);
     });
     return ok(most === 2 && warned === 2, { most, warned });
   },
 });
 
-// --- 3D attacks: the balloon bursts as a whole-sphere Blast round it (beside, below or level all
-// count), shown by a sphere volume that follows it over its floor circle; the cream spray is a cone
+// --- 3D attacks: the balloon bursts as a whole-sphere Blast round its middle (beside, below or level
+// all count), shown only by its floor circle (no volume, the owner's call); the cream spray is a cone
 // rising as it spreads (jumping doesn't clear it, stepping out does)
 function balloonLoose() { step(60 * 3, () => G().run.elites.balloons.length > 0); return G().run.elites.balloons[0]; }
-// the balloon's Warning as the scene holds it: its floor circle and its volume, under and round it
+// the balloon's Warning as the scene holds it: its floor circle (and a volume, which it shouldn't have)
 function balloonWarning(B) { return warningsAt(B.m.position); }
+// where its burst is centred: the middle of its body, above the knot
+const balloonMiddle = (B) => B.m.position.clone().setY(B.m.position.y + B.m.scale.y * BALLOON_MID);
 function whipperHits(source) { const k = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) k.push(d); })); return k; }
 const startBalloon = () => { fresh({ bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; };
-act2('whipper-balloon-warning-has-sphere', {
-  about: "The balloon's Warning is a floor circle with a whole-sphere volume round the balloon (its burst reach, 20 cm), filling together and following it; both go when it bursts.",
+act2('whipper-balloon-warning-is-a-floor-circle', {
+  about: "The balloon's Warning is just its floor circle (its burst reach, 20 cm), filling and following it, with no volume round the balloon; it goes when the balloon bursts.",
   setup() { startBalloon(); },
   play() {
     const B = balloonLoose();
     if (!B) return ok(false, { loose: false });
     step(30);
-    const w1 = balloonWarning(B), p1 = [w1.floor?.material.progress, w1.volume?.material.progress], at1 = B.m.position.clone();
+    const w1 = balloonWarning(B), p1 = w1.floor?.material.progress, at1 = B.m.position.clone();
     step(60);
-    const w2 = balloonWarning(B), p2 = [w2.floor?.material.progress, w2.volume?.material.progress], moved = B.m.position.distanceTo(at1);
-    const filling = !!(w1.floor && w1.volume && w2.volume === w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
-    let shape = {};
-    if (w2.volume) {
-      const box = new THREE.Box3().setFromObject(w2.volume), size = box.getSize(V(0, 0, 0)), mid = box.getCenter(V(0, 0, 0));
-      // a whole sphere 40 cm across, round the balloon (above its knot, within a balloon's height), over the floor circle
-      shape = {
-        size: r3(size),
-        round: Math.abs(size.y - size.x) < 0.01 && Math.abs(size.x - 0.4) < 0.02,
-        onBalloon: Math.hypot(mid.x - B.m.position.x, mid.z - B.m.position.z) < 0.01 && mid.y >= B.m.position.y && mid.y < B.m.position.y + 0.2,
-        overFloor: w2.floor.position.y < mid.y,
-      };
-      shape.ok = shape.round && shape.onBalloon && shape.overFloor;
-    }
+    const w2 = balloonWarning(B), p2 = w2.floor?.material.progress, moved = B.m.position.distanceTo(at1);
+    const filling = !!(w1.floor && w2.floor === w1.floor) && p2 > p1;
+    const noVolume = !w1.volume && !w2.volume;
     step(60 * 3, () => !G().run.elites.balloons.includes(B));
-    const w3 = balloonWarning(B), gone = !w3.floor && !w3.volume;
-    return ok(filling && moved > 0.01 && shape.ok && gone, { p1, p2, moved: +moved.toFixed(3), shape, gone });
+    const gone = !balloonWarning(B).floor;
+    return ok(filling && noVolume && moved > 0.01 && gone, { p1, p2, noVolume, moved: +moved.toFixed(3), gone });
   },
 });
 act2('whipper-balloon-blast-is-a-sphere', {
@@ -3951,7 +3942,7 @@ act2('whipper-balloon-blast-is-a-sphere', {
       const B = balloonLoose();
       if (!B) return -1;
       step(60 * 4, () => B.t > B.fuse - 0.05);
-      const c = (balloonWarning(B).volume ?? B.m).position, before = hits.length;
+      const c = balloonMiddle(B), before = hits.length;
       player.position.set(c.x + off[0], c.y + off[1] - top, c.z); player.grounded = false;
       step(30, () => !G().run.elites.balloons.includes(B));
       return hits.length - before;
@@ -4029,7 +4020,7 @@ act2('whipper-cream-jumped-over-near-the-nozzle', {
 });
 for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
   act2(`whipper-${name}-builds-no-shader`, {
-    about: `Starting the Cream Whipper's ${name} builds no new shader: its Warning's floor shape and volume were built behind Play.`,
+    about: `Starting the Cream Whipper's ${name} builds no new shader: its Warning (${atk ? 'a floor wedge and its cone' : 'a floor circle, no volume'}) was built behind Play.`,
     setup() { if (atk) startSpray(); else startBalloon(); },
     play() {
       const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
@@ -4037,7 +4028,7 @@ for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
       if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); } else { step(400, () => creamWarning().floor); step(5); shown = creamWarning(); }
       batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
       const newShaders = APT.renderer.info.programs.length - programs;
-      return ok(shown.floor && shown.volume && newShaders === 0, { newShaders, volume: !!shown.volume });
+      return ok(shown.floor && !!shown.volume === !!atk && newShaders === 0, { newShaders, volume: !!shown.volume });
     },
   });
 }
@@ -4398,6 +4389,7 @@ for (const attack of ['lash', 'snare', 'roll', 'spray']) {
 // ATTACKS, vacuum.js / clog.js ATTACKS) that isn't listed here fails its act's story, so a new one
 // has to say what it warns with.
 //   volume  a floor Warning with its volume over it
+//   floor   a floor Warning with no volume (the Cream Whipper's balloon, by the owner's call)
 //   sweep   a volume with no floor Warning (the Vacuum's brushes, by decision): it must show
 //   shot    a Warning (if any) before Shots: no volume, the Shots are what you watch
 //   hazard  a floor hazard (spec #22, Out of Scope): it only hurts while you stand in it
@@ -4424,7 +4416,7 @@ const EVERY_ATTACK = {
   2: {
     soap: { squirt: { is: 'volume', start: held(() => startSoap(0)) }, 'bubble-ring': { is: 'shot', start: held(() => startSoap(1)) } },
     clock: { sweep: { is: 'volume', start: () => startClock(0) }, wreath: { is: 'shot', start: () => startClock(1) }, hour: { is: 'volume', start: () => startClock(2, { angry: true }) } },
-    whipper: { balloon: { is: 'volume', start: held(startBalloon) }, cream: { is: 'volume', start: held(startSpray) } },
+    whipper: { balloon: { is: 'floor', start: held(startBalloon) }, cream: { is: 'volume', start: held(startSpray) } },
     clog: {
       lash: { is: 'volume', start: atClog('lash') }, snare: { is: 'volume', start: atClog('snare') }, roll: { is: 'volume', start: atClog('roll') }, spray: { is: 'shot', start: atClog('spray') },
       flood: { is: 'hazard' }, shed: { is: 'none' },
@@ -4455,6 +4447,7 @@ function checkAttack(who, name, a) {
   const programs = APT.renderer.info.programs.length;
   const shows = {
     volume: () => volumePairs().some(([, f]) => f && f.material.progress > 0.05),
+    floor: () => { const w = shownWarnings(); return w.floor.some((f) => f.material.progress > 0.05) && !w.volume.length; },
     sweep: () => shownWarnings().volume.length > 0,
     shot: () => shotsFlying() > 0,
   }[a.is];
