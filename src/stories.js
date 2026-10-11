@@ -1006,9 +1006,10 @@ story('words/zip', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.7, 0, 0.1)); e.beamCd = 99; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], pc = player.position, start = e.pos.distanceTo(pc);
-    let still = 0, frames = 0, notAtYou = 0, n = 0;
+    let still = 0, frames = 0, notAtYou = 0, n = 0, closest = start;
     const d = darts(e, 6, () => {
       frames++;
+      closest = Math.min(closest, e.pos.distanceTo(pc));
       if (e.vel.length() < 0.05) still++;
       if (e.zipLeft > 0 && e.zipDir.dot(S2.copy(pc).sub(e.pos).setY(0).normalize()) < 0.7) notAtYou++;
       if (e.zipLeft > 0) n++;
@@ -1016,8 +1017,8 @@ story('words/zip', {
     let turn = 0;
     for (let i = 1; i < d.length; i++) turn += d[i].angleTo(d[i - 1]);
     turn /= Math.max(1, d.length - 1);
-    const end = e.pos.distanceTo(pc);
-    return ok(d.length >= 8 && turn > 0.6 && notAtYou >= n / 3 && still / frames > 0.25 && end < start - 0.2, { darts: d.length, turn: +turn.toFixed(2), notAtYou: +(notAtYou / Math.max(1, n)).toFixed(2), still: +(still / frames).toFixed(2), start: +start.toFixed(2), end: +end.toFixed(2) });
+    // it closes in (by zigzags, so how close it is at any one moment varies: the closest it came)
+    return ok(d.length >= 8 && turn > 0.6 && notAtYou >= n / 3 && still / frames > 0.25 && closest < start - 0.25, { darts: d.length, turn: +turn.toFixed(2), notAtYou: +(notAtYou / Math.max(1, n)).toFixed(2), still: +(still / frames).toFixed(2), start: +start.toFixed(2), closest: +closest.toFixed(2) });
   },
 });
 const S2 = new THREE.Vector3();
