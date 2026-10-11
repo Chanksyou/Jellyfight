@@ -31,7 +31,6 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
       fly: words.some((w) => w.fly),
       rolls: words.some((w) => w.rolls),
       rooted: words.some((w) => w.rooted),
-      healthBar: words.some((w) => w.healthBar),
       rollDmg: words.find((w) => w.rollDmg != null)?.rollDmg ?? null,
       vocabulary: n.children.map((w) => w.name),
     };

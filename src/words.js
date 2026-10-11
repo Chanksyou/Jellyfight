@@ -409,11 +409,9 @@ export const ENEMY_WORDS = {
   },
 
   swat: {
-    doc: 'Up close (within `range` m) every `every` s or so, rears up with its forelegs raised and opened for `windup` s while a wedge on the floor shows what it will sweep (`arc` degrees across, `reach` m out; the aim locks halfway through), then lunges and snaps them shut: `dmg` if you are in the wedge. It rests `rest` s. List it after the walking word.',
+    doc: 'Up close (within `range` m) every `every` s or so, rears up with its forelegs raised and opened for `windup` s (nothing shows on the floor: the rearing up is the warning; the aim locks halfway through), then lunges and snaps them shut, sweeping `arc` degrees across and `reach` m out: `dmg` if you are in that wedge. It rests `rest` s. List it after the walking word.',
     props: { range: 0.16, windup: 0.55, reach: 0.19, arc: 80, dmg: 3, rest: 0.8, every: 1.6 },
     make: (_, p) => ({
-      swatArc: THREE.MathUtils.degToRad(p.arc) / 2,
-      swatReach: p.reach,
       init(e) { e.swatCd = 0.8 + Math.random(); e.swatDir = new THREE.Vector3(0, 0, 1); },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
@@ -450,7 +448,7 @@ export const ENEMY_WORDS = {
   },
 
   burst: {
-    doc: 'It starts hidden inside: for `delay` s the body twitches while a circle `radius` m round it fills, then it bursts out, hitting anything of you within `radius` m of its middle (a Blast) for `dmg`. Until then its other words wait.',
+    doc: 'It starts hidden inside: for `delay` s the body twitches while a circle `radius` m round where it will come out fills, then it bursts out there, hitting anything of you within `radius` m (a Blast) for `dmg`. Until then its other words wait.',
     props: { delay: 0.9, radius: 0.1, dmg: 2 },
     make: (_, p) => ({
       burstRadius: p.radius,
@@ -483,7 +481,7 @@ export const ENEMY_WORDS = {
         const live = c.slow > 0 ? 1 : 0;
         e.stateT -= c.dt * live;
         e.whipCd -= c.dt;
-        const from = e.whipFrom || e.pos, flat = Math.hypot(c.foot.x - from.x, c.foot.z - from.z);
+        const from = e.emergeAt || e.pos, flat = Math.hypot(c.foot.x - from.x, c.foot.z - from.z);
         const aim = () => { if (flat > 1e-4) e.whipDir.set(c.foot.x - from.x, 0, c.foot.z - from.z).normalize(); e.whipFloor = c.foot.y; };
         if (e.state === 'approach') {
           if (flat < p.range && e.whipCd <= 0 && live) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
@@ -497,11 +495,6 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'rest' && e.stateT <= 0) e.state = 'approach';
       },
     }),
-  },
-
-  'health-bar': {
-    doc: 'Shows its health in a bar floating over it.',
-    make: () => ({ healthBar: true }),
   },
 
   rolls: {

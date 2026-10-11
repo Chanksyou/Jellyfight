@@ -1095,17 +1095,20 @@ story('enemies/dragonfly-dodge-breaks-charge', {
   },
 });
 story('words/swat', {
-  about: 'Up close the mantis rears up with its forelegs raised while a wedge on the floor fills in front of it, then lunges and snaps them shut: 3 damage if you\'re in the wedge.',
+  about: 'Up close the mantis rears up with its forelegs raised (nothing shows on the floor), then lunges and snaps them shut: 3 damage if you\'re in front of it.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mantis', near(0.12, 0)); e.swatCd = 0.3; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    let warned = false;
+    let reared = false, marked = false;
     step(60 * 4, () => {
-      if (e.state === 'windup' && enemies.swatMarks.some((m) => m.visible)) warned = true;
+      if (e.state === 'windup' && !reared) {
+        reared = true;                                   // anything drawn on the floor near it? (a Warning is a TeleMaterial)
+        e.root.parent.traverse((o) => { if (o.visible && o.material instanceof TeleMaterial && o.position.distanceTo(e.pos) < 0.5) marked = true; });
+      }
       return log.some((d) => d.source === 'mantis' && d.amount === 3);
     });
     const hit = log.find((d) => d.source === 'mantis' && d.amount === 3);
-    return ok(warned && hit?.amount === 3, { warned, hit: hit?.amount });
+    return ok(reared && !marked && hit?.amount === 3, { reared, marked, hit: hit?.amount });
   },
 });
 story('enemies/mantis-swat-dodge', {
@@ -1141,23 +1144,26 @@ story('words/hatch', {
   },
 });
 story('words/burst', {
-  about: 'The mantis\'s carcass twitches while a circle fills round it, then the worm bursts out of it: 2 damage if you\'re inside the circle.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.06, 0)); },
+  about: 'The mantis\'s carcass twitches while a circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 2 damage if you\'re inside the circle.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.3, 0)); },
   play() {
-    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    let warned = false, frames = 0;
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(1);
+    const out = e.emergeAt, round = Math.hypot(out.x - e.pos.x, out.z - e.pos.z) > e.r;   // it comes out away from the middle (the rear end)
+    tp(out.x, player.position.y, out.z);                                                   // stand right where it comes out
+    let warned = false, frames = 1;
     step(60 * 2, () => {
       frames++;
       if (e.state === 'emerge' && enemies.burstMarks.some((m) => m.visible)) warned = true;
       return log.some((d) => d.source === 'worm' && d.amount === 2);
     });
     const hit = log.find((d) => d.source === 'worm' && d.amount === 2), secs = frames / 60;
-    return ok(warned && hit?.amount === 2 && secs > 0.85 && secs < 1, { warned, hit: hit?.amount, secs: +secs.toFixed(2) });
+    return ok(round && warned && hit?.amount === 2 && secs > 0.85 && secs < 1, { round, warned, hit: hit?.amount, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/worm-burst-clear', {
   about: 'Standing outside the circle when the worm bursts out of the mantis\'s carcass, you\'re not hurt.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.2, 0)); },
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0, -0.15)); },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     step(60 * 1.3);
@@ -1210,19 +1216,6 @@ story('enemies/worm-whip-dodge', {
     });
     const hit = log.some((d) => d.source === 'worm' && d.amount === 3);
     return ok(moved && cracked && !hit, { moved, cracked, hit });
-  },
-});
-story('words/health-bar', {
-  about: 'The worm\'s health shows in a bar floating over it, shrinking as you hurt it.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.4, 0)); },
-  play() {
-    const { enemies } = G(), e = enemies.list[0];
-    step(5);
-    const full = e.bar?.fill.scale.x;
-    bus.emit('damage_taken', { targetId: e.id, amount: e.maxHp / 2 });
-    step(2);
-    const half = e.bar?.fill.scale.x;
-    return ok(e.bar && e.bar.back.visible !== false && full > 0 && Math.abs(half / full - 0.5) < 0.01, { full, half });
   },
 });
 story('enemies/ladybug-missile-glows', {

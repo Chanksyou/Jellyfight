@@ -233,7 +233,6 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
-    this.swatMarks = [];      // pooled: the wedge in front of each mantis about to swat (the swat word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
@@ -698,12 +697,12 @@ export class Enemies {
     this.fx.impact(hit ? c.pc.clone() : at, hostile('mantis'), hit ? 0.02 : 0.012, hit ? 10 : 5);
     if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
-  // The worm bursts out of the carcass: a Blast round its middle
+  // The worm bursts out of the carcass: a Blast round where it comes out (or its middle)
   burst(e, { radius, dmg }) {
-    const at = e.pos.clone().setY(e.pos.y + e.r * 0.5), col = hostile('worm');
+    const from = e.emergeAt || e.pos, at = S.o.set(from.x, e.pos.y + e.r * 0.5, from.z).clone(), col = hostile('worm');
     sfx.wormBurst();
     this.fx.impact(at, col, radius * 0.4, 16);
-    this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), col, radius * 1.05, 0.4);
+    this.fx.ring(at.clone().setY(e.pos.y + 0.003), col, radius * 1.05, 0.4);
     this.fx.puff(at, 0x8ab840, radius * 0.7, 0.45);
     this.fx.burst(at, [0x6aa826, 0x94c440, 0x2a1a10], 14, 0.004, 0.4, e.pos.y);
     if (this.player && blastHits(at, radius, this.player.position, this.player)) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
@@ -711,7 +710,7 @@ export class Enemies {
   // The worm cracks down along its line: you're hit if you're on it and not jumping over it
   whip(e, c, { reach, width, dmg }) {
     sfx.wormCrack();
-    const a = e.whipFrom || e.pos, d = e.whipDir;
+    const a = e.emergeAt || e.pos, d = e.whipDir;
     const t = THREE.MathUtils.clamp((c.foot.x - a.x) * d.x + (c.foot.z - a.z) * d.z, 0, reach);
     const off = Math.hypot(c.foot.x - (a.x + d.x * t), c.foot.z - (a.z + d.z * t));
     const hit = off < (this.playerRadius || 0.03) + width && c.foot.y < (e.whipFloor ?? e.pos.y) + 0.03;
@@ -726,23 +725,14 @@ export class Enemies {
     M.visible = true;
     return M;
   }
-  // the Warnings: the wedge before a swat, the line before a whip, the circle before a burst
+  // the Warnings: the line before a whip, the circle before a burst (a swat has none: the rearing up is its warning)
   drawParasites(t) {
-    let a = 0, b = 0, k = 0;
+    let b = 0, k = 0;
     for (const e of this.list) {
       if (e.dead) continue;
-      if (e.swatDir && (e.state === 'windup' || e.state === 'swat')) {
-        const W = e.T.words.find((w) => w.swatArc);
-        const M = this.mark(this.swatMarks, a++, () => new THREE.Mesh(new THREE.CircleGeometry(1, 24, -W.swatArc, W.swatArc * 2).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2), new TeleMaterial(hostile('mantis'), 'wedge', W.swatArc)));
-        M.position.copy(e.pos).setY(e.pos.y + 0.003);
-        M.rotation.y = Math.atan2(e.swatDir.x, e.swatDir.z);
-        M.scale.setScalar(W.swatReach);
-        M.material.progress = e.state === 'swat' ? 1 : 1 - Math.max(0, e.stateT) / (e.swatMax || 0.5);
-        M.material.opacity = e.state === 'swat' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
-      }
       if (e.whipDir && (e.state === 'windup' || e.state === 'lash')) {
         const M = this.mark(this.whipMarks, b++, () => new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('worm'), 'strip')));
-        const from = e.whipFrom || e.pos;
+        const from = e.emergeAt || e.pos;
         M.position.set(from.x, (e.whipFloor ?? e.pos.y) + 0.003, from.z);
         M.rotation.y = Math.atan2(e.whipDir.x, e.whipDir.z);
         M.scale.set(0.03, 1, e.whipReach);
@@ -752,36 +742,16 @@ export class Enemies {
       if (e.state === 'emerge') {
         const r = e.T.words.find((w) => w.burstRadius)?.burstRadius ?? 0.1;
         const M = this.mark(this.burstMarks, k++, () => new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('worm'), 'circle')));
-        M.position.copy(e.pos).setY(e.pos.y + 0.003);
+        const from = e.emergeAt || e.pos;
+        M.position.set(from.x, e.pos.y + 0.003, from.z);
         M.scale.setScalar(r);
         M.material.progress = 1 - Math.max(0, e.stateT) / (e.emergeMax || 0.9);
         M.material.opacity = 0.8 + 0.2 * Math.abs(Math.sin(t * 18));
       }
     }
-    for (let i = a; i < this.swatMarks.length; i++) this.swatMarks[i].visible = false;
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
-  // the health bar floating over a bug with the health-bar word: a dark back and a red fill
-  healthBar(e) {
-    if (!e.bar) {
-      this.barMats ||= {
-        back: new THREE.SpriteMaterial({ color: 0x0d1220, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false }),
-        fill: new THREE.SpriteMaterial({ color: 0xff4a3a, depthWrite: false, toneMapped: false }),
-      };
-      const back = new THREE.Sprite(this.barMats.back), fill = new THREE.Sprite(this.barMats.fill);
-      back.renderOrder = 6; fill.renderOrder = 7;
-      fill.center.set(0, 0.5);
-      e.root.add(back, fill);
-      e.bar = { back, fill, w: Math.max(0.06, e.r * 1.8) };
-    }
-    const { back, fill, w } = e.bar, h = w * 0.13, y = e.r * (e.state === 'emerge' ? 1.5 : 3.4);
-    back.scale.set(w + h * 0.5, h * 1.5, 1);
-    back.position.set(0, y, 0);
-    fill.scale.set(w * Math.max(0, e.hp / e.maxHp), h, 1);
-    fill.position.set(-w / 2, y, 0);
-  }
-
   // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
   // still where it aimed (within your radius of the line from its head to the tip)
   poke(e, c, dmg) {
@@ -964,7 +934,6 @@ export class Enemies {
       e.face.scale.setScalar(sc);
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) e.anim(dt, e);
-      if (e.T.healthBar) this.healthBar(e);
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }

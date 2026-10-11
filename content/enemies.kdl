@@ -70,24 +70,25 @@ enemy "dragonfly" name="Dragonfly" hp=45 r=0.04 dmg=1 xp=8 model="dragonfly" {
 }
 
 // Act 3 (in no wave yet): the praying mantis stalks after you on four legs, its forelegs folded.
-// Up close it rears up, forelegs raised and opened, while a wedge on the floor shows what it will
-// sweep (reaching a little farther than a house fly's poke), then lunges and snaps them shut.
+// Up close it rears up, forelegs raised and opened (that's the only warning: nothing on the floor),
+// then lunges and snaps them shut across a wedge in front of it, reaching a little farther than a
+// house fly's poke.
 // When it dies, the worm that was living inside it takes its place.
-enemy "mantis" name="Praying mantis" hp=70 r=0.04 dmg=1 xp=10 model="mantis" {
+enemy "mantis" name="Praying mantis" hp=140 r=0.05 dmg=1 xp=10 model="mantis" {
     chase 0.2
     swat range=0.16 windup=0.7 reach=0.19 arc=80 dmg=3 rest=0.8 every=1.6
     hatch "worm"
 }
 
-// The horsehair worm that was inside the mantis. Its carcass twitches while a circle fills
-// round it, then the worm bursts out of its head (stand clear), and lashes at you from there
-// like a whip: it rears back while a line on the floor shows where it will crack down. It can't
-// leave the body, so get out of its reach or jump the line. Its health shows over it.
-enemy "worm" name="Horsehair worm" hp=40 r=0.04 dmg=1 xp=8 model="worm" {
+// The horsehair worm that was inside the mantis. Its carcass twitches while a circle fills round
+// its rear end, then the worm bursts out of the tip of its abdomen (stand clear), and lashes at
+// you from there like a whip: it rears back while a line on the floor shows where it will crack
+// down. It can't leave the body, so get out of its reach or jump the line. It's as big as the
+// mantis it was in.
+enemy "worm" name="Horsehair worm" hp=80 r=0.05 dmg=1 xp=8 model="worm" {
     rooted
     burst delay=0.9 radius=0.1 dmg=2
     whip range=0.26 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
-    health-bar
 }
 
 // The Clog (act 2 boss) sheds hair tangles into the fight

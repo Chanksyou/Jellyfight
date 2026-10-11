@@ -1342,7 +1342,7 @@ export function buildDragonfly() {
 // two leaf-green wings veined like a leaf, its tip curling up. It stalks on its four legs; to swat
 // it rears up with its forelegs raised and opened wide, then lunges and snaps them shut.
 // About 3.2 radii long, its head 1.2 radii up; its feet are at its origin.
-const MANTIS = { head: V(0, 1.2, 1.15), shoulder: V(0.1, 0.98, 0.9) };
+const MANTIS = { head: V(0, 1.2, 1.15), tail: V(0, 0.8, -1.93), shoulder: V(0.1, 0.98, 0.9) };
 function mantisParts() {
   const R = seeded(71), green = '#6aa826', dark = '#4a7c1c', pale = '#94c440', spine = '#9a6a2a';
   const bend = (z) => { const t = Math.max(0, -z / 1.9); return 0.22 * t * t; };   // the abdomen's tip curls up
@@ -1464,9 +1464,9 @@ export function buildMantis({ dead = false } = {}) {
   for (const s of [-1, 1]) { const w = add(body, G.wingGeo, M.mtWing); w.scale.x = s; w.position.y = s * 0.004; }
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.mtEye, V(s * 0.19, 1.24, 1.13)); e.rotation.y = s * 0.55; }
   if (!dead) body.add(angryEyes({ y: 1.28, z: 1.22, size: 0.075, gap: 0.19 }));
-  const head = new THREE.Object3D();                                   // where the head is (the worm comes out here)
-  head.position.copy(MANTIS.head);
-  body.add(head);
+  const tail = new THREE.Object3D();                                   // the tip of the abdomen (the worm comes out here)
+  tail.position.copy(MANTIS.tail);
+  body.add(tail);
   const fore = [-1, 1].map((s) => {
     const shoulder = new THREE.Group(), femur = new THREE.Group(), tibia = new THREE.Group();
     shoulder.position.set(s * MANTIS.shoulder.x, MANTIS.shoulder.y, MANTIS.shoulder.z);
@@ -1494,7 +1494,7 @@ export function buildMantis({ dead = false } = {}) {
     for (const L of legs) { L.hip.rotation.z = L.s * -0.9; L.hip.rotation.x = 0.4 * (L.pair ? -1 : 1); }
     body.rotation.z = -1.3;
     body.position.y = 0.12;
-    return { body: outer, face: new THREE.Group(), anim: null, rig: { body, head } };
+    return { body: outer, face: new THREE.Group(), anim: null, rig: { body, tail } };
   }
   pose(PRAY);
   let t = 0, k = 0, raise = 0, strike = 0;
@@ -1526,7 +1526,7 @@ export function buildMantis({ dead = false } = {}) {
 
 // ------------------------------------------------------------------ horsehair worm
 // What was inside the mantis: its carcass lies rolled on its side and a long, thin, glossy
-// dark-brown worm writhes up out of its head in loose coils. It can't leave the body. To attack
+// dark-brown worm writhes up out of the tip of its abdomen in loose coils. It can't leave the body. To attack
 // it rears up and back, coiling, then cracks down along the floor like a whip, tip last.
 // The worm is a chain of short tube pieces (one geometry: drawn as one instanced batch) laid along
 // a curve that blends between its poses every frame.
@@ -1541,7 +1541,7 @@ export function buildWorm() {
   const outer = new THREE.Group(), body = carcass.body;
   outer.add(body);
   body.updateMatrixWorld(true);
-  const base = carcass.rig.head.getWorldPosition(new THREE.Vector3());   // in the outer group's space (radius units)
+  const base = carcass.rig.tail.getWorldPosition(new THREE.Vector3());   // in the outer group's space (radius units)
   const beads = [];
   for (let i = 0; i < WORM.n; i++) { const b = new THREE.Mesh(GEO.wormBead, M.worm); b.visible = false; outer.add(b); beads.push(b); }
   const pts = Array.from({ length: WORM.n + 1 }, () => new THREE.Vector3()), tmp = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3();
@@ -1586,8 +1586,8 @@ export function buildWorm() {
       if (l > 1e-5) b.quaternion.copy(q.setFromUnitVectors(FWD, tmp.divideScalar(l)));
       b.scale.set(th, th, l * 1.15 + th * 0.5);
     }
-    // where the worm comes out, in the world: the whip word reads it
-    (e.whipFrom ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
+    // where the worm comes out, in the world: the burst and whip words read it
+    (e.emergeAt ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
