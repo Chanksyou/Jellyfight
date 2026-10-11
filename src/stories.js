@@ -969,6 +969,131 @@ story('words/sortie', {
     return ok(flewHigh && landedLow && raised && reticle && launched && hit?.amount === 3, { states: [...seen], flewHigh, landedLow, raised, reticle, launched, hit: hit?.amount });
   },
 });
+story('enemies/dragonfly-model', {
+  about: 'The dragonfly (act 3) is about 3 radii long and 4 across its four wings, which beat as it flies about you.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.25, 0, 0.1)); e.beamCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], box = new THREE.Box3(), size = new THREE.Vector3();
+    let tall = 9, high = 0, close = 9;
+    const measure = () => {        // its size facing +z, in radius units
+      const q = e.root.quaternion.clone(), mq = e.mesh.quaternion.clone();
+      e.root.quaternion.identity(); e.mesh.quaternion.identity(); e.root.updateMatrixWorld(true);
+      box.setFromObject(e.mesh).getSize(size).divideScalar(e.mesh.scale.x);
+      e.root.quaternion.copy(q); e.mesh.quaternion.copy(mq); e.root.updateMatrixWorld(true);
+      return size;
+    };
+    step(60 * 2, () => {
+      const y = measure().y;
+      tall = Math.min(tall, y); high = Math.max(high, y);
+      close = Math.min(close, e.pos.distanceTo(player.position));
+    });
+    const long = measure().z, span = size.x;
+    return ok(long > 2.6 && long < 3.8 && span > 3.4 && span < 4.6 && high - tall > 0.3 && close < 0.4, { long: +long.toFixed(2), span: +span.toFixed(2), flap: +(high - tall).toFixed(2), close: +close.toFixed(2) });
+  },
+});
+// the dragonfly's darts: each time it sets off (zipLeft goes up from 0), the way it went
+const darts = (e, secs, each) => {
+  const out = [];
+  let was = 0;
+  step(60 * secs, () => { if (e.zipLeft > 0 && was <= 0) out.push(e.zipDir.clone()); was = e.zipLeft; each?.(); });
+  return out;
+};
+story('words/zip', {
+  about: 'The dragonfly closes in by darting: it hangs still, then zips a short way in a new direction each time (sideways, up, down, even back), not straight at you.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.7, 0, 0.1)); e.beamCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], pc = player.position, start = e.pos.distanceTo(pc);
+    let still = 0, frames = 0, notAtYou = 0, n = 0;
+    const d = darts(e, 6, () => {
+      frames++;
+      if (e.vel.length() < 0.05) still++;
+      if (e.zipLeft > 0 && e.zipDir.dot(S2.copy(pc).sub(e.pos).setY(0).normalize()) < 0.7) notAtYou++;
+      if (e.zipLeft > 0) n++;
+    });
+    let turn = 0;
+    for (let i = 1; i < d.length; i++) turn += d[i].angleTo(d[i - 1]);
+    turn /= Math.max(1, d.length - 1);
+    const end = e.pos.distanceTo(pc);
+    return ok(d.length >= 8 && turn > 0.6 && notAtYou >= n / 3 && still / frames > 0.25 && end < start - 0.2, { darts: d.length, turn: +turn.toFixed(2), notAtYou: +(notAtYou / Math.max(1, n)).toFixed(2), still: +(still / frames).toFixed(2), start: +start.toFixed(2), end: +end.toFixed(2) });
+  },
+});
+const S2 = new THREE.Vector3();
+story('words/charge-beam', {
+  about: 'Within reach the dragonfly faces you and holds dead still for 2 s with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let whined = 0;
+    const real = enemies.beamCharge;
+    enemies.beamCharge = function (x, dur) { whined = dur; return real.call(this, x, dur); };
+    step(60 * 3, () => e.state === 'charge');
+    const at = e.pos.clone();
+    let held = 0, shown = false, frames = 0;
+    step(60 * 3, () => {
+      frames++;
+      held = Math.max(held, e.pos.distanceTo(at));
+      if (enemies.aimBeams.some((b) => b.visible) || enemies.pokeMarks.some((m) => m.visible) || enemies.chargeMarks.some((m) => m.visible)) shown = true;
+      return log.some((d) => d.source === 'dragonfly');
+    });
+    delete enemies.beamCharge;
+    const hit = log.find((d) => d.source === 'dragonfly'), secs = frames / 60;
+    return ok(whined === 2 && hit?.amount === 3 && held < 0.001 && !shown && secs > 1.9 && secs < 2.1, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
+  },
+});
+story('enemies/dragonfly-beam-dodge', {
+  about: 'The dragonfly\'s beam goes the way it faced when it began to charge: moving off that line during the charge makes it miss.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 3, () => e.state === 'charge');
+    const charged = e.state === 'charge';
+    step(60);
+    const side = V(-e.beamDir.z, 0, e.beamDir.x).normalize(), P = player.position;
+    tp(P.x + side.x * 0.1, P.y, P.z + side.z * 0.1);
+    let fired = false;
+    step(60 * 1.5, () => { if (e.state === 'rest') fired = true; return fired; });
+    const hit = log.some((d) => d.source === 'dragonfly');
+    return ok(charged && fired && !hit, { charged, fired, hit });
+  },
+});
+story('words/evade', {
+  about: 'Hit the dragonfly and it darts away in a random direction, but only once every 5 s: a second hit soon after doesn\'t move it.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.35, 0, 0.08), { hp: 999 }); e.beamCd = 99; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    const hitAndWatch = () => {
+      e.zipT = 99; e.zipLeft = 0;                              // hanging still, so any move is the dodge
+      step(10);
+      const at = e.pos.clone();
+      bus.emit('damage_taken', { targetId: e.id, amount: 1 });
+      step(Math.round(60 * 0.3));
+      return e.pos.distanceTo(at);
+    };
+    const first = hitAndWatch();
+    step(60);
+    const second = hitAndWatch();
+    step(60 * 4);
+    const third = hitAndWatch();
+    return ok(first > 0.15 && second < 0.01 && third > 0.15, { first: +first.toFixed(3), second: +second.toFixed(3), third: +third.toFixed(3) });
+  },
+});
+story('enemies/dragonfly-dodge-breaks-charge', {
+  about: 'Hitting a charging dragonfly makes it dodge, and the dodge breaks off its charge: no beam.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08), { hp: 999 }); e.beamCd = 0; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 3, () => e.state === 'charge');
+    const charged = e.state === 'charge';
+    step(30);
+    bus.emit('damage_taken', { targetId: e.id, amount: 1 });
+    step(5);
+    const broke = e.state === 'approach';
+    e.beamCd = 99;
+    step(60 * 2.5);
+    const hit = log.some((d) => d.source === 'dragonfly');
+    return ok(charged && broke && !hit, { charged, broke, hit });
+  },
+});
 story('enemies/ladybug-missile-glows', {
   about: 'A missile in flight glows orange at its tail and red at its seeker: every glow it adds has a real colour (no black blobs).',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 0.3; },

@@ -315,6 +315,34 @@ export const sfx = {
     if (!ready()) return;
     noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
   },
+  // the dragonfly: a dry papery whirr as it darts, a sharper one as it dodges a hit, the beam's
+  // charge (a whine climbing for the whole charge, thickening as it goes: the only warning) and
+  // the crack of the beam itself. beamCharge returns a function that cuts it off.
+  zip() { if (!ready() || !gap('zip', 120)) return; const j = jitter(0.15); noise(1800 * j, 2, 0.08, 0.05, 'bandpass', 0, 3400 * j); },
+  evade() { if (!ready()) return; noise(1400, 1.5, 0.14, 0.12, 'bandpass', 0, 5200); tone('triangle', 900, 1600, 0.08, 0.03); },
+  beamCharge(dur) {
+    if (!ready()) return null;
+    const t = now(), k = pitch(), g = ctx.createGain(), oscs = [];
+    for (const [type, f0, f1, d] of [['sine', 220, 1900, 0], ['sawtooth', 110, 950, 4], ['square', 330, 2850, -6]]) {
+      const o = ctx.createOscillator();
+      o.type = type; o.detune.value = d;
+      o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
+      const og = ctx.createGain(); og.gain.value = type === 'sine' ? 1 : 0.25;
+      o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
+    }
+    const trem = ctx.createOscillator(), tg = ctx.createGain();            // a flutter that speeds up
+    trem.frequency.setValueAtTime(6, t); trem.frequency.exponentialRampToValueAtTime(38, t + dur);
+    tg.gain.value = 0.012; trem.connect(tg).connect(g.gain); trem.start(t); trem.stop(t + dur + 0.05); oscs.push(trem);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.02, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.07, t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
+    g.connect(master);
+    return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
+  },
+  beamFire() {
+    if (!ready()) return;
+    noise(6000, 0.7, 0.06, 0.25, 'highpass');
+    tone('sawtooth', 2400, 300, 0.18, 0.08); tone('square', 1200, 150, 0.14, 0.04);
+  },
   // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
   // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
   clogRise() {

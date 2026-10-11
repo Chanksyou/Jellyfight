@@ -305,6 +305,109 @@ export const ENEMY_WORDS = {
     },
   },
 
+  zip: {
+    doc: 'Flies like a dragonfly: hangs in the air for about `pause` s, then darts `length` m in a straight line at `speed` m/s, stopping dead. Each dart goes off in a new direction (sideways, up, down, back), only leaning toward a spot `distance` m from you and `above` m higher, so it closes in by zigzags, never straight at you.',
+    props: { distance: 0.3, above: 0.06, speed: 1.4, length: 0.14, pause: 0.35 },
+    make: (_, p) => ({
+      fly: true,
+      init(e) { e.zipT = Math.random() * p.pause; e.zipLeft = 0; e.zipDir = new THREE.Vector3(); },
+      tick(e, c, en) {
+        if (e.flyHeld) { e.zipLeft = 0; return; }   // another word is holding it still (a charge, a dodge)
+        if (e.zipLeft > 0) {
+          // darting: full speed, then stopping dead at the end
+          const step = Math.min(e.zipLeft, p.speed * c.slow * c.dt);
+          e.vel.copy(e.zipDir).multiplyScalar(c.dt > 0 ? step / c.dt : 0);
+          e.pos.addScaledVector(e.zipDir, step);
+          e.zipLeft -= step;
+          if (e.zipLeft <= 1e-4 || c.slow === 0) { e.zipLeft = 0; e.zipT = p.pause * (0.6 + Math.random() * 0.8); e.vel.multiplyScalar(0.05); }   // and stops dead
+          return;
+        }
+        // hanging in the air: it drifts to a stop
+        e.vel.multiplyScalar(Math.exp(-12 * c.dt));
+        e.pos.addScaledVector(e.vel, c.dt);
+        if ((e.zipT -= c.dt * (c.slow > 0 ? 1 : 0)) > 0) return;
+        // the next dart: any way at all, leaning toward its spot near you
+        const away = _away.copy(e.pos).sub(c.pc).setY(0);
+        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
+        away.normalize().applyAxisAngle(UP, (Math.random() - 0.5) * 2.4);
+        const want = _spot.copy(c.pc).addScaledVector(away, p.distance).setY(c.pc.y + p.above).sub(e.pos);
+        const pull = Math.min(1, want.length() / (p.length * 2));
+        const dir = _want.set(Math.random() - 0.5, (Math.random() - 0.5) * 0.7, Math.random() - 0.5).normalize();
+        dir.addScaledVector(want.normalize(), 0.9 * pull).normalize();
+        // no lower than just off the floor, no higher than a little over you
+        const low = c.foot.y + 0.03, high = c.pc.y + p.above + 0.12;
+        if (e.pos.y + dir.y * p.length < low || e.pos.y + dir.y * p.length > high) dir.y = -dir.y * 0.3;
+        dir.normalize();
+        // stop short of a wall or furniture
+        const hit = en.world.cast(e.pos, dir, p.length + e.r);
+        e.zipDir.copy(dir);
+        e.zipLeft = hit ? Math.max(0, hit.distance - e.r) : p.length;
+        if (e.zipLeft < 0.02) { e.zipLeft = 0; e.zipT = 0.05; }   // boxed in: try another way next frame
+        else en.zip(e);
+      },
+    }),
+  },
+
+  evade: {
+    doc: 'When you hit it, it darts away `distance` m in a random direction at `speed` m/s (breaking off a charge), at most once every `every` s.',
+    props: { every: 5, distance: 0.25, speed: 2.2 },
+    make: (_, p) => ({
+      init(e) { e.evadeCd = 0; e.seenHits = 0; e.dodgeLeft = 0; e.dodgeDir = new THREE.Vector3(); },
+      tick(e, c, en) {
+        e.evadeCd -= c.dt;
+        const hit = (e.hits || 0) > e.seenHits;
+        e.seenHits = e.hits || 0;
+        if (hit && e.evadeCd <= 0 && c.slow > 0 && e.dodgeLeft <= 0) {
+          const dir = _want.set(Math.random() - 0.5, (Math.random() - 0.5) * 0.4, Math.random() - 0.5).normalize();
+          if (e.pos.y + dir.y * p.distance < c.foot.y + 0.03) dir.y = Math.abs(dir.y);
+          const wall = en.world.cast(e.pos, dir, p.distance + e.r);
+          e.dodgeDir.copy(dir);
+          e.dodgeLeft = wall ? Math.max(0.03, wall.distance - e.r) : p.distance;
+          e.evadeCd = p.every;
+          e.flyHeld = true;
+          if (e.state === 'charge') en.breakCharge(e);   // (its flyHeld is the dodge's now)
+          en.evade(e);
+        }
+        if (e.dodgeLeft > 0) {
+          const step = Math.min(e.dodgeLeft, p.speed * c.dt);
+          e.pos.addScaledVector(e.dodgeDir, step);
+          e.vel.copy(e.dodgeDir).multiplyScalar(p.speed);
+          e.dodgeLeft -= step;
+          if (e.dodgeLeft <= 1e-4) { e.dodgeLeft = 0; e.flyHeld = false; e.vel.multiplyScalar(0.2); }
+        }
+      },
+    }),
+  },
+
+  'charge-beam': {
+    doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (the only warning: nothing shows), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
+    props: { range: 0.45, charge: 2, dmg: 3, reach: 0.8, width: 0.008, every: 3.5, rest: 0.4 },
+    make: (_, p) => ({
+      init(e) { e.beamCd = 1.5 + Math.random() * 1.5; e.beamDir = new THREE.Vector3(); },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.stateT -= c.dt * live;
+        e.beamCd -= c.dt;
+        if (e.state === 'charge' && !live) { en.breakCharge(e); e.flyHeld = false; }   // frozen or stunned: the charge is lost
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.beamCd <= 0 && live && !e.flyHeld) {
+            e.state = 'charge'; e.stateT = e.chargeMax = p.charge; e.flyHeld = true; e.faceLock = true;
+            e.vel.set(0, 0, 0);
+            e.beamDir.copy(c.toP).normalize();                         // it aims where it faces, and doesn't turn again
+            e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
+            en.beamCharge(e, p.charge);
+          }
+        } else if (e.state === 'charge') {
+          e.vel.set(0, 0, 0);
+          if (e.stateT <= 0) { en.beam(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.2; }
+        } else if (e.state === 'rest' && e.stateT <= 0) {
+          e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.beamCd = p.every;
+        }
+        if (e.firedT > 0) e.firedT -= c.dt;
+      },
+    }),
+  },
+
   rolls: {
     doc: 'Its body rolls along the floor as it moves (no animation of its own).',
     make: () => ({ rolls: true }),

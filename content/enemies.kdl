@@ -58,6 +58,17 @@ enemy "ladybug" name="Ladybug" hp=50 r=0.035 dmg=1 xp=9 model="ladybug" {
     sortie circle=0.3 height=0.12 speed=0.4 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=3
 }
 
+// Act 3 (the bedroom, not built yet, so it's in no wave yet): the dragonfly. It never flies straight
+// at you: it hangs in the air, then darts off a short way in some new direction, zigzagging in.
+// Within reach it turns to face you and holds dead still for 2 s, charging; the only warning is a
+// whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
+// it and it darts away in a random direction (at most once every 5 s), breaking off a charge.
+enemy "dragonfly" name="Dragonfly" hp=45 r=0.04 dmg=1 xp=8 model="dragonfly" {
+    zip distance=0.3 above=0.06 speed=1.4 length=0.14 pause=0.35
+    charge-beam range=0.45 charge=2 dmg=3 reach=0.8 width=0.008 every=3.5
+    evade every=5 distance=0.25 speed=2.2
+}
+
 // The Clog (act 2 boss) sheds hair tangles into the fight
 enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
     chase 0.3

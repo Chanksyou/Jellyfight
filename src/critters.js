@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider and the house fly. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly and the dragonfly. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -1112,6 +1112,223 @@ export function buildLadybug() {
     body.position.y = Math.sin(t * 6 + e.phase) * 0.06 * fly;
     pod.visible = shell > 0.55 && e.loaded !== false;
     pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ dragonfly
+// A blue darner, after the reference sheet (act 3): huge glossy blue compound eyes meeting on top
+// of the head over a pale blue face, a stout hairy thorax in sky blue with black and lime-yellow
+// stripes slanting back down its sides, a long thin abdomen of ten black segments each with pairs
+// of bright blue spots (a little swollen at the waist and the tip, two claspers at the end), four
+// clear wings held straight out, every one a net of fine veins with a dark amber pterostigma near
+// the tip, and six black spiny legs held forward under the thorax like a basket. It hovers with
+// the fore and hind wings beating out of step, now and then holding them flat to glide, and tips
+// its nose down to dart. About 3.2 radii long and 4.2 across the wings.
+function dragonflyParts() {
+  const R = seeded(53), blue = '#3a9ee0', black = '#0b0d10', hair = '#c8d0d4';
+  // the eyes: deep blue, a lighter facet in every cell, a few dark flecks, a bright crown on top
+  const eye = wingTexture(512, 256, (g, w, h) => {
+    const base = g.createLinearGradient(0, 0, 0, h);
+    base.addColorStop(0, '#4ab4f4'); base.addColorStop(0.45, '#1866c0'); base.addColorStop(1, '#082a64');
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) for (let x = (y / 3) % 2 ? 1.5 : 0; x < w; x += 3) {
+      const l = 40 + R() * 22;
+      g.fillStyle = `hsla(${198 + R() * 16},90%,${l}%,.6)`;
+      g.beginPath(); g.arc(x + 1.5, y + 1.5, 1.1, 0, 7); g.fill();
+    }
+    g.fillStyle = 'rgba(5,15,40,.55)';
+    for (let k = 0; k < 14; k++) { g.beginPath(); g.arc(R() * w, h * (0.3 + R() * 0.55), 3 + R() * 6, 0, 7); g.fill(); }
+  });
+  // the thorax (a sphere: u around from +z, v top 0 -> bottom 1): sky blue with lime patches and
+  // black stripes slanting back down the sides, darker on the back
+  const thorax = wingTexture(512, 256, (g, w, h) => {
+    g.fillStyle = '#4aa6d8'; g.fillRect(0, 0, w, h);
+    // each side's middle is at u = 0 (+x) or 0.5 (-x); `back` runs from the front of the side to its back
+    const band = (c, dir, back, wd, col) => {
+      g.fillStyle = col;
+      for (const cc of c === 0 ? [0, 1] : [c]) {
+        g.beginPath();
+        const at = (b, v) => (cc + dir * (b - v * 0.07)) * w;          // slanting forward as it goes down, toward the legs
+        g.moveTo(at(back - wd, 0), 0); g.lineTo(at(back + wd, 0), 0); g.lineTo(at(back + wd, 1), h); g.lineTo(at(back - wd, 1), h); g.fill();
+      }
+    };
+    for (const [c, dir] of [[0, 1], [0.5, -1]]) {
+      for (const [back, wd, col] of [[-0.21, 0.035, '#0b0d10'], [-0.15, 0.025, '#c9d84a'], [-0.06, 0.022, '#0b0d10'], [0.0, 0.03, '#b8dc48'], [0.07, 0.018, '#0b0d10'], [0.13, 0.03, '#d6dc5a'], [0.2, 0.03, '#0b0d10']]) band(c, dir, back, wd, col);
+    }
+    g.fillStyle = '#0b0d10'; g.fillRect(0, 0, w, h * 0.07);             // a dark collar round the top
+    g.fillStyle = 'rgba(10,20,30,.6)'; g.fillRect(0, h * 0.82, w, h * 0.18);   // and a dark underside
+    for (let k = 0; k < 700; k++) { g.fillStyle = `rgba(255,255,255,${R() * 0.1})`; g.fillRect(R() * w, R() * h, 2, 2); }
+  });
+  // the abdomen (a lathe: u around, 0 = the top, 0.25 = +x; v front 0 -> back 1): ten black
+  // segments, each with a pair of blue spots on top, a smaller pair behind, blue on the sides,
+  // and a thin pale ring at each joint
+  const segs = 10, segAt = (k) => [0, 0.06, 0.13, 0.24, 0.35, 0.46, 0.57, 0.68, 0.79, 0.89, 1][k];
+  const abdomen = wingTexture(256, 1024, (g, w, h) => {
+    g.fillStyle = black; g.fillRect(0, 0, w, h);
+    const spot = (u, v, rx, ry) => { for (const uu of [u, 1 - u]) { g.beginPath(); g.ellipse(uu * w, v * h, rx * w, ry * h, 0, 0, 7); g.fill(); } };
+    for (let k = 0; k < segs; k++) {
+      const a = segAt(k), b = segAt(k + 1), L = b - a;
+      g.fillStyle = blue;
+      if (k < 2) { g.fillRect(0, a * h, w, L * h * 0.85); g.fillStyle = black; g.fillRect(w * 0.42, a * h, w * 0.16, L * h); continue; }   // the waist: mostly blue
+      spot(0.07, a + L * 0.3, 0.06, L * 0.24);                        // the big pair on top
+      spot(0.05, a + L * 0.75, 0.035, L * 0.12);                      // a small pair behind
+      spot(0.25, a + L * 0.45, 0.07, L * 0.3);                        // the sides
+      g.fillStyle = 'rgba(140,200,240,.5)'; g.fillRect(0, b * h - 3, w, 2);   // the joint
+    }
+  });
+  // a wing (span along +x from the hinge, the leading edge along z = 0, the trailing edge behind):
+  // a clear membrane, amber at the root, the costa along the front, longitudinal veins fanning out,
+  // cross veins between them, a fine net of cells toward the trailing edge and the pterostigma
+  const wing = wingTexture(1024, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0);
+    m.addColorStop(0, 'rgba(190,150,70,.5)'); m.addColorStop(0.12, 'rgba(210,225,235,.2)'); m.addColorStop(1, 'rgba(220,232,240,.16)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    const line = (pts, lw, col) => { g.lineWidth = lw; g.strokeStyle = col; g.beginPath(); g.moveTo(pts[0][0] * w, pts[0][1] * h); for (const [x, y] of pts.slice(1)) g.lineTo(x * w, y * h); g.stroke(); };
+    // the longitudinal veins: v(x) for each, fanning back from the root
+    const veins = [0.02, 0.07, 0.13, 0.22, 0.34, 0.48, 0.62, 0.78].map((v, i) => (x) => 0.02 + (v - 0.02) * (0.25 + 0.75 * Math.pow(Math.min(1, x / 0.35), 0.5)) + (i ? Math.sin(x * 3 + i) * 0.015 : 0));
+    const vc = 'rgba(30,34,40,.85)';
+    veins.forEach((f, i) => line(Array.from({ length: 33 }, (_, k) => [k / 32, f(k / 32)]), i === 0 ? 5 : i < 3 ? 2.6 : 1.8, vc));
+    line([[0, 0.012], [1, 0.012]], 6, 'rgba(20,22,26,.95)');          // the costa, heavy along the front
+    g.lineCap = 'round';
+    for (let i = 0; i < veins.length - 1; i++) {                       // the cross veins, closer toward the tip
+      for (let x = 0.04 + R() * 0.02; x < 0.98; x += 0.012 + R() * 0.012) {
+        const x2 = x + (R() - 0.5) * 0.008;
+        line([[x, veins[i](x)], [x2, veins[i + 1](x2)]], 1, 'rgba(30,34,40,.7)');
+      }
+    }
+    // the net behind the last vein: a jittered grid joined into little polygons
+    const cols = 90, rows = 9, P = [];
+    for (let r = 0; r <= rows; r++) { P[r] = []; for (let c = 0; c <= cols; c++) { const x = c / cols; P[r][c] = [x + (R() - 0.5) * 0.006, veins[7](x) + (r / rows) * (1 - veins[7](x)) + (R() - 0.5) * 0.02]; } }
+    for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++) {
+      if (c < cols) line([P[r][c], P[r][c + 1]], 0.9, 'rgba(30,34,40,.6)');
+      if (r < rows) line([P[r][c], P[r + 1][c]], 0.9, 'rgba(30,34,40,.6)');
+    }
+    g.fillStyle = 'rgba(30,18,8,1)'; g.beginPath(); g.roundRect(w * 0.8, 0, w * 0.09, h * 0.1, 5); g.fill();   // the pterostigma
+    g.fillStyle = 'rgba(190,120,30,1)'; g.beginPath(); g.roundRect(w * 0.806, h * 0.018, w * 0.078, h * 0.06, 4); g.fill();
+  });
+  // a wing outline: span `len`, `chord` deep; `hind` gives the broad rounded base of a hind wing
+  const wingGeo = (len, chord, hind) => {
+    const s = new THREE.Shape();
+    s.moveTo(0, 0);
+    s.bezierCurveTo(len * 0.4, 0.02, len * 0.85, 0.02, len * 0.97, -chord * 0.12);           // the leading edge
+    s.bezierCurveTo(len * 1.01, -chord * 0.35, len * 0.97, -chord * 0.75, len * 0.86, -chord * 0.82);   // the round tip
+    if (hind) s.bezierCurveTo(len * 0.55, -chord * 0.95, len * 0.3, -chord * 1.0, len * 0.12, -chord * 0.95).bezierCurveTo(len * 0.04, -chord * 0.85, 0, -chord * 0.45, 0, -chord * 0.12);
+    else s.bezierCurveTo(len * 0.55, -chord * 0.95, len * 0.2, -chord * 0.7, len * 0.05, -chord * 0.32).lineTo(0, -chord * 0.12);
+    s.closePath();
+    const geo = new THREE.ShapeGeometry(s, 40), p = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i);
+      uv.setXY(i, x / len, 1 + y / chord);                             // canvas y runs down: the front is v = 1
+      p.setXYZ(i, x, Math.sin((x / len) * Math.PI) * 0.03 - (y / chord) * (y / chord) * 0.03, y);   // a slight camber
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  // the abdomen's profile: radius along its length, swollen at the waist, pinched, clubbed at the tip
+  const LEN = 2.15, prof = [[0, 0.01], [0.03, 0.12], [0.1, 0.14], [0.2, 0.12], [0.3, 0.075], [0.5, 0.072], [0.75, 0.078], [0.88, 0.09], [0.95, 0.08], [0.99, 0.05], [1, 0.005]];
+  const curve = new THREE.CatmullRomCurve3(prof.map(([v, r]) => V(r, v, 0)));
+  const abdomenGeo = new THREE.LatheGeometry(curve.getPoints(80).map((p) => new THREE.Vector2(Math.max(0.004, p.x), p.y * LEN)), 24)
+    .rotateX(-Math.PI / 2).scale(1, 0.92, 1);                          // runs back along -z, u = 0 on top
+  // a leg on the +x side, built at its hip: femur forward and down, tibia folded back, a clawed foot, spines
+  const legGeo = (fwd, sc) => {
+    const a = V(0, 0, 0), b = V(0.14 * sc, -0.2 * sc, (0.05 + fwd * 0.1) * sc), c = V(0.2 * sc, -0.36 * sc, (0.22 + fwd * 0.12) * sc), d = V(0.15 * sc, -0.42 * sc, (0.38 + fwd * 0.1) * sc);
+    const parts = [rod(a, b, 0.035, 0.03, black), rod(b, c, 0.028, 0.02, black), rod(c, d, 0.018, 0.01, '#1a1d22'), ellipsoid(0.032, 0.032, 0.032, b, black, 8),
+      ...[-1, 1].map((k) => rod(d, d.clone().add(V(k * 0.02, -0.035, 0.03)), 0.008, 0.002, black))];
+    for (const [p, q, n] of [[a, b, 5], [b, c, 9]]) for (let k = 0; k < n; k++) {   // two rows of spines
+      const at = p.clone().lerp(q, 0.1 + 0.85 * k / n), dir = V((k % 2 ? 1 : -0.3), -0.2, 0.8).normalize();
+      parts.push(rod(at, at.clone().addScaledVector(dir, 0.05 + R() * 0.02), 0.006, 0.0015, black));
+    }
+    return merge(parts);
+  };
+  const legs = [];
+  [[0.58, 1, 0.75], [0.46, 0.5, 0.85], [0.34, 0, 0.95]].forEach(([z, fwd, sc]) => { for (const s of [-1, 1]) legs.push([s, z, fwd, sc]); });
+  const parts = [
+    ellipsoid(0.12, 0.09, 0.08, V(0, -0.04, 1.0), '#7cc0e4', 16),      // the face (frons), pale blue
+    ellipsoid(0.1, 0.06, 0.06, V(0, -0.14, 0.98), '#c8d890', 14),       // the lip below, a little yellow
+    ellipsoid(0.08, 0.035, 0.05, V(0, -0.2, 0.95), '#2a3030', 12),      // the jaws
+    ellipsoid(0.035, 0.03, 0.03, V(0, 0.08, 1.04), black, 10),          // the vertex between the eyes
+    ellipsoid(0.16, 0.14, 0.1, V(0, 0.02, 0.78), black, 14),            // the back of the head
+    ellipsoid(0.13, 0.12, 0.1, V(0, -0.02, 0.68), '#24303a', 12),       // the neck (prothorax)
+    ...[-1, 1].map((s) => rod(V(s * 0.04, 0.12, 1.0), V(s * 0.09, 0.2, 1.1), 0.012, 0.004, black)),   // tiny bristle antennae
+    ellipsoid(0.07, 0.035, 0.04, V(0, 0.27, 0.46), black, 8),          // the wing roots
+    ellipsoid(0.07, 0.035, 0.04, V(0, 0.27, 0.26), black, 8),
+  ];
+  for (let k = 0; k < 60; k++) {                                       // pale hairs on the thorax
+    const d = V(R() - 0.5, R() * 0.8 - 0.3, R() - 0.5).normalize(), at = V(0, 0, 0.38).add(d.clone().multiply(V(0.24, 0.27, 0.3)));
+    parts.push(rod(at, at.clone().addScaledVector(d, 0.04 + R() * 0.04), 0.006, 0.0015, hair));
+  }
+  return {
+    eye, thorax, abdomen, wing,
+    eyeGeo: new THREE.SphereGeometry(1, 40, 28).scale(0.22, 0.22, 0.2),
+    thoraxGeo: new THREE.SphereGeometry(1, 36, 24).rotateY(Math.PI).scale(0.24, 0.27, 0.3).rotateX(-0.35).translate(0, 0, 0.38),
+    abdomenGeo: abdomenGeo.translate(0, 0.0, 0.1),
+    foreGeo: wingGeo(2.0, 0.42, false), hindGeo: wingGeo(1.9, 0.56, true),
+    // the claspers at the tip of the abdomen (they ride on it)
+    claspers: merge([...[-1, 1].map((s) => rod(V(s * 0.02, 0.02, -0.04), V(s * 0.05, 0.0, -0.18), 0.02, 0.006, black)), rod(V(0, -0.02, -0.04), V(0, -0.05, -0.12), 0.015, 0.005, black)]).translate(0, 0, 0.1 - LEN),
+    body: merge(parts), legs: merge(legs.map(([s, z, fwd, sc]) => { const g = legGeo(fwd, sc); if (s < 0) g.scale(-1, 1, 1); return g.translate(s * 0.07, -0.2, z); })),
+  };
+}
+
+export function buildDragonfly() {
+  const G = (GEO.dragonfly ||= dragonflyParts()), M = mats();
+  if (!M.dfEye) {
+    M.dfEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
+    M.dfThorax = new THREE.MeshStandardMaterial({ map: G.thorax, roughness: 0.5 });
+    M.dfAbdomen = new THREE.MeshStandardMaterial({ map: G.abdomen, roughness: 0.3, metalness: 0.1 });
+    M.dfWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.12, metalness: 0.2, depthWrite: false });
+    M.dfLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 });
+    standOut(M.dfEye, { base: 0.3, rim: 0.5 }); standOut(M.dfThorax, { base: 0.2, rim: 0.45 }); standOut(M.dfAbdomen, { base: 0.25, rim: 0.45 });
+    standOut(M.dfWing, { base: 0.25, rim: 0.4 }); standOut(M.dfLeg, { base: 0.12, rim: 0.3 });
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
+  add(body, G.body, M.dfLeg);
+  add(body, G.thoraxGeo, M.dfThorax);
+  for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.dfEye, V(s * 0.13, 0.1, 0.86)); e.rotation.set(0, s * 0.4, -s * 0.25); }
+  body.add(angryEyes({ y: 0.14, z: 1.02, size: 0.09, gap: 0.14 }));
+  const legs = add(body, G.legs, M.dfLeg);
+  // the abdomen hangs from the back of the thorax and sways a little
+  const tail = new THREE.Group();
+  tail.position.set(0, -0.02, 0.12);
+  body.add(tail);
+  add(tail, G.abdomenGeo, M.dfAbdomen, V(0, 0, -0.12));
+  add(tail, G.claspers, M.dfLeg, V(0, 0, -0.12));
+  // four wings, each on a hinge at its root: the forewings ahead of the hind ones
+  const wings = [];
+  for (const [geo, z, fore] of [[G.foreGeo, 0.52, true], [G.hindGeo, 0.28, false]]) for (const s of [-1, 1]) {
+    const hinge = new THREE.Group();
+    hinge.position.set(s * 0.08, 0.27, z);
+    hinge.rotation.y = s * (fore ? -0.1 : 0.14);                       // the forewings sweep forward a touch, the hind ones back
+    const m = add(hinge, geo, M.dfWing);
+    m.scale.x = s;
+    body.add(hinge);
+    wings.push({ s, fore, hinge });
+  }
+
+  let t = 0, dart = 0, glide = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    dart += (Math.min(1, speed * 4) - dart) * (1 - Math.exp(-6 * dt));
+    // every few seconds it holds its wings out flat and glides for a moment
+    const g = Math.sin(t * 0.9 + e.phase) > 0.8 ? 1 : 0;
+    glide += (g - glide) * (1 - Math.exp(-10 * dt));
+    const beat = 1 - glide;
+    for (const W of wings) {
+      // fore and hind beat out of step, a quarter turn apart; a dragonfly's wings are a blur
+      const a = Math.sin(t * 70 + (W.fore ? 0 : Math.PI * 0.6));
+      W.hinge.rotation.z = W.s * (0.05 + a * 0.55 * beat);
+      W.hinge.rotation.x = a * 0.25 * beat * (W.fore ? 1 : -1);        // the wings twist through the stroke
+    }
+    legs.rotation.x = -0.1 + Math.sin(t * 2.1 + e.phase) * 0.05;
+    tail.rotation.x = Math.sin(t * 1.7 + e.phase) * 0.05 + dart * 0.08;
+    tail.rotation.y = Math.sin(t * 1.3 + e.phase) * 0.04;
+    body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5);
+    body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03;   // nose down to dart
+    body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
