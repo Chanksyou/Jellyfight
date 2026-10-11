@@ -1591,3 +1591,242 @@ export function buildWorm() {
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
+
+// ------------------------------------------------------------------ wasp
+// A yellowjacket, after the photo: a black head with big kidney-shaped compound eyes notched
+// with yellow, a yellow face with a black mark and orange jaws, long black elbowed antennae; a
+// fuzzy black thorax with yellow edges and spots; a thin waist; a plump abdomen in yellow and
+// black bands (a black dot on each yellow band) tapering to its sting; two pairs of clear,
+// amber-veined wings with an orange leading edge; and six yellow legs with orange feet, black at
+// the hips. It flies with its wings a blur, legs hanging and abdomen pumping. Facing +z, centred
+// on its thorax; about 3 radii long, antennae to sting.
+function waspParts() {
+  const R = seeded(83), black = '#121010', yellow = '#f2d21a', orange = '#e08a1c', hair = '#3a3228';
+  // the abdomen (a lathe: u around, 0 = the top; v front 0 -> back 1): black at the waist, then
+  // yellow bands with black between, each band dipping to a point in the middle of the back and
+  // carrying a black dot each side, a black tip
+  const gaster = wingTexture(512, 512, (g, w, h) => {
+    g.fillStyle = black; g.fillRect(0, 0, w, h);
+    const bands = [[0.12, 0.25], [0.3, 0.42], [0.47, 0.58], [0.63, 0.73], [0.78, 0.86]];
+    for (const [a, b] of bands) {
+      g.fillStyle = yellow; g.beginPath();
+      g.moveTo(0, h * a);
+      for (let x = 0; x <= w; x += 4) {                              // the band's front edge dips at the top (u = 0 / 1)
+        const u = x / w, top = Math.min(u, 1 - u);
+        g.lineTo(x, h * (a + Math.max(0, 0.06 - top * 0.3)));
+      }
+      g.lineTo(w, h * b); g.lineTo(0, h * b); g.closePath(); g.fill();
+      g.fillStyle = black;
+      for (const u of [0.12, 0.88]) { g.beginPath(); g.ellipse(u * w, h * (a + b) / 2 + 2, w * 0.035, h * (b - a) * 0.28, 0, 0, 7); g.fill(); }
+    }
+    for (let k = 0; k < 1500; k++) { g.fillStyle = `rgba(255,255,255,${R() * 0.06})`; g.fillRect(R() * w, R() * h, 2, 1); }
+  });
+  // the thorax (a sphere: u around from -x, v top -> bottom): fuzzy black, a yellow collar at the
+  // front, two yellow spots behind, yellow side patches
+  const thorax = wingTexture(512, 256, (g, w, h) => {
+    g.fillStyle = black; g.fillRect(0, 0, w, h);
+    g.fillStyle = yellow;
+    g.beginPath(); g.ellipse(w * 0.75, h * 0.28, w * 0.2, h * 0.05, 0, 0, 7); g.fill();       // the collar along the front
+    for (const u of [0.18, 0.32]) { g.beginPath(); g.ellipse(u * w, h * 0.28, w * 0.025, h * 0.04, 0, 0, 7); g.fill(); }   // two spots behind
+    for (const u of [0, 0.5, 1]) { g.beginPath(); g.ellipse(u * w, h * 0.55, w * 0.06, h * 0.1, 0.4, 0, 7); g.fill(); }  // the side patches
+    for (let k = 0; k < 2500; k++) { g.fillStyle = `rgba(${90 + R() * 60 | 0},${70 + R() * 40 | 0},40,${R() * 0.25})`; g.fillRect(R() * w, R() * h, 1, 2); }
+  });
+  // an eye: glossy black-brown with faint facets
+  const eye = wingTexture(256, 128, (g, w, h) => {
+    g.fillStyle = '#1a1614'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) for (let x = (y / 3) % 2 ? 1.5 : 0; x < w; x += 3) { g.fillStyle = `rgba(120,100,80,${R() * 0.18})`; g.fillRect(x, y, 1.2, 1.2); }
+  });
+  // a wing (u along the span, v from the leading edge): clear with an amber tint, an orange-brown
+  // leading edge, dark veins making a few big cells, smoky near the root
+  const wing = wingTexture(1024, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0);
+    m.addColorStop(0, 'rgba(160,110,50,.7)'); m.addColorStop(0.3, 'rgba(225,215,190,.42)'); m.addColorStop(1, 'rgba(235,230,215,.36)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(200,110,30,.9)'; g.fillRect(0, 0, w * 0.62, h * 0.07);              // the leading edge
+    g.fillStyle = 'rgba(150,80,20,.95)'; g.beginPath(); g.ellipse(w * 0.6, h * 0.06, w * 0.05, h * 0.05, 0, 0, 7); g.fill();   // the stigma
+    g.strokeStyle = 'rgba(90,60,30,.95)'; g.lineCap = 'round'; g.lineWidth = 4;
+    const vein = (pts) => { g.beginPath(); g.moveTo(pts[0][0] * w, pts[0][1] * h); for (const [x, y] of pts.slice(1)) g.lineTo(x * w, y * h); g.stroke(); };
+    vein([[0, 0.2], [0.35, 0.22], [0.6, 0.12]]); vein([[0, 0.38], [0.3, 0.4], [0.55, 0.42], [0.85, 0.3]]); vein([[0, 0.55], [0.28, 0.6], [0.5, 0.65], [0.75, 0.62]]);
+    g.lineWidth = 2;
+    vein([[0.35, 0.22], [0.3, 0.4]]); vein([[0.55, 0.42], [0.6, 0.12]]); vein([[0.45, 0.17], [0.42, 0.41]]); vein([[0.5, 0.65], [0.55, 0.42]]); vein([[0.28, 0.6], [0.3, 0.4]]);
+    vein([[0.6, 0.12], [0.75, 0.1], [0.85, 0.3]]); vein([[0.75, 0.62], [0.85, 0.3]]);
+  });
+  const wingGeo = (len, chord) => {
+    const s = new THREE.Shape().moveTo(0, 0)
+      .bezierCurveTo(len * 0.4, 0.01, len * 0.8, 0.0, len * 0.97, -chord * 0.25)
+      .bezierCurveTo(len * 1.02, -chord * 0.55, len * 0.9, -chord * 0.85, len * 0.7, -chord * 0.85)
+      .bezierCurveTo(len * 0.4, -chord * 0.8, len * 0.15, -chord * 0.55, 0, -chord * 0.15).closePath();
+    const geo = new THREE.ShapeGeometry(s, 32), p = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i);
+      uv.setXY(i, x / len, 1 + y / chord);
+      p.setXYZ(i, x, Math.sin((x / len) * Math.PI) * 0.03, y);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  // the abdomen: plump, widest a third of the way back, tapering to the sting
+  const LEN = 1.45, prof = [[0, 0.06], [0.05, 0.2], [0.18, 0.36], [0.38, 0.42], [0.6, 0.38], [0.8, 0.26], [0.93, 0.12], [1, 0.02]];
+  const curve = new THREE.CatmullRomCurve3(prof.map(([v, r]) => V(r, v, 0)));
+  const gasterGeo = new THREE.LatheGeometry(curve.getPoints(60).map((p) => new THREE.Vector2(Math.max(0.006, p.x), p.y * LEN)), 28)
+    .rotateX(-Math.PI / 2).scale(1, 0.95, 1);
+  const hairs = (n, c, rad, len, col = hair) => {
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const d = V(R() - 0.5, R() * 0.9 - 0.2, R() - 0.5).normalize(), a = c.clone().add(d.clone().multiply(rad));
+      out.push(rod(a, a.clone().addScaledVector(d, len * (0.6 + R() * 0.7)), 0.007, 0.0015, col));
+    }
+    return out;
+  };
+  // a leg on the +x side from its hip: black coxa, yellow femur and tibia, orange tarsus in segments
+  const legGeo = (fwd, sc) => {
+    const a = V(0, 0, 0), b = V(0.12, -0.08, fwd * 0.05), c = V(0.3 * sc, -0.42 * sc, fwd * 0.18), d = V(0.34 * sc, -0.85 * sc, fwd * 0.12 - 0.05), f = V(0.36 * sc, -1.15 * sc, fwd * 0.1 - 0.1);
+    const parts = [rod(a, b, 0.05, 0.045, black), rod(b, c, 0.042, 0.035, yellow), rod(c, d, 0.032, 0.026, yellow), ellipsoid(0.038, 0.038, 0.038, c, orange, 8)];
+    for (let k = 0; k < 5; k++) { const p = d.clone().lerp(f, k / 5), q = d.clone().lerp(f, (k + 0.85) / 5); parts.push(rod(p, q, 0.022, 0.016, orange), ellipsoid(0.02, 0.02, 0.02, q, '#c86a14', 6)); }
+    parts.push(...[-1, 1].map((k) => rod(f, f.clone().add(V(k * 0.02, -0.04, 0.03)), 0.008, 0.002, '#5a2a0c')));
+    return merge(parts);
+  };
+  const body = [
+    ellipsoid(0.3, 0.27, 0.16, V(0, 0.05, 0.86), black, 24),             // the head, wide and flat-fronted
+    ellipsoid(0.14, 0.13, 0.05, V(0, -0.06, 0.99), yellow, 18),           // the face (clypeus)...
+    ellipsoid(0.03, 0.06, 0.02, V(0, -0.04, 1.04), black, 8),             // ...with its black mark
+    ellipsoid(0.09, 0.05, 0.03, V(0, 0.14, 0.98), yellow, 12),            // yellow brow between the antennae
+    ...[-1, 1].flatMap((s) => [rod(V(s * 0.03, -0.17, 1.0), V(s * 0.07, -0.26, 1.06), 0.04, 0.015, orange), ellipsoid(0.03, 0.06, 0.03, V(s * 0.2, 0.06, 0.95), yellow, 8)]),   // jaws, the yellow eye notches
+    ...[-1, 1].map((s) => tube([V(s * 0.06, 0.12, 1.0), V(s * 0.1, 0.32, 1.12), V(s * 0.16, 0.36, 1.22), V(s * 0.22, 0.12, 1.42), V(s * 0.26, -0.2, 1.52)], 0.026, black, 18)),   // elbowed antennae
+    ellipsoid(0.15, 0.15, 0.12, V(0, 0.0, 0.7), black, 14),               // the neck
+    ellipsoid(0.13, 0.12, 0.14, V(0, -0.02, 0.07), black, 14),            // the waist (petiole)
+    ...hairs(70, V(0, 0.05, 0.42), V(0.3, 0.3, 0.38), 0.07),               // fuzz on the thorax
+    ...hairs(30, V(0, 0.05, 0.86), V(0.28, 0.25, 0.14), 0.05),             // and the head
+  ];
+  return {
+    gaster, thorax, eye, wing,
+    gasterGeo: gasterGeo.translate(0, 0, 0.02),
+    sting: merge([rod(V(0, 0, -LEN + 0.04), V(0, -0.03, -LEN - 0.1), 0.024, 0.003, '#3a2210')]),
+    thoraxGeo: new THREE.SphereGeometry(1, 32, 22).scale(0.3, 0.3, 0.4).translate(0, 0.02, 0.42),
+    eyeGeo: new THREE.SphereGeometry(1, 24, 16).scale(0.1, 0.2, 0.13),
+    foreGeo: wingGeo(1.55, 0.36), hindGeo: wingGeo(1.05, 0.28),
+    body: merge(body),
+    legs: [[0.55, 1, 0.9], [0.4, 0, 1], [0.27, -1, 1.1]].map(([z, fwd, sc]) => ({ z, geo: legGeo(fwd, sc) })),
+  };
+}
+
+export function buildWasp() {
+  const G = (GEO.wasp ||= waspParts()), M = mats();
+  if (!M.wpGaster) {
+    M.wpGaster = new THREE.MeshPhysicalMaterial({ map: G.gaster, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+    M.wpThorax = new THREE.MeshStandardMaterial({ map: G.thorax, roughness: 0.6 });
+    M.wpEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.05 });
+    M.wpWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.15, depthWrite: false });
+    M.wpBody = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4 });
+    for (const [m, l] of [[M.wpGaster, { base: 0.25, rim: 0.5 }], [M.wpThorax, { base: 0.2, rim: 0.5 }], [M.wpEye, { base: 0.15, rim: 0.4 }], [M.wpWing, { base: 0.25, rim: 0.4 }], [M.wpBody, { base: 0.2, rim: 0.45 }]]) standOut(m, l);
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
+  add(body, G.body, M.wpBody);
+  add(body, G.thoraxGeo, M.wpThorax);
+  for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.wpEye, V(s * 0.24, 0.04, 0.88)); e.rotation.set(0.15, s * 0.5, 0); }
+  body.add(angryEyes({ y: 0.16, z: 1.02, size: 0.09, gap: 0.17 }));
+  // the abdomen hangs from the waist, a little low, and pumps as it flies
+  const tail = new THREE.Group();
+  tail.position.set(0, -0.04, 0.02);
+  tail.rotation.x = -0.35;
+  body.add(tail);
+  add(tail, G.gasterGeo, M.wpGaster, V(0, 0, -0.02));
+  add(tail, G.sting, M.wpBody);
+  const wings = [];
+  for (const [geo, z, fore] of [[G.foreGeo, 0.52, true], [G.hindGeo, 0.36, false]]) for (const s of [-1, 1]) {
+    const hinge = new THREE.Group(), flap = new THREE.Group();
+    hinge.position.set(s * 0.14, 0.26, z);
+    hinge.rotation.y = s * (fore ? 0.55 : 0.7);                           // swept back over the abdomen
+    hinge.add(flap);
+    const m = add(flap, geo, M.wpWing);
+    m.scale.x = s;
+    body.add(hinge);
+    wings.push({ s, fore, flap });
+  }
+  const legs = [];
+  G.legs.forEach((L, pair) => [-1, 1].forEach((s) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.12, -0.2, L.z);
+    hip.scale.x = s;
+    add(hip, L.geo, M.wpBody);
+    body.add(hip);
+    legs.push({ s, pair, hip });
+  }));
+  let t = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const ph = e?.phase || 0, speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
+    for (const W of wings) W.flap.rotation.z = W.s * (0.1 + Math.sin(t * 80 + (W.fore ? 0 : 0.5)) * 0.7);   // a blur of wings
+    for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15 + Math.sin(t * 3 + L.pair + ph) * 0.06;   // hanging, trailing back
+    tail.rotation.x = -0.35 + Math.sin(t * 6 + ph) * 0.06;                // the abdomen pumps
+    body.position.y = Math.sin(t * 5 + ph) * 0.08;
+    body.rotation.x = 0.05 + Math.min(1, speed * 4) * 0.15;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ wasp nest
+// A paper wasp nest, after the photo: a grey teardrop of chewed-wood paper, hung from its broad
+// flat top, built of overlapping shell layers whose lips run in wavy bands round it, streaked in
+// a dozen greys, narrowing to a rounded bottom with the entrance: a lipped hole going up inside.
+// In the wasp's radius units (scale both by the same r): its origin is the middle of its top,
+// where it hangs, and it's NEST.height tall, four times the wasp's length.
+export const NEST = { height: 12, width: 5.3 };
+function nestParts() {
+  const R = seeded(97), H = NEST.height, W = NEST.width;
+  // the paper: fine streaks running round it (u around, v down), in many greys
+  const paper = wingTexture(1024, 1024, (g, w, h) => {
+    g.fillStyle = '#9a9a96'; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 2600; k++) {
+      const y = R() * h, x = R() * w, l = 30 + R() * 160, v = 100 + R() * 90 | 0;
+      g.strokeStyle = `rgba(${v},${v},${v - 4},${0.25 + R() * 0.4})`; g.lineWidth = 1 + R() * 2.5;
+      g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + l * 0.3, y + (R() - 0.5) * 6, x + l * 0.6, y + (R() - 0.5) * 6, x + l, y + (R() - 0.5) * 4); g.stroke();
+    }
+    for (let k = 0; k < 400; k++) { g.fillStyle = `rgba(60,58,54,${R() * 0.25})`; g.fillRect(R() * w, R() * h, 1 + R() * 3, 1); }
+  });
+  // the outline, top (hanging) to bottom: broad and flat at the top, widest a third of the way down,
+  // tapering to the entrance, its lip, then up inside it
+  const out = [[0.02, 0], [W * 0.7, 0], [W * 0.88, -H * 0.06], [W * 0.98, -H * 0.2], [W, -H * 0.35], [W * 0.93, -H * 0.55], [W * 0.75, -H * 0.73], [W * 0.5, -H * 0.86], [W * 0.27, -H * 0.95], [W * 0.17, -H * 0.985]];
+  const curve = new THREE.CatmullRomCurve3(out.map(([r, y]) => V(r, y, 0)));
+  const pts = curve.getPoints(150).map((p) => new THREE.Vector2(p.x, p.y));
+  // the entrance: a rounded lip, then a dark tube up inside
+  for (const [r, y] of [[W * 0.15, -H * 0.995], [W * 0.12, -H * 0.998], [W * 0.1, -H * 0.99], [W * 0.09, -H * 0.96], [W * 0.085, -H * 0.9], [W * 0.05, -H * 0.86], [0.01, -H * 0.85]]) pts.push(new THREE.Vector2(r, y));
+  const seg = 96, geo = new THREE.LatheGeometry(pts, seg);
+  const p = geo.attributes.position, n = p.count, col = new Float32Array(n * 3), uv = geo.attributes.uv;
+  const inside = pts.length - 6;                                        // points from here on are the entrance's inside
+  const band = H * 0.085;
+  for (let i = 0; i < n; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), th = Math.atan2(z, x), j = i % pts.length;
+    let shade = 0.95;
+    if (j > 4 && j < inside - 2) {
+      // the shell layers: wavy bands; each layer bulges out toward its lower lip, the next starts tucked in under it
+      const f = -y / band + 0.5 * Math.sin(th * 1 + 1.3) + 0.25 * Math.sin(th * 3 - y * 0.4) + 0.12 * Math.sin(th * 7 + y);
+      const t = f - Math.floor(f), lip = Math.pow(t, 1.6);
+      const k = 1 + 0.055 * lip - 0.03 + (R() - 0.5) * 0.004;
+      p.setXYZ(i, x * k, y, z * k);
+      shade = (0.66 + 0.36 * lip + 0.07 * Math.sin(Math.floor(f) * 2.7)) * (t < 0.07 ? 0.5 : 1);   // a dark groove just under each lip
+    }
+    if (j >= inside) shade = 0.18 * Math.max(0, 1 - (j - inside) / 5) + 0.04;   // the dark entrance
+    const grey = shade * (0.94 + R() * 0.08);
+    col[i * 3] = grey; col[i * 3 + 1] = grey; col[i * 3 + 2] = grey * 0.97;
+    uv.setXY(i, uv.getX(i) * 3, -y / H * 2.2);                            // the streaks run round it, repeated
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return { paper, geo };
+}
+
+export function buildNest() {
+  const G = (GEO.nest ||= nestParts()), M = mats();
+  if (!M.nest) {
+    G.paper.wrapS = G.paper.wrapT = THREE.RepeatWrapping;
+    M.nest = new THREE.MeshStandardMaterial({ map: G.paper, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+    standOut(M.nest, { base: 0.2, rim: 0.35 });
+  }
+  const outer = new THREE.Group();
+  outer.add(new THREE.Mesh(G.geo, M.nest));
+  return { body: outer, face: new THREE.Group(), anim: null };
+}

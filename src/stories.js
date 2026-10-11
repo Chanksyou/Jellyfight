@@ -25,6 +25,7 @@ import { checkBvhLayout } from './collision.js';
 import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
 import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
+import { buildWasp, buildNest, NEST } from './critters.js';
 import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
@@ -1090,7 +1091,7 @@ story('enemies/dragonfly-dodge-breaks-charge', {
     const broke = e.state === 'approach';
     e.beamCd = 99;
     step(60 * 2.5);
-    const hit = log.some((d) => d.source === 'dragonfly');
+    const hit = log.some((d) => d.source === 'dragonfly' && d.amount === 3);   // the beam (not a brush against it as it dodges)
     return ok(charged && broke && !hit, { charged, broke, hit });
   },
 });
@@ -1216,6 +1217,39 @@ story('enemies/worm-whip-dodge', {
     });
     const hit = log.some((d) => d.source === 'worm' && d.amount === 3);
     return ok(moved && cracked && !hit, { moved, cracked, hit });
+  },
+});
+// the wasp and its nest (models only for now: act 3): shown hanging and hovering in front of you
+let waspShow = null;
+story('models/wasp-and-nest', {
+  about: 'The wasp nest is about four times as tall as the wasp is long, scaled the same, and the wasp flies beside it with its wings a blur.',
+  setup() {
+    fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0);
+    if (waspShow) for (const m of waspShow.group.children.slice()) m.parent.remove(m);
+    const r = 0.03, group = waspShow?.group || new THREE.Group(), nest = buildNest(), wasp = buildWasp();
+    group.add(nest.body, wasp.body);
+    nest.body.scale.setScalar(r); nest.body.position.copy(near(0, -0.45, 0.4));         // hanging in front of you, its top 40 cm up
+    wasp.body.scale.setScalar(r); wasp.body.position.copy(near(0.2, -0.42, 0.25));
+    G().enemies.scene.add(group);
+    waspShow = { group, nest, wasp, r };
+  },
+  play() {
+    const { nest, wasp, r } = waspShow, box = new THREE.Box3(), size = new THREE.Vector3();
+    nest.body.updateMatrixWorld(true);
+    const tall = box.setFromObject(nest.body).getSize(size).y / r;
+    let low = 9, high = -9;
+    for (let i = 0; i < 30; i++) {
+      wasp.anim(1 / 60, { phase: 0 });
+      wasp.body.updateMatrixWorld(true);
+      box.setFromObject(wasp.body).getSize(size);
+      low = Math.min(low, size.x); high = Math.max(high, size.x);
+    }
+    const q = wasp.body.quaternion.clone(); wasp.body.quaternion.identity(); wasp.body.updateMatrixWorld(true);
+    const long = new THREE.Box3().setFromObject(wasp.body).getSize(size).z / r;
+    wasp.body.quaternion.copy(q);
+    const ratio = tall / long;
+    waspShow.group.removeFromParent();                   // gone again, so later stories don't draw (and compile) them
+    return ok(Math.abs(tall - NEST.height) < 0.3 && ratio > 3.6 && ratio < 4.4 && high - low > 0.001, { tall: +tall.toFixed(2), long: +long.toFixed(2), ratio: +ratio.toFixed(2), flaps: high - low > 0.001 });
   },
 });
 story('enemies/ladybug-missile-glows', {
