@@ -408,6 +408,102 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  swat: {
+    doc: 'Up close (within `range` m) every `every` s or so, rears up with its forelegs raised and opened for `windup` s while a wedge on the floor shows what it will sweep (`arc` degrees across, `reach` m out; the aim locks halfway through), then lunges and snaps them shut: `dmg` if you are in the wedge. It rests `rest` s. List it after the walking word.',
+    props: { range: 0.16, windup: 0.55, reach: 0.19, arc: 80, dmg: 3, rest: 0.8, every: 1.6 },
+    make: (_, p) => ({
+      swatArc: THREE.MathUtils.degToRad(p.arc) / 2,
+      swatReach: p.reach,
+      init(e) { e.swatCd = 0.8 + Math.random(); e.swatDir = new THREE.Vector3(0, 0, 1); },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.stateT -= c.dt * live;
+        e.swatCd -= c.dt;
+        if (e.state === 'approach') {
+          if (c.flat < p.range && e.grounded && e.swatCd <= 0 && live) { e.state = 'windup'; e.stateT = e.swatMax = p.windup; e.swatDir.copy(c.flatDir); }
+        } else if (e.state === 'windup') {
+          c.speed = 0;
+          if (e.stateT > p.windup * 0.5) { e.swatDir.copy(c.flatDir); e.root.rotation.y = Math.atan2(c.flatDir.x, c.flatDir.z); }
+          e.faceLock = true;
+          if (e.stateT <= 0) { e.state = 'swat'; e.stateT = 0.18; en.swat(e, c, p); }
+        } else if (e.state === 'swat') {
+          c.speed = 0;
+          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.faceLock = false; e.swatCd = p.every; }
+        } else if (e.state === 'rest') {
+          c.speed *= 0.3;
+          if (e.stateT <= 0) e.state = 'approach';
+        }
+      },
+    }),
+  },
+
+  hatch: {
+    doc: 'When it dies, the bug named `what` takes its place: where it fell, facing the way it faced, as tough as it was (a parasite bursting out of its body).',
+    args: ['what'],
+    make: ([what]) => ({
+      died(e, en) {
+        const w = en.spawn(what, e.pos.clone(), e.maxHp / e.T.hp);
+        w.root.rotation.y = e.root.rotation.y;
+        w.spawnT = 1;                       // it's already there (in the body), no growing in
+      },
+    }),
+  },
+
+  burst: {
+    doc: 'It starts hidden inside: for `delay` s the body twitches while a circle `radius` m round it fills, then it bursts out, hitting anything of you within `radius` m of its middle (a Blast) for `dmg`. Until then its other words wait.',
+    props: { delay: 0.9, radius: 0.1, dmg: 2 },
+    make: (_, p) => ({
+      burstRadius: p.radius,
+      init(e) { e.state = 'emerge'; e.stateT = e.emergeMax = p.delay; },
+      tick(e, c, en) {
+        if (e.state !== 'emerge') return;
+        e.stateT -= c.dt;
+        if (e.stateT <= 0) { e.state = 'approach'; e.stateT = 0; en.burst(e, p); }
+      },
+    }),
+  },
+
+  rooted: {
+    doc: 'Can\'t move at all: not walking, not turning, not knocked back.',
+    make: () => ({
+      ground: true,
+      rooted: true,
+      init(e) { e.faceLock = true; },
+      tick(e, c) { c.speed = 0; e.faceLock = true; },
+    }),
+  },
+
+  whip: {
+    doc: 'Within `range` m every `every` s or so, rears up and back for `windup` s while a line on the floor shows where it will strike (`reach` m long; the aim locks halfway through), then cracks down along it: `dmg` if you are within `width` m of the line and not in the air above it. It lies there `down` s, then rests `rest` s.',
+    props: { range: 0.26, windup: 0.7, reach: 0.28, width: 0.012, dmg: 3, down: 0.35, rest: 1, every: 1.4 },
+    make: (_, p) => ({
+      init(e) { e.whipCd = 0.6 + Math.random() * 0.6; e.whipDir = new THREE.Vector3(0, 0, 1); e.whipReach = p.reach; },
+      tick(e, c, en) {
+        if (e.state === 'emerge') return;
+        const live = c.slow > 0 ? 1 : 0;
+        e.stateT -= c.dt * live;
+        e.whipCd -= c.dt;
+        const from = e.whipFrom || e.pos, flat = Math.hypot(c.foot.x - from.x, c.foot.z - from.z);
+        const aim = () => { if (flat > 1e-4) e.whipDir.set(c.foot.x - from.x, 0, c.foot.z - from.z).normalize(); e.whipFloor = c.foot.y; };
+        if (e.state === 'approach') {
+          if (flat < p.range && e.whipCd <= 0 && live) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
+        } else if (e.state === 'windup') {
+          if (e.stateT > p.windup * 0.5) aim();
+          if (e.stateT <= 0) { e.state = 'lash'; e.stateT = 0.12; }
+        } else if (e.state === 'lash') {
+          if (e.stateT <= 0) { e.state = 'down'; e.stateT = p.down; en.whip(e, c, p); }
+        } else if (e.state === 'down') {
+          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.whipCd = p.every; }
+        } else if (e.state === 'rest' && e.stateT <= 0) e.state = 'approach';
+      },
+    }),
+  },
+
+  'health-bar': {
+    doc: 'Shows its health in a bar floating over it.',
+    make: () => ({ healthBar: true }),
+  },
+
   rolls: {
     doc: 'Its body rolls along the floor as it moves (no animation of its own).',
     make: () => ({ rolls: true }),

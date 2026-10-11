@@ -343,6 +343,11 @@ export const sfx = {
     noise(6000, 0.7, 0.06, 0.25, 'highpass');
     tone('sawtooth', 2400, 300, 0.18, 0.08); tone('square', 1200, 150, 0.14, 0.04);
   },
+  // the mantis: a dry rustle of a swat and the snap of its forelegs; the worm in it: a wet burst
+  // out of the body and the crack of its whip
+  mantisSwat() { if (!ready()) return; noise(2400, 1.2, 0.12, 0.16, 'bandpass', 0, 900); tone('square', 900, 300, 0.05, 0.04, 0.09); noise(5000, 3, 0.03, 0.12, 'bandpass', 0.1); },
+  wormBurst() { if (!ready()) return; noise(500, 0.8, 0.35, 0.3, 'lowpass', 0, 160); tone('sine', 160, 50, 0.3, 0.14); noise(2600, 2, 0.15, 0.1, 'bandpass', 0.05); },
+  wormCrack() { if (!ready()) return; noise(1600, 1.5, 0.1, 0.12, 'bandpass', 0, 4800); noise(7000, 0.7, 0.04, 0.3, 'highpass', 0.09); },
   // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
   // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
   clogRise() {

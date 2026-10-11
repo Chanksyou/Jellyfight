@@ -44,6 +44,8 @@
   --hostile-millipede: #ffa000;  /* the millipede's roll: the lane on the floor it will roll down */
   --hostile-fly: #ff5a14;        /* the house fly's poke: the short line on the floor to where its mouth will reach */
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
+  --hostile-mantis: #ffcc00;     /* the mantis's swat: the wedge in front of it */
+  --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
   --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
   --wreath-glow: 1.1;            /* how bright it glows in its hostile colour */

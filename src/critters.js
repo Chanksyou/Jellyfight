@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly and the dragonfly. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly, the dragonfly, the mantis and the worm inside it. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -1329,6 +1329,265 @@ export function buildDragonfly() {
     body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5);
     body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03;   // nose down to dart
     body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ praying mantis
+// A green praying mantis, after the reference sheet (act 3): a long neck (the prothorax) rising
+// from a short thorax to a triangular head with two big yellow-green eyes (each with its dark
+// pseudopupil), brown-tipped jaws and long thin antennae; raptorial forelegs (a long coxa, a thick
+// femur with two rows of brown-tipped spines and a spined tibia folding back against it, ending in a
+// hook) held up in prayer; four long thin walking legs; and a long, broad, segmented abdomen under
+// two leaf-green wings veined like a leaf, its tip curling up. It stalks on its four legs; to swat
+// it rears up with its forelegs raised and opened wide, then lunges and snaps them shut.
+// About 3.2 radii long, its head 1.2 radii up; its feet are at its origin.
+const MANTIS = { head: V(0, 1.2, 1.15), shoulder: V(0.1, 0.98, 0.9) };
+function mantisParts() {
+  const R = seeded(71), green = '#6aa826', dark = '#4a7c1c', pale = '#94c440', spine = '#9a6a2a';
+  const bend = (z) => { const t = Math.max(0, -z / 1.9); return 0.22 * t * t; };   // the abdomen's tip curls up
+  // the abdomen (a lathe: u around, 0 = the top; v front 0 -> back 1): green segments with darker
+  // joints, a paler belly stripe and fine speckles
+  const abdomen = wingTexture(256, 1024, (g, w, h) => {
+    g.fillStyle = green; g.fillRect(0, 0, w, h);
+    const belly = g.createLinearGradient(0, 0, w, 0);
+    belly.addColorStop(0.3, 'rgba(200,228,120,0)'); belly.addColorStop(0.5, 'rgba(200,228,120,.75)'); belly.addColorStop(0.7, 'rgba(200,228,120,0)');
+    g.fillStyle = belly; g.fillRect(0, 0, w, h);
+    for (let k = 1; k < 9; k++) {
+      const y = h * (0.04 + k * 0.105);
+      g.fillStyle = 'rgba(60,96,24,.8)'; g.fillRect(0, y, w, 5);
+      g.fillStyle = 'rgba(210,236,140,.45)'; g.fillRect(0, y + 5, w, 3);
+    }
+    for (let k = 0; k < 1400; k++) { g.fillStyle = `rgba(${40 + R() * 40 | 0},${80 + R() * 40 | 0},20,${R() * 0.25})`; g.fillRect(R() * w, R() * h, 2, 2); }
+  });
+  // a wing (u along it from the shoulder, v across): translucent leaf green, a stout midrib, side veins
+  // branching off it and a net of fine cells, the leading edge a little brighter
+  const wing = wingTexture(1024, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, 0, h);
+    m.addColorStop(0, 'rgba(176,220,96,.95)'); m.addColorStop(0.5, 'rgba(140,196,70,.85)'); m.addColorStop(1, 'rgba(120,180,60,.7)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(70,110,30,.8)'; g.lineCap = 'round';
+    g.lineWidth = 5; g.beginPath(); g.moveTo(0, h * 0.32); g.bezierCurveTo(w * 0.4, h * 0.36, w * 0.75, h * 0.42, w, h * 0.5); g.stroke();
+    g.lineWidth = 2;
+    for (let k = 1; k < 14; k++) {                                   // side veins off the midrib, both ways
+      const x = w * k / 14, y = h * (0.32 + 0.18 * k / 14);
+      for (const s of [-1, 1]) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w * 0.04, y + s * h * 0.2, x + w * 0.09, y + s * h * 0.45); g.stroke(); }
+    }
+    g.strokeStyle = 'rgba(70,110,30,.35)'; g.lineWidth = 1;
+    for (let x = 0; x < w; x += 9 + R() * 6) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (R() - 0.5) * 8, h); g.stroke(); }
+    g.fillStyle = 'rgba(230,250,170,.5)'; g.fillRect(0, 0, w, 6);
+  });
+  // an eye: yellow-green, brighter at the front, fine facets and the dark pseudopupil looking at you (+z: u = 0.25)
+  const eye = wingTexture(512, 256, (g, w, h) => {
+    const gr = g.createRadialGradient(w * 0.25, h * 0.5, 4, w * 0.25, h * 0.5, w * 0.4);
+    gr.addColorStop(0, '#e8f070'); gr.addColorStop(0.6, '#b4d040'); gr.addColorStop(1, '#6a9a28');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) for (let x = (y / 3) % 2 ? 1.5 : 0; x < w; x += 3) { g.fillStyle = `rgba(255,255,200,${0.08 + R() * 0.12})`; g.fillRect(x, y, 1.4, 1.4); }
+    g.fillStyle = '#100c08'; g.beginPath(); g.ellipse(w * 0.25, h * 0.5, 9, 12, 0, 0, 7); g.fill();
+  });
+  // the abdomen's profile, front to back: narrow at the waist, broad in the middle, tapering to the tip
+  const LEN = 1.95, prof = [[0, 0.04], [0.04, 0.12], [0.15, 0.18], [0.4, 0.22], [0.65, 0.2], [0.85, 0.13], [0.97, 0.06], [1, 0.01]];
+  const curve = new THREE.CatmullRomCurve3(prof.map(([v, r]) => V(r, v, 0)));
+  const abdomenGeo = new THREE.LatheGeometry(curve.getPoints(60).map((p) => new THREE.Vector2(Math.max(0.006, p.x), p.y * LEN)), 20).rotateX(-Math.PI / 2).scale(1.15, 0.85, 1);
+  const ap = abdomenGeo.attributes.position;
+  for (let i = 0; i < ap.count; i++) ap.setY(i, ap.getY(i) + 0.58 + bend(ap.getZ(i)));
+  abdomenGeo.translate(0, 0, 0.02).computeVertexNormals();
+  // the wings: a long leaf each, lying over the abdomen, overlapping down the middle
+  const leaf = new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.5, 0.2, 1.3, 0.24, 1.75, 0.05).bezierCurveTo(1.3, -0.02, 0.5, -0.04, 0, 0);
+  const wingGeo = new THREE.ShapeGeometry(leaf, 24);
+  { const p = wingGeo.attributes.position, uv = wingGeo.attributes.uv;
+    for (let i = 0; i < p.count; i++) {
+      const u = p.getX(i), v = p.getY(i), z = 0.3 - u;
+      uv.setXY(i, u / 1.75, 1 - v / 0.24);
+      p.setXYZ(i, 0.02 + v * 0.9, 0.79 + bend(z) - v * v * 1.2 + Math.sin((u / 1.75) * Math.PI) * 0.03, z);
+    }
+    wingGeo.computeVertexNormals(); }
+  const body = [
+    ellipsoid(0.17, 0.15, 0.3, V(0, 0.62, 0.18), green, 16),           // the thorax
+    tube([V(0, 0.64, 0.36), V(0, 0.8, 0.6), V(0, 0.98, 0.86), V(0, 1.1, 1.04)], 0.075, green, 16),   // the neck (prothorax)
+    ellipsoid(0.1, 0.07, 0.15, V(0, 0.98, 0.86), green, 14),            // its collar, where the forelegs join
+    ellipsoid(0.2, 0.1, 0.07, V(0, 1.25, 1.13), green, 18),             // the head: a triangle, broad across the top...
+    ellipsoid(0.12, 0.08, 0.06, V(0, 1.15, 1.15), green, 14),
+    ellipsoid(0.06, 0.07, 0.05, V(0, 1.06, 1.16), pale, 12),            // ...narrowing to the mouth
+    ellipsoid(0.04, 0.035, 0.035, V(0, 0.99, 1.17), '#b08038', 10),     // jaws
+    ...[-1, 1].map((s) => rod(V(s * 0.015, 0.99, 1.18), V(s * 0.035, 0.95, 1.2), 0.016, 0.004, '#7a4a1c')),
+    ...[-1, 1].map((s) => tube([V(s * 0.05, 1.3, 1.2), V(s * 0.12, 1.6, 1.32), V(s * 0.28, 1.95, 1.3), V(s * 0.46, 2.2, 1.12)], 0.012, '#9cb84a', 14)),   // antennae
+    ...[0, 1, 2].map((k) => ellipsoid(0.02, 0.02, 0.02, V((k - 1) * 0.04, 1.33, 1.16), '#dfe890', 6)),                // the three little ocelli
+    rod(V(-0.04, 0.6 + bend(-1.95), -1.9), V(-0.08, 0.66 + bend(-2.1), -2.05), 0.025, 0.008, dark),   // cerci at the tip
+    rod(V(0.04, 0.6 + bend(-1.95), -1.9), V(0.08, 0.66 + bend(-2.1), -2.05), 0.025, 0.008, dark),
+  ];
+  for (let k = 0; k < 24; k++) {                                        // little bumps down the neck
+    const t = R(), at = V(0, 0.64, 0.36).lerp(V(0, 1.1, 1.04), t).add(V((R() - 0.5) * 0.1, 0.06, 0));
+    body.push(rod(at, at.clone().add(V(0, 0.03, 0.01)), 0.008, 0.002, dark));
+  }
+  // a walking leg on the +x side, built at its hip: the femur up and out to the knee, the tibia down to the floor
+  const walkLeg = (fwd, hipY) => {
+    const a = V(0, 0, 0), b = V(0.42, 0.24, fwd * 0.12), c = V(0.72, -hipY + 0.04, fwd * 0.4), d = V(0.82, -hipY, fwd * 0.5);
+    const parts = [rod(a, b, 0.035, 0.03, green), rod(b, c, 0.026, 0.02, green), rod(c, d, 0.016, 0.012, '#a8c858'), ellipsoid(0.03, 0.03, 0.03, b, dark, 8)];
+    for (let k = 0; k < 5; k++) { const at = b.clone().lerp(c, 0.15 + k * 0.17); parts.push(rod(at, at.clone().add(V(0.02, 0.02, 0.03)), 0.006, 0.0015, spine)); }
+    parts.push(rod(d, d.clone().add(V(0.03, -0.01, 0.05)), 0.008, 0.003, '#6a4a1c'));
+    return merge(parts);
+  };
+  // the raptorial foreleg on the +x side, three segments each built along +z from its own joint
+  const coxa = merge([rod(V(0, 0, 0), V(0, 0, 0.38), 0.05, 0.045, green), ellipsoid(0.05, 0.05, 0.05, V(0, 0, 0.38), pale, 8)]);
+  const femurParts = [ellipsoid(0.055, 0.075, 0.27, V(0, -0.01, 0.25), green, 14)];
+  for (let k = 0; k < 9; k++) for (const s of [-1, 1]) {               // two rows of spines along its inner edge
+    const z = 0.08 + k * 0.045, at = V(s * 0.025, -0.07, z), len = 0.05 + (k % 3 === 1 ? 0.04 : 0) + R() * 0.015;
+    femurParts.push(rod(at, at.clone().add(V(s * 0.01, -len, 0.015)), 0.011, 0.002, k % 2 ? spine : '#c09040'));
+  }
+  const tibiaParts = [ellipsoid(0.035, 0.045, 0.2, V(0, 0, 0.19), pale, 12), rod(V(0, 0, 0.36), V(0, -0.06, 0.44), 0.02, 0.004, '#7a4a1c')];   // ...and its hook
+  for (let k = 0; k < 7; k++) { const at = V(0, -0.035, 0.06 + k * 0.045); tibiaParts.push(rod(at, at.clone().add(V(0, -0.045, -0.01)), 0.009, 0.0015, spine)); }
+  return {
+    abdomen, wing, eye, abdomenGeo, wingGeo, body: merge(body), coxa, femur: merge(femurParts), tibia: merge(tibiaParts),
+    eyeGeo: new THREE.SphereGeometry(1, 28, 20).scale(0.1, 0.11, 0.1),
+    legs: [{ z: 0.26, fwd: 1, y: 0.58 }, { z: 0.06, fwd: -1, y: 0.56 }].map((L) => ({ ...L, geo: walkLeg(L.fwd, L.y) })),
+  };
+}
+
+// the pose of the forelegs: shoulder pitch, femur and tibia folds (radians; see buildMantis)
+const PRAY = [1.1, -2.0, 2.75], RAISED = [0.1, -1.4, 1.1], STRUCK = [1.35, -1.15, 2.95], LIMP = [1.5, -0.6, 2.2];
+export function buildMantis({ dead = false } = {}) {
+  const G = (GEO.mantis ||= mantisParts()), M = mats();
+  if (!M.mtAbdomen) {
+    M.mtAbdomen = new THREE.MeshStandardMaterial({ map: G.abdomen, roughness: 0.4 });
+    M.mtWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.35, depthWrite: false });
+    M.mtEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08 });
+    M.mtBody = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35 });
+    standOut(M.mtAbdomen, { base: 0.25, rim: 0.5 }); standOut(M.mtWing, { base: 0.25, rim: 0.4 }); standOut(M.mtEye, { base: 0.3, rim: 0.4 }); standOut(M.mtBody, { base: 0.2, rim: 0.45 });
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
+  add(body, G.body, M.mtBody);
+  add(body, G.abdomenGeo, M.mtAbdomen);
+  for (const s of [-1, 1]) { const w = add(body, G.wingGeo, M.mtWing); w.scale.x = s; w.position.y = s * 0.004; }
+  for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.mtEye, V(s * 0.19, 1.24, 1.13)); e.rotation.y = s * 0.55; }
+  if (!dead) body.add(angryEyes({ y: 1.28, z: 1.22, size: 0.075, gap: 0.19 }));
+  const head = new THREE.Object3D();                                   // where the head is (the worm comes out here)
+  head.position.copy(MANTIS.head);
+  body.add(head);
+  const fore = [-1, 1].map((s) => {
+    const shoulder = new THREE.Group(), femur = new THREE.Group(), tibia = new THREE.Group();
+    shoulder.position.set(s * MANTIS.shoulder.x, MANTIS.shoulder.y, MANTIS.shoulder.z);
+    shoulder.rotation.y = s * 0.08;
+    add(shoulder, G.coxa, M.mtBody);
+    femur.position.z = 0.38; shoulder.add(femur); add(femur, G.femur, M.mtBody);
+    tibia.position.z = 0.5; femur.add(tibia); add(tibia, G.tibia, M.mtBody);
+    body.add(shoulder);
+    return { s, shoulder, femur, tibia };
+  });
+  const legs = [];
+  G.legs.forEach((L, pair) => [-1, 1].forEach((s) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.1, L.y, L.z);
+    hip.scale.x = s;
+    add(hip, L.geo, M.mtBody);
+    body.add(hip);
+    legs.push({ s, pair, hip, phase: (pair + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });
+  }));
+  const pose = (P) => { for (const F of fore) { F.shoulder.rotation.x = P[0]; F.femur.rotation.x = P[1]; F.tibia.rotation.x = P[2]; } };
+  const mix = (A, B, k, out = [0, 0, 0]) => { for (let i = 0; i < 3; i++) out[i] = A[i] + (B[i] - A[i]) * k; return out; };
+  if (dead) {
+    // a carcass: rolled onto its side, the legs crumpled, the forelegs limp
+    pose(LIMP);
+    for (const L of legs) { L.hip.rotation.z = L.s * -0.9; L.hip.rotation.x = 0.4 * (L.pair ? -1 : 1); }
+    body.rotation.z = -1.3;
+    body.position.y = 0.12;
+    return { body: outer, face: new THREE.Group(), anim: null, rig: { body, head } };
+  }
+  pose(PRAY);
+  let t = 0, k = 0, raise = 0, strike = 0;
+  const P = [0, 0, 0];
+  const anim = (dt, e) => {
+    t += dt;
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    k += (Math.min(1, speed * 6) - k) * (1 - Math.exp(-8 * dt));
+    raise += ((e.state === 'windup' ? 1 : 0) - raise) * (1 - Math.exp(-10 * dt));
+    strike += ((e.state === 'swat' ? 1 : 0) - strike) * (1 - Math.exp(-(e.state === 'swat' ? 40 : 6) * dt));
+    // forelegs: folded in prayer, raised and opened in the windup, lunging and snapping shut in the swat
+    mix(PRAY, RAISED, raise, P);
+    mix(P, STRUCK, strike, P);
+    pose(P);
+    for (const F of fore) F.shoulder.rotation.x += Math.sin(t * 1.6 + e.phase) * 0.04 * (1 - raise);   // a slow sway as it watches you
+    const step = t * (3 + 10 * k), walk = 1 - Math.max(raise, strike);
+    for (const L of legs) {
+      L.hip.rotation.y = Math.sin(step + L.phase) * 0.35 * k * walk;
+      L.hip.rotation.z = Math.max(0, Math.cos(step + L.phase)) * 0.2 * k * walk;
+    }
+    // the body: a stalking sway, reared back in the windup, thrown forward in the swat
+    body.rotation.x = -raise * 0.22 + strike * 0.2;
+    body.position.z = -raise * 0.1 + strike * 0.35;
+    body.position.y = raise * 0.06;
+    body.rotation.z = Math.sin(step * 0.5) * 0.03 * k;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ horsehair worm
+// What was inside the mantis: its carcass lies rolled on its side and a long, thin, glossy
+// dark-brown worm writhes up out of its head in loose coils. It can't leave the body. To attack
+// it rears up and back, coiling, then cracks down along the floor like a whip, tip last.
+// The worm is a chain of short tube pieces (one geometry: drawn as one instanced batch) laid along
+// a curve that blends between its poses every frame.
+const WORM = { n: 64, thick: 0.085 };
+export function buildWorm() {
+  const carcass = buildMantis({ dead: true }), M = mats();
+  if (!M.worm) {
+    M.worm = new THREE.MeshStandardMaterial({ color: 0x1e130c, roughness: 0.22, metalness: 0.1 });
+    standOut(M.worm, { base: 0.15, rim: 0.7 });
+    GEO.wormBead ||= new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).rotateX(Math.PI / 2);   // a unit piece along +z
+  }
+  const outer = new THREE.Group(), body = carcass.body;
+  outer.add(body);
+  body.updateMatrixWorld(true);
+  const base = carcass.rig.head.getWorldPosition(new THREE.Vector3());   // in the outer group's space (radius units)
+  const beads = [];
+  for (let i = 0; i < WORM.n; i++) { const b = new THREE.Mesh(GEO.wormBead, M.worm); b.visible = false; outer.add(b); beads.push(b); }
+  const pts = Array.from({ length: WORM.n + 1 }, () => new THREE.Vector3()), tmp = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3();
+  const UPV = V(0, 1, 0), FWD = V(0, 0, 1), q = new THREE.Quaternion(), dir = new THREE.Vector3();
+  // the poses, s from 0 (in the head) to 1 (the tip); d: the way it lashes (local, flat)
+  const idle = (s, t, out) => {
+    const a = s * 4.2 * Math.PI + t * 1.6, rho = 0.3 + 0.35 * s;
+    return out.set(base.x + rho * Math.cos(a) - rho * 0.6, base.y + s * 1.8 + Math.sin(s * 9 + t * 3) * 0.08, base.z + rho * Math.sin(a));
+  };
+  const back = (s, t, d, out) => {
+    const lift = Math.sin(s * Math.PI * 0.9);
+    return out.set(base.x - d.x * lift * 1.3 + Math.sin(s * 12 + t * 8) * 0.06, base.y + s * 2.8 - Math.max(0, s - 0.75) * 2.4, base.z - d.z * lift * 1.3);
+  };
+  const lash = (s, len, d, out) => out.set(base.x + d.x * s * len, 0.06 + base.y * (1 - s) * (1 - s), base.z + d.z * s * len);
+  let t = 0, wind = 0, out = 0, grow = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    // where it lashes, in the body's own space (the body never turns: it's rooted)
+    const a = Math.atan2(e.whipDir?.x ?? 0, e.whipDir?.z ?? 1) - e.root.rotation.y;
+    dir.set(Math.sin(a), 0, Math.cos(a));
+    const len = (e.whipReach ?? 0.25) / e.r;
+    const emerging = e.state === 'emerge';
+    grow = emerging ? 0 : Math.min(1, grow + dt * 3);
+    wind += ((e.state === 'windup' ? 1 : 0) - wind) * (1 - Math.exp(-8 * dt));
+    out = e.state === 'lash' ? Math.min(1, out + dt / 0.12) : e.state === 'down' ? 1 : Math.max(0, out - dt * 2.5);
+    // the carcass twitches while the worm is coming
+    body.rotation.x = emerging ? Math.sin(t * 40) * 0.05 * Math.min(1, t) : 0;
+    for (let i = 0; i <= WORM.n; i++) {
+      const s = (i / WORM.n) * grow;
+      idle(s, t, A);
+      back(s, t, dir, B);
+      A.lerp(B, wind);
+      if (out > 0) { const u = THREE.MathUtils.clamp(out * 1.6 - s * 0.6, 0, 1); A.lerp(lash(s, len, dir, B), u * u * (3 - 2 * u)); }   // the tip arrives last: a whip's crack
+      pts[i].copy(A);
+    }
+    // the pieces, each from one point to the next (a little longer, so the joins close), thinning to the tip
+    for (let i = 0; i < WORM.n; i++) {
+      const b = beads[i], p = pts[i], n = pts[i + 1];
+      const l = tmp.copy(n).sub(p).length(), th = WORM.thick * (1 - 0.55 * i / WORM.n);
+      b.visible = grow > 0.02;
+      b.position.copy(p).add(n).multiplyScalar(0.5);
+      if (l > 1e-5) b.quaternion.copy(q.setFromUnitVectors(FWD, tmp.divideScalar(l)));
+      b.scale.set(th, th, l * 1.15 + th * 0.5);
+    }
+    // where the worm comes out, in the world: the whip word reads it
+    (e.whipFrom ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

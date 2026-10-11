@@ -1094,6 +1094,137 @@ story('enemies/dragonfly-dodge-breaks-charge', {
     return ok(charged && broke && !hit, { charged, broke, hit });
   },
 });
+story('words/swat', {
+  about: 'Up close the mantis rears up with its forelegs raised while a wedge on the floor fills in front of it, then lunges and snaps them shut: 3 damage if you\'re in the wedge.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mantis', near(0.12, 0)); e.swatCd = 0.3; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let warned = false;
+    step(60 * 4, () => {
+      if (e.state === 'windup' && enemies.swatMarks.some((m) => m.visible)) warned = true;
+      return log.some((d) => d.source === 'mantis' && d.amount === 3);
+    });
+    const hit = log.find((d) => d.source === 'mantis' && d.amount === 3);
+    return ok(warned && hit?.amount === 3, { warned, hit: hit?.amount });
+  },
+});
+story('enemies/mantis-swat-dodge', {
+  about: 'Backing out of the mantis\'s reach once its aim locks makes the swat miss.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mantis', near(0.12, 0)); e.swatCd = 0.3; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let moved = false, swatted = false, gap = 0;
+    step(60 * 4, () => {
+      if (!moved && e.state === 'windup' && e.stateT < e.swatMax * 0.4) {
+        const P = player.position;
+        tp(P.x + e.swatDir.x * 0.2, P.y, P.z + e.swatDir.z * 0.2);
+        moved = true;
+      }
+      if (e.state === 'swat' && !swatted) { swatted = true; gap = Math.hypot(player.position.x - e.pos.x, player.position.z - e.pos.z); }
+      return swatted && e.state === 'rest';
+    });
+    const hit = log.some((d) => d.source === 'mantis' && d.amount === 3);
+    return ok(moved && swatted && !hit, { moved, swatted, hit, gap: +gap.toFixed(3) });
+  },
+});
+story('words/hatch', {
+  about: 'When the mantis dies, the worm that was inside it takes its place: where it fell, facing the same way, the mantis gone.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mantis', near(0.4, 0), { still: true }); },
+  play() {
+    const { enemies } = G(), m = enemies.list[0];
+    step(10);
+    m.root.rotation.y = 1.1;
+    const at = m.pos.clone();
+    bus.emit('damage_taken', { targetId: m.id, amount: 9999 });
+    const w = enemies.list.find((x) => x.type === 'worm' && !x.dead);
+    return ok(m.dead && w && w.pos.distanceTo(at) < 1e-6 && Math.abs(w.root.rotation.y - 1.1) < 1e-6 && w.state === 'emerge', { dead: m.dead, worm: !!w, state: w?.state });
+  },
+});
+story('words/burst', {
+  about: 'The mantis\'s carcass twitches while a circle fills round it, then the worm bursts out of it: 2 damage if you\'re inside the circle.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.06, 0)); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let warned = false, frames = 0;
+    step(60 * 2, () => {
+      frames++;
+      if (e.state === 'emerge' && enemies.burstMarks.some((m) => m.visible)) warned = true;
+      return log.some((d) => d.source === 'worm' && d.amount === 2);
+    });
+    const hit = log.find((d) => d.source === 'worm' && d.amount === 2), secs = frames / 60;
+    return ok(warned && hit?.amount === 2 && secs > 0.85 && secs < 1, { warned, hit: hit?.amount, secs: +secs.toFixed(2) });
+  },
+});
+story('enemies/worm-burst-clear', {
+  about: 'Standing outside the circle when the worm bursts out of the mantis\'s carcass, you\'re not hurt.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.2, 0)); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 1.3);
+    return ok(e.state !== 'emerge' && !log.some((d) => d.source === 'worm' && d.amount === 2), { state: e.state, hits: log.length });
+  },
+});
+story('words/rooted', {
+  about: 'The worm can\'t leave the mantis\'s body: it doesn\'t walk, turn or get knocked back, however you move round it.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.4, 0)); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0];
+    step(60 * 1.2);
+    const at = e.pos.clone(), yaw = e.root.rotation.y;
+    bus.emit('knockback', { targetId: e.id, dir: V(1, 0, 0), force: 0.1 });
+    const P = player.position;
+    tp(P.x - 0.3, P.y, P.z + 0.3);
+    step(60 * 2);
+    const moved = e.pos.distanceTo(at), turned = Math.abs(e.root.rotation.y - yaw);
+    return ok(moved < 1e-3 && turned < 1e-6, { moved: +moved.toFixed(4), turned: +turned.toFixed(4) });
+  },
+});
+story('words/whip', {
+  about: 'Out of the mantis\'s carcass, the worm rears up and back while a line on the floor shows where it will strike, then cracks down along it like a whip: 3 damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.18, 0)); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let warned = false;
+    step(60 * 5, () => {
+      if (e.state === 'windup' && enemies.whipMarks.some((m) => m.visible)) warned = true;
+      return log.some((d) => d.source === 'worm' && d.amount === 3);
+    });
+    const hit = log.find((d) => d.source === 'worm' && d.amount === 3);
+    return ok(warned && hit?.amount === 3, { warned, hit: hit?.amount });
+  },
+});
+story('enemies/worm-whip-dodge', {
+  about: 'Stepping off the worm\'s line once its aim locks makes the whip miss.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.18, 0)); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    let moved = false, cracked = false;
+    step(60 * 5, () => {
+      if (!moved && e.state === 'windup' && e.stateT < e.whipMax * 0.4) {
+        const P = player.position;
+        tp(P.x - e.whipDir.z * 0.08, P.y, P.z + e.whipDir.x * 0.08);
+        moved = true;
+      }
+      if (e.state === 'down') cracked = true;
+      return cracked;
+    });
+    const hit = log.some((d) => d.source === 'worm' && d.amount === 3);
+    return ok(moved && cracked && !hit, { moved, cracked, hit });
+  },
+});
+story('words/health-bar', {
+  about: 'The worm\'s health shows in a bar floating over it, shrinking as you hurt it.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.4, 0)); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    step(5);
+    const full = e.bar?.fill.scale.x;
+    bus.emit('damage_taken', { targetId: e.id, amount: e.maxHp / 2 });
+    step(2);
+    const half = e.bar?.fill.scale.x;
+    return ok(e.bar && e.bar.back.visible !== false && full > 0 && Math.abs(half / full - 0.5) < 0.01, { full, half });
+  },
+});
 story('enemies/ladybug-missile-glows', {
   about: 'A missile in flight glows orange at its tail and red at its seeker: every glow it adds has a real colour (no black blobs).',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 0.3; },

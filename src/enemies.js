@@ -3,14 +3,14 @@
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMissile } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildMissile } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial } from './vfx.js';
+import { hostile, TeleMaterial, blastHits } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -186,6 +186,8 @@ function makeLooks() {
     millipede: buildMillipede,
     ladybug: buildLadybug,
     dragonfly: buildDragonfly,
+    mantis: () => buildMantis(),
+    worm: buildWorm,
     fuzz, hairMat,
   };
 }
@@ -231,6 +233,9 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
+    this.swatMarks = [];      // pooled: the wedge in front of each mantis about to swat (the swat word)
+    this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
+    this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
     this.missiles = [];       // ladybugs' homing missiles in flight (the sortie word)
     this.lockMarks = [];      // pooled: the reticle round you while a ladybug locks on
@@ -262,7 +267,7 @@ export class Enemies {
     });
     bus.on('knockback', ({ targetId, dir, force }) => {
       const e = this.byId.get(targetId);
-      if (e && !e.dead && !e.proxy) e.pos.addScaledVector(dir, force);
+      if (e && !e.dead && !e.proxy && !e.T.rooted) e.pos.addScaledVector(dir, force);
     });
   }
 
@@ -395,6 +400,7 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent });
+    if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
   }
 
   clear() {
@@ -680,6 +686,102 @@ export class Enemies {
     }
   }
 
+  // ---------------------------------------------------------------- the mantis (swat) and its worm (burst, whip)
+  // The forelegs snap shut: you're hit if you're inside the wedge it locked onto
+  swat(e, c, { reach, arc, dmg }) {
+    sfx.mantisSwat();
+    const dx = c.foot.x - e.pos.x, dz = c.foot.z - e.pos.z, d = Math.hypot(dx, dz);
+    const off = d > 1e-4 ? Math.acos(THREE.MathUtils.clamp((dx * e.swatDir.x + dz * e.swatDir.z) / d, -1, 1)) : 0;
+    const pad = (this.playerRadius || 0.03), half = THREE.MathUtils.degToRad(arc) / 2;
+    const hit = d < reach + pad && (off < half || d * Math.sin(off - half) < pad) && Math.abs(c.foot.y - e.pos.y) < 0.12;
+    const at = e.pos.clone().addScaledVector(e.swatDir, Math.min(d, reach)).setY(e.pos.y + e.r);
+    this.fx.impact(hit ? c.pc.clone() : at, hostile('mantis'), hit ? 0.02 : 0.012, hit ? 10 : 5);
+    if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+  }
+  // The worm bursts out of the carcass: a Blast round its middle
+  burst(e, { radius, dmg }) {
+    const at = e.pos.clone().setY(e.pos.y + e.r * 0.5), col = hostile('worm');
+    sfx.wormBurst();
+    this.fx.impact(at, col, radius * 0.4, 16);
+    this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), col, radius * 1.05, 0.4);
+    this.fx.puff(at, 0x8ab840, radius * 0.7, 0.45);
+    this.fx.burst(at, [0x6aa826, 0x94c440, 0x2a1a10], 14, 0.004, 0.4, e.pos.y);
+    if (this.player && blastHits(at, radius, this.player.position, this.player)) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+  }
+  // The worm cracks down along its line: you're hit if you're on it and not jumping over it
+  whip(e, c, { reach, width, dmg }) {
+    sfx.wormCrack();
+    const a = e.whipFrom || e.pos, d = e.whipDir;
+    const t = THREE.MathUtils.clamp((c.foot.x - a.x) * d.x + (c.foot.z - a.z) * d.z, 0, reach);
+    const off = Math.hypot(c.foot.x - (a.x + d.x * t), c.foot.z - (a.z + d.z * t));
+    const hit = off < (this.playerRadius || 0.03) + width && c.foot.y < (e.whipFloor ?? e.pos.y) + 0.03;
+    const tip = S.spot.set(a.x + d.x * reach, (e.whipFloor ?? e.pos.y) + 0.005, a.z + d.z * reach);
+    this.fx.impact(hit ? c.pc.clone() : tip.clone(), hostile('worm'), hit ? 0.02 : 0.012, hit ? 10 : 6);
+    if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+  }
+  // a pooled floor Warning: the i-th mark of `pool`, made with `make` the first time
+  mark(pool, i, make) {
+    let M = pool[i];
+    if (!M) { M = make(); M.renderOrder = 3; this.scene.add(M); pool.push(M); }
+    M.visible = true;
+    return M;
+  }
+  // the Warnings: the wedge before a swat, the line before a whip, the circle before a burst
+  drawParasites(t) {
+    let a = 0, b = 0, k = 0;
+    for (const e of this.list) {
+      if (e.dead) continue;
+      if (e.swatDir && (e.state === 'windup' || e.state === 'swat')) {
+        const W = e.T.words.find((w) => w.swatArc);
+        const M = this.mark(this.swatMarks, a++, () => new THREE.Mesh(new THREE.CircleGeometry(1, 24, -W.swatArc, W.swatArc * 2).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2), new TeleMaterial(hostile('mantis'), 'wedge', W.swatArc)));
+        M.position.copy(e.pos).setY(e.pos.y + 0.003);
+        M.rotation.y = Math.atan2(e.swatDir.x, e.swatDir.z);
+        M.scale.setScalar(W.swatReach);
+        M.material.progress = e.state === 'swat' ? 1 : 1 - Math.max(0, e.stateT) / (e.swatMax || 0.5);
+        M.material.opacity = e.state === 'swat' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      }
+      if (e.whipDir && (e.state === 'windup' || e.state === 'lash')) {
+        const M = this.mark(this.whipMarks, b++, () => new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('worm'), 'strip')));
+        const from = e.whipFrom || e.pos;
+        M.position.set(from.x, (e.whipFloor ?? e.pos.y) + 0.003, from.z);
+        M.rotation.y = Math.atan2(e.whipDir.x, e.whipDir.z);
+        M.scale.set(0.03, 1, e.whipReach);
+        M.material.progress = e.state === 'lash' ? 1 : 1 - Math.max(0, e.stateT) / (e.whipMax || 0.7);
+        M.material.opacity = e.state === 'lash' ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      }
+      if (e.state === 'emerge') {
+        const r = e.T.words.find((w) => w.burstRadius)?.burstRadius ?? 0.1;
+        const M = this.mark(this.burstMarks, k++, () => new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('worm'), 'circle')));
+        M.position.copy(e.pos).setY(e.pos.y + 0.003);
+        M.scale.setScalar(r);
+        M.material.progress = 1 - Math.max(0, e.stateT) / (e.emergeMax || 0.9);
+        M.material.opacity = 0.8 + 0.2 * Math.abs(Math.sin(t * 18));
+      }
+    }
+    for (let i = a; i < this.swatMarks.length; i++) this.swatMarks[i].visible = false;
+    for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
+    for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
+  }
+  // the health bar floating over a bug with the health-bar word: a dark back and a red fill
+  healthBar(e) {
+    if (!e.bar) {
+      this.barMats ||= {
+        back: new THREE.SpriteMaterial({ color: 0x0d1220, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false }),
+        fill: new THREE.SpriteMaterial({ color: 0xff4a3a, depthWrite: false, toneMapped: false }),
+      };
+      const back = new THREE.Sprite(this.barMats.back), fill = new THREE.Sprite(this.barMats.fill);
+      back.renderOrder = 6; fill.renderOrder = 7;
+      fill.center.set(0, 0.5);
+      e.root.add(back, fill);
+      e.bar = { back, fill, w: Math.max(0.06, e.r * 1.8) };
+    }
+    const { back, fill, w } = e.bar, h = w * 0.13, y = e.r * (e.state === 'emerge' ? 1.5 : 3.4);
+    back.scale.set(w + h * 0.5, h * 1.5, 1);
+    back.position.set(0, y, 0);
+    fill.scale.set(w * Math.max(0, e.hp / e.maxHp), h, 1);
+    fill.position.set(-w / 2, y, 0);
+  }
+
   // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
   // still where it aimed (within your radius of the line from its head to the tip)
   poke(e, c, dmg) {
@@ -806,6 +908,7 @@ export class Enemies {
   update(dt, player, t) {
     this.frame++;
     this.playerRadius = player.radius;
+    this.player = player;
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
@@ -861,6 +964,7 @@ export class Enemies {
       e.face.scale.setScalar(sc);
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) e.anim(dt, e);
+      if (e.T.healthBar) this.healthBar(e);
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
@@ -888,6 +992,7 @@ export class Enemies {
     this.drawPokes(t);
     this.drawCharges(t);
     this.drawBeams(dt);
+    this.drawParasites(t);
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
