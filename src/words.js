@@ -497,6 +497,72 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  hangs: {
+    doc: 'Hangs where it was put (stuck to a wall or the side of furniture): it never moves, turns, falls or gets knocked back. Hits land anywhere within `size` m of its middle.',
+    props: { size: 0.1 },
+    make: (_, p) => ({
+      fly: true,                          // nothing pulls it down
+      rooted: true,
+      init(e) { e.faceLock = true; e.hitR = p.size; },
+      tick(e) { e.vel.set(0, 0, 0); e.faceLock = true; },
+    }),
+  },
+
+  brood: {
+    doc: 'Every `every` s a `what` crawls out of it (where its model says things come out), as tough as it is; it stops while `max` of its own are still alive.',
+    args: ['what'],
+    props: { every: 5, max: 6 },
+    make: ([what], p) => ({
+      init(e) { e.broodT = p.every; },
+      tick(e, c, en) {
+        if (c.slow === 0) return;           // frozen or stunned: nothing comes out
+        if ((e.broodT -= c.dt) > 0) return;
+        e.broodT = p.every;
+        let mine = 0;
+        for (const x of en.list) if (!x.dead && x.motherId === e.id) mine++;
+        if (mine >= p.max) return;
+        const child = en.spawn(what, (e.emergeAt || e.pos).clone(), e.maxHp / e.T.hp);
+        child.motherId = e.id;
+        e.hatchedT = 1;
+        en.hatch(e, child);
+      },
+    }),
+  },
+
+  dive: {
+    doc: 'Within `range` m every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and dies doing it. If it misses (or hits a wall) it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6 },
+    make: (_, p) => ({
+      init(e) { e.diveCd = 1 + Math.random() * 1.5; e.diveDir = new THREE.Vector3(); },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.stateT -= c.dt * live;
+        e.diveCd -= c.dt;
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
+        } else if (e.state === 'windup') {
+          e.vel.multiplyScalar(Math.exp(-10 * c.dt));
+          e.pos.addScaledVector(e.vel, c.dt * live);
+          e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
+          if (e.stateT <= 0) { e.state = 'dive'; e.diveLeft = p.reach; e.diveDir.copy(c.toP).normalize(); }   // it aims where you are now, and doesn't turn again
+        } else if (e.state === 'dive') {
+          if (!live) return;
+          const step = Math.min(e.diveLeft, p.speed * c.dt);
+          const wall = en.world.cast(e.pos, e.diveDir, step + e.r * 0.5);
+          e.pos.addScaledVector(e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step);
+          e.vel.copy(e.diveDir).multiplyScalar(p.speed);
+          e.diveLeft -= step;
+          if (e.pos.distanceTo(c.pc) < (en.playerRadius || 0.03) + e.r * 0.6) { en.sting(e, c, p); return; }   // stung you: it dies
+          if (wall || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
+        } else if (e.state === 'rest') {
+          e.vel.multiplyScalar(Math.exp(-4 * c.dt));
+          e.pos.addScaledVector(e.vel, c.dt * live);
+          if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
+        }
+      },
+    }),
+  },
+
   rolls: {
     doc: 'Its body rolls along the floor as it moves (no animation of its own).',
     make: () => ({ rolls: true }),

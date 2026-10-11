@@ -26,6 +26,8 @@ import { FirstRun, isNewPlayer, markPlayed, PLAYED_KEY } from './first-run.js';
 import { BEST_KEY } from './leaderboard.js';
 import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
 import { buildWasp, buildNest, NEST } from './critters.js';
+import { STAGE3 } from './stage3.js';
+import { nestMiddle } from './run.js';
 import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
@@ -1228,7 +1230,7 @@ story('models/wasp-and-nest', {
     if (waspShow) for (const m of waspShow.group.children.slice()) m.parent.remove(m);
     const r = 0.03, group = waspShow?.group || new THREE.Group(), nest = buildNest(), wasp = buildWasp();
     group.add(nest.body, wasp.body);
-    nest.body.scale.setScalar(r); nest.body.position.copy(near(0, -0.45, 0.4));         // hanging in front of you, its top 40 cm up
+    nest.body.scale.setScalar(r); nest.body.position.copy(near(0, -0.45, 0.4 - NEST.height / 2 * r));   // hanging in front of you, its top 40 cm up
     wasp.body.scale.setScalar(r); wasp.body.position.copy(near(0.2, -0.42, 0.25));
     G().enemies.scene.add(group);
     waspShow = { group, nest, wasp, r };
@@ -1250,6 +1252,90 @@ story('models/wasp-and-nest', {
     const ratio = tall / long;
     waspShow.group.removeFromParent();                   // gone again, so later stories don't draw (and compile) them
     return ok(Math.abs(tall - NEST.height) < 0.3 && ratio > 3.6 && ratio < 4.4 && high - low > 0.001, { tall: +tall.toFixed(2), long: +long.toFixed(2), ratio: +ratio.toFixed(2), flaps: high - low > 0.001 });
+  },
+});
+story('words/hangs', {
+  about: 'A wasp nest stays exactly where it was put, however you move round it or knock it: it doesn\'t fall, turn or slide, and hits anywhere on it count.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('nest', near(0.4, 0, 0.25)); e.broodT = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0];
+    step(5);
+    const at = e.pos.clone(), yaw = e.root.rotation.y;
+    bus.emit('knockback', { targetId: e.id, dir: V(1, 0, 0), force: 0.1 });
+    const P = player.position;
+    tp(P.x - 0.3, P.y, P.z + 0.3);
+    step(60 * 2);
+    const moved = e.pos.distanceTo(at), turned = Math.abs(e.root.rotation.y - yaw), size = e.hitR;
+    return ok(moved < 1e-6 && turned < 1e-6 && Math.abs(size - 0.13) < 1e-6, { moved, turned, size });
+  },
+});
+story('words/brood', {
+  about: 'Every 5 s a wasp crawls out of the entrance at the bottom of its nest.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('nest', near(0.6, 0, 0.25)); },
+  play() {
+    const { enemies } = G(), nest = enemies.list[0];
+    const out = [], real = enemies.hatch;                 // every wasp it sends out (one may sting you and be gone)
+    enemies.hatch = function (n, w) { if (n === nest) out.push({ w, at: w.pos.distanceTo(n.emergeAt), below: w.pos.y < n.pos.y }); return real.call(this, n, w); };
+    step(Math.round(60 * 4.9));
+    const early = out.length;
+    step(Math.round(60 * 0.2));
+    const first = out[0], at = first?.at, below = first?.below;
+    step(60 * 5);
+    const later = out.length;
+    delete enemies.hatch;
+    return ok(early === 0 && first && at < 0.02 && below && later === 2, { early, out: !!first, at: at && +at.toFixed(3), below, later });
+  },
+});
+story('enemies/nest-brood-limit', {
+  about: 'A nest stops sending out wasps while six of its own are still alive.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('nest', near(0.6, 0, 0.25)); e.broodT = 0.1; },
+  play() {
+    const { enemies } = G(), nest = enemies.list[0];
+    for (let i = 0; i < 6; i++) { const w = spawn('wasp', near(-0.6, 0, 0.1 + i * 0.03), { still: true }); w.motherId = nest.id; }
+    step(60 * 6);
+    const n = enemies.list.filter((x) => !x.dead && x.motherId === nest.id).length;
+    return ok(n === 6, { wasps: n });
+  },
+});
+story('words/dive', {
+  about: 'A wasp rears with a rising buzz, then nosedives at you: the sting does 6, and the wasp dies doing it (no XP for you).',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('wasp', near(0.22, 0, 0.1)); e.diveCd = 0; },
+  play() {
+    const { enemies, xpDrops } = G(), e = enemies.list[0], log = record('damage_taken'), deaths = record('enemy_killed');
+    const drops = xpDrops.list.length;
+    let reared = false, dived = false;
+    step(60 * 4, () => {
+      if (e.state === 'windup') reared = true;
+      if (e.state === 'dive') dived = true;
+      return log.some((d) => d.source === 'wasp' && d.amount === 6);
+    });
+    const hit = log.find((d) => d.source === 'wasp' && d.amount === 6);
+    step(5);
+    return ok(reared && dived && hit && e.dead && deaths[0]?.silent && xpDrops.list.length === drops, { reared, dived, hit: hit?.amount, dead: e.dead, drops: xpDrops.list.length - drops });
+  },
+});
+story('enemies/wasp-dive-dodge', {
+  about: 'A wasp dives at where you were when it set off: moving off that line makes it shoot past, and it pulls up and keeps circling.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('wasp', near(0.25, 0, 0.1)); e.diveCd = 0; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 4, () => e.state === 'dive');
+    const dived = e.state === 'dive';
+    const side = V(-e.diveDir.z, 0, e.diveDir.x).normalize(), P = player.position;
+    tp(P.x + side.x * 0.15, P.y, P.z + side.z * 0.15);
+    step(60 * 1.5);
+    const stung = log.some((d) => d.source === 'wasp' && d.amount === 6);
+    return ok(dived && !stung && !e.dead && e.state !== 'dive', { dived, stung, dead: e.dead, state: e.state });
+  },
+});
+story('enemies/wasp-no-xp', {
+  about: 'Wasps are worth no XP: popping one drops nothing.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('wasp', near(0.5, 0, 0.1), { still: true }); },
+  play() {
+    const { enemies, xpDrops, run } = G(), e = enemies.list[0], drops = xpDrops.list.length, kills = run.kills;
+    bus.emit('damage_taken', { targetId: e.id, amount: 999 });
+    step(5);
+    return ok(e.dead && xpDrops.list.length === drops && run.kills === kills + 1, { dead: e.dead, drops: xpDrops.list.length - drops, kills: run.kills - kills });
   },
 });
 story('enemies/ladybug-missile-glows', {
@@ -4944,6 +5030,34 @@ export async function runStory(name) {
 }
 
 // Live: set the story up and let the game run it in real time (index.html?story=name)
+// (keep this one last of all: it leaves act 3's bedroom loaded, and its lamps change the light count,
+// so every shader after it would be rebuilt)
+story('nests/bedroom-spots', {
+  about: 'Every spot act 3 lists for a wasp nest has it hanging against a wall or a piece of furniture in the bedroom, clear of everything else, low enough to hit from the floor beside it; a run hangs nests at two different ones.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { world, GAME, run, enemies } = G();
+    await GAME.loadRooms(['act3']);
+    const r = CONTENT.enemies.nest.r, H = NEST.height * r, W = NEST.width * r, bad = [];
+    const cast = (from, dir, far) => { world._focusAge = Infinity; world.focus(from, 0); return world.cast(from, dir.clone().normalize(), far); };
+    for (const s of STAGE3.nests.spots) {
+      const M = nestMiddle(s, r), out = V(s.out[0], 0, s.out[1]), side = V(-s.out[1], 0, s.out[0]);
+      const back = cast(M, out.clone().negate(), W * 1.3);                  // the surface it hangs on
+      const clear = [out, side, side.clone().negate()].every((d) => !cast(M, d, W * 0.9));   // nothing else where the nest is
+      const floor = cast(M, V(0, -1, 0), 2);                                 // something under it
+      const stand = M.clone().addScaledVector(out, W + 0.15), ground = cast(stand.clone().setY(stand.y + 0.3), V(0, -1, 0), 2);
+      const eye = ground && ground.point.clone().setY(ground.point.y + 0.045);
+      const seen = eye && !cast(eye, M.clone().sub(eye), eye.distanceTo(M) - W);   // a clear shot from the floor beside it
+      const ok1 = back && clear && floor && floor.point.y < M.y - H / 2 && ground && ground.point.y < 0.05 && seen;
+      if (!ok1) bad.push({ on: s.on, back: !!back, clear, under: floor && +floor.point.y.toFixed(2), standY: ground && +ground.point.y.toFixed(2), seen: !!seen });
+    }
+    const nests = run.spawnNests(STAGE3), spots = new Set(nests.map((n) => n.spot.on));
+    const hanging = nests.every((n) => n.type === 'nest' && n.T.rooted);
+    nests.forEach((n) => enemies.kill(n, true));
+    return ok(!bad.length && nests.length === 2 && spots.size === 2 && hanging, { bad, nests: nests.length, spots: [...spots] });
+  },
+});
+
 export function mount(name) {
   const s = STORIES[name];
   if (!s) return list(`No story called "${name}".`);

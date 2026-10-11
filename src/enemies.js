@@ -3,7 +3,7 @@
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildMissile } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -188,6 +188,8 @@ function makeLooks() {
     dragonfly: buildDragonfly,
     mantis: () => buildMantis(),
     worm: buildWorm,
+    wasp: buildWasp,
+    nest: buildNest,
     fuzz, hairMat,
   };
 }
@@ -752,6 +754,17 @@ export class Enemies {
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
+  // ---------------------------------------------------------------- wasps and their nest (dive, brood)
+  diveWind(e, dur) { sfx.waspWind(dur); }
+  // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
+  sting(e, c, { dmg }) {
+    sfx.waspSting();
+    this.fx.impact(c.pc.clone(), hostile('wasp'), 0.025, 14);
+    bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+    this.kill(e, true);
+  }
+  hatch(nest, wasp) { sfx.waspHatch(); this.fx.puff((nest.emergeAt || nest.pos).clone(), 0xb8b8b2, nest.r * 1.5, 0.3); }
+
   // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
   // still where it aimed (within your radius of the line from its head to the tip)
   poke(e, c, dmg) {

@@ -1755,15 +1755,18 @@ export function buildWasp() {
     body.add(hip);
     legs.push({ s, pair, hip });
   }));
-  let t = 0;
+  let t = 0, wind = 0;
   const anim = (dt, e) => {
     t += dt;
     const ph = e?.phase || 0, speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
     for (const W of wings) W.flap.rotation.z = W.s * (0.1 + Math.sin(t * 80 + (W.fore ? 0 : 0.5)) * 0.7);   // a blur of wings
     for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15 + Math.sin(t * 3 + L.pair + ph) * 0.06;   // hanging, trailing back
-    tail.rotation.x = -0.35 + Math.sin(t * 6 + ph) * 0.06;                // the abdomen pumps
-    body.position.y = Math.sin(t * 5 + ph) * 0.08;
-    body.rotation.x = 0.05 + Math.min(1, speed * 4) * 0.15;
+    // winding up to sting: it rears, abdomen curled forward under it; diving: nose down along its line
+    wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-10 * dt));
+    const diving = e?.state === 'dive' && e.diveDir;
+    tail.rotation.x = -0.35 - wind * 0.9 + Math.sin(t * (6 + wind * 20) + ph) * 0.06;   // the abdomen pumps, faster as it winds up
+    body.position.y = Math.sin(t * 5 + ph) * 0.08 * (1 - wind);
+    body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.3 : 0.05 + Math.min(1, speed * 4) * 0.15 - wind * 0.5;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
@@ -1772,8 +1775,9 @@ export function buildWasp() {
 // A paper wasp nest, after the photo: a grey teardrop of chewed-wood paper, hung from its broad
 // flat top, built of overlapping shell layers whose lips run in wavy bands round it, streaked in
 // a dozen greys, narrowing to a rounded bottom with the entrance: a lipped hole going up inside.
-// In the wasp's radius units (scale both by the same r): its origin is the middle of its top,
-// where it hangs, and it's NEST.height tall, four times the wasp's length.
+// In the wasp's radius units (scale both by the same r): it's NEST.height tall, four times the
+// wasp's length, NEST.width across at its widest, and its origin is its middle (its top, where it
+// hangs, is NEST.height / 2 above). Wasps come out of the entrance at the bottom (e.emergeAt).
 export const NEST = { height: 12, width: 5.3 };
 function nestParts() {
   const R = seeded(97), H = NEST.height, W = NEST.width;
@@ -1826,7 +1830,20 @@ export function buildNest() {
     M.nest = new THREE.MeshStandardMaterial({ map: G.paper, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
     standOut(M.nest, { base: 0.2, rim: 0.35 });
   }
-  const outer = new THREE.Group();
-  outer.add(new THREE.Mesh(G.geo, M.nest));
-  return { body: outer, face: new THREE.Group(), anim: null };
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  const mesh = new THREE.Mesh(G.geo, M.nest);
+  mesh.position.y = NEST.height / 2;                                     // its middle at the origin
+  body.add(mesh);
+  const UPV = V(0, 1, 0), door = V(0, -NEST.height / 2, 0);
+  let t = 0, shake = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    if (e.hatchedT > 0) { shake = 1; e.hatchedT = 0; }                   // a wasp just crawled out: it trembles
+    shake *= Math.exp(-6 * dt);
+    body.rotation.z = Math.sin(t * 30) * 0.03 * shake;
+    // where wasps come out, in the world: the brood word reads it
+    (e.emergeAt ||= new THREE.Vector3()).copy(door).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
+  };
+  return { body: outer, face: new THREE.Group(), anim };
 }

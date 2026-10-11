@@ -9,6 +9,7 @@ import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods } from './content.js';
+import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
 import { Elites, ELITE_NAMES } from './elites.js';
@@ -43,6 +44,14 @@ class Owned extends Set {
   remove(v) { if (this.count(v) > 1) { this.n.set(v, this.count(v) - 1); this.version++; } else this.delete(v); }   // one copy (or level) fewer
   clear() { super.clear(); this.n?.clear(); this.version = (this.version || 0) + 1; }
   count(v) { return this.n?.get(v) || 0; }
+}
+
+// Where a wasp nest hanging at `spot` (stage.nests) has its middle: out from the surface by its
+// widest radius, so its side rests against it, and half its height below where its top meets it
+// (`r`: the nest's size, content/enemies.kdl)
+export function nestMiddle(spot, r) {
+  const [x, y, z] = spot.at, [ox, oz] = spot.out, k = NEST.width * r * 0.98;
+  return new THREE.Vector3(x + ox * k, y - NEST.height / 2 * r, z + oz * k);
 }
 
 export class Run {
@@ -124,6 +133,7 @@ export class Run {
     calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
     this.elites?.start(this.stage.elites);
+    this.spawnNests();
     this.roomTreasures?.forEach((t) => t.hide());
     this.treasureTimesLeft = [...(this.stage.treasures?.at || [])];   // seconds into the night each scheduled treasure appears
     this.bonusTreasureAt = new Set();                                  // which of those a Wind-Up Key added (they don't bring more)
@@ -586,13 +596,30 @@ export class Run {
   heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
 
   // an enemy_killed event: { pos, r, xp, elite }
+  // The act's wasp nests (stage.nests): `count` of its spots, each a different one, get a nest
+  // hanging there (nestMiddle). They're as tough as the act's bugs.
+  spawnNests(stage = this.stage) {
+    const N = stage.nests;
+    if (!N?.spots?.length) return [];
+    const T = CONTENT.enemies.nest, spots = [...N.spots].sort(() => Math.random() - 0.5).slice(0, N.count ?? 1);
+    return spots.map((spot) => {
+      const e = this.enemies.spawn('nest', nestMiddle(spot, T.r), stage.toughness ?? 1);
+      e.root.rotation.y = Math.atan2(spot.out[0], spot.out[1]);
+      e.spawnT = 1;                    // it's been there all along
+      e.spot = spot;
+      return e;
+    });
+  }
+
   onKill({ pos: c, r, xp: baseXp, elite, floor = c.y }) {
     this.kills++;
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
     const xp = Math.round(baseXp * this.mods.xpMult * (this.stage.xpMult || 1) * juice.bonus);   // the act's own xpMult too
-    this.xpDrops.drop(c, 1, xp);
-    this.fx.number(c.clone().setY(c.y + r * 1.5), `+${xp} XP`, '#ffe27a', elite ? 20 : 14);
+    if (xp > 0) {                     // some bugs are worth nothing (a nest's wasps)
+      this.xpDrops.drop(c, 1, xp);
+      this.fx.number(c.clone().setY(c.y + r * 1.5), `+${xp} XP`, '#ffe27a', elite ? 20 : 14);
+    }
     if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
     // grow-on-kills: every N kills a stat grows for good
     // (with a cap: that copy stops growing once it has added `cap` in all)

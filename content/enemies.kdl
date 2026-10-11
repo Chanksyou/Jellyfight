@@ -91,6 +91,22 @@ enemy "worm" name="Horsehair worm" hp=80 r=0.05 dmg=1 xp=8 model="worm" {
     whip range=0.26 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
 }
 
+// Act 3 (in no wave yet): the wasp nest, a grey paper teardrop stuck to a wall or the side of
+// furniture in the bedroom (src/stage3.js lists where). It never moves; every 5 s a wasp crawls
+// out of the entrance at its bottom. Destroy it to stop them.
+enemy "nest" name="Wasp nest" hp=150 r=0.025 dmg=1 xp=15 model="nest" {
+    hangs size=0.13                  // hits anywhere on the nest count (it's 30 cm tall)
+    brood "wasp" every=5 max=6
+}
+
+// The wasps from a nest. They circle you, and now and then one stops and rears up with a rising
+// buzz, then nosedives at you: a sting is a big hit (6), and the wasp dies doing it. Move off its
+// line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
+enemy "wasp" name="Wasp" hp=14 r=0.025 dmg=1 xp=0 model="wasp" {
+    hover 0.2 above=0.08 speed=0.55 circle=1.6
+    dive range=0.35 every=3 windup=0.5 speed=1.4 reach=0.6 dmg=6 rest=0.6
+}
+
 // The Clog (act 2 boss) sheds hair tangles into the fight
 enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
     chase 0.3

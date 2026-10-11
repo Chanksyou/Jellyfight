@@ -348,6 +348,19 @@ export const sfx = {
   mantisSwat() { if (!ready()) return; noise(2400, 1.2, 0.12, 0.16, 'bandpass', 0, 900); tone('square', 900, 300, 0.05, 0.04, 0.09); noise(5000, 3, 0.03, 0.12, 'bandpass', 0.1); },
   wormBurst() { if (!ready()) return; noise(500, 0.8, 0.35, 0.3, 'lowpass', 0, 160); tone('sine', 160, 50, 0.3, 0.14); noise(2600, 2, 0.15, 0.1, 'bandpass', 0.05); },
   wormCrack() { if (!ready()) return; noise(1600, 1.5, 0.1, 0.12, 'bandpass', 0, 4800); noise(7000, 0.7, 0.04, 0.3, 'highpass', 0.09); },
+  // wasps: a buzz climbing as one rears to dive (the only warning), the sting, one crawling out of its nest
+  waspWind(dur = 0.5) {
+    if (!ready()) return;
+    const t = now(), o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), k = pitch();
+    o.type = 'sawtooth'; o2.type = 'square';
+    o.frequency.setValueAtTime(190 * k, t); o.frequency.exponentialRampToValueAtTime(420 * k, t + dur);
+    o2.frequency.setValueAtTime(196 * k, t); o2.frequency.exponentialRampToValueAtTime(430 * k, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+    o.connect(g); o2.connect(g); g.connect(master);
+    o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
+  },
+  waspSting() { if (!ready()) return; noise(4200, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900, 120, 0.2, 0.08); noise(700, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); },
+  waspHatch() { if (!ready() || !gap('waspHatch', 300)) return; noise(3000, 3, 0.08, 0.05, 'bandpass'); tone('sawtooth', 220, 260, 0.25, 0.02, 0.05); },
   // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
   // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
   clogRise() {
