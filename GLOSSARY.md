@@ -72,7 +72,7 @@ An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, lad
 _Avoid_: Mob, critter
 
 **Boss**:
-The one big enemy that ends each act, arriving when the countdown runs out (the Vacuum, the Clog).
+The one big enemy that ends each act, arriving when the countdown runs out (the Vacuum, the Clog, the Pothos).
 
 **Element**:
 A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the bubbles. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
@@ -94,6 +94,18 @@ _Avoid_: AoE
 **Shot**:
 Something an Elite or the Boss fires that hits when it touches the jelly, aimed at where the jelly is, in the air or on the ground.
 _Avoid_: Projectile
+
+### The Pothos (act 3's Boss)
+
+**Cutting**:
+A glowing root cutting the Pothos drops on the bed. Left alone for a few seconds, it becomes a Sap sprout.
+
+**Sap sprout**:
+What an ignored Cutting grows into: a small rooted plant that lobs toxic sap until it's killed.
+_Avoid_: Turret
+
+**Aerial root**:
+A root that drops from above near the jelly and creeps after it; if it reaches the jelly, it holds on and slows it.
 
 **Polyp, Ephyra, Medusa**:
 The jelly's growth stages, one per act; growing from one to the next is its metamorphosis.
