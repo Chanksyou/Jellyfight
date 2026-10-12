@@ -5082,3 +5082,20 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
+
+// PROTOTYPE (prototype/pothos-look branch only): three looks for act 3's Boss, the Pothos, on the
+// bed (the bedroom loaded into act 2). index.html?story=prototype/pothos-look&variant=A|B|C
+story('prototype/pothos-look', {
+  act: 2,
+  about: 'Prototype: three looks for the Pothos (A tangle cage, B cascade, C rising titan) on the bed, lashing a vine every 4 s, then parting its vines while its heart flares. 🎥 flips to a showcase orbit.',
+  setup() {
+    fresh({ elites: false, bubbles: false, lash: false });
+    return import('./prototype-pothos-look.js').then((M) => M.start({ GAME: G().GAME, APT: G().APT, scene: G().APT.scene, player: G().player, tpc: G().tpc, fx: G().fx, tp, step }));
+  },
+  async play() {
+    const api = await this.setup();
+    step(60); G().APT.renderer.compile(G().APT.scene, G().APT.camera);
+    const leaves = api.P.inst.count;
+    return ok(leaves > 50, { leaves });
+  },
+});
