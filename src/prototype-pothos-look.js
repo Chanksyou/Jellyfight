@@ -14,7 +14,7 @@ import * as THREE from 'three';
 
 const VARIANTS = { A: 'Tangle cage', B: 'Cascade', C: 'Rising titan' };
 const CYCLE = 4;
-const SCALE = 1.5;                                 // how much bigger than a real pothos it grew                                  // seconds: wind up, lash, open, rest
+const SCALE = 0.8;                                 // how big it grew: a big boss, still a houseplant in a real bedroom (the owner: 1.5 was too big)
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -169,7 +169,7 @@ function build(variant, at, seed = 7) {
       const v = addVine(pts, 0.01, vineMat, { dynamic: true });
       leafOn(v, 5, 0.12, 0.3);
     }
-    trail(6, 0.72, 7, 0.08);
+    trail(6, 1.1, 7, 0.08);
   } else if (variant === 'B') {
     // a mound of big leaves over the pot, a hollow at the front where the heart sits
     for (let k = 0; k < 140; k++) {
@@ -180,7 +180,7 @@ function build(variant, at, seed = 7) {
       const base = V(at.x, soil + 0.06, at.z).addScaledVector(dir, 0.1 + R() * 0.12);
       leaves.push({ pos: base, out: dir.clone().setY(dir.y * 0.6 + 0.2).normalize(), size: 0.09 + R() * 0.06, tilt: R(), frame: dir.z < -0.2 });
     }
-    trail(9, 0.85, 11, 0.07);
+    trail(9, 1.35, 11, 0.07);
   } else {
     // the trunk: four thick vines braided upward like a neck
     for (let k = 0; k < 4; k++) {
@@ -208,7 +208,7 @@ function build(variant, at, seed = 7) {
       for (let s = 0; s <= 5; s++) { const f = s / 5; pts.push(V(at.x + Math.cos(a) * (0.05 + f * 0.3), at.y + 0.1 * (1 - f) + 0.008, at.z + Math.sin(a) * (0.05 + f * 0.3) + Math.sin(f * 7 + k) * 0.02)); }
       addVine(pts, 0.008, rootMat, { taper: 0.85 });
     }
-    trail(4, 0.65, 6, 0.08);
+    trail(4, 1.0, 6, 0.08);
   }
 
   // every leaf as one instance of one mesh
@@ -339,9 +339,9 @@ export async function start({ GAME, APT, scene, player, tpc, fx, tp, step }) {
   tpc.update = (...a) => {
     follow(...a);
     if (view !== 'showcase') return;
-    const r = 1.05, h = P.heartPos.y + 0.05;
-    cam.position.set(at.x + Math.sin(tpc.yaw) * r, h + 0.12, at.z + Math.cos(tpc.yaw) * r);
-    cam.lookAt(at.x, h - 0.12, at.z);
+    const r = 0.75, h = P.heartPos.y + 0.03;
+    cam.position.set(at.x + Math.sin(tpc.yaw) * r, h + 0.1, at.z + Math.cos(tpc.yaw) * r);
+    cam.lookAt(at.x, h - 0.1, at.z);
   };
   let last = performance.now();
   const tick = () => {
