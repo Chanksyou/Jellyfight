@@ -135,14 +135,16 @@ function build(variant, at, seed = 7) {
     for (let k = 0; k < count; k++) {
       const a = -Math.PI / 2 + (k - (count - 1) / 2) * 0.42 + (R() - 0.5) * 0.15;   // fanned toward the foot of the bed
       const len = len0 * (0.75 + R() * 0.5), pts = [];
-      const rim = V(at.x + Math.cos(a) * potR * 0.95, soil + 0.02, at.z + Math.sin(a) * potR * 0.95);
-      pts.push(V(at.x + Math.cos(a) * potR * 0.5, soil - 0.01, at.z + Math.sin(a) * potR * 0.5), rim.clone().setY(soil + 0.04));
-      pts.push(V(rim.x + Math.cos(a) * 0.08, at.y + 0.05, rim.z + Math.sin(a) * 0.08));
-      for (let s = 1; s <= 6; s++) {
-        const d = 0.08 + (s / 6) * len, wob = Math.sin(s * 1.7 + k) * 0.08 * (s / 6);
-        pts.push(V(at.x + Math.cos(a + wob) * d + Math.cos(a + Math.PI / 2) * wob * 0.6, at.y + 0.012 + (s === 6 ? 0.03 : 0), at.z + Math.sin(a + wob) * d));
+      // out of the soil, up over the pot's lip, down the outside of its wall, onto the bed (never through the pot)
+      const ring = (r, y) => V(at.x + Math.cos(a) * r, y, at.z + Math.sin(a) * r);
+      const wall = (f) => 0.11 + (potR - 0.11) * (f / 0.86) + 0.013;   // the pot's outside at height f (of its height), plus the vine's thickness
+      pts.push(ring(potR * 0.5, soil - 0.01), ring(potR * 0.9, soil + 0.05), ring(potR * 1.14, soil + 0.012), ring(potR * 1.13, at.y + potH * 0.84), ring(wall(0.62), at.y + potH * 0.62), ring(wall(0.35), at.y + potH * 0.35), ring(wall(0.1), at.y + potH * 0.1));
+      for (let s = 1; s <= 14; s++) {
+        const d = 0.14 + (s / 14) * len, wob = Math.sin(s * 0.75 + k) * 0.08 * (s / 14);
+        pts.push(V(at.x + Math.cos(a + wob) * d + Math.cos(a + Math.PI / 2) * wob * 0.6, at.y + 0.012, at.z + Math.sin(a + wob) * d));
       }
-      const v = addVine(pts, 0.011, vineMat, { dynamic: true, taper: 0.7 });
+      const v = addVine(pts, 0.011, vineMat, { dynamic: true, taper: 0.7, segs: 72 });
+      v.drapeFrom = 6;   // from here on it lies on whatever is under it (drape)
       v.trail = true; v.angle = a;
       leafOn(v, leafN, leafS, 0.2);
     }
@@ -288,7 +290,27 @@ function animate(P, time, fx) {
 }
 
 // ------------------------------------------------------------------ the story's entry point
-export async function start({ GAME, APT, scene, player, tpc, fx, tp, step }) {
+// Lay every trailing vine on the bed as it really is: each point sits just on the surface under it
+// (the pillows by the pot are higher, the mattress dips toward its edges and foot). Points are in
+// the plant's own frame (scaled by SCALE round the pot's base `at`), the ray in the world's.
+const DOWN = V(0, -1, 0), _w = new THREE.Vector3();
+function drape(P, world, at) {
+  for (const v of P.vines) {
+    if (v.drapeFrom == null) continue;
+    for (let k = v.drapeFrom; k < v.base.length; k++) {
+      const b = v.base[k];
+      _w.copy(b).sub(at).multiplyScalar(SCALE).add(at);                 // where it is in the world
+      const hit = world.castAll(_w.set(_w.x, at.y + 0.5, _w.z), DOWN, 1.2);
+      if (!hit) continue;
+      const y = hit.point.y + v.r * SCALE * (1 - v.taper * k / (v.base.length - 1)) * 0.9;   // resting on it, by its own thickness there
+      b.y = at.y + (y - at.y) / SCALE;
+    }
+    v.pts.forEach((p, k) => p.copy(v.base[k]));
+    v.rebuild();
+  }
+}
+
+export async function start({ GAME, APT, scene, player, tpc, fx, tp, step, world }) {
   await GAME.loadRooms(['act3']);
   const find = (n) => APT.root.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));
   const box = new THREE.Box3().setFromObject(find('Left pillow')).union(new THREE.Box3().setFromObject(find('Right pillow')));
@@ -309,6 +331,7 @@ export async function start({ GAME, APT, scene, player, tpc, fx, tp, step }) {
     P.glowColor = glowColor;
     P.whip = P.vines.find((v) => v.trail);
     scene.add(P.group);
+    drape(P, world, at);
   };
   make();
   const place = () => {

@@ -5090,7 +5090,7 @@ story('prototype/pothos-look', {
   about: 'Prototype: three looks for the Pothos (A tangle cage, B cascade, C rising titan) on the bed, lashing a vine every 4 s, then parting its vines while its heart flares. 🎥 flips to a showcase orbit.',
   setup() {
     fresh({ elites: false, bubbles: false, lash: false });
-    return import('./prototype-pothos-look.js').then((M) => M.start({ GAME: G().GAME, APT: G().APT, scene: G().APT.scene, player: G().player, tpc: G().tpc, fx: G().fx, tp, step }));
+    return import('./prototype-pothos-look.js').then((M) => M.start({ GAME: G().GAME, APT: G().APT, scene: G().APT.scene, player: G().player, tpc: G().tpc, fx: G().fx, tp, step, world: G().world }));
   },
   async play() {
     const api = await this.setup();
