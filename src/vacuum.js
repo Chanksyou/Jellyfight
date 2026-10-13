@@ -21,6 +21,7 @@ import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial, laneHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
+import { CONTENT } from './content.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _rel = new THREE.Vector3();
@@ -34,7 +35,8 @@ export class Vacuum {
     Object.assign(this, { scene, enemies, fx, arena, world });
     this.r = 0.17;
     this.h = 0.08;
-    this.maxHp = this.hp = 1400;
+    this.def = CONTENT.bosses.vacuum;   // its numbers (content/bosses.kdl), read fresh each attack so the Tuner's edits land mid-fight
+    this.maxHp = this.hp = this.def.hp;
     this.dead = false;
     this.t = 0;
     this.rise = 0;
@@ -128,7 +130,6 @@ export class Vacuum {
     this.lane.visible = false;
     this.sweepH = 0.02;
     this.sweepLife = LOOK.num('vacuum-sweep-life', 0.25);
-    this.sweepReach = LOOK.num('vacuum-sweep-reach', 0.1);
     this.sweep = fx.volume(hostile('vacuum'), 'ring', this.holder.position, new THREE.Vector3(this.r, this.sweepH, this.r));
     this.sweep.visible = false;
     this.sweepT = this.sweepLife;
@@ -169,9 +170,9 @@ export class Vacuum {
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
-  get angry() { return this.hp < this.maxHp * 0.5; }
+  get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
   // how fast it does everything: twice as fast once it's enraged (not during the enrage itself)
-  get pace() { return this.angry && this.enrageT <= 0 ? 2 : 1; }
+  get pace() { return this.angry && this.enrageT <= 0 ? this.def.skills.enrage.pace : 1; }
 
   // drive forward along the heading, turning toward `target` at most `turn` rad/s
   drive(dt, target, speed, turn) {
@@ -208,6 +209,7 @@ export class Vacuum {
 
   tick(dt, player) {
     this.t += dt;
+    const SK = this.def.skills;
     const out = { push: null, hurt: 0, hit: 0, contact: false };
     const p = this.holder.position, P = player.position;
     if (this.dead) {
@@ -250,7 +252,7 @@ export class Vacuum {
 
     if (this.state === 'chase') {
       this.setLight(angry ? 0xff8a2a : 0x4ab8ff, 2);
-      this.drive(dt, P, 0.15, 1.6);
+      this.drive(dt, P, SK.chase.speed, 1.6);
       if (this.stateT <= 0) this.pick();
     } else if (this.state === 'charge') {
       // wind up (flashing red, a strip on the floor shows the line), then ram along it
@@ -267,7 +269,7 @@ export class Vacuum {
         this.lane.visible = true;
         this.line.material.progress = this.lane.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
         if (this.stateT <= 0) {
-          this.locked = true; this.stateT = 1.3; this.line.material.opacity = 0; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
+          this.locked = true; this.stateT = SK.charge.time; this.line.material.opacity = 0; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
           this.laneAt.copy(p); this.laneDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.laneHit = false;
         }
       } else {
@@ -276,9 +278,9 @@ export class Vacuum {
         // charge), jumping over it isn't
         const reached = Math.min(this.chargeLen, _rel.copy(p).sub(this.laneAt).dot(this.laneDir) + this.r);
         if (!this.laneHit && this.knock <= 0 && laneHits(this.laneAt, this.laneDir, reached, this.r * 1.6, this.h, P, player.cfg)) {
-          this.laneHit = true; out.hit = 4; this.knockBack(toP, 1.0);
+          this.laneHit = true; out.hit = SK.charge.dmg; this.knockBack(toP, 1.0);
         }
-        const wall = this.drive(dt, null, 1.05, 0);
+        const wall = this.drive(dt, null, SK.charge.speed, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
         if (wall || this.stateT <= 0) { sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
       }
@@ -288,9 +290,9 @@ export class Vacuum {
       this.swirl.position.copy(p).setY(0.003);
       this.swirl.scale.setScalar(0.45 + this.r);
       this.swirl.material.opacity = 0.75;              // its stripes pour into the middle: you're being pulled in
-      const pull = toP.clone().normalize().multiplyScalar(-0.18 * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
+      const pull = toP.clone().normalize().multiplyScalar(-SK.suction.pull * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
       out.push = pull;
-      if (dist < this.r + 0.04 && P.y < 0.1) out.hurt = 2 * dt;
+      if (dist < this.r + 0.04 && P.y < 0.1) out.hurt = SK.suction.dmg * dt;
       if (Math.random() < dt * 30) {
         const a = Math.random() * Math.PI * 2, rr = this.r + 0.05 + Math.random() * 0.3;
         this.fx.puff(p.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0.01, Math.sin(a) * rr)), 0xcfc6b8, 0.008, 0.25);
@@ -305,11 +307,11 @@ export class Vacuum {
       const sweeps = [0.9, 0.35];
       for (const at of sweeps) {
         if (this.prevT > at && this.stateT <= at) {
-          const reach = this.r + this.sweepReach;
+          const reach = this.r + SK.brushes.reach;
           this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
           this.sweepT = 0;
           sfx.vacSweep();
-          if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) { out.hit = 3; this.knockBack(toP, 0.5); }
+          if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) { out.hit = SK.brushes.dmg; this.knockBack(toP, 0.5); }
         }
       }
       if (this.stateT <= 0) this.toChase();
@@ -318,7 +320,7 @@ export class Vacuum {
       this.setLight(0xa8ff6a, 2);
       if (this.prevT > 0.6 && this.stateT <= 0.6) {
         const back = new THREE.Vector3(-Math.sin(this.heading), 0, -Math.cos(this.heading));
-        const n = angry ? 4 : 3;
+        const n = SK.dump.roaches + (angry ? 1 : 0);
         for (let k = 0; k < n; k++) {
           const q = p.clone().addScaledVector(back, this.r + 0.04).add(new THREE.Vector3((k - (n - 1) / 2) * 0.05, 0, 0));
           this.enemies.spawn('roach', q, 1.3);
@@ -342,13 +344,13 @@ export class Vacuum {
       brushSpin = 40;
       this.sprayT = (this.sprayT ?? 0) - dt;
       if (this.sprayT <= 0) {
-        this.sprayT = 0.18;
+        this.sprayT = SK.spin.every;
         const dir = new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
         this.volley = ((this.volley || 0) + 1) % 2;
         const y = shotTarget(P, player.cfg, this.volley ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor, p.y).y;   // the volley's height over its floor
         const from = p.clone().addScaledVector(dir, this.r).setY(Math.min(y, p.y + this.h));   // out of its bumper, or its lid for a high one
         const to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);       // at that height by the jelly's distance
-        this.shots.push(this.fx.shot(hostile('vacuum'), from, to, { speed: 0.525, size: 0.007, life: 1.33 }));   // dust clumps, glowing so you can read them
+        this.shots.push(this.fx.shot(hostile('vacuum'), from, to, { speed: SK.spin.speed, size: 0.007, life: 1.33 }));   // dust clumps, glowing so you can read them
         sfx.vacSpray();
       }
       if (this.stateT <= 0) this.toChase();
@@ -362,7 +364,7 @@ export class Vacuum {
     // (while it rams, the charge's lane is its hit: the bump reaches no higher than the lane)
     const ramming = this.state === 'charge' && this.locked;
     if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < (ramming ? this.h : 0.1)) {   // feet over its floor: a jump clears it
-      out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? 4 : 2);
+      out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? SK.charge.dmg : this.def.contact);
       this.knockBack(toP, this.state === 'charge' && this.locked ? 1.0 : 0.6);
     }
     if (this.knock > 0) {
@@ -371,7 +373,7 @@ export class Vacuum {
     }
 
     // dust clumps
-    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, 2);
+    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, SK.spin.dmg);
     this.shots = this.shots.filter((s) => !s.done);
     return out;
   }
@@ -381,7 +383,7 @@ export class Vacuum {
     const life = this.sweepLife, m = this.sweep;
     if (this.sweepT >= life) { m.visible = false; return; }
     this.sweepT += dt;
-    const k = Math.min(1, this.sweepT / life), R = this.r + this.sweepReach * (1 - (1 - k) * (1 - k));
+    const k = Math.min(1, this.sweepT / life), R = this.r + this.def.skills.brushes.reach * (1 - (1 - k) * (1 - k));
     m.visible = true;
     m.position.copy(this.holder.position);
     m.scale.set(R, this.sweepH, R);
@@ -394,7 +396,7 @@ export class Vacuum {
   launch() {
     const p = this.holder.position, a = this.arena;
     this.guards = [];
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < this.def.skills.flies.count; k++) {
       const ang = this.heading + Math.PI / 4 + (k * Math.PI) / 2;
       const d = 0.32 + Math.random() * 0.06;
       const at = new THREE.Vector3(
@@ -410,7 +412,7 @@ export class Vacuum {
       e.airborne = true;
       this.guards.push(e);
     }
-    this.shieldT = 30;
+    this.shieldT = this.def.skills.flies.shield;
     this.shields++;
     sfx.vacFliesLaunch();
     sfx.shieldUp();
@@ -473,7 +475,7 @@ export class Vacuum {
 
   toChase() {
     this.state = 'chase';
-    this.stateT = 2.6;
+    this.stateT = this.def.skills.chase.time;
     this.setLight(this.angry ? 0xff8a2a : 0x4ab8ff, 2);
   }
 
@@ -481,8 +483,9 @@ export class Vacuum {
   pick() {
     const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
-    if (this.state === 'flies' && (this.shielded || this.shields >= 2)) this.state = order[this.next++ % order.length];   // one shield at a time, two a fight
-    this.stateT = { charge: 1.0, suction: 3.0, brushes: 1.4, dump: 1.1, spin: 2.2, flies: 1.0 }[this.state];
+    if (this.state === 'flies' && (this.shielded || this.shields >= this.def.skills.flies.max)) this.state = order[this.next++ % order.length];   // one shield at a time, two a fight
+    const SK = this.def.skills;
+    this.stateT = { charge: SK.charge.windup, suction: SK.suction.time, brushes: SK.brushes.time, dump: SK.dump.time, spin: SK.spin.time, flies: SK.flies.windup }[this.state];
     // every attack announces itself
     ({ charge: () => sfx.vacChargeWind(this.stateT), suction: () => sfx.vacSuction(this.stateT), brushes: () => sfx.vacBrushes(this.stateT),
       spin: () => sfx.vacSpin(this.stateT), flies: () => sfx.vacFliesWind() })[this.state]?.();

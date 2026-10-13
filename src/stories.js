@@ -2360,7 +2360,7 @@ story('dev/test-kit', {
   },
 });
 story('dev/balance-editor', {
-  about: 'The dev balance editor: a new number for a bug or a treasure recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, the panel lists every bug and treasure with its numbers, and Reset puts the file values back.',
+  about: 'The dev balance editor: a new number for a bug, a treasure or a boss recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, a boss skill the boss is fighting with takes its new number, the panel lists every bug, treasure and boss with its numbers, and Reset puts the file values back.',
   setup() { fresh(); },
   play() {
     const { run } = G(), S = () => run.S, groups = balanceGroups();
@@ -2377,11 +2377,15 @@ story('dev/balance-editor', {
     const fr1 = S().fireRate;
     field('treasure', 'coffeeBean', 'stat amount').set(50); applyBalance(run);
     const fr2 = S().fireRate;
+    const bossDmg0 = CONTENT.bosses.vacuum.skills.charge.dmg;
+    field('boss', 'vacuum', 'charge dmg').set(9); applyBalance(run);
+    const bossDmg1 = CONTENT.bosses.vacuum.skills.charge.dmg;
     resetBalance(run);
     const third = spawn('roach', near(0, 0.3), { still: true });
     const fr3 = S().fireRate;
-    return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25,
-      { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp });
+    const bossDmg2 = CONTENT.bosses.vacuum.skills.charge.dmg;
+    return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25 && bossDmg0 === 4 && bossDmg1 === 9 && bossDmg2 === 4,
+      { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2 });
   },
 });
 story('hud/treasure-timers', {

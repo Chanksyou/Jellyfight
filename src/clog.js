@@ -24,6 +24,7 @@ import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial, laneHits, blastHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
+import { CONTENT } from './content.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const _rel = new THREE.Vector3();
@@ -199,7 +200,8 @@ export class Clog {
     Object.assign(this, { scene, enemies, fx, arena, world });
     this.kind = 'hair';
     this.r = 0.1;
-    this.maxHp = this.hp = 1500;
+    this.def = CONTENT.bosses.clog;   // its numbers (content/bosses.kdl), read fresh each attack so the Tuner's edits land mid-fight
+    this.maxHp = this.hp = this.def.hp;
     this.dead = false;
     this.t = 0;
     this.rise = 0;
@@ -283,7 +285,7 @@ export class Clog {
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position).setY(this.holder.position.y + this.r * (1 - this.sink * 0.9)); }
   get shielded() { return this.guards.length > 0; }
-  get angry() { return this.hp < this.maxHp * 0.45; }
+  get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
   damage(amount, color = '#fff') {
     if (this.dead || this.rise < 1) return;
@@ -324,6 +326,7 @@ export class Clog {
 
   tick(dt, player) {
     this.t += dt;
+    const SK = this.def.skills;
     const out = { push: null, hurt: 0, hit: 0, slow: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
     const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; };
@@ -353,14 +356,14 @@ export class Clog {
     this.stateT -= dt;
 
     // the swarm: the first time it drops below 70%, whatever it was doing
-    if (!this.swarmed && this.hp < this.maxHp * 0.7 && this.state !== 'swarm') { hide(); this.state = 'swarm'; this.stateT = 1.4; this.swarmT = 0; sfx.clogRoar(); }
+    if (!this.swarmed && this.hp < this.maxHp * SK.swarm.at && this.state !== 'swarm') { hide(); this.state = 'swarm'; this.stateT = 1.4; this.swarmT = 0; sfx.clogRoar(); }
 
     if (this.state === 'chase') {
-      this.drive(dt, P, angry ? 0.17 : 0.12, angry ? 2.2 : 1.6);
+      this.drive(dt, P, angry ? SK.chase.angrySpeed : SK.chase.speed, angry ? 2.2 : 1.6);
       if (this.stateT <= 0) this.pick();
     } else if (this.state === 'lash') {
       // a rope (two when angry) rears up while its line fills on the floor; the aim locks halfway
-      const wind = angry ? 0.85 : 1.05, n = angry ? 2 : 1;
+      const wind = angry ? SK.lash.angryWindup : SK.lash.windup, n = angry ? 2 : 1;
       if (this.stateT > 0.3) {
         const u = 1 - (this.stateT - 0.3) / wind;
         if (u < 0.5) this.drive(dt, P, 0, 4);
@@ -386,7 +389,7 @@ export class Clog {
             this.fx.impact(tip, hostile('clog'), 0.03, 12);
             this.fx.burst(tip, ['#3b2618', '#8a9a5a', '#5a3a24'], 6, 0.003, 0.25, this.floor);
             // anything of the jelly in the low lane along the line (jumping over it clears it)
-            if (laneHits(L.position.clone().setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = 3; out.slow = 1.2; }
+            if (laneHits(L.position.clone().setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; }
           });
         }
         this.rearing = -1;                                              // slammed down along the line
@@ -407,7 +410,7 @@ export class Clog {
         L.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
         if (Math.random() < dt * 20) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x8a9a5a, 0.02, 0.3);
         if (this.stateT <= 0) {
-          this.locked = true; this.stateT = 1.1; this.rollWind = null; L.visible = false; sfx.clogRoll();
+          this.locked = true; this.stateT = SK.roll.time; this.rollWind = null; L.visible = false; sfx.clogRoll();
           this.rollAt.copy(p).setY(this.floor); this.rollDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.rollHit = false;
         }
       } else {
@@ -415,15 +418,15 @@ export class Clog {
         // (once a roll), at any height up to the top of the hairball, so a jump doesn't clear it
         const reached = Math.min(this.rollLen, _rel.copy(p).sub(this.rollAt).dot(this.rollDir) + this.r);
         if (!this.rollHit && this.knock <= 0 && laneHits(this.rollAt, this.rollDir, reached, this.rollW, this.rollH, P, player.cfg)) {
-          this.rollHit = true; out.hit = 4; this.knockBack(toP, 1.0);
+          this.rollHit = true; out.hit = SK.roll.dmg; this.knockBack(toP, 1.0);
         }
-        const wall = this.drive(dt, null, angry ? 1.0 : 0.85, 0);
+        const wall = this.drive(dt, null, angry ? SK.roll.angrySpeed : SK.roll.speed, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x6a5a3a, 0.025, 0.35);
         if (wall || this.stateT <= 0) { this.locked = false; sfx.clogSplat(); this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16); this.toChase(); }
       }
     } else if (this.state === 'snare') {
       // three circles fill round you (they follow you until halfway), then hair springs up in them
-      const wind = 1.0;
+      const wind = SK.snare.windup - 0.25;   // the state's last quarter second is the spring itself
       if (this.stateT > 0.25) {
         const u = 1 - (this.stateT - 0.25) / wind;
         this.drive(dt, P, 0.03, 1);
@@ -452,7 +455,7 @@ export class Clog {
             this.tufts.push({ m: tuft, t: 0 });
           }
           this.fx.burst(c.clone().setY(this.floor + 0.01), ['#3b2618', '#2a1a10', '#8a9a5a'], 6, 0.003, 0.3, this.floor);
-          if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = 2; out.slow = 1.5; }   // a floor Blast: its half sphere
+          if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = SK.snare.dmg; out.slow = SK.snare.slow; }   // a floor Blast: its half sphere
           m.visible = false;
         }
       }
@@ -493,8 +496,8 @@ export class Clog {
         this.whirl.rotation.y -= dt * 9;
         const toDrain = this.drain.clone().sub(P).setY(0), dd = toDrain.length(), side = V(-toDrain.z, 0, toDrain.x).normalize();
         const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your move speed (0.42) up close
-        out.push = toDrain.normalize().multiplyScalar(0.34 * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
-        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = 3 * dt;
+        out.push = toDrain.normalize().multiplyScalar(SK.flood.pull * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
+        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = SK.flood.dmg * dt;
         this.grate.rotation.y += dt * 14;
         if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this.drain.clone().add(V(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }
       }
@@ -507,7 +510,7 @@ export class Clog {
       mouth = 0.5;
       M.root.position.x = (Math.random() - 0.5) * 0.006;
       if (this.prevT > 0.4 && this.stateT <= 0.4) {
-        const n = angry ? 4 : 3;
+        const n = SK.shed.count + (angry ? 1 : 0);
         for (let k = 0; k < n; k++) {
           const a = this.heading + (k - (n - 1) / 2) * 1.1 + Math.PI;
           const q = p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(this.r + 0.04));
@@ -527,13 +530,13 @@ export class Clog {
       if (this.sprayT <= 0) {
         // three streams at once, a third of a turn apart, a glob every tenth of a second: Shots
         // (fx.shot), each volley alternating floor level (jump it) and jump height (stay down)
-        this.sprayT = 0.1;
+        this.sprayT = SK.spray.every;
         this.volley = ((this.volley || 0) + 1) % 2;
         const y = shotTarget(P, player.cfg, this.volley ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor, this.floor).y;
         for (let k = 0; k < 3; k++) {
           const a = this.heading + k * Math.PI * 2 / 3, dir = V(Math.sin(a), 0, Math.cos(a));
           const from = p.clone().addScaledVector(dir, this.r).setY(y), to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);
-          this.shots.push(this.fx.shot(hostile('clog'), from, to, { speed: 0.5, size: 0.008, life: 1.4 }));
+          this.shots.push(this.fx.shot(hostile('clog'), from, to, { speed: SK.spray.speed, size: 0.008, life: 1.4 }));
         }
         sfx.clogSplat();
       }
@@ -545,7 +548,7 @@ export class Clog {
       M.root.position.x = (Math.random() - 0.5) * 0.008;
       if (!this.guards.length && this.swarmT > 0.8 && !this.swarmed) {
         this.swarmed = true;
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < SK.swarm.count; k++) {
           const a = this.heading + (k / 4) * Math.PI * 2 + Math.PI / 4;
           const q = this.clampIn(p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(this.r + 0.05))).setY(this.floor + 0.1);
           const e = this.enemies.spawn('ladybug', q, 1.2);
@@ -554,7 +557,7 @@ export class Clog {
           e.vel.set(Math.sin(a) * 0.3, 0.35, Math.cos(a) * 0.3);
           this.guards.push(e);
         }
-        this.guardT = 30;
+        this.guardT = SK.swarm.shield;
         this.fx.impact(this.center(), hostile('missile'), 0.06, 20);
         this.fx.puff(this.center(), 0x3b2618, 0.09, 0.6);
         sfx.ladyBuzz();
@@ -583,13 +586,13 @@ export class Clog {
     // bumping into it knocks you back (not while it's down the drain)
     if (this.knock <= 0 && this.sink < 0.3 && dist < this.r + 0.02 && Math.abs(P.y - this.floor) < 0.12) {
       const rolling = this.state === 'roll' && this.locked;
-      out.hit = Math.max(out.hit, rolling ? 4 : 2);
+      out.hit = Math.max(out.hit, rolling ? SK.roll.dmg : this.def.contact);
       this.knockBack(toP, rolling ? 1.0 : 0.6);
     }
     if (this.knock > 0) { this.knock -= dt; out.push = (out.push || new THREE.Vector3()).clone().addScaledVector(this.knockDir, this.knockSpeed); }
 
     // gunk globs
-    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, 2);
+    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, SK.spray.dmg);
     this.shots = this.shots.filter((s) => !s.done);
     // hair tufts from a snare: up, then back down
     for (const f of this.tufts) {
@@ -660,7 +663,7 @@ export class Clog {
 
   toChase() {
     this.state = 'chase';
-    this.stateT = this.angry ? 1.5 : 2.4;
+    this.stateT = this.angry ? this.def.skills.chase.angryTime : this.def.skills.chase.time;
     this.locked = false;
   }
 
@@ -668,7 +671,8 @@ export class Clog {
   pick() {
     const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
-    this.stateT = { lash: (this.angry ? 0.85 : 1.05) + 0.3, snare: 1.25, roll: 1.0, flood: 5.1, shed: 1.0, spray: 2.2 }[this.state];
+    const SK = this.def.skills;
+    this.stateT = { lash: (this.angry ? SK.lash.angryWindup : SK.lash.windup) + 0.3, snare: SK.snare.windup, roll: SK.roll.windup, flood: SK.flood.time, shed: SK.shed.time, spray: SK.spray.time }[this.state];
     this.floodMax = this.stateT;
     ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar() })[this.state]?.();
     this.prevT = this.stateT;

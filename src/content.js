@@ -6,11 +6,12 @@
 //   content/waves.kdl     how the night fills with them
 //   content/treasures.kdl the treasures (effect words: src/words.js)
 //   content/evolutions.kdl what the jelly can become after an act's boss (the same effect words)
+//   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
 import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], nodes: null };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, nodes: null };
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
@@ -115,6 +116,30 @@ export function compileEvolutions(nodes, file = 'content/evolutions.kdl') {
   return compileTreasures(asTreasures, file).map((t) => ({ ...t, evolution: true }));
 }
 
+// boss "id" name="…" hp= contact= { skill key=number … }: the boss fights' numbers. A skill
+// block is just named numbers (no words, no args); the boss classes read the ones they know,
+// fresh from the compiled object each attack, so the balance editor's edits land mid-fight.
+export function compileBosses(nodes, file = 'content/bosses.kdl') {
+  const out = {};
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name !== 'boss') throw new Error(`${where}: expected "boss", got "${n.name}"`);
+    const id = n.args[0];
+    if (typeof id !== 'string') throw new Error(`${where}: boss needs an id, like boss "vacuum"`);
+    if (out[id]) throw new Error(`${where}: there are two bosses called "${id}"`);
+    need(n, ['hp', 'contact'], where);
+    const skills = {};
+    for (const s of n.children) {
+      if (skills[s.name]) throw new Error(`${file}:${s.line}: "${id}" has two "${s.name}" blocks`);
+      if (s.args.length || s.children.length) throw new Error(`${file}:${s.line}: "${id}" ${s.name} takes only key=number settings`);
+      for (const [k, v] of Object.entries(s.props)) if (typeof v !== 'number') throw new Error(`${file}:${s.line}: "${id}" ${s.name} ${k}= must be a number`);
+      skills[s.name] = { ...s.props };
+    }
+    out[id] = { id, name: n.props.name || id, hp: n.props.hp, contact: n.props.contact, skills };
+  }
+  return out;
+}
+
 // The combined effects of the treasures you own (ids) and the evolutions you've taken: what the
 // systems read
 export function compileMods(ids, evolved = []) {
@@ -144,14 +169,15 @@ function owned(m, id, apply) {
 
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves, treasures, evolutions] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl')]);
+  const [enemies, waves, treasures, evolutions, bosses] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl')]);
   // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
   // recompiles from them, without reloading the page.
-  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl') };
+  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl') };
   CONTENT.enemies = compileEnemies(CONTENT.nodes.enemies);
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
   CONTENT.treasures = compileTreasures(CONTENT.nodes.treasures);
   CONTENT.evolutions = compileEvolutions(CONTENT.nodes.evolutions);
+  CONTENT.bosses = compileBosses(CONTENT.nodes.bosses);
   return CONTENT;
 }
 
@@ -164,8 +190,18 @@ export function recompileContent() {
   const enemies = compileEnemies(CONTENT.nodes.enemies);
   const treasures = compileTreasures(CONTENT.nodes.treasures);
   const evolutions = compileEvolutions(CONTENT.nodes.evolutions);
+  const bosses = compileBosses(CONTENT.nodes.bosses);
   for (const id of Object.keys(CONTENT.enemies)) if (!enemies[id]) delete CONTENT.enemies[id];
   Object.assign(CONTENT.enemies, enemies);
   CONTENT.treasures.forEach((t, i) => Object.assign(t, treasures[i]));
   CONTENT.evolutions.forEach((t, i) => Object.assign(t, evolutions[i]));
+  // bosses swap in place, skill by skill: a boss already fighting holds its compiled object
+  // (vacuum.js's this.def) and reads it fresh each attack, so identity is the whole point
+  for (const id of Object.keys(CONTENT.bosses)) if (!bosses[id]) delete CONTENT.bosses[id];
+  for (const [id, b] of Object.entries(bosses)) {
+    const cur = CONTENT.bosses[id] || (CONTENT.bosses[id] = { skills: {} });
+    cur.id = b.id; cur.name = b.name; cur.hp = b.hp; cur.contact = b.contact;
+    for (const s of Object.keys(cur.skills)) if (!b.skills[s]) delete cur.skills[s];
+    for (const [s, vals] of Object.entries(b.skills)) Object.assign(cur.skills[s] || (cur.skills[s] = {}), vals);
+  }
 }

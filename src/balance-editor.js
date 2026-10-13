@@ -1,8 +1,10 @@
 // Dev: the balance editor (pause menu → ⚖️ Tuner, behind the dev password). Every number in
-// content/enemies.kdl, content/treasures.kdl and content/evolutions.kdl as a box you can type
-// into. Changing one recompiles the content on the spot: the next bug that spawns uses the new
-// numbers, and so do the treasures you already hold (the run's combined effects recompute).
-// Bugs already alive keep the numbers they spawned with. Nothing is written back to the files:
+// content/enemies.kdl, content/treasures.kdl, content/evolutions.kdl and content/bosses.kdl
+// as a box you can type into. Changing one recompiles the content on the spot: the next bug
+// that spawns uses the new numbers, and so do the treasures you already hold (the run's
+// combined effects recompute). A boss already fighting reads its skills fresh each attack,
+// so its new numbers land from the next attack (its Health, from its next power-on). Bugs
+// already alive keep the numbers they spawned with. Nothing is written back to the files:
 // "Copy changes" lists what you changed, ready to make permanent (or hand to an agent), and
 // Reset puts the file values back. Only for tuning; players never see it.
 import { CONTENT, recompileContent } from './content.js';
@@ -51,13 +53,14 @@ let groups = null;
 export function balanceGroups() {
   if (groups) return groups;
   const build = (nodes, compiled, kind, file, registry) => nodes.map((n, i) => ({
-    kind, id: n.args[0], icon: compiled?.[i]?.icon || '🐞', name: n.props.name || n.args[0], desc: n.props.text || '',
+    kind, id: n.args[0], icon: compiled?.[i]?.icon || (kind === 'boss' ? '👹' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
     fields: entryFields(`${file} · ${n.props.name || n.args[0]}`, n, registry),
   }));
   groups = [
     ...build(CONTENT.nodes.enemies, null, 'bug', 'content/enemies.kdl', ENEMY_WORDS),
     ...build(CONTENT.nodes.treasures, CONTENT.treasures, 'treasure', 'content/treasures.kdl', TREASURE_WORDS),
     ...build(CONTENT.nodes.evolutions, CONTENT.evolutions, 'evolution', 'content/evolutions.kdl', TREASURE_WORDS),
+    ...build(CONTENT.nodes.bosses, null, 'boss', 'content/bosses.kdl', null),
   ];
   return groups;
 }
@@ -112,7 +115,7 @@ const CSS = `
 .jf-tune footer .go { flex: 1; }
 `;
 
-const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions']];
+const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions'], ['boss', 'Bosses']];
 
 export class BalanceEditor {
   constructor(parent) {
@@ -144,8 +147,8 @@ export class BalanceEditor {
     this.groups = balanceGroups();
     this.el.innerHTML = `<div class="box">
       <header><h2>⚖️ Balance editor</h2><button data-k="back">✕</button></header>
-      <div class="note">Type a number and it's live: the next bug spawns with it, and treasures you hold use it at once. Bugs already alive keep their numbers. Nothing is saved to the files — Copy changes lists your edits to make permanent.</div>
-      <input type="search" placeholder="Search bugs and treasures" value="${this.query}">
+      <div class="note">Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss uses a skill's new numbers from its next attack (its Health, from its next power-on). Bugs already alive keep their numbers. Nothing is saved to the files — Copy changes lists your edits to make permanent.</div>
+      <input type="search" placeholder="Search bugs, treasures and bosses" value="${this.query}">
       <div class="chips">${FILTERS.map(([id, label]) => `<button data-f="${id}">${label}</button>`).join('')}</div>
       <div class="list"></div>
       <div class="status"></div>
