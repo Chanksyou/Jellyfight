@@ -58,6 +58,7 @@
 // tentacles, treasures and the minimap treat it like any other target.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
@@ -125,20 +126,122 @@ function controllerModel() {
   return { group: g, muzzle: new THREE.Vector3(0, 0.03, 0.03), r: 0.05, buttons, barMat };
 }
 
+// ------------------------------------------------------------------ the Mug
+// Modelled on the real desk mug (Chandan's photo, 2026-10-13): cream glaze, sage-green
+// inside, a flared lip, a handle that ends in a ball, and its painted artwork — a frog,
+// fly agarics, ladybirds, sparkles, little flowers — raised as relief instead of paint.
+// Body, handle and artwork are merged into ONE vertex-coloured mesh (the critters.js
+// pattern): one draw call, and the camera fade still takes the mug as a single object.
+// shortcut: no coaster from the photo — the Spill tips the whole model group, so a
+// coaster glued to the base would tip with it and float mid-pour.
+// The lathe profile runs up the outside, over the rim and down the inside to under the
+// coffee, so the wall has real thickness and the inside can wear its own colour.
+const MUG_PROFILE = [[0, 0.001], [0.028, 0.001], [0.0315, 0.003], [0.0342, 0.01], [0.035, 0.03], [0.0347, 0.05], [0.0356, 0.068], [0.0378, 0.08], [0.0392, 0.086], [0.0386, 0.0885], [0.0358, 0.0875], [0.0346, 0.078], [0.0342, 0.072], [0, 0.07]];
+const MUG_WALL = [[0.003, 0.0315], [0.01, 0.0342], [0.03, 0.035], [0.05, 0.0347], [0.068, 0.0356], [0.08, 0.0378]];   // outer wall radius by height
+const wallR = (y) => {
+  for (let i = 1; i < MUG_WALL.length; i++) if (y <= MUG_WALL[i][0]) { const [y0, r0] = MUG_WALL[i - 1], [y1, r1] = MUG_WALL[i]; return r0 + ((r1 - r0) * (y - y0)) / (y1 - y0); }
+  return MUG_WALL[MUG_WALL.length - 1][1];
+};
+// one flat vertex colour and no uv, so parts merge (same trick as critters.js tint,
+// but each part keeps its own smooth normals — a mug is not a faceted bug)
+const paint = (geo, hex) => {
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  if (geo.attributes.uv) geo.deleteAttribute('uv');
+  const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) { a[k * 3] = c.r; a[k * 3 + 1] = c.g; a[k * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return geo;
+};
+const blob = (sx, sy, sz, hex, seg = 14) => paint(new THREE.SphereGeometry(1, seg, Math.max(8, Math.round(seg * 0.7))).scale(sx, sy, sz), hex);
+// a part built facing +z at the origin, sunk into the wall at height y, angle theta
+const relief = (geo, theta, y, sink = 0.0012) => { geo.translate(0, y, wallR(y) - sink); geo.rotateY(theta); return geo; };
+
+function mugFrog(theta, y) {
+  const G = 0x548038, GD = 0x3a5c28, parts = [];
+  parts.push(relief(blob(0.0105, 0.0085, 0.0028, G), theta, y));                                                        // body
+  parts.push(relief(blob(0.0075, 0.0052, 0.0026, G).translate(0, 0.008, 0.0004), theta, y));                             // head
+  for (const s of [-1, 1]) {
+    parts.push(relief(blob(0.0021, 0.0021, 0.0018, G).translate(s * 0.0039, 0.0118, 0.0012), theta, y));                 // eye bumps
+    parts.push(relief(blob(0.0011, 0.0011, 0.0009, 0x141210).translate(s * 0.0039, 0.0126, 0.0022), theta, y));          // pupils
+    parts.push(relief(blob(0.0052, 0.0034, 0.002, G).rotateZ(s * 0.5).translate(s * 0.0092, -0.0042, 0), theta, y));      // back legs
+    for (const t of [-1, 0, 1]) parts.push(relief(blob(0.0026, 0.0011, 0.0011, G).rotateZ(t * 0.35).translate(s * 0.0108, -0.0088 + Math.abs(t) * -0.0008, 0.0008), theta, y));   // toes
+  }
+  for (const [dx, dy, dz] of [[-0.004, 0.002, 0.0024], [0.003, 0.0045, 0.0022], [0.0005, -0.003, 0.0026]]) parts.push(relief(blob(0.0012, 0.001, 0.0007, GD).translate(dx, dy, dz), theta, y));   // speckles
+  return parts;
+}
+
+function mugMushroom(theta, y, s = 1) {
+  const parts = [relief(paint(new THREE.CylinderGeometry(0.0016 * s, 0.0025 * s, 0.0085 * s, 10).translate(0, -0.0068 * s, -0.0004), 0xd9c3a5), theta, y)];   // stem
+  parts.push(relief(blob(0.0095 * s, 0.0066 * s, 0.0031 * s, 0xb3352b), theta, y));                                      // cap
+  for (const [dx, dy, dz] of [[-0.0042, 0.0028, 0.0024], [0.0038, 0.0038, 0.0021], [0.0006, 0.0008, 0.003], [-0.0018, 0.0052, 0.0016]])
+    parts.push(relief(blob(0.00125 * s, 0.001 * s, 0.0007 * s, 0xf3ead8).translate(dx * s, dy * s, dz * s), theta, y));  // cap spots
+  return parts;
+}
+
+function mugLadybug(theta, y, s = 1) {
+  const parts = [];
+  for (const w of [-1, 1]) {
+    parts.push(relief(blob(0.0031 * s, 0.0042 * s, 0.0018 * s, 0xc23a24).translate(w * 0.0018 * s, 0, 0), theta, y));    // wing cases, groove between
+    parts.push(relief(blob(0.00085 * s, 0.00085 * s, 0.0006 * s, 0x201a16).translate(w * 0.0028 * s, 0.0015 * s, 0.0014 * s), theta, y));
+    parts.push(relief(blob(0.00085 * s, 0.00085 * s, 0.0006 * s, 0x201a16).translate(w * 0.0012 * s, -0.002 * s, 0.0015 * s), theta, y));
+  }
+  parts.push(relief(blob(0.0021 * s, 0.0019 * s, 0.0015 * s, 0x201a16).translate(0, 0.0046 * s, 0.0002), theta, y));      // head
+  return parts;
+}
+
+function mugSparkle(theta, y, s = 1) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, r = i % 2 ? 0.0013 * s : 0.0044 * s, px = Math.sin(a) * r, py = Math.cos(a) * r; i ? shape.lineTo(px, py) : shape.moveTo(px, py); }
+  shape.closePath();
+  return relief(paint(new THREE.ExtrudeGeometry(shape, { depth: 0.0011, bevelEnabled: false }), 0x262640), theta, y, 0.0004);
+}
+
+function mugFlower(theta, y, s = 1) {
+  const parts = [];
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; parts.push(relief(blob(0.0016 * s, 0.0023 * s, 0.0009 * s, 0x74513a).rotateZ(a).translate(Math.sin(a) * 0.0022 * s, Math.cos(a) * 0.0022 * s, 0), theta, y)); }
+  parts.push(relief(blob(0.0013 * s, 0.0013 * s, 0.0011 * s, 0x2e2019), theta, y));
+  return parts;
+}
+
 function mugModel() {
   const g = new THREE.Group();
-  const glaze = std(0xd9a834, { roughness: 0.25 });
-  const wall = add(g, new THREE.CylinderGeometry(0.036, 0.033, 0.085, 32, 1, true), glaze, 0, 0.0425, 0);
-  wall.material.side = THREE.DoubleSide;
-  add(g, new THREE.CircleGeometry(0.033, 32), glaze, 0, 0.001, 0).rotation.x = -Math.PI / 2;
-  add(g, new THREE.TorusGeometry(0.036, 0.0025, 8, 40), glaze, 0, 0.085, 0).rotation.x = Math.PI / 2;           // rolled rim
-  add(g, new THREE.CylinderGeometry(0.0365, 0.0355, 0.014, 32, 1, true), std(0x8a3a1a, { roughness: 0.3, side: THREE.DoubleSide }), 0, 0.02, 0);   // a band
-  add(g, new THREE.CylinderGeometry(0.0366, 0.0366, 0.003, 32, 1, true), std(0xfff4d8, { side: THREE.DoubleSide }), 0, 0.03, 0);
-  const coffee = add(g, new THREE.CircleGeometry(0.034, 32), std(0x3a2214, { roughness: 0.08 }), 0, 0.074, 0);
-  coffee.rotation.x = -Math.PI / 2;
-  // the handle: a C on the outside of the wall (the old one sat inside the mug)
-  const handle = add(g, new THREE.TorusGeometry(0.02, 0.006, 10, 24, Math.PI), glaze, -0.036, 0.045, 0);
-  handle.rotation.z = Math.PI / 2;
+  // the lathe body, two-tone: cream outside, sage inside. Lathe vertices run along the
+  // profile within each segment, so the profile point index says which side a vertex is
+  // on (the points from the inner lip onward are the inside) — normals don't: on the
+  // inside leg they point away from the axis, like the outside.
+  const lathe = (() => {
+    const pts = MUG_PROFILE.map(([r, y]) => new THREE.Vector2(r, y));
+    let geo = new THREE.LatheGeometry(pts, 64);
+    const n = geo.attributes.position.count, a = new Float32Array(n * 3);
+    const cream = new THREE.Color(0xf1e7d3), sage = new THREE.Color(0x7e8f74);
+    for (let k = 0; k < n; k++) {
+      const c = k % pts.length >= 10 ? sage : cream;
+      a[k * 3] = c.r; a[k * 3 + 1] = c.g; a[k * 3 + 2] = c.b;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    geo = geo.toNonIndexed();
+    if (geo.attributes.uv) geo.deleteAttribute('uv');
+    return geo;
+  })();
+  // the handle: a tube swept out and down the wall, ending in a ball like the real one
+  const handlePts = [[-0.0345, 0.066, 0], [-0.052, 0.064, 0], [-0.061, 0.052, 0], [-0.06, 0.036, 0], [-0.05, 0.024, 0], [-0.0365, 0.02, 0]].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+  const parts = [lathe,
+    paint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(handlePts), 24, 0.0052, 10), 0xf1e7d3),
+    blob(0.0085, 0.008, 0.0085, 0xf1e7d3, 18).translate(-0.0365, 0.019, 0),          // the ball at the lower joint
+    blob(0.0068, 0.0068, 0.0068, 0xf1e7d3, 16).translate(-0.0348, 0.066, 0),         // the upper joint
+    ...mugFrog(0.62, 0.034),
+    ...mugMushroom(1.8, 0.046, 1), ...mugMushroom(-1.7, 0.042, 0.72), ...mugMushroom(2.8, 0.024, 0.52), ...mugMushroom(-2.9, 0.054, 0.5),
+    ...mugLadybug(1.18, 0.06, 1), ...mugLadybug(-2.35, 0.022, 0.85),
+    mugSparkle(-0.3, 0.068, 1), mugSparkle(2.3, 0.06, 0.7), mugSparkle(-1.05, 0.016, 0.8), mugSparkle(3.1, 0.05, 0.6), mugSparkle(-0.5, 0.066, 0.55),
+    ...mugFlower(-0.62, 0.02, 1), ...mugFlower(2.45, 0.014, 0.8),
+    relief(blob(0.0058, 0.0026, 0.0006, 0x9a7648), 0.98, 0.0795, 0.0002),            // coffee stains under the rim
+    relief(paint(new THREE.BoxGeometry(0.0015, 0.0075, 0.0006), 0x9a7648), 0.98, 0.0745, 0.0002),
+    relief(blob(0.0042, 0.002, 0.0006, 0x9a7648), -2.55, 0.0805, 0.0002),
+  ];
+  add(g, mergeGeometries(parts), std(0xffffff, { vertexColors: true, roughness: 0.27, side: THREE.DoubleSide }));
+  // the coffee, with its meniscus ring where it meets the wall
+  const coffee = mergeGeometries([new THREE.CircleGeometry(0.0342, 40).rotateX(-Math.PI / 2).translate(0, 0.0735, 0), new THREE.TorusGeometry(0.0334, 0.0011, 8, 40).rotateX(Math.PI / 2).translate(0, 0.0735, 0)]);
+  add(g, coffee, std(0x3a2214, { roughness: 0.08 }));
   // a spoon left in it
   const spoon = new THREE.Group();
   spoon.position.set(0.012, 0.07, -0.01);
@@ -147,7 +250,7 @@ function mugModel() {
   g.add(spoon);
   const face = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.4 });
   face.scale.setScalar(0.03);
-  face.position.set(0, 0.05, 0.036);
+  face.position.set(0, 0.052, 0.0352);
   g.add(face);
   return { group: g, muzzle: new THREE.Vector3(0, 0.08, 0), r: 0.045 };
 }
