@@ -1895,7 +1895,7 @@ story('treasures/spout', {
 story('treasures/heal-on-kill', {
   about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of health.',
   setup() { setupFight({ lash: false }); give('babyBottle'); G().run.health = 10; roachAt(0, -0.15, { still: true }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.health === 10.5, { health: G().run.health }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.health === 10.25, { health: G().run.health }); },
 });
 story('treasures/burst-on-kill', {
   about: 'burst-on-kill (Bath Salt): bugs you finish off burst and hurt their neighbours.',
@@ -1958,14 +1958,14 @@ story('treasures/per', {
     const fr0 = S().fireRate;
     give('rollerSkate');
     const skate0 = S().fireRate - fr0;
-    run.stats.moveSpeed += 0.2;                                // +20% Move speed: +4% Fire rate
+    run.stats.moveSpeed += 0.2;                                // +20% Move speed: +6% Fire rate
     const skate = (S().fireRate - fr0) / BASE_STATS.fireRate * 100;
     const bd1 = S().bubbleDamage;
     give('piggyBank');
     run.chestsOpened = 5;                                      // five treasures found: +15%
     const piggy = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(near(ball, hp / 8) && near(ballAfterCard, (hp + 10) / 8) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 4) && near(piggy, 15),
+    return ok(near(ball, hp / 8) && near(ballAfterCard, (hp + 10) / 8) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 6) && near(piggy, 15),
       { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
   },
 });
@@ -2037,7 +2037,7 @@ story('treasures/stat-size-jump-tentacles', {
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
     const stats = near(S.bubbleSize, b.bubbleSize * 1.25) && near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 1
-      && near(T.reach, b.reach * 1.5) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
+      && near(T.reach, b.reach * 1.65) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
     const log = record('damage_taken');
     step(60 * 2);
     const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
