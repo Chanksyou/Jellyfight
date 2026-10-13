@@ -2367,6 +2367,7 @@ story('dev/balance-editor', {
     const field = (kind, id, label) => groups.find((g) => g.kind === kind && g.id === id).fields.find((f) => f.label === label);
     const panel = window.tuner; panel.show(run, {});
     const rows = panel.el.querySelectorAll('.row').length;
+    const described = panel.el.querySelector('.row[data-id="coffeeBean"]').textContent.includes('Bubbles blow 25% faster.');
     panel.hide();
     const first = spawn('roach', near(0.3, 0), { still: true });
     const hp0 = first.hp;
@@ -2379,8 +2380,8 @@ story('dev/balance-editor', {
     resetBalance(run);
     const third = spawn('roach', near(0, 0.3), { still: true });
     const fr3 = S().fireRate;
-    return ok(rows > 100 && hp0 === 30 && second.hp === 12 && first.hp === 30 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 30,
-      { rows, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp });
+    return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25,
+      { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp });
   },
 });
 story('hud/treasure-timers', {

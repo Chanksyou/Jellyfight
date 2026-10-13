@@ -51,7 +51,7 @@ let groups = null;
 export function balanceGroups() {
   if (groups) return groups;
   const build = (nodes, compiled, kind, file, registry) => nodes.map((n, i) => ({
-    kind, id: n.args[0], icon: compiled?.[i]?.icon || '🐞', name: n.props.name || n.args[0],
+    kind, id: n.args[0], icon: compiled?.[i]?.icon || '🐞', name: n.props.name || n.args[0], desc: n.props.text || '',
     fields: entryFields(`${file} · ${n.props.name || n.args[0]}`, n, registry),
   }));
   groups = [
@@ -99,7 +99,9 @@ const CSS = `
 .jf-tune .row { border-bottom: 1px solid #ffffff10; }
 .jf-tune .row .head { display: flex; align-items: center; gap: 10px; padding: 8px 6px; cursor: pointer; width: 100%; background: none; border: none; text-align: left; min-height: 0; }
 .jf-tune .row .ic { font-size: 22px; width: 30px; text-align: center; }
-.jf-tune .row .tx { flex: 1; font-weight: 700; }
+.jf-tune .row .tx { flex: 1; }
+.jf-tune .row .tx b { display: block; }
+.jf-tune .row .tx span { display: block; font-size: 12px; opacity: .75; font-weight: 400; }
 .jf-tune .row .dot { color: #ffd34d; }
 .jf-tune .fields { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 2px 6px 12px 46px; }
 .jf-tune .fld { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .95; }
@@ -180,7 +182,7 @@ export class BalanceEditor {
       const fields = g.id === this.openId ? `<div class="fields">${g.fields.map((f, fi) =>
         `<label class="fld">${f.label} <input type="number" step="any" data-g="${gi}" data-f="${fi}" value="${f.get()}" class="${f.edited() ? 'edited' : ''}"></label>`).join('')}</div>` : '';
       return `<div class="row" data-id="${g.id}">
-        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx">${g.name}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
+        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
         ${fields}
       </div>`;
     }).join('') || '<p style="padding:14px;opacity:.7">Nothing matches.</p>';
