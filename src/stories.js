@@ -12,6 +12,7 @@ import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
 import { CONTENT, compileEnemies, compileTreasures } from './content.js';
+import { balanceGroups, applyBalance, resetBalance } from './balance-editor.js';
 import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS, STAT_INFO, EVOLUTIONS, TREASURES, ELEMENT_UPGRADES } from './stats.js';
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
@@ -2356,6 +2357,30 @@ story('dev/test-kit', {
     const got = { lemon: run.owned.count('lemon'), pin: run.owned.count('bobbyPin'), evolved: [...run.evolved], tentacles: run.tentacleStats.tentacles };
     kit.hide();
     return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'boxJelly' && got.tentacles === 4 && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
+  },
+});
+story('dev/balance-editor', {
+  about: 'The dev balance editor: a new number for a bug or a treasure recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, the panel lists every bug and treasure with its numbers, and Reset puts the file values back.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G(), S = () => run.S, groups = balanceGroups();
+    const field = (kind, id, label) => groups.find((g) => g.kind === kind && g.id === id).fields.find((f) => f.label === label);
+    const panel = window.tuner; panel.show(run, {});
+    const rows = panel.el.querySelectorAll('.row').length;
+    panel.hide();
+    const first = spawn('roach', near(0.3, 0), { still: true });
+    const hp0 = first.hp;
+    field('bug', 'roach', 'hp').set(12); applyBalance(run);
+    const second = spawn('roach', near(-0.3, 0), { still: true });
+    give('coffeeBean');
+    const fr1 = S().fireRate;
+    field('treasure', 'coffeeBean', 'stat amount').set(50); applyBalance(run);
+    const fr2 = S().fireRate;
+    resetBalance(run);
+    const third = spawn('roach', near(0, 0.3), { still: true });
+    const fr3 = S().fireRate;
+    return ok(rows > 100 && hp0 === 30 && second.hp === 12 && first.hp === 30 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 30,
+      { rows, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp });
   },
 });
 story('hud/treasure-timers', {

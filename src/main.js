@@ -11,6 +11,7 @@ import { LightSlots } from './light-slots.js';
 import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { TestKit } from './test-kit.js';
+import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
@@ -32,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v142';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v143';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -120,7 +121,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">🎨 Look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
@@ -249,7 +250,7 @@ touch.mount(ui);
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
-const menuOpen = () => !overlay.hidden || menus.open || kit.open || state.mode === 'creator' || state.mode === 'layout';
+const menuOpen = () => !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
@@ -402,6 +403,10 @@ overlay.addEventListener('click', (e) => {
     overlay.hidden = true;
     kit.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
   }
+  else if (b.dataset.act === 'tuner') {    // dev: edit bug and treasure numbers, live (balance-editor.js)
+    overlay.hidden = true;
+    tuner.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
+  }
   else if (b.dataset.act === 'boss') { run.start(); run.devRun(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {
@@ -414,6 +419,9 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
 });
 const kit = new TestKit(document.body);
+const tuner = new BalanceEditor(document.body);
+window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
+window.tuner = tuner;
 // Dev tools (layout editor, boss and 1-on-1 fights, test kit, the other act, diagnostics) wait behind one
 // 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
 const DEV_PASS = 'chan', DEV_KEY = 'jellyfight.dev';

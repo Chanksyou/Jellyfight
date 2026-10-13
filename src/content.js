@@ -10,7 +10,7 @@
 import { parse } from './kdl.js';
 import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [] };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], nodes: null };
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
@@ -145,9 +145,27 @@ function owned(m, id, apply) {
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
   const [enemies, waves, treasures, evolutions] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl')]);
-  CONTENT.enemies = compileEnemies(parse(enemies, 'content/enemies.kdl'));
+  // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
+  // recompiles from them, without reloading the page.
+  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl') };
+  CONTENT.enemies = compileEnemies(CONTENT.nodes.enemies);
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
-  CONTENT.treasures = compileTreasures(parse(treasures, 'content/treasures.kdl'));
-  CONTENT.evolutions = compileEvolutions(parse(evolutions, 'content/evolutions.kdl'));
+  CONTENT.treasures = compileTreasures(CONTENT.nodes.treasures);
+  CONTENT.evolutions = compileEvolutions(CONTENT.nodes.evolutions);
   return CONTENT;
+}
+
+// Rebuild the compiled content from the parsed files (CONTENT.nodes), in place, so the
+// references the game already holds (stats.js's TREASURES, enemies.js's TYPES) see the new
+// numbers: the next bug spawns with them and the run's combined effects pick them up on the
+// next recompute. Everything compiles before anything is swapped in, so a bad number (the
+// compiler names the file and line) changes nothing.
+export function recompileContent() {
+  const enemies = compileEnemies(CONTENT.nodes.enemies);
+  const treasures = compileTreasures(CONTENT.nodes.treasures);
+  const evolutions = compileEvolutions(CONTENT.nodes.evolutions);
+  for (const id of Object.keys(CONTENT.enemies)) if (!enemies[id]) delete CONTENT.enemies[id];
+  Object.assign(CONTENT.enemies, enemies);
+  CONTENT.treasures.forEach((t, i) => Object.assign(t, treasures[i]));
+  CONTENT.evolutions.forEach((t, i) => Object.assign(t, evolutions[i]));
 }
