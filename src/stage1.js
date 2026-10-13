@@ -57,7 +57,7 @@ export const STAGE1 = {
     { area: 'Floor', at: [3.2, 0, 3.0], label: 'middle of the room' },
     { area: 'Floor', at: [3.4, 0, 2.2], label: 'by the lounge chair' },
     { area: 'Floor', at: [1.15, 0, 3.5], label: 'by the desk' },
-    { area: 'Floor', at: [1.6, 0.015, 0.5], label: 'by the window' },
+    { area: 'Floor', at: [1.6, 0.015, 0.8], label: 'by the window' },
     { area: 'Kitchen', at: [4.15, 0.013, 2.6], label: 'on the kitchen mat' },
     { area: 'Kitchen', at: [3.8, 0, 3.5], label: 'kitchen floor' },
     { area: 'Floor', at: [2.2, 0.01, 3.45], label: 'by the play gym' },

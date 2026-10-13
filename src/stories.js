@@ -3342,7 +3342,7 @@ story('treasures/spots-not-on-vent-landings', {
     const bad = run.spots.filter((sp) => lands.some((L) => Math.hypot(L[0] - sp.at[0], L[2] - sp.at[2]) < 0.13 && Math.abs(L[1] - sp.y) < 0.08)).map((sp) => sp.label);
     const moved = run.spots.filter((sp) => { const o = run.stage.spots.find((q) => q.label === sp.label); return o && (o.at[0] !== sp.at[0] || o.at[2] !== sp.at[2]); })
       .map((sp) => `${sp.label} ${sp.at.map((v) => v.toFixed(2)).join(',')}`);
-    return ok(!bad.length && moved.length >= 4 && run.spots.length >= 12, { bad, moved, kept: run.spots.length, rejects: run.spotRejects });
+    return ok(!bad.length && moved.length >= 4 && run.spots.length >= 12 && run.spots.every((sp) => run.inStage(sp.at[0], sp.at[2])), { bad, moved, kept: run.spots.length, rejects: run.spotRejects });
   },
 });
 
