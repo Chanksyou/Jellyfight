@@ -741,6 +741,26 @@ story('enemies/mosquito-spits', {
     return ok(run.health < m0, { lost: +(m0 - run.health).toFixed(2) });
   },
 });
+story('enemies/beetle-charges-and-fires-three', {
+  about: 'A rhinoceros beetle in range charges its horns — the glowing orb is the warning — then fires exactly three fat electrical orbs in a fan (each twice a spider\'s web ball across, with its crackling halo), each doing its spit damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('beetle', P.clone().add(V(0.3, 0, 0))); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    let sawAim = false, orbLit = false, volley = null;
+    step(60 * 10, () => {
+      if (e.aimT > 0) { sawAim = true; const orb = e.mesh.getObjectByName('charge-orb'); if (orb && orb.visible) orbLit = true; }
+      if (!volley && enemies.shots.length >= 3) volley = enemies.shots.slice(0, 3).map((s) => ({ vx: s.v.x, vz: s.v.z, dmg: s.dmg, orb: !!s.orb, geo: s.m.geometry === enemies.orbGeo, halo: s.m.children.length === 1 }));
+      return !!volley;
+    });
+    if (!volley) return ok(false, { sawAim, orbLit, shots: enemies.shots.length });
+    const a0 = Math.atan2(volley[0].vx, volley[0].vz), a2 = Math.atan2(volley[2].vx, volley[2].vz);
+    const fan = Math.abs(a2 - a0) * 180 / Math.PI;
+    const dmg = volley.every((s) => s.dmg === 3);
+    const orbs = volley.every((s) => s.orb && s.geo && s.halo);
+    const big = enemies.orbGeo.parameters.radius > 0.009 * 1.5;   // the web wad's radius is 0.009
+    return ok(sawAim && orbLit && fan > 28 && fan < 40 && dmg && orbs && big, { sawAim, orbLit, fan: +fan.toFixed(1), dmg, orbs, big });
+  },
+});
 
 // --- progression
 story('progression/card-tiers', {
@@ -1331,6 +1351,27 @@ story('models/dendi-the-cat', {
     d.endScene();
     return ok(bones >= 26 && hiddenAtBoot && poses && shown && smacked && solid === 0 && !d.group.visible,
       { bones, hiddenAtBoot, poses, shown, smacked, solid, goneAfter: !d.group.visible });
+  },
+});
+story('models/beetle-loads-and-walks', {
+  about: 'The rhinoceros beetle is a 1 on 1 pick whose loaded model (the game\'s first GLB bug) fills in, stands at its radius\'s scale with the charge orb in its horns, and walks with a moving gait.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('beetle', near(0.35, 0, 0)); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0];
+    const pick = run.duelChoices().some((p) => p.bug === 'beetle');
+    let tris = 0;
+    step(60 * 8, () => { tris = 0; e.mesh.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return tris > 50000; });
+    const size = new THREE.Box3().setFromObject(e.mesh).getSize(new THREE.Vector3());
+    const len = Math.max(size.x, size.z);
+    const orb = !!e.mesh.getObjectByName('charge-orb');
+    // make it walk: put the player a stretch away and watch a leg pivot swing
+    tp(2.0, 0.05, 1.8, 0);
+    const leg = e.mesh.getObjectByName('Leg_F_L');
+    const q0 = leg ? leg.parent.quaternion.clone() : null;
+    step(12);
+    const walked = leg ? leg.parent.quaternion.angleTo(q0) > 0.02 : false;
+    return ok(pick && tris > 50000 && len > 0.09 && len < 0.14 && walked && orb,
+      { pick, tris: Math.round(tris), len: +len.toFixed(3), walked, orb });
   },
 });
 story('words/hangs', {
