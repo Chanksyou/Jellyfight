@@ -244,6 +244,10 @@ export class Clog {
     this.snareVols = [0, 1, 2].map(() => vol('dome', this.snareR));
     this.rollAt = new THREE.Vector3();
     this.rollDir = new THREE.Vector3();
+    // tick() scratch: the per-frame paths (chase heading, the whirlpool, the lash strike) reuse
+    // these instead of minting vectors every frame
+    this._toP = new THREE.Vector3(); this._toDrain = new THREE.Vector3(); this._side = new THREE.Vector3();
+    this._d = new THREE.Vector3(); this._tip = new THREE.Vector3(); this._lane = new THREE.Vector3(); this._puff = new THREE.Vector3();
     this.tuftGeo = new THREE.ConeGeometry(0.004, 0.05, 5).translate(0, 0.025, 0);
     this.tuftMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.8 });
     // the drain itself: a dark grate that churns while it gurgles
@@ -351,7 +355,7 @@ export class Clog {
       return out;
     }
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 6);
-    const angry = this.angry, toP = P.clone().sub(p).setY(0), dist = toP.length();
+    const angry = this.angry, toP = this._toP.copy(P).sub(p).setY(0), dist = toP.length();
     let mouth = 0;
     this.stateT -= dt;
 
@@ -384,12 +388,12 @@ export class Clog {
           this.lines.forEach((L, i) => {
             if (!L.visible) return;
             L.material.progress = 1;
-            const a = L.rotation.y, d = V(Math.sin(a), 0, Math.cos(a));
-            const tip = p.clone().addScaledVector(d, 0.42).setY(this.floor + 0.01);
+            const a = L.rotation.y, d = this._d.set(Math.sin(a), 0, Math.cos(a));
+            const tip = this._tip.copy(p).addScaledVector(d, 0.42).setY(this.floor + 0.01);
             this.fx.impact(tip, hostile('clog'), 0.03, 12);
             this.fx.burst(tip, ['#3b2618', '#8a9a5a', '#5a3a24'], 6, 0.003, 0.25, this.floor);
             // anything of the jelly in the low lane along the line (jumping over it clears it)
-            if (laneHits(L.position.clone().setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; }
+            if (laneHits(this._lane.copy(L.position).setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; }
           });
         }
         this.rearing = -1;                                              // slammed down along the line
@@ -479,7 +483,7 @@ export class Clog {
         this.stream.position.y = this.waterY;
         s.material.progress = u;
         s.material.opacity = 0.6 + 0.2 * Math.sin(this.t * 12);
-        if (Math.random() < dt * 40) this.fx.puff(V(0.226, this.waterY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), 0xdff4ff, 0.012, 0.35);
+        if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.waterY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), 0xdff4ff, 0.012, 0.35);
       } else if (el < fill + hold) {
         this.stream.visible = false;
         s.material.progress = 1;
@@ -494,12 +498,12 @@ export class Clog {
         this.whirl.visible = true;
         this.whirl.position.copy(this.drain).setY(this.waterY + 0.003);
         this.whirl.rotation.y -= dt * 9;
-        const toDrain = this.drain.clone().sub(P).setY(0), dd = toDrain.length(), side = V(-toDrain.z, 0, toDrain.x).normalize();
+        const toDrain = this._toDrain.copy(this.drain).sub(P).setY(0), dd = toDrain.length(), side = this._side.set(-toDrain.z, 0, toDrain.x).normalize();
         const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your move speed (0.42) up close
         out.push = toDrain.normalize().multiplyScalar(SK.flood.pull * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
         if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = SK.flood.dmg * dt;
         this.grate.rotation.y += dt * 14;
-        if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this.drain.clone().add(V(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }
+        if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this._puff.copy(this.drain).add(this._side.set(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }   // _side's work (out.push) is done by now
       }
       W.position.y = this.waterY;
       W.material.opacity = 0.55;

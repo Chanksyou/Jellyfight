@@ -63,6 +63,7 @@ export class Bubbles {
     this._dir = new THREE.Vector3();   // scratch for fly(): no garbage per bubble per frame
     this.grace = 0.03;                 // run.js: the jelly's radius
     this._c = new THREE.Vector3();
+    this._ic = new THREE.Vector3();    // scratch for inRange(): its own, since callers pass it centers held in _c
     this._t = new THREE.Vector3();     // scratch for touches()
     this.timer = 0;
     this.elTimers = {};               // each element attack's own firing timer
@@ -92,7 +93,7 @@ export class Bubbles {
     this.list.forEach((b) => this.release(b));
     this.list = [];
     this.burning.clear();
-    this.zaps.forEach((z) => this.scene.remove(z.line));
+    this.zaps.forEach((z) => { this.scene.remove(z.line); z.line.geometry.dispose(); z.line.material.dispose(); });   // each zap cloned zapMat: free both, or a restart leaks them
     this.puddles.forEach((p) => this.scene.remove(p.m));
     this.zaps = [];
     this.puddles = [];
@@ -124,13 +125,15 @@ export class Bubbles {
   }
 
   inRange(origin, range, exclude) {
-    const E = this.enemies, c = new THREE.Vector3(), out = [];
+    const E = this.enemies, c = this._ic, es = [], ds = [];
     for (const e of E.list) {
       if (e.dead || exclude?.has(e) || e.proxy?.shielded) continue;   // a shielded boss isn't worth a bubble
       const d = E.center(e, c).distanceTo(origin) - e.r;
-      if (d <= range) out.push([d, e]);
+      if (d <= range) { es.push(e); ds.push(d); }
     }
-    return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+    // nearest first, but an armoured bug (a curled millipede: hits do 75% less) only once nothing
+    // unarmoured is in range — same rule as the tentacles (combat.js inReach)
+    return es.map((e, i) => i).sort((a, b) => (es[a].armor ? 1 : 0) - (es[b].armor ? 1 : 0) || ds[a] - ds[b]).map((i) => es[i]);
   }
 
   // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
@@ -352,7 +355,7 @@ export class Bubbles {
 
   // Burning enemies, lightning arcs and acid puddles
   effects(dt, stats) {
-    const E = this.enemies, c = new THREE.Vector3();
+    const E = this.enemies, c = this._c;
     for (const [e, f] of this.burning) {
       if (e.dead) {
         // burning things that die set their neighbors alight
@@ -366,12 +369,12 @@ export class Bubbles {
       if (f.flame <= 0) {                 // licking flames
         f.flame = 0.12;
         E.center(e, c);
-        this.fx.puff(c.add(new THREE.Vector3((Math.random() - 0.5) * e.r, e.r * (0.4 + Math.random() * 0.6), (Math.random() - 0.5) * e.r)), Math.random() < 0.5 ? 0xff7a2a : 0xffc23a, e.r * 0.8, 0.3);
+        this.fx.puff(c.add(this._t.set((Math.random() - 0.5) * e.r, e.r * (0.4 + Math.random() * 0.6), (Math.random() - 0.5) * e.r)), Math.random() < 0.5 ? 0xff7a2a : 0xffc23a, e.r * 0.8, 0.3);
       }
       if (f.tick <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#ffa65a', source: 'fire' }); }
       if (f.t <= 0) this.burning.delete(e);
     }
-    for (const z of this.zaps) { z.t -= dt; z.line.material.opacity = Math.max(0, z.t / 0.2); if (z.t <= 0) { this.scene.remove(z.line); z.line.geometry.dispose(); } }
+    for (const z of this.zaps) { z.t -= dt; z.line.material.opacity = Math.max(0, z.t / 0.2); if (z.t <= 0) { this.scene.remove(z.line); z.line.geometry.dispose(); z.line.material.dispose(); } }   // the material is a per-zap clone of zapMat
     this.zaps = this.zaps.filter((z) => z.t > 0);
     for (const p of this.puddles) {
       p.t -= dt;
@@ -421,7 +424,7 @@ export class Bubbles {
   splash(b) {
     b.splashed = true;
     const p = b.m.position, glitter = b.elems.has('glitter');
-    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = new THREE.Vector3();
+    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
     if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
     if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
@@ -451,7 +454,7 @@ export class Bubbles {
     if (el.has('acid')) sfx.acid();
     if (el.has('wind')) sfx.wind();
     if (!b.splashed) this.splash(b);
-    const E = this.enemies, c = new THREE.Vector3();
+    const E = this.enemies, c = this._c;
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
       let from = p.clone();

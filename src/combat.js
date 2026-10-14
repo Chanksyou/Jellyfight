@@ -78,11 +78,13 @@ export class Lash {
   inReach(origin, reach, exclude) {
     const out = [];
     for (const e of this.enemies.list) {
-      if (e.dead || exclude?.has(e)) continue;
+      if (e.dead || exclude?.has(e) || e.proxy?.shielded) continue;   // a shielded boss can't be hurt (its guards up / it is in the drain): don't spend a tentacle on it
       const d = this.enemies.center(e, this._a).distanceTo(origin) - e.r;
       if (d <= reach) out.push([d, e]);
     }
-    return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+    // nearest first, but an armoured bug (a curled millipede: hits do 75% less) only once nothing
+    // unarmoured is in reach — it's the fallback, not the target
+    return out.sort((a, b) => (a[1].armor ? 1 : 0) - (b[1].armor ? 1 : 0) || a[0] - b[0]).map((x) => x[1]);
   }
 
   fire(origin, stats, hits) {

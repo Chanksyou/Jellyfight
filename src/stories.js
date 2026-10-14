@@ -250,6 +250,22 @@ const cameraStory = (extra, under) => ({
   },
 });
 story('camera/fixed-view-fades-what-blocks', cameraStory([], 'Media_console_6'));
+story('camera/fade-disposes-its-clones', {
+  about: 'When whatever the camera faded comes back into the clear, the mesh gets its own material back and the see-through clones the fade made are disposed (nothing else holds them, so keeping them would leak a material per fade).',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, run } = G(), spots = cameraSpots([]);
+    const p = spots[spots.length - 1];   // just off a wall: something fades there at some heading
+    let mesh = null, f = null;
+    for (let k = 0; k < 16 && !f; k++) { tp(p[0], p[1], p[2], (k * Math.PI) / 8); step(12); if (tpc._fades.size) [mesh, f] = [...tpc._fades][0]; }
+    if (!f) return ok(false, { faded: false });
+    let disposed = 0;
+    for (const c of [].concat(f.see)) c.addEventListener('dispose', () => disposed++);
+    const st = run.stage.start;
+    tp(st[0], 0.05, st[2], 0); step(90);
+    return ok(mesh.material === f.mats && !tpc._fades.has(mesh) && disposed === [].concat(f.see).length, { disposed, clones: [].concat(f.see).length, restored: mesh.material === f.mats });
+  },
+});
 // --- treasures in the room: golden chests, on a schedule (each somewhere else, for a limited
 // time) and where elites fall (for good)
 const waiting = (timed) => G().run.roomTreasures.filter((t) => t.active && (timed === undefined || t.timed === timed));
@@ -592,6 +608,38 @@ story('attack/bubble-stream', {
   },
 });
 
+story('attack/armor-is-a-last-resort', {
+  about: 'Bubbles and tentacles both aim past an armoured bug (a curled millipede: hits do 75% less) at an unarmoured one farther off, and only fall back to the armoured one when nothing else is in range.',
+  setup() { fresh({ hurt: true, elites: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.25)); e.ballCd = 0.3; },
+  play() {
+    const { run, enemies, player } = G(), mill = enemies.list[0];   // the millipede from setup (fresh leaves it alone in the list)
+    const roach = spawn('roach', player.position.clone().add(V(0.1, 0, -0.55)), { still: true, hp: 9999 });
+    step(60 * 3, () => mill.armor > 0);   // curled up and revving: armoured, and still where it curled
+    const c = new THREE.Vector3(), P = player.position;
+    const dMill = enemies.center(mill, c).distanceTo(P), dRoach = enemies.center(roach, c).distanceTo(P);
+    const first = { bubbles: run.bubbles.inRange(P, 0.6)[0], lash: run.lash.inReach(P, 0.6)[0] };
+    enemies.applyDamage(roach, 1e5);
+    const fallback = { bubbles: run.bubbles.inRange(P, 0.6)[0], lash: run.lash.inReach(P, 0.6)[0] };
+    const pass = mill.armor > 0 && dMill < dRoach && first.bubbles === roach && first.lash === roach && fallback.bubbles === mill && fallback.lash === mill;
+    return ok(pass, { armor: mill.armor, dMill: +dMill.toFixed(2), dRoach: +dRoach.toFixed(2), firstIsRoach: first.bubbles === roach && first.lash === roach, fallbackIsMill: fallback.bubbles === mill && fallback.lash === mill });
+  },
+});
+story('attack/lash-skips-a-shielded-boss', {
+  about: "While the Vacuum's guards are up it can't be hurt, and the tentacles know it: they leave its shielded proxies alone and strike a bug in reach instead.",
+  setup() { startVacuum('flies'); },
+  play() {
+    const { run, enemies } = G(), B = run.boss, player = holdJelly();
+    B.stateT = B.prevT = 1.05;   // startVacuum's timer table has no 'flies': give it a windup so the launch (stateT crossing 0.4) can fire
+    const roach = spawn('roach', player.position.clone().add(V(0.1, 0, -0.3)), { still: true, hp: 9999 });
+    step(90, () => B.guards.length > 0);
+    const c = new THREE.Vector3();
+    const guardNear = enemies.list.some((e) => e.proxy === B && enemies.center(e, c).distanceTo(player.position) < 2);
+    const reach = run.lash.inReach(player.position, 2);
+    const pass = B.shielded && guardNear && reach.includes(roach) && !reach.some((e) => e.proxy === B);
+    return ok(pass, { guards: B.guards.length, shielded: B.shielded, guardNear, reached: reach.map((e) => e.kind || 'boss') });
+  },
+});
+
 story('attack/side-by-side-bubbles', {
   about: 'With 3 bubbles, each blow is 3 bubbles leaving at the same moment side by side, flying parallel, each doing 56% damage (25% less per extra bubble).',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 9999 }); G().run.stats.bubbles = 3; },
@@ -799,11 +847,11 @@ story('enemies/spider-web-ball', {
       return !!hit;
     });
     const peak = Math.max(...ys), arcs = ys.length > 3 && peak > ys[0] + 0.005 && ys[ys.length - 1] < peak;
-    return ok(moved && reared && arcs && hit && hit.amount === 2 && slowed > 1, { moved, reared, arcs, peak: +peak.toFixed(3), hit: hit?.amount, slowed: +slowed.toFixed(2) });
+    return ok(moved && reared && arcs && hit && hit.amount === 3 && slowed > 1, { moved, reared, arcs, peak: +peak.toFixed(3), hit: hit?.amount, slowed: +slowed.toFixed(2) });   // spit damage 3 since v144 (this story predates it)
   },
 });
 story('words/poke', {
-  about: 'The house fly buzzes in beside you, rubs its front legs and draws back while a short line on the floor marks its strike, then pokes you with its straw of a mouth: 3 damage.',
+  about: 'The house fly buzzes in beside you, rubs its front legs and draws back while a short line on the floor marks its strike, then pokes you with its straw of a mouth: 4 damage.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('housefly', near(0.2, 0, 0.03)); e.pokeCd = 0.8; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -812,7 +860,7 @@ story('words/poke', {
       if (e.state === 'windup' && enemies.pokeMarks.some((m) => m.visible)) warned = true;
       if (e.state === 'poke') out = Math.max(out, e.pokeK);
       closest = Math.min(closest, e.pos.distanceTo(player.position.clone().setY(player.position.y + CONFIG.player.height * 0.5)));
-      hit = log.find((d) => d.source === 'housefly' && d.amount === 3);
+      hit = log.find((d) => d.source === 'housefly' && d.amount === 4);   // poke damage 4 since the v144 batch (this story predates it)
       return !!hit;
     });
     return ok(warned && out === 1 && hit && closest > 0.06, { warned, out, hit: hit?.amount, closest: +closest.toFixed(3) });
@@ -861,7 +909,7 @@ story('enemies/spider-keeps-its-distance', {
   },
 });
 story('words/ball-charge', {
-  about: 'The millipede curls into a ball (hits on it do 75% less while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 4. Once it uncurls it can be hurt again.',
+  about: 'The millipede curls into a ball (hits on it do 75% less while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 5. Once it uncurls it can be hurt again.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.32)); e.ballCd = 0.3; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -872,7 +920,7 @@ story('words/ball-charge', {
       if (e.state === 'spin' && enemies.chargeMarks.some((m) => m.visible)) warned = true;
       if (e.state === 'spin' && armored === null) { const hp = e.hp; enemies.applyDamage(e, 20); armored = Math.abs(hp - e.hp - 5) < 1e-6; }   // 20 hits for 5
       spun = Math.max(spun, e.spinA || 0);
-      hit = hit || log.find((d) => d.source === 'millipede' && d.amount === 4);
+      hit = hit || log.find((d) => d.source === 'millipede' && d.amount === 5);   // ball-charge damage 5 since v144
       return hit && e.state === 'rest';
     });
     const hp = e.hp;
@@ -956,7 +1004,7 @@ story('bubbles/never-linger', {
   },
 });
 story('words/sortie', {
-  about: 'The ladybug flies round you, lands, lifts its red carapace and locks on (a red reticle closing in round you), then fires a homing missile that hits you for 3.',
+  about: 'The ladybug flies round you, lands, lifts its red carapace and locks on (a red reticle closing in round you), then fires a homing missile that hits you for 5.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ladybug', near(0.3, 0, 0.12)); e.stateT = 1.2; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -970,7 +1018,7 @@ story('words/sortie', {
       hit = log.find((d) => d.source === 'missile');
       return !!hit;
     });
-    return ok(flewHigh && landedLow && raised && reticle && launched && hit?.amount === 3, { states: [...seen], flewHigh, landedLow, raised, reticle, launched, hit: hit?.amount });
+    return ok(flewHigh && landedLow && raised && reticle && launched && hit?.amount === 5, { states: [...seen], flewHigh, landedLow, raised, reticle, launched, hit: hit?.amount });   // sortie damage 5 since v144
   },
 });
 story('enemies/dragonfly-model', {
@@ -1441,7 +1489,7 @@ story('words/leap', {
       if (e.state === 'crouch' && enemies.leapMarks[0]?.visible) mark = true;
       return run.health < m0;
     });
-    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 3;
+    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 4;   // leap damage 4 since v144
     return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.health });
   },
 });
@@ -3535,7 +3583,7 @@ story('engine/leaderboard', {
 
 // --- the main screen
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Other act, Diagnostics).',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Other act, Diagnostics).',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },
   play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
@@ -3552,7 +3600,7 @@ story('menu/dev-tools-locked', {
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,act,diag',
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,act,diag',   // tuner joined the row in v143; this expectation predates it (it failed on pristine v152 too)
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
   },
 });

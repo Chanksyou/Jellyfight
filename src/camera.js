@@ -85,7 +85,7 @@ export class ThirdPersonCamera {
     for (const [m, f] of this._fades) {
       const goal = this.over.has(m) ? SEE_THROUGH : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
-      if (goal === 1 && f.k > 0.98) { m.material = f.mats; this._fades.delete(m); continue; }
+      if (goal === 1 && f.k > 0.98) { m.material = f.mats; for (const c of [].concat(f.see)) c.dispose(); this._fades.delete(m); continue; }   // the clones are this fade's alone: free them, or every fade leaks materials
       for (const s of [].concat(f.see)) s.opacity = s.userData.solid * f.k;
     }
   }

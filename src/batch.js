@@ -33,7 +33,7 @@ export class Batcher {
   constructor(scene = null) {
     this.scene = scene;
     this.roots = new Set();
-    this.groups = new Map();     // geometry.id * 65536 + material.id -> group (a number: no string per mesh per frame)
+    this.groups = new Map();     // geometry.id -> Map(material.id -> group): no arithmetic key, so no collision however large the ids grow (material clones mint new ids all session)
     this.drawn = 0;              // instances drawn last sync (for the debug readout)
     this._visit = (o) => this.collect(o);
   }
@@ -43,12 +43,13 @@ export class Batcher {
   track(root) { this.roots.add(root); return root; }
 
   group(geo, mat) {
-    const key = geo.id * 65536 + mat.id;
-    let g = this.groups.get(key);
+    let byMat = this.groups.get(geo.id);
+    if (!byMat) { byMat = new Map(); this.groups.set(geo.id, byMat); }
+    let g = byMat.get(mat.id);
     if (!g) {
       const per = !!mat.userData.perInstance;
       g = { geo, src: mat, per, mat: per ? withInstanceOpacity(mat) : mat, mesh: null, cap: 0, n: 0, list: [] };
-      this.groups.set(key, g);
+      byMat.set(mat.id, g);
     }
     return g;
   }
@@ -83,7 +84,7 @@ export class Batcher {
 
   // Gather this frame's instances. Call once per frame, right before rendering.
   sync() {
-    for (const g of this.groups.values()) g.n = 0;
+    for (const byMat of this.groups.values()) for (const g of byMat.values()) g.n = 0;
     for (const root of this.roots) {
       if (!root.parent) { this.roots.delete(root); continue; }
       if (!root.visible) continue;
@@ -91,7 +92,7 @@ export class Batcher {
       root.traverseVisible(this._visit);
     }
     let drawn = 0;
-    for (const g of this.groups.values()) {
+    for (const byMat of this.groups.values()) for (const g of byMat.values()) {
       if (g.n > g.cap || (g.n && !g.mesh)) this.grow(g, g.n);
       if (!g.mesh) continue;
       const m = g.mesh;
