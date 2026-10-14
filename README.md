@@ -102,7 +102,7 @@ npm run export
 
 The bathroom's close-up details live in the source too: the vanity's undermount basin (a real bowl under a hole in the counter), the oval toilet seat, the loop-pile bath mat, canvas laundry bags, panelled doors and fabric coats. A material whose bump map is its own color map keeps its bump through the bake.
 
-The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops everything else: the neighborhood, the corridor, the sky, Dendi, particles and helpers. Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
+The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops everything else: the neighborhood, the corridor, the sky, Dendi (the game's cat is built at runtime instead — see Characters above), particles and helpers. Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
 
 | File | What it does |
 | --- | --- |
@@ -149,6 +149,8 @@ A look is plain JSON (`{ name, body, finish, color, accent, pattern, eyes, eyeCo
 ```
 
 The player only talks to that interface (`player.setAvatar(avatar)`), so a rigged glTF character can replace the procedural one by writing another builder that returns the same shape. It would drive its animation mixer from `update()` and map the look's colors and hat onto the model.
+
+**Dendi the cat** (`src/cat.js`) is a procedural model in his own right: one skinned mesh (26 bones) built and painted from photos of the real cat — brown mackerel tabby, bold black dorsal stripe, M forehead, green eyes, black bow collar — with procedural poses (idle, curious, walk, trot, sit, loaf, stretch, and a paw smack). He is never seen during a run: he exists hidden in both boss acts, and when a boss's Health reaches zero the fight freezes, the screen fades to black, and he is standing beside the boss when it fades back — one smack of his paw starts the death animation, and then he is gone again. The bosses only go *doomed* on their own (`dying` in `src/vacuum.js` / `src/clog.js`); the scene in `src/main.js` calls `die()` at the moment the paw lands.
 
 ## Stage and tuning files
 

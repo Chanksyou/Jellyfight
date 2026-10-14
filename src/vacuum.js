@@ -38,6 +38,7 @@ export class Vacuum {
     this.def = CONTENT.bosses.vacuum;   // its numbers (content/bosses.kdl), read fresh each attack so the Tuner's edits land mid-fight
     this.maxHp = this.hp = this.def.hp;
     this.dead = false;
+    this.dying = false;   // doomed at 0 hp: held for Dendi's finishing smack (die())
     this.t = 0;
     this.rise = 0;
     this.state = 'chase';
@@ -158,7 +159,7 @@ export class Vacuum {
   get shielded() { return this.guards.length > 0; }
 
   damage(amount, color = '#fff') {
-    if (this.dead || this.rise < 1) return;
+    if (this.dead || this.dying || this.rise < 1) return;
     if (this.shielded) {             // bounces off: a flash on the dome
       this.domeFlash = 1;
       sfx.shieldHit();
@@ -167,8 +168,11 @@ export class Vacuum {
     this.hp -= amount;
     this.hitPop = 1;
     this.fx.number(this.center().setY(this.holder.position.y + 0.12), Math.round(amount), color, 16);
-    if (this.hp <= 0) { this.hp = 0; this.dead = true; }
+    if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
+
+  // Dendi's paw lands: now it dies (the death animation in tick() takes over)
+  die() { if (this.dying) { this.dying = false; this.dead = true; } }
 
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
   // how fast it does everything: twice as fast once it's enraged (not during the enrage itself)
@@ -221,6 +225,8 @@ export class Vacuum {
       if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
       return out;
     }
+    // doomed: it stops where it was hit, waiting for the cat
+    if (this.dying) return out;
     // power on: grow in with a puff
     if (this.rise < 1) {
       if (this.rise === 0) sfx.vacPowerOn();

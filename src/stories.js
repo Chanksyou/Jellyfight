@@ -32,6 +32,7 @@ import { nestMiddle } from './run.js';
 import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
+import { applyState } from './cat.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1302,6 +1303,31 @@ story('models/wasp-and-nest', {
     const ratio = tall / long;
     waspShow.group.removeFromParent();                   // gone again, so later stories don't draw (and compile) them
     return ok(Math.abs(tall - NEST.height) < 0.3 && ratio > 3.6 && ratio < 4.4 && high - low > 0.001, { tall: +tall.toFixed(2), long: +long.toFixed(2), ratio: +ratio.toFixed(2), flaps: high - low > 0.001 });
+  },
+});
+story('models/dendi-the-cat', {
+  about: 'Dendi the cat is never seen during a run: he exists hidden — a skinned tabby (26 bones) with working poses — and only the boss finish brings him out, then hides him again.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const d = window.dendi;
+    if (!d) return ok(false, { dendi: null });
+    const bones = d.mesh.skeleton.bones.length;
+    const hiddenAtBoot = !d.group.visible;
+    // posing: loaf and curious hold measurably different neck angles
+    applyState(d, 'loaf', 1); const loafQ = d.bones.neck.quaternion.clone();
+    applyState(d, 'curious', 1); const curQ = d.bones.neck.quaternion.clone();
+    const poses = loafQ.angleTo(curQ) > 0.05;
+    // nothing he is made of is solid
+    let solid = 0; d.group.traverse((o) => { if (o.isMesh && !o.userData.noCollide) solid++; });
+    // the scene's entrances and exits: placeForSmack shows him poised,
+    // beginSmack starts the chop, endScene hides him again
+    d.placeForSmack(new THREE.Vector3(1, 0, 1), 0);
+    const shown = d.group.visible && d.tick(0.05, null) === 'curious';
+    d.beginSmack();
+    const smacked = d.tick(0.05, null) === 'smack';
+    d.endScene();
+    return ok(bones >= 26 && hiddenAtBoot && poses && shown && smacked && solid === 0 && !d.group.visible,
+      { bones, hiddenAtBoot, poses, shown, smacked, solid, goneAfter: !d.group.visible });
   },
 });
 story('words/hangs', {
@@ -3079,6 +3105,26 @@ function shownWarnings() {
   const kids = G().APT.scene.children.filter(shown);
   return { floor: kids.filter((o) => o.material instanceof TeleMaterial), volume: kids.filter((o) => o.material instanceof VolumeMaterial) };
 }
+story('boss/dendi-finishes-the-vacuum', {
+  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it, and his smack is what kills it — then the usual cleared flow runs.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const { run } = G(), B = run.boss, d = window.dendi;
+    B.damage(99999);
+    const doomed = B.dying && !B.dead;
+    let smacked = false, catNear = false;
+    step(60 * 5, () => {
+      if (d.state() === 'smack') smacked = true;
+      if (B.dead && !catNear) {
+        const c = B.center(), gp = d.group.position;
+        catNear = Math.hypot(gp.x - c.x, gp.z - c.z) < B.r + 0.45;
+      }
+      return B.dead && run.bossWon;
+    });
+    return ok(doomed && smacked && catNear && run.bossWon && !d.group.visible,
+      { doomed, smacked, catNear, won: run.bossWon, goneAfter: !d.group.visible });
+  },
+});
 story('boss/vacuum-charge-warning-is-a-lane', {
   about: "The charge's Warning is its floor strip with a lane volume over it as tall as the Vacuum (8 cm), filling together; both go when it rams.",
   setup() { startVacuum('charge'); },
@@ -4513,6 +4559,27 @@ const clogAttack = (B, name, P) => {
   B.state = 'chase'; B.stateT = 0;
   B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
+act2('clog-dendi-finish', {
+  about: 'At 0 hp the Clog is doomed, not dead: Dendi — never seen in Act 2 otherwise — appears beside it in the tub, and his smack is what kills it.',
+  setup() { clogFight(); },
+  play() {
+    const { run } = G(), B = run.boss, d = window.dendi;
+    const hiddenBefore = !d.group.visible;
+    B.damage(99999);
+    const doomed = B.dying && !B.dead;
+    let smacked = false, catNear = false;
+    step(60 * 6, () => {
+      if (d.state() === 'smack') smacked = true;
+      if (B.dead && !catNear) {
+        const c = B.center(), gp = d.group.position;
+        catNear = Math.hypot(gp.x - c.x, gp.z - c.z) < B.r + 0.45;
+      }
+      return B.dead && run.bossWon;
+    });
+    return ok(hiddenBefore && doomed && smacked && catNear && run.bossWon && !d.group.visible,
+      { hiddenBefore, doomed, smacked, catNear, won: run.bossWon, goneAfter: !d.group.visible });
+  },
+});
 act2('act-2-fewer-bugs-more-xp', {
   about: 'Act 2 sends a little fewer bugs (0.85x the spawn rate and how many at once) and each drops a little more XP (1.2x).',
   setup() { fresh({ elites: false }); },
@@ -5180,6 +5247,3 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
-
-
-

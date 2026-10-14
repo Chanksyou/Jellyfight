@@ -20,6 +20,7 @@ import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { dressSet } from './set-dressing.js';
+import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
@@ -34,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v154';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v155';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -162,6 +163,10 @@ prepareApartment(APT, stage);
 const world = new World(scene);
 addStageWalls(world, stage, scene);
 if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
+// Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
+// purely to show up for the boss finish (see the scene below), then he's
+// gone again. Both boss stages get one; a stage with no boss needs none.
+const dendi = stage.id <= 2 ? addDendi(scene, new THREE.Vector3(), 0, { hidden: true }) : null;
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
@@ -358,6 +363,46 @@ function updateMusic(dt) {
   music.update(dt, st.intensity);
 }
 
+// --- The boss finish --------------------------------------------------------
+// A doomed boss (0 hp, `dying`) doesn't die on its own. The screen fades to
+// black, Dendi appears beside it with the jelly watching from just behind
+// him, the screen fades back — and his paw coming down is what kills it
+// (boss.die()). Gameplay freezes throughout; the boss's own update keeps
+// running so its death animation plays out while the world holds still.
+const blackout = document.createElement('div');
+blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:60;';
+document.body.appendChild(blackout);
+let bossScene = null;
+function startBossScene(boss) {
+  bossScene = { boss, t: 0, phase: 'out', smacked: false };
+  blackout.style.opacity = '1';
+}
+function stepBossScene(dt) {
+  const S = bossScene;
+  if (run.boss !== S.boss) {           // the run ended mid-scene: just fade back
+    blackout.style.opacity = '0'; dendi?.endScene(); bossScene = null; return;
+  }
+  S.t += dt;
+  const B = S.boss;
+  if (S.phase === 'out' && S.t >= 0.5) {
+    // behind the black: the cat beside the boss on the jelly's side, the jelly behind the cat
+    const c = B.center(), hp = B.holder.position;
+    const dir = new THREE.Vector3(player.position.x - c.x, 0, player.position.z - c.z);
+    if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
+    const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), hp.y, c.z + dir.z * (B.r + 0.16));
+    dendi.placeForSmack(catPos, Math.atan2(c.x - catPos.x, c.z - catPos.z));
+    player.position.set(catPos.x + dir.x * 0.55, player.position.y, catPos.z + dir.z * 0.55);
+    blackout.style.opacity = '0';
+    S.phase = 'in'; S.t = 0;
+  } else if (S.phase === 'in' && S.t >= 0.5) {
+    dendi.beginSmack(); S.phase = 'smack'; S.t = 0;
+  } else if (S.phase === 'smack') {
+    if (!S.smacked && S.t >= 0.25) { B.die(); S.smacked = true; }
+    B.update(dt, player);              // the death animation, while everything else waits
+    if (S.t >= 1.6) { dendi.endScene(); bossScene = null; }
+  }
+}
+
 const GAME = {
   loadRooms,
   step(dt) {
@@ -366,7 +411,11 @@ const GAME = {
     systems.fx.update(dt);
     systems.layout.update(dt);
     systems.touch.update(dt);
-    systems.gameplay.update(dt);
+    if (bossScene) stepBossScene(dt); else systems.gameplay.update(dt);
+    if (!bossScene && run.phase === 'boss' && run.boss?.dying && !run.boss.dead) {
+      if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
+    }
+    dendi?.tick(dt, player.position);
     updateForceFields(player.position);
     systems.avatar.update(dt);
     systems.input.update(dt);
@@ -424,6 +473,7 @@ const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;
+window.dendi = dendi;   // stories check on the cat (models/dendi-*)
 // Dev tools (layout editor, boss and 1-on-1 fights, test kit, the other act, diagnostics) wait behind one
 // 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
 const DEV_PASS = 'chan', DEV_KEY = 'jellyfight.dev';

@@ -203,6 +203,7 @@ export class Clog {
     this.def = CONTENT.bosses.clog;   // its numbers (content/bosses.kdl), read fresh each attack so the Tuner's edits land mid-fight
     this.maxHp = this.hp = this.def.hp;
     this.dead = false;
+    this.dying = false;   // doomed at 0 hp: held for Dendi's finishing smack (die())
     this.t = 0;
     this.rise = 0;
     this.state = 'chase';
@@ -292,13 +293,16 @@ export class Clog {
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
   damage(amount, color = '#fff') {
-    if (this.dead || this.rise < 1) return;
+    if (this.dead || this.dying || this.rise < 1) return;
     if (this.shielded) { this.fx.number(this.center().setY(this.floor + 0.05), 'IN THE DRAIN', '#cfe6ff', 12); return; }
     this.hp -= amount;
     this.hitPop = 1;
     this.fx.number(this.center().setY(this.holder.position.y + this.r * 2.2), Math.round(amount), color, 16);
-    if (this.hp <= 0) { this.hp = 0; this.dead = true; }
+    if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
+
+  // Dendi's paw lands: now it dies (the death animation in tick() takes over)
+  die() { if (this.dying) { this.dying = false; this.dead = true; } }
 
   update(dt, player) {
     const out = this.tick(dt, player);
@@ -342,6 +346,8 @@ export class Clog {
       if (Math.random() < dt * 25) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(this.r)), 0x3b2618, 0.03, 0.5);
       return out;
     }
+    // doomed: it stops where it was hit, waiting for the cat
+    if (this.dying) return out;
     // rise out of the drain, gurgling, hair unfurling
     if (this.rise < 1) {
       if (this.rise === 0) sfx.clogRise();
