@@ -40,7 +40,6 @@ export const STAGE2 = {
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
   hide: ['Ornate wall clock', 'Bathtub_3'],   // the detailed clock replaces the simple one; Bathtub_3 is a green see-through blob in the tub (the boss arena)
   decor: [HALL_CLOCK],                // it still hangs there when it isn't fighting (a 1 on 1 with another elite)
-  fade: { 'Shower curtain': 0.5 },    // make it see-through so the camera can look into the tub
   // the closets are left ajar (a fraction of fully open) so you can peek in; a wall keeps you out
   doors: { bath: 'open', laundry: 0.3, coat: 0.3, bedroom: 'closed', front: 'closed' },
   walls: [
