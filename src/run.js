@@ -99,8 +99,13 @@ export class Run {
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
       else this.hit(amount, from);          // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
     });
-    bus.on('status_applied', ({ targetId, status, duration }) => {
-      if (targetId === PLAYER && status === 'slow') this.slowT = Math.max(this.slowT, duration);
+    // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
+    bus.on('status_applied', ({ targetId, status, duration, strength }) => {
+      if (targetId === PLAYER && status === 'slow' && strength == null) this.slowT = Math.max(this.slowT, duration);
+      else if (targetId === PLAYER && status === 'slow') {
+        this.slowK = this.slowHardT > 0 ? Math.max(this.slowK, strength) : strength;
+        this.slowHardT = Math.max(this.slowHardT, duration);
+      }
       if (targetId === PLAYER && status === 'slip') this.slipT = Math.max(this.slipT, duration);   // soap underfoot: you slide
     });
     bus.on('knockback', ({ targetId, dir, force, launch }) => {
@@ -184,6 +189,7 @@ export class Run {
     this.pendingLevels = 0;
     this.iFrames = 0;
     this.slowT = 0;
+    this.slowHardT = this.slowK = 0;    // a slow with its own strength
     this.slipT = 0;
     this.stillT = 0;
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
@@ -316,7 +322,7 @@ export class Run {
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
-        slow: this.slowT > 0 ? 0.4 : 0, push,
+        slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0,
       });
     }
@@ -324,6 +330,7 @@ export class Run {
     // --- timers
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
+    this.slowHardT = Math.max(0, this.slowHardT - dt);
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
@@ -364,7 +371,7 @@ export class Run {
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.eliteDamage = this.mods.eliteDamage;
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius }, this.t);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }
@@ -493,6 +500,7 @@ export class Run {
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
       if (e.airborne) continue;                             // mid-leap: its landing does the hurting (the leap word)
+      if (!e.T.dmg) continue;                               // harmless to touch (an Aerial root: its hold does the hurting)
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // ant squads hit harder rolling

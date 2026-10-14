@@ -107,8 +107,34 @@ enemy "wasp" name="Wasp" hp=14 r=0.025 dmg=1 xp=0 model="wasp" {
     dive range=0.35 every=3 windup=0.5 speed=1.4 reach=0.6 dmg=6 rest=0.6
 }
 
+// The Pothos (act 3 boss) drops Cuttings on the bed near you: a glowing snip of vine with two
+// leaves. It can't move; a circle round it fills like a countdown, and if it's still alive when the
+// circle fills it sprouts into a Sap sprout where it lay. A few bubbles kill it in time.
+enemy "cutting" name="Cutting" hp=30 r=0.03 dmg=1 xp=3 model="cutting" {
+    rooted
+    becomes "sprout" after=6 radius=0.06
+}
+
+// What a Cutting left alone grows into: a little upright pothos with a swollen sap pod. It can't
+// move, but every 3 s it lobs toxic sap at you: a circle with a dome over it fills where you stand
+// while the glob flies, it lands as a Blast (jump it), and leaves a sticky puddle that slows you
+// while you stand in it. It keeps going until you kill it.
+enemy "sprout" name="Sap sprout" hp=90 r=0.035 dmg=1 xp=6 model="sprout" {
+    rooted
+    lob every=3 reach=0.5 radius=0.045 dmg=3 flight=1 puddle=4
+}
+
 // The Clog (act 2 boss) sheds hair tangles into the fight
 enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
     chase 0.3
     rolls
+}
+
+// The Pothos (act 3 boss) drops Aerial roots from above (its `roots` attack, content/bosses.kdl):
+// each falls onto a circle near you, then creeps after you, slower than you swim. If it reaches you
+// it holds on for 3 s (half speed, a little Health a second), then withers. A few bubbles kill it.
+enemy "root" name="Aerial root" hp=30 r=0.03 dmg=0 xp=2 model="root" {
+    chase 0.2
+    drops height=0.6 time=1 radius=0.05 color="pothos"
+    holds time=3 slow=0.5 dmg=1
 }
