@@ -15,7 +15,7 @@ import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
+import { STAGES, currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v155';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v156';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -151,7 +151,7 @@ const creator = new Creator({
 creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
-applyLayout(APT.root);                 // your saved furniture edits (dev layout editor)
+applyLayout(APT.root, currentAct());   // your saved furniture edits for this act (dev layout editor)
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
@@ -172,7 +172,7 @@ addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 
-applyVentLayout(stage.vents);          // vents moved in the layout editor (baked, then your own)
+applyVentLayout(stage.vents, currentAct());   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
 // furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
 function mapFurniture() {
@@ -279,7 +279,7 @@ const systems = {
 // Dev layout editor: move the furniture around (layout.js)
 let layoutChanged = false;
 function openLayout() {
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal });
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.map((_, i) => i + 1), onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
@@ -336,7 +336,7 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
-  applyLayout(APT.root);
+  applyLayout(APT.root, currentAct());
   world.addObjects(added);
   mapFurniture();
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
@@ -443,7 +443,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
-  else if (b.dataset.act === 'act') goToAct(currentAct() === 1 ? 2 : 1);   // dev: jump between act 1 and act 2 (a fresh run)
+  else if (b.dataset.act === 'act') goToAct(currentAct() % STAGES.length + 1);   // dev: jump to the next act (a fresh run)
   else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
     overlay.hidden = true;
     const picks = run.duelChoices();
@@ -612,6 +612,7 @@ warmUp().then(() => {
     } else playBtn.textContent = 'Click to dive in';
   }
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
+  if (then?.layout) openLayout();   // the layout editor's act buttons reload into the act with it open
   if (!storyParams.has('story') && !storyParams.has('stories')) return;
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
 });

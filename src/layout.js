@@ -4,9 +4,15 @@
 // collisions are built, so a moved sofa is solid where you put it. "Export" gives a JSON code
 // to paste back to Claude so the layout can be baked in for everyone.
 //
-// Desktop: click an object to select it, drag it to move it along the floor, WASD/arrows pan,
-// wheel zooms, right-drag turns the view. Q/E rotate 15° (hold Shift for 90°), R/F raise/lower
-// 1 cm (Shift: 5 cm), H hide, Ctrl+Z undo, Esc done.
+// Desktop: click an object to select it (or pick it from the list), drag it to move it along
+// the floor, WASD/arrows pan, wheel zooms, right-drag turns the view. Q/E rotate 15° (hold
+// Shift for 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Del delete, Ctrl+Z undo, Esc done.
+//
+// Edits are kept per act: the Act buttons in the top bar reload the game into that act with
+// the editor open, and each act's edits (and export) are its own — however many acts the
+// game grows. Hide just stops showing an object; delete records { deleted: true } so the
+// bake drops it for good. Hidden and deleted objects stay selectable in the list, and
+// ⌂ (put back) or 👁 restores them.
 // Touch: tap to select, drag it to move; drag empty space to pan; pinch to zoom; the toolbar
 // does the rest.
 //
@@ -49,17 +55,26 @@ export function visibleBox(node, box) {
   return box;
 }
 
-export function loadLayout() {
-  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+// Saved edits are kept per act under one key: { 1: {...}, 2: {...} }. Anything stored before
+// the split was edited in act 1 (the only act the editor could reach), so a flat map is act 1's.
+function loadAllLayout() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || '{}');
+    if (!d || typeof d !== 'object') return {};
+    return Object.keys(d).some((k) => /^\d+$/.test(k)) ? d : { 1: d };
+  } catch { return {}; }
 }
-function saveLayout(data) {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* private window: edits last this session */ }
+// The act is never defaulted: every caller names the act it means (the game's current one),
+// so an edit for one act can never be read as another's by accident.
+export function loadLayout(act) { return loadAllLayout()[act] || {}; }
+function saveLayout(act, data) {
+  try { const all = loadAllLayout(); all[act] = data; localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* private window: edits last this session */ }
 }
 
 function applyEdit(node, e) {
   if (e.p) node.position.fromArray(e.p);
   if (e.q) node.quaternion.fromArray(e.q);
-  node.visible = !e.hidden;
+  node.visible = !(e.hidden || e.deleted);
   node.updateMatrixWorld(true);
 }
 
@@ -68,11 +83,12 @@ const same3 = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-4);
 
 // Call before the vents are built (Traversal): the baked layout first (that becomes each vent's
 // "home"), then your saved edits. Changes the stage's vent list in place.
-export function applyVentLayout(vents, data = loadLayout()) {
+export function applyVentLayout(vents, act, data = loadLayout(act)) {
+  const baked = BAKED_LAYOUT[act] || {};
   let pruned = false;
   for (const v of vents) {
     if (!v.home) {
-      const b = BAKED_LAYOUT[VENT(v)];
+      const b = baked[VENT(v)];
       if (b) { v.at = [...b.at]; v.land = [...b.land]; }
       v.home = { at: [...v.at], land: [...v.land] };
     }
@@ -82,27 +98,28 @@ export function applyVentLayout(vents, data = loadLayout()) {
     if (same3(e.at, v.home.at) && same3(e.land, v.home.land)) { delete data[VENT(v)]; pruned = true; continue; }
     v.at = [...e.at]; v.land = [...e.land];
   }
-  if (pruned) saveLayout(data);
+  if (pruned) saveLayout(act, data);
 }
 
 // Call once after the apartment loads, before the collision world is built
 // The baked layout (layout-baked.js) goes first and becomes each object's "home"; your own
 // saved edits go on top. Saved edits that now match home are dropped.
-export function applyLayout(root, data = loadLayout()) {
+export function applyLayout(root, act, data = loadLayout(act)) {
+  const baked = BAKED_LAYOUT[act] || {};
   let n = 0, pruned = false;
   for (const { key, node } of movables(root)) {
     if (!node.userData.home) {
-      if (BAKED_LAYOUT[key]) applyEdit(node, BAKED_LAYOUT[key]);
+      if (baked[key]) applyEdit(node, baked[key]);
       node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible };
     }
     const e = data[key];
     if (!e) continue;
     const h = node.userData.home;
-    if (e.p && e.q && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
+    if (e.p && e.q && !e.deleted && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
     applyEdit(node, e);
     n++;
   }
-  if (pruned) saveLayout(data);
+  if (pruned) saveLayout(act, data);
   return n;
 }
 
@@ -114,7 +131,9 @@ export class LayoutEditor {
     this.byNode = new Map(this.items.map((it) => [it.node, it]));
     this.ventItems = this.traversal ? this.makeVentHandles() : [];
     for (const it of this.ventItems) this.byNode.set(it.node, it);
-    this.data = loadLayout();
+    this.act = ctx.act || 1;
+    this.data = loadLayout(this.act);
+    for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
     this.undoStack = [];
     this.sel = null;
     this.target = new THREE.Vector3(2.5, 0, 2.6);
@@ -179,7 +198,7 @@ export class LayoutEditor {
     else this.data[it.key] = e;
     this.setVent(it.vi, e);
     if (snap) this.undoStack.push(snap);
-    saveLayout(this.data);
+    saveLayout(this.act, this.data);
     this.onChange?.();
   }
   ventHome(vi) { const h = this.traversal.vents[vi].home; this.setVent(vi, { at: h.at, land: h.land }); }
@@ -205,35 +224,44 @@ export class LayoutEditor {
         background: linear-gradient(transparent, #0d1020dd 30%); font: 600 13px system-ui, sans-serif; color: #fff; pointer-events: none; }
       #jf-layout > * { pointer-events: auto; }
       #jf-layout button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 12px; font: inherit; min-width: 44px; }
+      #jf-layout select { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px; font: inherit; max-width: 52vw; }
       #jf-layout button:disabled { opacity: .35; }
       #jf-layout button.go { background: #3a8a5a; }
       #jf-layout .name { flex-basis: 100%; text-align: center; font-size: 14px; text-shadow: 0 1px 3px #000; }
       #jf-layout-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 30; background: #0d1020cc; color: #ffd23a; padding: 6px 12px;
         border-radius: 10px; font: 600 12px system-ui, sans-serif; text-align: center; pointer-events: none; max-width: 90vw; }
+      #jf-layout-top button { pointer-events: auto; background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 8px; padding: 3px 10px; font: inherit; margin: 0 2px; }
       #jf-layout-io { position: fixed; inset: 10% 8%; z-index: 31; background: #1a1d30; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: #fff; font: 13px system-ui, sans-serif; }
       #jf-layout-io textarea { flex: 1; font: 12px ui-monospace, monospace; background: #0d1020; color: #9fe2ff; border: 1px solid #ffffff33; border-radius: 8px; padding: 8px; }
       #jf-layout-io div { display: flex; gap: 8px; justify-content: flex-end; }
       #jf-layout-io button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 14px; font: 600 13px system-ui, sans-serif; }
     </style>
-    <div id="jf-layout-top">🛠 Layout editor (dev) · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Ctrl+Z undo'}</div>
+    <div id="jf-layout-top">🛠 Layout editor (dev) · editing <b>Act ${this.act}</b>${(this.acts || [this.act]).filter((n) => n !== this.act).map((n) => ` <button data-a="act${n}" title="Edit Act ${n}'s layout instead">Act ${n}</button>`).join('')} · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Del delete · Ctrl+Z undo'}</div>
     <div id="jf-layout">
       <div class="name">Nothing selected</div>
+      <select class="list" title="Choose an object (hidden and deleted ones too)"><option value="">— choose an object —</option></select>
       <button data-a="rotL" title="Rotate left 15° (Q)">⟲</button><button data-a="rotR" title="Rotate right 15° (E)">⟳</button>
       <button data-a="up" title="Raise 1 cm (R)">⬆</button><button data-a="down" title="Lower 1 cm (F)">⬇</button>
-      <button data-a="hide" title="Hide / show (H)">👁</button><button data-a="home" title="Put this one back">⌂</button>
+      <button data-a="hide" title="Hide / show (H)">👁</button><button data-a="del" title="Delete this object (Del)">🗑</button><button data-a="home" title="Put this one back">⌂</button>
       <button data-a="undo" title="Undo (Ctrl+Z)">↶</button>
       <button data-a="viewL" title="Turn view">◀</button><button data-a="viewR" title="Turn view">▶</button>
       <button data-a="io">⇄ Export</button><button data-a="reset">Reset all</button><button data-a="done" class="go">Done</button>
     </div>`;
     document.body.appendChild(el);
     this.nameEl = el.querySelector('.name');
+    this.listEl = el.querySelector('.list');
+    this.listEl.addEventListener('change', () => {
+      const it = this.items.find((x) => x.key === this.listEl.value);
+      if (it) { this.sel = it; this.refresh(); }
+    });
     el.addEventListener('click', (e) => {
       const a = e.target.closest('button')?.dataset.a;
       if (!a) return;
+      if (a.startsWith('act')) { const n = +a.slice(3); if (n !== this.act) this.onAct?.(n); return; }
       ({
         rotL: () => this.rotate(Math.PI / 12), rotR: () => this.rotate(-Math.PI / 12),
         up: () => this.raise(0.01), down: () => this.raise(-0.01),
-        hide: () => this.toggleHide(), home: () => this.putBack(), undo: () => this.undo(),
+        hide: () => this.toggleHide(), del: () => this.deleteSelected(), home: () => this.putBack(), undo: () => this.undo(),
         viewL: () => { this.yaw += Math.PI / 8; }, viewR: () => { this.yaw -= Math.PI / 8; },
         io: () => this.showIo(), reset: () => this.resetAll(), done: () => this.onDone?.(),
       })[a]?.();
@@ -243,15 +271,24 @@ export class LayoutEditor {
 
   refresh() {
     const it = this.sel;
-    this.nameEl.textContent = it ? `${it.node.name.replace(/_/g, ' ')}${it.node.visible ? '' : ' (hidden)'}${this.data[it.key] ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
+    this.nameEl.textContent = it ? `${it.node.name.replace(/_/g, ' ')}${it.deleted ? ' (deleted)' : it.node.visible ? '' : ' (hidden)'}${this.data[it.key] && !it.deleted ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
     this.el.querySelectorAll('[data-a=rotL],[data-a=rotR],[data-a=up],[data-a=down],[data-a=hide],[data-a=home]').forEach((b) => { b.disabled = !it || (it.vi != null && /rot|hide/.test(b.dataset.a)); });
+    this.el.querySelector('[data-a=del]').disabled = !it || it.vi != null || !!it.deleted;
     this.el.querySelector('[data-a=undo]').disabled = !this.undoStack.length;
+    // the object list: rebuilt only when membership or states change; hidden and deleted stay listed
+    const sig = this.items.map((x) => `${x.key}:${x.deleted ? 'd' : x.node.visible ? '' : 'h'}${this.data[x.key] ? 'e' : ''}`).join('|');
+    if (sig !== this._listSig) {
+      this._listSig = sig;
+      this.listEl.innerHTML = '<option value="">— choose an object —</option>' + this.items.map((x) =>
+        `<option value="${x.key}">${x.node.name.replace(/_/g, ' ')}${x.deleted ? ' · deleted' : x.node.visible ? '' : ' · hidden'}${this.data[x.key] && !x.deleted ? ' · edited' : ''}</option>`).join('');
+    }
+    this.listEl.value = it && it.vi == null ? it.key : '';
     if (it) { visibleBox(it.node, this.box.box); this.box.visible = true; this.box.updateMatrixWorld(true); } else this.box.visible = false;
   }
 
   // pick up objects that arrived since the editor was made (a later act's rooms)
   refreshItems() {
-    for (const it of movables(this.root)) if (!this.byNode.has(it.node)) { this.items.push(it); this.byNode.set(it.node, it); }
+    for (const it of movables(this.root)) if (!this.byNode.has(it.node)) { it.deleted = !!this.data[it.key]?.deleted; this.items.push(it); this.byNode.set(it.node, it); }
   }
 
   open() { this.refreshItems(); this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
@@ -264,12 +301,12 @@ export class LayoutEditor {
     if (it.vi != null) return this.commitVent(it, snap);
     const n = it.node, h = n.userData.home;
     const p = n.position.toArray().map((v) => +v.toFixed(4)), q = n.quaternion.toArray().map((v) => +v.toFixed(5));
-    const same = h && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v;
+    const same = h && !it.deleted && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v;
     if (same) delete this.data[it.key];
-    else this.data[it.key] = { p, q, ...(n.visible ? {} : { hidden: true }) };
+    else this.data[it.key] = { p, q, ...(it.deleted ? { deleted: true } : n.visible ? {} : { hidden: true }) };
     if (snap) this.undoStack.push(snap);
     if (this.undoStack.length > 100) this.undoStack.shift();
-    saveLayout(this.data);
+    saveLayout(this.act, this.data);
     n.updateMatrixWorld(true);
     this.onChange?.();
   }
@@ -287,11 +324,26 @@ export class LayoutEditor {
     this.commit(it, snap);
   }
   raise(dy) { const it = this.sel; if (!it) return; const snap = this.snapshot(it); it.node.position.y += dy; this.commit(it, snap); }
-  toggleHide() { const it = this.sel; if (!it || it.vi != null) return; const snap = this.snapshot(it); it.node.visible = !it.node.visible; this.commit(it, snap); }
+  toggleHide() {
+    const it = this.sel; if (!it || it.vi != null) return;
+    const snap = this.snapshot(it);
+    if (it.deleted) { it.deleted = false; it.node.visible = true; }   // the eye brings a deleted object back
+    else it.node.visible = !it.node.visible;
+    this.commit(it, snap);
+  }
+  // delete: gone from the game (not shown, not solid) and recorded as deleted in the export,
+  // so the bake drops it for good; it stays in the list, and ⌂ or 👁 brings it back
+  deleteSelected() {
+    const it = this.sel; if (!it || it.vi != null || it.deleted) return;
+    const snap = this.snapshot(it);
+    it.deleted = true; it.node.visible = false;
+    this.commit(it, snap);
+  }
   putBack() {
     const it = this.sel; if (!it) return;
     if (it.vi != null) { const snap = this.snapshot(it); this.ventHome(it.vi); this.commitVent(it, snap); return; }
     const snap = this.snapshot(it), h = it.node.userData.home;
+    it.deleted = false;
     it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v;
     this.commit(it, snap);
   }
@@ -307,33 +359,38 @@ export class LayoutEditor {
     const it = this.items.find((x) => x.key === u.key), h = it.node.userData.home;
     if (u.before) applyEdit(it.node, u.before);
     else { it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
+    it.deleted = !!u.before?.deleted;
     this.commit(it, null);
     this.sel = it;
   }
   resetAll() {
     if (!confirm('Put every object back where it started?')) return;
-    for (const it of this.items) { const h = it.node.userData.home; if (!h) continue; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
+    for (const it of this.items) { const h = it.node.userData.home; if (!h) continue; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
     this.traversal?.vents.forEach((v, vi) => this.ventHome(vi));
-    this.data = {}; this.undoStack = []; saveLayout(this.data); this.onChange?.();
+    this.data = {}; this.undoStack = []; saveLayout(this.act, this.data); this.onChange?.();
   }
 
   showIo() {
     const box = document.createElement('div');
     box.id = 'jf-layout-io';
     box.className = 'jf-keep';
-    box.innerHTML = `<b>Layout code</b><span>Copy this and paste it to Claude to bake the layout in. Or paste a code here and press Load.</span>
+    box.innerHTML = `<b>Layout code — Act ${this.act}</b><span>Copy this and paste it to Claude to bake the layout in. Or paste a code here and press Load.</span>
       <textarea spellcheck="false"></textarea><div><button data-a="copy">Copy</button><button data-a="load">Load</button><button data-a="close">Close</button></div>`;
     const ta = box.querySelector('textarea');
-    ta.value = JSON.stringify(this.data, null, 1);
+    ta.value = JSON.stringify({ act: this.act, edits: this.data }, null, 1);
     box.addEventListener('click', async (e) => {
       const a = e.target.closest('button')?.dataset.a;
       if (a === 'copy') { ta.select(); try { await navigator.clipboard.writeText(ta.value); e.target.textContent = 'Copied!'; } catch { document.execCommand?.('copy'); e.target.textContent = 'Selected: copy it'; } }
       if (a === 'load') {
         try {
           const d = JSON.parse(ta.value);
-          for (const it of this.items) { const h = it.node.userData.home; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
-          this.data = d; saveLayout(d); applyLayout(this.root, d);
-          this.traversal?.vents.forEach((v, vi) => { const e = d[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
+          const wrapped = d && Number.isInteger(d.act) && d.edits && typeof d.edits === 'object';
+          const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
+          if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); box.querySelector('b').textContent = `Saved under Act ${d.act} — switch acts to see it`; return; }
+          for (const it of this.items) { const h = it.node.userData.home; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
+          this.data = edits; saveLayout(this.act, edits); applyLayout(this.root, this.act, edits);
+          for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
+          this.traversal?.vents.forEach((v, vi) => { const e = edits[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
           this.onChange?.(); this.refresh(); box.remove();
         } catch (err) { e.target.textContent = 'Not valid JSON'; }
       }
@@ -439,6 +496,7 @@ export class LayoutEditor {
       else if (e.code === 'KeyR') this.raise(big ? 0.05 : 0.01);
       else if (e.code === 'KeyF') this.raise(big ? -0.05 : -0.01);
       else if (e.code === 'KeyH') this.toggleHide();
+      else if (e.code === 'Delete' || e.code === 'Backspace') this.deleteSelected();
       else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) this.undo();
       else if (e.code === 'Escape') this.onDone?.();
       else return;

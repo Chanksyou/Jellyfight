@@ -33,6 +33,8 @@ import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
 import { applyState } from './cat.js';
+import { loadLayout, applyLayout } from './layout.js';
+import { BAKED_LAYOUT } from './layout-baked.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -3648,6 +3650,60 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
     return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,act,diag',   // tuner joined the row in v143; this expectation predates it (it failed on pristine v152 too)
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
+  },
+});
+
+story('dev/layout-editor-acts-and-delete', {
+  about: 'The layout editor binds the act it opened in, keeps each act\'s edits in their own slice of the saved layout, and can delete an object picked from its list (recorded as deleted, restorable).',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT } = G();
+    const over = document.querySelector('#g-over');
+    over.hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    // the top bar offers every other act in STAGES, however many there are
+    const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
+    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 1).map((n) => 'act' + n).join();
+    // every act in STAGES has a baked-layout section, and act 3's slot is ready for it
+    const slots = STAGES.every((_, i) => !!BAKED_LAYOUT[i + 1]) && !!BAKED_LAYOUT[3] && typeof loadLayout(3) === 'object';
+    // pick an object from the list and delete it: gone, and recorded as deleted
+    const it = L.items[0];
+    L.listEl.value = it.key; L.listEl.dispatchEvent(new Event('change'));
+    const picked = L.sel === it;
+    L.deleteSelected();
+    const gone = !it.node.visible && it.deleted && L.data[it.key]?.deleted === true;
+    // the deletion lives in act 1's slice only — act 2's saved layout is untouched
+    const scoped = !!loadLayout(1)[it.key]?.deleted && !(it.key in loadLayout(2));
+    // and ⌂ brings it back, clearing the entry
+    L.putBack();
+    const back = it.node.visible && !it.deleted && !(it.key in L.data);
+    // applyLayout honours the act it is given: a crafted act-2 edit moves the object
+    applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
+    const moved = it.node.position.x === 9;
+    it.node.position.fromArray(it.node.userData.home.p);
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    L.onDone();
+    return ok(L.act === 1 && acts.join() === wantActs && slots && picked && gone && scoped && back && moved,
+      { act: L.act, acts, slots, picked, gone, scoped, back, moved });
+  },
+});
+story('dev/layout-editor-act-2', {
+  act: 2,
+  about: 'Opened in act 2, the layout editor binds act 2 and lists the bathroom furniture.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.querySelector('#g-over');
+    over.hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    const bath = L.items.some((x) => /Bathtub|Vanity/.test(x.key));
+    const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
+    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 2).map((n) => 'act' + n).join();
+    L.onDone();
+    return ok(L.act === 2 && bath && acts.join() === wantActs, { act: L.act, bath, acts });
   },
 });
 
