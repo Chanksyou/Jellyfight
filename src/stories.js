@@ -213,14 +213,14 @@ function cameraSpots(extra = []) {
 }
 function cameraTour(spots) {
   const { tpc, world, APT } = G(), cam = tpc.camera.position, last = V(0, 0, 0), toCam = V(0, 0, 0), seen = new Set();
-  const want = [tpc.pitch, tpc.distance], programs = APT.renderer.info.programs.length;
+  const F = tpc.fight, want = F ? [F.pitch, F.distance] : [tpc.pitch, tpc.distance], programs = APT.renderer.info.programs.length;
   let moved = 0, blocked = 0, jumps = 0, maxJump = 0, views = 0;
   for (const p of spots) {
     for (let k = 0; k < 16; k++) {
       // build the shaders this view needs (see-through copies included) without drawing it: in a
       // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
       tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); views++;
-      if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || tpc.pitch !== want[0]) moved++;
+      if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;   // (a fight view: eased in)
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();
       if (world.cast(tpc.focus, toCam.normalize(), len, tpc.over)) blocked++;   // something solid left between the jelly and the camera
@@ -5008,6 +5008,15 @@ const atClog = (a) => () => {
   clogAgain(B, a, 0.75);
   if (a === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
 };
+// a Bug of `type` put down near the held jelly; it's warning while `warns(it)`; `end` takes it away
+function bugWarns(type, warns) {
+  let it = null;
+  return {
+    start() { const { player } = G(); holdJelly(); it = spawn(type, player.position.clone().add(V(0.15, 0, 0.1))); },
+    during: () => !!it && warns(it),
+    end() { const { enemies } = G(); for (const e of enemies.list) if (!e.dead && ['cutting', 'sprout', 'root'].includes(e.type)) enemies.kill(e, true); it = null; },
+  };
+}
 const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'shot', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
@@ -5033,17 +5042,27 @@ const EVERY_ATTACK = {
       roots: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('roots'); } },
       whip: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('whip'); } },
     },
+    // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
+    bugs: {
+      cutting: { is: 'floor', ...bugWarns('cutting', (e) => !e.dead) },                     // its countdown (becomes): a floor circle only, by decision
+      sprout: { is: 'volume', ...bugWarns('sprout', () => G().enemies.lobs.some((b) => !b.done)) },   // the sap lob's Blast
+      root: { is: 'volume', ...bugWarns('root', (e) => e.state === 'drop') },             // dropping from above
+    },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
 const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos' })[G().run.stage.boss.kind] || 'clog';
 // the attacks the game has this act: each fighting Elite's, and the Boss's (calm and angry)
-function attacksInGame() {
+function attacksInGame(act) {
   const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry])];
+  // Bugs that warn (so far only the Pothos's: Cuttings, Sap sprouts, Aerial roots) are checked in act 3
+  if (act === 3) out.bugs = Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id);
   return out;
 }
+// the behaviour words a Bug warns with: those drawn in a hostile colour (src/words.js `color`)
+const warnsWith = (T) => T.vocabulary.filter((w) => ENEMY_WORDS[w]?.props && 'color' in ENEMY_WORDS[w].props);
 // Elite and Boss Shots in flight
 const shotsFlying = () => { const { run } = G(), els = run.elites; return els.bullets.length + els.soapBubbles.length + els.thrown.length + (run.boss?.shots?.length || 0); };
 // each volume showing, with the floor Warning under it (same spot, same fill), if there is one
@@ -5058,7 +5077,7 @@ function volumePairs() {
 function checkAttack(who, name, a) {
   const { APT, batcher, run } = G(), r = {};
   a.start();
-  const boss = who === bossKind() ? run.boss : null, e = boss ? null : eliteOf(who);
+  const boss = who === bossKind() ? run.boss : null, e = boss || a.during ? null : eliteOf(who);
   const programs = APT.renderer.info.programs.length;
   const shows = {
     volume: () => volumePairs().some(([, f]) => f && f.material.progress > 0.05),
@@ -5067,7 +5086,7 @@ function checkAttack(who, name, a) {
     shot: () => shotsFlying() > 0,
   }[a.is];
   // while this attack is the one going (not the next one after it)
-  const during = boss ? () => boss.state === name : () => e.state === 'windup' && ELITE_ATTACKS[who][e.attack] === name;
+  const during = a.during || (boss ? () => boss.state === name : () => e.state === 'windup' && ELITE_ATTACKS[who][e.attack] === name);
   // (an Elite's Shots fly as its attack ends: those count once it has started)
   const now = a.is === 'shot' ? () => started && shows() : () => during() && shows();
   const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
@@ -5088,7 +5107,7 @@ function checkAttack(who, name, a) {
     r.filling = p1.length > 0 && p1.every(([v, f], i) => f && f.parent && v.parent && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]);
   }
   // after the hit: keep it from starting another, let what's in flight land, then nothing shows
-  if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; }
+  if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
   const els = run.elites;
   step(60 * 6, () => !els.blobs.length && !els.balloons.length && !els.rings.length && !shotsFlying());
   step(20);
@@ -5097,7 +5116,7 @@ function checkAttack(who, name, a) {
   return r;
 }
 function everyAttack(act) {
-  const listed = EVERY_ATTACK[act], inGame = attacksInGame(), out = {}, bad = [];
+  const listed = EVERY_ATTACK[act], inGame = attacksInGame(act), out = {}, bad = [];
   for (const [who, names] of Object.entries(inGame)) for (const n of names) if (!listed[who]?.[n]) bad.push(`${who} ${n}: not listed`);
   for (const [who, attacks] of Object.entries(listed)) {
     for (const [name, a] of Object.entries(attacks)) {
@@ -5317,11 +5336,22 @@ act3('pothos-wakes-when-time-runs-out', {
     const onBed = (p) => p.x > A.arenaMin[0] && p.x < A.arenaMax[0] && p.z > A.arenaMin[2] && p.z < A.arenaMax[2] && p.y > 0.55;
     let shelf = false;
     APT.scene.traverse((o) => { if (/^(Pothos|Plush_crocodile)/.test(o.name) && o.isMesh && o.visible) { let v = true; for (let q = o; q; q = q.parent) v &&= q.visible; shelf ||= v; } });
+    // nothing of the apartment's own plant hangs under the shelf any more (its leaves are instances
+    // of meshes shared with plants elsewhere, its trailing strands parts of the shelf)
+    const under = new THREE.Box3(V(-0.95, 1.0, 10.9), V(0.2, 1.77, 11.2)), m4 = new THREE.Matrix4(), at = V(0, 0, 0), hanging = new Set();
+    APT.scene.getObjectByName('Apartment').traverse((o) => {
+      if (!o.isMesh) return;
+      let v = true; for (let q = o; q; q = q.parent) v &&= q.visible;
+      if (!v) return;
+      if (o.isInstancedMesh) {
+        for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m4); if (m4.determinant() !== 0 && under.containsPoint(at.setFromMatrixPosition(m4).applyMatrix4(o.matrixWorld))) hanging.add(o.name); }
+      } else if (under.containsPoint(new THREE.Box3().setFromObject(o).getCenter(at))) hanging.add(o.name);
+    });
     const walls = run.bossWalls.length === 4 && run.bossWalls.every((m) => m.visible);
     const bar = document.querySelector('#hud .boss');
     const named = bar && !bar.hidden && /THE POTHOS/.test(bar.textContent);
-    return ok(B?.constructor.name === 'Pothos' && onBed(P) && pot && onBed(pot) && pot.z > 10.6 && !shelf && walls && named && B.hp === B.maxHp,
-      { boss: B?.constructor.name, player: r3(P), pot: pot && r3(pot), shelf, walls, bar: bar?.textContent, hp: B?.hp });
+    return ok(B?.constructor.name === 'Pothos' && onBed(P) && pot && onBed(pot) && pot.z > 10.6 && !shelf && !hanging.size && walls && named && B.hp === B.maxHp,
+      { boss: B?.constructor.name, player: r3(P), pot: pot && r3(pot), shelf, hanging: [...hanging], walls, bar: bar?.textContent, hp: B?.hp });
   },
 });
 act3('pothos-only-its-heart-takes-damage', {
@@ -5361,6 +5391,22 @@ const vineRings = (B) => B.model.vines.map((v) => {
     rings.push({ c, r: c.distanceTo(verts[0]), verts });
   }
   return rings;
+});
+act3('pothos-pot-sits-on-the-bed', {
+  about: 'The Pothos\'s pot stands on something: under its base the bed (a pillow, or the mattress between them) is right there, nowhere a gap of more than a centimetre under it.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { world } = G();
+    B.holder.updateMatrixWorld(true);
+    const pot = new THREE.Box3().setFromObject(B.model.root.children[0]), base = pot.min.y, c = pot.getCenter(V(0, 0, 0)), gaps = [];
+    for (let k = -1; k < 8; k++) {   // its middle, and round it halfway to its edge
+      const a = (k * Math.PI) / 4, r = k < 0 ? 0 : 0.045, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+      world.focus(V(x, base, z), 1); world._focusAge = Infinity;
+      const h = world.castAll(V(x, base + 0.3, z), V(0, -1, 0), 1), under = h ? base - h.point.y : 1;
+      gaps.push(+Math.max(0, under).toFixed(3));
+    }
+    return ok(gaps.every((g) => g < 0.01), { base: +base.toFixed(3), at: r3(c), gaps });
+  },
 });
 act3('pothos-vines-lie-on-the-bed', {
   about: 'Every trailing vine of the Pothos rises out of its soil, over the pot\'s lip and down its outside, then lies on the bed as it really is: up over the pillows and into the mattress\'s dips, resting on the surface under it within a few millimetres, never below it, never floating, and never through the pot.',
@@ -5691,6 +5737,41 @@ act3('pothos-whip-jumped-clear', {
     return ok(s.hits.length === 1 && s.hits[0] > 0 && s.knocked && s.across < 0.5 && !j.hits.length && !j.knocked, out);
   },
 });
+// how bright the screen is round where `at` shows from the play camera (mean of r, g, b, 0..255), in
+// a square `half` of the screen's height across, drawn without the post effects
+function brightnessRound(at, half = 0.08) {
+  const { APT, batcher } = G(), W = 440, H = 260, rt = new THREE.WebGLRenderTarget(W, H);
+  batcher.sync(); APT.camera.updateMatrixWorld();
+  const p = at.clone().project(APT.camera), cx = Math.round((p.x + 1) / 2 * W), cy = Math.round((p.y + 1) / 2 * H), n = Math.round(half * H);
+  APT.renderer.setRenderTarget(rt); APT.renderer.render(APT.scene, APT.camera); APT.renderer.setRenderTarget(null);
+  const px = new Uint8Array(4 * (2 * n) * (2 * n));
+  APT.renderer.readRenderTargetPixels(rt, cx - n, cy - n, 2 * n, 2 * n, px);
+  rt.dispose();
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) sum += (px[i] + px[i + 1] + px[i + 2]) / 3;
+  return +(sum / (px.length / 4)).toFixed(1);
+}
+act3('pothos-opening-reads-from-the-fight-camera', {
+  about: "The opening after a Vine Whip reads from where you fight, even on a phone: from the fight camera, at the start, the plant round its heart lights up, twice as bright as it is calm, and the heart is clear of the boss bar (a phone's too).",
+  setup() {},
+  play() {
+    const B = pothosFight(), { APT } = G();
+    holdJelly();
+    B.stateT = 1e9;
+    step(150);                                            // the fight view, eased in
+    const calm = brightnessRound(B.center(), 0.15);
+    B.begin('whip');
+    step(60, () => B.struck);
+    step(12);                                             // the leaves parted, the heart flaring
+    const open = brightnessRound(B.center(), 0.15);
+    APT.camera.updateMatrixWorld();
+    // (the boss bar on a phone held sideways, 390 px tall, ends 0.47 down from the top of the screen
+    // in its -1..1 units: lower than here, as the HUD sits lower there)
+    const bar = document.querySelector('#hud .boss').getBoundingClientRect(), barBottom = Math.min(0.47, 1 - (bar.bottom / innerHeight) * 2);
+    const heart = B.center().project(APT.camera).y;
+    return ok(open >= calm * 2 && heart < barBottom - 0.04, { calm, open, ratio: +(open / calm).toFixed(2), heart: +heart.toFixed(2), barBottom: +barBottom.toFixed(2) });
+  },
+});
 act3('pothos-opens-after-each-whip', {
   about: "For about 1.5 s after each Vine Whip the leaves round the heart's hollow push aside and the heart flares: a bubble from in front reaches it. Before, and once they close again, the leaves stop that same shot.",
   setup() {},
@@ -5860,8 +5941,23 @@ act3('pothos-dragonflies-come-once', {
     return ok(again === 0 && !B.shielded && B.state !== 'swarm', { again, shielded: B.shielded, state: B.state });
   },
 });
+act3('camera-fixed-view-fades-what-blocks', cameraStory([], 'Bed_5'));
+act3('camera-fight-view-on-the-bed', {
+  about: 'In the Pothos fight the camera holds its fight view (farther and higher, look.css) all over the bed: same tilt and distance at every spot and heading, no snaps while turning, nothing solid left between it and the jelly (the arena walls and the headboard fade), and no shader built on the spot.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run, tpc } = G();
+    B.stateT = 1e9;                                       // no attacks while it looks round
+    step(150);                                            // the fight view, eased in
+    const A = run.stage.boss, [x0, , z0] = A.arenaMin, [x1, , z1] = A.arenaMax, y = A.playerStart[1] + 0.05;
+    const spots = [[A.playerStart[0], y, A.playerStart[2]], [x0 + 0.1, y, z0 + 0.1], [x1 - 0.1, y, z0 + 0.1], [x0 + 0.1, y, (z0 + z1) / 2], [x1 - 0.1, y, (z0 + z1) / 2], [(x0 + x1) / 2, y, (z0 + z1) / 2]];
+    const view = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
+    const now = cameraTour(spots);
+    return ok(Math.abs(view.d - 0.85) < 0.02 && Math.abs(view.p - Math.PI / 4) < 0.03 && now.moved === 0 && now.blocked === 0 && now.jumps === 0 && now.newShaders === 0 && run.phase === 'boss', { view, ...now });
+  },
+});
 act3('attacks-every-warning-has-volume', {
-  about: 'Every Pothos attack in turn: each Warning shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
+  about: 'Every Pothos attack in turn (Vine Whip, Aerial roots; its Cuttings are their own), then each of its Bugs that warns (a Cutting\'s countdown, a Sap sprout\'s sap lob, an Aerial root\'s drop): each Warning shows its floor shape with its volume over it (a Cutting\'s countdown is a floor circle only), filling together; both go after the hit; none builds a new shader.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() { return everyAttack(3); },
 });

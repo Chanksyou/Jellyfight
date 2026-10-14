@@ -50,8 +50,12 @@ export const STAGE3 = {
   },
 
   // the shelf pothos over the bed comes alive as the boss (pothos.js), and the plushies sit where
-  // its pot stands: both gone for the whole act
-  hide: ['Ornate wall clock', 'Pothos', 'Pothos_planter', 'Plush_crocodile', 'Yellow_plush', 'Red_plush'],
+  // its pot stands: both gone for the whole act. The plant's leaves are instances of two of the
+  // model's shared leaf meshes (Shell_114/115: plants elsewhere use them too), so only the ones
+  // under the shelf go; its trailing strands are parts of the shelf (Floating_shelf_3-5)
+  hide: ['Ornate wall clock', 'Pothos', 'Pothos_planter', 'Plush_crocodile', 'Yellow_plush', 'Red_plush',
+    'Floating_shelf_3', 'Floating_shelf_4', 'Floating_shelf_5',
+    { name: 'Shell_114', within: [[-1.6, 0.9, 10.8], [0.3, 1.85, 11.21]] }, { name: 'Shell_115', within: [[-1.6, 0.9, 10.8], [0.3, 1.85, 11.21]] }],
   noCollide: [],
   fade: {},
   doors: { bath: 'closed', laundry: 'closed', coat: 'closed', bedroom: 'closed', front: 'closed' },
@@ -96,7 +100,10 @@ export const STAGE3 = {
     arenaMin: [-0.95, 0.6, 9.07],
     arenaMax: [0.74, 1.3, 11.3],
     playerStart: [-0.1, 0.7, 9.4],
-    pot: [-0.105, 0.795, 10.82],      // on the pillows, where the plush crocodile sat
+    // between the two pillows, where the plush crocodile sat: the pot stands on the mattress in the
+    // gap between them, nestled in (pothos.js seats it on the lowest surface under its base; y is
+    // only where it looks down from)
+    pot: [-0.15, 0.795, 10.82],
     // round the top of the bed (only there in the fight), a little below the mattress so there's no gap
     walls: [
       { min: [-0.99, 0.55, 9.03], max: [-0.95, 1.3, 11.34] },   // west, by the bassinet

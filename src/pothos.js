@@ -266,6 +266,20 @@ function layVine(world, at, box, a, len, k, given = null) {
   return { pts, drapeFrom };
 }
 
+// Where the pot's base rests at `at` (x, z; y is where to look down from): on the lowest of the
+// surface under its base (sunk into the pillows round it, never over a gap between them)
+function seat(world, at) {
+  if (!world) return at;
+  const rb = POT_RB * SCALE, top = at.y + 0.3;
+  let y = Infinity;
+  for (let k = 0; k < 17; k++) {
+    const r = k === 0 ? 0 : k <= 8 ? rb * 0.5 : rb * 0.9, a = (k * Math.PI) / 4;
+    const h = surfaceAt(world, at.x + Math.cos(a) * r, at.z + Math.sin(a) * r, top);
+    if (h != null) y = Math.min(y, h);
+  }
+  return y < Infinity ? at.setY(y) : at;
+}
+
 // the plant in its own frame: the pot's base at the origin, facing -z (the foot of the bed).
 // world/at/arena: where it stands, to lay its vines on the real bed (none without a world)
 function buildPothos(world, at, arena) {
@@ -305,7 +319,8 @@ function buildPothos(world, at, arena) {
       const { pts, drapeFrom } = layVine(world, at, box, a, len, k);
       const v = new Vine(pts, VINE_R, P.vineMat, VINE_TAPER);
       v.drapeFrom = drapeFrom; v.angle = a;
-      for (let j = 0; j < 11; j++) v.leaves.push({ t: 0.2 + 0.8 * (j + R() * 0.6) / 11, side: j % 2 ? 1 : -1, size: 0.07 * (0.7 + R() * 0.5), tilt: R() });
+      for (let j = 0; j < 11; j++) v.leaves.push({ t: 0.08 + 0.92 * (j + R() * 0.6) / 11,   // (from just past the lip: leafy over it, not a bare cage)
+        side: j % 2 ? 1 : -1, size: 0.07 * (0.7 + R() * 0.5), tilt: R() });
       vines.push(v);
       root.add(v.mesh);
     }
@@ -500,14 +515,19 @@ export class Pothos {
     this.angryGlow = new THREE.Color(LOOK.color('pothos-heart-angry-halo', '#ff8a2a')); this.angryEmissive = new THREE.Color(LOOK.color('pothos-heart-angry', '#c8460e'));
     this.calmLeaf = new THREE.Color('#071405'); this.angryLeaf = new THREE.Color(LOOK.color('pothos-leaf-angry', '#220902'));   // and its leaves smoulder with each beat
     this.rage = 0; this.beatT = 0; this.wasAngry = false;
-    this.model = buildPothos(world, V(...arena.pot), arena);
+    // the opening, made to read from the fight camera (look.css): the heart swells and its glow
+    // spreads, and the leaves round it light up with it
+    this.openLeaf = new THREE.Color(LOOK.color('pothos-leaf-open', '#3b5a0a'));
+    this.openGrow = LOOK.num('pothos-open-grow', 0.4); this.openHalo = LOOK.num('pothos-open-halo', 0.5);
+    const at = seat(world, V(...arena.pot));
+    this.model = buildPothos(world, at, arena);
     this.model.heart.material.emissive.copy(this.calmEmissive);   // (shared: a past fight may have left it angry)
     this.model.leaves.material.emissive.copy(this.calmLeaf);
     placeLeaves(this.model);
     // the fight view (camera.js, run.js): back and up from the jelly's, to keep the heart in frame
     this.camera = { distance: LOOK.num('pothos-camera-distance', 0.85), pitch: LOOK.num('pothos-camera-tilt', 0.785), ahead: LOOK.num('pothos-camera-ahead', 0.65) };
     this.holder = new THREE.Group();
-    this.holder.position.set(...arena.pot);
+    this.holder.position.copy(at);
     this.holder.add(this.model.root);
     this.model.root.scale.setScalar(0.001);
     scene.add(this.holder);
@@ -594,7 +614,7 @@ export class Pothos {
     M.heart.material.emissive.copy(this.calmEmissive).lerp(this.angryEmissive, this.rage);
     this.beatT += dt * (4 + this.rage * 3);
     const beat = Math.max(0, Math.sin(this.beatT)) ** 4, open = this.open;
-    M.leaves.material.emissive.copy(this.calmLeaf).lerp(this.angryLeaf, this.rage * (0.4 + beat * 0.6));
+    M.leaves.material.emissive.copy(this.calmLeaf).lerp(this.angryLeaf, this.rage * (0.4 + beat * 0.6)).lerp(this.openLeaf, open * (0.75 + beat * 0.25));
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 5);
     // shielded, the lids fold shut over the heart and it dims behind them; they open again after
     const shut = this.shielded ? 1 : 0;
@@ -603,9 +623,9 @@ export class Pothos {
       if (Math.abs(shut - M.close) < 0.01) M.close = shut;
       placeLeaves(M, this.open, false);  // only while they move
     }
-    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * 0.12));
-    M.heart.material.emissiveIntensity = (0.3 + beat * 0.15 + open * 0.6) * (1 - M.close * 0.75);
-    this.fx.glow.hold(this.center(this._heart), this.glowColor, (0.14 * (0.8 + beat * 0.3) + open * 0.2) * (1 - M.close * 0.6), (0.6 + open * 0.3) * (1 - M.close * 0.7));
+    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * this.openGrow));
+    M.heart.material.emissiveIntensity = (0.3 + beat * 0.15 + open * 0.8) * (1 - M.close * 0.75);
+    this.fx.glow.hold(this.center(this._heart), this.glowColor, (0.14 * (0.8 + beat * 0.3) + open * this.openHalo) * (1 - M.close * 0.6), (0.6 + open * 0.4) * (1 - M.close * 0.7));
     M.root.rotation.z = this.state === 'cutting' ? Math.sin(this.t * 40) * 0.02 : 0;   // shivering, flinging Cuttings
     // its attacks, in turn
     const SW = this.def.skills.swarm;

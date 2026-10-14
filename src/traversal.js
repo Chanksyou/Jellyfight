@@ -15,9 +15,29 @@ function meshesNamed(scene, name) {
   return [...out];
 }
 
+// Hide part of an instanced mesh: the instances standing inside the box [min, max] (world m)
+// shrink to nothing; the rest stay (the model's instanced leaves are shared by plants all over)
+const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), NONE = new THREE.Matrix4().makeScale(0, 0, 0);
+function hideWithin(m, [min, max]) {
+  if (!m.isInstancedMesh) { m.visible = false; m.userData.noCollide = true; return; }
+  m.updateWorldMatrix(true, false);
+  for (let i = 0; i < m.count; i++) {
+    m.getMatrixAt(i, _m);
+    _p.setFromMatrixPosition(_m).applyMatrix4(m.matrixWorld);
+    if (_p.x >= min[0] && _p.x <= max[0] && _p.y >= min[1] && _p.y <= max[1] && _p.z >= min[2] && _p.z <= max[2]) m.setMatrixAt(i, NONE);
+  }
+  m.instanceMatrix.needsUpdate = true;
+  m.computeBoundingSphere();
+}
+
 // Call before building the collision world
 export function prepareApartment(apt, stage) {
-  for (const name of stage.hide || []) meshesNamed(apt.scene, name).forEach((m) => { m.visible = false; m.userData.noCollide = true; });   // replaced by something of the game's own
+  // replaced by something of the game's own: a name, or { name, within: [min, max] } for only
+  // the instances of an instanced mesh inside that box
+  for (const h of stage.hide || []) {
+    if (typeof h === 'string') meshesNamed(apt.scene, h).forEach((m) => { m.visible = false; m.userData.noCollide = true; });
+    else meshesNamed(apt.scene, h.name).forEach((m) => hideWithin(m, h.within));
+  }
   for (const name of stage.noCollide || []) meshesNamed(apt.scene, name).forEach((m) => { m.userData.noCollide = true; });
   for (const [name, opacity] of Object.entries(stage.fade || {})) {
     meshesNamed(apt.scene, name).forEach((m) => {

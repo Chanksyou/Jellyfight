@@ -222,7 +222,8 @@ export function blastHits(centre, r, feet, body) {
 }
 
 // ------------------------------------------------------------------ shots
-// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading;
+// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading
+// (the one named exception: the Pothos's Vine Whip leads by about 0.5 s, docs/adr/0001);
 // or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
 // volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
 // The two volley heights (m above the floor), shared by every volley that mixes them: the

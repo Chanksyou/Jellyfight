@@ -58,7 +58,7 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.04 dmg=2 xp=9 model="ladybug" {
     sortie circle=0.3 height=0.12 speed=0.5 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=5
 }
 
-// Act 3 (the bedroom, not built yet, so it's in no wave yet): the dragonfly. It never flies straight
+// Act 3 (the bedroom, from the start of the night): the dragonfly. It never flies straight
 // at you: it hangs in the air, then darts off a short way in some new direction, zigzagging in.
 // Within reach it turns to face you and holds dead still for 2 s, charging; the only warning is a
 // whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
@@ -69,7 +69,7 @@ enemy "dragonfly" name="Dragonfly" hp=45 r=0.04 dmg=1 xp=8 model="dragonfly" {
     evade every=5 distance=0.25 speed=2.2
 }
 
-// Act 3 (in no wave yet): the praying mantis stalks after you on four legs, its forelegs folded.
+// Act 3 (from 0:45): the praying mantis stalks after you on four legs, its forelegs folded.
 // Up close it rears up, forelegs raised and opened (that's the only warning: nothing on the floor),
 // then lunges and snaps them shut across a wedge in front of it, reaching a little farther than a
 // house fly's poke.
@@ -91,7 +91,7 @@ enemy "worm" name="Horsehair worm" hp=80 r=0.05 dmg=1 xp=8 model="worm" {
     whip range=0.26 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
 }
 
-// Act 3 (in no wave yet): the wasp nest, a grey paper teardrop stuck to a wall or the side of
+// Act 3 (from 1:30, src/stage3.js nests): the wasp nest, a grey paper teardrop stuck to a wall or the side of
 // furniture in the bedroom (src/stage3.js lists where). It never moves; every 5 s a wasp crawls
 // out of the entrance at its bottom. Destroy it to stop them.
 enemy "nest" name="Wasp nest" hp=150 r=0.025 dmg=1 xp=15 model="nest" {

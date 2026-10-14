@@ -41,6 +41,9 @@
   --pothos-heart-angry: #c8460e; /* its emissive once it's angry (below 45% Health): burning hot */
   --pothos-heart-angry-halo: #ff8a2a; /* the glow round it then */
   --pothos-leaf-angry: #220902;  /* its leaves' smoulder then, with each heartbeat */
+  --pothos-leaf-open: #3b5a0a;   /* its leaves light up green-gold while they're parted after a Vine Whip (the opening) */
+  --pothos-open-grow: 0.4;       /* how much bigger the heart swells then */
+  --pothos-open-halo: 0.5;       /* how far its glow spreads then (m, before the plant's scale) */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
   /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.
@@ -116,5 +119,5 @@
      steep, so its heart, up in its leaves on the pillows, stays in frame from the bed */
   --pothos-camera-distance: 0.85;  /* meters behind the jelly */
   --pothos-camera-tilt: 0.785;     /* radians down from level (45 degrees) */
-  --pothos-camera-ahead: 0.65;     /* meters ahead of the jelly it aims: the heart in frame, the jelly low in it */
+  --pothos-camera-ahead: 0.8;      /* meters ahead of the jelly it aims: the heart in frame below the boss bar (a phone's too), the jelly low in it */
 }
