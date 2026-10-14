@@ -602,7 +602,7 @@ function endContinue() {
   overlay.classList.remove('cont');
   titleEl.textContent = 'Jelly Fight';
 }
-// Stories (stories.js): index.html?story=<name> opens one live; index.html?stories lists them
+// Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 warmUp().then(() => {
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up

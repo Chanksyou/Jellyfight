@@ -13,7 +13,7 @@
 // Flying words move the bug themselves and set `fly`.
 //
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
-// and add a story (src/stories.js) that proves it.
+// and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();

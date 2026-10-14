@@ -1,4 +1,4 @@
-// Plays every story (src/stories.js) headlessly in the real game, plus a phone check, and
+// Plays every story (src/stories/, entry src/stories.js) headlessly in the real game, plus a phone check, and
 // fails if any story fails or the page logs an error.
 //
 //   node tests/run.mjs                 everything

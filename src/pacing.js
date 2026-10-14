@@ -10,7 +10,7 @@
 // iPhone, or a claude.ai frame before its first tap, both run at a steady 30 fps). So every step
 // down is a probe: if the frames didn't get faster, the slowness wasn't ours to fix, the step is
 // undone and that frame time becomes the target. Pure logic, fed frame intervals, so stories can
-// drive it with made-up numbers (stories.js: engine/governor-*).
+// drive it with made-up numbers (src/stories/main-screen-modes-engine.js: engine/governor-*).
 
 export class FramePacer {
   constructor({ fps = 0, menuFps = 0 } = {}) {

@@ -37,7 +37,8 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    bug words, `treasures/<name>` for treasure words). Never branch on an id in code
    (`if (e.type === 'roach')`, `owned.has('candle')`). If existing words can say it, use them:
    a new treasure is often just a new combination, e.g. `every 3 { ring 0.1 freeze=1 }`.
-2. **Prove it with a story.** `src/stories.js` holds named situations in the real game; each
+2. **Prove it with a story.** `src/stories/<area>.js` hold named situations in the real game (shared
+   helpers in `src/stories/kit.js`; `src/stories.js` loads the areas in order); each
    `play()` steps the game and asserts what should happen. Add or update a story for every
    behaviour you change. While you work, run just the stories for what you're touching. Before
    you push `main`:
@@ -52,7 +53,7 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    cd tests && npm install && npx playwright install chromium   # once
    node tests/run.mjs            # everything
    node tests/run.mjs elites     # just stories whose name contains "elites"
-   # a story with `act: 2` (act2/... in stories.js) plays in a second page opened on act 2;
+   # a story with `act: 2` (act2/... in src/stories/act2.js) plays in a second page opened on act 2;
    # one with `phone: true` (phone/...) in a page that looks like a phone
    ```
 

@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { ROOT } from './lib.mjs';
 
 let bad = 0;
-const files = ['src', 'tests', 'tools', 'worker'].flatMap((d) => {
+const files = ['src', 'src/stories', 'tests', 'tools', 'worker'].flatMap((d) => {
   const dir = path.join(ROOT, d);
   return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /\.(m?js)$/.test(f)).map((f) => path.join(dir, f)) : [];
 });

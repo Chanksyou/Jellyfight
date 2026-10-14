@@ -47,7 +47,7 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 - **`content/treasures.kdl`**: all 102 treasures, each a name, icon, text and effect words (and `stack=N` for stackable ones, or `level 2 text="…" { … }` / `level 3 …` blocks for ones that level up), e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1 push=0.035 }`. A new treasure that combines existing effects needs no code.
 - **`content/look.css`**: colours and render numbers: the night fill, haze, bloom, the jelly's size, colour, glow and light, how much enemies glow, gut colours, the camera, and how often and how sharp the game draws (frame-rate cap, pixel ratio range, how many lamps a phone lights at once).
 
-**Stories** (`src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
+**Stories** (`src/stories/<area>.js`, shared helpers in `src/stories/kit.js`, loaded in order by `src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/curl-dash` opens one live (on a phone too), `index.html?stories` lists them all. Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error. Setup: `cd tests && npm install && npx playwright install chromium`.
 
 **The balance bot** (`node tests/balance.mjs 5`) plays whole nights on autopilot and reports how long it lasted, its level and kills, whether it beat the boss, and which sources took its Health. Run it before and after anything that could make the game harder or easier.
 
@@ -112,7 +112,7 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms. It drops e
 | `content/*.kdl`, `content/look.css` | What things are (bugs, waves) and how they look. See "Changing the game". |
 | `src/words.js` | The vocabulary: bug behaviours (`ENEMY_WORDS`), treasure effects (`TREASURE_WORDS`, `TIMED_WORDS`), each word once with its doc, arguments and settings. |
 | `src/content.js`, `src/kdl.js`, `src/look.js` | Load and check the content files before the game starts. |
-| `src/stories.js`, `tests/run.mjs` | Named situations that prove behaviour; the headless runner. |
+| `src/stories.js`, `src/stories/`, `tests/run.mjs` | Named situations that prove behaviour; the headless runner. |
 | `src/main.js` | Wires everything up: pause menu, mode switching (play, creator, layout), and the frame loop, which only works out dt and calls each system's `update` in order. |
 | `src/systems.js` | The per-frame systems: clock (dt clamp, hit-stop), gameplay, layout editor, touch controls, idle avatar, input, camera (follow, creator orbit, shake), blob shadow, HUD, debug readout, render. |
 | `src/events.js` | The event bus (synchronous `on`/`emit`) and the event list. Systems don't change each other's data: attacks emit `damage_taken`, `status_applied` and `knockback` with a target id (`'player'` or an enemy's id); enemies.js and run.js own the HP, status and position they apply to, and announce `enemy_hit`, `enemy_frozen`, `enemy_killed`, `elite_defeated` and `boss_health`. |
