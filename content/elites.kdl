@@ -6,35 +6,35 @@
 // pace is every elite's tempo: rest between attacks runs down recover× as fast, and each
 // attack plays tempo× as fast.
 
-pace recover=1.4 tempo=1.15
+pace recover=1.2 tempo=1.2
 
-elite "controller" name="The Controller" hp=195 aggro=0.7 {
-    barrage dmg=2
+elite "controller" name="The Controller" hp=250 aggro=0.9 {
+    barrage dmg=3
     rumble dmg=3
 }
 
-elite "mug" name="The Mug" hp=220 aggro=0.8 {
-    coffee dmg=2 lobs=2 drain=1.5
-    spill puddles=4
+elite "mug" name="The Mug" hp=250 aggro=0.8 {
+    coffee dmg=3 lobs=3 drain=1.5
+    spill puddles=6
 }
 
-elite "kettle" name="The Kettle" hp=275 aggro=0.6 {
-    steam dmg=2
-    boil dmg=2 drops=4
+elite "kettle" name="The Kettle" hp=275 aggro=0.8 {
+    steam dmg=3
+    boil dmg=3 drops=6
 }
 
-elite "soap" name="The Soap Dispenser" hp=310 aggro=0.7 angry=0.5 {
-    squirt dmg=2 count=3 angryCount=4
-    ring dmg=2 rings=1 angryRings=2
+elite "soap" name="The Soap Dispenser" hp=500 aggro=0.8 angry=0.75 {
+    squirt dmg=4 count=6 angryCount=6
+    ring dmg=3 rings=2 angryRings=3
 }
 
-elite "clock" name="The Wall Clock" hp=390 aggro=0.55 angry=0.5 {
-    sweep dmg=3
-    wreath dmg=2
-    hour dmg=2 chimes=3
+elite "clock" name="The Wall Clock" hp=450 aggro=0.75 angry=0.65 {
+    sweep dmg=4
+    wreath dmg=4
+    hour dmg=4 chimes=6
 }
 
-elite "whipper" name="The Cream Whipper" hp=340 aggro=0.75 angry=0.5 {
-    balloon dmg=2 count=1 angryCount=2 fuse=3 muffle=5
-    cream dmg=2 slow=1.5
+elite "whipper" name="The Cream Whipper" hp=450 aggro=0.75 angry=0.65 {
+    balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
+    cream dmg=3 slow=2
 }

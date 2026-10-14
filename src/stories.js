@@ -2399,9 +2399,9 @@ story('dev/balance-editor', {
     const fr3 = S().fireRate;
     const bossDmg2 = CONTENT.bosses.vacuum.skills.charge.dmg;
     const restored = !isRemoved('elite', 'mug') && !isRemoved('card', 'health')
-      && CONTENT.elites.mug.skills.coffee.dmg === 2 && xpToNext(2) === xp0 && CONTENT.levelups.cards.bubbleDamage.amounts[1] === card0;
+      && CONTENT.elites.mug.skills.coffee.dmg === 3 && xpToNext(2) === xp0 && CONTENT.levelups.cards.bubbleDamage.amounts[1] === card0;
     return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25 && bossDmg0 === 4 && bossDmg1 === 9 && bossDmg2 === 4
-      && mugDmg0 === 2 && mugDmg1 === 5 && xp0 === 4 && xp1 === 6 && card0 === 2 && card1 === 4 && mugRemoved && !healthOffered && restored,
+      && mugDmg0 === 3 && mugDmg1 === 5 && xp0 === 4 && xp1 === 6 && card0 === 2 && card1 === 4 && mugRemoved && !healthOffered && restored,
       { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2, mugDmg0, mugDmg1, xp0, xp1, card0, card1, mugRemoved, healthOffered, restored });
   },
 });
@@ -2545,12 +2545,12 @@ story('elites/mug-coffee-warning-has-volume', {
   },
 });
 story('elites/mug-coffee-blast-hits-standing-jelly', {
-  about: 'A jelly standing where the coffee lands is hit by its Blast (2 Health).',
+  about: 'A jelly standing where the coffee lands is hit by its Blast (3 Health).',
   setup() { startCoffeeLob(); },
   play() {
     const hits = coffeeHits(), b = firstCoffee();
     step(200, () => !G().run.elites.blobs.includes(b));
-    return ok(hits.length >= 1 && hits[0].amount === 2, { hits: hits.map((h) => h.amount) });
+    return ok(hits.length >= 1 && hits[0].amount === 3, { hits: hits.map((h) => h.amount) });
   },
 });
 story('elites/mug-coffee-blast-jumped-clear', {
@@ -2787,7 +2787,7 @@ story('elites/kettle-steam-warning-has-cone', {
   },
 });
 story('elites/kettle-steam-hits-inside-the-cone-even-mid-jump', {
-  about: "A jelly in the air inside the steam cone is still hit (2, source kettle); one beside the cone on the counter isn't.",
+  about: "A jelly in the air inside the steam cone is still hit (3, source kettle); one beside the cone on the counter isn't.",
   setup() { startKettle(0); },
   play() {
     const hits = kettleHits();
@@ -2802,11 +2802,11 @@ story('elites/kettle-steam-hits-inside-the-cone-even-mid-jump', {
     const before = hits.length;
     step(10);
     const beside = hits.length - before;
-    return ok(inside >= 1 && hits[0].amount === 2 && beside === 0, { inside, beside });
+    return ok(inside >= 1 && hits[0].amount === 3 && beside === 0, { inside, beside });
   },
 });
 story('elites/kettle-steam-jumped-over-near-the-spout', {
-  about: "Near the spout the steam cone is low (it rises as it spreads): a jelly 5 cm out from the spout with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (2).",
+  about: "Near the spout the steam cone is low (it rises as it spreads): a jelly 5 cm out from the spout with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (3).",
   setup() { startKettle(0); },
   play() {
     const hits = kettleHits();
@@ -2821,7 +2821,7 @@ story('elites/kettle-steam-jumped-over-near-the-spout', {
     player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.01);
     step(10);
     const inside = hits.length - h0 - above;
-    return ok(above === 0 && inside >= 1 && hits.every((h) => h.amount === 2), { above, inside });
+    return ok(above === 0 && inside >= 1 && hits.every((h) => h.amount === 3), { above, inside });
   },
 });
 const firstDrop =() => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
@@ -2843,13 +2843,13 @@ story('elites/kettle-drop-warning-has-volume', {
   },
 });
 story('elites/kettle-drop-hits-standing-jelly', {
-  about: 'A jelly standing in a boiling drop\'s circle is hit by its Blast (2 Health).',
+  about: 'A jelly standing in a boiling drop\'s circle is hit by its Blast (3 Health).',
   setup() { startKettle(1); },
   play() {
     const hits = kettleHits(), b = firstDrop();
     holdJelly().position.copy(b.to);
     step(200, () => !G().run.elites.blobs.includes(b));
-    return ok(hits.length >= 1 && hits[0].amount === 2, { hits: hits.map((h) => h.amount) });
+    return ok(hits.length >= 1 && hits[0].amount === 3, { hits: hits.map((h) => h.amount) });
   },
 });
 story('elites/kettle-drop-jumped-clear', {
@@ -3300,12 +3300,12 @@ story('elites/hud-health-bar', {
 });
 
 story('elites/tougher-and-quicker', {
-  about: 'Elites have about 30% more health than before (the Mug: 220 in act 1) and rest 1.4x quicker between attacks: a 1.4 s rest is over in 1 s.',
+  about: 'Elites have their file Health in act 1 (the Mug: 250) and rest 1.2x quicker between attacks (Elite pace): a 1.2 s rest is over in 1 s.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() {
     const { run } = G(), mug = run.elites.list.find((e) => e.kind === 'mug');
-    const hp = mug?.maxHp === Math.round(220 * (run.elites.hpScale || 1));
-    mug.cool = 1.4;
+    const hp = mug?.maxHp === Math.round(250 * (run.elites.hpScale || 1));
+    mug.cool = 1.2;
     step(60);
     return ok(hp && Math.abs(mug.cool) < 0.03, { maxHp: mug?.maxHp, cool: +mug.cool.toFixed(3) });
   },
@@ -3863,7 +3863,7 @@ act2('soap-dispenser-stands-in', {
   },
 });
 act2('soap-dispenser-squirt', {
-  about: 'Soap squirt: it pumps three times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 2 and leaves a slick that makes you slip.',
+  about: 'Soap squirt: it pumps six times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 4 and leaves a slick that makes you slip.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -3874,11 +3874,11 @@ act2('soap-dispenser-squirt', {
       if (run.slipT > 0) slipped = true;
     });
     const hits = log.filter((d) => d.source === 'soap');
-    return ok(circles >= 1 && hits.length >= 1 && hits[0].amount === 2 && slicks >= 1 && slipped, { circles, hits: hits.map((d) => d.amount), slicks, slipped });
+    return ok(circles >= 1 && hits.length >= 1 && hits[0].amount === 4 && slicks >= 1 && slipped, { circles, hits: hits.map((d) => d.amount), slicks, slipped });
   },
 });
 act2('soap-dispenser-bubble-ring', {
-  about: 'Bubble ring: it foams up while a pink ring fills round it, then lets go a ring of soap bubbles drifting outward with one gap to slip through. They all pop before long.',
+  about: 'Bubble ring: it foams up while a pink ring fills round it, then lets go two rings of soap bubbles drifting outward, each with one gap to slip through. They all pop before long.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = soapElite(), dirs = [], bub = run.elites.bubble.bind(run.elites);
@@ -3886,28 +3886,28 @@ act2('soap-dispenser-bubble-ring', {
     let warned = false;
     step(60 * 4, () => { if (e.state === 'windup' && e.tele.length) warned = true; });
     if (!dirs.length) return ok(false, { warned, bubbles: 'none' });
-    const angles = dirs.sort((a, b) => a - b);
+    const angles = dirs.slice(0, 16).sort((a, b) => a - b);   // the first ring's bubbles
     // the widest gap between neighbouring bubbles (going round) is the way through
     const gaps = angles.map((a, i) => (i ? a - angles[i - 1] : a + Math.PI * 2 - angles.at(-1)));
     const widest = Math.max(...gaps) * 180 / Math.PI;
-    return ok(warned && angles.length === 16 && widest > 50 && run.elites.soapBubbles.length === 0, { warned, count: angles.length, widest: Math.round(widest), left: run.elites.soapBubbles.length });
+    return ok(warned && dirs.length === 32 && angles.length === 16 && widest > 50 && run.elites.soapBubbles.length === 0, { warned, count: dirs.length, widest: Math.round(widest), left: run.elites.soapBubbles.length });
   },
 });
 act2('soap-dispenser-angry', {
-  about: 'Under half health the Soap Dispenser is angry: four squirts instead of three, each landing as a floor Blast, and a second bubble ring right after the first, both mixing floor-level and jump-height bubbles.',
+  about: 'Under its angry threshold the Soap Dispenser pumps faster, each glob landing as a floor Blast, and lets go three bubble rings instead of two, each mixing floor-level and jump-height bubbles.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
     let globs = 0, domes = 0, bubbles = 0;
-    const heights = [0, 0].map(() => ({ low: 0, high: 0 }));
+    const heights = [0, 0, 0].map(() => ({ low: 0, high: 0 }));
     const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
     stub(run.elites, 'lob', (...a) => { globs++; if (a[7]?.dome) domes++; return lob(...a); });
-    stub(run.elites, 'bubble', (from, ...a) => { heights[bubbles++ < 16 ? 0 : 1][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
+    stub(run.elites, 'bubble', (from, ...a) => { heights[Math.min(2, bubbles++ >> 4)][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
     e.cool = 0; e.next = 1;
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
     const mixed = heights.every((h) => h.low === 8 && h.high === 8);
-    return ok(globs === 4 && domes === 4 && bubbles === 32 && mixed, { globs, domes, bubbles, heights });
+    return ok(globs === 6 && domes === 6 && bubbles === 48 && mixed, { globs, domes, bubbles, heights });
   },
 });
 // --- 3D attacks: each soap glob lands as a floor Blast (a 4 cm half sphere over its pink circle),
@@ -3939,7 +3939,7 @@ act2('soap-squirt-warning-has-volume', {
   },
 });
 act2('soap-squirt-hits-standing-not-jumping', {
-  about: "A jelly standing where a soap glob lands is hit by its Blast (2 Health); one in the air just above its 4 cm half sphere isn't.",
+  about: "A jelly standing where a soap glob lands is hit by its Blast (4 Health); one in the air just above its 4 cm half sphere isn't.",
   setup() { startSoap(0); },
   play() {
     const { run } = G(), hits = soapHits(), b1 = firstGlob();
@@ -3953,7 +3953,7 @@ act2('soap-squirt-hits-standing-not-jumping', {
     player.position.set(b2.to.x, b2.to.y + 0.05, b2.to.z); player.grounded = false;   // feet 5 cm up: above a 4 cm dome
     step(30, () => !run.elites.blobs.includes(b2));
     const jumping = hits.length - standing;
-    return ok(standing === 1 && hits[0].amount === 2 && jumping === 0, { standing, jumping, amount: hits[0]?.amount });
+    return ok(standing === 1 && hits[0].amount === 4 && jumping === 0, { standing, jumping, amount: hits[0]?.amount });
   },
 });
 // let a ring go, then put the jelly 20 cm out in the path of one low and one high bubble in turn
@@ -3961,7 +3961,9 @@ function bubbleVsJelly(jump) {
   const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble'), out = {};
   const floor = e.base.y, toYou = Math.atan2(player.position.x - e.base.x, player.position.z - e.base.z);
   for (const kind of ['low', 'high']) {
-    e.state = 'idle'; e.next = 1; e.cool = 0; e.rings = 0; e.clearTele();
+    e.state = 'idle'; e.next = 1; e.cool = 99; e.rings = 0; e.clearTele();   // held back until the room is clear of the last phase's bubbles (a ring attack now lets go two rings, which linger)
+    step(400, () => !run.elites.soapBubbles.length);
+    e.cool = 0;
     player.position.set(e.base.x + Math.sin(toYou) * 0.12, floor, e.base.z + Math.cos(toYou) * 0.12); player.grounded = true;
     step(400, () => run.elites.soapBubbles.length > 0);
     // the bubble of this height drifting nearest the open vanity (where you stood)
@@ -3972,7 +3974,7 @@ function bubbleVsJelly(jump) {
     const dir = b.v.clone().normalize();
     player.position.set(e.base.x + dir.x * 0.2, floor + (jump ? JUMP_FEET : 0), e.base.z + dir.z * 0.2); player.grounded = !jump;
     const h0 = hits.length;
-    step(150, () => !run.elites.soapBubbles.length);
+    step(150, () => hits.length > h0 || !run.elites.soapBubbles.includes(b));
     out[kind] = hits.length - h0;
   }
   return out;
@@ -4058,7 +4060,7 @@ act2('clock-can-be-hit', {
   },
 });
 act2('clock-sweeping-hands', {
-  about: 'Sweeping hands: a half circle fills on the bench while the hands whirl, then a golden hand sweeps across it for 3. In a far front corner of the bench it can\'t reach you.',
+  about: 'Sweeping hands: a half circle fills on the bench while the hands whirl, then a golden hand sweeps across it for 4. In a far front corner of the bench it can\'t reach you.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
   play() {
     const sweep = (x, z) => {
@@ -4070,19 +4072,19 @@ act2('clock-sweeping-hands', {
       return { warned, swept, hits: log.filter((d) => d.source === 'clock').map((d) => d.amount) };
     };
     const mid = sweep(2.0, 7.42), corner = sweep(2.14, 7.08);
-    return ok(mid.warned && mid.swept && mid.hits[0] === 3 && corner.swept && !corner.hits.length, { mid, corner });
+    return ok(mid.warned && mid.swept && mid.hits[0] === 4 && corner.swept && !corner.hits.length, { mid, corner });
   },
 });
 act2('clock-wreath-boomerang', {
-  about: 'Victory\'s wreath: a line on the bench shows where she\'ll throw it, then the wreath flies out along it and comes back to her hand: 2 if it catches you.',
+  about: 'Victory\'s wreath: a line on the bench shows where she\'ll throw it, then the wreath flies out along it and comes back to her hand: 4 if it catches you.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
   play() {
     const { run } = G(), e = hallClock(), log = record('damage_taken');
     step(90); e.cool = 0; e.next = 1;
     let warned = false, flew = false;
-    step(60 * 4, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle'; });
+    step(60 * 6, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle' && e.model.wreath.visible; });   // 6 s: at Elite pace recover 1.2 the rest before it plus its 0.5 s-each-way flight outlast the old 4
     const hits = log.filter((d) => d.source === 'clock-wreath').map((d) => d.amount);
-    return ok(warned && flew && hits[0] === 2 && e.model.wreath.visible && !run.elites.thrown.length, { warned, flew, hits, back: e.model.wreath.visible });
+    return ok(warned && flew && hits[0] === 4 && e.model.wreath.visible && !run.elites.thrown.length, { warned, flew, hits, back: e.model.wreath.visible });
   },
 });
 act2('clock-strikes-the-hour', {
@@ -4152,7 +4154,7 @@ act2('clock-sweep-warning-has-volume', {
   },
 });
 act2('clock-sweep-jumped-clear', {
-  about: "A jelly standing in the sweeping hand's path is hit (3), and so is one barely off the bench (feet 1 cm up, still in its 2 cm volume); one in the air over it (feet 5 cm up) isn't.",
+  about: "A jelly standing in the sweeping hand's path is hit (4), and so is one barely off the bench (feet 1 cm up, still in its 2 cm volume); one in the air over it (feet 5 cm up) isn't.",
   setup() { startClock(0); },
   play() {
     const out = {};
@@ -4164,11 +4166,11 @@ act2('clock-sweep-jumped-clear', {
       out[name] = { swept, hits: hits.map((h) => h.amount) };
     }
     const { standing: s, hopping: h, jumping: j } = out;
-    return ok(s.swept && s.hits[0] === 3 && h.swept && h.hits[0] === 3 && j.swept && !j.hits.length, out);
+    return ok(s.swept && s.hits[0] === 4 && h.swept && h.hits[0] === 4 && j.swept && !j.hits.length, out);
   },
 });
 act2('clock-wreath-flies-at-jump-height', {
-  about: "Victory's wreath is a Shot aimed at the jelly's middle where it is, mid-jump included: its line tilts from her hand to that height and the wreath hits a jelly held mid-jump (2 going out and 2 coming back); if that jelly drops to the bench after the aim locks, the wreath flies through where its middle was, over it.",
+  about: "Victory's wreath is a Shot aimed at the jelly's middle where it is, mid-jump included: its line tilts from her hand to that height and the wreath hits a jelly held mid-jump (4 going out and 4 coming back); if that jelly drops to the bench after the aim locks, the wreath flies through where its middle was, over it.",
   setup() { startClock(1); },
   play() {
     const out = {};
@@ -4189,11 +4191,11 @@ act2('clock-wreath-flies-at-jump-height', {
       out[drop ? 'dropped' : 'midJump'] = { line: end ? +(end.y - bench).toFixed(3) : null, closest: peak && +peak.d.toFixed(3), atY: peak && +(peak.y - bench).toFixed(3), hits: hits.map((h) => h.amount), back: e.model.wreath.visible };
     }
     const m = out.midJump, d = out.dropped, high = (y) => y != null && Math.abs(y - (JUMP_FEET + CONFIG.player.height * 0.5)) < 0.01;
-    return ok(high(m.line) && m.hits.length === 2 && m.hits.every((h) => h === 2) && m.back && high(d.line) && d.closest < 0.01 && !d.hits.length && d.back, out);
+    return ok(high(m.line) && m.hits.length === 2 && m.hits.every((h) => h === 4) && m.back && high(d.line) && d.closest < 0.01 && !d.hits.length && d.back, out);
   },
 });
 act2('clock-wreath-hits-going-out-and-coming-back', {
-  about: "Victory's wreath hits a jelly that stays where she threw it twice, 2 each: once going out and once coming back, never twice on the same leg.",
+  about: "Victory's wreath hits a jelly that stays where she threw it twice, 4 each: once going out and once coming back, never twice on the same leg.",
   setup() { startClock(1); },
   play() {
     const e = hallClock(), run = G().run, hits = [];
@@ -4201,11 +4203,11 @@ act2('clock-wreath-hits-going-out-and-coming-back', {
     let flew = false;
     step(60 * 4, () => { if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle' && !run.elites.thrown.length; });
     const out = hits.filter((h) => h.way === 'out'), back = hits.filter((h) => h.way === 'back');
-    return ok(flew && out.length === 1 && back.length === 1 && hits.every((h) => h.amount === 2), { hits });
+    return ok(flew && out.length === 1 && back.length === 1 && hits.every((h) => h.amount === 4), { hits });
   },
 });
 act2('clock-chime-jumped-clear', {
-  about: "Each chime is a ring wall 3 cm high rolling out over the bench: a jelly standing in its path is hit (2), and so is one barely off the bench (feet 2 cm up); one in the air over it (feet 5 cm up) isn't hit by any of the three.",
+  about: "Each chime is a ring wall 3 cm high rolling out over the bench: a jelly standing in its path is hit (4), and so is one barely off the bench (feet 2 cm up); one in the air over it (feet 5 cm up) isn't hit by any of the six.",
   setup() { startClock(2, { angry: true }); },
   play() {
     const out = {};
@@ -4222,8 +4224,8 @@ act2('clock-chime-jumped-clear', {
       });
       out[name] = { warned, walls: walls.length, tall: walls.length ? Math.max(...walls) : null, hits: hits.map((h) => h.amount) };
     }
-    const { standing: s, hopping: h, jumping: j } = out, low = (r) => r.walls > 0 && Math.abs(r.tall - 0.03) < 0.006, twos = (r) => r.hits.length >= 1 && r.hits.every((n) => n === 2);
-    return ok(s.warned && low(s) && twos(s) && twos(h) && low(j) && !j.hits.length, out);
+    const { standing: s, hopping: h, jumping: j } = out, low = (r) => r.walls > 0 && Math.abs(r.tall - 0.03) < 0.006, fours = (r) => r.hits.length >= 1 && r.hits.every((n) => n === 4);
+    return ok(s.warned && low(s) && fours(s) && fours(h) && low(j) && !j.hits.length, out);
   },
 });
 for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
@@ -4247,20 +4249,20 @@ for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
 const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
 const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts you (stage2.js stand)
 act2('whipper-balloon-bursts-on-time', {
-  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle) filling, and bursts 3 s after it\'s let go: 2, and all the sound goes deep.',
+  about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle) filling, and bursts 4 s after it\'s let go: 4, and all the sound goes deep.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), log = record('damage_taken');
-    let loose = -1, burst = -1, followed = false, d0 = null;
+    let loose = -1, burst = -1, followed = false, d0 = null, first = null;
     step(60 * 6, (i) => {
-      const B = run.elites.balloons[0];
-      if (B && loose < 0) { loose = i; d0 = B.m.position.distanceTo(G().player.position); }
+      const B = first || run.elites.balloons[0];
+      if (B && loose < 0) { loose = i; first = B; d0 = B.m.position.distanceTo(G().player.position); }
       if (B && B.t > 1.5 && B.m.position.distanceTo(G().player.position) < d0 - 0.03) followed = true;
-      if (loose >= 0 && burst < 0 && !run.elites.balloons.length) burst = i;
+      if (first && burst < 0 && !run.elites.balloons.includes(first)) burst = i;
       return burst >= 0;
     });
     const fuse = (burst - loose) / 60, hits = log.filter((d) => d.source === 'balloon');
-    return ok(loose >= 0 && Math.abs(fuse - 3) < 0.1 && followed && hits[0]?.amount === 2 && isDeep(), { fuse: +fuse.toFixed(2), followed, hits: hits.map((d) => d.amount), deep: isDeep() });
+    return ok(loose >= 0 && Math.abs(fuse - 4) < 0.1 && followed && hits[0]?.amount === 4 && isDeep(), { fuse: +fuse.toFixed(2), followed, hits: hits.map((d) => d.amount), deep: isDeep() });
   },
 });
 act2('whipper-deep-sound-recovers', {
@@ -4294,18 +4296,18 @@ act2('whipper-burst-misses-outside', {
   },
 });
 act2('whipper-cream-spray', {
-  about: 'Cream spray: the whipper tips toward you while a wedge and its cone fill on the floor, then sprays whipped cream along it: 2, and it slows you.',
+  about: 'Cream spray: the whipper tips toward you while a wedge and its cone fill on the floor, then sprays whipped cream along it: 3, and it slows you.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = whipper(), log = record('damage_taken');
     let warned = false, slowed = false;
     step(60 * 3, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.slowT > 0) slowed = true; return e.sprayed && e.state === 'idle'; });
     const hits = log.filter((d) => d.source === 'cream');
-    return ok(warned && hits[0]?.amount === 2 && slowed, { warned, hits: hits.map((d) => d.amount), slowed });
+    return ok(warned && hits[0]?.amount === 3 && slowed, { warned, hits: hits.map((d) => d.amount), slowed });
   },
 });
-act2('whipper-angry-two-balloons', {
-  about: 'Under half health the Cream Whipper blows two balloons each time, each with its own floor circle (and no volume).',
+act2('whipper-angry-balloons', {
+  about: 'Under its angry threshold the Cream Whipper blows three balloons each time, each with its own floor circle (and no volume).',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G();
@@ -4314,7 +4316,7 @@ act2('whipper-angry-two-balloons', {
       most = Math.max(most, run.elites.balloons.length);
       warned = Math.max(warned, run.elites.balloons.filter((B) => { const w = balloonWarning(B); return w.floor && !w.volume; }).length);
     });
-    return ok(most === 2 && warned === 2, { most, warned });
+    return ok(most === 3 && warned === 3, { most, warned });
   },
 });
 
@@ -4346,7 +4348,7 @@ act2('whipper-balloon-warning-is-a-floor-circle', {
   },
 });
 act2('whipper-balloon-blast-is-a-sphere', {
-  about: "A jelly level with the balloon or below it, inside its 20 cm sphere, is caught when it bursts (2, and the sound goes deep); one off to the side and below, outside the sphere, isn't.",
+  about: "A jelly level with the balloon or below it, inside its 20 cm sphere, is caught when it bursts (4, and the sound goes deep); one off to the side and below, outside the sphere, isn't.",
   setup() { fresh({ bubbles: false, lash: false }); byDoor(); },
   play() {
     const hits = whipperHits('balloon'), player = holdJelly(), home = player.position.clone(), e = whipper();
@@ -4367,7 +4369,7 @@ act2('whipper-balloon-blast-is-a-sphere', {
     const beside = burstWith([0.18, 0]);          // level with it, 18 cm to the side
     const below = burstWith([0, -0.2]);           // straight under it, the jelly's top 20 cm down
     const corner = burstWith([0.19, -0.16]);      // off to the side and below: 25 cm away, outside the sphere
-    return ok(beside === 1 && below === 1 && corner === 0 && hits[0]?.amount === 2 && isDeep(), { beside, below, corner, deep: isDeep() });
+    return ok(beside === 1 && below === 1 && corner === 0 && hits[0]?.amount === 4 && isDeep(), { beside, below, corner, deep: isDeep() });
   },
 });
 // the cream spray's Warning, as the scene holds it: its floor wedge and its cone volume
@@ -4399,7 +4401,7 @@ act2('whipper-cream-warning-has-cone', {
   },
 });
 act2('whipper-cream-hits-inside-the-cone-even-mid-jump', {
-  about: "A jelly in the air inside the cream cone is still hit (2, and slowed); one beside the cone on the floor isn't.",
+  about: "A jelly in the air inside the cream cone is still hit (3, and slowed); one beside the cone on the floor isn't.",
   setup() { startSpray(); },
   play() {
     const hits = whipperHits('cream');
@@ -4414,11 +4416,11 @@ act2('whipper-cream-hits-inside-the-cone-even-mid-jump', {
     player.position.copy(apex).addScaledVector(dir, 0.2).setY(apex.y + 0.15); player.grounded = false;                     // feet 15 cm up: high in a jump
     step(10);
     const inside = hits.length - beside;
-    return ok(beside === 0 && inside === 1 && hits[0]?.amount === 2 && G().run.slowT > 0, { beside, inside, slowed: G().run.slowT > 0 });
+    return ok(beside === 0 && inside === 1 && hits[0]?.amount === 3 && G().run.slowT > 0, { beside, inside, slowed: G().run.slowT > 0 });
   },
 });
 act2('whipper-cream-jumped-over-near-the-nozzle', {
-  about: "Near the nozzle the cream cone is low (it rises as it spreads): a jelly 5 cm out along it with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (2).",
+  about: "Near the nozzle the cream cone is low (it rises as it spreads): a jelly 5 cm out along it with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (3).",
   setup() { startSpray(); },
   play() {
     const hits = whipperHits('cream');
@@ -4432,7 +4434,7 @@ act2('whipper-cream-jumped-over-near-the-nozzle', {
     player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.01);
     step(10);
     const inside = hits.length - above;
-    return ok(above === 0 && inside === 1 && hits[0]?.amount === 2, { above, inside });
+    return ok(above === 0 && inside === 1 && hits[0]?.amount === 3, { above, inside });
   },
 });
 for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
@@ -4518,7 +4520,7 @@ act2('act-2-hits-harder', {
     import('./events.js').then(({ bus, PLAYER }) => bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'test' }));
     return new Promise((res) => setTimeout(() => {
       const took = m0 - run.health;
-      res(ok(bugX === 2 && soap.maxHp === Math.round(310 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
+      res(ok(bugX === 2 && soap.maxHp === Math.round(500 * 1.8) && Math.abs(took - 3) < 0.01, { bugX, soapHp: soap.maxHp, took: +took.toFixed(2) }));
     }, 50));
   },
 });
@@ -5129,3 +5131,4 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
+

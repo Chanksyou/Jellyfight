@@ -956,7 +956,9 @@ export class Elites {
             sfx.soapBubbles();
             e.hitPop = 0.8;
           }
-          if (s > wind + (angry ? 0.9 : 0.35)) { e.rings = 0; e.clearTele(); e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
+          // the attack ends a beat after its last ring (rings are 0.55 apart): the end has to
+          // follow the ring count in the file, or a count past 2 would never all fire
+          if (s > wind + ((angry ? SK.ring.angryRings : SK.ring.rings) - 1) * 0.55 + 0.35) { e.rings = 0; e.clearTele(); e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
         }
       }
 
