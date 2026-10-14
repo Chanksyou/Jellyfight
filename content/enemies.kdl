@@ -129,3 +129,12 @@ enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
     chase 0.3
     rolls
 }
+
+// The Pothos (act 3 boss) drops Aerial roots from above (its `roots` attack, content/bosses.kdl):
+// each falls onto a circle near you, then creeps after you, slower than you swim. If it reaches you
+// it holds on for 3 s (half speed, a little Health a second), then withers. A few bubbles kill it.
+enemy "root" name="Aerial root" hp=30 r=0.03 dmg=0 xp=2 model="root" {
+    chase 0.2
+    drops height=0.6 time=1 radius=0.05 color="pothos"
+    holds time=3 slow=0.5 dmg=1
+}

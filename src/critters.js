@@ -1946,3 +1946,61 @@ export function buildSprout() {
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
+
+// ------------------------------------------------------------------ Aerial root (the Pothos's)
+// A woody aerial root: a knobbly brown cord, ringed with bark and darker grooves, that thins to a
+// pale, waxy growing tip, with a few fine rootlets. It lies along the floor, tip forward (+z), and
+// creeps by wriggling; falling, it hangs tip down; holding on, it rears and coils.
+function rootGeometry() {
+  const n = 28, rad = 6, len = 2.6;
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const s = i / 8; pts.push(V(Math.sin(s * 5.5) * 0.18, 0.22 + 0.12 * Math.sin(s * Math.PI), -len / 2 + s * len)); }
+  const curve = new THREE.CatmullRomCurve3(pts), g = new THREE.TubeGeometry(curve, n, 1, rad, false).toNonIndexed();
+  // taper each vertex toward the curve: thick at the back, thinning to the tip, knobbly with bark rings
+  const p = g.attributes.position, col = [], c = new THREE.Color(), C = new THREE.Vector3(), v = new THREE.Vector3();
+  const bark = new THREE.Color('#5a3a20'), dark = new THREE.Color('#2e1b0d'), pale = new THREE.Color('#efe6c4'), green = new THREE.Color('#c9dc8e');
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    // the nearest point on the curve (the tube is straight enough to find it by z)
+    const s = THREE.MathUtils.clamp((v.z + len / 2) / len, 0, 1);
+    curve.getPointAt(s, C);
+    const a = Math.atan2(v.y - C.y, v.x - C.x);
+    const ring = 0.5 + 0.5 * Math.cos(s * 70);                       // bark rings
+    const r = 0.2 * (1 - 0.72 * s) * (1 + 0.1 * ring + 0.06 * Math.sin(a * 3 + s * 20));
+    v.sub(C).normalize().multiplyScalar(r).add(C);
+    p.setXYZ(i, v.x, v.y, v.z);
+    const groove = Math.abs(Math.sin(a * 2.5 + s * 9)) < 0.25 ? 1 : 0;
+    c.copy(bark).lerp(dark, 0.35 * ring + 0.5 * groove).lerp(green, THREE.MathUtils.smoothstep(s, 0.68, 0.8) * 0.7).lerp(pale, THREE.MathUtils.smoothstep(s, 0.78, 0.95));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.deleteAttribute('uv');
+  // a few fine rootlets off the woody part, and a rounded cap on the tip
+  const parts = [g];
+  for (let k = 0; k < 7; k++) {
+    const s = 0.1 + k * 0.09, at = curve.getPointAt(s), side = k % 2 ? 1 : -1;
+    parts.push(rod(at, at.clone().add(V(side * (0.3 + 0.1 * (k % 3)), -0.12 - 0.05 * (k % 2), 0.1)), 0.035, 0.008, k % 3 ? '#4a2e18' : '#8a6a48'));
+  }
+  const tip = curve.getPointAt(1);
+  parts.push(ellipsoid(0.07, 0.07, 0.1, tip, '#f4eccf', 8));
+  return merge(parts);
+}
+
+export function buildRoot() {
+  const geo = (GEO.root ||= rootGeometry()), M = mats();
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(geo, M.matte));
+  let t = Math.random() * 10;
+  const anim = (dt, e) => {
+    t += dt;
+    const falling = e.state === 'drop', holding = e.state === 'hold';
+    // falling: tip down; creeping: lying flat, wriggling side to side; holding: reared up, writhing
+    const pitch = falling ? -1.3 : holding ? -0.6 : 0;
+    body.rotation.x += (pitch - body.rotation.x) * (1 - Math.exp(-10 * dt));
+    body.rotation.y = Math.sin(t * (holding ? 9 : 6)) * (holding ? 0.35 : 0.22);
+    body.rotation.z = holding ? Math.sin(t * 5) * 0.25 : 0;
+    body.position.y = falling ? 1.2 : 0;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}

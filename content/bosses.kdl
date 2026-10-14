@@ -35,9 +35,14 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
     enrage  at=0.65
 }
 
-// act 3's, the houseplant on the pillows: only its heart takes damage (src/pothos.js ATTACKS)
+// act 3's, the houseplant on the pillows: only its heart takes damage. Its attacks: src/pothos.js
+// ATTACKS. Aerial roots: the root itself (falling, creeping, holding on) is content/enemies.kdl's "root"
+//   count  how many drop (one right where you are, the rest round you)   spread  how far round (m)
+//   rest   the pause before its next attack (s)
+// Cuttings: `near` m from you, `count` of them (`angryCount` when it's angry); each Cutting and the
+// Sap sprout it grows into are content/enemies.kdl's "cutting" and "sprout"
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
-    // cutting: Cuttings dropped `near` m from you (count, angryCount in pairs), then a pause (s)
-    cutting time=1.0 count=1 angryCount=2 near=0.16 pause=2.5 angryPause=1.6
+    cutting time=1.0 count=1 angryCount=2 near=0.16 rest=2.5 angryRest=1.6
+    roots   time=1.2 count=3 spread=0.18 rest=2.5 angryRest=1.6
     enrage  at=0.45
 }

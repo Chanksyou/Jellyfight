@@ -17,9 +17,10 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-// its attacks in the order it takes them, calm and angry (pick); state names are attack names (as in clog.js)
+// state names are attack names (as in clog.js), taken in turn; 'idle' is the pause between them
 //   cutting   it drops Cuttings on the bed near you (content/enemies.kdl): kill them before they sprout
-export const ATTACKS = { calm: ['cutting'], angry: ['cutting'] };
+//   roots     Aerial roots drop on you and round you
+export const ATTACKS = { calm: ['cutting', 'roots'], angry: ['cutting', 'roots'] };
 
 const SCALE = 0.8;                       // how big it grew (the prototype's verdict: 1.5x read as too big)
 const POT_H = 0.24, POT_R = 0.16, POT_RB = 0.11;   // the pot, before SCALE
@@ -147,7 +148,7 @@ export class Pothos {
     this.t = 0;
     this.rise = 0;
     this.state = 'idle';
-    this.stateT = 2;                     // the first attack comes a moment after it wakes
+    this.stateT = 3;                     // the first attack comes a moment after it rises
     this.next = 0;
     this.guards = [];
     this.wither = 0;
@@ -158,7 +159,7 @@ export class Pothos {
     this.holder.add(this.model.root);
     this.model.root.scale.setScalar(0.001);
     scene.add(this.holder);
-    this._heart = new THREE.Vector3(); this._knockDir = new THREE.Vector3(); this._push = new THREE.Vector3();
+    this._heart = new THREE.Vector3(); this._drop = new THREE.Vector3(); this._knockDir = new THREE.Vector3(); this._push = new THREE.Vector3();
     this.knock = 0;
   }
 
@@ -189,6 +190,7 @@ export class Pothos {
 
   tick(dt, player) {
     this.t += dt;
+    this.player = player;
     const out = { push: null, hit: 0 };
     const M = this.model, s = SCALE;
     if (this.dead) {
@@ -211,6 +213,15 @@ export class Pothos {
     M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12));
     M.heart.material.emissiveIntensity = 0.3 + beat * 0.15;
     this.fx.glow.hold(this.center(this._heart), this.glowColor, 0.14 * (0.8 + beat * 0.3), 0.6);
+    M.root.rotation.z = this.state === 'cutting' ? Math.sin(this.t * 40) * 0.02 : 0;   // shivering, flinging Cuttings
+    // its attacks, in turn
+    if (this.rise >= 1) {
+      this.stateT -= dt;
+      if (this.stateT <= 0) {
+        if (this.state === 'idle') { const order = this.angry ? ATTACKS.angry : ATTACKS.calm; this.begin(order[this.next++ % order.length]); }
+        else { const SK = this.def.skills[this.state]; this.state = 'idle'; this.stateT = this.angry ? SK.angryRest : SK.rest; }
+      }
+    }
     // bumping into the pot hurts and knocks you back off it
     const P = player.position, h = this.holder.position, dx = P.x - h.x, dz = P.z - h.z, d = Math.hypot(dx, dz);
     this.knock = Math.max(0, this.knock - dt);
@@ -220,49 +231,49 @@ export class Pothos {
       if (d) this._knockDir.set(dx / d, 0, dz / d); else this._knockDir.set(0, 0, -1);
     }
     if (this.knock > 0) out.push = this._push.copy(this._knockDir).multiplyScalar(0.6);
-    if (this.rise >= 1) this.attack(dt, player);
     return out;
   }
 
-  // its attacks, one after another, a pause after each (content/bosses.kdl)
-  attack(dt, player) {
-    const SK = this.def.skills, was = this.stateT;
-    this.stateT -= dt;
-    if (this.state === 'idle') { if (this.stateT <= 0) this.pick(); return; }
-    if (this.state === 'cutting') {
-      // it shivers and flings Cuttings onto the bed round you, in pairs when it's angry
-      this.model.root.rotation.z = Math.sin(this.t * 40) * 0.02;
-      const drop = SK.cutting.time * 0.5;
-      if (was > drop && this.stateT <= drop) {
-        const n = this.angry ? SK.cutting.angryCount : SK.cutting.count, a0 = Math.random() * Math.PI * 2;
-        for (let k = 0; k < n; k++) this.dropCutting(player.position, a0 + (k * Math.PI * 2) / n, SK.cutting.near);
-        sfx.clogRustle?.();
-      }
-      if (this.stateT <= 0) { this.model.root.rotation.z = 0; this.rest(SK.cutting); }
+  // start an attack (the stories start them directly too)
+  begin(name) {
+    const SK = this.def.skills[name];
+    this.state = name;
+    this.stateT = SK.time;
+    if (name === 'roots') this.roots(SK);
+    if (name === 'cutting') this.cuttings(SK);
+  }
+
+  // Cuttings: flung onto the bed `near` m round you, in pairs when it's angry; each is an enemy
+  // (content/enemies.kdl "cutting") that sprouts if it's left alone
+  cuttings({ count, angryCount, near }) {
+    const P = this.player.position, A = this.arena, h = this.holder.position, m = 0.05, keep = POT_R * SCALE + 0.06;
+    const n = this.angry ? angryCount : count, a0 = Math.random() * Math.PI * 2;
+    for (let k = 0; k < n; k++) {
+      const a = a0 + (k * Math.PI * 2) / n, at = this._drop.set(P.x + Math.cos(a) * near, 0, P.z + Math.sin(a) * near);
+      const dx = at.x - h.x, dz = at.z - h.z, d = Math.hypot(dx, dz);
+      if (d < keep) { at.x = h.x + (d ? dx / d : 0) * keep; at.z = h.z + (d ? dz / d : -1) * keep; }   // clear of the pot
+      at.x = THREE.MathUtils.clamp(at.x, A.arenaMin[0] + m, A.arenaMax[0] - m);
+      at.z = THREE.MathUtils.clamp(at.z, A.arenaMin[2] + m, A.arenaMax[2] - m);
+      const hit = this.world.castAll(at.setY(A.arenaMax[1]), DOWN, A.arenaMax[1] - A.arenaMin[1] + 0.3);
+      at.y = hit ? hit.point.y : P.y;
+      const e = this.enemies.spawn('cutting', at);
+      e.root.rotation.y = Math.random() * Math.PI * 2;
+      e.grounded = true;
+      this.fx.impact(at.clone().setY(at.y + 0.01), hostile('pothos'), 0.02, 8);
     }
+    sfx.clogRustle?.();
   }
-  // the next attack, in a loop
-  pick() {
-    const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
-    this.state = order[this.next++ % order.length];
-    this.stateT = this.def.skills[this.state].time;
-  }
-  rest(sk) { this.state = 'idle'; this.stateT = this.angry ? sk.angryPause : sk.pause; }
-  // a Cutting lands on the bed `near` m from you (inside the arena, clear of the pot)
-  dropCutting(P, a, near) {
-    const A = this.arena, h = this.holder.position, m = 0.05, keep = POT_R * SCALE + 0.06;
-    const at = new THREE.Vector3(P.x + Math.cos(a) * near, 0, P.z + Math.sin(a) * near);
-    const dx = at.x - h.x, dz = at.z - h.z, d = Math.hypot(dx, dz);
-    if (d < keep) { at.x = h.x + (d ? dx / d : 0) * keep; at.z = h.z + (d ? dz / d : -1) * keep; }
-    at.x = THREE.MathUtils.clamp(at.x, A.arenaMin[0] + m, A.arenaMax[0] - m);
-    at.z = THREE.MathUtils.clamp(at.z, A.arenaMin[2] + m, A.arenaMax[2] - m);
-    const hit = this.world.castAll(at.setY(A.arenaMax[1]), DOWN, A.arenaMax[1] - A.arenaMin[1] + 0.3);
-    at.y = hit ? hit.point.y : P.y;
-    const e = this.enemies.spawn('cutting', at);
-    e.root.rotation.y = Math.random() * Math.PI * 2;
-    e.grounded = true;
-    this.fx.impact(at.clone().setY(at.y + 0.01), hostile('pothos'), 0.02, 8);
-    return e;
+
+  // Aerial roots: they drop from the canopy and the shelf over the bed, one onto where you are and the
+  // rest round you; each is an enemy (content/enemies.kdl "root") that falls on its own Warning
+  roots({ count, spread }) {
+    const P = this.player.position;
+    for (let k = 0; k < count; k++) {
+      const a = Math.random() * Math.PI * 2, d = k ? spread * (0.5 + 0.5 * Math.random()) : 0;
+      const at = this._drop.set(P.x + Math.sin(a) * d, P.y + 0.1, P.z + Math.cos(a) * d);
+      at.y = this.enemies.floorBelow(at, P.y);
+      this.enemies.spawn('root', at);
+    }
   }
 
   dispose() {
