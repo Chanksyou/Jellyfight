@@ -18,7 +18,7 @@ const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
 import { LOOK } from './look.js';
 import { SPECIES, buildCharacter, normalizeLook } from './character.js';
-import { STAGES, currentAct, goToAct } from './stages.js';
+import { STAGES, currentAct, goToAct, nav } from './stages.js';
 import { pitch, isDeep } from './sfx.js';
 import { TouchControls } from './touch.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
@@ -32,6 +32,7 @@ import { nestMiddle } from './run.js';
 import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
+import { ATTACKS as POTHOS_ATTACKS } from './pothos.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -4890,12 +4891,15 @@ const EVERY_ATTACK = {
       flood: { is: 'hazard' }, shed: { is: 'none' },
     },
   },
+  3: {
+    pothos: {},                       // no attacks yet (pothos.js ATTACKS): each one joins here as it lands
+  },
 };
-// which Boss this act has (main.js: the Vacuum by name, else the Clog)
-const bossKind = () => (G().run.stage.boss.kind === 'vacuum' ? 'vacuum' : 'clog');
+// which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
+const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos' })[G().run.stage.boss.kind] || 'clog';
 // the attacks the game has this act: each fighting Elite's, and the Boss's (calm and angry)
 function attacksInGame() {
-  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS }[boss];
+  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry])];
   return out;
@@ -5057,6 +5061,196 @@ act2('the-clog', {
     const inTub = P.x > B.arenaMin[0] && P.x < B.arenaMax[0] && P.z > B.arenaMin[2] && P.z < B.arenaMax[2];
     return ok(run.phase === 'boss' && run.boss?.kind === 'hair' && inTub, { phase: run.phase, kind: run.boss?.kind, at: r3(P) });
   },
+});
+
+act2('leads-to-act-3', {
+  about: 'Beating the Clog, growing and taking a Legendary treasure offers the way on to act 3, the bedroom, with the score so far: the act 2 end no longer says act 3 is coming.',
+  setup() { fresh(); },
+  play() {
+    const { run, menus } = G();
+    run.metamorph();
+    document.querySelector('.jf-card')?.click();     // the evolution
+    document.querySelector('.jf-card')?.click();     // the boss's Legendary
+    const text = document.querySelector('.jf-modal')?.innerText || '';
+    const go = [...document.querySelectorAll('.jf-modal button')].some((b) => /On to act 3/.test(b.textContent));
+    menus.close();
+    return ok(go && /Act 2 complete/.test(text) && /bedroom/i.test(text) && /Score so far/.test(text) && !/coming soon/.test(text), { go, text: text.slice(0, 200) });
+  },
+});
+
+// --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
+// run as if the Clog was just beaten (tests/run.mjs)
+const act3 = (name, s) => story('act3/' + name, { act: 3, ...s });
+act3('carries-the-run', {
+  about: 'Act 3 starts in the bedroom with what act 2 left you: level, Treasures, evolutions and the score so far.',
+  setup() { fresh(); },
+  play() {
+    const { run, player } = G();
+    const inBedroom = run.stage.rooms.includes('Bedroom') && run.inStage(player.position.x, player.position.z);
+    return ok(run.stage.id === 3 && run.level === 10 && run.owned.has('candle') && run.owned.has('battery') && run.evolved.length === 2 && run.score() >= 12000 && inBedroom,
+      { act: run.stage.id, level: run.level, owned: [...run.owned], evolved: run.evolved, score: run.score(), at: r3(player.position) });
+  },
+});
+act3('night-dragonflies-mantises-then-nests', {
+  about: 'The act 3 night: dragonflies from the start, praying mantises from 0:45, and from 1:30 two wasp nests at two of the spots the act lists (none before). Only act 3\'s Bugs come.',
+  setup() { fresh({ waves: true, elites: false }); },
+  play() {
+    const { run, enemies } = G();
+    const pool = new Set(CONTENT.waves.bugs.filter((b) => b.act === 3).map((b) => b.id));
+    // a stretch of the night held at time t: what comes (killed as it comes, so the cap never stops it)
+    const during = (t, frames) => {
+      const seen = new Set();
+      step(frames, () => {
+        run.t = t;
+        for (const e of enemies.list) if (!e.dead && !e.proxy) { seen.add(e.type); if (e.type !== 'nest') enemies.kill(e, true); }
+      });
+      return seen;
+    };
+    const early = during(10, 900), later = during(70, 2400);
+    const nestsBefore = enemies.list.filter((e) => !e.dead && e.type === 'nest').length;
+    run.t = 89.5;
+    step(60);
+    const nests = enemies.list.filter((e) => !e.dead && e.type === 'nest');
+    const listed = nests.every((n) => STAGE3.nests.spots.includes(n.spot)) && new Set(nests.map((n) => n.spot)).size === nests.length;
+    const stray = [...early, ...later].filter((t) => !pool.has(t) && t !== 'nest');
+    return ok([...early].join() === 'dragonfly' && later.has('mantis') && later.has('dragonfly') && !nestsBefore && !early.has('nest') && !later.has('nest') && nests.length === 2 && listed && !stray.length,
+      { early: [...early], later: [...later], nestsBefore, nests: nests.map((n) => n.spot?.on), stray });
+  },
+});
+act3('act-3-is-tougher', {
+  about: 'Act 3 is scaled for a level-10 jelly: its Bugs have 3x the health, hits on you do 2x, and each kill drops 1.4x the XP.',
+  setup() { fresh({ hurt: true, elites: false }); },
+  play() {
+    const { run, enemies, xpDrops } = G(), stage = run.stage;
+    const fly = enemies.spawn('dragonfly', near(0.5, 0), stage.toughness);
+    const bugX = fly.maxHp / fly.T.hp;
+    run.iFrames = 0;
+    const m0 = run.health;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'test' });
+    const took = m0 - run.health;
+    let dropped = 0;
+    stub(xpDrops, 'drop', (p, v, n) => { dropped += v * n; });
+    run.onKill({ pos: near(0.1, 0), r: 0.01, xp: 5 });
+    return ok(bugX === 3 && Math.abs(took - 4) < 0.01 && dropped === 7, { bugX, took: +took.toFixed(2), dropped });
+  },
+});
+act3('treasure-spots', {
+  about: 'Treasures can turn up all over the bedroom (the floor, the bed, the dresser), each on a real surface you can reach.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    return ok(run.spots.length >= 8 && !run.spotRejects.length && run.spots.every((sp) => run.inStage(sp.at[0], sp.at[2])),
+      { kept: run.spots.length, rejects: run.spotRejects });
+  },
+});
+for (const v of STAGE3.vents) {
+  act3(`vent-to-${v.to.replace('the ', '').replace(/ /g, '-')}`, {
+    about: `Stepping on the ${v.name.toLowerCase()} flings you onto ${v.to}.`,
+    setup() { fresh({ elites: false }); tp(v.at[0], 0.05, v.at[2], 0); },
+    play() {
+      const r = sim(3);
+      const [x, y, z] = r.pos, [lx, ly, lz] = v.land;
+      return ok(Math.hypot(x - lx, z - lz) < 0.08 && Math.abs(y - ly) < 0.06 && r.grounded, { end: r.pos, target: v.land });
+    },
+  });
+}
+
+// the Pothos (pothos.js): straight into the boss fight on the bed
+const pothosFight = (opts = {}) => {
+  fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
+  const { run, menus } = G();
+  run.startBossIntro();
+  step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.rise >= 1; });
+  return run.boss;
+};
+act3('pothos-wakes-when-time-runs-out', {
+  about: 'When the countdown runs out the jelly is carried onto the bed, walled in, and the Pothos rises in its pot on the pillows at the head of the bed; the plant on the shelf above and the plushies are gone, and the boss bar shows its name and Health.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus, player, APT } = G();
+    run.t = run.duration - 0.05;
+    step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.rise >= 1; });
+    const B = run.boss, A = run.stage.boss, P = player.position, pot = B?.position;
+    const onBed = (p) => p.x > A.arenaMin[0] && p.x < A.arenaMax[0] && p.z > A.arenaMin[2] && p.z < A.arenaMax[2] && p.y > 0.55;
+    let shelf = false;
+    APT.scene.traverse((o) => { if (/^(Pothos|Plush_crocodile)/.test(o.name) && o.isMesh && o.visible) { let v = true; for (let q = o; q; q = q.parent) v &&= q.visible; shelf ||= v; } });
+    const walls = run.bossWalls.length === 4 && run.bossWalls.every((m) => m.visible);
+    const bar = document.querySelector('#hud .boss');
+    const named = bar && !bar.hidden && /THE POTHOS/.test(bar.textContent);
+    return ok(B?.constructor.name === 'Pothos' && onBed(P) && pot && onBed(pot) && pot.z > 10.6 && !shelf && walls && named && B.hp === B.maxHp,
+      { boss: B?.constructor.name, player: r3(P), pot: pot && r3(pot), shelf, walls, bar: bar?.textContent, hp: B?.hp });
+  },
+});
+act3('pothos-only-its-heart-takes-damage', {
+  about: 'Only the Pothos\'s glowing heart can be hurt: a bubble through its pot does nothing, one into its heart lowers its Health.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run } = G(), Bu = run.bubbles;
+    stub(Bu, 'volley', () => false);                      // no bubbles of its own: just the two we blow
+    stub(Bu, 'elementVolley', () => false);
+    stub(Bu, 'update', function (dt, origin, stats, mods) { this.fly(dt, stats, mods); });
+    tp(-0.105, 0.7, 10.3, Math.PI);
+    const from = G().player.position.clone().setY(G().player.position.y + 0.06);
+    const heart = B.center(), pot = B.position;
+    const shoot = (at) => {
+      const hp = B.hp, b = Bu.blow(from, null, { size: 1, dmg: 20, pierce: 1, range: 2, dir: at.clone().sub(from) });
+      let closest = Infinity;
+      step(90, () => { closest = Math.min(closest, Math.hypot(b.m.position.x - at.x, b.m.position.y - at.y, b.m.position.z - at.z)); return b.done; });
+      return { lost: hp - B.hp, closest: +closest.toFixed(3) };
+    };
+    // through the side of the pot, below the rim: well clear of the heart
+    const side = shoot(pot.clone().add(V(0.07, 0.1, 0)));
+    const hit = shoot(heart);
+    return ok(side.closest < 0.02 && side.lost === 0 && hit.lost > 0, { side, hit, heart: r3(heart), pot: r3(pot) });
+  },
+});
+act3('beating-the-pothos-wins-the-run', {
+  about: 'Beating the Pothos grows the jelly into a Medusa, offers a Legendary treasure, then ends the run as a win: "the apartment is yours", the score with its parts, and the score posts to the Leaderboard.',
+  setup() {},
+  async play() {
+    const B = pothosFight(), { run, menus } = G();
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const modal = () => document.querySelector('.jf-modal');
+    let posted = null;
+    stub(run, 'board', { status: 'online', keepBest: () => false, post: (e) => { posted = e; return Promise.resolve({ posted: true }); } });
+    B.damage(B.hp + 1);
+    step(5);
+    await wait(2400);                                     // the metamorphosis comes a moment after
+    const grow = modal()?.innerText || '';
+    modal()?.querySelector('.jf-card')?.click();          // the evolution
+    const legendary = modal()?.innerText || '';
+    modal()?.querySelector('.jf-card')?.click();          // the Legendary
+    const end = modal()?.innerText || '';
+    const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act/.test(b.textContent));
+    [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();
+    await wait(50);
+    menus.close();
+    return ok(/Medusa/.test(grow) && /Legendary/.test(legendary) && /apartment is yours/.test(end) && /Earlier acts/.test(end) && /The Pothos beaten/.test(end) && !next && posted?.won && posted.score === run.score() && run.evolved.length === 3,
+      { grow: grow.slice(0, 80), legendary: legendary.slice(0, 60), end: end.slice(0, 160), next, posted });
+  },
+});
+act3('dying-starts-over-in-act-1', {
+  about: 'Dying in act 3 shows the usual death screen, and trying again starts a new run in act 1, with nothing carried.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, menus } = G();
+    const was = sessionStorage.getItem('jellyfight.act');
+    let reloaded = false;
+    stub(nav, 'reload', () => { reloaded = true; });
+    run.die();
+    await new Promise((r) => setTimeout(r, 800));
+    const modal = document.querySelector('.jf-modal'), text = modal?.innerText || '';
+    [...(modal?.querySelectorAll('button') || [])].find((b) => /Try again/.test(b.textContent))?.click();
+    const went = JSON.parse(sessionStorage.getItem('jellyfight.act') || 'null');
+    sessionStorage.setItem('jellyfight.act', was);           // this page stays on act 3
+    menus.close();
+    return ok(/You dried out/.test(text) && reloaded && went?.act === 1 && !went.carry, { text: text.slice(0, 60), reloaded, went });
+  },
+});
+act3('attacks-every-warning-has-volume', {
+  about: 'Every Pothos attack in turn: each Warning shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  play() { return everyAttack(3); },
 });
 
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)

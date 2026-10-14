@@ -26,15 +26,18 @@ const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${na
 
 // --- every story, one page per act (booting the apartment takes a while, so a page only opens
 // when it has a story to play). Later acts start as if the act before was just beaten, carrying a
-// level-6 run with a Candle; stories with `phone: true` (phone/...) play in a page that looks
+// level-6 run with a Candle (act 3: a level-10 run); stories with `phone: true` (phone/...) play in a page that looks
 // like a phone. The first page that opens lists every story for the rest.
 const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
+// act 3 starts as if the Clog was just beaten: a level-10 run with act 1's and act 2's evolutions
+const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
 const PAGES = [
   { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },
   { key: 'act2', opts: { viewport: { width: 1100, height: 650 }, act: { act: 2, carry: CARRY } } },
+  { key: 'act3', opts: { viewport: { width: 1100, height: 650 }, act: { act: 3, carry: CARRY3 } } },
   { key: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
 ];
-const pageOf = (n) => (n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : 'act1');
+const pageOf = (n) => (n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : 'act1');
 let all = null;   // [name, page key] for every story, once a page has listed them
 for (const P of PAGES) {
   // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting

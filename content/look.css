@@ -26,6 +26,14 @@
   --boss-glow: 0.15;
   --boss-rim: 0.6;
   --rim-color: #ffcc9e;
+  /* the Pothos (src/pothos.js): variegated leaves, deep green streaked with gold, and its heart */
+  --pothos-leaf-deep: #0f3311;
+  --pothos-leaf: #1d5a1d;
+  --pothos-leaf-gold: #f2dc5a;
+  --pothos-heart: #7dff5a;
+  --pothos-heart-gold: #ffd34a;
+  --pothos-heart-glow: #2f8a14;  /* its emissive, kept below white so the colour reads */
+  --pothos-heart-halo: #5ee83a;  /* the glow round it */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
   /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.
@@ -37,6 +45,7 @@
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
   --hostile-web: #ff5ad8;        /* the house spider's web balls: white silk in a hot pink glow */
   --hostile-clog: #d8ff3a;       /* the Clog's lashes, snares, roll lane, drain swirl and gunk: sickly yellow-green */
+  --hostile-pothos: #9cff1e;     /* the Pothos's whips, Cuttings, sap and roots: toxic green-gold, greener than the Clog's */
   --hostile-missile: #ff2020;    /* the ladybug's lock-on reticle and missile glow */
   --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and cream spray: violet */
   --hostile-clock: #ffc23a;      /* the Wall Clock's sweeping hand, thrown wreath and chime rings: gilt */

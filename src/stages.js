@@ -3,8 +3,9 @@
 // every system is built for that act's rooms from the start (src/run.js nextAct).
 import { STAGE1 } from './stage1.js';
 import { STAGE2 } from './stage2.js';
+import { STAGE3 } from './stage3.js';
 
-export const STAGES = [STAGE1, STAGE2];
+export const STAGES = [STAGE1, STAGE2, STAGE3];
 const KEY = 'jellyfight.act';
 
 // The act's state lives in sessionStorage, or in window.name where storage is blocked (a
@@ -24,11 +25,14 @@ export function currentAct() { return Math.min(STAGES.length, Math.max(1, +(load
 export const currentStage = () => STAGES[currentAct() - 1];
 export const carried = () => load()?.carry || null;
 
+// how the page reloads (a story swaps it out to see where a run goes next without leaving the page)
+export const nav = { reload: () => location.reload() };
+
 // Go to an act (with the run's carry, or none for a fresh run) and reload into it. `then`: what
 // to do once it's loaded (the dev 1 on 1 picker: { duel: name }), read once with pendingAction()
 export function goToAct(act, carry = null, then = null) {
   save({ act, carry, then });
-  location.reload();
+  nav.reload();
 }
 // the same, without using it up (main.js shows a different loading screen for { continue: true })
 export const peekAction = () => load()?.then || null;

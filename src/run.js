@@ -7,6 +7,7 @@ import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
+import { Pothos } from './pothos.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
@@ -53,6 +54,9 @@ export function nestMiddle(spot, r) {
   const [x, y, z] = spot.at, [ox, oz] = spot.out, k = NEST.width * r * 0.98;
   return new THREE.Vector3(x + ox * k, y - NEST.height / 2 * r, z + oz * k);
 }
+
+// The boss classes, by the kind a stage's boss block names (the Clog is 'hair')
+export const BOSSES = { vacuum: Vacuum, hair: Clog, pothos: Pothos };
 
 export class Run {
   // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, xpDrops, traversal, hud, ui, fx, tpc, input, setNight }
@@ -133,7 +137,9 @@ export class Run {
     calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
     this.elites?.start((this.stage.elites || []).filter((s) => !isRemoved('elite', s.kind)));   // an elite the dev editor removed doesn't spawn (duels, which pick one on purpose, still can)
-    this.spawnNests();
+    // the act's wasp nests hang from the start, or from `nests.from` seconds in (spawnWaves)
+    this.nestsAt = this.stage.nests?.from > 0 ? this.stage.nests.from : null;
+    if (this.nestsAt == null) this.spawnNests();
     this.roomTreasures?.forEach((t) => t.hide());
     this.treasureTimesLeft = [...(this.stage.treasures?.at || [])];   // seconds into the night each scheduled treasure appears
     this.bonusTreasureAt = new Set();                                  // which of those a Wind-Up Key added (they don't bring more)
@@ -443,6 +449,7 @@ export class Run {
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
     if (this.devCalm) return;         // dev test kit: waves off
+    if (this.nestsAt != null && this.t >= this.nestsAt) { this.nestsAt = null; this.spawnNests(); }   // nests that come later in the night
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
     const more = this.mods.moreBugs * (this.stage.bugs || 1);   // more-bugs (treasures), and the act's own `bugs`
@@ -923,7 +930,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = B.kind === 'vacuum' ? new Vacuum(this.scene, this.enemies, this.fx, B, this.world) : new Clog(this.scene, this.enemies, this.fx, B, this.world);
+      this.boss = new (BOSSES[B.kind] || Clog)(this.scene, this.enemies, this.fx, B, this.world);
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
       this.enemies.addProxy(this.boss);
       this.later(() => { this.fade.style.opacity = 0; }, 150);
@@ -967,7 +974,9 @@ export class Run {
       const next = STAGES[this.stage.id];         // the act after this one, if there is one
       // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
       if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-      else this.endRun(`Act ${this.stage.id} complete`, 'The hallway and the bathroom are yours. The bedroom (act 3) is coming soon.', 'Play again from act 1');
+      // the last act: the run is won (its Legendary counts toward the score)
+      else this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure for your final score.`,
+        () => this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }));
     });
   }
 
@@ -1011,7 +1020,8 @@ export class Run {
 
   // The end of a run: the summary with the score, posted to the leaderboard (board: the
   // Leaderboard, given by main.js), and a button to see the board
-  endRun(title, sub, again) {
+  // (parts: also list what the score is made of, as the winning end does)
+  endRun(title, sub, again, { parts = false } = {}) {
     const score = this.score();
     const entry = { score, body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
@@ -1022,7 +1032,8 @@ export class Run {
       this.endView = 'summary';
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
-      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`], ...this.summary()];
+      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
+        ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary()];
       const canPost = B && B.status !== 'offline' && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);

@@ -15,13 +15,11 @@ import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
+import { STAGES, currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
-import { Vacuum } from './vacuum.js';
-import { Clog } from './clog.js';
 import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted, audio } from './sfx.js';
@@ -39,7 +37,8 @@ import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
-import { Run } from './run.js';
+import { Run, BOSSES } from './run.js';
+import { Clog } from './clog.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -392,7 +391,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
-  else if (b.dataset.act === 'act') goToAct(currentAct() === 1 ? 2 : 1);   // dev: jump between act 1 and act 2 (a fresh run)
+  else if (b.dataset.act === 'act') goToAct(currentAct() % STAGES.length + 1);   // dev: on to the next act, round to act 1 after the last (a fresh run)
   else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
     overlay.hidden = true;
     const picks = run.duelChoices();
@@ -482,7 +481,7 @@ async function warmUp() {
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  const clog = stage.boss.kind === 'vacuum' ? new Vacuum(scene, enemies, fx, stage.boss, world) : new Clog(scene, enemies, fx, stage.boss, world);
+  const clog = new (BOSSES[stage.boss.kind] || Clog)(scene, enemies, fx, stage.boss, world);   // this act's boss
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);
