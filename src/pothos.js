@@ -4,7 +4,7 @@
 // hollow, and nine leafy vines trailing out over the pot's lip, down its wall and across the bed,
 // lying on its real surface. Only the heart can be hurt (its centre() and r are the heart's); the
 // vines and leaves stop bubbles (blocks()). The fight has its own camera view (`camera`, look.css).
-// Its attacks: ATTACKS below (the dragonflies come later, spec #32).
+// Its attacks: ATTACKS below, and the dragonflies (swarm) once below 70%.
 // Same interface as the Vacuum and the Clog: position, r, center(), damage(), dead, rise, shielded,
 // angry, update() -> {push}, dispose().
 import * as THREE from 'three';
@@ -26,11 +26,14 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 //             (jump it); after it the leaves round its heart part for a moment: shoot then
 //   cutting   it drops Cuttings on the bed near you (content/enemies.kdl): kill them before they sprout
 //   roots     Aerial roots drop on you and round you
+//   swarm     once, the first time its Health drops below 70% (not in turn): dragonflies come out
+//             of the plant and its leaves close over its heart, shielding it, till they're dead or 30 s
 export const ATTACKS = { calm: ['whip', 'cutting', 'whip', 'roots'], angry: ['whip', 'cutting', 'whip', 'roots'] };
 
 const SCALE = 0.8;                       // how big it grew (the prototype's verdict: 1.5x read as too big)
 const POT_H = 0.24, POT_R = 0.16, POT_RB = 0.11;   // the pot, before SCALE
 const HEART = 0.055;                     // the heart's radius, before SCALE
+const LIDS = 8;                          // the leaves that close over the heart while it's shielded
 
 // A pothos leaf: heart-shaped, cupped, tip drooping, high-contrast gold streaks fanning out from a
 // gold midrib over deep green (look.css --pothos-leaf-*). Its petiole is at the origin, it runs
@@ -285,6 +288,14 @@ function buildPothos(world, at, arena) {
     if (dir.z < -0.55 && dir.y < 0.75 && Math.abs(dir.x) < 0.5) continue;
     mound.push({ pos: V(0, soil + 0.06, 0).addScaledVector(dir, 0.1 + R() * 0.12), out: dir.clone().setY(dir.y * 0.6 + 0.2).normalize(), size: 0.09 + R() * 0.06, tilt: R(), frame: dir.z < -0.2 });
   }
+  // the lids: the leaves nearest the hollow, and where each one folds to when they close over the
+  // heart (shutAt, shut): hanging side by side from just above it, a curtain of leaves in front of it
+  const lids = mound.filter((L) => L.frame).sort((p, q) => p.pos.distanceTo(heart.position) - q.pos.distanceTo(heart.position)).slice(0, LIDS);
+  lids.sort((p, q) => p.pos.x - q.pos.x).forEach((L, k) => {
+    const x = (k / (LIDS - 1) - 0.5) * HEART * 2.6;
+    L.shutAt = heart.position.clone().add(V(x, HEART * (1 + (k % 2) * 0.3), -HEART * (1.3 + (k % 2) * 0.25)));
+    L.shut = V(x * 2, -1, -0.3).normalize();
+  });
   // nine trailing vines fanned toward the foot of the bed, lying on it
   const vines = [];
   if (world) {
@@ -304,8 +315,8 @@ function buildPothos(world, at, arena) {
   // (its mouth: a little below and in front of the heart, where a shot from the bed comes in)
   const mouth = heart.position.clone().add(V(0, -0.054, -0.107)), veil = [];
   for (let k = 0; k < VEIL; k++) {
-    const x = (k - (VEIL - 1) / 2) * 0.03, pos = mouth.clone().add(V(x * 1.2, 0.06 - Math.abs(x) * 0.3, 0));
-    veil.push({ pos, shut: V(-x * 2, -1, -0.15).normalize(), aside: V(Math.sign(x), 0.8, -0.3).normalize(), size: 0.12 + R() * 0.02, tilt: 0.4 + R() * 0.2 });
+    const x = (k - (VEIL - 1) / 2) * 0.03, pos = mouth.clone().add(V(x * 1.2, 0.1 - Math.abs(x) * 0.5, 0));
+    veil.push({ pos, shut: V(-x * 2, -1, -0.15).normalize(), aside: V(x ? Math.sign(x) : 1, 0.7, 0.4).normalize(), size: 0.15 + R() * 0.02, tilt: 0.4 + R() * 0.2 });
   }
   // every leaf (the mound's, the veil's and the vines') as one instance of one mesh: one draw
   const count = mound.length + VEIL + vines.reduce((n, v) => n + v.leaves.length, 0);
@@ -313,7 +324,7 @@ function buildPothos(world, at, arena) {
   for (let i = 0; i < count; i++) leaves.setColorAt(i, tint.setRGB(0.82 + R() * 0.12, 0.88 + R() * 0.12, 0.8 + R() * 0.1));   // a slight shade per leaf
   root.add(leaves);
   // (room for the vines' points however a Vine Whip re-lays them)
-  return { root, heart, leaves, mound, veil, vines, heartAt: heart.position.clone(), blockers: new Float32Array((count + VINES * 240) * 4), nBlock: 0 };
+  return { root, heart, leaves, mound, veil, vines, heartAt: heart.position.clone(), close: 0, blockers: new Float32Array((count + VINES * 240) * 4), nBlock: 0 };
 }
 const VEIL = 5;
 
@@ -321,8 +332,9 @@ const VEIL = 5;
 // bubbles: a ball round each leaf and along each vine (in the plant's frame), none over the heart's
 // hollow but the veil's while it's shut. `open` 0..1: how far the leaves round the hollow have
 // pushed aside. `bound`: also refit the one ball round all of it (when a vine has landed somewhere
-// new). Runs every frame while the plant moves: allocates nothing.
-const _p = new THREE.Vector3(), _q = new THREE.Vector3(), _c = new THREE.Vector3();
+// new). Runs every frame while the plant moves: allocates nothing. (M.close: how far the lids have
+// closed over the heart while it's shielded, 0 open .. 1 shut)
+const _p = new THREE.Vector3(), _q = new THREE.Vector3(), _c = new THREE.Vector3(), _w = new THREE.Vector3(), _v = new THREE.Vector3();
 let LM = null, LI = 0;
 function keep(c, r, always = false) {
   const B = LM.blockers;
@@ -337,6 +349,7 @@ function leaf(m, size, block = 1) {
 function placeLeaves(M, open = 0, bound = true) {
   LM = M; LI = 0; M.nBlock = 0;
   for (const L of M.mound) {
+    if (L.shut && M.close) { leaf(leafMatrix(_v.copy(L.pos).lerp(L.shutAt, M.close), _w.copy(L.out).lerp(L.shut, M.close), L.size, L.tilt), L.size); continue; }
     if (!L.frame || !open) { leaf(leafMatrix(L.pos, L.out, L.size, L.tilt), L.size); continue; }
     // round the hollow: pushed out from it (away from its axis) and drooping
     _q.subVectors(L.pos, M.heartAt).setZ(0);
@@ -477,7 +490,9 @@ export class Pothos {
     this.state = 'idle';
     this.stateT = 3;                     // the first attack comes a moment after it rises
     this.next = 0;
-    this.guards = [];
+    this.guards = [];                    // the dragonflies it let out (the swarm): its heart is shielded while they live
+    this.swarmed = false;
+    this.guardT = 0;
     this.wither = 0;
     this.glowColor = new THREE.Color(LOOK.color('pothos-heart-halo', '#5ee83a'));
     this.model = buildPothos(world, V(...arena.pot), arena);
@@ -565,12 +580,26 @@ export class Pothos {
     // the leaves round it are parted
     const beat = Math.max(0, Math.sin(this.t * 4)) ** 4, open = this.open;
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 5);
+    // shielded, the lids fold shut over the heart and it dims behind them; they open again after
+    const shut = this.shielded ? 1 : 0;
+    if (M.close !== shut) {
+      M.close += (shut - M.close) * Math.min(1, dt * 6);
+      if (Math.abs(shut - M.close) < 0.01) M.close = shut;
+      placeLeaves(M, this.open, false);  // only while they move
+    }
     M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * 0.12));
-    M.heart.material.emissiveIntensity = 0.3 + beat * 0.15 + open * 0.6;
-    this.fx.glow.hold(this.center(this._heart), this.glowColor, 0.14 * (0.8 + beat * 0.3) + open * 0.2, 0.6 + open * 0.3);
+    M.heart.material.emissiveIntensity = (0.3 + beat * 0.15 + open * 0.6) * (1 - M.close * 0.75);
+    this.fx.glow.hold(this.center(this._heart), this.glowColor, (0.14 * (0.8 + beat * 0.3) + open * 0.2) * (1 - M.close * 0.6), (0.6 + open * 0.3) * (1 - M.close * 0.7));
     M.root.rotation.z = this.state === 'cutting' ? Math.sin(this.t * 40) * 0.02 : 0;   // shivering, flinging Cuttings
     // its attacks, in turn
-    if (this.rise >= 1) {
+    const SW = this.def.skills.swarm;
+    if (this.rise >= 1 && SW && !this.swarmed && this.state === 'idle' && this.hp < this.maxHp * SW.at) this.begin('swarm');
+    if (this.state === 'swarm') {
+      // shielded till its dragonflies are dead, or for `shield` s at most
+      this.guards = this.guards.filter((e) => !e.dead);
+      if ((this.guardT -= dt) <= 0) this.guards = [];
+      if (!this.shielded) { this.state = 'idle'; this.stateT = SW.rest; }
+    } else if (this.rise >= 1) {
       this.stateT -= dt;
       if (this.stateT <= 0) {
         if (this.state === 'idle') { const order = this.angry ? ATTACKS.angry : ATTACKS.calm; this.begin(order[this.next++ % order.length]); }
@@ -602,6 +631,7 @@ export class Pothos {
     this.stateT = SK.time;
     if (name === 'roots') this.roots(SK);
     if (name === 'cutting') this.cuttings(SK);
+    if (name === 'swarm') this.swarm(SK);
     if (name === 'whip') this.whip(SK);
   }
 
@@ -689,6 +719,22 @@ export class Pothos {
     }
     this.whipT = -1;
     placeLeaves(this.model, this.open, true);
+  }
+
+  // the swarm: `count` dragonflies (content/enemies.kdl, as they are anywhere) burst out of the
+  // leaves round the heart, fanned out toward the foot of the bed
+  swarm({ count, shield }) {
+    this.swarmed = true;
+    const c = this.center(this._heart);
+    for (let k = 0; k < count; k++) {
+      const a = (k - (count - 1) / 2) * 0.7, q = this._drop.set(c.x + Math.sin(a) * 0.06, c.y + 0.04, c.z - Math.cos(a) * 0.06);
+      const e = this.enemies.spawn('dragonfly', q);
+      e.spawnT = 0.5;
+      this.guards.push(e);
+    }
+    this.guardT = this.stateT = shield;
+    this.fx.impact(c, hostile('pothos'), 0.05, 16);
+    sfx.ladyBuzz?.();
   }
 
   // Cuttings: flung onto the bed `near` m round you, in pairs when it's angry; each is an enemy

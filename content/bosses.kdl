@@ -45,9 +45,13 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
 // the Warning shows for `windup` s, then the vine lashes along a curved lane `width` wide and
 // `height` tall (jump it) out to `reach` m from the pot; `knock` is how hard a hit throws you aside;
 // then its leaves part for `open` s: the moment to hit its heart. `count` lanes (`angryCount` angry)
+// The swarm: once, the first time its Health drops below `at`, `count` dragonflies (content/enemies.kdl
+// "dragonfly") come out of the plant and its leaves close over its heart until they're dead or
+// `shield` s have passed
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
     whip    time=1.0 windup=0.5 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 open=1.5 count=1 angryCount=2 rest=2.5 angryRest=1.6
     cutting time=1.0 count=1 angryCount=2 near=0.16 rest=2.5 angryRest=1.6
     roots   time=1.2 count=3 spread=0.18 rest=2.5 angryRest=1.6
+    swarm   at=0.7 count=4 shield=30 rest=1.5
     enrage  at=0.45
 }

@@ -17,3 +17,5 @@ Elite and Boss attacks hit in 3D: a Blast is a sphere centred where it goes off 
 CLAUDE.md rule 3 (attacks speak one visual language) now covers volumes. Ordinary bugs' warnings (the lanternfly's leap ring, the ladybug's lock-on) stay flat until they get the same treatment.
 
 One exception, by the owner's call (v138): the Cream Whipper's balloon shows only its floor circle, with no sphere round it. The balloon itself, blinking and ticking, shows where the burst is; its Blast is still the whole sphere round it.
+
+One more, by the owner's call (spec #32): the Pothos's Vine Whip aims about half a second ahead of a swimming jelly (Shots and lanes otherwise never lead), and its Warning shows for only 0.5 s. Changing direction is the dodge; the lane is 4 cm high, so a jump clears it too.
