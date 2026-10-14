@@ -4,6 +4,8 @@
 //   node tests/run.mjs                 everything
 //   node tests/run.mjs elites          only stories whose name contains "elites" (a,b: either)
 //   node tests/run.mjs --no-mobile     skip the phone check
+//   node tests/run.mjs --jobs=N        how many pages play side by side (default 3)
+//   node tests/run.mjs --force         play a full run even if this commit already passed one
 //
 // Needs Playwright (cd tests && npm install && npx playwright install chromium).
 // If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three npm package (the
@@ -20,9 +22,22 @@ const filters = (args.find((a) => !a.startsWith('--')) || '').split(',');
 const wants = (name) => filters.some((f) => name.includes(f));
 const MOBILE = !args.includes('--no-mobile');
 
+// a full run of a clean checkout whose commit already passed one has nothing new to find (--force plays it anyway)
+if (filters.join('') === '' && MOBILE && !args.includes('--force')) {
+  try {
+    const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
+    const head = execSync('git rev-parse HEAD', { cwd: ROOT }).toString().trim();
+    if (clean && fs.readFileSync(path.join(ROOT, 'tests/.last-green'), 'utf8').trim() === head) {
+      console.log(`${head.slice(0, 7)} already passed a full run (tests/.last-green): nothing to do. --force plays it again.`);
+      process.exit(0);
+    }
+  } catch {}
+}
+
 const env = await start();
 let failed = 0, passed = 0;
-const line = (good, name, ms, info) => console.log(`${good ? '✓' : '✗'} ${name}${ms != null ? `  (${ms} ms)` : ''}${good ? '' : '\n    ' + JSON.stringify(info)}`);
+const text = (good, name, ms, info) => `${good ? '✓' : '✗'} ${name}${ms != null ? `  (${ms} ms)` : ''}${good ? '' : '\n    ' + JSON.stringify(info)}`;
+const line = (...a) => console.log(text(...a));
 
 // --- every story, one page per act (booting the apartment takes a while, so a page only opens
 // when it has a story to play). Later acts start as if the act before was just beaten, carrying a
@@ -39,27 +54,49 @@ const PAGES = [
   { key: 'phone3', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, act: { act: 3, carry: CARRY3 } } },
 ];
 const pageOf = (n) => (n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : 'act1');
-let all = null;   // [name, page key] for every story, once a page has listed them
-for (const P of PAGES) {
-  // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
-  if (!all && filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1')) continue;
-  if (all && !all.some(([n, k]) => k === P.key && wants(n))) continue;
-  const { page, errors } = await openGame(env, P.opts);
-  // stories step and draw the game themselves; the game's own frame loop running between them
-  // only adds slow software-rendered frames (seconds each) and timing noise
-  await page.evaluate(() => APT.renderer.setAnimationLoop(null));
-  all ||= await page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
-  await playAll(page, errors, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n));
-  await page.close();
+// Pages play side by side (--jobs=N, default 3; each in its own browser, so each gets its own
+// software GPU), and a page with many stories is split into runs of consecutive stories, each in a
+// fresh page: a story that must come last on its page (nests/bedroom-spots) stays last in its run.
+const JOBS = Math.max(1, Number((args.find((a) => a.startsWith('--jobs=')) || '').slice(7)) || 3);
+const prep = async (page) => page.evaluate(() => APT.renderer.setAnimationLoop(null));   // stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise
+// before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
+const first = PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
+const opened = await openGame(env, first.opts);
+await prep(opened.page);
+const all = await opened.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
+const lists = PAGES.map((P) => [P, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n)]).filter(([, names]) => names.length);
+const size = Math.max(1, Math.ceil(lists.reduce((t, [, names]) => t + names.length, 0) / JOBS));
+const queue = [];
+for (const [P, names] of lists) {
+  const runs = Math.ceil(names.length / size), per = Math.ceil(names.length / runs);
+  for (let i = 0; i < names.length; i += per) queue.push({ P, names: names.slice(i, i + per) });
 }
+// the page that listed the stories plays the first run of its own act
+const mine = queue.findIndex((q) => q.P === first);
+if (mine > 0) queue.unshift(queue.splice(mine, 1)[0]);
+let reuse = mine >= 0 ? opened : (await opened.page.close(), null);
+const envs = [env];
+await Promise.all(Array.from({ length: Math.min(JOBS, queue.length) }, async (_, w) => {
+  for (let q; (q = queue.shift());) {
+    const e = envs[w] ||= await start();
+    let got = reuse && q.P === first ? reuse : null;
+    if (got) reuse = null;
+    else { got = await openGame(e, q.P.opts); await prep(got.page); }
+    const out = [];
+    await playAll(got.page, got.errors, q.names, out);
+    console.log(out.join('\n'));
+    await got.page.close();
+  }
+}));
+await Promise.all(envs.slice(1).map((e) => e.close()));
 
-async function playAll(page, errors, names) {
+async function playAll(page, errors, names, out) {
   for (const name of names) {
     const before = errors.length;
     const r = await page.evaluate(async (n) => (await import('/src/stories.js')).runStory(n), name);
     const newErrors = errors.slice(before);
     const good = r.ok && !newErrors.length;
-    line(good, name, r.ms, newErrors.length ? { ...r.info, errors: newErrors } : r.info);
+    out.push(text(good, name, r.ms, newErrors.length ? { ...r.info, errors: newErrors } : r.info));
     good ? passed++ : failed++;
   }
 }
