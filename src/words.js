@@ -568,6 +568,33 @@ export const ENEMY_WORDS = {
     make: () => ({ rolls: true }),
   },
 
+  becomes: {
+    doc: 'A countdown: a floor circle `radius` m round it (in the `color` hostile colour) fills over `after` s, and if it\'s still alive when it fills, the bug named `what` takes its place where it stood, as tough as it was. Frozen or stunned, the countdown waits.',
+    args: ['what'],
+    props: { after: 6, radius: 0.06, color: 'pothos' },
+    make: ([what], p) => ({
+      becomes: p,
+      init(e) { e.becomeT = e.becomeMax = p.after; },
+      tick(e, c, en) {
+        if ((e.becomeT -= c.dt * (c.slow > 0 ? 1 : 0)) <= 0) en.become(e, what);
+      },
+    }),
+  },
+
+  lob: {
+    doc: 'Every `every` s, if you are within `reach` m, lobs a glob at where you stand: while it flies (`flight` s) a floor circle `radius` m with a dome over it fills there, in the `color` hostile colour; it lands as a Blast (`dmg` to anything of you inside: jump it) and leaves a sticky puddle that slows you while you stand in it, for `puddle` s.',
+    props: { every: 3, reach: 0.5, radius: 0.045, dmg: 3, flight: 1, puddle: 4, color: 'pothos' },
+    make: (_, p) => ({
+      init(e) { e.lobT = 1 + Math.random(); },
+      tick(e, c, en) {
+        if (c.slow === 0 || (e.lobT -= c.dt) > 0) return;
+        if (c.dist > p.reach) { e.lobT = 0.3; return; }
+        e.lobT = p.every;
+        en.lob(e, c, p);
+      },
+    }),
+  },
+
 };
 
 // Check one word use from a content file and build it. Throws a message that names the file

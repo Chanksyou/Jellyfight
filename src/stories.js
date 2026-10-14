@@ -1500,6 +1500,101 @@ story('words/rolls', {
   play() { const e = G().enemies.list[0], a = e.mesh.rotation.x; step(30); return ok(Math.abs(e.mesh.rotation.x - a) > 1, { turned: +(e.mesh.rotation.x - a).toFixed(2) }); },
 });
 
+// --- the Pothos's Cuttings and Sap sprouts (act 3's boss drops them; they're bugs like any other)
+// the floor Warnings in the scene in the Pothos's colour, showing
+const pothosFloor = () => shownWarnings().floor.filter((o) => o.material.uniforms.uColor.value.getHex() === hostile('pothos').getHex());
+story('words/becomes', {
+  about: 'A Cutting left alone: a floor circle round it fills like a countdown over about 6 s, and when it fills a Sap sprout takes its place where it stood.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('cutting', near(0.2, 0)); },
+  play() {
+    const { enemies } = G(), c = enemies.list[0];
+    step(3);
+    const at = c.pos.clone();
+    let frames = 3, mid = null, sprout = null, warned = false;
+    step(60 * 8, () => {
+      frames++;
+      const w = pothosFloor();
+      if (w.length && Math.hypot(w[0].position.x - at.x, w[0].position.z - at.z) < 0.01) warned = true;
+      if (frames === 180) mid = w[0]?.material.progress;
+      sprout = enemies.list.find((x) => x.type === 'sprout' && !x.dead);
+      return sprout;
+    });
+    const secs = frames / 60, where = sprout ? Math.hypot(sprout.pos.x - at.x, sprout.pos.z - at.z) : null;
+    return ok(warned && mid > 0.4 && mid < 0.6 && sprout && c.dead && secs > 5.8 && secs < 6.3 && where < 0.005,
+      { warned, mid: mid && +mid.toFixed(2), secs: +secs.toFixed(2), sprout: !!sprout, cutting: c.dead ? 'gone' : 'still there', where });
+  },
+});
+story('enemies/cutting-killed-in-time-never-sprouts', {
+  about: 'A Cutting killed within its countdown does nothing more: no Sap sprout comes, and its Warning goes with it.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('cutting', near(0.2, 0)); },
+  play() {
+    const { enemies } = G(), c = enemies.list[0];
+    step(60 * 3);
+    const shown = pothosFloor().length;
+    bus.emit('damage_taken', { targetId: c.id, amount: 9999 });
+    step(60 * 5);
+    const sprouts = enemies.list.filter((x) => x.type === 'sprout' && !x.dead).length;
+    return ok(shown === 1 && c.dead && !sprouts && !pothosFloor().length, { shown, dead: c.dead, sprouts, after: pothosFloor().length });
+  },
+});
+// a Sap sprout near the jelly, held still, and the first glob it lobs
+function sapLob() {
+  fresh({ hurt: true, elites: false, bubbles: false, lash: false });
+  tp(3.2, 0.05, 3.0, 0);
+  holdJelly();
+  spawn('sprout', near(0.25, 0));
+}
+const firstSap = () => { step(60 * 6, () => G().enemies.lobs.length > 0); return G().enemies.lobs[0]; };
+const shownAt = (to) => { const w = warningsAt(to); return { floor: w.floor?.visible ? w.floor : null, volume: w.volume?.visible ? w.volume : null }; };
+story('words/lob', {
+  about: 'A Sap sprout lobs sap at you: its Warning is a floor circle where you stand with a dome over it, filling together while the glob flies; it lands as a Blast that hits a jelly inside, and both go.',
+  setup() { sapLob(); },
+  play() {
+    const log = record('damage_taken'), b = firstSap(), to = b?.to.clone();
+    if (!b) return ok(false, { lobbed: false });
+    step(10);
+    const w1 = shownAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
+    step(10);
+    const w2 = shownAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
+    const together = w1.floor && w1.volume && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[0] > p1[0];
+    step(60 * 2, () => b.done);
+    const hit = log.find((d) => d.source === 'sprout'), after = shownAt(to);
+    return ok(together && hit && !after.floor && !after.volume, { p1, p2, hit: hit?.amount, after: { floor: !!after.floor, volume: !!after.volume } });
+  },
+});
+story('enemies/sap-jump-clears', {
+  about: 'A jelly in the air over the circle when the sap lands is clear of the Blast.',
+  setup() { sapLob(); },
+  play() {
+    const { player } = G(), log = record('damage_taken'), b = firstSap();
+    if (!b) return ok(false, { lobbed: false });
+    step(60 * 2, () => b.k > 0.9);
+    player.position.y += 0.1; player.grounded = false;      // jumped as it comes down
+    step(60 * 2, () => b.done);
+    const hit = log.some((d) => d.source === 'sprout');
+    return ok(b.done && !hit, { landed: b.done, hit });
+  },
+});
+story('enemies/sap-puddle-slows', {
+  about: 'Where sap lands it leaves a sticky puddle (a floor hazard, no volume): a jelly standing in it is slowed, one just beside it isn\'t.',
+  setup() { sapLob(); },
+  play() {
+    const { player, enemies } = G(), b = firstSap();
+    if (!b) return ok(false, { lobbed: false });
+    const to = b.to.clone(), slows = record('status_applied');
+    step(60 * 2, () => b.done);
+    step(20);
+    const inside = slows.filter((s) => s.targetId === PLAYER && s.status === 'slow').length;
+    const pud = enemies.puddles.find((p) => Math.hypot(p.m.position.x - to.x, p.m.position.z - to.z) < 0.01);
+    const vol = shownWarnings().volume.length;
+    player.position.set(to.x + (pud?.r || 0.05) + 0.04, player.position.y, to.z);
+    slows.length = 0;
+    step(20);
+    const beside = slows.filter((s) => s.targetId === PLAYER && s.status === 'slow').length;
+    return ok(pud && inside > 0 && beside === 0 && vol === 0, { puddle: !!pud, inside, beside, vol });
+  },
+});
+
 // --- guards: the vocabulary stays complete, and content mistakes are caught
 // The words GLOSSARY.md retires (its _Avoid_ lists) stay out of what players read: content names and
 // texts, stat names, cards and evolutions, and the prose strings the HUD, menus and run show.
@@ -4892,7 +4987,9 @@ const EVERY_ATTACK = {
     },
   },
   3: {
-    pothos: {},                       // no attacks yet (pothos.js ATTACKS): each one joins here as it lands
+    pothos: {                         // each attack joins here as it lands (pothos.js ATTACKS)
+      cutting: { is: 'none' },        // it drops Cuttings: their countdown is the Cutting's own (words/becomes)
+    },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -5202,6 +5299,51 @@ act3('pothos-only-its-heart-takes-damage', {
     const side = shoot(pot.clone().add(V(0.07, 0.1, 0)));
     const hit = shoot(heart);
     return ok(side.closest < 0.02 && side.lost === 0 && hit.lost > 0, { side, hit, heart: r3(heart), pot: r3(pot) });
+  },
+});
+// start one Pothos attack now (pothos.js pick: the next one in its order)
+const pothosAttack = (B, name) => { const order = B.angry ? POTHOS_ATTACKS.angry : POTHOS_ATTACKS.calm; B.next = order.indexOf(name); B.pick(); };
+act3('pothos-drops-cuttings-near-you', {
+  about: 'The Pothos drops a glowing Cutting on the bed near the jelly; angry, it drops them in pairs.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { enemies, run } = G(), A = run.stage.boss, out = {};
+    for (const angry of [false, true]) {
+      if (angry) B.hp = B.maxHp * 0.4;
+      enemies.list.filter((e) => e.type === 'cutting').forEach((e) => enemies.kill(e, true));
+      tp(-0.3, 0.7, 9.6, 0);
+      holdJelly();
+      pothosAttack(B, 'cutting');
+      const P = G().player.position;
+      step(60 * 3, () => B.state !== 'cutting');
+      step(30);
+      const cs = enemies.list.filter((e) => e.type === 'cutting' && !e.dead);
+      const onBed = cs.every((e) => e.pos.x > A.arenaMin[0] && e.pos.x < A.arenaMax[0] && e.pos.z > A.arenaMin[2] && e.pos.z < A.arenaMax[2] && e.pos.y > 0.55 && e.grounded);
+      const near = cs.every((e) => Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < 0.3);
+      out[angry ? 'angry' : 'calm'] = { n: cs.length, onBed, near, at: cs.map((e) => r3(e.pos)) };
+    }
+    return ok(out.calm.n === 1 && out.angry.n === 2 && out.calm.onBed && out.angry.onBed && out.calm.near && out.angry.near, out);
+  },
+});
+act3('cutting-and-sap-build-no-new-shader', {
+  about: 'A Cutting\'s countdown, its Sap sprout, the sap\'s Warning (circle and dome) and its puddle build no new shader: all were built behind Play.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { APT, batcher, enemies, player } = G(), programs = APT.renderer.info.programs.length;
+    holdJelly();
+    const c = spawn('cutting', player.position.clone().add(V(0.2, 0, 0)));
+    c.becomeT = 0.5;                                       // sprouting soon
+    step(60 * 6, () => enemies.lobs.length > 0);
+    const shown = { countdown: false, lob: enemies.lobs.length > 0 };
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    step(60 * 2, () => enemies.puddles.length > 0);
+    shown.puddle = enemies.puddles.length > 0;
+    const c2 = spawn('cutting', player.position.clone().add(V(-0.2, 0, 0)));
+    step(30);
+    shown.countdown = pothosFloor().length > 0 && !c2.dead;
+    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    const newShaders = APT.renderer.info.programs.length - programs;
+    return ok(shown.lob && shown.puddle && shown.countdown && newShaders === 0, { ...shown, newShaders });
   },
 });
 act3('beating-the-pothos-wins-the-run', {

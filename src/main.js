@@ -472,6 +472,7 @@ async function warmUp() {
   scene.add(flash);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
+  enemies.warm(true, P.clone());                          // a sap lob's Warning and its puddle (the lob word)
   run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
@@ -498,6 +499,7 @@ async function warmUp() {
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   run.gadgets.warm(false);
   run.elites.warm(false);
+  enemies.warm(false);
   run.roomTreasures[0].hide();
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));

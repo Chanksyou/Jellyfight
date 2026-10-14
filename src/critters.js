@@ -1847,3 +1847,102 @@ export function buildNest() {
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
+
+// ------------------------------------------------------------------ the Pothos's Cuttings and Sap sprouts
+// A pothos leaf, small: heart-shaped, cupped, its tip drooping, deep green with cream-gold streaks
+// and a gold midrib. Petiole at the origin, running along +y (1 unit long), facing +z.
+function pothosLeaf() {
+  const g = new THREE.PlaneGeometry(1, 1, 6, 8), p = g.attributes.position, col = new Float32Array(p.count * 3);
+  const deep = new THREE.Color(LOOK.color('pothos-leaf-deep', '#0f3311')), green = new THREE.Color(LOOK.color('pothos-leaf', '#1d5a1d'));
+  const gold = new THREE.Color(LOOK.color('pothos-leaf-gold', '#f2dc5a')), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const u = p.getX(i) * 2, t = p.getY(i) + 0.5;
+    const w = 0.62 * Math.pow(Math.sin(Math.PI * Math.min(1, (t + 0.14) / 1.14)), 0.8) * (1 - 0.12 * t);
+    const x = u * w, y = t - 0.16 * Math.abs(u) * Math.pow(1 - t, 3), z = -0.14 * t * t + 0.1 * u * u * w;
+    p.setXYZ(i, x, y, z);
+    const streak = Math.sin(Math.atan2(x, t + 0.06) * 15 + Math.sin(t * 9 + x * 7) * 1.4) * 0.5 + 0.5;
+    c.copy(green).lerp(deep, Math.abs(u) * 0.55).lerp(gold, Math.min(1, Math.max(0, (streak - 0.6) / 0.35)) * (0.35 + 0.65 * t));
+    if (Math.abs(u) < 0.12) c.lerp(gold, 0.6);                              // the midrib
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  g.deleteAttribute('uv');
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+// a leaf's geometry placed: petiole at `at`, pointing along `dir`, rolled so it faces mostly up
+function placeLeaf(leaf, at, dir, size, roll = 0) {
+  const y = dir.clone().normalize(), up = V(0, 1, 0), z = up.clone().addScaledVector(y, -up.dot(y));
+  if (z.lengthSq() < 1e-6) z.set(0, 0, 1);
+  z.normalize().applyAxisAngle(y, roll);
+  const x = new THREE.Vector3().crossVectors(y, z).normalize();
+  return leaf.clone().applyMatrix4(new THREE.Matrix4().makeBasis(x, y, z).scale(V(size, size, size)).setPosition(at)).toNonIndexed();
+}
+function plantMats() {
+  const M = mats();
+  if (!M.leaf) {
+    M.leaf = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: '#071405' });
+    standOut(M.leaf, { base: 0.1, rim: 0.35 });
+    // the sap: glowing in the Pothos's hostile colour, so it reads as its attack
+    const sap = new THREE.Color(LOOK.color('hostile-pothos', '#9cff1e'));
+    M.sap = new THREE.MeshStandardMaterial({ color: sap.clone().multiplyScalar(0.6), emissive: sap, emissiveIntensity: 1.4, roughness: 0.25 });
+  }
+  return M;
+}
+const STEM = 0x2f6a22, STEM_DARK = 0x1d4416, ROOT = 0x7a5a30;
+// a Cutting: a snip of vine lying on the bed, two leaves, a node with root nubs, the cut end glowing
+function cuttingParts() {
+  const leaf = pothosLeaf();
+  const green = [
+    tube([V(0, 0.12, -1.35), V(0.15, 0.14, -0.6), V(-0.05, 0.13, 0.2), V(0.1, 0.12, 1.1)], 0.1, STEM, 16),
+    ellipsoid(0.15, 0.13, 0.17, V(-0.03, 0.14, -0.15), STEM_DARK, 10),             // a node
+    rod(V(-0.03, 0.08, -0.15), V(-0.35, 0.02, -0.3), 0.04, 0.02, ROOT),            // aerial root nubs
+    rod(V(-0.03, 0.08, -0.15), V(0.25, 0.02, -0.4), 0.04, 0.02, ROOT),
+  ];
+  const leaves = [placeLeaf(leaf, V(-0.03, 0.18, -0.1), V(0.9, 0.35, 0.5), 1.25, 0.25), placeLeaf(leaf, V(0.08, 0.16, 0.95), V(-0.7, 0.3, 0.75), 1.1, -0.3)];
+  return { stem: merge(green), leaves: merge(leaves), cut: merge([ellipsoid(0.13, 0.13, 0.08, V(0, 0.12, -1.38), 0xffffff, 10)]) };
+}
+export function buildCutting() {
+  const G = (GEO.cutting ||= cuttingParts()), M = plantMats();
+  const outer = new THREE.Group(), body = new THREE.Group(), cut = new THREE.Mesh(G.cut, M.sap);
+  outer.add(body);
+  body.add(new THREE.Mesh(G.stem, M.matte), new THREE.Mesh(G.leaves, M.leaf), cut);
+  let t = Math.random() * 6;
+  const anim = (dt, e) => {
+    t += dt;
+    // the cut end pulses faster as the countdown runs out, and it shivers at the end
+    const left = Math.max(0, e.becomeT ?? 6) / (e.becomeMax || 6);
+    cut.scale.setScalar(1 + 0.4 * Math.max(0, Math.sin(t * (3 + (1 - left) * 14))));
+    body.rotation.z = Math.sin(t * 2.3) * 0.03 + (left < 0.2 ? Math.sin(t * 40) * 0.05 : 0);
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+// a Sap sprout: roots splayed on the bed, a stem rising to a swollen glowing sap pod, leaves fanning
+function sproutParts() {
+  const leaf = pothosLeaf(), green = [], leaves = [];
+  for (let k = 0; k < 5; k++) { const a = k * 1.3; green.push(rod(V(0, 0.15, 0), V(Math.cos(a) * 0.75, 0.01, Math.sin(a) * 0.75), 0.09, 0.03, ROOT)); }
+  green.push(tube([V(0, 0, 0), V(0.08, 0.8, 0.02), V(-0.06, 1.6, -0.03), V(0, 2.2, 0)], 0.13, STEM, 14));
+  green.push(ellipsoid(0.2, 0.12, 0.2, V(0, 2.18, 0), STEM_DARK, 10));                // the pod's cup
+  for (const [y, a, size] of [[0.6, 0.0, 1.3], [1.0, 2.2, 1.1], [1.4, 4.4, 1.25], [1.8, 1.1, 1.0], [2.0, 3.3, 0.95]]) {
+    leaves.push(placeLeaf(leaf, V(Math.cos(a) * 0.08, y, Math.sin(a) * 0.08), V(Math.cos(a), 0.55 - y * 0.12, Math.sin(a)), size, 0.2));
+  }
+  return { stem: merge(green), leaves: merge(leaves), pod: merge([ellipsoid(0.32, 0.4, 0.32, V(0, 0, 0), 0xffffff, 14)]) };
+}
+export function buildSprout() {
+  const G = (GEO.sprout ||= sproutParts()), M = plantMats();
+  const outer = new THREE.Group(), body = new THREE.Group(), pod = new THREE.Mesh(G.pod, M.sap);
+  outer.add(body);
+  pod.position.y = 2.45;
+  body.add(new THREE.Mesh(G.stem, M.matte), new THREE.Mesh(G.leaves, M.leaf), pod);
+  let t = Math.random() * 6, kick = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    // the pod swells as the next lob comes and kicks back as it fires; the plant sways
+    if (e.lobbedT > 0) { kick = 1; e.lobbedT = 0; }
+    kick *= Math.exp(-6 * dt);
+    const charge = 1 - Math.min(1, Math.max(0, e.lobT ?? 3) / 1.2);
+    pod.scale.set(1 + charge * 0.35 - kick * 0.3, 1 + charge * 0.25 + kick * 0.2, 1 + charge * 0.35 - kick * 0.3);
+    body.rotation.z = Math.sin(t * 1.7) * 0.05 - kick * 0.15;
+    body.rotation.x = Math.sin(t * 1.3 + 1) * 0.04;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
