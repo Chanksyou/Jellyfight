@@ -3,14 +3,14 @@
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildRoot, buildMissile } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, blastHits } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -190,6 +190,7 @@ function makeLooks() {
     worm: buildWorm,
     wasp: buildWasp,
     nest: buildNest,
+    root: buildRoot,
     fuzz, hairMat,
   };
 }
@@ -241,6 +242,7 @@ export class Enemies {
     this.missiles = [];       // ladybugs' homing missiles in flight (the sortie word)
     this.lockMarks = [];      // pooled: the reticle round you while a ladybug locks on
     this.chargeMarks = [];    // pooled: the lane in front of each millipede about to roll (the ball-charge word)
+    this.dropMarks = {};      // pooled by colour: the circle, and the dome over it, under each thing dropping (the drops word)
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -754,6 +756,52 @@ export class Enemies {
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
+  // ---------------------------------------------------------------- Aerial roots (drops, holds)
+  // it lands on its spot: a thud, a puff of bark dust, and it has reached you if any of you is in the dome
+  drop(e, { radius, color }) {
+    const at = e.dropAt, col = hostile(color);
+    sfx.clogSplat();
+    this.fx.impact(S.spot.copy(at).setY(at.y + 0.01), col, radius * 0.4, 10);
+    this.fx.puff(S.spot, 0x6a4a2c, radius * 0.8, 0.35);
+    e.landedOn = !!this.player && blastHits(at, radius, this.player.position, this.player);
+  }
+  grab(e) { sfx.clogSnare(); this.fx.impact(S.spot.copy(e.pos).setY(e.pos.y + 0.02), hostile(e.T.words.find((w) => w.dropColor)?.dropColor || 'pothos'), 0.02, 8); }
+  // the hold tightens: you're slowed by `strength` and lose `dmg` (no flinch, no i-frames) for `dur` s
+  squeeze(e, strength, dmg, dur) {
+    bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: dur, strength });
+    if (dmg) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, drain: true });
+  }
+  // spent: it withers away (no kill for you, no XP)
+  wither(e) {
+    this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0x6a4a2c, e.r * 1.6, 0.5);
+    this.kill(e, true);
+  }
+  // the Warning under everything dropping: a floor circle with the dome of space it lands in over it,
+  // filling together as it falls. Pooled, and straight in the scene like every Warning.
+  drawDrops(t) {
+    const used = {};
+    for (const e of this.list) {
+      if (e.dead || e.state !== 'drop' || !e.dropAt) continue;
+      const w = e.T.words.find((x) => x.dropRadius), color = w.dropColor, pool = (this.dropMarks[color] ||= []), i = used[color] = (used[color] || 0) + 1;
+      let M = pool[i - 1];
+      if (!M) {
+        M = { floor: new THREE.Mesh(this.dropCircle ||= new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile(color), 'circle')), dome: new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile(color), 'dome')) };
+        M.floor.renderOrder = 3; M.dome.renderOrder = 4;
+        this.scene.add(M.floor, M.dome);
+        pool.push(M);
+      }
+      const k = 1 - Math.max(0, e.stateT) / (e.dropMax || 1);
+      M.floor.position.copy(e.dropAt).setY(e.dropAt.y + 0.003);
+      M.dome.position.copy(e.dropAt);
+      M.floor.scale.setScalar(w.dropRadius);
+      M.dome.scale.setScalar(w.dropRadius);
+      M.floor.material.progress = M.dome.material.progress = k;
+      M.floor.material.opacity = 0.85 + 0.15 * Math.abs(Math.sin(t * 14));
+      M.floor.visible = M.dome.visible = true;
+    }
+    for (const [color, pool] of Object.entries(this.dropMarks)) for (let i = used[color] || 0; i < pool.length; i++) pool[i].floor.visible = pool[i].dome.visible = false;
+  }
+
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
   // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
@@ -975,6 +1023,7 @@ export class Enemies {
     this.drawCharges(t);
     this.drawBeams(dt);
     this.drawParasites(t);
+    this.drawDrops(t);
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);

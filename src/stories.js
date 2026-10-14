@@ -1499,6 +1499,47 @@ story('words/rolls', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('hair', near(0.4, 0)); },
   play() { const e = G().enemies.list[0], a = e.mesh.rotation.x; step(30); return ok(Math.abs(e.mesh.rotation.x - a) > 1, { turned: +(e.mesh.rotation.x - a).toFixed(2) }); },
 });
+story('words/drops', {
+  about: 'An Aerial root drops from above onto a circle on the floor near you: the circle and the dome of space over it fill together as it falls, it lands right there as they fill (about 1 s), and both go.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('root', near(0.15, 0)); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], spot = near(0.15, 0), floor = player.position.y;
+    step(1);
+    const high = e.pos.y - floor;
+    const pair = () => volumePairs().find(([v, f]) => f && Math.hypot(v.position.x - spot.x, v.position.z - spot.z) < 0.01);
+    step(10);
+    const p1 = pair(), was = p1?.[0].material.progress;
+    step(20);
+    const p2 = pair(), filling = !!(p1 && p2 && p2[0].material.progress > was && p2[0].material.progress === p2[1].material.progress);
+    let frames = 31;
+    step(60 * 2, () => { frames++; return e.state !== 'drop'; });
+    const secs = frames / 60, landed = Math.hypot(e.pos.x - spot.x, e.pos.z - spot.z) < 0.01 && Math.abs(e.pos.y - floor) < 0.01;
+    step(2);
+    const w = shownWarnings(), gone = !w.floor.length && !w.volume.length;
+    return ok(high > 0.3 && filling && landed && secs > 0.9 && secs < 1.15 && gone, { high: +high.toFixed(2), filling, landed, secs: +secs.toFixed(2), gone });
+  },
+});
+story('words/holds', {
+  about: 'An Aerial root that reaches you holds on for 3 s: you swim at half speed and lose a little Health (1 a second, no flinch), then it withers away, worth no XP, and you swim at full speed again.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { enemies, player } = G(), home = player.position.clone();
+    const swim = () => { tp(home.x, home.y, home.z, 0); step(5); const p0 = player.position.clone(); sim(0.5, ['KeyW']); return Math.hypot(player.position.x - p0.x, player.position.z - p0.z); };
+    const free = swim();
+    tp(home.x, home.y, home.z, 0);
+    const e = spawn('root', near(0, 0)), hurt = record('damage_taken'), kills = record('enemy_killed');
+    step(60 * 2, () => e.state === 'hold');
+    const grabbed = e.state === 'hold', t0 = G().run.t;
+    const held = swim();
+    step(60 * 4, () => e.dead);
+    const secs = G().run.t - t0, lost = hurt.filter((d) => d.source === 'root').reduce((s, d) => s + d.amount, 0);
+    const drained = hurt.filter((d) => d.source === 'root').every((d) => d.drain);
+    step(30);
+    const after = swim(), spent = kills.find((k) => k.targetId === e.id);
+    return ok(grabbed && Math.abs(held / free - 0.5) < 0.08 && after / free > 0.92 && Math.abs(secs - 3) < 0.15 && lost >= 2.5 && lost <= 3.5 && drained && spent?.silent,
+      { free: +free.toFixed(3), held: +held.toFixed(3), after: +after.toFixed(3), secs: +secs.toFixed(2), lost, drained, silent: spent?.silent });
+  },
+});
 
 // --- guards: the vocabulary stays complete, and content mistakes are caught
 // The words GLOSSARY.md retires (its _Avoid_ lists) stay out of what players read: content names and
@@ -4892,7 +4933,9 @@ const EVERY_ATTACK = {
     },
   },
   3: {
-    pothos: {},                       // no attacks yet (pothos.js ATTACKS): each one joins here as it lands
+    pothos: {                         // each attack joins here as it lands (pothos.js ATTACKS)
+      roots: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('roots'); } },
+    },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -5245,6 +5288,43 @@ act3('dying-starts-over-in-act-1', {
     sessionStorage.setItem('jellyfight.act', was);           // this page stays on act 3
     menus.close();
     return ok(/You dried out/.test(text) && reloaded && went?.act === 1 && !went.carry, { text: text.slice(0, 60), reloaded, went });
+  },
+});
+// the Aerial roots the Pothos has sent, alive
+const rootsOut = () => G().enemies.list.filter((e) => e.type === 'root' && !e.dead);
+act3('aerial-roots-land-near-and-creep', {
+  about: 'The Pothos drops Aerial roots from above onto floor circles near the jelly (one right where it is): each lands on its circle, then creeps along the bed after the jelly.',
+  setup() {},
+  play() {
+    const B = pothosFight(), P = holdJelly().position;
+    B.begin('roots');
+    step(2);
+    const R = rootsOut(), spots = R.map((e) => e.dropAt.clone());
+    const near = spots.map((s) => +Math.hypot(s.x - P.x, s.z - P.z).toFixed(3));
+    const marked = spots.every((s) => volumePairs().some(([v, f]) => f && Math.hypot(v.position.x - s.x, v.position.z - s.z) < 0.01));
+    step(60 * 2, () => R.every((e) => e.state !== 'drop'));
+    const landed = R.every((e, i) => Math.hypot(e.pos.x - spots[i].x, e.pos.z - spots[i].z) < 0.01);
+    const far = R.filter((e) => e.state !== 'hold'), d0 = far.map((e) => Math.hypot(e.pos.x - P.x, e.pos.z - P.z));
+    step(30);
+    const crept = far.length > 0 && far.every((e, i) => e.state === 'hold' || Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < d0[i] - 0.05);
+    return ok(R.length >= 2 && Math.min(...near) < 0.01 && Math.max(...near) < 0.25 && marked && landed && crept, { roots: R.length, near, marked, landed, crept });
+  },
+});
+act3('aerial-root-killed-in-time-does-nothing', {
+  about: 'Aerial roots shot down before they reach the jelly do nothing: no Health lost, no slowing.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run } = G();
+    holdJelly();
+    const hurt = record('damage_taken'), slows = record('status_applied');
+    B.begin('roots');
+    step(2);
+    const R = rootsOut();
+    for (const e of R) bus.emit('damage_taken', { targetId: e.id, amount: 9999 });
+    B.stateT = 1e9;                                       // no next attack
+    step(60 * 4);
+    const rooted = hurt.filter((d) => d.source === 'root').length, slowed = slows.filter((s) => s.targetId === PLAYER).length;
+    return ok(R.length >= 2 && R.every((e) => e.dead) && !rooted && !slowed && run.slowT === 0, { roots: R.length, rooted, slowed });
   },
 });
 act3('attacks-every-warning-has-volume', {
