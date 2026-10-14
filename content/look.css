@@ -27,11 +27,15 @@
   --boss-rim: 0.6;
   --rim-color: #ffcc9e;
   /* the Pothos (src/pothos.js): variegated leaves, deep green streaked with gold, and its heart */
-  --pothos-leaf-deep: #0f3311;
-  --pothos-leaf: #1d5a1d;
-  --pothos-leaf-gold: #f2dc5a;
+  --pothos-leaf-deep: #0a2a0c;   /* the leaf's edges */
+  --pothos-leaf: #164d18;        /* its middle */
+  --pothos-leaf-gold: #ffdf4a;   /* the variegated streaks, high contrast */
+  --pothos-leaf-rib: #e0c235;    /* the midrib */
+  --pothos-vine: #3f6a26;        /* the trailing vines */
   --pothos-heart: #7dff5a;
   --pothos-heart-gold: #ffd34a;
+  --pothos-heart-vein: #ffe066;  /* the veins on the heart */
+  --pothos-heart-pit: #1f5a10;   /* the dark pits between them */
   --pothos-heart-glow: #2f8a14;  /* its emissive, kept below white so the colour reads */
   --pothos-heart-halo: #5ee83a;  /* the glow round it */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
@@ -105,4 +109,9 @@
   --camera-distance: 0.68;     /* meters behind the jelly */
   --camera-distance-phone: 0.6;
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
+  /* the Pothos fight's view (eased in for that fight only, back out after): further back and less
+     steep, so its heart, up in its leaves on the pillows, stays in frame from the bed */
+  --pothos-camera-distance: 0.85;  /* meters behind the jelly */
+  --pothos-camera-tilt: 0.785;     /* radians down from level (45 degrees) */
+  --pothos-camera-ahead: 0.65;     /* meters ahead of the jelly it aims: the heart in frame, the jelly low in it */
 }

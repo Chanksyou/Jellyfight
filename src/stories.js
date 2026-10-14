@@ -5182,7 +5182,7 @@ act3('pothos-wakes-when-time-runs-out', {
   },
 });
 act3('pothos-only-its-heart-takes-damage', {
-  about: 'Only the Pothos\'s glowing heart can be hurt: a bubble through its pot does nothing, one into its heart lowers its Health.',
+  about: 'Only the Pothos\'s glowing heart can be hurt: a bubble at its pot does nothing, one into its heart lowers its Health.',
   setup() {},
   play() {
     const B = pothosFight(), { run } = G(), Bu = run.bubbles;
@@ -5196,12 +5196,131 @@ act3('pothos-only-its-heart-takes-damage', {
       const hp = B.hp, b = Bu.blow(from, null, { size: 1, dmg: 20, pierce: 1, range: 2, dir: at.clone().sub(from) });
       let closest = Infinity;
       step(90, () => { closest = Math.min(closest, Math.hypot(b.m.position.x - at.x, b.m.position.y - at.y, b.m.position.z - at.z)); return b.done; });
-      return { lost: hp - B.hp, closest: +closest.toFixed(3) };
+      return { lost: hp - B.hp, closest: +closest.toFixed(3), popped: b.done };
     };
-    // through the side of the pot, below the rim: well clear of the heart
+    // at the side of the pot, below the rim: well clear of the heart (its vines, trailing over the
+    // pot's lip, may stop it first: that does nothing either)
     const side = shoot(pot.clone().add(V(0.07, 0.1, 0)));
     const hit = shoot(heart);
-    return ok(side.closest < 0.02 && side.lost === 0 && hit.lost > 0, { side, hit, heart: r3(heart), pot: r3(pot) });
+    return ok((side.closest < 0.02 || side.popped) && side.lost === 0 && hit.lost > 0, { side, hit, heart: r3(heart), pot: r3(pot) });
+  },
+});
+// the Pothos's look (#34): its trailing vines as drawn (the tube meshes' own rings, in the world)
+const vineRings = (B) => B.model.vines.map((v) => {
+  v.mesh.updateWorldMatrix(true, false);
+  const p = v.mesh.geometry.attributes.position, rings = [];
+  for (let i = 0; i < p.count / 8; i++) {
+    const verts = [], c = V(0, 0, 0);
+    for (let j = 0; j < 8; j++) verts.push(V(0, 0, 0).fromBufferAttribute(p, i * 8 + j).applyMatrix4(v.mesh.matrixWorld));
+    for (let j = 0; j < 7; j++) c.add(verts[j]);              // (the 8th is the 1st again: the seam)
+    c.multiplyScalar(1 / 7);
+    rings.push({ c, r: c.distanceTo(verts[0]), verts });
+  }
+  return rings;
+});
+act3('pothos-vines-lie-on-the-bed', {
+  about: 'Every trailing vine of the Pothos rises out of its soil, over the pot\'s lip and down its outside, then lies on the bed as it really is: up over the pillows and into the mattress\'s dips, resting on the surface under it within a few millimetres, never below it, never floating, and never through the pot.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { world } = G(), at = B.position, o = V(0, 0, 0), down = V(0, -1, 0);
+    const surf = (x, z) => world.castAll(o.set(x, at.y + 0.5, z), down, 1.2)?.point.y ?? -1;
+    // the pot as drawn: how far out its wall is at each height above its base, and the soil's height
+    const pot = B.model.root.children.find((m) => m.geometry?.type === 'LatheGeometry'), dirt = B.model.root.children.find((m) => m.geometry?.type === 'CircleGeometry');
+    pot.updateWorldMatrix(true, false); dirt.updateWorldMatrix(true, false);
+    const wall = [], pp = pot.geometry.attributes.position, w = V(0, 0, 0);
+    for (let i = 0; i < pp.count; i++) { w.fromBufferAttribute(pp, i).applyMatrix4(pot.matrixWorld); wall.push([w.y - at.y, Math.hypot(w.x - at.x, w.z - at.z)]); }
+    const wallAt = (y) => Math.max(0, ...wall.filter(([h]) => Math.abs(h - y) < 0.006).map(([, r]) => r));
+    const potR = Math.max(...wall.map(([, r]) => r)), soil = new THREE.Vector3().setFromMatrixPosition(dirt.matrixWorld).y - at.y;
+    const vines = vineRings(B), out = { vines: vines.length, through: 0, onBed: [], below: 0, float: 0, edges: 0, rings: 0 };
+    for (const rings of vines) {
+      let bed = 0;
+      for (const { c, r, verts } of rings) {
+        // through the pot: any of it inside the pot's wall, under the soil
+        for (const v of verts) { const y = v.y - at.y; if (y > 0.005 && y < soil - 0.012 && Math.hypot(v.x - at.x, v.z - at.z) < wallAt(y) - 0.002) out.through++; }
+        if (Math.hypot(c.x - at.x, c.z - at.z) < potR + r + 0.005) continue;   // still on the pot
+        // out on the bed: its underside on the surface under it (a pillow's edge or the dip's step
+        // is a ledge it runs down: there it only mustn't sink in)
+        bed++; out.rings++;
+        const h = surf(c.x, c.z), d = 0.015;
+        // (a ledge: the surface bends or drops sharply here, a pillow's rounded front. Running down a ledge's face, it
+        // mustn't sink below the foot of the ledge, and must touch the ledge within a ring or two)
+        const ax = surf(c.x + d, c.z), bx = surf(c.x - d, c.z), az = surf(c.x, c.z + d), bz = surf(c.x, c.z - d);
+        const edge = Math.abs(ax + bx - 2 * h) > 0.008 || Math.abs(az + bz - 2 * h) > 0.008 || Math.max(h, ax, bx, az, bz) - Math.min(h, ax, bx, az, bz) > 0.02;
+        // elsewhere its lowest point touches the surface under that point (on a slope, that's to
+        // one side of its middle)
+        const touch = edge ? 0 : Math.min(...verts.slice(0, 7).map((v) => v.y - surf(v.x, v.z)));
+        const sunk = edge ? c.y - r < Math.min(h, ax, bx, az, bz) - 0.003 : touch < -0.003;
+        const floats = edge ? Math.max(h, ax, bx, az, bz) < c.y - r - 0.004 : touch > 0.004;
+        const where = [+c.x.toFixed(3), +c.y.toFixed(3), +c.z.toFixed(3), +h.toFixed(3), edge];
+        if (sunk) { out.below++; (out.sunk ||= []).push(where); }
+        if (floats) { out.float++; (out.floating ||= []).push(where); }
+        if (edge) out.edges++;
+        if (!edge) { out.worst = Math.min(out.worst ?? 1, +touch.toFixed(4)); out.most = Math.max(out.most ?? -1, +touch.toFixed(4)); }
+      }
+      out.onBed.push(bed);
+    }
+    return ok(out.vines === 9 && out.onBed.every((n) => n >= 20) && out.through === 0 && out.below === 0 && out.float === 0, out);
+  },
+});
+act3('pothos-vines-and-leaves-block-bubbles', {
+  about: 'The Pothos\'s vines and leaves stop bubbles: one that hits a trailing vine on the bed or a leaf of its mound pops there and does it no harm; one that finds the hollow in its leaves and reaches the heart hurts it.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run } = G(), Bu = run.bubbles, at = B.position;
+    stub(Bu, 'volley', () => false);                      // no bubbles of its own: just the ones we blow
+    stub(Bu, 'elementVolley', () => false);
+    stub(Bu, 'update', function (dt, origin, stats, mods) { this.fly(dt, stats, mods); });
+    const shoot = (from, to) => {
+      const hp = B.hp, b = Bu.blow(from, null, { size: 1, dmg: 20, pierce: 1, range: 2, dir: to.clone().sub(from) });
+      step(90, () => b.done);
+      return { lost: hp - B.hp, popped: b.done, travel: +b.travel.toFixed(3), off: +b.m.position.distanceTo(to).toFixed(3) };
+    };
+    // a vine on the bed, half way along the middle one, shot at from the side, level with it
+    const rings = vineRings(B)[4], onBed = rings.filter(({ c }) => Math.hypot(c.x - at.x, c.z - at.z) > 0.3), vine = onBed[Math.floor(onBed.length / 2)];
+    const along = onBed[Math.floor(onBed.length / 2) + 1].c.clone().sub(vine.c).setY(0).normalize(), side = V(along.z, 0, -along.x);
+    const atVine = shoot(vine.c.clone().addScaledVector(side, 0.25), vine.c);
+    // the mound, from the east, above the heart: into its leaves
+    const top = at.y + 0.3, leaf = shoot(V(at.x + 0.5, top, at.z), V(at.x, top, at.z));
+    // the heart, from in front, through the hollow
+    tp(-0.105, 0.7, 10.3, Math.PI);
+    const from = G().player.position.clone().setY(G().player.position.y + 0.06), heart = shoot(from, B.center());
+    // (its leaves stick out either side of it: the bubble may pop on one just before the vine)
+    return ok(atVine.popped && atVine.lost === 0 && atVine.off < 0.08 && atVine.travel < 0.24 && leaf.popped && leaf.lost === 0 && leaf.travel < 0.45 && heart.lost > 0,
+      { atVine, leaf, heart });
+  },
+});
+act3('pothos-fight-camera-keeps-the-heart-in-frame', {
+  about: 'In the Pothos fight the camera eases back and up (look.css: about 0.85 m away and 45 degrees down, not 0.68 m and 60, aiming a little ahead of the jelly) so the heart, up in its leaves on the pillows, is on screen with the jelly from where the fight starts; when the fight ends it eases back to the usual view.',
+  setup() {},
+  play() {
+    fresh({ elites: false }); step(10);
+    const { tpc, APT, player } = G(), own = { d: tpc.distance, p: tpc.pitch };
+    const before = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
+    const B = pothosFight();
+    step(150);                                            // eased in
+    const A = G().run.stage.boss, P = player.position, atStart = Math.hypot(P.x - A.playerStart[0], P.z - A.playerStart[2]) < 0.05;
+    const fight = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
+    APT.camera.updateMatrixWorld();
+    const shown = (p) => Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.9 && p.z < 1;
+    const s = B.center().project(APT.camera), j = P.clone().project(APT.camera), inFrame = shown(s) && shown(j);   // the heart, and the jelly too
+    B.damage(B.hp + 1);
+    step(240);                                            // the fight's over: eased back
+    const after = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
+    return ok(before.d === +own.d.toFixed(3) && before.p === +own.p.toFixed(3) && atStart && Math.abs(fight.d - 0.85) < 0.02 && Math.abs(fight.p - Math.PI / 4) < 0.03 && inFrame
+      && Math.abs(after.d - own.d) < 0.005 && Math.abs(after.p - own.p) < 0.005,
+    { before, fight, after, atStart, heartOnScreen: [+s.x.toFixed(2), +s.y.toFixed(2)], jellyOnScreen: [+j.x.toFixed(2), +j.y.toFixed(2)] });
+  },
+});
+act3('pothos-fight-builds-no-new-shader', {
+  about: 'Starting the Pothos fight builds no new shader: its pot, leaves, vines and heart were built behind Play with the other bosses\'.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT, batcher, run } = G(), compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+    compile();
+    const programs = APT.renderer.info.programs.length;
+    const B = pothosFight();
+    compile();
+    return ok(!!B && run.phase === 'boss' && APT.renderer.info.programs.length === programs, { programs, now: APT.renderer.info.programs.length });
   },
 });
 act3('beating-the-pothos-wins-the-run', {

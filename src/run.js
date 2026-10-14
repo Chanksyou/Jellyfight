@@ -218,6 +218,7 @@ export class Run {
     this.world.focus(start, 1);
     this.player.spawn(start);
     this.player.snapToGround();
+    this.tpc.endFight();
     this.tpc.snapTo(this.player.position);
 
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
@@ -932,6 +933,14 @@ export class Run {
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
       this.boss = new (BOSSES[B.kind] || Clog)(this.scene, this.enemies, this.fx, B, this.world);
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
+      // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame) turns
+      // you to face it, and the camera eases into that view for the fight
+      if (this.boss.camera) {
+        const bp = this.boss.position;
+        this.tpc.yaw = Math.atan2(P.position.x - bp.x, P.position.z - bp.z);
+        P.facing = this.tpc.yaw - Math.PI;
+        this.tpc.fight = this.boss.camera;
+      }
       this.enemies.addProxy(this.boss);
       this.later(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
@@ -946,6 +955,7 @@ export class Run {
     this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
+    this.tpc.fight = null;            // back to the player's own view
     juice.shake(1); juice.hitstop(0.25); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);

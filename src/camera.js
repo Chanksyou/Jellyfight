@@ -29,7 +29,14 @@ export class ThirdPersonCamera {
     this.pitch = cfg.pitch ?? 0.35;   // the tilt (the player can change it with the mouse; nothing else does)
     this.viewPitch = this.pitch;
     this.distance = cfg.distance;
-    this.currentDistance = cfg.distance;   // always this.distance: kept for readers of the old name
+    this.currentDistance = cfg.distance;   // the distance it's at now (this.distance, unless a fight view is easing in)
+    // A boss's fight view ({ distance, pitch, ahead }: the Pothos's, look.css): while it's set the
+    // view eases to it, and back to the player's own once it's cleared (run.js sets it for the
+    // fight). `ahead`: it aims that far ahead of the jelly instead of at it, so what's in front (a
+    // boss standing taller than you) is in frame with the jelly low in it
+    this.fight = null;
+    this.fightK = 0;           // 0: the player's view .. 1: the fight's
+    this._fightView = null;    // the last fight view, to ease back out of
     this.focus = new THREE.Vector3();
     this._dir = new THREE.Vector3();
     this._side = new THREE.Vector3();
@@ -45,7 +52,7 @@ export class ThirdPersonCamera {
   findOver(camPos) {
     this.over.clear();
     if (this.cfg.seeThrough === false) return;
-    this.look(UP, this.distance);
+    this.look(UP, this.currentDistance);
     const dir = this._dir.subVectors(camPos, this.focus), far = dir.length();
     if (far < 1e-6) return;
     dir.multiplyScalar(1 / far);
@@ -101,16 +108,22 @@ export class ThirdPersonCamera {
     this.yaw -= mouse.x * c.sensitivity;
     this.pitch = THREE.MathUtils.clamp(this.pitch + mouse.y * c.sensitivity, c.minPitch, c.maxPitch);
     this.distance = THREE.MathUtils.clamp(this.distance * (1 + mouse.wheel * 0.1), c.minDistance, c.maxDistance);
-    this.viewPitch = this.pitch;
-    this.currentDistance = this.distance;
+    if (this.fight) this._fightView = this.fight;
+    this.fightK += ((this.fight ? 1 : 0) - this.fightK) * (1 - Math.exp(-2.5 * dt));
+    if (!this.fight && this.fightK < 1e-3) this.fightK = 0;
+    const F = this._fightView, k = F ? this.fightK : 0;
+    this.viewPitch = k ? this.pitch + (F.pitch - this.pitch) * k : this.pitch;
+    this.currentDistance = k ? this.distance + (F.distance - this.distance) * k : this.distance;
 
     // Smooth follow on the focus point
     this._end.set(target.x, target.y + c.height, target.z);
     this.focus.lerp(this._end, 1 - Math.exp(-20 * dt));
 
-    this.dirAt(this.pitch, this._dir);
-    this.camera.position.copy(this.focus).addScaledVector(this._dir, this.distance);
-    this.camera.lookAt(this.focus);
+    this.dirAt(this.viewPitch, this._dir);
+    this.camera.position.copy(this.focus).addScaledVector(this._dir, this.currentDistance);
+    const ahead = k ? (F.ahead || 0) * k : 0;
+    if (ahead) this.camera.lookAt(this._ray.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(ahead).add(this.focus));
+    else this.camera.lookAt(this.focus);
     this.findOver(this.camera.position);
     this.fade(dt);
   }
@@ -138,6 +151,8 @@ export class ThirdPersonCamera {
 
   snapTo(target) {
     this.focus.set(target.x, target.y + this.cfg.height, target.z);
-    this.viewPitch = this.pitch;
   }
+
+  // Back to the player's own view at once (a new run)
+  endFight() { this.fight = null; this.fightK = 0; }
 }

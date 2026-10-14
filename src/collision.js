@@ -88,7 +88,8 @@ export class World {
     });
   }
 
-  // Like cast(), but checks every collider (slow; for rare lookups far from the player)
+  // Like cast(), but checks every collider (slow; for rare lookups far from the player). Its hit
+  // also has the surface's world normal there (null if the mesh has no faces to tell)
   castAll(origin, dir, far) {
     if (!this.allSpheres || this.allSpheres.length !== this.colliders.length) {
       this.allSpheres = this.colliders.map((m) => m.geometry.boundingSphere.clone().applyMatrix4(m.matrixWorld));
@@ -102,7 +103,7 @@ export class World {
       return ray.distanceSqToPoint(s.center) <= s.radius * s.radius && s.center.distanceTo(origin) - s.radius <= far;
     });
     for (const h of this.raycaster.intersectObjects(list, false)) {
-      if (visibleChain(h.object)) return { distance: h.distance, point: h.point };
+      if (visibleChain(h.object)) return { distance: h.distance, point: h.point, normal: h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : null };
     }
     return null;
   }

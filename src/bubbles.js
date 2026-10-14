@@ -279,7 +279,7 @@ export class Bubbles {
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
       // bell while you're pressed under or against something, it would otherwise pop at once
-      if (b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r)) { this.pop(b, null, stats, mods); continue; }
+      if (b.travel > this.grace && (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r) || this.blocked(b.m.position, this._dir, step + b.r, b.r))) { this.pop(b, null, stats, mods); continue; }
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
@@ -311,6 +311,13 @@ export class Bubbles {
 
   // does bubble b touch an enemy at c with radius er? A plain bubble is a ball; a wind blade is a
   // flat bar across its flight, b.side to each side of its middle
+  // Something that isn't the room's but stops bubbles all the same: a boss's body that can't be
+  // hurt (the Pothos's vines and leaves), whatever has a blocks(pos, dir, len, r)
+  blocked(pos, dir, len, r) {
+    for (const e of this.enemies.list) if (!e.dead && e.proxy?.blocks?.(pos, dir, len, r)) return true;
+    return false;
+  }
+
   touches(b, c, er) {
     const p = b.m.position;
     if (!b.side) return c.distanceTo(p) < er + b.r;
