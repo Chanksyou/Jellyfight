@@ -5031,6 +5031,7 @@ const EVERY_ATTACK = {
     pothos: {                         // each attack joins here as it lands (pothos.js ATTACKS)
       cutting: { is: 'none' },        // it drops Cuttings: their countdown is the Cutting's own (words/becomes)
       roots: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('roots'); } },
+      whip: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('whip'); } },
     },
   },
 };
@@ -5046,8 +5047,11 @@ function attacksInGame() {
 // Elite and Boss Shots in flight
 const shotsFlying = () => { const { run } = G(), els = run.elites; return els.bullets.length + els.soapBubbles.length + els.thrown.length + (run.boss?.shots?.length || 0); };
 // each volume showing, with the floor Warning under it (same spot, same fill), if there is one
+// (a curved floor strip, the Pothos's Vine Whip, carries a chain of lane volumes along it: each
+// stands on the strip's centre line)
 function volumePairs() {
-  const w = shownWarnings(), under = (v) => (f) => Math.hypot(f.position.x - v.position.x, f.position.z - v.position.z) < 0.01 && Math.abs(f.material.progress - v.material.progress) < 1e-6;
+  const w = shownWarnings(), at = (f, v) => Math.hypot(f.position.x - v.position.x, f.position.z - v.position.z) < 0.01 || (f.material.shape === 'strip' && stripLine(f).some((c) => Math.hypot(c.x - v.position.x, c.z - v.position.z) < 0.01));
+  const under = (v) => (f) => at(f, v) && Math.abs(f.material.progress - v.material.progress) < 1e-6;
   return w.volume.map((v) => [v, w.floor.find(under(v))]);
 }
 // start one attack; check its Warning as it shows and fills, the shaders, and that it's gone after
@@ -5340,6 +5344,7 @@ act3('pothos-only-its-heart-takes-damage', {
     // at the side of the pot, below the rim: well clear of the heart (its vines, trailing over the
     // pot's lip, may stop it first: that does nothing either)
     const side = shoot(pot.clone().add(V(0.07, 0.1, 0)));
+    pothosOpen(B);                                        // (its leaves part after a Vine Whip: the way in)
     const hit = shoot(heart);
     return ok((side.closest < 0.02 || side.popped) && side.lost === 0 && hit.lost > 0, { side, hit, heart: r3(heart), pot: r3(pot) });
   },
@@ -5420,9 +5425,11 @@ act3('pothos-vines-and-leaves-block-bubbles', {
     const atVine = shoot(vine.c.clone().addScaledVector(side, 0.25), vine.c);
     // the mound, from the east, above the heart: into its leaves
     const top = at.y + 0.3, leaf = shoot(V(at.x + 0.5, top, at.z), V(at.x, top, at.z));
-    // the heart, from in front, through the hollow
+    // the heart, from in front, through the hollow (opened after a Vine Whip)
     tp(-0.105, 0.7, 10.3, Math.PI);
-    const from = G().player.position.clone().setY(G().player.position.y + 0.06), heart = shoot(from, B.center());
+    const from = G().player.position.clone().setY(G().player.position.y + 0.06);
+    pothosOpen(B);
+    const heart = shoot(from, B.center());
     // (its leaves stick out either side of it: the bubble may pop on one just before the vine)
     return ok(atVine.popped && atVine.lost === 0 && atVine.off < 0.08 && atVine.travel < 0.24 && leaf.popped && leaf.lost === 0 && leaf.travel < 0.45 && heart.lost > 0,
       { atVine, leaf, heart });
@@ -5583,6 +5590,125 @@ act3('aerial-root-killed-in-time-does-nothing', {
     step(60 * 4);
     const rooted = hurt.filter((d) => d.source === 'root').length, slowed = slows.filter((s) => s.targetId === PLAYER).length;
     return ok(R.length >= 2 && R.every((e) => e.dead) && !rooted && !slowed && run.slowT === 0, { roots: R.length, rooted, slowed });
+  },
+});
+// a floor strip's centre line as drawn, in the world: the middle of each row across it, from its start
+function stripLine(f) {
+  f.updateWorldMatrix(true, false);
+  const p = f.geometry.attributes.position, out = [];
+  for (let i = 0; i + 1 < p.count; i += 2) out.push(V(0, 0, 0).fromBufferAttribute(p, i).add(V(0, 0, 0).fromBufferAttribute(p, i + 1)).multiplyScalar(0.5).applyMatrix4(f.matrixWorld));
+  return out;
+}
+// how far (flat) a point is from a line through points
+const offLine = (line, q) => Math.min(...line.map((c) => Math.hypot(c.x - q.x, c.z - q.z)));
+// the Vine Whip's floor strip showing in the scene
+const whipStrip = () => shownWarnings().floor.find((f) => f.material.shape === 'strip');
+// only the bubbles a story blows (none of the jelly's own volleys)
+function onlyOurBubbles() {
+  const Bu = G().run.bubbles;
+  stub(Bu, 'volley', () => false);
+  stub(Bu, 'elementVolley', () => false);
+  stub(Bu, 'update', function (dt, origin, stats, mods) { this.fly(dt, stats, mods); });
+}
+// blow one bubble from `from` at `to` and see what it does to the Pothos
+function blowAt(B, from, to) {
+  const Bu = G().run.bubbles, hp = B.hp, b = Bu.blow(from, null, { size: 1, dmg: 20, pierce: 1, range: 2, dir: to.clone().sub(from) });
+  step(90, () => b.done);
+  return { lost: hp - B.hp, popped: b.done };
+}
+// the Pothos opened up after a Vine Whip (for the stories that shoot its heart from in front)
+function pothosOpen(B) { B.begin('whip'); step(120, () => B.open >= 1); }
+act3('pothos-whip-leads-a-swimming-jelly', {
+  about: 'A Vine Whip aims where the jelly is heading: its lane passes about half a second ahead of a jelly swimming steadily across the bed, not where it was when the Warning showed.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { player } = G(), P = player.position;
+    stub(player, 'update', function (dt) { this.position.addScaledVector(this.velocity, dt); });   // swimming steadily
+    P.x = -0.45; P.z = 9.7; player.velocity.set(0.3, 0, 0);
+    const from = P.clone();
+    B.begin('whip');
+    step(2);
+    const strip = whipStrip(), line = strip ? stripLine(strip) : [];
+    const ahead = from.clone().addScaledVector(V(0.3, 0, 0), 0.5);
+    const out = { strip: !!strip, ahead: line.length ? +offLine(line, ahead).toFixed(3) : null, was: line.length ? +offLine(line, from).toFixed(3) : null };
+    return ok(strip && out.ahead < 0.03 && out.was > 0.1, out);
+  },
+});
+act3('pothos-whip-warning-is-a-low-curved-lane', {
+  about: "A Vine Whip's Warning is a curved strip on the bed with a lane volume about 4 cm high along it, filling together to the lash; both are gone after it. Starting one builds no new shader.",
+  setup() {},
+  play() {
+    const B = pothosFight(), { APT, batcher } = G(), compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+    holdJelly();
+    compile();
+    const programs = APT.renderer.info.programs.length;
+    B.begin('whip');
+    step(6);
+    const p1 = volumePairs(), was = p1.map(([v]) => v.material.progress);
+    step(6);
+    const strip = whipStrip(), line = strip ? stripLine(strip) : [];
+    // curved: its middle stands off the straight line from its start to its end
+    const a = line[0], b = line[line.length - 1], m = line[Math.floor(line.length / 2)];
+    const bow = line.length ? Math.abs((m.x - a.x) * (b.z - a.z) - (m.z - a.z) * (b.x - a.x)) / Math.hypot(b.x - a.x, b.z - a.z) : 0;
+    const tall = p1.map(([v]) => { const box = new THREE.Box3().setFromObject(v); return +(box.max.y - box.min.y).toFixed(3); });
+    const out = {
+      volumes: p1.length, paired: p1.every(([, f]) => f === strip), bow: +bow.toFixed(3), tall: [...new Set(tall)],
+      filling: p1.length > 1 && p1.every(([v, f], i) => f && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]),
+    };
+    compile();
+    out.newShaders = APT.renderer.info.programs.length - programs;
+    step(60, () => B.struck);
+    step(3);
+    const w = shownWarnings();
+    out.gone = !w.floor.length && !w.volume.length;
+    return ok(strip && out.volumes >= 4 && out.paired && out.bow > 0.02 && tall.every((h) => Math.abs(h - 0.04) < 0.004) && out.filling && out.newShaders === 0 && out.gone, out);
+  },
+});
+act3('pothos-whip-jumped-clear', {
+  about: "A jelly standing in a Vine Whip's lane is hit and knocked aside (a knockback across the lane); one in the air over it (feet 6 cm up, over the 4 cm lane) isn't touched.",
+  setup() {},
+  play() {
+    const B = pothosFight(), player = holdJelly(), hits = bossHits(), knocks = record('knockback'), out = {};
+    const floor = player.position.y;
+    for (const up of [0, 0.06]) {
+      player.position.set(-0.3, floor + up, 9.8);
+      const h0 = hits.length, k0 = knocks.length;
+      B.begin('whip');
+      step(1);
+      const line = stripLine(whipStrip()), P = player.position;
+      step(60, () => B.struck);
+      step(3);
+      const k = knocks.slice(k0).find((e) => e.targetId === 'player');
+      // the lane's way where it passes the jelly
+      let i = 1;
+      for (let j = 1; j < line.length; j++) if (Math.hypot(line[j].x - P.x, line[j].z - P.z) < Math.hypot(line[i].x - P.x, line[i].z - P.z)) i = j;
+      const along = line[i].clone().sub(line[i - 1]).setY(0).normalize();
+      out[up ? 'jumping' : 'standing'] = { hits: hits.slice(h0).map((h) => h.amount), knocked: !!k, across: k ? +Math.abs(k.dir.dot(along)).toFixed(2) : null };
+      step(90, () => B.state !== 'whip');
+      B.state = 'idle'; B.stateT = 1e9;
+    }
+    const s = out.standing, j = out.jumping;
+    return ok(s.hits.length === 1 && s.hits[0] > 0 && s.knocked && s.across < 0.5 && !j.hits.length && !j.knocked, out);
+  },
+});
+act3('pothos-opens-after-each-whip', {
+  about: "For about 1.5 s after each Vine Whip the leaves round the heart's hollow push aside and the heart flares: a bubble from in front reaches it. Before, and once they close again, the leaves stop that same shot.",
+  setup() {},
+  play() {
+    const B = pothosFight(), player = holdJelly(), out = {};
+    onlyOurBubbles();
+    player.position.set(0.3, player.position.y, 9.6);     // out of the bubbles' way
+    const from = V(-0.105, 0.76, 10.3), shot = () => blowAt(B, from, B.center());
+    out.before = shot();
+    B.begin('whip');
+    B.stateT = 1e9;                                       // (no other attack after it: no other opening)
+    step(60, () => B.struck);
+    step(9);                                              // just after the lash
+    out.open = shot();
+    const t0 = B.t;
+    step(60 * 3, () => B.t - t0 > 2.0);                   // well after the window
+    out.after = shot();
+    return ok(out.before.popped && out.before.lost === 0 && out.open.lost > 0 && out.after.popped && out.after.lost === 0, out);
   },
 });
 act3('attacks-every-warning-has-volume', {

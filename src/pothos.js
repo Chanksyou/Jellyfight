@@ -4,7 +4,7 @@
 // hollow, and nine leafy vines trailing out over the pot's lip, down its wall and across the bed,
 // lying on its real surface. Only the heart can be hurt (its centre() and r are the heart's); the
 // vines and leaves stop bubbles (blocks()). The fight has its own camera view (`camera`, look.css).
-// Its attacks (Vine Whips, Cuttings, Aerial roots, the dragonflies) come later (spec #32).
+// Its attacks: ATTACKS below (the dragonflies come later, spec #32).
 // Same interface as the Vacuum and the Clog: position, r, center(), damage(), dead, rise, shielded,
 // angry, update() -> {push}, dispose().
 import * as THREE from 'three';
@@ -13,7 +13,7 @@ import { bus, PLAYER } from './events.js';
 import { sfx } from './sfx.js';
 import { CONTENT } from './content.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { hostile } from './vfx.js';
+import { hostile, TeleMaterial, laneHits } from './vfx.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -21,9 +21,12 @@ function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 166452
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // state names are attack names (as in clog.js), taken in turn; 'idle' is the pause between them
+//   whip      a Vine Whip: a trailing vine rears up while a curved lane on the bed fills (aimed half
+//             a second ahead of where you're swimming: change direction), then lashes along it
+//             (jump it); after it the leaves round its heart part for a moment: shoot then
 //   cutting   it drops Cuttings on the bed near you (content/enemies.kdl): kill them before they sprout
 //   roots     Aerial roots drop on you and round you
-export const ATTACKS = { calm: ['cutting', 'roots'], angry: ['cutting', 'roots'] };
+export const ATTACKS = { calm: ['whip', 'cutting', 'whip', 'roots'], angry: ['whip', 'cutting', 'whip', 'roots'] };
 
 const SCALE = 0.8;                       // how big it grew (the prototype's verdict: 1.5x read as too big)
 const POT_H = 0.24, POT_R = 0.16, POT_RB = 0.11;   // the pot, before SCALE
@@ -148,13 +151,35 @@ class Vine {
     }
     p.needsUpdate = true; g.computeBoundingSphere();
   }
+  // lay the tube round its curve again, in place (no new geometry: it runs every frame while the
+  // vine moves), tapered like shape()
   rebuild() {
-    const t = new THREE.TubeGeometry(this.curve, this.segs, this.r, 7), g = this.mesh.geometry;
-    g.attributes.position.array.set(t.attributes.position.array); g.attributes.normal.array.set(t.attributes.normal.array);
-    g.attributes.normal.needsUpdate = true; t.dispose();
-    this.shape();
+    const g = this.mesh.geometry, p = g.attributes.position, nr = g.attributes.normal, c = this.curve, n = this.segs, T = _vt, N = _vn, B = _vb, O = _vo;
+    for (let i = 0; i <= n; i++) {
+      const u = i / n;
+      c.getPointAt(Math.min(1, u + 0.004), _va); c.getPointAt(Math.max(0, u - 0.004), _vc);
+      T.subVectors(_va, _vc).normalize();
+      c.getPointAt(u, O);
+      if (i === 0) N.set(Math.abs(T.y) > 0.9 ? 1 : 0, Math.abs(T.y) > 0.9 ? 0 : 1, 0);
+      N.addScaledVector(T, -N.dot(T)).normalize();         // carried along the curve, so the rings don't twist
+      B.crossVectors(T, N);
+      const rad = this.radiusAt(u);
+      for (let j = 0; j < 8; j++) {
+        const v = (j / 7) * Math.PI * 2, s = Math.sin(v), co = -Math.cos(v), k = i * 8 + j;
+        const x = co * N.x + s * B.x, y = co * N.y + s * B.y, z = co * N.z + s * B.z;
+        nr.setXYZ(k, x, y, z); p.setXYZ(k, O.x + rad * x, O.y + rad * y, O.z + rad * z);
+      }
+    }
+    p.needsUpdate = true; nr.needsUpdate = true;
+    g.computeBoundingSphere();
+  }
+  // which way it runs `u` of the way along it (arc length), into `out` (no allocation)
+  tangentAt(u, out) {
+    this.curve.getPointAt(Math.min(1, u + 0.004), _va); this.curve.getPointAt(Math.max(0, u - 0.004), _vc);
+    return out.subVectors(_va, _vc).normalize();
   }
 }
+const _va = new THREE.Vector3(), _vc = new THREE.Vector3(), _vt = new THREE.Vector3(), _vn = new THREE.Vector3(), _vb = new THREE.Vector3(), _vo = new THREE.Vector3();
 
 // --- laying the trailing vines on the bed (once, as the fight starts): out of the soil, over the
 // pot's lip, down the outside of its wall, then along the real surface under them: up over the
@@ -170,7 +195,10 @@ const surfaceAt = (world, x, z, top) => {
   return hit ? hit.point.y : null;
 };
 
-function layVine(world, at, box, a, len, R, k) {
+// A vine's points (in the plant's frame) leaving the pot at angle `a`: fanned out `len` toward the
+// foot of the bed (wobbling by `k`), or along `given` (world points on the bed: where a Vine Whip
+// lands it). Returns { pts, drapeFrom } (the first point lying on the bed).
+function layVine(world, at, box, a, len, k, given = null) {
   const S = SCALE, soil = POT_H * 0.9, top = at.y + 0.5;
   const ring = (r, y) => V(Math.cos(a) * r, y, Math.sin(a) * r).multiplyScalar(S).add(at);   // in the world
   const wall = (f) => POT_RB + (POT_R - POT_RB) * (f / 0.86) + 0.013;   // the pot's outside at height f (of its height), plus the vine's thickness
@@ -184,7 +212,8 @@ function layVine(world, at, box, a, len, R, k) {
   }
   // then out across the bed: the path in plan, fanned toward the foot, sampled every STEP
   const plan = [pts[pts.length - 1].clone().setY(0)];
-  for (let s = 1; s <= 14; s++) {
+  if (given) for (const p of given) plan.push(p.clone().setY(0));
+  else for (let s = 1; s <= 14; s++) {
     const d = 0.14 + (s / 14) * len, wob = Math.sin(s * 0.75 + k) * 0.08 * (s / 14);
     plan.push(V(Math.cos(a + wob) * d + Math.cos(a + Math.PI / 2) * wob * 0.6, 0, Math.sin(a + wob) * d).multiplyScalar(S).add(at).setY(0));
   }
@@ -231,10 +260,7 @@ function layVine(world, at, box, a, len, R, k) {
   for (let i = 1; i < bed.length; i++) on(bed[i - 1], bed[i]);
   // into the plant's own frame
   for (const p of pts) p.sub(at).divideScalar(S);
-  const v = new Vine(pts, VINE_R, parts().vineMat, VINE_TAPER);
-  v.drapeFrom = drapeFrom; v.angle = a;
-  for (let j = 0; j < 11; j++) v.leaves.push({ t: 0.2 + 0.8 * (j + R() * 0.6) / 11, side: j % 2 ? 1 : -1, size: 0.07 * (0.7 + R() * 0.5), tilt: R() });
-  return v;
+  return { pts, drapeFrom };
 }
 
 // the plant in its own frame: the pot's base at the origin, facing -z (the foot of the bed).
@@ -265,43 +291,78 @@ function buildPothos(world, at, arena) {
     const box = new THREE.Box3(V(...arena.arenaMin), V(...arena.arenaMax)).expandByVector(V(-0.04, 0, -0.04));
     for (let k = 0; k < VINES; k++) {
       const a = -Math.PI / 2 + (k - (VINES - 1) / 2) * 0.42 + (R() - 0.5) * 0.15, len = 1.35 * (0.75 + R() * 0.5);
-      const v = layVine(world, at, box, a, len, R, k);
+      const { pts, drapeFrom } = layVine(world, at, box, a, len, k);
+      const v = new Vine(pts, VINE_R, P.vineMat, VINE_TAPER);
+      v.drapeFrom = drapeFrom; v.angle = a;
+      for (let j = 0; j < 11; j++) v.leaves.push({ t: 0.2 + 0.8 * (j + R() * 0.6) / 11, side: j % 2 ? 1 : -1, size: 0.07 * (0.7 + R() * 0.5), tilt: R() });
       vines.push(v);
       root.add(v.mesh);
     }
   }
-  // every leaf (the mound's and the vines') as one instance of one mesh: one draw
-  const count = mound.length + vines.reduce((n, v) => n + v.leaves.length, 0);
+  // the veil: leaves hanging from the top of the hollow over its mouth, hiding the heart from in
+  // front until they push aside after a Vine Whip (the opening)
+  // (its mouth: a little below and in front of the heart, where a shot from the bed comes in)
+  const mouth = heart.position.clone().add(V(0, -0.054, -0.107)), veil = [];
+  for (let k = 0; k < VEIL; k++) {
+    const x = (k - (VEIL - 1) / 2) * 0.03, pos = mouth.clone().add(V(x * 1.2, 0.06 - Math.abs(x) * 0.3, 0));
+    veil.push({ pos, shut: V(-x * 2, -1, -0.15).normalize(), aside: V(Math.sign(x), 0.8, -0.3).normalize(), size: 0.12 + R() * 0.02, tilt: 0.4 + R() * 0.2 });
+  }
+  // every leaf (the mound's, the veil's and the vines') as one instance of one mesh: one draw
+  const count = mound.length + VEIL + vines.reduce((n, v) => n + v.leaves.length, 0);
   const leaves = new THREE.InstancedMesh(P.leaf, P.leafMat, count), tint = new THREE.Color();
   for (let i = 0; i < count; i++) leaves.setColorAt(i, tint.setRGB(0.82 + R() * 0.12, 0.88 + R() * 0.12, 0.8 + R() * 0.1));   // a slight shade per leaf
   root.add(leaves);
-  return { root, heart, leaves, mound, vines, heartAt: heart.position.clone(), blockers: new Float32Array(count * 4 + vines.reduce((n, v) => n + v.pts.length, 0) * 4), nBlock: 0 };
+  // (room for the vines' points however a Vine Whip re-lays them)
+  return { root, heart, leaves, mound, veil, vines, heartAt: heart.position.clone(), blockers: new Float32Array((count + VINES * 240) * 4), nBlock: 0 };
 }
+const VEIL = 5;
 
-// Lay every leaf (the mound's, then each vine's along it), and note what blocks bubbles: a ball
-// round each leaf and along each vine (in the plant's frame), none over the heart's hollow
+// Lay every leaf (the mound's, the veil's, then each vine's along it), and note what blocks
+// bubbles: a ball round each leaf and along each vine (in the plant's frame), none over the heart's
+// hollow but the veil's while it's shut. `open` 0..1: how far the leaves round the hollow have
+// pushed aside. `bound`: also refit the one ball round all of it (when a vine has landed somewhere
+// new). Runs every frame while the plant moves: allocates nothing.
 const _p = new THREE.Vector3(), _q = new THREE.Vector3(), _c = new THREE.Vector3();
-function placeLeaves(M) {
-  const B = M.blockers, keep = (c, r) => {
-    if (c.distanceTo(M.heartAt) < r + HEART * 1.4) return;     // the hollow stays open: the way to the heart
-    B[M.nBlock * 4] = c.x; B[M.nBlock * 4 + 1] = c.y; B[M.nBlock * 4 + 2] = c.z; B[M.nBlock * 4 + 3] = r; M.nBlock++;
-  };
-  M.nBlock = 0;
-  let i = 0;
-  const leaf = (m, size) => { M.leaves.setMatrixAt(i++, m); keep(_c.set(0, 0.5, 0).applyMatrix4(m), size * 0.42); };
-  for (const L of M.mound) leaf(leafMatrix(L.pos, L.out, L.size, L.tilt), L.size);
+let LM = null, LI = 0;
+function keep(c, r, always = false) {
+  const B = LM.blockers;
+  if (!always && c.distanceTo(LM.heartAt) < r + HEART * 1.4) return;   // the hollow stays open: the way to the heart
+  if (LM.nBlock * 4 >= B.length) return;
+  B[LM.nBlock * 4] = c.x; B[LM.nBlock * 4 + 1] = c.y; B[LM.nBlock * 4 + 2] = c.z; B[LM.nBlock * 4 + 3] = r; LM.nBlock++;
+}
+function leaf(m, size, block = 1) {
+  LM.leaves.setMatrixAt(LI++, m);
+  if (block) keep(_c.set(0, 0.5, 0).applyMatrix4(m), size * 0.42, block === 2);
+}
+function placeLeaves(M, open = 0, bound = true) {
+  LM = M; LI = 0; M.nBlock = 0;
+  for (const L of M.mound) {
+    if (!L.frame || !open) { leaf(leafMatrix(L.pos, L.out, L.size, L.tilt), L.size); continue; }
+    // round the hollow: pushed out from it (away from its axis) and drooping
+    _q.subVectors(L.pos, M.heartAt).setZ(0);
+    if (_q.lengthSq() < 1e-6) _q.set(0, 1, 0);
+    _p.copy(L.pos).addScaledVector(_q.normalize(), open * 0.06);
+    _q.copy(L.out); _q.y -= open * 0.4;
+    leaf(leafMatrix(_p, _q, L.size, L.tilt), L.size);
+  }
+  for (const L of M.veil) {
+    _q.copy(L.shut).lerp(L.aside, open);
+    leaf(leafMatrix(L.pos, _q, L.size * (1 - open * 0.2), L.tilt), L.size, open < 0.5 ? 2 : 0);
+  }
   for (const v of M.vines) {
     for (const L of v.leaves) {
-      v.curve.getPointAt(L.t, _p); v.curve.getTangentAt(L.t, _q);
+      v.curve.getPointAt(L.t, _p); v.tangentAt(L.t, _q);
       _x.crossVectors(_q, UP).normalize().multiplyScalar(L.side);
-      const out = _y.copy(_x).addScaledVector(_q, 0.5).addScaledVector(UP, 0.3 + L.tilt * 0.3);
-      leaf(leafMatrix(_p, out.clone(), L.size, L.tilt), L.size);
+      _y.copy(_x).addScaledVector(_q, 0.5).addScaledVector(UP, 0.3 + L.tilt * 0.3);
+      leaf(leafMatrix(_p, _y, L.size, L.tilt), L.size);
     }
     for (let k = 0; k < v.pts.length; k++) keep(v.pts[k], v.radiusAt(k / (v.pts.length - 1)));
   }
   M.leaves.instanceMatrix.needsUpdate = true;
+  if (!bound) return;
   M.leaves.computeBoundingSphere();
   // one ball round all of it, to skip the rest at once
+  const B = M.blockers;
   M.bound = new THREE.Sphere().setFromPoints(Array.from({ length: M.nBlock }, (_, k) => V(B[k * 4], B[k * 4 + 1], B[k * 4 + 2])));
   M.bound.radius += 0.1;
 }
@@ -312,6 +373,94 @@ function touchesBall(cx, cy, cz, cr) {
   const S = SEG, t = Math.min(S.len, Math.max(0, (cx - S.ox) * S.dx + (cy - S.oy) * S.dy + (cz - S.oz) * S.dz));
   const x = S.ox + S.dx * t - cx, y = S.oy + S.dy * t - cy, z = S.oz + S.dz * t - cz, q = cr + S.r;
   return x * x + y * y + z * z <= q * q;
+}
+
+// --- the Vine Whip's lane: a curved floor strip on the bed (one TeleMaterial 'strip', bent, its
+// uvs kept) with a chain of low lane volumes along it (vfx.js 'lane', one per segment, each on the
+// surface where it starts), both in the Pothos's hostile colour, filling together. The hit is the
+// shared lane rule per segment. Built once per lane and re-laid for each whip.
+const LANE_SEGS = 8, LANE_ROWS = LANE_SEGS * 4 + 1;
+const _lt = new THREE.Vector3(), _ld = new THREE.Vector3(), _ls = new THREE.Vector3(), _ln = new THREE.Vector3();
+function makeLane(scene, fx) {
+  const col = hostile('pothos'), g = new THREE.BufferGeometry(), uv = [], idx = [];
+  for (let j = 0; j < LANE_ROWS; j++) {
+    const v = 1 - j / (LANE_ROWS - 1);                    // (a strip's uv.y runs from its far end, 0, to its start, 1)
+    uv.push(0, v, 1, v);
+    if (j) { const a = 2 * j - 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LANE_ROWS * 6), 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(LANE_ROWS * 6).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));   // (as every floor Warning has: the same shader program)
+  g.setIndex(idx);
+  const strip = new THREE.Mesh(g, new TeleMaterial(col, 'strip'));
+  strip.renderOrder = 3; strip.visible = false;
+  scene.add(strip);
+  const vols = Array.from({ length: LANE_SEGS }, () => { const m = fx.volume(col, 'lane', strip.position, 1); m.visible = false; return m; });
+  return {
+    strip, vols, on: false, side: 1, bearing: 0, vine: null,
+    rows: Array.from({ length: LANE_ROWS }, () => new THREE.Vector3()),
+    segs: vols.map(() => ({ start: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0 })),
+  };
+}
+function showLane(L, on, progress = 0, opacity = 1) {
+  L.strip.visible = on;
+  L.strip.material.progress = progress; L.strip.material.opacity = opacity;
+  for (const v of L.vols) { v.visible = on; v.material.progress = progress; v.material.opacity = opacity; }
+}
+// Lay lane L from the foot of the pot (at `h`) through T, bowed to `side`, out to SK.reach (or the
+// arena's edge), on the bed's real surface
+function aimLane(L, T, side, SK, h, A, world) {
+  const m = 0.03, top = h.y + 0.5, w = SK.width, R = L.rows;
+  const d = _ld.set(T.x - h.x, 0, T.z - h.z);
+  if (d.lengthSq() < 1e-6) d.set(0, 0, -1);
+  d.normalize();
+  const S = _ls.copy(h).addScaledVector(d, POT_R * SCALE + 0.02);
+  const D = Math.max(0.12, Math.hypot(T.x - S.x, T.z - S.z)), n = _ln.set(-d.z, 0, d.x), bow = side * Math.min(0.08, 0.25 * D);
+  let len = Math.min(SK.reach, D + 0.2);
+  const lay = () => { for (let j = 0; j < LANE_ROWS; j++) { const s = (len * j) / (LANE_ROWS - 1), q = s / D; R[j].copy(S).addScaledVector(d, s).addScaledVector(n, bow * 4 * q * (1 - q)); } };
+  lay();
+  const inside = (p) => p.x > A.arenaMin[0] + m && p.x < A.arenaMax[0] - m && p.z > A.arenaMin[2] + m && p.z < A.arenaMax[2] - m;
+  let last = 0;
+  while (last + 1 < LANE_ROWS && inside(R[last + 1])) last++;
+  if (last < LANE_ROWS - 1) { len *= Math.max(1, last) / (LANE_ROWS - 1); lay(); }   // it ends at the arena's edge
+  let y = h.y;
+  for (const p of R) { const s = surfaceAt(world, p.x, p.z, top); if (s != null && s < h.y + 0.25) y = s; p.y = y; }
+  L.side = side; L.bearing = Math.atan2(d.z, d.x);
+  // the floor strip: two corners per row, across the way it runs there
+  const pos = L.strip.geometry.attributes.position, o = L.strip.position.copy(R[0]);
+  for (let j = 0; j < LANE_ROWS; j++) {
+    const a = R[Math.max(0, j - 1)], b = R[Math.min(LANE_ROWS - 1, j + 1)], r = R[j];
+    _lt.set(b.x - a.x, 0, b.z - a.z).normalize();
+    const px = -_lt.z * w / 2, pz = _lt.x * w / 2;
+    pos.setXYZ(2 * j, r.x - px - o.x, r.y + 0.004 - o.y, r.z - pz - o.z);
+    pos.setXYZ(2 * j + 1, r.x + px - o.x, r.y + 0.004 - o.y, r.z + pz - o.z);
+  }
+  pos.needsUpdate = true;
+  L.strip.geometry.computeBoundingSphere();
+  // the lane volumes over it, segment by segment (and what the hit tests)
+  L.segs.forEach((g, i) => {
+    const a = R[i * 4], b = R[i * 4 + 4], v = L.vols[i];
+    g.start.copy(a); g.dir.set(b.x - a.x, 0, b.z - a.z); g.len = g.dir.length();
+    if (g.len > 1e-6) g.dir.divideScalar(g.len); else g.dir.copy(d);
+    v.position.copy(a); v.rotation.y = Math.atan2(g.dir.x, g.dir.z); v.scale.set(w, SK.height, Math.max(1e-3, g.len));
+  });
+}
+// The whipping vine's pose (into its work points, then its tube): `rear` 0..1 wound up and back
+// off the bed, then `lash` 0..1 swept across onto where it lands. Round the pot's axis, so it
+// never cuts through the pot. Allocates nothing.
+const _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
+function poseVine(L, rear, lash) {
+  const v = L.vine, W = v.work.length, e = smooth(0, 1, lash);
+  for (let j = 0; j < W; j++) {
+    const u = j / (W - 1), f = smooth(0.12, 1, u);
+    L.from.getPointAt(u, _pa); L.to.getPointAt(u, _pb);
+    const ra = Math.hypot(_pa.x, _pa.z), rb = Math.hypot(_pb.x, _pb.z), tb = Math.atan2(_pb.z, _pb.x);
+    const t1 = Math.atan2(_pa.z, _pa.x) - L.side * 0.6 * f * rear, y1 = _pa.y + rear * 0.16 * Math.sin(Math.PI * f);
+    const turn = Math.atan2(Math.sin(tb - t1), Math.cos(tb - t1));
+    const th = t1 + turn * e, r = ra + (rb - ra) * e, y = y1 + (_pb.y - y1) * e + 0.05 * Math.sin(Math.PI * lash) * f;
+    v.work[j].set(Math.cos(th) * r, y, Math.sin(th) * r);
+  }
+  v.rebuild();
 }
 
 export class Pothos {
@@ -342,6 +491,14 @@ export class Pothos {
     scene.add(this.holder);
     this._heart = new THREE.Vector3(); this._drop = new THREE.Vector3(); this._knockDir = new THREE.Vector3(); this._push = new THREE.Vector3();
     this.knock = 0;
+    // the Vine Whips: their Warnings (two lanes: angry, it whips two vines at once), straight in
+    // the scene; whipT is how long since the current whip began (-1: none)
+    this.lanes = [0, 1].map(() => makeLane(scene, fx));
+    this.box = new THREE.Box3(V(...arena.arenaMin), V(...arena.arenaMax)).expandByVector(V(-0.04, 0, -0.04));
+    this.whipT = -1; this.struck = false; this.whipSide = 1;
+    this._aim = new THREE.Vector3(); this._whipKnock = new THREE.Vector3();
+    // the opening: how far the leaves round the heart have parted (0..1), and for how long more
+    this.open = 0; this.openT = 0;
   }
 
   get position() { return this.holder.position; }
@@ -379,6 +536,7 @@ export class Pothos {
   update(dt, player) {
     const out = this.tick(dt, player);
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
+    if (out.knock) bus.emit('knockback', { targetId: PLAYER, dir: out.knock, force: this.def.skills.whip.knock, launch: 0.15 });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'SHIELDED' });
     return { push: out.push };
   }
@@ -394,6 +552,7 @@ export class Pothos {
       this.wither = Math.min(1, this.wither + dt * 0.6);
       M.root.scale.setScalar(s * (1 - this.wither * 0.7));
       M.heart.material.emissiveIntensity = 0.35 * (1 - this.wither);
+      for (const L of this.lanes) showLane(L, false);
       return out;
     }
     // it grows up out of the pillows
@@ -402,12 +561,13 @@ export class Pothos {
       this.rise = Math.min(1, this.rise + dt * 0.55);
       M.root.scale.setScalar(s * Math.max(0.001, smooth(0, 1, this.rise)));
     } else M.root.scale.setScalar(s);
-    // the heart beats and glows in its hollow (kept below white so its colour reads)
-    const beat = Math.max(0, Math.sin(this.t * 4)) ** 4;
+    // the heart beats and glows in its hollow (kept below white so its colour reads), flaring while
+    // the leaves round it are parted
+    const beat = Math.max(0, Math.sin(this.t * 4)) ** 4, open = this.open;
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 5);
-    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12));
-    M.heart.material.emissiveIntensity = 0.3 + beat * 0.15;
-    this.fx.glow.hold(this.center(this._heart), this.glowColor, 0.14 * (0.8 + beat * 0.3), 0.6);
+    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * 0.12));
+    M.heart.material.emissiveIntensity = 0.3 + beat * 0.15 + open * 0.6;
+    this.fx.glow.hold(this.center(this._heart), this.glowColor, 0.14 * (0.8 + beat * 0.3) + open * 0.2, 0.6 + open * 0.3);
     M.root.rotation.z = this.state === 'cutting' ? Math.sin(this.t * 40) * 0.02 : 0;   // shivering, flinging Cuttings
     // its attacks, in turn
     if (this.rise >= 1) {
@@ -417,6 +577,12 @@ export class Pothos {
         else { const SK = this.def.skills[this.state]; this.state = 'idle'; this.stateT = this.angry ? SK.angryRest : SK.rest; }
       }
     }
+    // a Vine Whip under way, and the opening after it
+    if (this.whipT >= 0) this.whipTick(dt, out);
+    this.openT = Math.max(0, this.openT - dt);
+    const was = this.open;
+    this.open = this.openT > 0 ? Math.min(1, this.open + dt * 6) : Math.max(0, this.open - dt * 4);
+    if (this.whipT >= 0 || this.open !== was) placeLeaves(M, this.open, false);
     // bumping into the pot hurts and knocks you back off it
     const P = player.position, h = this.holder.position, dx = P.x - h.x, dz = P.z - h.z, d = Math.hypot(dx, dz);
     this.knock = Math.max(0, this.knock - dt);
@@ -436,6 +602,93 @@ export class Pothos {
     this.stateT = SK.time;
     if (name === 'roots') this.roots(SK);
     if (name === 'cutting') this.cuttings(SK);
+    if (name === 'whip') this.whip(SK);
+  }
+
+  // Vine Whips: aimed `lead` s ahead of where you're swimming (the Pothos's one exception to never
+  // leading: change direction to dodge), along a curved lane from the pot's foot across the bed;
+  // angry, a second vine lashes a lane swung aside from the first. The trailing vine nearest each
+  // lane rears up while its Warning fills, then lashes along it (whipTick)
+  whip(SK) {
+    if (this.whipT >= 0) this.land();
+    const P = this.player.position, v = this.player.velocity, b = this.box, h = this.holder.position;
+    const n = this.angry ? SK.angryCount : SK.count, side = this.whipSide = -this.whipSide;
+    const T = this._aim.set(P.x + v.x * SK.lead, P.y, P.z + v.z * SK.lead);
+    const taken = [];
+    for (let k = 0; k < Math.min(n, this.lanes.length); k++) {
+      const L = this.lanes[k];
+      if (k) {                                    // the second lane: swung round the pot from the first
+        const a = 0.45 * side, dx = T.x - h.x, dz = T.z - h.z;
+        T.set(h.x + dx * Math.cos(a) - dz * Math.sin(a), T.y, h.z + dx * Math.sin(a) + dz * Math.cos(a));
+      }
+      T.x = THREE.MathUtils.clamp(T.x, b.min.x, b.max.x); T.z = THREE.MathUtils.clamp(T.z, b.min.z, b.max.z);
+      aimLane(L, T, k ? -side : side, SK, h, this.arena, this.world);
+      // the vine that lashes: the trailing one nearest the lane's way, laid along the lane where it lands
+      let best = null, far = Infinity;
+      for (const vine of this.model.vines) {
+        const d = Math.abs(Math.atan2(Math.sin(vine.angle - L.bearing), Math.cos(vine.angle - L.bearing)));
+        if (d < far && !taken.includes(vine)) { far = d; best = vine; }
+      }
+      L.on = true;
+      if (!best) continue;                        // (a plant built without a world has no vines)
+      taken.push(best);
+      const given = L.rows.filter((_, j) => j % 2 === 0);
+      const { pts, drapeFrom } = layVine(this.world, h, b, L.bearing, 0, 0, given);
+      Object.assign(L, { vine: best, from: best.curve, to: new THREE.CatmullRomCurve3(pts, false, 'centripetal'), toPts: pts, toDrape: drapeFrom });
+      if (!best.work) { best.work = Array.from({ length: 48 }, () => new THREE.Vector3()); best.workCurve = new THREE.CatmullRomCurve3(best.work, false, 'centripetal'); }
+      best.pts = best.work; best.curve = best.workCurve; best.workCurve.needsUpdate = true;
+    }
+    this.whipT = 0; this.struck = false; this.whipSK = SK;
+    sfx.clogLashWind?.();
+  }
+
+  whipTick(dt, out) {
+    const SK = this.whipSK, u = Math.min(1, (this.whipT += dt) / SK.windup);
+    if (!this.struck) {
+      const op = 0.8 + Math.sin(this.t * 26) * 0.2;
+      for (const L of this.lanes) if (L.on) showLane(L, true, u, op);
+      if (u >= 1) this.lash(SK, out);
+    }
+    // the vine rears up while its lane fills, then lashes across onto it
+    const lash = this.struck ? Math.min(1, (this.whipT - SK.windup) / SK.lash) : 0;
+    for (const L of this.lanes) if (L.on && L.vine) poseVine(L, smooth(0, 1, u), lash);
+    if (lash >= 1) this.land();
+  }
+
+  // the strike: anything of the jelly in a lane's low box, segment by segment, is hit and knocked
+  // aside, out of the lane; the Warnings go, and the leaves round the heart part (the opening)
+  lash(SK, out) {
+    this.struck = true;
+    this.openT = SK.open;
+    sfx.clogLash?.();
+    const P = this.player.position, cfg = this.player.cfg, col = hostile('pothos');
+    for (const L of this.lanes) {
+      if (!L.on) continue;
+      showLane(L, false);
+      if (L.vine) L.vine.workCurve.needsUpdate = true;
+      this.fx.impact(_lt.copy(L.rows[LANE_ROWS - 1]).setY(L.rows[LANE_ROWS - 1].y + 0.01), col, 0.03, 12);
+      if (out.knock) continue;
+      for (const g of L.segs) {
+        if (g.len < 1e-3 || !laneHits(g.start, g.dir, g.len, SK.width, SK.height, P, cfg)) continue;
+        const cross = g.dir.x * (P.z - g.start.z) - g.dir.z * (P.x - g.start.x), s = Math.abs(cross) > 1e-4 ? Math.sign(cross) : L.side;
+        out.hit = SK.dmg;
+        out.knock = this._whipKnock.set(-g.dir.z * s, 0, g.dir.x * s);
+        break;
+      }
+    }
+  }
+
+  // each whipped vine comes to rest along its lane, lying on the bed under it
+  land() {
+    for (const L of this.lanes) {
+      if (!L.on) continue;
+      const v = L.vine;
+      if (v) { Object.assign(v, { pts: L.toPts, curve: L.to, drapeFrom: L.toDrape, angle: L.bearing }); v.rebuild(); }
+      showLane(L, false);
+      L.on = false; L.vine = null;
+    }
+    this.whipT = -1;
+    placeLeaves(this.model, this.open, true);
   }
 
   // Cuttings: flung onto the bed `near` m round you, in pairs when it's angry; each is an enemy
@@ -475,5 +728,9 @@ export class Pothos {
     this.scene.remove(this.holder);
     this.model.leaves.dispose();         // its instance buffers; the shared geometry and materials stay
     for (const v of this.model.vines) v.mesh.geometry.dispose();
+    for (const L of this.lanes) {
+      for (const m of [L.strip, ...L.vols]) { this.scene.remove(m); m.material.dispose(); }
+      L.strip.geometry.dispose();          // (the volumes share vfx.js's unit geometry)
+    }
   }
 }
