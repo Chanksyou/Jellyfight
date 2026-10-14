@@ -41,17 +41,23 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
 //   rest   the pause before its next attack (s)
 // Cuttings: `near` m from you, `count` of them (`angryCount` when it's angry); each Cutting and the
 // Sap sprout it grows into are content/enemies.kdl's "cutting" and "sprout"
-// Vine Whips: it aims `lead` s ahead of where you're swimming (its one exception to never leading);
-// the Warning shows for `windup` s, then the vine lashes along a curved lane `width` wide and
-// `height` tall (jump it) out to `reach` m from the pot; `knock` is how hard a hit throws you aside;
-// then its leaves part for `open` s: the moment to hit its heart. `count` lanes (`angryCount` angry)
+// Vine Whips: it aims `lead` s ahead of where you're swimming (that lead is its one exception to
+// never leading); the Warning shows for `windup` s (a Boss attack's usual length, as long as the
+// Clog's lash), then the vine lashes along a curved lane `width` wide and `height` tall (jump it) out
+// to `reach` m from the pot; `knock` is how hard a hit throws you aside and `launch` how far up;
+// then its leaves part for `open` s: the moment to hit its heart. `count` lanes (`angryCount` angry),
+// the second swung `swing` radians round the pot from the first
 // The swarm: once, the first time its Health drops below `at`, `count` dragonflies (content/enemies.kdl
 // "dragonfly") come out of the plant and its leaves close over its heart until they're dead or
 // `shield` s have passed
+// bump: touching the pot hurts (contact) and pushes you off it at `push` m/s, at most every `every` s
+// rise: how fast it grows up out of the pillows as the fight starts (the whole rise per second)
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
-    whip    time=1.0 windup=0.5 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 open=1.5 count=1 angryCount=2 rest=2.5 angryRest=1.6
+    whip    time=1.0 windup=0.8 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 launch=0.15 swing=0.45 open=1.5 count=1 angryCount=2 rest=2.5 angryRest=1.6
     cutting time=1.0 count=1 angryCount=2 near=0.16 rest=2.5 angryRest=1.6
     roots   time=1.2 count=3 spread=0.18 rest=2.5 angryRest=1.6
     swarm   at=0.7 count=4 shield=30 rest=1.5
     enrage  at=0.45
+    bump    push=0.6 every=0.3
+    rise    rate=0.55
 }

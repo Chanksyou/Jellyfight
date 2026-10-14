@@ -38,8 +38,7 @@ import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
-import { Run, BOSSES } from './run.js';
-import { Clog } from './clog.js';
+import { Run, makeBoss } from './run.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -366,7 +365,7 @@ const GAME = {
     systems.layout.update(dt);
     systems.touch.update(dt);
     systems.gameplay.update(dt);
-    updateForceFields(player.position);
+    updateForceFields(player.position, camera.position);   // (where the camera was last frame)
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
@@ -484,7 +483,7 @@ async function warmUp() {
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  const clog = new (BOSSES[stage.boss.kind] || Clog)(scene, enemies, fx, stage.boss, world);   // this act's boss
+  const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world);   // this act's boss
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);
@@ -506,7 +505,7 @@ async function warmUp() {
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));
   warmFx.forEach((m) => scene.remove(m));
-  clog.dispose();
+  warmBoss.dispose();
   scene.remove(flash);
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));

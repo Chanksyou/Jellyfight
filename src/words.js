@@ -574,7 +574,7 @@ export const ENEMY_WORDS = {
     props: { after: 6, radius: 0.06, color: 'pothos' },
     make: ([what], p) => ({
       becomes: p,
-      init(e) { e.becomeT = e.becomeMax = p.after; },
+      init(e) { e.becomeT = e.becomeMax = p.after; e.becomes = p; },
       tick(e, c, en) {
         if ((e.becomeT -= c.dt * (c.slow > 0 ? 1 : 0)) <= 0) en.become(e, what);
       },
@@ -585,6 +585,7 @@ export const ENEMY_WORDS = {
     doc: 'Every `every` s, if you are within `reach` m, lobs a glob at where you stand: while it flies (`flight` s) a floor circle `radius` m with a dome over it fills there, in the `color` hostile colour; it lands as a Blast (`dmg` to anything of you inside: jump it) and leaves a sticky puddle that slows you while you stand in it, for `puddle` s.',
     props: { every: 3, reach: 0.5, radius: 0.045, dmg: 3, flight: 1, puddle: 4, color: 'pothos' },
     make: (_, p) => ({
+      lob: p,
       init(e) { e.lobT = 1 + Math.random(); },
       tick(e, c, en) {
         if (c.slow === 0 || (e.lobT -= c.dt) > 0) return;
@@ -599,8 +600,8 @@ export const ENEMY_WORDS = {
     doc: 'It comes from above: it starts `height` m over where it was put and falls there over `time` s, while a circle `radius` m round the spot, with the dome of space over it, fills in the `color` of whoever sent it (content/look.css --hostile-<color>). Until it lands its other words wait; if you are inside the dome when it lands, it has reached you.',
     props: { height: 0.6, time: 1, radius: 0.05, color: 'pothos' },
     make: (_, p) => ({
-      dropRadius: p.radius, dropColor: p.color,
       init(e) {
+        e.drops = p;                        // (its Warning reads this: enemies.js drawDrops)
         e.state = 'drop'; e.stateT = e.dropMax = p.time;
         e.dropAt = e.pos.clone();
         e.pos.y += p.height;
@@ -618,8 +619,8 @@ export const ENEMY_WORDS = {
   },
 
   holds: {
-    doc: 'When it reaches you (within `reach` m of your edge, or landing on you), it holds on for `time` s, moving with you: you swim `slow` slower (0.5: half speed) and lose `dmg` Health a second (no flinch). Then it\'s spent and withers away, worth no XP. Kill it first and none of that happens.',
-    props: { time: 3, slow: 0.5, dmg: 1, reach: 0.01 },
+    doc: 'When it reaches you (within `reach` m of your edge, or landing on you), it holds on for `time` s, moving with you: you swim `slow` slower (0.5: half speed) and lose `dmg` Health a second (no flinch); its grab flashes in the `color` hostile colour. Then it\'s spent and withers away, worth no XP. Kill it first and none of that happens.',
+    props: { time: 3, slow: 0.5, dmg: 1, reach: 0.01, color: 'pothos' },
     make: (_, p) => ({
       tick(e, c, en) {
         if (e.state === 'drop') return;
@@ -627,7 +628,7 @@ export const ENEMY_WORDS = {
           const touch = Math.hypot(c.foot.x - e.pos.x, c.foot.z - e.pos.z) < e.r + (en.playerRadius || 0.03) + p.reach && Math.abs(c.foot.y - e.pos.y) < 0.06;
           if (!e.landedOn && !touch) return;
           e.state = 'hold'; e.stateT = p.time; e.squeezeT = 0; e.airborne = true; e.faceLock = true;
-          en.grab(e);
+          en.grab(e, p.color);
         }
         c.speed = 0;
         e.vel.set(0, 0, 0);

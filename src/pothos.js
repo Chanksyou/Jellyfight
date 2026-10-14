@@ -14,6 +14,8 @@ import { sfx } from './sfx.js';
 import { CONTENT } from './content.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hostile, TeleMaterial, laneHits } from './vfx.js';
+import { pothosLeaf, pothosLeafMat } from './critters.js';
+import { IS_TOUCH } from './touch.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -35,37 +37,14 @@ const POT_H = 0.24, POT_R = 0.16, POT_RB = 0.11;   // the pot, before SCALE
 const HEART = 0.055;                     // the heart's radius, before SCALE
 const LIDS = 8;                          // the leaves that close over the heart while it's shielded
 
-// A pothos leaf: heart-shaped, cupped, tip drooping, high-contrast gold streaks fanning out from a
-// gold midrib over deep green (look.css --pothos-leaf-*). Its petiole is at the origin, it runs
-// along +y to its tip (1 m: scaled per leaf) and faces +z.
-function leafGeometry() {
-  const g = new THREE.PlaneGeometry(1, 1, 10, 14), p = g.attributes.position, col = [];
-  const deep = new THREE.Color(LOOK.color('pothos-leaf-deep', '#0a2a0c')), green = new THREE.Color(LOOK.color('pothos-leaf', '#164d18'));
-  const cream = new THREE.Color(LOOK.color('pothos-leaf-gold', '#ffdf4a')), rib = new THREE.Color(LOOK.color('pothos-leaf-rib', '#e0c235')), c = new THREE.Color();
-  for (let i = 0; i < p.count; i++) {
-    const u = p.getX(i), t = p.getY(i) + 0.5;                      // u -0.5..0.5 across, t 0 base .. 1 tip
-    const w = 0.62 * Math.pow(Math.sin(Math.PI * Math.min(1, (t + 0.14) / 1.14)), 0.8) * (1 - 0.12 * t);
-    const x = u * 2 * w, y = t - 0.16 * Math.abs(u * 2) * Math.pow(1 - t, 3), z = -0.14 * t * t + 0.1 * (u * 2) * (u * 2) * w;
-    p.setXYZ(i, x, y, z);
-    const streak = Math.sin(Math.atan2(x, t + 0.06) * 15 + Math.sin(t * 9 + x * 7) * 1.4) * 0.5 + 0.5;
-    const blotch = Math.sin(x * 23 + t * 17) * Math.sin(t * 29 - x * 11) * 0.5 + 0.5;
-    c.copy(green).lerp(deep, Math.abs(u * 2) * 0.6);
-    if (Math.abs(x) < 0.02) c.lerp(rib, 0.6);
-    else c.lerp(cream, smooth(0.66, 0.9, streak * 0.75 + blotch * 0.35) * (0.45 + 0.55 * t));
-    col.push(c.r, c.g, c.b);
-  }
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.computeVertexNormals();
-  return g;
-}
-
 // The terracotta pot: tapered, a thick rim, moss creeping up and over the rim, dark cracks
 function potGeometry(h, rb, rt) {
   const prof = [];
   for (let k = 0; k <= 18; k++) { const y = (k / 18) * h * 0.86; prof.push(new THREE.Vector2(rb + (rt - rb) * (y / (h * 0.86)), y)); }
   prof.push(new THREE.Vector2(rt * 1.08, h * 0.87), new THREE.Vector2(rt * 1.1, h), new THREE.Vector2(rt * 0.96, h), new THREE.Vector2(rt * 0.94, h * 0.9));
   const g = new THREE.LatheGeometry(prof, 64), p = g.attributes.position, col = [];
-  const clay = new THREE.Color('#b8653c'), dark = new THREE.Color('#7e3f22'), moss = new THREE.Color('#58772c'), crackC = new THREE.Color('#2a1608'), c = new THREE.Color();
+  const clay = new THREE.Color(LOOK.color('pothos-pot', '#b8653c')), dark = new THREE.Color(LOOK.color('pothos-pot-dark', '#7e3f22'));
+  const moss = new THREE.Color(LOOK.color('pothos-pot-moss', '#58772c')), crackC = new THREE.Color(LOOK.color('pothos-pot-crack', '#2a1608')), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i), a = Math.atan2(p.getZ(i), p.getX(i)), yn = y / h;
     const mossy = smooth(0.15, 0.6, Math.sin(a * 3 + 1.3) * 0.4 + Math.sin(a * 7 + y * 30) * 0.25 + (1 - yn) * 0.55 + (yn > 0.86 ? 0.5 : 0) - 0.15);
@@ -85,7 +64,7 @@ function heartGeometry() {
   const g = mergeVertices(ico), p = g.attributes.position, col = [], v = new THREE.Vector3(), c = new THREE.Color();   // shared corners: smooth, not faceted
   ico.dispose();
   const gold = new THREE.Color(LOOK.color('pothos-heart-gold', '#ffd34a')), green = new THREE.Color(LOOK.color('pothos-heart', '#7dff5a'));
-  const vein = new THREE.Color(LOOK.color('pothos-heart-vein', '#fff3b0')), pit = new THREE.Color(LOOK.color('pothos-heart-pit', '#1f5a10'));
+  const vein = new THREE.Color(LOOK.color('pothos-heart-vein', '#ffe066')), pit = new THREE.Color(LOOK.color('pothos-heart-pit', '#1f5a10'));
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     const n = Math.sin(v.x * 5 + v.y * 3) * Math.sin(v.y * 6 - v.z * 4) * Math.sin(v.z * 5 + v.x * 2);
@@ -110,12 +89,12 @@ let PARTS = null;
 function parts() {
   if (PARTS) return PARTS;
   PARTS = {
-    leaf: leafGeometry(), pot: potGeometry(POT_H, POT_RB, POT_R), heart: heartGeometry(),
+    leaf: pothosLeaf(10, 14), pot: potGeometry(POT_H, POT_RB, POT_R), heart: heartGeometry(),
     dirt: new THREE.CircleGeometry(POT_R * 0.93, 32).rotateX(-Math.PI / 2),
-    leafMat: new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: '#071405' }),   // (its emissive: Pothos.calmLeaf)
-    vineMat: new THREE.MeshStandardMaterial({ color: LOOK.color('pothos-vine', '#3f6a26'), roughness: 0.6, emissive: '#0a1a06' }),
+    leafMat: pothosLeafMat(),          // (its own: the fight recolours its glow, Pothos.calmLeaf)
+    vineMat: new THREE.MeshStandardMaterial({ color: LOOK.color('pothos-vine', '#3f6a26'), roughness: 0.6, emissive: LOOK.color('pothos-vine-glow', '#0a1a06') }),
     potMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }),
-    dirtMat: new THREE.MeshStandardMaterial({ color: '#241509', roughness: 1 }),
+    dirtMat: new THREE.MeshStandardMaterial({ color: LOOK.color('pothos-soil', '#241509'), roughness: 1 }),
     heartMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, emissive: LOOK.color('pothos-heart-glow', '#2f8a14'), emissiveIntensity: 0.35 }),
   };
   return PARTS;
@@ -513,7 +492,7 @@ export class Pothos {
     // angry (below enrage at), its heart burns hot and beats faster: the same material, recoloured
     this.calmGlow = this.glowColor.clone(); this.calmEmissive = new THREE.Color(LOOK.color('pothos-heart-glow', '#2f8a14'));
     this.angryGlow = new THREE.Color(LOOK.color('pothos-heart-angry-halo', '#ff8a2a')); this.angryEmissive = new THREE.Color(LOOK.color('pothos-heart-angry', '#c8460e'));
-    this.calmLeaf = new THREE.Color('#071405'); this.angryLeaf = new THREE.Color(LOOK.color('pothos-leaf-angry', '#220902'));   // and its leaves smoulder with each beat
+    this.calmLeaf = new THREE.Color(LOOK.color('pothos-leaf-glow', '#071405')); this.angryLeaf = new THREE.Color(LOOK.color('pothos-leaf-angry', '#220902'));   // and its leaves smoulder with each beat
     this.rage = 0; this.beatT = 0; this.wasAngry = false;
     // the opening, made to read from the fight camera (look.css): the heart swells and its glow
     // spreads, and the leaves round it light up with it
@@ -525,7 +504,10 @@ export class Pothos {
     this.model.leaves.material.emissive.copy(this.calmLeaf);
     placeLeaves(this.model);
     // the fight view (camera.js, run.js): back and up from the jelly's, to keep the heart in frame
-    this.camera = { distance: LOOK.num('pothos-camera-distance', 0.85), pitch: LOOK.num('pothos-camera-tilt', 0.785), ahead: LOOK.num('pothos-camera-ahead', 0.65) };
+    // below the boss bar; a phone's short, wide screen has its own (look.css --pothos-camera-*-phone)
+    this.camera = IS_TOUCH
+      ? { distance: LOOK.num('pothos-camera-distance-phone', 1.1), pitch: LOOK.num('pothos-camera-tilt-phone', 0.6), ahead: LOOK.num('pothos-camera-ahead-phone', 1.5) }
+      : { distance: LOOK.num('pothos-camera-distance', 0.95), pitch: LOOK.num('pothos-camera-tilt', 0.785), ahead: LOOK.num('pothos-camera-ahead', 1.0) };
     this.holder = new THREE.Group();
     this.holder.position.copy(at);
     this.holder.add(this.model.root);
@@ -578,7 +560,7 @@ export class Pothos {
   update(dt, player) {
     const out = this.tick(dt, player);
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
-    if (out.knock) bus.emit('knockback', { targetId: PLAYER, dir: out.knock, force: this.def.skills.whip.knock, launch: 0.15 });
+    if (out.knock) bus.emit('knockback', { targetId: PLAYER, dir: out.knock, force: this.def.skills.whip.knock, launch: this.def.skills.whip.launch });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'SHIELDED' });
     return { push: out.push };
   }
@@ -600,7 +582,7 @@ export class Pothos {
     // it grows up out of the pillows
     if (this.rise < 1) {
       if (this.rise === 0) sfx.clogRise?.();
-      this.rise = Math.min(1, this.rise + dt * 0.55);
+      this.rise = Math.min(1, this.rise + dt * this.def.skills.rise.rate);
       M.root.scale.setScalar(s * Math.max(0.001, smooth(0, 1, this.rise)));
     } else M.root.scale.setScalar(s);
     // the heart beats and glows in its hollow (kept below white so its colour reads), flaring while
@@ -651,12 +633,13 @@ export class Pothos {
     // bumping into the pot hurts and knocks you back off it
     const P = player.position, h = this.holder.position, dx = P.x - h.x, dz = P.z - h.z, d = Math.hypot(dx, dz);
     this.knock = Math.max(0, this.knock - dt);
+    const BU = this.def.skills.bump;
     if (this.knock <= 0 && d < POT_R * SCALE + player.cfg.radius && P.y < h.y + POT_H * SCALE) {
       out.hit = this.def.contact;
-      this.knock = 0.3;
+      this.knock = BU.every;
       if (d) this._knockDir.set(dx / d, 0, dz / d); else this._knockDir.set(0, 0, -1);
     }
-    if (this.knock > 0) out.push = this._push.copy(this._knockDir).multiplyScalar(0.6);
+    if (this.knock > 0) out.push = this._push.copy(this._knockDir).multiplyScalar(BU.push);
     return out;
   }
 
@@ -671,8 +654,9 @@ export class Pothos {
     if (name === 'whip') this.whip(SK);
   }
 
-  // Vine Whips: aimed `lead` s ahead of where you're swimming (the Pothos's one exception to never
-  // leading: change direction to dodge), along a curved lane from the pot's foot across the bed;
+  // Vine Whips: aimed `lead` s ahead of where you're swimming (the lead is the Pothos's one exception
+  // to never leading: change direction to dodge; its Warning runs as long as any Boss attack's), along
+  // a curved lane from the pot's foot across the bed;
   // angry, a second vine lashes a lane swung aside from the first. The trailing vine nearest each
   // lane rears up while its Warning fills, then lashes along it (whipTick)
   whip(SK) {
@@ -684,7 +668,7 @@ export class Pothos {
     for (let k = 0; k < Math.min(n, this.lanes.length); k++) {
       const L = this.lanes[k];
       if (k) {                                    // the second lane: swung round the pot from the first
-        const a = 0.45 * side, dx = T.x - h.x, dz = T.z - h.z;
+        const a = SK.swing * side, dx = T.x - h.x, dz = T.z - h.z;
         T.set(h.x + dx * Math.cos(a) - dz * Math.sin(a), T.y, h.z + dx * Math.sin(a) + dz * Math.cos(a));
       }
       T.x = THREE.MathUtils.clamp(T.x, b.min.x, b.max.x); T.z = THREE.MathUtils.clamp(T.z, b.min.z, b.max.z);

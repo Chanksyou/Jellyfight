@@ -28,7 +28,7 @@ import { BEST_KEY } from './leaderboard.js';
 import { TeleMaterial, VolumeMaterial, hostile, shotTarget } from './vfx.js';
 import { buildWasp, buildNest, NEST } from './critters.js';
 import { STAGE3 } from './stage3.js';
-import { nestMiddle } from './run.js';
+import { nestMiddle, makeBoss } from './run.js';
 import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
@@ -5128,6 +5128,16 @@ function everyAttack(act) {
   }
   return ok(!bad.length, { bad, ...out });
 }
+story('bosses/unknown-kind-is-an-error', {
+  about: 'A stage whose boss block names a kind of boss the game doesn\'t have (run.js BOSSES) is an error that names it, not a quiet fight with some other boss.',
+  setup() {},
+  play() {
+    const { APT, enemies, fx, world } = G();
+    let error = '';
+    try { makeBoss({ kind: 'toaster', name: 'The Toaster' }, APT.scene, enemies, fx, world); } catch (e) { error = e.message; }
+    return ok(/toaster/.test(error) && /hair/.test(error), { error });
+  },
+});
 story('attacks/act-1-every-warning-has-volume', {
   about: 'Every Controller, Mug, Kettle and Vacuum attack in turn: each Warning before a Blast, lane, ring or cone shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
   setup() { fresh({ bubbles: false, lash: false }); },
@@ -5481,8 +5491,21 @@ act3('pothos-vines-and-leaves-block-bubbles', {
       { atVine, leaf, heart });
   },
 });
+// Where the Pothos's heart and the jelly are on screen in the fight view (pixels from the top): both
+// in frame, the top of the heart (swollen as in an opening) below the top HUD band (the boss bar and
+// the intro toast "The Pothos wakes!"), the jelly above the bottom edge
+const heartFrame = (B) => {
+  const { APT, player } = G(), cv = APT.renderer.domElement.getBoundingClientRect();
+  APT.camera.updateMatrixWorld();
+  const px = (p) => { const q = p.clone().project(APT.camera); return { x: Math.round((q.x + 1) / 2 * cv.width), y: Math.round((1 - q.y) / 2 * cv.height), z: q.z }; };
+  const c = B.center(), top = px(c.clone().setY(c.y + B.r * 1.5)), heart = px(c), jelly = px(player.position);
+  const bottom = (sel) => { const el = document.querySelector(sel); return el && !el.hidden ? Math.round(el.getBoundingClientRect().bottom - cv.top) : 0; };
+  const hud = Math.max(bottom('#hud .boss'), bottom('#hud .toast'));
+  const inside = (p) => p.x > 0 && p.x < cv.width && p.y > 0 && p.y < cv.height && p.z < 1;
+  return { good: inside(heart) && inside(jelly) && top.y > hud && hud > 0, heartTop: top.y, hud, heart: [heart.x, heart.y], jelly: [jelly.x, jelly.y], screen: [Math.round(cv.width), Math.round(cv.height)] };
+};
 act3('pothos-fight-camera-keeps-the-heart-in-frame', {
-  about: 'In the Pothos fight the camera eases back and up (look.css: about 0.85 m away and 45 degrees down, not 0.68 m and 60, aiming a little ahead of the jelly) so the heart, up in its leaves on the pillows, is on screen with the jelly from where the fight starts; when the fight ends it eases back to the usual view.',
+  about: 'In the Pothos fight the camera eases back and up (look.css: about 0.95 m away and 45 degrees down, not 0.68 m and 60, aiming ahead of the jelly; a phone has its own view) so the heart, up in its leaves on the pillows, is on screen with the jelly from where the fight starts, below the boss bar and the toast that it wakes; when the fight ends it eases back to the usual view.',
   setup() {},
   play() {
     fresh({ elites: false }); step(10);
@@ -5492,15 +5515,28 @@ act3('pothos-fight-camera-keeps-the-heart-in-frame', {
     step(150);                                            // eased in
     const A = G().run.stage.boss, P = player.position, atStart = Math.hypot(P.x - A.playerStart[0], P.z - A.playerStart[2]) < 0.05;
     const fight = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
-    APT.camera.updateMatrixWorld();
-    const shown = (p) => Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.9 && p.z < 1;
-    const s = B.center().project(APT.camera), j = P.clone().project(APT.camera), inFrame = shown(s) && shown(j);   // the heart, and the jelly too
+    const view = heartFrame(B);
     B.damage(B.hp + 1);
     step(240);                                            // the fight's over: eased back
     const after = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
-    return ok(before.d === +own.d.toFixed(3) && before.p === +own.p.toFixed(3) && atStart && Math.abs(fight.d - 0.85) < 0.02 && Math.abs(fight.p - Math.PI / 4) < 0.03 && inFrame
+    return ok(before.d === +own.d.toFixed(3) && before.p === +own.p.toFixed(3) && atStart && Math.abs(fight.d - LOOK.num('pothos-camera-distance', 0.95)) < 0.02 && Math.abs(fight.p - LOOK.num('pothos-camera-tilt', 0.785)) < 0.03 && view.good
       && Math.abs(after.d - own.d) < 0.005 && Math.abs(after.p - own.p) < 0.005,
-    { before, fight, after, atStart, heartOnScreen: [+s.x.toFixed(2), +s.y.toFixed(2)], jellyOnScreen: [+j.x.toFixed(2), +j.y.toFixed(2)] });
+    { before, fight, after, atStart, ...view });
+  },
+});
+act3('pothos-fight-view-is-clear-of-the-force-fields', {
+  about: 'As the Pothos fight starts the camera sits back beyond the foot of the bed, behind the arena\'s force field there: that field fades out (like furniture between the camera and the jelly) so the view is clear, the others stay up, and it comes back once the camera is inside it again.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run, APT, player } = G();
+    step(150);                                            // the fight view eased in
+    const fields = run.bossWalls.map((m) => m.userData.field), cam = APT.camera.position, P = player.position;
+    const behind = (f) => { const a = f.userData.across; return (cam[a] - f.position[a]) * (P[a] - f.position[a]) < 0; };
+    const foot = fields.find((f) => f.userData.across === 'z' && f.position.z < 9.2);
+    const startHidden = !!foot && behind(foot) && !foot.visible, othersUp = fields.filter((f) => f !== foot).every((f) => f.visible);
+    tp(-0.1, 0.7, 10.0, 0); step(60);                     // further in: the camera comes inside the walls
+    const back = !!foot && !behind(foot) && foot.visible;
+    return ok(!!B && startHidden && othersUp && back, { cameraZ: +cam.z.toFixed(3), footZ: foot && +foot.position.z.toFixed(3), startHidden, othersUp, back });
   },
 });
 act3('pothos-fight-builds-no-new-shader', {
@@ -5558,8 +5594,29 @@ act3('cutting-and-sap-build-no-new-shader', {
     return ok(shown.lob && shown.puddle && shown.countdown && newShaders === 0, { ...shown, newShaders });
   },
 });
+act3('pothos-health-as-the-clogs', {
+  about: 'The Pothos has the same Health as the Clog in act 2 (each boss\'s Health in content/bosses.kdl times its act\'s bossHp): 1500 x 1.6 = 2400.',
+  setup() {},
+  play() {
+    const B = pothosFight(), clog = CONTENT.bosses.clog.hp * STAGES[1].bossHp;
+    return ok(B.maxHp === clog && B.hp === clog, { pothos: B.maxHp, clog });
+  },
+});
+act3('pothos-whip-warning-runs-a-boss-length', {
+  about: 'Only a Vine Whip\'s lead (about half a second ahead of the jelly) is the exception to the Boss rules: its Warning shows as long as the Clog\'s lash\'s does before the vine strikes.',
+  setup() {},
+  play() {
+    const B = pothosFight();
+    B.stateT = 1e9; holdJelly();
+    B.begin('whip');
+    let shown = 0;
+    step(120, () => { if (whipStrip()?.visible) shown += 1 / 60; return B.struck; });
+    const clog = CONTENT.bosses.clog.skills.lash.windup;
+    return ok(B.struck && Math.abs(shown - clog) < 0.05, { shown: +shown.toFixed(2), clog });
+  },
+});
 act3('beating-the-pothos-wins-the-run', {
-  about: 'Beating the Pothos grows the jelly into a Medusa, offers a Legendary treasure, then ends the run as a win: "the apartment is yours", the score with its parts, and the score posts to the Leaderboard.',
+  about: 'Beating the Pothos grows the jelly into a Medusa (its pick doesn\'t promise a rest of the run: this is the end), then the run ends as a win straight away, with no Legendary pick after the last boss: "the apartment is yours", the score with its parts, and the score posts to the Leaderboard.',
   setup() {},
   async play() {
     const B = pothosFight(), { run, menus } = G();
@@ -5572,15 +5629,13 @@ act3('beating-the-pothos-wins-the-run', {
     await wait(2400);                                     // the metamorphosis comes a moment after
     const grow = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // the evolution
-    const legendary = modal()?.innerText || '';
-    modal()?.querySelector('.jf-card')?.click();          // the Legendary
     const end = modal()?.innerText || '';
     const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act/.test(b.textContent));
     [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();
     await wait(50);
     menus.close();
-    return ok(/Medusa/.test(grow) && /Legendary/.test(legendary) && /apartment is yours/.test(end) && /Earlier acts/.test(end) && /The Pothos beaten/.test(end) && !next && posted?.won && posted.score === run.score() && run.evolved.length === 3,
-      { grow: grow.slice(0, 80), legendary: legendary.slice(0, 60), end: end.slice(0, 160), next, posted });
+    return ok(/Medusa/.test(grow) && !/rest of the run/.test(grow) && !/Legendary/.test(end) && /apartment is yours/.test(end) && /Earlier acts/.test(end) && /The Pothos beaten/.test(end) && !next && posted?.won && posted.score === run.score() && run.evolved.length === 3,
+      { grow: grow.slice(0, 200), end: end.slice(0, 160), next, posted });
   },
 });
 act3('dying-starts-over-in-act-1', {
@@ -5953,7 +6008,7 @@ act3('camera-fight-view-on-the-bed', {
     const spots = [[A.playerStart[0], y, A.playerStart[2]], [x0 + 0.1, y, z0 + 0.1], [x1 - 0.1, y, z0 + 0.1], [x0 + 0.1, y, (z0 + z1) / 2], [x1 - 0.1, y, (z0 + z1) / 2], [(x0 + x1) / 2, y, (z0 + z1) / 2]];
     const view = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
     const now = cameraTour(spots);
-    return ok(Math.abs(view.d - 0.85) < 0.02 && Math.abs(view.p - Math.PI / 4) < 0.03 && now.moved === 0 && now.blocked === 0 && now.jumps === 0 && now.newShaders === 0 && run.phase === 'boss', { view, ...now });
+    return ok(Math.abs(view.d - LOOK.num('pothos-camera-distance', 0.95)) < 0.02 && Math.abs(view.p - LOOK.num('pothos-camera-tilt', 0.785)) < 0.03 && now.moved === 0 && now.blocked === 0 && now.jumps === 0 && now.newShaders === 0 && run.phase === 'boss', { view, ...now });
   },
 });
 act3('attacks-every-warning-has-volume', {
@@ -5964,6 +6019,17 @@ act3('attacks-every-warning-has-volume', {
 
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 const phone = (name, s) => story('phone/' + name, { phone: true, ...s });
+phone('pothos-fight-keeps-the-heart-below-the-boss-bar', {
+  act: 3,
+  about: 'On a phone (a short, wide screen) the Pothos fight view (look.css --pothos-camera-*-phone) keeps its heart in frame below the boss bar and the toast that it wakes, with the jelly in frame too.',
+  setup() {},
+  play() {
+    const B = pothosFight();
+    step(150);                                            // eased in
+    const { tpc } = G(), view = heartFrame(B);
+    return ok(view.good, { distance: +tpc.currentDistance.toFixed(3), pitch: +tpc.viewPitch.toFixed(3), ...view });
+  },
+});
 phone('light-slots-follow-the-jelly', {
   about: 'A phone lights the room with 6 shared lights: the lamps lighting the jelly most fade into them as it swims across the room (and the far ones out), and no shader is rebuilt on the way.',
   setup() { fresh({ elites: false }); tp(4.2, 0.05, 3.5, 0); },

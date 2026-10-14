@@ -25,8 +25,7 @@ export const STAGE3 = {
   // tougher again than act 2 (stage2.js says what each one is): 3x the bugs' health, 2x every hit
   // you take, 1.4x the XP
   toughness: 3,
-  eliteHp: 2.4,
-  bossHp: 2.2,
+  bossHp: 1.6,                        // the Pothos's Health as the Clog's: 1500 x 1.6 = 2400
   power: 2,
   bugs: 0.85,
   xpMult: 1.4,

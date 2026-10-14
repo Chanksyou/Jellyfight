@@ -10,7 +10,7 @@ import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits } from './vfx.js';
+import { hostile, TeleMaterial, blastHits } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -251,7 +251,10 @@ export class Enemies {
     this.puddlePool = [];
     this.flatGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
     this.sapMat = new THREE.MeshStandardMaterial({ color: LOOK.color('sap', '#8fbf1a'), emissive: LOOK.color('sap-glow', '#3a6a08'), emissiveIntensity: 0.6, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.85, depthWrite: false });
-    this.dropMarks = {};      // pooled by colour: the circle, and the dome over it, under each thing dropping (the drops word)
+    this.dropMarks = new Map();   // pooled by colour: the circle, and the dome over it, under each thing dropping (the drops word)
+    this.newCountdown = () => new THREE.Mesh(this.flatGeo, new TeleMaterial(undefined, 'circle'));   // (coloured per bug)
+    this.barkDust = LOOK.color('bark-dust', '#6a4a2c');      // an Aerial root landing or withering
+    this.sproutPuff = LOOK.color('sprout-puff', '#6a8a2a');  // a Cutting sprouting
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
@@ -435,13 +438,13 @@ export class Enemies {
   // ---------------------------------------------------------------- the Pothos's plants (becomes, lob)
   // the countdown ran out (the becomes word): `what` takes e's place where it stood, as tough as it was
   become(e, what) {
-    const at = e.pos.clone(), yaw = e.root.rotation.y, scale = e.maxHp / e.T.hp, col = hostile(e.T.words.find((w) => w.becomes).becomes.color);
+    const at = e.pos.clone(), yaw = e.root.rotation.y, scale = e.maxHp / e.T.hp, col = hostile(e.becomes.color);
     this.kill(e, true);                   // no XP: it isn't beaten, it grew
     const w = this.spawn(what, at, scale);
     w.root.rotation.y = yaw;
     w.grounded = e.grounded;
     this.fx.impact(at.clone().setY(at.y + 0.01), col, 0.03, 10);
-    this.fx.puff(at.clone().setY(at.y + 0.01), 0x6a8a2a, 0.05, 0.4);
+    this.fx.puff(at.clone().setY(at.y + 0.01), this.sproutPuff, 0.05, 0.4);
     sfx.wormBurst?.();
     return w;
   }
@@ -450,8 +453,8 @@ export class Enemies {
     let n = 0;
     for (const e of this.list) {
       if (e.dead || e.proxy || !(e.becomeMax > 0)) continue;
-      const B = e.T.words.find((w) => w.becomes).becomes;
-      const M = this.mark(this.becomeMarks, n++, () => new THREE.Mesh(this.flatGeo, new TeleMaterial(hostile(B.color), 'circle')));
+      const B = e.becomes;
+      const M = this.mark(this.becomeMarks, n++, this.newCountdown);
       M.material.uniforms.uColor.value.copy(hostile(B.color));
       M.position.set(e.pos.x, e.pos.y + 0.003, e.pos.z);
       M.scale.setScalar(B.radius);
@@ -538,9 +541,11 @@ export class Enemies {
   // show a lob's Warning and a puddle so their shaders build behind Play (main.js warmUp)
   warm(on, at) {
     if (!on) { this.clearLobs(); return; }
-    const c = { foot: at };
-    this.lob({ pos: at, r: 0.03, type: 'warm', id: 0 }, c, { radius: 0.045, dmg: 0, flight: 1, puddle: 1, color: 'pothos' });
-    this.puddle(at, 0.045, 1, hostile('pothos'));
+    // (a lob as content/enemies.kdl has one: every colour shares the same shaders)
+    const L = Object.values(TYPES).flatMap((T) => T.words).find((w) => w.lob)?.lob;
+    if (!L) return;
+    this.lob({ pos: at, r: 0.03, type: 'warm', id: 0 }, { foot: at }, { ...L, dmg: 0, flight: 1, puddle: 1 });
+    this.puddle(at, L.radius, 1, hostile(L.color));
   }
 
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
@@ -889,10 +894,10 @@ export class Enemies {
     const at = e.dropAt, col = hostile(color);
     sfx.clogSplat();
     this.fx.impact(S.spot.copy(at).setY(at.y + 0.01), col, radius * 0.4, 10);
-    this.fx.puff(S.spot, 0x6a4a2c, radius * 0.8, 0.35);
+    this.fx.puff(S.spot, this.barkDust, radius * 0.8, 0.35);
     e.landedOn = !!this.player && blastHits(at, radius, this.player.position, this.player);
   }
-  grab(e) { sfx.clogSnare(); this.fx.impact(S.spot.copy(e.pos).setY(e.pos.y + 0.02), hostile(e.T.words.find((w) => w.dropColor)?.dropColor || 'pothos'), 0.02, 8); }
+  grab(e, color) { sfx.clogSnare(); this.fx.impact(S.spot.copy(e.pos).setY(e.pos.y + 0.02), hostile(color), 0.02, 8); }
   // the hold tightens: you're slowed by `strength` and lose `dmg` (no flinch, no i-frames) for `dur` s
   squeeze(e, strength, dmg, dur) {
     bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: dur, strength });
@@ -900,33 +905,36 @@ export class Enemies {
   }
   // spent: it withers away (no kill for you, no XP)
   wither(e) {
-    this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0x6a4a2c, e.r * 1.6, 0.5);
+    this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), this.barkDust, e.r * 1.6, 0.5);
     this.kill(e, true);
   }
   // the Warning under everything dropping: a floor circle with the dome of space it lands in over it,
   // filling together as it falls. Pooled, and straight in the scene like every Warning.
   drawDrops(t) {
-    const used = {};
+    for (const pool of this.dropMarks.values()) pool.used = 0;
     for (const e of this.list) {
       if (e.dead || e.state !== 'drop' || !e.dropAt) continue;
-      const w = e.T.words.find((x) => x.dropRadius), color = w.dropColor, pool = (this.dropMarks[color] ||= []), i = used[color] = (used[color] || 0) + 1;
-      let M = pool[i - 1];
+      const D = e.drops;
+      let pool = this.dropMarks.get(D.color);
+      if (!pool) { pool = []; pool.used = 0; this.dropMarks.set(D.color, pool); }
+      let M = pool[pool.used++];
       if (!M) {
-        M = { floor: new THREE.Mesh(this.dropCircle ||= new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile(color), 'circle')), dome: new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile(color), 'dome')) };
-        M.floor.renderOrder = 3; M.dome.renderOrder = 4;
-        this.scene.add(M.floor, M.dome);
+        const col = hostile(D.color);
+        M = { floor: new THREE.Mesh(this.flatGeo, new TeleMaterial(col, 'circle')), dome: this.fx.volume(col, 'dome', e.dropAt, 1) };
+        M.floor.renderOrder = 3;
+        this.scene.add(M.floor);
         pool.push(M);
       }
       const k = 1 - Math.max(0, e.stateT) / (e.dropMax || 1);
       M.floor.position.copy(e.dropAt).setY(e.dropAt.y + 0.003);
       M.dome.position.copy(e.dropAt);
-      M.floor.scale.setScalar(w.dropRadius);
-      M.dome.scale.setScalar(w.dropRadius);
+      M.floor.scale.setScalar(D.radius);
+      M.dome.scale.setScalar(D.radius);
       M.floor.material.progress = M.dome.material.progress = k;
       M.floor.material.opacity = 0.85 + 0.15 * Math.abs(Math.sin(t * 14));
       M.floor.visible = M.dome.visible = true;
     }
-    for (const [color, pool] of Object.entries(this.dropMarks)) for (let i = used[color] || 0; i < pool.length; i++) pool[i].floor.visible = pool[i].dome.visible = false;
+    for (const pool of this.dropMarks.values()) for (let i = pool.used; i < pool.length; i++) pool[i].floor.visible = pool[i].dome.visible = false;
   }
 
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)

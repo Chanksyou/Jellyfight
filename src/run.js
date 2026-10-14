@@ -1,7 +1,7 @@
 // One run of stage 1: grow until the timer runs out (grabbing treasures that turn up in the room and
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
-import { addForceField } from './forcefield.js';
+import { addForceField, showForceField } from './forcefield.js';
 import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
@@ -57,6 +57,13 @@ export function nestMiddle(spot, r) {
 
 // The boss classes, by the kind a stage's boss block names (the Clog is 'hair')
 export const BOSSES = { vacuum: Vacuum, hair: Clog, pothos: Pothos };
+// the boss a stage's boss block names (B.kind), built for its arena; an unknown kind is a mistake in
+// the stage file, not a reason to fight some other boss
+export function makeBoss(B, scene, enemies, fx, world) {
+  const Boss = BOSSES[B.kind];
+  if (!Boss) throw new Error(`no boss of kind "${B.kind}" (${B.name}): the kinds are ${Object.keys(BOSSES).join(', ')} (run.js BOSSES)`);
+  return new Boss(scene, enemies, fx, B, world);
+}
 
 export class Run {
   // ctx: { scene, stage, plan, world, player, cfg, enemies, lash, xpDrops, traversal, hud, ui, fx, tpc, input, setNight }
@@ -84,7 +91,7 @@ export class Run {
       ctx.world.addCollider(m);
       // and what you see of it: up only while the fight is (forcefield.js)
       const field = addForceField(ctx.scene, w);
-      if (field) { field.visible = false; m.userData.field = field; }
+      if (field) { showForceField(field, false); m.userData.field = field; }
       return m;
     });
     this.rooms = ctx.plan;
@@ -160,7 +167,7 @@ export class Run {
     this.boss?.dispose();
     this.boss = null;
     this.traversal.bossMode = false;
-    this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) m.userData.field.visible = false; });
+    this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) showForceField(m.userData.field, false); });
     this.hud.setBoss(null);
     this.hud.setElite(null);
     this.ui.close();
@@ -931,7 +938,7 @@ export class Run {
       this.traversal.bossMode = true;
       this.elites.clear();
       this.roomTreasures.forEach((t) => t.hide());
-      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) m.userData.field.visible = true; });
+      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true); });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);
@@ -939,7 +946,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = new (BOSSES[B.kind] || Clog)(this.scene, this.enemies, this.fx, B, this.world);
+      this.boss = makeBoss(B, this.scene, this.enemies, this.fx, this.world);
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
       // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame) turns
       // you to face it, and the camera eases into that view for the fight
@@ -985,16 +992,16 @@ export class Run {
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
     const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
-    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} Choose what it becomes: it changes how you play for the rest of the run.`, choices, (evo) => {
+    const next = STAGES[this.stage.id];           // the act after this one, if there is one
+    const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
+    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, choices, (evo) => {
       this.evolved.push(evo.id);
       this.health = this.S.health;
       this.phase = 'won';
-      const next = STAGES[this.stage.id];         // the act after this one, if there is one
       // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
       if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-      // the last act: the run is won (its Legendary counts toward the score)
-      else this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure for your final score.`,
-        () => this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }));
+      // the last act: the run is won
+      else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
     });
   }
 

@@ -1849,25 +1849,35 @@ export function buildNest() {
 }
 
 // ------------------------------------------------------------------ the Pothos's Cuttings and Sap sprouts
-// A pothos leaf, small: heart-shaped, cupped, its tip drooping, deep green with cream-gold streaks
-// and a gold midrib. Petiole at the origin, running along +y (1 unit long), facing +z.
-function pothosLeaf() {
-  const g = new THREE.PlaneGeometry(1, 1, 6, 8), p = g.attributes.position, col = new Float32Array(p.count * 3);
-  const deep = new THREE.Color(LOOK.color('pothos-leaf-deep', '#0f3311')), green = new THREE.Color(LOOK.color('pothos-leaf', '#1d5a1d'));
-  const gold = new THREE.Color(LOOK.color('pothos-leaf-gold', '#f2dc5a')), c = new THREE.Color();
+// A pothos leaf (the Pothos's own, src/pothos.js, and its Cuttings' and Sap sprouts'): heart-shaped,
+// cupped, its tip drooping, high-contrast gold streaks fanning out from a gold midrib over deep green
+// (look.css --pothos-leaf-*). Its petiole is at the origin, it runs along +y to its tip (1 unit long)
+// and faces +z. `across` x `along`: how finely it's cut (the boss's big leaves finer)
+const smoothstep01 = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export function pothosLeaf(across = 6, along = 8) {
+  const g = new THREE.PlaneGeometry(1, 1, across, along), p = g.attributes.position, col = new Float32Array(p.count * 3);
+  const deep = new THREE.Color(LOOK.color('pothos-leaf-deep', '#0a2a0c')), green = new THREE.Color(LOOK.color('pothos-leaf', '#164d18'));
+  const cream = new THREE.Color(LOOK.color('pothos-leaf-gold', '#ffdf4a')), rib = new THREE.Color(LOOK.color('pothos-leaf-rib', '#e0c235')), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
-    const u = p.getX(i) * 2, t = p.getY(i) + 0.5;
+    const u = p.getX(i), t = p.getY(i) + 0.5;                      // u -0.5..0.5 across, t 0 base .. 1 tip
     const w = 0.62 * Math.pow(Math.sin(Math.PI * Math.min(1, (t + 0.14) / 1.14)), 0.8) * (1 - 0.12 * t);
-    const x = u * w, y = t - 0.16 * Math.abs(u) * Math.pow(1 - t, 3), z = -0.14 * t * t + 0.1 * u * u * w;
+    const x = u * 2 * w, y = t - 0.16 * Math.abs(u * 2) * Math.pow(1 - t, 3), z = -0.14 * t * t + 0.1 * (u * 2) * (u * 2) * w;
     p.setXYZ(i, x, y, z);
     const streak = Math.sin(Math.atan2(x, t + 0.06) * 15 + Math.sin(t * 9 + x * 7) * 1.4) * 0.5 + 0.5;
-    c.copy(green).lerp(deep, Math.abs(u) * 0.55).lerp(gold, Math.min(1, Math.max(0, (streak - 0.6) / 0.35)) * (0.35 + 0.65 * t));
-    if (Math.abs(u) < 0.12) c.lerp(gold, 0.6);                              // the midrib
+    const blotch = Math.sin(x * 23 + t * 17) * Math.sin(t * 29 - x * 11) * 0.5 + 0.5;
+    c.copy(green).lerp(deep, Math.abs(u * 2) * 0.6);
+    if (Math.abs(x) < 0.02) c.lerp(rib, 0.6);
+    else c.lerp(cream, smoothstep01(0.66, 0.9, streak * 0.75 + blotch * 0.35) * (0.45 + 0.55 * t));
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
-  g.deleteAttribute('uv');
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
   return g;
+}
+// its material: vertex-coloured, two-sided, a little glossy, with a faint glow of its own
+// (look.css --pothos-leaf-glow). A new one each call: the Pothos recolours its own glow in the fight
+export function pothosLeafMat() {
+  return new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: LOOK.color('pothos-leaf-glow', '#071405') });
 }
 // a leaf's geometry placed: petiole at `at`, pointing along `dir`, rolled so it faces mostly up
 function placeLeaf(leaf, at, dir, size, roll = 0) {
@@ -1880,7 +1890,7 @@ function placeLeaf(leaf, at, dir, size, roll = 0) {
 function plantMats() {
   const M = mats();
   if (!M.leaf) {
-    M.leaf = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: '#071405' });
+    M.leaf = pothosLeafMat();
     standOut(M.leaf, { base: 0.1, rim: 0.35 });
     // the sap: glowing in the Pothos's hostile colour, so it reads as its attack
     const sap = new THREE.Color(LOOK.color('hostile-pothos', '#9cff1e'));
@@ -1888,10 +1898,13 @@ function plantMats() {
   }
   return M;
 }
-const STEM = 0x2f6a22, STEM_DARK = 0x1d4416, ROOT = 0x7a5a30;
+// (look.css --pothos-stem, --pothos-stem-dark, --pothos-root-nub; read when the first one is built)
+let STEM, STEM_DARK, ROOT;
+function plantColours() { STEM ??= LOOK.color('pothos-stem', '#2f6a22'); STEM_DARK ??= LOOK.color('pothos-stem-dark', '#1d4416'); ROOT ??= LOOK.color('pothos-root-nub', '#7a5a30'); }
 // a Cutting: a snip of vine lying on the bed, two leaves, a node with root nubs, the cut end glowing
 function cuttingParts() {
-  const leaf = pothosLeaf();
+  plantColours();
+  const leaf = pothosLeaf().deleteAttribute('uv');
   const green = [
     tube([V(0, 0.12, -1.35), V(0.15, 0.14, -0.6), V(-0.05, 0.13, 0.2), V(0.1, 0.12, 1.1)], 0.1, STEM, 16),
     ellipsoid(0.15, 0.13, 0.17, V(-0.03, 0.14, -0.15), STEM_DARK, 10),             // a node
@@ -1918,7 +1931,8 @@ export function buildCutting() {
 }
 // a Sap sprout: roots splayed on the bed, a stem rising to a swollen glowing sap pod, leaves fanning
 function sproutParts() {
-  const leaf = pothosLeaf(), green = [], leaves = [];
+  plantColours();
+  const leaf = pothosLeaf().deleteAttribute('uv'), green = [], leaves = [];
   for (let k = 0; k < 5; k++) { const a = k * 1.3; green.push(rod(V(0, 0.15, 0), V(Math.cos(a) * 0.75, 0.01, Math.sin(a) * 0.75), 0.09, 0.03, ROOT)); }
   green.push(tube([V(0, 0, 0), V(0.08, 0.8, 0.02), V(-0.06, 1.6, -0.03), V(0, 2.2, 0)], 0.13, STEM, 14));
   green.push(ellipsoid(0.2, 0.12, 0.2, V(0, 2.18, 0), STEM_DARK, 10));                // the pod's cup
@@ -1958,7 +1972,8 @@ function rootGeometry() {
   const curve = new THREE.CatmullRomCurve3(pts), g = new THREE.TubeGeometry(curve, n, 1, rad, false).toNonIndexed();
   // taper each vertex toward the curve: thick at the back, thinning to the tip, knobbly with bark rings
   const p = g.attributes.position, col = [], c = new THREE.Color(), C = new THREE.Vector3(), v = new THREE.Vector3();
-  const bark = new THREE.Color('#5a3a20'), dark = new THREE.Color('#2e1b0d'), pale = new THREE.Color('#efe6c4'), green = new THREE.Color('#c9dc8e');
+  const bark = new THREE.Color(LOOK.color('root-bark', '#5a3a20')), dark = new THREE.Color(LOOK.color('root-groove', '#2e1b0d'));
+  const pale = new THREE.Color(LOOK.color('root-tip', '#efe6c4')), green = new THREE.Color(LOOK.color('root-tip-green', '#c9dc8e'));
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     // the nearest point on the curve (the tube is straight enough to find it by z)
@@ -1979,10 +1994,10 @@ function rootGeometry() {
   const parts = [g];
   for (let k = 0; k < 7; k++) {
     const s = 0.1 + k * 0.09, at = curve.getPointAt(s), side = k % 2 ? 1 : -1;
-    parts.push(rod(at, at.clone().add(V(side * (0.3 + 0.1 * (k % 3)), -0.12 - 0.05 * (k % 2), 0.1)), 0.035, 0.008, k % 3 ? '#4a2e18' : '#8a6a48'));
+    parts.push(rod(at, at.clone().add(V(side * (0.3 + 0.1 * (k % 3)), -0.12 - 0.05 * (k % 2), 0.1)), 0.035, 0.008, k % 3 ? LOOK.color('rootlet', '#4a2e18') : LOOK.color('rootlet-pale', '#8a6a48')));
   }
   const tip = curve.getPointAt(1);
-  parts.push(ellipsoid(0.07, 0.07, 0.1, tip, '#f4eccf', 8));
+  parts.push(ellipsoid(0.07, 0.07, 0.1, tip, LOOK.color('root-cap', '#f4eccf'), 8));
   return merge(parts);
 }
 

@@ -1,8 +1,11 @@
 // What the invisible walls look like: a faint hex shimmer across the opening, brightest along
 // the floor (where a jelly sees it) and fading out above, with a glowing line at its foot.
 // Get close and it ripples and lights up around you, so it reads as "you can't go this way".
+// One the camera has ended up behind (the boss arena's wall at your back as a fight starts) is
+// faded out, like furniture between the camera and the jelly (camera.js), till it's clear again.
 //   addForceField(scene, { min, max })  a field over a wall box (null for one that isn't a wall)
-//   updateForceFields(playerPos)        once a frame
+//   showForceField(field, up)           put it up or take it down (a boss arena's: only in the fight)
+//   updateForceFields(playerPos, camPos) once a frame
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 
@@ -74,10 +77,29 @@ export function addForceField(scene, w) {
   m.name = 'Force field';
   m.renderOrder = 3;
   m.userData.noCollide = true;
+  m.userData.up = true;
+  m.userData.box = w;
+  m.userData.across = alongX ? 'z' : 'x';      // the axis it stands across
+  fields.push(m);
   scene.add(m);
   return m;
 }
+const fields = [];
 
-export function updateForceFields(playerPos) {
+export function showForceField(m, up) { m.userData.up = up; m.visible = up; }
+
+// does the line from the jelly to the camera pass through field m?
+function between(m, p, c) {
+  const a = m.userData.across, o = a === 'z' ? 'x' : 'z', w = m.userData.box, at = m.position[a], E = 0.03;
+  const dp = p[a] - at, dc = c[a] - at;
+  if (dp * dc > 0) return false;
+  const t = dp === dc ? 0 : dp / (dp - dc), x = p[o] + (c[o] - p[o]) * t, y = p.y + (c.y - p.y) * t;
+  const io = o === 'x' ? 0 : 2;
+  return x > w.min[io] - E && x < w.max[io] + E && y > w.min[1] - E && y < w.max[1] + E;
+}
+
+export function updateForceFields(playerPos, camPos = null) {
   if (mat) mat.uniforms.uPlayer.value.copy(playerPos).setY(playerPos.y + 0.03);
+  if (!camPos) return;
+  for (const m of fields) if (m.userData.up) m.visible = !between(m, playerPos, camPos);
 }

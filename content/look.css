@@ -44,6 +44,28 @@
   --pothos-leaf-open: #3b5a0a;   /* its leaves light up green-gold while they're parted after a Vine Whip (the opening) */
   --pothos-open-grow: 0.4;       /* how much bigger the heart swells then */
   --pothos-open-halo: 0.5;       /* how far its glow spreads then (m, before the plant's scale) */
+  --pothos-leaf-glow: #071405;   /* the leaves' own faint glow (the Pothos's, and its Cuttings' and Sap sprouts') */
+  --pothos-vine-glow: #0a1a06;   /* the vines' */
+  --pothos-pot: #b8653c;         /* its terracotta pot */
+  --pothos-pot-dark: #7e3f22;    /* the darker blotches in the clay */
+  --pothos-pot-moss: #58772c;    /* the moss creeping up it and over the rim */
+  --pothos-pot-crack: #2a1608;   /* its cracks */
+  --pothos-soil: #241509;        /* the soil in it */
+  --pothos-stem: #2f6a22;        /* a Cutting's and a Sap sprout's stem */
+  --pothos-stem-dark: #1d4416;   /* the node on it, the sprout's pod cup */
+  --pothos-root-nub: #7a5a30;    /* their little root nubs */
+  --sprout-puff: #6a8a2a;        /* the puff as a Cutting sprouts */
+  --sap: #8fbf1a;                /* a Sap sprout's sticky puddle */
+  --sap-glow: #3a6a08;           /* its glow */
+  /* an Aerial root: woody bark with darker grooves, thinning to a pale, waxy, green-tinged tip */
+  --root-bark: #5a3a20;
+  --root-groove: #2e1b0d;
+  --root-tip: #efe6c4;
+  --root-tip-green: #c9dc8e;
+  --rootlet: #4a2e18;            /* its fine rootlets */
+  --rootlet-pale: #8a6a48;
+  --root-cap: #f4eccf;           /* the cap on its tip */
+  --bark-dust: #6a4a2c;          /* the puff as one lands or withers */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
   /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.
@@ -117,7 +139,12 @@
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
   /* the Pothos fight's view (eased in for that fight only, back out after): further back and less
      steep, so its heart, up in its leaves on the pillows, stays in frame from the bed */
-  --pothos-camera-distance: 0.85;  /* meters behind the jelly */
+  --pothos-camera-distance: 0.95;  /* meters behind the jelly */
   --pothos-camera-tilt: 0.785;     /* radians down from level (45 degrees) */
-  --pothos-camera-ahead: 0.8;      /* meters ahead of the jelly it aims: the heart in frame below the boss bar (a phone's too), the jelly low in it */
+  --pothos-camera-ahead: 1.0;      /* meters ahead of the jelly it aims: the heart in frame below the boss bar and the toast, the jelly low in it */
+  /* a phone's (short, wide screen, the boss bar and toast taking more of it): further back, flatter
+     and aiming further ahead, so the heart sits below them (story phone/pothos-fight-keeps-the-heart-below-the-boss-bar) */
+  --pothos-camera-distance-phone: 1.1;
+  --pothos-camera-tilt-phone: 0.6;   /* (about 34 degrees) */
+  --pothos-camera-ahead-phone: 1.5;
 }
