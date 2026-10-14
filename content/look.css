@@ -38,6 +38,9 @@
   --pothos-heart-pit: #1f5a10;   /* the dark pits between them */
   --pothos-heart-glow: #2f8a14;  /* its emissive, kept below white so the colour reads */
   --pothos-heart-halo: #5ee83a;  /* the glow round it */
+  --pothos-heart-angry: #c8460e; /* its emissive once it's angry (below 45% Health): burning hot */
+  --pothos-heart-angry-halo: #ff8a2a; /* the glow round it then */
+  --pothos-leaf-angry: #220902;  /* its leaves' smoulder then, with each heartbeat */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
   /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.

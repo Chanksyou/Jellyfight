@@ -112,7 +112,7 @@ function parts() {
   PARTS = {
     leaf: leafGeometry(), pot: potGeometry(POT_H, POT_RB, POT_R), heart: heartGeometry(),
     dirt: new THREE.CircleGeometry(POT_R * 0.93, 32).rotateX(-Math.PI / 2),
-    leafMat: new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: '#071405' }),
+    leafMat: new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.38, emissive: '#071405' }),   // (its emissive: Pothos.calmLeaf)
     vineMat: new THREE.MeshStandardMaterial({ color: LOOK.color('pothos-vine', '#3f6a26'), roughness: 0.6, emissive: '#0a1a06' }),
     potMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }),
     dirtMat: new THREE.MeshStandardMaterial({ color: '#241509', roughness: 1 }),
@@ -495,7 +495,14 @@ export class Pothos {
     this.guardT = 0;
     this.wither = 0;
     this.glowColor = new THREE.Color(LOOK.color('pothos-heart-halo', '#5ee83a'));
+    // angry (below enrage at), its heart burns hot and beats faster: the same material, recoloured
+    this.calmGlow = this.glowColor.clone(); this.calmEmissive = new THREE.Color(LOOK.color('pothos-heart-glow', '#2f8a14'));
+    this.angryGlow = new THREE.Color(LOOK.color('pothos-heart-angry-halo', '#ff8a2a')); this.angryEmissive = new THREE.Color(LOOK.color('pothos-heart-angry', '#c8460e'));
+    this.calmLeaf = new THREE.Color('#071405'); this.angryLeaf = new THREE.Color(LOOK.color('pothos-leaf-angry', '#220902'));   // and its leaves smoulder with each beat
+    this.rage = 0; this.beatT = 0; this.wasAngry = false;
     this.model = buildPothos(world, V(...arena.pot), arena);
+    this.model.heart.material.emissive.copy(this.calmEmissive);   // (shared: a past fight may have left it angry)
+    this.model.leaves.material.emissive.copy(this.calmLeaf);
     placeLeaves(this.model);
     // the fight view (camera.js, run.js): back and up from the jelly's, to keep the heart in frame
     this.camera = { distance: LOOK.num('pothos-camera-distance', 0.85), pitch: LOOK.num('pothos-camera-tilt', 0.785), ahead: LOOK.num('pothos-camera-ahead', 0.65) };
@@ -578,7 +585,16 @@ export class Pothos {
     } else M.root.scale.setScalar(s);
     // the heart beats and glows in its hollow (kept below white so its colour reads), flaring while
     // the leaves round it are parted
-    const beat = Math.max(0, Math.sin(this.t * 4)) ** 4, open = this.open;
+    // angry, it roars once in a puff of hot glow, and its heart turns hot and quickens
+    const angry = this.angry;
+    if (angry && !this.wasAngry) { sfx.clogRoar?.(); this.fx.puff(this.center(this._heart), this.angryGlow, 0.08, 0.6); }
+    this.wasAngry = angry;
+    this.rage += ((angry ? 1 : 0) - this.rage) * Math.min(1, dt * 3);
+    this.glowColor.copy(this.calmGlow).lerp(this.angryGlow, this.rage);
+    M.heart.material.emissive.copy(this.calmEmissive).lerp(this.angryEmissive, this.rage);
+    this.beatT += dt * (4 + this.rage * 3);
+    const beat = Math.max(0, Math.sin(this.beatT)) ** 4, open = this.open;
+    M.leaves.material.emissive.copy(this.calmLeaf).lerp(this.angryLeaf, this.rage * (0.4 + beat * 0.6));
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 5);
     // shielded, the lids fold shut over the heart and it dims behind them; they open again after
     const shut = this.shielded ? 1 : 0;

@@ -5711,6 +5711,82 @@ act3('pothos-opens-after-each-whip', {
     return ok(out.before.popped && out.before.lost === 0 && out.open.lost > 0 && out.after.popped && out.after.lost === 0, out);
   },
 });
+// --- the angry phase: below 45% Health the Pothos whips two vines at once, drops Cuttings in pairs
+// (act3/pothos-drops-cuttings-near-you), rests less between attacks, and its heart burns hot
+// the whip's Warnings showing: each floor strip with the lane volumes standing on it
+function whipLanes() {
+  const strips = shownWarnings().floor.filter((f) => f.material.shape === 'strip'), pairs = volumePairs();
+  return strips.map((f) => ({ strip: f, line: stripLine(f), volumes: pairs.filter(([, s]) => s === f).length, progress: f.material.progress }));
+}
+const pothosAngry = (B) => { B.swarmed = true; B.hp = B.maxHp * 0.4; };   // (past its dragonflies)
+act3('pothos-angry-whips-two-lanes', {
+  about: 'Below 45% Health a Vine Whip lashes two vines at once on two separate lanes, each with its own floor strip and lane volumes filling to the lash, and the leaves still part after it. Above 45% it lashes one.',
+  setup() {},
+  play() {
+    const B = pothosFight(), out = {};
+    holdJelly().position.set(-0.3, G().player.position.y, 9.7);
+    for (const angry of [false, true]) {
+      if (angry) pothosAngry(B);
+      B.begin('whip');
+      B.stateT = 1e9;
+      step(15);
+      const lanes = whipLanes();
+      // separate: the two lanes' far ends lie apart
+      const ends = lanes.map((l) => l.line[l.line.length - 1]);
+      const apart = ends.length === 2 ? +Math.hypot(ends[0].x - ends[1].x, ends[0].z - ends[1].z).toFixed(3) : null;
+      step(60, () => B.struck);
+      step(6);
+      const w = shownWarnings();
+      out[angry ? 'angry' : 'calm'] = { lanes: lanes.length, volumes: lanes.map((l) => l.volumes), filling: lanes.map((l) => +l.progress.toFixed(2)), apart, opens: B.openT > 0, gone: !w.floor.length && !w.volume.length };
+      step(240, () => B.open === 0 && B.whipT < 0);
+      B.state = 'idle'; B.stateT = 1e9;
+    }
+    const c = out.calm, a = out.angry;
+    return ok(c.lanes === 1 && c.volumes[0] >= 4 && c.opens && c.gone
+      && a.lanes === 2 && a.volumes.every((n) => n >= 4) && a.filling.every((p) => p > 0.1) && a.apart > 0.1 && a.opens && a.gone, out);
+  },
+});
+act3('pothos-angry-rests-less', {
+  about: 'Below 45% Health the Pothos pauses less between its attacks than above it.',
+  setup() {},
+  play() {
+    const B = pothosFight(), out = {};
+    holdJelly();
+    for (const angry of [false, true]) {
+      if (angry) pothosAngry(B);
+      B.begin('cutting');
+      step(60 * 3, () => B.state === 'idle');
+      const t0 = B.t;
+      step(60 * 6, () => B.state !== 'idle');
+      out[angry ? 'angry' : 'calm'] = +(B.t - t0).toFixed(2);
+      B.state = 'idle'; B.stateT = 1e9;
+    }
+    return ok(out.angry < out.calm - 0.5, out);
+  },
+});
+act3('pothos-angry-heart-burns-hot', {
+  about: "Turning angry shows: the Pothos's heart beats faster, its glow turns from green to a hot orange and its leaves smoulder, with no new light and no new shader.",
+  setup() {},
+  play() {
+    const B = pothosFight(), { APT, batcher } = G(), compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+    holdJelly();
+    B.stateT = 1e9;
+    compile();
+    const programs = APT.renderer.info.programs.length, lights = [];
+    APT.scene.traverse((o) => { if (o.isLight) lights.push(o); });
+    const look = () => { const c = B.model.heart.material.emissive, l = B.model.leaves.material.emissive; return { r: +c.r.toFixed(2), g: +c.g.toFixed(2), leaves: l.r > l.g ? 'hot' : 'green' }; };
+    // how many beats in 3 s (the heart's scale peaks)
+    const beats = () => { let n = 0, prev = 0, rising = false; for (let i = 0; i < 180; i++) { step(1); const s = B.model.heart.scale.x; if (s < prev && rising) n++; rising = s > prev; prev = s; } return n; };
+    const calm = { ...look(), beats: beats() };
+    pothosAngry(B);
+    step(60);
+    const angry = { ...look(), beats: beats() };
+    compile();
+    let nLights = 0; APT.scene.traverse((o) => { if (o.isLight) nLights++; });
+    const out = { calm, angry, newShaders: APT.renderer.info.programs.length - programs, newLights: nLights - lights.length };
+    return ok(calm.g > calm.r && angry.r > angry.g && calm.leaves === 'green' && angry.leaves === 'hot' && angry.beats > calm.beats && out.newShaders === 0 && out.newLights === 0, out);
+  },
+});
 // --- the dragonfly phase: below 70% the Pothos lets 4 dragonflies out and closes its leaves over its heart
 const pothosGuards = () => G().enemies.list.filter((e) => e.type === 'dragonfly' && !e.dead);
 // does a leaf stand between a spot in front of the heart (where the jelly looks from) and the heart?
