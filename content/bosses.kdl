@@ -41,8 +41,12 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
 //   rest   the pause before its next attack (s)
 // Cuttings: `near` m from you, `count` of them (`angryCount` when it's angry); each Cutting and the
 // Sap sprout it grows into are content/enemies.kdl's "cutting" and "sprout"
+// The swarm: once, the first time its Health drops below `at`, `count` dragonflies (content/enemies.kdl
+// "dragonfly") come out of the plant and its leaves close over its heart until they're dead or
+// `shield` s have passed
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
     cutting time=1.0 count=1 angryCount=2 near=0.16 rest=2.5 angryRest=1.6
     roots   time=1.2 count=3 spread=0.18 rest=2.5 angryRest=1.6
+    swarm   at=0.7 count=4 shield=30 rest=1.5
     enrage  at=0.45
 }

@@ -5585,6 +5585,76 @@ act3('aerial-root-killed-in-time-does-nothing', {
     return ok(R.length >= 2 && R.every((e) => e.dead) && !rooted && !slowed && run.slowT === 0, { roots: R.length, rooted, slowed });
   },
 });
+// --- the dragonfly phase: below 70% the Pothos lets 4 dragonflies out and closes its leaves over its heart
+const pothosGuards = () => G().enemies.list.filter((e) => e.type === 'dragonfly' && !e.dead);
+// does a leaf stand between a spot in front of the heart (where the jelly looks from) and the heart?
+function heartCovered(B) {
+  const c = B.center(), from = c.clone().add(V(0, 0.03, -0.3)), dir = c.clone().sub(from), far = dir.length();
+  B.holder.updateMatrixWorld(true);
+  return new THREE.Raycaster(from, dir.normalize(), 0, far - B.r).intersectObject(B.model.leaves).length > 0;
+}
+const toSwarm = (B) => { B.hp = B.maxHp * 0.69; step(60 * 3, () => B.state === 'swarm' && pothosGuards().length === 4); step(60); };
+act3('pothos-dragonflies-shield-its-heart', {
+  about: 'The first time the Pothos drops below 70% Health, 4 dragonflies come out of the plant and its leaves close over its heart: hits on the heart do nothing, and the boss bar says SHIELDED.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false });
+    const openBefore = !heartCovered(B);
+    toSwarm(B);
+    const flies = pothosGuards().length, hp = B.hp;
+    B.damage(100);
+    const immune = B.hp === hp && B.shielded;
+    const bar = document.querySelector('#hud .boss')?.textContent || '', says = /SHIELDED/.test(bar);
+    const covered = heartCovered(B);
+    return ok(flies === 4 && immune && says && openBefore && covered, { flies, immune, bar, openBefore, covered });
+  },
+});
+act3('pothos-dragonflies-killed-lift-the-shield', {
+  about: 'Kill all 4 of the Pothos\'s dragonflies and its leaves open again: its heart can be hurt, and the boss bar no longer says SHIELDED.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false }), { enemies } = G();
+    toSwarm(B);
+    const flies = pothosGuards();
+    for (const e of flies.slice(0, 3)) enemies.applyDamage(e, 1e5);
+    step(30);
+    const stillShielded = B.shielded;
+    enemies.applyDamage(flies[3], 1e5);
+    step(60 * 1.5);
+    const hp = B.hp;
+    B.damage(50);
+    const hurt = B.hp === hp - 50, bar = document.querySelector('#hud .boss')?.textContent || '';
+    return ok(flies.length === 4 && stillShielded && !B.shielded && hurt && !/SHIELDED/.test(bar) && !heartCovered(B), { flies: flies.length, stillShielded, hurt, bar, covered: heartCovered(B) });
+  },
+});
+act3('pothos-shield-lifts-after-30-s', {
+  about: 'The Pothos\'s shield lifts after 30 s even with its dragonflies still flying: the leaves open and its heart can be hurt again.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false });
+    toSwarm(B);
+    step(60 * 27);
+    const at28 = B.shielded;
+    step(60 * 3.5);
+    const alive = pothosGuards().length, hp = B.hp;
+    B.damage(50);
+    return ok(at28 && !B.shielded && alive > 0 && B.hp === hp - 50, { at28, shielded: B.shielded, alive });
+  },
+});
+act3('pothos-dragonflies-come-once', {
+  about: 'The dragonflies come once a fight: after the shield lifts, dropping further below 70% summons no more.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false }), { enemies } = G();
+    toSwarm(B);
+    for (const e of pothosGuards()) enemies.applyDamage(e, 1e5);
+    step(60 * 1.5);
+    B.hp = B.maxHp * 0.5;
+    step(60 * 6);
+    const again = pothosGuards().length;
+    return ok(again === 0 && !B.shielded && B.state !== 'swarm', { again, shielded: B.shielded, state: B.state });
+  },
+});
 act3('attacks-every-warning-has-volume', {
   about: 'Every Pothos attack in turn: each Warning shows its floor shape with its volume over it, filling together; both go after the hit; none builds a new shader.',
   setup() { fresh({ bubbles: false, lash: false }); },
