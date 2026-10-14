@@ -3129,7 +3129,7 @@ story('boss/vacuum-brushes-jumped-clear', {
   },
 });
 story('boss/vacuum-spin-low-and-high', {
-  about: "The spin's dust clumps are Shots alternating floor level (4.5 cm) and jump height (16 cm): the low ones pass under a jumping jelly and the high ones over a grounded one (each hits the jelly that doesn't dodge it, 2).",
+  about: "The spin's dust clumps are Shots alternating floor level (4.5 cm) and jump height (16 cm): the low ones pass under a jumping jelly and the high ones over a grounded one (each hits the jelly that doesn't dodge it, 3).",
   setup() { startVacuum('spin'); },
   play() {
     const B = G().run.boss, player = holdJelly(), hits = bossHits(), out = {};
@@ -3150,9 +3150,9 @@ story('boss/vacuum-spin-low-and-high', {
       const alternate = heights.every((h, i) => i === 0 || (h < 0.07) !== (heights[i - 1] < 0.07));
       out[jump ? 'jumping' : 'grounded'] = { low, high, alternate, hits: hits.slice(h0).map((h) => h.amount) };
     }
-    const g = out.grounded, j = out.jumping, twos = (r) => r.hits.every((n) => n === 2);
-    const pass = g.low > 0 && g.high > 0 && j.low > 0 && j.high > 0 && g.alternate && j.alternate && twos(g) && twos(j)
-      && g.hits.length === g.low && j.hits.length === j.high;   // grounded: only the low ones hit; jumping: only the high ones
+    const g = out.grounded, j = out.jumping, spin = (r) => r.hits.filter((n) => n === 3).length, clean = (r) => r.hits.every((n) => n === 2 || n === 3);   // 3s are the clumps; a 2 is a bump (at spin speed 0.9 for 3 s the Vacuum drives the last stretch into you)
+    const pass = g.low > 0 && g.high > 0 && j.low > 0 && j.high > 0 && g.alternate && j.alternate && clean(g) && clean(j)
+      && spin(g) === g.low && spin(j) === j.high;   // grounded: only the low clumps hit; jumping: only the high ones
     return ok(pass, out);
   },
 });
@@ -4569,7 +4569,7 @@ act2('clog-lash', {
   },
 });
 act2('clog-snare', {
-  about: 'Snare: three circles fill on the floor round you, then hair springs up in them: 2 and slowed if you\'re caught.',
+  about: 'Snare: three circles fill on the floor round you, then hair springs up in them: 3 and slowed if you\'re caught.',
   setup() {},
   play() {
     const B = clogFight(), { run } = G(), log = record('damage_taken');
@@ -4578,7 +4578,7 @@ act2('clog-snare', {
     step(60 * 2, () => { circles = Math.max(circles, B.snares.filter((m) => m.visible).length); return B.sprung; });
     step(2);
     const hit = log.find((d) => d.source === 'boss');
-    return ok(circles === 3 && hit?.amount === 2 && run.slowT > 0.5 && B.tufts.length > 0, { circles, hit: hit?.amount, tufts: B.tufts.length });
+    return ok(circles === 3 && hit?.amount === 3 && run.slowT > 0.5 && B.tufts.length > 0, { circles, hit: hit?.amount, tufts: B.tufts.length });
   },
 });
 act2('clog-roll', {
@@ -4604,7 +4604,7 @@ act2('clog-flood', {
     const d0 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
     step(60 * 1.6);
     const d1 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
-    step(60 * 2.2);
+    step(60 * 6.5);   // flood time is 8 s now: the tub stays full far longer before it drains
     const drained = !B.water.visible, hurt = log.some((d) => d.source === 'boss');   // dragged into the drain (and the hairball sitting on it)
     return ok(poured && filled > 0.08 && d1 < d0 - 0.3 && drained && hurt, { poured, filled: +filled.toFixed(3), d0: +d0.toFixed(2), d1: +d1.toFixed(2), drained, hurt });
   },
@@ -4728,13 +4728,13 @@ act2('clog-roll-lane-is-as-tall-as-it-is', {
   },
 });
 act2('clog-snare-is-a-floor-blast', {
-  about: "Each snare circle has a half-sphere volume of its radius (5 cm) over it, filling together. A jelly standing in one is hit (2, slowed); one in the air over it (feet 12 cm up) isn't.",
+  about: "Each snare circle has a half-sphere volume of its radius (5 cm) over it, filling together. A jelly standing in one is hit (3, slowed); one in the air over it (feet 12 cm up) isn't.",
   setup() {},
   play() {
     const B = clogFight(), hits = bossHits(), out = {};
     for (const up of [0, JUMP_FEET]) {
       clogAgain(B, 'snare', 0.9, up);
-      step(40);
+      step(20);   // mid-fill: at windup 0.9 the circles spring at about frame 39, so 40 was a photo of after they vanished
       const w = clogWarnings(), dome = w.volume[0], b = dome && new THREE.Box3().setFromObject(dome);
       const h0 = hits.length;
       step(120, () => B.state === 'snare' && B.sprung);
@@ -4746,7 +4746,7 @@ act2('clog-snare-is-a-floor-blast', {
       step(60, () => B.state !== 'snare');
     }
     const s = out.standing;
-    return ok(s.floors === 3 && s.volumes === 3 && Math.abs(s.r - 0.05) < 0.003 && Math.abs(s.tall - 0.05) < 0.003 && s.filling && s.hits[0] === 2 && s.hits.length === 1 && out.jumping.hits.length === 0, out);
+    return ok(s.floors === 3 && s.volumes === 3 && Math.abs(s.r - 0.05) < 0.003 && Math.abs(s.tall - 0.05) < 0.003 && s.filling && s.hits[0] === 3 && s.hits.length === 1 && out.jumping.hits.length === 0, out);
   },
 });
 act2('clog-spray-low-and-high', {
@@ -4767,9 +4767,10 @@ act2('clog-spray-low-and-high', {
           if (seen.has(s)) continue;
           seen.add(s);
           const to = player.position.clone().sub(s.m.position).setY(0).normalize(), v = s.v.clone().setY(0).normalize();
-          if (to.dot(v) > 0.99) aimed.push(s.m.position.y - B.floor);
+          if (to.dot(v) > 0.98) aimed.push(s.m.position.y - B.floor);
         }
         if (B.state === 'spray') aim();
+        else { B.state = 'chase'; B.stateT = 999; B.position.copy(B.drain); }   // hold it there while the last globs land: at chase angrySpeed 0.3 it otherwise reaches the jelly and bumps it (and starts new attacks)
         return B.state !== 'spray' && !B.shots.length;
       });
       const low = aimed.filter((h) => h < 0.07).length, high = aimed.length - low;
@@ -5131,4 +5132,6 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
+
+
 
