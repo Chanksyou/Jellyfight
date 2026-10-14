@@ -4135,7 +4135,11 @@ act2('camera-sees-through-the-sideboard', {
   about: 'In the hallway, whenever the camera looks through the fluted sideboard, its flutes and dark body fade too (not just its solid parts), with no shader built on the spot.',
   setup() { fresh({ elites: false }); },
   play() {
-    const { tpc, APT } = G(), programs = APT.renderer.info.programs.length;
+    const { tpc, APT } = G();
+    // compile() builds hidden objects too (the layout editor's selection box, once it's been opened),
+    // so build what's already in the scene first and count only what seeing through the sideboard needs
+    APT.renderer.compile(APT.scene, APT.camera);
+    const programs = APT.renderer.info.programs.length;
     const parts = new Set(), flutes = [];
     APT.scene.getObjectByName('Fluted_sideboard').traverse((o) => { if (!o.isMesh) return; parts.add(o); if (o.isInstancedMesh) flutes.push(o); });
     let through = 0, missed = 0;
