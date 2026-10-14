@@ -3363,12 +3363,13 @@ story('boss/ends-after-a-quick-restart', {
 });
 
 story('modes/dev-fight-boss', {
-  about: 'The pause menu\'s Fight boss (dev) button starts a fresh run that goes straight to the boss.',
+  about: 'The pause menu\'s Fight boss (dev) button opens the boss picker; picking this act\'s boss starts a fresh run that goes straight to it.',
   setup() { fresh(); },
   play() {
     const { run, menus } = G();
     document.getElementById('g-over').hidden = false;
     document.querySelector('#g-over [data-act="boss"]').click();
+    [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'The Vacuum (boss, act 1)')?.click();
     document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
     step(240, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss'; });
     return ok(run.phase === 'boss' && !!run.boss && run.t < 10, { phase: run.phase, t: run.t });
@@ -3443,6 +3444,25 @@ story('modes/dev-one-on-one', {
     step(30);
     const mug = run.elites.alive.length === 1 && run.elites.alive[0].spec.kind === 'mug' && G().player.position.y > 0.6 && bugs().length === 0;
     return ok(listed && alone && gone && back && elite && mug && all, { listed, alone, gone, back, elite, mug, all, y: +G().player.position.y.toFixed(2) });
+  },
+});
+story('modes/dev-fight-boss-picker', {
+  about: 'The pause menu\'s Fight boss (dev) button lists every act\'s boss; picking one starts a fresh run straight at its intro (a boss from another act reloads into that act first).',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    // every act with a boss offers it, labelled with its act
+    const picks = run.bossChoices();
+    const listed = STAGES.filter((st) => st.boss).every((st) => picks.some((p) => p.act === st.id && p.name === `${st.boss.name} (boss, act ${st.id})`));
+    // open the picker and choose this act's boss
+    document.getElementById('g-over').hidden = false;
+    document.querySelector('#g-over [data-act="boss"]').click();
+    const btn = [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'The Vacuum (boss, act 1)');
+    btn?.click();
+    document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
+    const intro = run.phase === 'intro';
+    step(240);
+    return ok(listed && !!btn && intro && !!run.boss, { listed, btn: !!btn, intro, boss: !!run.boss, phase: run.phase });
   },
 });
 
@@ -3631,7 +3651,7 @@ story('engine/leaderboard', {
 
 // --- the main screen
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Other act, Diagnostics).',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics).',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },
   play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
@@ -3648,7 +3668,7 @@ story('menu/dev-tools-locked', {
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,act,diag',   // tuner joined the row in v143; this expectation predates it (it failed on pristine v152 too)
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,diag',   // tuner joined the row in v143; the Other act button left in v157 (act choice lives in the pickers and the layout editor now)
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
   },
 });
@@ -4168,6 +4188,20 @@ act2('one-on-one-soap-dispenser', {
     step(30);
     const e = soapElite(), d = e ? Math.hypot(player.position.x - e.base.x, player.position.z - e.base.z) : 9;
     return ok(run.elites.alive.length === 1 && e && d < 0.5 && player.position.y > 0.8, { elites: run.elites.alive.length, near: +d.toFixed(2), y: +player.position.y.toFixed(2) });
+  },
+});
+act2('dev-fight-boss-starts-the-clog', {
+  about: 'On an act 2 page, the Fight boss pick for this act starts the Clog\'s intro in place.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    const pick = run.bossChoices().find((p) => p.name === 'The Clog (boss, act 2)');
+    if (!pick) return ok(false, { pick: 'missing' });
+    run.startBossFight(pick);
+    const intro = run.phase === 'intro';
+    // the Clog takes its time rising: wait for the boss itself (clicking through any cards, as clogFight does)
+    for (let i = 0; i < 360 && !run.boss; i++) { document.querySelector('.jf-card')?.click(); step(1); }
+    return ok(intro && !!run.boss, { intro, boss: !!run.boss, phase: run.phase });
   },
 });
 // the Wall Clock over the cubby bench (elites.js, clock-model.js): the bench vent lands you below it

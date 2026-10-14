@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v156';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v157';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -123,7 +123,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">🎨 Look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="act">🚪 Other act</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
@@ -443,7 +443,6 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
-  else if (b.dataset.act === 'act') goToAct(currentAct() % STAGES.length + 1);   // dev: jump to the next act (a fresh run)
   else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
     overlay.hidden = true;
     const picks = run.duelChoices();
@@ -458,7 +457,12 @@ overlay.addEventListener('click', (e) => {
     overlay.hidden = true;
     tuner.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
   }
-  else if (b.dataset.act === 'boss') { run.start(); run.devRun(); run.startBossIntro(); play(); }   // dev: a fresh run straight to the boss (level 1, no treasures)
+  else if (b.dataset.act === 'boss') {   // dev: a fresh run straight to the boss you pick (level 1, no treasures)
+    overlay.hidden = true;
+    const picks = run.bossChoices();
+    run.ui.message('👹 Fight boss (dev)', 'Pick a boss: a fresh run straight to its intro. A boss from another act reloads the game into that act first.', [],
+      [...picks.map((p) => ({ label: p.name, onClick: () => { run.startBossFight(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
+  }
   else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
   else if (b.dataset.act === 'music') {
     unlockAudio();
@@ -612,6 +616,7 @@ warmUp().then(() => {
     } else playBtn.textContent = 'Click to dive in';
   }
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
+  if (then?.boss) { const pick = run.bossChoices().find((p) => p.name === then.boss); if (pick) run.startBossFight(pick); }
   if (then?.layout) openLayout();   // the layout editor's act buttons reload into the act with it open
   if (!storyParams.has('story') && !storyParams.has('stories')) return;
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
