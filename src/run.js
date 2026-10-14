@@ -8,7 +8,7 @@ import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { TYPES } from './enemies.js';
-import { CONTENT, compileMods } from './content.js';
+import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
@@ -132,7 +132,7 @@ export class Run {
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
-    this.elites?.start(this.stage.elites);
+    this.elites?.start((this.stage.elites || []).filter((s) => !isRemoved('elite', s.kind)));   // an elite the dev editor removed doesn't spawn (duels, which pick one on purpose, still can)
     this.spawnNests();
     this.roomTreasures?.forEach((t) => t.hide());
     this.treasureTimesLeft = [...(this.stage.treasures?.at || [])];   // seconds into the night each scheduled treasure appears

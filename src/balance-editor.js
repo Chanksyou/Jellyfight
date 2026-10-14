@@ -1,14 +1,18 @@
 // Dev: the balance editor (pause menu → ⚖️ Tuner, behind the dev password). Every number in
-// content/enemies.kdl, content/treasures.kdl, content/evolutions.kdl and content/bosses.kdl
-// as a box you can type into. Changing one recompiles the content on the spot: the next bug
-// that spawns uses the new numbers, and so do the treasures you already hold (the run's
-// combined effects recompute). A boss already fighting reads its skills fresh each attack,
-// so its new numbers land from the next attack (its Health, from its next power-on). Bugs
-// already alive keep the numbers they spawned with. Nothing is written back to the files:
-// "Copy changes" lists what you changed, ready to make permanent (or hand to an agent), and
-// Reset puts the file values back. Only for tuning; players never see it.
-import { CONTENT, recompileContent } from './content.js';
+// content/enemies.kdl, content/treasures.kdl, content/evolutions.kdl, content/bosses.kdl,
+// content/elites.kdl and content/levelups.kdl as a box you can type into. Changing one
+// recompiles the content on the spot: the next bug that spawns uses the new numbers, and so
+// do the treasures you already hold (the run's combined effects recompute). A boss or elite
+// already fighting reads its skills fresh each attack, so its new numbers land from the next
+// attack (its Health, from its next spawn or power-on); level-up numbers land at the next
+// level-up. Bugs already alive keep the numbers they spawned with. Elites and level-up cards
+// can also be removed for the session: a removed elite doesn't spawn and a removed card
+// isn't offered, until restored. Nothing is written back to the files: "Copy changes" lists
+// what you changed, ready to make permanent (or hand to an agent), and Reset puts the file
+// values back and restores everything removed. Only for tuning; players never see it.
+import { CONTENT, recompileContent, REMOVED } from './content.js';
 import { ENEMY_WORDS, TREASURE_WORDS } from './words.js';
+import { STAT_INFO } from './stats.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const originals = new Map();   // field -> the value it has in the file
@@ -53,21 +57,42 @@ let groups = null;
 export function balanceGroups() {
   if (groups) return groups;
   const build = (nodes, compiled, kind, file, registry) => nodes.map((n, i) => ({
-    kind, id: n.args[0], icon: compiled?.[i]?.icon || (kind === 'boss' ? '👹' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
+    kind, id: n.args[0], file, icon: compiled?.[i]?.icon || (kind === 'boss' ? '👹' : kind === 'elite' ? '👺' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
     fields: entryFields(`${file} · ${n.props.name || n.args[0]}`, n, registry),
   }));
+  const lu = CONTENT.nodes.levelups;
   groups = [
     ...build(CONTENT.nodes.enemies, null, 'bug', 'content/enemies.kdl', ENEMY_WORDS),
     ...build(CONTENT.nodes.treasures, CONTENT.treasures, 'treasure', 'content/treasures.kdl', TREASURE_WORDS),
     ...build(CONTENT.nodes.evolutions, CONTENT.evolutions, 'evolution', 'content/evolutions.kdl', TREASURE_WORDS),
     ...build(CONTENT.nodes.bosses, null, 'boss', 'content/bosses.kdl', null),
+    { kind: 'elite', id: 'pace', file: 'content/elites.kdl', icon: '⏱️', name: 'Elite pace', desc: 'How fast every elite fights: its rest between attacks runs down recover× as fast, and each attack plays tempo× as fast.', fields: entryFields('content/elites.kdl · Elite pace', CONTENT.nodes.elites.find((n) => n.name === 'pace'), null) },
+    ...build(CONTENT.nodes.elites.filter((n) => n.name === 'elite'), null, 'elite', 'content/elites.kdl', null).map((g) => ({ ...g, removeKey: `elite:${g.id}` })),
+    { kind: 'levelup', id: 'xp', file: 'content/levelups.kdl', icon: '⭐', name: 'XP curve', desc: 'XP to level up: base × growth^(level − 1).', fields: entryFields('content/levelups.kdl · XP curve', lu.find((n) => n.name === 'xp'), null) },
+    { kind: 'levelup', id: 'rarities', file: 'content/levelups.kdl', icon: '🎲', name: 'Card rarities', desc: 'How often each level-up card rarity rolls, before Luck.', fields: entryFields('content/levelups.kdl · Card rarities', lu.find((n) => n.name === 'rarities'), null) },
+    ...lu.filter((n) => n.name === 'card').map((n) => ({
+      kind: 'levelup', id: n.args[0], file: 'content/levelups.kdl', icon: STAT_INFO[n.args[0]]?.icon || '🃏', name: STAT_INFO[n.args[0]]?.name || n.args[0],
+      desc: 'Level-up card: what it gives at Common / Rare / Epic, and how likely it is to be offered (weight).',
+      removeKey: `card:${n.args[0]}`, fields: entryFields(`content/levelups.kdl · ${STAT_INFO[n.args[0]]?.name || n.args[0]}`, n, null),
+    })),
   ];
   return groups;
 }
 
 // What has been changed, one line each: where, which number, file value → your value.
+// Removals ride along, so a copied list says everything a session changed.
 export function balanceChanges() {
-  return [...originals].filter(([f]) => f.edited()).map(([f, was]) => `${f.where} · ${f.label}: ${was} → ${f.get()}`);
+  const lines = [...originals].filter(([f]) => f.edited()).map(([f, was]) => `${f.where} · ${f.label}: ${was} → ${f.get()}`);
+  for (const g of balanceGroups()) if (g.removeKey && REMOVED.has(g.removeKey)) lines.push(`${g.file} · ${g.name} · removed (${g.kind === 'elite' ? "won't spawn" : "won't be offered"})`);
+  return lines;
+}
+
+// Remove a thing for the session (or put it back): a removed elite doesn't spawn and a
+// removed card isn't offered. Returns true when the thing is now removed.
+export function toggleRemoved(g) {
+  if (REMOVED.has(g.removeKey)) { REMOVED.delete(g.removeKey); return false; }
+  REMOVED.add(g.removeKey);
+  return true;
 }
 
 // Rebuild the game's content from the edited files, and make the run in front of you pick the
@@ -81,6 +106,7 @@ export function applyBalance(run) {
 export function resetBalance(run) {
   for (const f of originals.keys()) f.reset();
   originals.clear();
+  REMOVED.clear();
   applyBalance(run);
 }
 
@@ -106,6 +132,8 @@ const CSS = `
 .jf-tune .row .tx b { display: block; }
 .jf-tune .row .tx span { display: block; font-size: 12px; opacity: .75; font-weight: 400; }
 .jf-tune .row .dot { color: #ffd34d; }
+.jf-tune .row.removed .tx b { text-decoration: line-through; opacity: .6; }
+.jf-tune .rm { font-size: 12px; padding: 4px 8px; border: 1px solid #ffffff2a; border-radius: 8px; background: #ffffff14; white-space: nowrap; }
 .jf-tune .fields { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 2px 6px 12px 46px; }
 .jf-tune .fld { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .95; }
 .jf-tune .fld input { width: 76px; padding: 6px 8px; border-radius: 8px; border: 1px solid #ffffff30; background: #0006; color: #fff; font: inherit; font-size: 13px; }
@@ -115,7 +143,7 @@ const CSS = `
 .jf-tune footer .go { flex: 1; }
 `;
 
-const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions'], ['boss', 'Bosses']];
+const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions'], ['boss', 'Bosses'], ['elite', 'Elites'], ['levelup', 'Level-ups']];
 
 export class BalanceEditor {
   constructor(parent) {
@@ -147,8 +175,8 @@ export class BalanceEditor {
     this.groups = balanceGroups();
     this.el.innerHTML = `<div class="box">
       <header><h2>⚖️ Balance editor</h2><button data-k="back">✕</button></header>
-      <div class="note">Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss uses a skill's new numbers from its next attack (its Health, from its next power-on). Bugs already alive keep their numbers. Nothing is saved to the files — Copy changes lists your edits to make permanent.</div>
-      <input type="search" placeholder="Search bugs, treasures and bosses" value="${this.query}">
+      <div class="note">Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss or elite uses a skill's new numbers from its next attack (its Health, from its next spawn or power-on). Level-up numbers land at the next level-up. ✕ Remove takes an elite out of the run or a card out of the offers until you restore it. Nothing is saved to the files — Copy changes lists your edits to make permanent.</div>
+      <input type="search" placeholder="Search bugs, treasures, bosses, elites and level-ups" value="${this.query}">
       <div class="chips">${FILTERS.map(([id, label]) => `<button data-f="${id}">${label}</button>`).join('')}</div>
       <div class="list"></div>
       <div class="status"></div>
@@ -182,16 +210,24 @@ export class BalanceEditor {
     if (!list) return;
     list.innerHTML = this.items().map((g) => {
       const gi = this.groups.indexOf(g);
+      const removed = g.removeKey && REMOVED.has(g.removeKey);
       const fields = g.id === this.openId ? `<div class="fields">${g.fields.map((f, fi) =>
         `<label class="fld">${f.label} <input type="number" step="any" data-g="${gi}" data-f="${fi}" value="${f.get()}" class="${f.edited() ? 'edited' : ''}"></label>`).join('')}</div>` : '';
-      return `<div class="row" data-id="${g.id}">
-        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
+      return `<div class="row${removed ? ' removed' : ''}" data-id="${g.id}">
+        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}${g.removeKey ? `<span class="rm" data-k="remove" data-g="${gi}">${removed ? '↩ Restore' : '✕ Remove'}</span>` : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
         ${fields}
       </div>`;
     }).join('') || '<p style="padding:14px;opacity:.7">Nothing matches.</p>';
   }
 
   async click(e) {
+    const rm = e.target.closest('[data-k="remove"]');
+    if (rm) {
+      toggleRemoved(this.groups[+rm.dataset.g]);
+      try { applyBalance(this.run); this.status = ''; } catch (err) { this.status = err.message; }
+      this.draw();
+      return;
+    }
     const b = e.target.closest('button');
     if (!b) return;
     const k = b.dataset.k;

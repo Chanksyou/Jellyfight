@@ -7,11 +7,19 @@
 //   content/treasures.kdl the treasures (effect words: src/words.js)
 //   content/evolutions.kdl what the jelly can become after an act's boss (the same effect words)
 //   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js)
+//   content/elites.kdl    the elites: Health, aggro and every attack's numbers (src/elites.js)
+//   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
 import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, nodes: null };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, nodes: null };
+
+// Dev-editor removals (src/balance-editor.js): keys like 'elite:mug' and 'card:health'.
+// Session-only, never written to the files: a removed elite doesn't spawn (run.js) and a
+// removed card isn't offered (stats.js rollCards), until it's restored or the page reloads.
+export const REMOVED = new Set();
+export const isRemoved = (kind, id) => REMOVED.has(`${kind}:${id}`);
 
 const need = (node, keys, where) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: "${node.args[0]}" needs a number for ${k}=`); };
 
@@ -140,6 +148,74 @@ export function compileBosses(nodes, file = 'content/bosses.kdl') {
   return out;
 }
 
+const needProps = (node, keys, where, label) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: ${label} needs a number for ${k}=`); };
+
+// pace recover= tempo=  and  elite "id" name="…" hp= aggro= angry= { skill key=number … }:
+// the elites' numbers, in the bosses' shape. The models, radii and phase timings stay in
+// elites.js (KINDS there keeps name/build/scale); a fighting elite holds its compiled
+// object (this.def) and the update loop reads it fresh, so editor edits land mid-fight.
+const ELITE_KINDS = ['controller', 'mug', 'kettle', 'soap', 'clock', 'whipper'];
+export function compileElites(nodes, file = 'content/elites.kdl') {
+  const out = { pace: null };
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name === 'pace') {
+      if (out.pace) throw new Error(`${where}: two pace blocks`);
+      needProps(n, ['recover', 'tempo'], where, 'pace');
+      out.pace = { recover: n.props.recover, tempo: n.props.tempo };
+      continue;
+    }
+    if (n.name !== 'elite') throw new Error(`${where}: expected "elite" or "pace", got "${n.name}"`);
+    const id = n.args[0];
+    if (!ELITE_KINDS.includes(id)) throw new Error(`${where}: no elite called "${id}" (the kinds are ${ELITE_KINDS.join(', ')})`);
+    if (out[id]) throw new Error(`${where}: there are two elites called "${id}"`);
+    need(n, ['hp', 'aggro'], where);
+    if (n.props.angry !== undefined && typeof n.props.angry !== 'number') throw new Error(`${where}: "${id}" angry= must be a number`);
+    const skills = {};
+    for (const s of n.children) {
+      if (skills[s.name]) throw new Error(`${file}:${s.line}: "${id}" has two "${s.name}" blocks`);
+      if (s.args.length || s.children.length) throw new Error(`${file}:${s.line}: "${id}" ${s.name} takes only key=number settings`);
+      for (const [k, v] of Object.entries(s.props)) if (typeof v !== 'number') throw new Error(`${file}:${s.line}: "${id}" ${s.name} ${k}= must be a number`);
+      skills[s.name] = { ...s.props };
+    }
+    out[id] = { id, name: n.props.name || id, hp: n.props.hp, aggro: n.props.aggro, angry: n.props.angry ?? null, skills };
+  }
+  if (!out.pace) throw new Error(`${file}: no pace block (recover= and tempo= for every elite)`);
+  for (const k of ELITE_KINDS) if (!out[k]) throw new Error(`${file}: no elite called "${k}"`);
+  return out;
+}
+
+// xp base= growth=, rarities common= rare= epic=, card "stat" common= rare= epic= weight=:
+// what a level-up offers. How an amount applies (percent of base, per second, points) stays
+// with the stat in stats.js; this file is only the numbers.
+const CARD_STATS = ['bubbles', 'range', 'bubbleDamage', 'fireRate', 'health', 'moveSpeed', 'regen', 'dodge', 'luck', 'bubbleSize'];
+export function compileLevelups(nodes, file = 'content/levelups.kdl') {
+  const out = { xp: null, rarities: null, cards: {} };
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name === 'xp') {
+      if (out.xp) throw new Error(`${where}: two xp blocks`);
+      needProps(n, ['base', 'growth'], where, 'xp');
+      out.xp = { base: n.props.base, growth: n.props.growth };
+    } else if (n.name === 'rarities') {
+      if (out.rarities) throw new Error(`${where}: two rarities blocks`);
+      needProps(n, ['common', 'rare', 'epic'], where, 'rarities');
+      out.rarities = { common: n.props.common, rare: n.props.rare, epic: n.props.epic };
+    } else if (n.name === 'card') {
+      const id = n.args[0];
+      if (!CARD_STATS.includes(id)) throw new Error(`${where}: no level-up card called "${id}" (the cards are ${CARD_STATS.join(', ')})`);
+      if (out.cards[id]) throw new Error(`${where}: there are two cards called "${id}"`);
+      need(n, ['common', 'rare', 'epic'], where);
+      if (n.props.weight !== undefined && typeof n.props.weight !== 'number') throw new Error(`${where}: "${id}" weight= must be a number`);
+      out.cards[id] = { amounts: [n.props.common, n.props.rare, n.props.epic], weight: n.props.weight ?? 1 };
+    } else throw new Error(`${where}: expected "xp", "rarities" or "card", got "${n.name}"`);
+  }
+  if (!out.xp) throw new Error(`${file}: no xp block (base= and growth=)`);
+  if (!out.rarities) throw new Error(`${file}: no rarities block (common= rare= epic=)`);
+  for (const s of CARD_STATS) if (!out.cards[s]) throw new Error(`${file}: no card called "${s}"`);
+  return out;
+}
+
 // The combined effects of the treasures you own (ids) and the evolutions you've taken: what the
 // systems read
 export function compileMods(ids, evolved = []) {
@@ -169,15 +245,17 @@ function owned(m, id, apply) {
 
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves, treasures, evolutions, bosses] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl')]);
+  const [enemies, waves, treasures, evolutions, bosses, elites, levelups] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl')]);
   // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
   // recompiles from them, without reloading the page.
-  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl') };
+  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl'), elites: parse(elites, 'content/elites.kdl'), levelups: parse(levelups, 'content/levelups.kdl') };
   CONTENT.enemies = compileEnemies(CONTENT.nodes.enemies);
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
   CONTENT.treasures = compileTreasures(CONTENT.nodes.treasures);
   CONTENT.evolutions = compileEvolutions(CONTENT.nodes.evolutions);
   CONTENT.bosses = compileBosses(CONTENT.nodes.bosses);
+  CONTENT.elites = compileElites(CONTENT.nodes.elites);
+  CONTENT.levelups = compileLevelups(CONTENT.nodes.levelups);
   return CONTENT;
 }
 
@@ -191,6 +269,8 @@ export function recompileContent() {
   const treasures = compileTreasures(CONTENT.nodes.treasures);
   const evolutions = compileEvolutions(CONTENT.nodes.evolutions);
   const bosses = compileBosses(CONTENT.nodes.bosses);
+  const elites = compileElites(CONTENT.nodes.elites);
+  const levelups = compileLevelups(CONTENT.nodes.levelups);
   for (const id of Object.keys(CONTENT.enemies)) if (!enemies[id]) delete CONTENT.enemies[id];
   Object.assign(CONTENT.enemies, enemies);
   CONTENT.treasures.forEach((t, i) => Object.assign(t, treasures[i]));
@@ -203,5 +283,21 @@ export function recompileContent() {
     cur.id = b.id; cur.name = b.name; cur.hp = b.hp; cur.contact = b.contact;
     for (const s of Object.keys(cur.skills)) if (!b.skills[s]) delete cur.skills[s];
     for (const [s, vals] of Object.entries(b.skills)) Object.assign(cur.skills[s] || (cur.skills[s] = {}), vals);
+  }
+  // elites swap the same way: a fighting elite holds its object (elites.js's this.def)
+  Object.assign(CONTENT.elites.pace || (CONTENT.elites.pace = {}), elites.pace);
+  for (const [id, d] of Object.entries(elites)) {
+    if (id === 'pace') continue;
+    const cur = CONTENT.elites[id] || (CONTENT.elites[id] = { skills: {} });
+    cur.id = d.id; cur.name = d.name; cur.hp = d.hp; cur.aggro = d.aggro; cur.angry = d.angry;
+    for (const s of Object.keys(cur.skills)) if (!d.skills[s]) delete cur.skills[s];
+    for (const [s, vals] of Object.entries(d.skills)) Object.assign(cur.skills[s] || (cur.skills[s] = {}), vals);
+  }
+  // level-ups: stats.js reads the values fresh on every roll, so swapping the numbers is all
+  Object.assign(CONTENT.levelups.xp, levelups.xp);
+  Object.assign(CONTENT.levelups.rarities, levelups.rarities);
+  for (const [id, c] of Object.entries(levelups.cards)) {
+    const cur = CONTENT.levelups.cards[id] || (CONTENT.levelups.cards[id] = {});
+    cur.amounts = [...c.amounts]; cur.weight = c.weight;
   }
 }

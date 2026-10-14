@@ -64,6 +64,7 @@ import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
+import { CONTENT } from './content.js';
 import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
@@ -357,18 +358,20 @@ function whipperModel() {
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
+// What each kind is, as a model: name, size and builder. Its numbers (Health, aggro range and
+// every attack's damage and counts) live in content/elites.kdl, compiled into CONTENT.elites;
+// a fighting elite holds its entry (this.def) and the update loop reads it fresh each frame.
+// How fast every elite fights is that file's pace: its rest between attacks runs down
+// recover times as fast, and each attack (telegraph, strike, follow-through) plays tempo
+// times as fast. Telegraphs stay readable: their `progress` still fills to the hit, just sooner.
 const KINDS = {
-  controller: { name: 'The Controller', hp: 195, aggro: 0.7, scale: 1.5, build: controllerModel },
-  mug: { name: 'The Mug', hp: 220, aggro: 0.8, build: mugModel },
-  kettle: { name: 'The Kettle', hp: 275, aggro: 0.6, scale: 1.2, build: kettleModel },
-  soap: { name: 'The Soap Dispenser', hp: 310, aggro: 0.7, scale: 1.3, build: soapModel },
-  clock: { name: 'The Wall Clock', hp: 390, aggro: 0.55, wall: true, build: clockModel },
-  whipper: { name: 'The Cream Whipper', hp: 340, aggro: 0.75, build: whipperModel },
+  controller: { name: 'The Controller', scale: 1.5, build: controllerModel },
+  mug: { name: 'The Mug', build: mugModel },
+  kettle: { name: 'The Kettle', scale: 1.2, build: kettleModel },
+  soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel },
+  clock: { name: 'The Wall Clock', wall: true, build: clockModel },
+  whipper: { name: 'The Cream Whipper', build: whipperModel },
 };
-// How fast every elite fights: its rest between attacks runs down RECOVER times as fast, and each
-// attack (telegraph, strike, follow-through) plays TEMPO times as fast. Telegraphs stay readable:
-// their `progress` still fills to the moment of the hit, just sooner.
-const RECOVER = 1.4, TEMPO = 1.15;
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
 const ONE = new THREE.Vector3(1, 1, 1);
@@ -382,9 +385,9 @@ export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K])
 // ------------------------------------------------------------------ one elite
 class Elite {
   constructor(owner, spec) {
-    const K = KINDS[spec.kind];
-    Object.assign(this, { owner, spec, kind: spec.kind, name: K.name, aggro: K.aggro });
-    this.maxHp = this.hp = Math.round(K.hp * (owner.hpScale || 1));   // later acts: tougher (stage eliteHp)
+    const K = KINDS[spec.kind], D = CONTENT.elites[spec.kind];
+    Object.assign(this, { owner, spec, kind: spec.kind, name: K.name, aggro: D.aggro, def: D });
+    this.maxHp = this.hp = Math.round(D.hp * (owner.hpScale || 1));   // later acts: tougher (stage eliteHp)
     this.dead = false;
     this.base = new THREE.Vector3(...spec.at);
     const m = K.build();
@@ -728,7 +731,7 @@ export class Elites {
       }
       g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
       g.rotation.set(0, 0, 0);
-      e.cool -= dt * RECOVER;
+      e.cool -= dt * CONTENT.elites.pace.recover;
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
       if (e.kind === 'clock') this.clockHands(e, dt);
       const heading = e.holder.rotation.y, fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
@@ -739,7 +742,7 @@ export class Elites {
         const M = e.model, level = M.liquidH * Math.max(0.06, e.hp / e.maxHp);
         M.liquid.scale.y += (level - M.liquid.scale.y) * (1 - Math.exp(-6 * dt));
         for (const b of M.bubs) {
-          b.userData.rise = (b.userData.rise + dt * (e.hp < e.maxHp * 0.5 ? 0.6 : 0.3)) % 1;
+          b.userData.rise = (b.userData.rise + dt * (e.hp < e.maxHp * e.def.angry ? 0.6 : 0.3)) % 1;
           b.position.y = 0.012 + b.userData.rise * M.liquid.scale.y;
         }
       }
@@ -750,17 +753,17 @@ export class Elites {
         // finish turning to face you first, so the telegraph points where you are
         const off = Math.atan2(Math.sin(Math.atan2(to.x, to.z) - heading), Math.cos(Math.atan2(to.x, to.z) - heading));
         if (Math.abs(off) > 0.15 && !e.wall) continue;
-        e.attack = e.next++ % (ATTACKS[e.kind].length - (e.kind === 'clock' && e.hp >= e.maxHp * 0.5 ? 1 : 0));   // the clock strikes the hour only once it's angry
+        e.attack = e.next++ % (ATTACKS[e.kind].length - (e.kind === 'clock' && e.hp >= e.maxHp * e.def.angry ? 1 : 0));   // the clock strikes the hour only once it's angry
         e.state = 'windup';
         e.stateT = 0;
         e.locked = false;
       }
-      e.stateT += dt * TEMPO;
+      e.stateT += dt * CONTENT.elites.pace.tempo;
       const s = e.stateT;
 
       // ---------------------------------------------------------- controller
       if (e.kind === 'controller') {
-        const M = e.model;
+        const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
           // Button barrage: three aim lines sweep toward you for 0.6 s, lock for 0.25 s, then each
           // fires a Shot along its line. The lines alternate floor level (the jelly's middle on the
@@ -781,7 +784,7 @@ export class Elites {
             }
             e.tele.forEach((m) => { m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
           } else {
-            for (const m of e.tele) this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', 2);
+            for (const m of e.tele) this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', SK.barrage.dmg);
             M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
             this.fx.impact(muzzle, hostile('controller'), 0.012, 6);
             e.clearTele(); e.hitPop = 0.8; sfx.zap();
@@ -803,7 +806,7 @@ export class Elites {
             this.fx.ring(surf, hostile('controller'), R, 0.45);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
             juice.shake(0.35); sfx.kill(1.6);
-            if (blastHits(e.base, R, P, cfg)) { hit(3, 'controller'); knock(e.base, 0.9); }
+            if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
         }
@@ -811,18 +814,19 @@ export class Elites {
 
       // ---------------------------------------------------------- mug
       if (e.kind === 'mug') {
+        const SK = e.def.skills;
         if (e.attack === 0) {
-          // Coffee lob: two lobs, a beat apart, each at where you're standing then; each lands as a
+          // Coffee lob: lobs a beat apart, each at where you're standing then; each lands as a
           // floor Blast (jump it) and leaves a scalding puddle
           const R = 0.045;
           const land = (at) => {
-            if (blastHits(at, R, P, cfg)) hit(2, 'mug');
+            if (blastHits(at, R, P, cfg)) hit(SK.coffee.dmg, 'mug');
             this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid();
           };
           const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true }); e.hitPop = 0.6; };
-          if (!e.thrown) { e.thrown = 1; throwAt(); }
-          if (s > 0.6 && e.thrown === 1) { e.thrown = 2; throwAt(); }
-          if (s > 1.2) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
+          if (!e.thrown) e.thrown = 0;
+          if (e.thrown < SK.coffee.lobs && s >= e.thrown * 0.6) { e.thrown++; throwAt(); }
+          if (s > SK.coffee.lobs * 0.6) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
         } else {
           // Spill: tips toward you (arrow on the surface shows the line), then pours a wave
           const wind = 0.9;
@@ -831,10 +835,10 @@ export class Elites {
             e.tele[0].material.opacity = 0.75 + Math.sin(e.t * 18) * 0.2;
             e.tele[0].material.progress = s / wind;
             g.rotation.x = (s / wind) * 0.7;                                  // tipping over
-          } else if (s < wind + 0.5) {
+          } else if (s < wind + Math.max(0.5, SK.spill.puddles * 0.12 + 0.02)) {
             g.rotation.x = 0.9;
             const k = Math.floor((s - wind) / 0.12);
-            if (k !== e.poured && k < 4) {
+            if (k !== e.poured && k < SK.spill.puddles) {
               e.poured = k;
               const at = e.base.clone().addScaledVector(fwd, e.r + 0.05 + k * 0.075);
               at.y = this.surfaceBelow(at);
@@ -849,7 +853,7 @@ export class Elites {
 
       // ---------------------------------------------------------- kettle
       if (e.kind === 'kettle') {
-        const M = e.model;
+        const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
           // Steam blast: whistle for 1.1 s with its Warning where it'll go (a wedge on the counter from
           // under the spout, and the cone of steam rising over it as it spreads), then blast: anything
@@ -874,7 +878,7 @@ export class Elites {
               const side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.5 * k);
               this.fx.puff(muzzle.clone().addScaledVector(fwd, 0.05 + k * len * 0.9).add(side).setY(muzzle.y - k * 0.06), 0xf2f6ff, 0.015 + k * 0.03, 0.45);
             }
-            if (e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) { hit(2, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
+            if (e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) { hit(SK.steam.dmg, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
           } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; }
         } else {
           // Boil over: the lid pops, four boiling drops fall on filling orange circles around you, each
@@ -884,14 +888,14 @@ export class Elites {
             M.led.material.emissiveIntensity = 4;
             sfx.fire();
             const center = P.clone(); center.y = this.surfaceBelow(P);
-            for (let k = 0; k < 4; k++) {
+            for (let k = 0; k < SK.boil.drops; k++) {
               const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
               at.y = this.surfaceBelow(at);
               const R = 0.035;
               this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, R, (p) => {
                 this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
-                if (blastHits(p, R, P, cfg)) hit(2, 'kettle');
+                if (blastHits(p, R, P, cfg)) hit(SK.boil.dmg, 'kettle');
               }, { dome: true });
             }
           }
@@ -902,12 +906,12 @@ export class Elites {
 
       // ---------------------------------------------------------- soap dispenser
       if (e.kind === 'soap') {
-        const M = e.model, angry = e.hp < e.maxHp * 0.5;
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry;
         const press = (k) => { M.head.position.y = M.headY - k * 0.012; M.stem.scale.y = 1 - k * 0.5; M.stem.position.y = M.headY - 0.012 - k * 0.006; };
         if (e.attack === 0) {
           // Soap squirt: a pump stroke for each glob, each lobbed where you stand then; each lands
           // as a floor Blast (a 4 cm half sphere: jump it) and leaves a slick
-          const R = 0.04, n = angry ? 4 : 3, gap = angry ? 0.32 : 0.42;
+          const R = 0.04, n = angry ? SK.squirt.angryCount : SK.squirt.count, gap = angry ? 0.32 : 0.42;
           const k = Math.floor(s / gap), ph = (s % gap) / gap;
           press(k < n ? Math.sin(Math.min(1, ph * 1.6) * Math.PI) : 0);
           if (k < n && k !== e.squirted) {
@@ -917,7 +921,7 @@ export class Elites {
               this.fx.impact(at.clone().setY(at.y + 0.008), hostile('soap'), 0.02, 8);
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
               sfx.soapSplat();
-              if (blastHits(at, R, P, cfg)) hit(2, 'soap');
+              if (blastHits(at, R, P, cfg)) hit(SK.squirt.dmg, 'soap');
               this.slick(at);
             }, { dome: true });
             this.fx.puff(muzzle, 0xffd0e4, 0.008, 0.3);
@@ -937,7 +941,7 @@ export class Elites {
             press(Math.abs(Math.sin(e.t * 26)) * 0.7);
             g.rotation.z = Math.sin(e.t * 40) * 0.03;
             if (Math.random() < dt * 25) this.fx.puff(muzzle.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.02, 0, (Math.random() - 0.5) * 0.02)), 0xffe0ee, 0.009, 0.5);   // foam spilling out
-          } else if ((e.rings || 0) < (angry ? 2 : 1) && s > wind + (e.rings || 0) * 0.55) {
+          } else if ((e.rings || 0) < (angry ? SK.ring.angryRings : SK.ring.rings) && s > wind + (e.rings || 0) * 0.55) {
             e.rings = (e.rings || 0) + 1;
             e.clearTele();
             press(0);
@@ -958,7 +962,7 @@ export class Elites {
 
       // ---------------------------------------------------------- wall clock
       if (e.kind === 'clock') {
-        const M = e.model, angry = e.hp < e.maxHp * 0.5, R = 0.42;
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, R = 0.42;
         const flat = (v) => Math.atan2(v.x - e.base.x, v.z - e.base.z);     // the angle of a point round the pivot
         if (e.attack === 0) {
           // Sweeping hands: a half circle fills on the bench while the hands spin, then a golden hand sweeps across it
@@ -988,7 +992,7 @@ export class Elites {
             this.fx.glow.emit(tip, hostile('clock'), 0.05, 0.01, 0.25, 0.9);
             // did the hand pass you (anything of you inside its low volume, within its reach, as it went by)?
             const between = (x, a0, a1) => { const w = (v) => Math.atan2(Math.sin(v - a0), Math.cos(v - a0)); const t = w(x), span = w(a1); return span >= 0 ? t >= 0 && t <= span : t <= 0 && t >= span; };
-            if (!e.swept && ringHits(e.base, 0, R - cfg.radius * 0.5, CLOCK_HITS.sweepH, P, cfg) && between(flat(P), e.prevB, b)) { e.swept = true; hit(3, 'clock'); knock(e.base, 0.7); }
+            if (!e.swept && ringHits(e.base, 0, R - cfg.radius * 0.5, CLOCK_HITS.sweepH, P, cfg) && between(flat(P), e.prevB, b)) { e.swept = true; hit(SK.sweep.dmg, 'clock'); knock(e.base, 0.7); }
             e.prevB = b;
             e.spin = 0;
             M.minuteHand.rotation.z = -e.dirSweep * (u - 0.5) * Math.PI;                 // the dial's minute hand sweeps with it
@@ -1038,7 +1042,7 @@ export class Elites {
             g.rotation.z = Math.sin(e.t * 30) * 0.01;
           } else {
             const k = Math.floor((s - wind) / gap);
-            if (k < 3 && k !== e.chimed) {
+            if (k < SK.hour.chimes && k !== e.chimed) {
               e.chimed = k;
               e.clearTele();
               sfx.clockChime(k);
@@ -1050,18 +1054,18 @@ export class Elites {
               vol.material.progress = 1;
               this.rings.push({ m, vol, at: e.base.clone(), r: 0.03, max: 0.55, owner: e, hit: false });
             }
-            if (s > wind + gap * 3) { e.chimed = -1; e.state = 'idle'; e.cool = 1.6; }
+            if (s > wind + gap * SK.hour.chimes) { e.chimed = -1; e.state = 'idle'; e.cool = 1.6; }
           }
         }
       }
 
       // ---------------------------------------------------------- cream whipper
       if (e.kind === 'whipper') {
-        const M = e.model, angry = e.hp < e.maxHp * 0.5;
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry;
         const gauges = (k) => M.needles.forEach((n, i) => { n.rotation.z = 1.2 - k * 2.3 + Math.sin(e.t * 30 + i) * 0.05 * k; });
         if (e.attack === 0) {
           // Balloon: blow one up on the nozzle, let it go; angry, a second straight after
-          const fill = 1.0, n = angry ? 2 : 1, k = Math.floor(s / (fill + 0.25)), u = (s % (fill + 0.25)) / fill;
+          const fill = 1.0, n = angry ? SK.balloon.angryCount : SK.balloon.count, k = Math.floor(s / (fill + 0.25)), u = (s % (fill + 0.25)) / fill;
           if (k < n) {
             if (!e.inflating && u < 1) {
               e.inflating = buildBalloon(new THREE.Color().setHSL(0.72 + Math.random() * 0.2, 0.8, 0.6).getHex());
@@ -1085,7 +1089,7 @@ export class Elites {
                 warn.renderOrder = 3;
                 warn.scale.setScalar(R);
                 this.scene.add(warn);
-                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: 3, R, vel: new THREE.Vector3(0, 0.05, 0), size: BALLOON, tick: 0 });
+                this.balloons.push({ m: b.group, b, warn, t: 0, fuse: SK.balloon.fuse, R, vel: new THREE.Vector3(0, 0.05, 0), size: BALLOON, tick: 0 });
                 sfx.balloonLoose();
                 e.inflating = null;
                 M.lever.rotation.z = 0;
@@ -1118,8 +1122,8 @@ export class Elites {
             }
             if (!e.creamed && e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) {
               e.creamed = true;
-              hit(2, 'cream');
-              bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 1.5 });
+              hit(SK.cream.dmg, 'cream');
+              bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: SK.cream.slow });
               this.fx.puff(pc.clone(), 0xfffaf0, 0.05, 0.6);
             }
           } else { e.clearTele(); e.locked = false; e.hissed = e.sprayed = e.creamed = false; M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8; }
@@ -1160,7 +1164,7 @@ export class Elites {
         juice.shake(0.25);
         sfx.balloonPop();
         // caught: anything of the jelly inside the sphere round it (beside, below or level with it)
-        if (blastHits(at, b.R, P, cfg)) { hit(2, 'balloon'); deepen(5, 3); sfx.daze(); }
+        if (blastHits(at, b.R, P, cfg)) { hit(CONTENT.elites.whipper.skills.balloon.dmg, 'balloon'); deepen(CONTENT.elites.whipper.skills.balloon.muffle, 3); sfx.daze(); }
       }
     }
     this.balloons = this.balloons.filter((b) => !b.done);
@@ -1171,7 +1175,7 @@ export class Elites {
     for (const w of this.thrown) {
       const way = w.out ? 'hitOut' : 'hitBack';
       const struck = this.fx.shotStep(w.shot, dt, this.world, w[way] ? NOWHERE : P, cfg);
-      if (struck) { w[way] = true; hit(2, 'clock-wreath'); }
+      if (struck) { w[way] = true; hit(CONTENT.elites.clock.skills.wreath.dmg, 'clock-wreath'); }
       w.m.position.copy(w.shot.m.position);
       w.m.rotation.z += dt * 18;
       if (w.shot.done) {
@@ -1194,7 +1198,7 @@ export class Elites {
       r.vol.scale.set(r.r, CLOCK_HITS.chimeH, r.r);
       r.vol.material.opacity = 1 - r.r / r.max;
       this.fx.glow.hold(r.m.position.clone().add(new THREE.Vector3(r.r, 0.004, 0)), hostile('clock'), 0.03, 0.5);
-      if (!r.hit && ringHits(r.at, was, r.r, CLOCK_HITS.chimeH, P, cfg)) { r.hit = true; hit(2, 'clock-chime'); }
+      if (!r.hit && ringHits(r.at, was, r.r, CLOCK_HITS.chimeH, P, cfg)) { r.hit = true; hit(CONTENT.elites.clock.skills.hour.dmg, 'clock-chime'); }
       if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); }
     }
     this.rings = this.rings.filter((r) => !r.done);
@@ -1207,7 +1211,7 @@ export class Elites {
       b.m.scale.setScalar(0.011 * (1 + Math.sin(b.t * 9 + b.wob) * 0.06));
       this.fx.glow.hold(b.m.position, hostile('soap'), 0.05, 0.55);
       if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + 0.011)) b.t = 0;
-      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(2, 'soap-bubble'); b.t = 0; b.hitYou = true; }
+      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(CONTENT.elites.soap.skills.ring.dmg, 'soap-bubble'); b.t = 0; b.hitYou = true; }
       if (b.t <= 0) {
         this.scene.remove(b.m);
         this.fx.burst(b.m.position, ['#ffe0ee', '#ff8ac0', '#ffffff'], 4, 0.003, 0.2, b.m.position.y - 0.03);
@@ -1257,7 +1261,7 @@ export class Elites {
       p.t -= dt;
       p.m.scale.setScalar(p.r * Math.min(1, p.t * 2));
       const d = Math.hypot(P.x - p.m.position.x, P.z - p.m.position.z);
-      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { bus.emit('damage_taken', { targetId: PLAYER, amount: 1.5 * dt, source: 'coffee', drain: true }); bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 0.3 }); }
+      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { bus.emit('damage_taken', { targetId: PLAYER, amount: CONTENT.elites.mug.skills.coffee.drain * dt, source: 'coffee', drain: true }); bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 0.3 }); }
       if (p.t <= 0) this.scene.remove(p.m);
     }
     this.puddles = this.puddles.filter((p) => p.t > 0);

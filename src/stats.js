@@ -1,6 +1,6 @@
 // The jelly's stats, level-up cards, treasures and evolutions.
 // Everything a player reads is here, so tuning lives in one place.
-import { CONTENT } from './content.js';
+import { CONTENT, isRemoved } from './content.js';
 
 export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
@@ -43,11 +43,12 @@ export const STAT_INFO = {
   tentacleSpeed:   { name: 'Tentacle speed',  icon: '🌀', fmt: (v) => `${v.toFixed(2)}/s` },
 };
 
-// Level-up card rarities, and how often each rolls with no luck
+// Level-up card rarities. How often each rolls with no luck lives in content/levelups.kdl
+// (rarities), read fresh by rollCards; this is just how a rarity reads.
 export const RARITY = [
-  { id: 'common', name: 'Common', color: '#cfd6e0', weight: 70 },
-  { id: 'rare', name: 'Rare', color: '#5fb4ff', weight: 25 },
-  { id: 'epic', name: 'Epic', color: '#c77bff', weight: 5 },
+  { id: 'common', name: 'Common', color: '#cfd6e0' },
+  { id: 'rare', name: 'Rare', color: '#5fb4ff' },
+  { id: 'epic', name: 'Epic', color: '#c77bff' },
 ];
 
 // Treasure rarities (rarity="…" in content/treasures.kdl), and how often a pick slot rolls each
@@ -66,19 +67,19 @@ export const treasureTier = (t) => TREASURE_RARITY[TREASURE_TIER[t.rarity]];
 // 1.3x, epics 1.69x and legendaries 2.2x as likely (before the shares are re-normalised)
 export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * Math.max(0, 1 + luck / 100) ** i);
 
-// [common, rare, epic] amounts. `pct` = percent of the base value, added.
-const CARD_VALUES = {
-  bubbles:       { amounts: [0, 0, 1], weight: 0.6 },   // too strong for anything but Epic: always an Epic +1
-  range:         { amounts: [15, 20, 25], pct: true },
-  bubbleDamage:  { amounts: [1, 2, 3] },
-  fireRate:      { amounts: [12, 18, 25], pct: true },
-  health:        { amounts: [3, 6, 9] },
-  moveSpeed:     { amounts: [10, 15, 20], pct: true, weight: 1.2 },
-  regen:         { amounts: [0.25, 0.5, 0.75], suffix: '/s' },   // health a second
-  dodge:         { amounts: [10, 12.5, 15], suffix: '%' },           // percentage points
-  luck:          { amounts: [10, 18, 30] },                     // see luckWeights
-  bubbleSize:    { amounts: [10, 18, 30], pct: true, weight: 0.8 },   // bigger bubbles land easier and splash wider
+// The cards' numbers — [common, rare, epic] amounts and how likely each is offered — live in
+// content/levelups.kdl (CONTENT.levelups.cards, read fresh on every roll, so the balance
+// editor's edits land at the next level-up). What's here is how an amount applies:
+// `pct` = percent of the base value, added; `suffix` = how the amount reads on the card.
+const CARD_FLAGS = {
+  range:      { pct: true },
+  fireRate:   { pct: true },
+  moveSpeed:  { pct: true },
+  regen:      { suffix: '/s' },   // health a second
+  dodge:      { suffix: '%' },    // percentage points
+  bubbleSize: { pct: true },
 };
+const cardDef = (stat) => CONTENT.levelups.cards[stat];
 
 // Each bubble past the first makes every bubble in the blow 25% weaker (compounding): 2 bubbles
 // do 75% each (1.5x in all), 3 do 56% (1.7x), 6 do 24% (1.4x). More bubbles, more spread, less punch.
@@ -87,14 +88,14 @@ export const bubbleShare = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
 
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
-  const v = CARD_VALUES[card.stat];
+  const v = CARD_FLAGS[card.stat] || {};
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
   return `+${amount} ${info.name}`;
 }
 
 export function applyCard(stats, card) {
-  const v = CARD_VALUES[card.stat];
+  const v = CARD_FLAGS[card.stat] || {};
   if (v.pct) stats[card.stat] += BASE_STATS[card.stat] * card.amount / 100;
   else stats[card.stat] += card.amount;
   stats.bubbles = Math.min(MAX_BUBBLES, stats.bubbles);
@@ -108,23 +109,26 @@ function pickWeighted(list, w) {
 
 // Three different stats, each with a rolled rarity
 // bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights)
+// A card the dev editor has removed isn't offered (content.js REMOVED).
 export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
-  const w = luckWeights(RARITY, luck);
-  const pool = Object.keys(CARD_VALUES).filter((k) => k !== 'bubbles' || stats.bubbles < MAX_BUBBLES);
+  const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
+  const w = luckWeights(tiers, luck);
+  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
-    const stat = pickWeighted(pool, (s) => CARD_VALUES[s].weight ?? 1);
+    const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);
     pool.splice(pool.indexOf(stat), 1);
-    const rarity = pickWeighted(RARITY, (r) => w[RARITY.indexOf(r)]);
-    let ri = Math.min(RARITY.length - 1, RARITY.indexOf(rarity) + bonus);
-    while (CARD_VALUES[stat].amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
-    cards.push({ stat, rarity: RARITY[ri], amount: CARD_VALUES[stat].amounts[ri] });
+    const rarity = pickWeighted(tiers, (r) => w[tiers.indexOf(r)]);
+    let ri = Math.min(RARITY.length - 1, tiers.indexOf(rarity) + bonus);
+    while (cardDef(stat).amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
+    cards.push({ stat, rarity: RARITY[ri], amount: cardDef(stat).amounts[ri] });
   }
   return cards;
 }
 
-// XP needed to go from `level` to the next one
-export const xpToNext = (level) => Math.round(3 * 1.45 ** (level - 1));   // 3, 4, 6, 9, 13, 19, 28, 40…: each level 1.45x the last
+// XP needed to go from `level` to the next one: base x growth^(level-1), from
+// content/levelups.kdl (3, 4, 6, 9, 13, 19, 28, 40… at the file's values)
+export const xpToNext = (level) => Math.round(CONTENT.levelups.xp.base * CONTENT.levelups.xp.growth ** (level - 1));
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities
 // still in the pool, then one treasure of that rarity

@@ -11,8 +11,8 @@ import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { bus, PLAYER } from './events.js';
 import { ENEMY_WORDS, TREASURE_WORDS, TIMED_WORDS, newMods } from './words.js';
-import { CONTENT, compileEnemies, compileTreasures } from './content.js';
-import { balanceGroups, applyBalance, resetBalance } from './balance-editor.js';
+import { CONTENT, compileEnemies, compileTreasures, isRemoved } from './content.js';
+import { balanceGroups, applyBalance, resetBalance, toggleRemoved } from './balance-editor.js';
 import { rollCards, rollTreasures, RARITY, TREASURE_RARITY, xpToNext, BASE_STATS, STAT_INFO, EVOLUTIONS, TREASURES, ELEMENT_UPGRADES } from './stats.js';
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
 import { parse } from './kdl.js';
@@ -2360,7 +2360,7 @@ story('dev/test-kit', {
   },
 });
 story('dev/balance-editor', {
-  about: 'The dev balance editor: a new number for a bug, a treasure or a boss recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, a boss skill the boss is fighting with takes its new number, the panel lists every bug, treasure and boss with its numbers, and Reset puts the file values back.',
+  about: 'The dev balance editor: a new number for a bug, a treasure or a boss recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, a boss skill the boss is fighting with takes its new number, an elite skill takes its new number, the XP curve and a card amount change what the next level-up offers, removing an elite or a card takes it out of the run and the offers, the panel lists every bug, treasure, boss, elite and level-up with its numbers, and Reset puts the file values back and restores everything removed.',
   setup() { fresh(); },
   play() {
     const { run } = G(), S = () => run.S, groups = balanceGroups();
@@ -2380,12 +2380,29 @@ story('dev/balance-editor', {
     const bossDmg0 = CONTENT.bosses.vacuum.skills.charge.dmg;
     field('boss', 'vacuum', 'charge dmg').set(9); applyBalance(run);
     const bossDmg1 = CONTENT.bosses.vacuum.skills.charge.dmg;
+    const mugDmg0 = CONTENT.elites.mug.skills.coffee.dmg;
+    field('elite', 'mug', 'coffee dmg').set(5); applyBalance(run);
+    const mugDmg1 = CONTENT.elites.mug.skills.coffee.dmg;
+    const xp0 = xpToNext(2);
+    field('levelup', 'xp', 'growth').set(2); applyBalance(run);
+    const xp1 = xpToNext(2);
+    const card0 = CONTENT.levelups.cards.bubbleDamage.amounts[1];
+    field('levelup', 'bubbleDamage', 'rare').set(4); applyBalance(run);
+    const card1 = CONTENT.levelups.cards.bubbleDamage.amounts[1];
+    toggleRemoved(groups.find((g) => g.removeKey === 'elite:mug'));
+    toggleRemoved(groups.find((g) => g.removeKey === 'card:health'));
+    const mugRemoved = isRemoved('elite', 'mug');
+    let healthOffered = false;
+    for (let i = 0; i < 300 && !healthOffered; i++) healthOffered = rollCards(S(), 3).some((c) => c.stat === 'health');
     resetBalance(run);
     const third = spawn('roach', near(0, 0.3), { still: true });
     const fr3 = S().fireRate;
     const bossDmg2 = CONTENT.bosses.vacuum.skills.charge.dmg;
-    return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25 && bossDmg0 === 4 && bossDmg1 === 9 && bossDmg2 === 4,
-      { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2 });
+    const restored = !isRemoved('elite', 'mug') && !isRemoved('card', 'health')
+      && CONTENT.elites.mug.skills.coffee.dmg === 2 && xpToNext(2) === xp0 && CONTENT.levelups.cards.bubbleDamage.amounts[1] === card0;
+    return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25 && bossDmg0 === 4 && bossDmg1 === 9 && bossDmg2 === 4
+      && mugDmg0 === 2 && mugDmg1 === 5 && xp0 === 4 && xp1 === 6 && card0 === 2 && card1 === 4 && mugRemoved && !healthOffered && restored,
+      { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2, mugDmg0, mugDmg1, xp0, xp1, card0, card1, mugRemoved, healthOffered, restored });
   },
 });
 story('hud/treasure-timers', {
