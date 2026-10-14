@@ -33,6 +33,9 @@ import { ATTACKS as ELITE_ATTACKS, BALLOON_MID } from './elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from './vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from './clog.js';
 import { ATTACKS as POTHOS_ATTACKS } from './pothos.js';
+import { applyState } from './cat.js';
+import { loadLayout, applyLayout } from './layout.js';
+import { BAKED_LAYOUT } from './layout-baked.js';
 
 const G = () => window;                       // main.js puts the game objects on window
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -1303,6 +1306,31 @@ story('models/wasp-and-nest', {
     const ratio = tall / long;
     waspShow.group.removeFromParent();                   // gone again, so later stories don't draw (and compile) them
     return ok(Math.abs(tall - NEST.height) < 0.3 && ratio > 3.6 && ratio < 4.4 && high - low > 0.001, { tall: +tall.toFixed(2), long: +long.toFixed(2), ratio: +ratio.toFixed(2), flaps: high - low > 0.001 });
+  },
+});
+story('models/dendi-the-cat', {
+  about: 'Dendi the cat is never seen during a run: he exists hidden — a skinned tabby (26 bones) with working poses — and only the boss finish brings him out, then hides him again.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const d = window.dendi;
+    if (!d) return ok(false, { dendi: null });
+    const bones = d.mesh.skeleton.bones.length;
+    const hiddenAtBoot = !d.group.visible;
+    // posing: loaf and curious hold measurably different neck angles
+    applyState(d, 'loaf', 1); const loafQ = d.bones.neck.quaternion.clone();
+    applyState(d, 'curious', 1); const curQ = d.bones.neck.quaternion.clone();
+    const poses = loafQ.angleTo(curQ) > 0.05;
+    // nothing he is made of is solid
+    let solid = 0; d.group.traverse((o) => { if (o.isMesh && !o.userData.noCollide) solid++; });
+    // the scene's entrances and exits: placeForSmack shows him poised,
+    // beginSmack starts the chop, endScene hides him again
+    d.placeForSmack(new THREE.Vector3(1, 0, 1), 0);
+    const shown = d.group.visible && d.tick(0.05, null) === 'curious';
+    d.beginSmack();
+    const smacked = d.tick(0.05, null) === 'smack';
+    d.endScene();
+    return ok(bones >= 26 && hiddenAtBoot && poses && shown && smacked && solid === 0 && !d.group.visible,
+      { bones, hiddenAtBoot, poses, shown, smacked, solid, goneAfter: !d.group.visible });
   },
 });
 story('words/hangs', {
@@ -3216,6 +3244,26 @@ function shownWarnings() {
   const kids = G().APT.scene.children.filter(shown);
   return { floor: kids.filter((o) => o.material instanceof TeleMaterial), volume: kids.filter((o) => o.material instanceof VolumeMaterial) };
 }
+story('boss/dendi-finishes-the-vacuum', {
+  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it, and his smack is what kills it — then the usual cleared flow runs.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const { run } = G(), B = run.boss, d = window.dendi;
+    B.damage(99999);
+    const doomed = B.dying && !B.dead;
+    let smacked = false, catNear = false;
+    step(60 * 5, () => {
+      if (d.state() === 'smack') smacked = true;
+      if (B.dead && !catNear) {
+        const c = B.center(), gp = d.group.position;
+        catNear = Math.hypot(gp.x - c.x, gp.z - c.z) < B.r + 0.45;
+      }
+      return B.dead && run.bossWon;
+    });
+    return ok(doomed && smacked && catNear && run.bossWon && !d.group.visible,
+      { doomed, smacked, catNear, won: run.bossWon, goneAfter: !d.group.visible });
+  },
+});
 story('boss/vacuum-charge-warning-is-a-lane', {
   about: "The charge's Warning is its floor strip with a lane volume over it as tall as the Vacuum (8 cm), filling together; both go when it rams.",
   setup() { startVacuum('charge'); },
@@ -3452,12 +3500,13 @@ story('boss/ends-after-a-quick-restart', {
 });
 
 story('modes/dev-fight-boss', {
-  about: 'The pause menu\'s Fight boss (dev) button starts a fresh run that goes straight to the boss.',
+  about: 'The pause menu\'s Fight boss (dev) button opens the boss picker; picking this act\'s boss starts a fresh run that goes straight to it.',
   setup() { fresh(); },
   play() {
     const { run, menus } = G();
     document.getElementById('g-over').hidden = false;
     document.querySelector('#g-over [data-act="boss"]').click();
+    [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'The Vacuum (boss, act 1)')?.click();
     document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
     step(240, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss'; });
     return ok(run.phase === 'boss' && !!run.boss && run.t < 10, { phase: run.phase, t: run.t });
@@ -3532,6 +3581,25 @@ story('modes/dev-one-on-one', {
     step(30);
     const mug = run.elites.alive.length === 1 && run.elites.alive[0].spec.kind === 'mug' && G().player.position.y > 0.6 && bugs().length === 0;
     return ok(listed && alone && gone && back && elite && mug && all, { listed, alone, gone, back, elite, mug, all, y: +G().player.position.y.toFixed(2) });
+  },
+});
+story('modes/dev-fight-boss-picker', {
+  about: 'The pause menu\'s Fight boss (dev) button lists every act\'s boss; picking one starts a fresh run straight at its intro (a boss from another act reloads into that act first).',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    // every act with a boss offers it, labelled with its act
+    const picks = run.bossChoices();
+    const listed = STAGES.filter((st) => st.boss).every((st) => picks.some((p) => p.act === st.id && p.name === `${st.boss.name} (boss, act ${st.id})`));
+    // open the picker and choose this act's boss
+    document.getElementById('g-over').hidden = false;
+    document.querySelector('#g-over [data-act="boss"]').click();
+    const btn = [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'The Vacuum (boss, act 1)');
+    btn?.click();
+    document.getElementById('g-over').hidden = true;   // desktop closes the menu once the mouse locks (not in a headless browser)
+    const intro = run.phase === 'intro';
+    step(240);
+    return ok(listed && !!btn && intro && !!run.boss, { listed, btn: !!btn, intro, boss: !!run.boss, phase: run.phase });
   },
 });
 
@@ -3720,7 +3788,7 @@ story('engine/leaderboard', {
 
 // --- the main screen
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Other act, Diagnostics).',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics).',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },
   play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
@@ -3737,8 +3805,62 @@ story('menu/dev-tools-locked', {
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,act,diag',   // tuner joined the row in v143; this expectation predates it (it failed on pristine v152 too)
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,diag',   // tuner joined the row in v143; the Other act button left in v157 (act choice lives in the pickers and the layout editor now)
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
+  },
+});
+
+story('dev/layout-editor-acts-and-delete', {
+  about: 'The layout editor binds the act it opened in, keeps each act\'s edits in their own slice of the saved layout, and can delete an object picked from its list (recorded as deleted, restorable).',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT } = G();
+    const over = document.querySelector('#g-over');
+    over.hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    // the top bar offers every other act in STAGES, however many there are
+    const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
+    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 1).map((n) => 'act' + n).join();
+    // every act in STAGES has a baked-layout section, and act 3's slot is ready for it
+    const slots = STAGES.every((_, i) => !!BAKED_LAYOUT[i + 1]) && !!BAKED_LAYOUT[3] && typeof loadLayout(3) === 'object';
+    // pick an object from the list and delete it: gone, and recorded as deleted
+    const it = L.items[0];
+    L.listEl.value = it.key; L.listEl.dispatchEvent(new Event('change'));
+    const picked = L.sel === it;
+    L.deleteSelected();
+    const gone = !it.node.visible && it.deleted && L.data[it.key]?.deleted === true;
+    // the deletion lives in act 1's slice only — act 2's saved layout is untouched
+    const scoped = !!loadLayout(1)[it.key]?.deleted && !(it.key in loadLayout(2));
+    // and ⌂ brings it back, clearing the entry
+    L.putBack();
+    const back = it.node.visible && !it.deleted && !(it.key in L.data);
+    // applyLayout honours the act it is given: a crafted act-2 edit moves the object
+    applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
+    const moved = it.node.position.x === 9;
+    it.node.position.fromArray(it.node.userData.home.p);
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    L.onDone();
+    return ok(L.act === 1 && acts.join() === wantActs && slots && picked && gone && scoped && back && moved,
+      { act: L.act, acts, slots, picked, gone, scoped, back, moved });
+  },
+});
+story('dev/layout-editor-act-2', {
+  act: 2,
+  about: 'Opened in act 2, the layout editor binds act 2 and lists the bathroom furniture.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.querySelector('#g-over');
+    over.hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    const bath = L.items.some((x) => /Bathtub|Vanity/.test(x.key));
+    const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
+    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 2).map((n) => 'act' + n).join();
+    L.onDone();
+    return ok(L.act === 2 && bath && acts.join() === wantActs, { act: L.act, bath, acts });
   },
 });
 
@@ -4205,6 +4327,20 @@ act2('one-on-one-soap-dispenser', {
     return ok(run.elites.alive.length === 1 && e && d < 0.5 && player.position.y > 0.8, { elites: run.elites.alive.length, near: +d.toFixed(2), y: +player.position.y.toFixed(2) });
   },
 });
+act2('dev-fight-boss-starts-the-clog', {
+  about: 'On an act 2 page, the Fight boss pick for this act starts the Clog\'s intro in place.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    const pick = run.bossChoices().find((p) => p.name === 'The Clog (boss, act 2)');
+    if (!pick) return ok(false, { pick: 'missing' });
+    run.startBossFight(pick);
+    const intro = run.phase === 'intro';
+    // the Clog takes its time rising: wait for the boss itself (clicking through any cards, as clogFight does)
+    for (let i = 0; i < 360 && !run.boss; i++) { document.querySelector('.jf-card')?.click(); step(1); }
+    return ok(intro && !!run.boss, { intro, boss: !!run.boss, phase: run.phase });
+  },
+});
 // the Wall Clock over the cubby bench (elites.js, clock-model.js): the bench vent lands you below it
 const hallClock = () => G().run.elites.list.find((e) => e.kind === 'clock');
 const onBench = (x = 2.06, z = 7.5) => tp(x, 0.5, z, 0);
@@ -4650,6 +4786,27 @@ const clogAttack = (B, name, P) => {
   B.state = 'chase'; B.stateT = 0;
   B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
 };
+act2('clog-dendi-finish', {
+  about: 'At 0 hp the Clog is doomed, not dead: Dendi — never seen in Act 2 otherwise — appears beside it in the tub, and his smack is what kills it.',
+  setup() { clogFight(); },
+  play() {
+    const { run } = G(), B = run.boss, d = window.dendi;
+    const hiddenBefore = !d.group.visible;
+    B.damage(99999);
+    const doomed = B.dying && !B.dead;
+    let smacked = false, catNear = false;
+    step(60 * 6, () => {
+      if (d.state() === 'smack') smacked = true;
+      if (B.dead && !catNear) {
+        const c = B.center(), gp = d.group.position;
+        catNear = Math.hypot(gp.x - c.x, gp.z - c.z) < B.r + 0.45;
+      }
+      return B.dead && run.bossWon;
+    });
+    return ok(hiddenBefore && doomed && smacked && catNear && run.bossWon && !d.group.visible,
+      { hiddenBefore, doomed, smacked, catNear, won: run.bossWon, goneAfter: !d.group.visible });
+  },
+});
 act2('act-2-fewer-bugs-more-xp', {
   about: 'Act 2 sends a little fewer bugs (0.85x the spawn rate and how many at once) and each drops a little more XP (1.2x).',
   setup() { fresh({ elites: false }); },
@@ -6149,6 +6306,3 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
-
-
-

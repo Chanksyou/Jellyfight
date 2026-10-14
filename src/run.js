@@ -424,6 +424,21 @@ export class Run {
     return [...bugs, ...elites];
   }
 
+  // ------------------------------------------------------------ dev: fight boss
+  // Every act's boss, offered by the pause menu's Fight boss button: a fresh run (level 1,
+  // no treasures) straight to its intro. Another act's boss reloads into that act first,
+  // like a duel pick.
+  bossChoices() {
+    return STAGES.filter((st) => st.boss).map((st) => ({ name: `${st.boss.name} (boss, act ${st.id})`, act: st.id }));
+  }
+
+  startBossFight(pick) {
+    if (pick.act !== this.stage.id) { goToAct(pick.act, null, { boss: pick.name }); return; }   // its arena is in another act
+    this.start();
+    this.devRun();
+    this.startBossIntro();
+  }
+
   startDuel(pick) {
     if (pick.act && pick.act !== this.stage.id) { goToAct(pick.act, null, { duel: pick.name }); return; }   // its room is in another act
     this.start();
