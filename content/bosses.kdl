@@ -45,17 +45,27 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
 // never leading); the Warning shows for `windup` s (a Boss attack's usual length, as long as the
 // Clog's lash), then the vine lashes along a curved lane `width` wide and `height` tall (jump it) out
 // to `reach` m from the pot; `knock` is how hard a hit throws you aside and `launch` how far up;
-// then its leaves part for `open` s: the moment to hit its heart. `count` lanes (`angryCount` angry),
-// the second swung `swing` radians round the pot from the first
+// then its leaves part for `open` s: the moment to hit its heart. `count` vines at once (`angryCount`
+// angry), each on its own lane: the first aimed, the others swung `swing` radians round the pot to
+// either side of it (keep it wide enough to leave room between lanes to slip through)
+// The sweep: a vine winds up at one end of a wedge `arc` degrees wide in front of the plant while
+// its Warning fills (`windup` s), then sweeps across it in `swing` s, `height` tall (jump it), out to
+// `reach` m from the pot (from 0.4 of that: closer in, the guarding vines take over)
+// The guarding vines: while you're within `radius` m of its heart, a vine snaps at where you are,
+// `first` s after you come close and every `every` s while you stay: a short straight lane (`over` m
+// past you) with a quick Warning (`windup` s), `width` wide and `height` tall; a hit is `dmg` and
+// knocks you `knock` away from the heart. They hold still while its leaves are parted after a whip
 // The swarm: once, the first time its Health drops below `at`, `count` dragonflies (content/enemies.kdl
 // "dragonfly") come out of the plant and its leaves close over its heart until they're dead or
 // `shield` s have passed
 // bump: touching the pot hurts (contact) and pushes you off it at `push` m/s, at most every `every` s
 // rise: how fast it grows up out of the pillows as the fight starts (the whole rise per second)
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
-    whip    time=1.0 windup=0.8 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 launch=0.15 swing=0.45 open=1.5 count=1 angryCount=2 rest=2.5 angryRest=1.6
-    cutting time=1.0 count=1 angryCount=2 near=0.16 rest=2.5 angryRest=1.6
-    roots   time=1.2 count=3 spread=0.18 rest=2.5 angryRest=1.6
+    whip    time=1.0 windup=0.8 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 launch=0.15 swing=0.6 open=1.5 count=2 angryCount=3 rest=1.8 angryRest=1.1
+    sweep   time=1.4 windup=0.8 swing=0.45 arc=105 reach=0.7 height=0.035 dmg=3 knock=0.6 rest=1.8 angryRest=1.1
+    guard   radius=0.28 first=0.25 every=0.55 windup=0.45 lash=0.12 over=0.08 reach=0.45 width=0.035 height=0.04 dmg=3 knock=0.7
+    cutting time=1.0 count=1 angryCount=2 near=0.16 rest=1.8 angryRest=1.1
+    roots   time=1.2 count=3 spread=0.18 rest=1.8 angryRest=1.1
     swarm   at=0.7 count=4 shield=30 rest=1.5
     enrage  at=0.45
     bump    push=0.6 every=0.3

@@ -343,6 +343,22 @@ function bugWarns(type, warns) {
     end() { const { enemies } = G(); for (const e of enemies.list) if (!e.dead && ['cutting', 'sprout', 'root'].includes(e.type)) enemies.kill(e, true); it = null; },
   };
 }
+// the Pothos's guarding vines snapping at a jelly held by its heart: warning while a snap is under
+// way; `end` takes the jelly away from the heart and lets the last snap land
+function guardSnap() {
+  const B = () => G().run.boss, on = () => B().snaps.some((L) => L.on);
+  return {
+    is: 'volume',
+    start() {
+      const b = pothosFight(), { world } = G(), player = holdJelly(), c = b.center();
+      b.stateT = 1e9;
+      const hit = world.castAll(V(c.x, c.y + 0.3, c.z - 0.2), V(0, -1, 0), 1);
+      player.position.set(c.x, hit.point.y, c.z - 0.2);
+    },
+    during: on,
+    end() { const { player, run } = G(); player.position.set(...run.stage.boss.playerStart); step(60, () => !on()); },
+  };
+}
 const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'shot', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
@@ -367,6 +383,8 @@ const EVERY_ATTACK = {
       cutting: { is: 'none' },        // it drops Cuttings: their countdown is the Cutting's own (words/becomes)
       roots: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('roots'); } },
       whip: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('whip'); } },
+      sweep: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('sweep'); } },
+      snap: guardSnap(),              // its guarding vines (not a turn: `always`), at a jelly close to its heart
     },
     // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
     bugs: {
@@ -382,7 +400,7 @@ const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos' })[G().run.stage.bo
 function attacksInGame(act) {
   const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
-  out[boss] = [...new Set([...A.calm, ...A.angry])];
+  out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the Pothos's guarding vines)
   // Bugs that warn (so far only the Pothos's: Cuttings, Sap sprouts, Aerial roots) are checked in act 3
   if (act === 3) out.bugs = Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id);
   return out;
@@ -433,7 +451,7 @@ function checkAttack(who, name, a) {
     r.filling = p1.length > 0 && p1.every(([v, f], i) => f && f.parent && v.parent && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]);
   }
   // after the hit: keep it from starting another, let what's in flight land, then nothing shows
-  if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
+  if (boss && a.end) a.end(); else if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
   const els = run.elites;
   step(60 * 6, () => !els.blobs.length && !els.balloons.length && !els.rings.length && !shotsFlying());
   step(20);

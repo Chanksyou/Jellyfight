@@ -6,7 +6,7 @@ import { CONTENT } from '../content.js';
 import { LOOK } from '../look.js';
 import { STAGES, nav } from '../stages.js';
 import { STAGE3 } from '../stage3.js';
-import { G, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, pothosFight, pothosFloor, r3, record, shownWarnings, sim, spawn, step, stripLine, stub, tp, volumePairs } from './kit.js';
+import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, pothosFight, pothosFloor, r3, record, shownWarnings, sim, spawn, step, stripLine, stub, tp, volumePairs } from './kit.js';
 
 // --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
 act3('carries-the-run', {
@@ -481,7 +481,7 @@ act3('pothos-whip-warning-is-a-low-curved-lane', {
     const bow = line.length ? Math.abs((m.x - a.x) * (b.z - a.z) - (m.z - a.z) * (b.x - a.x)) / Math.hypot(b.x - a.x, b.z - a.z) : 0;
     const tall = p1.map(([v]) => { const box = new THREE.Box3().setFromObject(v); return +(box.max.y - box.min.y).toFixed(3); });
     const out = {
-      volumes: p1.length, paired: p1.every(([, f]) => f === strip), bow: +bow.toFixed(3), tall: [...new Set(tall)],
+      volumes: p1.length, paired: p1.every(([, f]) => f && f.material.shape === 'strip'), bow: +bow.toFixed(3), tall: [...new Set(tall)],
       filling: p1.length > 1 && p1.every(([v, f], i) => f && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]),
     };
     compile();
@@ -583,31 +583,135 @@ function whipLanes() {
   return strips.map((f) => ({ strip: f, line: stripLine(f), volumes: pairs.filter(([, s]) => s === f).length, progress: f.material.progress }));
 }
 const pothosAngry = (B) => { B.swarmed = true; B.hp = B.maxHp * 0.4; };   // (past its dragonflies)
-act3('pothos-angry-whips-two-lanes', {
-  about: 'Below 45% Health a Vine Whip lashes two vines at once on two separate lanes, each with its own floor strip and lane volumes filling to the lash, and the leaves still part after it. Above 45% it lashes one.',
+// the least room between two lanes' centre lines along their outer halves (past `from` m from the pot)
+function laneGap(a, b, pot, from = 0.25) {
+  let gap = Infinity;
+  for (const p of a) if (Math.hypot(p.x - pot.x, p.z - pot.z) > from) gap = Math.min(gap, offLine(b, p));
+  return gap;
+}
+act3('pothos-whips-several-vines-at-once', {
+  about: 'A Vine Whip lashes several vines at once: two calm, three below 45% Health, each on its own lane with its own floor strip and lane volumes filling to the lash, and between neighbouring lanes there is always room for the jelly to slip through (more than a lane and a jelly across). The leaves still part after it.',
   setup() {},
   play() {
-    const B = pothosFight(), out = {};
+    const B = pothosFight(), out = {}, body = G().player.cfg, SK = CONTENT.bosses.pothos.skills.whip;
     holdJelly().position.set(-0.3, G().player.position.y, 9.7);
     for (const angry of [false, true]) {
       if (angry) pothosAngry(B);
       B.begin('whip');
       B.stateT = 1e9;
       step(15);
-      const lanes = whipLanes();
-      // separate: the two lanes' far ends lie apart
-      const ends = lanes.map((l) => l.line[l.line.length - 1]);
-      const apart = ends.length === 2 ? +Math.hypot(ends[0].x - ends[1].x, ends[0].z - ends[1].z).toFixed(3) : null;
+      const lanes = whipLanes(), pot = B.position;
+      // each lane's nearest neighbour, and the room between them
+      const gaps = lanes.map((l, i) => Math.min(...lanes.filter((_, j) => j !== i).map((m) => laneGap(l.line, m.line, pot))));
       step(60, () => B.struck);
       step(6);
       const w = shownWarnings();
-      out[angry ? 'angry' : 'calm'] = { lanes: lanes.length, volumes: lanes.map((l) => l.volumes), filling: lanes.map((l) => +l.progress.toFixed(2)), apart, opens: B.openT > 0, gone: !w.floor.length && !w.volume.length };
+      out[angry ? 'angry' : 'calm'] = { lanes: lanes.length, volumes: lanes.map((l) => l.volumes), filling: lanes.map((l) => +l.progress.toFixed(2)), gap: +Math.min(...gaps).toFixed(3), opens: B.openT > 0, gone: !w.floor.length && !w.volume.length };
       step(240, () => B.open === 0 && B.whipT < 0);
       B.state = 'idle'; B.stateT = 1e9;
     }
-    const c = out.calm, a = out.angry;
-    return ok(c.lanes === 1 && c.volumes[0] >= 4 && c.opens && c.gone
-      && a.lanes === 2 && a.volumes.every((n) => n >= 4) && a.filling.every((p) => p > 0.1) && a.apart > 0.1 && a.opens && a.gone, out);
+    const room = SK.width + body.radius * 2, good = (o, n) => o.lanes === n && o.volumes.every((v) => v >= 4) && o.filling.every((p) => p > 0.1) && o.gap > room && o.opens && o.gone;
+    return ok(good(out.calm, 2) && good(out.angry, 3), { room: +room.toFixed(3), ...out });
+  },
+});
+// --- the guarding vines: close to the heart, vines snap at the jelly
+// hold the jelly on the bed `away` m (flat) in front of the Pothos's heart
+function nearHeart(B, away) {
+  const { world } = G(), player = holdJelly(), c = B.center(), at = V(c.x, c.y + 0.3, c.z - away);
+  const hit = world.castAll(at, V(0, -1, 0), 1);
+  player.position.set(at.x, hit ? hit.point.y : player.position.y, at.z); player.grounded = true;
+  return player;
+}
+const snapping = (B) => B.snaps.filter((L) => L.on);
+act3('pothos-vines-snap-when-close', {
+  about: "Within about 28 cm of the Pothos's heart its vines guard it: one snaps at where the jelly is on a short straight lane with its own quick Warning (a floor strip with lane volumes, about 0.45 s), hits and knocks it away from the heart, and another follows while it stays. Farther out, none do.",
+  setup() {},
+  play() {
+    const B = pothosFight(), hits = bossHits(), knocks = record('knockback'), GU = CONTENT.bosses.pothos.skills.guard, out = {};
+    B.stateT = 1e9;                                       // (none of its turns: only the guard)
+    const P = nearHeart(B, 0.2).position, c = B.center();
+    let first = null, shown = 0, starts = 0;
+    const was = B.snaps.map(() => Infinity);
+    step(60 * 3, () => {
+      B.snaps.forEach((L, i) => { if (L.on && L.t < was[i]) starts++; was[i] = L.on ? L.t : Infinity; });
+      const strip = pothosFloor().find((f) => f.material.shape === 'strip');
+      if (strip && !first) { const line = stripLine(strip); first = { off: +offLine(line, P).toFixed(3), volumes: volumePairs().filter(([, f]) => f === strip).length }; }
+      if (strip && starts === 1) shown += 1 / 60;
+      return false;
+    });
+    const k = knocks.find((e) => e.targetId === 'player'), away = k ? +(k.dir.x * (P.x - c.x) + k.dir.z * (P.z - c.z)).toFixed(3) : null;
+    out.close = { first, shown: +shown.toFixed(2), starts, hits: hits.length, away };
+    hits.length = 0;
+    nearHeart(B, 0.45);
+    step(60 * 2, () => snapping(B).length === 0);
+    const h0 = hits.length;
+    let any = 0;
+    step(60 * 3, () => { any += snapping(B).length; return false; });
+    out.far = { snaps: any, hits: hits.length - h0 };
+    const C = out.close;
+    return ok(C.first && C.first.off < 0.03 && C.first.volumes >= 1 && Math.abs(C.shown - GU.windup) < 0.1 && C.starts >= 3 && C.hits >= 2 && C.away > 0 && !out.far.snaps && !out.far.hits, out);
+  },
+});
+act3('pothos-guards-hold-still-in-the-opening', {
+  about: "The opening after a Vine Whip is the way in: a jelly right by the heart, where its vines snap at it, gets no new snap while the leaves are parted, and a bubble it blows at the heart then hurts it; before the whip the leaves stop that same bubble.",
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false }), out = {};
+    onlyOurBubbles();
+    B.stateT = 1e9;
+    const P = nearHeart(B, 0.2).position, from = P.clone().setY(P.y + 0.05), shot = () => blowAt(B, from, B.center());
+    out.before = shot();
+    step(60, () => snapping(B).length > 0);
+    out.snapsBefore = snapping(B).length > 0;
+    // every snap that starts while the leaves are parted
+    let started = 0;
+    const start = B.startLane;
+    stub(B, 'startLane', function (L, kind, ...rest) { if (kind === 'snap' && this.openT > 0) started++; return start.call(this, L, kind, ...rest); });
+    B.begin('whip');
+    B.stateT = 1e9;
+    step(60, () => B.struck);
+    step(20);
+    out.open = shot();
+    step(120, () => B.openT <= 0);
+    out.startedInOpening = started;
+    step(60);
+    out.snapsAfter = snapping(B).length > 0;               // and they're back once the leaves close
+    return ok(out.before.popped && out.before.lost === 0 && out.snapsBefore && !started && out.open.lost > 0 && out.snapsAfter, out);
+  },
+});
+// --- the sweeping vine
+act3('pothos-sweep-warning-and-hit', {
+  about: "The Pothos's sweep: its Warning is a wedge on the bed in front of the plant with low arc volumes over it, filling together for about 0.8 s; then a vine sweeps across it: a jelly standing in it is hit once and knocked, one near the top of its jump (feet 12 cm up) isn't. The Warning is gone after, and starting one builds no new shader.",
+  setup() {},
+  play() {
+    const B = pothosFight(), { APT, batcher, world } = G(), hits = bossHits(), knocks = record('knockback'), out = {};
+    const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+    const player = holdJelly(), h = B.position, SK = CONTENT.bosses.pothos.skills.sweep;
+    const at = V(h.x + 0.05, h.y + 0.4, h.z - 0.5), ground = world.castAll(at, V(0, -1, 0), 1).point.y;
+    B.stateT = 1e9;
+    compile();
+    const programs = APT.renderer.info.programs.length;
+    for (const up of [0, JUMP_FEET]) {
+      player.position.set(at.x, ground + up, at.z); player.grounded = !up;
+      const h0 = hits.length, k0 = knocks.length;
+      B.begin('sweep');
+      B.stateT = 1e9;
+      step(6);
+      const wedge = () => pothosFloor().find((f) => f.material.shape === 'wedge');
+      const pairs = volumePairs().filter(([, f]) => f === wedge()), p0 = pairs.map(([v]) => v.material.progress);
+      step(6);
+      let shown = 12 / 60, hitAt = null;
+      const filling = pairs.length > 0 && pairs.every(([v, f], i) => Math.abs(v.material.progress - f.material.progress) < 1e-6 && v.material.progress > p0[i]);
+      if (!up) { compile(); out.newShaders = APT.renderer.info.programs.length - programs; }
+      step(60 * 2, () => { if (wedge() && wedge().material.progress < 1) shown += 1 / 60; if (hitAt == null && hits.length > h0) hitAt = B.sweepT; return B.sweepT < 0; });
+      step(3);
+      const w = shownWarnings();
+      out[up ? 'jumping' : 'standing'] = { volumes: pairs.length, filling, shown: +shown.toFixed(2), hits: hits.slice(h0).map((d) => d.amount), knocked: knocks.slice(k0).some((e) => e.targetId === 'player'), hitAt: hitAt && +hitAt.toFixed(2), gone: !w.floor.length && !w.volume.length };
+      B.state = 'idle'; B.stateT = 1e9;
+    }
+    const s = out.standing, j = out.jumping;
+    return ok(s.volumes >= 4 && s.filling && Math.abs(s.shown - SK.windup) < 0.1 && s.hits.length === 1 && s.hits[0] === SK.dmg && s.knocked && s.hitAt > SK.windup && s.gone
+      && !j.hits.length && !j.knocked && j.gone && out.newShaders === 0, out);
   },
 });
 act3('pothos-angry-rests-less', {
@@ -740,7 +844,7 @@ act3('camera-fight-view-on-the-bed', {
   },
 });
 act3('attacks-every-warning-has-volume', {
-  about: 'Every Pothos attack in turn (Vine Whip, Aerial roots; its Cuttings are their own), then each of its Bugs that warns (a Cutting\'s countdown, a Sap sprout\'s sap lob, an Aerial root\'s drop): each Warning shows its floor shape with its volume over it (a Cutting\'s countdown is a floor circle only), filling together; both go after the hit; none builds a new shader.',
+  about: 'Every Pothos attack in turn (Vine Whips, the sweep, Aerial roots, its guarding vines\' snaps; its Cuttings are their own), then each of its Bugs that warns (a Cutting\'s countdown, a Sap sprout\'s sap lob, an Aerial root\'s drop): each Warning shows its floor shape with its volume over it (a Cutting\'s countdown is a floor circle only), filling together; both go after the hit; none builds a new shader.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() { return everyAttack(3); },
 });

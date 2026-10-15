@@ -14,7 +14,8 @@
 //   blasts                a hit is anything of the jelly inside a sphere round where it goes off
 //                         (blastHits): half a sphere on a surface, a whole one in mid-air
 //   lanes, rings, cones   a box over a floor strip (laneHits), a low wall spreading out
-//                         (ringHits), a spray rising as it spreads (coneHits), each with the
+//                         (ringHits), a spray rising as it spreads (coneHits), a low wall
+//                         turning across a wedge (arcHits, the 'arc' volumes), each with the
 //                         height the attack really has: jumping clears a low one
 //   impacts               a flash, sparks and a shockwave (Fx.impact)
 //
@@ -139,7 +140,28 @@ function coneGeometry(segZ = 8, segA = 16) {
   g.computeVertexNormals();
   return g;
 }
+// An arc: one piece of a low slab over a floor wedge's outer band (a sweep across a wedge, the
+// Pothos's sweeping vine): from ARC_IN to 1 of its radius, ARC_STEP radians wide, centred on +z.
+// Lay pieces side by side (rotation.y) to cover a wedge, each at the height of the bed under it;
+// scale (radius, height, radius).
+export const ARC_IN = 0.4, ARC_STEP = Math.PI / 12;
+function arcGeometry(seg = 4) {
+  const pos = [], idx = [], P = (r, t, y) => [Math.sin(t) * r, y, Math.cos(t) * r];
+  const quad = (a, b, c, d) => { const n = pos.length / 3; pos.push(...a, ...b, ...c, ...d); idx.push(n, n + 1, n + 2, n, n + 2, n + 3); };
+  for (let i = 0; i < seg; i++) {
+    const t0 = -ARC_STEP / 2 + (i * ARC_STEP) / seg, t1 = t0 + ARC_STEP / seg;
+    quad(P(1, t0, 0), P(1, t1, 0), P(1, t1, 1), P(1, t0, 1));                       // its outer wall
+    quad(P(ARC_IN, t1, 0), P(ARC_IN, t0, 0), P(ARC_IN, t0, 1), P(ARC_IN, t1, 1));   // its inner wall
+    quad(P(ARC_IN, t0, 1), P(ARC_IN, t1, 1), P(1, t1, 1), P(1, t0, 1));             // its top
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
 const VOLUME = {
+  arc: { bottom: 0, height: 1, geo: () => arcGeometry() },   // a piece of a low slab over a floor wedge's outer band: see arcGeometry
   dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius
   sphere: { bottom: -1, height: 2, geo: () => new THREE.SphereGeometry(1, 28, 16) },                                // a mid-air Blast: centred; scale = radius
   cone: { bottom: 0, height: CONE_RISE, geo: () => coneGeometry() },   // a cone over a floor wedge: see coneGeometry; scale (half-width, half-width, length) at the far end
@@ -268,6 +290,17 @@ export function laneHits(start, dir, len, width, height, feet, body) {
 export function ringHits(centre, from, to, height, feet, body) {
   const d = Math.hypot(feet.x - centre.x, feet.z - centre.z);
   return d > from - body.radius && d < to + body.radius && feet.y < centre.y + height && feet.y + body.height > centre.y;
+}
+// The hit rule for a sweep (volumes 'arc'): anything of the jelly that a low wall turning round
+// `centre` passes as it turns from bearing `from` to `to` (rad, like rotation.y: atan2(dx, dz)),
+// between `inner` and `reach` (flat) of it, up to `height` above centre.y (the bed under the
+// jelly). Jumping higher than the wall clears it.
+export function arcHits(centre, inner, reach, from, to, height, feet, body) {
+  const dx = feet.x - centre.x, dz = feet.z - centre.z, d = Math.hypot(dx, dz);
+  if (d < inner - body.radius || d > reach + body.radius || feet.y >= centre.y + height || feet.y + body.height <= centre.y) return false;
+  const turn = (a) => Math.atan2(Math.sin(a - from), Math.cos(a - from));   // round from `from`
+  const span = turn(to), at = turn(Math.atan2(dx, dz)), slack = Math.asin(Math.min(1, body.radius / Math.max(d, 1e-3)));
+  return span >= 0 ? at > -slack && at < span + slack : at < slack && at > span - slack;
 }
 
 // ------------------------------------------------------------------ glow particles
