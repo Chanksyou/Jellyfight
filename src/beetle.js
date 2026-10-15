@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createBeetle } from './beetle-anim.js';
+import { fetchModel } from './apartment.js';
 
 // The rhinoceros beetle: the game's first loaded bug model (every other bug is
 // procedural, in critters.js). The model (assets/beetle.glb, converted from
@@ -14,7 +15,8 @@ const BUILD_LEN = 2.55;   // how long the build is, in the radius units every bu
 
 let template = null, templateLen = 1;
 const waiting = new Set();
-new GLTFLoader().loadAsync('assets/beetle.glb').then((g) => {
+// (through fetchModel: a host that doesn't serve .glb files gets the base64 copy, like the apartment)
+fetchModel('assets/beetle.glb').then((buf) => new GLTFLoader().parseAsync(buf, 'assets/')).then((g) => {
   template = g.scene;
   const s = new THREE.Box3().setFromObject(template).getSize(new THREE.Vector3());
   templateLen = Math.max(s.x, s.z);
