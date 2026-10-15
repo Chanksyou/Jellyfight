@@ -179,6 +179,26 @@ story('enemies/mosquito-spits', {
     return ok(run.health < m0, { lost: +(m0 - run.health).toFixed(2) });
   },
 });
+story('enemies/beetle-charges-and-fires-three', {
+  about: 'A rhinoceros beetle in range charges its horns — the glowing orb is the warning — then fires exactly three fat electrical orbs in a fan (each twice a spider\'s web ball across, with its crackling halo), each doing its spit damage.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('beetle', P.clone().add(V(0.3, 0, 0))); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    let sawAim = false, orbLit = false, volley = null;
+    step(60 * 10, () => {
+      if (e.aimT > 0) { sawAim = true; const orb = e.mesh.getObjectByName('charge-orb'); if (orb && orb.visible) orbLit = true; }
+      if (!volley && enemies.shots.length >= 3) volley = enemies.shots.slice(0, 3).map((s) => ({ vx: s.v.x, vz: s.v.z, dmg: s.dmg, orb: !!s.orb, geo: s.m.geometry === enemies.orbGeo, halo: s.m.children.length === 1 }));
+      return !!volley;
+    });
+    if (!volley) return ok(false, { sawAim, orbLit, shots: enemies.shots.length });
+    const a0 = Math.atan2(volley[0].vx, volley[0].vz), a2 = Math.atan2(volley[2].vx, volley[2].vz);
+    const fan = Math.abs(a2 - a0) * 180 / Math.PI;
+    const dmg = volley.every((s) => s.dmg === 3);
+    const orbs = volley.every((s) => s.orb && s.geo && s.halo);
+    const big = enemies.orbGeo.parameters.radius > 0.009 * 1.5;   // the web wad's radius is 0.009
+    return ok(sawAim && orbLit && fan > 28 && fan < 40 && dmg && orbs && big, { sawAim, orbLit, fan: +fan.toFixed(1), dmg, orbs, big });
+  },
+});
 
 // --- progression
 story('progression/card-tiers', {

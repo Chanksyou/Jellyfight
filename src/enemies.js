@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildRoot, buildMissile, buildCutting, buildSprout } from './critters.js';
+import { buildBeetle } from './beetle.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -193,6 +194,7 @@ function makeLooks() {
     cutting: buildCutting,
     sprout: buildSprout,
     root: buildRoot,
+    beetle: buildBeetle,
     fuzz, hairMat,
   };
 }
@@ -233,6 +235,13 @@ export class Enemies {
     this.webGeo = mergeGeometries([wad.toNonIndexed(), ...strands.map((g) => g.toNonIndexed())]);
     this.webGeo.computeVertexNormals();
     this.webMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.9, emissive: 0xffe8f4, emissiveIntensity: 0.55, toneMapped: false });
+    // an orb: a fat ball of crackling electricity (the rhinoceros beetle's spit) — a bright
+    // core in a wide additive halo, twice the web wad's radius (0.009), so it reads big
+    this.orbColor = new THREE.Color(0x6fc4ff);
+    this.orbGeo = new THREE.SphereGeometry(0.018, 18, 12);
+    this.orbMat = new THREE.MeshBasicMaterial({ color: 0xeaf7ff, toneMapped: false });
+    this.orbGlowGeo = new THREE.SphereGeometry(0.034, 18, 12);
+    this.orbGlowMat = new THREE.MeshBasicMaterial({ color: this.orbColor.clone().multiplyScalar(2), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
     this.frame = 0;
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
@@ -555,21 +564,22 @@ export class Enemies {
   spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
-    const kind = shot === 'web' ? 'web' : 'laser';
-    const color = kind === 'laser' ? this.laserColor : hostile(kind);
+    const kind = shot === 'web' || shot === 'orb' ? shot : 'laser';
+    const color = kind === 'laser' ? this.laserColor : kind === 'orb' ? this.orbColor : hostile(kind);
     const flight = at.distanceTo(from) / speed;
     for (let i = 0; i < count; i++) {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const geo = { web: this.webGeo, laser: this.shotGeo }[kind];
-      const mat = { web: this.webMat, laser: this.shotMat }[kind];
+      const geo = { web: this.webGeo, laser: this.shotGeo, orb: this.orbGeo }[kind];
+      const mat = { web: this.webMat, laser: this.shotMat, orb: this.orbMat }[kind];
       const m = batcher.track(new THREE.Mesh(geo, mat));
       if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
+      if (kind === 'orb') m.add(new THREE.Mesh(this.orbGlowGeo, this.orbGlowMat));
       m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web', orb: kind === 'orb' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
   }
@@ -1061,9 +1071,10 @@ export class Enemies {
       if (s.arc) s.v.y -= s.arc * dt;                    // a lobbed web ball falls
       s.m.position.addScaledVector(s.v, dt);
       if (s.spin) s.m.rotateX(s.spin * dt);              // web balls roll
+      if (s.orb) { const g = s.m.children[0]; if (g) { const f = 0.85 + Math.random() * 0.5; g.scale.set(f, f * (0.8 + Math.random() * 0.4), f); } }   // orbs crackle: their halo jumps about
       // a halo and a glowing trail, in the shooter's colour
-      this.fx.glow.hold(s.m.position, s.c, s.spin ? 0.04 : 0.05, 0.9);
-      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
+      this.fx.glow.hold(s.m.position, s.c, s.orb ? 0.075 : s.spin ? 0.04 : 0.05, 0.9);
+      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.orb ? 0.05 : s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
     }

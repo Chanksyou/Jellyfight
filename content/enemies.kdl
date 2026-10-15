@@ -138,3 +138,13 @@ enemy "root" name="Aerial root" hp=30 r=0.03 dmg=0 xp=2 model="root" {
     drops height=0.6 time=1 radius=0.05 color="pothos"
     holds time=3 slow=0.5 dmg=1 color="pothos"
 }
+
+// The rhinoceros beetle: a slow tank that rears back, charges its horns (a glowing
+// orb — that's the warning) and fires three fat electrical orbs in a fan. In no wave yet:
+// it can only be met in 1 on 1 while its fight is proven. Its model is the game's
+// first loaded one (assets/beetle.glb, src/beetle.js); the numbers are a starting
+// point for the Tuner, like any bug's.
+enemy "beetle" name="Rhinoceros beetle" hp=120 r=0.045 dmg=2 xp=9 model="beetle" {
+    chase 0.2
+    spit every=3.2 reach=0.5 speed=0.9 life=0.9 dmg=3 aim=0.8 count=3 spread=34 shot="orb" height=2
+}
