@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { hostile, VolumeMaterial } from '../vfx.js';
+import { CONTENT } from '../content.js';
 import { eliteChestsReachable } from './act2.js';
 import { G, V, act3, croc, everyAttack, fresh, ok, onBed, r3, record, shownWarnings, startCroc, step, tp, volumePairs } from './kit.js';
 
@@ -88,7 +89,7 @@ act3('croc-tail-slam', {
 });
 
 act3('croc-tail-rings-roll-out-and-are-jumped', {
-  about: 'Each tail slam\'s ring is a wall 3 cm high with a band 3 cm thick, rolling outward over the bed, wider every moment: a jelly standing in its way is hit, one in the air over it (feet 5 cm up) isn\'t, by any of them.',
+  about: 'Each tail slam\'s ring is a low wall (3 cm high) with a thick band (content/elites.kdl), rolling outward over the bed, wider every moment: a jelly standing in its way is hit, one in the air over it (feet 5 cm up) isn\'t, by any of them.',
   setup() { startCroc(1); },
   play() {
     const out = {};
@@ -110,7 +111,7 @@ act3('croc-tail-rings-roll-out-and-are-jumped', {
       const grows = radii.length > 10 && radii.every((r, i) => !i || r >= radii[i - 1] - 1e-9) && radii[radii.length - 1] > 0.5;
       out[name] = { tall: Math.max(...walls), band: bands[bands.length - 1], grows, reach: +Math.max(...radii).toFixed(2), hits: hitsBy(log, 'croc-tail').length };
     }
-    const { standing: s, jumping: j } = out, low = (r) => Math.abs(r.tall - 0.03) < 0.006 && Math.abs(r.band - 0.03) < 0.004 && r.grows;
+    const { standing: s, jumping: j } = out, T = CONTENT.elites.croc.skills.tail, low = (r) => Math.abs(r.tall - T.height) < 0.006 && Math.abs(r.band - T.band) < 0.004 && r.grows;
     return ok(low(s) && s.hits >= 3 && low(j) && j.hits === 0, out);
   },
 });
@@ -126,11 +127,12 @@ act3('croc-tail-rhythm-differs-each-time', {
 });
 
 act3('croc-pounce', {
-  about: 'Pounce: it crouches while a big Warning (a circle 15 cm round it, the half sphere over it) fills, leaps up and lands where it started as a Blast round itself: 4 and knocked back anywhere in it (on the bed beside it, or in the air over it), nothing outside it.',
+  about: 'Pounce: it crouches while a big Warning (a circle round it, the half sphere over it, its radius in content/elites.kdl) fills, leaps up and lands where it started as a Blast round itself: 4 and knocked back anywhere in it (on the bed beside it, or in the air over it), nothing outside it.',
   setup() { startCroc(2); },
   play() {
     const out = {};
-    for (const [name, dz, up] of [['beside', 0.1, 0], ['over', 0.06, 0.08], ['outside', 0.24, 0]]) {
+    const R = CONTENT.elites.croc.skills.pounce.radius;
+    for (const [name, dz, up] of [['beside', R * 0.6, 0], ['over', R * 0.4, 0.08], ['outside', R + 0.09, 0]]) {
       const { e, player } = startCroc(2), { run } = G(), log = record('damage_taken'), knocks = record('knockback');
       const a = e.holder.rotation.y;
       player.position.set(e.base.x + Math.sin(a) * dz, 0, e.base.z + Math.cos(a) * dz);
@@ -147,7 +149,7 @@ act3('croc-pounce', {
       out[name] = { radius: +radius.toFixed(3), peak: +peak.toFixed(3), hits: hitsBy(log, 'croc-pounce'), knocked: knocks.length, home: e.holder.position.distanceTo(e.base) < 1e-6 };
     }
     const { beside: b, over: o, outside: x } = out;
-    return ok(Math.abs(b.radius - 0.15) < 0.005 && b.peak > 0.06 && b.home && b.hits[0] === 4 && b.knocked >= 1 && o.hits[0] === 4 && !x.hits.length, out);
+    return ok(Math.abs(b.radius - R) < 0.005 && b.peak > 0.06 && b.home && b.hits[0] === 4 && b.knocked >= 1 && o.hits[0] === 4 && !x.hits.length, out);
   },
 });
 

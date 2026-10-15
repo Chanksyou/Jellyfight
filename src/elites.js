@@ -393,7 +393,7 @@ const KINDS = {
   soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel },
   clock: { name: 'The Wall Clock', wall: true, build: clockModel },
   whipper: { name: 'The Cream Whipper', build: whipperModel },
-  croc: { name: 'The Alligator', scale: 0.64, build: crocModel },
+  croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
 };
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
@@ -1219,13 +1219,13 @@ export class Elites {
                   hit(V.dmg, 'croc-frost');
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
-              }, { dome: true, arc: 0.01, wait: wind / tempo, size: 0.009 });
+              }, { dome: true, arc: 0.01, wait: wind / tempo, size: V.size });
             }
             sfx.freeze();
           }
           jaw(Math.min(1, s / wind));
           if (s < wind && Math.random() < dt * 25) this.fx.glow.emit(muzzle, hostile('croc'), 0.03, 0.006, 0.3, 0.9);   // frost gathering in its mouth
-          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
         } else if (e.attack === 1) {
           // Tail slam: it turns its back to you, then slams its tail on the bed in a rhythm of its
           // own each time (gaps picked as it starts); before each slam a small Warning (a circle and
@@ -1262,7 +1262,7 @@ export class Elites {
               this.fx.puff(e.slamAt.clone().setY(e.slamAt.y + 0.01), 0xdfe6ff, 0.04, 0.4);
               this.ring(e.slamAt, hostile('croc'), T, 'croc-tail', { band: T.band, speed: T.speed, max: T.reach, follow: true });
             }
-          } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+          } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? T.angryRest : T.rest; }
         } else {
           // Pounce: it crouches while a big Warning fills under it (a circle and the half sphere
           // over it), leaps, and lands where it started as a Blast round itself: too big to jump
@@ -1292,7 +1292,7 @@ export class Elites {
             this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, Q.radius * 0.8, 0.6);
             juice.shake(0.4); sfx.crocThump(1.4);
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); }
-          } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
+          } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
       }
     }
