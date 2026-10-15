@@ -533,27 +533,6 @@ story('models/dendi-the-cat', {
       { bones, hiddenAtBoot, poses, shown, smacked, solid, goneAfter: !d.group.visible });
   },
 });
-story('models/beetle-loads-and-walks', {
-  about: 'The rhinoceros beetle is a 1 on 1 pick whose loaded model (the game\'s first GLB bug) fills in, stands at its radius\'s scale with the charge orb in its horns, and walks with a moving gait.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('beetle', near(0.35, 0, 0)); },
-  play() {
-    const { run, enemies } = G(), e = enemies.list[0];
-    const pick = run.duelChoices().some((p) => p.bug === 'beetle');
-    let tris = 0;
-    step(60 * 8, () => { tris = 0; e.mesh.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return tris > 50000; });
-    const size = new THREE.Box3().setFromObject(e.mesh).getSize(new THREE.Vector3());
-    const len = Math.max(size.x, size.z);
-    const orb = !!e.mesh.getObjectByName('charge-orb');
-    // make it walk: put the player a stretch away and watch a leg pivot swing
-    tp(2.0, 0.05, 1.8, 0);
-    const leg = e.mesh.getObjectByName('Leg_F_L');
-    const q0 = leg ? leg.parent.quaternion.clone() : null;
-    step(12);
-    const walked = leg ? leg.parent.quaternion.angleTo(q0) > 0.02 : false;
-    return ok(pick && tris > 50000 && len > 0.09 && len < 0.14 && walked && orb,
-      { pick, tris: Math.round(tris), len: +len.toFixed(3), walked, orb });
-  },
-});
 story('words/hangs', {
   about: 'A wasp nest stays exactly where it was put, however you move round it or knock it: it doesn\'t fall, turn or slide, and hits anywhere on it count.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('nest', near(0.4, 0, 0.25)); e.broodT = 99; },

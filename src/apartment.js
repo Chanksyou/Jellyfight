@@ -137,7 +137,7 @@ function findDoors(apt, objects) {
 
 // Downloads the model with progress. Some hosts (claude.ai artifacts) don't serve .glb files,
 // so a base64 text copy next to it (<name>.b64.txt) is used when the .glb isn't there.
-export async function fetchModel(file, onProgress) {
+async function fetchModel(file, onProgress) {
   const res = await fetch(file);
   if (res.ok) return new Uint8Array(await readAll(res, onProgress)).buffer;
   const alt = await fetch(file + '.b64.txt');
