@@ -104,11 +104,14 @@ function result(good, ...a) { good ? passed++ : failed++; return text(good, ...a
 async function firstRunReload(e) {
   const { page, errors } = await boot(e, { viewport: { width: 1100, height: 650 }, newPlayer: true });
   const ready = () => page.waitForFunction(() => window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
+  // what the old page logs while the reload tears it down (a model still downloading: assets/beetle.glb)
+  // isn't the game failing: only errors from the page that loads count
+  const reload = () => gate(async () => { const kept = errors.length; await page.reload({ waitUntil: 'commit' }); errors.length = kept; await ready(); });
   const out = { first: await page.evaluate(() => run.firstRun.active) };
-  await gate(async () => { await page.reload(); await ready(); });
+  await reload();
   out.afterReload = await page.evaluate(() => run.firstRun.active);
   await page.evaluate(() => run.die());
-  await gate(async () => { await page.reload(); await ready(); });
+  await reload();
   out.afterARun = await page.evaluate(() => run.firstRun.active);
   const good = out.first && out.afterReload && !out.afterARun && !errors.length;
   await page.close();
