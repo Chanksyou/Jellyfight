@@ -559,6 +559,7 @@ export class Pothos {
     this.def = CONTENT.bosses.pothos;    // its numbers (content/bosses.kdl), read fresh so the Tuner's edits land mid-fight
     this.maxHp = this.hp = this.def.hp;
     this.dead = false;
+    this.dying = false;   // doomed at 0 hp: held for Dendi's finishing smack (die(), main.js)
     this.t = 0;
     this.rise = 0;
     this.state = 'idle';
@@ -636,13 +637,14 @@ export class Pothos {
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
   damage(amount, color = '#fff') {
-    if (this.dead || this.rise < 1) return;
+    if (this.dead || this.dying || this.rise < 1) return;
     if (this.shielded) { this.fx.number(this.center().setY(this.center().y + 0.05), 'SHIELDED', '#cfe6ff', 12); return; }
     this.hp -= amount;
     this.hitPop = 1;
     this.fx.number(this.center().setY(this.center().y + 0.06), Math.round(amount), color, 16);
-    if (this.hp <= 0) { this.hp = 0; this.dead = true; }
+    if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
+  die() { if (this.dying) { this.dying = false; this.dead = true; } }
 
   update(dt, player) {
     const out = this.tick(dt, player);
@@ -663,6 +665,13 @@ export class Pothos {
       this.wither = Math.min(1, this.wither + dt * 0.6);
       M.root.scale.setScalar(s * (1 - this.wither * 0.7));
       M.heart.material.emissiveIntensity = 0.35 * (1 - this.wither);
+      for (const L of this.lanes) showLane(L, false);
+      for (const L of this.snaps) showLane(L, false);
+      if (this.sweeper) showSweep(this.sweeper, false);
+      return out;
+    }
+    // doomed: its attacks drop and it waits for the cat
+    if (this.dying) {
       for (const L of this.lanes) showLane(L, false);
       for (const L of this.snaps) showLane(L, false);
       if (this.sweeper) showSweep(this.sweeper, false);

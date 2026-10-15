@@ -252,6 +252,7 @@ act3('pothos-fight-camera-keeps-the-heart-in-frame', {
     const fight = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
     const view = heartFrame(B);
     B.damage(B.hp + 1);
+    step(60 * 3, () => B.dead);                           // Dendi finishes it
     step(240);                                            // the fight's over: eased back
     const after = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
     return ok(before.d === +own.d.toFixed(3) && before.p === +own.p.toFixed(3) && atStart && Math.abs(fight.d - LOOK.num('pothos-camera-distance', 0.95)) < 0.02 && Math.abs(fight.p - LOOK.num('pothos-camera-tilt', 0.785)) < 0.03 && view.good
@@ -350,6 +351,28 @@ act3('pothos-whip-warning-runs-a-boss-length', {
     return ok(B.struck && Math.abs(shown - clog) < 0.05, { shown: +shown.toFixed(2), clog });
   },
 });
+act3('dendi-finishes-the-pothos', {
+  about: 'At 0 Health the Pothos is doomed, not dead: its attacks stop, the screen fades, Dendi appears on the bed beside it in view of the camera, and his smack is what kills it.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { run } = G(), d = window.dendi;
+    if (!d) return ok(false, { dendi: null });
+    B.damage(B.hp + 1);
+    const doomed = B.dying && !B.dead;
+    let smacked = false, onBed = false, onScreen = false, attacks = 0;
+    const v = new THREE.Vector3();
+    step(60 * 5, () => {
+      if (B.dying) attacks = Math.max(attacks, shownWarnings().floor.length);
+      if (d.state() === 'smack') smacked = true;
+      if (smacked && d.group.visible) {
+        const gp = d.group.position; onBed = gp.y > 0.55 && Math.hypot(gp.x - B.position.x, gp.z - B.position.z) < 0.6;
+        d.group.getWorldPosition(v); v.y += 0.15; v.project(G().APT.camera); if (Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 && v.z < 1) onScreen = true;
+      }
+      return B.dead && run.bossWon;
+    });
+    return ok(doomed && attacks === 0 && smacked && onBed && onScreen && B.dead && !d.group.visible, { doomed, attacks, smacked, onBed, onScreen, dead: B.dead, goneAfter: !d.group.visible });
+  },
+});
 act3('beating-the-pothos-wins-the-run', {
   about: 'Beating the Pothos grows the jelly into a Medusa (its pick doesn\'t promise a rest of the run: this is the end), then the run ends as a win straight away, with no Legendary pick after the last boss: "the apartment is yours", the score with its parts, and the score posts to the Leaderboard.',
   setup() {},
@@ -360,6 +383,7 @@ act3('beating-the-pothos-wins-the-run', {
     let posted = null;
     stub(run, 'board', { status: 'online', keepBest: () => false, post: (e) => { posted = e; return Promise.resolve({ posted: true }); } });
     B.damage(B.hp + 1);
+    step(60 * 5, () => run.bossWon);                      // Dendi finishes it, then the run sees it beaten
     step(5);
     await wait(2400);                                     // the metamorphosis comes a moment after
     const grow = modal()?.innerText || '';

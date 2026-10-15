@@ -139,23 +139,26 @@ story('boss/vacuum-two-shields-max', {
 
 // --- 3D attacks: the Vacuum's charge is a lane as tall as it is (8 cm: jump it), its brush sweeps
 story('boss/dendi-finishes-the-vacuum', {
-  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it, and his smack is what kills it — then the usual cleared flow runs.',
+  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it in view of the camera, and his smack is what kills it — then the usual cleared flow runs.',
   setup() { startVacuum('charge'); },
   play() {
     const { run } = G(), B = run.boss, d = window.dendi;
     B.damage(99999);
     const doomed = B.dying && !B.dead;
-    let smacked = false, catNear = false;
+    let smacked = false, catNear = false, onScreen = false;
+    const v = new THREE.Vector3();
     step(60 * 5, () => {
       if (d.state() === 'smack') smacked = true;
+      // the camera shows him: his middle inside the frame while he smacks (it once kept the player's angle and left him off-screen)
+      if (smacked && d.group.visible) { d.group.getWorldPosition(v); v.y += 0.15; v.project(G().APT.camera); if (Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 && v.z < 1) onScreen = true; }
       if (B.dead && !catNear) {
         const c = B.center(), gp = d.group.position;
         catNear = Math.hypot(gp.x - c.x, gp.z - c.z) < B.r + 0.45;
       }
       return B.dead && run.bossWon;
     });
-    return ok(doomed && smacked && catNear && run.bossWon && !d.group.visible,
-      { doomed, smacked, catNear, won: run.bossWon, goneAfter: !d.group.visible });
+    return ok(doomed && smacked && catNear && onScreen && run.bossWon && !d.group.visible,
+      { doomed, smacked, catNear, onScreen, won: run.bossWon, goneAfter: !d.group.visible });
   },
 });
 story('boss/vacuum-charge-warning-is-a-lane', {

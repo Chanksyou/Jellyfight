@@ -33,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v163';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v164';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -164,7 +164,7 @@ if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the coll
 // Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
 // purely to show up for the boss finish (see the scene below), then he's
 // gone again. Both boss stages get one; a stage with no boss needs none.
-const dendi = stage.id <= 2 ? addDendi(scene, new THREE.Vector3(), 0, { hidden: true }) : null;
+const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hidden until he finishes a boss
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
@@ -371,6 +371,7 @@ const blackout = document.createElement('div');
 blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:60;';
 document.body.appendChild(blackout);
 let bossScene = null;
+const sceneRay = new THREE.Raycaster();
 function startBossScene(boss) {
   bossScene = { boss, t: 0, phase: 'out', smacked: false };
   blackout.style.opacity = '1';
@@ -378,18 +379,44 @@ function startBossScene(boss) {
 function stepBossScene(dt) {
   const S = bossScene;
   if (run.boss !== S.boss) {           // the run ended mid-scene: just fade back
-    blackout.style.opacity = '0'; dendi?.endScene(); bossScene = null; return;
+    blackout.style.opacity = '0'; dendi?.endScene(); if ('view' in S) tpc.fight = S.view; bossScene = null; return;
   }
   S.t += dt;
   const B = S.boss;
   if (S.phase === 'out' && S.t >= 0.5) {
-    // behind the black: the cat beside the boss on the jelly's side, the jelly behind the cat
+    // behind the black: the cat beside the boss, on the side the jelly was on
     const c = B.center(), hp = B.holder.position;
     const dir = new THREE.Vector3(player.position.x - c.x, 0, player.position.z - c.z);
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
     const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), hp.y, c.z + dir.z * (B.r + 0.16));
     dendi.placeForSmack(catPos, Math.atan2(c.x - catPos.x, c.z - catPos.z));
-    player.position.set(catPos.x + dir.x * 0.55, player.position.y, catPos.z + dir.z * 0.55);
+    // the jelly in front of the pair and the camera behind it, side-on, so the cat and the boss stand left and
+    // right in the frame (the player's own camera angle left him off-screen or showed only his back). Of a few
+    // angles round the pair, the first whose jelly and camera are both inside the arena with nothing of the
+    // apartment between them (a camera outside the arena ends up in a wall)
+    const A = B.arena, mid = new THREE.Vector3((c.x + catPos.x) / 2, player.position.y, (c.z + catPos.z) / 2);
+    const far = LOOK.num('cat-scene-distance', 1.2);
+    const inside = (x, z, m = 0) => !A.arenaMin || (x > A.arenaMin[0] - m && x < A.arenaMax[0] + m && z > A.arenaMin[2] - m && z < A.arenaMax[2] + m);
+    const side = Math.atan2(dir.z, -dir.x);
+    let view = null;
+    // (lower first; a small arena like the bathtub only fits a camera looking down into it)
+    for (const tilt of [LOOK.num('cat-scene-tilt', 0.6), 1.0, 1.3]) for (const turn of view ? [] : [0, Math.PI, 0.5, -0.5, Math.PI + 0.5, Math.PI - 0.5, 1, -1]) {
+      const yaw = side + turn, sx = Math.sin(yaw), sz = Math.cos(yaw), back = Math.cos(tilt) * far;
+      const jx = mid.x + sx * 0.3, jz = mid.z + sz * 0.3;
+      if (!inside(jx, jz) || !inside(jx + sx * back, jz + sz * back, 0.1)) continue;
+      sceneRay.set(new THREE.Vector3(jx, mid.y + tpc.cfg.height, jz), new THREE.Vector3(sx * Math.cos(tilt), Math.sin(tilt), sz * Math.cos(tilt))); sceneRay.far = far;
+      if (sceneRay.intersectObject(APT.root, true).some((h) => h.object.visible && h.object.isMesh)) continue;
+      view = { yaw, tilt, x: jx, z: jz }; break;
+    }
+    view ||= { yaw: side, tilt: 1.3, x: mid.x + Math.sin(side) * 0.3, z: mid.z + Math.cos(side) * 0.3 };
+    player.position.set(view.x, player.position.y, view.z);
+    player.mesh.position.copy(player.position);   // (gameplay, which moves the model with it, waits during the scene)
+    tpc.yaw = view.yaw;
+    // pulled back to fit a 26 cm cat and the boss: a fight view (camera.js), handed back after
+    S.view = tpc.fight;
+    tpc.fight = { distance: far, pitch: view.tilt, ahead: 0 };
+    tpc.fightK = 1;
+    tpc.snapTo(player.position);
     blackout.style.opacity = '0';
     S.phase = 'in'; S.t = 0;
   } else if (S.phase === 'in' && S.t >= 0.5) {
@@ -397,7 +424,7 @@ function stepBossScene(dt) {
   } else if (S.phase === 'smack') {
     if (!S.smacked && S.t >= 0.25) { B.die(); S.smacked = true; }
     B.update(dt, player);              // the death animation, while everything else waits
-    if (S.t >= 1.6) { dendi.endScene(); bossScene = null; }
+    if (S.t >= 1.6) { dendi.endScene(); tpc.fight = S.view; bossScene = null; }
   }
 }
 
