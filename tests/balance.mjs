@@ -4,15 +4,20 @@
 //
 //   node tests/balance.mjs          5 nights
 //   node tests/balance.mjs 10       10 nights
+//   node tests/balance.mjs 5 --act=3   start in act 3 with a level-10 run carried in (what the act 3 test page carries)
 //
 // The bot is simple on purpose: it keeps away from bugs, elites and spit, goes for treasures (golden chests) when it's
 // safe, takes the first card or treasure it's offered, and hops when it gets stuck. A real
 // player does better; compare runs of the bot with each other, not with people.
 import { start, openGame } from './lib.mjs';
 
-const RUNS = Number(process.argv[2]) || 5;
+const RUNS = Number(process.argv.slice(2).find((a) => !a.startsWith('--'))) || 5;
+const ACT = Number((process.argv.find((a) => a.startsWith('--act=')) || '').slice(6)) || 1;
+// a later act starts as if the act before was just beaten (the same carries as tests/run.mjs's act pages)
+const CARRY = { 2: { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 },
+  3: { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] } };
 const env = await start();
-const { page, errors } = await openGame(env, { viewport: { width: 800, height: 500 } });
+const { page, errors } = await openGame(env, { viewport: { width: 800, height: 500 }, ...(ACT > 1 && { act: { act: ACT, carry: CARRY[ACT] } }) });
 
 const results = [];
 for (let n = 0; n < RUNS; n++) {
