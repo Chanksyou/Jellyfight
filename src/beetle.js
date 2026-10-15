@@ -29,7 +29,7 @@ export function buildBeetle() {
   const fill = () => {
     const model = template.clone();
     model.scale.setScalar(BUILD_LEN / templateLen);
-    A = createBeetle(model, { balls: false });
+    A = createBeetle(model, { balls: false, lightScale: 0.02 });   // at 6 cm scale the charge light must only tint the horns (see beetle-anim.js)
     A.group.rotation.y = Math.PI;                       // the animator faces -Z; the bugs face +Z
     A.group.position.y -= new THREE.Box3().setFromObject(A.group).min.y;   // feet on the ground
     outer.add(A.group);

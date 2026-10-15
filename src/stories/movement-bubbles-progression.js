@@ -184,9 +184,10 @@ story('enemies/beetle-charges-and-fires-three', {
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('beetle', P.clone().add(V(0.3, 0, 0))); },
   play() {
     const { enemies } = G(), e = enemies.list[0];
-    let sawAim = false, orbLit = false, volley = null;
+    let sawAim = false, orbLit = false, volley = null, maxLight = 0;
     step(60 * 10, () => {
       if (e.aimT > 0) { sawAim = true; const orb = e.mesh.getObjectByName('charge-orb'); if (orb && orb.visible) orbLit = true; }
+      e.mesh.traverse((o) => { if (o.isPointLight) maxLight = Math.max(maxLight, o.intensity); });
       if (!volley && enemies.shots.length >= 3) volley = enemies.shots.slice(0, 3).map((s) => ({ vx: s.v.x, vz: s.v.z, dmg: s.dmg, orb: !!s.orb, geo: s.m.geometry === enemies.orbGeo, halo: s.m.children.length === 1 }));
       return !!volley;
     });
@@ -196,7 +197,11 @@ story('enemies/beetle-charges-and-fires-three', {
     const dmg = volley.every((s) => s.dmg === 3);
     const orbs = volley.every((s) => s.orb && s.geo && s.halo);
     const big = enemies.orbGeo.parameters.radius > 0.009 * 1.5;   // the web wad's radius is 0.009
-    return ok(sawAim && orbLit && fan > 28 && fan < 40 && dmg && orbs && big, { sawAim, orbLit, fan: +fan.toFixed(1), dmg, orbs, big });
+    // the charge light is scaled for a 6 cm beetle (it only tints the horns — an
+    // unscaled light floods the room white), and the orbs read blue, not white
+    const blue = enemies.orbColor.b > enemies.orbColor.r + 0.15 && enemies.orbMat.color.b > enemies.orbMat.color.r + 0.15;
+    return ok(sawAim && orbLit && fan > 28 && fan < 40 && dmg && orbs && big && maxLight <= 3 && blue,
+      { sawAim, orbLit, fan: +fan.toFixed(1), dmg, orbs, big, maxLight: +maxLight.toFixed(2), blue });
   },
 });
 

@@ -237,9 +237,9 @@ export class Enemies {
     this.webMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.9, emissive: 0xffe8f4, emissiveIntensity: 0.55, toneMapped: false });
     // an orb: a fat ball of crackling electricity (the rhinoceros beetle's spit) — a bright
     // core in a wide additive halo, twice the web wad's radius (0.009), so it reads big
-    this.orbColor = new THREE.Color(0x6fc4ff);
+    this.orbColor = new THREE.Color(0x3f8fff);
     this.orbGeo = new THREE.SphereGeometry(0.018, 18, 12);
-    this.orbMat = new THREE.MeshBasicMaterial({ color: 0xeaf7ff, toneMapped: false });
+    this.orbMat = new THREE.MeshBasicMaterial({ color: 0xa8d4ff, toneMapped: false });
     this.orbGlowGeo = new THREE.SphereGeometry(0.034, 18, 12);
     this.orbGlowMat = new THREE.MeshBasicMaterial({ color: this.orbColor.clone().multiplyScalar(2), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
     this.frame = 0;
@@ -1073,8 +1073,8 @@ export class Enemies {
       if (s.spin) s.m.rotateX(s.spin * dt);              // web balls roll
       if (s.orb) { const g = s.m.children[0]; if (g) { const f = 0.85 + Math.random() * 0.5; g.scale.set(f, f * (0.8 + Math.random() * 0.4), f); } }   // orbs crackle: their halo jumps about
       // a halo and a glowing trail, in the shooter's colour
-      this.fx.glow.hold(s.m.position, s.c, s.orb ? 0.075 : s.spin ? 0.04 : 0.05, 0.9);
-      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.orb ? 0.05 : s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
+      this.fx.glow.hold(s.m.position, s.c, s.orb ? 0.055 : s.spin ? 0.04 : 0.05, 0.9);
+      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.orb ? 0.04 : s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
     }

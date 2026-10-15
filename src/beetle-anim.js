@@ -75,8 +75,8 @@ export function createBeetle(model, opts = {}) {
   const mkBall = (r) => {
     const g = new THREE.Group();
     const core = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14),
-      new THREE.MeshBasicMaterial({ color: 0xeaf7ff }));
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0x6fc4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      new THREE.MeshBasicMaterial({ color: 0xd6ecff }));
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0x4da3ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     spr.scale.setScalar(r * 6);
     g.add(core, spr);
     return g;
@@ -84,6 +84,11 @@ export function createBeetle(model, opts = {}) {
   const muzzle = bodyC.clone().addScaledVector(fwd, bodySize.z * 0.30).add(new THREE.Vector3(0, bodySize.y * 0.30, 0));
   const orb = mkBall(0.52); orb.name = 'charge-orb'; orb.position.copy(muzzle); orb.visible = false; model.add(orb);
   const light = new THREE.PointLight(0x8fd0ff, 0, 12); light.position.copy(muzzle); model.add(light);
+  // the light's numbers suit this model's own scale (the preview page); a host
+  // that scales the beetle down (Jellyfight: ~6 cm) passes lightScale so the
+  // charge tints the horns instead of blowing out the room (intensity is
+  // physical in three now: at centimetre range an unscaled 60 is a floodlight)
+  const lightScale = opts.lightScale ?? 1;
   const balls = [];
   if (opts.balls !== false) for (let i = 0; i < 3; i++) {
     const b = mkBall(0.30); b.visible = false; model.add(b);
@@ -131,7 +136,7 @@ export function createBeetle(model, opts = {}) {
           if (k > 0.7) pitch += Math.sin(t * 55) * 0.008 * (k - 0.7) / 0.3;   // tremble at full charge
           orb.visible = true;
           orb.scale.setScalar(0.15 + e * 1.15 + Math.sin(t * 31) * 0.05 * k);
-          light.intensity = e * 60;
+          light.intensity = e * 60 * lightScale;
         } else {
           if (attackT - dt < CHARGE) {   // the firing frame
             for (let i = 0; i < balls.length; i++) {
@@ -140,14 +145,14 @@ export function createBeetle(model, opts = {}) {
               b.mesh.position.copy(muzzle);
               b.age = 0; b.alive = true; b.mesh.visible = true;
             }
-            orb.scale.setScalar(1.9); light.intensity = 120;
+            orb.scale.setScalar(1.9); light.intensity = 120 * lightScale;
           }
           const k = (attackT - CHARGE) / RECOVER;
           pitch += (1 - k) * 0.22;   // the head punches down-forward as it fires
           surge = -Math.sin(Math.min(1, k) * Math.PI) * 0.3;
           orb.visible = k < 0.15;
           if (orb.visible) orb.scale.multiplyScalar(0.8);
-          light.intensity = Math.max(0, 120 * (1 - k * 3));
+          light.intensity = Math.max(0, 120 * (1 - k * 3)) * lightScale;
           if (k >= 1) { attackT = -1; orb.visible = false; light.intensity = 0; }
         }
       }
