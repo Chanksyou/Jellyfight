@@ -30,7 +30,7 @@ story('acts/act-1-leads-to-act-2', {
 // Beat every elite in this act and walk (jumping now and then) to the chest it leaves, from an
 // open spot 25 cm away: the chest must be on an open spot and touchable, never inside or under
 // anything (the Kettle's once landed inside the kettle, the Controller's under an overhang)
-function eliteChestsReachable() {
+export function eliteChestsReachable() {
   const { run } = G(), out = {};
   stub(run.ui, 'choose', () => {});
   stub(run.hud, 'toast', () => {});

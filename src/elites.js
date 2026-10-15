@@ -53,6 +53,19 @@
 //                     sprays whipped cream along it: 2, and the cream slows you. Jumping doesn't
 //                     clear the cone, stepping out does.
 //     Under half health it's angry: two balloons each time, and a longer spray.
+//   croc        the plush alligator on the pillows at the head of the bed (act 3; croc-model.js),
+//               standing in for the real plush. It sleeps (eyes shut, breathing) until you're on
+//               the bed (stage3.js `wake`), then turns to face you and fights; leave the bed and it
+//               settles back. Its numbers, radii and timings are all in content/elites.kdl.
+//     Frost volley:   its mouth opens while three Warnings (a circle, a half sphere over it) fill in
+//                     a fan round you; then three fast frost balls fly there and burst as Blasts
+//                     that also slow you.
+//     Tail slam:      it turns its back on you and slams its tail 3 to 5 times in a rhythm picked
+//                     afresh each time, a small ring Warning filling at the tail before each slam;
+//                     each slam sends a thick ring wall rolling out over the bed: jump it.
+//     Pounce:         it crouches while a big Warning fills under it, leaps and lands where it
+//                     started as a Blast round itself: too big to jump, get out of it.
+//     Under 65% Health it's angry: five frost balls, 4 to 6 slams, quicker windups.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -68,12 +81,14 @@ import { CONTENT } from './content.js';
 import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
+import { buildCroc } from './croc-model.js';
 
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam', 'boil-over'],
   soap: ['squirt', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
+  croc: ['volley', 'tail-slam', 'pounce'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -355,6 +370,13 @@ function whipperModel() {
   return { ...w, muzzle: new THREE.Vector3(0.09, 0.35, 0.02), r: 0.07, barY: 0.47 };
 }
 
+// the plush alligator elite (act 3; croc-model.js): its frost balls come from its mouth
+function crocModel() {
+  const c = buildCroc();
+  c.group.updateMatrixWorld(true);
+  return { ...c, muzzle: c.mouth.getWorldPosition(new THREE.Vector3()), r: 0.11, barY: 0.11, hitAt: new THREE.Vector3(0, 0.022, 0.01) };   // (barY and hitAt: in the elite's frame, unscaled)
+}
+
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
@@ -371,6 +393,7 @@ const KINDS = {
   soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel },
   clock: { name: 'The Wall Clock', wall: true, build: clockModel },
   whipper: { name: 'The Cream Whipper', build: whipperModel },
+  croc: { name: 'The Alligator', scale: 0.64, build: crocModel },
 };
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
@@ -378,7 +401,10 @@ const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
 // high over the bench (jump them); the wreath is a Shot with this hit radius, flying out in this many s
 const CLOCK_HITS = { sweepH: 0.02, chimeH: 0.03, wreathRadius: 0.04, wreathFlight: 0.5 };
-const NOWHERE = new THREE.Vector3(0, -99, 0);   // where a wreath that already hit you this way (out or back) looks for the jelly
+const NOWHERE = new THREE.Vector3(0, -99, 0);
+// the Alligator: its tail pieces' pitch at rest (rad: a little up off the bed), and its tail slam's
+// Warning, a circle this wide (m) where the tail lands, with the ring wall round it
+const CROC_TAIL_REST = [0.08, 0.04, 0.02], CROC_SLAM_WARN = 0.05;   // where a wreath that already hit you this way (out or back) looks for the jelly
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
 
@@ -398,6 +424,7 @@ class Elite {
     this.r = m.r;
     this.holder = new THREE.Group();
     this.holder.position.copy(this.base);
+    if (spec.face != null) this.holder.rotation.y = spec.face;   // how it rests while it sleeps
     this.holder.add(m.group);
     if (K.wall) {
       // hung on a wall (spec.wall): it faces out from it and never turns; it comes down to fight
@@ -487,6 +514,9 @@ export class Elites {
     this.rings = [];         // and its chime rings rolling out
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
     this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    this.ringMats = {};      // the ring walls' bands, one per hostile colour (all one program: ringMat's)
+    this.bandGeo = new THREE.RingGeometry(0.5, 1, 64, 1).rotateX(-Math.PI / 2);   // a thick band (ring()): each copy's inner edge moves
+    this._probe = new THREE.Vector3(); this._ringAt = new THREE.Vector3(); this._glowAt = new THREE.Vector3();   // scratch for the rings
     this.soapBubbles = [];   // the Soap Dispenser's bubble rings, drifting outward
     this.slicks = [];        // and the slippery soap its squirts leave
     this._dir = new THREE.Vector3();   // scratch for the bubbles' wall raycasts
@@ -509,6 +539,7 @@ export class Elites {
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
       blast: new TeleMaterial(hostile('whipper')), cream: new TeleMaterial(hostile('whipper'), 'wedge', 0.45),
       sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
+      frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
     };
   }
 
@@ -537,7 +568,7 @@ export class Elites {
     this.decor.forEach((e) => e.remove());
     this.decor = [];
     for (const w of this.thrown) { this.scene.remove(w.m); this.fx.free(w.shot.m); }
-    for (const r of this.rings) { this.scene.remove(r.m); this.scene.remove(r.vol); }
+    for (const r of this.rings) { this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
     this.thrown = []; this.rings = []; this.balloons = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); if (b.vol) this.scene.remove(b.vol); }
@@ -560,6 +591,9 @@ export class Elites {
       const clock = buildClock();
       clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       thrownWreath(clock.wreath).traverse((o) => { if (o.isMesh) this._warm.push(o); });   // glowing, not tone mapped: its own program
+      const croc = buildCroc();                                            // the Alligator's plush, as it stands out in the room
+      standOut(croc.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
+      croc.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
@@ -596,12 +630,30 @@ export class Elites {
   }
 
   // lob something in an arc to `to`; a warning circle fills until it lands. dome: it lands as a
-  // floor Blast of radius r, so its Warning has the half-sphere volume over the circle too
-  lob(from, to, T, color, warnMat, r, onLand, { dome = false } = {}) {
-    const m = this.fx.orb(color, 0.007);
+  // floor Blast of radius r, so its Warning has the half-sphere volume over the circle too.
+  // arc: how high it rises on the way (m); wait: s it holds before it flies, its Warning filling
+  // all along to the landing (the Alligator's frost balls); size: the orb's
+  lob(from, to, T, color, warnMat, r, onLand, { dome = false, arc = 0.12, wait = 0, size = 0.007 } = {}) {
+    const m = this.fx.orb(color, size);
     m.position.copy(from);
+    m.visible = !wait;
     const vol = dome ? this.fx.volume(color, 'dome', to, r) : null;
-    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand });
+    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, arc, wait });
+  }
+
+  // a ring wall rolling out from `at` (see the rings in update): a glowing band on the surface with
+  // its volume, a 'ring' wall `h` tall (default skill.height), round it; it hits the jelly once for
+  // skill.dmg (read as it hits, so live edits land) as `source`. band: how thick the band is (m,
+  // the same all the way out; 0: a thin ring that widens as it goes); follow: see update
+  ring(at, color, skill, source, { h = skill.height, band = 0, speed = 0.75, max = 0.55, r = 0.03, follow = false } = {}) {
+    const mat = (this.ringMats[color.getHex()] ||= Object.assign(this.ringMat.clone(), { color: color.clone().multiplyScalar(1.6) }));
+    const m = new THREE.Mesh(band ? this.bandGeo.clone() : this.ringGeo, mat);
+    m.position.copy(at).setY(at.y + 0.006);
+    m.scale.setScalar(r);
+    this.scene.add(m);
+    const vol = this.fx.volume(color, 'ring', at, new THREE.Vector3(r, h, r));   // the wall it rolls out as
+    vol.material.progress = 1;
+    this.rings.push({ m, vol, at: at.clone(), y: at.y, r, max, speed, h, band, follow, skill, source, color, hit: false });
   }
 
   // fire a Shot (fx.shot) from `from` at `to`; it hits for `damage` as `source`
@@ -713,7 +765,9 @@ export class Elites {
       e.fill.scale.x = Math.max(0.001, k);
       e.fill.material.color.setHSL(0.33 * k, 0.85, 0.55);          // green -> yellow -> red
       const to = pc.clone().sub(e.base);
-      const awake = to.length() < e.aggro;
+      // awake: you're within aggro of it, and on its ground if it has one (spec.wake: a box)
+      const W = e.spec.wake, onIts = !W || (P.x > W.min[0] && P.x < W.max[0] && P.y > W.min[1] && P.y < W.max[1] && P.z > W.min[2] && P.z < W.max[2]);
+      const awake = to.length() < e.aggro && onIts;
       e.awake = awake;
       // a hanging elite comes down its wall while you're close (and fights only once it's down)
       if (e.wall) {
@@ -725,7 +779,8 @@ export class Elites {
       }
       // face you (unless an attack has locked its aim, or it hangs on a wall), and bob so it reads as alive
       if (!e.locked && !e.wall) {
-        let d = Math.atan2(to.x, to.z) - e.holder.rotation.y;
+        const rest = !awake && e.state === 'idle' && e.spec.face != null;   // asleep: back the way it rests
+        let d = (rest ? e.spec.face : Math.atan2(to.x, to.z)) - e.holder.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.holder.rotation.y += d * (1 - Math.exp(-(awake ? 6 : 1.5) * dt));
       }
@@ -744,6 +799,18 @@ export class Elites {
         for (const b of M.bubs) {
           b.userData.rise = (b.userData.rise + dt * (e.hp < e.maxHp * e.def.angry ? 0.6 : 0.3)) % 1;
           b.position.y = 0.012 + b.userData.rise * M.liquid.scale.y;
+        }
+      }
+
+      // the Alligator, attacking or not: its eyes close while it sleeps, it breathes, its tail sways
+      if (e.kind === 'croc') {
+        const M = e.model;
+        M.eyes.scale.y += ((awake || e.state !== 'idle' ? 1 : 0.12) - M.eyes.scale.y) * (1 - Math.exp(-6 * dt));
+        if (e.state === 'idle') {
+          g.position.y = 0;
+          if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.03;          // asleep: slow breaths
+          M.upper.rotation.x = M.lower.rotation.x = 0;
+          M.tail.forEach((t, i) => { t.rotation.x = CROC_TAIL_REST[i]; t.rotation.y = Math.sin(e.t * (awake ? 2.4 : 0.8) - i * 0.9) * (awake ? 0.18 : 0.05); });
         }
       }
 
@@ -1049,12 +1116,7 @@ export class Elites {
               e.clearTele();
               sfx.clockChime(k);
               e.hitPop = 0.7;
-              const m = new THREE.Mesh(this.ringGeo, this.ringMat);
-              m.position.copy(surf).setY(surf.y + 0.006);
-              this.scene.add(m);
-              const vol = this.fx.volume(hostile('clock'), 'ring', e.base, new THREE.Vector3(0.03, CLOCK_HITS.chimeH, 0.03));   // the wall it rolls out as
-              vol.material.progress = 1;
-              this.rings.push({ m, vol, at: e.base.clone(), r: 0.03, max: 0.55, owner: e, hit: false });
+              this.ring(e.base, hostile('clock'), SK.hour, 'clock-chime', { h: CLOCK_HITS.chimeH });
             }
             if (s > wind + gap * SK.hour.chimes) { e.chimed = -1; e.state = 'idle'; e.cool = 1.6; }
           }
@@ -1131,6 +1193,108 @@ export class Elites {
           } else { e.clearTele(); e.locked = false; e.hissed = e.sprayed = e.creamed = false; M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8; }
         }
       }
+
+      // ---------------------------------------------------------- the alligator
+      if (e.kind === 'croc') {
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, tempo = CONTENT.elites.pace.tempo;
+        const jaw = (k) => { M.upper.rotation.x = -k * 0.6; M.lower.rotation.x = k * 0.32; };
+        if (e.attack === 0) {
+          // Frost volley: the mouth opens while a Warning (a circle and the half sphere over it)
+          // fills at each spot of a fan round you; then a frost ball flies fast to each and bursts
+          // as a Blast that slows you
+          const V = SK.volley, wind = angry ? V.angryWindup : V.windup;
+          if (!e.volleyed) {
+            e.volleyed = true;
+            e.locked = true;
+            const n = angry ? V.angryCount : V.count, side = new THREE.Vector3(fwd.z, 0, -fwd.x);
+            for (let k = 0; k < n; k++) {
+              const at = P.clone().addScaledVector(side, (k - (n - 1) / 2) * V.spread);
+              at.y = this.surfaceBelow(at);
+              this.lob(muzzle, at, V.flight, hostile('croc'), this.T.frost, V.radius, (p) => {
+                this.fx.impact(p.clone().setY(p.y + 0.01), hostile('croc'), 0.03, 12);
+                this.fx.burst(p.clone().setY(p.y + 0.01), ['#ffffff', '#cfe0ff', '#7f94ff'], 8, 0.003, 0.3, p.y);
+                this.fx.ring(p.clone().setY(p.y + 0.003), hostile('croc'), V.radius, 0.35);
+                sfx.shatter();
+                if (blastHits(p, V.radius, P, cfg)) {
+                  hit(V.dmg, 'croc-frost');
+                  bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
+                }
+              }, { dome: true, arc: 0.01, wait: wind / tempo, size: 0.009 });
+            }
+            sfx.freeze();
+          }
+          jaw(Math.min(1, s / wind));
+          if (s < wind && Math.random() < dt * 25) this.fx.glow.emit(muzzle, hostile('croc'), 0.03, 0.006, 0.3, 0.9);   // frost gathering in its mouth
+          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+        } else if (e.attack === 1) {
+          // Tail slam: it turns its back to you, then slams its tail on the bed in a rhythm of its
+          // own each time (gaps picked as it starts); before each slam a small Warning (a circle and
+          // the ring wall round it) fills where the tail will land, and each slam sends a thick
+          // ring wall rolling out over the bed: jump it
+          const T = SK.tail;
+          if (!e.rhythm) {
+            e.locked = true;
+            const lo = angry ? T.angrySlams : T.slams, hi = angry ? T.angryMaxSlams : T.maxSlams, n = lo + Math.floor(Math.random() * (hi - lo + 1));
+            e.rhythm = [];
+            for (let k = 0, at = T.turn; k < n; k++) e.rhythm.push(at += T.gapMin + Math.random() * (T.gapMax - T.gapMin));
+            e.slams = 0;
+            e.backYaw = heading + Math.PI;
+            e.slamAt = e.base.clone().addScaledVector(fwd, M.tailReach * e.size);   // its tail, once it has turned, lies toward you
+            e.slamAt.y = this.surfaceBelow(e.slamAt);
+          }
+          let d = e.backYaw - e.holder.rotation.y;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          e.holder.rotation.y += d * (1 - Math.exp(-10 * dt));
+          const k = e.slams, due = e.rhythm[Math.min(k, e.rhythm.length - 1)], from = k ? e.rhythm[k - 1] : T.turn;
+          if (k < e.rhythm.length) {
+            if (s >= from && !e.tele.length) e.tele.push(this.warnCircle(e.slamAt, CROC_SLAM_WARN, this.T.frostRing), this.fx.volume(hostile('croc'), 'ring', e.slamAt, new THREE.Vector3(CROC_SLAM_WARN, T.height, CROC_SLAM_WARN)));
+            const u = THREE.MathUtils.clamp((s - from) / (due - from), 0, 1);
+            if (e.tele.length) { e.tele[0].userData.fill(u); e.tele[1].material.progress = u; }
+            const lift = s < from ? 0 : Math.sin(Math.min(1, u / 0.8) * Math.PI * 0.5) * (u > 0.8 ? (1 - u) / 0.2 : 1);   // up, then down hard
+            M.tail.forEach((t, i) => { t.rotation.x = CROC_TAIL_REST[i] + lift * (0.55 - i * 0.12); t.rotation.y = 0; });
+            if (s >= due) {
+              e.slams++;
+              e.clearTele();
+              M.tail.forEach((t, i) => { t.rotation.x = -0.05 * (i + 1); });
+              e.hitPop = 0.6;
+              juice.shake(0.2);
+              sfx.crocThump(0.8);
+              this.fx.puff(e.slamAt.clone().setY(e.slamAt.y + 0.01), 0xdfe6ff, 0.04, 0.4);
+              this.ring(e.slamAt, hostile('croc'), T, 'croc-tail', { band: T.band, speed: T.speed, max: T.reach, follow: true });
+            }
+          } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
+        } else {
+          // Pounce: it crouches while a big Warning fills under it (a circle and the half sphere
+          // over it), leaps, and lands where it started as a Blast round itself: too big to jump
+          // clear, get out of it
+          const Q = SK.pounce, wind = angry ? Q.angryWindup : Q.windup, land = wind + Q.air;
+          if (!e.tele.length && !e.landed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.pounce), this.fx.volume(hostile('croc'), 'dome', surf, Q.radius));
+          if (e.tele.length) { const u = Math.min(1, s / land); e.tele[0].userData.fill(u); e.tele[1].material.progress = u; }
+          if (s < wind) {
+            const c = Math.min(1, s / (wind * 0.6));
+            g.scale.y *= 1 - c * 0.22;                                           // crouching down
+            g.scale.x *= 1 + c * 0.08;
+            g.position.x = (Math.random() - 0.5) * 0.002 * c;
+            jaw(c * 0.25);
+          } else if (s < land) {
+            const u = (s - wind) / Q.air;
+            if (!e.leapt) { e.leapt = true; sfx.wind(); }
+            g.position.y = Math.sin(u * Math.PI) * Q.leap;
+            g.rotation.x = -0.35 * Math.cos(u * Math.PI);                       // nose up going up, down coming down
+            M.tail.forEach((t, i) => { t.rotation.x = 0.25 - u * 0.4 + i * 0.05; });
+            jaw(0.5);
+          } else if (!e.landed) {
+            e.landed = true;
+            e.clearTele();
+            jaw(0);
+            this.fx.ring(surf, hostile('croc'), Q.radius, 0.5);
+            this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('croc'), 0.05, 22);
+            this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, Q.radius * 0.8, 0.6);
+            juice.shake(0.4); sfx.crocThump(1.4);
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); }
+          } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
+        }
+      }
     }
 
     // the Cream Whipper's balloons: drifting after you, bobbing, the burst circle filling under
@@ -1191,17 +1355,33 @@ export class Elites {
     }
     this.thrown = this.thrown.filter((w) => !w.done);
 
-    // the clock's chime rings rolling out over the bench, each a low ring wall: jump them
+    // ring walls rolling out (the clock's chimes over the bench, the Alligator's tail slams over
+    // the bed), each low: jump them. One that follows a bed hits at the height of the bed under
+    // the jelly, if that is near its own (not a jelly down on the floor beside the bed)
+    const under = this.rings.some((r) => r.follow) ? this.world.castAll(this._probe.copy(P).setY(P.y + 0.05), DOWN, 1.5)?.point.y : null;
     for (const r of this.rings) {
       const was = r.r;
-      r.r += dt * 0.75;
+      r.r = Math.min(r.max, r.r + dt * r.speed);
       r.m.scale.setScalar(r.r);
+      if (r.band) {
+        // a band of the same thickness all the way out: its inner edge kept `band` inside the outer one
+        const p = r.m.geometry.attributes.position, n = p.count / 2, k = Math.max(0, 1 - r.band / r.r);
+        for (let i = 0; i < n; i++) p.setXYZ(i, p.getX(i + n) * k, 0, p.getZ(i + n) * k);
+        p.needsUpdate = true;
+      }
       r.m.material.opacity = 0.9 * (1 - r.r / r.max);
-      r.vol.scale.set(r.r, CLOCK_HITS.chimeH, r.r);
+      r.vol.scale.set(r.r, r.h, r.r);
       r.vol.material.opacity = 1 - r.r / r.max;
-      this.fx.glow.hold(r.m.position.clone().add(new THREE.Vector3(r.r, 0.004, 0)), hostile('clock'), 0.03, 0.5);
-      if (!r.hit && ringHits(r.at, was, r.r, CLOCK_HITS.chimeH, P, cfg)) { r.hit = true; hit(CONTENT.elites.clock.skills.hour.dmg, 'clock-chime'); }
-      if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); }
+      this.fx.glow.hold(this._glowAt.set(r.at.x + r.r, r.m.position.y + 0.004, r.at.z), r.color, 0.03, 0.5);
+      const at = !r.follow ? r.at : under != null && Math.abs(under - r.at.y) < 0.06 ? this._ringAt.set(r.at.x, under, r.at.z) : null;
+      if (r.follow) {
+        // drawn at the height of the bed under the jelly too (easing there), so where you are its wall is as it hits
+        r.y += ((at ? at.y : r.at.y) - r.y) * (1 - Math.exp(-12 * dt));
+        r.m.position.y = r.y + 0.006;
+        r.vol.position.y = r.y;
+      }
+      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; hit(r.skill.dmg, r.source); }
+      if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     }
     this.rings = this.rings.filter((r) => !r.done);
 
@@ -1242,13 +1422,16 @@ export class Elites {
     // lobbed things in flight, with their warning circles filling
     for (const b of this.blobs) {
       b.t += dt;
-      const k = Math.min(1, b.t / b.T);
-      b.m.position.lerpVectors(b.from, b.to, k);
-      b.m.position.y += Math.sin(k * Math.PI) * 0.12;
-      this.fx.orbTick(b.m, dt, 1.2);
+      const k = Math.min(1, b.t / (b.wait + b.T)), f = Math.max(0, Math.min(1, (b.t - b.wait) / b.T));   // the Warning's fill, and how far it has flown
+      if (b.t >= b.wait) {
+        b.m.visible = true;
+        b.m.position.lerpVectors(b.from, b.to, f);
+        b.m.position.y += Math.sin(f * Math.PI) * b.arc;
+        this.fx.orbTick(b.m, dt, 1.2);
+      }
       b.warn.userData.fill(k);
       if (b.vol) b.vol.material.progress = k;
-      if (k >= 1) {
+      if (f >= 1) {
         this.fx.free(b.m);
         this.scene.remove(b.warn);
         if (b.vol) this.scene.remove(b.vol);

@@ -25,6 +25,7 @@ export const STAGE3 = {
   // tougher again than act 2 (stage2.js says what each one is): 3x the bugs' health, 2x every hit
   // you take, 1.4x the XP
   toughness: 3,
+  eliteHp: 2.4,                       // the Alligator's Health: 500 x 2.4 = 1200
   bossHp: 1.6,                        // the Pothos's Health as the Clog's: 1500 x 1.6 = 2400
   power: 2,
   bugs: 0.85,
@@ -88,7 +89,14 @@ export const STAGE3 = {
   ],
   treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // as in acts 1 and 2
 
-  elites: [],                         // none in act 3 yet
+  // The act's Elite (elites.js): the plush alligator, resting on the pillows at the head of the bed
+  // in the gap between them, facing the foot of the bed (`face`; the real plush, out on the
+  // mattress, is hidden above). It sleeps until you're on the bed (`wake`: the top of the bed) and
+  // settles back when you leave; `stand` is where a 1 on 1 with it puts you. The Pothos's pot
+  // takes this spot in the boss fight: elites are cleared at its intro
+  elites: [
+    { kind: 'croc', at: [-0.105, 0.65, 10.62], face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
+  ],
 
   // The boss arena: the top of the bed. You're carried up when the timer runs out; the Pothos
   // rises in its pot on the pillows at the head of the bed (`pot`).

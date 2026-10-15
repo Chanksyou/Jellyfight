@@ -868,7 +868,7 @@ act3('camera-fight-view-on-the-bed', {
   },
 });
 act3('attacks-every-warning-has-volume', {
-  about: 'Every Pothos attack in turn (Vine Whips, the sweep, Aerial roots, its guarding vines\' snaps; its Cuttings are their own), then each of its Bugs that warns (a Cutting\'s countdown, a Sap sprout\'s sap lob, an Aerial root\'s drop): each Warning shows its floor shape with its volume over it (a Cutting\'s countdown is a floor circle only), filling together; both go after the hit; none builds a new shader.',
+  about: 'Every Alligator attack in turn (frost volley, tail slam, pounce), every Pothos attack in turn (Vine Whips, the sweep, Aerial roots, its guarding vines\' snaps; its Cuttings are their own), then each of its Bugs that warns (a Cutting\'s countdown, a Sap sprout\'s sap lob, an Aerial root\'s drop): each Warning shows its floor shape with its volume over it (a Cutting\'s countdown is a floor circle only), filling together; both go after the hit; none builds a new shader.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() { return everyAttack(3); },
 });

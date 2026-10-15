@@ -25,6 +25,7 @@ import './stories/act2.js';
 import './stories/act2-bosses.js';
 import './stories/every-attack.js';
 import './stories/act3.js';
+import './stories/act3-croc.js';
 import './stories/phone.js';
 import './stories/nests.js';
 export { STORIES, fresh, tp } from './stories/kit.js';

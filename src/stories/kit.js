@@ -293,6 +293,19 @@ export const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts y
 export function balloonWarning(B) { return warningsAt(B.m.position); }
 export const startBalloon = () => { fresh({ bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; };
 export const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; };
+// act 3's Alligator on the pillows at the head of the bed (elites.js kind 'croc', croc-model.js):
+// start one of its attacks with the jelly held on the bed in front of it (x, z), facing it
+export const croc = () => G().run.elites.list.find((e) => e.kind === 'croc');
+export const onBed = (x = -0.1, z = 9.75) => tp(x, 0.75, z, 0);
+export function startCroc(atk, { x = -0.1, z = 10.2, angry = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onBed(x, z);
+  const e = croc(), player = holdJelly();
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, bed: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -386,6 +399,8 @@ const EVERY_ATTACK = {
       sweep: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('sweep'); } },
       snap: guardSnap(),              // its guarding vines (not a turn: `always`), at a jelly close to its heart
     },
+    // the Alligator on the pillows (elites.js): its frost balls' Blasts, its tail slams' ring walls, its pounce's Blast
+    croc: { volley: { is: 'volume', start: () => startCroc(0) }, 'tail-slam': { is: 'volume', start: () => startCroc(1) }, pounce: { is: 'volume', start: () => startCroc(2) } },
     // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
     bugs: {
       cutting: { is: 'floor', ...bugWarns('cutting', (e) => !e.dead) },                     // its countdown (becomes): a floor circle only, by decision

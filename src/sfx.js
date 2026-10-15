@@ -442,6 +442,8 @@ export const sfx = {
   creamSpray(dur = 0.8) { if (!ready()) return; noise(2600, 0.9, dur, 0.18, 'bandpass', 0, 1600); noise(700, 1, dur * 0.6, 0.1, 'lowpass'); },
   // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
   // little lower each time), the wreath whirring through the air
+  // the Alligator (elites.js): a soft plush thump on the bed, its tail or its whole body landing
+  crocThump(k = 1) { if (!ready() || !gap('crocThump', 60)) return; noise(260, 0.8, 0.18 * k, 0.3, 'lowpass', 0, 90); tone('sine', 110, 45, 0.22 * k, 0.22); },
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
   clockSweep() { if (!ready()) return; noise(900, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160, 420, 0.45, 0.05); },
   clockChime(k = 0) {

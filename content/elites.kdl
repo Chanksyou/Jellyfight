@@ -2,7 +2,8 @@
 // you have to get to wake one (aggro, m), and each attack's damage and headline counts.
 // Under half health the Soap Dispenser, the Wall Clock and the Cream Whipper are angry
 // (angry= is that fraction of Health). Radii, telegraph shapes and phase timings stay in
-// the code: they are the attacks' choreography, drawn by the telegraphs themselves.
+// the code: they are the attacks' choreography, drawn by the telegraphs themselves (the
+// Alligator, the newest, keeps its radii, timings and speeds here too: m, s, m/s).
 // pace is every elite's tempo: rest between attacks runs down recover× as fast, and each
 // attack plays tempo× as fast.
 
@@ -37,4 +38,20 @@ elite "clock" name="The Wall Clock" hp=450 aggro=0.75 angry=0.65 {
 elite "whipper" name="The Cream Whipper" hp=450 aggro=0.75 angry=0.65 {
     balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
     cream dmg=3 slow=2
+}
+
+// act 3: the plush on the pillows at the head of the bed. It sleeps until you're on the bed
+// (stage3.js `wake`), then within aggro= of it.
+//   volley: its mouth opens for windup= s while count= Warnings fill in a fan round you, spread=
+//           apart; then frost balls fly there in flight= s and burst as Blasts of radius=,
+//           slowing you by slow= for slowTime= s
+//   tail:   it turns its back (turn= s) and slams its tail slams= to maxSlams= times, a random
+//           gap= (gapMin= to gapMax= s) before each; each sends a ring wall height= tall, band=
+//           thick, out at speed= m/s to reach= m: jump it
+//   pounce: it crouches for windup= s while a Warning of radius= fills under it, leaps leap= m
+//           up for air= s and lands as a Blast of radius= round itself (knock= knocks you back)
+elite "croc" name="The Alligator" hp=500 aggro=1.8 angry=0.65 {
+    volley dmg=3 count=3 angryCount=5 spread=0.12 radius=0.055 windup=0.8 angryWindup=0.6 flight=0.3 slow=0.5 slowTime=1.5
+    tail dmg=3 slams=3 maxSlams=5 angrySlams=4 angryMaxSlams=6 gapMin=0.35 gapMax=0.9 turn=0.5 height=0.03 band=0.03 speed=0.5 reach=0.9
+    pounce dmg=4 radius=0.15 windup=1.0 angryWindup=0.75 leap=0.12 air=0.55 knock=0.9
 }
