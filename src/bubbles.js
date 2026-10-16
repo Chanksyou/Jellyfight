@@ -254,6 +254,7 @@ export class Bubbles {
     b.homing = true;
     m.scale.setScalar(0.001);
     this.list.push(b);
+    if (o.tint === 'fire') { this.looks.fireLaunch(origin, b.r); sfx.fireLaunch(); }
     return b;
   }
 
@@ -342,6 +343,8 @@ export class Bubbles {
       // Shatter: fire on something frozen does triple damage and thaws it
       if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw, b.ep);
+      this.looks.fireHit(c, b.r);
+      sfx.fire();
     }
     if (el.has('ice') && !e.proxy) {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
@@ -374,9 +377,9 @@ export class Bubbles {
       f.tick = (f.tick || 0) - dt;
       f.flame = (f.flame || 0) - dt;
       if (f.flame <= 0) {                 // licking flames
-        f.flame = 0.12;
+        f.flame = this.looks.fire.burnInterval;
         E.center(e, c);
-        this.fx.puff(c.add(this._t.set((Math.random() - 0.5) * e.r, e.r * (0.4 + Math.random() * 0.6), (Math.random() - 0.5) * e.r)), Math.random() < 0.5 ? 0xff7a2a : 0xffc23a, e.r * 0.8, 0.3);
+        this.looks.fireBurn(c.add(this._t.set(0, e.r * 0.4, 0)), e.r);
       }
       if (f.tick <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#ffa65a', source: 'fire' }); }
       if (f.t <= 0) this.burning.delete(e);
@@ -433,7 +436,6 @@ export class Bubbles {
     const p = b.m.position, glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
     if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
-    if (b.elems.has('fire')) { this.fx.puff(p, 0xff7a2a, b.r * 3, 0.35); this.fx.puff(p, 0xffd23a, b.r * 1.8, 0.25); }
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
@@ -448,15 +450,17 @@ export class Bubbles {
     if (b.done) return;
     b.done = true;
     const p = b.m.position;
-    this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);
+    const fire = b.tint === 'fire';
+    if (!fire) this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);
     if (!hitEnemy) return;
-    this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
-    // pop: a splash of droplets, a plip, a tiny kick
-    this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
-    sfx.pop(b.big);
+    if (!fire) {
+      this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
+      // pop: a splash of droplets, a plip, a tiny kick
+      this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
+      sfx.pop(b.big);
+    }
     juice.shake(b.big ? 0.12 : 0.03);
     const el = b.elems;
-    if (el.has('fire')) sfx.fire();
     if (el.has('lightning')) sfx.zap();
     if (el.has('acid')) sfx.acid();
     if (el.has('wind')) sfx.wind();

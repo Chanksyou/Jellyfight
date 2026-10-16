@@ -2,6 +2,18 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  /* Fire study: appearance only; hit radius, timing and damage stay in their existing homes. */
+  --fire-core: #fff6ce;
+  --fire-flame: #ffb632;
+  --fire-edge: #ff581f;
+  --fire-ember: #ffc566;
+  --fire-tail-length: 4.8;
+  --fire-trail-interval: 0.035;
+  --fire-trail-life: 0.19;
+  --fire-contact-life: 0.11;
+  --fire-contact-scale: 3.2;
+  --fire-ember-life: 0.38;
+  --fire-burn-interval: 0.12;
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */

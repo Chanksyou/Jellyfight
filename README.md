@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Fire feedback sample (v167): open `fire-sample.html` on the local server to audition
+the real fireball's tapered flame, launch whoosh, contact crack and burning embers.
+Use **Enable sound**, then cast a single shot or an upgraded volley. The sample
+uses the same projectile and audio code as the game; fire damage, rates and burn
+rules are unchanged. It is a focused training scene without the apartment or bloom.
+
 ES modules won't load over `file://`, so serve the folder:
 
 ```
