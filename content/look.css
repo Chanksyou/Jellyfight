@@ -2,6 +2,17 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
+  --hp-trail: #ffc0a0;
+  --hp-heal: #9dffd9;
+  --hp-critical: #ff7068;
+  --hp-trail-hold: 200;
+  --hp-trail-drain: 400;
+  --hp-recoil-time: 180;
+  --hp-recoil-max: 0.11;
+  --hp-number-time: 650;
+  --hp-heal-time: 350;
+  --hp-breathe-time: 1400;
   /* Fire study: appearance only; hit radius, timing and damage stay in their existing homes. */
   --fire-core: #fff6ce;
   --fire-flame: #ffb632;

@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v185 player HUD Health: immediate damage with a delayed coral loss trail, capped
+jelly recoil, one grouped change number, mint healing feedback, a liquid fill
+edge, and a slow low-health border pulse with a warning icon. Passive regen is
+quiet and preserves the damage trail. Reduce Effects keeps the information and
+removes motion/pulsing. Boss/elite bars and combat numbers are unchanged.
+
 v184 Pothos: its heart and canopy sway continuously and leaves ripple along the
 vines while the pot stays seated. Recovery pauses are 0.95 s (0.35 s angry),
 and the boss resumes attacking after its 1 s dragonfly summon while the shield
