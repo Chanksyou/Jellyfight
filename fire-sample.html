@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fire study — Jelly Fight</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;color:#eee9df;background:#080e15}
+    *{box-sizing:border-box}body{margin:0}button,a,input{touch-action:manipulation}button{font:inherit;cursor:pointer}
+    .shell{max-width:1440px;margin:auto;padding:30px 5vw 20px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff16;padding-bottom:20px}
+    .brand{letter-spacing:.22em;font-size:12px;font-weight:750}.brand span{color:#73e9dd}.edition{font:11px ui-monospace,monospace;color:#9ba7b2;letter-spacing:.12em}
+    main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:center;padding:32px 0}.eyebrow{font:11px ui-monospace,monospace;letter-spacing:.18em;color:#ffa957;text-transform:uppercase}
+    h1{font-size:clamp(38px,4.5vw,66px);line-height:1.05;letter-spacing:-.06em;margin:18px 0}h1 em{font-style:normal;color:#ffb669}.intro{color:#a8b3bc;max-width:490px;font-size:14px;margin:0}
+    #stage{position:relative;height:440px;margin:4px -20px 0;background:radial-gradient(ellipse at 55% 65%,#1c26312b,transparent 68%);border-radius:24px;overflow:hidden}canvas{display:block;width:100%;height:100%}
+    .stage-label{position:absolute;bottom:25px;left:30px;font:10px ui-monospace,monospace;letter-spacing:.13em;color:#6f8899}.live{position:absolute;right:25px;top:22px;display:flex;gap:7px;align-items:center;font:10px ui-monospace,monospace;color:#9dafa9}.live:before{content:'';width:5px;height:5px;background:#74e2b0;border-radius:50%}
+    aside{background:linear-gradient(145deg,#15202b,#101821);border:1px solid #ffffff14;border-radius:20px;padding:25px;box-shadow:0 25px 80px #0003}h2{font-size:20px;letter-spacing:-.03em;margin:8px 0 4px}.muted{font-size:12px;color:#91a1ad;margin:0 0 22px}.modes{display:grid;gap:8px}.mode{text-align:left;background:#09121a;border:1px solid #ffffff14;border-radius:10px;padding:13px;color:#bac4cb}.mode[aria-pressed=true]{border-color:#d89348;background:#33271d;color:#fff0d7}.mode b{display:block;font-size:13px}.mode small{display:block;font-size:11px;color:#95a5b0;margin-top:2px}
+    .action{width:100%;margin-top:20px;border:0;border-radius:10px;background:#ffb86e;color:#271a0e;padding:13px;font-weight:750;font-size:14px}.action:hover{background:#ffd19e}.sound{width:100%;border:1px solid #52606e;background:transparent;color:#d4e0e8;border-radius:10px;padding:10px;margin-top:9px;font-size:12px}.loop{display:flex;align-items:center;justify-content:space-between;margin-top:18px;font-size:12px;color:#a5b4be}.loop input{accent-color:#ffb86e;width:16px;height:16px}.note{font-size:11px;color:#8b9ba7;margin:20px 0 0;border-top:1px solid #ffffff14;padding-top:16px}
+    .phases{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;border-top:1px solid #ffffff16;padding-top:20px}.phase span{font:10px ui-monospace,monospace;color:#eaa567}.phase b{display:block;font-size:12px;font-weight:600;margin:5px 0}.phase p{font-size:11px;color:#7f919f;margin:0}footer{display:flex;justify-content:space-between;font-size:10px;color:#778996;padding-top:25px}footer a{color:#aac2ca;text-decoration:none}:focus-visible{outline:2px solid #79ddd8;outline-offset:4px}
+    #status{position:absolute;top:45%;left:0;right:0;text-align:center;color:#9fb2c1;font-size:13px;padding:12px}button:disabled{opacity:.45;cursor:wait}
+    @media(max-width:850px){.shell{padding:20px 6vw}main{grid-template-columns:1fr;gap:8px;padding-top:22px}#stage{height:350px;margin:0 -15px}aside{padding:20px}.modes{grid-template-columns:1fr 1fr}.action{margin-top:14px}.phases{margin-top:28px;grid-template-columns:1fr 1fr}header .edition{font-size:9px}footer{gap:12px}h1{font-size:43px}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+  </style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+</head>
+<body>
+  <div class="shell">
+    <header><div class="brand">JELLY <span>FIGHT</span></div><div class="edition">ELEMENT STUDIES / 001</div></header>
+    <main>
+      <section aria-label="Fire attack preview">
+        <div class="eyebrow">The fire study</div>
+        <h1>A little glow.<br><em>A lot of fire.</em></h1>
+        <p class="intro">A breath of ignition. A rushing flame. A sharp contact, then a smoldering collapse. Every stage has its own rhythm.</p>
+        <div id="stage"><div class="live">LIVE PREVIEW · BLOOM OFF</div><div id="status" role="status">Warming up the fire…</div><div class="stage-label">JELLY → FIREBALL → TRAINING BUGS</div></div>
+      </section>
+      <aside>
+        <div class="eyebrow">Try the feeling</div><h2>Small flame. Big character.</h2><p class="muted">Choose a cast, then hear it land.</p>
+        <div class="modes" role="group" aria-label="Fire attack variation">
+          <button class="mode" data-mode="single" aria-pressed="true"><b>01 · Birthday Candle</b><small>One fireball. A lingering burn.</small></button>
+          <button class="mode" data-mode="volley" aria-pressed="false"><b>02 · Upgraded flame</b><small>Two fireballs. A longer burn.</small></button>
+        </div>
+        <button class="action" id="cast" disabled>Cast a fireball ↗</button>
+        <button class="sound" id="sound" aria-pressed="false">Enable sound</button>
+        <label class="loop" for="loop">Loop the cast<input id="loop" type="checkbox"></label>
+        <p class="note">Listen for the pressure pulse, a fiery whoosh, and a deep impact with breaking embers. Volleys land heavier. Training bugs recover between casts.</p>
+      </aside>
+    </main>
+    <section class="phases" aria-label="The attack sequence">
+      <div class="phase"><span>01 / IGNITION</span><b>A breath, then release.</b><p>The jelly squeezes as the flame opens.</p></div>
+      <div class="phase"><span>02 / FLIGHT</span><b>Hear the flame move.</b><p>A softer rush follows the live projectile.</p></div>
+      <div class="phase"><span>03 / CONTACT</span><b>A snap and a recoil.</b><p>The rush ends. Sparks fan past the hit.</p></div>
+      <div class="phase"><span>04 / BURN & FALL</span><b>Smolder, curl, collapse.</b><p>Quiet crackles. Charred fragments. Rising embers.</p></div>
+    </section>
+    <footer><span>FIRE / VISUAL & SOUND SAMPLE</span><a href="./index.html">Back to Jelly Fight ↗</a></footer>
+  </div>
+  <script type="module">import('./src/fire-sample.js').catch(e=>{document.querySelector('#status').textContent='Could not start the preview: '+e.message;console.error(e)});</script>
+</body>
+</html>
