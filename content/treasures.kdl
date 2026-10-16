@@ -66,7 +66,7 @@ treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" atta
 treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind attack: you also throw crescent wind blades that cut across a wide arc, pierce, and blow what they hit backward." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind attack: wind up and throw piercing gusts half as often as bubbles. Pushes enemies back; hitting walls or scenery deals the wind hit's damage again. Other enemies do not trigger collision damage." {
     element "wind"
 }
 treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter attack: you also lob glitter bombs that burst in a wide, hard-hitting splash." {
@@ -140,7 +140,7 @@ treasure "quickDry" name="Quick-Dry Spray" icon="💨" rarity="epic" needs="nail
     element-up "acid" rate=1.4
 }
 // wind
-treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts blow enemies back 60% harder." {
+treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts push enemies 60% farther, helping slam them into scenery." {
     element-up "wind" push=1.6
 }
 treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 2 more enemies." {

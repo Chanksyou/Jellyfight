@@ -87,11 +87,12 @@ export class Bubbles {
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
     this.goldMat = film(0xffe8a0, 0xffb020);
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
+    this.windCharge = null;
     this.friendly = FRIENDLY();
   }
 
   reset() {
-    this.silenceFire();
+    this.silenceAttacks();
     this.list.forEach((b) => this.release(b, true));
     this.list = [];
     this.burning.clear();
@@ -104,7 +105,13 @@ export class Bubbles {
     this.volleys = 0;
   }
 
-  silenceFire() {
+  cancelWind() {
+    if (!this.windCharge) return;
+    this.windCharge.stop?.(); this.windCharge = null; this.elTimers.wind = 1;
+  }
+
+  silenceAttacks() {
+    this.cancelWind();
     sfx.stopFire();
     for (const b of this.list) { b.stopFireAudio?.(true); b.stopFireAudio = null; }
   }
@@ -148,7 +155,8 @@ export class Bubbles {
   // paused: a polyp (rebirth) doesn't shoot; what's already flying carries on
   update(dt, origin, stats, mods, paused = false) {
     this.origin = origin;              // where the polyps (adornments.js) circle
-    if (paused) { this.fly(dt, stats, mods); this.effects(dt, stats); return; }
+    if (this.windCharge && !mods.elements.has('wind')) this.cancelWind();
+    if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats); return; }
     // one blow at a time: a faster fire rate = a faster stream
     this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
@@ -161,7 +169,27 @@ export class Bubbles {
       const P = mods.element[id];
       if (!P) continue;
       let t = (this.elTimers[id] ??= Math.random() * 0.5) + dt * P.rate * stats.fireRate / BASE_FIRE_RATE;
-      if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
+      if (id === 'wind') {
+        if (!this.windCharge && t >= 1 && this.inRange(origin, stats.range * P.range).length) {
+          const duration = Math.min(P.windup, 0.65 * BASE_FIRE_RATE / (P.rate * stats.fireRate));
+          this.windCharge = { t: 0, duration, stop: sfx.windCharge(duration) };
+          t -= 1;
+        }
+        if (this.windCharge) {
+          const charge = this.windCharge;
+          charge.t += dt;
+          const progress = Math.min(1, charge.t / charge.duration);
+          this.looks.windGather(origin, progress, stats.bubbleSize);
+          this.onWindCharge?.(progress);
+          if (progress >= 1) {
+            charge.stop?.(); this.windCharge = null;
+            if (this.elementVolley(id, P, origin, stats, mods)) {
+              this.onWindRelease?.(); sfx.windLaunch(); juice.feel('hit');
+              this.looks.windRelease(origin, stats.bubbleSize);
+            } else t = 1;
+          }
+        }
+      } else if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
       this.elTimers[id] = Math.min(t, 1);
     }
     this.fly(dt, stats, mods);
@@ -365,13 +393,17 @@ export class Bubbles {
       bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
     }
     if (el.has('wind') && !e.proxy) {
-      bus.emit('knockback', { targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) });
+      sfx.wind();
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
-    if (!e.T.fly) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg) });
+    if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg) });
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined });
+    if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
+      targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
+      collisionDamage: dmg * (b.ep?.collision ?? 1),
+    });
   }
 
   // Burning enemies, lightning arcs and acid puddles
@@ -473,7 +505,7 @@ export class Bubbles {
       this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
-      sfx.pop(b.big);
+      if (!b.elems.has('wind')) sfx.pop(b.big);
       // the wet mark it leaves on the floor, fading (only a plain bubble's: an Element's colour
       // on the floor would look like an acid puddle)
       if (!b.tint) this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), b.golden ? 0xffe8a0 : null, b.r * (b.big ? 2.2 : 1.6));
@@ -482,7 +514,6 @@ export class Bubbles {
     const el = b.elems;
     if (el.has('lightning')) sfx.zap();
     if (el.has('acid')) sfx.acid();
-    if (el.has('wind')) sfx.wind();
     if (!b.splashed) this.splash(b);
     const E = this.enemies, c = this._c;
     // Lightning: a bolt chains to 3 more enemies, stunning each

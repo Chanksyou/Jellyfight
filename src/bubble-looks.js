@@ -47,6 +47,7 @@ export class BubbleLooks {
     this.scene = scene;
     this.fx = fx;
     this.pools = {};
+    this.windColor = C(LOOK.color('wind-core', '#d9f6ff'));
     this.fire = {
       core: C(LOOK.color('fire-core', '#fff6ce')), flame: C(LOOK.color('fire-flame', '#ffb632')),
       edge: C(LOOK.color('fire-edge', '#ff581f')), ember: C(LOOK.color('fire-ember', '#ffc566')),
@@ -140,6 +141,19 @@ export class BubbleLooks {
     this.arcs.geometry.setDrawRange(0, this.arcN);
     this.arcs.geometry.attributes.position.needsUpdate = true;
     this.arcs.visible = this.arcN > 0;
+  }
+
+  windGather(pos, progress, size) {
+    const radius = LOOK.num('wind-gather-radius', 0.022) * size * (1 - progress * 0.6);
+    for (let k = 0; k < 6; k++) {
+      const angle = k * Math.PI / 3 + progress * Math.PI * 3;
+      _p.copy(pos).add(_v.set(Math.cos(angle) * radius, Math.sin(angle * 2) * radius * 0.2, Math.sin(angle) * radius));
+      this.fx.glow.hold(_p, this.windColor, radius * 0.25, 0.35 + progress * 0.4);
+    }
+  }
+
+  windRelease(pos, size) {
+    this.fx.glow.emit(pos, this.windColor, LOOK.num('wind-release-size', 0.018) * size, LOOK.num('wind-release-size', 0.018) * size * 2, LOOK.num('wind-release-life', 0.12), 0.65);
   }
 
   fireLaunch(pos, r) {

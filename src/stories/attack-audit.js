@@ -18,7 +18,9 @@ export const AUDIT = {
     sting: todo,
     fire: todo, lightning: todo,
     ice: { score: null, note: 'v180: chill refreshes slow only; target remains mobile and shows the existing slow ring, never the frozen shell. Freezer Burn rewards already slowed targets. Code review only; remaining ice audit still pending.' },
-    acid: todo, wind: todo, glitter: todo,
+    acid: todo,
+    wind: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v181: gathered wind and bell compression before same-frame release, crescent/trail, confirmed impact flash, push/white flinch, bell recoil/light feel step, fading debris, actual damage/kill numbers, varied charge/rush/contact/scenery thud. Scenery-only swept push deals one equal-damage collision; attack/wind-* proves mechanics. Play-speed visual review pending.' },
+    glitter: todo,
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {
