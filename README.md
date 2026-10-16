@@ -4,6 +4,10 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v187 act 3 stag beetles: from 1:00, slow tanks about 3x the jelly that charge an
+electric ball between their mandibles for 1 s and fire it; step aside once the
+aim locks.
+
 v186 player HUD Health: immediate damage with a delayed coral loss trail, capped
 jelly recoil, one grouped change number, mint healing feedback, a liquid fill
 edge, and a slow low-health border pulse with a warning icon. Passive regen is
