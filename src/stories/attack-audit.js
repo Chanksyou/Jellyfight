@@ -14,7 +14,7 @@ const todo = { score: null };
 export const AUDIT = {
   // the jelly's own attacks
   player: {
-    bubble: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'Pop clears in ~0.3 s, nothing stays; no travel sound.' },
+    bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
     sting: todo,
     fire: todo, lightning: todo, ice: todo, acid: todo, wind: todo, glitter: todo,
   },

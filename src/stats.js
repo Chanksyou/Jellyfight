@@ -23,6 +23,10 @@ export const BASE_STATS = {
   tentacleSpeed: 1.0, // lashes per second
 };
 
+// How far a hit shoves a bug (meters): more damage, bigger knockback (docs/agents/attack-feel.md).
+// A base bubble (6) shoves 6 mm, as before; it stops growing at 3 cm, about a roach's length.
+export const knockFor = (dmg) => Math.min(0.03, 0.001 * dmg);
+
 // How each stat is shown on a card and in the stats panel
 export const STAT_INFO = {
   bubbles:         { name: 'Bubbles',         icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },

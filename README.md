@@ -4,6 +4,13 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Bubble feel (v178), the first attack reworked to `docs/agents/attack-feel.md`: a
+plain bubble's pop leaves a wet splat on the floor that fades over 2 s (`fx.splat`,
+at most 24 at once, `--splat-*` in `content/look.css`); blowing one adds a soft
+whoosh as it flies off; and its shove follows its damage (`knockFor` in
+`src/stats.js`: 1 mm per point, up to 3 cm), so a base bubble shoves as before
+while crits and giant bubbles shove further. Story `attack/bubble-feel`.
+
 Attack feel foundation (v177): the groundwork for reworking every attack to
 `docs/agents/attack-feel.md`. How hard a moment lands (screen shake and hit-stop)
 is one ladder in `content/look.css` (`--feel-*`, read by `juice.feel`), from a
