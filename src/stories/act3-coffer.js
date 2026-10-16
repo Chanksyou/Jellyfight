@@ -121,6 +121,35 @@ act3('coffer-tongue-drags-a-base-speed-jelly-into-its-mouth', {
   },
 });
 
+act3('coffer-tongue-chomps-chews-and-spits', {
+  about: 'Dragged into its mouth, the jelly is chomped: on that frame the jaws slam shut with a flash and a spray, and the bite lands (once, 6); the Coffer holds it at its mouth and chews (its jaw parting and slamming, `chews` times), then gapes and spits it back out with a shove, leaving a wet patch on the desk.',
+  setup() { startCoffer(1, { hold: false, z: 8.9 }); },
+  play() {
+    const { e } = startCoffer(1, { hold: false, z: 8.9 }), { run, fx } = G(), log = record('damage_taken'), knocks = record('knockback'), T = CONTENT.elites.coffer.skills.tongue;
+    swimAway(1);
+    let chompJaw = null, chewFrames = 0, held = 0, jawMoves = 0, lastJaw = null, knocksChewing = null, splats = 0, spat = false;
+    const splatsBefore = fx.splats.filter((x) => x.alive).length;
+    step(60 * 8, () => {
+      G().tpc.yaw = Math.PI;
+      const L = e.lash;
+      if (L?.state === 'chew') {
+        if (chompJaw == null) chompJaw = e.cof.jaw;
+        knocksChewing = knocks.length;   // (the hit's own small hurt nudge comes with the chomp)
+        chewFrames++;
+        held = Math.max(held, flat(G().player.position, e.base));   // how far from its middle while it chews
+        if (lastJaw != null && Math.abs(e.cof.jaw - lastJaw) > 0.02) jawMoves++;
+        lastJaw = e.cof.jaw;
+      }
+      if (L?.state === 'done' && chompJaw != null && !spat) { spat = true; splats = fx.splats.filter((x) => x.alive).length - splatsBefore; }
+      return e.state === 'idle' && spat;
+    });
+    G().input.keys = new Set();
+    const bites = hitsBy(log, 'coffer-tongue'), tempo = CONTENT.elites.pace.tempo, chewS = +((chewFrames / 60) * tempo).toFixed(2);
+    return ok(chompJaw != null && chompJaw < 0.05 && bites.length === 1 && bites[0] === T.dmg && Math.abs(chewS - T.chews * T.chew) < 0.1 && held < T.bite + 0.05 && jawMoves > T.chews && knocks.length > knocksChewing && splats >= 1,   // the spit's shove comes after the chewing
+      { chompJaw, bites, chewS, held: +held.toFixed(3), jawMoves, knocksChewing, knocks: knocks.length, splats });
+  },
+});
+
 act3('coffer-tongue-a-fast-jelly-gets-away', {
   about: 'A jelly with a high move speed (160%) swims away against the tongue\'s pull: it is never dragged into the mouth, and the tongue lets go after 4 s (in the attack\'s time) and snaps back.',
   setup() { startCoffer(1, { hold: false, z: 8.75 }); },

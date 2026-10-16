@@ -579,7 +579,11 @@ export const sfx = {
   cofferCreak(dur = 0.4) { if (!ready()) return; tone('sawtooth', 70, 110, dur, 0.05); noise(1100, 6, dur, 0.06, 'bandpass', 0, 600); },
   tongueLash() { if (!ready() || !gap('tongueLash', 80)) return; noise(5000, 0.7, 0.07, 0.25, 'highpass'); noise(1400, 1.5, 0.12, 0.14, 'bandpass', 0, 3600); },
   tongueLatch() { if (!ready()) return; noise(600, 1.4, 0.18, 0.25, 'lowpass', 0, 200); tone('sine', 300, 120, 0.15, 0.12); tone('sine', 520, 260, 0.08, 0.05, 0.05); },
-  cofferChomp() { if (!ready()) return; noise(900, 0.9, 0.12, 0.35, 'lowpass', 0, 160); tone('square', 220, 60, 0.1, 0.1); noise(4000, 1.5, 0.04, 0.2, 'bandpass', 0.02); },
+  cofferChomp() { if (!ready()) return; const j = jitter(0.1); noise(900 * j, 0.9, 0.12, 0.35, 'lowpass', 0, 160); tone('square', 220 * j, 60, 0.1, 0.1); noise(4000 * j, 1.5, 0.04, 0.2, 'bandpass', 0.02); tone('sine', 90 * j, 40, 0.22, 0.25); noise(1600, 1, 0.16, 0.12, 'lowpass', 0.05, 500); },
+  // chewing on the jelly: a short wet crunch each bite, its pitch a little different every time;
+  // the spit: a wet splat and a puff of air
+  cofferCrunch() { if (!ready() || !gap('cofferCrunch', 60)) return; const j = jitter(0.15); noise(2600 * j, 1.2, 0.07, 0.22, 'bandpass', 0, 900); tone('square', 160 * j, 70, 0.06, 0.07); noise(700 * j, 0.8, 0.1, 0.12, 'lowpass', 0.02, 250); },
+  cofferSpit() { if (!ready()) return; const j = jitter(0.1); noise(1200 * j, 0.7, 0.18, 0.22, 'lowpass', 0, 3200); tone('sine', 420 * j, 160, 0.12, 0.08); noise(5000, 1, 0.06, 0.08, 'highpass', 0.08); },
   jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
   jewelWhistle(dur = 0.25) { if (!ready()) return; tone('sine', 2600, 700, dur, 0.06); tone('sine', 2750, 760, dur, 0.03); },
   jewelCrack() { if (!ready()) return; noise(6500, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) tone('triangle', 2200 + k * 450, 2000 + k * 400, 0.09, 0.04, k * 0.02); noise(500, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },

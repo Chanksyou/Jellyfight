@@ -50,7 +50,7 @@ export const AUDIT = {
     'pothos/cutting': todo, 'pothos/roots': todo, 'pothos/whip': todo, 'pothos/sweep': todo, 'pothos/snap': todo,
     'croc/volley': todo, 'croc/tail-slam': todo, 'croc/pounce': todo,
     'bull/rush': todo, 'bull/spiral': todo, 'bull/minis': todo,
-    'coffer/accordion': todo, 'coffer/tongue': todo, 'coffer/jewels': todo,
+    'coffer/accordion': todo, 'coffer/tongue': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v181: the chomp. Anticipation: the mouth gapes with a creak (no Warning: unavoidable by design, ADR 0001). Release: the lash. Travel: the stretching, glowing tongue. Impact: the jaws slam shut on the jelly on the bite frame (flash, drool and tooth spray, feel impact-big). Reactions: the jelly is hurt, held and chewed, then spat out with a shove; the box bounces and chews. Aftermath: a wet patch on the desk. Confirmation: the hurt number and the chew crunches. Sound: creak, lash, latch, chomp, crunches, spit, pitch-varied. Proven by act3/coffer-tongue-chomps-chews-and-spits; checked in desktop and phone screenshots, not watched at play speed.' }, 'coffer/jewels': todo,
   },
 };
 

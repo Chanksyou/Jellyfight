@@ -1577,13 +1577,40 @@ export class Elites {
             tip.copy(pc);
             const dx = e.base.x - P.x, dz = e.base.z - P.z, d = Math.hypot(dx, dz) || 1, pull = angry ? T.angryPull : T.pull;
             if (d < T.bite) {
-              // the bite
-              hit(T.dmg, 'coffer-tongue'); knock(e.base, T.knock);
-              this.fx.impact(mouth, col, 0.035, 16); juice.shake(0.3); sfx.cofferChomp();
+              // the chomp: its jaws slam shut on you on this frame (the impact: flash, spray of drool and
+              // tooth glints, the crunch, a heavy shake); it holds you and chews, then spits you out
+              hit(T.dmg, 'coffer-tongue');
+              this.fx.impact(mouth, col, 0.035, 16);
+              this.fx.burst(mouth, LOOK.list('coffer-chomp-bits', ['#fff3c4', '#e9dca0', '#ffffff']), 12, 0.004, 0.4, e.base.y);
+              juice.feel('impact-big'); sfx.cofferChomp();
               e.hitPop = 0.8;
-              L.state = 'back'; L.at = s; L.from.copy(mouth);
+              L.state = 'chew'; L.at = s; L.chews = 0;
             } else if (s - L.at > T.hold || !e.awake) { L.state = 'back'; L.at = s; L.from.copy(tip); sfx.tongueLash(); }
             else this.pull = this._pull.set((dx / d) * pull, 0, (dz / d) * pull);
+          }
+          if (L.state === 'chew') {
+            // chewing: held in its mouth (pulled onto it), the jaw parting a little and slamming each chew,
+            // the box bouncing, eyes flaring, a crunch each time; then it gapes and spits you back out
+            const t = s - L.at, k = Math.floor(t / T.chew), ph = (t % T.chew) / T.chew;
+            this.pull = this._pull.set((mouth.x - P.x) * 12, 0, (mouth.z - P.z) * 12);
+            let bob = 0;
+            if (k < T.chews) {
+              C.jaw = 0.2 * Math.sin(ph * Math.PI);
+              bob = 0.004 * Math.sin(ph * Math.PI);
+              if (k > L.chews) {
+                L.chews = k;
+                this.fx.impact(mouth, col, 0.018, 8);
+                this.fx.burst(mouth, LOOK.list('coffer-chomp-bits', ['#fff3c4', '#e9dca0', '#ffffff']), 5, 0.003, 0.3, e.base.y);
+                juice.feel('impact'); sfx.cofferCrunch(); e.hitPop = 0.5;
+              }
+            } else {
+              knock(e.base, T.knock);
+              this.fx.puff(mouth, LOOK.color('coffer-drool', '#e8e2b8'), 0.03, 0.4);
+              this.fx.splat(this._mid.set(mouth.x, e.base.y, mouth.z), LOOK.color('coffer-drool', '#e8e2b8'), 0.025);   // a wet patch on the desk where it spat you out
+              sfx.cofferSpit(); e.hitPop = 0.6;
+              L.state = 'done'; L.at = s;
+            }
+            M.pose(C.lift + bob, C.gap, C.jaw);
           }
           if (L.state === 'back') {
             const f = Math.min(1, (s - L.at) / 0.15);
