@@ -204,6 +204,8 @@ export const sfx = {
   },
   // blowing a bubble: a soft rising bloop
   blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
+  // a bubble flying off: a soft airy whoosh that falls away behind it (at most ~6 a second)
+  whiz() { if (!ready() || !gap('whiz', 160)) return; const j = jitter(0.15); noise(2600 * j, 1.4, 0.24, 0.03, 'bandpass', 0.03, 900 * j); },
   // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
   // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
   pop(big = false) {

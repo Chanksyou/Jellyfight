@@ -168,6 +168,9 @@ building on it.
 | 8 Confirmation | 1 | Numbers sized by significance, crit star, kill burst + hit-stop. |
 | 9 Sound | 0 | Transient (`blow`), impact (`pop` + `hit`), debris (the pop's fizz), all pitch-varied; no travel layer. |
 
-7/9, acceptable for a basic attack on a minor enemy. The jelly's signature
+7/9, acceptable for a basic attack on a minor enemy. v178 fills both zeros: a
+plain bubble's pop leaves a wet splat on the floor for 2 s (`fx.splat`), and the
+blow carries a short whoosh as it flies off (`sfx.whiz`); its knockback now follows
+damage (`knockFor` in `src/stats.js`). The scoreboard holds the current score. The jelly's signature
 attacks (Elements, Evolutions, Legendary Treasures) and every Elite and Vacuum
 attack must reach 9.

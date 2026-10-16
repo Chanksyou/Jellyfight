@@ -4,8 +4,9 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { rollCards, rollTreasures, TREASURE_RARITY, xpToNext } from '../stats.js';
-import { ELEMENTS_IDS, G, V, fresh, holdJelly, near, ok, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
+import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext } from '../stats.js';
+import { sfx } from '../sfx.js';
+import { ELEMENTS_IDS, G, V, fresh, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- movement
 story('movement/jelly-steady-speed', {
@@ -50,6 +51,32 @@ story('attack/bubble-stream', {
   },
 });
 
+story('attack/bubble-feel', {
+  about: 'The ordinary bubble completes the Attack Feel chain (docs/agents/attack-feel.md): the bell squeeze, blow and flight whoosh on the frame it leaves; a flash at the contact; the roach flashes white and is shoved by knockFor(damage); a wet splat stays on the floor about 2 s and then goes.',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.2)), { still: true, hp: 9999 }); },
+  play() {
+    const { run, enemies, fx } = G(), B = run.bubbles, e = enemies.list[0];
+    let f = 0;
+    const at = { blow: [], whiz: [], born: [], impact: [], splat: [] }, spy = (o, k, log) => { const fn = o[k].bind(o); stub(o, k, (...a) => { log.push(f); return fn(...a); }); };
+    spy(sfx, 'blow', at.blow); spy(sfx, 'whiz', at.whiz); spy(B, 'blow', at.born); spy(fx, 'impact', at.impact); spy(fx, 'splat', at.splat);
+    const shoves = record('knockback'), hits = record('damage_taken');
+    let flashed = false;
+    for (f = 0; f < 120 && !at.splat.length; f++) { G().GAME.step(1 / 60); flashed ||= e.flashT > 0; }
+    step(2); flashed ||= e.flashT > 0;
+    const hit = hits.find((h) => h.source === 'bubble'), shove = shoves.find((k) => k.targetId === e.id);
+    const splatsAt = (t) => { step(Math.round(t * 60)); return fx.splats.filter((x) => x.alive).length; };
+    const after1 = splatsAt(1);
+    stub(B, 'volley', () => false);   // no more bubbles: the last splats go 2 s after the last pop
+    const after2 = splatsAt(2.4);
+    // more damage, bigger shove (stopping at 3 cm)
+    const force = (dmg) => { const log = record('knockback'); B.strike({ dmg, vel: V(0, 0, -1), elems: new Set(), hit: new Set() }, e, run.mods); return log.at(-1)?.force; };
+    const ladder = [6, 24, 100].map(force);
+    const sameFrame = at.blow[0] === at.born[0] && at.whiz[0] === at.born[0];
+    return ok(sameFrame && at.impact.length > 0 && at.impact[0] === at.splat[0] && flashed && hit && Math.abs(shove.force - knockFor(hit.amount)) < 1e-9
+      && after1 >= 1 && after2 === 0 && ladder[0] < ladder[1] && ladder[1] < ladder[2] && ladder[2] === 0.03,
+      { at: Object.fromEntries(Object.entries(at).map(([k, v]) => [k, v[0]])), flashed, dmg: hit?.amount, force: shove?.force, after1, after2, ladder });
+  },
+});
 story('attack/armor-is-a-last-resort', {
   about: 'Bubbles and tentacles both aim past an armoured bug (a curled millipede: hits do 75% less) at an unarmoured one farther off, and only fall back to the armoured one when nothing else is in range.',
   setup() { fresh({ hurt: true, elites: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.25)); e.ballCd = 0.3; },

@@ -154,6 +154,12 @@
   --feel-elite-kill: 0.7 0.15;
   --feel-boss-kill: 1 0.25;
 
+  /* wet marks a plain bubble leaves on the floor where it pops (src/fx.js splat) */
+  --splat: #9fd8ff;
+  --splat-opacity: 0.45;
+  --splat-life: 2;             /* seconds, the last 40% fading */
+  --splat-most: 24;            /* at once; past that the oldest goes */
+
   /* --- how often and how sharp (src/pacing.js, src/light-slots.js) ------------- */
   --phone-fps: 60;             /* frame-rate cap on phones (0 = none): a 120 Hz screen gains nothing but heat */
   --desktop-fps: 0;
