@@ -324,7 +324,7 @@ function buildPothos(world, at, arena) {
   for (let i = 0; i < count; i++) leaves.setColorAt(i, tint.setRGB(0.82 + R() * 0.12, 0.88 + R() * 0.12, 0.8 + R() * 0.1));   // a slight shade per leaf
   root.add(leaves);
   // (room for the vines' points however a Vine Whip re-lays them)
-  return { root, heart, leaves, mound, veil, vines, heartAt: heart.position.clone(), close: 0, blockers: new Float32Array((count + VINES * 240) * 4), nBlock: 0 };
+  return { root, heart, leaves, mound, veil, vines, heartAt: heart.position.clone(), heartRest: heart.position.clone(), sway: new THREE.Vector3(), motion: 0, flutter: 0, close: 0, blockers: new Float32Array((count + VINES * 240) * 4), nBlock: 0 };
 }
 const VEIL = 5;
 
@@ -348,27 +348,34 @@ function leaf(m, size, block = 1) {
   LM.leaves.setMatrixAt(LI++, m);
   if (block) keep(_c.set(0, 0.5, 0).applyMatrix4(m), size * 0.42, block === 2);
 }
+const _canopy = new THREE.Vector3(), _flutter = new THREE.Vector3();
+function canopyLeaf(pos, dir, L, block = 1) {
+  _canopy.copy(pos).add(LM.sway);
+  _flutter.copy(dir); _flutter.x += Math.sin(LM.motion + L.tilt * 12) * LM.flutter;
+  leaf(leafMatrix(_canopy, _flutter, L.size, L.tilt), L.size, block);
+}
 function placeLeaves(M, open = 0, bound = true) {
   LM = M; LI = 0; LOPEN = open; M.nBlock = 0;
   for (const L of M.mound) {
-    if (L.shut && M.close) { leaf(leafMatrix(_v.copy(L.pos).lerp(L.shutAt, M.close), _w.copy(L.out).lerp(L.shut, M.close), L.size, L.tilt), L.size); continue; }
-    if (!L.frame || !open) { leaf(leafMatrix(L.pos, L.out, L.size, L.tilt), L.size); continue; }
+    if (L.shut && M.close) { canopyLeaf(_v.copy(L.pos).lerp(L.shutAt, M.close), _w.copy(L.out).lerp(L.shut, M.close), L); continue; }
+    if (!L.frame || !open) { canopyLeaf(L.pos, L.out, L); continue; }
     // round the hollow: pushed out from it (away from its axis) and drooping
-    _q.subVectors(L.pos, M.heartAt).setZ(0);
+    _q.subVectors(L.pos, M.heartRest).setZ(0);
     if (_q.lengthSq() < 1e-6) _q.set(0, 1, 0);
     _p.copy(L.pos).addScaledVector(_q.normalize(), open * 0.06);
     _q.copy(L.out); _q.y -= open * 0.4;
-    leaf(leafMatrix(_p, _q, L.size, L.tilt), L.size);
+    canopyLeaf(_p, _q, L);
   }
   for (const L of M.veil) {
     _q.copy(L.shut).lerp(L.aside, open);
-    leaf(leafMatrix(L.pos, _q, L.size * (1 - open * 0.2), L.tilt), L.size, open < 0.5 ? 2 : 0);
+    _canopy.copy(L.pos).add(M.sway);
+    leaf(leafMatrix(_canopy, _q, L.size * (1 - open * 0.2), L.tilt), L.size, open < 0.5 ? 2 : 0);
   }
   for (const v of M.vines) {
     for (const L of v.leaves) {
       v.curve.getPointAt(L.t, _p); v.tangentAt(L.t, _q);
       _x.crossVectors(_q, UP).normalize().multiplyScalar(L.side);
-      _y.copy(_x).addScaledVector(_q, 0.5).addScaledVector(UP, 0.3 + L.tilt * 0.3);
+      _y.copy(_x).addScaledVector(_q, 0.5).addScaledVector(UP, 0.3 + L.tilt * 0.3 + Math.sin(M.motion - L.t * 8 + v.angle) * M.flutter);
       leaf(leafMatrix(_p, _y, L.size, L.tilt), L.size);
     }
     for (let k = 0; k < v.pts.length; k++) keep(v.pts[k], v.radiusAt(k / (v.pts.length - 1)));
@@ -575,6 +582,9 @@ export class Pothos {
     this.angryGlow = new THREE.Color(LOOK.color('pothos-heart-angry-halo', '#ff8a2a')); this.angryEmissive = new THREE.Color(LOOK.color('pothos-heart-angry', '#c8460e'));
     this.calmLeaf = new THREE.Color(LOOK.color('pothos-leaf-glow', '#071405')); this.angryLeaf = new THREE.Color(LOOK.color('pothos-leaf-angry', '#220902'));   // and its leaves smoulder with each beat
     this.rage = 0; this.beatT = 0; this.wasAngry = false;
+    this.swaySize = LOOK.num('pothos-sway', 0.025);
+    this.swayRate = LOOK.num('pothos-sway-rate', 1.8);
+    this.flutter = LOOK.num('pothos-flutter', 0.18);
     // the opening, made to read from the fight camera (look.css): the heart swells and its glow
     // spreads, and the leaves round it light up with it
     this.openLeaf = new THREE.Color(LOOK.color('pothos-leaf-open', '#3b5a0a'));
@@ -690,6 +700,12 @@ export class Pothos {
     if (angry && !this.wasAngry) { sfx.clogRoar?.(); this.fx.puff(this.center(this._heart), this.angryGlow, 0.08, 0.6); }
     this.wasAngry = angry;
     this.rage += ((angry ? 1 : 0) - this.rage) * Math.min(1, dt * 3);
+    // The pot stays seated; the living canopy moves together with its real hit target/blockers.
+    M.motion += dt * this.swayRate * (1 + this.rage * 0.5);
+    M.flutter = this.flutter * this.rise;
+    const sway = this.swaySize * this.rise * (1 + this.rage * 0.35);
+    M.sway.set(Math.sin(M.motion) * sway, Math.sin(M.motion * 2) * sway * 0.3, Math.sin(M.motion * 0.7) * sway * 0.35);
+    M.heart.position.copy(M.heartRest).add(M.sway); M.heartAt.copy(M.heart.position);
     this.glowColor.copy(this.calmGlow).lerp(this.angryGlow, this.rage);
     M.heart.material.emissive.copy(this.calmEmissive).lerp(this.angryEmissive, this.rage);
     this.beatT += dt * (4 + this.rage * 3);
@@ -701,40 +717,37 @@ export class Pothos {
     if (M.close !== shut) {
       M.close += (shut - M.close) * Math.min(1, dt * 6);
       if (Math.abs(shut - M.close) < 0.01) M.close = shut;
-      placeLeaves(M, this.open, false);  // only while they move
     }
     M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * this.openGrow));
     M.heart.material.emissiveIntensity = (0.3 + beat * 0.15 + open * 0.8) * (1 - M.close * 0.75);
     this.fx.glow.hold(this.center(this._heart), this.glowColor, (0.14 * (0.8 + beat * 0.3) + open * this.openHalo) * (1 - M.close * 0.6), (0.6 + open * 0.4) * (1 - M.close * 0.7));
-    M.root.rotation.z = this.state === 'cutting' ? Math.sin(this.t * 40) * 0.02 : 0;   // shivering, flinging Cuttings
     // its attacks, in turn
     const SW = this.def.skills.swarm;
     if (this.rise >= 1 && SW && !this.swarmed && this.state === 'idle' && this.hp < this.maxHp * SW.at) this.begin('swarm');
-    if (this.state === 'swarm') {
-      // shielded till its dragonflies are dead, or for `shield` s at most
+    if (this.guards.length) {
+      // The shield has its own lifetime; summoning it no longer freezes the attack rotation.
       this.guards = this.guards.filter((e) => !e.dead);
       if ((this.guardT -= dt) <= 0) this.guards = [];
-      if (!this.shielded) { this.state = 'idle'; this.stateT = SW.rest; }
-    } else if (this.rise >= 1) {
+    }
+    if (this.rise >= 1) {
       this.stateT -= dt;
       if (this.stateT <= 0) {
         if (this.state === 'idle') { const order = this.angry ? ATTACKS.angry : ATTACKS.calm; this.begin(order[this.next++ % order.length]); }
-        else { const SK = this.def.skills[this.state]; this.state = 'idle'; this.stateT = this.angry ? SK.angryRest : SK.rest; }
+        else { const SK = this.def.skills[this.state]; this.state = 'idle'; this.stateT = this.angry ? (SK.angryRest ?? SK.rest) : SK.rest; }
       }
     }
     // the guarding vines: a jelly close to the heart gets snapped at, again and again while it
     // stays (not while the leaves are parted: the opening is the way in)
     if (this.rise >= 1) this.guard(dt, player);
     // the vines under way (whips, snaps, the sweep), and the opening after a whip
-    let moving = false, whipping = false;
-    for (const L of this.lanes) if (L.on) { this.laneTick(L, dt, out); moving = whipping = true; }
-    for (const L of this.snaps) if (L.on) { this.laneTick(L, dt, out); moving = true; }
+    let whipping = false;
+    for (const L of this.lanes) if (L.on) { this.laneTick(L, dt, out); whipping = true; }
+    for (const L of this.snaps) if (L.on) this.laneTick(L, dt, out);
     if (this.whipT >= 0) this.whipT = whipping ? this.whipT + dt : -1;
-    if (this.sweepT >= 0) { this.sweepTick(dt, out); moving = true; }
+    if (this.sweepT >= 0) this.sweepTick(dt, out);
     this.openT = Math.max(0, this.openT - dt);
-    const was = this.open;
     this.open = this.openT > 0 ? Math.min(1, this.open + dt * 6) : Math.max(0, this.open - dt * 4);
-    if (moving || this.open !== was) placeLeaves(M, this.open, false);
+    placeLeaves(M, this.open, false);
     // bumping into the pot hurts and knocks you back off it
     const P = player.position, h = this.holder.position, dx = P.x - h.x, dz = P.z - h.z, d = Math.hypot(dx, dz);
     this.knock = Math.max(0, this.knock - dt);
@@ -917,6 +930,7 @@ export class Pothos {
       c.y = W.floorAt(Math.atan2(P.x - c.x, P.z - c.z) - Math.PI);
       if (arcHits(c, W.inner, W.reach, Math.PI + was, Math.PI + this.sweepAt, SK.height, P, cfg)) {
         this.swept = true;
+        this.fx.impact(this._heart.copy(P).setY(P.y + 0.01), hostile('pothos'), LOOK.num('pothos-sweep-impact', 0.025), 8);
         out.hit = Math.max(out.hit, SK.dmg);
         // knocked on the way it sweeps, and away from the pot
         const b = Math.PI + this.sweepAt, s = this.sweepDir;
@@ -955,7 +969,7 @@ export class Pothos {
       e.spawnT = 0.5;
       this.guards.push(e);
     }
-    this.guardT = this.stateT = shield;
+    this.guardT = shield;
     this.fx.impact(c, hostile('pothos'), 0.05, 16);
     sfx.ladyBuzz?.();
   }

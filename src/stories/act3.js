@@ -714,13 +714,15 @@ act3('pothos-sweep-warning-and-hit', {
     const B = pothosFight(), { APT, batcher, world } = G(), hits = bossHits(), knocks = record('knockback'), out = {};
     const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
     const player = holdJelly(), h = B.position, SK = CONTENT.bosses.pothos.skills.sweep;
+    const impact = B.fx.impact; let contacts = 0;
+    stub(B.fx, 'impact', function (...args) { contacts++; return impact.apply(this, args); });
     const at = V(h.x + 0.05, h.y + 0.4, h.z - 0.5), ground = world.castAll(at, V(0, -1, 0), 1).point.y;
     B.stateT = 1e9;
     compile();
     const programs = APT.renderer.info.programs.length;
     for (const up of [0, JUMP_FEET]) {
       player.position.set(at.x, ground + up, at.z); player.grounded = !up;
-      const h0 = hits.length, k0 = knocks.length;
+      const h0 = hits.length, k0 = knocks.length, c0 = contacts;
       B.begin('sweep');
       B.stateT = 1e9;
       step(6);
@@ -733,12 +735,46 @@ act3('pothos-sweep-warning-and-hit', {
       step(60 * 2, () => { if (wedge() && wedge().material.progress < 1) shown += 1 / 60; if (hitAt == null && hits.length > h0) hitAt = B.sweepT; return B.sweepT < 0; });
       step(3);
       const w = shownWarnings();
-      out[up ? 'jumping' : 'standing'] = { volumes: pairs.length, filling, shown: +shown.toFixed(2), hits: hits.slice(h0).map((d) => d.amount), knocked: knocks.slice(k0).some((e) => e.targetId === 'player'), hitAt: hitAt && +hitAt.toFixed(2), gone: !w.floor.length && !w.volume.length };
+      out[up ? 'jumping' : 'standing'] = { contacts: contacts - c0, volumes: pairs.length, filling, shown: +shown.toFixed(2), hits: hits.slice(h0).map((d) => d.amount), knocked: knocks.slice(k0).some((e) => e.targetId === 'player'), hitAt: hitAt && +hitAt.toFixed(2), gone: !w.floor.length && !w.volume.length };
       B.state = 'idle'; B.stateT = 1e9;
     }
     const s = out.standing, j = out.jumping;
     return ok(s.volumes >= 4 && s.filling && Math.abs(s.shown - SK.windup) < 0.1 && s.hits.length === 1 && s.hits[0] === SK.dmg && s.knocked && s.hitAt > SK.windup && s.gone
-      && !j.hits.length && !j.knocked && j.gone && out.newShaders === 0, out);
+      && s.contacts === 1 && j.contacts === 0 && !j.hits.length && !j.knocked && j.gone && out.newShaders === 0, out);
+  },
+});
+act3('pothos-living-canopy-follows-its-hit-target', {
+  about: 'The heart and foliage keep moving during recovery while the pot remains planted; the hit target follows the drawn heart.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false }), { player } = G(), M = B.model;
+    holdJelly(); B.stateT = 1e9;
+    const at = B.position.clone(), first = B.center(), drawn = V(0, 0, 0);
+    let travel = 0, mismatch = 0;
+    for (let i = 0; i < 180; i++) {
+      step(1); M.heart.updateWorldMatrix(true, false); M.heart.getWorldPosition(drawn);
+      const center = B.center(); travel = Math.max(travel, center.distanceTo(first));
+      mismatch = Math.max(mismatch, drawn.distanceTo(center));
+    }
+    const potTravel = B.position.distanceTo(at), flutter = M.flutter;
+    B.damage(B.maxHp * 2); const doomed = B.center();
+    const result = B.tick(0.5, player), frozen = B.center().distanceTo(doomed);
+    return ok(travel > 0.015 && travel < 0.07 && mismatch < 1e-6 && potTravel === 0 && flutter > 0 && frozen === 0 && result.hit === 0,
+      { travel, mismatch, potTravel, flutter, frozen });
+  },
+});
+act3('pothos-attacks-while-dragonflies-shield-it', {
+  about: 'After a brief summon the Pothos resumes its attack rotation while living dragonflies still shield it, without summoning twice.',
+  setup() {},
+  play() {
+    const B = pothosFight({ hurt: false }); holdJelly(); B.hp = B.maxHp * 0.69;
+    const begin = B.begin, attacks = [];
+    stub(B, 'begin', function (name) { attacks.push(name); return begin.call(this, name); });
+    B.begin('swarm'); step(60 * 6);
+    const alive = B.guards.filter(e => !e.dead).length, shielded = B.shielded;
+    const hp = B.hp; B.damage(50);
+    return ok(alive === 4 && shielded && B.hp === hp && attacks.filter(n => n === 'swarm').length === 1 && attacks.filter(n => n !== 'swarm').length >= 2,
+      { alive, shielded, attacks, state: B.state });
   },
 });
 act3('pothos-angry-rests-less', {
