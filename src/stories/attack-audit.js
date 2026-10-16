@@ -15,7 +15,7 @@ export const AUDIT = {
   // the jelly's own attacks
   player: {
     bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
-    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v179 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
+    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v180 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
     fire: todo, lightning: todo, ice: todo, acid: todo, wind: todo, glitter: todo,
   },
   // treasure words (src/words.js) that make an attack of their own
@@ -34,7 +34,7 @@ export const AUDIT = {
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {
-    contact: todo,
+    contact: { score: null, note: 'v179: global target reaction adds a small horizontal hurt nudge and the hurt-minor feel step; Reduce effects silences shake. Reaction present from code; remaining rows still await the full contact audit.' },
     'curl-dash': todo, leap: todo, sortie: todo, 'ball-charge': todo, poke: todo, spit: todo, 'charge-beam': todo,
     swat: todo, burst: todo, whip: todo, dive: todo, becomes: todo, lob: todo, drops: todo, holds: todo,
   },
