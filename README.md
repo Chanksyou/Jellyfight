@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v179 player hit feedback: landed discrete hits apply a small 0.06 m/s horizontal
+knockback away from the attacker (backward fallback) and a light 0.22 shake cue.
+Movement damps the nudge normally. Dodges, reflected hits and invulnerability
+skip it; continuous drain retains its existing quiet behavior. This small
+movement change can affect positioning near ledges; balance simulation was not run.
+
 Bubble feel (v178), the first attack reworked to `docs/agents/attack-feel.md`: a
 plain bubble's pop leaves a wet splat on the floor that fades over 2 s (`fx.splat`,
 at most 24 at once, `--splat-*` in `content/look.css`); blowing one adds a soft
