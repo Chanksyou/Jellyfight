@@ -1430,7 +1430,7 @@ export class Elites {
           } else if (e.tele.length) {
             e.clearTele();
             for (const b of e.minis) { b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed; }
-            sfx.milliRoll();
+            sfx.milliRoll(N.reach / e.minis[0].speed);   // (its length: without one, live audio threw)
           } else if (e.minis.every((b) => b.done)) { e.minis = null; e.locked = false; e.state = 'idle'; e.cool = angry ? N.angryRest : N.rest; }
         }
       }
