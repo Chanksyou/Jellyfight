@@ -18,6 +18,7 @@ export class Fx {
     this.puffGeo = new THREE.SphereGeometry(1, 12, 8);
     this.rings = [];
     this.chunks = [];
+    this.fireCorpses = [];
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
     this.ringGeo = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
     // one material per pool, drawn instanced (batch.js); each piece's own tint and fade ride
@@ -215,7 +216,22 @@ export class Fx {
     return m;
   }
 
+  // Reuse the removed enemy silhouette briefly; it is already dead for gameplay.
+  fireCorpse(root) {
+    if (this.fireCorpses.length >= 12) this.scene.remove(this.fireCorpses.shift().root);
+    root.visible = true;
+    this.scene.add(root);
+    this.fireCorpses.push({ root, t: 0, scale: root.scale.clone(), rotation: root.rotation.z });
+  }
+
   update(dt) {
+    for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
+      const c = this.fireCorpses[i]; c.t += dt;
+      const k = Math.min(1, c.t / 0.55);
+      c.root.scale.copy(c.scale).multiplyScalar(Math.max(0.001, 1 - k * k));
+      c.root.rotation.z = c.rotation + Math.sin(k * Math.PI) * 0.65;
+      if (k === 1) { this.scene.remove(c.root); this.fireCorpses.splice(i, 1); }
+    }
     this.glow.update(dt, this.camera, window.APT?.renderer);
     const w = innerWidth, h = innerHeight;
     for (const c of this.chunks) {
@@ -260,6 +276,8 @@ export class Fx {
   }
 
   clear() {
+    for (const c of this.fireCorpses) this.scene.remove(c.root);
+    this.fireCorpses.length = 0;
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });
     this.puffs.forEach((p) => { p.alive = false; p.m.visible = false; });
     this.rings.forEach((r) => { r.alive = false; r.m.visible = false; });

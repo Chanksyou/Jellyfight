@@ -6,8 +6,8 @@ import { sfx } from './sfx.js';
 import { GUTS } from './enemies.js';
 
 export function wireFeedback(fx) {
-  bus.on('enemy_hit', ({ amount, color, pos }) => {
-    sfx.hit();
+  bus.on('enemy_hit', ({ amount, color, pos, sound }) => {
+    if (sound !== 'fire' && sound !== 'fireball') sfx.hit();
     fx.number(pos, Math.round(amount), color, color === '#fff' ? 13 : 17);
   });
 

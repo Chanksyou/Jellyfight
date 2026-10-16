@@ -57,6 +57,7 @@ export class BubbleLooks {
       sparks: LOOK.num('fire-contact-sparks', 12), sparkSpeed: LOOK.num('fire-spark-speed', 0.23),
       deathEmbers: LOOK.num('fire-death-embers', 18), deathLife: LOOK.num('fire-death-life', 0.75),
       ash: LOOK.color('fire-ash', '#382b28'),
+      smoke: LOOK.color('fire-smoke', '#74655d'),
     };
     const F = this.fire;
     const ball = new THREE.IcosahedronGeometry(1, 2);
@@ -67,7 +68,7 @@ export class BubbleLooks {
     this.parts = {
       fire: [
         [ball, lit(F.core), { name: 'core', s: [0.8, 0.8, 1.05] }],
-        [tongue, lit(F.flame, 0.88), { name: 'flame', s: [1.05, 1.05, F.length] }],
+        [ball, lit(F.flame, 0.72, true), { name: 'flame', s: [1.05, 1.05, F.length * 0.45], at: [0, 0, -0.7] }],
         [tongue, lit(F.edge, 0.4, true), { name: 'flame2', s: [1.45, 1.45, F.length * 1.4] }],
         [tongue, lit(F.core, 0.7, true), { name: 'tongue', s: [0.35, 0.35, F.length * 0.85], at: [0.45, 0.1, -0.2] }],
       ],
@@ -148,13 +149,19 @@ export class BubbleLooks {
   }
 
   // A compact contact, not another damage area. Only confirmed enemy strikes call this.
-  fireHit(pos, r) {
+  fireHit(pos, r, direction = Z) {
     const F = this.fire, glow = this.fx.glow;
+    _d.copy(direction).normalize();
     glow.emit(pos, F.core, r * F.contactScale, r * 0.5, F.contactLife, 1.1);
     glow.emit(pos, F.edge, r * F.contactScale * 1.5, r, F.contactLife * 2, 0.5);
     for (let k = 0; k < F.sparks; k++) {
-      _v.set(Math.cos(k * 2.4) * F.sparkSpeed, 0.08 + (k % 3) * 0.07, Math.sin(k * 2.4) * F.sparkSpeed);
+      _v.set(Math.cos(k * 2.4) * F.sparkSpeed * 0.65, 0.08 + (k % 3) * 0.07, Math.sin(k * 2.4) * F.sparkSpeed * 0.65).addScaledVector(_d, F.sparkSpeed * 0.45);
       glow.emit(pos, k % 2 ? F.ember : F.flame, r * 0.6, 0, F.emberLife, 0.9, _v, 0.35);
+    }
+    // An expanding flame lick turns upward as the sharp contact disappears.
+    for (let k = 0; k < 3; k++) {
+      _v.copy(_d).multiplyScalar(0.045).y += 0.04 + k * 0.025;
+      glow.emit(pos, k === 1 ? F.edge : F.flame, r * (1.5 + k * 0.4), r * 0.2, 0.18 + k * 0.035, 0.4, _v);
     }
   }
 
@@ -169,6 +176,7 @@ export class BubbleLooks {
     const F = this.fire, glow = this.fx.glow;
     glow.emit(pos, F.flame, r * 2, r * 0.2, F.contactLife * 2, 0.75);
     this.fx.burst(pos, [F.ash, F.ash, `#${F.edge.getHexString()}`], 9, r * 0.2, 0.1, pos.y - r);
+    this.fx.puff(_p.copy(pos).setY(pos.y + r * 0.6), F.smoke, r * 1.1, 0.5);
     for (let k = 0; k < F.deathEmbers; k++) {
       _p.copy(pos).add(_a.set(Math.cos(k * 2.4), ((k % 5) - 2) * 0.35, Math.sin(k * 2.4)).multiplyScalar(r * 0.7));
       _v.set(Math.cos(k * 2.4) * 0.05, 0.07 + (k % 4) * 0.035, Math.sin(k * 2.4) * 0.05);
@@ -193,10 +201,11 @@ export class BubbleLooks {
     const w = b.wobble;
     switch (U.look) {
       case 'fire': {
-        const F = this.fire, f = 1 + 0.14 * Math.sin(t * 31 + w);
-        U.flame.scale.set(1.05 * f, 1.05 / f, F.length / f);
+        const F = this.fire, f = 1 + 0.22 * Math.sin(t * 31 + w);
+        U.core.scale.set(0.8 / f, 0.8 * f, 1.15);
+        U.flame.scale.set(1.05 * f, 1.05 / f, F.length * 0.45 / f);
         U.flame.rotation.z = Math.sin(t * 17 + w) * 0.25;
-        U.flame2.scale.set(1.4 / f, 1.3 * f, F.length * 1.4 * f);
+        U.flame2.scale.set(1.25 / f, 1.15 * f, F.length * 1.2 * f);
         U.flame2.rotation.z = -t * 5 + w;
         U.tongue.scale.z = F.length * (0.85 + Math.sin(t * 23 + w) * 0.15);
         U.tongue.position.x = Math.sin(t * 19 + w) * 0.45;

@@ -78,8 +78,13 @@ try {
     if (!recording.ok) throw new Error('Fire flight asset unavailable');
     S.setFireFlight(await ctx.decodeAudioData(await recording.arrayBuffer()));
     const at = (t, fn) => { preview.when(t); fn(); };
-    at(0.3, () => S.sfx.fireLaunch()); at(0.8, () => { S.sfx.hit(); S.sfx.fire(); });
-    at(2.7, () => S.sfx.fireLaunch(1.22)); at(3.2, () => { S.sfx.hit(); S.sfx.fire(1.22); });
+    let stop;
+    at(0.3, () => { stop = S.sfx.fireLaunch(); });
+    at(0.8, () => { stop?.(); S.sfx.fire(); });
+    at(1.1, () => S.sfx.fireBurn()); at(1.6, () => S.sfx.fireDeath());
+    at(2.7, () => { stop = S.sfx.fireLaunch(1.22); });
+    at(3.2, () => { stop?.(); S.sfx.fire(1.22); });
+    at(3.5, () => S.sfx.fireBurn()); at(4.0, () => S.sfx.fireDeath());
     const rendered = await ctx.startRendering(), samples = rendered.getChannelData(0);
     const bytes = new Uint8Array(44 + samples.length * 2), view = new DataView(bytes.buffer);
     const text = (at, str) => [...str].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));

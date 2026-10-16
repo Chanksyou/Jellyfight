@@ -18,17 +18,27 @@ function recordedFireFlight(weight) {
     oldest.stop(); fireVoices.delete(oldest);
   }
   source.buffer = fireFlight;
-  source.playbackRate.value = (0.97 + Math.random() * 0.06) / Math.sqrt(weight);
-  const duration = Math.min(fireFlight.duration / source.playbackRate.value, 1.1 + (weight - 1) * 0.7);
-  const volume = 0.65 + (weight - 1) * 0.2;
+  source.playbackRate.value = (0.98 + Math.random() * 0.04) / Math.pow(weight, 0.15);
+  const duration = fireFlight.duration / source.playbackRate.value;
+  const volume = 0.38 + (weight - 1) * 0.1;
   gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(volume, t + 0.003);
-  gain.gain.setValueAtTime(volume, t + Math.max(0.003, duration - 0.25));
+  gain.gain.linearRampToValueAtTime(volume, t + 0.012);
+  gain.gain.linearRampToValueAtTime(volume * 0.45, t + Math.min(0.18, duration * 0.5));
+  gain.gain.setValueAtTime(volume * 0.45, t + Math.max(0.18, duration - 0.15));
   gain.gain.linearRampToValueAtTime(0, t + duration);
   source.connect(gain).connect(master);
   fireVoices.add(source);
   source.onended = () => { fireVoices.delete(source); source.disconnect(); gain.disconnect(); };
   source.start(t); source.stop(t + duration);
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    const end = Math.max(t, now());
+    gain.gain.cancelAndHoldAtTime(end);
+    gain.gain.linearRampToValueAtTime(0, end + 0.045);
+    source.stop(end + 0.05);
+  };
 }
 
 // Previews: play the sounds into another (offline) context, each at the time given by when(t)
@@ -185,7 +195,11 @@ export const sfx = {
   fireLaunch(weight = 1) {
     if (!ready() || !gap('fireLaunch', 90)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.12) / Math.sqrt(w), g = 0.85 + w * 0.3;
-    if (fireFlight) { recordedFireFlight(w); return; }
+    if (fireFlight) {
+      const stop = recordedFireFlight(w);
+      noise(900, 0.6, 0.12, 0.12, 'bandpass', 0, 2600);
+      return stop;
+    }
     // A pressure pulse under an opening flame, with enough midrange for phone speakers.
     tone('sine', 105 * j, 52 * j, 0.17, 0.24 * g);
     tone('triangle', 220 * j, 440 * j, 0.095, 0.11 * g);
@@ -195,19 +209,24 @@ export const sfx = {
   },
   fireDeath() {
     if (!ready() || !gap('fireDeath', 150)) return;
-    tone('sine', 100, 35, 0.3, 0.18);
-    noise(1200, 0.7, 0.4, 0.18, 'lowpass', 0, 180);
+    noise(900, 0.7, 0.26, 0.14, 'lowpass', 0, 180);
+    noise(3400, 1, 0.18, 0.08, 'bandpass', 0.07, 1800);
     for (let k = 0; k < 5; k++) noise(3500 + Math.random() * 3000, 2, 0.018, 0.09, 'bandpass', 0.04 + k * 0.055);
+  },
+  fireBurn() {
+    if (!ready() || !gap('fireBurn', 240)) return;
+    noise(2900 * jitter(0.15), 1.6, 0.045, 0.045, 'bandpass');
+    noise(6500, 2, 0.012, 0.035, 'highpass', 0.025);
   },
   fire(weight = 1) {
     if (!ready() || !gap('fire', 95)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
     // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
     noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
-    tone('triangle', 330 * j, 95 * j, 0.085, 0.23 * g);
-    tone('sine', 135 * j, 43, 0.21, 0.38 * g);
-    noise(1600 * j, 0.7, 0.2, 0.34 * g, 'lowpass', 0.012, 260);
-    noise(750 * j, 1.1, 0.16, 0.15 * g, 'bandpass', 0.07, 180);
+    noise(700 * j, 0.8, 0.065, 0.18 * g, 'bandpass', 0.004, 180);
+    tone('sine', 125 * j, 48, 0.13, 0.22 * g);
+    noise(1600 * j, 0.7, 0.13, 0.27 * g, 'lowpass', 0.008, 260);
+    noise(750 * j, 1.1, 0.11, 0.1 * g, 'bandpass', 0.04, 180);
     for (let k = 0; k < 5; k++) {
       noise((3600 + Math.random() * 4000) * j, 2.5, 0.008 + Math.random() * 0.012,
         (0.08 - k * 0.01) * g, 'bandpass', 0.035 + k * 0.027 + Math.random() * 0.018);

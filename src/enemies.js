@@ -258,8 +258,8 @@ export class Enemies {
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
-    bus.on('damage_taken', ({ targetId, amount, color }) => {
-      if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color);
+    bus.on('damage_taken', ({ targetId, amount, color, source, sound }) => {
+      if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source);
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
@@ -383,7 +383,7 @@ export class Enemies {
   }
 
   // (the damage_taken listener) elites and bosses keep their own HP
-  applyDamage(e, amount, color = '#fff') {
+  applyDamage(e, amount, color = '#fff', sound) {
     if (!e || e.dead) return;
     if (e.proxy) {
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color);   // elite-damage (treasures)
@@ -403,7 +403,7 @@ export class Enemies {
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
     e.pop = 1;
     e.flashT = 0.07;                      // flashes white for a moment
-    bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e) });
+    bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound });
     if (e.hp <= 0) this.kill(e);
   }
 

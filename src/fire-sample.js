@@ -4,7 +4,7 @@ import { buildCharacter, DEFAULT_LOOK } from './character.js';
 import { Bubbles } from './bubbles.js';
 import { Fx } from './fx.js';
 import { batcher } from './batch.js';
-import { loadLook } from './look.js';
+import { loadLook, LOOK } from './look.js';
 import { newMods, elementParams } from './words.js';
 import { BASE_STATS } from './stats.js';
 import { bus } from './events.js';
@@ -39,6 +39,7 @@ jelly.root.position.set(-0.16, 0.012, 0.02); jelly.root.rotation.y = Math.PI / 2
 const fx = new Fx(scene, camera);
 const origin = new THREE.Vector3(-0.155, 0.082, 0.02);
 const targets = [];
+const bugColor = new THREE.Color(0x50647a), ashColor = new THREE.Color(LOOK.color('fire-ash', '#382b28'));
 for (let k = 0; k < 3; k++) {
   const root = new THREE.Group();
   root.position.set(0.1 + k * 0.049, 0.018, (k - 1) * 0.043);
@@ -69,7 +70,11 @@ document.querySelector('#loop').checked = auto;
 
 function reset() {
   shots.reset(); fx.clear();
-  for (const e of targets) { e.hp = e.maxHp; e.dead = false; e.flash = 0; }
+  for (const e of targets) {
+    e.hp = e.maxHp; e.dead = false; e.flash = 0;
+    e.root.scale.setScalar(1); e.root.rotation.set(0, 0, 0);
+    e.root.visible = true; scene.add(e.root);
+  }
 }
 function cast() {
   if (elapsed - lastCast < 1 / mods.element.fire.rate) return false;
@@ -83,7 +88,6 @@ bus.on('damage_taken', ({ targetId, amount, source }) => {
   const e = targets.find(e => e.id === targetId);
   if (!e || e.dead) return;
   e.hp = Math.max(0, e.hp - amount); e.flash = source === 'fire' ? 0.25 : 1;
-  if (source === 'bubble') sfx.hit();
   if (e.hp === 0) e.dead = true;
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
@@ -131,9 +135,10 @@ function frame(now) {
     jelly.update(dt, idle); shots.fly(dt, stats, mods); shots.effects(dt, stats); fx.update(dt);
     for (const e of targets) {
       e.flash = Math.max(0, e.flash - dt * 6);
+      e.material.color.copy(bugColor).lerp(ashColor, e.dead ? 1 : shots.burning.has(e) ? 0.45 : 0);
       e.material.emissive.setRGB(e.flash * 0.8, e.flash * 0.22, e.flash * 0.03);
-      e.body.scale.y = 0.016 * (1 - e.flash * 0.12);
-      e.root.visible = !e.dead;
+      e.body.scale.set(0.023 * (1 + e.flash * 0.18), 0.016 * (1 - e.flash * 0.3), 0.031);
+      if (!e.dead) e.root.rotation.z = -Math.sin(e.flash * Math.PI) * 0.25;
     }
     batcher.sync(); renderer.render(scene, camera);
   }

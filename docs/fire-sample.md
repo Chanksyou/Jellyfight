@@ -1,4 +1,15 @@
-# Fire feedback sample (v171)
+# Fire feedback sample (v172)
+
+## Current rework
+
+See [the research and revised sequence](fire-rework-research.md). Launch audio
+now belongs to the projectile and fades on contact, expiry or reset instead of
+playing a fixed tail past the hit. Impact is shorter and separates noise body
+from bass; generic fire hit plinks are suppressed. Burn ticks crackle quietly.
+Dead burning silhouettes curl and shrink for 0.55 seconds before disappearing,
+with a maximum of 12 retained bodies. The sample adds visible recoil and charring.
+The following notes describe the earlier revisions and their measurements;
+their fixed audio-tail durations do not apply to v172.
 
 The supplied recording starts when the projectile is fired and carries its
 launch and travel sound. Confirmed fire hits throw 12 faster sparks and play a
