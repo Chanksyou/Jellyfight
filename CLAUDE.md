@@ -9,6 +9,19 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 
 Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. The story `vocabulary/no-retired-words` fails if player text uses a word it lists under _Avoid_.
 
+## Ponytail methods
+
+Use [Ponytail](https://github.com/dietrichgebert/ponytail) in **full** mode by
+default for coding, debugging, refactoring, dependency choices, and reviews.
+Before that work, read and apply `.claude/skills/ponytail/SKILL.md`; for reviews,
+also read `.claude/skills/ponytail-review/SKILL.md`. These checked-in skills serve
+both Codex and Claude Code; no separate plugin installation is required to follow them.
+Read the affected flow and callers, reuse existing code and platform features,
+and make the smallest complete change. Preserve validation, error handling,
+security, accessibility, and the project's required checks. End work reports with
+what was skipped or not checked and any material risk. Follow a different mode
+when the owner requests it.
+
 ## Working with Codex and Claude Code
 
 These are the shared project instructions for both agents; `AGENTS.md` directs
