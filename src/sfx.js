@@ -268,6 +268,11 @@ export const sfx = {
   // level up / treasure: a bright arpeggio
   levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
+  // a treasure chest, in two beats (pickups.js): it strains with a wooden creak while it
+  // shakes, then the lid pops with a thump and a little jingle. kind 1 (an Elite's chest)
+  // creaks for longer and rings higher; every jingle note is jittered so repeats differ
+  chestCreak(kind = 0) { if (!ready()) return; const d = kind ? 0.4 : 0.12; noise(320, 7, d, 0.045, 'bandpass', 0, 150); tone('sawtooth', 130, 65, d, 0.028); },
+  chestPop(kind = 0) { if (!ready()) return; tone('sine', 150, 45, 0.16, 0.3); noise(1000, 1, 0.07, 0.09); const base = kind ? 1560 : 1240; [0, 4, 7, 12].forEach((s, i) => { const f = base * Math.pow(2, s / 12) * jitter(0.03); tone('sine', f, f, 0.14, 0.055, 0.03 + i * 0.05); }); },
   // elements
   fireLaunch(weight = 1) {
     if (!ready() || !gap('fireLaunch', 35)) return;

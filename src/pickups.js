@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
+import { TREASURE_RARITY } from './stats.js';
+import { sfx } from './sfx.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const MAGNET = 0.09;          // meters: XP drifts to you from this far
@@ -81,6 +83,10 @@ export class XpDrops {
 // seconds, with a gold ring on the floor that drains as its time runs out (blinking for the last
 // few seconds); one an elite drops waits for good (stay = Infinity, no ring).
 // The chest's materials and shapes are shared by every chest, so a second one needs no new shaders.
+// A chest's light tells the best rarity its pick holds (the TREASURE_RARITY colours): a room
+// chest's pick holds a Rare, an Elite's an Epic — and the pick keeps the promise (run.js
+// pickTreasure). The chest itself stays gold; only its glow, ring and burst change colour.
+const TIER_COLOR = Object.fromEntries(TREASURE_RARITY.map((r) => [r.id, new THREE.Color(r.color)]));
 let CHEST = null;
 function chestParts(fx) {
   if (CHEST) return CHEST;
@@ -111,10 +117,15 @@ export class RoomTreasure {
     this.g = new THREE.Group();
     this.chest = new THREE.Group();
     const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); this.chest.add(m); return m; };
+    // the lid and its bands ride on a hinge at the back edge, so opening can pop it
+    this.lidPivot = new THREE.Group();
+    this.lidPivot.position.set(0, 0.018, -0.012);
+    this.chest.add(this.lidPivot);
+    const addLid = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z + 0.012); this.lidPivot.add(m); return m; };
     add(C.box, C.body, 0, 0.009, 0);
-    add(C.lid, C.body, 0, 0.018, 0);
+    addLid(C.lid, C.body);
     add(C.seam, C.dark, 0, 0.018, 0);
-    for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); add(C.lidBand, C.trim, x, 0.018, 0); }
+    for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); addLid(C.lidBand, C.trim, x); }
     add(C.lock, C.trim, 0, 0.016, 0.0125);
     this.chest.scale.setScalar(1.5);
     this.ring = new THREE.Mesh(C.ring, fx.tele(this.gold, 'circle'));   // each chest's own timer (same shader)
@@ -128,10 +139,16 @@ export class RoomTreasure {
     this.active = false;
     this.spot = null;
     this.sparkT = 0;
+    this.opening = null;          // seconds into the open sequence, once touched
+    this.snapped = false;
+    this.tierColor = C.gold;
   }
 
   get pos() { return this.g.position; }
   get timed() { return Number.isFinite(this.stay); }
+  // the best rarity this chest's pick holds: a timed (room) chest's pick holds a Rare,
+  // one an Elite left (it waits for good) holds an Epic (run.js PICK_TIERS)
+  get tier() { return this.timed ? 'rare' : 'epic'; }
 
   // at: { at: [x, y, z], y, label } (a spot) or a Vector3; stay: seconds, or Infinity
   show(at, stay = Infinity, facing = 0) {
@@ -139,44 +156,98 @@ export class RoomTreasure {
     this.stay = stay;
     this.left = stay;
     this.active = true;
+    this.tierColor = TIER_COLOR[this.tier];
+    this.ring.material.uniforms.uColor.value.copy(this.tierColor);
+    this.opening = null;
+    this.lidPivot.rotation.x = 0;
+    this.chest.scale.setScalar(1.5);
+    this.chest.position.set(0, 0, 0);
     if (at.isVector3) this.g.position.copy(at); else this.g.position.set(at.at[0], at.y, at.at[2]);
     this.chest.rotation.y = facing;
     this.ring.visible = this.timed;
     this.g.visible = true;
     this.g.updateMatrixWorld(true);
-    this.fx.impact(_v.copy(this.g.position).setY(this.g.position.y + 0.02), this.gold, 0.04, 16);
+    this.fx.impact(_v.copy(this.g.position).setY(this.g.position.y + 0.02), this.tierColor, 0.04, 16);
   }
 
-  hide() { this.active = false; this.g.visible = false; }
+  hide() {
+    this.active = false;
+    this.g.visible = false;
+    this.opening = null;
+    this.lidPivot.rotation.x = 0;
+    this.chest.scale.setScalar(1.5);
+    this.chest.position.set(0, 0, 0);
+  }
 
   // 'taken', 'gone' (its time ran out) or null
   update(dt, t, feet) {
     if (!this.active) return null;
-    this.left -= dt;
     const p = this.g.position;
+    if (this.opening !== null) return this.stepOpening(dt);
+    this.left -= dt;
     // blink for the last 4 seconds, faster as it goes
     const blink = this.timed && this.left < 4 ? (Math.sin(t * (10 + (4 - this.left) * 6)) > 0 ? 1 : 0.25) : 1;
     if (this.timed) { this.ring.material.progress = Math.max(0, this.left / this.stay); this.ring.material.opacity = blink; }
-    // a soft gold glow that breathes, and a twinkle now and then on the chest
+    // a soft glow that breathes, in the chest's tier colour, and a twinkle now and then
     const breathe = 0.75 + 0.25 * Math.sin(t * 2.2);
-    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.018), this.gold, 0.09 * breathe * (0.6 + 0.4 * blink), 0.9);
+    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.018), this.tierColor, 0.09 * breathe * (0.6 + 0.4 * blink), 0.9);
     if ((this.sparkT -= dt) <= 0) {
       this.sparkT = 0.18 + Math.random() * 0.2;
       _w.set((Math.random() - 0.5) * 0.008, 0.01 + Math.random() * 0.012, (Math.random() - 0.5) * 0.008);
-      this.fx.glow.emit(_v.set(p.x + (Math.random() - 0.5) * 0.04, p.y + 0.012 + Math.random() * 0.02, p.z + (Math.random() - 0.5) * 0.03), this.gold, 0.007, 0.001, 0.5, 1, _w, -0.02);
+      this.fx.glow.emit(_v.set(p.x + (Math.random() - 0.5) * 0.04, p.y + 0.012 + Math.random() * 0.02, p.z + (Math.random() - 0.5) * 0.03), this.tierColor, 0.007, 0.001, 0.5, 1, _w, -0.02);
     }
-    // touched: close to it, or right over it (standing on something beside it, up to 12 cm up)
+    // touched: close to it, or right over it (standing on something beside it, up to 12 cm up).
+    // Touching starts the open sequence; the pick is offered when the lid has popped (stepOpening)
     const flat = Math.hypot(feet.x - p.x, feet.z - p.z), up = feet.y - p.y;
     if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < 0.045 || p.distanceTo(feet) < 0.04 || (flat < 0.04 && up > -0.02 && up < 0.12)) {
-      this.fx.impact(_v.copy(p).setY(p.y + 0.02), this.gold, 0.05, 24);
-      this.hide();
-      return 'taken';
+      this.opening = 0;
+      this.snapped = false;
+      sfx.chestCreak(this.timed ? 0 : 1);
+      return null;
     }
     if (this.left <= 0) {
       this.fx.puff(_v.copy(p).setY(p.y + 0.015), 0xffe7a0, 0.04, 0.5);
       this.hide();
       return 'gone';
     }
+    return null;
+  }
+
+  // The open itself: the chest strains first (trembling, squashing down, its glow swelling
+  // in the tier colour), then the lid pops and the treasure bursts out in that colour, with
+  // dust at its base and three sparks arcing out as the pick arrives. An Elite's chest
+  // builds for most of a second; a room chest is a quick snap, so a run never waits on it.
+  // The timer is frozen while it opens: touching it in time was enough.
+  stepOpening(dt) {
+    const p = this.g.position, elite = !this.timed;
+    const A = elite ? 0.45 : 0.10, S = elite ? 0.30 : 0.15;
+    this.opening += dt;
+    const o = this.opening;
+    if (o < A) {
+      const k = o / A;
+      this.chest.position.set((Math.random() - 0.5) * 0.003 * k, 0, (Math.random() - 0.5) * 0.003 * k);
+      this.chest.scale.set(1.5 * (1 + 0.07 * k * k), 1.5 * (1 - 0.16 * k * k), 1.5 * (1 + 0.07 * k * k));
+      this.fx.glow.hold(_v.copy(p).setY(p.y + 0.02), this.tierColor, 0.09 + 0.09 * k, 0.95);
+      return null;
+    }
+    if (!this.snapped) {
+      this.snapped = true;
+      this.chest.position.set(0, 0, 0);
+      sfx.chestPop(elite ? 1 : 0);
+      this.fx.impact(_v.copy(p).setY(p.y + 0.02), this.tierColor, elite ? 0.07 : 0.05, elite ? 36 : 24);
+      this.fx.puff(_v.copy(p).setY(p.y + 0.01), 0xd8d2c6, 0.05, 0.5);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2 + Math.random() * 0.8;
+        _w.set(Math.cos(a) * 0.05, 0.26, Math.sin(a) * 0.05);
+        this.fx.glow.emit(_v.copy(p).setY(p.y + 0.03), this.tierColor, 0.011, 0.002, 0.6, 1, _w, 0.55);
+      }
+    }
+    const q = Math.min(1, (o - A) / S), e = 1 + 2.70158 * (q - 1) ** 3 + 1.70158 * (q - 1) ** 2;   // easeOutBack: the lid overshoots and settles
+    this.lidPivot.rotation.x = -1.85 * e;
+    const pop = 1 + 0.07 * (1 - q);
+    this.chest.scale.set(1.5 * pop, 1.5 * pop, 1.5 * pop);
+    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.03), this.tierColor, (elite ? 0.17 : 0.12) * (1 - q * 0.6), 0.95);
+    if (o >= A + S) { this.hide(); return 'taken'; }
     return null;
   }
 }

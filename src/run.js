@@ -780,7 +780,15 @@ export class Run {
     // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
     const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
     const up = ups.length ? rollTreasures(ups, 1, this.S.luck) : [];
-    let left = shuffle([...up, ...rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck)]);
+    const rolled = rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck);
+    // the chest's glow promises its best rarity (pickups.js RoomTreasure.tier): if the roll
+    // came up short, bend its last slot to that rarity, when one can still be taken
+    const best = tiers[tiers.length - 1];
+    if (rolled.length && !rolled.some((t) => t.rarity === best)) {
+      const cand = TREASURES.filter((t) => can(t) && t.rarity === best && !rolled.includes(t));
+      if (cand.length) rolled[rolled.length - 1] = cand[(Math.random() * cand.length) | 0];
+    }
+    let left = shuffle([...up, ...rolled]);
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {

@@ -114,8 +114,28 @@ story('treasures/rarity-by-source', {
     run.stats.luck = 0;
     restore();
     const R = seen.elite, rooms = Object.keys(seen.room), elites = Object.keys(R);
-    return ok(rooms.every((r) => r === 'common' || r === 'rare') && elites.every((r) => r === 'rare' || r === 'epic') && R.rare > 0 && R.epic > 0 && lucky > plain * 1.3,
+    return ok(rooms.every((r) => r === 'common' || r === 'rare') && elites.every((r) => r === 'rare' || r === 'epic') && R.rare > 0 && R.epic > 0 && lucky > plain * 1.2,   // the chest's promise already guarantees a Rare per room pick, so luck's lift starts from that floor
       { elite: R, plain: +plain.toFixed(2), lucky: +lucky.toFixed(2) });
+  },
+});
+story('treasures/the-pick-keeps-the-chests-promise', {
+  about: 'A chest\'s glow promises the best rarity its pick holds, and the pick keeps it: every room pick holds a Rare and every Elite pick an Epic, even when the plain roll would have come up short.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G();
+    let list = [];
+    stub(run.ui, 'choose', (t, s, l) => { list = l; });
+    let kept = true;
+    for (let i = 0; i < 40 && kept; i++) {
+      run.chestsOpened = 1;                       // never the every-3rd-chest Element upgrade pick
+      run.pickTreasure('', '', 'room');
+      kept = list.some((c) => c.rarity === 'rare');
+      run.chestsOpened = 1;
+      run.pickTreasure('', '', 'elite');
+      kept = kept && list.some((c) => c.rarity === 'epic');
+    }
+    restore();
+    return ok(kept, { kept });
   },
 });
 story('treasures/levels', {
