@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v175 player hit feedback: landed discrete hits apply a small 0.06 m/s horizontal
+knockback away from the attacker (backward fallback) and a light 0.22 shake cue.
+Movement damps the nudge normally. Dodges, reflected hits and invulnerability
+skip it; continuous drain retains its existing quiet behavior. This small
+movement change can affect positioning near ledges; balance simulation was not run.
+
 Fire overhaul (v174): normal gameplay now uses the approved fire sequence and
 recorded launch/flight audio. Loading starts after the first audio-unlocking tap;
 failed loading falls back to synthesis. Burning deaths char, curl and shrink,

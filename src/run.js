@@ -19,6 +19,7 @@ import { RoomTreasure, XpDrops } from './pickups.js';
 import { FirstRun, markPlayed } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
+import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
@@ -580,16 +581,22 @@ export class Run {
       const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
-    this.hurt(amount);
+    this.hurt(amount, false, from);
   }
 
-  hurt(amount, silent = false) {
+  hurt(amount, silent = false, from = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
-    if (!silent) { juice.shake(0.55); sfx.hurt(); }
+    if (!silent && amount > 0) {
+      juice.shake(LOOK.num('player-hit-shake', 0.22)); sfx.hurt();
+      const attacker = from != null && this.enemies.list.find(e => e.id === from);
+      const away = attacker ? this.player.position.clone().sub(this.enemies.center(attacker)).setY(0) : new THREE.Vector3();
+      if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
+      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: this.cfg.hitKnockback ?? 0.06 });
+    }
     if (!silent) this.player.avatar?.land(1.5);
     // death-save: once per run, the last of your Health holds
     const D = this.mods.deathSave;
