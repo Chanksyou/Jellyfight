@@ -101,7 +101,8 @@ act3('bull-spiral', {
     let turned = 0;
     for (let i = 1; i < low.length; i++) turned += Math.atan2(Math.sin(low[i].a - low[i - 1].a), Math.cos(low[i].a - low[i - 1].a));
     const red = shots.every((s) => s.color === hostile('bull').getHex());
-    return ok(warned && shots.length >= 40 && pairs.length >= 20 && opposite && low.length === high.length && Math.abs(turned) > Math.PI * 2 && red,
+    return ok(warned && shots.length >= 40 && pairs.length >= 20 && opposite && Math.abs(low.length - high.length) <= 4 &&   // (a floor-level Shot fired straight into the pad's raised edge is gone before a frame sees it)
+       Math.abs(turned) > Math.PI * 2 && red,
       { warned, shots: shots.length, pairs: pairs.length, opposite, low: low.length, high: high.length, heights: [low[0]?.h, high[0]?.h], turned: +turned.toFixed(2), red });
   },
 });

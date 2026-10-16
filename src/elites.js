@@ -414,7 +414,7 @@ const KINDS = {
   clock: { name: 'The Wall Clock', wall: true, build: clockModel },
   whipper: { name: 'The Cream Whipper', build: whipperModel },
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
-  bull: { name: 'The Bull', build: bullModel },
+  bull: { name: 'The Bull', scale: 0.6, build: bullModel },
 };
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
