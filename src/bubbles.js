@@ -10,7 +10,7 @@
 //   fire (Birthday Candle)   a fireball: sets enemies burning; burning enemies that die set their
 //                            neighbors alight. Fire on a frozen enemy shatters it: 3x.
 //   lightning (AA Battery)   ball lightning: each pop chains a bolt to 3 more enemies, stunning them.
-//   ice (Freezer Pack)       an ice shard: chills and slows; the 2nd chilled hit freezes it solid.
+//   ice (Freezer Pack)       an ice shard: chills and slows; repeated hits refresh the slow.
 //   acid (Nail Polish)       an acid glob: leaves a bubbling puddle that eats at enemies and softens
 //                            them (they take 50% more damage while in it).
 //   wind (Paper Fan)         a fast crescent wind blade that hits across its whole width, pierces
@@ -361,9 +361,8 @@ export class Bubbles {
     if (el.has('ice') && !e.proxy) {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
       const t = b.ep?.chill ?? 2;
-      if (e.freezeT > 0) dmg *= b.ep?.frozenMul ?? 1;      // Freezer Burn
-      bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: t });
-      bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });   // the 2nd chill freezes
+      if (e.slowT > 0) dmg *= b.ep?.slowedMul ?? 1;      // Freezer Burn rewards follow-up hits
+      bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
     }
     if (el.has('wind') && !e.proxy) {
       bus.emit('knockback', { targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) });

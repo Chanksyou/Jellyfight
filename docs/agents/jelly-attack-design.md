@@ -83,7 +83,7 @@ These are target qualities, not instructions to change attack mechanics.
 | Tentacle stings | A readable lash from the correct tentacle toward the chosen enemy, followed by recovery. | A localized sting at contact; venom has its own continuing cue. Decorative deformation must not imply an extra hit or interrupt movement. |
 | Fire | A compact energetic core, irregular flame envelope, and trailing embers. | A brief ignition at contact; burning remains visible only while the status is active. |
 | Lightning | An irregular angular path, varying thickness, tapered ends, limited secondary arcs, and a narrow bright core within the element's colored halo. | A sharp local contact and brief afterimage. Chain segments join actual struck enemies; do not draw damaging-looking connections to untouched targets. |
-| Ice | A directional crystalline silhouette and sparse, sharp fragments. | Distinguish a chilling hit from a completed freeze and from a shatter; show each only when it occurs. |
+| Ice | A directional crystalline silhouette and sparse, sharp fragments. | Chill applies a movement slow; repeated hits refresh it without freezing. Show the active slow ring, not a frozen shell or freeze confirmation. |
 | Acid | A cohesive wobbling glob with restrained drips. | The persistent puddle shows the actual affected ground area and lifetime, including its ending. |
 | Wind | A broad crescent with clear direction and tapered wisps. | Its visible sweep agrees with collision width. Show a shove only when gameplay applies one. |
 | Glitter | A compact sparkling body with a clear center; decorative particles stay subordinate. | A brief area burst that communicates the real splash size; avoid an opaque cloud. |

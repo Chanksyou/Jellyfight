@@ -713,13 +713,13 @@ export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
   fire: { burn: 1, burnTime: 3, spread: 0.06 },                       // burn dps x, seconds, how far a death spreads it
   lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
-  ice: { chill: 2, frost: 0, frozenMul: 1, rate: 1, dmg: 1.35 },         // chill s, frost: chills the whole splash, frozen enemies take x
+  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 1.35 },         // chill s, frost: chills the whole splash, slowed enemies take x
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
   wind: { push: 0.3, pierce: 1, speed: 1.4, rate: 1.4, dmg: 1.1 },    // push x; gusts pierce once and fly fast
   glitter: { width: 2.2, splash: 1, slow: 0, rate: 1.05 },            // splash width x, splash damage x, slow s
 };
 // element-up numbers that add (the rest multiply)
-const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'frozenMul']);
+const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
@@ -794,7 +794,7 @@ export const TREASURE_WORDS = {
     make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
   },
   'element-up': {
-    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow and frozenMul add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
+    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow and slowedMul add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
     args: ['name'],
     props: Object.fromEntries([...new Set(Object.values(ELEMENT_BASE).flatMap((o) => Object.keys(o)))].map((k) => [k, null])),
     make: ([name], p) => {

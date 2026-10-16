@@ -54,13 +54,13 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 // your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
 // Legendary pick) always offers at least one you don't have; never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s. Fire on a frozen enemy shatters it for triple damage." {
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s." {
     element "fire"
 }
 treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning attack: you also shoot ball lightning; every pop arcs to 3 more enemies nearby, stunning each." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice attack: you also shoot ice shards that chill and slow; the 2nd chilled hit freezes the enemy solid." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice attack: you also shoot ice shards that slow enemies for 2 s. Repeated hits refresh the slow." {
     element "ice"
 }
 treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
@@ -108,20 +108,20 @@ treasure "phoneCharger" name="Phone Charger" icon="📱" rarity="epic" needs="ba
     element-up "lightning" rate=1.4
 }
 // ice
-treasure "iceTray" name="Ice Tray" icon="🍧" rarity="common" needs="freezerPack" attack=#true text="Ice: chills (and the slow) last 50% longer." {
+treasure "iceTray" name="Ice Tray" icon="🍧" rarity="common" needs="freezerPack" attack=#true text="Ice: slows last 50% longer." {
     element-up "ice" chill=1.5
 }
 treasure "frozenPeas" name="Frozen Peas" icon="🫛" rarity="common" needs="freezerPack" attack=#true text="Ice: shards hit 40% harder." {
     element-up "ice" dmg=1.4
 }
-treasure "snowGlobe" name="Snow Globe" icon="🌨️" rarity="rare" needs="freezerPack" attack=#true text="Ice: each shard's burst chills everything around where it hits." {
+treasure "snowGlobe" name="Snow Globe" icon="🌨️" rarity="rare" needs="freezerPack" attack=#true text="Ice: each shard's burst slows everything around where it hits." {
     element-up "ice" frost=1
 }
 treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 2 more enemies." {
     element-up "ice" pierce=2
 }
-treasure "freezerBurn" name="Freezer Burn" icon="🥶" rarity="epic" needs="freezerPack" attack=#true text="Ice: shards do double damage to frozen enemies." {
-    element-up "ice" frozenMul=1
+treasure "freezerBurn" name="Freezer Burn" icon="🥶" rarity="epic" needs="freezerPack" attack=#true text="Ice: shards do double damage to slowed enemies." {
+    element-up "ice" slowedMul=1
 }
 // acid
 treasure "polishRemover" name="Polish Remover" icon="🧪" rarity="common" needs="nailPolish" attack=#true text="Acid: puddles eat 60% faster." {

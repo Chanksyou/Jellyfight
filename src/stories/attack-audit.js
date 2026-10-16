@@ -16,7 +16,9 @@ export const AUDIT = {
   player: {
     bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
     sting: todo,
-    fire: todo, lightning: todo, ice: todo, acid: todo, wind: todo, glitter: todo,
+    fire: todo, lightning: todo,
+    ice: { score: null, note: 'v180: chill refreshes slow only; target remains mobile and shows the existing slow ring, never the frozen shell. Freezer Burn rewards already slowed targets. Code review only; remaining ice audit still pending.' },
+    acid: todo, wind: todo, glitter: todo,
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {

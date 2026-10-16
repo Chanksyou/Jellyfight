@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v180 ice: Freezer Pack slows enemies for 2 s; repeated hits refresh the slow
+without freezing. Ice Tray extends it and Snow Globe spreads it. Freezer Burn
+now doubles shard damage against already slowed enemies. Existing slow strength
+is unchanged (enemies move at 55% speed).
+
 v179 player hit feedback: landed discrete hits apply a small 0.06 m/s horizontal
 knockback away from the attacker (backward fallback) and a light 0.22 shake cue.
 Movement damps the nudge normally. Dodges, reflected hits and invulnerability

@@ -271,13 +271,7 @@ export class Enemies {
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {
-        // the second chill in a row freezes it solid
-        e.chill = (e.chill || 0) + 1;
-        if (e.chill >= 2) {
-          e.chill = 0;
-          e.freezeT = duration;
-          bus.emit('enemy_frozen', { targetId, pos: this.center(e), r: e.r });
-        }
+        e.slowT = Math.max(e.slowT || 0, duration);
       }
     });
     bus.on('knockback', ({ targetId, dir, force }) => {
