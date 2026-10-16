@@ -66,6 +66,10 @@
   --pothos-leaf-open: #3b5a0a;   /* its leaves light up green-gold while they're parted after a Vine Whip (the opening) */
   --pothos-open-grow: 0.4;       /* how much bigger the heart swells then */
   --pothos-open-halo: 0.5;       /* how far its glow spreads then (m, before the plant's scale) */
+  --pothos-sway: 0.025;          /* canopy/heart travel in the plant's frame; pot remains seated */
+  --pothos-sway-rate: 1.8;       /* radians per second, faster when angry */
+  --pothos-flutter: 0.18;        /* phased leaf motion along the canopy and vines */
+  --pothos-sweep-impact: 0.025;  /* confirmed contact flash, not a new damage area */
   --pothos-leaf-glow: #071405;   /* the leaves' own faint glow (the Pothos's, and its Cuttings' and Sap sprouts') */
   --pothos-vine-glow: #0a1a06;   /* the vines' */
   --pothos-pot: #b8653c;         /* its terracotta pot */

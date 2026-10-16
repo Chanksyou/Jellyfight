@@ -61,12 +61,12 @@ boss "clog" name="The Clog" hp=1500 contact=2 {
 // bump: touching the pot hurts (contact) and pushes you off it at `push` m/s, at most every `every` s
 // rise: how fast it grows up out of the pillows as the fight starts (the whole rise per second)
 boss "pothos" name="The Pothos" hp=1500 contact=2 {
-    whip    time=1.0 windup=0.8 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 launch=0.15 swing=0.6 open=1.5 count=2 angryCount=3 rest=1.8 angryRest=1.1
-    sweep   time=1.4 windup=0.8 swing=0.45 arc=105 reach=0.7 height=0.035 dmg=3 knock=0.6 rest=1.8 angryRest=1.1
+    whip    time=1.0 windup=0.8 lash=0.15 lead=0.5 width=0.04 height=0.04 reach=1.1 dmg=4 knock=0.8 launch=0.15 swing=0.6 open=1.5 count=2 angryCount=3 rest=0.95 angryRest=0.35
+    sweep   time=1.4 windup=0.8 swing=0.45 arc=105 reach=0.7 height=0.035 dmg=3 knock=0.6 rest=0.95 angryRest=0.35
     guard   radius=0.28 first=0.25 every=0.55 windup=0.45 lash=0.12 over=0.08 reach=0.45 width=0.035 height=0.04 dmg=3 knock=0.7
-    cutting time=1.0 count=1 angryCount=2 near=0.16 rest=1.8 angryRest=1.1
-    roots   time=1.2 count=3 spread=0.18 rest=1.8 angryRest=1.1
-    swarm   at=0.7 count=4 shield=30 rest=1.5
+    cutting time=1.0 count=1 angryCount=2 near=0.16 rest=0.95 angryRest=0.35
+    roots   time=1.2 count=3 spread=0.18 rest=0.95 angryRest=0.35
+    swarm   time=1.0 at=0.7 count=4 shield=30 rest=0.95 angryRest=0.35
     enrage  at=0.45
     bump    push=0.6 every=0.3
     rise    rate=0.55
