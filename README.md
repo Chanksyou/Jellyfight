@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Sting feel (v179): the tentacle sting now completes its Attack Feel chain (7/7,
+up from 4/9). The bell twitches as the tentacles whip out, each sting lands with
+a small flash and the `hit` shake step, and its shove follows its damage like the
+bubble's (`knockFor`: a base 4-damage sting shoves 4 mm, it was a flat 8 mm).
+Story `attack/sting-feel`.
+
 Bubble feel (v178), the first attack reworked to `docs/agents/attack-feel.md`: a
 plain bubble's pop leaves a wet splat on the floor that fades over 2 s (`fx.splat`,
 at most 24 at once, `--splat-*` in `content/look.css`); blowing one adds a soft

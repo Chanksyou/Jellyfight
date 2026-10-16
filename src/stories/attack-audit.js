@@ -15,7 +15,7 @@ export const AUDIT = {
   // the jelly's own attacks
   player: {
     bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
-    sting: todo,
+    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v179 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
     fire: todo, lightning: todo, ice: todo, acid: todo, wind: todo, glitter: todo,
   },
   // treasure words (src/words.js) that make an attack of their own
