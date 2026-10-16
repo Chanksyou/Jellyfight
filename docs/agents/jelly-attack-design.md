@@ -14,8 +14,15 @@ what it reaches, and what happened when it connected**. Build satisfaction from
 shape, timing, contrast, and a visible consequence. More particles alone do not
 make a better attack.
 
+The foundation is [Attack Feel](attack-feel.md): the seven-phase chain
+(Anticipation, Release, Travel, Impact, Reaction, Aftermath, Confirmation), sound
+as a parallel channel, the five laws, and the nine-question audit. Its reasoning
+is in [The Feel of Impact](attack-effects-foundation.md). This guide applies that
+chain to the jelly; use its phase names in notes, code comments, and reviews.
+
 The owner's references are Egor's [spell feedback demonstration](https://www.instagram.com/p/Deff1_AtlFi/)
-and [lightning demonstration](https://www.instagram.com/p/DeaiBSlodi2/).
+and [lightning demonstration](https://www.instagram.com/p/DeaiBSlodi2/), plus the
+gunfire and spell reels unified in the foundation.
 Use their principles: build feedback in deliberate layers; give electricity
 expressive bends, varying width, tapered accents, and a bright core within a
 colored halo. The application to Jelly Fight below is our design direction,
@@ -36,8 +43,10 @@ For each attack being changed, put a short design note in the task or pull reque
 
 - **Identity:** the one action or material it should suggest, and its silhouette.
 - **Rules:** trigger, source, target, reach, cadence, damage, statuses, and end conditions.
-- **Feedback:** preparation, release, travel, contact, and aftermath; mark phases
-  that do not apply. Specify sound separately from visuals.
+- **Feedback:** anticipation, release, travel, impact, reaction, aftermath, and
+  confirmation; mark phases that do not apply. Specify sound separately from visuals.
+- **Audit:** the nine-question score from [Attack Feel](attack-feel.md), before
+  and after, with each zero named.
 - **Strength:** ordinary hit, upgraded or critical hit, and kill; identify what scales.
 - **Limits:** concurrent effects, sound overlap, lifetime, and what Low graphics omits.
 - **Proof:** the story, visual comparison, and performance checks that will establish success.
@@ -50,11 +59,13 @@ it does not require a runtime profile system.
 
 | Phase | What the player should understand | Development instruction |
 |---|---|---|
-| Preparation | The jelly or skill is about to act. | Use an existing bell squeeze, tentacle draw-back, gathering energy, or cooldown cue where appropriate. Repeating automatic attacks need subtle preparation; do not add a charge delay to every shot. |
+| Anticipation | The jelly or skill is about to act. | Use an existing bell squeeze, tentacle draw-back, gathering energy, or cooldown cue where appropriate. Repeating automatic attacks need subtle preparation; do not add a charge delay to every shot. |
 | Release | The attack starts here and goes this way. | Anchor it to the actual bell, tentacle tip, companion, or trigger location. Coordinate the source animation, launch effect, and sound. |
 | Travel or active area | Its direction, shape, and reach are readable. | Give projectiles a distinct body and optional trailing accents. Give auras, traps, and pulses an honest footprint instead of inventing travel. Keep the leading edge clear. |
-| Contact | A real hit happened at this point. | Trigger the main flash, burst, sound, and enemy response from the confirmed gameplay result. Separate hit feedback from a wall collision, range expiry, blocked hit, or miss. |
-| Aftermath | The immediate hit ended, or a status remains active. | Clear the burst quickly. Leave only an effect representing a real burn, freeze, venom, puddle, or other ongoing condition, and remove it when that condition ends. |
+| Impact | A real hit happened at this point. | Trigger the main flash, burst, and sound from the confirmed gameplay result. Separate hit feedback from a wall collision, range expiry, blocked hit, or miss. |
+| Reaction | The target felt it, and so did the jelly. | Enemy white flash and squash or flinch; the jelly's bell or tentacle answers its own attack. Shake scales with significance. Displacement only where gameplay already applies it. |
+| Aftermath | The immediate hit ended, or a status remains active. | Clear the burst quickly. An ongoing burn, freeze, venom, or puddle shows exactly while it lasts. Cosmetic leftovers (splats, droplets) may stay briefly if they read as harmless, fade, and are capped. |
+| Confirmation | How much it mattered; whether it died. | Numbers sized by significance, a distinct crit, and a kill that never looks like a hit (burst, the existing kill hit-stop). |
 
 The highest contrast should be at the important instant and place. Reserve bright
 white accents for small, brief cores or contacts; keep silhouettes visible against
@@ -93,8 +104,10 @@ not every full effect stacked on the same enemy.
 - Animate from gameplay events and positions. Cosmetic animation never decides
   whether something hits. Avoid duplicate flashes, sounds, and numbers when both
   an attack and a shared event listener handle the same hit.
-- Do not introduce physical knockback, stun, or global hit-stop as cosmetic polish.
-  They affect play. Honor existing effects and the balance procedure in `CLAUDE.md`.
+- Knockback follows damage: a harder hit shoves further (the owner's decision;
+  see [Attack Feel](attack-feel.md)). Do not introduce stun or new hit-stop as
+  cosmetic polish; they affect play and follow the balance procedure in `CLAUDE.md`.
+  Shake and hit-stop come from the `--feel-*` ladder through `juice.feel`.
 - Common hits stay local and restrained. Critical hits and important kills may
   receive stronger emphasis, bounded across simultaneous hits. Continuous attacks
   must not create continuous camera shake or chain freezes of the whole game.
@@ -168,7 +181,8 @@ on a real iPhone or Pixel. Report which hardware and graphics settings were test
    cleanup failures, and accidental balance changes. Follow the normal branch,
    commit, pull request, and approved release workflow.
 
-An attack is ready when its source, direction or area, successful contact, and
+An attack is ready when its audit score fits its significance (see
+[Attack Feel](attack-feel.md)); its source, direction or area, successful contact, and
 ongoing effects are understandable at normal play speed; its identity survives
 Low graphics and muted audio; its effects end correctly; and its required checks
 and measured performance support the change. Report evidence and remaining limits.

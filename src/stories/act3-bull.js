@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { hostile } from '../vfx.js';
 import { CONTENT } from '../content.js';
+import { unlock as unlockAudio, audio } from '../sfx.js';
 import { G, V, act3, bull, fresh, ok, onTable, r3, record, startBull, step, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(-0.2, 0.05, 8.9, 0);                // on the floor in front of the dresser
@@ -136,7 +137,7 @@ act3('bull-spiral-jump-the-low-arm-stay-down-for-the-high', {
 // the little bulls of the attack going now, as the scene has them
 const minis = () => G().run.elites.minis;
 act3('bull-minis', {
-  about: 'Little bulls: two little bulls, as big as the jelly, pop up 10 cm to its left and right (as the camera sees it), each with a lane Warning (a strip and the box over it) through where the jelly is; then they charge along it: one hits the jelly for 3 and knocks it away, and both burst (squashed flat) and are gone.',
+  about: 'Little bulls: two little bulls, as big as the jelly, pop up to its left and right (as the camera sees it; how far: content/elites.kdl), each with a lane Warning (a strip and the box over it) through where the jelly is; then they charge along it: one hits the jelly for 3 and knocks it away, and both burst (squashed flat) and are gone.',
   setup() { startBull(2); },
   play() {
     const { e, player } = startBull(2), { camera } = G().APT, log = record('damage_taken'), knocks = record('knockback');
@@ -158,8 +159,21 @@ act3('bull-minis', {
     });
     const gone = !minis().length && meshes.length === 2 && meshes.every((m) => !m.parent);
     const hits = hitsBy(log, 'bull-mini');
-    return ok(spawned && spawned.dist.every((d) => Math.abs(d - 0.1) < 0.005) && spawned.opposite < -0.95 && spawned.across < 0.1 && Math.abs(spawned.tall - 0.09) < 0.02
+    return ok(spawned && spawned.dist.every((d) => Math.abs(d - CONTENT.elites.bull.skills.minis.side) < 0.005) && spawned.opposite < -0.95 && spawned.across < 0.1 && Math.abs(spawned.tall - 0.09) < 0.02
       && lanes === 2 && moved > 0.05 && hits.length === 1 && hits[0] === 3 && knocks.length >= 1 && squashed && gone, { spawned, lanes, moved: +moved.toFixed(3), hits, knocks: knocks.length, squashed, gone });
+  },
+});
+
+act3('bull-minis-with-sound', {
+  about: 'The little bulls\' attack plays its sounds on live audio without an error (their rolling sound once got no length: harmless with sound off, an error popup in real play).',
+  setup() { startBull(2); },
+  async play() {
+    unlockAudio();
+    await new Promise((r) => setTimeout(r, 200));
+    const { e } = startBull(2);
+    let charged = false;
+    step(60 * 4, () => { if (minis().some((b) => b.state === 'charge')) charged = true; return e.state === 'idle' && charged; });
+    return ok(!!audio() && charged, { audio: !!audio(), charged });
   },
 });
 
@@ -185,7 +199,7 @@ act3('bull-minis-burst-on-each-other-and-are-jumped', {
       });
       out[name] = { burst: burst.map((b) => +b.along.toFixed(3)), hits: hitsBy(log, 'bull-mini').length, left: minis().length };
     }
-    const meet = (r) => r.burst.length === 2 && r.burst.every((a) => a > 0.05 && a < 0.1) && !r.hits && !r.left;
+    const side = CONTENT.elites.bull.skills.minis.side, meet = (r) => r.burst.length === 2 && r.burst.every((a) => a > side * 0.5 && a < side) && !r.hits && !r.left;
     return ok(meet(out.stepped) && meet(out.jumped), out);
   },
 });

@@ -7,7 +7,9 @@ import { FramePacer, FrameGovernor } from '../pacing.js';
 import { checkBvhLayout } from '../collision.js';
 import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
-import { G, V, fresh, ok, spawn, step, story, tp } from './kit.js';
+import { juice } from '../juice.js';
+import { LOOK } from '../look.js';
+import { G, V, fresh, near, ok, spawn, step, story, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
 function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
@@ -140,6 +142,28 @@ story('engine/leaderboard', {
 });
 
 // --- the main screen
+story('menu/reduce-effects', {
+  about: 'The ✨ button in the pause menu turns Reduce effects on and off and remembers it: on, a kill still lands its hit-stop but shakes nothing; off, the kill shakes by its step on look.css\'s --feel-* ladder.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { enemies } = G(), btn = document.querySelector('#g-over [data-act="effects"]');
+    let saved = null;
+    try { saved = localStorage.getItem('jellyfight.effects'); } catch {}
+    const was = juice.calm;
+    const killOne = () => { juice.reset(); enemies.kill(spawn('roach', near(0.1, 0.1), { still: true })); return { shake: juice.trauma, stop: juice.stop }; };
+    if (juice.calm) btn.click();
+    const full = killOne(), fullText = btn.textContent;
+    btn.click();
+    const calm = killOne(), calmText = btn.textContent, remembered = localStorage.getItem('jellyfight.effects'), bodyCalm = document.body.classList.contains('calm');
+    if (juice.calm !== was) btn.click();
+    try { saved === null ? localStorage.removeItem('jellyfight.effects') : localStorage.setItem('jellyfight.effects', saved); } catch {}
+    juice.reset();
+    const [kShake, kStop] = LOOK.list('feel-kill', []).map(Number);
+    return ok(Math.abs(full.shake - kShake) < 1e-6 && full.stop === kStop && calm.shake === 0 && calm.stop === kStop
+      && /full/.test(fullText) && /reduced/.test(calmText) && remembered === 'reduced' && bodyCalm,
+      { full, calm, fullText, calmText, remembered, bodyCalm, ladder: [kShake, kStop] });
+  },
+});
 story('menu/dev-tools-locked', {
   about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics).',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },

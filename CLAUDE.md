@@ -51,16 +51,22 @@ Enable the existing pre-push hook in each fresh clone with
 
 ## Where each kind of change lives
 
-For any change to the jelly's projectiles, attacks, or damaging skills, read and
-follow [Designing the jelly's attacks](docs/agents/jelly-attack-design.md). It
-defines the shared method for attack identity, animation, hit feedback, upgrades,
-readability, mobile performance, and verification across all player attack families.
+For any change to an attack, projectile, hit effect, or combat feedback (the jelly's,
+an Elite's, or the Vacuum's), read and follow [Attack Feel](docs/agents/attack-feel.md):
+the seven-phase chain every attack completes, its laws, and the nine-question audit to
+report before calling the work done (the reasoning is in
+[The Feel of Impact](docs/agents/attack-effects-foundation.md)). For the jelly's own
+attacks, also follow [Designing the jelly's attacks](docs/agents/jelly-attack-design.md),
+which applies the chain to identity, upgrades, readability, mobile performance, and
+verification across all player attack families.
 
 | To change… | Edit | Notes |
 |---|---|---|
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
+| How hard a hit, kill or attack lands (screen shake, hit-stop) | `content/look.css` (`--feel-*`) | One ladder by significance; code calls `juice.feel(step)`, never its own numbers |
+| An attack's feel audit score | `src/stories/attack-audit.js` | Every attack is listed; `vocabulary/every-attack-is-audited` guards it |
 | What a new player's first run introduces, and when | `src/first-run.js` | The run asks it at a few points; stories use `fresh({ firstRun: true })` |
 | Frame-rate cap, pixel ratio range, lamps lit at once on phones | `content/look.css` (`--phone-fps`, `--*-pixel-ratio`, `--phone-lights`) | Logic in `src/pacing.js` and `src/light-slots.js`; graphics-reset recovery in `src/gpu-recovery.js` |
 | Vents, treasure times and spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |

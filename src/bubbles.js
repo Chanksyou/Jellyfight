@@ -26,7 +26,7 @@ import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
-import { bubbleShare, BASE_STATS } from './stats.js';
+import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
 import { BubbleLooks, WIND_ARC } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
@@ -44,6 +44,7 @@ export const ELEMENTS = [
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
 const _zero = new THREE.Vector3();
+const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
 // share of power each element deals (see the top of the file)
 export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
@@ -351,7 +352,7 @@ export class Bubbles {
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
+      if (e.freezeT > 0) { sfx.shatter(); juice.feel('impact'); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw, b.ep);
       b.stopFireAudio?.();
       this.looks.fireHit(c, b.r, b.vel);
@@ -369,8 +370,8 @@ export class Bubbles {
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
-    // a little shove in the direction the bubble was going
-    if (!e.T.fly) bus.emit('knockback', { targetId: e.id, dir, force: 0.006 * (b.big ? 3 : 1) });
+    // a shove in the direction the bubble was going: the harder the hit, the further
+    if (!e.T.fly) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg) });
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined });
   }
 
@@ -474,8 +475,11 @@ export class Bubbles {
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
       sfx.pop(b.big);
+      // the wet mark it leaves on the floor, fading (only a plain bubble's: an Element's colour
+      // on the floor would look like an acid puddle)
+      if (!b.tint) this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), b.golden ? 0xffe8a0 : null, b.r * (b.big ? 2.2 : 1.6));
     }
-    juice.shake(b.big ? 0.12 : 0.03);
+    juice.feel(b.big ? 'hit-big' : 'hit');
     const el = b.elems;
     if (el.has('lightning')) sfx.zap();
     if (el.has('acid')) sfx.acid();

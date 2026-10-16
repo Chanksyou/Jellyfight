@@ -19,7 +19,6 @@ import { RoomTreasure, XpDrops } from './pickups.js';
 import { FirstRun, markPlayed } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
-import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
@@ -78,7 +77,7 @@ export class Run {
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
-    this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); };   // the bell squeezes as it blows
+    this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
     this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)
@@ -591,7 +590,7 @@ export class Run {
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
     if (!silent && amount > 0) {
-      juice.shake(LOOK.num('player-hit-shake', 0.22)); sfx.hurt();
+      juice.feel('hurt-minor'); sfx.hurt();
       const attacker = from != null && this.enemies.list.find(e => e.id === from);
       const away = attacker ? this.player.position.clone().sub(this.enemies.center(attacker)).setY(0) : new THREE.Vector3();
       if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
@@ -697,7 +696,7 @@ export class Run {
   eliteDefeated(e) {
     this.kills++;
     this.elitesBeaten++;
-    juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
+    juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.dropTreasure(e.base);
@@ -993,7 +992,7 @@ export class Run {
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
-    juice.shake(1); juice.hitstop(0.25); sfx.boom();
+    juice.feel('boss-kill'); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);

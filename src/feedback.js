@@ -27,8 +27,7 @@ export function wireFeedback(fx, isBurning = () => false) {
       fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
       fx.ring(pos.clone().setY(floor + 0.003), 0xffffff, r * 3, 0.25);
     }
-    juice.hitstop(big ? 0.06 : 0.035);
-    juice.shake(big ? 0.3 : 0.18);
+    juice.feel(big ? 'kill-big' : 'kill');
     if (!fire) sfx.kill(big ? 1.6 : 1);
   });
 }

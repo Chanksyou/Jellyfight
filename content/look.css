@@ -20,7 +20,6 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
-  --player-hit-shake: 0.22;
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */
@@ -140,6 +139,26 @@
   --guts-ants: #1c0a06 #5a1a0c #3a1a10;
   --guts-mosquito: #15151a #f4f4f0 #b0202a #b0202a;
   --guts-lanternfly: #cdb6a6 #16141a #d01e2a #e6b81e;
+
+  /* --- how hard a moment lands (src/juice.js juice.feel): screen shake (0-1) and hit-stop (s).
+     One ladder, quietest first, so an ordinary hit stays small and a boss kill can be loud
+     (docs/agents/attack-feel.md, L2). An attack picks a step; it never invents its own numbers. */
+  --feel-hit: 0.03 0;          /* a bubble popping on a bug */
+  --feel-hit-big: 0.12 0;      /* a giant bubble popping */
+  --feel-kill: 0.18 0.035;     /* a bug finished off */
+  --feel-hurt-minor: 0.22 0;  /* light global player hit feedback; no hit-stop */
+  --feel-impact: 0.25 0;       /* a shatter; a lighter Elite attack landing */
+  --feel-kill-big: 0.3 0.06;   /* a bigger bug finished off */
+  --feel-impact-big: 0.4 0;    /* a heavy Elite or bug attack landing */
+  --feel-hurt: 0.55 0;         /* the jelly takes a hit */
+  --feel-elite-kill: 0.7 0.15;
+  --feel-boss-kill: 1 0.25;
+
+  /* wet marks a plain bubble leaves on the floor where it pops (src/fx.js splat) */
+  --splat: #9fd8ff;
+  --splat-opacity: 0.45;
+  --splat-life: 2;             /* seconds, the last 40% fading */
+  --splat-most: 24;            /* at once; past that the oldest goes */
 
   /* --- how often and how sharp (src/pacing.js, src/light-slots.js) ------------- */
   --phone-fps: 60;             /* frame-rate cap on phones (0 = none): a 120 Hz screen gains nothing but heat */

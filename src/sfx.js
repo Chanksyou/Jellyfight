@@ -204,6 +204,8 @@ export const sfx = {
   },
   // blowing a bubble: a soft rising bloop
   blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
+  // a bubble flying off: a soft airy whoosh that falls away behind it (at most ~6 a second)
+  whiz() { if (!ready() || !gap('whiz', 160)) return; const j = jitter(0.15); noise(2600 * j, 1.4, 0.24, 0.03, 'bandpass', 0.03, 900 * j); },
   // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
   // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
   pop(big = false) {
@@ -277,6 +279,10 @@ export const sfx = {
   },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
+  // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its
+  // mouth, and a crunchy ice crash with a low thud as each one lands
+  frostLaunch() { if (!ready() || !gap('frostLaunch', 120)) return; tone('sine', 140, 55, 0.18, 0.22); noise(900, 0.8, 0.35, 0.12, 'bandpass', 0, 3600); tone('triangle', 1200, 2400, 0.25, 0.03, 0.05); },
+  frostLand() { if (!ready() || !gap('frostLand', 40)) return; tone('sine', 110, 45, 0.16, 0.2); noise(3200, 0.7, 0.18, 0.18, 'bandpass', 0, 1400); noise(7000, 1, 0.12, 0.08, 'highpass', 0.02); },
   shatter() { if (!ready() || !gap('shatter', 60)) return; noise(6000, 1, 0.3, 0.25, 'highpass'); tone('triangle', 2400, 800, 0.2, 0.08); },
   acid() { if (!ready() || !gap('acid', 90)) return; tone('sine', 300 * jitter(), 180, 0.1, 0.07); tone('sine', 420 * jitter(), 250, 0.08, 0.05, 0.05); },
   wind() { if (!ready() || !gap('wind', 80)) return; noise(1200, 0.7, 0.2, 0.12, 'bandpass', 0, 400); },

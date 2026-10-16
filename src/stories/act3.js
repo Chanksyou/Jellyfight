@@ -427,8 +427,9 @@ act3('aerial-roots-land-near-and-creep', {
     const R = rootsOut(), spots = R.map((e) => e.dropAt.clone());
     const near = spots.map((s) => +Math.hypot(s.x - P.x, s.z - P.z).toFixed(3));
     const marked = spots.every((s) => volumePairs().some(([v, f]) => f && Math.hypot(v.position.x - s.x, v.position.z - s.z) < 0.01));
-    step(60 * 2, () => R.every((e) => e.state !== 'drop'));
-    const landed = R.every((e, i) => Math.hypot(e.pos.x - spots[i].x, e.pos.z - spots[i].z) < 0.01);
+    const at = [];   // where each landed, the moment it did (one down first may already be creeping when the last lands)
+    step(60 * 2, () => { R.forEach((e, i) => { if (!at[i] && e.state !== 'drop') at[i] = e.pos.clone(); }); return R.every((e) => e.state !== 'drop'); });
+    const landed = R.every((e, i) => at[i] && Math.hypot(at[i].x - spots[i].x, at[i].z - spots[i].z) < 0.01);
     const far = R.filter((e) => e.state !== 'hold'), d0 = far.map((e) => Math.hypot(e.pos.x - P.x, e.pos.z - P.z));
     step(30);
     const crept = far.length > 0 && far.every((e, i) => e.state === 'hold' || Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < d0[i] - 0.05);

@@ -915,7 +915,7 @@ export class Elites {
             M.barMat.emissive.setHex(0x3a8aff);
             this.fx.ring(surf, hostile('controller'), R, 0.45);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
-            juice.shake(0.35); sfx.kill(1.6);
+            juice.feel('impact-big'); sfx.kill(1.6);
             if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
@@ -1257,18 +1257,19 @@ export class Elites {
                 this.fx.impact(p.clone().setY(p.y + 0.01), hostile('croc'), 0.03, 12);
                 this.fx.burst(p.clone().setY(p.y + 0.01), ['#ffffff', '#cfe0ff', '#7f94ff'], 8, 0.003, 0.3, p.y);
                 this.fx.ring(p.clone().setY(p.y + 0.003), hostile('croc'), V.radius, 0.35);
-                sfx.shatter();
+                sfx.shatter(); sfx.frostLand();
                 if (blastHits(p, V.radius, P, cfg)) {
                   hit(V.dmg, 'croc-frost');
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
-              }, { dome: true, arc: 0.01, wait: wind / tempo, size: V.size });
+              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size });
             }
             sfx.freeze();
           }
           jaw(Math.min(1, s / wind));
+          if (s >= wind / tempo && !e.launched) { e.launched = true; sfx.frostLaunch(); }   // the balls leave its mouth
           if (s < wind && Math.random() < dt * 25) this.fx.glow.emit(muzzle, hostile('croc'), 0.03, 0.006, 0.3, 0.9);   // frost gathering in its mouth
-          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
+          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = e.launched = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
         } else if (e.attack === 1) {
           // Tail slam: it turns its back to you, then slams its tail on the bed in a rhythm of its
           // own each time (gaps picked as it starts); before each slam a small Warning (a circle and
@@ -1300,7 +1301,7 @@ export class Elites {
               e.clearTele();
               M.tail.forEach((t, i) => { t.rotation.x = -0.05 * (i + 1); });
               e.hitPop = 0.6;
-              juice.shake(0.2);
+              juice.feel('impact');
               sfx.crocThump(0.8);
               this.fx.puff(e.slamAt.clone().setY(e.slamAt.y + 0.01), 0xdfe6ff, 0.04, 0.4);
               this.ring(e.slamAt, hostile('croc'), T, 'croc-tail', { band: T.band, speed: T.speed, max: T.reach, follow: true });
@@ -1333,7 +1334,7 @@ export class Elites {
             this.fx.ring(surf, hostile('croc'), Q.radius, 0.5);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('croc'), 0.05, 22);
             this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, Q.radius * 0.8, 0.6);
-            juice.shake(0.4); sfx.crocThump(1.4);
+            juice.feel('impact-big'); sfx.crocThump(1.4);
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); }
           } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
@@ -1366,7 +1367,7 @@ export class Elites {
             this.fx.ring(surf, col, Q.radius, 0.5);
             this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.06, 24);
             this.fx.puff(surf.clone().setY(surf.y + 0.02), 0xf0d0c0, Q.radius * 0.7, 0.55);
-            juice.shake(0.45); sfx.boom();
+            juice.feel('impact-big'); sfx.boom();
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush'); knock(e.base, Q.knock); }
           } else {
             const k = Math.max(0, 1 - (s - wind) / 0.4);                        // the horns shrink back
@@ -1430,7 +1431,7 @@ export class Elites {
           } else if (e.tele.length) {
             e.clearTele();
             for (const b of e.minis) { b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed; }
-            sfx.milliRoll();
+            sfx.milliRoll(N.reach / e.minis[0].speed);   // (its length: without one, live audio threw)
           } else if (e.minis.every((b) => b.done)) { e.minis = null; e.locked = false; e.state = 'idle'; e.cool = angry ? N.angryRest : N.rest; }
         }
       }
@@ -1502,7 +1503,7 @@ export class Elites {
         this.fx.impact(at, hostile('whipper'), 0.05, 18);
         this.fx.ring(new THREE.Vector3(at.x, (b.floor ?? 0) + 0.004, at.z), hostile('whipper'), b.R, 0.4);
         this.fx.puff(at, 0xd8c8ff, b.R * 0.9, 0.9);                                                   // a cloud of gas
-        juice.shake(0.25);
+        juice.feel('impact');
         sfx.balloonPop();
         // caught: anything of the jelly inside the sphere round it (beside, below or level with it)
         if (blastHits(at, b.R, P, cfg)) { hit(CONTENT.elites.whipper.skills.balloon.dmg, 'balloon'); deepen(CONTENT.elites.whipper.skills.balloon.muffle, 3); sfx.daze(); }
@@ -1555,7 +1556,7 @@ export class Elites {
         r.m.position.y = r.y + 0.006;
         r.vol.position.y = r.y;
       }
-      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; hit(r.skill.dmg, r.source); }
+      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; hit(r.skill.dmg, r.source); if (r.skill.knock) knock(r.at, r.skill.knock); }   // (a wave with knock= shoves you on, away from where it started)
       if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     }
     this.rings = this.rings.filter((r) => !r.done);
@@ -1601,7 +1602,7 @@ export class Elites {
       if (b.t >= b.wait) {
         b.m.visible = true;
         b.m.position.lerpVectors(b.from, b.to, f);
-        b.m.position.y += Math.sin(f * Math.PI) * b.arc;
+        b.m.position.y += 4 * b.arc * f * (1 - f);   // a thrown arc: steady across, gravity pulling it up and back down to its apex `arc` over the line
         this.fx.orbTick(b.m, dt, 1.2);
       }
       b.warn.userData.fill(k);

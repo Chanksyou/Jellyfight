@@ -22,12 +22,16 @@ export class Fx {
     this.fireCorpses = [];
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
+    this.splats = [];
+    this.splatGeo = new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2);
     this.ringGeo = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
     // one material per pool, drawn instanced (batch.js); each piece's own tint and fade ride
     // along as userData.color / userData.opacity
     const per = (m) => { m.userData.perInstance = true; return m; };
     this.puffMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
     this.chunkMat = per(new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
+    // wet marks on the floor: flat, drawn over it (polygon offset), never hiding what stands on them
+    this.splatMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     // shockwave rings glow (additive, unlit): they're how an area attack shows its reach
     this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));
     // the combat visual language (vfx.js): every glow is one point in one draw call, and every
@@ -111,6 +115,22 @@ export class Fx {
       c.v.set(Math.random() - 0.5, 0.6 + Math.random() * 0.8, Math.random() - 0.5).normalize().multiplyScalar(speed * (0.5 + Math.random()));
       c.spin = (Math.random() - 0.5) * 30;
     }
+  }
+
+  // A wet mark on the floor where something burst: spreads a little, holds, then fades over
+  // --splat-life s. Harmless leftovers only (never something that still hurts). At the cap
+  // (--splat-most) the oldest one goes.
+  splat(pos, color = null, radius = 0.01) {
+    let s = this.splats.find((x) => !x.alive);
+    if (!s) {
+      if (this.splats.length < LOOK.num('splat-most', 24)) { s = { m: this.piece(this.splatGeo, this.splatMat) }; this.splats.push(s); }
+      else s = this.splats.reduce((a, b) => (b.t > a.t ? b : a));
+    }
+    Object.assign(s, { alive: true, t: 0, life: LOOK.num('splat-life', 2), r: radius, sx: 0.75 + Math.random() * 0.5, sz: 0.75 + Math.random() * 0.5 });
+    s.m.visible = true;
+    s.m.position.set(pos.x, pos.y + 0.0015, pos.z);
+    s.m.rotation.y = Math.random() * Math.PI;
+    s.m.userData.color.set(color ?? LOOK.color('splat', '#9fd8ff'));
   }
 
   // A flat ring that grows out to `radius` and fades: shows the reach of an area attack
@@ -281,6 +301,16 @@ export class Fx {
       n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1 + Math.max(0, 0.12 - n.t) * 8})`;
       n.el.style.opacity = String(1 - Math.max(0, n.t - 0.45) / 0.25);
     }
+    const so = LOOK.num('splat-opacity', 0.45);
+    for (const s of this.splats) {
+      if (!s.alive) continue;
+      s.t += dt;
+      const k = s.t / s.life;
+      if (k >= 1) { s.alive = false; s.m.visible = false; continue; }
+      const g = s.r * (0.7 + 0.3 * Math.min(1, s.t / 0.12));   // spreads out as it lands
+      s.m.scale.set(g * s.sx, 1, g * s.sz);
+      s.m.userData.opacity = so * Math.min(1, (1 - k) / 0.4);   // holds, then fades over its last 40%
+    }
     for (const p of this.puffs) {
       if (!p.alive) continue;
       p.t += dt;
@@ -298,6 +328,7 @@ export class Fx {
     this.puffs.forEach((p) => { p.alive = false; p.m.visible = false; });
     this.rings.forEach((r) => { r.alive = false; r.m.visible = false; });
     this.chunks.forEach((c) => { c.alive = false; c.m.visible = false; });
+    this.splats.forEach((s) => { s.alive = false; s.m.visible = false; });
     this.orbs.forEach((o) => { o.alive = false; o.m.visible = false; });
     this.glow.clear();
   }

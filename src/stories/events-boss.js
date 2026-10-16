@@ -4,9 +4,32 @@ import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
 import { STAGES } from '../stages.js';
 import { hostile } from '../vfx.js';
+import { juice } from '../juice.js';
 import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, fresh, holdJelly, ok, r3, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- the event bus: what hits, kills, freezes and rewards do
+story('events/player-hit-feedback', {
+  about: 'Landed hits nudge the jelly away with a light shake; invulnerability and drains add no nudge, and Reduce effects disables shake only.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3, 0); spawn('roach', G().player.position.clone().add(V(0.2, 0, 0)), { still: true }); },
+  play() {
+    const { run, player, enemies } = G();
+    run.S.dodge = 0; run.iFrames = 0;
+    stub(juice, 'calm', false); stub(juice, 'trauma', 0);
+    player.velocity.set(0, 0, 0);
+    const hit = { targetId: PLAYER, amount: 1, source: 'story', from: enemies.list[0].id };
+    bus.emit('damage_taken', hit);
+    const directed = Math.abs(player.velocity.x + 0.06) < 1e-8 && player.velocity.y === 0 && Math.abs(player.velocity.z) < 1e-8;
+    const shake = Math.abs(juice.trauma - 0.22) < 1e-8;
+    bus.emit('damage_taken', hit);
+    bus.emit('damage_taken', { ...hit, drain: true });
+    const noRepeat = Math.abs(player.velocity.x + 0.06) < 1e-8 && Math.abs(juice.trauma - 0.22) < 1e-8;
+    run.iFrames = 0; player.velocity.set(0, 0, 0); player.facing = 0;
+    juice.calm = true; juice.trauma = 0;
+    bus.emit('damage_taken', { ...hit, from: null });
+    const fallback = Math.abs(player.velocity.z + 0.06) < 1e-8 && player.velocity.y === 0;
+    return ok(directed && shake && noRepeat && fallback && juice.trauma === 0, { directed, shake, noRepeat, fallback, calmShake: juice.trauma });
+  },
+});
 story('events/kill-drops-xp', {
   about: 'Bubbles kill a roach: it bursts, counts as a kill and drops XP.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.18)), { still: true }); },
