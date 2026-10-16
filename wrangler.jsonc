@@ -6,6 +6,8 @@
   "name": "jelly-fight",
   "main": "worker/index.js",
   "compatibility_date": "2026-08-12",
+  // Branch previews serve the game without binding the production leaderboard database.
+  "previews": {},
   "assets": {
     "directory": ".",
     "binding": "ASSETS",

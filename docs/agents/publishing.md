@@ -7,6 +7,10 @@ Merge into `main` and republish the artifact only when the owner explicitly
 requests a release or approves that publishing step. Complete required checks
 before deployment. Local pre-push hooks do not execute on GitHub merges.
 
+Branch builds use `npx wrangler preview`, enabled by `previews` in `wrangler.jsonc`.
+Previews serve the game with the leaderboard offline; the production database
+binding is deliberately not copied into previews.
+
 1. **Read the artifact first** (`Artifact` tool, `action: "read"`), so you build on the live version. If its files differ from `main` before your change, someone edited it in place: find out before overwriting.
 2. **List the files that changed** since the last publish, limited to what the game serves:
    `git diff --name-only <last published commit> HEAD | grep -E '^(src|content)/|^index.html$'`
