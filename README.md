@@ -4,6 +4,10 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v183 wind: doubled its base push from 2.1 cm to 4.2 cm. Damage-based extra shove
+and Box Fan's 60% multiplier retain their existing rules; scenery still stops
+the push and deals one equal-damage collision hit.
+
 Sting feel (v182): the tentacle sting now completes its Attack Feel chain (7/7,
 up from 4/9). The bell twitches as the tentacles whip out, each sting lands with
 a small flash and the `hit` shake step, and its shove follows its damage like the
