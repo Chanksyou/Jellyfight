@@ -6,6 +6,30 @@ let ctx = null, master = null, noiseBuf = null, deep = null;   // deep: a lowpas
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
+let fireImpact = null;
+const fireVoices = new Set();
+// The audition can supply a recording; normal gameplay retains synthesized fire.
+export function setFireImpact(buffer) { fireImpact = buffer; }
+
+function recordedFire(weight) {
+  const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
+  if (fireVoices.size >= 3) {
+    const oldest = fireVoices.values().next().value;
+    oldest.stop(); fireVoices.delete(oldest);
+  }
+  source.buffer = fireImpact;
+  source.playbackRate.value = (0.97 + Math.random() * 0.06) / Math.sqrt(weight);
+  const duration = Math.min(fireImpact.duration / source.playbackRate.value, 1.1 + (weight - 1) * 0.7);
+  const volume = 0.65 + (weight - 1) * 0.2;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(volume, t + 0.003);
+  gain.gain.setValueAtTime(volume, t + Math.max(0.003, duration - 0.25));
+  gain.gain.linearRampToValueAtTime(0, t + duration);
+  source.connect(gain).connect(master);
+  fireVoices.add(source);
+  source.onended = () => { fireVoices.delete(source); source.disconnect(); gain.disconnect(); };
+  source.start(t); source.stop(t + duration);
+}
 
 // Previews: play the sounds into another (offline) context, each at the time given by when(t)
 export function preview(c, dest) {
@@ -171,6 +195,7 @@ export const sfx = {
   fire(weight = 1) {
     if (!ready() || !gap('fire', 95)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    if (fireImpact) { recordedFire(w); return; }
     // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
     noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
     tone('triangle', 330 * j, 95 * j, 0.085, 0.23 * g);

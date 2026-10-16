@@ -1,4 +1,12 @@
-# Fire feedback sample (v168)
+# Fire feedback sample (v169)
+
+The sample now loads the owner's supplied `koiroylers-fireball-impact-351961.mp3`
+after enabling sound. Confirmed hits play the recording instead of the synthetic
+impact. Standard hits fade out at 1.1 seconds; upgrades deepen pitch and extend
+the tail (at most 1.52 seconds), with small random pitch variation. Playback shares
+the game's master gain, mute and compressor, the existing 95 ms throttle, and a
+three-voice cap. Failed loading falls back to synthesized sound. Normal gameplay
+does not load the recording. Asset provenance is in `assets/audio/README.md`.
 
 Open `fire-sample.html` on the same server as the game. Enable sound, choose
 Birthday Candle or Upgraded flame, and cast. The scene uses the game's actual
