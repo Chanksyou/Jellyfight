@@ -1,4 +1,4 @@
-# Fire feedback sample (v167)
+# Fire feedback sample (v168)
 
 Open `fire-sample.html` on the same server as the game. Enable sound, choose
 Birthday Candle or Upgraded flame, and cast. The scene uses the game's actual
@@ -15,14 +15,16 @@ The replay restores them between casts. Bloom is off.
   speed, radius, range, direct damage, splash, burn ticks, upgrades, shatter, and
   burn spread remain in their original code paths. No windup delay, extra damage,
   new knockback, stun, or hit-stop was added.
-- Release: a short local spark with a rising filtered-noise whoosh and a light
-  rising tone. Launch audio is throttled to one cue per 90 ms across simultaneous shots.
+- Release: a short local spark with a low pressure pulse, midrange lift, and
+  rising filtered-noise flame rush. Launch audio is throttled to one cue per 90 ms across simultaneous shots.
 - Travel: a solid core and animated tapered geometry carry the silhouette on Low.
   The existing shared particle buffer carries the short trail. Appearance values
   live under `--fire-*` in `content/look.css`.
 - Contact: a brief hot flash at a confirmed strike, seven embers, and a descending
-  low body under a noise crack and three fading crackles. Impact audio is throttled
-  to one cue per 75 ms. Fire no longer plays the generic watery pop at the same time.
+  low body and midrange punch under a sharp noise crack, ragged flame tail, and
+  five irregular fading crackles. Pitch and texture vary between casts. Existing
+  size, extra-shot and burn upgrades add bounded weight and a lower timbre.
+  Impact audio is throttled to one cue per 95 ms. Fire no longer plays the generic watery pop at the same time.
   Range expiry and wall collisions produce no enemy-hit flash or impact sound.
 - Aftermath: burning targets shed two small rising accents every 0.12 seconds
   while the existing burn is active; particles finish their short fade afterward.
@@ -56,6 +58,13 @@ On the initial capture: peak active particles were 112 before and 58 after;
 peak draw calls were 83 before and 80 after; 95th-percentile frame interval was
 about 33.4 ms in both. These are short sample-scene observations, not dense-game benchmarks.
 The rendered WAV peak was about 0.24, below clipping.
+
+The v168 audio revision adds a pressure pulse, stronger midrange and bass contact,
+and randomized ember accents. Its rendered WAV peak was about 0.60, below clipping.
+`attack/fire-audio-upgrades` checks that real upgrades increase launch and impact
+weight, that weight is capped, and that projectile damage stays unchanged. The
+three focused fire checks pass. This revision is an audio audition; a human
+listening review still decides whether the intensity suits the game.
 
 The full story run passed 383 checks and failed `act3/aerial-roots-land-near-and-creep`
 once. That check passed twice with the original fire modules and twice with the

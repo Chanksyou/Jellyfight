@@ -254,7 +254,10 @@ export class Bubbles {
     b.homing = true;
     m.scale.setScalar(0.001);
     this.list.push(b);
-    if (o.tint === 'fire') { this.looks.fireLaunch(origin, b.r); sfx.fireLaunch(); }
+    if (o.tint === 'fire') {
+      b.fireWeight = Math.min(1.6, Math.sqrt(o.size) * (1 + Math.max(0, (o.ep?.burn ?? 1) - 1) * 0.2 + Math.min(3, o.ep?.count ?? 0) * 0.12));
+      this.looks.fireLaunch(origin, b.r); sfx.fireLaunch(b.fireWeight);
+    }
     return b;
   }
 
@@ -344,7 +347,7 @@ export class Bubbles {
       if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw, b.ep);
       this.looks.fireHit(c, b.r);
-      sfx.fire();
+      sfx.fire(b.fireWeight);
     }
     if (el.has('ice') && !e.proxy) {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);

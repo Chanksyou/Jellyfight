@@ -158,19 +158,29 @@ export const sfx = {
   levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
   // elements
-  fireLaunch() {
+  fireLaunch(weight = 1) {
     if (!ready() || !gap('fireLaunch', 90)) return;
-    const j = jitter(0.06);
-    noise(480 * j, 0.6, 0.16, 0.17, 'bandpass', 0, 2100 * j);
-    tone('sine', 180 * j, 380 * j, 0.085, 0.055);
+    const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.12) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    // A pressure pulse under an opening flame, with enough midrange for phone speakers.
+    tone('sine', 105 * j, 52 * j, 0.17, 0.24 * g);
+    tone('triangle', 220 * j, 440 * j, 0.095, 0.11 * g);
+    noise(460 * j, 0.65, 0.21, 0.4 * g, 'lowpass', 0, 3400 * j);
+    noise(2200 * j, 1.2, 0.09, 0.2 * g, 'bandpass', 0.018, 550 * j);
+    noise(4200 * j, 1, 0.045, 0.1 * g, 'highpass', 0.035);
   },
-  fire() {
-    if (!ready() || !gap('fire', 75)) return;
-    const j = jitter(0.08);
-    noise(2600 * j, 0.8, 0.065, 0.17, 'highpass', 0, 700);
-    tone('sine', 150 * j, 58, 0.14, 0.16);
-    noise(950, 0.7, 0.22, 0.1, 'lowpass', 0.018, 240);
-    for (let k = 0; k < 3; k++) noise(4800 + k * 800, 2, 0.014, 0.035, 'bandpass', 0.04 + k * 0.035);
+  fire(weight = 1) {
+    if (!ready() || !gap('fire', 95)) return;
+    const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
+    noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
+    tone('triangle', 330 * j, 95 * j, 0.085, 0.23 * g);
+    tone('sine', 135 * j, 43, 0.21, 0.38 * g);
+    noise(1600 * j, 0.7, 0.2, 0.34 * g, 'lowpass', 0.012, 260);
+    noise(750 * j, 1.1, 0.16, 0.15 * g, 'bandpass', 0.07, 180);
+    for (let k = 0; k < 5; k++) {
+      noise((3600 + Math.random() * 4000) * j, 2.5, 0.008 + Math.random() * 0.012,
+        (0.08 - k * 0.01) * g, 'bandpass', 0.035 + k * 0.027 + Math.random() * 0.018);
+    }
   },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },

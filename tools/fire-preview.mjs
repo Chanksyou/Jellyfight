@@ -76,7 +76,7 @@ try {
     const preview = S.preview(ctx, comp);
     const at = (t, fn) => { preview.when(t); fn(); };
     at(0.3, () => S.sfx.fireLaunch()); at(0.8, () => { S.sfx.hit(); S.sfx.fire(); });
-    at(2.7, () => S.sfx.fireLaunch()); at(3.2, () => { S.sfx.hit(); S.sfx.fire(); });
+    at(2.7, () => S.sfx.fireLaunch(1.22)); at(3.2, () => { S.sfx.hit(); S.sfx.fire(1.22); });
     const rendered = await ctx.startRendering(), samples = rendered.getChannelData(0);
     const bytes = new Uint8Array(44 + samples.length * 2), view = new DataView(bytes.buffer);
     const text = (at, str) => [...str].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));

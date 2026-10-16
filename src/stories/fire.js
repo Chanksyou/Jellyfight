@@ -36,3 +36,25 @@ story('attack/fire-miss', {
     return ok(!contacts && !sounds && !log.length && !B.list.length && !B.burning.size, { contacts, sounds, damageEvents: log.length, remaining: B.list.length });
   },
 });
+
+story('attack/fire-audio-upgrades', {
+  about: 'Fire upgrades give the launch and confirmed hits more audio weight, bounded at high upgrade levels; the extra weight does not change projectile damage.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('candle'); roachAt(0, -0.18); step(2); },
+  play() {
+    const { run, player } = G(), B = run.bubbles, launches = [], impacts = [];
+    stub(sfx, 'fireLaunch', weight => launches.push(weight));
+    stub(sfx, 'fire', weight => impacts.push(weight));
+    const origin = player.position.clone().add(V(0, 0.06, 0));
+    B.elementVolley('fire', run.mods.element.fire, origin, run.S, run.mods);
+    const normal = launches[0];
+    B.reset(); launches.length = 0;
+    give('lighterFluid', 'birthdayCake'); step(2);
+    B.elementVolley('fire', run.mods.element.fire, origin, run.S, run.mods);
+    const upgraded = [...launches], damage = B.list.map(b => b.dmg);
+    for (let i = 0; i < 60; i++) B.fly(1 / 60, run.S, run.mods);
+    B.blow(origin, null, { dir: V(1, 0, 0), size: 100, dmg: 1, tint: 'fire', elems: ['fire'], ep: run.mods.element.fire, pierce: 1 });
+    const capped = launches.at(-1);
+    return ok(normal === 1 && upgraded.length === 2 && upgraded.every(w => w > normal && w <= 1.6) && impacts.length > 0 && impacts.every(w => w > normal) && damage.every(d => Math.abs(d - run.S.bubbleDamage * run.mods.element.fire.dmg) < 1e-8) && capped === 1.6,
+      { normal, upgraded, impacts, damage, capped });
+  },
+});
