@@ -1,16 +1,26 @@
 // Game feel: screen shake, hit-stop and the kill combo. Small, global, and called from anywhere
 // something should land with weight.
+//   feel(step)  how hard a moment lands: a step on content/look.css's --feel-* ladder (shake + hit-stop)
 //   shake(k)    k ~0.2 for a pop, 1 for a big hit; stacks up to a cap and decays fast
 //   hitstop(s)  freeze the game (not the rendering) for s seconds: a kill "lands"
+//   calm        Reduce effects is on (the pause menu): no shake; hit-stop stays, it isn't motion
 //   combo       kills within 2.5 s of each other chain; more XP as it grows
+import { LOOK } from './look.js';
+
 export const juice = {
+  calm: false,
   trauma: 0,
   stop: 0,
   combo: 0,
   comboT: 0,
   best: 0,
 
-  shake(k) { this.trauma = Math.min(1, this.trauma + k); },
+  feel(step) {
+    const [s = 0, h = 0] = LOOK.list('feel-' + step, []).map(Number);
+    this.shake(s);
+    if (h) this.hitstop(h);
+  },
+  shake(k) { if (!this.calm) this.trauma = Math.min(1, this.trauma + k); },
   hitstop(s) { this.stop = Math.max(this.stop, s); },
 
   // a kill: returns the new combo count
