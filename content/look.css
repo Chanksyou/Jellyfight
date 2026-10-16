@@ -146,6 +146,7 @@
   --feel-hit: 0.03 0;          /* a bubble popping on a bug */
   --feel-hit-big: 0.12 0;      /* a giant bubble popping */
   --feel-kill: 0.18 0.035;     /* a bug finished off */
+  --feel-hurt-minor: 0.22 0;  /* light global player hit feedback; no hit-stop */
   --feel-impact: 0.25 0;       /* a shatter; a lighter Elite attack landing */
   --feel-kill-big: 0.3 0.06;   /* a bigger bug finished off */
   --feel-impact-big: 0.4 0;    /* a heavy Elite or bug attack landing */

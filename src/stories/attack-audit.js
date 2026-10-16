@@ -34,7 +34,7 @@ export const AUDIT = {
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {
-    contact: todo,
+    contact: { score: null, note: 'v179: global target reaction adds a small horizontal hurt nudge and the hurt-minor feel step; Reduce effects silences shake. Reaction present from code; remaining rows still await the full contact audit.' },
     'curl-dash': todo, leap: todo, sortie: todo, 'ball-charge': todo, poke: todo, spit: todo, 'charge-beam': todo,
     swat: todo, burst: todo, whip: todo, dive: todo, becomes: todo, lob: todo, drops: todo, holds: todo,
   },
