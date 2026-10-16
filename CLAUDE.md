@@ -51,10 +51,14 @@ Enable the existing pre-push hook in each fresh clone with
 
 ## Where each kind of change lives
 
-For any change to the jelly's projectiles, attacks, or damaging skills, read and
-follow [Designing the jelly's attacks](docs/agents/jelly-attack-design.md). It
-defines the shared method for attack identity, animation, hit feedback, upgrades,
-readability, mobile performance, and verification across all player attack families.
+For any change to an attack, projectile, hit effect, or combat feedback (the jelly's,
+an Elite's, or the Vacuum's), read and follow [Attack Feel](docs/agents/attack-feel.md):
+the seven-phase chain every attack completes, its laws, and the nine-question audit to
+report before calling the work done (the reasoning is in
+[The Feel of Impact](docs/agents/attack-effects-foundation.md)). For the jelly's own
+attacks, also follow [Designing the jelly's attacks](docs/agents/jelly-attack-design.md),
+which applies the chain to identity, upgrades, readability, mobile performance, and
+verification across all player attack families.
 
 | To change… | Edit | Notes |
 |---|---|---|
