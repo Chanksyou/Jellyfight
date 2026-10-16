@@ -80,6 +80,20 @@
 //                     you, on each other, or at the lane's end or the table's edge: jump them.
 //     Under 65% Health it's angry: bigger horns and a quicker rush, three spiral arms turning
 //     faster, quicker little bulls.
+//   coffer      the Latticework Coffer, a mimic box on the vanity desk (act 3; coffer-model.js),
+//               standing in for the inlaid wooden box there. It sleeps as a plain shut box until
+//               you're on the desk top, then opens its amber eyes, rises on its legs and fights;
+//               leave and it settles back. Its numbers, radii and timings are in content/elites.kdl.
+//     Accordion:      five strikes in a row: each locks where you are (60 cm from it at most), a
+//                     Warning (a circle, the half sphere over it) fills there while the lid shoots
+//                     out on its stretching bellows, then the lid slams down there as a Blast.
+//     Tongue:         its mouth opens and the tongue latches onto you: no Warning, it can't miss
+//                     (docs/adr/0001). For 4 s it pulls you toward its mouth (this.pull, which the
+//                     run adds to your swimming) faster than base move speed; reach the mouth and
+//                     you're bitten and thrown back out.
+//     Jewels:         jewels shoot up off its lid out of sight while Warnings fill on random spots
+//                     spread over the desk; then they fall onto them and burst as Blasts.
+//     Under 65% Health it's angry: quicker strikes, a harder pull, more jewels.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -97,13 +111,14 @@ import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
 import { buildBull, buildMiniBull } from './bull-model.js';
+import { buildCoffer, COFFER } from './coffer-model.js';
 
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam', 'boil-over'],
   soap: ['squirt', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
-  croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'],
+  croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -397,6 +412,13 @@ function bullModel() {
   return { ...buildBull(), muzzle: new THREE.Vector3(0, 0.15, 0.07), r: 0.13, barY: 0.47, hitAt: new THREE.Vector3(0, 0.13, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
 }
 
+// the Latticework Coffer (act 3; coffer-model.js): its tongue comes from its mouth, at its front
+function cofferModel() {
+  const c = buildCoffer();
+  c.tongue.material.emissive.copy(hostile('coffer'));                // the tongue glows in its hostile colour
+  return { ...c, muzzle: new THREE.Vector3(0, 0.05, COFFER.D / 2), r: 0.12, barY: 0.16, hitAt: new THREE.Vector3(0, 0.055, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
+}
+
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
@@ -415,6 +437,7 @@ const KINDS = {
   whipper: { name: 'The Cream Whipper', build: whipperModel },
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
+  coffer: { name: 'The Latticework Coffer', build: cofferModel },
 };
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
@@ -458,6 +481,7 @@ class Elite {
     }
     standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
     owner.scene.add(this.holder);
+    for (const o of m.loose || []) owner.scene.add(o);   // what it sends out into the room (the Coffer's tongue and jewels), hidden till then
     // its health bar over it, facing the camera: big, outlined and drawn over everything, going
     // green -> yellow -> red as it loses health (the HUD shows it too while it fights you)
     this.bar = new THREE.Group();
@@ -516,6 +540,7 @@ class Elite {
     this.clearTele();
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
     this.owner.scene.remove(this.holder);
+    for (const o of this.model.loose || []) this.owner.scene.remove(o);
     if (this.hidden) this.hidden.visible = this.hiddenWas;   // back as it was (it may be hidden in the layout)
   }
 }
@@ -562,9 +587,15 @@ export class Elites {
       sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
       frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
       rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
+      coffer: new TeleMaterial(hostile('coffer')),
     };
     this.minis = [];         // the Bull's little bulls, charging along their lanes
     this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3();   // scratch for the Bull
+    // the pull on the jelly this frame (m/s, flat), or null: the Coffer's tongue. The run adds it
+    // to the jelly's movement next frame, as it does a Boss's `push`
+    this.pull = null;
+    this._pull = new THREE.Vector3(); this._home = new THREE.Vector3(); this._mouth = new THREE.Vector3(); this._tip = new THREE.Vector3();   // scratch for the Coffer
+    this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._eul = new THREE.Euler(); this._s3 = new THREE.Vector3();
   }
 
   // Apartment objects are named after what they are; three.js's loader swaps spaces for underscores
@@ -587,6 +618,7 @@ export class Elites {
   }
 
   clear() {
+    this.pull = null;
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
     this.list = [];
     this.decor.forEach((e) => e.remove());
@@ -623,10 +655,14 @@ export class Elites {
       const bull = buildBull();                                            // the Bull's plush (and its glowing horns), as it stands out
       standOut(bull.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
       bull.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      const coffer = cofferModel();                                        // the Coffer's box (and its glowing eyes, its tongue and its jewels)
+      standOut(coffer.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
+      coffer.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      for (const o of coffer.loose) { const c = o.clone(); c.visible = true; if (c.isInstancedMesh) c.count = 1; this._warm.push(c); }
       this._warm.push(new THREE.Mesh(this.stripGeo, this.T.lane));
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
-      this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
+      this._warm.forEach((m) => { m.visible = true; m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
     } else (this._warm || []).forEach((m) => this.scene.remove(m));
   }
 
@@ -755,6 +791,21 @@ export class Elites {
     return e.model.wreath.getWorldPosition(new THREE.Vector3());
   }
 
+  // the Coffer's jewels: n spots on its ground (spec.wake, inset by the Warning's size), at least
+  // J.spread apart (closing up a little if they don't fit) and off the Coffer itself
+  cofferSpots(e, n, J) {
+    const W = e.spec.wake, m = J.radius * 0.6, out = [];
+    let gap = J.spread;
+    for (let tries = 1; out.length < n && tries < 3000; tries++) {
+      if (tries % 300 === 0) gap *= 0.9;
+      const at = new THREE.Vector3(W.min[0] + m + Math.random() * (W.max[0] - W.min[0] - 2 * m), W.max[1], W.min[2] + m + Math.random() * (W.max[2] - W.min[2] - 2 * m));
+      if (Math.hypot(at.x - e.base.x, at.z - e.base.z) < e.r || out.some((o) => Math.hypot(o.x - at.x, o.z - at.z) < gap)) continue;
+      at.y = this.surfaceBelow(at);
+      if (at.y > W.min[1]) out.push(at);
+    }
+    return out;
+  }
+
   // What they do to you goes out as events (damage_taken, knockback, status_applied); a beaten
   // elite sends elite_defeated
   update(dt, player, cfg) {
@@ -763,6 +814,7 @@ export class Elites {
     const sameLevel = (y) => Math.abs(P.y - y) < 0.1;
     const hit = (amount, source) => bus.emit('damage_taken', { targetId: PLAYER, amount, source });
     const knock = (from, force) => bus.emit('knockback', { targetId: PLAYER, dir: P.clone().sub(from).setY(0).normalize(), force, launch: 0.25 });
+    this.pull = null;
 
     // things that only hang there: a hanging elite goes back up its wall; clock hands keep time
     for (const d of this.decor) {
@@ -854,6 +906,23 @@ export class Elites {
           else g.rotation.z = Math.sin(e.t * 3) * 0.04;                       // awake: rocking side to side
           for (const h of M.horns) h.scale.setScalar(1);
           M.hornMat.emissiveIntensity = 0;
+        }
+      }
+
+      // the Coffer, attacking or not: asleep a plain shut box; awake it rises on its legs, its
+      // bellows part (breathing) and its eyes open, its tendrils whip. e.cof: its pose, eased
+      if (e.kind === 'coffer') {
+        const M = e.model, C = (e.cof ||= { lift: 0, gap: 0.002, jaw: 0, eyes: 0 }), ease = 1 - Math.exp(-6 * dt);
+        C.eyes += ((awake || e.state !== 'idle' ? 1 : 0) - C.eyes) * ease;
+        M.eyes.visible = C.eyes > 0.05;
+        M.eyes.scale.setScalar(Math.max(0.05, C.eyes));
+        M.tendrils.rotation.set(0, Math.sin(e.t * 9) * 0.22, Math.sin(e.t * 13) * 0.05);
+        g.position.y = 0;
+        if (e.state === 'idle') {
+          C.lift += ((awake ? COFFER.LIFT : 0) - C.lift) * ease;
+          C.gap += ((awake ? 0.02 + Math.sin(e.t * 3) * 0.004 : 0.002) - C.gap) * ease;
+          C.jaw += (0 - C.jaw) * ease;
+          M.pose(C.lift, C.gap, C.jaw);
         }
       }
 
@@ -1433,6 +1502,160 @@ export class Elites {
             for (const b of e.minis) { b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed; }
             sfx.milliRoll(N.reach / e.minis[0].speed);   // (its length: without one, live audio threw)
           } else if (e.minis.every((b) => b.done)) { e.minis = null; e.locked = false; e.state = 'idle'; e.cool = angry ? N.angryRest : N.rest; }
+        }
+      }
+
+      // ---------------------------------------------------------- the latticework coffer
+      if (e.kind === 'coffer') {
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('coffer'), C = e.cof, tempo = CONTENT.elites.pace.tempo;
+        e.holder.updateMatrixWorld(true);
+        const home = this._home.set(0, C.lift + COFFER.base + C.gap, 0);      // the lid's middle (underneath) on the box, in its frame
+        if (e.attack === 0) {
+          // Accordion: strikes in a row. Each locks where you are (no further than range from it)
+          // and a Warning (a circle and the half sphere over it) fills there while the lid shoots
+          // out on its stretching bellows and hovers over it; then it slams down there as a Blast.
+          // The bellows snap back as the next strike locks
+          const A = SK.accordion, unfold = angry ? A.angryUnfold : A.unfold, n = A.strikes, k = Math.floor(s / unfold);
+          if (e.strike == null) { e.strike = -1; e.aim ||= new THREE.Vector3(); e.lidFrom ||= new THREE.Vector3(); e.lidAt ||= new THREE.Vector3(); e.lidFrom.copy(home); e.lidAt.copy(home); e.locked = true; }
+          C.gap += (0.03 - C.gap) * (1 - Math.exp(-10 * dt));
+          C.jaw = 0;
+          if (e.strike >= 0 && e.tele.length && s >= (e.strike + 1) * unfold) {
+            // the slam
+            e.clearTele();
+            this.fx.impact(this._mid.copy(e.aim).setY(e.aim.y + 0.01), col, 0.03, 14);
+            this.fx.puff(this._mid, 0x8a6a4a, 0.035, 0.35);
+            juice.shake(0.2); sfx.cofferSlam();
+            if (blastHits(e.aim, A.radius, P, cfg)) hit(A.dmg, 'coffer-accordion');
+            e.lidFrom.copy(e.lidAt);
+          }
+          if (k < n && k !== e.strike) {
+            // the next strike: lock where you are
+            e.strike = k;
+            e.aim.copy(P);
+            const dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, d = Math.hypot(dx, dz);
+            if (d > A.range) { e.aim.x = e.base.x + (dx / d) * A.range; e.aim.z = e.base.z + (dz / d) * A.range; }
+            e.aim.y = this.surfaceBelow(e.aim);
+            e.tele.push(this.warnCircle(e.aim, A.radius, this.T.coffer), this.fx.volume(col, 'dome', e.aim, A.radius));
+            sfx.cofferWheeze(unfold / tempo);
+          }
+          const to = g.worldToLocal(this._to.copy(e.aim));                  // the spot, in its frame
+          if (k < n) {
+            const u = (s - k * unfold) / unfold;
+            e.tele[0].userData.fill(u);
+            e.tele[1].material.progress = u;
+            // the lid: back from the last strike and cocked up (so the Warning shows clear), shot out
+            // to hover over the spot, then down on it
+            if (u < 0.25) e.lidAt.lerpVectors(e.lidFrom, home, THREE.MathUtils.smoothstep(u / 0.25, 0, 1));
+            else if (u < 0.5) e.lidAt.copy(home).setY(home.y + A.hover * Math.sin(((u - 0.25) / 0.25) * Math.PI * 0.5));
+            else if (u < 0.85) { e.lidAt.lerpVectors(home, to, THREE.MathUtils.smoothstep((u - 0.5) / 0.35, 0, 1)); e.lidAt.y += A.hover; }
+            else e.lidAt.copy(to).setY(to.y + A.hover * (1 - ((u - 0.85) / 0.15) ** 2));
+          } else {
+            const u = Math.min(1, (s - n * unfold) / 0.25);
+            e.lidAt.lerpVectors(e.lidFrom, home, THREE.MathUtils.smoothstep(u, 0, 1));
+            if (u >= 1) { e.strike = null; e.locked = false; e.state = 'idle'; e.cool = angry ? A.angryRest : A.rest; }
+          }
+          M.pose(C.lift, C.gap, 0);
+          if (e.state !== 'idle') M.reach(e.lidAt.x, e.lidAt.y, e.lidAt.z);
+        } else if (e.attack === 1) {
+          // Tongue: its mouth opens, then the tongue shoots to you and latches on (it can't miss);
+          // it pulls you toward its mouth (the run adds this.pull to your swimming) for `hold` s.
+          // Brought to its mouth you're bitten and thrown back out; else it lets go
+          const T = SK.tongue, tg = M.tongue, mouth = g.localToWorld(this._mouth.set(0, M.mouthY(), COFFER.D / 2 - 0.01));
+          if (!e.lash) { e.lash = { state: 'open', from: new THREE.Vector3(), at: 0 }; e.locked = false; sfx.cofferCreak(T.open / tempo); }
+          const L = e.lash, open = Math.min(1, s / T.open);
+          C.jaw = 0.75 * THREE.MathUtils.smoothstep(open, 0, 1) * (L.state === 'done' ? Math.max(0, 1 - (s - L.at) / 0.3) : 1);
+          C.gap += ((L.state === 'done' ? 0.02 : 0.035) - C.gap) * (1 - Math.exp(-10 * dt));
+          M.pose(C.lift, C.gap, C.jaw);
+          const tip = this._tip;
+          if (L.state === 'open' && s >= T.open) { L.state = 'shoot'; L.at = s; sfx.tongueLash(); }
+          if (L.state === 'shoot') {
+            const f = Math.min(1, (s - L.at) / T.shoot);
+            tip.lerpVectors(mouth, pc, f);
+            if (f >= 1) { L.state = 'latched'; L.at = s; sfx.tongueLatch(); this.fx.impact(pc, col, 0.012, 6); }
+          }
+          if (L.state === 'latched') {
+            tip.copy(pc);
+            const dx = e.base.x - P.x, dz = e.base.z - P.z, d = Math.hypot(dx, dz) || 1, pull = angry ? T.angryPull : T.pull;
+            if (d < T.bite) {
+              // the bite
+              hit(T.dmg, 'coffer-tongue'); knock(e.base, T.knock);
+              this.fx.impact(mouth, col, 0.035, 16); juice.shake(0.3); sfx.cofferChomp();
+              e.hitPop = 0.8;
+              L.state = 'back'; L.at = s; L.from.copy(mouth);
+            } else if (s - L.at > T.hold || !e.awake) { L.state = 'back'; L.at = s; L.from.copy(tip); sfx.tongueLash(); }
+            else this.pull = this._pull.set((dx / d) * pull, 0, (dz / d) * pull);
+          }
+          if (L.state === 'back') {
+            const f = Math.min(1, (s - L.at) / 0.15);
+            tip.lerpVectors(L.from, mouth, f);
+            if (f >= 1) { L.state = 'done'; L.at = s; }
+          }
+          tg.visible = M.tip.visible = L.state === 'shoot' || L.state === 'latched' || L.state === 'back';
+          if (tg.visible) {
+            const dx = tip.x - mouth.x, dy = tip.y - mouth.y, dz = tip.z - mouth.z, len = Math.max(0.005, Math.hypot(dx, dy, dz));
+            const thin = THREE.MathUtils.clamp(Math.sqrt(0.12 / len), 0.4, 1);   // it thins as it stretches
+            tg.position.copy(mouth);
+            tg.rotation.set(-Math.atan2(dy, Math.hypot(dx, dz)), Math.atan2(dx, dz), 0, 'YXZ');
+            tg.scale.set(0.0065 * thin, 0.005 * thin, len);
+            M.tip.position.copy(tip);
+            M.tip.scale.setScalar(0.009);
+            tg.material.emissiveIntensity = L.state === 'latched' ? 0.8 + Math.min(1, (s - L.at) / T.hold) * 1.2 + Math.sin(e.t * 30) * 0.2 : 0.6;
+            if (L.state === 'latched' && Math.random() < dt * 20) this.fx.glow.emit(this._mid.lerpVectors(mouth, tip, Math.random()), col, 0.012, 0.004, 0.25, 0.8);
+          }
+          if (L.state === 'done' && s - L.at > 0.3) { e.lash = null; tg.visible = M.tip.visible = false; e.state = 'idle'; e.cool = angry ? T.angryRest : T.rest; }
+        } else {
+          // Jewels: amber jewels shoot up out of sight off its lid while Warnings (a circle and the
+          // half sphere over it) fill on random spots spread over the desk; then the jewels fall
+          // fast onto them and burst as Blasts
+          const J = SK.jewels, gems = M.jewels;
+          if (!e.spots) {
+            e.locked = true;
+            const n = angry ? J.angryCount : J.count;
+            e.spots = this.cofferSpots(e, n, J);
+            for (const at of e.spots) e.tele.push(this.warnCircle(at, J.radius, this.T.coffer), this.fx.volume(col, 'dome', at, J.radius));
+            // each jewel leaves from a spot on the lid, at its own moment, up and a little out
+            e.gems = e.spots.map((_, i) => ({ from: g.localToWorld(new THREE.Vector3((Math.random() - 0.5) * 0.15, C.lift + COFFER.base + C.gap + COFFER.lid, (Math.random() - 0.5) * 0.12)), dx: (Math.random() - 0.5) * 0.5, dz: (Math.random() - 0.5) * 0.5, at: i * 0.035, spin: Math.random() * 6, out: false }));
+            e.rained = e.burst = false;
+          }
+          const u = Math.min(1, s / J.rain);
+          for (let i = 0; i < e.tele.length; i += 2) { e.tele[i].userData.fill(u); e.tele[i + 1].material.progress = u; }
+          C.jaw = s < 0.5 ? Math.sin((s / 0.5) * Math.PI) * 0.35 : 0;              // the lid pops as they fly
+          C.gap += (0.03 - C.gap) * (1 - Math.exp(-10 * dt));
+          M.pose(C.lift, C.gap, C.jaw);
+          let shown = 0;
+          const fallAt = J.rain - J.drop;
+          if (s >= fallAt && !e.rained) { e.rained = true; sfx.jewelWhistle(J.drop / tempo); }
+          for (let i = 0; i < e.gems.length && !e.burst; i++) {
+            const G = e.gems[i], up = (s - G.at) / 0.4, p = this._mid;
+            if (up >= 0 && up < 1) {
+              // shooting up, fast, out of sight
+              if (!G.out) { G.out = true; sfx.jewelLaunch(i); }
+              p.set(G.from.x + G.dx * up * 0.3, G.from.y + J.up * up * up * 1.6, G.from.z + G.dz * up * 0.3);
+            } else if (s >= fallAt) {
+              const f = Math.min(1, (s - fallAt) / J.drop), at = e.spots[i];
+              p.set(at.x, at.y + J.radius * 0.3 + J.up * (1 - f * f), at.z);
+            } else continue;
+            this._q.setFromEuler(this._eul.set(G.spin + s * 9, s * 7, 0));
+            gems.setMatrixAt(shown++, this._m4.compose(p, this._q, this._s3.setScalar(0.013)));
+            this.fx.glow.hold(p, col, 0.03, 0.8);
+          }
+          gems.count = shown;
+          gems.instanceMatrix.needsUpdate = true;
+          gems.visible = shown > 0;
+          if (s >= J.rain && !e.burst) {
+            // they land
+            e.burst = true;
+            e.clearTele();
+            gems.count = 0; gems.visible = false;
+            let struck = false;
+            for (const at of e.spots) {
+              this.fx.impact(this._mid.copy(at).setY(at.y + 0.01), col, 0.03, 10);
+              this.fx.burst(this._mid, ['#ffb22a', '#ff7a00', '#ffe0a0'], 5, 0.003, 0.3, at.y);
+              if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel'); }
+            }
+            juice.shake(0.25); sfx.jewelCrack();
+          }
+          if (s > J.rain + 0.4) { e.spots = e.gems = null; e.locked = false; e.state = 'idle'; e.cool = angry ? J.angryRest : J.rest; }
         }
       }
     }

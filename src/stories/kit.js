@@ -320,6 +320,20 @@ export function startBull(atk, { x = -0.6, z = 8.36, angry = false } = {}) {
   e.cool = 0; e.next = atk;
   return { e, player, table: player.position.y };
 }
+// act 3's Latticework Coffer on the vanity desk (elites.js kind 'coffer', coffer-model.js): the
+// desk in the bedroom's north-west corner, its top 0.78 m up. Start one of its attacks with the
+// jelly held on the open strip of the desk top south of it (x, z), facing it
+export const coffer = () => G().run.elites.list.find((e) => e.kind === 'coffer');
+export const onDesk = (x = -1.52, z = 8.95) => tp(x, 0.83, z, 0);
+export function startCoffer(atk, { x = -1.52, z = 8.8, angry = false, hold = true } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onDesk(x, z);
+  const e = coffer(), player = hold ? holdJelly() : G().player;
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, up on its legs and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, desk: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -351,7 +365,7 @@ export function clogAgain(B, name, x, up = 0) {
 //   sweep   a volume with no floor Warning (the Vacuum's brushes, by decision): it must show
 //   shot    a Warning (if any) before Shots: no volume, the Shots are what you watch
 //   hazard  a floor hazard (spec #22, Out of Scope): it only hurts while you stand in it
-//   none    no Warning: it lets bugs out
+//   none    no Warning: it lets bugs out, or it is the one attack that always hits (the Coffer's tongue)
 const eliteOf = (kind) => G().run.elites.list.find((x) => x.kind === kind);
 const held = (start) => () => { start(); holdJelly(); };
 const atVacuum = (a) => () => { const B = startVacuum(a); holdJelly(); againVacuum(B, a, 0.4); };
@@ -418,6 +432,9 @@ const EVERY_ATTACK = {
     // the Bull on the changing table (elites.js): its rush's Blast, its spiral's Shots (a circle
     // Warning first, like the Soap Dispenser's bubble ring), its little bulls' lanes
     bull: { rush: { is: 'volume', start: () => startBull(0) }, spiral: { is: 'shot', start: () => startBull(1) }, minis: { is: 'volume', start: () => startBull(2) } },
+    // the Coffer on the vanity desk (elites.js): its accordion strikes' Blasts, its jewels' Blasts. Its
+    // tongue has no Warning: it can't be dodged, by the owner's call (docs/adr/0001)
+    coffer: { accordion: { is: 'volume', start: () => startCoffer(0) }, tongue: { is: 'none' }, jewels: { is: 'volume', start: () => startCoffer(2) } },
     // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
     bugs: {
       cutting: { is: 'floor', ...bugWarns('cutting', (e) => !e.dead) },                     // its countdown (becomes): a floor circle only, by decision

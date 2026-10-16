@@ -317,13 +317,14 @@ export class Run {
     this.t += dt;
     const P = this.player, s = this.S;
 
-    // --- movement, with vents, fabric, and the drain's pull
+    // --- movement, with vents, fabric, the drain's pull and an elite's (the Coffer's tongue: elites.pull,
+    // set as it updated last frame)
     const tr = this.traversal.query(P.position);
     let push = null;
     if (this.phase === 'boss' && this.boss) {
       push = this.boss.update(dt, P).push;
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
-    }
+    } else if (this.phase === 'explore') push = this.elites.pull;
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
       P.update(dt, this.input, this.tpc.yaw, {
