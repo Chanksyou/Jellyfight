@@ -373,6 +373,10 @@ export class Bubbles {
       if (e.dead) {
         // burning things that die set their neighbors alight
         this.burning.delete(e);
+        if (f.t > 0 && !e.fireDeathSilent) {
+          this.looks.fireDeath(E.center(e, c), e.r);
+          sfx.fireDeath();
+        }
         if (!e.proxy) for (const n of this.inRange(E.center(e, c), f.ep?.spread ?? 0.06)) if (!this.burning.has(n)) { this.ignite(n, f.pw, f.ep); }
         continue;
       }

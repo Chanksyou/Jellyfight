@@ -14,6 +14,11 @@
   --fire-contact-scale: 3.2;
   --fire-ember-life: 0.38;
   --fire-burn-interval: 0.12;
+  --fire-contact-sparks: 12;
+  --fire-spark-speed: 0.23;
+  --fire-death-embers: 18;
+  --fire-death-life: 0.75;
+  --fire-ash: #382b28;
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */

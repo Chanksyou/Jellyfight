@@ -54,6 +54,9 @@ export class BubbleLooks {
       life: LOOK.num('fire-trail-life', 0.19), contactLife: LOOK.num('fire-contact-life', 0.11),
       contactScale: LOOK.num('fire-contact-scale', 3.2), emberLife: LOOK.num('fire-ember-life', 0.38),
       burnInterval: LOOK.num('fire-burn-interval', 0.12),
+      sparks: LOOK.num('fire-contact-sparks', 12), sparkSpeed: LOOK.num('fire-spark-speed', 0.23),
+      deathEmbers: LOOK.num('fire-death-embers', 18), deathLife: LOOK.num('fire-death-life', 0.75),
+      ash: LOOK.color('fire-ash', '#382b28'),
     };
     const F = this.fire;
     const ball = new THREE.IcosahedronGeometry(1, 2);
@@ -149,8 +152,8 @@ export class BubbleLooks {
     const F = this.fire, glow = this.fx.glow;
     glow.emit(pos, F.core, r * F.contactScale, r * 0.5, F.contactLife, 1.1);
     glow.emit(pos, F.edge, r * F.contactScale * 1.5, r, F.contactLife * 2, 0.5);
-    for (let k = 0; k < 7; k++) {
-      _v.set(Math.cos(k * 2.4) * 0.12, 0.06 + (k % 3) * 0.05, Math.sin(k * 2.4) * 0.12);
+    for (let k = 0; k < F.sparks; k++) {
+      _v.set(Math.cos(k * 2.4) * F.sparkSpeed, 0.08 + (k % 3) * 0.07, Math.sin(k * 2.4) * F.sparkSpeed);
       glow.emit(pos, k % 2 ? F.ember : F.flame, r * 0.6, 0, F.emberLife, 0.9, _v, 0.35);
     }
   }
@@ -159,6 +162,18 @@ export class BubbleLooks {
     const F = this.fire;
     this.fx.glow.emit(pos, F.flame, r * 0.9, r * 0.15, F.life, 0.45, _v.set(0, 0.055, 0));
     this.fx.glow.emit(pos, F.ember, r * 0.18, 0, F.emberLife, 0.8, _v.set(0.01, 0.07, -0.01));
+  }
+
+  // Cosmetic breakup: damage, rewards and spread stay in their existing paths.
+  fireDeath(pos, r) {
+    const F = this.fire, glow = this.fx.glow;
+    glow.emit(pos, F.flame, r * 2, r * 0.2, F.contactLife * 2, 0.75);
+    this.fx.burst(pos, [F.ash, F.ash, `#${F.edge.getHexString()}`], 9, r * 0.2, 0.1, pos.y - r);
+    for (let k = 0; k < F.deathEmbers; k++) {
+      _p.copy(pos).add(_a.set(Math.cos(k * 2.4), ((k % 5) - 2) * 0.35, Math.sin(k * 2.4)).multiplyScalar(r * 0.7));
+      _v.set(Math.cos(k * 2.4) * 0.05, 0.07 + (k % 4) * 0.035, Math.sin(k * 2.4) * 0.05);
+      glow.emit(_p, k % 3 ? F.ember : F.edge, r * 0.17, 0, F.deathLife, 0.9, _v, -0.03);
+    }
   }
 
   // b: a flying bubble (bubbles.js). Points it along its flight, sizes and animates it, and

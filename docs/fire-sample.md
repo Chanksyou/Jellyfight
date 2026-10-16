@@ -1,4 +1,12 @@
-# Fire feedback sample (v169)
+# Fire feedback sample (v170)
+
+Confirmed fire hits now throw 12 faster sparks and layer a short contact snap
+over the supplied recording. Death while the burn is active produces nine
+charred fragments, 18 rising embers fading over 0.75 seconds, and a separately
+throttled crackling death cue. This also applies when another attack finishes a
+burning enemy. Silent removals skip the fire death effect. Existing damage,
+rewards and burn spread are unchanged. Training targets now have 5 HP so the
+sample demonstrates a real burn kill; normal enemy health is unchanged.
 
 The sample now loads the owner's supplied `koiroylers-fireball-impact-351961.mp3`
 after enabling sound. Confirmed hits play the recording instead of the synthetic

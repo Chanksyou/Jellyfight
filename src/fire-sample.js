@@ -57,7 +57,7 @@ for (let k = 0; k < 3; k++) {
     }
   }
   scene.add(root);
-  targets.push({ id: `sample-${k}`, r: 0.025, hp: 35, maxHp: 35, dead: false, T: { fly: false }, position: root.position, root, body, material, flash: 0, freezeT: 0 });
+  targets.push({ id: `sample-${k}`, r: 0.025, hp: 5, maxHp: 5, dead: false, T: { fly: false }, position: root.position, root, body, material, flash: 0, freezeT: 0 });
 }
 const enemies = { list: targets, center(e, out = new THREE.Vector3()) { return out.copy(e.position).addScaledVector(THREE.Object3D.DEFAULT_UP, 0.012); } };
 const shots = new Bubbles(scene, enemies, fx, { cast: () => null, castAll: () => null });
@@ -84,7 +84,7 @@ bus.on('damage_taken', ({ targetId, amount, source }) => {
   if (!e || e.dead) return;
   e.hp = Math.max(0, e.hp - amount); e.flash = source === 'fire' ? 0.25 : 1;
   if (source === 'bubble') sfx.hit();
-  if (e.hp === 0) { e.dead = true; fx.burst(e.position, ['#ffc363', '#ff7c32'], 6, 0.002, 0.08, 0); }
+  if (e.hp === 0) e.dead = true;
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
   mode = button.dataset.mode;

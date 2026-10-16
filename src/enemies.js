@@ -410,6 +410,7 @@ export class Enemies {
   // Bursts, shakes and sounds are feedback.js's; the reward is run.js's
   kill(e, silent = false) {
     if (e.dead) return;
+    e.fireDeathSilent = silent;
     e.dead = true;
     e.chargeSound?.();                    // a dragonfly killed mid-charge goes quiet
     this.byId.delete(e.id);

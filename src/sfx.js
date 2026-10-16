@@ -192,10 +192,21 @@ export const sfx = {
     noise(2200 * j, 1.2, 0.09, 0.2 * g, 'bandpass', 0.018, 550 * j);
     noise(4200 * j, 1, 0.045, 0.1 * g, 'highpass', 0.035);
   },
+  fireDeath() {
+    if (!ready() || !gap('fireDeath', 150)) return;
+    tone('sine', 100, 35, 0.3, 0.18);
+    noise(1200, 0.7, 0.4, 0.18, 'lowpass', 0, 180);
+    for (let k = 0; k < 5; k++) noise(3500 + Math.random() * 3000, 2, 0.018, 0.09, 'bandpass', 0.04 + k * 0.055);
+  },
   fire(weight = 1) {
     if (!ready() || !gap('fire', 95)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
-    if (fireImpact) { recordedFire(w); return; }
+    if (fireImpact) {
+      recordedFire(w);
+      noise(4200, 0.8, 0.045, 0.25, 'highpass');
+      tone('triangle', 240, 70, 0.09, 0.16);
+      return;
+    }
     // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
     noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
     tone('triangle', 330 * j, 95 * j, 0.085, 0.23 * g);
