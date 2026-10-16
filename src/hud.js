@@ -1,6 +1,8 @@
 // On-screen HUD: health, level and XP, the boss countdown and night clock, treasures,
 // minimap of the real floor plan, boss bar, hints, toasts.
 import { bus } from './events.js';
+import { LOOK } from './look.js';
+import { juice } from './juice.js';
 
 const CSS = `
 #hud .combo { position: absolute; right: 18px; top: 38%; text-align: right; color: hsl(var(--hue, 50) 100% 62%); text-shadow: 0 2px 6px #000a; pointer-events: none; }
@@ -21,6 +23,27 @@ body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { fon
 #hud .bar i { position: absolute; inset: 0; transform-origin: left; transition: transform .15s; border-radius: inherit; }
 #hud .moist i { background: linear-gradient(90deg, #3aa8ff, #7fe8ff); box-shadow: inset 0 -4px 0 #0002; }
 #hud .moist.low i { background: linear-gradient(90deg, #ff5a5a, #ff9a7a); }
+#hud .player-health { position: relative; min-width: 0; transform-origin: center; }
+#hud .player-health .hp-fill { transition: transform .18s ease-out; }
+#hud .player-health .hp-trail { position: absolute; inset: 0; border-radius: inherit; background: var(--hp-trail-color); transform-origin: left; transition: transform var(--hp-drain) ease-out; }
+#hud .player-health .hp-edge { position: absolute; top: 50%; width: 10px; height: 110%; border-radius: 50%; background: #ffffff77; transform: translate(-50%, -50%); transition: left .18s ease-out; pointer-events: none; }
+#hud .player-health .hp-warning { display: none; position: absolute; left: 7px; top: 50%; transform: translateY(-50%); font: 900 12px system-ui; color: #fff; text-shadow: 0 1px 2px #000; }
+#hud .player-health .low .hp-warning { display: block; }
+#hud .player-health .low { animation: jf-hp-breathe var(--hp-breathe) ease-in-out infinite; }
+#hud .hp-delta { position: absolute; right: -39px; top: 0; width: 34px; font: 900 13px/20px system-ui; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; color: var(--hp-trail-color); }
+#hud .hp-delta.heal { color: var(--hp-heal-color); }
+#hud .hp-delta[hidden] { display: none; }
+@keyframes jf-hp-breathe { 0%, 100% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 2px 8px #0008; } 50% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 0 12px var(--hp-critical-color); } }
+body.calm #hud .player-health, body.calm #hud .hp-delta, body.calm #hud .hp-edge { transform: none !important; filter: none !important; }
+body.calm #hud .hp-edge { transform: translate(-50%, -50%) !important; }
+body.calm #hud .player-health .moist { box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008 !important; }
+body.calm #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(--hp-critical-color) !important; }
+@media (prefers-reduced-motion: reduce) {
+  #hud .player-health, #hud .hp-delta { transform: none !important; filter: none !important; }
+  #hud .player-health .hp-edge { transform: translate(-50%, -50%) !important; }
+  #hud .player-health .moist { box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008 !important; }
+  #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(--hp-critical-color) !important; }
+}
 #hud .hpn { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 800 13px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
 #hud .xp { height: 10px; margin-top: 6px; background: #0d1220b3; box-shadow: 0 0 0 1.5px #ffd25a55, 0 2px 6px #0008; }
 #hud .xp i { background: linear-gradient(90deg, #f0b12a, #ffe27a); }
@@ -94,7 +117,7 @@ export class Hud {
     this.el.innerHTML = `<style>${CSS}</style>
       <div class="tl">
         <div class="lvl"></div>
-        <div class="bar moist"><i></i><span class="hpn"></span></div>
+        <div class="player-health" role="progressbar" aria-label="Health"><div class="bar moist"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
         <div class="bar xp"><i></i></div>
         <div class="items"></div>
       </div>
@@ -109,6 +132,18 @@ export class Hud {
     this.ctx = this.map.getContext('2d');
     this.room = undefined;
     this.cache = {};
+    this.hpNodes = Object.fromEntries(['player-health', 'moist', 'hp-fill', 'hp-trail', 'hp-edge', 'hp-delta'].map(k => [k, this.$('.' + k)]));
+    this.hpLook = {
+      hold: LOOK.num('hp-trail-hold', 200), drain: LOOK.num('hp-trail-drain', 400),
+      recoil: LOOK.num('hp-recoil-time', 180), group: LOOK.num('hp-number-time', 650),
+      heal: LOOK.num('hp-heal-time', 350), strength: LOOK.num('hp-recoil-max', 0.11),
+    };
+    for (const [key, value] of Object.entries({
+      'hp-trail-color': LOOK.color('hp-trail', '#ffc0a0'), 'hp-heal-color': LOOK.color('hp-heal', '#9dffd9'),
+      'hp-critical-color': LOOK.color('hp-critical', '#ff7068'), 'hp-drain': this.hpLook.drain + 'ms',
+      'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms',
+    })) this.el.style.setProperty('--' + key, value);
+    this.resetHealth();
     const pts = plan.flatMap(([, poly]) => poly);
     const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
     this.bounds = { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
@@ -138,15 +173,91 @@ export class Hud {
     c.querySelector('i').style.transform = `scaleX(${frac})`;
   }
 
-  setHealth(v, max) {
-    if (this.cache.hp !== undefined && v < this.cache.hp - 0.01) {
+  resetHealth() {
+    clearTimeout(this.hpTrailTimer); clearTimeout(this.hpNumberTimer);
+    for (const a of Object.values(this.hpAnimations || {})) a.cancel();
+    this.hpAnimations = {}; this.hpGroup = null; this.hpTrailTimer = null; this.hpTrailFrac = 0; this.hpDamage = 0; this.hpLastKick = -Infinity; this.hpLastHeal = -Infinity;
+    delete this.cache.hp; delete this.cache.hpMax;
+    this.hpNodes['hp-delta'].hidden = true;
+    this.hpNodes.moist.classList.remove('low'); this.$('.hurt').classList.remove('on');
+  }
+
+  healthAnimate(key, node, frames, duration) {
+    this.hpAnimations[key]?.cancel();
+    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.hpAnimations[key] = node.animate(frames, { duration, easing: 'ease-out' });
+  }
+
+  healthNumber(amount, healing, now) {
+    const node = this.hpNodes['hp-delta'], group = this.hpGroup;
+    const fresh = !group || group.healing !== healing || now - group.at > this.hpLook.group;
+    if (fresh) this.hpGroup = { healing, total: 0, at: now };
+    this.hpGroup.total += amount; this.hpGroup.at = now;
+    const total = this.hpGroup.total;
+    node.hidden = false; node.classList.toggle('heal', healing);
+    const text = (healing ? '+' : '−') + (total < 0.1 ? '<0.1' : total < 1 ? total.toFixed(1) : String(Math.round(total)));
+    if (node.textContent !== text) node.textContent = text;
+    if (fresh) this.healthAnimate('number', node, [{ opacity: 0.3, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }], this.hpLook.recoil);
+    clearTimeout(this.hpNumberTimer);
+    this.hpNumberTimer = setTimeout(() => { node.hidden = true; this.hpGroup = null; }, this.hpLook.group);
+  }
+
+  setHealth(v, max, { heal = true } = {}) {
+    v = Math.max(0, Math.min(max, v));
+    const N = this.hpNodes, frac = max > 0 ? v / max : 0, now = performance.now();
+    const initial = this.cache.hp === undefined || max !== this.cache.hpMax;
+    const previous = this.cache.hp, delta = initial ? 0 : v - previous;
+    if (!initial && delta === 0) return;   // don't interrupt a healing transition on the next HUD frame
+    if (initial) this.resetHealth();
+    if (delta < -0.01) {
       const h = this.$('.hurt');
       h.classList.add('on');
       requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('on')));
     }
-    this.cache.hp = v;
-    this.$('.moist i').style.transform = `scaleX(${Math.max(0, v / max)})`;
-    this.$('.moist').classList.toggle('low', v / max < 0.3);
+    if (delta < 0) {
+      this.healthNumber(-delta, false, now); this.hpDamage -= delta;
+      if (this.hpTrailFrac < previous / max) {
+        this.hpTrailFrac = previous / max;
+        N['hp-trail'].style.transitionDuration = '0ms'; N['hp-trail'].style.transform = `scaleX(${this.hpTrailFrac})`;
+      }
+      if (!this.hpTrailTimer) {
+        this.hpTrailTimer = setTimeout(() => {
+          N['hp-trail'].style.transitionDuration = this.hpLook.drain + 'ms';
+          this.hpTrailFrac = this.cache.hp / this.cache.hpMax;
+          N['hp-trail'].style.transform = `scaleX(${this.hpTrailFrac})`;
+          this.hpTrailTimer = null;
+        }, this.hpLook.hold);
+      }
+      if (now - this.hpLastKick >= this.hpLook.recoil) {
+        const k = Math.min(this.hpLook.strength, this.hpDamage / max);
+        this.healthAnimate('kick', N['player-health'], [{ transform: `scale(1.01, ${1 - k})` }, { transform: `scale(0.995, ${1 + k * 0.5})`, offset: 0.5 }, { transform: 'scale(1)' }], this.hpLook.recoil);
+        this.healthAnimate('edge', N['hp-edge'], [{ transform: 'translate(-50%, -50%) scale(1.5, .7)' }, { transform: 'translate(-50%, -50%) scale(1)' }], this.hpLook.recoil);
+        this.hpDamage = 0; this.hpLastKick = now;
+      }
+    } else if (delta > 0 && heal) {
+      this.hpDamage = 0;
+      this.healthNumber(delta, true, now);
+      if (!this.hpLastHeal || now - this.hpLastHeal > this.hpLook.heal) {
+        this.healthAnimate('heal', N.moist, [{ boxShadow: '0 0 0 2px var(--hp-heal-color), 0 0 16px var(--hp-heal-color)' }, { boxShadow: '0 0 0 2px #ffffff40, 0 2px 8px #0008' }], this.hpLook.heal);
+        this.healthAnimate('edge', N['hp-edge'], [{ transform: 'translate(-50%, -50%) scale(1.6, .8)' }, { transform: 'translate(-50%, -50%) scale(1)' }], this.hpLook.heal);
+        this.hpLastHeal = now;
+      }
+    }
+    if (initial || (delta > 0 && heal)) {
+      clearTimeout(this.hpTrailTimer); this.hpTrailTimer = null;
+      this.hpTrailFrac = frac;
+      N['hp-trail'].style.transitionDuration = '0ms'; N['hp-trail'].style.transform = `scaleX(${frac})`;
+    }
+    N['hp-fill'].style.transitionDuration = delta > 0 ? this.hpLook.recoil + 'ms' : '0ms';
+    N['hp-fill'].style.transform = `scaleX(${frac})`;
+    N['hp-edge'].style.transitionDuration = delta > 0 ? this.hpLook.recoil + 'ms' : '0ms';
+    N['hp-edge'].style.left = `${frac * 100}%`; N['hp-edge'].hidden = frac <= 0;
+    const low = v > 0 && frac < 0.3;
+    if (low && !N.moist.classList.contains('low') && !initial) this.healthAnimate('critical', N['player-health'], [{ filter: 'brightness(1.5)' }, { filter: 'brightness(1)' }], this.hpLook.heal);
+    N.moist.classList.toggle('low', low);
+    N['player-health'].setAttribute('aria-valuenow', String(v));
+    N['player-health'].setAttribute('aria-valuemin', '0'); N['player-health'].setAttribute('aria-valuemax', String(max));
+    this.cache.hp = v; this.cache.hpMax = max;
     this.set('hpText', '.hpn', () => `${Math.ceil(v)}`);
   }
 

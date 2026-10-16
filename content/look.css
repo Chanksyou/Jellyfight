@@ -2,6 +2,17 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
+  --hp-trail: #ffc0a0;
+  --hp-heal: #9dffd9;
+  --hp-critical: #ff7068;
+  --hp-trail-hold: 200;
+  --hp-trail-drain: 400;
+  --hp-recoil-time: 180;
+  --hp-recoil-max: 0.11;
+  --hp-number-time: 650;
+  --hp-heal-time: 350;
+  --hp-breathe-time: 1400;
   /* Fire study: appearance only; hit radius, timing and damage stay in their existing homes. */
   --fire-core: #fff6ce;
   --fire-flame: #ffb632;
@@ -66,6 +77,10 @@
   --pothos-leaf-open: #3b5a0a;   /* its leaves light up green-gold while they're parted after a Vine Whip (the opening) */
   --pothos-open-grow: 0.4;       /* how much bigger the heart swells then */
   --pothos-open-halo: 0.5;       /* how far its glow spreads then (m, before the plant's scale) */
+  --pothos-sway: 0.025;          /* canopy/heart travel in the plant's frame; pot remains seated */
+  --pothos-sway-rate: 1.8;       /* radians per second, faster when angry */
+  --pothos-flutter: 0.18;        /* phased leaf motion along the canopy and vines */
+  --pothos-sweep-impact: 0.025;  /* confirmed contact flash, not a new damage area */
   --pothos-leaf-glow: #071405;   /* the leaves' own faint glow (the Pothos's, and its Cuttings' and Sap sprouts') */
   --pothos-vine-glow: #0a1a06;   /* the vines' */
   --pothos-pot: #b8653c;         /* its terracotta pot */
@@ -103,6 +118,11 @@
   --hostile-croc: #3d5cff;       /* the Alligator's frost balls, tail-slam rings and pounce: electric frost blue (not the friendly cyan, not the violets) */
   --hostile-bull: #ff0a1a;       /* the Bull's rush, spiral Shots and little bulls: red, as the owner asked (a touch bluer than the ladybug's missile red, which is act 2's; far from act 3's dragonfly rose and worm orange) */
   --hostile-coffer: #e02bff;     /* the Latticework Coffer's accordion strikes, tongue and falling jewels: electric orchid, the one hot hue left free (between the Vacuum's violet and the Controller's magenta; nothing else in act 3 is near it) */
+  --coffer-drool: #e8e2b8;      /* the Coffer's spit: the wet patch it leaves on the desk and the puff (harmless) */
+  --coffer-chomp-bits: #fff3c4 #e9dca0 #ffffff;   /* drool and tooth glints sprayed as its jaws slam shut */
+  --coffer-tongue-width: 0.026;      /* its tongue: how wide (m, thinning a little as it stretches), */
+  --coffer-tongue-thickness: 0.012;  /* how thick, */
+  --coffer-tongue-tip: 0.02;         /* and the fleshy tip that latches on */
   --hostile-missile: #ff2020;   /* the ladybug's lock-on reticle and missile glow */
   --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and cream spray: violet */
   --hostile-clock: #ffc23a;      /* the Wall Clock's sweeping hand, thrown wreath and chime rings: gilt */

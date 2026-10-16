@@ -173,6 +173,7 @@ export class Run {
     this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) showForceField(m.userData.field, false); });
     this.hud.setBoss(null);
     this.hud.setElite(null);
+    this.hud.resetHealth(); this.healthPulse = false;
     this.ui.close();
     this.fade.style.opacity = 0;
 
@@ -389,9 +390,9 @@ export class Run {
     for (const b of this.bursts.splice(0)) this.burst(b);
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
-    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt);   // health regen (cards, treasures)
+    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
     const spout = this.mods.spout;
-    if (spout && this.stillT > spout.after) this.heal(spout.heal * dt);
+    if (spout && this.stillT > spout.after) this.heal(spout.heal * dt, true);
 
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
@@ -606,6 +607,7 @@ export class Run {
     if (this.health <= 0 && D && !this.saved && this.phase !== 'dead') {
       this.saved = true;
       this.health = this.S.health * D.health;
+      this.healthPulse = true;
       this.iFrames = 1.5;
       const P = this.player.position;
       this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.12, 0.6);
@@ -633,6 +635,7 @@ export class Run {
   bloom() {
     this.polypT = 0;
     this.health = this.S.health;
+    this.healthPulse = true;
     this.iFrames = 1;
     this.player.avatar?.root.scale.setScalar(1);
     const P = this.player.position, c = P.clone().setY(P.y + this.cfg.height * 0.5);
@@ -641,7 +644,11 @@ export class Run {
     this.hud.toast('♾️ You bloom again, whole.', 2000);
   }
 
-  heal(amount) { this.health = Math.min(this.S.health, this.health + amount); }
+  heal(amount, quiet = false) {
+    const before = this.health;
+    this.health = Math.min(this.S.health, this.health + amount);
+    if (!quiet && this.health > before) this.healthPulse = true;
+  }
 
   // an enemy_killed event: { pos, r, xp, elite }
   // The act's wasp nests (stage.nests): `count` of its spots, each a different one, get a nest
@@ -1187,7 +1194,8 @@ export class Run {
   refreshHud() {
     this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
-    h.setHealth(this.health, this.S.health);
+    h.setHealth(this.health, this.S.health, { heal: !!this.healthPulse });
+    this.healthPulse = false;
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
     h.setCooldowns(this.cooldowns());

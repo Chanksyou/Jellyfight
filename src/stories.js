@@ -18,6 +18,7 @@ import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/treasures.js';
 import './stories/fire.js';
+import './stories/hud-health.js';
 import './stories/wind.js';
 import './stories/evolutions.js';
 import './stories/elites.js';
