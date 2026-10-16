@@ -154,7 +154,7 @@ const needProps = (node, keys, where, label) => { for (const k of keys) if (type
 // the elites' numbers, in the bosses' shape. The models, radii and phase timings stay in
 // elites.js (KINDS there keeps name/build/scale); a fighting elite holds its compiled
 // object (this.def) and the update loop reads it fresh, so editor edits land mid-fight.
-const ELITE_KINDS = ['controller', 'mug', 'kettle', 'soap', 'clock', 'whipper', 'croc'];
+const ELITE_KINDS = ['controller', 'mug', 'kettle', 'soap', 'clock', 'whipper', 'croc', 'bull'];
 export function compileElites(nodes, file = 'content/elites.kdl') {
   const out = { pace: null };
   for (const n of nodes) {
