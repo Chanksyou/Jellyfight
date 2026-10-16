@@ -1525,11 +1525,14 @@ export function buildMantis({ dead = false } = {}) {
 }
 
 // ------------------------------------------------------------------ stag beetle
-// The stag beetle (act 3), after the character sheet: long glossy red-brown wing cases (elytra)
-// with a seam down the middle; a dark grey-brown armoured pronotum and head with thin gold lines
-// between the segments; big branched red-brown mandibles like antlers, curving up and in, with a
-// few prongs; elbowed antennae with comb tips; six long jointed legs with spiny tibiae and hooked
-// feet; a low, long body. Its mandibles part as it charges its electric ball between them (the
+// The stag beetle (act 3), after the character sheet, in an iridescent green-black: long glossy wing
+// cases (elytra) with a seam down the middle, fine ridges along them and a paler rim; an armoured
+// pronotum with a groove down its middle and a tooth at each side corner, and a head with a raised
+// crest and bulging compound eyes, thin metallic-green lines between the segments; big branched
+// mandibles like antlers, curving up and in, prongs and a row of small teeth along the inside;
+// elbowed antennae with comb tips; six long jointed legs with spiny tibiae and beaded feet ending in
+// hooks; a low, long body. The shell shimmers through greens, blues and violets as it turns (the
+// material's iridescence). Its mandibles part as it charges its electric ball between them (the
 // charge-shot word: enemies.js draws the ball there, BALL_AT) and snap wide as it fires.
 // About 3.3 radii long, mandible tips to wing tips (3x the jelly); its feet are at its origin.
 // a sphere pushed toward a box (e < 1: boxier), for armour plates that meet edge to edge; lighter on top
@@ -1547,20 +1550,30 @@ function plate(sx, sy, sz, at, dark, light, e = 0.6, seg = 24) {
   g.deleteAttribute('uv');
   return g.toNonIndexed();
 }
-const STAG = { dark: '#2a0a04', red: '#6a1e0c', armour: '#141010', armourLit: '#2e2622', gold: '#d8a030', leg: '#2a140c', mandible: '#7a220e', tip: '#300c04' };
+const STAG = { dark: '#030805', red: '#1a5a2c', armour: '#030604', armourLit: '#1a4a2a', gold: '#4f9a4a', ridge: '#1a4426', rim: '#2c6a3a', leg: '#0a1a10', mandible: '#123a20', tip: '#010302' };
 // a gold edge line round the top and sides of a plate's cross-section (half-width w, height h) at z
 const edge = (w, h, y, z) => tube(Array.from({ length: 13 }, (_, i) => { const a = -0.15 + (Math.PI + 0.3) * i / 12; return V(Math.cos(a) * w, y + Math.sin(a) * h, z); }), 0.012, STAG.gold, 24);
 function beetleParts() {
   const C = STAG, elyY = (z) => 0.42 + 0.3 * Math.sqrt(Math.max(0, 1 - ((z + 0.32) / 0.8) ** 2));
+  // the top of the wing cases' plate at (x, z): |x|^p + |y|^p + |z|^p = 1 with p = 2 / e
+  const elytra = (x, z) => 0.42 + 0.3 * Math.max(0, 1 - Math.abs(x / 0.54) ** (2 / 0.78) - Math.abs((z + 0.32) / 0.8) ** (2 / 0.78)) ** (0.78 / 2);
   const body = [
     plate(0.54, 0.3, 0.8, V(0, 0.42, -0.32), C.dark, C.red, 0.78),          // the wing cases
-    plate(0.48, 0.16, 0.84, V(0, 0.32, -0.28), '#140a06', '#22140c', 0.7),   // the belly under them
-    tube(Array.from({ length: 10 }, (_, i) => { const z = 0.42 - i * 0.16; return V(0, elyY(z) + 0.004, z); }), 0.01, '#2a0c06', 20),   // the seam down the middle
+    plate(0.48, 0.16, 0.84, V(0, 0.32, -0.28), '#030604', '#08120c', 0.7),   // the belly under them
+    tube(Array.from({ length: 10 }, (_, i) => { const z = 0.42 - i * 0.16; return V(0, elyY(z) + 0.004, z); }), 0.01, C.tip, 20),   // the seam down the middle
+    // fine ridges along each wing case, then the paler rim round its edge
+    ...[0.12, 0.24, 0.35].flatMap((x) => [-1, 1].map((s) => tube(Array.from({ length: 12 }, (_, i) => { const z = 0.36 - i * 0.135; return V(s * x * (1 - 0.18 * ((z + 0.32) / 0.8) ** 2), elytra(x, z) + 0.003, z); }), 0.007, C.ridge, 22))),
+    tube(Array.from({ length: 33 }, (_, i) => { const a = Math.PI * 2 * i / 32, c = Math.cos(a), sn = Math.sin(a); return V(Math.sign(sn) * 0.545 * Math.abs(sn) ** 0.78, 0.43, -0.32 + Math.sign(c) * 0.805 * Math.abs(c) ** 0.78); }), 0.012, C.rim, 64),
+    plate(0.012, 0.012, 0.22, V(0, 0.665, 0.7), C.armour, C.tip, 0.8, 10),  // the groove down the pronotum
+    ...[-1, 1].map((s) => rod(V(s * 0.42, 0.47, 0.62), V(s * 0.53, 0.46, 0.6), 0.03, 0.004, C.armourLit)),   // a tooth at each side corner of the pronotum
     plate(0.08, 0.04, 0.07, V(0, 0.7, 0.36), C.armour, C.armourLit, 0.7, 12),   // the little shield where they meet the pronotum
     plate(0.47, 0.22, 0.25, V(0, 0.45, 0.7), C.armour, C.armourLit, 0.5),    // the pronotum
     plate(0.38, 0.16, 0.19, V(0, 0.43, 1.12), C.armour, C.armourLit, 0.6),   // the head
     plate(0.08, 0.05, 0.06, V(0, 0.35, 1.32), C.tip, C.mandible, 0.7, 12),   // the mouth
-    edge(0.44, 0.2, 0.45, 0.47), edge(0.37, 0.16, 0.44, 0.94),               // gold lines between the segments
+    plate(0.3, 0.035, 0.05, V(0, 0.57, 1.2), C.armour, C.armourLit, 0.6, 14),   // the crest across the front of the head
+    ...[-1, 1].map((s) => ellipsoid(0.07, 0.06, 0.08, V(s * 0.36, 0.46, 1.08), C.tip, 10)),   // the bulging compound eyes
+    ...[-1, 1].map((s) => plate(0.05, 0.03, 0.09, V(s * 0.34, 0.52, 1.0), C.armour, C.armourLit, 0.7, 10)),   // the ridge over each eye
+    edge(0.44, 0.2, 0.45, 0.47), edge(0.37, 0.16, 0.44, 0.94),               // metallic lines between the segments
   ];
   // the elbowed antennae: a long scape out to the side, the rest bent forward, a comb at the tip
   for (const s of [-1, 1]) {
@@ -1580,6 +1593,10 @@ function beetleParts() {
       const at = pts[i], to = at.clone().add(d.setX(d.x * s));
       parts.push(rod(at, to, 0.038, 0.007, C.tip));
     }
+    for (let k = 0; k < 7; k++) {   // a row of small teeth along the inside, from the base to the first prong
+      const i = Math.min(3, Math.floor(k / 2.4)), f = (k / 2.4) % 1, at = pts[i].clone().lerp(pts[i + 1], f);
+      parts.push(rod(at, at.clone().add(V(-s * 0.05, 0.015, 0.02)), 0.016, 0.003, C.tip));
+    }
     return merge(parts);
   };
   // a leg on side s, built at its hip: the femur up and out to the knee, the spiny tibia down to the
@@ -1587,7 +1604,8 @@ function beetleParts() {
   const leg = (s, len) => {
     const P = (x, y, z) => V(x * s * len, y, z * len);
     const a = V(0, 0, 0), b = P(0.42, 0.2, 0), c = P(0.82, -0.26, 0), d = P(1.02, -0.3, 0), f = P(1.08, -0.28, 0);
-    const parts = [rod(a, b, 0.05, 0.04, C.leg), ellipsoid(0.045, 0.045, 0.045, b, C.leg, 8), rod(b, c, 0.035, 0.028, C.leg), rod(c, d, 0.018, 0.014, C.leg), rod(d, f, 0.012, 0.006, C.tip)];
+    const parts = [rod(a, b, 0.05, 0.04, C.leg), ellipsoid(0.045, 0.045, 0.045, b, C.leg, 8), rod(b, c, 0.035, 0.028, C.leg), ellipsoid(0.03, 0.03, 0.03, c, C.leg, 8), rod(c, d, 0.016, 0.014, C.leg), rod(d, f, 0.012, 0.006, C.tip)];
+    for (let k = 0; k < 4; k++) parts.push(ellipsoid(0.022 - k * 0.002, 0.018 - k * 0.002, 0.018 - k * 0.002, c.clone().lerp(d, (k + 0.5) / 4), C.leg, 6));   // the beaded foot
     for (let k = 0; k < 4; k++) { const at = b.clone().lerp(c, 0.25 + k * 0.2); parts.push(rod(at, at.clone().add(V(s * 0.03, 0.045, 0.02)), 0.01, 0.002, C.tip)); }   // tibial spines
     for (const z of [-1, 1]) parts.push(rod(f, f.clone().add(V(s * 0.03, -0.03, z * 0.025)), 0.008, 0.002, C.tip));                                  // the hooked claws
     return merge(parts);
@@ -1600,7 +1618,9 @@ function beetleParts() {
 }
 export function buildBeetle() {
   const G = (GEO.beetle ||= beetleParts()), M = mats();
-  if (!M.stag) standOut(M.stag = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, metalness: 0.25 }), { base: 0.1, rim: 0.28 });   // glossy, and big enough to read without the small bugs' glow
+  // a glossy clear coat over an iridescent shell (shimmering green to blue and violet as it turns), and big enough to read without the small bugs' glow
+  if (!M.stag) standOut(M.stag = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.85, clearcoat: 1, clearcoatRoughness: 0.1,
+    iridescence: LOOK.num('beetle-iridescence', 1), iridescenceIOR: 1.8, iridescenceThicknessRange: LOOK.list('beetle-film', [260, 620]).map(Number) }), { base: 0.1, rim: 0.2 });
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.stag));
