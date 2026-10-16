@@ -600,6 +600,23 @@ export const sfx = {
   // little lower each time), the wreath whirring through the air
   // the Alligator (elites.js): a soft plush thump on the bed, its tail or its whole body landing
   crocThump(k = 1) { if (!ready() || !gap('crocThump', 60)) return; noise(260, 0.8, 0.18 * k, 0.3, 'lowpass', 0, 90); tone('sine', 110, 45, 0.22 * k, 0.22); },
+  // the Latticework Coffer (elites.js): its bellows wheezing out as the lid shoots off (dur: how
+  // long it unfolds) and the lid slamming down; its lid creaking open (dur), the tongue lashing
+  // out (and snapping back), latching on wet, and the chomp; its jewels pinging off its lid (k:
+  // which one, each a little higher), whistling down (dur: how long they fall) and cracking apart
+  cofferWheeze(dur = 0.5) {
+    if (!ready()) return;
+    noise(700, 1.2, dur, 0.14, 'bandpass', 0, 2200);
+    for (const f of [196, 247, 294]) tone('sawtooth', f * jitter(0.02), f * 1.06, dur, 0.018);   // a reedy accordion chord
+  },
+  cofferSlam() { if (!ready() || !gap('cofferSlam', 60)) return; noise(320, 0.8, 0.16, 0.32, 'lowpass', 0, 90); tone('square', 140, 55, 0.12, 0.08); noise(3200, 2, 0.03, 0.12, 'bandpass'); },
+  cofferCreak(dur = 0.4) { if (!ready()) return; tone('sawtooth', 70, 110, dur, 0.05); noise(1100, 6, dur, 0.06, 'bandpass', 0, 600); },
+  tongueLash() { if (!ready() || !gap('tongueLash', 80)) return; noise(5000, 0.7, 0.07, 0.25, 'highpass'); noise(1400, 1.5, 0.12, 0.14, 'bandpass', 0, 3600); },
+  tongueLatch() { if (!ready()) return; noise(600, 1.4, 0.18, 0.25, 'lowpass', 0, 200); tone('sine', 300, 120, 0.15, 0.12); tone('sine', 520, 260, 0.08, 0.05, 0.05); },
+  cofferChomp() { if (!ready()) return; noise(900, 0.9, 0.12, 0.35, 'lowpass', 0, 160); tone('square', 220, 60, 0.1, 0.1); noise(4000, 1.5, 0.04, 0.2, 'bandpass', 0.02); },
+  jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
+  jewelWhistle(dur = 0.25) { if (!ready()) return; tone('sine', 2600, 700, dur, 0.06); tone('sine', 2750, 760, dur, 0.03); },
+  jewelCrack() { if (!ready()) return; noise(6500, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) tone('triangle', 2200 + k * 450, 2000 + k * 400, 0.09, 0.04, k * 0.02); noise(500, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
   clockSweep() { if (!ready()) return; noise(900, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160, 420, 0.45, 0.05); },
   clockChime(k = 0) {

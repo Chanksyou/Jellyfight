@@ -19,3 +19,5 @@ CLAUDE.md rule 3 (attacks speak one visual language) now covers volumes. Ordinar
 One exception, by the owner's call (v138): the Cream Whipper's balloon shows only its floor circle, with no sphere round it. The balloon itself, blinking and ticking, shows where the burst is; its Blast is still the whole sphere round it.
 
 One more, by the owner's call (spec #32): the Pothos's Vine Whip aims about half a second ahead of a swimming jelly (Shots and lanes otherwise never lead). The lead is the only exception: its Warning runs a Boss attack's usual length (as long as the Clog's lash). Changing direction is the dodge; the lane is 4 cm high, so a jump clears it too.
+
+And one attack that can't be dodged at all, by the owner's call: the Latticework Coffer's tongue (act 3). It has no Warning: its mouth opening (0.4 s) is the tell, then the tongue always reaches the jelly and latches on. What the jelly can do is swim against its pull for its 4 s: faster than base move speed pulls you in (`pull=` in `content/elites.kdl`), so it takes a high move speed to get away before you're bitten. The story guard lists it as `none` (no Warning).
