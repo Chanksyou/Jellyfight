@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v184 Pothos: its heart and canopy sway continuously and leaves ripple along the
+vines while the pot stays seated. Recovery pauses are 0.95 s (0.35 s angry),
+and the boss resumes attacking after its 1 s dragonfly summon while the shield
+lasts independently. Whip/sweep warnings, 1.5 s heart openings, damage and Health
+are unchanged. Sweeps now flash at confirmed contact. See `docs/pothos-fluidity.md`.
+
 Sting feel (v182): the tentacle sting now completes its Attack Feel chain (7/7,
 up from 4/9). The bell twitches as the tentacles whip out, each sting lands with
 a small flash and the `hit` shake step, and its shove follows its damage like the
