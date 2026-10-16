@@ -40,15 +40,16 @@ story('events/kill-drops-xp', {
     return ok(e.dead && run.kills === k0 + 1 && xpDrops.list.length > 0 && !enemies.byId.has(e.id), { dead: e.dead, xp: xpDrops.list.length });
   },
 });
-story('events/ice-freezes-on-second-chill', {
-  about: 'Two ice hits freeze a bug solid.',
+story('events/ice-refreshes-slow-without-freezing', {
+  about: 'Ice slows on the first hit and refreshes the slow on repeated hits without freezing.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', G().player.position.clone().add(V(0.3, 0, 0.3))); },
   play() {
     const e = G().enemies.list[0];
     bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: 2 });
-    const once = e.freezeT;
+    const once = e.slowT;
+    e.slowT = 0.5;
     bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: 2 });
-    return ok(!(once > 0) && e.freezeT === 2, { afterOne: once || 0, afterTwo: e.freezeT });
+    return ok(once === 2 && e.slowT === 2 && !(e.freezeT > 0), { afterOne: once, afterTwo: e.slowT, frozen: e.freezeT || 0 });
   },
 });
 story('events/iframes-and-drain', {

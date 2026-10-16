@@ -33,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v181';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v182';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -694,7 +694,7 @@ window.pacing = { pacer, governor, lightSlots };
 const gpu = recoverGpu({ renderer, scene, camera, gfx, pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
 // iOS can lose the context while the page is hidden without telling the page: check on return
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) run.bubbles.silenceFire();
+  if (document.hidden) run.bubbles.silenceAttacks();
   if (!document.hidden && renderer.getContext().isContextLost() && !gpu.lost) {
     renderer.domElement.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   }

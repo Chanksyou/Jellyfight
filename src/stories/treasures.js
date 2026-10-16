@@ -48,19 +48,19 @@ story('treasures/giant-bubble', {
   },
 });
 story('treasures/element', {
-  about: 'element: fire burns, lightning arcs, ice freezes, acid leaves puddles (Candle, Battery, Freezer Pack, Nail Polish).',
+  about: 'element: fire burns, lightning arcs, ice slows, acid leaves puddles (Candle, Battery, Freezer Pack, Nail Polish).',
   setup() { setupFight({ lash: false }); give('candle', 'battery', 'freezerPack', 'nailPolish'); G().run.stats.bubbles = 2; roachAt(-0.04, -0.15); roachAt(0.04, -0.15); roachAt(0.1, -0.2); },
   play() {
     const { run, enemies } = G();
-    let burned = false, puddles = false, zapped = false, frozen = false;
+    let burned = false, puddles = false, zapped = false, slowed = false;
     const zap = run.bubbles.zap.bind(run.bubbles);
     stub(run.bubbles, 'zap', (...a) => { zapped = true; return zap(...a); });
     step(60 * 6, () => {
       burned ||= run.bubbles.burning.size > 0; puddles ||= run.bubbles.puddles.length > 0;
-      frozen ||= enemies.list.some((e) => e.freezeT > 0);
-      return burned && puddles && zapped && frozen;
+      slowed ||= enemies.list.some((e) => e.slowT > 0);
+      return burned && puddles && zapped && slowed;
     });
-    return ok(burned && puddles && zapped && frozen, { burned, puddles, zapped, frozen });
+    return ok(burned && puddles && zapped && slowed, { burned, puddles, zapped, slowed });
   },
 });
 story('treasures/wind-blade', {

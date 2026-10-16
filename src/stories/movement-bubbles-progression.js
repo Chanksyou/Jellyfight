@@ -158,7 +158,7 @@ story('attack/element-projectiles', {
     for (const [id, el] of [['candle', 'fire'], ['battery', 'lightning'], ['freezerPack', 'ice'], ['nailPolish', 'acid'], ['paperFan', 'wind'], ['glitter', 'glitter']]) {
       run.owned = new (run.owned.constructor)(); run.owned.add(id);
       run.bubbles.reset(); run.bubbles.timer = 1; run.bubbles.elTimers[el] = 1;
-      step(6);
+      step(el === 'wind' ? 20 : 6);   // wind now gathers for 0.28 s before release
       const looks = run.bubbles.list.map((b) => b.m.userData.look || null);
       seen[el] = looks.find(Boolean) || null;
       if (!looks.includes(null)) plainOnly = false;            // a plain bubble flew alongside it

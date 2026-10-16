@@ -15,8 +15,12 @@ export const AUDIT = {
   // the jelly's own attacks
   player: {
     bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
-    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v181 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
-    fire: todo, lightning: todo, ice: todo, acid: todo, wind: todo, glitter: todo,
+    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v182 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
+    fire: todo, lightning: todo,
+    ice: { score: null, note: 'v180: chill refreshes slow only; target remains mobile and shows the existing slow ring, never the frozen shell. Freezer Burn rewards already slowed targets. Code review only; remaining ice audit still pending.' },
+    acid: todo,
+    wind: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v181: gathered wind and bell compression before same-frame release, crescent/trail, confirmed impact flash, push/white flinch, bell recoil/light feel step, fading debris, actual damage/kill numbers, varied charge/rush/contact/scenery thud. Scenery-only swept push deals one equal-damage collision; attack/wind-* proves mechanics. Play-speed visual review pending.' },
+    glitter: todo,
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {
