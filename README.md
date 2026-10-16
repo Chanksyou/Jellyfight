@@ -4,10 +4,14 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-Fire overhaul (v173): normal gameplay now uses the approved fire sequence and
+Fire overhaul (v174): normal gameplay now uses the approved fire sequence and
 recorded launch/flight audio. Loading starts after the first audio-unlocking tap;
 failed loading falls back to synthesis. Burning deaths char, curl and shrink,
 with immediate gameplay death and rewards. Damage and burn timing are unchanged.
+The recording now skips its quiet lead-in and keeps a 100 ms ignition on close
+hits. Launch feedback supports rapid fire with a 35 ms gate and three sustained
+voices; replaced voices fade quickly. Pause/reset can bypass the minimum ignition.
+Run `node tests/fire-audio.mjs` for onset, short-range, rapid-fire and reset renders.
 
 Open `fire-sample.html` on the local server to audition
 the real fireball's tapered flame, launch whoosh, contact crack and burning embers.

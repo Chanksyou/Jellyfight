@@ -90,7 +90,8 @@ export class Bubbles {
   }
 
   reset() {
-    this.list.forEach((b) => this.release(b));
+    this.silenceFire();
+    this.list.forEach((b) => this.release(b, true));
     this.list = [];
     this.burning.clear();
     this.zaps.forEach((z) => { this.scene.remove(z.line); z.line.geometry.dispose(); z.line.material.dispose(); });   // each zap cloned zapMat: free both, or a restart leaks them
@@ -103,11 +104,12 @@ export class Bubbles {
   }
 
   silenceFire() {
-    for (const b of this.list) { b.stopFireAudio?.(); b.stopFireAudio = null; }
+    sfx.stopFire();
+    for (const b of this.list) { b.stopFireAudio?.(true); b.stopFireAudio = null; }
   }
 
-  release(b) {
-    b.stopFireAudio?.(); b.stopFireAudio = null;
+  release(b, immediate = false) {
+    b.stopFireAudio?.(immediate); b.stopFireAudio = null;
     if (b.m.userData.look) { this.looks.release(b.m); return; }
     b.m.visible = false;
     this.pool.push(b.m);
