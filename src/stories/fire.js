@@ -42,7 +42,7 @@ story('attack/fire-audio-upgrades', {
   setup() { setupFight({ bubbles: false, lash: false }); give('candle'); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player } = G(), B = run.bubbles, launches = [], impacts = [];
-    stub(sfx, 'fireLaunch', weight => launches.push(weight));
+    stub(sfx, 'fireLaunch', weight => { launches.push(weight); });
     stub(sfx, 'fire', weight => impacts.push(weight));
     const origin = player.position.clone().add(V(0, 0.06, 0));
     B.elementVolley('fire', run.mods.element.fire, origin, run.S, run.mods);

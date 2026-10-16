@@ -5,4 +5,5 @@
 Its filename identifies koiroylers; no license document was supplied.
 Confirm redistribution rights before including this asset in a production release.
 
-Only the sample loads this file. Gameplay retains synthesized fire audio.
+The sample and normal gameplay load this file after audio is unlocked. Loading
+or decoding failure retains synthesized fire audio so gameplay can continue.

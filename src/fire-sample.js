@@ -8,7 +8,7 @@ import { loadLook, LOOK } from './look.js';
 import { newMods, elementParams } from './words.js';
 import { BASE_STATS } from './stats.js';
 import { bus } from './events.js';
-import { sfx, unlock, setMuted, isMuted, audio, setFireFlight } from './sfx.js';
+import { unlock, setMuted, isMuted, loadFireFlight } from './sfx.js';
 
 await loadLook();
 const stage = document.querySelector('#stage');
@@ -107,10 +107,7 @@ document.querySelector('#sound').addEventListener('click', async () => {
     if (!flightLoaded) {
       button.disabled = true;
       try {
-        const response = await fetch('/assets/audio/fireball-flight.mp3');
-        if (!response.ok) throw new Error(`Fire audio: ${response.status}`);
-        setFireFlight(await audio().ctx.decodeAudioData(await response.arrayBuffer()));
-        flightLoaded = true;
+        flightLoaded = await loadFireFlight();
       } catch (error) {
         console.warn('Recorded fire unavailable; using synthesized launch.', error);
       } finally { button.disabled = false; }

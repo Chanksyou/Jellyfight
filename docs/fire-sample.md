@@ -1,4 +1,10 @@
-# Fire feedback sample (v172)
+# Fire feedback sample (v173)
+
+The approved sequence is now integrated into normal gameplay. Both entry points
+share the cached recording loader; a first tap unlocks audio and starts loading.
+Failure retains synthesized launch audio. Dead burning enemy models use one
+shared ash material during their brief collapse, then restore original materials
+on cleanup. No enemy health or attack rules are changed.
 
 ## Current rework
 

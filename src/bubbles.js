@@ -102,6 +102,10 @@ export class Bubbles {
     this.volleys = 0;
   }
 
+  silenceFire() {
+    for (const b of this.list) { b.stopFireAudio?.(); b.stopFireAudio = null; }
+  }
+
   release(b) {
     b.stopFireAudio?.(); b.stopFireAudio = null;
     if (b.m.userData.look) { this.looks.release(b.m); return; }

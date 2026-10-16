@@ -1,4 +1,5 @@
-// Sound effects, synthesized with Web Audio (no files to load). Every sound is a few oscillators
+// Sound effects use Web Audio synthesis plus the approved recorded fire launch/flight.
+// Most sounds are a few oscillators
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
 // from the Play button.
@@ -8,8 +9,25 @@ let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
 let fireFlight = null;
 const fireVoices = new Set();
-// The audition can supply a recording; normal gameplay retains synthesized fire.
+// Both gameplay and the audition share the same decoded fire recording.
 export function setFireFlight(buffer) { fireFlight = buffer; }
+let flightLoading = null;
+export function loadFireFlight() {
+  if (fireFlight) return Promise.resolve(true);
+  if (!ctx) return Promise.resolve(false);
+  return flightLoading ||= fetch('/assets/audio/fireball-flight.mp3')
+    .then(response => {
+      if (!response.ok) throw new Error(`Fire audio: ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then(bytes => ctx.decodeAudioData(bytes))
+    .then(buffer => { setFireFlight(buffer); return true; })
+    .catch(error => {
+      flightLoading = null;
+      console.warn('Recorded fire unavailable; using synthesized launch.', error);
+      return false;
+    });
+}
 
 function recordedFireFlight(weight) {
   const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
@@ -69,6 +87,7 @@ export function unlock() {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
     if (ctx.state === 'suspended') ctx.resume();
+    loadFireFlight();
   } catch { /* no audio: the game still works */ }
 }
 

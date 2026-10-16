@@ -5,7 +5,7 @@ import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { GUTS } from './enemies.js';
 
-export function wireFeedback(fx) {
+export function wireFeedback(fx, isBurning = () => false) {
   bus.on('enemy_hit', ({ amount, color, pos, sound }) => {
     if (sound !== 'fire' && sound !== 'fireball') sfx.hit();
     fx.number(pos, Math.round(amount), color, color === '#fff' ? 13 : 17);
@@ -18,14 +18,17 @@ export function wireFeedback(fx) {
   });
 
   // it bursts: bits fly and bounce, the screen kicks, the game catches its breath for a beat
-  bus.on('enemy_killed', ({ type, pos, floor, r, silent }) => {
-    fx.puff(pos, 0xe6ded0, r * 1.6);
+  bus.on('enemy_killed', ({ targetId, type, pos, floor, r, silent }) => {
+    const fire = isBurning(targetId);
+    if (!fire) fx.puff(pos, 0xe6ded0, r * 1.6);
     if (silent) return;
     const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
-    fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
-    fx.ring(pos.clone().setY(floor + 0.003), 0xffffff, r * 3, 0.25);
+    if (!fire) {
+      fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
+      fx.ring(pos.clone().setY(floor + 0.003), 0xffffff, r * 3, 0.25);
+    }
     juice.hitstop(big ? 0.06 : 0.035);
     juice.shake(big ? 0.3 : 0.18);
-    sfx.kill(big ? 1.6 : 1);
+    if (!fire) sfx.kill(big ? 1.6 : 1);
   });
 }
