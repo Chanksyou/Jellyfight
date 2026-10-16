@@ -33,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v168';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v174';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -140,7 +140,6 @@ const hud = new Hud(plan);
 hud.mount(ui);
 const fx = new Fx(scene, camera);
 fx.mount(ui);
-wireFeedback(fx);
 const menus = new UI(ui);
 const creator = new Creator({
   onChange: (l) => applyLook(l, true),
@@ -217,6 +216,10 @@ const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
   carry: carried(),                    // a later act: the run so far (stages.js)
+});
+wireFeedback(fx, targetId => {
+  for (const [enemy, burn] of run.bubbles.burning) if (enemy.id === targetId && burn.t > 0) return true;
+  return false;
 });
 
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
@@ -675,6 +678,7 @@ window.pacing = { pacer, governor, lightSlots };
 const gpu = recoverGpu({ renderer, scene, camera, gfx, pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
 // iOS can lose the context while the page is hidden without telling the page: check on return
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) run.bubbles.silenceFire();
   if (!document.hidden && renderer.getContext().isContextLost() && !gpu.lost) {
     renderer.domElement.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   }

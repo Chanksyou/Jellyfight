@@ -1,4 +1,5 @@
-// Sound effects, synthesized with Web Audio (no files to load). Every sound is a few oscillators
+// Sound effects use Web Audio synthesis plus the approved recorded fire launch/flight.
+// Most sounds are a few oscillators
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
 // from the Play button.
@@ -6,6 +7,57 @@ let ctx = null, master = null, noiseBuf = null, deep = null;   // deep: a lowpas
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
+let fireFlight = null;
+const fireVoices = new Set();
+// Both gameplay and the audition share the same decoded fire recording.
+export function setFireFlight(buffer) { fireFlight = buffer; }
+let flightLoading = null;
+export function loadFireFlight() {
+  if (fireFlight) return Promise.resolve(true);
+  if (!ctx) return Promise.resolve(false);
+  return flightLoading ||= fetch('/assets/audio/fireball-flight.mp3')
+    .then(response => {
+      if (!response.ok) throw new Error(`Fire audio: ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then(bytes => ctx.decodeAudioData(bytes))
+    .then(buffer => { setFireFlight(buffer); return true; })
+    .catch(error => {
+      flightLoading = null;
+      console.warn('Recorded fire unavailable; using synthesized launch.', error);
+      return false;
+    });
+}
+
+function recordedFireFlight(weight) {
+  const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
+  if (fireVoices.size >= 3) {
+    const oldest = fireVoices.values().next().value;
+    oldest.stop(); fireVoices.delete(oldest);
+  }
+  source.buffer = fireFlight;
+  source.playbackRate.value = (0.98 + Math.random() * 0.04) / Math.pow(weight, 0.15);
+  const duration = fireFlight.duration / source.playbackRate.value;
+  const volume = 0.38 + (weight - 1) * 0.1;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(volume, t + 0.012);
+  gain.gain.linearRampToValueAtTime(volume * 0.45, t + Math.min(0.18, duration * 0.5));
+  gain.gain.setValueAtTime(volume * 0.45, t + Math.max(0.18, duration - 0.15));
+  gain.gain.linearRampToValueAtTime(0, t + duration);
+  source.connect(gain).connect(master);
+  fireVoices.add(source);
+  source.onended = () => { fireVoices.delete(source); source.disconnect(); gain.disconnect(); };
+  source.start(t); source.stop(t + duration);
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    const end = Math.max(t, now());
+    gain.gain.cancelAndHoldAtTime(end);
+    gain.gain.linearRampToValueAtTime(0, end + 0.045);
+    source.stop(end + 0.05);
+  };
+}
 
 // Previews: play the sounds into another (offline) context, each at the time given by when(t)
 export function preview(c, dest) {
@@ -35,6 +87,7 @@ export function unlock() {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
     if (ctx.state === 'suspended') ctx.resume();
+    loadFireFlight();
   } catch { /* no audio: the game still works */ }
 }
 
@@ -158,7 +211,46 @@ export const sfx = {
   levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
   // elements
-  fire() { if (!ready() || !gap('fire', 70)) return; noise(700, 0.8, 0.25, 0.14, 'lowpass', 0, 2500); },
+  fireLaunch(weight = 1) {
+    if (!ready() || !gap('fireLaunch', 90)) return;
+    const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.12) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    if (fireFlight) {
+      const stop = recordedFireFlight(w);
+      noise(900, 0.6, 0.12, 0.12, 'bandpass', 0, 2600);
+      return stop;
+    }
+    // A pressure pulse under an opening flame, with enough midrange for phone speakers.
+    tone('sine', 105 * j, 52 * j, 0.17, 0.24 * g);
+    tone('triangle', 220 * j, 440 * j, 0.095, 0.11 * g);
+    noise(460 * j, 0.65, 0.21, 0.4 * g, 'lowpass', 0, 3400 * j);
+    noise(2200 * j, 1.2, 0.09, 0.2 * g, 'bandpass', 0.018, 550 * j);
+    noise(4200 * j, 1, 0.045, 0.1 * g, 'highpass', 0.035);
+  },
+  fireDeath() {
+    if (!ready() || !gap('fireDeath', 150)) return;
+    noise(900, 0.7, 0.26, 0.14, 'lowpass', 0, 180);
+    noise(3400, 1, 0.18, 0.08, 'bandpass', 0.07, 1800);
+    for (let k = 0; k < 5; k++) noise(3500 + Math.random() * 3000, 2, 0.018, 0.09, 'bandpass', 0.04 + k * 0.055);
+  },
+  fireBurn() {
+    if (!ready() || !gap('fireBurn', 240)) return;
+    noise(2900 * jitter(0.15), 1.6, 0.045, 0.045, 'bandpass');
+    noise(6500, 2, 0.012, 0.035, 'highpass', 0.025);
+  },
+  fire(weight = 1) {
+    if (!ready() || !gap('fire', 95)) return;
+    const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
+    noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
+    noise(700 * j, 0.8, 0.065, 0.18 * g, 'bandpass', 0.004, 180);
+    tone('sine', 125 * j, 48, 0.13, 0.22 * g);
+    noise(1600 * j, 0.7, 0.13, 0.27 * g, 'lowpass', 0.008, 260);
+    noise(750 * j, 1.1, 0.11, 0.1 * g, 'bandpass', 0.04, 180);
+    for (let k = 0; k < 5; k++) {
+      noise((3600 + Math.random() * 4000) * j, 2.5, 0.008 + Math.random() * 0.012,
+        (0.08 - k * 0.01) * g, 'bandpass', 0.035 + k * 0.027 + Math.random() * 0.018);
+    }
+  },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   shatter() { if (!ready() || !gap('shatter', 60)) return; noise(6000, 1, 0.3, 0.25, 'highpass'); tone('triangle', 2400, 800, 0.2, 0.08); },

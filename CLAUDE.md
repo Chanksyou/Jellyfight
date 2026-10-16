@@ -51,6 +51,11 @@ Enable the existing pre-push hook in each fresh clone with
 
 ## Where each kind of change lives
 
+For any change to the jelly's projectiles, attacks, or damaging skills, read and
+follow [Designing the jelly's attacks](docs/agents/jelly-attack-design.md). It
+defines the shared method for attack identity, animation, hit feedback, upgrades,
+readability, mobile performance, and verification across all player attack families.
+
 | To change… | Edit | Notes |
 |---|---|---|
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
