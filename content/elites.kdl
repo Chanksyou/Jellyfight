@@ -89,8 +89,9 @@ elite "bull" name="The Bull" hp=500 aggro=1.0 angry=0.65 {
 //   jewels:    count= amber jewels shoot up out of sight off its lid while count= Warnings of radius=
 //              fill on random spots of the desk top (spread= m apart at least) for rain= s; then the
 //              jewels fall from up= m onto them in drop= s and burst as Blasts
+// (its times are written 1.2x long: pace tempo 1.2 plays every elite faster, so they play as the owner's 0.5 s unfold, 4 s leash and 2 s rain)
 elite "coffer" name="The Latticework Coffer" hp=500 aggro=1.0 angry=0.65 {
-    accordion dmg=3 strikes=5 range=0.6 radius=0.06 unfold=0.5 angryUnfold=0.4 hover=0.05 rest=1.0 angryRest=0.7
-    tongue dmg=6 open=0.4 shoot=0.15 hold=4 pull=0.6 angryPull=0.7 bite=0.14 knock=1.0 rest=1.0 angryRest=0.7
-    jewels dmg=3 count=10 angryCount=14 radius=0.05 spread=0.17 rain=2 drop=0.25 up=0.9 rest=1.0 angryRest=0.7
+    accordion dmg=3 strikes=5 range=0.6 radius=0.06 unfold=0.6 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
+    tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 knock=1.0 rest=1.0 angryRest=0.7
+    jewels dmg=3 count=10 angryCount=14 radius=0.05 spread=0.17 rain=2.4 drop=0.25 up=0.9 rest=1.0 angryRest=0.7
 }
