@@ -2,6 +2,11 @@
 
 The artifact is <https://claude.ai/artifact/3XfF3gyDMg6L1pHhZn3xEW>. Its page is `index.html`; every other file the game loads is published next to it at the same path. Pushing `main` redeploys the game's own site (Cloudflare) by itself; the artifact is republished by hand, after the push.
 
+Prepare changes on a feature branch and open a pull request, following `CLAUDE.md`.
+Merge into `main` and republish the artifact only when the owner explicitly
+requests a release or approves that publishing step. Complete required checks
+before deployment. Local pre-push hooks do not execute on GitHub merges.
+
 1. **Read the artifact first** (`Artifact` tool, `action: "read"`), so you build on the live version. If its files differ from `main` before your change, someone edited it in place: find out before overwriting.
 2. **List the files that changed** since the last publish, limited to what the game serves:
    `git diff --name-only <last published commit> HEAD | grep -E '^(src|content)/|^index.html$'`

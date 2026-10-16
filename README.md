@@ -12,6 +12,29 @@ npx http-server -c-1        # or: python -m http.server
 
 Open the printed localhost URL. The VS Code "Live Server" extension also works.
 
+## Working with Codex and Claude Code
+
+Both agents follow `CLAUDE.md`; Codex discovers it through `AGENTS.md`. Start a
+task on a feature branch, implement and check the change, then ask the other agent
+to review it. Commit and push the branch, open a pull request, and merge only when
+you are ready to release: changes to `main` automatically deploy to Cloudflare.
+Use separate worktrees and branches if both agents are editing at the same time.
+
+One-time setup in each fresh clone (Node.js/npm and Git required), from the repo root:
+
+```powershell
+git config --local core.hooksPath .githooks
+npm ci --prefix tests
+npm exec --prefix tests -- playwright install chromium
+```
+
+Run `node tests/check.mjs` for the fast check and `node tests/run.mjs` for the full
+story suite. See `CLAUDE.md` for checks required by each kind of change. The local
+pre-push hook runs the fast check on every push and requires a full passing run
+on the exact clean commit being pushed to `main`; commit first, run the full suite,
+then push. GitHub merges do not execute local hooks, so complete required checks
+before merging a pull request.
+
 ## The game
 
 You're an immortal jellyfish growing up over one night in the apartment. Stage 1 (Polyp) is the living room and its kitchen strip, midnight to 2 am (4:20 of real time before the boss comes).

@@ -9,6 +9,33 @@ content** with a small **vocabulary**, and **stories** prove behaviour. Keep it 
 
 Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. The story `vocabulary/no-retired-words` fails if player text uses a word it lists under _Avoid_.
 
+## Working with Codex and Claude Code
+
+These are the shared project instructions for both agents; `AGENTS.md` directs
+Codex here. Keep project rules in this file so the agents follow the same workflow.
+
+1. Check `git status` and the current branch before editing. Preserve unfinished
+   work. For a new task, fetch origin and create a descriptive feature branch from
+   the latest `origin/main` on a clean checkout. For a handoff, continue the named
+   branch instead of starting over.
+2. Use one agent to implement and the other to review. If both edit concurrently,
+   use separate worktrees and branches. Never switch branches or edit the same
+   working folder while another agent is working there.
+3. Preview gameplay changes locally, run the checks in rule 2, and make focused
+   commits. Hand off the branch name, commit, change summary, checks and results,
+   and any unfinished work; chat history is not shared between tools.
+4. Push the feature branch and open a pull request for review. Merge into `main`
+   only when the owner explicitly requests a release or approves the merge.
+   Pushing or merging into `main` deploys the game to Cloudflare.
+5. For a release containing code changes, run the full story suite on the final
+   integration before deployment. A local push to `main` requires a clean,
+   committed checkout and a full passing run on that exact commit, including any
+   merge commit. GitHub merges do not run local hooks: record the required checks
+   in the pull request and complete them before merging. Then update local `main`.
+
+Enable the existing pre-push hook in each fresh clone with
+`git config --local core.hooksPath .githooks`. See README for test dependencies.
+
 ## Where each kind of change lives
 
 | To change… | Edit | Notes |
@@ -88,9 +115,12 @@ Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, El
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
-9. **Ship it the same way every time:** bump `BUILD` in `src/main.js`, update `README.md`,
-   run the stories (rule 2), commit, push `main` (no need to ask), then republish the artifact
-   (`docs/agents/publishing.md`).
+9. **Ship through a reviewed pull request:** for game changes, bump `BUILD` in
+   `src/main.js` and update `README.md`; documentation-only changes need no build
+   bump. Run the stories (rule 2), commit to a feature branch, push the branch,
+   and open a pull request. Follow the release approval and final verification
+   steps above before merging into `main`. Republish the artifact only as part of
+   an explicitly requested release (`docs/agents/publishing.md`).
 
 ## Next (the same pattern, not done yet)
 
