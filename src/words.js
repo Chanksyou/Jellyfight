@@ -435,6 +435,45 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  'charge-shot': {
+    doc: 'Within `range` m every `every` s or so, stops, turns to you and charges a ball between its jaws for `charge` s (it grows, crackling; the aim locks `lock` of the way through, so stepping aside after that dodges), then fires it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s, `dmg` if it touches you, bursting on whatever it meets. It rests `rest` s. Freezing or stunning it breaks the charge off. List it after the walking word.',
+    props: { range: 0.6, charge: 1, lock: 0.6, speed: 1.2, dmg: 3, size: 0.011, life: 1.2, rest: 0.7, every: 3.5 },
+    make: (_, p) => ({
+      init(e) { e.shotCd = 1 + Math.random() * 1.5; e.shotDir = new THREE.Vector3(0, 0, 1); e.shotAt = new THREE.Vector3(); e.ballK = 0; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.shotCd -= c.dt;
+        if (e.state === 'charge' && !live) { en.breakSpark(e); e.state = 'approach'; e.faceLock = false; e.ballK = 0; e.shotCd = 1.5; }
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.shotCd <= 0 && live) {
+            e.state = 'charge'; e.stateT = p.charge; e.aimLocked = false; e.ballK = 0; e.faceLock = true;
+            e.vel.set(0, 0, 0);
+            en.sparkCharge(e, p.charge);
+          }
+        } else if (e.state === 'charge') {
+          c.speed = 0;
+          e.vel.set(0, 0, 0);
+          e.stateT -= c.dt;
+          e.ballK = Math.min(1, 1 - e.stateT / p.charge);
+          if (!e.aimLocked) {                                        // it turns after you until its aim locks
+            e.shotDir.copy(c.flatDir);
+            e.shotAt.copy(c.pc);
+            let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;
+            d = Math.atan2(Math.sin(d), Math.cos(d));
+            e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-12 * c.dt)), -5 * c.dt, 5 * c.dt);
+            if (e.ballK >= p.lock) e.aimLocked = true;
+          }
+          if (e.stateT <= 0) { en.sparkShot(e, e.shotAt, p); e.state = 'rest'; e.stateT = p.rest; e.ballK = 0; e.firedT = 0.3; }
+        } else if (e.state === 'rest') {
+          c.speed = 0;
+          e.stateT -= c.dt * live;
+          if (e.stateT <= 0) { e.state = 'approach'; e.faceLock = false; e.shotCd = p.every; }
+        }
+        if (e.firedT > 0) e.firedT -= c.dt;
+      },
+    }),
+  },
+
   hatch: {
     doc: 'When it dies, the bug named `what` takes its place: where it fell, facing the way it faced, as tough as it was (a parasite bursting out of its body).',
     args: ['what'],

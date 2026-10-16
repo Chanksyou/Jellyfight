@@ -21,6 +21,7 @@ bug "millipede" weight=0.6 from=75 act=2    // giant millipedes from 1:15
 bug "ladybug" weight=0.5 from=120 act=2     // ladybugs from 2:00
 
 // act 3: the bedroom
-// dragonflies, then mantises; its wasp nests hang from 1:30 (src/stage3.js nests)
+// dragonflies, then mantises, then stag beetles; its wasp nests hang from 1:30 (src/stage3.js nests)
 bug "dragonfly" weight=1 act=3              // dragonflies from the start
 bug "mantis" weight=0.6 from=45 act=3       // praying mantises from 0:45
+bug "beetle" weight=0.35 from=60 act=3      // stag beetles from 1:00: a tank, so only a few

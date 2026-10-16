@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly, the dragonfly, the mantis and the worm inside it. Procedural models with moving legs and
+// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly, the dragonfly, the mantis and the worm inside it, the stag beetle. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -1520,6 +1520,126 @@ export function buildMantis({ dead = false } = {}) {
     body.position.z = -raise * 0.1 + strike * 0.35;
     body.position.y = raise * 0.06;
     body.rotation.z = Math.sin(step * 0.5) * 0.03 * k;
+  };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ stag beetle
+// The stag beetle (act 3), after the character sheet: long glossy red-brown wing cases (elytra)
+// with a seam down the middle; a dark grey-brown armoured pronotum and head with thin gold lines
+// between the segments; big branched red-brown mandibles like antlers, curving up and in, with a
+// few prongs; elbowed antennae with comb tips; six long jointed legs with spiny tibiae and hooked
+// feet; a low, long body. Its mandibles part as it charges its electric ball between them (the
+// charge-shot word: enemies.js draws the ball there, BALL_AT) and snap wide as it fires.
+// About 3.3 radii long, mandible tips to wing tips (3x the jelly); its feet are at its origin.
+// a sphere pushed toward a box (e < 1: boxier), for armour plates that meet edge to edge; lighter on top
+function plate(sx, sy, sz, at, dark, light, e = 0.6, seg = 24) {
+  const g = new THREE.SphereGeometry(1, seg, Math.round(seg * 0.6)), p = g.attributes.position;
+  const a = new THREE.Color(dark), b = new THREE.Color(light), c = new THREE.Color(), col = new Float32Array(p.count * 3);
+  const f = (v) => Math.sign(v) * Math.pow(Math.abs(v), e);
+  for (let i = 0; i < p.count; i++) {
+    const x = f(p.getX(i)), y = f(p.getY(i)), z = f(p.getZ(i));
+    c.copy(a).lerp(b, Math.max(0, y) * 0.9);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    p.setXYZ(i, x * sx + at.x, y * sy + at.y, z * sz + at.z);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.deleteAttribute('uv');
+  return g.toNonIndexed();
+}
+const STAG = { dark: '#2a0a04', red: '#6a1e0c', armour: '#141010', armourLit: '#2e2622', gold: '#d8a030', leg: '#2a140c', mandible: '#7a220e', tip: '#300c04' };
+// a gold edge line round the top and sides of a plate's cross-section (half-width w, height h) at z
+const edge = (w, h, y, z) => tube(Array.from({ length: 13 }, (_, i) => { const a = -0.15 + (Math.PI + 0.3) * i / 12; return V(Math.cos(a) * w, y + Math.sin(a) * h, z); }), 0.012, STAG.gold, 24);
+function beetleParts() {
+  const C = STAG, elyY = (z) => 0.42 + 0.3 * Math.sqrt(Math.max(0, 1 - ((z + 0.32) / 0.8) ** 2));
+  const body = [
+    plate(0.54, 0.3, 0.8, V(0, 0.42, -0.32), C.dark, C.red, 0.78),          // the wing cases
+    plate(0.48, 0.16, 0.84, V(0, 0.32, -0.28), '#140a06', '#22140c', 0.7),   // the belly under them
+    tube(Array.from({ length: 10 }, (_, i) => { const z = 0.42 - i * 0.16; return V(0, elyY(z) + 0.004, z); }), 0.01, '#2a0c06', 20),   // the seam down the middle
+    plate(0.08, 0.04, 0.07, V(0, 0.7, 0.36), C.armour, C.armourLit, 0.7, 12),   // the little shield where they meet the pronotum
+    plate(0.47, 0.22, 0.25, V(0, 0.45, 0.7), C.armour, C.armourLit, 0.5),    // the pronotum
+    plate(0.38, 0.16, 0.19, V(0, 0.43, 1.12), C.armour, C.armourLit, 0.6),   // the head
+    plate(0.08, 0.05, 0.06, V(0, 0.35, 1.32), C.tip, C.mandible, 0.7, 12),   // the mouth
+    edge(0.44, 0.2, 0.45, 0.47), edge(0.37, 0.16, 0.44, 0.94),               // gold lines between the segments
+  ];
+  // the elbowed antennae: a long scape out to the side, the rest bent forward, a comb at the tip
+  for (const s of [-1, 1]) {
+    const a = V(s * 0.3, 0.46, 1.24), b = V(s * 0.5, 0.62, 1.4), c = V(s * 0.6, 0.58, 1.62);
+    body.push(rod(a, b, 0.022, 0.016, C.leg), rod(b, c, 0.016, 0.014, C.leg));
+    for (let k = 0; k < 4; k++) { const at = c.clone().add(V(s * 0.01 * k, -0.005 * k, -0.025 * k)); body.push(rod(at, at.clone().add(V(s * 0.07, 0.01, 0.03)), 0.01, 0.006, C.tip)); }
+  }
+  // a mandible on side s, built at its hinge: out and forward, then up and curving in, with prongs on the inside
+  const mandible = (s) => {
+    const pts = [V(0, 0, 0), V(0.16, 0.08, 0.24), V(0.28, 0.24, 0.5), V(0.28, 0.46, 0.7), V(0.15, 0.66, 0.84), V(-0.04, 0.74, 0.86)].map((p) => p.setX(p.x * s));
+    const parts = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const r0 = 0.09 - i * 0.014, col = new THREE.Color(C.mandible).lerp(new THREE.Color(C.tip), i / (pts.length - 1)).getHex();
+      parts.push(rod(pts[i], pts[i + 1], r0, r0 - 0.014, col), ellipsoid(r0 - 0.01, r0 - 0.01, r0 - 0.01, pts[i + 1], col, 8));
+    }
+    for (const [i, d] of [[2, V(-0.18, 0.05, 0.06)], [3, V(-0.15, 0.1, 0.03)], [4, V(0.03, 0.18, 0.04)]]) {   // prongs: two on the inside, a fork at the tip
+      const at = pts[i], to = at.clone().add(d.setX(d.x * s));
+      parts.push(rod(at, to, 0.038, 0.007, C.tip));
+    }
+    return merge(parts);
+  };
+  // a leg on side s, built at its hip: the femur up and out to the knee, the spiny tibia down to the
+  // floor, the tarsus in short segments to a hooked foot
+  const leg = (s, len) => {
+    const P = (x, y, z) => V(x * s * len, y, z * len);
+    const a = V(0, 0, 0), b = P(0.42, 0.2, 0), c = P(0.82, -0.26, 0), d = P(1.02, -0.3, 0), f = P(1.08, -0.28, 0);
+    const parts = [rod(a, b, 0.05, 0.04, C.leg), ellipsoid(0.045, 0.045, 0.045, b, C.leg, 8), rod(b, c, 0.035, 0.028, C.leg), rod(c, d, 0.018, 0.014, C.leg), rod(d, f, 0.012, 0.006, C.tip)];
+    for (let k = 0; k < 4; k++) { const at = b.clone().lerp(c, 0.25 + k * 0.2); parts.push(rod(at, at.clone().add(V(s * 0.03, 0.045, 0.02)), 0.01, 0.002, C.tip)); }   // tibial spines
+    for (const z of [-1, 1]) parts.push(rod(f, f.clone().add(V(s * 0.03, -0.03, z * 0.025)), 0.008, 0.002, C.tip));                                  // the hooked claws
+    return merge(parts);
+  };
+  return {
+    body: merge(body),
+    mandibles: [-1, 1].map((s) => mandible(s)),
+    legs: [[0.74, 1.05], [0.3, 0.95], [-0.12, 1.05]].map(([z, len], i) => ({ z, i, geo: [-1, 1].map((s) => leg(s, len)) })),
+  };
+}
+export function buildBeetle() {
+  const G = (GEO.beetle ||= beetleParts()), M = mats();
+  if (!M.stag) standOut(M.stag = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, metalness: 0.25 }), { base: 0.1, rim: 0.28 });   // glossy, and big enough to read without the small bugs' glow
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(G.body, M.stag));
+  body.add(angryEyes({ y: 0.5, z: 1.26, size: 0.085, gap: 0.27 }));
+  const jaws = G.mandibles.map((geo, i) => {
+    const s = i ? 1 : -1, hinge = new THREE.Group();
+    hinge.position.set(s * 0.17, 0.38, 1.3);
+    hinge.add(new THREE.Mesh(geo, M.stag));
+    body.add(hinge);
+    return { s, hinge };
+  });
+  const legs = [];
+  for (const L of G.legs) [-1, 1].forEach((s, j) => {
+    const hip = new THREE.Group();
+    hip.name = 'leg';
+    hip.position.set(s * 0.28, 0.3, L.z);
+    hip.add(new THREE.Mesh(L.geo[j], M.stag));
+    body.add(hip);
+    legs.push({ hip, base: s * (L.i - 1) * 0.55, s, phase: (L.i + j) % 2 ? Math.PI : 0 });   // front legs reach forward, back legs back; a tripod gait
+  });
+  let t = 0, k = 0, open = 0;
+  const anim = (dt, e) => {
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    k += (Math.min(1, speed * 8) - k) * (1 - Math.exp(-8 * dt));
+    t += dt * (2.5 + 9 * k);
+    for (const L of legs) {
+      L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
+      L.hip.rotation.z = -L.s * Math.max(0, Math.cos(t + L.phase)) * 0.18 * k;   // lifts the leg as it swings forward
+    }
+    // the charge: its jaws part and tremble round the growing ball, its head rearing a little; the
+    // shot: they snap wide and it rocks back
+    const charge = e.state === 'charge' ? e.ballK || 0 : 0, kick = Math.max(0, (e.firedT || 0) / 0.3);
+    open += (charge * 0.22 - open) * (1 - Math.exp(-10 * dt));
+    const tremble = charge > 0 ? Math.sin(t * 50 + e.phase) * 0.03 * charge : 0;
+    for (const J of jaws) J.hinge.rotation.y = J.s * (open + tremble + kick * 0.35 + Math.sin(t * 0.8) * 0.02);
+    body.rotation.x = -0.06 * charge - 0.1 * kick;
+    body.position.z = -0.12 * kick;
+    body.position.y = Math.abs(Math.sin(t)) * 0.012 * k;
+    body.rotation.z = Math.sin(t) * 0.02 * k;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }

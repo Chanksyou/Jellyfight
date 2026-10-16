@@ -41,6 +41,7 @@ export const AUDIT = {
     contact: { score: null, note: 'v179: global target reaction adds a small horizontal hurt nudge and the hurt-minor feel step; Reduce effects silences shake. Reaction present from code; remaining rows still await the full contact audit.' },
     'curl-dash': todo, leap: todo, sortie: todo, 'ball-charge': todo, poke: todo, spit: todo, 'charge-beam': todo,
     swat: todo, burst: todo, whip: todo, dive: todo, becomes: todo, lob: todo, drops: todo, holds: todo,
+    'charge-shot': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'The stag beetle (new): a 1 s charge (sparks drawn in, the ball growing between its mandibles with arcs to them, jaws trembling, a rising whine with crackles; aim locks at 60%); on the fire frame a flash at its jaws, a zap and its mandibles snapping wide as it rocks back; a white core in a hot orange halo shedding sparks, with a whoosh; on the jelly a double flash, sparks and a ring, a crack, the jelly\'s hurt reaction; a miss bursts on what it meets and leaves a fading scorch on the floor, and either way a fizzle of sparks falls with little crackles. Proven by words/charge-shot, enemies/stag-beetle-shot-dodge, act3/stag-beetle-with-sound; checked in desktop and phone screenshots of each phase, not watched at play speed.' },
   },
   notBugAttacks: ['chase', 'hover', 'zip', 'evade', 'hatch', 'rooted', 'hangs', 'brood', 'rolls'],
   // every Elite and Boss attack (src/stories/kit.js EVERY_ATTACK, itself checked against the game)

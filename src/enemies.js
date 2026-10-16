@@ -3,7 +3,7 @@
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildRoot, buildMissile, buildCutting, buildSprout } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildRoot, buildMissile, buildCutting, buildSprout, buildBeetle } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -23,7 +23,10 @@ export const GUTS = Object.fromEntries(Object.entries(GUTS_BUILTIN).map(([k, v])
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 export const FLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const BLOCK = new THREE.Color('#dfe8ff');
-const EXHAUST = new THREE.Color('#ffa040');   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
+const EXHAUST = new THREE.Color('#ffa040');
+const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the stag beetle's ball: its white-hot core and the arcs crackling round it
+const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
+const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
@@ -193,6 +196,7 @@ function makeLooks() {
     cutting: buildCutting,
     sprout: buildSprout,
     root: buildRoot,
+    beetle: buildBeetle,
     fuzz, hairMat,
   };
 }
@@ -208,6 +212,7 @@ export class Enemies {
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.byId = new Map();    // id -> enemy, for events that name their target
     this.shots = [];          // mosquito laser bolts (the spit word)
+    this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
     // a bolt: a thin bright core inside a soft coloured glow, stretched along its flight
     const laser = new THREE.Color(LOOK.color('laser-color', '#ff2a4a')), len = LOOK.num('laser-length', 0.03);
     this.laserColor = laser;
@@ -419,6 +424,8 @@ export class Enemies {
     this.byId.clear();
     this.shots.forEach((s) => this.scene.remove(s.m));
     this.shots = [];
+    this.sparkShots.forEach((s) => this.fx.free(s.m));
+    this.sparkShots = [];
     this.missiles.forEach((m) => this.scene.remove(m.m));
     this.missiles = [];
     this.clearLobs();
@@ -816,6 +823,85 @@ export class Enemies {
     }
   }
 
+  // ---------------------------------------------------------------- the stag beetle (charge-shot)
+  // where its ball sits: between its mandibles, in front of and a little above its head
+  muzzle(e, out) {
+    const a = e.root.rotation.y, k = e.mesh.scale.x;
+    return out.set(e.pos.x + Math.sin(a) * BALL_AT.z * k, e.pos.y + BALL_AT.y * k, e.pos.z + Math.cos(a) * BALL_AT.z * k);
+  }
+  // the charge: a whine rising for `dur` s with crackles in it (drawSparkBalls draws the ball)
+  sparkCharge(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.sparkCharge(dur); }
+  breakSpark(e) { e.chargeSound?.(); e.chargeSound = null; }
+  // the release: a flash and a zap at its jaws on the frame the ball leaves, flying at `at`
+  sparkShot(e, at, { speed, size, life, dmg }) {
+    e.chargeSound = null;
+    const color = hostile(e.type), from = this.muzzle(e, new THREE.Vector3());
+    const s = this.fx.shot(color, from, at, { speed, size, life });
+    s.dmg = dmg; s.from = e.id; s.source = e.type;
+    this.sparkShots.push(s);
+    this.fx.glow.emit(from, ARC, size * 9, size * 3, 0.12, 1.4);
+    this.fx.impact(from, color, size * 1.6, 10);
+    sfx.sparkFire();
+  }
+  // the balls in flight: a white-hot core, crackling, trailing hot sparks; a hit flashes and
+  // throws sparks off the jelly, a miss bursts where it meets the furniture or the floor and
+  // leaves a scorch that fades (harmless)
+  updateSparkShots(dt) {
+    if (!this.sparkShots.length) return;
+    const P = this.player, glow = this.fx.glow;
+    for (const s of this.sparkShots) {
+      const hit = this.fx.shotStep(s, dt, this.world, P.position, P);
+      const at = s.m.position;
+      if (!s.done) {
+        glow.hold(at, ARC, s.size * 4, 1);                                                    // the white-hot core
+        const v = S.want.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.6);
+        glow.emit(at, Math.random() < 0.5 ? ARC : s.color, s.size * 1.6, s.size * 0.3, 0.22, 1, v, 0.8);   // sparks shed behind
+        continue;
+      }
+      if (hit) {
+        bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg, source: s.source, from: s.from });
+        this.fx.impact(at, ARC, s.size * 2, 8);
+        this.fx.impact(at, s.color, s.size * 2.6, 14);
+        sfx.sparkHit();
+      } else {
+        this.fx.impact(at, ARC, s.size * 1.4, 6);
+        const floor = this.floorBelow(at, -9);
+        if (at.y - floor < 0.03) this.fx.splat(S.spot.set(at.x, floor, at.z), SCORCH, s.size * 2.2);
+        sfx.sparkBurst();
+      }
+      for (let k = 0; k < 6; k++) {                                                              // and a fizzle of sparks falling
+        const v = S.want.set(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5).multiplyScalar(0.5);
+        glow.emit(at, k % 2 ? ARC : s.color, s.size * 0.7, s.size * 0.15, 0.5 + Math.random() * 0.4, 1, v, 2.5);
+      }
+    }
+    this.sparkShots = this.sparkShots.filter((s) => !s.done);
+  }
+  // each charging beetle's ball: sparks drawn in to its jaws, a white core and a hot halo growing
+  // with the charge, arcs flickering out to its mandibles, brighter as it nears the shot
+  drawSparkBalls() {
+    const glow = this.fx.glow;
+    for (const e of this.list) {
+      if (e.dead || e.state !== 'charge' || !(e.ballK > 0)) continue;
+      const k = e.ballK, at = this.muzzle(e, S.o), color = hostile(e.type), r = e.mesh.scale.x;
+      const flick = 0.7 + 0.3 * Math.random();
+      glow.hold(at, color, r * (0.8 + 2.6 * k) * flick, 0.5 + 0.5 * k);
+      glow.hold(at, ARC, r * (0.15 + 0.8 * k), 1);
+      if (Math.random() < 0.6) {                                    // a spark drawn in from round its jaws
+        const v = S.want.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        const from = S.spot.copy(at).addScaledVector(v, r * 0.45);
+        glow.emit(from, ARC, r * 0.22, r * 0.05, 0.14, 1, v.multiplyScalar(-r * 3), 0);
+      }
+      if (Math.random() < 0.15 + 0.5 * k) {                         // an arc jumping to a mandible
+        const side = Math.random() < 0.5 ? -1 : 1, a = e.root.rotation.y;
+        const tip = S.away.set(Math.cos(a) * side * r * 0.45, r * 0.05, -Math.sin(a) * side * r * 0.45);
+        for (let i = 1; i <= 6; i++) {
+          const p = S.spot.copy(at).addScaledVector(tip, i / 6).add(S.ray.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(r * 0.1));
+          glow.emit(p, ARC, r * 0.22, r * 0.06, 0.07, 1);
+        }
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- the mantis (swat) and its worm (burst, whip)
   // The forelegs snap shut: you're hit if you're inside the wedge it locked onto
   swat(e, c, { reach, arc, dmg }) {
@@ -1147,6 +1233,8 @@ export class Enemies {
     }
 
     this.updateShots(dt);
+    this.updateSparkShots(dt);
+    this.drawSparkBalls();
     this.drawAim(t);
     this.drawLeaps(t);
     this.drawPokes(t);

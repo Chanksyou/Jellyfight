@@ -6,6 +6,7 @@ import { CONTENT } from '../content.js';
 import { LOOK } from '../look.js';
 import { STAGES, nav } from '../stages.js';
 import { STAGE3 } from '../stage3.js';
+import { unlock as unlockAudio, audio } from '../sfx.js';
 import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, pothosFight, pothosFloor, r3, record, shownWarnings, sim, spawn, step, stripLine, stub, tp, volumePairs } from './kit.js';
 
 // --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
@@ -43,6 +44,36 @@ act3('night-dragonflies-mantises-then-nests', {
     const stray = [...early, ...later].filter((t) => !pool.has(t) && t !== 'nest');
     return ok([...early].join() === 'dragonfly' && later.has('mantis') && later.has('dragonfly') && !nestsBefore && !early.has('nest') && !later.has('nest') && nests.length === 2 && listed && !stray.length,
       { early: [...early], later: [...later], nestsBefore, nests: nests.map((n) => n.spot?.on), stray });
+  },
+});
+act3('stag-beetles-from-1-00', {
+  about: 'Stag beetles join the act 3 night at 1:00: none come before, and some do after.',
+  setup() { fresh({ waves: true, elites: false }); },
+  play() {
+    const { run, enemies } = G();
+    const during = (t, frames) => {
+      let n = 0;
+      step(frames, () => { run.t = t; for (const e of enemies.list) if (!e.dead && !e.proxy) { if (e.type === 'beetle') n++; enemies.kill(e, true); } });
+      return n;
+    };
+    const before = during(55, 1800), after = during(65, 2400);
+    return ok(!before && after > 0, { before, after });
+  },
+});
+act3('stag-beetle-with-sound', {
+  about: 'The stag beetle\'s charge, shot and hit play their sounds on live audio without an error (a sound called without its length once threw in real play).',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(1.0, 0.05, 8.85, 0); },
+  async play() {
+    unlockAudio();
+    await new Promise((r) => setTimeout(r, 200));
+    fresh({ hurt: true, elites: false, bubbles: false, lash: false });
+    tp(1.0, 0.05, 8.85, 0);
+    const e = spawn('beetle', near(0.4, 0)), log = record('damage_taken');
+    e.shotCd = 0.2;
+    let charged = false;
+    step(60 * 5, () => { if (e.state === 'charge') charged = true; return log.some((d) => d.source === 'beetle'); });
+    const hit = log.find((d) => d.source === 'beetle');
+    return ok(!!audio() && charged && hit?.amount > 0, { audio: !!audio(), charged, hit: hit?.amount });
   },
 });
 act3('act-3-is-tougher', {

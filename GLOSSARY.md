@@ -68,7 +68,7 @@ A Treasure that improves an Element the jelly already has. Every 3rd treasure pi
 What beating a Boss gives: the metamorphosis, then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
 
 **Bug**:
-An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
+An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
 _Avoid_: Mob, critter
 
 **Boss**:

@@ -114,6 +114,9 @@
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
+  --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
+  --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
+  --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
   --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
   --wreath-glow: 1.1;            /* how bright it glows in its hostile colour */
   --wreath-scale: 3.2;           /* how much bigger than the one in her hand, so you can see it coming */

@@ -499,6 +499,43 @@ export const sfx = {
     noise(6000, 0.7, 0.06, 0.25, 'highpass');
     tone('sawtooth', 2400, 300, 0.18, 0.08); tone('square', 1200, 150, 0.14, 0.04);
   },
+  // the stag beetle: an electric whine rising through its charge with crackles thickening in it
+  // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
+  // the crack of a hit and the burst of a miss, each trailing a fizzle of little crackles
+  sparkCharge(dur = 1) {
+    if (!ready()) return null;
+    const t = now(), k = pitch() * jitter(0.06), g = ctx.createGain(), oscs = [];
+    for (const [type, f0, f1, v] of [['sawtooth', 160, 1300, 0.5], ['square', 240, 1950, 0.2], ['sine', 80, 320, 1]]) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = type; og.gain.value = v;
+      o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
+      o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
+    }
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.075, t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
+    g.connect(master);
+    for (let i = 0; i < 9; i++) { const d = dur * Math.sqrt(Math.random()); noise(3500 + Math.random() * 4000, 4, 0.025, 0.04 + 0.08 * d / dur, 'bandpass', d); }   // crackles, more as it nears
+    return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
+  },
+  sparkFire() {
+    if (!ready()) return;
+    const j = jitter(0.1);
+    noise(7000 * j, 0.8, 0.05, 0.28, 'highpass');                       // the snap
+    tone('sawtooth', 2600 * j, 220, 0.16, 0.08); tone('square', 1300 * j, 180, 0.12, 0.04);
+    noise(1800 * j, 1.2, 0.35, 0.1, 'bandpass', 0.02, 600);              // the whoosh as it flies
+  },
+  sparkHit() {
+    if (!ready() || !gap('sparkHit', 80)) return;
+    const j = jitter(0.12);
+    noise(5200 * j, 0.7, 0.07, 0.3, 'highpass'); tone('sawtooth', 1500 * j, 120, 0.18, 0.08); tone('sine', 140 * j, 50, 0.22, 0.12);
+    for (let i = 0; i < 4; i++) noise(3000 + Math.random() * 3500, 3, 0.02, 0.05, 'bandpass', 0.08 + Math.random() * 0.3);
+  },
+  sparkBurst() {
+    if (!ready() || !gap('sparkBurst', 80)) return;
+    const j = jitter(0.12);
+    noise(4200 * j, 1, 0.08, 0.18, 'bandpass', 0, 1200); tone('square', 900 * j, 160, 0.1, 0.04);
+    for (let i = 0; i < 4; i++) noise(2800 + Math.random() * 3500, 3, 0.02, 0.04, 'bandpass', 0.06 + Math.random() * 0.35);
+  },
   // the mantis: a dry rustle of a swat and the snap of its forelegs; the worm in it: a wet burst
   // out of the body and the crack of its whip
   mantisSwat() { if (!ready()) return; noise(2400, 1.2, 0.12, 0.16, 'bandpass', 0, 900); tone('square', 900, 300, 0.05, 0.04, 0.09); noise(5000, 3, 0.03, 0.12, 'bandpass', 0.1); },
