@@ -66,6 +66,20 @@
 //     Pounce:         it crouches while a big Warning fills under it, leaps and lands where it
 //                     started as a Blast round itself: too big to jump, get out of it.
 //     Under 65% Health it's angry: five frost balls, 4 to 6 slams, quicker windups.
+//   bull        the red plush bull on the changing table (act 3; bull-model.js): the dresser on the
+//               bedroom's north wall. It sleeps until you're on the table top (stage3.js `wake`),
+//               then fights there; leave and it settles back. Its numbers are in content/elites.kdl.
+//     Bull rush:      its horns swell and glow while it stamps and lowers its head, and a big Warning
+//                     (a circle, the half sphere over it) fills round it, almost the whole table;
+//                     then a Blast round itself knocks you away: too big to jump, get off the table.
+//     Spiral:         a Warning circle fills round it, then it spins, firing red Shots out along two
+//                     arms that wind into a spiral; one arm flies at floor level (jump it), the
+//                     other at jump height (stay down).
+//     Little bulls:   two little bulls, jelly-sized, pop up just left and right of you, each with a
+//                     lane Warning through where you are; then they charge along it and burst on
+//                     you, on each other, or at the lane's end or the table's edge: jump them.
+//     Under 65% Health it's angry: bigger horns and a quicker rush, three spiral arms turning
+//     faster, quicker little bulls.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -82,13 +96,14 @@ import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneH
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
+import { buildBull, buildMiniBull } from './bull-model.js';
 
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam', 'boil-over'],
   soap: ['squirt', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
-  croc: ['volley', 'tail-slam', 'pounce'],
+  croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -377,6 +392,11 @@ function crocModel() {
   return { ...c, muzzle: c.mouth.getWorldPosition(new THREE.Vector3()), r: 0.11, barY: 0.11, hitAt: new THREE.Vector3(0, 0.022, 0.01) };   // (barY and hitAt: in the elite's frame, unscaled)
 }
 
+// the plush bull elite (act 3; bull-model.js): its Shots come from its middle
+function bullModel() {
+  return { ...buildBull(), muzzle: new THREE.Vector3(0, 0.15, 0.07), r: 0.13, barY: 0.47, hitAt: new THREE.Vector3(0, 0.13, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
+}
+
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
@@ -394,6 +414,7 @@ const KINDS = {
   clock: { name: 'The Wall Clock', wall: true, build: clockModel },
   whipper: { name: 'The Cream Whipper', build: whipperModel },
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
+  bull: { name: 'The Bull', scale: 0.6, build: bullModel },
 };
 // the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
 const BARRAGE = { spread: [-0.22, 0, 0.22] };
@@ -540,7 +561,10 @@ export class Elites {
       blast: new TeleMaterial(hostile('whipper')), cream: new TeleMaterial(hostile('whipper'), 'wedge', 0.45),
       sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
       frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
+      rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
     };
+    this.minis = [];         // the Bull's little bulls, charging along their lanes
+    this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3();   // scratch for the Bull
   }
 
   // Apartment objects are named after what they are; three.js's loader swaps spaces for underscores
@@ -571,6 +595,8 @@ export class Elites {
     for (const r of this.rings) { this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
     this.thrown = []; this.rings = []; this.balloons = [];
+    for (const b of this.minis) this.scene.remove(b.m);
+    this.minis = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); if (b.vol) this.scene.remove(b.vol); }
     for (const p of [...this.puddles, ...this.slicks, ...this.soapBubbles]) this.scene.remove(p.m);
     this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
@@ -594,6 +620,10 @@ export class Elites {
       const croc = buildCroc();                                            // the Alligator's plush, as it stands out in the room
       standOut(croc.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
       croc.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      const bull = buildBull();                                            // the Bull's plush (and its glowing horns), as it stands out
+      standOut(bull.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
+      bull.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      this._warm.push(new THREE.Mesh(this.stripGeo, this.T.lane));
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
       this._warm.forEach((m) => { m.position.copy(at); m.scale.setScalar(m.geometry === this.flat ? 0.01 : 1); this.scene.add(m); });
@@ -811,6 +841,19 @@ export class Elites {
           if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.03;          // asleep: slow breaths
           M.upper.rotation.x = M.lower.rotation.x = 0;
           M.tail.forEach((t, i) => { t.rotation.x = CROC_TAIL_REST[i]; t.rotation.y = Math.sin(e.t * (awake ? 2.4 : 0.8) - i * 0.9) * (awake ? 0.18 : 0.05); });
+        }
+      }
+
+      // the Bull, attacking or not: its eyes close while it sleeps, it breathes, it sways awake
+      if (e.kind === 'bull') {
+        const M = e.model;
+        M.eyes.scale.y += ((awake || e.state !== 'idle' ? 1 : 0.12) - M.eyes.scale.y) * (1 - Math.exp(-6 * dt));
+        if (e.state === 'idle') {
+          g.position.y = 0;
+          if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.03;          // asleep: slow breaths
+          else g.rotation.z = Math.sin(e.t * 3) * 0.04;                       // awake: rocking side to side
+          for (const h of M.horns) h.scale.setScalar(1);
+          M.hornMat.emissiveIntensity = 0;
         }
       }
 
@@ -1295,7 +1338,139 @@ export class Elites {
           } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
       }
+
+      // ---------------------------------------------------------- the bull
+      if (e.kind === 'bull') {
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('bull');
+        if (e.attack === 0) {
+          // Bull rush: its horns swell and glow while it stamps and lowers its head, and a big
+          // Warning (a circle and the half sphere over it) fills round it; then a Blast round
+          // itself knocks you away. Too big to jump: off the table, or take it
+          const Q = SK.rush, wind = angry ? Q.angryWindup : Q.windup, big = angry ? Q.angryHorns : Q.horns;
+          if (!e.tele.length && !e.rushed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.rush), this.fx.volume(col, 'dome', surf, Q.radius));
+          if (s < wind) {
+            const u = s / wind, k = THREE.MathUtils.smoothstep(u, 0, 0.75);
+            e.tele[0].userData.fill(u);
+            e.tele[1].material.progress = u;
+            for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
+            M.hornMat.emissive.copy(col);
+            M.hornMat.emissiveIntensity = k * (1.4 + Math.sin(e.t * 30) * 0.5);
+            const stamp = Math.floor(s / 0.3);                                   // a stamp every 0.3 s, head lowering
+            g.position.y = Math.abs(Math.sin((s / 0.3) * Math.PI)) * 0.012;
+            g.rotation.x = 0.22 * k;
+            g.rotation.z = (stamp % 2 ? 1 : -1) * 0.05;
+            if (stamp !== e.stamped) { e.stamped = stamp; this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xf0d0c0, 0.03, 0.35); sfx.crocThump(0.5); }
+          } else if (!e.rushed) {
+            e.rushed = true;
+            e.clearTele();
+            this.fx.ring(surf, col, Q.radius, 0.5);
+            this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.06, 24);
+            this.fx.puff(surf.clone().setY(surf.y + 0.02), 0xf0d0c0, Q.radius * 0.7, 0.55);
+            juice.shake(0.45); sfx.boom();
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush'); knock(e.base, Q.knock); }
+          } else {
+            const k = Math.max(0, 1 - (s - wind) / 0.4);                        // the horns shrink back
+            for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
+            M.hornMat.emissiveIntensity = k * 1.4;
+            g.rotation.x = 0.22 * k;
+            if (s > wind + 0.45) { e.rushed = false; e.stamped = -1; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
+          }
+        } else if (e.attack === 1) {
+          // Spiral: a Warning circle fills round it; then it spins, firing a Shot out along each arm
+          // every beat as it turns, so the arms wind into a spiral. Arms alternate floor level (the
+          // jelly's middle on the floor: jump it) and jump height (stay down)
+          const S = SK.spiral, arms = angry ? S.angryArms : S.arms, turn = THREE.MathUtils.degToRad(angry ? S.angryTurn : S.turn);
+          if (s < S.warn) {
+            if (!e.tele.length) { e.locked = true; e.spinAt = heading; e.fired = 0; e.tele.push(this.warnCircle(surf, S.warnRadius, this.T.spiral)); }
+            e.tele[0].userData.fill(s / S.warn);
+            g.rotation.z = Math.sin(e.t * 40) * 0.03;                           // trembling, about to go
+          } else if (s < S.warn + S.time) {
+            if (e.tele.length) { e.clearTele(); sfx.zap(); }
+            const t = s - S.warn;
+            e.holder.rotation.y = e.spinAt + t * turn;                          // spinning like a top
+            for (; e.fired * S.every <= t; e.fired++) {
+              const a = e.spinAt + e.fired * S.every * turn;
+              for (let k = 0; k < arms; k++) {
+                const b = a + (k / arms) * Math.PI * 2, dx = Math.sin(b), dz = Math.cos(b);
+                const y = e.base.y + (k % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor);
+                this._from.set(e.base.x + dx * e.r * 0.8, y, e.base.z + dz * e.r * 0.8);
+                this._to.set(this._from.x + dx, y, this._from.z + dz);
+                this.shoot(this._from, this._to, col, 'bull-spiral', S.dmg, { speed: S.speed, size: S.size, life: S.reach / S.speed });
+              }
+            }
+          } else if (s > S.warn + S.time + 0.2) { e.locked = false; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest; }
+        } else {
+          // Little bulls: two pop up beside you (left and right as the camera sees it), each with a
+          // lane Warning (a strip and the box over it) through where you are; then they charge
+          const N = SK.minis;
+          if (!e.minis) {
+            e.locked = true;
+            const right = this._right.set(1, 0, 0).applyQuaternion(camQ).setY(0).normalize(), y = this.surfaceBelow(P), pair = { struck: false };
+            this.miniGeo ||= buildMiniBull(N.height);
+            e.minis = [-1, 1].map((sd) => {
+              const at = new THREE.Vector3(P.x + right.x * sd * N.side, y, P.z + right.z * sd * N.side), dir = new THREE.Vector3(-right.x * sd, 0, -right.z * sd), yaw = Math.atan2(dir.x, dir.z);
+              const m = new THREE.Mesh(this.miniGeo, M.mat);
+              m.position.copy(at);
+              m.rotation.y = yaw;
+              m.scale.setScalar(0.01);
+              this.scene.add(m);
+              this.mark(e, this.stripGeo, this.T.lane, at.clone().setY(y + 0.002), new THREE.Vector3(N.width, 1, N.reach), yaw);
+              const vol = this.fx.volume(col, 'lane', at.clone().setY(y + 0.002), new THREE.Vector3(N.width, N.height, N.reach));
+              vol.rotation.y = yaw;
+              e.tele.push(vol);
+              this.fx.puff(at.clone().setY(y + 0.02), 0xf0d0c0, 0.03, 0.4);
+              const b = { m, owner: e, pair, at, dir, y, along: 0, t: 0, state: 'warn' };
+              this.minis.push(b);
+              return b;
+            });
+            sfx.pop();
+          }
+          if (s < N.warn) {
+            for (const m of e.tele) { m.material.progress = s / N.warn; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
+          } else if (e.tele.length) {
+            e.clearTele();
+            for (const b of e.minis) { b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed; }
+            sfx.milliRoll();
+          } else if (e.minis.every((b) => b.done)) { e.minis = null; e.locked = false; e.state = 'idle'; e.cool = angry ? N.angryRest : N.rest; }
+        }
+      }
     }
+
+    // the Bull's little bulls: popping up, charging along their lanes, and bursting (a squash, a puff
+    // and an impact) on the jelly (once a pair: 'bull-mini'), on each other, at the lane's end or
+    // off the table's edge. Each is a jelly-sized body: a ball round its middle, as wide as its lane
+    for (const b of this.minis) {
+      b.t += dt;
+      const N = CONTENT.elites.bull.skills.minis, m = b.m;
+      if (b.state === 'warn') {
+        m.scale.setScalar(Math.min(1, 0.01 + b.t * 6));
+        m.rotation.x = Math.sin(b.t * 18) * 0.08;                          // pawing the ground
+        if (b.owner.dead) { b.state = 'burst'; b.t = 0; }
+      } else if (b.state === 'charge') {
+        b.along += b.speed * dt;
+        m.position.copy(b.at).addScaledVector(b.dir, b.along);
+        m.position.y = b.y + Math.abs(Math.sin(b.t * 28)) * 0.006;
+        m.rotation.x = 0.18;
+        m.scale.setScalar(1);
+        if (Math.random() < dt * 20) this.fx.puff(this._mid.copy(m.position).setY(b.y + 0.005), 0xf0d0c0, 0.01, 0.25);
+        const c = this._mid.copy(m.position).setY(b.y + N.height / 2);
+        let burst = b.along >= N.reach;
+        if (!b.pair.struck && blastHits(c, N.width / 2, P, cfg)) { b.pair.struck = true; burst = true; hit(N.dmg, 'bull-mini'); knock(m.position, N.knock); }
+        for (const o of this.minis) if (o !== b && o.pair === b.pair && o.state === 'charge' && o.m.position.distanceTo(m.position) < N.width) { o.state = 'burst'; o.t = 0; burst = true; }
+        if (!burst && b.along > N.side && this.surfaceBelow(m.position) < b.y - 0.03) burst = true;   // off the table's edge
+        if (burst) {
+          b.state = 'burst'; b.t = 0;
+          this.fx.impact(c, hostile('bull'), 0.03, 12);
+          this.fx.puff(c, 0xf0d0c0, 0.04, 0.4);
+          sfx.pop();
+        }
+      } else if (b.state === 'burst') {
+        const u = Math.min(1, b.t / 0.18);
+        m.scale.set(1 + u * 0.5, Math.max(0.05, 1 - u * 0.8), 1 + u * 0.5);   // squashed flat as it bursts
+        if (u >= 1) { b.done = true; this.scene.remove(m); }
+      }
+    }
+    this.minis = this.minis.filter((b) => !b.done);
 
     // the Cream Whipper's balloons: drifting after you, bobbing, the burst circle filling under
     // them; at 3 s they burst, and caught in it your hearing goes deep for a while

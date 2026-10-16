@@ -10,8 +10,8 @@
 //   vanity desk in the north-west corner (x -1.89 to -1.43, z 8.4 to 9.34, top 0.78)
 //   nightstand in the south-west corner (x -1.47 to -1.09, z 10.87 to 11.21), air purifier by the
 //     west wall (x -1.6, z 9.8), floor mirror against the back wall (x 0.82 to 1.34, z 10.92 to 11.12)
-//   closet doors in the east wall (x 1.56, z 9.46 to 10.27); a dresser and a diaper pail along the
-//     north wall (z 8.4 to 8.6)
+//   closet doors in the east wall (x 1.56, z 9.46 to 10.27); a dresser with a changing pad on top
+//     (the changing table: x -1.01 to -0.25, z 8.13 to 8.6, top 1.146) and a diaper pail along the north wall
 export const STAGE3 = {
   id: 3,
   name: 'Medusa',
@@ -25,7 +25,7 @@ export const STAGE3 = {
   // tougher again than act 2 (stage2.js says what each one is): 3x the bugs' health, 2x every hit
   // you take, 1.4x the XP
   toughness: 3,
-  eliteHp: 2.4,                       // the Alligator's Health: 500 x 2.4 = 1200
+  eliteHp: 2.4,                       // the Alligator's and the Bull's Health: 500 x 2.4 = 1200
   bossHp: 1.6,                        // the Pothos's Health as the Clog's: 1500 x 1.6 = 2400
   power: 2,
   bugs: 0.85,
@@ -89,13 +89,17 @@ export const STAGE3 = {
   ],
   treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // as in acts 1 and 2
 
-  // The act's Elite (elites.js): the plush alligator, resting on the pillows at the head of the bed
+  // The act's Elites (elites.js): the plush alligator, resting on the pillows at the head of the bed
   // in the gap between them, facing the foot of the bed (`face`; the real plush, out on the
   // mattress, is hidden above). It sleeps until you're on the bed (`wake`: the top of the bed) and
   // settles back when you leave; `stand` is where a 1 on 1 with it puts you. The Pothos's pot
   // takes this spot in the boss fight: elites are cleared at its intro
   elites: [
     { kind: 'croc', at: [-0.105, 0.65, 10.62], face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
+    // the plush bull on the changing table: the dresser on the north wall (Dresser_and_changing_station,
+    // x -1.01 to -0.25, z 8.13 to 8.6), its pad 1.146 up. It sits at the west end of the pad, facing
+    // the room; the vent by the dresser lands you 27 cm east of it. Awake while you're on the table top
+    { kind: 'bull', at: [-0.82, 1.146, 8.36], face: 0.3, area: 'changing table', wake: { min: [-1.02, 1.1, 8.12], max: [-0.24, 1.7, 8.62] }, stand: [-0.5, 1.146, 8.36] },
   ],
 
   // The boss arena: the top of the bed. You're carried up when the timer runs out; the Pothos

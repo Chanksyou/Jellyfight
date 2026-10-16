@@ -306,6 +306,20 @@ export function startCroc(atk, { x = -0.1, z = 10.2, angry = false } = {}) {
   e.cool = 0; e.next = atk;
   return { e, player, bed: player.position.y };
 }
+// act 3's Bull on the changing table (elites.js kind 'bull', bull-model.js): the dresser on the
+// bedroom's north wall, its top 1.146 m up. Start one of its attacks with the jelly held on the
+// table top east of it (x, z), facing it
+export const bull = () => G().run.elites.list.find((e) => e.kind === 'bull');
+export const onTable = (x = -0.5, z = 8.36) => tp(x, 1.2, z, 0);
+export function startBull(atk, { x = -0.6, z = 8.36, angry = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onTable(x, z);
+  const e = bull(), player = holdJelly();
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, table: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -401,6 +415,9 @@ const EVERY_ATTACK = {
     },
     // the Alligator on the pillows (elites.js): its frost balls' Blasts, its tail slams' ring walls, its pounce's Blast
     croc: { volley: { is: 'volume', start: () => startCroc(0) }, 'tail-slam': { is: 'volume', start: () => startCroc(1) }, pounce: { is: 'volume', start: () => startCroc(2) } },
+    // the Bull on the changing table (elites.js): its rush's Blast, its spiral's Shots (a circle
+    // Warning first, like the Soap Dispenser's bubble ring), its little bulls' lanes
+    bull: { rush: { is: 'volume', start: () => startBull(0) }, spiral: { is: 'shot', start: () => startBull(1) }, minis: { is: 'volume', start: () => startBull(2) } },
     // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
     bugs: {
       cutting: { is: 'floor', ...bugWarns('cutting', (e) => !e.dead) },                     // its countdown (becomes): a floor circle only, by decision
