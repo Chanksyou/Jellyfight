@@ -984,9 +984,10 @@ export class Pothos {
   // Aerial roots: they drop from the canopy and the shelf over the bed, one onto where you are and the
   // rest round you; each is an enemy (content/enemies.kdl "root") that falls on its own Warning
   roots({ count, spread }) {
-    const P = this.player.position;
+    const P = this.player.position, base = Math.random() * Math.PI * 2;
     for (let k = 0; k < count; k++) {
-      const a = Math.random() * Math.PI * 2, d = k ? spread * (0.5 + 0.5 * Math.random()) : 0;
+      // the ones round you spaced evenly (with a little jitter): two side by side pushed each other off their Warnings
+      const a = base + (k - 1) * Math.PI * 2 / Math.max(1, count - 1) + (Math.random() - 0.5) * 0.6, d = k ? spread * (0.5 + 0.5 * Math.random()) : 0;
       const at = this._drop.set(P.x + Math.sin(a) * d, P.y + 0.1, P.z + Math.cos(a) * d);
       at.y = this.enemies.floorBelow(at, P.y);
       this.enemies.spawn('root', at);
