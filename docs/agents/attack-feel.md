@@ -112,13 +112,21 @@ usually one call to an existing primitive, not a new system.
 
 ### House rules that shape the chain
 
-- **Displacement and freezing are gameplay.** Physical knockback, stun, and
-  hit-stop change play, so adding or enlarging them follows `CLAUDE.md` rule 5
-  (ask before the balance bot, report what moved). The flinch, white flash,
-  and squash are free: they change only what the player sees.
-- **Hit-stop belongs to kills and big moments**, already budgeted in
-  `feedback.js` and `run.js`. Never per ordinary hit, never chained by
-  continuous fire; by L2 a crit or boss kill may hold longer than a roach.
+- **More damage, bigger knockback** (owner's decision, October 2026). A hit's
+  shove grows with the damage it does, for the jelly's attacks and treasures.
+  Making knockback follow damage needs no balance-bot run; say in the pull request
+  what moved. Stun and new hit-stop still follow `CLAUDE.md` rule 5. The flinch,
+  white flash, and squash are free: they change only what the player sees.
+- **How hard a moment lands is one ladder.** Shake and hit-stop come from the
+  `--feel-*` steps in `content/look.css` through `juice.feel(step)`, from `hit`
+  (a bubble pop) to `boss-kill`. An attack picks a step; it never calls
+  `juice.shake`/`juice.hitstop` with its own numbers. A new step is a new line on
+  the ladder, in order of significance (L2).
+- **Hit-stop belongs to kills and big moments.** Never per ordinary hit, never
+  chained by continuous fire.
+- **Reduce effects** (the pause menu's ✨ button, `juice.calm`) turns off screen
+  shake and softens the hurt glow. Anything new that shakes or flashes the whole
+  screen must go quiet under it. Information never depends on it being off.
 - **Aftermath is honest.** Evidence that stays must not look like an active
   hazard. A burning, chilled, or acid state shows exactly while it lasts. Purely
   cosmetic leftovers (splats, droplets, scorch) are allowed when they read as
@@ -129,11 +137,19 @@ usually one call to an existing primitive, not a new system.
   without sound. Sound adds weight; it never carries information alone.
 - **Effects follow the confirmed gameplay result** and never decide a hit.
 
-### Reporting the audit
+### The scoreboard and reporting the audit
 
-Put the nine-row score in the pull request for any attack you change, before and
-after, naming each zero and why it is acceptable (L2) or what fixes it (L1).
-Score what you saw at play speed; say which rows came from reading code only.
+Every attack in the game is listed with its score in `src/stories/attack-audit.js`
+(the jelly's, its Elements, treasure words that attack, bug words that attack, and
+every Elite and Boss attack). The story `vocabulary/every-attack-is-audited` fails
+when an attack is missing or stale, and reports what is unscored or below its bar.
+The bar is worked out from the rules: 9 for Elements, Elite and Boss attacks, and
+treasure words a Legendary treasure or an Evolution uses; 7 for the rest.
+
+When you change an attack, update its score there and put the before and after
+in the pull request, naming each zero and why it is acceptable (L2) or what fixes
+it (L1). Score what you saw at play speed (`seen: 'play'`); mark scores from
+reading code only as `seen: 'code'`.
 
 ### Baseline: the ordinary bubble (from reading the code, October 2026)
 

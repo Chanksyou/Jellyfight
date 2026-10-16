@@ -351,7 +351,7 @@ export class Bubbles {
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
       // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { sfx.shatter(); juice.shake(0.25); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
+      if (e.freezeT > 0) { sfx.shatter(); juice.feel('impact'); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw, b.ep);
       b.stopFireAudio?.();
       this.looks.fireHit(c, b.r, b.vel);
@@ -475,7 +475,7 @@ export class Bubbles {
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
       sfx.pop(b.big);
     }
-    juice.shake(b.big ? 0.12 : 0.03);
+    juice.feel(b.big ? 'hit-big' : 'hit');
     const el = b.elems;
     if (el.has('lightning')) sfx.zap();
     if (el.has('acid')) sfx.acid();

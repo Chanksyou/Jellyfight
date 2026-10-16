@@ -104,10 +104,10 @@ not every full effect stacked on the same enemy.
 - Animate from gameplay events and positions. Cosmetic animation never decides
   whether something hits. Avoid duplicate flashes, sounds, and numbers when both
   an attack and a shared event listener handle the same hit.
-- Do not introduce physical knockback, stun, or global hit-stop as cosmetic polish.
-  They affect play. The chain's Reaction and Confirmation are met first with the
-  flash, squash, flinch, numbers, and the existing kill hit-stop; adding or
-  enlarging displacement or freezes follows the balance procedure in `CLAUDE.md`.
+- Knockback follows damage: a harder hit shoves further (the owner's decision;
+  see [Attack Feel](attack-feel.md)). Do not introduce stun or new hit-stop as
+  cosmetic polish; they affect play and follow the balance procedure in `CLAUDE.md`.
+  Shake and hit-stop come from the `--feel-*` ladder through `juice.feel`.
 - Common hits stay local and restrained. Critical hits and important kills may
   receive stronger emphasis, bounded across simultaneous hits. Continuous attacks
   must not create continuous camera shake or chain freezes of the whole game.

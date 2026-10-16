@@ -722,7 +722,7 @@ export class Enemies {
     this.fx.burst(P, ['#fff0b0', '#ffb040', '#ff4a20', '#3a3a3a'], 16, 0.003, 0.35, this.floorBelow(P, P.y - 0.1));
     this.fx.puff(P, 0x5a5550, 0.06, 0.9);
     this.fx.ring(new THREE.Vector3(P.x, this.floorBelow(P, P.y - 0.05) + 0.004, P.z), red, 0.09, 0.4);
-    juice.shake(0.35);
+    juice.feel('impact-big');
     sfx.missileBoom();
     if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile' });
   }
