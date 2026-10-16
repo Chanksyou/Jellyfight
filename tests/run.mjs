@@ -106,7 +106,7 @@ async function firstRunReload(e) {
   const ready = () => page.waitForFunction(() => window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
   // what the old page logs while the reload tears it down (a download still in flight, aborted)
   // isn't the game failing: only errors from the page that loads count
-  const reload = () => gate(async () => { const kept = errors.length; await page.reload({ waitUntil: 'commit' }); errors.length = kept; await ready(); });
+  const reload = () => gate(async () => { const kept = errors.length; await page.reload({ waitUntil: 'commit', timeout: 180000 }); errors.length = kept; await ready(); });
   const out = { first: await page.evaluate(() => run.firstRun.active) };
   await reload();
   out.afterReload = await page.evaluate(() => run.firstRun.active);
