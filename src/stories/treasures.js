@@ -172,8 +172,8 @@ story('treasures/crit', {
   about: 'crit (Nail Clipper): about 1 hit in 5 does triple damage.',
   setup() { setupFight({ lash: false }); give('nailClipper'); roachAt(0, -0.15); },
   play() {
-    const log = record('damage_taken'), pop = G().run.stats.bubbleDamage;
-    step(60 * 20);
+    const log = record('damage_taken'), pop = G().run.stats.bubbleDamage, e = G().enemies.list[0], home = e.pos.clone();
+    step(60 * 20, () => { e.pos.copy(home); });   // held in range: a crit's bigger shove (knockFor) would push it out
     const hits = dmgBy(log, 'bubble'), crits = hits.filter((d) => Math.abs(d.amount - pop * 3) < 1e-6).length;
     return ok(hits.length > 20 && crits > 0 && crits < hits.length * 0.5, { hits: hits.length, crits });
   },
