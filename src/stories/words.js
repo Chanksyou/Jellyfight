@@ -441,6 +441,23 @@ story('enemies/stag-beetle-shot-dodge', {
     return ok(charged && fired && !enemies.sparkShots.length && !hit, { charged, fired, hit });
   },
 });
+story('words/charge-shot-blast', {
+  about: 'The stag beetle\'s ball explodes where it lands, a Blast round it: one bursting on the floor 5 cm beside the jelly still hurts it for 3 and shoves it away; one bursting 15 cm away does nothing to it.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); beetleAt().shotCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], P = player.position, out = {};
+    const props = { speed: 1.2, dmg: 3, size: 0.019, blast: 0.07, knock: 0.6, life: 1.2 };
+    for (const off of [0.05, 0.15]) {
+      tp(3.2, 0.05, 3.0, 0); step(5);
+      const hurt = record('damage_taken'), shove = record('knockback');
+      const to = e.pos.clone().sub(P).setY(0).normalize(), side = V(-to.z, 0, to.x);
+      enemies.sparkShot(e, V(P.x + side.x * off, P.y, P.z + side.z * off), props);
+      step(60 * 2, () => !enemies.sparkShots.length);
+      out[off] = { hurt: hurt.find((d) => d.source === 'beetle')?.amount || 0, shoved: shove.some((k) => k.targetId === PLAYER) };
+    }
+    return ok(out[0.05].hurt === 3 && out[0.05].shoved && !out[0.15].hurt && !out[0.15].shoved, out);
+  },
+});
 story('words/hatch', {
   about: 'When the mantis dies, the worm that was inside it takes its place: where it fell, facing the same way, the mantis gone.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mantis', near(0.4, 0), { still: true }); },

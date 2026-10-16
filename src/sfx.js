@@ -501,7 +501,7 @@ export const sfx = {
   },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
-  // the crack of a hit and the burst of a miss, each trailing a fizzle of little crackles
+  // the crack of a hit; the explosion where it lands is sparkBoom
   sparkCharge(dur = 1) {
     if (!ready()) return null;
     const t = now(), k = pitch() * jitter(0.06), g = ctx.createGain(), oscs = [];
@@ -530,11 +530,15 @@ export const sfx = {
     noise(5200 * j, 0.7, 0.07, 0.3, 'highpass'); tone('sawtooth', 1500 * j, 120, 0.18, 0.08); tone('sine', 140 * j, 50, 0.22, 0.12);
     for (let i = 0; i < 4; i++) noise(3000 + Math.random() * 3500, 3, 0.02, 0.05, 'bandpass', 0.08 + Math.random() * 0.3);
   },
-  sparkBurst() {
-    if (!ready() || !gap('sparkBurst', 80)) return;
+  // the ball exploding: a sharp crack, a low boom with a rumble under it, then crackles and bits pattering down
+  sparkBoom() {
+    if (!ready() || !gap('sparkBoom', 70)) return;
     const j = jitter(0.12);
-    noise(4200 * j, 1, 0.08, 0.18, 'bandpass', 0, 1200); tone('square', 900 * j, 160, 0.1, 0.04);
-    for (let i = 0; i < 4; i++) noise(2800 + Math.random() * 3500, 3, 0.02, 0.04, 'bandpass', 0.06 + Math.random() * 0.35);
+    noise(6000 * j, 0.7, 0.05, 0.3, 'highpass');
+    tone('sine', 150 * j, 38, 0.4, 0.3); tone('square', 700 * j, 90, 0.12, 0.06);
+    noise(380 * j, 0.9, 0.45, 0.28, 'lowpass', 0.01, 120);
+    for (let i = 0; i < 6; i++) noise(2600 + Math.random() * 4000, 3, 0.02, 0.05, 'bandpass', 0.06 + Math.random() * 0.45);
+    for (let i = 0; i < 3; i++) tone('triangle', (1800 + Math.random() * 1600) * j, 900, 0.04, 0.03, 0.2 + Math.random() * 0.3);
   },
   // the mantis: a dry rustle of a swat and the snap of its forelegs; the worm in it: a wet burst
   // out of the body and the crack of its whip

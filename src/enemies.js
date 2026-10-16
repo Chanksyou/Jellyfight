@@ -26,6 +26,7 @@ const BLOCK = new THREE.Color('#dfe8ff');
 const EXHAUST = new THREE.Color('#ffa040');
 const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the stag beetle's ball: its white-hot core and the arcs crackling round it
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
+const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -833,19 +834,18 @@ export class Enemies {
   sparkCharge(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.sparkCharge(dur); }
   breakSpark(e) { e.chargeSound?.(); e.chargeSound = null; }
   // the release: a flash and a zap at its jaws on the frame the ball leaves, flying at `at`
-  sparkShot(e, at, { speed, size, life, dmg }) {
+  sparkShot(e, at, { speed, size, life, dmg, blast, knock }) {
     e.chargeSound = null;
     const color = hostile(e.type), from = this.muzzle(e, new THREE.Vector3());
     const s = this.fx.shot(color, from, at, { speed, size, life });
-    s.dmg = dmg; s.from = e.id; s.source = e.type;
+    s.dmg = dmg; s.blast = blast; s.knock = knock; s.from = e.id; s.source = e.type;
     this.sparkShots.push(s);
     this.fx.glow.emit(from, ARC, size * 9, size * 3, 0.12, 1.4);
     this.fx.impact(from, color, size * 1.6, 10);
     sfx.sparkFire();
   }
-  // the balls in flight: a white-hot core, crackling, trailing hot sparks; a hit flashes and
-  // throws sparks off the jelly, a miss bursts where it meets the furniture or the floor and
-  // leaves a scorch that fades (harmless)
+  // the balls in flight: a white-hot core, crackling, trailing hot sparks. Wherever one ends (on the
+  // jelly, the furniture, the floor or out of flight) it explodes: a Blast `blast` round
   updateSparkShots(dt) {
     if (!this.sparkShots.length) return;
     const P = this.player, glow = this.fx.glow;
@@ -858,23 +858,52 @@ export class Enemies {
         glow.emit(at, Math.random() < 0.5 ? ARC : s.color, s.size * 1.6, s.size * 0.3, 0.22, 1, v, 0.8);   // sparks shed behind
         continue;
       }
-      if (hit) {
-        bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg, source: s.source, from: s.from });
-        this.fx.impact(at, ARC, s.size * 2, 8);
-        this.fx.impact(at, s.color, s.size * 2.6, 14);
-        sfx.sparkHit();
-      } else {
-        this.fx.impact(at, ARC, s.size * 1.4, 6);
-        const floor = this.floorBelow(at, -9);
-        if (at.y - floor < 0.03) this.fx.splat(S.spot.set(at.x, floor, at.z), SCORCH, s.size * 2.2);
-        sfx.sparkBurst();
-      }
-      for (let k = 0; k < 6; k++) {                                                              // and a fizzle of sparks falling
-        const v = S.want.set(Math.random() - 0.5, Math.random() * 0.6, Math.random() - 0.5).multiplyScalar(0.5);
-        glow.emit(at, k % 2 ? ARC : s.color, s.size * 0.7, s.size * 0.15, 0.5 + Math.random() * 0.4, 1, v, 2.5);
-      }
+      this.sparkBlast(s, at.clone(), hit || blastHits(at, s.blast, P.position, P));
     }
     this.sparkShots = this.sparkShots.filter((s) => !s.done);
+  }
+  // the explosion: a white flash swelling into a hot fireball, a shockwave ring out to the Blast's
+  // edge on the floor, arcs of lightning forking out, sparks thrown high and falling, bits of floor
+  // kicked up, smoke, and a scorch with embers left behind; a boom under the crackle. Anything of the
+  // jelly inside takes `dmg` and is shoved away from it
+  sparkBlast(s, at, hurt) {
+    const glow = this.fx.glow, R = s.blast, floor = this.floorBelow(at, -9), low = at.y - floor < R;
+    glow.emit(at, ARC, R * 0.8, R * 2.2, 0.12, 1.6);                                          // the flash
+    glow.emit(at, s.color, R * 1.2, R * 2.8, 0.32, 1.1);                                       // the fireball swelling
+    for (let k = 0; k < 7; k++) {                                                              // and billowing up, hot orange cooling to embers
+      const b = S.spot.set(at.x + (Math.random() - 0.5) * R * 0.8, at.y + Math.random() * R * 0.4, at.z + (Math.random() - 0.5) * R * 0.8);
+      glow.emit(b, k % 3 ? s.color : FIRE_CORE, R * (0.6 + Math.random() * 0.5), R * (1.4 + Math.random() * 0.8), 0.35 + Math.random() * 0.25, 0.9, S.want.set((b.x - at.x) * 1.5, 0.08 + Math.random() * 0.08, (b.z - at.z) * 1.5), -0.05);
+    }
+    this.fx.impact(at, s.color, R * 0.5, 16);
+    if (low) this.fx.ring(S.spot.set(at.x, floor + 0.003, at.z), s.color, R, 0.35);              // the shockwave
+    this.fx.ring(at.clone(), ARC, R * 0.7, 0.2);
+    for (let k = 0; k < 5; k++) {                                                              // lightning forking out
+      const dir = S.away.set(Math.random() - 0.5, Math.random() * 0.8 - (low ? 0 : 0.4), Math.random() - 0.5).normalize();
+      for (let i = 1, p = S.spot.copy(at); i <= 6; i++) {
+        p.addScaledVector(dir, R * 0.18).add(S.ray.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(R * 0.12));
+        glow.emit(p, ARC, R * 0.2, R * 0.05, 0.08 + Math.random() * 0.06, 1.2);
+      }
+    }
+    for (let k = 0; k < 16; k++) {                                                             // sparks thrown up and falling
+      const v = S.want.set(Math.random() - 0.5, 0.4 + Math.random() * 0.8, Math.random() - 0.5).normalize().multiplyScalar(0.4 + Math.random() * 0.5);
+      glow.emit(at, k % 3 ? s.color : ARC, R * 0.12, R * 0.02, 0.45 + Math.random() * 0.4, 1, v, 2.5);
+    }
+    if (low) {
+      this.fx.burst(at, [0x3a2a1e, 0x1e140c, 0x5a4636], 8, 0.004, 0.45, floor);                // bits of floor kicked up
+      this.fx.splat(S.spot.set(at.x, floor, at.z), SCORCH, R * 0.8);                             // the scorch (harmless, fades)
+      for (let k = 0; k < 4; k++) {                                                            // embers on it, dying out
+        const e = S.spot.set(at.x + (Math.random() - 0.5) * R, floor + 0.002, at.z + (Math.random() - 0.5) * R);
+        glow.emit(e, s.color, R * 0.12, R * 0.04, 0.8 + Math.random() * 0.6, 0.8, S.want.set(0, 0.01, 0), 0);
+      }
+    }
+    this.fx.puff(at, 0x4a4440, R * 0.7, 0.6);                                                  // smoke
+    sfx.sparkBoom();
+    const P = this.player, d = P ? P.position.distanceTo(at) : 9;
+    if (hurt) {
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg, source: s.source, from: s.from });
+      bus.emit('knockback', { targetId: PLAYER, dir: P.position.clone().sub(at).setY(0).normalize(), force: s.knock, launch: 0.15 });
+      sfx.sparkHit();
+    } else if (d < 0.4) juice.feel('impact');                                                   // a near miss still rocks the screen
   }
   // each charging beetle's ball: sparks drawn in to its jaws, a white core and a hot halo growing
   // with the charge, arcs flickering out to its mandibles, brighter as it nears the shot
@@ -884,8 +913,8 @@ export class Enemies {
       if (e.dead || e.state !== 'charge' || !(e.ballK > 0)) continue;
       const k = e.ballK, at = this.muzzle(e, S.o), color = hostile(e.type), r = e.mesh.scale.x;
       const flick = 0.7 + 0.3 * Math.random();
-      glow.hold(at, color, r * (0.8 + 2.6 * k) * flick, 0.5 + 0.5 * k);
-      glow.hold(at, ARC, r * (0.15 + 0.8 * k), 1);
+      glow.hold(at, color, r * (1.1 + 3.5 * k) * flick, 0.5 + 0.5 * k);
+      glow.hold(at, ARC, r * (0.2 + 1.1 * k), 1);
       if (Math.random() < 0.6) {                                    // a spark drawn in from round its jaws
         const v = S.want.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
         const from = S.spot.copy(at).addScaledVector(v, r * 0.45);

@@ -137,6 +137,7 @@
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
+  --beetle-fire: #ffd060;        /* the yellow heart of the fireball when its ball explodes, round the orange */
   --beetle-iridescence: 1;      /* how strongly the stag beetle's green-black shell shimmers (0 = plain gloss) */
   --beetle-film: 260 620;       /* the thin-film thickness range in nm behind that shimmer: these sweep it from green through blue to violet */
   --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
