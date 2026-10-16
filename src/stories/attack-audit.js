@@ -50,6 +50,7 @@ export const AUDIT = {
     'pothos/cutting': todo, 'pothos/roots': todo, 'pothos/whip': todo, 'pothos/sweep': todo, 'pothos/snap': todo,
     'croc/volley': todo, 'croc/tail-slam': todo, 'croc/pounce': todo,
     'bull/rush': todo, 'bull/spiral': todo, 'bull/minis': todo,
+    'coffer/accordion': todo, 'coffer/tongue': todo, 'coffer/jewels': todo,
   },
 };
 

@@ -27,7 +27,7 @@ import { LOOK } from './look.js';
 
 // The hostile palette (content/look.css), by the source of the attack
 export const HOSTILE = {};
-const DEFAULTS = { laser: '#ff2a4a', controller: '#ff3ad0', mug: '#ff8a1a', kettle: '#ffd23a', leap: '#ff3a2a', vacuum: '#b04aff', spit: '#ff2a4a', web: '#ff5ad8', fly: '#ff5a14', millipede: '#ffa000', soap: '#ff4a9a', clock: '#ffc23a', whipper: '#a65aff', missile: '#ff2020', clog: '#d8ff3a', pothos: '#9cff1e', croc: '#3d5cff', bull: '#ff0a1a', dragonfly: '#ff2a80', mantis: '#ffcc00', worm: '#ff3c00', wasp: '#ffe600' };
+const DEFAULTS = { laser: '#ff2a4a', controller: '#ff3ad0', mug: '#ff8a1a', kettle: '#ffd23a', leap: '#ff3a2a', vacuum: '#b04aff', spit: '#ff2a4a', web: '#ff5ad8', fly: '#ff5a14', millipede: '#ffa000', soap: '#ff4a9a', clock: '#ffc23a', whipper: '#a65aff', missile: '#ff2020', clog: '#d8ff3a', pothos: '#9cff1e', croc: '#3d5cff', bull: '#ff0a1a', coffer: '#e02bff', dragonfly: '#ff2a80', mantis: '#ffcc00', worm: '#ff3c00', wasp: '#ffe600' };
 export function hostile(name) {
   return (HOSTILE[name] ||= new THREE.Color(LOOK.color('hostile-' + name, DEFAULTS[name] || '#ff3a3a')));
 }
