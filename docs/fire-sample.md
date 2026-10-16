@@ -1,4 +1,18 @@
-# Fire feedback sample (v173)
+# Fire feedback sample (v174)
+
+The recording's clear onset starts around 130–150 ms, with peak energy near
+490 ms. v173 started at file time zero, faded the bed early, and stopped it at
+contact, so short flights ended before audible fire developed. v174 measures
+the decoded recording in 10 ms RMS windows and starts 5 ms before the first
+window reaching 20% of its loudest window. Contact/expiry retain a 100 ms
+minimum ignition before fading; pause/reset requests bypass that minimum.
+The launch gate is 35 ms instead of 90 ms, supporting faster attack upgrades.
+Three sustained recording voices are allowed; eviction fades over 8 ms rather
+than hard-cutting a waveform. Dense simultaneous shots share a cue.
+`tests/fire-audio.mjs` renders the real asset at 16/50/400 ms flight times,
+20 casts per second, 35 ms overlapping casts, and immediate reset. It checks
+early energy, every rapid-cast window, clipping and reset cutoff. These are
+signal checks, not a claim of perceptual listening on phones.
 
 The approved sequence is now integrated into normal gameplay. Both entry points
 share the cached recording loader; a first tap unlocks audio and starts loading.

@@ -8,9 +8,27 @@ const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
 let fireFlight = null;
+let fireFlightOffset = 0;
 const fireVoices = new Set();
 // Both gameplay and the audition share the same decoded fire recording.
-export function setFireFlight(buffer) { fireFlight = buffer; }
+export function setFireFlight(buffer) {
+  fireFlight = buffer;
+  // Skip the recording's quiet lead-in, measured once when it is decoded.
+  const size = Math.max(1, Math.round(buffer.sampleRate * 0.01)), levels = [];
+  let peak = 0;
+  for (let i = 0; i < buffer.length; i += size) {
+    const count = Math.min(size, buffer.length - i);
+    let energy = 0;
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const samples = buffer.getChannelData(c);
+      for (let k = 0; k < count; k++) energy += samples[i + k] ** 2;
+    }
+    const rms = Math.sqrt(energy / (count * buffer.numberOfChannels));
+    levels.push(rms); peak = Math.max(peak, rms);
+  }
+  const first = levels.findIndex(rms => rms >= peak * 0.2);
+  fireFlightOffset = Math.max(0, first * size / buffer.sampleRate - 0.005);
+}
 let flightLoading = null;
 export function loadFireFlight() {
   if (fireFlight) return Promise.resolve(true);
@@ -31,13 +49,15 @@ export function loadFireFlight() {
 
 function recordedFireFlight(weight) {
   const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
+  // Offline captures schedule several casts before onended callbacks can run.
+  for (const voice of fireVoices) if (voice.until <= t) fireVoices.delete(voice);
   if (fireVoices.size >= 3) {
     const oldest = fireVoices.values().next().value;
-    oldest.stop(); fireVoices.delete(oldest);
+    oldest.stop(true, 0.008); fireVoices.delete(oldest);
   }
   source.buffer = fireFlight;
   source.playbackRate.value = (0.98 + Math.random() * 0.04) / Math.pow(weight, 0.15);
-  const duration = fireFlight.duration / source.playbackRate.value;
+  const duration = (fireFlight.duration - fireFlightOffset) / source.playbackRate.value;
   const volume = 0.38 + (weight - 1) * 0.1;
   gain.gain.setValueAtTime(0, t);
   gain.gain.linearRampToValueAtTime(volume, t + 0.012);
@@ -45,18 +65,22 @@ function recordedFireFlight(weight) {
   gain.gain.setValueAtTime(volume * 0.45, t + Math.max(0.18, duration - 0.15));
   gain.gain.linearRampToValueAtTime(0, t + duration);
   source.connect(gain).connect(master);
-  fireVoices.add(source);
-  source.onended = () => { fireVoices.delete(source); source.disconnect(); gain.disconnect(); };
-  source.start(t); source.stop(t + duration);
+  const voice = { until: t + duration, stop: null };
+  fireVoices.add(voice);
+  source.onended = () => { fireVoices.delete(voice); source.disconnect(); gain.disconnect(); };
+  source.start(t, fireFlightOffset); source.stop(t + duration);
   let stopped = false;
-  return () => {
-    if (stopped) return;
+  voice.stop = (immediate = false, fade = 0.045) => {
+    if (stopped && !immediate) return;
     stopped = true;
-    const end = Math.max(t, now());
-    gain.gain.cancelAndHoldAtTime(end);
-    gain.gain.linearRampToValueAtTime(0, end + 0.045);
-    source.stop(end + 0.05);
+    // A point-blank hit still gets a short ignition; pause/reset can cut it immediately.
+    const end = Math.max(t + (immediate ? 0 : Math.min(0.1, duration)), now());
+    const until = Math.min(voice.until, end + fade + 0.005);
+    gain.gain.cancelAndHoldAtTime(Math.max(t, until - fade - 0.005));
+    gain.gain.linearRampToValueAtTime(0, until - 0.005);
+    source.stop(until); voice.until = until;
   };
+  return voice.stop;
 }
 
 // Previews: play the sounds into another (offline) context, each at the time given by when(t)
@@ -174,6 +198,10 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 export const sfx = {
+  // Includes short ignition tails whose projectiles have already hit or expired.
+  stopFire() {
+    for (const voice of fireVoices) voice.stop(true, 0.008);
+  },
   // blowing a bubble: a soft rising bloop
   blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
   // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
@@ -212,13 +240,9 @@ export const sfx = {
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
   // elements
   fireLaunch(weight = 1) {
-    if (!ready() || !gap('fireLaunch', 90)) return;
+    if (!ready() || !gap('fireLaunch', 35)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.12) / Math.sqrt(w), g = 0.85 + w * 0.3;
-    if (fireFlight) {
-      const stop = recordedFireFlight(w);
-      noise(900, 0.6, 0.12, 0.12, 'bandpass', 0, 2600);
-      return stop;
-    }
+    if (fireFlight) return recordedFireFlight(w);
     // A pressure pulse under an opening flame, with enough midrange for phone speakers.
     tone('sine', 105 * j, 52 * j, 0.17, 0.24 * g);
     tone('triangle', 220 * j, 440 * j, 0.095, 0.11 * g);
