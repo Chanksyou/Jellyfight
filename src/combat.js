@@ -8,6 +8,8 @@ import { sfx } from './sfx.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
+import { juice } from './juice.js';
+import { knockFor } from './stats.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 
@@ -26,6 +28,7 @@ export class Lash {
     this._a = new THREE.Vector3();
     this._b = new THREE.Vector3();
     this.getRig = () => null;     // main.js: () => player.avatar.tentacles
+    this.onLash = null;           // () => void: the jelly's body answers as its tentacles whip out (run.js)
     this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
     this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
   }
@@ -92,6 +95,7 @@ export class Lash {
     if (!targets.length) return false;
     this.count++;
     for (const e of targets) this.strike(origin, e, stats.tentacleDamage, hits);
+    this.onLash?.();
     return true;
   }
 
@@ -144,9 +148,10 @@ export class Lash {
   land(s, a, b) {
     const H = s.hits;
     this.fx.puff(b, 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
+    this.fx.impact(b, 0xffc2e6, 0.01, 4);     // the flash where it lands
     sfx.sting();
+    juice.feel('hit');
     const id = s.target.id;
-    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: 0.008 });
     if (s.target.dead) return;
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
     let dmg = s.dmg, color = '#fff';
@@ -154,6 +159,8 @@ export class Lash {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r);
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
+    // a shove away from the jelly: the harder the sting, the further
+    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: knockFor(dmg) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle' });
     // venom (Box Jelly): another stack, and they all last a while longer
     const Vn = H.venom;

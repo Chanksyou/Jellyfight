@@ -4,6 +4,12 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Sting feel (v182): the tentacle sting now completes its Attack Feel chain (7/7,
+up from 4/9). The bell twitches as the tentacles whip out, each sting lands with
+a small flash and the `hit` shake step, and its shove follows its damage like the
+bubble's (`knockFor`: a base 4-damage sting shoves 4 mm, it was a flat 8 mm).
+Story `attack/sting-feel`.
+
 v181 wind: Paper Fan gathers before releasing at half the base bubble frequency.
 Fire-rate increases speed up its cadence and shorten the windup when necessary.
 Pushed enemies that hit walls or scenery take an extra 100% of the wind hit's
