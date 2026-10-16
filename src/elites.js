@@ -1623,9 +1623,9 @@ export class Elites {
             const thin = THREE.MathUtils.clamp(Math.sqrt(0.12 / len), 0.4, 1);   // it thins as it stretches
             tg.position.copy(mouth);
             tg.rotation.set(-Math.atan2(dy, Math.hypot(dx, dz)), Math.atan2(dx, dz), 0, 'YXZ');
-            tg.scale.set(0.0065 * thin, 0.005 * thin, len);
+            tg.scale.set(LOOK.num('coffer-tongue-width', 0.026) * thin, LOOK.num('coffer-tongue-thickness', 0.012) * thin, len);
             M.tip.position.copy(tip);
-            M.tip.scale.setScalar(0.009);
+            M.tip.scale.setScalar(LOOK.num('coffer-tongue-tip', 0.02));
             tg.material.emissiveIntensity = L.state === 'latched' ? 0.8 + Math.min(1, (s - L.at) / T.hold) * 1.2 + Math.sin(e.t * 30) * 0.2 : 0.6;
             if (L.state === 'latched' && Math.random() < dt * 20) this.fx.glow.emit(this._mid.lerpVectors(mouth, tip, Math.random()), col, 0.012, 0.004, 0.25, 0.8);
           }
