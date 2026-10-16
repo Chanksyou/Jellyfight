@@ -34,7 +34,7 @@ export class GameplaySystem {
   constructor({ state, run, menuOpen }) { Object.assign(this, { state, run, menuOpen }); }
   update(dt) {
     if (this.state.mode === 'play' && !this.menuOpen()) this.run.update(dt);
-    else this.run.bubbles?.silenceFire?.();
+    else this.run.bubbles?.silenceAttacks?.();
   }
 }
 

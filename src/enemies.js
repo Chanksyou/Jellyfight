@@ -10,7 +10,7 @@ import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, blastHits } from './vfx.js';
+import { hostile, FRIENDLY, TeleMaterial, blastHits } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -271,18 +271,12 @@ export class Enemies {
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {
-        // the second chill in a row freezes it solid
-        e.chill = (e.chill || 0) + 1;
-        if (e.chill >= 2) {
-          e.chill = 0;
-          e.freezeT = duration;
-          bus.emit('enemy_frozen', { targetId, pos: this.center(e), r: e.r });
-        }
+        e.slowT = Math.max(e.slowT || 0, duration);
       }
     });
-    bus.on('knockback', ({ targetId, dir, force }) => {
+    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0 }) => {
       const e = this.byId.get(targetId);
-      if (e && !e.dead && !e.proxy && !e.T.rooted) e.pos.addScaledVector(dir, force);
+      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage);
     });
   }
 
@@ -1167,6 +1161,28 @@ export class Enemies {
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
   }
 
+  // Only the scenery collision world is queried, never other enemies.
+  push(e, direction, distance, collisionDamage = 0) {
+    if (!(collisionDamage > 0)) { e.pos.addScaledVector(direction, distance); return; }
+    const dir = S.windDir.copy(direction).setY(0).normalize(), center = this.center(e, S.windCenter), across = S.windAcross.set(-dir.z, 0, dir.x);
+    let travel = distance, contact = false;
+    for (const [side, height] of PUSH_RAYS) {
+      const origin = S.windOrigin.copy(center).addScaledVector(across, side * e.r); origin.y += height * e.r;
+      const hit = this.world.cast(origin, dir, distance + e.r);
+      if (!hit || Math.abs(hit.normal.y) > 0.7 || Math.abs(hit.normal.dot(dir)) < 0.15) continue;
+      const front = e.r * Math.sqrt(1 - side * side - height * height);
+      const reach = Math.max(0, hit.distance - front - 0.001);
+      if (reach <= travel) { travel = reach; S.windContact.copy(hit.point); contact = true; }
+    }
+    e.pos.addScaledVector(dir, travel);
+    if (contact) {
+      this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
+      this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
+      sfx.windSlam(); juice.feel('impact');
+      bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision' });
+    }
+  }
+
   moveGround(e, dt, near) {
     if (e.airborne) return;               // mid-leap: the leap word flies it
     const w = this.world;
@@ -1202,8 +1218,9 @@ export class Enemies {
 }
 
 const tmp = new THREE.Vector3();
+const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3() };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3() };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;

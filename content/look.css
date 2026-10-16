@@ -20,6 +20,10 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
+  --wind-core: #d9f6ff;
+  --wind-gather-radius: 0.022;
+  --wind-release-size: 0.018;
+  --wind-release-life: 0.12;
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */

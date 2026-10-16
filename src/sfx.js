@@ -198,6 +198,34 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 export const sfx = {
+  windCharge(duration) {
+    if (!ready() || !gap('windCharge', 35)) return;
+    const t = now(), source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    source.buffer = noiseBuf; source.loop = true;
+    filter.type = 'bandpass'; filter.frequency.setValueAtTime(500, t);
+    filter.frequency.exponentialRampToValueAtTime(2200, t + duration);
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.12, t + duration * 0.8);
+    gain.gain.linearRampToValueAtTime(0, t + duration);
+    source.connect(filter).connect(gain).connect(master);
+    source.start(t); source.stop(t + duration + 0.02);
+    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+    return () => {
+      const end = Math.min(t + duration, now());
+      gain.gain.cancelAndHoldAtTime(end); gain.gain.linearRampToValueAtTime(0, end + 0.015);
+      source.stop(end + 0.02);
+    };
+  },
+  windLaunch() {
+    if (!ready() || !gap('windLaunch', 35)) return;
+    noise(2300 * jitter(0.1), 0.6, 0.22, 0.26, 'bandpass', 0, 550);
+    noise(6000, 0.8, 0.05, 0.1, 'highpass');
+  },
+  windSlam() {
+    if (!ready() || !gap('windSlam', 65)) return;
+    noise(1300 * jitter(0.12), 0.8, 0.11, 0.23, 'lowpass', 0, 240);
+    tone('sine', 160, 65, 0.1, 0.15);
+    for (let k = 0; k < 3; k++) noise(3500 + Math.random() * 2200, 2, 0.018, 0.06, 'bandpass', 0.025 + k * 0.02);
+  },
   // Includes short ignition tails whose projectiles have already hit or expired.
   stopFire() {
     for (const voice of fireVoices) voice.stop(true, 0.008);
@@ -285,7 +313,13 @@ export const sfx = {
   frostLand() { if (!ready() || !gap('frostLand', 40)) return; tone('sine', 110, 45, 0.16, 0.2); noise(3200, 0.7, 0.18, 0.18, 'bandpass', 0, 1400); noise(7000, 1, 0.12, 0.08, 'highpass', 0.02); },
   shatter() { if (!ready() || !gap('shatter', 60)) return; noise(6000, 1, 0.3, 0.25, 'highpass'); tone('triangle', 2400, 800, 0.2, 0.08); },
   acid() { if (!ready() || !gap('acid', 90)) return; tone('sine', 300 * jitter(), 180, 0.1, 0.07); tone('sine', 420 * jitter(), 250, 0.08, 0.05, 0.05); },
-  wind() { if (!ready() || !gap('wind', 80)) return; noise(1200, 0.7, 0.2, 0.12, 'bandpass', 0, 400); },
+  wind() {
+    if (!ready() || !gap('wind', 80)) return;
+    const j = jitter(0.12);
+    noise(4500 * j, 0.8, 0.035, 0.18, 'highpass');
+    noise(1200 * j, 0.7, 0.14, 0.16, 'bandpass', 0.01, 400);
+    for (let k = 0; k < 2; k++) noise(2800 * j, 2, 0.02, 0.045, 'bandpass', 0.06 + k * 0.03);
+  },
   // a big moment: boss or elite down
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
   // ---------------------------------------------------------- the Vacuum (vacuum.js)
