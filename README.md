@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v185 player HUD Health: immediate damage with a delayed coral loss trail, capped
+v186 player HUD Health: immediate damage with a delayed coral loss trail, capped
 jelly recoil, one grouped change number, mint healing feedback, a liquid fill
 edge, and a slow low-health border pulse with a warning icon. Passive regen is
 quiet and preserves the damage trail. Reduce Effects keeps the information and
