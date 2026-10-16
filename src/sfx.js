@@ -6,20 +6,20 @@ let ctx = null, master = null, noiseBuf = null, deep = null;   // deep: a lowpas
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
-let fireImpact = null;
+let fireFlight = null;
 const fireVoices = new Set();
 // The audition can supply a recording; normal gameplay retains synthesized fire.
-export function setFireImpact(buffer) { fireImpact = buffer; }
+export function setFireFlight(buffer) { fireFlight = buffer; }
 
-function recordedFire(weight) {
+function recordedFireFlight(weight) {
   const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
   if (fireVoices.size >= 3) {
     const oldest = fireVoices.values().next().value;
     oldest.stop(); fireVoices.delete(oldest);
   }
-  source.buffer = fireImpact;
+  source.buffer = fireFlight;
   source.playbackRate.value = (0.97 + Math.random() * 0.06) / Math.sqrt(weight);
-  const duration = Math.min(fireImpact.duration / source.playbackRate.value, 1.1 + (weight - 1) * 0.7);
+  const duration = Math.min(fireFlight.duration / source.playbackRate.value, 1.1 + (weight - 1) * 0.7);
   const volume = 0.65 + (weight - 1) * 0.2;
   gain.gain.setValueAtTime(0, t);
   gain.gain.linearRampToValueAtTime(volume, t + 0.003);
@@ -185,6 +185,7 @@ export const sfx = {
   fireLaunch(weight = 1) {
     if (!ready() || !gap('fireLaunch', 90)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.12) / Math.sqrt(w), g = 0.85 + w * 0.3;
+    if (fireFlight) { recordedFireFlight(w); return; }
     // A pressure pulse under an opening flame, with enough midrange for phone speakers.
     tone('sine', 105 * j, 52 * j, 0.17, 0.24 * g);
     tone('triangle', 220 * j, 440 * j, 0.095, 0.11 * g);
@@ -201,12 +202,6 @@ export const sfx = {
   fire(weight = 1) {
     if (!ready() || !gap('fire', 95)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;
-    if (fireImpact) {
-      recordedFire(w);
-      noise(4200, 0.8, 0.045, 0.25, 'highpass');
-      tone('triangle', 240, 70, 0.09, 0.16);
-      return;
-    }
     // Crack first, then chest and midrange punch, then a ragged, falling flame tail.
     noise(4300 * j, 0.8, 0.045, 0.4 * g, 'highpass', 0, 1100);
     tone('triangle', 330 * j, 95 * j, 0.085, 0.23 * g);

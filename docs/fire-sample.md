@@ -1,7 +1,8 @@
-# Fire feedback sample (v170)
+# Fire feedback sample (v171)
 
-Confirmed fire hits now throw 12 faster sparks and layer a short contact snap
-over the supplied recording. Death while the burn is active produces nine
+The supplied recording starts when the projectile is fired and carries its
+launch and travel sound. Confirmed fire hits throw 12 faster sparks and play a
+separate synthesized impact crack and low punch. Death while the burn is active produces nine
 charred fragments, 18 rising embers fading over 0.75 seconds, and a separately
 throttled crackling death cue. This also applies when another attack finishes a
 burning enemy. Silent removals skip the fire death effect. Existing damage,
@@ -9,10 +10,10 @@ rewards and burn spread are unchanged. Training targets now have 5 HP so the
 sample demonstrates a real burn kill; normal enemy health is unchanged.
 
 The sample now loads the owner's supplied `koiroylers-fireball-impact-351961.mp3`
-after enabling sound. Confirmed hits play the recording instead of the synthetic
-impact. Standard hits fade out at 1.1 seconds; upgrades deepen pitch and extend
+after enabling sound. Launch plays the recording instead of the synthetic
+launch cue. Standard casts fade out at 1.1 seconds; upgrades deepen pitch and extend
 the tail (at most 1.52 seconds), with small random pitch variation. Playback shares
-the game's master gain, mute and compressor, the existing 95 ms throttle, and a
+the game's master gain, mute and compressor, the existing 90 ms launch throttle, and a
 three-voice cap. Failed loading falls back to synthesized sound. Normal gameplay
 does not load the recording. Asset provenance is in `assets/audio/README.md`.
 

@@ -74,9 +74,9 @@ try {
     const ctx = new OfflineAudioContext(1, rate * seconds, rate);
     const comp = ctx.createDynamicsCompressor(); comp.connect(ctx.destination);
     const preview = S.preview(ctx, comp);
-    const recording = await fetch('/assets/audio/fireball-impact.mp3');
-    if (!recording.ok) throw new Error('Fire impact asset unavailable');
-    S.setFireImpact(await ctx.decodeAudioData(await recording.arrayBuffer()));
+    const recording = await fetch('/assets/audio/fireball-flight.mp3');
+    if (!recording.ok) throw new Error('Fire flight asset unavailable');
+    S.setFireFlight(await ctx.decodeAudioData(await recording.arrayBuffer()));
     const at = (t, fn) => { preview.when(t); fn(); };
     at(0.3, () => S.sfx.fireLaunch()); at(0.8, () => { S.sfx.hit(); S.sfx.fire(); });
     at(2.7, () => S.sfx.fireLaunch(1.22)); at(3.2, () => { S.sfx.hit(); S.sfx.fire(1.22); });

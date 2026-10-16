@@ -8,7 +8,7 @@ import { loadLook } from './look.js';
 import { newMods, elementParams } from './words.js';
 import { BASE_STATS } from './stats.js';
 import { bus } from './events.js';
-import { sfx, unlock, setMuted, isMuted, audio, setFireImpact } from './sfx.js';
+import { sfx, unlock, setMuted, isMuted, audio, setFireFlight } from './sfx.js';
 
 await loadLook();
 const stage = document.querySelector('#stage');
@@ -94,21 +94,21 @@ document.querySelectorAll('[data-mode]').forEach(button => button.addEventListen
   lastCast = -10; cast();
 }));
 document.querySelector('#cast').addEventListener('click', () => { unlock(); cast(); });
-let impactLoaded = false;
+let flightLoaded = false;
 document.querySelector('#sound').addEventListener('click', async () => {
   unlock(); setMuted(!isMuted());
   const on = !isMuted(), button = document.querySelector('#sound');
   button.textContent = on ? 'Sound on · Mute' : 'Enable sound'; button.setAttribute('aria-pressed', String(on));
   if (on) {
-    if (!impactLoaded) {
+    if (!flightLoaded) {
       button.disabled = true;
       try {
-        const response = await fetch('/assets/audio/fireball-impact.mp3');
+        const response = await fetch('/assets/audio/fireball-flight.mp3');
         if (!response.ok) throw new Error(`Fire audio: ${response.status}`);
-        setFireImpact(await audio().ctx.decodeAudioData(await response.arrayBuffer()));
-        impactLoaded = true;
+        setFireFlight(await audio().ctx.decodeAudioData(await response.arrayBuffer()));
+        flightLoaded = true;
       } catch (error) {
-        console.warn('Recorded fire unavailable; using synthesized impact.', error);
+        console.warn('Recorded fire unavailable; using synthesized launch.', error);
       } finally { button.disabled = false; }
     }
     lastCast = -10; cast();
