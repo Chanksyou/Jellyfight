@@ -590,7 +590,7 @@ export class Run {
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
-    if (!silent) { juice.shake(0.55); sfx.hurt(); }
+    if (!silent) { juice.feel('hurt'); sfx.hurt(); }
     if (!silent) this.player.avatar?.land(1.5);
     // death-save: once per run, the last of your Health holds
     const D = this.mods.deathSave;
@@ -691,7 +691,7 @@ export class Run {
   eliteDefeated(e) {
     this.kills++;
     this.elitesBeaten++;
-    juice.shake(0.7); juice.hitstop(0.15); sfx.boom();
+    juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.dropTreasure(e.base);
@@ -987,7 +987,7 @@ export class Run {
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
-    juice.shake(1); juice.hitstop(0.25); sfx.boom();
+    juice.feel('boss-kill'); sfx.boom();
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);

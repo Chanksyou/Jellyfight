@@ -25,6 +25,7 @@ import './stories/main-screen-modes-engine.js';
 import './stories/act2.js';
 import './stories/act2-bosses.js';
 import './stories/every-attack.js';
+import './stories/attack-audit.js';
 import './stories/act3.js';
 import './stories/act3-croc.js';
 import './stories/act3-bull.js';

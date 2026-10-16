@@ -400,7 +400,7 @@ function guardSnap() {
     end() { const { player, run } = G(); player.position.set(...run.stage.boss.playerStart); step(60, () => !on()); },
   };
 }
-const EVERY_ATTACK = {
+export const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'shot', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
     mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'hazard' } },

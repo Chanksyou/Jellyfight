@@ -4,6 +4,15 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Attack feel foundation (v177): the groundwork for reworking every attack to
+`docs/agents/attack-feel.md`. How hard a moment lands (screen shake and hit-stop)
+is one ladder in `content/look.css` (`--feel-*`, read by `juice.feel`), from a
+bubble pop up to a boss kill; Elite attack shakes snapped to its nearest step
+(within 0.05). The pause menu's ✨ button turns on Reduce effects: no screen shake
+and a softer hurt glow (hit-stop stays); it starts on when the device asks for
+reduced motion. `src/stories/attack-audit.js` lists every attack with its
+nine-row audit score, and `vocabulary/every-attack-is-audited` fails if one is missing.
+
 Fire overhaul (v174): normal gameplay now uses the approved fire sequence and
 recorded launch/flight audio. Loading starts after the first audio-unlocking tap;
 failed loading falls back to synthesis. Burning deaths char, curl and shrink,
