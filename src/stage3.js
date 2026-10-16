@@ -95,7 +95,8 @@ export const STAGE3 = {
   // settles back when you leave; `stand` is where a 1 on 1 with it puts you. The Pothos's pot
   // takes this spot in the boss fight: elites are cleared at its intro
   elites: [
-    { kind: 'croc', at: [-0.105, 0.65, 10.62], face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
+    { kind: 'croc', at: [-0.105, 0.65, 10.12],   // clear of the pillows (z 10.48 up) even as it turns round (about 33 cm each way)
+      face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
     // the plush bull on the changing table: the dresser on the north wall (Dresser_and_changing_station,
     // x -1.01 to -0.25, z 8.13 to 8.6), its pad 1.146 up. It sits at the west end of the pad, facing
     // the room; the vent by the dresser lands you 27 cm east of it. Awake while you're on the table top
