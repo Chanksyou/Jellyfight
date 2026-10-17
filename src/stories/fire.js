@@ -130,3 +130,31 @@ story('attack/lightning-recorded-sounds', {
     return ok(loaded && !!audio() && chained >= 2, { loaded, audio: !!audio(), chained });
   },
 });
+
+story('attack/acid-puddle-feel', {
+  about: 'Acid lands as a living puddle: it splats in (spreading past its size, then settling), bubbles and fumes while it lasts, bites a bug standing in it with a sizzle (still +50% damage taken and its ticks), dries up over its last moments (shrinking and darkening) and is gone at the end of its life; its mesh is reused by the next puddle.',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); },
+  play() {
+    const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];
+    run.owned = new (run.owned.constructor)(); run.owned.add('nailPolish'); step(1);
+    const n = { live: 0, bite: 0, sizzle: 0 }, spy = (o, k, key) => { const fn = o[k].bind(o); stub(o, k, (...a) => { n[key]++; return fn(...a); }); };
+    spy(B.looks, 'puddleLive', 'live'); spy(B.looks, 'acidBite', 'bite'); spy(sfx, 'acidSizzle', 'sizzle');
+    const log = record('damage_taken');
+    B.elementVolley('acid', run.mods.element.acid, player.position.clone().add(V(0, 0.06, 0)), run.S, run.mods);
+    for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+    const P = B.puddles[0];
+    if (!P) return ok(false, { puddle: false });
+    let peak = 0, dried = 0;
+    const mesh = P.m;
+    for (let i = 0; i < 60 * 6 && B.puddles.includes(P); i++) {
+      B.effects(1 / 60, run.S);
+      peak = Math.max(peak, P.m.scale.x / P.r);
+      dried = Math.max(dried, P.m.material.uniforms.uDry.value);
+    }
+    const gone = !B.puddles.includes(P) && !mesh.parent, ticks = dmgBy(log, 'acid').length;
+    B.elementVolley('acid', run.mods.element.acid, player.position.clone().add(V(0, 0.06, 0)), run.S, run.mods);
+    for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+    const reused = B.puddles[0]?.m === mesh;
+    return ok(peak > 1.05 && n.live > 0 && n.bite > 0 && ticks > 0 && dried > 0.9 && gone && reused, { peak: +peak.toFixed(2), ...n, ticks, dried: +dried.toFixed(2), gone, reused, softened: e.markT > 0 });
+  },
+});

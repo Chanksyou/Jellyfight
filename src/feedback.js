@@ -8,7 +8,7 @@ import { GUTS } from './enemies.js';
 export function wireFeedback(fx, isBurning = () => false) {
   bus.on('enemy_hit', ({ amount, color, pos, sound }) => {
     if (sound !== 'fire' && sound !== 'fireball' && sound !== 'wind-collision') sfx.hit();
-    fx.number(pos, Math.round(amount), color, color === '#fff' ? 13 : 17);
+    fx.number(pos, amount < 0.95 ? amount.toFixed(1) : Math.round(amount), color, color === '#fff' ? 13 : 17);   // a small tick (an acid puddle's) shows as 0.4, not 0
   });
 
   bus.on('enemy_frozen', ({ pos, r }) => {

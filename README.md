@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v197 acid is juicier: a sloshing, dripping, fuming glob; a hit splashes a crown of drops with sizzle
+smoke; the puddle is a living pool (a wobbly glowing edge, ripples, blisters swelling and popping, fumes)
+that splats in, bites bugs in it with a green sizzle and visibly dries up as it ends. Small damage ticks
+show as 0.4 instead of 0. No numbers changed.
+
 v196 the Clog fight is livelier: it bounds after you in squashing hops, bumping into it is a heavy wet
 slam (3, thrown back, tangled, a big shake), and it has two new attacks with set dodges: pinball (three
 leaps that slam where you were, then a ring wave to jump) and comb (hair curtains in alternating lanes:

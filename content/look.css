@@ -159,6 +159,8 @@
   --bolt-width: 0.005;          /* m, a bolt at its thickest (the middle; it tapers to both ends) */
   --bolt-jag: 0.22;             /* how far a bolt bends off the straight line, as a share of its length */
   --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
+  --acid-deep: #1f8a06;         /* the acid puddle: its deep toxic middle */
+  --acid-bright: #b8ff4a;       /* and its glowing rim, ripples and blisters */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
   --venom: #8dff5a;              /* Box Jelly: venom strands and the puffs of a venomed bug */

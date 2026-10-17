@@ -392,6 +392,13 @@ export const sfx = {
   },
   // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder in it (recorded only)
   lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; sample('lightning-big', { vol: 0.2 }); },
+  // the acid puddle eating at a bug: a quiet hiss with a pop or two
+  acidSizzle() {
+    if (!ready() || !gap('acidSizzle', 160)) return;
+    const j = jitter(0.15);
+    noise(5500 * j, 0.9, 0.22, 0.035, 'highpass', 0, 3000);
+    tone('sine', 520 * j, 900 * j, 0.03, 0.025, 0.04 + Math.random() * 0.08);
+  },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its

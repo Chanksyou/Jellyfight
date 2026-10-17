@@ -27,7 +27,7 @@ import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
-import { BubbleLooks, WIND_ARC } from './bubble-looks.js';
+import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at bubble size 1
@@ -84,8 +84,9 @@ export class Bubbles {
     this.burning = new Map();          // enemy -> seconds of fire left
     this.puddles = [];
     this.zapMat = new THREE.LineBasicMaterial({ color: 0xfff27a, transparent: true });
-    this.acidMat = new THREE.MeshBasicMaterial({ color: 0x7aff4a, transparent: true, opacity: 0.55, depthWrite: false });
-    this.puddleGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
+    this.puddlePool = [];
+    this.acidMat = new AcidMaterial();   // each puddle a copy (its own uniforms, the same program: no shader to build in a fight)
+    this.puddleGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
     this.goldMat = film(0xffe8a0, 0xffb020);
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
@@ -99,7 +100,7 @@ export class Bubbles {
     this.list = [];
     this.burning.clear();
     this.looks.clearBolts();
-    this.puddles.forEach((p) => this.scene.remove(p.m));
+    this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
     this.puddles = [];
     this.timer = 0;
     this.elTimers = {};
@@ -447,12 +448,14 @@ export class Bubbles {
     }
     for (const p of this.puddles) {
       p.t -= dt;
-      p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (p.life - 0.5 - p.t) * 6 + 0.3));
+      // it splats in (overshooting, then settling), then for its last 0.6 s shrinks, darkens and dries up
+      const age = p.life - p.t, U = p.m.material.uniforms, spread = age < 0.25 ? Math.sin(Math.min(1, age / 0.18) * Math.PI / 2) * (1 + 0.15 * Math.sin(Math.min(1, age / 0.25) * Math.PI)) : 1;
+      p.m.scale.setScalar(p.r * Math.max(0.05, spread));
+      U.uTime.value += dt;
+      U.uDry.value = Math.max(0, 1 - p.t / 0.6);
+      U.uFade.value = Math.min(1, age * 8, p.t * 2.5);
       p.tick -= dt;
-      if (Math.random() < dt * 12) {       // it bubbles
-        const a = Math.random() * 6.3, rr = Math.random() * p.r * 0.8;
-        this.fx.puff(p.m.position.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0.003, Math.sin(a) * rr)), 0x9aff6a, 0.005, 0.35);
-      }
+      this.looks.puddleLive(p.m.position, p.r * spread, dt, 1 - U.uDry.value * 0.8);   // blisters popping, fumes rising
       if (p.tick <= 0) {
         p.tick = 0.5;
         for (const e of E.list) {
@@ -461,10 +464,11 @@ export class Bubbles {
           if (Math.hypot(c.x - p.m.position.x, c.z - p.m.position.z) < p.r + e.r && Math.abs(c.y - e.r - p.m.position.y) < e.r + 0.03) {
             bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 0.6 });   // softened: +50% damage from everything
             bus.emit('damage_taken', { targetId: e.id, amount: p.dmg * 0.5, color: '#a8ff7a', source: 'acid' });
+            this.looks.acidBite(this._t.copy(c).setY(c.y - e.r * 0.6), e.r); sfx.acidSizzle();
           }
         }
       }
-      if (p.t <= 0) this.scene.remove(p.m);
+      if (p.t <= 0) { this.scene.remove(p.m); this.puddlePool.push(p.m); }
     }
     this.puddles = this.puddles.filter((p) => p.t > 0);
   }
@@ -540,11 +544,16 @@ export class Bubbles {
     // Acid: leave a puddle that eats at anything standing in it
     if (b.elems.has('acid') && this.puddles.length < (b.ep?.puddles ?? 6)) {
       const h = this.world.castAll(p.clone(), new THREE.Vector3(0, -1, 0), 0.4);
-      const m = new THREE.Mesh(this.puddleGeo, this.acidMat);
+      const m = this.puddlePool.pop() || new THREE.Mesh(this.puddleGeo, this.acidMat.clone());   // pooled: a puddle's mesh and uniforms are reused
+      m.material.uniforms.uTime.value = 0;
+      m.material.uniforms.uSeed.value = Math.random() * 100;
       m.position.copy(h ? h.point : p).setY((h ? h.point.y : p.y) + 0.0015);
+      m.rotation.y = Math.random() * 6.3;
+      m.renderOrder = 2;
       this.scene.add(m);
-      const life = b.ep?.puddleTime ?? 3.5;
-      this.puddles.push({ m, t: life, life, r: 0.05 * (b.r / RADIUS) * (b.ep?.puddleSize ?? 1), dmg: b.pw * ELEMENT.puddle * (b.ep?.puddleDmg ?? 1), tick: 0.25 });
+      const life = b.ep?.puddleTime ?? 3.5, r = 0.05 * (b.r / RADIUS) * (b.ep?.puddleSize ?? 1);
+      this.puddles.push({ m, t: life, life, r, dmg: b.pw * ELEMENT.puddle * (b.ep?.puddleDmg ?? 1), tick: 0.25 });
+      this.looks.puddleSplat(m.position, r);
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
     // zap-on-pop: now and then the pop snaps static to enemies close by, stunning them
