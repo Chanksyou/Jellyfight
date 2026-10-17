@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus } from '../events.js';
 import { isDeep } from '../sfx.js';
+import { juice } from '../juice.js';
 import { TeleMaterial, VolumeMaterial, hostile } from '../vfx.js';
 import { BALLOON_MID } from '../elites.js';
 import { G, JUMP_FEET, V, act2, balloonWarning, bossHits, byDoor, cameraStory, clogAgain, clogAttack, clogFight, fresh, holdJelly, near, offs, ok, r3, record, shownWarnings, sim, startBalloon, startSpray, step, stub, tp, whipper } from './kit.js';
@@ -330,7 +331,7 @@ act2('clog-angry-spray', {
     tp(1.2, 0.16, 7.53, 0);
     B.swarmed = true;
     B.hp = B.maxHp * 0.4;
-    B.state = 'chase'; B.stateT = 0; B.next = 1;                         // the angry order: lash, spray, ...
+    clogAttack(B, 'spray');                                             // next in its angry order
     // every glob it sprays (they end on the tub's walls, so count them as they're fired)
     const fired = new Set();
     step(60 * 2.5, () => { if (B.state === 'spray') B.shots.forEach((s) => fired.add(s)); return B.state === 'spray' && fired.size >= 24; });
@@ -485,3 +486,92 @@ for (const attack of ['lash', 'snare', 'roll', 'spray']) {
     },
   });
 }
+
+// --- the Clog's livelier fight: it hops between attacks, bumping into it is a heavy slam, and two
+// attacks with set dodges (Pinball: out of each landing circle, then jump the ring wave; Comb: step
+// into the lane that just struck)
+act2('clog-hops-and-slams-into-you', {
+  about: 'Between attacks the Clog bounds after you in hops (it leaves the floor and lands nearer you); bumping into it is heavy: 3, you\'re tangled (slowed) and thrown back, with the big impact shake.',
+  setup() {},
+  play() {
+    const B = clogFight(), { player, run } = G(), hits = bossHits(), feels = [];
+    const feel = juice.feel.bind(juice); stub(juice, 'feel', (k) => { feels.push(k); return feel(k); });
+    tp(1.0, 0.16, 7.53, 0);
+    B.state = 'chase'; B.stateT = 99; B.hop = null; B.hopWait = 0.1;
+    const d0 = B.position.distanceTo(player.position);
+    let lifted = 0;
+    step(90, () => { lifted = Math.max(lifted, B.lift); });
+    const d1 = B.position.distanceTo(player.position);
+    // now right up against it
+    B.hop = null; B.hopWait = 99; B.knock = 0;
+    tp(B.position.x + B.r + 0.01, 0.16, B.position.z, 0);
+    const at = player.position.clone();
+    step(30, () => hits.length > 0);
+    step(15);
+    const pushed = +player.position.distanceTo(at).toFixed(3);
+    return ok(lifted > 0.02 && d1 < d0 - 0.1 && hits[0]?.amount === 3 && run.slowT > 0 && pushed > 0.05 && feels.includes('impact-big'),
+      { lifted: +lifted.toFixed(3), d0: +d0.toFixed(2), d1: +d1.toFixed(2), hit: hits[0]?.amount, slowed: run.slowT > 0, pushed, feels: [...new Set(feels)] });
+  },
+});
+act2('clog-pinball', {
+  about: 'Pinball: three leaps at you, each landing spot a circle with a half sphere over it, filling together and following you until just before it lands, then a Blast there (3); a jelly that stays put is hit. The last slam rolls a ring wave out.',
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits();
+    const player = clogAgain(B, 'pinball', 0.75);
+    let warned = false, together = true, landings = 0, waved = false, lastK = 0;
+    step(60 * 6, () => {
+      if (B.state === 'pinball' && B.pinTele.visible) { warned ||= B.pinVol.visible; if (B.pinVol.visible) together &&= Math.abs(B.pinVol.material.progress - B.pinTele.material.progress) < 1e-6; }
+      if (B.pin && B.pin.k > lastK) { landings++; lastK = B.pin.k; }
+      waved ||= !!B.wave;
+      return B.state === 'chase' && lastK >= 3;
+    });
+    const pinHits = hits.filter((h) => h.amount === 3).length;
+    return ok(warned && together && landings === 3 && waved && pinHits >= 3, { warned, together, landings, waved, pinHits, hits: hits.map((h) => h.amount) });
+  },
+});
+act2('clog-pinball-dodged', {
+  about: 'Pinball dodged: a jelly that steps 30 cm aside after each landing spot locks is never hit by the slams; the ring wave then hits one standing on the floor (2) but not one in the air over it (feet 5 cm up, over a 2.5 cm wall).',
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), S = B.def.skills.pinball, out = {};
+    for (const up of [0, 0.05]) {
+      const player = clogAgain(B, 'pinball', 0.75);
+      const h0 = hits.length;
+      let side = 1, moved = -1, slamHits = 0;
+      step(60 * 6, () => {
+        const J = B.pin;
+        if (J && J.phase === 'air' && S.air - J.t < S.lock && moved !== J.k) { moved = J.k; player.position.x += 0.3 * side; side = -side; }
+        if (J && J.k >= S.count && J.phase === 'land' && !out.landed) { out.landed = true; slamHits = hits.length - h0; player.position.y = B.floor + up; }
+        return B.state === 'chase' && !B.wave;
+      });
+      out[up ? 'jumping' : 'standing'] = { slamHits, waveHits: hits.slice(h0 + slamHits).map((h) => h.amount) };
+      out.landed = false;
+    }
+    return ok(out.standing.slamHits === 0 && out.jumping.slamHits === 0 && out.standing.waveHits[0] === 2 && out.jumping.waveHits.length === 0, out);
+  },
+});
+act2('clog-comb', {
+  about: 'Comb: hair curtains slam down across the tub in 5 lanes, every other lane then the ones between, three times, each a floor strip with a lane too tall to jump (12 cm) over it, filling together. A jelly that stays in one lane is hit (3, slowed); one that steps into the lane that just struck each time is never hit.',
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), out = {};
+    for (const dodge of [false, true]) {
+      const player = clogAgain(B, 'comb', 0.75);
+      step(2);
+      const h0 = hits.length;
+      let wave = 0, shown = 0, tall = 0, together = true;
+      if (B.comb) player.position.x = B.combX[1];
+      step(60 * 4, () => {
+        const vis = B.combTeles.filter((T) => T.visible);
+        shown = Math.max(shown, vis.length);
+        B.combVols.forEach((v, i) => { if (v.visible) { tall = Math.max(tall, v.scale.y); together &&= Math.abs(v.material.progress - B.combTeles[i].material.progress) < 1e-6; } });
+        if (B.comb && B.comb.wave !== wave) { wave = B.comb.wave; if (dodge) player.position.x = B.combX[wave % 2 ? 0 : 1]; }
+        return B.state === 'chase';
+      });
+      out[dodge ? 'dodging' : 'staying'] = { hits: hits.slice(h0).map((h) => h.amount), shown, tall, together };
+    }
+    const st = out.staying, dg = out.dodging;
+    return ok(st.shown === 3 && Math.abs(st.tall - 0.12) < 1e-6 && st.together && st.hits.includes(3) && dg.hits.length === 0, out);
+  },
+});

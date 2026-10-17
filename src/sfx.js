@@ -677,6 +677,28 @@ export const sfx = {
     tone('sine', 140, 45, dur, 0.18);
     for (let k = 0; k * 0.11 < dur; k++) { const f = 60 + Math.random() * 120; tone('sine', f, f * 2.2, 0.07, 0.12, k * 0.11 + Math.random() * 0.04); }
   },
+  // the Clog bounding about: a soft hop off (small) and a squelchy thud as it lands (`land`)
+  clogHop(land = false) {
+    if (!ready() || !gap('clogHop' + land, 120)) return;
+    const j = jitter(0.12);
+    if (land) { tone('sine', 150 * j, 55, 0.13, 0.13); noise(500 * j, 0.8, 0.1, 0.08, 'lowpass', 0, 180); noise(1500 * j, 2, 0.04, 0.03, 'bandpass', 0.02); }
+    else noise(900 * j, 1.2, 0.12, 0.04, 'bandpass', 0, 1800);
+  },
+  // a big leap: a wet heave and a rising whoosh as it flies
+  clogLeap() {
+    if (!ready()) return;
+    const j = jitter(0.1);
+    tone('sine', 110 * j, 210 * j, 0.14, 0.12); noise(700 * j, 1, 0.1, 0.12, 'lowpass', 0, 300);
+    noise(900 * j, 1.1, 0.5, 0.1, 'bandpass', 0.05, 2600);
+  },
+  // the Clog slamming into you or the tub: a heavy wet thud, a splat, and bits pattering down
+  clogSlam() {
+    if (!ready() || !gap('clogSlam', 90)) return;
+    const j = jitter(0.1);
+    tone('sine', 115 * j, 36, 0.32, 0.34); noise(800 * j, 0.8, 0.28, 0.3, 'lowpass', 0, 140);
+    noise(1900 * j, 1.4, 0.08, 0.18, 'bandpass', 0.01, 700);
+    for (let k = 0; k < 5; k++) noise(1200 + Math.random() * 2600, 3, 0.02, 0.05, 'bandpass', 0.08 + Math.random() * 0.3);
+  },
   clogSplat() { if (!ready() || !gap('clogSplat', 70)) return; noise(900 * jitter(), 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140, 60, 0.1, 0.12); },
   clogDeath() {
     if (!ready()) return;

@@ -1,6 +1,12 @@
-// The Clog: act 2's boss, a huge matted hairball that rises out of the bathtub drain. Built like
-// the Vacuum (vacuum.js): it rolls after you and bumps you back, and between chases it cycles
-// through telegraphed attacks:
+// The Clog: act 2's boss, a huge matted hairball that rises out of the bathtub drain. Between
+// attacks it bounds after you in squashing hops, juking to one side as it crouches; bumping into
+// it is a wet, heavy slam (3, thrown back and tangled). It cycles through telegraphed attacks:
+//   pinball   three leaps at you: each landing spot is a circle with a half sphere over it that
+//             follows you, then locks just before it slams down there as a Blast (3, thrown back);
+//             the third slam also rolls a low ring wave out across the tub: jump it
+//   comb      hair curtains slam down across the tub in lanes beside each other, too tall to jump:
+//             every other lane, then the ones between, then every other again; step into the lane
+//             that just struck
 //   lash      a hair rope rears up while a line on the tub floor shows where it will land (the
 //             aim locks halfway), under a low lane (3 cm: jump it), then whips down along it: 3,
 //             and it tangles you (slowed). Angry, two ropes lash at once.
@@ -22,14 +28,17 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
-import { hostile, TeleMaterial, laneHits, blastHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
+import { hostile, TeleMaterial, laneHits, blastHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
+import { juice } from './juice.js';
 import { CONTENT } from './content.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const _rel = new THREE.Vector3();
 const HAIR = ['#1e130c', '#2a1a10', '#33200f', '#3b2618', '#24160e', '#4a2a16', '#5a3418', '#7a7470', '#b8904a'];   // mostly dark brown; a grey and a blonde one
 
+// a shudder as it winds up (its root jitters sideways)
+function M_shake(M, a) { M.root.position.x = (Math.random() - 0.5) * a; }
 function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 function paint(geo, color) {
   geo = geo.index ? geo.toNonIndexed() : geo;
@@ -193,7 +202,7 @@ function buildClog(r) {
 }
 
 // its attacks in the order it takes them, calm and angry (pick); the stories check each one's Warning
-export const ATTACKS = { calm: ['lash', 'snare', 'roll', 'flood', 'shed'], angry: ['lash', 'spray', 'roll', 'snare', 'flood', 'lash', 'shed'] };
+export const ATTACKS = { calm: ['lash', 'pinball', 'snare', 'roll', 'comb', 'flood', 'shed'], angry: ['pinball', 'lash', 'spray', 'comb', 'roll', 'snare', 'flood', 'lash', 'shed'] };
 
 export class Clog {
   constructor(scene, enemies, fx, arena, world) {
@@ -245,6 +254,21 @@ export class Clog {
     this.snareVols = [0, 1, 2].map(() => vol('dome', this.snareR));
     this.rollAt = new THREE.Vector3();
     this.rollDir = new THREE.Vector3();
+    // pinball: where it will land (a circle and a half sphere, scaled to the slam's radius); the ring
+    // wave its last slam rolls out (a glowing ring on the floor and its low 'ring' wall)
+    this.pinTele = tele('circle', new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2));
+    this.pinVol = vol('dome', 1);
+    this.waveMesh = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: hostile('clog').clone().multiplyScalar(1.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.waveMesh.renderOrder = 3; this.waveMesh.visible = false; scene.add(this.waveMesh);
+    this.waveVol = vol('ring', V(1, 1, 1));
+    this.wave = null;
+    // comb: the lanes its hair curtains slam down in (strips across the tub, each with its tall lane)
+    this.combTeles = [0, 1, 2, 3, 4].map(() => tele('strip', strip()));
+    this.combVols = [0, 1, 2, 3, 4].map(() => vol('lane', V(1, 1, 1)));
+    this.combX = [];
+    // its hops between attacks, and how squashed (+) or stretched (-) it is
+    this.hop = null; this.hopWait = 0.3; this.lift = 0; this.squash = 0;
+    this._at = new THREE.Vector3(); this._from = new THREE.Vector3();
     // tick() scratch: the per-frame paths (chase heading, the whirlpool, the lash strike) reuse
     // these instead of minting vectors every frame
     this._toP = new THREE.Vector3(); this._toDrain = new THREE.Vector3(); this._side = new THREE.Vector3();
@@ -337,7 +361,7 @@ export class Clog {
     const SK = this.def.skills;
     const out = { push: null, hurt: 0, hit: 0, slow: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
-    const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; };
+    const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; this.wave = this.pin = this.comb = null; this.lift = 0; };
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.guards.forEach((e) => this.enemies.kill(e, true)); this.guards = []; }
       this.sink = Math.min(1, this.sink + dt * 0.6);
@@ -369,8 +393,12 @@ export class Clog {
     if (!this.swarmed && this.hp < this.maxHp * SK.swarm.at && this.state !== 'swarm') { hide(); this.state = 'swarm'; this.stateT = 1.4; this.swarmT = 0; sfx.clogRoar(); }
 
     if (this.state === 'chase') {
-      this.drive(dt, P, angry ? SK.chase.angrySpeed : SK.chase.speed, angry ? 2.2 : 1.6);
-      if (this.stateT <= 0) this.pick();
+      this.bound(dt, P, toP, dist, angry);
+      if (this.stateT <= 0 && !this.hop) this.pick();
+    } else if (this.state === 'pinball') {
+      mouth = this.pinball(dt, P, player, out, angry);
+    } else if (this.state === 'comb') {
+      mouth = this.combing(dt, P, player, out, angry);
     } else if (this.state === 'lash') {
       // a rope (two when angry) rears up while its line fills on the floor; the aim locks halfway
       const wind = angry ? SK.lash.angryWindup : SK.lash.windup, n = angry ? 2 : 1;
@@ -391,6 +419,7 @@ export class Clog {
         if (!this.struck) {
           this.struck = true;
           sfx.clogLash();
+          juice.feel('impact');
           this.lines.forEach((L, i) => {
             if (!L.visible) return;
             L.material.progress = 1;
@@ -432,7 +461,13 @@ export class Clog {
         }
         const wall = this.drive(dt, null, angry ? SK.roll.angrySpeed : SK.roll.speed, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x6a5a3a, 0.025, 0.35);
-        if (wall || this.stateT <= 0) { this.locked = false; sfx.clogSplat(); this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16); this.toChase(); }
+        if (wall || this.stateT <= 0) {
+          this.locked = false; sfx.clogSlam(); this.squash = 0.9;
+          this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16);
+          this.fx.burst(p.clone().setY(this.floor + 0.04), HAIR.slice(0, 6), 12, 0.004, 0.45, this.floor);
+          if (wall) juice.feel('impact-big');
+          this.toChase();
+        }
       }
     } else if (this.state === 'snare') {
       // three circles fill round you (they follow you until halfway), then hair springs up in them
@@ -454,6 +489,7 @@ export class Clog {
       } else if (!this.sprung) {
         this.sprung = true;
         sfx.clogSnare();
+        juice.feel('impact');
         for (const m of this.snares) {
           const c = m.position;
           for (let k = 0; k < 7; k++) {
@@ -590,15 +626,20 @@ export class Clog {
     if (this.state !== 'swarm' && this.sink > 0) this.sink = Math.max(0, this.sink - dt);
     if (angry && !this.wasAngry) sfx.clogRoar();
     this.wasAngry = angry;
+    if ((this.chomp = Math.max(0, (this.chomp || 0) - dt)) > 0) mouth = 1;
     this.place(dt);
     this.animate(dt, mouth);
 
     // bumping into it knocks you back (not while it's down the drain)
-    if (this.knock <= 0 && this.sink < 0.3 && dist < this.r + 0.02 && Math.abs(P.y - this.floor) < 0.12) {
+    if (this.knock <= 0 && this.sink < 0.3 && dist < this.r + 0.02 && Math.abs(P.y - (p.y - this.r * 0.05)) < 0.12) {
       const rolling = this.state === 'roll' && this.locked;
       out.hit = Math.max(out.hit, rolling ? SK.roll.dmg : this.def.contact);
-      this.knockBack(toP, rolling ? 1.0 : 0.6);
+      out.slow = Math.max(out.slow, SK.chase.tangle ?? 0.8);                  // a mouthful of hair: tangled for a moment
+      this.knockBack(toP, rolling ? 1.0 : 0.8);
+      this.slam(_rel.copy(toP).normalize().multiplyScalar(this.r).add(p).setY(P.y + 0.03), 1);
+      this.chomp = 0.45;
     }
+    this.waves(dt, P, player, out);
     if (this.knock > 0) { this.knock -= dt; out.push = (out.push || new THREE.Vector3()).clone().addScaledVector(this.knockDir, this.knockSpeed); }
 
     // gunk globs
@@ -614,7 +655,7 @@ export class Clog {
     return out;
   }
 
-  volumes() { return [...this.lashVols, this.rollVol, ...this.snareVols]; }
+  volumes() { return [...this.lashVols, this.rollVol, ...this.snareVols, this.pinVol, this.waveVol, ...this.combVols]; }
   // each volume shows, sits, turns and fills with the floor Warning it stands over
   syncVolumes() {
     const pair = (v, f, on) => {
@@ -628,13 +669,21 @@ export class Clog {
     this.lashVols.forEach((v, i) => pair(v, this.lines[i], this.state === 'lash'));
     pair(this.rollVol, this.lines[0], this.state === 'roll');
     this.snareVols.forEach((v, i) => pair(v, this.snares[i], true));
+    pair(this.pinVol, this.pinTele, this.state === 'pinball');
+    if (this.pinVol.visible) { this.pinVol.position.copy(this.pinTele.position).setY(this.floor); this.pinVol.scale.setScalar(this.pinTele.scale.x); }
+    this.combVols.forEach((v, i) => {
+      pair(v, this.combTeles[i], this.state === 'comb');
+      if (v.visible) v.scale.set(this.combTeles[i].scale.x, this.combH, this.combTeles[i].scale.z);
+    });
   }
 
   // how high it sits: on the tub floor, sunk into the drain as `sink` goes to 1
   place(dt) {
     const p = this.holder.position;
-    p.y = this.floor + this.r * 0.05 - this.sink * this.r * 1.6;
-    this.model.root.scale.setScalar(1 + (this.hitPop || 0) * 0.04);
+    p.y = this.floor + this.r * 0.05 - this.sink * this.r * 1.6 + this.lift;
+    const b = 1 + (this.hitPop || 0) * 0.04, q = this.squash;
+    this.model.root.scale.set(b * (1 + q * 0.22), b * (1 - q * 0.3), b * (1 + q * 0.22));   // squashed flat and wide (+), or stretched tall (-)
+    this.squash *= Math.exp(-7 * dt);
   }
 
   // the living bits: breathing, the maw, the ropes swaying (rearing up and slamming for a lash), drips
@@ -658,6 +707,170 @@ export class Clog {
     for (const [i, d] of M.drips.entries()) d.scale.y = 2.4 + Math.sin(t * 2 + i) * 0.5;
   }
 
+  // Between attacks it bounds after you: it crouches (squashing, turning to you), then hops a
+  // short way toward you, juking a little to one side, stretched tall in the air, and lands with
+  // a squash, a thud and dust
+  bound(dt, P, toP, dist, angry) {
+    const H = this.def.skills.chase, p = this.holder.position;
+    if (!this.hop) {
+      this.drive(dt, P, 0, 3);
+      this.hopWait -= dt;
+      if (this.hopWait < 0.16) this.squash = Math.max(this.squash, 0.55 * (1 - this.hopWait / 0.16));   // the crouch
+      if (this.hopWait <= 0) {
+        const juke = (Math.random() - 0.5) * 1.1, len = Math.min(H.hop ?? 0.16, Math.max(0.04, dist - this.r * 0.6));
+        const a = Math.atan2(toP.x, toP.z) + juke;
+        this.hop = { t: 0, dur: H.air ?? 0.32, from: p.clone(), to: this.clampIn(p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(len))) };
+        this.heading = a;
+        sfx.clogHop(false);
+      }
+      return;
+    }
+    const h = this.hop;
+    h.t += dt;
+    const u = Math.min(1, h.t / h.dur);
+    p.x = h.from.x + (h.to.x - h.from.x) * u;
+    p.z = h.from.z + (h.to.z - h.from.z) * u;
+    this.lift = 4 * (H.height ?? 0.05) * u * (1 - u);
+    this.squash = -0.35 * Math.sin(Math.PI * u);
+    this.model.root.rotation.y = this.heading;
+    this.model.roll.rotation.x += dt * 9;
+    if (u >= 1) {
+      this.hop = null; this.lift = 0; this.squash = 0.7;
+      this.hopWait = angry ? (H.angryEvery ?? 0.4) : (H.every ?? 0.6);
+      for (let k = 0; k < 4; k++) this.fx.puff(_rel.copy(p).setY(this.floor + 0.008).add(this._side.set(Math.cos(k * 1.57), 0, Math.sin(k * 1.57)).multiplyScalar(this.r * 0.9)), 0x8a7a5a, 0.022, 0.35);
+      sfx.clogHop(true);
+      if (dist < 0.5) juice.feel('hit');
+    }
+  }
+
+  // a heavy wet impact at `at`: a flash, hair and gunk flying, a puff, a splat left on the floor,
+  // a slam you feel (k: how big, 1 a bump into it or a pinball landing)
+  slam(at, k = 1) {
+    this.fx.impact(at, hostile('clog'), 0.045 * k, 20);
+    this.fx.burst(at, [...HAIR.slice(0, 6), '#8a9a5a', '#8a9a5a'], 14, 0.0045, 0.5, this.floor);
+    this.fx.puff(at, 0x3b2618, 0.05 * k, 0.5);
+    this.fx.splat(_rel.set(at.x, this.floor, at.z), 0x3a2a16, 0.045 * k);
+    juice.feel('impact-big');
+    sfx.clogSlam();
+    this.squash = Math.max(this.squash, 0.8);
+  }
+
+  // Pinball: three leaps at you. Each crouch and flight its landing spot (a circle with a half
+  // sphere over it, the slam's radius) follows you, locking `lock` s before it lands; the landing
+  // is a Blast round it. The last slam rolls a ring wave out (waves()). Returns how open its maw is.
+  pinball(dt, P, player, out) {
+    const S = this.def.skills.pinball, p = this.holder.position, R = S.radius;
+    const J = (this.pin ||= { k: 0, phase: 'crouch', t: 0, at: new THREE.Vector3().copy(P), from: new THREE.Vector3() });
+    J.t += dt;
+    const wind = J.k ? S.windup * 0.7 : S.windup, left = J.phase === 'crouch' ? wind - J.t + S.air : J.phase === 'air' ? S.air - J.t : 0;
+    if (J.phase !== 'land') {
+      if (left > S.lock) this.clampIn(J.at.set(P.x, this.floor, P.z));
+      const T = this.pinTele;
+      T.visible = true;
+      T.position.copy(J.at).setY(this.floor + 0.003);
+      T.scale.setScalar(R);
+      T.material.progress = 1 - left / (wind + S.air);
+      T.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(this.t * (left < S.lock ? 30 : 12)));
+    }
+    if (J.phase === 'crouch') {
+      this.drive(dt, J.at, 0, 5);
+      this.squash = Math.max(this.squash, 0.75 * Math.min(1, J.t / wind));
+      M_shake(this.model, 0.004);
+      if (J.t >= wind) { J.phase = 'air'; J.t = 0; J.from.copy(p); sfx.clogLeap(); this.fx.puff(_rel.copy(p).setY(this.floor + 0.01), 0x8a7a5a, 0.05, 0.4); }
+      return 0.6;
+    }
+    if (J.phase === 'air') {
+      const u = Math.min(1, J.t / S.air);
+      p.x = J.from.x + (J.at.x - J.from.x) * u;
+      p.z = J.from.z + (J.at.z - J.from.z) * u;
+      this.lift = 4 * S.height * u * (1 - u);
+      this.squash = -0.45 * Math.sin(Math.PI * u);
+      this.model.roll.rotation.x += dt * 14;
+      if (u >= 1) {
+        this.lift = 0; this.pinTele.visible = false;
+        this.slam(_rel.copy(J.at).setY(this.floor + 0.02), 1.4);
+        this.fx.ring(this._puff.copy(J.at).setY(this.floor + 0.004), hostile('clog'), R * 1.2, 0.35);
+        if (blastHits(this._at.copy(J.at).setY(this.floor), R, P, player.cfg)) { out.hit = S.dmg; this.knockBack(_rel.copy(P).sub(J.at), S.knock); }
+        J.k++; J.phase = 'land'; J.t = 0;
+        if (J.k >= S.count) this.wave = { at: J.at.clone(), r: this.r, hit: false };
+      }
+      return 1;
+    }
+    if (J.t >= (J.k >= S.count ? 0.6 : 0.16)) {
+      if (J.k >= S.count) { this.pin = null; this.toChase(); } else { J.phase = 'crouch'; J.t = 0; }
+    }
+    return 0.3;
+  }
+
+  // the ring wave the last pinball slam rolls out: a low wall across the tub floor; jump it
+  waves(dt, P, player, out) {
+    const W = this.wave, S = this.def.skills.pinball;
+    if (!W) { this.waveMesh.visible = this.waveVol.visible = false; return; }
+    const was = W.r;
+    W.r = Math.min(S.ring, W.r + dt * S.ringSpeed);
+    const k = W.r / S.ring;
+    this.waveMesh.visible = this.waveVol.visible = true;
+    this.waveMesh.position.copy(W.at).setY(this.floor + 0.004);
+    this.waveMesh.scale.setScalar(W.r);
+    this.waveMesh.material.opacity = 0.9 * (1 - k);
+    this.waveVol.position.copy(W.at).setY(this.floor);
+    this.waveVol.scale.set(W.r, S.ringH, W.r);
+    this.waveVol.material.progress = 1;
+    this.waveVol.material.opacity = 1 - k;
+    if (!W.hit && ringHits(this._at.copy(W.at).setY(this.floor), Math.max(0, was - 0.03), W.r, S.ringH, P, player.cfg)) {
+      W.hit = true; out.hit = Math.max(out.hit, S.ringDmg); this.knockBack(_rel.copy(P).sub(W.at), 0.5);
+    }
+    if (W.r >= S.ring) this.wave = null;
+  }
+
+  // Comb: hair curtains slam down across the tub in `lanes` lanes side by side round where you
+  // were (each a strip across the tub with a lane too tall to jump): every other lane, then the
+  // ones between, then every other again, each wave's Warning filling for `windup` (`next` after
+  // the first). Step into the lane that just struck. Returns how open its maw is.
+  combing(dt, P, player, out, angry) {
+    const S = this.def.skills.comb, a = this.arena, n = this.combTeles.length;
+    if (!this.comb) {
+      // the lanes, centred on you, kept inside the tub
+      const w = S.width, half = (n * w) / 2, x0 = THREE.MathUtils.clamp(P.x, a.arenaMin[0] + half, a.arenaMax[0] - half);
+      this.combX = this.combTeles.map((_, i) => x0 - half + w * (i + 0.5));
+      this.comb = { wave: 0, t: 0 };
+      this.combH = S.height;
+    }
+    const C = this.comb, wind = (C.wave ? S.next : S.windup) * (angry ? 0.8 : 1), len = a.arenaMax[2] - a.arenaMin[2];
+    C.t += dt;
+    this.drive(dt, P, 0, 3);
+    M_shake(this.model, 0.003);
+    this.combTeles.forEach((T, i) => {
+      T.visible = i % 2 === C.wave % 2;
+      if (!T.visible) return;
+      T.position.set(this.combX[i], this.floor + 0.003, a.arenaMin[2]);
+      T.rotation.y = 0;
+      T.scale.set(S.width, 1, len);
+      T.material.progress = Math.min(1, C.t / wind);
+      T.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(this.t * 22));
+    });
+    if (C.t >= wind) {
+      sfx.clogLash(); juice.feel('impact');
+      const dir = this._d.set(0, 0, 1);
+      this.combTeles.forEach((T, i) => {
+        if (!T.visible) return;
+        for (let k = 0; k < 3; k++) {
+          const at = this._tip.set(this.combX[i], this.floor + 0.02, a.arenaMin[2] + len * (k + 0.5) / 3);
+          this.fx.impact(at, hostile('clog'), 0.025, 8);
+          this.fx.burst(at, HAIR.slice(0, 5), 4, 0.003, 0.3, this.floor);
+          const tuft = new THREE.Mesh(this.tuftGeo, this.tuftMat);
+          tuft.position.set(at.x, this.floor, at.z); tuft.scale.set(2.5, 1, 2.5);
+          this.scene.add(tuft); this.tufts.push({ m: tuft, t: 0 });
+        }
+        if (laneHits(this._lane.set(this.combX[i], this.floor, a.arenaMin[2]), dir, len, S.width, S.height, P, player.cfg)) { out.hit = S.dmg; out.slow = S.slow; }
+        T.visible = false;
+      });
+      C.wave++; C.t = 0;
+      if (C.wave >= S.waves) { this.comb = null; this.toChase(); }
+    }
+    return 0.8;
+  }
+
   clampIn(q) {
     const a = this.arena;
     q.x = THREE.MathUtils.clamp(q.x, a.arenaMin[0] + 0.05, a.arenaMax[0] - 0.05);
@@ -672,6 +885,7 @@ export class Clog {
   }
 
   toChase() {
+    this.model.root.position.x = 0;
     this.state = 'chase';
     this.stateT = this.angry ? this.def.skills.chase.angryTime : this.def.skills.chase.time;
     this.locked = false;
@@ -682,16 +896,17 @@ export class Clog {
     const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
     const SK = this.def.skills;
-    this.stateT = { lash: (this.angry ? SK.lash.angryWindup : SK.lash.windup) + 0.3, snare: SK.snare.windup, roll: SK.roll.windup, flood: SK.flood.time, shed: SK.shed.time, spray: SK.spray.time }[this.state];
+    this.stateT = { lash: (this.angry ? SK.lash.angryWindup : SK.lash.windup) + 0.3, snare: SK.snare.windup, roll: SK.roll.windup, flood: SK.flood.time, shed: SK.shed.time, spray: SK.spray.time, pinball: 99, comb: 99 }[this.state];
+    this.pin = this.comb = null;
     this.floodMax = this.stateT;
-    ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar() })[this.state]?.();
+    ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar(), pinball: () => sfx.clogRoar(), comb: () => sfx.clogRustle() })[this.state]?.();
     this.prevT = this.stateT;
     this.locked = false;
   }
 
   dispose() {
     this.scene.remove(this.holder);
-    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
+    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
     this.tufts.forEach((f) => this.scene.remove(f.m));
     this.shots.forEach((s) => this.fx.free(s.m));
   }

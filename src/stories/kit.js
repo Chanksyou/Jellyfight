@@ -345,7 +345,7 @@ export const clogFight = () => {
 export const clogAttack = (B, name, P) => {
   if (P) tp(...P, 0);
   B.state = 'chase'; B.stateT = 0;
-  B.next = ['lash', 'snare', 'roll', 'flood', 'shed'].indexOf(name);
+  B.next = (B.angry ? CLOG_ATTACKS.angry : CLOG_ATTACKS.calm).indexOf(name); B.hop = null; B.lift = 0;
 };
 // start a Clog attack with the jelly held still (feet `up` m over the tub floor) at x on the drain's line
 export function clogAgain(B, name, x, up = 0) {
@@ -416,6 +416,7 @@ export const EVERY_ATTACK = {
     whipper: { balloon: { is: 'floor', start: held(startBalloon) }, cream: { is: 'volume', start: held(startSpray) } },
     clog: {
       lash: { is: 'volume', start: atClog('lash') }, snare: { is: 'volume', start: atClog('snare') }, roll: { is: 'volume', start: atClog('roll') }, spray: { is: 'shot', start: atClog('spray') },
+      pinball: { is: 'volume', start: atClog('pinball') }, comb: { is: 'volume', start: atClog('comb') },
       flood: { is: 'hazard' }, shed: { is: 'none' },
     },
   },
