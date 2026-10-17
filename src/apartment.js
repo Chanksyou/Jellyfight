@@ -74,7 +74,9 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
 
 function prepareMeshes(root, meta, renderer) {
   const unpacked = new Set();
-  const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), matchMedia('(pointer: coarse)').matches ? 4 : 8);
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), coarse ? 4 : 8);
+  softenGlass(root, coarse);
   root.traverse((o) => {
     if (!o.isMesh) return;
     // The file stores positions as packed integers (smaller download). The collision BVH
@@ -96,6 +98,27 @@ function prepareMeshes(root, meta, renderer) {
       // Wood grain bump (tagged by tools/exporter.js)
       const bump = /bump:([\d.]+)/.exec(m.name);
       if (bump && m.map) { m.bumpMap = m.map; m.bumpScale = parseFloat(bump[1]); m.needsUpdate = true; }
+    }
+  });
+}
+
+// The apartment's glass (the coffee table and side table tops) is the priciest material
+// in the game on a touch GPU: a physical material whose clearcoat is a whole second
+// specular lobe priced against every lamp, on surfaces that fill the view at the game's
+// grazing camera angles. On a coarse-pointer device it keeps its look — transparent,
+// tinted, environment-lit — but drops the clearcoat and roughens a touch (0.15), which
+// is most of its per-pixel cost. Desktops keep the full glass.
+export function softenGlass(root, coarse) {
+  if (!coarse) return;
+  const done = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (done.has(m) || !m.isMeshPhysicalMaterial || !(m.clearcoat > 0)) continue;
+      done.add(m);
+      m.clearcoat = 0;
+      m.roughness = Math.max(m.roughness, 0.15);
+      m.userData.softened = true;
     }
   });
 }

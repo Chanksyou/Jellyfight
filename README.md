@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v200 phones stop paying for the glass: the coffee table and side table tops are the dearest
+material in the game on a touch GPU (a clearcoat is a second specular lobe priced against every
+lamp), so on a phone the apartment's glass loads without its clearcoat and a little rougher —
+same see-through tinted look, most of the per-pixel cost gone. Desktops keep the full glass.
+
 v199 no more whole black frames: when the frame governor changed the pixel ratio it did so after
 drawing, and resizing the canvas cleared that frame; the change now goes in before the frame is drawn.
 
@@ -214,7 +219,7 @@ The game also runs as a Cloudflare Worker named `jelly-fight` (`wrangler.jsonc`)
 
 ## How it fits together
 
-The apartment is a static 3D model, baked to `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, acts, door angles, the lights at midnight). The game doesn't load that whole file: `tools/split.mjs` cuts it into one file per act, and each act loads only its own rooms. `apartment-act1.glb` (~3.6 MB) is the living room and the hallway you can see down from it (seen only: an invisible wall keeps you out of it in act 1), plus every room's walls, floors and doors, so every view is solid; `apartment-act2.glb` (~1.1 MB) the bathroom and hall closets; `apartment-act3.glb` (~0.9 MB) the bedroom. A stage lists the parts it needs (`parts` in `src/stage1.js`); `GAME.loadRooms(['act2'])` brings in more at the start of a later act (solid, with layout edits, on the minimap, with that act's lamps). Each part is meshopt-compressed (needs WebAssembly) with a `-q` twin used automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game. A few baked pieces that read as flat cutouts at jelly height are replaced at load by detailed models built to their measured boxes (`src/set-dressing.js`): the wall TV (a glossy near-frameless panel on its mount) and its soundbar, and the shower curtain.
+The apartment is a static 3D model, baked to `assets/apartment.glb` (geometry, materials, textures, and doors as separate nodes), plus `assets/apartment.json` (floor plan, acts, door angles, the lights at midnight). The game doesn't load that whole file: `tools/split.mjs` cuts it into one file per act, and each act loads only its own rooms. `apartment-act1.glb` (~3.6 MB) is the living room and the hallway you can see down from it (seen only: an invisible wall keeps you out of it in act 1), plus every room's walls, floors and doors, so every view is solid; `apartment-act2.glb` (~1.1 MB) the bathroom and hall closets; `apartment-act3.glb` (~0.9 MB) the bedroom. A stage lists the parts it needs (`parts` in `src/stage1.js`); `GAME.loadRooms(['act2'])` brings in more at the start of a later act (solid, with layout edits, on the minimap, with that act's lamps). Each part is meshopt-compressed (needs WebAssembly) with a `-q` twin used automatically if WebAssembly is blocked. Nothing from the original apartment app runs in the game. A few baked pieces that read as flat cutouts at jelly height are replaced at load by detailed models built to their measured boxes (`src/set-dressing.js`): the wall TV (a glossy near-frameless panel on its mount) and its soundbar, and the shower curtain. On a phone the baked glass (the coffee and side table tops) is softened at load instead (`softenGlass` in `src/apartment.js`): no clearcoat, roughness at least 0.15 — the clearcoat's second specular lobe against every lamp was the frame-rate cliff when the table filled the view.
 
 `src/boot.js` sets up three.js (r186 from jsDelivr), loads the apartment with `src/apartment.js`, then starts `src/main.js`.
 

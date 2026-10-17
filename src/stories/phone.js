@@ -37,6 +37,18 @@ phone('light-slots-follow-the-jelly', {
       { slots: S.slots.length, lamps: S.lamps.length, lit: S.lit().length, eastLit, westLit, fading, programs, lights, nowPrograms: APT.renderer.info.programs.length });
   },
 });
+phone('glass-loses-its-clearcoat', {
+  about: 'On a phone the apartment\'s glass (the coffee table and side table tops) is softened when the apartment loads: no clearcoat (a whole second specular lobe against every lamp) and roughness at least 0.15, look kept. Desktops keep the full glass.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT } = G();
+    const softened = new Set();
+    APT.scene.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (m.userData?.softened) softened.add(m); });
+    const mats = [...softened];
+    return ok(mats.length >= 1 && mats.every((m) => m.clearcoat === 0 && m.roughness >= 0.15),
+      { softened: mats.length, clearcoat: mats.map((m) => m.clearcoat), roughness: mats.map((m) => m.roughness) });
+  },
+});
 phone('the-first-minute', {
   about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, the first card, the Element pick, then the first Treasure with the minimap.',
   setup() {},
