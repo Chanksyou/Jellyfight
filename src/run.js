@@ -796,7 +796,9 @@ export class Run {
       const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
       const name = levelled ? `${t.name} <small>Lv ${next}${next > 1 ? ' ⬆' : ''}</small>` : t.stack > 1 ? `${t.name} <small>${next}/${t.stack}</small>` : t.name;
       const text = levelled && next > 1 ? t.levelText[next - 1] : t.text;
-      return { ...t, tier: treasureTier(t), name, text };
+      // the pick card's delta line (old → new), only when this take grows the treasure
+      const delta = next < 2 ? null : levelled ? `Lv ${next - 1} → Lv ${next}` : t.stack > 1 ? `×${next - 1} → ×${next}` : null;
+      return { ...t, tier: treasureTier(t), name, text, delta };
     });
     this.offer(title, sub, left);
   }

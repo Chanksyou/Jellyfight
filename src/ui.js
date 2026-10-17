@@ -1,6 +1,11 @@
 // Full-screen choices and messages: level-up cards, treasure reveal, metamorphosis, run end.
 import { STAT_INFO, cardText } from './stats.js';
 
+// How hard a pick card wears its rarity (treasure-pick-screen plan, step 2): the whole
+// card washes and glows in the tier colour, harder the rarer it is — [inner glow %, background wash %].
+// Cards that set neither (level-up cards) keep the original 18% glow and no wash.
+const TIER_TINT = { Common: [18, 0], Rare: [26, 6], Epic: [36, 12], Legendary: [48, 20] };
+
 const CSS = `
 .jf-modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 10, 22, .62); z-index: 30;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; text-align: center; animation: jfIn .18s ease-out; }
@@ -9,9 +14,12 @@ const CSS = `
 .jf-modal h2 { margin: 0; font-size: 34px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0009; }
 .jf-modal .sub { margin: 6px 0 22px; opacity: .85; font-size: 15px; }
 .jf-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
-.jf-card { width: 200px; min-height: 190px; border-radius: 18px; background: #1d2034; border: 3px solid var(--c); cursor: pointer; font: inherit; color: inherit;
+.jf-card { width: 200px; min-height: 190px; border-radius: 18px; background: color-mix(in srgb, var(--c) var(--wash, 0%), #1d2034); border: 3px solid var(--c); cursor: pointer; font: inherit; color: inherit;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 14px; position: relative;
-  box-shadow: 0 8px 28px #0008, inset 0 0 40px color-mix(in srgb, var(--c) 18%, transparent); transition: transform .12s; }
+  box-shadow: 0 8px 28px #0008, inset 0 0 40px color-mix(in srgb, var(--c) var(--tint, 18%), transparent); transition: transform .12s; }
+.jf-card.jf-sheen { background-image: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--c) 22%, transparent) 48%, transparent 62%); }
+.jf-pick .ic { font-size: 56px; }
+.jf-card .delta { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); padding: 2px 8px; border-radius: 999px; }
 .jf-card:hover, .jf-card:focus-visible { transform: translateY(-6px) scale(1.03); outline: none; }
 .jf-card .ic { font-size: 44px; line-height: 1.1; }
 .jf-card .big { font-size: 22px; font-weight: 800; }
@@ -45,6 +53,8 @@ const CSS = `
   .jf-cards { gap: 8px; flex-wrap: nowrap; padding: 0 8px; }
   .jf-card { width: min(190px, 31vw); min-height: 0; padding: 12px 8px; border-radius: 14px; gap: 3px; }
   .jf-card .ic { font-size: 30px; }
+  .jf-pick .ic { font-size: 34px; }
+  .jf-card .delta { font-size: 11px; }
   .jf-card .big { font-size: 15px; }
   .jf-card .txt { font-size: 12px; }
   .jf-card .now { font-size: 11px; }
@@ -119,13 +129,15 @@ export class UI {
     };
   }
 
-  // choices: [{ icon, name, text }]
+  // choices: [{ icon, name, text, tier?, delta? }] — the pick screen's order (plan step 1):
+  // name, the big icon, the rarity written out, what it does, and a delta line when the
+  // treasure grows (Lv 1 → Lv 2, ×1 → ×2)
   choose(title, sub, choices, onPick) {
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
-      <div class="jf-cards">${choices.map((c, i) => `
-        <button class="jf-card" data-i="${i}" style="--c:${c.tier?.color || '#7ff6ee'}">
-          <span class="key">${i + 1}</span><span class="ic">${c.icon}</span><span class="big">${c.name}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>
-        </button>`).join('')}</div></div>`;
+      <div class="jf-cards jf-pick">${choices.map((c, i) => { const [tint, wash] = TIER_TINT[c.tier?.name] || [18, 0]; return `
+        <button class="jf-card${c.tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" style="--c:${c.tier?.color || '#7ff6ee'}; --tint:${tint}%; --wash:${wash}%">
+          <span class="key">${i + 1}</span><span class="big">${c.name}</span><span class="ic">${c.icon}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>${c.delta ? `<span class="delta">${c.delta}</span>` : ''}
+        </button>`; }).join('')}</div></div>`;
     this.modal.hidden = false;
     const pick = (i) => { const c = choices[i]; if (!c) return; this.close(); onPick(c); };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };

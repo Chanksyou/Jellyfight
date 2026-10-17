@@ -138,6 +138,32 @@ story('treasures/the-pick-keeps-the-chests-promise', {
     return ok(kept, { kept });
   },
 });
+story('treasures/pick-screen-order-and-rarity', {
+  about: 'The treasure pick screen (UI.choose): name first, then the big icon, the rarity written out, the text, and a delta line when the treasure grows (Lv 1 → Lv 2, ×1 → ×2). The whole card wears its rarity: an Epic card washes and glows harder than a Common one, a Legendary gets the sheen.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G(), ui = run.ui;
+    let picked = null;
+    ui.choose('✨ A treasure!', 'Pick one to keep.', [
+      { icon: '🧲', name: 'Plain Magnet', text: 'Pulls XP in.', tier: { name: 'Common', color: '#cfd6e0' } },
+      { icon: '🔮', name: 'Deep Orb', text: 'Does something epic.', tier: { name: 'Epic', color: '#c77bff' }, delta: 'Lv 1 → Lv 2' },
+      { icon: '👑', name: 'Old Crown', text: 'Rule changer.', tier: { name: 'Legendary', color: '#ffe9a0' }, delta: '×1 → ×2' },
+    ], (c) => { picked = c; });
+    const cards = [...ui.modal.querySelectorAll('.jf-card')];
+    const inOrder = cards.every((el) => {
+      const kids = [...el.children], at = (s) => kids.indexOf(el.querySelector(s));
+      return at('.big') < at('.ic') && at('.ic') < at('.rar') && at('.rar') < at('.txt');
+    });
+    const tints = cards.map((el) => el.style.getPropertyValue('--tint'));
+    const deltas = cards.map((el) => el.querySelector('.delta')?.textContent || null);
+    const sheen = cards.map((el) => el.classList.contains('jf-sheen'));
+    cards[1].click();
+    const closed = ui.modal.hidden && picked && picked.name === 'Deep Orb';
+    ui.close();
+    return ok(cards.length === 3 && inOrder && tints.join() === '18%,36%,48%' && deltas.join() === ',Lv 1 → Lv 2,×1 → ×2'
+      && sheen.join() === 'false,false,true' && closed, { tints, deltas, sheen, closed });
+  },
+});
 story('treasures/levels', {
   about: 'Treasures with level blocks (Fairy Lights) level up when taken again: 3 bulbs, then 4, then 5; the pick offers only the next level ("Lv 2" with what it adds), and nothing past level 3.',
   setup() { setupFight({ lash: false }); },
