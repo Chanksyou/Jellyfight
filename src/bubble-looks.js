@@ -107,6 +107,14 @@ export class BubbleLooks {
     scene.add(this.arcs);
     this.arcN = 0;
     this.arcMax = MAX;
+    // the lightning's chain bolts while they flicker (strike): pooled, at most BOLTS at once
+    this.live = [];
+    this.boltPool = [];
+    this.path = Array.from({ length: 17 }, () => new THREE.Vector3());
+    this.L = {
+      core: C(LOOK.color('bolt-core', '#fffbe8')), halo: C(LOOK.color('bolt-halo', '#ffd21a')), flash: C(LOOK.color('bolt-flash', '#fff6c8')),
+      life: LOOK.num('bolt-life', 0.2), width: LOOK.num('bolt-width', 0.005), jag: LOOK.num('bolt-jag', 0.22), most: LOOK.num('bolt-most', 12),
+    };
   }
 
   // a projectile for element `el` (pooled)
@@ -185,8 +193,10 @@ export class BubbleLooks {
     const glow = this.fx.glow, [a, b] = this.tones(el);
     glow.emit(pos, b, r * 3.2, r * 0.6, 0.09, 1.3);                                    // the sharp contact
     if (el === 'lightning') {
-      glow.emit(pos, a, r * 6, r * 2, 0.14, 0.6);
-      for (let k = 0; k < 5; k++) this.bolt([_a.copy(pos), _b.copy(pos).add(_v.randomDirection().multiplyScalar(r * (3 + Math.random() * 2)))], r * 0.5);   // forks crackling off it
+      glow.emit(pos, this.L.flash, r * 14, r * 4, 0.06, 1.2);                                // a white flash that lights up round it
+      glow.emit(pos, a, r * 7, r * 2, 0.18, 0.7);
+      for (let k = 0; k < 6; k++) this.strike(pos, _b.copy(pos).add(_v.randomDirection().multiplyScalar(r * (4 + Math.random() * 3))), r * 0.35);   // forks crackling off it
+      for (let k = 0; k < 10; k++) glow.emit(pos, k % 2 ? COL.spark : COL.bolt, r * 0.45, 0, 0.25 + Math.random() * 0.25, 1, _v.randomDirection().multiplyScalar(0.25 + Math.random() * 0.3), 1.2);   // sparks spat out
     } else if (el === 'ice') {
       this.fx.burst(pos, ['#e8f8ff', '#9fe8ff', '#6ad0ff'], 8, r * 0.45, 0.32, pos.y - 0.03);   // shards of ice
       for (let k = 0; k < 5; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 1.5)), COL.snow, r * 0.5, r * 0.3, 0.8 + Math.random() * 0.5, 0.9, _a.set((Math.random() - 0.5) * 0.03, 0.01, (Math.random() - 0.5) * 0.03), 0.06);   // frost settling
@@ -216,6 +226,60 @@ export class BubbleLooks {
       for (let s = 1; s <= 3; s++) glow.emit(_t.copy(m).addScaledVector(_d, s), COL.bolt, w * (1.6 - s * 0.35), 0, 0.1, 0.8);
     }
   }
+
+  // A jagged path from a to b into this.path (midpoint displacement: big bends, then smaller
+  // kinks on them), `jag` its sideways reach as a share of its length. Returns the point count.
+  jagged(a, b, jag) {
+    const P = this.path, n = 16, len = a.distanceTo(b);
+    P[0].copy(a); P[n].copy(b);
+    for (let step = n; step > 1; step >>= 1) {
+      const off = len * jag * (step / n);
+      for (let i = step >> 1; i < n; i += step) P[i].copy(P[i - (step >> 1)]).lerp(P[i + (step >> 1)], 0.5).add(_v.randomDirection().multiplyScalar(off * (0.5 + Math.random() * 0.5)));
+    }
+    return n + 1;
+  }
+
+  // A chain bolt from a to b (bubbles.js zap: it only ever joins things the chain really hit).
+  // For its short life it re-strikes in a new shape every frame and flickers, a crisp line inside
+  // a bright core inside a yellow halo, thickest in the middle and tapering to both ends, a fork or
+  // two off it; it flashes where it lands and fades to an afterimage.
+  strike(a, b, w = this.L.width) {
+    if (this.live.length >= this.L.most) return;
+    const s = this.boltPool.pop() || { a: new THREE.Vector3(), b: new THREE.Vector3() };
+    s.a.copy(a); s.b.copy(b); s.t = 0; s.w = w;
+    this.live.push(s);
+    this.fx.glow.emit(b, this.L.flash, w * 9, w * 2, 0.12, 1.4);                           // where it lands
+  }
+  tickBolts(dt) {
+    if (!this.live.length) return;
+    const L = this.L, glow = this.fx.glow;
+    for (const s of this.live) {
+      s.t += dt;
+      const k = s.t / L.life;
+      if (k >= 1) continue;
+      const flick = k < 0.15 ? 1.4 : (Math.random() < 0.3 ? 0.35 : 1) * (1 - k * 0.8);   // a hard first frame, then it stutters out
+      const n = this.jagged(s.a, s.b, L.jag), P = this.path;
+      let h = 0;
+      for (let i = 1; i < n; i++) {
+        // glow beads packed closely enough along each kink to read as one solid stroke
+        const seg = P[i - 1].distanceTo(P[i]), beads = Math.min(6, Math.max(1, Math.ceil(seg / (s.w * 1.1))));
+        for (let q = 0; q < beads; q++) {
+          const f = (i - 1 + q / beads) / (n - 1), w = s.w * (0.3 + 0.7 * Math.sin(Math.PI * f));
+          _t.copy(P[i - 1]).lerp(P[i], q / beads);
+          glow.hold(_t, L.core, w * 1.3, flick);
+          if (h++ % 2 === 0) glow.hold(_t, L.halo, w * 3.4, 0.4 * flick);
+        }
+        if (this.arcN + 2 <= this.arcMax) { this.arcPos.set([P[i - 1].x, P[i - 1].y, P[i - 1].z, P[i].x, P[i].y, P[i].z], this.arcN * 3); this.arcN += 2; }
+      }
+      if (Math.random() < 0.6) {                                                            // a fork off a random kink
+        const at = P[2 + ((Math.random() * (n - 4)) | 0)];
+        _d.randomDirection().multiplyScalar(s.w * 3);
+        for (let j = 1; j <= 3; j++) glow.hold(_t.copy(at).addScaledVector(_d, j), L.halo, s.w * (1.6 - j * 0.4), 0.7 * flick);
+      }
+    }
+    for (let i = this.live.length - 1; i >= 0; i--) if (this.live[i].t >= L.life) this.boltPool.push(this.live.splice(i, 1)[0]);
+  }
+  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; }
 
   fireLaunch(pos, r) {
     const F = this.fire;
@@ -314,6 +378,8 @@ export class BubbleLooks {
           }
         }
         if (tick && Math.random() < 0.5) glow.emit(m.position, COL.spark, r * 0.7, r * 0.1, 0.18, 1, _v.randomDirection().multiplyScalar(0.25));
+        if (tick) for (let k = 0; k < Math.min(3, steps); k++) glow.emit(along(k), COL.bolt, r * 1.6, r * 0.2, 0.12, 0.5);   // a crackling streak behind it
+        if (Math.random() < dt * 8) this.strike(m.position, _b.copy(m.position).add(_v.randomDirection().multiplyScalar(r * 7)), r * 0.3);   // now and then it spits an arc out
         break;
       }
       case 'ice': {

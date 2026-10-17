@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v191 lightning really crackles: chain bolts flicker and re-strike in new jagged shapes (white
+core, yellow halo, tapered, forked) only to bugs they really hit, each jump's zap climbing in pitch;
+a hit flashes white with forks, sparks and a scorch, a crack and a rumble of thunder; the ball spits
+arcs as it flies, and stunned bugs crackle with little arcs. No numbers changed.
+
 v190 the Elements hit harder to the eye and ear: each gathers at the bell before it fires, the
 bell squeezes as it leaves with a launch flash and sound, and each lands its own way (lightning
 forks and tapered chain bolts, ice shards and frost, acid droplets, glitter confetti and twinkles)

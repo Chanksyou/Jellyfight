@@ -369,9 +369,9 @@ export class Enemies {
       if (slowed) e.slowRing.rotation.y += dt * 2.5;
     }
     // stunned (lightning): sparks crackle over it for exactly as long as the stun lasts
-    if (e.stunT > 0 && !e.dead && Math.random() < dt * 25) {
-      const at = this.center(e, S.spot).add(S.ray.randomDirection().multiplyScalar(e.r * 0.9));
-      this.fx.glow.emit(at, STUN, e.r * 0.35, 0, 0.09, 1, S.want.randomDirection().multiplyScalar(0.08));
+    if (e.stunT > 0 && !e.dead && Math.random() < dt * 20) {                  // a little arc jumping across it
+      const c = this.center(e, S.o), a = S.spot.copy(c).add(S.ray.randomDirection().multiplyScalar(e.r)), b = S.away.copy(c).add(S.want.randomDirection().multiplyScalar(e.r));
+      for (let i = 0; i <= 4; i++) this.fx.glow.emit(S.ray.copy(a).lerp(b, i / 4).add(S.want.randomDirection().multiplyScalar(e.r * 0.15)), STUN, e.r * (i % 4 ? 0.3 : 0.18), 0, 0.08, 1);
     }
   }
 

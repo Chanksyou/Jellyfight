@@ -152,6 +152,13 @@
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
+  --bolt-core: #fffbe8;         /* lightning's chain bolts: the white-hot core, */
+  --bolt-halo: #ffd21a;         /* the yellow halo round it, */
+  --bolt-flash: #fff6c8;        /* and the flash where one lands */
+  --bolt-life: 0.2;             /* s a chain bolt flickers before it's gone */
+  --bolt-width: 0.005;          /* m, a bolt at its thickest (the middle; it tapers to both ends) */
+  --bolt-jag: 0.22;             /* how far a bolt bends off the straight line, as a share of its length */
+  --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
   --venom: #8dff5a;              /* Box Jelly: venom strands and the puffs of a venomed bug */

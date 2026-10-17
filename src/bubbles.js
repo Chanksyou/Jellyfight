@@ -45,6 +45,7 @@ const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE
 const GOLD = new THREE.Color(0xffd86a);
 const _zero = new THREE.Vector3();
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
+const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
 // share of power each element deals (see the top of the file)
 export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
@@ -81,7 +82,6 @@ export class Bubbles {
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
-    this.zaps = [];
     this.puddles = [];
     this.zapMat = new THREE.LineBasicMaterial({ color: 0xfff27a, transparent: true });
     this.acidMat = new THREE.MeshBasicMaterial({ color: 0x7aff4a, transparent: true, opacity: 0.55, depthWrite: false });
@@ -98,9 +98,8 @@ export class Bubbles {
     this.list.forEach((b) => this.release(b, true));
     this.list = [];
     this.burning.clear();
-    this.zaps.forEach((z) => { this.scene.remove(z.line); z.line.geometry.dispose(); z.line.material.dispose(); });   // each zap cloned zapMat: free both, or a restart leaks them
+    this.looks.clearBolts();
     this.puddles.forEach((p) => this.scene.remove(p.m));
-    this.zaps = [];
     this.puddles = [];
     this.timer = 0;
     this.elTimers = {};
@@ -356,6 +355,7 @@ export class Bubbles {
       const reach = b.range ? b.range * 1.4 : maxTravel;
       if (!b.done && (b.travel > reach || b.t > reach / b.speed + 0.5)) this.pop(b, null, stats, mods);   // out of range, or (whatever happened) too long in the air
     }
+    this.looks.tickBolts(dt);
     this.looks.endFrame();
     const done = this.list.filter((b) => b.done);
     done.forEach((b) => this.release(b));
@@ -445,8 +445,6 @@ export class Bubbles {
       if (f.tick <= 0) { f.tick = 0.5; sfx.fireBurn(); bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#ffa65a', source: 'fire' }); }
       if (f.t <= 0) this.burning.delete(e);
     }
-    for (const z of this.zaps) { z.t -= dt; z.line.material.opacity = Math.max(0, z.t / 0.2); if (z.t <= 0) { this.scene.remove(z.line); z.line.geometry.dispose(); z.line.material.dispose(); } }   // the material is a per-zap clone of zapMat
-    this.zaps = this.zaps.filter((z) => z.t > 0);
     for (const p of this.puddles) {
       p.t -= dt;
       p.m.scale.setScalar(p.r * Math.min(1, p.t * 2, (p.life - 0.5 - p.t) * 6 + 0.3));
@@ -477,18 +475,10 @@ export class Bubbles {
     this.burning.set(e, { t: ep?.burnTime ?? 3, dps: pw * ELEMENT.burn * (ep?.burn ?? 1), pw, ep, tick: had?.tick ?? 0.25, flame: 0 });
   }
 
-  zap(from, to) {
-    const pts = [from.clone()];
-    for (let k = 1; k < 5; k++) pts.push(from.clone().lerp(to, k / 5).add(new THREE.Vector3().randomDirection().multiplyScalar(0.006)));
-    pts.push(to.clone());
-    this.looks.bolt(pts);                 // the bolt's body: a bright core in a yellow halo, thick in the middle, tapering
-    sfx.zap();
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat.clone());
-    this.scene.add(line);
-    this.zaps.push({ line, t: 0.25 });
-    const line2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((q, i) => (i && i < pts.length - 1 ? q.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(0.004)) : q))), this.zapMat.clone());
-    this.scene.add(line2);
-    this.zaps.push({ line: line2, t: 0.18 });
+  // a bolt jumping from one thing to the next (a chain's k-th jump: each one higher-pitched)
+  zap(from, to, k = 0) {
+    this.looks.strike(from, to);
+    sfx.chainZap(k);
     this.fx.puff(to, 0xfff6a0, 0.012, 0.15);
   }
 
@@ -534,16 +524,18 @@ export class Bubbles {
     if (b.elems.has('lightning')) {
       let from = p.clone();
       const hit = new Set(b.hit);
+      this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), SCORCH, b.r * 2.2);   // a scorch where it struck (harmless, fades)
       for (let k = 0, n = b.ep?.chain ?? 3; k < n; k++) {
         const e = this.inRange(from, b.ep?.chainRange ?? 0.16, hit)[0];
         if (!e) break;
         hit.add(e);
         const to = E.center(e, c).clone();
-        this.zap(from, to);
+        this.zap(from, to, k);
         bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * (b.ep?.bolt ?? 1), color: '#fff27a', source: 'lightning' });
         bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: b.ep?.stun ?? 0.5 });
         from = to;
       }
+      if (hit.size - b.hit.size >= 2) juice.feel('hit-big');                                // a chain that really jumps lands harder
     }
     // Acid: leave a puddle that eats at anything standing in it
     if (b.elems.has('acid') && this.puddles.length < (b.ep?.puddles ?? 6)) {

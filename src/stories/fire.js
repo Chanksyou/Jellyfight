@@ -67,7 +67,7 @@ story('attack/element-feel', {
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0)), out = {};
     const n = {}, spy = (o, k) => { const fn = o[k].bind(o); stub(o, k, (...a) => { n[k] = (n[k] || 0) + 1; return fn(...a); }); };
-    spy(player.avatar, 'pulse'); spy(B.looks, 'gather'); spy(B.looks, 'launch'); spy(B.looks, 'contact'); spy(B.looks, 'bolt'); spy(sfx, 'elementLaunch'); spy(sfx, 'elementHit');
+    spy(player.avatar, 'pulse'); spy(B.looks, 'gather'); spy(B.looks, 'launch'); spy(B.looks, 'contact'); spy(B.looks, 'strike'); spy(sfx, 'elementLaunch'); spy(sfx, 'elementHit');
     for (const [el, id] of Object.entries(ELEMENT_OF)) {
       run.owned = new (run.owned.constructor)(); run.owned.add(id); step(1);
       B.reset(); for (const k in n) n[k] = 0;
@@ -77,9 +77,9 @@ story('attack/element-feel', {
       B.reset(); for (const k in n) n[k] = 0;
       B.elementVolley(el, P, origin, run.S, M);
       const released = n.pulse === 1 && n.launch === 1 && n.elementLaunch === 1 && B.list.length >= 1;
-      const bolts0 = n.bolt || 0;
+      const bolts0 = n.strike || 0;
       for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, M); B.effects(1 / 60, run.S); }
-      const landed = n.contact === 1 && n.elementHit === 1, chained = el !== 'lightning' || n.bolt - bolts0 >= 1;
+      const landed = n.contact === 1 && n.elementHit === 1, chained = el !== 'lightning' || n.strike - bolts0 >= 1;
       const stunned = el !== 'lightning' || enemies.list.some((e) => e.stunT > 0);
       B.reset(); for (const k in n) n[k] = 0;
       B.blow(origin, null, { dir: V(1, 0, 0), size: 1, dmg: 1, tint: el, elems: [el], ep: P, pierce: 1, range: 0.03 });
@@ -88,5 +88,28 @@ story('attack/element-feel', {
       out[el] = { gathered, released, landed, chained, stunned, missQuiet };
     }
     return ok(Object.values(out).every((o) => Object.values(o).every(Boolean)), out);
+  },
+});
+
+story('attack/lightning-chain', {
+  about: 'Lightning\'s chain only ever joins bugs it really hits: each jump draws a flickering bolt to a bug that takes the bolt\'s damage and is stunned, each jump\'s zap a step higher than the last, a far bug out of chain range gets none; the bolts flicker out within a moment and a reset clears them.',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.07, -0.25); roachAt(-0.06, -0.3); roachAt(0.8, 0.8); step(2); },
+  play() {
+    const { run, player, enemies } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0));
+    run.owned = new (run.owned.constructor)(); run.owned.add('battery'); step(1);
+    const jumps = [], pitches = [], log = record('damage_taken');
+    const zap = B.zap.bind(B); stub(B, 'zap', (from, to, k) => { jumps.push(to.clone()); return zap(from, to, k); });
+    stub(sfx, 'chainZap', (k) => { pitches.push(k); });
+    B.elementVolley('lightning', run.mods.element.lightning, origin, run.S, run.mods);
+    for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+    const bolted = dmgBy(log, 'lightning').map((d) => d.targetId), far = enemies.list[3];
+    const honest = jumps.length >= 2 && jumps.every((to) => enemies.list.some((e) => bolted.includes(e.id) && enemies.center(e).distanceTo(to) < 1e-6));
+    const stunned = enemies.list.filter((e) => bolted.includes(e.id)).every((e) => e.stunT > 0), farUntouched = !bolted.includes(far.id) && !(far.stunT > 0);
+    const live = B.looks.live.length;
+    for (let i = 0; i < 30; i++) B.fly(1 / 60, run.S, run.mods);
+    const faded = B.looks.live.length === 0;
+    B.looks.strike(origin, origin.clone().add(V(0, 0, -0.1))); B.reset();
+    const climbing = pitches.every((k, i) => k === i);
+    return ok(honest && stunned && farUntouched && live > 0 && faded && !B.looks.live.length && climbing, { jumps: jumps.length, bolted: bolted.length, honest, stunned, farUntouched, live, faded, pitches });
   },
 });
