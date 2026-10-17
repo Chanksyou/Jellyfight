@@ -9,7 +9,7 @@ import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
-import { G, V, fresh, near, ok, spawn, step, story, tp } from './kit.js';
+import { G, V, fresh, near, ok, spawn, step, story, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
 function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
@@ -279,6 +279,22 @@ story('engine/frame-cap-60', {
     const menu = count(new FramePacer({ fps: 60, menuFps: 20 }), 60, 2, true);
     const free = count(new FramePacer({ fps: 0 }), 144, 1);
     return ok(at120 === 120 && at60 === 120 && menu >= 38 && menu <= 42 && free === 144, { at120, at60, menu, free });
+  },
+});
+story('engine/no-black-frame-when-the-pixel-ratio-changes', {
+  about: 'A frame where the governor changes the pixel ratio is still drawn: the change goes in before the frame is drawn, because resizing the canvas clears it (made after drawing, that frame showed whole black).',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); step(2); },
+  play() {
+    const { APT, GAME } = G(), r = APT.renderer, gl = r.getContext(), px = new Uint8Array(4);
+    const blank = () => { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(gl.drawingBufferWidth >> 1, gl.drawingBufferHeight >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return px[0] + px[1] + px[2] + px[3] === 0; };
+    const from = r.getPixelRatio(), to = from === 1 ? 1.25 : 1;
+    let asked = 0;
+    stub(window.pacing.pacer, 'due', () => true);
+    stub(window.pacing.governor, 'sample', () => (asked++ ? null : { scale: to }));
+    GAME.frame(performance.now() + 1000);
+    const changed = r.getPixelRatio() === to, black = blank();
+    r.setPixelRatio(from); G().gfx.resize();
+    return ok(asked === 1 && changed && !black, { asked, changed, black, from, to });
   },
 });
 story('engine/governor-sheds-pixels-when-slow', {

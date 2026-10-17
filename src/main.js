@@ -33,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v197';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v198';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -702,20 +702,23 @@ document.addEventListener('visibilitychange', () => {
 
 const clock = new Clock();
 let lastFrame = 0;
-renderer.setAnimationLoop((now) => {
+// One animation frame. The governor's pixel-ratio change goes in before the frame is drawn:
+// resizing the canvas clears it, so a change made after drawing showed as a whole black frame.
+GAME.frame = (now) => {
   const covered = !overlay.hidden || menus.open || kit.open;
   if (!pacer.due(now, covered)) return;
   const ms = now - lastFrame;
   lastFrame = now;
   const dt = clock.tick(now);
   try {
+    if (!covered && state.mode === 'play' && !run.paused) adapt(ms);
     GAME.step(dt);
     GAME.render();
-    if (!covered && state.mode === 'play' && !run.paused) adapt(ms);
   } catch (e) {
     reportError(e, 'frame');
   }
-});
+};
+renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
 Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });

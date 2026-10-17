@@ -4,6 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v198 no more whole black frames: when the frame governor changed the pixel ratio it did so after
+drawing, and resizing the canvas cleared that frame; the change now goes in before the frame is drawn.
+
 v197 acid is juicier: a sloshing, dripping, fuming glob; a hit splashes a crown of drops with sizzle
 smoke; the puddle is a living pool (a wobbly glowing edge, ripples, blisters swelling and popping, fumes)
 that splats in, bites bugs in it with a green sizzle and visibly dries up as it ends. Small damage ticks
