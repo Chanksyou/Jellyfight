@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v194 the Clog fight is livelier: it bounds after you in squashing hops, bumping into it is a heavy wet
+v195 the Clog fight is livelier: it bounds after you in squashing hops, bumping into it is a heavy wet
 slam (3, thrown back, tangled, a big shake), and it has two new attacks with set dodges: pinball (three
 leaps that slam where you were, then a ring wave to jump) and comb (hair curtains in alternating lanes:
 step into the lane that just struck). Its lash, snare and roll crash now shake the screen.
