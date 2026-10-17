@@ -215,12 +215,14 @@ export class RoomTreasure {
 
   // The open itself: the chest strains first (trembling, squashing down, its glow swelling
   // in the tier colour), then the lid pops and the treasure bursts out in that colour, with
-  // dust at its base and three sparks arcing out as the pick arrives. An Elite's chest
-  // builds for most of a second; a room chest is a quick snap, so a run never waits on it.
-  // The timer is frozen while it opens: touching it in time was enough.
+  // dust at its base and three sparks arcing out. Then a reveal beat: the chest sits open
+  // and glowing before the pick is offered — without it the pick screen arrives on the
+  // very frame of the pop and covers its own payoff, and nobody sees the chest open.
+  // An Elite's chest builds for most of a second; a room chest is a quick snap, so a run
+  // never waits on it. The timer is frozen while it opens: touching it in time was enough.
   stepOpening(dt) {
     const p = this.g.position, elite = !this.timed;
-    const A = elite ? 0.45 : 0.10, S = elite ? 0.30 : 0.15;
+    const A = elite ? 0.45 : 0.10, S = elite ? 0.30 : 0.15, R = elite ? 0.5 : 0.35;
     this.opening += dt;
     const o = this.opening;
     if (o < A) {
@@ -242,12 +244,24 @@ export class RoomTreasure {
         this.fx.glow.emit(_v.copy(p).setY(p.y + 0.03), this.tierColor, 0.011, 0.002, 0.6, 1, _w, 0.55);
       }
     }
-    const q = Math.min(1, (o - A) / S), e = 1 + 2.70158 * (q - 1) ** 3 + 1.70158 * (q - 1) ** 2;   // easeOutBack: the lid overshoots and settles
-    this.lidPivot.rotation.x = -1.85 * e;
-    const pop = 1 + 0.07 * (1 - q);
-    this.chest.scale.set(1.5 * pop, 1.5 * pop, 1.5 * pop);
-    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.03), this.tierColor, (elite ? 0.17 : 0.12) * (1 - q * 0.6), 0.95);
-    if (o >= A + S) { this.hide(); return 'taken'; }
+    if (o < A + S) {
+      const q = Math.min(1, (o - A) / S), e = 1 + 2.70158 * (q - 1) ** 3 + 1.70158 * (q - 1) ** 2;   // easeOutBack: the lid overshoots and settles
+      this.lidPivot.rotation.x = -1.85 * e;
+      const pop = 1 + 0.07 * (1 - q);
+      this.chest.scale.set(1.5 * pop, 1.5 * pop, 1.5 * pop);
+      this.fx.glow.hold(_v.copy(p).setY(p.y + 0.03), this.tierColor, (elite ? 0.17 : 0.12) * (1 - q * 0.6), 0.95);
+      return null;
+    }
+    // the reveal beat: lid up, glow held, a spark drifting now and then — then the pick
+    this.lidPivot.rotation.x = -1.85;
+    this.chest.scale.setScalar(1.5);
+    this.fx.glow.hold(_v.copy(p).setY(p.y + 0.03), this.tierColor, elite ? 0.15 : 0.11, 0.95);
+    if ((this.sparkT -= dt) <= 0) {
+      this.sparkT = 0.22 + Math.random() * 0.2;
+      _w.set((Math.random() - 0.5) * 0.02, 0.05 + Math.random() * 0.03, (Math.random() - 0.5) * 0.02);
+      this.fx.glow.emit(_v.copy(p).setY(p.y + 0.035), this.tierColor, 0.008, 0.001, 0.6, 1, _w, -0.01);
+    }
+    if (o >= A + S + R) { this.hide(); return 'taken'; }
     return null;
   }
 }

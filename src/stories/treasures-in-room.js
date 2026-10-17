@@ -55,7 +55,7 @@ story('treasures/touch-the-chest', {
     let offered = false, tiers = [];
     stub(run.ui, 'choose', (tt, s, list) => { offered = true; tiers = list.map((c) => c.rarity); });
     tp(p.x, p.y + 0.01, p.z);
-    step(30, () => offered);   // the chest strains and pops first (~0.25 s) before the pick
+    step(50, () => offered);   // the chest strains, pops and sits open (~0.6 s) before the pick
     const roomTiers = tiers.every((r) => r === 'common' || r === 'rare');   // a room chest: Common and Rare
     return ok(offered && !t.active && small && roomTiers, { offered, small, tiers, size: r3(size), at: r3(p) });
   },
@@ -83,7 +83,7 @@ story('treasures/elites-leave-a-chest', {
     const noPickYet = picks === 0, noHeal = run.health === h0;
     step(60 * 60);                                          // a minute later, both still wait
     const stayed = waiting(false).length === 2;
-    tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(80, () => picks);   // an Elite's chest builds ~0.75 s before its pick
+    tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(110, () => picks);   // an Elite's chest builds and sits open (~1.25 s) before its pick
     const eliteTiers = tiers.every((r) => r === 'rare' || r === 'epic');   // an Elite's chest: Rare and Epic
     return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active && eliteTiers,
       { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, tiers, health: run.health });
@@ -104,7 +104,7 @@ story('treasures/chest-glow-tells-its-best', {
   },
 });
 story('treasures/chest-opens-with-a-snap', {
-  about: 'Touching a chest doesn\'t open it at once: it strains (shaking, squashing) and its lid pops before the pick is offered. An Elite\'s chest builds for most of a second; a room chest is a quick snap.',
+  about: 'Touching a chest doesn\'t open it at once: it strains (shaking, squashing), its lid pops, and then it sits open and glowing for a beat before the pick is offered — without the beat the pick screen covers the pop\'s own frame. An Elite\'s chest builds for most of a second; a room chest is a quick snap.',
   setup() { fresh({ elites: false, treasures: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G();
@@ -115,18 +115,19 @@ story('treasures/chest-opens-with-a-snap', {
       const P = run.player.position.clone();
       const t = run.placeTreasure(V(P.x, P.y, P.z), stay);
       tp(P.x, P.y + 0.01, P.z);
-      let frames = 0, strained = false, lid = 0;
-      while (!offered && frames < 120) {
+      let frames = 0, strained = false, lid = 0, lidAt = 0;
+      while (!offered && frames < 140) {
         G().GAME.step(1 / 60); frames++;
         if (t.opening !== null) strained = true;
         lid = Math.min(lid, t.lidPivot.rotation.x);
+        if (!lidAt && lid < -1.5) lidAt = frames;
       }
       const done = offered === 1 && !t.active; offered = 0;
-      return { frames, strained, lid: +lid.toFixed(2), done };
+      return { frames, strained, lid: +lid.toFixed(2), seenOpenFor: frames - lidAt, done };
     };
     const room = open(22);
     const elite = open(Infinity);
-    return ok(room.done && elite.done && room.frames <= 22 && elite.frames >= 40 && elite.frames <= 62
-      && room.lid < -1.2 && elite.lid < -1.2 && elite.strained, { room, elite });
+    return ok(room.done && elite.done && room.frames >= 30 && room.frames <= 46 && elite.frames >= 68 && elite.frames <= 88
+      && room.lid < -1.2 && elite.lid < -1.2 && elite.strained && room.seenOpenFor >= 15 && elite.seenOpenFor >= 15, { room, elite });
   },
 });
