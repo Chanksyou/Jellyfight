@@ -17,8 +17,20 @@ const CSS = `
 .jf-card { width: 200px; min-height: 190px; border-radius: 18px; background: color-mix(in srgb, var(--c) var(--wash, 0%), #1d2034); border: 3px solid var(--c); cursor: pointer; font: inherit; color: inherit;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 14px; position: relative;
   box-shadow: 0 8px 28px #0008, inset 0 0 40px color-mix(in srgb, var(--c) var(--tint, 18%), transparent); transition: transform .12s; }
-.jf-card.jf-sheen { background-image: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--c) 22%, transparent) 48%, transparent 62%); }
+.jf-card.jf-sheen { background-image: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--c) 22%, transparent) 48%, transparent 62%); background-size: 230% 100%; background-position: 65% 0; }
+@keyframes jfSheen { 0% { background-position: 130% 0; } 42% { background-position: -30% 0; } 100% { background-position: -30% 0; } }
 .jf-pick .ic { font-size: 56px; }
+.jf-pick .jf-card { animation: jfDeal .3s ease-out backwards; animation-delay: var(--d, 0ms); }
+@keyframes jfDeal { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+/* a Legendary pick card runs the deal-in and the sheen sweep together (the two
+   animations touch different properties); declared together so neither replaces the other */
+.jf-pick .jf-card.jf-sheen { animation: jfDeal .3s ease-out backwards, jfSheen 3.6s ease-in-out infinite; animation-delay: var(--d, 0ms), 0ms; }
+.jf-pick .jf-card.jf-won { animation: jfWon .5s ease-out; }
+@keyframes jfWon { 30% { transform: scale(1.06); box-shadow: 0 10px 34px #000a, inset 0 0 60px color-mix(in srgb, var(--c) 45%, transparent); } }
+.jf-pick .jf-card.jf-burn { animation: jfBurn .62s ease-in forwards; pointer-events: none; }
+@keyframes jfBurn { 20% { filter: brightness(1.6) sepia(.5) hue-rotate(-15deg); } 45% { filter: brightness(1.2) sepia(.85); transform: translateY(-3px); opacity: 1; } 100% { filter: grayscale(.9) brightness(.5) blur(1px); transform: translateY(-16px); opacity: 0; } }
+body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf-sheen, body.calm .jf-pick .jf-card.jf-burn, body.calm .jf-pick .jf-card.jf-won { animation: none; }
+@media (prefers-reduced-motion: reduce) { .jf-sheen, .jf-pick .jf-card, .jf-pick .jf-card.jf-sheen, .jf-pick .jf-card.jf-burn, .jf-pick .jf-card.jf-won { animation: none; } }
 .jf-card .delta { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); padding: 2px 8px; border-radius: 999px; }
 .jf-card:hover, .jf-card:focus-visible { transform: translateY(-6px) scale(1.03); outline: none; }
 .jf-card .ic { font-size: 44px; line-height: 1.1; }
@@ -83,12 +95,17 @@ export class UI {
     this.pop.hidden = true;
     parent.appendChild(this.pop);
     this.keyHandler = null;
+    this._gen = 0;         // bumped on every modal render/close, so a pick outro never hides a newer modal
+    this._outro = 0;       // seconds of pick outro left (counted down by tick, on the game's clock)
+    this._outroGen = 0;
     addEventListener('keydown', (e) => { if (!this.modal.hidden && this.keyHandler) this.keyHandler(e); });
   }
 
   get open() { return !this.modal.hidden; }
 
   close() {
+    this._outro = 0;
+    this._gen++;
     this.modal.hidden = true;
     this.modal.innerHTML = '';
     this.keyHandler = null;
@@ -96,6 +113,7 @@ export class UI {
 
   // cards: from rollCards(); stats: current stats; onPick(card); onReroll() -> new cards or null
   levelUp(level, cards, stats, rerolls, onPick, onReroll) {
+    this._gen++;
     const render = () => {
       this.modal.innerHTML = `<div><h2>Level ${level}!</h2><p class="sub">Your polyp grows. Pick one.</p>
         <div class="jf-cards">${cards.map((c, i) => `
@@ -133,19 +151,58 @@ export class UI {
   // name, the big icon, the rarity written out, what it does, and a delta line when the
   // treasure grows (Lv 1 → Lv 2, ×1 → ×2)
   choose(title, sub, choices, onPick) {
+    const gen = ++this._gen;
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
       <div class="jf-cards jf-pick">${choices.map((c, i) => { const [tint, wash] = TIER_TINT[c.tier?.name] || [18, 0]; return `
-        <button class="jf-card${c.tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" style="--c:${c.tier?.color || '#7ff6ee'}; --tint:${tint}%; --wash:${wash}%">
+        <button class="jf-card${c.tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" style="--d:${i * 90}ms; --c:${c.tier?.color || '#7ff6ee'}; --tint:${tint}%; --wash:${wash}%">
           <span class="key">${i + 1}</span><span class="big">${c.name}</span><span class="ic">${c.icon}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>${c.delta ? `<span class="delta">${c.delta}</span>` : ''}
         </button>`; }).join('')}</div></div>`;
     this.modal.hidden = false;
-    const pick = (i) => { const c = choices[i]; if (!c) return; this.close(); onPick(c); };
+    // The pick resolves at once (the game flows on exactly as before), but the modal
+    // stays up for one beat so the moment can land: the won card pulses, its icon
+    // flies up to where the treasure toast appears, and the unpicked cards burn away.
+    let out = false;
+    const pick = (i) => {
+      const c = choices[i];
+      if (!c || out) return;
+      out = true;
+      const cards = [...this.modal.querySelectorAll('.jf-card')];
+      cards.forEach((el, j) => el.classList.add(j === i ? 'jf-won' : 'jf-burn'));
+      this.flyIcon(cards[i]);
+      onPick(c);
+      // the outro runs on the game's clock (tick, from GAME.step), not a wall timer:
+      // a wall timer can't fire while the story harness steps the game synchronously
+      this._outroGen = gen;
+      this._outro = document.body.classList.contains('calm') ? 0.01 : 0.64;
+    };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
     this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
   }
 
+  // Count down a pick outro; called every GAME.step from main.js. Closes the modal
+  // when it ends — unless a newer modal has replaced this one meanwhile (gen check).
+  tick(dt) {
+    if (this._outro > 0 && (this._outro -= dt) <= 0) {
+      this._outro = 0;
+      if (this._gen === this._outroGen) this.close();
+    }
+  }
+
+  // A copy of the won card's icon, flown up to the treasure toast's spot (top centre).
+  flyIcon(card) {
+    const ic = card?.querySelector('.ic');
+    if (!ic || document.body.classList.contains('calm')) return;
+    const r = ic.getBoundingClientRect(), el = document.createElement('span');
+    el.textContent = ic.textContent;
+    el.style.cssText = `position:fixed; left:${r.left}px; top:${r.top}px; width:${r.width}px; height:${r.height}px; font-size:${r.height}px; line-height:1; text-align:center; z-index:40; pointer-events:none; transition:all .55s cubic-bezier(.5,0,.8,.4);`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.left = '50%'; el.style.top = '13%'; el.style.transform = 'translate(-50%,-50%) scale(.65)'; el.style.opacity = '.85'; });
+    setTimeout(() => el.remove(), 620);
+  }
+
   // rows: [[label, value]], buttons: [{ label, go, onClick }]
   message(title, sub, rows, buttons) {
+    this._gen++;
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`).join('')}</div></div>`;

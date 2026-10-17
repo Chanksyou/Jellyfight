@@ -33,7 +33,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v197';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v198';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -455,6 +455,7 @@ const GAME = {
     systems.layout.update(dt);
     systems.touch.update(dt);
     if (bossScene) stepBossScene(dt); else systems.gameplay.update(dt);
+    menus.tick(dt);          // the pick screen's outro runs on this clock
     if (!bossScene && run.phase === 'boss' && run.boss?.dying && !run.boss.dead) {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
     }
