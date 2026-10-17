@@ -1,4 +1,4 @@
-import { sfx } from '../sfx.js';
+import { sfx, unlock as unlockAudio, loadSamples, audio } from '../sfx.js';
 import { G, V, dmgBy, give, ok, record, roachAt, setupFight, step, story, stub } from './kit.js';
 
 story('attack/fire-feedback', {
@@ -111,5 +111,22 @@ story('attack/lightning-chain', {
     B.looks.strike(origin, origin.clone().add(V(0, 0, -0.1))); B.reset();
     const climbing = pitches.every((k, i) => k === i);
     return ok(honest && stunned && farUntouched && live > 0 && faded && !B.looks.live.length && climbing, { jumps: jumps.length, bolted: bolted.length, honest, stunned, farUntouched, live, faded, pitches });
+  },
+});
+
+story('attack/lightning-recorded-sounds', {
+  about: 'Lightning\'s recorded sounds (assets/audio/lightning: a launch, hits, heavy strikes and chain zaps, several takes each) load once audio unlocks, and a lightning shot chaining through three bugs plays them on live audio without an error.',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.07, -0.25); roachAt(-0.06, -0.3); step(2); },
+  async play() {
+    unlockAudio();
+    const loaded = await loadSamples();
+    const { run, player } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0));
+    run.owned = new (run.owned.constructor)(); run.owned.add('battery'); step(1);
+    const log = record('damage_taken');
+    B.elementVolley('lightning', run.mods.element.lightning, origin, run.S, run.mods);
+    for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+    await new Promise((r) => setTimeout(r, 300));
+    const chained = dmgBy(log, 'lightning').length;
+    return ok(loaded && !!audio() && chained >= 2, { loaded, audio: !!audio(), chained });
   },
 });

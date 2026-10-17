@@ -4,6 +4,10 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v192 lightning plays recorded strikes (Hove Audio's Lightning Magic): a crackling launch, a strike on
+each hit, a heavier strike with thunder when the chain jumps to 2+ bugs, and a short zap per jump
+climbing in pitch, several takes each played in turn; lightning-sounds.html plays them all.
+
 v191 lightning really crackles: chain bolts flicker and re-strike in new jagged shapes (white
 core, yellow halo, tapered, forked) only to bugs they really hit, each jump's zap climbing in pitch;
 a hit flashes white with forks, sparks and a scorch, a crack and a rumble of thunder; the ball spits

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lightning sounds — Jelly Fight</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;color:#eee9df;background:#080e15}
+    body{margin:0}main{max-width:760px;margin:auto;padding:28px 16px 48px}
+    h1{font-size:28px;letter-spacing:-.03em;margin:0 0 4px}p{color:#a8b3bc;font-size:14px;margin:0 0 20px}
+    section{border:1px solid #ffffff16;border-radius:14px;padding:16px;margin:0 0 14px;background:#0e1620}
+    h2{font-size:16px;margin:0}small{display:block;color:#8d9ca8;font-size:12px;margin:2px 0 10px}
+    button{font:inherit;font-size:14px;cursor:pointer;border-radius:10px;border:1px solid #52606e;background:#101b25;color:#e3edf3;padding:9px 14px;margin:0 6px 6px 0;touch-action:manipulation}
+    button:hover{border-color:#ffd21a}.big{background:#ffd21a;color:#1c1606;border:0;font-weight:700}
+    a{color:#9fe2ff}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Lightning sounds</h1>
+  <p>Each role the game plays, with its takes (the game plays them in turn). Recordings: Hove Audio, Lightning Magic (see assets/audio/README.md). Volumes and the chain's rising pitch are as in the game.</p>
+  <section><h2>The whole hit</h2><small>The launch, then on a hit the strike, a heavy strike (a chain that jumps to 2+ bugs) and a zap for each jump, each a step higher.</small>
+    <button class="big" id="all">Play a chained hit</button></section>
+  <div id="roles"></div>
+  <p><a href="./index.html">Back to Jelly Fight</a></p>
+</main>
+<script>
+// the same roles, takes and volumes as src/sfx.js (SAMPLES and its callers)
+const ROLES = [
+  ['launch', 2, 0.32, 'The ball leaving the bell: a crackling build-up.'],
+  ['hit', 3, 0.55, 'A real hit: the strike with body, no thunder tail.'],
+  ['big', 3, 0.5, 'A chain that jumps to 2+ bugs: heavier, with thunder.'],
+  ['chain', 3, 0.3, 'Each chain jump: a short bright zap, pitched up a step per jump.'],
+];
+let ctx, buffers = {};
+async function ready() {
+  ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') await ctx.resume();
+  await Promise.all(ROLES.flatMap(([role, n]) => Array.from({ length: n }, async (_, i) => {
+    const key = `${role}-${i + 1}`;
+    if (buffers[key]) return;
+    buffers[key] = await ctx.decodeAudioData(await (await fetch(`assets/audio/lightning/${key}.mp3`)).arrayBuffer());
+  })));
+}
+function play(key, vol, rate = 1, delay = 0) {
+  const s = ctx.createBufferSource(), g = ctx.createGain();
+  s.buffer = buffers[key]; s.playbackRate.value = rate; g.gain.value = vol * 1.6;
+  s.connect(g).connect(ctx.destination); s.start(ctx.currentTime + delay);
+}
+const box = document.querySelector('#roles');
+for (const [role, n, vol, about] of ROLES) {
+  const sec = document.createElement('section');
+  sec.innerHTML = `<h2>${role[0].toUpperCase() + role.slice(1)}</h2><small>${about}</small>`;
+  for (let i = 1; i <= n; i++) {
+    const b = document.createElement('button');
+    b.textContent = `Take ${i}`;
+    b.onclick = async () => { await ready(); play(`${role}-${i}`, vol); };
+    sec.append(b);
+  }
+  box.append(sec);
+}
+let k = 0;
+document.querySelector('#all').onclick = async () => {
+  await ready(); k++;
+  play(`launch-${1 + k % 2}`, 0.32);
+  const hit = 0.45;
+  play(`hit-${1 + k % 3}`, 0.55, 1, hit);
+  play(`big-${1 + k % 3}`, 0.5, 1, hit);
+  for (let j = 0; j < 3; j++) play(`chain-${1 + (k + j) % 3}`, 0.3, Math.pow(1.12, j), hit);
+};
+</script>
+</body>
+</html>

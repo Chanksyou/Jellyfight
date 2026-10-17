@@ -535,7 +535,7 @@ export class Bubbles {
         bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: b.ep?.stun ?? 0.5 });
         from = to;
       }
-      if (hit.size - b.hit.size >= 2) juice.feel('hit-big');                                // a chain that really jumps lands harder
+      if (hit.size - b.hit.size >= 2) { juice.feel('hit-big'); sfx.lightningBig(); }      // a chain that really jumps lands harder
     }
     // Acid: leave a puddle that eats at anything standing in it
     if (b.elems.has('acid') && this.puddles.length < (b.ep?.puddles ?? 6)) {

@@ -1,4 +1,5 @@
-// Sound effects use Web Audio synthesis plus the approved recorded fire launch/flight.
+// Sound effects use Web Audio synthesis plus a few recordings: the approved fire launch/flight
+// and lightning's takes (SAMPLES).
 // Most sounds are a few oscillators
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
@@ -45,6 +46,42 @@ export function loadFireFlight() {
       console.warn('Recorded fire unavailable; using synthesized launch.', error);
       return false;
     });
+}
+
+// Recorded sounds by role (assets/audio/, sources in its README): several takes each, played in
+// turn so a repeat never sounds the same twice running. They load after audio unlocks; until a
+// role's takes are in (or if they fail), its synthesized sound plays instead.
+const SAMPLES = {
+  'lightning-launch': 2, 'lightning-hit': 3, 'lightning-big': 3, 'lightning-chain': 3,
+};
+const takes = {}, turn = {};
+let voices = 0;
+let samplesLoading = null;
+export function loadSamples() {
+  if (!ctx) return Promise.resolve(false);
+  return samplesLoading ||= Promise.all(Object.entries(SAMPLES).flatMap(([role, n]) => Array.from({ length: n }, (_, i) => {
+    const [kind, ...rest] = role.split('-');
+    return fetch(`/assets/audio/${kind}/${rest.join('-')}-${i + 1}.mp3`)
+      .then((r) => { if (!r.ok) throw new Error(`${role}: ${r.status}`); return r.arrayBuffer(); })
+      .then((bytes) => ctx.decodeAudioData(bytes))
+      .then((buf) => { (takes[role] ||= [])[i] = buf; });
+  }))).then(() => true).catch((error) => { console.warn('A recorded sound is unavailable; using synthesized ones.', error); return false; });
+}
+// play the next take of `role` (rate: its speed and pitch, vol: its loudness); false when it
+// isn't loaded, so the caller plays its synthesized sound. At most 8 recorded voices at once.
+function sample(role, { rate = 1, vol = 1 } = {}) {
+  const list = takes[role]?.filter(Boolean);
+  if (!list?.length) return false;
+  if (voices >= 8) return true;
+  const buf = list[(turn[role] = ((turn[role] ?? Math.floor(Math.random() * list.length)) + 1) % list.length)];
+  const src = ctx.createBufferSource(), g = ctx.createGain(), t = now();
+  src.buffer = buf; src.playbackRate.value = rate * jitter(0.04);
+  g.gain.value = vol;
+  src.connect(g).connect(master);
+  voices++;
+  src.onended = () => { voices--; src.disconnect(); g.disconnect(); };
+  src.start(t);
+  return true;
 }
 
 function recordedFireFlight(weight) {
@@ -112,6 +149,7 @@ export function unlock() {
     }
     if (ctx.state === 'suspended') ctx.resume();
     loadFireFlight();
+    loadSamples();
   } catch { /* no audio: the game still works */ }
 }
 
@@ -315,6 +353,7 @@ export const sfx = {
   elementLaunch(el) {
     if (!ready() || !gap('elLaunch' + el, 80)) return;
     const j = jitter(0.12);
+    if (el === 'lightning' && sample('lightning-launch', { vol: 0.32 })) return;
     if (el === 'lightning') {   // a snap, a buzzing zip rising away, crackles trailing it
       noise(6500 * j, 1, 0.03, 0.16, 'highpass');
       tone('sawtooth', 110 * j, 180 * j, 0.12, 0.05); tone('square', 113 * j, 184 * j, 0.12, 0.025);
@@ -329,6 +368,7 @@ export const sfx = {
   elementHit(el) {
     if (!ready() || !gap('elHit' + el, 50)) return;
     const j = jitter(0.12);
+    if (el === 'lightning' && sample('lightning-hit', { vol: 0.55 })) return;
     if (el === 'lightning') {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
       noise(7000 * j, 0.7, 0.025, 0.34, 'highpass');
       noise(2600 * j, 1.2, 0.06, 0.2, 'bandpass', 0.005);
@@ -344,11 +384,14 @@ export const sfx = {
   // a chain bolt jumping to the k-th bug: a tzzt that climbs with each jump
   chainZap(k = 0) {
     if (!ready() || !gap('chainZap' + k, 40)) return;
+    if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.3 })) return;
     const j = jitter(0.08) * Math.pow(1.19, k);
     noise(6000 * j, 1, 0.025, 0.14, 'highpass');
     tone('sawtooth', 900 * j, 2600 * j, 0.06, 0.06); tone('square', 450 * j, 1300 * j, 0.06, 0.025);
     noise(3800 * j, 3, 0.04, 0.05, 'bandpass', 0.03);
   },
+  // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder in it (recorded only)
+  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; sample('lightning-big', { vol: 0.5 }); },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its
