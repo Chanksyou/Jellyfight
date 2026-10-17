@@ -353,7 +353,7 @@ export const sfx = {
   elementLaunch(el) {
     if (!ready() || !gap('elLaunch' + el, 80)) return;
     const j = jitter(0.12);
-    if (el === 'lightning' && sample('lightning-launch', { vol: 0.32 })) return;
+    if (el === 'lightning' && sample('lightning-launch', { vol: 0.12 })) return;
     if (el === 'lightning') {   // a snap, a buzzing zip rising away, crackles trailing it
       noise(6500 * j, 1, 0.03, 0.16, 'highpass');
       tone('sawtooth', 110 * j, 180 * j, 0.12, 0.05); tone('square', 113 * j, 184 * j, 0.12, 0.025);
@@ -368,7 +368,7 @@ export const sfx = {
   elementHit(el) {
     if (!ready() || !gap('elHit' + el, 50)) return;
     const j = jitter(0.12);
-    if (el === 'lightning' && sample('lightning-hit', { vol: 0.55 })) return;
+    if (el === 'lightning' && sample('lightning-hit', { vol: 0.22 })) return;
     if (el === 'lightning') {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
       noise(7000 * j, 0.7, 0.025, 0.34, 'highpass');
       noise(2600 * j, 1.2, 0.06, 0.2, 'bandpass', 0.005);
@@ -384,14 +384,14 @@ export const sfx = {
   // a chain bolt jumping to the k-th bug: a tzzt that climbs with each jump
   chainZap(k = 0) {
     if (!ready() || !gap('chainZap' + k, 40)) return;
-    if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.3 })) return;
+    if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.12 })) return;
     const j = jitter(0.08) * Math.pow(1.19, k);
     noise(6000 * j, 1, 0.025, 0.14, 'highpass');
     tone('sawtooth', 900 * j, 2600 * j, 0.06, 0.06); tone('square', 450 * j, 1300 * j, 0.06, 0.025);
     noise(3800 * j, 3, 0.04, 0.05, 'bandpass', 0.03);
   },
   // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder in it (recorded only)
-  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; sample('lightning-big', { vol: 0.5 }); },
+  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; sample('lightning-big', { vol: 0.2 }); },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its

@@ -27,10 +27,10 @@
 <script>
 // the same roles, takes and volumes as src/sfx.js (SAMPLES and its callers)
 const ROLES = [
-  ['launch', 2, 0.32, 'The ball leaving the bell: a crackling build-up.'],
-  ['hit', 3, 0.55, 'A real hit: the strike with body, no thunder tail.'],
-  ['big', 3, 0.5, 'A chain that jumps to 2+ bugs: heavier, with thunder.'],
-  ['chain', 3, 0.3, 'Each chain jump: a short bright zap, pitched up a step per jump.'],
+  ['launch', 2, 0.12, 'The ball leaving the bell: a crackling build-up.'],
+  ['hit', 3, 0.22, 'A real hit: the strike with body, no thunder tail.'],
+  ['big', 3, 0.2, 'A chain that jumps to 2+ bugs: heavier, with thunder.'],
+  ['chain', 3, 0.12, 'Each chain jump: a short bright zap, pitched up a step per jump.'],
 ];
 let ctx, buffers = {};
 async function ready() {
@@ -62,11 +62,11 @@ for (const [role, n, vol, about] of ROLES) {
 let k = 0;
 document.querySelector('#all').onclick = async () => {
   await ready(); k++;
-  play(`launch-${1 + k % 2}`, 0.32);
+  play(`launch-${1 + k % 2}`, 0.12);
   const hit = 0.45;
-  play(`hit-${1 + k % 3}`, 0.55, 1, hit);
-  play(`big-${1 + k % 3}`, 0.5, 1, hit);
-  for (let j = 0; j < 3; j++) play(`chain-${1 + (k + j) % 3}`, 0.3, Math.pow(1.12, j), hit);
+  play(`hit-${1 + k % 3}`, 0.22, 1, hit);
+  play(`big-${1 + k % 3}`, 0.2, 1, hit);
+  for (let j = 0; j < 3; j++) play(`chain-${1 + (k + j) % 3}`, 0.12, Math.pow(1.12, j), hit);
 };
 </script>
 </body>

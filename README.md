@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v193 lightning's recorded sounds are about 8 dB quieter (they stacked louder than the fireball).
+
 v192 lightning plays recorded strikes (Hove Audio's Lightning Magic): a crackling launch, a strike on
 each hit, a heavier strike with thunder when the chain jumps to 2+ bugs, and a short zap per jump
 climbing in pitch, several takes each played in turn; lightning-sounds.html plays them all.
