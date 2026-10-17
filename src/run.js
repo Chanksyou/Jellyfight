@@ -81,6 +81,7 @@ export class Run {
     this.lash.onLash = () => this.player.avatar?.pulse?.(0.3);   // and twitches as its tentacles whip out
     this.bubbles.onWindCharge = k => this.player.avatar?.pulse?.(0.15 + k * 0.55);
     this.bubbles.onWindRelease = () => this.player.avatar?.pulse?.(1);
+    this.bubbles.onElementRelease = () => this.player.avatar?.pulse?.(0.75);   // the bell squeezes as an element shot leaves
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
     this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)

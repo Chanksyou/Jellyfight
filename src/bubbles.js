@@ -53,6 +53,8 @@ export const ELEMENT = {
   glitter: 0.08,    // glitter: the wide splash
 };
 
+// where in an element's timer its energy starts gathering at the bell (the last fifth)
+const GATHER = 0.8;
 // your starting Fire rate: element attacks fire faster as yours goes up
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
 
@@ -189,7 +191,12 @@ export class Bubbles {
             } else t = 1;
           }
         }
-      } else if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
+      } else {
+        // anticipation: energy gathers at the bell over the last fifth of its timer, while it has
+        // something to shoot at (no added delay: the shot leaves when the timer would fire it anyway)
+        if (t >= GATHER && this.inRange(origin, stats.range * P.range).length) this.looks.gather(id, origin, Math.min(1, (t - GATHER) / (1 - GATHER)), stats.bubbleSize);
+        if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
+      }
       this.elTimers[id] = Math.min(t, 1);
     }
     this.fly(dt, stats, mods);
@@ -244,6 +251,12 @@ export class Bubbles {
       this.blow(origin.clone().add(off), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range, spread, off });
     }
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
+    // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
+    // element's look (fire's own launch is per fireball, in blow; wind has its own windup and release)
+    if (id !== 'wind') {
+      this.onElementRelease?.(id);
+      if (id !== 'fire') { this.looks.launch(id, origin, stats.bubbleSize); sfx.elementLaunch(id); }
+    }
     return true;
   }
 
@@ -468,6 +481,8 @@ export class Bubbles {
     const pts = [from.clone()];
     for (let k = 1; k < 5; k++) pts.push(from.clone().lerp(to, k / 5).add(new THREE.Vector3().randomDirection().multiplyScalar(0.006)));
     pts.push(to.clone());
+    this.looks.bolt(pts);                 // the bolt's body: a bright core in a yellow halo, thick in the middle, tapering
+    sfx.zap();
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat.clone());
     this.scene.add(line);
     this.zaps.push({ line, t: 0.25 });
@@ -505,15 +520,14 @@ export class Bubbles {
       this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
-      if (!b.elems.has('wind')) sfx.pop(b.big);
+      if (b.tint && b.tint !== 'wind') { this.looks.contact(b.tint, p, b.r); sfx.elementHit(b.tint); }   // each element lands its own way
+      else if (!b.elems.has('wind')) sfx.pop(b.big);
       // the wet mark it leaves on the floor, fading (only a plain bubble's: an Element's colour
       // on the floor would look like an acid puddle)
       if (!b.tint) this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), b.golden ? 0xffe8a0 : null, b.r * (b.big ? 2.2 : 1.6));
     }
     juice.feel(b.big ? 'hit-big' : 'hit');
     const el = b.elems;
-    if (el.has('lightning')) sfx.zap();
-    if (el.has('acid')) sfx.acid();
     if (!b.splashed) this.splash(b);
     const E = this.enemies, c = this._c;
     // Lightning: a bolt chains to 3 more enemies, stunning each

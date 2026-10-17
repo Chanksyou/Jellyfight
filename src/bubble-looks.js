@@ -156,6 +156,67 @@ export class BubbleLooks {
     this.fx.glow.emit(pos, this.windColor, LOOK.num('wind-release-size', 0.018) * size, LOOK.num('wind-release-size', 0.018) * size * 2, LOOK.num('wind-release-life', 0.12), 0.65);
   }
 
+  // each element's own colours for its gather, launch and contact: [main, bright accent]
+  tones(el) {
+    const F = this.fire;
+    return { fire: [F.flame, F.core], lightning: [COL.bolt, COL.spark], ice: [COL.frost, COL.snow], acid: [COL.acid, COL.drip], glitter: [COL.glitter[0], COL.glitter[1]] }[el] || [COL.snow, COL.snow];
+  }
+
+  // anticipation: motes of the element drawn in to the bell, tighter and brighter as `k` nears 1
+  gather(el, pos, k, size) {
+    const [a, b] = this.tones(el), radius = LOOK.num('element-gather-radius', 0.02) * size * (1 - k * 0.7);
+    for (let i = 0; i < 4; i++) {
+      const ang = i * Math.PI / 2 + k * Math.PI * 2;
+      _p.copy(pos).add(_v.set(Math.cos(ang) * radius, Math.sin(ang * 2) * radius * 0.3, Math.sin(ang) * radius));
+      this.fx.glow.hold(_p, i % 2 ? b : a, radius * 0.45 + 0.003, 0.35 + k * 0.6);
+    }
+  }
+
+  // release: a flash at the bell in the element's colours (lightning snaps a few short arcs out)
+  launch(el, pos, size) {
+    const [a, b] = this.tones(el), r = LOOK.num('element-launch-size', 0.014) * size, glow = this.fx.glow;
+    glow.emit(pos, b, r, r * 0.3, 0.1, 1.2);
+    glow.emit(pos, a, r * 1.8, r * 2.6, 0.16, 0.5);
+    if (el === 'lightning') for (let k = 0; k < 3; k++) this.bolt([_a.copy(pos), _b.copy(pos).add(_v.randomDirection().multiplyScalar(r * 2.2))], r * 0.25);
+  }
+
+  // impact, only for a confirmed hit (bubbles.js pop on an enemy): each element lands its own way
+  contact(el, pos, r) {
+    const glow = this.fx.glow, [a, b] = this.tones(el);
+    glow.emit(pos, b, r * 3.2, r * 0.6, 0.09, 1.3);                                    // the sharp contact
+    if (el === 'lightning') {
+      glow.emit(pos, a, r * 6, r * 2, 0.14, 0.6);
+      for (let k = 0; k < 5; k++) this.bolt([_a.copy(pos), _b.copy(pos).add(_v.randomDirection().multiplyScalar(r * (3 + Math.random() * 2)))], r * 0.5);   // forks crackling off it
+    } else if (el === 'ice') {
+      this.fx.burst(pos, ['#e8f8ff', '#9fe8ff', '#6ad0ff'], 8, r * 0.45, 0.32, pos.y - 0.03);   // shards of ice
+      for (let k = 0; k < 5; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 1.5)), COL.snow, r * 0.5, r * 0.3, 0.8 + Math.random() * 0.5, 0.9, _a.set((Math.random() - 0.5) * 0.03, 0.01, (Math.random() - 0.5) * 0.03), 0.06);   // frost settling
+    } else if (el === 'acid') {
+      glow.emit(pos, a, r * 4, r * 2, 0.18, 0.6);
+      this.fx.burst(pos, ['#5aff1a', '#3aff00', '#c8ff6a'], 9, r * 0.4, 0.28, pos.y - 0.03);   // a splash of droplets
+    } else if (el === 'glitter') {
+      glow.emit(pos, a, r * 5, r * 3, 0.16, 0.6);
+      this.fx.burst(pos, ['#ff2ab0', '#ffc81a', '#2ae0ff', '#b04aff', '#6aff6a'], 10, r * 0.3, 0.38, pos.y - 0.03);   // confetti
+      for (let k = 0; k < 8; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 2)), COL.glitter[k % 5], r * 0.5, 0, 0.9 + Math.random() * 0.6, 1, _a.set((Math.random() - 0.5) * 0.05, 0.03, (Math.random() - 0.5) * 0.05), 0.05);   // twinkles drifting down
+    }
+  }
+
+  // a bolt along `pts`: a bright core inside a yellow halo, widest in the middle and tapering to
+  // both ends, with one short fork; a brief afterimage (glow particles: nothing to allocate or free)
+  bolt(pts, w = LOOK.num('bolt-width', 0.004)) {
+    const glow = this.fx.glow, n = pts.length - 1;
+    for (let i = 0; i < n; i++) for (let s = 0; s < 3; s++) {
+      const f = (i + s / 3) / n, taper = 0.35 + 0.65 * Math.sin(Math.PI * f);
+      _t.copy(pts[i]).lerp(pts[i + 1], s / 3);
+      glow.emit(_t, COL.bolt, w * 2.6 * taper, w * taper, 0.14, 0.55);
+      glow.emit(_t, COL.spark, w * taper, w * 0.3, 0.1, 1);
+    }
+    if (n >= 2) {                                                                          // a short fork off the middle
+      const m = pts[n >> 1];
+      _d.randomDirection().multiplyScalar(w * 4);
+      for (let s = 1; s <= 3; s++) glow.emit(_t.copy(m).addScaledVector(_d, s), COL.bolt, w * (1.6 - s * 0.35), 0, 0.1, 0.8);
+    }
+  }
+
   fireLaunch(pos, r) {
     const F = this.fire;
     this.fx.glow.emit(pos, F.core, r * 2.2, r * 0.4, F.contactLife, 0.9);

@@ -27,6 +27,7 @@ const EXHAUST = new THREE.Color('#ffa040');
 const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the stag beetle's ball: its white-hot core and the arcs crackling round it
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
+const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -366,6 +367,11 @@ export class Enemies {
     if (e.slowRing) {
       e.slowRing.visible = slowed;
       if (slowed) e.slowRing.rotation.y += dt * 2.5;
+    }
+    // stunned (lightning): sparks crackle over it for exactly as long as the stun lasts
+    if (e.stunT > 0 && !e.dead && Math.random() < dt * 25) {
+      const at = this.center(e, S.spot).add(S.ray.randomDirection().multiplyScalar(e.r * 0.9));
+      this.fx.glow.emit(at, STUN, e.r * 0.35, 0, 0.09, 1, S.want.randomDirection().multiplyScalar(0.08));
     }
   }
 

@@ -310,6 +310,25 @@ export const sfx = {
         (0.08 - k * 0.01) * g, 'bandpass', 0.035 + k * 0.027 + Math.random() * 0.018);
     }
   },
+  // the other Elements leaving the bell (fire's launch is fireLaunch): each a transient, then the
+  // sound of it flying off
+  elementLaunch(el) {
+    if (!ready() || !gap('elLaunch' + el, 80)) return;
+    const j = jitter(0.12);
+    if (el === 'lightning') { noise(6500 * j, 1, 0.03, 0.12, 'highpass'); tone('sawtooth', 140 * j, 260 * j, 0.09, 0.05); for (let k = 0; k < 3; k++) noise(3500 + Math.random() * 3000, 4, 0.015, 0.04, 'bandpass', 0.04 + k * 0.04); }
+    else if (el === 'ice') { tone('sine', 2600 * j, 2400 * j, 0.06, 0.04); tone('sine', 3900 * j, 3700 * j, 0.05, 0.025, 0.012); noise(3000 * j, 1.2, 0.18, 0.05, 'bandpass', 0.02, 1100); }
+    else if (el === 'acid') { tone('sine', 180 * j, 430 * j, 0.08, 0.08); noise(700 * j, 1, 0.12, 0.06, 'lowpass', 0.01, 300); }
+    else if (el === 'glitter') { for (let k = 0; k < 3; k++) tone('sine', (2200 + k * 700) * j, (2400 + k * 700) * j, 0.04, 0.035, k * 0.025); noise(2600 * j, 1.4, 0.18, 0.04, 'bandpass', 0.03, 900); }
+  },
+  // the other Elements landing on a bug (fire's is fire): the contact, a body under it, and its debris
+  elementHit(el) {
+    if (!ready() || !gap('elHit' + el, 50)) return;
+    const j = jitter(0.12);
+    if (el === 'lightning') { noise(5200 * j, 0.8, 0.04, 0.2, 'highpass'); tone('sawtooth', 1900 * j, 300, 0.1, 0.07); tone('sine', 150 * j, 60, 0.1, 0.12); for (let k = 0; k < 4; k++) noise(3000 + Math.random() * 4000, 4, 0.015, 0.05, 'bandpass', 0.05 + Math.random() * 0.2); }
+    else if (el === 'ice') { noise(3200 * j, 1.5, 0.06, 0.16, 'bandpass', 0, 1800); tone('sine', 130 * j, 60, 0.08, 0.12); for (let k = 0; k < 4; k++) tone('triangle', (3000 + Math.random() * 2500) * j, 2600, 0.04, 0.03, 0.04 + k * 0.05); }
+    else if (el === 'acid') { noise(800 * j, 0.9, 0.1, 0.16, 'lowpass', 0, 250); tone('sine', 300 * j, 180, 0.1, 0.07); tone('sine', 420 * j, 250, 0.08, 0.05, 0.05); noise(6000, 1, 0.3, 0.025, 'highpass', 0.08); }
+    else if (el === 'glitter') { tone('sine', 900 * j, 2200 * j, 0.04, 0.1); tone('sine', 140 * j, 70, 0.08, 0.1); for (let k = 0; k < 6; k++) tone('sine', (2400 + Math.random() * 3000) * j, 2600, 0.05, 0.025, 0.03 + k * 0.04); }
+  },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its

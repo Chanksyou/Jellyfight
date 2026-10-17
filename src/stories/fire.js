@@ -58,3 +58,35 @@ story('attack/fire-audio-upgrades', {
       { normal, upgraded, impacts, damage, capped });
   },
 });
+
+// --- the other Elements' Attack Feel chain (docs/agents/attack-feel.md)
+const ELEMENT_OF = { lightning: 'battery', ice: 'freezerPack', acid: 'nailPolish', glitter: 'glitter' };
+story('attack/element-feel', {
+  about: 'Lightning, ice, acid and glitter each complete the Attack Feel chain: energy gathers at the bell over the last fifth of the timer (the shot still leaves on time); on the frame it leaves, the bell squeezes, a launch flash and the element\'s launch sound; a hit lands with its own contact effect and hit sound, once; a shot that hits nothing makes neither. Lightning\'s chain draws a bolt to each bug it jumps to, and a stunned bug crackles while the stun lasts.',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.06, -0.24); step(2); },
+  play() {
+    const { run, player, enemies } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0)), out = {};
+    const n = {}, spy = (o, k) => { const fn = o[k].bind(o); stub(o, k, (...a) => { n[k] = (n[k] || 0) + 1; return fn(...a); }); };
+    spy(player.avatar, 'pulse'); spy(B.looks, 'gather'); spy(B.looks, 'launch'); spy(B.looks, 'contact'); spy(B.looks, 'bolt'); spy(sfx, 'elementLaunch'); spy(sfx, 'elementHit');
+    for (const [el, id] of Object.entries(ELEMENT_OF)) {
+      run.owned = new (run.owned.constructor)(); run.owned.add(id); step(1);
+      B.reset(); for (const k in n) n[k] = 0;
+      const M = run.mods, P = M.element[el];
+      B.elTimers[el] = 0.85; Object.getPrototypeOf(B).update.call(B, 1 / 60, origin, run.S, M);   // gathering, not yet fired (the setup stubs update)
+      const gathered = n.gather > 0 && !B.list.length;
+      B.reset(); for (const k in n) n[k] = 0;
+      B.elementVolley(el, P, origin, run.S, M);
+      const released = n.pulse === 1 && n.launch === 1 && n.elementLaunch === 1 && B.list.length >= 1;
+      const bolts0 = n.bolt || 0;
+      for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, M); B.effects(1 / 60, run.S); }
+      const landed = n.contact === 1 && n.elementHit === 1, chained = el !== 'lightning' || n.bolt - bolts0 >= 1;
+      const stunned = el !== 'lightning' || enemies.list.some((e) => e.stunT > 0);
+      B.reset(); for (const k in n) n[k] = 0;
+      B.blow(origin, null, { dir: V(1, 0, 0), size: 1, dmg: 1, tint: el, elems: [el], ep: P, pierce: 1, range: 0.03 });
+      for (let i = 0; i < 90 && B.list.length; i++) B.fly(1 / 60, run.S, M);
+      const missQuiet = !n.contact && !n.elementHit;
+      out[el] = { gathered, released, landed, chained, stunned, missQuiet };
+    }
+    return ok(Object.values(out).every((o) => Object.values(o).every(Boolean)), out);
+  },
+});

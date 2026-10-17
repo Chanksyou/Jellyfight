@@ -152,6 +152,7 @@
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
+  --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
   --venom: #8dff5a;              /* Box Jelly: venom strands and the puffs of a venomed bug */
   /* the pieces evolutions add to the jelly (src/adornments.js), on top of the player's own look */

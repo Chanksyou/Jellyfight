@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v190 the Elements hit harder to the eye and ear: each gathers at the bell before it fires, the
+bell squeezes as it leaves with a launch flash and sound, and each lands its own way (lightning
+forks and tapered chain bolts, ice shards and frost, acid droplets, glitter confetti and twinkles)
+with its own layered hit sound; stunned bugs crackle while the stun lasts. No numbers changed.
+
 v189 the stag beetle's ball is bigger and explodes where it lands: a fireball, shock rings,
 lightning and sparks, 3 and a shove to anything of the jelly within 7 cm.
 
