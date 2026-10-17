@@ -131,7 +131,7 @@ async function touchControls(e) {
   await ev(() => { run.spawnWaves = () => {}; run.hurt = () => {}; GAME.step(1 / 60); });
   out.startPick = await ev(() => menus.open);
   await page.tap('.jf-card');
-  await step(3);
+  await step(45);   // the pick resolves after its 0.64 s outro (the other cards burning away), on the game's clock
   out.picked = await ev(() => !menus.open && run.owned.size > 0);
   const a = await step(1);
   await touch('touchStart', [[150, 280]]);
