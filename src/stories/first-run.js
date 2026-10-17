@@ -28,7 +28,7 @@ story('first-run/element-pick-after-first-card', {
     const levelTitle = modalTitle();
     pickFirstCard(); step(5);
     const elementTitle = menus.open ? modalTitle() : '';
-    pickFirstCard(); step(5);
+    pickFirstCard(); step(50);   // the pick's outro (won pulse, discards burn) runs ~0.64 s of game time before the modal closes
     const owned = run.owned.size;
     run.gainXp(20); step(5);
     const secondTitle = modalTitle();

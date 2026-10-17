@@ -455,6 +455,7 @@ const GAME = {
     systems.layout.update(dt);
     systems.touch.update(dt);
     if (bossScene) stepBossScene(dt); else systems.gameplay.update(dt);
+    menus.tick(dt);          // the pick screen's outro runs on this clock
     if (!bossScene && run.phase === 'boss' && run.boss?.dying && !run.boss.dead) {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
     }

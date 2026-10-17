@@ -139,9 +139,9 @@ story('treasures/the-pick-keeps-the-chests-promise', {
   },
 });
 story('treasures/pick-screen-order-and-rarity', {
-  about: 'The treasure pick screen (UI.choose): name first, then the big icon, the rarity written out, the text, and a delta line when the treasure grows (Lv 1 → Lv 2, ×1 → ×2). The whole card wears its rarity: an Epic card washes and glows harder than a Common one, a Legendary gets the sheen.',
+  about: 'The treasure pick screen (UI.choose): name first, then the big icon, the rarity written out, the text, and a delta line when the treasure grows (Lv 1 → Lv 2, ×1 → ×2). The whole card wears its rarity: an Epic card washes and glows harder than a Common one, a Legendary gets the animated sheen. Picking pulses the won card while the other two burn away, and the modal closes a beat later.',
   setup() { setupFight({ lash: false }); },
-  play() {
+  async play() {
     const { run } = G(), ui = run.ui;
     let picked = null;
     ui.choose('✨ A treasure!', 'Pick one to keep.', [
@@ -157,11 +157,16 @@ story('treasures/pick-screen-order-and-rarity', {
     const tints = cards.map((el) => el.style.getPropertyValue('--tint'));
     const deltas = cards.map((el) => el.querySelector('.delta')?.textContent || null);
     const sheen = cards.map((el) => el.classList.contains('jf-sheen'));
+    const sheenAnim = getComputedStyle(cards[2]).animationName;
     cards[1].click();
-    const closed = ui.modal.hidden && picked && picked.name === 'Deep Orb';
+    const outro = cards.map((el) => el.classList.contains('jf-burn') ? 'burn' : el.classList.contains('jf-won') ? 'won' : '');
+    const resolvedAtOnce = picked && picked.name === 'Deep Orb' && !ui.modal.hidden;
+    step(45);   // the outro runs on the game's clock: ~0.64 s of steps closes the modal
+    const closed = ui.modal.hidden;
     ui.close();
     return ok(cards.length === 3 && inOrder && tints.join() === '18%,36%,48%' && deltas.join() === ',Lv 1 → Lv 2,×1 → ×2'
-      && sheen.join() === 'false,false,true' && closed, { tints, deltas, sheen, closed });
+      && sheen.join() === 'false,false,true' && sheenAnim.includes('jfSheen') && outro.join() === 'burn,won,burn' && resolvedAtOnce && closed,
+      { tints, deltas, sheen, sheenAnim, outro, resolvedAtOnce, closed });
   },
 });
 story('treasures/levels', {
