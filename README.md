@@ -4,6 +4,11 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v202 Act 3 gets sturdier (owner's Tuner pass): the Coffer, the Bull and the Alligator all go to
+800 Health (the Coffer also aggros from further, its accordion reaches 80 cm and its jewel
+Warnings are twice as wide), and the bedroom bugs toughen — dragonfly 85, stag beetle 210,
+wasp nest 250, wasp 40, mantis 200, horsehair worm 150 with a 42 cm whip.
+
 v201 dragonflies come down after you: one over the bed (or anywhere above you) used to only climb
 once you dropped to the floor; now it heads back down toward you, slipping past the bed's edge.
 
