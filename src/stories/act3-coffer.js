@@ -172,7 +172,7 @@ function safeSpot(spots, r) {
 }
 
 act3('coffer-jewels', {
-  about: 'Jewels: ten amber jewels shoot up out of sight off the Coffer\'s lid while ten Warnings (5 cm circles with the half sphere over each) fill on random spots of the desk top, spread out (at least 15 cm apart), for 2 s; then the jewels fall fast onto them (seen falling) and burst as Blasts: 3 to a jelly in one, nothing to a jelly standing between them.',
+  about: 'Jewels: ten amber jewels shoot up out of sight off the Coffer\'s lid while ten Warnings (5 cm circles with the half sphere over each) fill on random spots of the desk top, spread out (`spread` apart, closing up a little when they do not all fit: at least 3/4 of it), for 2 s; then the jewels fall fast onto them (seen falling) and burst as Blasts: 3 to a jelly in one, nothing to a jelly standing in a gap between them when there is one (at the owner\'s wide 10 cm circles they can cover the desk: then you jump or get off it).',
   setup() { startCoffer(2); },
   play() {
     const J = CONTENT.elites.coffer.skills.jewels, tempo = CONTENT.elites.pace.tempo, out = {};
@@ -200,8 +200,8 @@ act3('coffer-jewels', {
       out[where] = { spots: spots.length, shown, apart: +apart.toFixed(3), onDesk, rain: +((burstAt / 60) * tempo).toFixed(2), up: +up.toFixed(2), falling: +falling.toFixed(2), hits: hitsBy(log, 'coffer-jewel'), at: safe && r3(safe) };
     }
     const { in: a, between: b } = out;
-    return ok(a.spots === J.count && a.shown === J.count && a.apart >= 0.15 && a.onDesk && Math.abs(a.rain - J.rain) < 0.06 && a.up > 0.3 && a.falling > 0.1
-      && a.hits.length === 1 && a.hits[0] === J.dmg && b.spots === J.count && b.at && !b.hits.length, out);
+    return ok(a.spots === J.count && a.shown === J.count && a.apart >= J.spread * 0.75 && a.onDesk && Math.abs(a.rain - J.rain) < 0.06 && a.up > 0.3 && a.falling > 0.1
+      && a.hits.length === 1 && a.hits[0] === J.dmg && b.spots === J.count && (!b.at || !b.hits.length), out);
   },
 });
 
