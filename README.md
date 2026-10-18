@@ -4,6 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v202 no more giant white circles: the ring a dying bug leaves was pure white and 3x its size (28 cm for a
+stag beetle, round you on every kill in act 3); it's now a soft blue and at most 8 cm round.
+
 v201 dragonflies come down after you: one over the bed (or anywhere above you) used to only climb
 once you dropped to the floor; now it heads back down toward you, slipping past the bed's edge.
 

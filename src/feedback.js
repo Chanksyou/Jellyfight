@@ -4,6 +4,7 @@ import { bus } from './events.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { GUTS } from './enemies.js';
+import { LOOK } from './look.js';
 
 export function wireFeedback(fx, isBurning = () => false) {
   bus.on('enemy_hit', ({ amount, color, pos, sound }) => {
@@ -25,7 +26,7 @@ export function wireFeedback(fx, isBurning = () => false) {
     const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
     if (!fire) {
       fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
-      fx.ring(pos.clone().setY(floor + 0.003), 0xffffff, r * 3, 0.25);
+      fx.ring(pos.clone().setY(floor + 0.003), LOOK.color('kill-ring', '#9fd8ff'), Math.min(r * 3, LOOK.num('kill-ring-max', 0.08)), 0.25);   // capped: a big bug's (3x its size) was a huge white circle round you
     }
     juice.feel(big ? 'kill-big' : 'kill');
     if (!fire) sfx.kill(big ? 1.6 : 1);

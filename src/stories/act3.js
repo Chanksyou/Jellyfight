@@ -956,3 +956,16 @@ act3('dragonfly-comes-down-from-the-bed', {
   },
 });
 
+
+act3('big-bug-kill-ring-is-small-and-tinted', {
+  about: 'A big bug dying (a stag beetle, 9 cm round) leaves a ring on the floor at most 8 cm round in a soft blue, not a pure white one three times its size (28 cm) round the jelly.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(1.0, 0, 8.85, 0); spawn('beetle', near(0.25, 0), { still: true }); },
+  play() {
+    const { enemies, fx } = G(), e = enemies.list.find((x) => x.type === 'beetle'), rings = [];
+    const ring = fx.ring.bind(fx); stub(fx, 'ring', (pos, color, radius, life) => { rings.push({ radius, color: new THREE.Color(color).getHexString() }); return ring(pos, color, radius, life); });
+    bus.emit('damage_taken', { targetId: e.id, amount: 1e6, source: 'bubble' });
+    step(2);
+    const biggest = rings.reduce((a, b) => (b.radius > (a?.radius ?? 0) ? b : a), null);
+    return ok(e.dead && biggest && biggest.radius <= 0.08 + 1e-9 && biggest.color !== 'ffffff', { dead: e.dead, rings });
+  },
+});
