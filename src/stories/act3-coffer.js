@@ -52,11 +52,11 @@ act3('coffer-wakes-when-you-are-on-the-desk', {
 });
 
 act3('coffer-accordion', {
-  about: 'Accordion: five strikes in a row. Each locks where the jelly is then (no further than 60 cm from the Coffer) and a Warning (a 6 cm circle with the half sphere over it) fills there over 0.5 s while the lid shoots out on its stretching bellows; then the lid slams down on it: 3 to a jelly still on it, nothing to one that moved off it (or stood past the 60 cm).',
+  about: 'Accordion: five strikes in a row. Each locks where the jelly is then (no further than 80 cm from the Coffer) and a Warning (a 6 cm circle with the half sphere over it) fills there over 0.5 s while the lid shoots out on its stretching bellows; then the lid slams down on it: 3 to a jelly still on it, nothing to one that moved off it (or stood past the 80 cm).',
   setup() { startCoffer(0); },
   play() {
     const { e, player, desk } = startCoffer(0), log = record('damage_taken'), A = CONTENT.elites.coffer.skills.accordion, tempo = CONTENT.elites.pace.tempo;
-    const far = V(-1.52, desk, 9.25), back = V(-1.5, desk, 8.85);
+    const far = V(-1.52, desk, 9.5), back = V(-1.5, desk, 8.85);
     const locks = [], hitAt = [];
     let arm = 0, k = -1, frames = 0, radius = 0, seen = 0;
     step(60 * 6, () => {

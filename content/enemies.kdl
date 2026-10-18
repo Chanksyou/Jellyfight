@@ -63,7 +63,7 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.04 dmg=2 xp=9 model="ladybug" {
 // Within reach it turns to face you and holds dead still for 2 s, charging; the only warning is a
 // whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
 // it and it darts away in a random direction (at most once every 5 s), breaking off a charge.
-enemy "dragonfly" name="Dragonfly" hp=45 r=0.04 dmg=1 xp=8 model="dragonfly" {
+enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     zip distance=0.3 above=0.06 speed=1.4 length=0.14 pause=0.35
     charge-beam range=0.45 charge=2 dmg=3 reach=0.8 width=0.008 every=3.5
     evade every=5 distance=0.25 speed=2.2
@@ -74,7 +74,7 @@ enemy "dragonfly" name="Dragonfly" hp=45 r=0.04 dmg=1 xp=8 model="dragonfly" {
 // then lunges and snaps them shut across a wedge in front of it, reaching a little farther than a
 // house fly's poke.
 // When it dies, the worm that was living inside it takes its place.
-enemy "mantis" name="Praying mantis" hp=140 r=0.05 dmg=1 xp=10 model="mantis" {
+enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=1 xp=10 model="mantis" {
     chase 0.2
     swat range=0.16 windup=0.7 reach=0.19 arc=80 dmg=3 rest=0.8 every=1.6
     hatch "worm"
@@ -85,10 +85,10 @@ enemy "mantis" name="Praying mantis" hp=140 r=0.05 dmg=1 xp=10 model="mantis" {
 // you from there like a whip: it rears back while a line on the floor shows where it will crack
 // down. It can't leave the body, so get out of its reach or jump the line. It's as big as the
 // mantis it was in.
-enemy "worm" name="Horsehair worm" hp=80 r=0.05 dmg=1 xp=8 model="worm" {
+enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=1 xp=8 model="worm" {
     rooted
     burst delay=0.9 radius=0.1 dmg=2
-    whip range=0.26 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
+    whip range=0.42 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
 }
 
 // Act 3 (from 1:00): the stag beetle, a tank about 3x the jelly (an iridescent green-black shell, a
@@ -96,7 +96,7 @@ enemy "worm" name="Horsehair worm" hp=80 r=0.05 dmg=1 xp=8 model="worm" {
 // charges an electric ball between its mandibles (sparks gather, it grows and crackles with a rising
 // whine; its aim locks part way through), then fires it at you: a big fast Shot that explodes where it
 // lands, a Blast 7 cm round. Step well aside once it locks.
-enemy "beetle" name="Stag beetle" hp=160 r=0.092 dmg=1 xp=12 model="beetle" {
+enemy "beetle" name="Stag beetle" hp=210 r=0.092 dmg=1 xp=12 model="beetle" {
     chase 0.14
     charge-shot range=0.6 charge=1 lock=0.6 speed=1.2 dmg=3 size=0.019 blast=0.07 knock=0.6 life=1.2 rest=0.7 every=3.5
 }
@@ -104,7 +104,7 @@ enemy "beetle" name="Stag beetle" hp=160 r=0.092 dmg=1 xp=12 model="beetle" {
 // Act 3 (from 1:30, src/stage3.js nests): the wasp nest, a grey paper teardrop stuck to a wall or the side of
 // furniture in the bedroom (src/stage3.js lists where). It never moves; every 5 s a wasp crawls
 // out of the entrance at its bottom. Destroy it to stop them.
-enemy "nest" name="Wasp nest" hp=150 r=0.025 dmg=1 xp=15 model="nest" {
+enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=1 xp=15 model="nest" {
     hangs size=0.13                  // hits anywhere on the nest count (it's 30 cm tall)
     brood "wasp" every=5 max=6
 }
@@ -112,7 +112,7 @@ enemy "nest" name="Wasp nest" hp=150 r=0.025 dmg=1 xp=15 model="nest" {
 // The wasps from a nest. They circle you, and now and then one stops and rears up with a rising
 // buzz, then nosedives at you: a sting is a big hit (6), and the wasp dies doing it. Move off its
 // line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
-enemy "wasp" name="Wasp" hp=14 r=0.025 dmg=1 xp=0 model="wasp" {
+enemy "wasp" name="Wasp" hp=40 r=0.025 dmg=1 xp=0 model="wasp" {
     hover 0.2 above=0.08 speed=0.55 circle=1.6
     dive range=0.35 every=3 windup=0.5 speed=1.4 reach=0.6 dmg=6 rest=0.6
 }
