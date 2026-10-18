@@ -334,12 +334,17 @@ export const ENEMY_WORDS = {
         const pull = Math.min(1, want.length() / (p.length * 2));
         const dir = _want.set(Math.random() - 0.5, (Math.random() - 0.5) * 0.7, Math.random() - 0.5).normalize();
         dir.addScaledVector(want.normalize(), 0.9 * pull).normalize();
-        // no lower than just off the floor, no higher than a little over you
-        const low = c.foot.y + 0.03, high = c.pc.y + p.above + 0.12;
-        if (e.pos.y + dir.y * p.length < low || e.pos.y + dir.y * p.length > high) dir.y = -dir.y * 0.3;
+        // no lower than just off the floor, no higher than a little over you: a dart that would leave
+        // that band turns back into it, and one that starts outside it (you've jumped off the bed it
+        // was over, or flown up) heads back in, steeply (flipping it there only drove it further away)
+        const low = c.foot.y + 0.03, high = c.pc.y + p.above + 0.12, to = e.pos.y + dir.y * p.length;
+        if (e.pos.y > high || e.pos.y < low) dir.copy(want).setY(e.pos.y > high ? -0.7 : 0.7).normalize();   // straight back toward its spot near you
+        else if (to < low || to > high) dir.y = -dir.y * 0.3;
         dir.normalize();
-        // stop short of a wall or furniture
-        const hit = en.world.cast(e.pos, dir, p.length + e.r);
+        // stop short of a wall or furniture; blocked (diving onto a bed it's over), try it level, so
+        // it slips out past the edge and drops from there
+        let hit = en.world.cast(e.pos, dir, p.length + e.r);
+        if (hit && hit.distance - e.r < 0.02 && dir.y < 0) { dir.copy(want).setY(0).normalize(); hit = en.world.cast(e.pos, dir, p.length + e.r); }
         e.zipDir.copy(dir);
         e.zipLeft = hit ? Math.max(0, hit.distance - e.r) : p.length;
         if (e.zipLeft < 0.02) { e.zipLeft = 0; e.zipT = 0.05; }   // boxed in: try another way next frame

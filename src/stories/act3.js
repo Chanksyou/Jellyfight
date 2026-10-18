@@ -942,3 +942,17 @@ act3('attacks-every-warning-has-volume', {
   setup() { fresh({ bubbles: false, lash: false }); },
   play() { return everyAttack(3); },
 });
+
+act3('dragonfly-comes-down-from-the-bed', {
+  about: 'A dragonfly up on the bed (64 cm up) comes down after a jelly on the floor beside it: within 6 s it zigzags down to the jelly\'s height. Its darts keep it between just off the floor and a little over you, and one that starts higher than that dives back down instead of climbing away.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(1.05, 0, 9.6, 0); holdJelly(); spawn('dragonfly', V(0.4, 0.75, 9.7), { hp: 9999 }).shotCd = 99; },
+  play() {
+    const { enemies, player } = G(), e = enemies.list.find((x) => x.type === 'dragonfly'), start = e.pos.y;
+    e.beamCd = 99;
+    let low = 9;
+    step(60 * 6, () => { low = Math.min(low, e.pos.y); });
+    const above = +(e.pos.y - player.position.y).toFixed(2);
+    return ok(start > 0.6 && above < 0.25 && low < 0.3, { start: +start.toFixed(2), end: +e.pos.y.toFixed(2), above, lowest: +low.toFixed(2) });
+  },
+});
+

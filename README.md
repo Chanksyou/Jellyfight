@@ -4,6 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v200 dragonflies come down after you: one over the bed (or anywhere above you) used to only climb
+once you dropped to the floor; now it heads back down toward you, slipping past the bed's edge.
+
 v199 no more whole black frames: when the frame governor changed the pixel ratio it did so after
 drawing, and resizing the canvas cleared that frame; the change now goes in before the frame is drawn.
 
