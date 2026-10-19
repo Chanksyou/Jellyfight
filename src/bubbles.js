@@ -384,9 +384,10 @@ export class Bubbles {
   // damage one enemy
   strike(b, e, mods) {
     const H = mods.hits.bubbles;
-    let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff';
+    let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff';
+      crit = true;
       this.fx.crit(this.enemies.center(e), e.r);
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
@@ -413,7 +414,7 @@ export class Bubbles {
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg) });
-    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined });
+    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
       collisionDamage: dmg * (b.ep?.collision ?? 1),
@@ -499,7 +500,7 @@ export class Bubbles {
       if (E.center(e, c).distanceTo(p) >= splash + e.r) continue;
       if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
       if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
-      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash' });
+      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash', feedback: { element: b.tint } });
     }
   }
 

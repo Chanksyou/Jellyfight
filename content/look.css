@@ -2,6 +2,23 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  /* Confirmed enemy damage text: independent from hit rules and world effects. */
+  --number-cap: 40;
+  --number-tick-window: 0.6;
+  --number-life: 0.7;
+  --number-crit-life: 0.95;
+  --number-tick-life: 0.85;
+  --number-size: 14;
+  --number-max-size: 22;
+  --number-crit-size: 7;
+  --number-lane-space: 40;
+  --number-accent-limit: 20;
+  --number-fire: #ffae62;
+  --number-ice: #bdeeff;
+  --number-lightning: #fff27a;
+  --number-acid: #adff79;
+  --number-wind: #eef8ff;
+  --number-glitter: #ffb1ec;
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
   --hp-heal: #9dffd9;

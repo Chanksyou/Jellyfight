@@ -646,12 +646,12 @@ export class Pothos {
   get shielded() { return this.guards.length > 0; }
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
-  damage(amount, color = '#fff') {
+  damage(amount, color = '#fff', feedback = {}) {
     if (this.dead || this.dying || this.rise < 1) return;
     if (this.shielded) { this.fx.number(this.center().setY(this.center().y + 0.05), 'SHIELDED', '#cfe6ff', 12); return; }
     this.hp -= amount;
     this.hitPop = 1;
-    this.fx.number(this.center().setY(this.center().y + 0.06), Math.round(amount), color, 16);
+    this.fx.number(this.center().setY(this.center().y + 0.06), amount, color, 16, feedback);
     if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
   die() { if (this.dying) { this.dying = false; this.dead = true; } }

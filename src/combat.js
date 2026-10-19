@@ -154,14 +154,15 @@ export class Lash {
     const id = s.target.id;
     if (s.target.dead) return;
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
-    let dmg = s.dmg, color = '#fff';
+    let dmg = s.dmg, color = '#fff', crit = false;
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r);
+      crit = true;
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     // a shove away from the jelly: the harder the sting, the further
     if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: knockFor(dmg) });
-    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle' });
+    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
     // venom (Box Jelly): another stack, and they all last a while longer
     const Vn = H.venom;
     if (Vn && !s.target.dead) {

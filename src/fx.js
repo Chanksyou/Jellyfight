@@ -3,10 +3,12 @@
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
+import { juice } from './juice.js';
 import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, shotHits, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
 const _ahead = new THREE.Vector3();   // scratch: which way a Shot is flying
+const NUMBER_ACCENTS = { fire: '· ˙', ice: '◇ ·', lightning: 'ϟ', acid: '•', wind: '〰', glitter: '✧ ·' };
 
 export class Fx {
   constructor(scene, camera) {
@@ -15,6 +17,16 @@ export class Fx {
     this.layer = document.createElement('div');
     this.layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;font:700 14px system-ui,sans-serif;z-index:5';
     this.nums = [];
+    this.numberClock = 0; this.numberSerial = 0;
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    this.numberLook = {
+      cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
+      life: LOOK.num('number-life', 0.7), critLife: LOOK.num('number-crit-life', 0.95),
+      tickLife: LOOK.num('number-tick-life', 0.85), size: LOOK.num('number-size', 14),
+      maxSize: LOOK.num('number-max-size', 22), critSize: LOOK.num('number-crit-size', 7),
+      lane: LOOK.num('number-lane-space', 22), accents: LOOK.num('number-accent-limit', 20),
+    };
+    this.numberColors = Object.fromEntries(Object.entries({ fire: '#ffae62', ice: '#bdeeff', lightning: '#fff27a', acid: '#adff79', wind: '#eef8ff', glitter: '#ffb1ec' }).map(([k, c]) => [k, LOOK.color('number-' + k, c)]));
     this.puffs = [];
     this.puffGeo = new THREE.SphereGeometry(1, 12, 8);
     this.rings = [];
@@ -56,24 +68,61 @@ export class Fx {
     return batcher.track(m);
   }
 
-  number(pos, text, color = '#fff', size = 14) {
+  number(pos, text, color = '#fff', size = 14, info = {}) {
+    const numeric = typeof text === 'number' && Number.isFinite(text), tick = numeric && !!info.tick;
+    const crit = numeric && !!info.crit && !tick, element = info.element || '';
+    if (tick && info.targetId != null) {
+      const group = this.nums.find(n => n.alive && n.tick && n.targetId === info.targetId && n.element === element && this.numberClock - n.born <= this.numberLook.group);
+      if (group) { group.amount += text; group.pos.copy(pos); this.numberText(group); return group; }
+    }
     let n = this.nums.find((x) => !x.alive);
     if (!n) {
-      if (this.nums.length > 60) return;
+      if (this.nums.length >= this.numberLook.cap) {
+        for (const x of this.nums) {
+          if (x.crit && !crit) continue;
+          if (!n || (x.tick && !n.tick) || (x.tick === n.tick && x.born < n.born)) n = x;
+        }
+        if (!n || (tick && !n.tick)) return;   // shed optional ticks before direct hits and crits
+      }
+    }
+    if (!n) {
       const el = document.createElement('div');
       el.style.cssText = 'position:absolute;left:0;top:0;white-space:nowrap;text-shadow:0 1px 2px #000,0 0 4px #0008;will-change:transform';
+      const glyph = document.createElement('span'), accent = document.createElement('span');
+      accent.style.cssText = 'position:absolute;left:50%;top:100%;font-size:10px;pointer-events:none';
+      accent.setAttribute('aria-hidden', 'true'); el.append(glyph, accent);
       this.layer.appendChild(el);
-      n = { el, pos: new THREE.Vector3() };
+      n = { el, glyph, accent, pos: new THREE.Vector3() };
       this.nums.push(n);
     }
-    n.alive = true;
-    n.t = 0;
+    n.alive = false;   // don't count the reused slot when choosing a free trajectory
+    n.lane = 0;
+    const nearby = x => x.alive && (info.targetId != null ? x.targetId === info.targetId : x.pos.distanceToSquared(pos) < 0.0064);
+    while (this.nums.some(x => nearby(x) && x.lane === n.lane)) n.lane++;
+    Object.assign(n, { alive: true, t: 0, born: this.numberClock, serial: this.numberSerial++, numeric, tick, crit, element, slam: !!info.slam, targetId: info.targetId, amount: text });
+    n.life = tick ? this.numberLook.tickLife : crit ? this.numberLook.critLife : this.numberLook.life;
     n.pos.copy(pos);
-    n.dx = (Math.random() - 0.5) * 16;
-    n.el.textContent = text;
-    n.el.style.color = color;
-    n.el.style.fontSize = size + 'px';
+    n.dx = (n.lane % 2 ? 1 : -1) * Math.ceil(n.lane / 2) * this.numberLook.lane;
+    const projected = this._v.copy(pos).project(this.camera), px = projected.x * innerWidth / 2 + n.dx, py = projected.y * innerHeight / 2;
+    n.aimDx = Math.abs(px) < 35 && Math.abs(py) < 35 ? (px < 0 ? -40 : 40) : 0;
+    n.drift = (Math.random() - 0.5) * 14;
+    const m = this.camera.matrixWorld.elements;
+    n.windSign = info.dir ? Math.sign(info.dir.x * m[0] + info.dir.z * m[2]) || 1 : (n.serial % 2 ? 1 : -1);
+    this.numberText(n);
+    n.accent.textContent = numeric ? NUMBER_ACCENTS[element] || '' : '';
+    n.el.style.color = this.numberColors[element] || color;
+    n.el.style.fontWeight = crit ? '900' : tick ? '650' : '800';
+    n.size = numeric ? tick ? this.numberLook.size - 2 : Math.min(this.numberLook.maxSize, this.numberLook.size + Math.sqrt(Math.max(0, text))) + (crit ? this.numberLook.critSize : 0) : size;
+    n.el.style.fontSize = n.size + 'px';
+    n.el.style.webkitTextStroke = crit ? '0.7px #17212d' : '';
+    n.el.style.textShadow = '0 1px 2px #000,0 0 4px #000';
     n.el.style.display = '';
+    return n;
+  }
+
+  numberText(n) {
+    const value = n.numeric ? n.amount > 0 && n.amount < 1 ? (n.amount < 0.1 ? '<0.1' : n.amount.toFixed(1)) : Math.round(n.amount) : n.amount;
+    n.glyph.textContent = `${n.crit ? '✦ ' : n.slam ? '◆ ' : ''}${value}`;
   }
 
   puff(pos, color = 0xd8d2c6, radius = 0.012, life = 0.35) {
@@ -261,6 +310,7 @@ export class Fx {
   }
 
   update(dt) {
+    this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
       const k = Math.min(1, c.t / 0.55);
@@ -289,17 +339,45 @@ export class Fx {
       r.m.scale.setScalar(r.r * (0.2 + 0.8 * Math.sqrt(k)));
       r.m.userData.opacity = 0.9 * (1 - k);
     }
+    let activeNumbers = 0; for (const n of this.nums) if (n.alive) activeNumbers++;
+    const calm = juice.calm || this.reducedMotion.matches, crowded = activeNumbers > this.numberLook.accents;
     for (const n of this.nums) {
       if (!n.alive) continue;
       n.t += dt;
-      if (n.t > 0.7) { n.alive = false; n.el.style.display = 'none'; continue; }
+      if (n.t > n.life) { n.alive = false; n.el.style.display = 'none'; continue; }
       const v = this._v.copy(n.pos).project(this.camera);
       if (v.z > 1) { n.el.style.display = 'none'; continue; }
       n.el.style.display = '';
-      const x = (v.x * 0.5 + 0.5) * w + n.dx, y = (-v.y * 0.5 + 0.5) * h - n.t * 40;
-      // pops big, then settles and floats up: hits read as hits
-      n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1 + Math.max(0, 0.12 - n.t) * 8})`;
-      n.el.style.opacity = String(1 - Math.max(0, n.t - 0.45) / 0.25);
+      const t = n.t, k = t / n.life;
+      if (!n.numeric) {
+        const x = (v.x * 0.5 + 0.5) * w + n.drift, y = (-v.y * 0.5 + 0.5) * h - t * 40;
+        n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1 + Math.max(0, 0.12 - t) * 8})`;
+        n.el.style.opacity = String(Math.max(0, 1 - Math.max(0, t - 0.45) / 0.25));
+        n.accent.style.display = 'none'; continue;
+      }
+      let dx = calm ? 0 : n.drift * t, dy = calm ? 0 : -t * (n.tick ? 25 : 42) + t * t * 10;
+      let sx = 1, sy = 1, rotate = 0;
+      if (!calm) {
+        const punch = Math.max(0, 1 - t / 0.15);
+        sx = sy = 1 + punch * (n.tick ? 0.08 : n.crit ? 0.55 : 0.25);
+        if (!n.tick) {
+          if (n.element === 'fire') { dy = -t * 60; dx += Math.sin(t * 8) * 4; }
+          if (n.element === 'ice') { sx = sy = 1 + Math.max(0, 1 - t / 0.08) * (n.crit ? 0.55 : 0.18); }
+          if (n.element === 'lightning') dx += t < 0.14 ? Math.sin(t * 85) * 5 * (1 - t / 0.14) : 0;
+          if (n.element === 'acid') { dy = -t * 12 + t * t * 30; sy += punch * 0.2; }
+          if (n.element === 'wind') { dx += n.windSign * t * (n.slam ? 25 : 55); if (n.slam) { sx += punch * 0.2; sy *= 1 - punch * 0.25; } }
+        }
+        rotate = n.crit ? Math.sin(Math.min(1, t / 0.16) * Math.PI) * (n.serial % 2 ? 4 : -4) : 0;
+      }
+      let x = (v.x * 0.5 + 0.5) * w + n.dx + n.aimDx + dx, y = (-v.y * 0.5 + 0.5) * h + dy - Math.floor(n.lane / 5) * 22;
+      const margin = Math.min(w * 0.45, Math.max(28, n.size * n.glyph.textContent.length * 0.36 * sx));
+      x = Math.max(margin, Math.min(w - margin, x)); y = Math.max(24, Math.min(h - 24, y));
+      n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotate}deg) scale(${sx}, ${sy})`;
+      n.el.style.opacity = String(Math.max(0, Math.min(n.tick ? 0.8 : 1, (1 - k) / 0.3)));
+      n.el.style.textShadow = n.crit && !calm && t < 0.1 ? '0 0 2px #fff,0 0 7px currentColor,0 2px 3px #000' : '0 1px 2px #000,0 0 4px #000';
+      n.accent.style.display = calm || crowded || n.tick || t > 0.35 ? 'none' : '';
+      n.accent.style.transform = `translate(${t * 12}px, ${t * (n.element === 'fire' ? 25 : -10)}px) rotate(${t * 35}deg)`;
+      n.accent.style.opacity = String(Math.max(0, 1 - t / 0.35));
     }
     const so = LOOK.num('splat-opacity', 0.45);
     for (const s of this.splats) {

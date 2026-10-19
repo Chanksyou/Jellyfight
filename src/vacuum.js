@@ -158,7 +158,7 @@ export class Vacuum {
   // up while any of the lanternflies it launched is alive
   get shielded() { return this.guards.length > 0; }
 
-  damage(amount, color = '#fff') {
+  damage(amount, color = '#fff', feedback = {}) {
     if (this.dead || this.dying || this.rise < 1) return;
     if (this.shielded) {             // bounces off: a flash on the dome
       this.domeFlash = 1;
@@ -167,7 +167,7 @@ export class Vacuum {
     }
     this.hp -= amount;
     this.hitPop = 1;
-    this.fx.number(this.center().setY(this.holder.position.y + 0.12), Math.round(amount), color, 16);
+    this.fx.number(this.center().setY(this.holder.position.y + 0.12), amount, color, 16, feedback);
     if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
 
