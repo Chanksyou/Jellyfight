@@ -34,7 +34,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v209';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v210';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -234,6 +234,7 @@ run.onMainMenu = () => {
   overlay.hidden = false;
 };
 run.playerBody = () => state.look.body;
+run.playerLook = () => state.look;
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
@@ -261,9 +262,10 @@ touch.mount(ui);
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
-const mainMenu = new MainMenu({ overlay, player, camera, gfx, scene, height: CONFIG.player.height, calm: () => juice.calm,
+const mainMenu = new MainMenu({ overlay, player, camera, gfx, scene, height: CONFIG.player.height, calm: () => juice.calm, board,
   onPoke: () => { unlockAudio(); sfx.pop(); },
 });
+board.onChange = () => mainMenu.refreshGreeting();
 if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction()?.boss || peekAction()?.layout) {
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }

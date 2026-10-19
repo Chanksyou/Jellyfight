@@ -2,6 +2,7 @@
 // game can rebuild the model live; main.js handles the camera and saving.
 import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, randomLook, normalizeLook } from './character.js';
 import { esc } from './leaderboard.js';
+import { requirement, unlocked, requirementText } from './cosmetics.js';
 
 const CSS = `
 #creator { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100vw); display: flex; flex-direction: column;
@@ -19,6 +20,7 @@ const CSS = `
   padding: 6px 11px; border-radius: 999px; cursor: pointer; }
 #creator .chips button:hover { background: #ffffff1f; }
 #creator .chips button.on { background: #ffd23a; color: #1d1a12; border-color: transparent; font-weight: 600; }
+#creator .chips button.locked { opacity: .45; cursor: not-allowed; }
 #creator .blurb { margin-top: 6px; font-size: 13px; color: #c9c3d6; }
 #creator .sw { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #creator .sw button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffffff30; cursor: pointer; padding: 0; }
@@ -77,7 +79,10 @@ export class Creator {
   render() {
     const L = this.look;
     const chips = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="chips">${
-      OPTIONS[key].map(([id, name]) => `<button data-k="${key}" data-v="${id}" class="${L[key] === id ? 'on' : ''}">${name}</button>`).join('')}</div></div>`;
+      OPTIONS[key].map(([id, name]) => {
+        const need = requirement(key, id), open = !need || unlocked(key, id);
+        return `<button data-k="${key}" data-v="${id}"${open ? '' : ' disabled'} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}"${open ? '' : ` title="${requirementText(need)}"`}>${name}${open ? '' : ' 🔒'}</button>`;
+      }).join('')}</div></div>`;
     const colors = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="sw">${
       SWATCHES.map((c) => `<button data-k="${key}" data-v="${c}" style="background:${c}" class="${L[key].toLowerCase() === c ? 'on' : ''}" aria-label="${c}"></button>`).join('')
     }<input type="color" data-k="${key}" value="${L[key]}" title="Any color"></div></div>`;

@@ -1091,7 +1091,7 @@ export class Run {
   // (parts: also list what the score is made of, as the winning end does)
   endRun(title, sub, again, { parts = false } = {}) {
     const score = this.score();
-    const entry = { score, body: this.playerBody?.() || 'nettle', level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     let typed = savedName();

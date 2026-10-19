@@ -96,3 +96,27 @@ story('menu/living-jelly', {
     }
   },
 });
+
+story('menu/welcomes-a-returning-player-by-name', {
+  about: 'A returning player (a saved best) who has put a name on the board is greeted by it over their jelly: "Welcome back, <name>". A new player gets no greeting.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu } = G(), over = menu.overlay;
+    const keys = ['jellyfight.name', 'jellyfight.best', 'jellyfight.played'];
+    const saved = keys.map((k) => [k, localStorage.getItem(k)]);
+    try {
+      localStorage.setItem('jellyfight.name', 'Marlin');
+      localStorage.setItem('jellyfight.best', JSON.stringify({ score: 1234 }));
+      menu.show(); over.hidden = false; step(1);
+      const el = over.querySelector('.menu-greet');
+      const greeted = !!el && !el.hidden && el.textContent === 'Welcome back, Marlin';
+      for (const k of keys) localStorage.removeItem(k);
+      menu.show(); step(1);
+      const ungreeted = el.hidden && el.textContent === '';
+      return ok(greeted && ungreeted, { greeted, ungreeted, text: el.textContent });
+    } finally {
+      for (const [k, v] of saved) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+});
