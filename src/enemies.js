@@ -594,8 +594,8 @@ export class Enemies {
     this.fx.ring(at.clone().setY(at.y + 0.003), hostile('leap'), radius * 1.05, 0.4);
     this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
     e.landT = 1;
-    const dx = c.foot.x - at.x, dz = c.foot.z - at.z;
-    if (Math.hypot(dx, dz) < radius && Math.abs(c.foot.y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+    const dx = (c.realFoot || c.foot).x - at.x, dz = (c.realFoot || c.foot).z - at.z;
+    if (Math.hypot(dx, dz) < radius && Math.abs((c.realFoot || c.foot).y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
 
   // ---------------------------------------------------------------- ladybugs (the sortie word)
@@ -793,8 +793,8 @@ export class Enemies {
     const from = this.center(e).addScaledVector(e.beamDir, e.r * 0.9), dir = e.beamDir;
     const wall = this.world.cast(from, dir, reach);
     const len = wall ? wall.distance : reach, to = from.clone().addScaledVector(dir, len);
-    const t = THREE.MathUtils.clamp(S.away.copy(c.pc).sub(from).dot(dir), 0, len);
-    const near = S.spot.copy(from).addScaledVector(dir, t).distanceTo(c.pc) < (this.playerRadius || 0.03) + width;
+    const t = THREE.MathUtils.clamp(S.away.copy((c.realPc || c.pc)).sub(from).dot(dir), 0, len);
+    const near = S.spot.copy(from).addScaledVector(dir, t).distanceTo((c.realPc || c.pc)) < (this.playerRadius || 0.03) + width;
     const color = hostile('dragonfly');
     if (!this.beamGeo) {
       this.beamGeo = new THREE.CylinderGeometry(0.0025, 0.0025, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m along +z
@@ -818,7 +818,7 @@ export class Enemies {
     b.m.visible = true;
     sfx.beamFire();
     this.fx.impact(from, color, 0.008, 4);
-    this.fx.impact(near ? c.pc.clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
+    this.fx.impact(near ? (c.realPc || c.pc).clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
     if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   drawBeams(dt) {
@@ -944,12 +944,12 @@ export class Enemies {
   // The forelegs snap shut: you're hit if you're inside the wedge it locked onto
   swat(e, c, { reach, arc, dmg }) {
     sfx.mantisSwat();
-    const dx = c.foot.x - e.pos.x, dz = c.foot.z - e.pos.z, d = Math.hypot(dx, dz);
+    const dx = (c.realFoot || c.foot).x - e.pos.x, dz = (c.realFoot || c.foot).z - e.pos.z, d = Math.hypot(dx, dz);
     const off = d > 1e-4 ? Math.acos(THREE.MathUtils.clamp((dx * e.swatDir.x + dz * e.swatDir.z) / d, -1, 1)) : 0;
     const pad = (this.playerRadius || 0.03), half = THREE.MathUtils.degToRad(arc) / 2;
-    const hit = d < reach + pad && (off < half || d * Math.sin(off - half) < pad) && Math.abs(c.foot.y - e.pos.y) < 0.12;
+    const hit = d < reach + pad && (off < half || d * Math.sin(off - half) < pad) && Math.abs((c.realFoot || c.foot).y - e.pos.y) < 0.12;
     const at = e.pos.clone().addScaledVector(e.swatDir, Math.min(d, reach)).setY(e.pos.y + e.r);
-    this.fx.impact(hit ? c.pc.clone() : at, hostile('mantis'), hit ? 0.02 : 0.012, hit ? 10 : 5);
+    this.fx.impact(hit ? (c.realPc || c.pc).clone() : at, hostile('mantis'), hit ? 0.02 : 0.012, hit ? 10 : 5);
     if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   // The worm bursts out of the carcass: a Blast round where it comes out (or its middle)
@@ -966,11 +966,11 @@ export class Enemies {
   whip(e, c, { reach, width, dmg }) {
     sfx.wormCrack();
     const a = e.emergeAt || e.pos, d = e.whipDir;
-    const t = THREE.MathUtils.clamp((c.foot.x - a.x) * d.x + (c.foot.z - a.z) * d.z, 0, reach);
-    const off = Math.hypot(c.foot.x - (a.x + d.x * t), c.foot.z - (a.z + d.z * t));
-    const hit = off < (this.playerRadius || 0.03) + width && c.foot.y < (e.whipFloor ?? e.pos.y) + 0.03;
+    const t = THREE.MathUtils.clamp(((c.realFoot || c.foot).x - a.x) * d.x + ((c.realFoot || c.foot).z - a.z) * d.z, 0, reach);
+    const off = Math.hypot((c.realFoot || c.foot).x - (a.x + d.x * t), (c.realFoot || c.foot).z - (a.z + d.z * t));
+    const hit = off < (this.playerRadius || 0.03) + width && (c.realFoot || c.foot).y < (e.whipFloor ?? e.pos.y) + 0.03;
     const tip = S.spot.set(a.x + d.x * reach, (e.whipFloor ?? e.pos.y) + 0.005, a.z + d.z * reach);
-    this.fx.impact(hit ? c.pc.clone() : tip.clone(), hostile('worm'), hit ? 0.02 : 0.012, hit ? 10 : 6);
+    this.fx.impact(hit ? (c.realPc || c.pc).clone() : tip.clone(), hostile('worm'), hit ? 0.02 : 0.012, hit ? 10 : 6);
     if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   // a pooled floor Warning: the i-th mark of `pool`, made with `make` the first time
@@ -1061,7 +1061,7 @@ export class Enemies {
   // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
   sting(e, c, { dmg }) {
     sfx.waspSting();
-    this.fx.impact(c.pc.clone(), hostile('wasp'), 0.025, 14);
+    this.fx.impact((c.realPc || c.pc).clone(), hostile('wasp'), 0.025, 14);
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
     this.kill(e, true);
   }
@@ -1071,8 +1071,8 @@ export class Enemies {
   // still where it aimed (within your radius of the line from its head to the tip)
   poke(e, c, dmg) {
     sfx.flyPoke();
-    const a = e.pos, b = e.pokeAt, ab = S.dir.copy(b).sub(a), t = THREE.MathUtils.clamp(S.away.copy(c.pc).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
-    const near = S.spot.copy(a).addScaledVector(ab, t).distanceTo(c.pc) < (this.playerRadius || 0.03) + 0.008;
+    const a = e.pos, b = e.pokeAt, ab = S.dir.copy(b).sub(a), t = THREE.MathUtils.clamp(S.away.copy((c.realPc || c.pc)).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
+    const near = S.spot.copy(a).addScaledVector(ab, t).distanceTo((c.realPc || c.pc)) < (this.playerRadius || 0.03) + 0.008;
     this.fx.impact(b.clone(), hostile('fly'), near ? 0.018 : 0.01, near ? 10 : 5);
     if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
@@ -1190,7 +1190,7 @@ export class Enemies {
   }
 
   // player: { position, radius, height }
-  update(dt, player, t) {
+  update(dt, player, t, decoy = null) {
     this.frame++;
     this.playerRadius = player.radius;
     this.player = player;
@@ -1207,13 +1207,16 @@ export class Enemies {
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
       const slow = (e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
-      const toP = this._d.copy(pc).sub(this.center(e, tmp));
+      const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
+      const aim = lure ? decoy.center : pc;
+      const toP = this._d.copy(aim).sub(this.center(e, tmp));
       const dist = toP.length();
       const near = dist < 1.4;
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.pc = pc; c.foot.copy(player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
       c.flatDir.normalize();
@@ -1229,7 +1232,7 @@ export class Enemies {
       // look at the player, pop when hit, grow in when spawned
       // turn smoothly toward the player (snapping every frame made them twitch up close)
       if (dist > e.r * 0.5 && !e.faceLock) {
-        let d = Math.atan2(pc.x - e.pos.x, pc.z - e.pos.z) - e.root.rotation.y;
+        let d = Math.atan2(aim.x - e.pos.x, aim.z - e.pos.z) - e.root.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
       }

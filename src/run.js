@@ -14,6 +14,7 @@ import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
 import { EnergyShield } from './energy-shield.js';
+import { Mirage } from './mirage.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -77,6 +78,7 @@ export class Run {
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.energyShield = new EnergyShield(this);
+    this.mirage = new Mirage(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -168,6 +170,7 @@ export class Run {
     this.fx.clear();
     this.lash.reset();
     this.energyShield.reset();
+    this.mirage.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -316,6 +319,7 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
+    this.mirage.update(0);
     this.energyShield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
@@ -370,6 +374,7 @@ export class Run {
 
     // --- attacks and enemies
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
+    this.mirage.update(dt);
     if (this.phase === 'explore' || this.phase === 'boss') {
       const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
       // main attack: bubbles, blown from the top of the bell
@@ -389,7 +394,7 @@ export class Run {
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.eliteDamage = this.mods.eliteDamage;
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t, this.mirage.target);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }
@@ -1208,6 +1213,7 @@ export class Run {
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
     if (M.energyShield) put(O.energyShield, this.energyShield.cooldown / M.energyShield.recharge);
+    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
     return out;
   }
 

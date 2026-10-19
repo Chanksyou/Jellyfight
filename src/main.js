@@ -34,7 +34,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v212';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v213';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -591,6 +591,9 @@ async function warmUp() {
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.energyShield.group.visible = true;                 // prepare the shell before any evolution is chosen
   run.energyShield.group.scale.setScalar(0.001);
+  run.mirage.prepare(); run.mirage.group.visible = true;
+  const warmAdorn = ['rebound-bands', 'mirage-rim'].map(k => run.adorn.piece(k).group);
+  warmAdorn.forEach(g => { g.visible = true; });
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
   enemies.warm(true, P.clone());                          // a sap lob's Warning and its puddle (the lob word)
   run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
@@ -619,6 +622,8 @@ async function warmUp() {
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   run.gadgets.warm(false);
   run.energyShield.update(0);
+  run.mirage.group.visible = false;
+  warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
   enemies.warm(false);
   run.roomTreasures[0].hide();

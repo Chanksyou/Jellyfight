@@ -269,6 +269,19 @@ export const sfx = {
     for (const voice of fireVoices) voice.stop(true, 0.008);
   },
   // blowing a bubble: a soft rising bloop
+  rebound() {
+    if (!ready() || !gap('rebound', 120)) return;
+    const j = jitter(0.15);
+    tone('sine', 760 * j, 310 * j, 0.12, 0.055);
+    noise(2400 * j, 1.3, 0.16, 0.025, 'bandpass', 0, 700 * j);
+  },
+  mirage() {
+    if (!ready() || !gap('mirage', 150)) return;
+    const j = jitter(0.12);
+    tone('sine', 420 * j, 850 * j, 0.22, 0.07);
+    tone('sine', 630 * j, 1275 * j, 0.25, 0.04, 0.04);
+    noise(3000 * j, 1.5, 0.2, 0.035, 'bandpass');
+  },
   blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
   // a bubble flying off: a soft airy whoosh that falls away behind it (at most ~6 a second)
   whiz() { if (!ready() || !gap('whiz', 160)) return; const j = jitter(0.15); noise(2600 * j, 1.4, 0.24, 0.03, 'bandpass', 0.03, 900 * j); },
