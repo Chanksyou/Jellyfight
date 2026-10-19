@@ -11,16 +11,44 @@ story('feedback/elemental-crits', {
   play() {
     const { run, enemies, player } = G(), fx = run.fx, e = enemies.list[0], B = run.bubbles, mods = run.mods, hits = record('enemy_hit');
     mods.hits.bubbles.crit = { chance: 1, mult: 3 }; e.armor = 0.25; e.markT = 3; e.markMore = 0.5;
+    const receipts = [];
     for (const element of ['fire', 'ice', 'lightning', 'acid', 'wind', 'glitter']) {
+      fx.clear();   // isolated hits retain each Element's identity; mixed bursts are checked below
       const b = B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 2, tint: element, elems: [element], ep: mods.element[element] });
       B.strike(b, e, mods);
+      const n = active(fx).find(n => n.crit);
+      receipts.push(n && { element: n.element, amount: n.amount, text: n.glyph.textContent, color: n.el.style.color });
     }
-    const nums = active(fx).filter(n => n.crit), expected = 2 * 3 * 0.75 * 1.5;
-    const spread = Math.max(...nums.map(n => n.dx)) - Math.min(...nums.map(n => n.dx));
-    const correct = nums.length === 6 && nums.every(n => n.glyph.textContent.includes('✦') && n.el.style.color !== '' && Math.abs(n.amount - expected) < 1e-6);
-    const colors = new Set(nums.map(n => n.el.style.color));
-    const separated = new Set(nums.map(n => n.dx)).size === 6 && spread >= fx.numberLook.lane * 5;
-    return ok(correct && colors.size === 6 && separated && hits.slice(0, 6).every(h => h.feedback.crit && h.feedback.element && Math.abs(h.amount - expected) < 1e-6), { correct, colors: colors.size, separated, spread, numbers: nums.map(n => [n.element, n.amount]) });
+    const expected = 2 * 3 * 0.75 * 1.5;
+    const correct = receipts.every(n => n && n.text.includes('✦') && n.color !== '' && Math.abs(n.amount - expected) < 1e-6);
+    const colors = new Set(receipts.map(n => n?.color));
+    return ok(correct && colors.size === 6 && hits.slice(0, 6).every(h => h.feedback.crit && h.feedback.element && Math.abs(h.amount - expected) < 1e-6), { correct, colors: colors.size, receipts });
+  },
+});
+
+story('feedback/multiattack-one-receipt', {
+  about: 'Rapid attacks share one direct-hit total per enemy, preserve crit emphasis, and replace the previous burst instead of spreading more labels. Gameplay damage is unchanged.',
+  setup,
+  play() {
+    const { run, enemies } = G(), fx = run.fx, e = enemies.list[0], hp = e.hp;
+    const hit = (amount, feedback = {}, targetId = e.id) => bus.emit('damage_taken', { targetId, amount, source: 'bubble', feedback });
+    for (let i = 0; i < 12; i++) hit(2, { element: i % 2 ? 'lightning' : 'ice', crit: i === 5 });
+    const receipt = active(fx).find(n => !n.tick);
+    const born = receipt.born;
+    const combined = active(fx).length === 1 && receipt.amount === 24 && receipt.element === 'mixed' && receipt.crit && receipt.glyph.textContent === '✦ 24' && hp - e.hp === 24;
+    fx.update(0.1); hit(3);
+    const stable = receipt.amount === 27 && receipt.t === 0.1 && receipt.born === born;
+    fx.update(fx.numberLook.hitWindow); hit(4);
+    const next = active(fx).length === 1 && active(fx)[0] === receipt && receipt.amount === 4 && !receipt.crit;
+    const other = roachAt(0.1, -0.18); hit(9, {}, other.id);
+    const separate = active(fx).length === 2 && active(fx).find(n => n.targetId === other.id).amount === 9;
+    let bounded = true;
+    for (let i = 0; i < 60; i++) {
+      fx.update(0.05); hit(1);
+      bounded &&= active(fx).filter(n => n.targetId === e.id && !n.tick).length === 1 && receipt.amount <= 10;
+    }
+    fx.update(fx.numberLook.life + 0.01);
+    return ok(combined && stable && next && separate && bounded && !receipt.alive, { combined, stable, next, separate, bounded, expired: !receipt.alive });
   },
 });
 
@@ -41,7 +69,7 @@ story('feedback/sting-and-proxy-crits', {
 });
 
 story('feedback/ticks-stay-separate', {
-  about: 'Burn and acid ticks combine by target/element within a fixed window; direct hits remain distinct and grouping cannot extend life indefinitely.',
+  about: 'Burn and acid ticks combine by target/element within a fixed window; direct hits stay separate from ticks and grouping cannot extend tick life indefinitely.',
   setup,
   play() {
     const { run, enemies } = G(), fx = run.fx, id = enemies.list[0].id;
