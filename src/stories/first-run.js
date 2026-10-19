@@ -2,6 +2,7 @@
 
 import { isNewPlayer, PLAYED_KEY, markPlayed } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
+import { xpToNext } from '../stats.js';
 import { G, asNewPlayer, firstMinute, fresh, hintShown, hitJelly, mapShown, modalTitle, near, ok, pickFirstCard, spawn, step, story, stub, tp } from './kit.js';
 
 // --- a player's first run (first-run.js): systems arrive one at a time
@@ -24,7 +25,7 @@ story('first-run/element-pick-after-first-card', {
     const { menus, run } = G();
     step(5);
     const quietStart = !menus.open;
-    run.gainXp(3); step(5);
+    run.gainXp(xpToNext(run.level)); step(5);
     const levelTitle = modalTitle();
     pickFirstCard(); step(5);
     const elementTitle = menus.open ? modalTitle() : '';
@@ -67,7 +68,7 @@ story('first-run/treasures-wait-for-the-element-pick', {
     const sched = () => run.roomTreasures.find((t) => t.active && t.timed);
     step(60 * 20);                                         // past 0:15, no Element pick yet
     const before = !!sched();
-    run.gainXp(3); step(3); pickFirstCard(); step(3);      // the first card, then the Element pick
+    run.gainXp(xpToNext(run.level)); step(3); pickFirstCard(); step(3);      // the first card, then the Element pick
     const elementOpen = /element/i.test(modalTitle());
     pickFirstCard(); step(3);
     const t0 = run.t;

@@ -126,7 +126,7 @@ act2('soap-dispenser-stands-in', {
   },
 });
 act2('soap-dispenser-squirt', {
-  about: 'Soap squirt: it pumps six times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 4 and leaves a slick that makes you slip.',
+  about: 'Soap squirt: it pumps nine times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 4 and leaves a slick that makes you slip.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -141,36 +141,36 @@ act2('soap-dispenser-squirt', {
   },
 });
 act2('soap-dispenser-bubble-ring', {
-  about: 'Bubble ring: it foams up while a pink ring fills round it, then lets go two rings of soap bubbles drifting outward, each with one gap to slip through. They all pop before long.',
+  about: 'Bubble ring: it foams up while a pink ring fills round it, then lets go three rings of soap bubbles drifting outward, each with one gap to slip through. They all pop before long.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = soapElite(), dirs = [], bub = run.elites.bubble.bind(run.elites);
     stub(run.elites, 'bubble', (from, dir, ...rest) => { dirs.push(Math.atan2(dir.x, dir.z)); return bub(from, dir, ...rest); });
     let warned = false;
-    step(60 * 4, () => { if (e.state === 'windup' && e.tele.length) warned = true; });
+    step(60 * 6, () => { if (e.state === 'windup' && e.tele.length) warned = true; });
     if (!dirs.length) return ok(false, { warned, bubbles: 'none' });
     const angles = dirs.slice(0, 16).sort((a, b) => a - b);   // the first ring's bubbles
     // the widest gap between neighbouring bubbles (going round) is the way through
     const gaps = angles.map((a, i) => (i ? a - angles[i - 1] : a + Math.PI * 2 - angles.at(-1)));
     const widest = Math.max(...gaps) * 180 / Math.PI;
-    return ok(warned && dirs.length === 32 && angles.length === 16 && widest > 50 && run.elites.soapBubbles.length === 0, { warned, count: dirs.length, widest: Math.round(widest), left: run.elites.soapBubbles.length });
+    return ok(warned && dirs.length === 48 && angles.length === 16 && widest > 50 && run.elites.soapBubbles.length === 0, { warned, count: dirs.length, widest: Math.round(widest), left: run.elites.soapBubbles.length });
   },
 });
 act2('soap-dispenser-angry', {
-  about: 'Under its angry threshold the Soap Dispenser pumps faster, each glob landing as a floor Blast, and lets go three bubble rings instead of two, each mixing floor-level and jump-height bubbles.',
+  about: 'Under its angry threshold the Soap Dispenser pumps ten times, each glob landing as a floor Blast, and lets go five bubble rings instead of three, each mixing floor-level and jump-height bubbles.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
     let globs = 0, domes = 0, bubbles = 0;
-    const heights = [0, 0, 0].map(() => ({ low: 0, high: 0 }));
+    const heights = Array.from({ length: 5 }, () => ({ low: 0, high: 0 }));
     const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
     stub(run.elites, 'lob', (...a) => { globs++; if (a[7]?.dome) domes++; return lob(...a); });
-    stub(run.elites, 'bubble', (from, ...a) => { heights[Math.min(2, bubbles++ >> 4)][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
+    stub(run.elites, 'bubble', (from, ...a) => { heights[Math.min(4, bubbles++ >> 4)][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
     e.cool = 0; e.next = 1;
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
     const mixed = heights.every((h) => h.low === 8 && h.high === 8);
-    return ok(globs === 6 && domes === 6 && bubbles === 48 && mixed, { globs, domes, bubbles, heights });
+    return ok(globs === 10 && domes === 10 && bubbles === 80 && mixed, { globs, domes, bubbles, heights });
   },
 });
 // --- 3D attacks: each soap glob lands as a floor Blast (a 4 cm half sphere over its pink circle),
@@ -217,7 +217,7 @@ function bubbleVsJelly(jump) {
   const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble'), out = {};
   const floor = e.base.y, toYou = Math.atan2(player.position.x - e.base.x, player.position.z - e.base.z);
   for (const kind of ['low', 'high']) {
-    e.state = 'idle'; e.next = 1; e.cool = 99; e.rings = 0; e.clearTele();   // held back until the room is clear of the last phase's bubbles (a ring attack now lets go two rings, which linger)
+    e.state = 'idle'; e.next = 1; e.cool = 99; e.rings = 0; e.clearTele();   // wait until all rings from the previous phase have cleared
     step(400, () => !run.elites.soapBubbles.length);
     e.cool = 0;
     player.position.set(e.base.x + Math.sin(toYou) * 0.12, floor, e.base.z + Math.cos(toYou) * 0.12); player.grounded = true;
@@ -227,6 +227,10 @@ function bubbleVsJelly(jump) {
     const off = (b) => Math.abs(Math.atan2(Math.sin(Math.atan2(b.v.x, b.v.z) - toYou), Math.cos(Math.atan2(b.v.x, b.v.z) - toYou)));
     const b = mine.sort((x, y) => off(x) - off(y))[0];
     if (!b) { out[kind] = 'none'; continue; }
+    // Test this bubble's height without another ring crossing the jelly during the measurement.
+    e.state = 'idle'; e.cool = 99; e.clearTele();
+    for (const other of run.elites.soapBubbles) if (other !== b) run.elites.scene.remove(other.m);
+    run.elites.soapBubbles = [b];
     const dir = b.v.clone().normalize();
     player.position.set(e.base.x + dir.x * 0.2, floor + (jump ? JUMP_FEET : 0), e.base.z + dir.z * 0.2); player.grounded = !jump;
     const h0 = hits.length;
@@ -355,19 +359,19 @@ act2('clock-wreath-boomerang', {
   },
 });
 act2('clock-strikes-the-hour', {
-  about: 'Under half health the clock also strikes the hour: three chimes, each a golden ring rolling out across the bench (2 if it rolls over you).',
+  about: 'Under half health the clock also strikes the hour: six chimes, each a golden ring rolling out across the bench (2 if it rolls over you).',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
   play() {
     const { run } = G(), e = hallClock(), log = record('damage_taken');
     e.hp = e.maxHp * 0.4;
-    step(90); e.cool = 0; e.next = 2;
+    step(90); e.state = 'idle'; e.clearTele(); e.cool = 0; e.next = 2;
     let rings = 0;
     const ring = run.elites.rings;
-    step(60 * 4, () => { rings = Math.max(rings, e.chimed + 1 || 0); return rings >= 3 && e.state === 'idle'; });
+    step(60 * 6, () => { rings = Math.max(rings, e.chimed + 1 || 0); return rings >= 6 && e.state === 'idle'; });
     const hits = log.filter((d) => d.source === 'clock-chime');
     // and its attacks now go round three ways
     const order = [0, 1, 2, 3].map(() => e.next++ % (e.hp < e.maxHp * 0.5 ? 3 : 2));
-    return ok(rings === 3 && hits.length >= 1 && order.includes(2), { rings, hits: hits.length, order });
+    return ok(rings === 6 && hits.length >= 1 && order.includes(2), { rings, hits: hits.length, order });
   },
 });
 act2('clock-beaten-hangs-again', {

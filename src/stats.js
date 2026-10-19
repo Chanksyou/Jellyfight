@@ -131,7 +131,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
 }
 
 // XP needed to go from `level` to the next one: base x growth^(level-1), from
-// content/levelups.kdl (3, 4, 6, 9, 13, 19, 28, 40… at the file's values)
+// content/levelups.kdl (4, 6, 8, 11, 15, 22, 30, 42… at the file's values)
 export const xpToNext = (level) => Math.round(CONTENT.levelups.xp.base * CONTENT.levelups.xp.growth ** (level - 1));
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities
