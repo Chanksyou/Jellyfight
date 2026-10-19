@@ -525,12 +525,12 @@ class Elite {
     if (this.model.wreath) this.model.wreath.visible = true;
   }
 
-  damage(amount, color = '#fff') {
+  damage(amount, color = '#fff', feedback = {}) {
     if (this.dead) return;
     this.hp -= amount;
     this.hitPop = 1;
     const c = this.center();
-    this.owner.fx.number(c.setY(c.y + this.r * 0.6), Math.round(amount), color, 16);
+    this.owner.fx.number(c.setY(c.y + this.r * 0.6), amount, color, 16, feedback);
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 

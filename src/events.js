@@ -6,9 +6,10 @@
 //   damage_taken    { targetId, amount, color?, source, drain?, from? }   targetId 'player' or an enemy id;
 //                   from: the enemy id that dealt it, when one did (on-hurt treasures answer it)
 //                   drain: ongoing damage that skips i-frames and the flinch (puddles, suction)
+//                   feedback?: { crit, element, tick, slam, dir } presentation only; forwarded through confirmed damage, never changes hit rules
 //   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw'
 //   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy)
-//   enemy_hit       { targetId, amount, color, pos }  after an enemy's HP went down
+//   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
 //   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent }
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten

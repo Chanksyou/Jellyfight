@@ -265,8 +265,11 @@ export class Enemies {
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
-    bus.on('damage_taken', ({ targetId, amount, color, source, sound }) => {
-      if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source);
+    bus.on('damage_taken', ({ targetId, amount, color, source, sound, feedback }) => {
+      if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source, {
+        targetId, element: ['fire', 'acid', 'lightning'].includes(source) ? source : undefined,
+        tick: ['fire', 'acid', 'venom'].includes(source), ...feedback,
+      });
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
@@ -375,7 +378,7 @@ export class Enemies {
     }
   }
 
-  // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color).
+  // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color, feedback?).
   addProxy(obj) {
     const e = { id: nextId(), proxy: obj, T: { fly: false }, get pos() { return obj.position; }, get r() { return obj.r; }, dead: false };
     this.list.push(e);
@@ -389,10 +392,10 @@ export class Enemies {
   }
 
   // (the damage_taken listener) elites and bosses keep their own HP
-  applyDamage(e, amount, color = '#fff', sound) {
+  applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
     if (e.proxy) {
-      e.proxy.damage(amount * (this.eliteDamage ?? 1), color);   // elite-damage (treasures)
+      e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
       return;
     }
@@ -409,7 +412,7 @@ export class Enemies {
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
     e.pop = 1;
     e.flashT = 0.07;                      // flashes white for a moment
-    bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound });
+    bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound, feedback });
     if (e.hp <= 0) this.kill(e);
   }
 
@@ -1302,7 +1305,7 @@ export class Enemies {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
       sfx.windSlam(); juice.feel('impact');
-      bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision' });
+      bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision', feedback: { element: 'wind', slam: true, dir } });
     }
   }
 
