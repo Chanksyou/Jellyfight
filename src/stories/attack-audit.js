@@ -6,6 +6,8 @@
 // retaining crit emphasis and quiet grouped ticks. Other phases/scores are unchanged.
 // v209 tunes elite tempo, counts and aggro only. Existing phase implementations and scores
 // are retained; unscored elite attacks remain unscored (no new claim of play-speed verification).
+// v210: Box Jelly reuses the existing Lash rig with thicker, brighter tubes. Strike timing,
+// target feedback, venom and sound are retained; the existing sting score is unchanged.
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
 import { CONTENT } from '../content.js';

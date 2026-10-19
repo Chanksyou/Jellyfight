@@ -206,7 +206,9 @@
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
-  --venom: #8dff5a;              /* Box Jelly: venom strands and the puffs of a venomed bug */
+  --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
+  --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
+  --venom: #8dff5a;              /* the puffs of a venomed bug */
   /* the pieces evolutions add to the jelly (src/adornments.js), on top of the player's own look */
   --sail: #9fb6ff;               /* Man o' War: the crest and the polyps */
   --halo: #ffd27a;               /* Immortal Jelly: the ring over the bell */

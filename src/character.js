@@ -369,7 +369,7 @@ export function buildCharacter(look, heightMeters) {
   // hang in bundles from its corners
   const T = sp.tentacles, corners = T.corners ? Array.from({ length: T.count }, (_, i) => Math.PI / 4 + Math.floor(i / 2) * Math.PI / 2 + (i % 2 ? 0.12 : -0.12)) : null;
   rig = new TentacleRig(lean, {
-    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * 0.92), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare,
+    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * 0.92), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare, floorRoot: root,
     angles: corners && corners.map((a) => Math.PI / 2 - a),   // rig angles: x = sin, z = cos
     material: lit(base.clone().lerp(rimCol, 0.3), 1.3),
   });
@@ -672,6 +672,7 @@ export function buildCharacter(look, heightMeters) {
     t += dt;
     const move = Math.min(1, s.speed / (s.walkSpeed || 0.35));
     phase += dt * s.speed * 60;
+    let contract = 0;
 
     if (bell) {
       // the swim cycle comes from the player (so the surge and the squeeze line up); menus and
@@ -680,7 +681,7 @@ export function buildCharacter(look, heightMeters) {
       if (swim == null) swim = idleSwim = (idleSwim + dt * 0.6) % 1;
       kick = Math.max(0, kick - dt * 3);
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
-      const contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
+      contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
       bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
@@ -694,7 +695,6 @@ export function buildCharacter(look, heightMeters) {
       }
       roll += (THREE.MathUtils.clamp(-localVel.x * 0.05, -0.35, 0.35) - roll) * (1 - Math.exp(-8 * dt));
       lean.rotation.z = roll;
-      rig.update(dt, { localVel, contract, vy: s.vy || 0 });
     }
 
     // landing squash as a damped spring
@@ -707,6 +707,7 @@ export function buildCharacter(look, heightMeters) {
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
     lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
+    rig?.update(dt, { localVel, contract, vy: s.vy || 0 });
 
 
     spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });

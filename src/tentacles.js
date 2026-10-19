@@ -11,6 +11,7 @@
 // facing +z); the chain is simulated in world space (scaled to model units), so the jelly
 // moving, turning and tilting is what drags the tentacles.
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 
 const SEG = 20;       // rings along a tentacle (and points in its chain)
 const RAD = 8;        // vertices around a ring
@@ -43,9 +44,13 @@ export class TentacleRig {
   // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material, angles? (each one's place around the ring) }
   constructor(parent, opts) {
     this.parent = parent;
+    this.floorRoot = opts.floorRoot || parent;
     this.count = opts.count;
     this.length = opts.length;
     this.thick = opts.thickness;
+    this.venom = false;
+    this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
+    this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
     this.flare = opts.flare ?? 0.3;
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
@@ -111,6 +116,7 @@ export class TentacleRig {
     _v.setFromMatrixPosition(M).divideScalar(unit);
     if (this.fresh || dt <= 0 || dt > 0.25 || _v.distanceTo(this.lastRoot) > 3) this.fresh = true;
     this.lastRoot.copy(_v);
+    const floorY = this.floorRoot.getWorldPosition(_o).y + 0.015 * (1 - fall) * unit;
 
     for (const T of this.list) {
       // --- the pose the chain is pulled toward: hang close under the bell (a lean jelly),
@@ -164,6 +170,7 @@ export class TentacleRig {
 
       // --- striking: a whip arc from the root out to the target, blended over the chain (which
       // follows it, so the tentacle swings back on its own when the strike ends)
+      const glow = T.baseGlow * (this.venom ? this.venomGlow : 1);
       if (T.aim) {
         const target = this.parent.worldToLocal(_v.copy(T.aim));
         const end = _t.copy(T.anchor).lerp(target, T.k);
@@ -180,12 +187,13 @@ export class TentacleRig {
           T.sim[j].copy(T.pts[j]).applyMatrix4(M).divideScalar(unit);
         }
         T.mat.emissive.setHex(T.golden ? 0xffc23a : 0xfff6b0);
-        T.mat.emissiveIntensity = 0.6 + T.k * 1.4;
-      } else if (T.mat.emissiveIntensity !== T.baseGlow) {
+        const strikeGlow = 0.6 + T.k * 1.4;
+        T.mat.emissiveIntensity = this.venom ? Math.max(glow, strikeGlow) : strikeGlow;
+      } else {
         T.mat.emissive.copy(T.baseEmissive);
-        T.mat.emissiveIntensity = T.baseGlow;
+        T.mat.emissiveIntensity = glow;
       }
-      this.build(T);
+      this.build(T, floorY);
     }
     this.fresh = false;
   }
@@ -194,7 +202,9 @@ export class TentacleRig {
   reset() { this.fresh = true; }
 
   // Skin the tube around the points
-  build(T) {
+  build(T, floorY) {
+    const thick = this.thick * (this.venom ? this.venomThickness : 1);
+    const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
     const P = T.pts;
     for (let j = 0; j <= SEG; j++) {
@@ -205,19 +215,23 @@ export class TentacleRig {
       if (j === 0) _n.crossVectors(_t, Math.abs(_t.z) < 0.9 ? Z : X).normalize();
       else _n.addScaledVector(_t, -_n.dot(_t)).normalize();
       _b.crossVectors(_t, _n);
-      const s = j / SEG, r = this.thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3);
+      const s = j / SEG, r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3);
       for (let k = 0; k < RAD; k++) {
         const th = (k / RAD) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
         const nx = _n.x * c + _b.x * s, ny = _n.y * c + _b.y * s, nz = _n.z * c + _b.z * s;
         const i = j * RAD + k;
-        pos.setXYZ(i, P[j].x + nx * r, P[j].y + ny * r, P[j].z + nz * r);
+        const x = P[j].x + nx * r, z = P[j].z + nz * r;
+        const floor = (floorY - M[1] * x - M[9] * z - M[13]) / M[5];
+        pos.setXYZ(i, x, Math.max(floor, P[j].y + ny * r), z);
         nor.setXYZ(i, nx, ny, nz);
       }
     }
     pos.needsUpdate = true;
     nor.needsUpdate = true;
     T.tip.position.copy(P[SEG]);
-    T.tip.scale.setScalar(this.thick * 0.45);
+    T.tip.scale.setScalar(thick * 0.45);
+    const tipFloor = (floorY + thick * 0.45 * Math.hypot(M[1], M[5], M[9]) - M[1] * T.tip.position.x - M[9] * T.tip.position.z - M[13]) / M[5];
+    T.tip.position.y = Math.max(T.tip.position.y, tipFloor);
   }
 
   dispose() {
