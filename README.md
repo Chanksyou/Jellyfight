@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v212 adds Aegis Jelly: an energy shield absorbs 10 damage, bursts for a flat 10 damage within 20 cm when depleted, and fully recharges 8 seconds after breaking. Overflow reaches Health; a partial shield does not refill. Its shell and evolution cooldown icon show when protection is available.
+
 v210 welcomes a returning player back by their leaderboard name, over their jelly on the main menu ("Welcome back, …"), and lays the framework for earned cosmetics: a score entry now carries the player's whole look, not just their species — the Worker keeps it (sanitized to the descriptor's own keys) and hands it back with every row, so a board row can draw the actual jelly it belongs to. Which creator options are earned is data in `src/cosmetics.js`, keyed by the same option ids the look uses and judged against the player's best run (a win, a best score, a level, kills); the registry ships empty, so nothing is locked yet, and a look already being worn never becomes invalid.
 
 v209 applies the updated level-up amounts, rarity chances, XP curve and elite pace, wake distances and attack counts. Bubbles is removed from level-up offers; a card with weight=0 in content/levelups.kdl is disabled.

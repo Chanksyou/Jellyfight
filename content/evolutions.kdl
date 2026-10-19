@@ -8,6 +8,10 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
+evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 10 damage. When depleted, it explodes for 10 damage within 20 cm, then returns after 8 seconds. Excess damage passes through to Health." {
+    energy-shield 10 dmg=10 radius=0.2 recharge=8
+}
+
 evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 40% slower." {
     stat tentacles 3
     stat tentacle-reach 100 percent=#true

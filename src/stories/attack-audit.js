@@ -29,6 +29,7 @@ export const AUDIT = {
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {
+    'energy-shield': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'Aegis: the visible shell weakens and flashes on absorbed hits; depletion releases the burst, bell pulse and layered crack/bass/crystal sound together. A brief sphere and ring show the actual 20 cm area. Confirmed targets receive localized impacts, white flash, damage-scaled shove, damage numbers and existing kill feedback. Harmless shards settle and fade within 1.1 s. The shell disappears for the HUD-marked 8 s recharge, then returns with a chime. Code audit; gameplay screenshots and stories cover absorption, overflow, flat burst damage, recharge and reset; not a play-speed sound audit.' },
     'echo-bubble': todo, 'toy-mouse': todo, 'golden-bubble': todo, 'giant-bubble': todo, 'zap-on-pop': todo,
     'landing-shockwave': todo, 'squeak-when-hit': todo, reflect: todo, venom: todo, polyps: todo, 'touch-sting': todo,
     'burst-on-kill': todo, 'orbit-lights': todo, beam: todo, aura: todo,
