@@ -1,19 +1,19 @@
 // Level-ups (src/stats.js): the XP curve, how often each card rarity rolls, and what each
 // level-up card gives at Common / Rare / Epic. weight= is how likely a card is to be offered
-// next to the others (1 = as likely as any). How an amount applies (a percent of the base
+// next to the others (1 = as likely as any; 0 = won't be offered). How an amount applies (a percent of the base
 // stat, per second, percentage points) stays with the stat's definition in stats.js.
 
-xp base=3 growth=1.45
+xp base=4 growth=1.4
 
-rarities common=70 rare=25 epic=5
+rarities common=65 rare=25 epic=10
 
-card "bubbles" common=0 rare=0 epic=1 weight=0.6
+card "bubbles" common=0 rare=0 epic=1 weight=0
 card "range" common=15 rare=20 epic=25
 card "bubbleDamage" common=1 rare=2 epic=3
-card "fireRate" common=12 rare=18 epic=25
-card "health" common=3 rare=6 epic=9
+card "fireRate" common=12 rare=18 epic=24
+card "health" common=3 rare=5 epic=7
 card "moveSpeed" common=10 rare=15 epic=20 weight=1.2
-card "regen" common=0.25 rare=0.5 epic=0.75
-card "dodge" common=10 rare=12.5 epic=15
+card "regen" common=0.2 rare=0.4 epic=0.6
+card "dodge" common=10 rare=13 epic=16
 card "luck" common=10 rare=18 epic=30
-card "bubbleSize" common=10 rare=18 epic=30 weight=0.8
+card "bubbleSize" common=15 rare=20 epic=25 weight=0.8

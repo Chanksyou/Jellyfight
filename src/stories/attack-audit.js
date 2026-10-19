@@ -4,6 +4,8 @@
 // `seen` says how it was scored: 'play' (watched at play speed) or 'code' (read only).
 // v206: shared confirmation still scores 1; rapid direct hits share one burst receipt per target,
 // retaining crit emphasis and quiet grouped ticks. Other phases/scores are unchanged.
+// v209 tunes elite tempo, counts and aggro only. Existing phase implementations and scores
+// are retained; unscored elite attacks remain unscored (no new claim of play-speed verification).
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
 import { CONTENT } from '../content.js';

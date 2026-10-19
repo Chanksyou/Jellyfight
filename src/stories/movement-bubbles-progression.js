@@ -225,14 +225,47 @@ story('enemies/mosquito-spits', {
 });
 
 // --- progression
+story('content/levelup-and-elite-tuning', {
+  about: 'The requested level-up and elite tuning reaches the compiled game content.',
+  setup() {},
+  play() {
+    const L = CONTENT.levelups, E = CONTENT.elites;
+    const actual = {
+      xp: L.xp, rarities: L.rarities,
+      cards: Object.fromEntries(['health', 'fireRate', 'regen', 'dodge', 'bubbleSize'].map((id) => [id, L.cards[id].amounts])),
+      bubbles: L.cards.bubbles.weight, pace: E.pace,
+      aggro: ['controller', 'mug', 'kettle', 'soap', 'whipper'].map((id) => E[id].aggro),
+      mug: [E.mug.skills.spill.puddles, E.mug.skills.coffee.lobs, E.mug.skills.coffee.drain],
+      soap: [E.soap.skills.squirt.count, E.soap.skills.squirt.angryCount, E.soap.skills.ring.rings, E.soap.skills.ring.angryRings],
+    };
+    const expected = {
+      xp: { base: 4, growth: 1.4 }, rarities: { common: 65, rare: 25, epic: 10 },
+      cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.2, 0.4, 0.6], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
+      bubbles: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [3, 1.2, 2, 1.5, 1.75], mug: [7, 5, 3], soap: [9, 10, 3, 5],
+    };
+    return ok(JSON.stringify(actual) === JSON.stringify(expected), { actual });
+  },
+});
 story('progression/card-tiers', {
-  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 12.5 / 15%), and the Bubbles card only ever comes as Epic +1.',
+  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 13 / 16%); Bubbles is no longer offered.',
   setup() {},
   play() {
     const seen = {};
     for (let i = 0; i < 3000; i++) for (const c of rollCards({ bubbles: 1 }, 3)) (seen[c.stat] ||= new Set()).add(`${c.rarity.id}:${c.amount}`);
     const bubbles = [...(seen.bubbles || [])], dodge = [...(seen.dodge || [])].sort();
-    return ok(bubbles.join() === 'epic:1' && dodge.join() === 'common:10,epic:15,rare:12.5', { bubbles, dodge });
+    return ok(bubbles.length === 0 && dodge.join() === 'common:10,epic:16,rare:13', { bubbles, dodge });
+  },
+});
+story('progression/disabled-cards-never-offered', {
+  about: 'A zero-weight card is excluded even when every available card is requested and randomness picks the first entry.',
+  setup() {},
+  play() {
+    stub(Math, 'random', () => 0);
+    stub(CONTENT.levelups.cards.range, 'weight', 0);
+    try {
+      const cards = rollCards({ bubbles: 1 }, 99, 0, 0).map((c) => c.stat);
+      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 8 && !cards.includes('bubbles') && !cards.includes('range'), { cards });
+    } finally { restore(); }
   },
 });
 story('progression/luck', {
@@ -278,19 +311,19 @@ story('progression/dodge', {
   },
 });
 story('progression/level-curve', {
-  about: 'Each level needs 1.45x the XP of the last, starting at 3: three cockroaches (1 XP each) is level 2.',
+  about: 'Each level needs 1.4x the XP of the last, starting at 4: four cockroaches (1 XP each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
     let killed = 0;
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 4; k++) {
       const e = spawn('roach', near(0, -0.15), { still: true, hp: 1 });
       step(240, () => e.dead);
       if (e.dead) killed++;
       tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the XP
       step(120);
     }
-    const ok1 = curve.join() === '3,4,6,9,13,19' && killed === 3 && run.level === 2 && xpToNext(run.level) === 4;
+    const ok1 = curve.join() === '4,6,8,11,15,22' && killed === 4 && run.level === 2 && xpToNext(run.level) === 6;
     return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });

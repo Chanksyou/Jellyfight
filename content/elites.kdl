@@ -7,26 +7,26 @@
 // pace is every elite's tempo: rest between attacks runs down recover× as fast, and each
 // attack plays tempo× as fast.
 
-pace recover=1.2 tempo=1.2
+pace recover=1 tempo=1.4
 
-elite "controller" name="The Controller" hp=250 aggro=0.9 {
+elite "controller" name="The Controller" hp=250 aggro=3 {
     barrage dmg=3
     rumble dmg=3
 }
 
-elite "mug" name="The Mug" hp=250 aggro=0.8 {
-    coffee dmg=3 lobs=3 drain=1.5
-    spill puddles=6
+elite "mug" name="The Mug" hp=250 aggro=1.2 {
+    coffee dmg=3 lobs=5 drain=3
+    spill puddles=7
 }
 
-elite "kettle" name="The Kettle" hp=275 aggro=0.8 {
+elite "kettle" name="The Kettle" hp=275 aggro=2 {
     steam dmg=3
     boil dmg=3 drops=6
 }
 
-elite "soap" name="The Soap Dispenser" hp=500 aggro=0.8 angry=0.75 {
-    squirt dmg=4 count=6 angryCount=6
-    ring dmg=3 rings=2 angryRings=3
+elite "soap" name="The Soap Dispenser" hp=500 aggro=1.5 angry=0.75 {
+    squirt dmg=4 count=9 angryCount=10
+    ring dmg=3 rings=3 angryRings=5
 }
 
 elite "clock" name="The Wall Clock" hp=450 aggro=0.75 angry=0.65 {
@@ -35,7 +35,7 @@ elite "clock" name="The Wall Clock" hp=450 aggro=0.75 angry=0.65 {
     hour dmg=4 chimes=6
 }
 
-elite "whipper" name="The Cream Whipper" hp=450 aggro=0.75 angry=0.65 {
+elite "whipper" name="The Cream Whipper" hp=450 aggro=1.75 angry=0.65 {
     balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
     cream dmg=3 slow=2
 }
@@ -90,7 +90,7 @@ elite "bull" name="The Bull" hp=800 aggro=1.0 angry=0.65 {
 //   jewels:    count= amber jewels shoot up out of sight off its lid while count= Warnings of radius=
 //              fill on random spots of the desk top (spread= m apart at least) for rain= s; then the
 //              jewels fall from up= m onto them in drop= s and burst as Blasts
-// (its times are written 1.2x long: pace tempo 1.2 plays every elite faster, so they play as the owner's 0.5 s unfold, 4 s leash and 2 s rain)
+// (its times were authored for tempo=1.2; the shared pace above scales these attacks too)
 elite "coffer" name="The Latticework Coffer" hp=800 aggro=1.2 angry=0.65 {
     accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
     tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7

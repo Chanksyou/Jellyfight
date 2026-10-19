@@ -117,7 +117,7 @@ function pickWeighted(list, w) {
 export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
-  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
+  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);
@@ -131,7 +131,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
 }
 
 // XP needed to go from `level` to the next one: base x growth^(level-1), from
-// content/levelups.kdl (3, 4, 6, 9, 13, 19, 28, 40… at the file's values)
+// content/levelups.kdl (4, 6, 8, 11, 15, 22, 30, 42… at the file's values)
 export const xpToNext = (level) => Math.round(CONTENT.levelups.xp.base * CONTENT.levelups.xp.growth ** (level - 1));
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities

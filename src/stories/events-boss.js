@@ -438,7 +438,7 @@ story('elites/hud-health-bar', {
     mug.hp = mug.maxHp * 0.3;
     step(2);
     const after = bar().querySelector('i').style.transform, red = mug.fill.material.color.r > mug.fill.material.color.g;
-    tp(3.2, 0.05, 3.0, 0);
+    tp(4.5, 0.05, 0.5, 0);   // beyond every act-1 elite's expanded wake distance
     step(20);
     const gone = bar().hidden;
     return ok(shown && full === 'scaleX(1)' && /scaleX\(0\.3/.test(after) && green && red && gone, { shown, full, after, green, red, gone });
@@ -446,14 +446,14 @@ story('elites/hud-health-bar', {
 });
 
 story('elites/tougher-and-quicker', {
-  about: 'Elites have their file Health in act 1 (the Mug: 250) and rest 1.2x quicker between attacks (Elite pace): a 1.2 s rest is over in 1 s.',
+  about: 'Elites have their file Health in act 1 (the Mug: 250) and recover at normal speed: a 1.2 s rest has 0.2 s left after 1 s.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() {
     const { run } = G(), mug = run.elites.list.find((e) => e.kind === 'mug');
     const hp = mug?.maxHp === Math.round(250 * (run.elites.hpScale || 1));
     mug.cool = 1.2;
     step(60);
-    return ok(hp && Math.abs(mug.cool) < 0.03, { maxHp: mug?.maxHp, cool: +mug.cool.toFixed(3) });
+    return ok(hp && Math.abs(mug.cool - 0.2) < 0.03, { maxHp: mug?.maxHp, cool: +mug.cool.toFixed(3) });
   },
 });
 story('elites/hall-clock-hangs-in-act-1', {
