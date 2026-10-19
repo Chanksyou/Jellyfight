@@ -134,12 +134,9 @@ export function randomLook() {
 // Where the face, the hat and the spots go on a species' bell (in units)
 function placement(sp) {
   const P = sp.profile, top = P[P.length - 1][1], R = sp.R;
-  const h = top * 0.4;                                     // the face sits 40% of the way up the bell
-  let r = P[0][0];
-  for (let i = 1; i < P.length; i++) if (P[i][1] >= h) { const [r0, y0] = P[i - 1], [r1, y1] = P[i]; r = r0 + (r1 - r0) * (h - y0) / (y1 - y0); break; }
-  const front = sp.square ? 0.8 : 1;                        // a box bell's flat side is nearer than its corners
+  const h = top * 0.4;                                     // initial eye sizing; the whole expression is fitted below
   return {
-    faceY: BELL_Y + h * R, faceZ: r * R * front * 0.97, spread: 0.1 * R / 0.27, faceScale: 0.7 * Math.min(1.15, R / 0.27),
+    faceY: BELL_Y + h * R, spread: 0.1 * R / 0.27, faceScale: 0.7 * Math.min(1.15, R / 0.27),
     topY: BELL_Y + top * R + (sp.extra === 'yolk' ? 0.06 : 0) - 0.02, bellTop: BELL_Y + top * R,
     spots: { c: [0, BELL_Y + top * R * 0.3, 0], r: [R, top * R * 0.7, R], upper: true },
     halo: BELL_Y + top * R * 0.4,
@@ -384,9 +381,9 @@ export function buildCharacter(look, heightMeters) {
 
   // --- Face -----------------------------------------------------------------
   const face = new THREE.Group();
-  face.position.set(0, shape.faceY, shape.faceZ);
+  face.name = 'Face';
   if (shape.faceScale) face.scale.setScalar(shape.faceScale);
-  lean.add(face);
+  bell.add(face);
   const k = 1;
   const eyes = [];
   // Each eye is a flat disc pressed onto the bell (not a ball sticking out), sized per style and
@@ -408,7 +405,7 @@ export function buildCharacter(look, heightMeters) {
     mesh(new THREE.SphereGeometry(R, 24, 16), M.eyeWhite, g).scale.z = 0.38;
     mesh(new THREE.SphereGeometry(R * 0.62, 20, 12), M.iris, g, 0, -R * 0.05, R * 0.24).scale.z = 0.3;
     mesh(new THREE.SphereGeometry(R * 0.33, 14, 10), M.black, g, 0, -R * 0.05, R * 0.36).scale.z = 0.3;
-    mesh(new THREE.SphereGeometry(R * 0.17, 8, 6), M.eyeWhite, g, R * 0.26, R * 0.24, R * 0.46);
+    if (look.eyes !== 'sleepy') mesh(new THREE.SphereGeometry(R * 0.17, 8, 6), M.eyeWhite, g, R * 0.26, R * 0.24, R * 0.46);
     if (look.eyes === 'sleepy') {
       // a heavy lid over the top half, in a darker shade of the bell, the same flat shape as the eye
       const lid = mesh(new THREE.SphereGeometry(R * 1.06, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.56), M.lid, g, 0, 0, R * 0.02);
@@ -443,6 +440,55 @@ export function buildCharacter(look, heightMeters) {
   } else if (look.mouth === 'open') {
     mesh(new THREE.SphereGeometry(0.06 * k, 16, 10), M.mouth, face, 0, mouthY, 0).scale.set(1, 0.75, 0.35);
     mesh(new THREE.SphereGeometry(0.035 * k, 12, 8), M.tongue, face, 0, mouthY - 0.02 * k, 0.012).scale.set(1, 0.6, 0.4);
+  }
+
+  // Fit the entire expression inside the head, then wrap it onto the bell, including its pulse.
+  face.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(face);
+  const inverseFace = face.matrixWorld.clone().invert();
+  bounds.applyMatrix4(inverseFace);
+  const headHeight = shape.bellTop - BELL_Y;
+  const fit = Math.min(face.scale.x, headHeight * LOOK.num('jelly-face-height', 0.82) / (bounds.max.y - bounds.min.y), R * LOOK.num('jelly-face-width', 1.45) / (bounds.max.x - bounds.min.x));
+  face.scale.setScalar(fit);
+  face.position.y = headHeight * 0.5 - (bounds.min.y + bounds.max.y) * 0.5 * fit;
+  const point = new THREE.Vector3();
+  const faceVertices = new Map();
+  const faceOffset = LOOK.num('jelly-face-offset', 0.004), faceLayer = LOOK.num('jelly-face-layer', 0.003);
+  let faceFits;
+  face.traverse((o) => { if (o.isMesh) faceVertices.set(o, o.geometry.attributes.position.array.slice()); });
+  function wrapFace() {
+    faceFits = true;
+    face.updateWorldMatrix(true, true);
+    face.traverse((o) => {
+      if (!o.isMesh) return;
+      o.renderOrder = 3;
+      const toBell = new THREE.Matrix4().multiplyMatrices(bell.matrixWorld.clone().invert(), o.matrixWorld);
+      const fromBell = toBell.clone().invert();
+      const positions = o.geometry.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        point.fromArray(faceVertices.get(o), i * 3).applyMatrix4(toBell);
+        const y = point.y / R;
+        const upper = sp.profile.findIndex((p) => p[1] >= y);
+        const [r0, y0] = sp.profile[Math.max(0, upper - 1)];
+        const [r1, y1] = sp.profile[Math.max(1, upper)];
+        const radius = R * (r0 + (r1 - r0) * (y - y0) / (y1 - y0));
+        if (Math.abs(point.x) >= radius * (sp.square ? 0.8 : 1) * 0.98) faceFits = false;
+        const z = sp.square
+          ? Math.pow(Math.max(0, (radius * 0.8) ** 4 - point.x ** 4), 0.25)
+          : Math.sqrt(Math.max(0, radius * radius - point.x * point.x));
+        point.z = z + faceOffset + o.parent.children.indexOf(o) * faceLayer;
+        point.applyMatrix4(fromBell);
+        positions.setXYZ(i, point.x, point.y, point.z);
+      }
+      positions.needsUpdate = true;
+      o.geometry.computeVertexNormals();
+    });
+  }
+  wrapFace();
+  for (let i = 0; !faceFits && i < 32; i++) {
+    face.scale.multiplyScalar(0.97);
+    face.position.y = headHeight * 0.5 - (bounds.min.y + bounds.max.y) * 0.5 * face.scale.y;
+    wrapFace();
   }
 
   // --- Top ------------------------------------------------------------------
@@ -672,7 +718,11 @@ export function buildCharacter(look, heightMeters) {
     blinkIn -= dt;
     const closing = blinkIn < 0 && blinkIn > -0.12;
     if (blinkIn < -0.12) blinkIn = 2 + Math.random() * 3.5;
-    eyes.forEach((e) => { e.scale.y = closing ? 0.12 : 1; });   // eyes are built at scale 1, so blinking can't squash one
+    const eyeHeight = closing ? 0.12 : 1;
+    if (eyes[0].scale.y !== eyeHeight) {
+      eyes.forEach((e) => { e.scale.y = eyeHeight; });
+      wrapFace();
+    }
   }
 
   function land(strength) {

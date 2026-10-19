@@ -85,6 +85,10 @@
   --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */
   --jelly-glow: 1;             /* how brightly the bell, rim and tentacles fluoresce */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
+  --jelly-face-height: 0.82;   /* fraction of the head available to the whole expression */
+  --jelly-face-width: 1.45;    /* maximum expression width, in bell radii */
+  --jelly-face-offset: 0.004;  /* lift the face just above the curved bell */
+  --jelly-face-layer: 0.003;   /* separate eye layers without protruding eyeballs */
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
   --jelly-light-reach: 0.4;    /* meters */
 
