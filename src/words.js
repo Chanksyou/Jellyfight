@@ -733,6 +733,7 @@ export function newMods() {
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
+    energyShield: null,              // energy-shield: a damage pool that bursts on depletion, then recharges
     noRegen: false,                  // no-regen: Health regen does nothing
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
@@ -866,6 +867,14 @@ export const TREASURE_WORDS = {
   venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
+  'energy-shield': {
+    doc: 'Absorbs `capacity` damage before Health (overflow passes through). On depletion, explodes within `radius` m for a flat `dmg`, then fully recharges after `recharge` seconds. Partial shields do not refill.',
+    args: ['capacity'], props: { dmg: 10, recharge: 8, radius: 0.2 },
+    make: ([capacity], p) => {
+      if (!(capacity > 0 && p.dmg >= 0 && p.recharge > 0 && p.radius > 0)) throw new Error('energy-shield: capacity, recharge and radius must be positive; dmg must be nonnegative');
+      return (m) => { m.energyShield = { capacity, ...p }; };
+    },
+  },
   'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else).', make: () => (m) => { m.noRegen = true; } },
   'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
   adorn: { doc: 'Adds a piece to the jelly\'s look on top of the player\'s own design (src/adornments.js): venom-tips, sail, halo, moon-ring, mane or fronds.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },

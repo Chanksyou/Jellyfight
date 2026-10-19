@@ -13,6 +13,7 @@ import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
+import { EnergyShield } from './energy-shield.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -75,6 +76,7 @@ export class Run {
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
+    this.energyShield = new EnergyShield(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -165,6 +167,7 @@ export class Run {
     this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
+    this.energyShield.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -253,6 +256,7 @@ export class Run {
       if (!this.spots.length) this.spots = s.spots.map((sp) => ({ ...sp, y: sp.at[1] }));
     }
     this.setNight(s.clock[0]);
+    this.energyShield.update(0);
     this.refreshHud();
   }
 
@@ -312,6 +316,7 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
+    this.energyShield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
     // run it waits for the first Level-up instead: first-run.js)
@@ -591,6 +596,9 @@ export class Run {
 
   hurt(amount, silent = false, from = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
+    if (this.phase === 'dead') return;
+    amount = this.energyShield.absorb(amount, silent);
+    if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
@@ -1199,6 +1207,7 @@ export class Run {
     if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
+    if (M.energyShield) put(O.energyShield, this.energyShield.cooldown / M.energyShield.recharge);
     return out;
   }
 
