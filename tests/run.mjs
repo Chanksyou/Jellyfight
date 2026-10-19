@@ -128,7 +128,11 @@ async function touchControls(e) {
   const out = {};
   out.touchUi = await ev(() => document.body.classList.contains('touch'));
   await page.tap('#g-over .play');
-  await ev(() => { run.spawnWaves = () => {}; run.hurt = () => {}; GAME.step(1 / 60); });
+  await ev(() => {
+    run.spawnWaves = () => {}; run.hurt = () => {};
+    // The title transition finishes before the starting pick can open.
+    for (let i = 0; i < 120 && !menus.open; i++) GAME.step(1 / 60);
+  });
   out.startPick = await ev(() => menus.open);
   await page.tap('.jf-card');
   await step(45);   // the pick resolves after its 0.64 s outro (the other cards burning away), on the game's clock

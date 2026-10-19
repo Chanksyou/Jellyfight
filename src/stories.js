@@ -25,6 +25,7 @@ import './stories/evolutions.js';
 import './stories/elites.js';
 import './stories/events-boss.js';
 import './stories/main-screen-modes-engine.js';
+import './stories/main-menu.js';
 import './stories/act2.js';
 import './stories/act2-bosses.js';
 import './stories/every-attack.js';

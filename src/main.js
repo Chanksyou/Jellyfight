@@ -13,6 +13,7 @@ import { buildCharacter, normalizeLook } from './character.js';
 import { TestKit } from './test-kit.js';
 import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
+import { MainMenu } from './main-menu.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { STAGES, currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
@@ -24,7 +25,7 @@ import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
-import { unlock as unlockAudio, setMuted, isMuted, audio } from './sfx.js';
+import { unlock as unlockAudio, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
@@ -33,7 +34,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v204';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v205';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -115,11 +116,10 @@ ui.innerHTML = `
 </style>
 <div id="g-over"><div>
   <h1>Jelly Fight</h1>
-  <p class="tag">Grow from polyp to immortal jellyfish before the sun comes up.</p>
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="creator">🎨 Look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="effects">✨ Effects full</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
+  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="effects">✨ Effects full</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
   <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
@@ -229,6 +229,7 @@ run.board = board;
 run.onMainMenu = () => {
   if (currentAct() > 1) { goToAct(1); return; }
   run.start();
+  mainMenu.show();
   if (document.pointerLockElement) document.exitPointerLock();
   overlay.hidden = false;
 };
@@ -244,6 +245,7 @@ function play() {
   unlockAudio();
   if (!IS_TOUCH) { renderer.domElement.requestPointerLock(); return; }
   overlay.hidden = true;
+  mainMenu.launch();
   const d = document.documentElement;
   if (!document.fullscreenElement && d.requestFullscreen) {
     d.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
@@ -251,6 +253,7 @@ function play() {
 }
 function pause() {
   if (menus.open || state.mode !== 'play') return;
+  mainMenu.cancelLaunch();
   overlay.hidden = false;
 }
 const touch = new TouchControls(input, { onPause: pause });
@@ -258,7 +261,13 @@ touch.mount(ui);
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
-const menuOpen = () => !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+const mainMenu = new MainMenu({ overlay, player, camera, gfx, scene, height: CONFIG.player.height, calm: () => juice.calm,
+  onPoke: () => { unlockAudio(); sfx.pop(); },
+});
+if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction()?.boss || peekAction()?.layout) {
+  mainMenu.home = false; overlay.classList.remove('menu-home');
+}
+const menuOpen = () => mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
@@ -306,6 +315,7 @@ function closeLayout() {
 }
 
 function openCreator() {
+  mainMenu.restore();
   state.mode = 'creator';
   input.enabled = false;
   if (document.pointerLockElement) document.exitPointerLock();
@@ -464,6 +474,7 @@ const GAME = {
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
+    mainMenu.update(dt, !overlay.hidden && state.mode === 'play');
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
     systems.hud.update(dt);
@@ -472,6 +483,7 @@ const GAME = {
   render() { systems.render.update(); },
 };
 window.GAME = GAME;
+window.mainMenu = mainMenu;
 
 // --- Menus + keys ---------------------------------------------------------------
 function renderQuality() {
@@ -539,6 +551,8 @@ document.addEventListener('pointerlockchange', () => {
   if (state.mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
   overlay.hidden = locked || menus.open;
+  if (locked) mainMenu.launch();
+  else mainMenu.cancelLaunch();
 });
 addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
