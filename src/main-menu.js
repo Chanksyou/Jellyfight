@@ -1,6 +1,7 @@
 // The title screen borrows the player's real avatar. No duplicate model or gameplay motion.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { isNewPlayer } from './first-run.js';
 
 // One unlit screen quad: drifting light and caustics, with no textures or new lights.
 class UnderwaterBackdrop {
@@ -87,8 +88,8 @@ class UnderwaterBackdrop {
 }
 
 export class MainMenu {
-  constructor({ overlay, player, camera, gfx, scene, height, calm, onPoke = () => {} }) {
-    Object.assign(this, { overlay, player, camera, gfx, height, calm, onPoke });
+  constructor({ overlay, player, camera, gfx, scene, height, calm, board = null, onPoke = () => {} }) {
+    Object.assign(this, { overlay, player, camera, gfx, height, calm, board, onPoke });
     this.home = true;
     this.launching = false;
     this.time = 0;
@@ -116,6 +117,10 @@ export class MainMenu {
     const caption = document.createElement('section');
     caption.className = 'menu-jelly-caption';
     caption.innerHTML = '<button type="button" data-act="creator">Change your look</button>';
+    this.greet = document.createElement('p');
+    this.greet.className = 'menu-greet';
+    this.greet.hidden = true;
+    caption.prepend(this.greet);
     overlay.appendChild(caption);
     overlay.addEventListener('pointerdown', e => {
       const b = e.target.closest('button');
@@ -142,6 +147,21 @@ export class MainMenu {
     this.overlay.classList.add('menu-home');
     this.hero.disabled = false;
     this.overlay.querySelector('h1').innerHTML = 'Jelly <span>Fight</span>';
+    this.refreshGreeting();
+  }
+
+  // A returning player is greeted over their jelly by the name on their leaderboard
+  // entry: the name they last submitted is kept in this browser, and the board's own
+  // row for them is the backup (on the claude.ai home their board entry can outlive
+  // this browser's storage). 'Guest' and no name at all get no greeting.
+  refreshGreeting() {
+    let name = '';
+    try { name = localStorage.getItem('jellyfight.name') || ''; } catch {}
+    if ((!name || name === 'Guest') && this.board?.mine?.name) name = this.board.mine.name;
+    if (name === 'Guest') name = '';
+    const returning = !isNewPlayer() || !!this.board?.mine;
+    this.greet.textContent = returning && name ? `Welcome back, ${name}` : '';
+    this.greet.hidden = !this.greet.textContent;
   }
 
   poke() {

@@ -323,6 +323,10 @@
   cursor: pointer; transition: background .15s, transform .12s;
 }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button:hover { background: #a3f5d522; }
+#g-over:is(.menu-home, .menu-launching) .menu-greet {
+  margin: 0; color: var(--menu-paper); font: 600 17px system-ui, sans-serif;
+  text-shadow: 0 1px 10px #000a;
+}
 #g-over:is(.menu-home, .menu-launching) button:focus-visible { outline: 2px solid var(--menu-mint); outline-offset: 5px; }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly:active { transform: none; }
 #g-over:is(.menu-home, .menu-launching) .menu-pop { animation: menu-pop .24s ease-out; }

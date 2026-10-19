@@ -9,6 +9,8 @@ import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
+import { NEEDS, requirement, requirementText, unlocked } from '../cosmetics.js';
+import { normalizeLook } from '../character.js';
 import { G, V, fresh, near, ok, spawn, step, story, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
@@ -263,6 +265,34 @@ story('modes/creator-layout-debug', {
     const readout = /\d+ fps/.test(text) && /[1-9]\d* draws \| \d+k tris \| [1-9]\d* shaders/.test(text);
     dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
     return ok(creatorCam > 0 && creatorCam < 0.6 && back && layoutOpen && readout, { creatorCam, back, layoutOpen, readout });
+  },
+});
+
+story('modes/cosmetics-framework', {
+  about: 'The earned-cosmetics framework: the look a run submits is the whole descriptor (it survives a JSON round trip through normalizeLook, so a leaderboard row can draw the actual jelly), and a registered requirement locks its creator option (disabled, 🔒, what it asks for) until the player\'s feats meet it. The registry ships empty: everything is unlocked.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G();
+    const look = run.playerLook();
+    const roundTrip = normalizeLook(JSON.parse(JSON.stringify(look)));
+    const carried = !!look && roundTrip.body === look.body && roundTrip.top === look.top && roundTrip.color === look.color && roundTrip.eyes === look.eyes;
+    const none = { won: false, bestScore: 0, bestLevel: 0, bestKills: 0 }, won = { ...none, won: true };
+    const freeByDefault = unlocked('top', 'crown', none) && requirement('top', 'crown') === null;
+    NEEDS.top = { crown: { won: true } };
+    let lockedOk = false, creatorOk = false;
+    try {
+      lockedOk = !unlocked('top', 'crown', none) && unlocked('top', 'crown', won) && unlocked('top', 'bow', none)
+        && requirementText(requirement('top', 'crown')) === 'Earned with win a run';
+      const over = document.querySelector('#g-over');
+      over.hidden = false;
+      document.querySelector('#g-over [data-act="creator"]').click(); step(30);
+      const crown = document.querySelector('#creator [data-k="top"][data-v="crown"]');
+      const bow = document.querySelector('#creator [data-k="top"][data-v="bow"]');
+      creatorOk = !!crown && crown.disabled && crown.textContent.includes('🔒') && !!bow && !bow.disabled;
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      over.hidden = true;
+    } finally { delete NEEDS.top; }
+    return ok(carried && freeByDefault && lockedOk && creatorOk, { carried, freeByDefault, lockedOk, creatorOk });
   },
 });
 
