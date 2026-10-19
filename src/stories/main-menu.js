@@ -1,6 +1,23 @@
 // Menu presentation must never move the actual player or replay when resuming a run.
 import { story, G, fresh, ok, step, stub } from './kit.js';
 
+story('menu/portrait-controls-centered', {
+  about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
+  portrait: true,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu } = G(), over = menu.overlay;
+    try {
+      menu.show(); over.hidden = false; step(1);
+      const center = selector => { const r = over.querySelector(selector).getBoundingClientRect(); return r.x + r.width / 2; };
+      const centers = ['h1', '.play', '.menu-jelly-caption button'].map(center);
+      return ok(innerWidth < innerHeight && centers.every(x => Math.abs(x - innerWidth / 2) < 1), { width: innerWidth, centers });
+    } finally {
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+});
+
 story('menu/underwater-restoration', {
   about: 'The underwater title shows the jelly and its lights, excludes apartment scenery, freezes water under Reduce Effects, and restores render layers when Play finishes.',
   setup() { fresh({ elites: false }); },
