@@ -2,6 +2,24 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  /* Main menu: presentation only. Distances are multiples of the jelly's height. */
+  --menu-camera-distance: 2.35;
+  --menu-camera-distance-portrait: 4;
+  --menu-camera-offset-portrait: 0.32;
+  --menu-camera-yaw: 0.22;
+  --menu-bob: 0.045;
+  --menu-poke-squash: 0.15;
+  --menu-launch-time: 0.28;
+  --menu-ink: #101a23;
+  --menu-paper: #fff6dc;
+  --menu-mint: #a3f5d5;
+  --menu-gold: #ffd46c;
+  --menu-water-deep: #06162e;
+  --menu-water-shallow: #175c70;
+  --menu-water-glow: #70ddc7;
+  --menu-water-rays: 0.12;
+  --menu-water-shimmer: 0.16;
+
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;
   --number-tick-window: 0.6;
@@ -251,4 +269,89 @@
   --pothos-camera-distance-phone: 1.1;
   --pothos-camera-tilt-phone: 0.6;   /* (about 34 degrees) */
   --pothos-camera-ahead-phone: 1.5;
+}
+
+/* Main-menu typography and motion. Pause and act-loading screens keep their compact layout. */
+.menu-jelly, .menu-jelly-caption { display: none; }
+#g-over:is(.menu-home, .menu-launching), #g-over.menu-launching {
+  color: var(--menu-paper); text-align: left; justify-items: start;
+  background: linear-gradient(90deg, #04132970 0%, #04132933 35%, transparent 65%, #04132918 100%);
+}
+#g-over:is(.menu-home, .menu-launching) > div, #g-over.menu-launching > div {
+  width: 47%; max-width: 610px; margin-left: 8%; padding: 30px 0;
+}
+#g-over:is(.menu-home, .menu-launching) h1, #g-over.menu-launching h1 {
+  font: 900 clamp(64px, 8vw, 118px)/.85 Georgia, serif; letter-spacing: -.075em;
+  text-shadow: 0 8px 35px #0005; margin: 0 0 25px; transform-origin: left bottom;
+  animation: menu-arrive .55s cubic-bezier(.16,1,.3,1) both;
+}
+#g-over:is(.menu-home, .menu-launching) h1 span, #g-over.menu-launching h1 span { display: block; color: var(--menu-mint); }
+#g-over:is(.menu-home, .menu-launching) .play, #g-over.menu-launching .play {
+  display: block; margin: 26px 0 22px; padding: 16px 38px; min-width: 185px;
+  font-size: 21px; font-weight: 800; color: var(--menu-ink); background: var(--menu-gold);
+  border: 1px solid #fff8; border-radius: 24px; box-shadow: 0 5px 0 #9d7435, 0 14px 30px #0004;
+  transform-origin: center; transition: transform .12s, background .12s;
+}
+#g-over:is(.menu-home, .menu-launching) .play:enabled:hover { background: var(--menu-paper); transform: translateY(-2px); }
+#g-over:is(.menu-home, .menu-launching) button:enabled:active { transform: translateY(3px) scale(.96, .93); }
+#g-over:is(.menu-home, .menu-launching) .row { justify-content: flex-start; gap: 7px; max-width: 440px; }
+#g-over:is(.menu-home, .menu-launching) .row button { border-radius: 13px; min-height: 40px; background: #ffffff0b; transition: background .15s, transform .12s; }
+#g-over:is(.menu-home, .menu-launching) .row button:hover { background: #ffffff20; }
+#g-over:is(.menu-home, .menu-launching) #g-quality { margin-top: 17px !important; }
+#g-over:is(.menu-home, .menu-launching) .keys { display: none; }
+#g-over:is(.menu-home, .menu-launching) .ver { opacity: .55; background: transparent; border: 0; }
+#g-over:is(.menu-home, .menu-launching) .menu-jelly {
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  position: absolute; right: 7%; top: 12%; width: 39%; height: 64%;
+  border: 1px solid transparent; border-radius: 45%; color: var(--menu-paper);
+  background: none; cursor: pointer; padding: 0 0 18px; font: inherit;
+}
+#g-over:is(.menu-home, .menu-launching) .row [data-act="creator"] { display: none; }
+#g-over:is(.menu-home, .menu-launching) .menu-jelly-caption {
+  display: flex; flex-direction: column; align-items: center; position: absolute;
+  right: 7%; bottom: 13%; width: 39%; text-align: center;
+}
+#g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button {
+  margin-top: 12px; min-height: 44px; padding: 10px 22px; border: 1px solid #a3f5d566;
+  border-radius: 999px; background: #101a2380; color: var(--menu-mint); font: 600 14px system-ui, sans-serif;
+  cursor: pointer; transition: background .15s, transform .12s;
+}
+#g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button:hover { background: #a3f5d522; }
+#g-over:is(.menu-home, .menu-launching) button:focus-visible { outline: 2px solid var(--menu-mint); outline-offset: 5px; }
+#g-over:is(.menu-home, .menu-launching) .menu-jelly:active { transform: none; }
+#g-over:is(.menu-home, .menu-launching) .menu-pop { animation: menu-pop .24s ease-out; }
+#g-over.menu-launching { pointer-events: none; animation: menu-leave .28s ease-in both; }
+#g-over.menu-launching .menu-jelly { display: none; }
+#g-over.menu-launching .menu-jelly-caption { display: none; }
+@keyframes menu-arrive { from { opacity: 0; transform: translateY(12px) scale(.98,1.04); } to { opacity: 1; transform: none; } }
+@keyframes menu-pop { 0% { transform: scale(.96,.93); } 55% { transform: scale(1.035,1.02); } 100% { transform: none; } }
+@keyframes menu-leave { to { opacity: 0; transform: translateY(8px); } }
+body.calm #g-over *, body.calm #g-over { animation: none !important; transition: none !important; }
+body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-over:is(.menu-home, .menu-launching) button:active { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  #g-over, #g-over * { animation: none !important; transition: none !important; }
+  #g-over:is(.menu-home, .menu-launching) button:hover, #g-over:is(.menu-home, .menu-launching) button:active { transform: none; }
+}
+@media (max-height: 620px) and (min-aspect-ratio: 1/1) {
+  #g-over:is(.menu-home, .menu-launching) > div { padding: 18px 0; margin-left: 6%; width: 50%; }
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 65px; margin-bottom: 10px; }
+  #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
+  #g-over:is(.menu-home, .menu-launching) .play { margin: 16px 0; padding: 11px 30px; font-size: 18px; }
+  #g-over:is(.menu-home, .menu-launching) .row button { padding: 7px 10px; font-size: 12px; }
+  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 9px; }
+  #g-over:is(.menu-home, .menu-launching) .menu-jelly { right: 3%; width: 39%; }
+  #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { right: 3%; width: 39%; bottom: 8%; }
+}
+@media (max-aspect-ratio: 1/1), (max-width: 680px) and (orientation: portrait) {
+  #g-over:is(.menu-home, .menu-launching) { display: block; overflow-y: auto; background: linear-gradient(0deg,#04132980 0%,#04132938 45%,transparent 100%); }
+  #g-over:is(.menu-home, .menu-launching) > div { position: relative; width: auto; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; text-align: center; }
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); margin-bottom: 14px; transform-origin: center; }
+  #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
+  #g-over:is(.menu-home, .menu-launching) .play { margin: 20px auto; padding: 13px 35px; }
+  #g-over:is(.menu-home, .menu-launching) .row { justify-content: center; margin-left: auto; margin-right: auto; }
+  #g-over:is(.menu-home, .menu-launching) .row button { font-size: 12px; padding: 8px 12px; }
+  #g-over:is(.menu-home, .menu-launching) .menu-jelly { top: 3vh; right: 15%; width: 70%; height: 29vh; padding-bottom: 0; }
+  #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { top: 33vh; right: 15%; width: 70%; bottom: auto; }
+  #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button { margin-top: 0; }
+  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 16px; }
 }
