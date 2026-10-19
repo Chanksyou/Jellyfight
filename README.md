@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v207 centers the menu controls beneath the jelly in tall desktop windows. The portrait column fills the viewport instead of shrinking against the left edge.
+v208 fits every eye and mouth combination onto its jelly's curved head. Faces follow the bell's swimming pulse, and sleepy eyelids no longer show an eye highlight.
 
 v206 groups rapid direct hits on each enemy into one damage number per short burst. Later bursts reuse that label, mixed attacks use a neutral color, and any crit keeps its marker. Ongoing damage ticks stay separate. Damage calculations are unchanged.
 

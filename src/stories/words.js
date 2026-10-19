@@ -1009,6 +1009,54 @@ story('look/every-species-builds', {
     return ok(good, { built, old });
   },
 });
+story('look/face-fits-every-head', {
+  about: 'Every expression stays inside its bell and follows its swimming pulse; sleepy lids have no glint.',
+  setup() {},
+  play() {
+    const failures = [];
+    for (const body of Object.keys(SPECIES)) for (const eyes of ['round', 'big', 'sleepy', 'angry', 'cyclops']) for (const mouth of ['smile', 'open', 'fangs', 'none']) {
+      const c = buildCharacter({ body, eyes, mouth }, 1);
+      const face = c.root.getObjectByName('Face'), bell = face.parent;
+      c.pulse();
+      c.update(1 / 60, { speed: 1, walkSpeed: 1, grounded: false, vy: 0 });
+      c.root.updateMatrixWorld(true);
+      const p = new THREE.Vector3();
+      const sp = SPECIES[body], top = sp.profile.at(-1)[1] * sp.R;
+      let good = bell.scale.x < 1;
+      let closed = false, reopened = false;
+      const check = () => face.traverse((o) => {
+        if (!o.isMesh) return;
+        const matrix = new THREE.Matrix4().multiplyMatrices(bell.matrixWorld.clone().invert(), o.matrixWorld);
+        const positions = o.geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          p.fromBufferAttribute(positions, i).applyMatrix4(matrix);
+          const y = p.y / sp.R, upper = sp.profile.findIndex((v) => v[1] >= y);
+          const [r0, y0] = sp.profile[Math.max(0, upper - 1)], [r1, y1] = sp.profile[Math.max(1, upper)];
+          const radius = sp.R * (r0 + (r1 - r0) * (y - y0) / (y1 - y0));
+          const edge = sp.square ? radius * 0.8 : radius;
+          const surface = sp.square ? Math.pow(Math.max(0, edge ** 4 - p.x ** 4), 0.25) : Math.sqrt(Math.max(0, radius ** 2 - p.x ** 2));
+          good &&= Number.isFinite(p.z) && p.y > 0 && p.y < top && Math.abs(p.x) < edge && p.z > surface && p.z < surface + 0.03;
+        }
+      });
+      check();
+      for (let frame = 0; frame < 190 && !reopened; frame++) {
+        const before = face.children[0].scale.y;
+        c.update(1 / 60, { speed: 1, walkSpeed: 1, grounded: false, vy: 0 });
+        if (face.children[0].scale.y !== before) {
+          c.root.updateMatrixWorld(true);
+          check();
+          if (before === 1) closed = true;
+          else reopened = closed;
+        }
+      }
+      good &&= closed && reopened;
+      if (eyes === 'sleepy') good &&= face.children.filter((o) => o.isGroup).every((eye) => eye.children.length === 5);
+      if (!good) failures.push(`${body}/${eyes}/${mouth}`);
+      c.dispose();
+    }
+    return ok(failures.length === 0, { variations: 120, failures });
+  },
+});
 story('look/tokens-reach-the-game', {
   about: 'Values in content/look.css are what the game uses.',
   setup() {},
