@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v205 gives the main menu a living portrait of your saved jelly in shimmery underwater light. Tap the jelly to squish it, choose Change your look beneath it, and Play transitions into the apartment. Reduce Effects quiets the motion, and pause/resume stays compact. An isolated study is available at `menu-preview.html`.
+
 v204 damage numbers: explicit crit markers and six element colors/motion styles. Burn and acid ticks group per target within a fixed window, separate from direct hits. Pooled text has separate trajectories, sheds accents in crowds and honors Reduce Effects. Bosses and elites receive the same confirmed hit metadata. Damage and crit rules are unchanged.
 
 v203 no more giant white circles: the ring a dying bug leaves was pure white and 3x its size (28 cm for a

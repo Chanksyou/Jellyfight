@@ -36,8 +36,11 @@ export function restore() {
 // A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
 // (each can be turned back on), and the start pick skipped.
 export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false } = {}) {
-  const { run, menus, enemies } = G();
+  const { run, menus, enemies, mainMenu } = G();
   restore();
+  mainMenu.restore(); mainMenu.cancelLaunch();
+  mainMenu.home = false;
+  mainMenu.overlay.classList.remove('menu-home');   // stories enter gameplay without the title transition
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
   run.start();
