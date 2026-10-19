@@ -21,12 +21,13 @@ export class Fx {
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     this.numberLook = {
       cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
+      hitWindow: LOOK.num('number-hit-window', 0.3),
       life: LOOK.num('number-life', 0.7), critLife: LOOK.num('number-crit-life', 0.95),
       tickLife: LOOK.num('number-tick-life', 0.85), size: LOOK.num('number-size', 14),
       maxSize: LOOK.num('number-max-size', 22), critSize: LOOK.num('number-crit-size', 7),
       lane: LOOK.num('number-lane-space', 22), accents: LOOK.num('number-accent-limit', 20),
     };
-    this.numberColors = Object.fromEntries(Object.entries({ fire: '#ffae62', ice: '#bdeeff', lightning: '#fff27a', acid: '#adff79', wind: '#eef8ff', glitter: '#ffb1ec' }).map(([k, c]) => [k, LOOK.color('number-' + k, c)]));
+    this.numberColors = Object.fromEntries(Object.entries({ fire: '#ffae62', ice: '#bdeeff', lightning: '#fff27a', acid: '#adff79', wind: '#eef8ff', glitter: '#ffb1ec', mixed: '#d6f1ff' }).map(([k, c]) => [k, LOOK.color('number-' + k, c)]));
     this.puffs = [];
     this.puffGeo = new THREE.SphereGeometry(1, 12, 8);
     this.rings = [];
@@ -71,11 +72,20 @@ export class Fx {
   number(pos, text, color = '#fff', size = 14, info = {}) {
     const numeric = typeof text === 'number' && Number.isFinite(text), tick = numeric && !!info.tick;
     const crit = numeric && !!info.crit && !tick, element = info.element || '';
-    if (tick && info.targetId != null) {
-      const group = this.nums.find(n => n.alive && n.tick && n.targetId === info.targetId && n.element === element && this.numberClock - n.born <= this.numberLook.group);
-      if (group) { group.amount += text; group.pos.copy(pos); this.numberText(group); return group; }
+    let n;
+    if (numeric && info.targetId != null) {
+      const groupWindow = tick ? this.numberLook.group : this.numberLook.hitWindow;
+      const group = this.nums.find(x => x.alive && x.numeric && x.tick === tick && x.targetId === info.targetId && (!tick || (x.element === element && this.numberClock - x.born <= groupWindow)));
+      if (group && this.numberClock - group.born <= groupWindow) {
+        group.amount += text; group.pos.copy(pos);
+        group.crit ||= crit; group.slam ||= !!info.slam;
+        if (group.element !== element) group.element = 'mixed';
+        this.numberText(group);
+        return group;
+      }
+      if (!tick) n = group;   // the next burst replaces the old receipt instead of adding another lane
     }
-    let n = this.nums.find((x) => !x.alive);
+    n ||= this.nums.find((x) => !x.alive);
     if (!n) {
       if (this.nums.length >= this.numberLook.cap) {
         for (const x of this.nums) {
@@ -99,8 +109,7 @@ export class Fx {
     n.lane = 0;
     const nearby = x => x.alive && (info.targetId != null ? x.targetId === info.targetId : x.pos.distanceToSquared(pos) < 0.0064);
     while (this.nums.some(x => nearby(x) && x.lane === n.lane)) n.lane++;
-    Object.assign(n, { alive: true, t: 0, born: this.numberClock, serial: this.numberSerial++, numeric, tick, crit, element, slam: !!info.slam, targetId: info.targetId, amount: text });
-    n.life = tick ? this.numberLook.tickLife : crit ? this.numberLook.critLife : this.numberLook.life;
+    Object.assign(n, { alive: true, t: 0, born: this.numberClock, serial: this.numberSerial++, numeric, tick, crit, element, slam: !!info.slam, targetId: info.targetId, amount: text, color, baseSize: size });
     n.pos.copy(pos);
     n.dx = (n.lane % 2 ? 1 : -1) * Math.ceil(n.lane / 2) * this.numberLook.lane;
     const projected = this._v.copy(pos).project(this.camera), px = projected.x * innerWidth / 2 + n.dx, py = projected.y * innerHeight / 2;
@@ -109,12 +118,6 @@ export class Fx {
     const m = this.camera.matrixWorld.elements;
     n.windSign = info.dir ? Math.sign(info.dir.x * m[0] + info.dir.z * m[2]) || 1 : (n.serial % 2 ? 1 : -1);
     this.numberText(n);
-    n.accent.textContent = numeric ? NUMBER_ACCENTS[element] || '' : '';
-    n.el.style.color = this.numberColors[element] || color;
-    n.el.style.fontWeight = crit ? '900' : tick ? '650' : '800';
-    n.size = numeric ? tick ? this.numberLook.size - 2 : Math.min(this.numberLook.maxSize, this.numberLook.size + Math.sqrt(Math.max(0, text))) + (crit ? this.numberLook.critSize : 0) : size;
-    n.el.style.fontSize = n.size + 'px';
-    n.el.style.webkitTextStroke = crit ? '0.7px #17212d' : '';
     n.el.style.textShadow = '0 1px 2px #000,0 0 4px #000';
     n.el.style.display = '';
     return n;
@@ -123,6 +126,13 @@ export class Fx {
   numberText(n) {
     const value = n.numeric ? n.amount > 0 && n.amount < 1 ? (n.amount < 0.1 ? '<0.1' : n.amount.toFixed(1)) : Math.round(n.amount) : n.amount;
     n.glyph.textContent = `${n.crit ? '✦ ' : n.slam ? '◆ ' : ''}${value}`;
+    n.accent.textContent = n.numeric ? NUMBER_ACCENTS[n.element] || '' : '';
+    n.el.style.color = this.numberColors[n.element] || n.color;
+    n.el.style.fontWeight = n.crit ? '900' : n.tick ? '650' : '800';
+    n.size = n.numeric ? n.tick ? this.numberLook.size - 2 : Math.min(this.numberLook.maxSize, this.numberLook.size + Math.sqrt(Math.max(0, n.amount))) + (n.crit ? this.numberLook.critSize : 0) : n.baseSize;
+    n.el.style.fontSize = n.size + 'px';
+    n.el.style.webkitTextStroke = n.crit ? '0.7px #17212d' : '';
+    n.life = n.tick ? this.numberLook.tickLife : n.crit ? this.numberLook.critLife : this.numberLook.life;
   }
 
   puff(pos, color = 0xd8d2c6, radius = 0.012, life = 0.35) {

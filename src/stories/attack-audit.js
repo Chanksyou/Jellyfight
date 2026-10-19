@@ -2,8 +2,8 @@
 // When you change an attack, update its score here; when you add one, the guard story below fails
 // until it's listed. `score` is the nine audit rows in ROWS order (1 or 0), or null until audited;
 // `seen` says how it was scored: 'play' (watched at play speed) or 'code' (read only).
-// v204: shared confirmation still scores 1; crit/element numbers now reflect explicit metadata,
-// with quiet grouped ticks. Other phases/scores are unchanged, including unscored attacks.
+// v206: shared confirmation still scores 1; rapid direct hits share one burst receipt per target,
+// retaining crit emphasis and quiet grouped ticks. Other phases/scores are unchanged.
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
 import { CONTENT } from '../content.js';

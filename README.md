@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v206 groups rapid direct hits on each enemy into one damage number per short burst. Later bursts reuse that label, mixed attacks use a neutral color, and any crit keeps its marker. Ongoing damage ticks stay separate. Damage calculations are unchanged.
+
 v204 damage numbers: explicit crit markers and six element colors/motion styles. Burn and acid ticks group per target within a fixed window, separate from direct hits. Pooled text has separate trajectories, sheds accents in crowds and honors Reduce Effects. Bosses and elites receive the same confirmed hit metadata. Damage and crit rules are unchanged.
 
 v203 no more giant white circles: the ring a dying bug leaves was pure white and 3x its size (28 cm for a

@@ -5,6 +5,7 @@
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;
   --number-tick-window: 0.6;
+  --number-hit-window: 0.3;
   --number-life: 0.7;
   --number-crit-life: 0.95;
   --number-tick-life: 0.85;
@@ -19,6 +20,7 @@
   --number-acid: #adff79;
   --number-wind: #eef8ff;
   --number-glitter: #ffb1ec;
+  --number-mixed: #d6f1ff;
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
   --hp-heal: #9dffd9;
