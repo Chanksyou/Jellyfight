@@ -117,7 +117,7 @@ function pickWeighted(list, w) {
 export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
-  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
+  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);

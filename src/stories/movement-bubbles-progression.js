@@ -226,13 +226,25 @@ story('enemies/mosquito-spits', {
 
 // --- progression
 story('progression/card-tiers', {
-  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 12.5 / 15%), and the Bubbles card only ever comes as Epic +1.',
+  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 12.5 / 15%); Bubbles is no longer offered.',
   setup() {},
   play() {
     const seen = {};
     for (let i = 0; i < 3000; i++) for (const c of rollCards({ bubbles: 1 }, 3)) (seen[c.stat] ||= new Set()).add(`${c.rarity.id}:${c.amount}`);
     const bubbles = [...(seen.bubbles || [])], dodge = [...(seen.dodge || [])].sort();
-    return ok(bubbles.join() === 'epic:1' && dodge.join() === 'common:10,epic:15,rare:12.5', { bubbles, dodge });
+    return ok(bubbles.length === 0 && dodge.join() === 'common:10,epic:15,rare:12.5', { bubbles, dodge });
+  },
+});
+story('progression/disabled-cards-never-offered', {
+  about: 'A zero-weight card is excluded even when every available card is requested and randomness picks the first entry.',
+  setup() {},
+  play() {
+    stub(Math, 'random', () => 0);
+    stub(CONTENT.levelups.cards.range, 'weight', 0);
+    try {
+      const cards = rollCards({ bubbles: 1 }, 99, 0, 0).map((c) => c.stat);
+      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 8 && !cards.includes('bubbles') && !cards.includes('range'), { cards });
+    } finally { restore(); }
   },
 });
 story('progression/luck', {
