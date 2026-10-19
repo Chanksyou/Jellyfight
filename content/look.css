@@ -344,7 +344,7 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
 }
 @media (max-aspect-ratio: 1/1), (max-width: 680px) and (orientation: portrait) {
   #g-over:is(.menu-home, .menu-launching) { display: block; overflow-y: auto; background: linear-gradient(0deg,#04132980 0%,#04132938 45%,transparent 100%); }
-  #g-over:is(.menu-home, .menu-launching) > div { position: relative; width: auto; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; text-align: center; }
+  #g-over:is(.menu-home, .menu-launching) > div { position: relative; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; text-align: center; }
   #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); margin-bottom: 14px; transform-origin: center; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
   #g-over:is(.menu-home, .menu-launching) .play { margin: 20px auto; padding: 13px 35px; }

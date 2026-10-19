@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v207 centers the menu controls beneath the jelly in tall desktop windows. The portrait column fills the viewport instead of shrinking against the left edge.
+
 v206 groups rapid direct hits on each enemy into one damage number per short burst. Later bursts reuse that label, mixed attacks use a neutral color, and any crit keeps its marker. Ongoing damage ticks stay separate. Damage calculations are unchanged.
 
 v205 gives the main menu a living portrait of your saved jelly in shimmery underwater light. Tap the jelly to squish it, choose Change your look beneath it, and Play transitions into the apartment. Reduce Effects quiets the motion, and pause/resume stays compact. An isolated study is available at `menu-preview.html`.
