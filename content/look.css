@@ -2,6 +2,12 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --cinder-core: #e6fcff;
+  --cinder-flame: #55caff;
+  --cinder-edge: #4276ed;
+  --cinder-foot-width: 0.0045;
+  --cinder-foot-height: 0.022;
+  --cinder-fade-time: 0.3;
   --rebound: #9bfff2;
   --rebound-band-width: 0.013;
   --rebound-trail-interval: 0.055;

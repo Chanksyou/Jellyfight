@@ -8,6 +8,12 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
+evolution "cinder" name="Cinder Jelly" icon="🔥" text="Flaming feet burn the ground you walk over for 2 seconds, dealing half your power per second to bugs touching the trail. No trail in the air. Range is 20% lower." {
+    fire-trail time=2 radius=0.025 height=0.035 dps=0.5 tick=0.25
+    stat range -20 percent=#true
+    adorn "flaming-feet"
+}
+
 evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles return to you, hitting each bug once on the way out and once coming back. Move to guide their return path. Fire rate is 20% lower." {
     rebound
     stat fire-rate -20 percent=#true
