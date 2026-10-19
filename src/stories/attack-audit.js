@@ -29,6 +29,7 @@ export const AUDIT = {
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {
+    rebound: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v213: inherits the ordinary bubble bell pulse, same-frame blow/whiz, body/glow, confirmed contact flash and droplets, target white flash and damage-scaled shove, feel step, fading floor splat, grouped damage/kill receipts and varied layered pop sound. Reversing bands, turn ring and falling-pitch watery whoosh mark the return; brief rings track its path. Stories prove one hit per leg, guidance, bounded lifetime, pierce and unchanged Elements. Code audit; no play-speed audio claim.' },
     'energy-shield': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'Aegis: the visible shell weakens and flashes on absorbed hits; depletion releases the burst, bell pulse and layered crack/bass/crystal sound together. A brief sphere and ring show the actual 20 cm area. Confirmed targets receive localized impacts, white flash, damage-scaled shove, damage numbers and existing kill feedback. Harmless shards settle and fade within 1.1 s. The shell disappears for the HUD-marked 8 s recharge, then returns with a chime. Code audit; gameplay screenshots and stories cover absorption, overflow, flat burst damage, recharge and reset; not a play-speed sound audit.' },
     'echo-bubble': todo, 'toy-mouse': todo, 'golden-bubble': todo, 'giant-bubble': todo, 'zap-on-pop': todo,
     'landing-shockwave': todo, 'squeak-when-hit': todo, reflect: todo, venom: todo, polyps: todo, 'touch-sting': todo,
@@ -37,6 +38,7 @@ export const AUDIT = {
   },
   // treasure words that don't: they change an attack's numbers (audited with that attack) or aren't combat
   notAttacks: [
+    'decoy',
     'pierce', 'element', 'element-up', 'mark-on-hit', 'crit', 'pin-on-crit', 'extra-jumps', 'when-hit', 'rebirth',
     'no-regen', 'adorn', 'death-save', 'damage-taken', 'spout', 'heal-on-kill', 'crumb-on-kill', 'xp-reach', 'stat',
     'per', 'while', 'xp-mult', 'card-rarity', 'card-choices', 'heal-on-hit', 'grow-on-kills', 'more-treasures',

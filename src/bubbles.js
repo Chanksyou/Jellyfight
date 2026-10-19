@@ -22,6 +22,7 @@
 // Effect damage scales with "power" (bubble damage x 4.5); ELEMENT says each element's share of it.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
+import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { bus } from './events.js';
 import { batcher } from './batch.js';
@@ -317,6 +318,12 @@ export class Bubbles {
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
       b.t += dt;
+      if (b.rebound === undefined) b.rebound = !!mods.rebound && !b.tint;
+      if (b.rebound && b.returning && this.origin) {
+        const d = c.copy(this.origin).sub(b.m.position), distance = d.length();
+        if (distance < b.r + b.speed * dt) { this.fx.puff(b.m.position, this.friendly, b.r, 0.15); b.done = true; continue; }
+        b.vel.copy(d).setLength(b.speed);
+      }
       // steer gently toward the target while it lives, until the bubble has hit it (a piercing
       // bubble then flies straight on instead of turning back to it). Once it reaches its aim point
       // or flies past it, it stops steering and carries straight on: an outside bubble aims to the
@@ -332,10 +339,18 @@ export class Bubbles {
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
       // bell while you're pressed under or against something, it would otherwise pop at once
-      if (b.travel > this.grace && (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r) || this.blocked(b.m.position, this._dir, step + b.r, b.r))) { this.pop(b, null, stats, mods); continue; }
+      if (b.travel > this.grace && (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r) || this.blocked(b.m.position, this._dir, step + b.r, b.r))) {
+        if (b.rebound && !b.returning) this.turn(b);
+        else this.pop(b, null, stats, mods);
+        continue;
+      }
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
+      if (b.rebound && b.returning && (b.trailT -= dt) <= 0) {
+        b.trailT = LOOK.num('rebound-trail-interval', 0.055);
+        this.fx.ring(b.m.position, this.friendly, b.r * 1.4, 0.16);
+      }
       if (b.m.userData.look) this.looks.update(b, dt, this.clock);   // an element projectile: its own look and particles
       else {
         // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
@@ -345,16 +360,19 @@ export class Bubbles {
       }
       // touching an enemy?
       for (const e of E.list) {
+        if (b.rebound && b.hit.size >= b.pierce) break;
         if (e.dead || b.hit.has(e)) continue;
         if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
           this.strike(b, e, mods);
+          if (b.rebound) { this.pop(b, e, stats, mods, true); continue; }
           if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
           if (b.hit.size === 1) this.splash(b);   // a piercing bubble splashes where it first hits, then flies on
         }
       }
       const reach = b.range ? b.range * 1.4 : maxTravel;
-      if (!b.done && (b.travel > reach || b.t > reach / b.speed + 0.5)) this.pop(b, null, stats, mods);   // out of range, or (whatever happened) too long in the air
+      if (!b.done && b.rebound && !b.returning && b.travel > reach) this.turn(b);
+      if (!b.done && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.pop(b, null, stats, mods);
     }
     this.looks.tickBolts(dt);
     this.looks.endFrame();
@@ -363,8 +381,13 @@ export class Bubbles {
     if (done.length) this.list = this.list.filter((b) => !b.done);
   }
 
-  // does bubble b touch an enemy at c with radius er? A plain bubble is a ball; a wind blade is a
-  // flat bar across its flight, b.side to each side of its middle
+  turn(b) {
+    b.returning = true; b.homing = false; b.hit.clear();
+    b.vel.negate(); b.trailT = 0;
+    this.fx.ring(b.m.position, this.friendly, b.r * 2, 0.2);
+    sfx.rebound();
+  }
+
   // Something that isn't the room's but stops bubbles all the same: a boss's body that can't be
   // hurt (the Pothos's vines and leaves), whatever has a blocks(pos, dir, len, r)
   blocked(pos, dir, len, r) {
@@ -372,6 +395,7 @@ export class Bubbles {
     return false;
   }
 
+  // A plain bubble is a ball; a wind blade hits across b.side on either side of its middle.
   touches(b, c, er) {
     const p = b.m.position;
     if (!b.side) return c.distanceTo(p) < er + b.r;
@@ -504,9 +528,9 @@ export class Bubbles {
     }
   }
 
-  pop(b, hitEnemy, stats, mods) {
+  pop(b, hitEnemy, stats, mods, keep = false) {
     if (b.done) return;
-    b.done = true;
+    b.done = !keep;
     const p = b.m.position;
     const fire = b.tint === 'fire';
     if (!fire) this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);

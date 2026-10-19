@@ -23,6 +23,7 @@ import './stories/hud-health.js';
 import './stories/wind.js';
 import './stories/evolutions.js';
 import './stories/energy-shield.js';
+import './stories/rebound-mirage.js';
 import './stories/elites.js';
 import './stories/events-boss.js';
 import './stories/main-screen-modes-engine.js';
