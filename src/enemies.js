@@ -424,7 +424,7 @@ export class Enemies {
     e.chargeSound?.();                    // a dragonfly killed mid-charge goes quiet
     this.byId.delete(e.id);
     this.scene.remove(e.root);
-    e.pos = e.pos.clone();                 // keep the gameplay death position while feedback moves the body
+    if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
     bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });

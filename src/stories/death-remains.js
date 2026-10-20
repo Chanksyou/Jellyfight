@@ -114,6 +114,17 @@ story('deaths/burning-keeps-ash-treatment', {
   },
 });
 
+story('deaths/proxy-removal-keeps-position-getter', {
+  about: 'Boss transitions can silently remove target proxies with a read-only position; ordinary bug death poses never take ownership of that position.',
+  setup,
+  play() {
+    const { enemies, fx } = G(), position = near(0.3, 0, 0), proxy = enemies.addProxy({ position, r: 0.05 });
+    enemies.kill(proxy, true);
+    return ok(proxy.dead && proxy.pos === position && !enemies.byId.has(proxy.id) && !fx.deaths.list.length,
+      { dead: proxy.dead, samePosition: proxy.pos === position, bodies: fx.deaths.list.length });
+  },
+});
+
 phone('enemy-death-personalities', {
   about: 'Roach, ant, flyer and shell death motions remain visible on phone Low graphics with bounded bodies and unchanged reward timing.',
   setup,
