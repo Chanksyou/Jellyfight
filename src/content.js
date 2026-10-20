@@ -235,7 +235,7 @@ export function compileMods(ids, evolved = []) {
 // Notes which treasure (or evolution) each timer it adds belongs to, so the HUD can show that
 // treasure's countdown (Run.cooldowns): what it adds to the timed, when-hit and squeak lists, and
 // the one-off effects it sets. Only for showing: the systems still read the combined effects.
-const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth'];
+const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth', 'energyShield', 'decoy'];
 function owned(m, id, apply) {
   const at = [m.timed.length, m.onHurt.length, m.squeaks.length], had = SINGLES.map((k) => m[k]);
   apply();

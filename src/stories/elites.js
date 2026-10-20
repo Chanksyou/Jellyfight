@@ -2,9 +2,11 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
+import { juice } from '../juice.js';
+import { sfx } from '../sfx.js';
 import { bus } from '../events.js';
 import { shotTarget, hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
-import { CONTROLLER_AT, G, JUMP_FEET, V, fresh, holdJelly, offs, ok, record, startCoffeeLob, startController, startKettle, step, story, theKettle, tp, warningsAt } from './kit.js';
+import { CONTROLLER_AT, G, JUMP_FEET, V, fresh, holdJelly, offs, ok, record, startCoffeeLob, startController, startKettle, step, story, stub, theKettle, tp, warningsAt } from './kit.js';
 
 // --- elites: targetable, and every attack telegraphs before it lands
 const ELITE_SPOTS = { controller: [1.42, 0.61, 4.5], mug: [0.66, 0.78, 2.84], kettle: [4.6, 0.91, 3.8] };
@@ -193,7 +195,7 @@ story('elites/controller-barrage-low-and-high', {
 // the rumble's Warning meshes round the Controller: its floor circle and its volume
 function rumbleWarning(e) {
   const near = (o) => Math.hypot(o.position.x - e.base.x, o.position.z - e.base.z) < 0.01;
-  const kids = G().APT.scene.children.filter(near);
+  const kids = e.tele.filter(near);
   return { floor: kids.find((o) => o.material instanceof TeleMaterial), volume: kids.find((o) => o.material instanceof VolumeMaterial) };
 }
 story('elites/controller-rumble-is-a-dome', {
@@ -250,6 +252,63 @@ for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
     },
   });
 }
+
+story('elites/controller-barrage-feedback', {
+  about: 'Buttons press and charge, aim lock clicks once, and the original three Shots release with recoil and sound on the same frame. End fragments and contact sounds play once per Shot.',
+  setup() { startController(0); },
+  play() {
+    const { run } = G(), E = run.elites, e = E.list.find(e => e.kind === 'controller'); holdJelly();
+    let charge = 0, lock = 0, fire = 0, ends = 0;
+    stub(sfx, 'controllerCharge', () => charge++); stub(sfx, 'controllerLock', () => lock++);
+    stub(sfx, 'controllerFire', () => fire++); stub(sfx, 'controllerContact', () => ends++);
+    step(400, () => e.state === 'windup' && e.stateT > 0.4);
+    const pressed = e.model.buttons.every(b => b.position.y < 0.027 && b.material.emissiveIntensity > 1);
+    step(80, () => e.volley === 1);
+    const shots = [...E.bullets], released = e.stateT >= 0.85 && e.stateT < 0.88 && e.model.group.rotation.x < 0 && fire === 1;
+    e.cool = 99; step(120, () => !E.bullets.length);
+    const debris = G().fx.chunks.some(c => c.alive);
+    return ok(pressed && released && charge === 1 && lock === 1 && ends === 3 && shots.length === 3 && shots.every(s => s.damage === 3 && Math.abs(s.v.length() - 0.9) < 1e-9) && debris,
+      { pressed, released, charge, lock, fire, ends, shots: shots.length, debris });
+  },
+});
+
+story('elites/controller-rumble-feedback-and-cleanup', {
+  about: 'The motor charges once, then the original rumble releases one short cosmetic dome, recoil, debris and a harmless scuff. The dome fades and reset clears it; no extra damage is emitted by feedback.',
+  setup() { startController(1); },
+  play() {
+    const { run, fx } = G(), E = run.elites, e = E.list.find(e => e.kind === 'controller'); holdJelly();
+    let charge = 0, release = 0;
+    stub(sfx, 'controllerCharge', () => charge++); stub(sfx, 'controllerRumble', () => release++);
+    const hits = controllerHits();
+    step(400, () => e.state === 'windup' && e.stateT > 0.8);
+    const loaded = e.model.barMat.emissiveIntensity > 4.5 && e.model.group.scale.y < e.size;
+    step(60, () => e.state === 'idle'); e.cool = 99;
+    const p = E.controllerPulses[0], box = p && new THREE.Box3().setFromObject(p.m);
+    const discharged = charge === 1 && release === 1 && p && Math.abs(box.max.y - e.base.y - 0.222) < 0.01 && e.model.group.rotation.x < 0;
+    const aftermath = fx.chunks.some(c => c.alive) && fx.splats.some(s => s.alive);
+    const h = hits.length; step(30);
+    const faded = !E.controllerPulses.length && !p.m.parent && hits.length === h;
+    e.next = 1; e.cool = 0; step(400, () => E.controllerPulses.length > 0);
+    const last = E.controllerPulses[0]; run.start();
+    return ok(loaded && discharged && aftermath && faded && !E.controllerPulses.length && !last.m.parent,
+      { loaded, discharged: !!discharged, aftermath, faded, release, cleared: !E.controllerPulses.length });
+  },
+});
+
+story('elites/controller-reduced-vibration', {
+  about: 'Reduce Effects removes the new motor vibration while the filled dome and bright light bar still communicate the rumble.',
+  setup() { startController(1); },
+  play() {
+    const { run } = G(), e = run.elites.list.find(e => e.kind === 'controller'), calm = juice.calm;
+    try {
+      juice.calm = true;
+      step(400, () => e.state === 'windup' && e.stateT > 0.8);
+      const g = e.model.group;
+      return ok(g.position.x === 0 && g.position.z === 0 && e.tele.length === 2 && e.model.barMat.emissiveIntensity > 4.5,
+        { x: g.position.x, z: g.position.z, warnings: e.tele.length });
+    } finally { juice.calm = calm; }
+  },
+});
 
 // --- 3D attacks: the Kettle's steam blast is a cone rising from the spout as it spreads (jumping
 // the steam blast's Warning, as the scene holds it: its floor wedge and its cone volume

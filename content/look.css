@@ -2,6 +2,44 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --controller-recoil: 0.2;
+  --controller-recoil-squash: 0.15;
+  --controller-load-squash: 0.12;
+  --controller-button-glow: 3;
+  --controller-bar-glow: 4;
+  --controller-pulse-opacity: 0.45;
+  --controller-windup-tilt: 0.12;
+  --controller-button-press: 0.002;
+  --controller-vibration: 0.004;
+  --controller-pulse-life: 0.22;
+  --controller-debris: #aaa5a0;
+  --controller-chip-size: 0.002;
+  --controller-scuff: #514949;
+  --controller-scuff-size: 0.018;
+  --xp-pull-bend: 0.008;
+  --xp-pull-stretch: 0.8;
+  --xp-feedback-gap: 0.075;
+  --xp-chain-window: 0.65;
+  --xp-collect-size: 0.012;
+  --xp-collect-life: 0.16;
+  --xp-bar-pulse: 1.35;
+  --xp-bar-time: 180;
+  --lash-coil: 0.18;
+  --lash-trace-size: 0.003;
+  --lash-trace: #d8faff;
+  --lash-trace-life: 0.11;
+  --lash-splat-size: 0.006;
+  --evolution-reveal-time: 1.6;
+  --evolution-reveal-calm-time: 0.2;
+  --evolution-camera-distance: 3.1;
+  --evolution-camera-distance-portrait: 4.2;
+  --rebound: #9bfff2;
+  --rebound-band-width: 0.013;
+  --rebound-trail-interval: 0.055;
+  --mirage: #bcecff;
+  --mirage-accent: #cebfff;
+  --mirage-opacity: 0.38;
+  --mirage-glow: 1.1;
   /* Main menu: presentation only. Distances are multiples of the jelly's height. */
   --menu-camera-distance: 2.35;
   --menu-camera-distance-portrait: 4;
@@ -85,6 +123,9 @@
   --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */
   --jelly-glow: 1;             /* how brightly the bell, rim and tentacles fluoresce */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
+  --energy-shield: #85eaff;     /* friendly energy shell and its depletion burst */
+  --energy-shield-opacity: 0.45; /* hex shell fades as damage is absorbed; visible without bloom */
+  --energy-shield-hex: 65;     /* hex cells per metre, shared force-field shader */
   --jelly-face-height: 0.82;   /* fraction of the head available to the whole expression */
   --jelly-face-width: 1.45;    /* maximum expression width, in bell radii */
   --jelly-face-offset: 0.004;  /* lift the face just above the curved bell */
@@ -365,3 +406,21 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
   #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button { margin-top: 0; }
   #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 16px; }
 }
+
+/* Evolution portrait: the selected jelly stays clear between the heading and skip control. */
+.jf-modal.jf-evolution { background: transparent; display: flex; flex-direction: column; justify-content: space-between; padding: max(18px, env(safe-area-inset-top)) 20px max(18px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+.jf-evolution-heading p { margin: 0 0 5px; text-transform: uppercase; letter-spacing: .2em; color: #a3f5d5; font-size: 12px; }
+.jf-evolution-footer { max-width: 620px; }
+.jf-evolution-footer p { font-size: 14px; line-height: 1.45; text-wrap: balance; text-shadow: 0 2px 8px #000; }
+.jf-evolution-footer button { background: #153348; color: #d8fff3; border: 1px solid #a3f5d577; border-radius: 999px; padding: 10px 22px; font: inherit; cursor: pointer; }
+.jf-evolution-footer button:focus-visible { outline: 3px solid #fff6dc; outline-offset: 3px; }
+body.evolution-presenting #hud, body.evolution-presenting #touch { visibility: hidden; }
+@media (max-height: 500px) {
+  .jf-modal.jf-evolution { padding: 10px 16px; }
+  .jf-evolution-heading h2 { font-size: 25px; }
+  .jf-evolution-footer { max-width: 80%; }
+  .jf-evolution-footer p { font-size: 11px; margin: 3px 0 6px; }
+  .jf-evolution-footer button { padding: 6px 18px; font-size: 12px; }
+}
+
+.jf-evolution-footer button { min-height: 44px; }

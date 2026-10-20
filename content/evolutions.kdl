@@ -8,6 +8,22 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
+evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles return to you, hitting each bug once on the way out and once coming back. Move to guide their return path. Fire rate is 20% lower." {
+    rebound
+    stat fire-rate -20 percent=#true
+    adorn "rebound-bands"
+}
+
+evolution "mirage" name="Mirage Jelly" icon="🫧" text="Every 8 seconds of movement, leave a ghost of your jelly for 3 seconds. Bugs within 45 cm aim at it; locked attacks and Elites still threaten you. Maximum Health is 15% lower." {
+    decoy every=8 time=3 range=0.45
+    stat health -15 percent=#true
+    adorn "mirage-rim"
+}
+
+evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 10 damage. When depleted, it explodes for 10 damage within 20 cm, then returns after 8 seconds. Excess damage passes through to Health." {
+    energy-shield 10 dmg=10 radius=0.2 recharge=8
+}
+
 evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 40% slower." {
     stat tentacles 3
     stat tentacle-reach 100 percent=#true

@@ -99,7 +99,7 @@ story('evolutions/box-jelly-existing-tentacles', {
     const { run, player } = G(), avatar = player.avatar, rig = avatar.tentacles;
     const meshes = rig.list.map((t) => t.mesh), glow = rig.list[0].baseGlow;
     evolve('boxJelly'); step(3);
-    const enhanced = rig.venom && rig.list.every((t, i) => t.mesh === meshes[i] && t.mat.emissiveIntensity > glow) && !run.adorn.pieces['venom-tips'];
+    const enhanced = rig.venom && rig.list.every((t, i) => t.mesh === meshes[i] && t.mat.emissiveIntensity > glow) && !run.adorn.pieces['venom-tips']?.group.children.length;
     run.onMainMenu();
     const clearedBeforePlay = !rig.venom;
     step(3);
@@ -123,11 +123,12 @@ story('look/box-jelly-tentacles-every-species', {
       rig.venom = true;
       c.update(0, state);
       let good = T.tip.scale.x >= width * 2.9 && rig.count === count && rig.length === length;
-      for (const striking of [false, true, false]) {
+      for (const phase of [null, -0.14, 0.65, 1, null]) {
+        const striking = phase !== null;
         state.speed = striking ? 0.35 : 0;
         state.walkSpeed = 0.35;
         state.vel = new THREE.Vector3(0.3, 0, 0.2);
-        if (striking) rig.aim(0, T.mesh.localToWorld(T.anchor.clone().setY(0)), 1);
+        if (striking) rig.aim(0, T.mesh.localToWorld(T.anchor.clone().setY(0)), phase, false, phase === 1 ? 1 : 0);
         else rig.aim(0, null);
         c.update(1 / 60, state);
         c.root.updateMatrixWorld(true);

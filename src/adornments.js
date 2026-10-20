@@ -59,6 +59,39 @@ export class Adornments {
     if (Pl) polyps.tick(dt, run);
   }
 
+  // The portrait and shader warmup enumerate all adornments; this one styles the existing rig.
+  make_venom_tips() { return { group: new THREE.Group(), tick() {} }; }
+
+  make_rebound_bands() {
+    const group = new THREE.Group(), h = this.h;
+    const mat = glowMat('rebound', '#9bfff2');
+    for (let i = 0; i < 2; i++) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(h * (0.25 + i * 0.08), h * LOOK.num('rebound-band-width', 0.013), 5, 36, Math.PI * 1.5), mat);
+      band.rotation.x = Math.PI / 2; band.rotation.z = i * Math.PI;
+      band.position.y = h * (0.8 - i * 0.15); group.add(band);
+    }
+    let reveal = null;
+    return { group, reveal: u => { reveal = u; }, tick: (dt, run) => {
+      const returning = reveal === null ? run.bubbles.list.some(b => b.returning) : reveal > 0.65;
+      group.rotation.y += dt * (returning ? -2 : 2);
+      group.scale.setScalar(1 + Math.sin(this.t * 5) * 0.04);
+    } };
+  }
+
+  make_mirage_rim() {
+    const group = new THREE.Group(), h = this.h;
+    const mat = glowMat('mirage', '#bcecff');
+    const accent = new THREE.Color(LOOK.color('mirage-accent', '#cebfff'));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(h * 0.29, h * 0.012, 5, 48), mat);
+    ring.rotation.x = Math.PI / 2; ring.position.y = h * 0.6; group.add(ring);
+    const base = mat.color.clone();
+    return { group, tick: (dt, run) => {
+      mat.color.copy(base).lerp(accent, 0.5 + Math.sin(this.t * 2) * 0.5);
+      mat.emissive.copy(mat.color);
+      ring.scale.setScalar(1 + (run.mirage.left > 0 ? 0.08 : 0));
+    } };
+  }
+
   // Man o' War: a translucent sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;

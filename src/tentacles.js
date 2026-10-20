@@ -22,7 +22,7 @@ const K_ROOT = 700, K_TIP = 45, DAMP = 0.55, STEP = 1 / 120;
 const KEEP = 0.15;
 const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
-const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0);
+const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
 function tubeGeometry() {
   const g = new THREE.BufferGeometry();
@@ -76,6 +76,7 @@ export class TentacleRig {
     this.fresh = true;                  // first frame (or a jump cut): start the chain on its pose
     this.lastRoot = new THREE.Vector3();
     this.inv = new THREE.Matrix4();
+    this.tipWorld = new THREE.Matrix4();
     // each point's spring and damping, root to tip
     this.K = Array.from({ length: SEG + 1 }, (_, j) => K_ROOT + (K_TIP - K_ROOT) * (j / SEG) ** 0.6);
     this.C = this.K.map((k) => 2 * DAMP * Math.sqrt(k));
@@ -89,13 +90,14 @@ export class TentacleRig {
   }
 
   // Send tentacle i toward a world point. k: 0 = resting, 1 = fully out. null to release.
-  aim(i, worldPoint, k = 0, golden = false) {
+  aim(i, worldPoint, k = 0, golden = false, impact = 0) {
     const T = this.list[i];
     if (!T) return;
-    if (!worldPoint || k <= 0) { T.aim = null; T.k = 0; return; }
+    if (!worldPoint || k === 0) { T.aim = null; T.k = T.impact = 0; return; }
     T.aim = (T.aim || new THREE.Vector3()).copy(worldPoint);
     T.k = k;
     T.golden = golden;
+    T.impact = impact;
   }
 
   // state: { localVel (units/s, in the parent's frame), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
@@ -173,6 +175,16 @@ export class TentacleRig {
       const glow = T.baseGlow * (this.venom ? this.venomGlow : 1);
       if (T.aim) {
         const target = this.parent.worldToLocal(_v.copy(T.aim));
+        if (T.k < 0) {
+          // Draw the resting tip away from the target, gathering tension before the snap.
+          _d.copy(target).sub(T.anchor).normalize();
+          for (let j = 1; j <= SEG; j++) {
+            const w = (j / SEG) ** 2 * -T.k;
+            T.pts[j].addScaledVector(_d, -w * 0.3).y += w * 0.18;
+            T.pts[j].y = Math.max(floor, T.pts[j].y);
+          }
+          this.build(T, floorY); continue;
+        }
         const end = _t.copy(T.anchor).lerp(target, T.k);
         const dist = end.distanceTo(T.anchor);
         const ctrl = _n.copy(T.anchor).add(end).multiplyScalar(0.5).addScaledVector(T.out, dist * 0.25);
@@ -230,7 +242,13 @@ export class TentacleRig {
     nor.needsUpdate = true;
     T.tip.position.copy(P[SEG]);
     T.tip.scale.setScalar(thick * 0.45);
-    const tipFloor = (floorY + thick * 0.45 * Math.hypot(M[1], M[5], M[9]) - M[1] * T.tip.position.x - M[9] * T.tip.position.z - M[13]) / M[5];
+    if (T.impact > 0) {
+      T.tip.quaternion.setFromUnitVectors(Y, _t.copy(P[SEG]).sub(P[SEG - 1]).normalize());
+      T.tip.scale.multiply(_s.set(1 + T.impact * 1.8, 1 - T.impact * 0.65, 1 + T.impact * 1.8));
+    }
+    T.tip.updateMatrix();
+    const W = this.tipWorld.multiplyMatrices(this.parent.matrixWorld, T.tip.matrix).elements;
+    const tipFloor = (floorY + Math.hypot(W[1], W[5], W[9]) - M[1] * T.tip.position.x - M[9] * T.tip.position.z - M[13]) / M[5];
     T.tip.position.y = Math.max(T.tip.position.y, tipFloor);
   }
 

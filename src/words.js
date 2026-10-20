@@ -596,7 +596,7 @@ export const ENEMY_WORDS = {
           e.pos.addScaledVector(e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
-          if (e.pos.distanceTo(c.pc) < (en.playerRadius || 0.03) + e.r * 0.6) { en.sting(e, c, p); return; }   // stung you: it dies
+          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + e.r * 0.6) { en.sting(e, c, p); return; }   // stung you: it dies
           if (wall || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
         } else if (e.state === 'rest') {
           e.vel.multiplyScalar(Math.exp(-4 * c.dt));
@@ -669,14 +669,14 @@ export const ENEMY_WORDS = {
       tick(e, c, en) {
         if (e.state === 'drop') return;
         if (e.state !== 'hold') {
-          const touch = Math.hypot(c.foot.x - e.pos.x, c.foot.z - e.pos.z) < e.r + (en.playerRadius || 0.03) + p.reach && Math.abs(c.foot.y - e.pos.y) < 0.06;
+          const touch = Math.hypot((c.realFoot || c.foot).x - e.pos.x, (c.realFoot || c.foot).z - e.pos.z) < e.r + (en.playerRadius || 0.03) + p.reach && Math.abs((c.realFoot || c.foot).y - e.pos.y) < 0.06;
           if (!e.landedOn && !touch) return;
           e.state = 'hold'; e.stateT = p.time; e.squeezeT = 0; e.airborne = true; e.faceLock = true;
           en.grab(e, p.color);
         }
         c.speed = 0;
         e.vel.set(0, 0, 0);
-        e.pos.copy(c.foot);                 // wrapped round you, it goes where you go
+        e.pos.copy((c.realFoot || c.foot));                 // wrapped round you, it goes where you go
         e.stateT -= c.dt;
         if ((e.squeezeT -= c.dt) <= 0 && c.slow > 0) { e.squeezeT = 0.5; en.squeeze(e, p.slow, p.dmg * 0.5, 0.55); }
         if (e.stateT <= 0) en.wither(e);
@@ -733,6 +733,8 @@ export function newMods() {
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
+    energyShield: null,              // energy-shield: a damage pool that bursts on depletion, then recharges
+    rebound: false, decoy: null,
     noRegen: false,                  // no-regen: Health regen does nothing
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
@@ -816,7 +818,7 @@ export const TIMED_WORDS = {
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds'];
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim'];
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted'];
 
@@ -866,6 +868,23 @@ export const TREASURE_WORDS = {
   venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
+  rebound: { doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight.', make: () => (m) => { m.rebound = true; } },
+  decoy: {
+    doc: 'Every `every` seconds spent moving, leaves a harmless copy for `time` seconds that attracts ordinary bugs within `range` m. Existing projectiles and locked aims stay unchanged.',
+    props: { every: 8, time: 3, range: 0.45 },
+    make: (_, p) => {
+      if (!(p.every > 0 && p.time > 0 && p.range > 0 && p.time <= p.every)) throw new Error('decoy: positive every, time and range required; time cannot exceed every');
+      return (m) => { m.decoy = { ...p }; };
+    },
+  },
+  'energy-shield': {
+    doc: 'Absorbs `capacity` damage before Health (overflow passes through). On depletion, explodes within `radius` m for a flat `dmg`, then fully recharges after `recharge` seconds. Partial shields do not refill.',
+    args: ['capacity'], props: { dmg: 10, recharge: 8, radius: 0.2 },
+    make: ([capacity], p) => {
+      if (!(capacity > 0 && p.dmg >= 0 && p.recharge > 0 && p.radius > 0)) throw new Error('energy-shield: capacity, recharge and radius must be positive; dmg must be nonnegative');
+      return (m) => { m.energyShield = { capacity, ...p }; };
+    },
+  },
   'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else).', make: () => (m) => { m.noRegen = true; } },
   'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
   adorn: { doc: 'Adds an evolution look (src/adornments.js): venom-tips thickens and brightens existing tentacles; sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },

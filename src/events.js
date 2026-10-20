@@ -14,6 +14,7 @@
 //   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent }
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded? }
+//   xp_collected    { amount, chain }                grouped pickup feedback, at most once per XP feedback gap
 export const PLAYER = 'player';
 
 const listeners = new Map();

@@ -6,7 +6,7 @@
 // retaining crit emphasis and quiet grouped ticks. Other phases/scores are unchanged.
 // v209 tunes elite tempo, counts and aggro only. Existing phase implementations and scores
 // are retained; unscored elite attacks remain unscored (no new claim of play-speed verification).
-// v211: Box Jelly reuses the existing Lash rig with thicker, brighter tubes. Strike timing,
+// v219: Box Jelly reuses the existing Lash rig with thicker, brighter tubes. Strike timing,
 // target feedback, venom and sound are retained; the existing sting score is unchanged.
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
@@ -21,7 +21,7 @@ export const AUDIT = {
   // the jelly's own attacks
   player: {
     bubble: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v178: a 2 s floor splat (aftermath) and a flight whoosh (sound); knockback follows damage. Proven by attack/bubble-feel; splat checked in phone screenshots, not watched at play speed.' },
-    sting: { score: [1, 1, 1, 1, 1, 1, 0, 1, 0], seen: 'code', note: 'v182 (was 4/9): bell twitch on release, impact flash, hit shake, knockback follows damage. No aftermath or layered sound, by L2: a frequent, small attack. Proven by attack/sting-feel.' },
+    sting: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v215 7→9: a 25 ms coil and accelerating snap fit inside the original 70 ms contact. The bell answers, confirmed contact squashes the tip and flashes the target with unchanged damage-scaled shove; fast retraction releases the soft rig into its spring recovery. A brief curved wet trace and small fading floor droplets fill aftermath. Layered varied stretch, release zip, wet slap/body and droplets fill sound. Existing damage/kill receipts remain grouped. Dead or newly shielded targets give no false hit feedback. Code/stepped-visual audit; play-speed sound not certified.' },
     fire: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v190, shared with the other Elements: energy gathers at the bell over the last fifth of its timer (no added delay); on the release frame the bell squeezes (onElementRelease). Its own: launch flash and pressure-pulse sound per fireball, a flame-tongued fireball with embers, a compact ignition and crack on a real hit only (attack/fire-miss), the bug flashes and is shoved, burning shows exactly while it lasts and burning deaths break into ash, embers and smoke; numbers and kill burst. Proven by attack/fire-feedback, attack/fire-miss, attack/element-feel (gather); screenshots, not watched at play speed.' },
     lightning: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v191: motes gather at the bell before each shot (no added delay); on the release frame the bell squeezes, a flash with short arcs, and a snap with a buzzing zip and crackles. In flight a crackling ball of light with a streak behind it, now and then spitting an arc. A real hit: a white flash lighting up round it, six forks and sparks spat out, a scorch on the floor that fades; a crack, falling zap, low thump with a rumble of thunder and sizzling crackles. Each chain jump is a flickering bolt that re-strikes in a new jagged shape every frame for 0.2 s (crisp line, white core, yellow halo, thick in the middle and tapering, forks), flashing where it lands, only ever to a bug it really hit; each jump\'s tzzt a step higher; a chain of 2+ jumps lands harder (feel hit-big). Stunned bugs crackle with little arcs exactly while the stun lasts. Proven by attack/element-feel, attack/lightning-chain; screenshots, not watched at play speed.' },
     ice: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v190, shared with the other Elements: energy gathers at the bell over the last fifth of its timer (no added delay); on the release frame the bell squeezes (onElementRelease), a frosty flash and a glassy chime with a whoosh. A spinning crystal shard with a frosty trail; a real hit throws ice shards and settling frost with a crunch, thud and tinkles; chill only slows (refreshing, never freezing) and the slow ring shows exactly while it lasts. Proven by attack/element-feel, attack/ice-slow-and-followup-upgrade; screenshots, not watched at play speed.' },
@@ -31,6 +31,8 @@ export const AUDIT = {
   },
   // treasure words (src/words.js) that make an attack of their own
   treasures: {
+    rebound: { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v213: inherits the ordinary bubble bell pulse, same-frame blow/whiz, body/glow, confirmed contact flash and droplets, target white flash and damage-scaled shove, feel step, fading floor splat, grouped damage/kill receipts and varied layered pop sound. Reversing bands, turn ring and falling-pitch watery whoosh mark the return; brief rings track its path. Stories prove one hit per leg, guidance, bounded lifetime, pierce and unchanged Elements. Code audit; no play-speed audio claim.' },
+    'energy-shield': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'Aegis: the visible shell weakens and flashes on absorbed hits; depletion releases the burst, bell pulse and layered crack/bass/crystal sound together. A brief sphere and ring show the actual 20 cm area. Confirmed targets receive localized impacts, white flash, damage-scaled shove, damage numbers and existing kill feedback. Harmless shards settle and fade within 1.1 s. The shell disappears for the HUD-marked 8 s recharge, then returns with a chime. Code audit; gameplay screenshots and stories cover absorption, overflow, flat burst damage, recharge and reset; not a play-speed sound audit.' },
     'echo-bubble': todo, 'toy-mouse': todo, 'golden-bubble': todo, 'giant-bubble': todo, 'zap-on-pop': todo,
     'landing-shockwave': todo, 'squeak-when-hit': todo, reflect: todo, venom: todo, polyps: todo, 'touch-sting': todo,
     'burst-on-kill': todo, 'orbit-lights': todo, beam: todo, aura: todo,
@@ -38,6 +40,7 @@ export const AUDIT = {
   },
   // treasure words that don't: they change an attack's numbers (audited with that attack) or aren't combat
   notAttacks: [
+    'decoy',
     'pierce', 'element', 'element-up', 'mark-on-hit', 'crit', 'pin-on-crit', 'extra-jumps', 'when-hit', 'rebirth',
     'no-regen', 'adorn', 'death-save', 'damage-taken', 'spout', 'heal-on-kill', 'crumb-on-kill', 'xp-reach', 'stat',
     'per', 'while', 'xp-mult', 'card-rarity', 'card-choices', 'heal-on-hit', 'grow-on-kills', 'more-treasures',
@@ -53,7 +56,9 @@ export const AUDIT = {
   notBugAttacks: ['chase', 'hover', 'zip', 'evade', 'hatch', 'rooted', 'hangs', 'brood', 'rolls'],
   // every Elite and Boss attack (src/stories/kit.js EVERY_ATTACK, itself checked against the game)
   hostile: {
-    'controller/barrage': todo, 'controller/rumble': todo, 'mug/coffee': todo, 'mug/spill': todo,
+    'controller/barrage': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v218, previously unscored: pressed charging buttons and unchanged height-aware aim strips; a lock click, same-frame launch flash, physical recoil and layered launch snap/body/whiz; existing bright-core Shots with trails and localized contact flash; actual player hurt/Health receipt; brief pooled fragments settling harmlessly after each Shot ends, with varied contact crack/body and debris ticks. Damage, 0.85 phase time, speed and low/high dodges retained. Stories cover choreography, confirmed damage and shader readiness. Code/stepped visual audit, not a play-speed listening claim.' },
+    'controller/rumble': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v218, previously unscored: growing motor vibration, compressed body, bright light bar and synchronized floor/22 cm dome Warning; same-frame discharge flash, kick and motor crack/bass/debris sound; a brief dome shows the exact blast extent (instant area attack, no projectile flight); existing confirmed hurt/knockback/Health feedback; harmless pooled chips and a small fading scuff record the discharge. Damage, 1.1 phase time, 22 cm hit area and knockback retained. Reduce Effects removes new vibration; pulse expires and reset removes it. Code/stepped visual audit, not a play-speed listening claim.' },
+    'mug/coffee': todo, 'mug/spill': todo,
     'kettle/steam': todo, 'kettle/boil-over': todo,
     'vacuum/charge': todo, 'vacuum/brushes': todo, 'vacuum/spin': todo, 'vacuum/suction': todo, 'vacuum/flies': todo, 'vacuum/dump': todo,
     'soap/squirt': todo, 'soap/bubble-ring': todo, 'clock/sweep': todo, 'clock/wreath': todo, 'clock/hour': todo,

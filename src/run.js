@@ -13,6 +13,10 @@ import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
+import { EnergyShield } from './energy-shield.js';
+import { Mirage } from './mirage.js';
+import { EvolutionReveal } from './evolution-reveal.js';
+import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -75,6 +79,9 @@ export class Run {
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
+    this.energyShield = new EnergyShield(this);
+    this.mirage = new Mirage(this);
+    this.evolutionReveal = new EvolutionReveal(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -148,6 +155,7 @@ export class Run {
 
   // ------------------------------------------------------------ setup
   start() {
+    this.evolutionReveal.cancel();
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
@@ -162,9 +170,13 @@ export class Run {
     this.lastTreasureSpot = null;
     this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
+    this.xpChain = this.xpChainT = this.xpFeedbackT = 0;
+    this.hud.resetXp();
     this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
+    this.energyShield.reset();
+    this.mirage.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -254,6 +266,7 @@ export class Run {
     }
     this.setNight(s.clock[0]);
     this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
+    this.energyShield.update(0);
     this.refreshHud();
   }
 
@@ -313,6 +326,8 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
+    this.mirage.update(0);
+    this.energyShield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
     // run it waits for the first Level-up instead: first-run.js)
@@ -366,6 +381,7 @@ export class Run {
 
     // --- attacks and enemies
     const origin = P.position.clone().setY(P.position.y + this.cfg.height * 0.45);
+    this.mirage.update(dt);
     if (this.phase === 'explore' || this.phase === 'boss') {
       const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
       // main attack: bubbles, blown from the top of the bell
@@ -385,7 +401,7 @@ export class Run {
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.eliteDamage = this.mods.eliteDamage;
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t, this.mirage.target);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }
@@ -399,7 +415,19 @@ export class Run {
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
     const got = this.xpDrops.update(dt, origin, this.mods.xpReach);
-    if (got) { this.gainXp(got); sfx.xp(juice.combo); }
+    this.xpChainT -= dt; this.xpFeedbackT -= dt;
+    if (got) {
+      this.gainXp(got);
+      if (this.xpFeedbackT <= 0) {
+        this.xpChain = this.xpChainT > 0 ? Math.min(10, this.xpChain + 1) : 0;
+        this.xpFeedbackT = LOOK.num('xp-feedback-gap', 0.075);
+        sfx.xp(this.xpChain, got >= 5);
+        bus.emit('xp_collected', { amount: got, chain: this.xpChain });
+        const big = got >= 5, quiet = juice.calm || this.fx.reducedMotion.matches;
+        this.fx.glow.emit(origin, this.xpDrops.bigMat.color, LOOK.num('xp-collect-size', 0.012) * (big ? 1.5 : 1), 0, LOOK.num('xp-collect-life', 0.16), quiet ? 0.2 : 0.5);
+      }
+      this.xpChainT = LOOK.num('xp-chain-window', 0.65);
+    }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
     if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
     juice.update(dt);
@@ -592,6 +620,9 @@ export class Run {
 
   hurt(amount, silent = false, from = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
+    if (this.phase === 'dead') return;
+    amount = this.energyShield.absorb(amount, silent);
+    if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
@@ -1039,13 +1070,15 @@ export class Run {
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, choices, (evo) => {
+      const before = this.mods;
       this.evolved.push(evo.id);
       this.health = this.S.health;
-      this.phase = 'won';
-      // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
-      if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-      // the last act: the run is won
-      else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      this.evolutionReveal.begin(evo, before, () => {
+        this.phase = 'won';
+        // The transformation finishes before the next reward replaces its portrait.
+        if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
+        else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      });
     });
   }
 
@@ -1200,6 +1233,8 @@ export class Run {
     if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
+    if (M.energyShield) put(O.energyShield, this.energyShield.cooldown / M.energyShield.recharge);
+    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
     return out;
   }
 
