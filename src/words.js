@@ -20,6 +20,14 @@ const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THRE
 const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
+  'death-motion': {
+    doc: 'On death, leaves a harmless body that `style` animates: crumple, tumble, flutter or shell. Rewards and removal from combat are immediate.',
+    args: ['style'],
+    make: ([style]) => {
+      if (!['crumple', 'tumble', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, tumble, flutter or shell');
+      return { init(e) { e.deathMotion = style; } };
+    },
+  },
   chase: {
     doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
     args: ['speed'],
