@@ -1320,7 +1320,7 @@ export class Enemies {
   // The one movement path for bodies: walk, retreat, flight, leaps, separation and shove.
   // Scene rays remain for aiming and floor lookups; a moving body sweeps its full radius.
   move(e, delta, scale = 1, slide = true) {
-    if (e.dead || e.proxy || e.T.rooted) return false;
+    if (e.dead || e.proxy || (e.T.rooted && (delta.x || delta.z || delta.y > 0))) return false;
     const remaining = S.moveDelta.copy(delta).multiplyScalar(scale), radius = e.hitR || e.r;
     let blocked = false;
     for (let i = 0; i < 4; i++) {

@@ -128,6 +128,17 @@ story('collision/openings-and-vertical-clearance', {
   },
 });
 
+story('collision/rooted-bugs-settle-on-their-surface', {
+  about: 'Anchored cuttings still settle under gravity and become grounded, while shoves and crowd separation cannot move their anchor sideways.',
+  setup,
+  play() {
+    const { origin } = room(), e = spawn('cutting', origin.clone().add(V(0.2, 0.015, 0))), start = e.pos.clone();
+    step(60); bus.emit('knockback', { targetId: e.id, dir: V(1, 0, 0), force: 1 });
+    return ok(e.grounded && Math.abs(e.pos.y - origin.y) < 0.001 && e.pos.x === start.x && e.pos.z === start.z,
+      { grounded: e.grounded, y: e.pos.y, floor: origin.y, x: e.pos.x });
+  },
+});
+
 story('collision/moving-collider-bounds-refresh', {
   about: 'New colliders join body collision immediately; moving, rotating and scaling one refreshes its bounds, blocking its new location and clearing its old one.',
   setup,
