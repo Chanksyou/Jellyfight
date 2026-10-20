@@ -551,6 +551,7 @@ export class Elites {
     Object.assign(this, { scene, enemies, fx, world, camera, root: apartmentRoot });
     this.list = [];
     this.bullets = [];
+    this.controllerPulses = [];
     this.blobs = [];
     this.puddles = [];
     this.decor = [];         // things that only hang there (the hall clock when it isn't fighting)
@@ -618,6 +619,8 @@ export class Elites {
   }
 
   clear() {
+    for (const p of this.controllerPulses) { this.scene.remove(p.m); p.m.material.dispose(); }
+    this.controllerPulses = [];
     this.pull = null;
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
     this.list = [];
@@ -868,6 +871,13 @@ export class Elites {
       }
       g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
       g.rotation.set(0, 0, 0);
+      if (e.kind === 'controller') {
+        e.controllerKick = Math.max(0, (e.controllerKick || 0) - dt * 6);
+        g.rotation.x = -e.controllerKick * LOOK.num('controller-recoil', 0.2);
+        g.scale.y *= 1 - e.controllerKick * LOOK.num('controller-recoil-squash', 0.15);
+        e.model.buttons.forEach(b => { b.position.y = 0.027; b.material.emissive.copy(b.material.color); b.material.emissiveIntensity = 0.5; });
+        e.model.barMat.emissiveIntensity = 2;
+      }
       e.cool -= dt * CONTENT.elites.pace.recover;
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
       if (e.kind === 'clock') this.clockHands(e, dt);
@@ -949,9 +959,18 @@ export class Elites {
           // floor: jump it) and jump height (stay down), and the middle one flips each barrage; each
           // line tilts from the muzzle up or down to its Shot's height where you are.
           if (s < 0.85) {
-            M.buttons.forEach((b, i) => { b.material.emissiveIntensity = 0.5 + (Math.sin(e.t * 30 + i) * 0.5 + 0.5) * 3; });
-            if (!e.tele.length) BARRAGE.spread.forEach((_, i) => { this.mark(e, this.stripGeo, this.T.aim[i], muzzle, ONE).rotation.order = 'YXZ'; });
-            if (s > 0.6) e.locked = true;
+            const charge = s / 0.85;
+            g.rotation.x = charge * LOOK.num('controller-windup-tilt', 0.12);
+            M.buttons.forEach((b, i) => {
+              b.position.y -= charge * LOOK.num('controller-button-press', 0.002);
+              b.material.emissive.copy(hostile('controller'));
+              b.material.emissiveIntensity = 0.5 + charge * LOOK.num('controller-button-glow', 3) + (Math.sin(e.t * 30 + i) * 0.5 + 0.5);
+            });
+            if (!e.tele.length) {
+              sfx.controllerCharge(false, 0.85 / CONTENT.elites.pace.tempo);
+              BARRAGE.spread.forEach((_, i) => { this.mark(e, this.stripGeo, this.T.aim[i], muzzle, ONE).rotation.order = 'YXZ'; });
+            }
+            if (s > 0.6 && !e.locked) { e.locked = true; sfx.controllerLock(); }
             if (!e.locked) {
               const floor = this.surfaceBelow(P), reach = Math.max(0.1, Math.hypot(P.x - muzzle.x, P.z - muzzle.z));
               e.tele.forEach((m, i) => {
@@ -963,10 +982,18 @@ export class Elites {
             }
             e.tele.forEach((m) => { m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
           } else {
-            for (const m of e.tele) this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', SK.barrage.dmg);
+            for (const m of e.tele) {
+              const shot = this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', SK.barrage.dmg);
+              shot.onEnd = (b, struck) => {
+                const at = b.m.position, floor = this.surfaceBelow(at);
+                this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], 4, LOOK.num('controller-chip-size', 0.002), 0.1, floor);
+                sfx.controllerContact(struck);
+              };
+            }
             M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
             this.fx.impact(muzzle, hostile('controller'), 0.012, 6);
-            e.clearTele(); e.hitPop = 0.8; sfx.zap();
+            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
+            g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15); sfx.controllerFire();
             e.state = 'idle'; e.cool = 1.6; e.locked = false; e.volley++;
           }
         } else {
@@ -974,17 +1001,30 @@ export class Elites {
           // too tall to jump over (get out of it), knocking back whatever of you is inside
           const R = 0.22, wind = 1.1;
           if (s < wind) {
-            if (!e.tele.length) e.tele.push(this.warnCircle(surf, R, this.T.red), this.fx.volume(hostile('controller'), 'dome', surf, R));
+            if (!e.tele.length) {
+              e.tele.push(this.warnCircle(surf, R, this.T.red), this.fx.volume(hostile('controller'), 'dome', surf, R));
+              sfx.controllerCharge(true, wind / CONTENT.elites.pace.tempo);
+            }
             e.tele[0].userData.fill(s / wind);
             e.tele[1].material.progress = s / wind;
-            g.position.x = (Math.random() - 0.5) * 0.004; g.position.z = (Math.random() - 0.5) * 0.004;
+            const charge = s / wind, quiet = juice.calm || this.fx.reducedMotion.matches;
+            const shake = quiet ? 0 : LOOK.num('controller-vibration', 0.004) * charge;
+            g.position.x = Math.sin(e.t * 110) * shake; g.position.z = Math.cos(e.t * 93) * shake;
+            g.scale.y *= 1 - charge * LOOK.num('controller-load-squash', 0.12);
+            M.barMat.emissiveIntensity = 2 + charge * LOOK.num('controller-bar-glow', 4);
             M.barMat.emissive.setHex(Math.sin(e.t * 25) > 0 ? 0xff2a2a : 0x3a8aff);
           } else {
             e.clearTele();
             M.barMat.emissive.setHex(0x3a8aff);
             this.fx.ring(surf, hostile('controller'), R, 0.45);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
-            juice.feel('impact-big'); sfx.kill(1.6);
+            const pulse = this.fx.volume(hostile('controller'), 'dome', surf, R);
+            pulse.material.progress = 1;
+            this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
+            this.fx.burst(surf, [LOOK.color('controller-debris', '#aaa5a0')], 8, LOOK.num('controller-chip-size', 0.002), 0.18, e.base.y);
+            this.fx.splat(surf, LOOK.color('controller-scuff', '#514949'), LOOK.num('controller-scuff-size', 0.018));
+            e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2); g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15);
+            juice.feel('impact-big'); sfx.controllerRumble();
             if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller'); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
@@ -1842,8 +1882,18 @@ export class Elites {
     this.slicks = this.slicks.filter((p) => p.t > 0);
 
     // Shots in flight (the Controller's buttons): each hits the jelly's whole body
-    for (const b of this.bullets) if (this.fx.shotStep(b, dt, this.world, P, cfg)) hit(b.damage, b.source);
+    for (const b of this.bullets) {
+      const struck = this.fx.shotStep(b, dt, this.world, P, cfg);
+      if (struck) hit(b.damage, b.source);
+      if (b.done) b.onEnd?.(b, struck);
+    }
     this.bullets = this.bullets.filter((b) => !b.done);
+    for (const p of this.controllerPulses) {
+      p.t += dt;
+      p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * LOOK.num('controller-pulse-opacity', 0.45);
+      if (p.t >= p.life) { this.scene.remove(p.m); p.m.material.dispose(); }
+    }
+    this.controllerPulses = this.controllerPulses.filter(p => p.t < p.life);
 
     // lobbed things in flight, with their warning circles filling
     for (const b of this.blobs) {

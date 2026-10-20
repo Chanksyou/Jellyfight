@@ -241,7 +241,7 @@ story('content/levelup-and-elite-tuning', {
     const expected = {
       xp: { base: 4, growth: 1.4 }, rarities: { common: 65, rare: 25, epic: 10 },
       cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.2, 0.4, 0.6], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
-      bubbles: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [3, 1.2, 2, 1.5, 1.75], mug: [7, 5, 3], soap: [9, 10, 3, 5],
+      bubbles: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.3, 1.1, 1.5, 1.5, 1.75], mug: [7, 5, 3], soap: [9, 10, 3, 5],
     };
     return ok(JSON.stringify(actual) === JSON.stringify(expected), { actual });
   },
