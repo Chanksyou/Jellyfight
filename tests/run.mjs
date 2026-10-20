@@ -6,6 +6,7 @@
 //   node tests/run.mjs --no-mobile     skip the phone check
 //   node tests/run.mjs --jobs=N        how many pages play side by side (default 3)
 //   node tests/run.mjs --force         play a full run even if this commit already passed one
+//   node tests/run.mjs --seed=42       reproduce a different deterministic set of story rolls
 //
 // Needs Playwright (cd tests && npm install && npx playwright install chromium).
 // If the machine can't reach the three.js CDN, point JF_THREE at an unpacked three npm package (the
@@ -15,15 +16,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { start, openGame, ROOT } from './lib.mjs';
+import { DEFAULT_SEED } from '../src/story-random.mjs';
 
 const args = process.argv.slice(2);
 // filters: comma-separated; a story runs if its name contains any of them (none = everything)
 const filters = (args.find((a) => !a.startsWith('--')) || '').split(',');
 const wants = (name) => filters.some((f) => name.includes(f));
 const MOBILE = !args.includes('--no-mobile');
+const seedArg = args.find(a => a.startsWith('--seed='));
+const SEED = seedArg ? Number(seedArg.slice(7)) : DEFAULT_SEED;
+if (!Number.isInteger(SEED) || SEED < 0 || SEED > 0xffffffff) throw new Error('--seed must be an integer from 0 to 4294967295');
+console.log(`Story seed base: ${SEED} (replay with --seed=${SEED})`);
 
 // a full run of a clean checkout whose commit already passed one has nothing new to find (--force plays it anyway)
-if (filters.join('') === '' && MOBILE && !args.includes('--force')) {
+if (filters.join('') === '' && MOBILE && !seedArg && !args.includes('--force')) {
   try {
     const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
     const head = execSync('git rev-parse HEAD', { cwd: ROOT }).toString().trim();
@@ -65,7 +71,7 @@ const gate = async (f) => {
   try { return await f(); } finally { const next = waiting.shift(); if (next) next(); else free++; }
 };
 const prep = async (page) => page.evaluate(() => APT.renderer.setAnimationLoop(null));   // stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise
-const boot = (e, opts) => gate(async () => { const got = await openGame(e, opts); await prep(got.page); return got; });
+const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
 // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
 const first = PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
 let listing = await boot(env, first.opts);
@@ -93,9 +99,15 @@ async function playAll(page, errors, names) {
   const out = [];
   for (const name of names) {
     const before = errors.length;
-    const r = await page.evaluate(async (n) => (await import('/src/stories.js')).runStory(n), name);
+    const r = await page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED });
     const newErrors = errors.slice(before);
-    out.push(result(r.ok && !newErrors.length, name, r.ms, newErrors.length ? { ...r.info, errors: newErrors } : r.info));
+    const good = r.ok && !newErrors.length;
+    if (!good) {
+      const dir = path.join(ROOT, '.wrangler/story-failures'); fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, name.replace(/[^a-z0-9_-]/gi, '-') + `-${r.seed}.png`);
+      await page.screenshot({ path: file }).catch(e => console.log(`Screenshot failed: ${e.message}`));
+    }
+    out.push(result(good, name, r.ms, { ...r.info, seed: r.seed, ...(newErrors.length ? { errors: newErrors } : {}) }));
   }
   return out;
 }
@@ -159,7 +171,7 @@ await env.close();
 console.log(`\n${passed} passed, ${failed} failed`);
 // a full green run on a clean checkout records its commit: the pre-push hook (.githooks/pre-push)
 // lets that commit go to main
-if (!failed && filters.join('') === '' && MOBILE) {
+if (!failed && filters.join('') === '' && MOBILE && SEED === DEFAULT_SEED) {
   try {
     const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
     if (clean) fs.writeFileSync(path.join(ROOT, 'tests/.last-green'), execSync('git rev-parse HEAD', { cwd: ROOT }).toString());

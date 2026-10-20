@@ -4,6 +4,7 @@ import { bus, PLAYER } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { rollCards, RARITY, BASE_STATS, ELEMENT_UPGRADES } from '../stats.js';
 import { parse } from '../kdl.js';
+import { seededRandom } from '../story-random.mjs';
 import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, step, story, stub, tp } from './kit.js';
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
@@ -109,7 +110,8 @@ story('treasures/rarity-by-source', {
     stub(run.ui, 'choose', (t, s, list) => { for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; });
     for (src of ['room', 'elite']) for (let i = 0; i < 300; i++) run.pickTreasure('', '', src);
     // luck: the rarer tier's share of the room's picks goes up
-    const rareShare = (luck) => { run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) run.pickTreasure('', '', 'room'); return seen.room.rare / (seen.room.rare + seen.room.common); };
+    // Compare luck with the same random draws, so sampling noise cannot reverse its effect.
+    const rareShare = (luck) => { stub(Math, 'random', seededRandom(41023)); run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) run.pickTreasure('', '', 'room'); return seen.room.rare / (seen.room.rare + seen.room.common); };
     const plain = rareShare(0), lucky = rareShare(100);
     run.stats.luck = 0;
     restore();

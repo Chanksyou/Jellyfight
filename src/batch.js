@@ -93,6 +93,7 @@ export class Batcher {
     }
     let drawn = 0;
     for (const byMat of this.groups.values()) for (const g of byMat.values()) {
+      g.list.length = g.n; // release removed model subtrees; retain the reusable GPU batch
       if (g.n > g.cap || (g.n && !g.mesh)) this.grow(g, g.n);
       if (!g.mesh) continue;
       const m = g.mesh;

@@ -1,0 +1,53 @@
+name: Game checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  game-checks:
+    name: Game checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install pinned dependencies
+        run: npm ci --prefix tests
+      - name: Install Chromium
+        working-directory: tests
+        run: npx playwright install --with-deps chromium
+      - name: Parse modules and run guards
+        run: |
+          mkdir -p .wrangler
+          node tests/check.mjs | tee .wrangler/ci-guards.log
+      - name: Run every gameplay story
+        run: node tests/run.mjs --jobs=1 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
+      - name: Save logs and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: game-check-results
+          path: |
+            .wrangler/ci-*.log
+            .wrangler/story-failures/
+          if-no-files-found: ignore
+          retention-days: 14

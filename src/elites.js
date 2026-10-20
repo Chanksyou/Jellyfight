@@ -530,7 +530,7 @@ class Elite {
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
-  clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); if (m.userData.symbol) m.material.dispose(); }); this.tele = []; }
+  clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); }); this.tele = []; }
 
   remove() {
     this.clearTele();
@@ -548,6 +548,9 @@ export class Elites {
     this.list = [];
     this.bullets = [];
     this.controllerPulses = [];
+    this.warningPool = []; this.volumePool = [];
+    this.puddleMeshes = []; this.slickMeshes = [];
+    this.balloonPool = []; this.wreathPool = [];
     this.blobs = [];
     this.puddles = [];
     this.decor = [];         // things that only hang there (the hall clock when it isn't fighting)
@@ -615,7 +618,7 @@ export class Elites {
   }
 
   clear() {
-    for (const p of this.controllerPulses) { this.scene.remove(p.m); p.m.material.dispose(); }
+    for (const p of this.controllerPulses) this.scene.remove(p.m);
     this.controllerPulses = [];
     this.pull = null;
     this.list.forEach((e) => { e.remove(); if (e.entry) e.entry.dead = true; });
@@ -670,9 +673,27 @@ export class Elites {
     return h ? h.point.y : p.y;
   }
 
+  // Detached warnings are available again; reset every animated property before reuse.
+  volume(color, kind, pos, scale) {
+    const hex = color.isColor ? color.getHex() : new THREE.Color(color).getHex();
+    let m = this.volumePool.find(m => !m.parent && m.material.kind === kind && m.material.uniforms.uColor.value.getHex() === hex);
+    if (!m) { m = this.fx.volume(color, kind, pos, scale); this.volumePool.push(m); }
+    else this.scene.add(m);
+    m.visible = true; m.position.copy(pos); m.rotation.order = 'XYZ'; m.rotation.set(0, 0, 0);
+    if (typeof scale === 'number') m.scale.setScalar(scale); else m.scale.copy(scale);
+    m.material.progress = 0; m.material.opacity = 1;
+    return m;
+  }
+
   // a flat telegraph mesh on a surface
   mark(e, geo, mat, pos, scale, rotY = 0) {
-    const m = new THREE.Mesh(geo, mat.clone());
+    let m = this.warningPool.find(m => !m.parent && m.geometry === geo && m.userData.template === mat);
+    if (!m) {
+      m = new THREE.Mesh(geo, mat.clone()); m.userData.template = mat;
+      this.warningPool.push(m);
+    }
+    m.visible = true; m.material.opacity = 1; m.material.progress = 0;
+    m.rotation.order = 'XYZ'; m.rotation.set(0, 0, 0);
     m.position.copy(pos);
     m.scale.copy(scale);
     m.rotation.y = rotY;
@@ -684,12 +705,9 @@ export class Elites {
 
   // a warning circle that fills from the middle as the hit gets closer (k 0..1)
   warnCircle(pos, r, mat) {
-    const g = new THREE.Mesh(this.flat, mat.clone());
-    g.scale.setScalar(r);
-    g.renderOrder = 3;
-    g.position.copy(pos).setY(pos.y + 0.002);
+    const g = this.mark(null, this.flat, mat, pos, new THREE.Vector3(r, r, r));
+    g.position.y += 0.002;
     g.updateMatrixWorld(true);
-    this.scene.add(g);
     g.userData.fill = (k) => { g.material.progress = k; g.material.opacity = 0.85 + Math.sin(performance.now() / 60) * 0.15; };
     return g;
   }
@@ -702,7 +720,7 @@ export class Elites {
     const m = this.fx.orb(color, size);
     m.position.copy(from);
     m.visible = !wait;
-    const vol = dome ? this.fx.volume(color, 'dome', to, r) : null;
+    const vol = dome ? this.volume(color, 'dome', to, r) : null;
     this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, arc, wait });
   }
 
@@ -716,7 +734,7 @@ export class Elites {
     m.position.copy(at).setY(at.y + 0.006);
     m.scale.setScalar(r);
     this.scene.add(m);
-    const vol = this.fx.volume(color, 'ring', at, new THREE.Vector3(r, h, r));   // the wall it rolls out as
+    const vol = this.volume(color, 'ring', at, new THREE.Vector3(r, h, r));   // the wall it rolls out as
     vol.material.progress = 1;
     this.rings.push({ m, vol, at: at.clone(), y: at.y, r, max, speed, h, band, follow, skill, source, color, hit: false });
   }
@@ -729,13 +747,16 @@ export class Elites {
   }
 
   puddle(at, r = 0.045, life = 3.5) {
-    const m = new THREE.Mesh(this.flat, this.coffeeMat);
+    let m = this.puddleMeshes.find(m => !m.parent);
+    if (!m) {
+      m = new THREE.Mesh(this.flat, this.coffeeMat);
+      const hot = new THREE.Mesh(this.flat, this.T.puddle.clone());
+      hot.position.y = 0.0006; hot.renderOrder = 3; m.add(hot);
+      this.puddleMeshes.push(m);
+    }
+    m.children[0].material.progress = 0; m.children[0].material.opacity = 1;
     m.position.copy(at).setY(at.y + 0.0015);
     m.scale.setScalar(r);
-    const hot = new THREE.Mesh(this.flat, this.T.puddle.clone());   // scalding: a glowing hazard edge
-    hot.position.y = 0.0006;
-    hot.renderOrder = 3;
-    m.add(hot);
     this.scene.add(m);
     this.puddles.push({ m, r, t: life });
   }
@@ -743,14 +764,16 @@ export class Elites {
   // a slick of soap where a squirt landed: slippery underfoot for `life` s (a glossy pink pool
   // with a hazard edge)
   slick(at, r = 0.05, life = 5) {
-    const m = new THREE.Mesh(this.flat, this.soapMat);
+    let m = this.slickMeshes.find(m => !m.parent);
+    if (!m) {
+      m = new THREE.Mesh(this.flat, this.soapMat);
+      const edge = new THREE.Mesh(this.flat, this.T.slick.clone());
+      edge.position.y = 0.0006; edge.renderOrder = 3; m.add(edge);
+      this.slickMeshes.push(m);
+    }
+    m.children[0].material.progress = 0; m.children[0].material.opacity = 1;
     m.position.copy(at).setY(at.y + 0.0015);
     m.scale.setScalar(r);
-    const edge = new THREE.Mesh(this.flat, this.T.slick.clone());
-    edge.position.y = 0.0006;
-    edge.renderOrder = 3;
-    edge.material.progress = 0;
-    m.add(edge);
     this.scene.add(m);
     this.slicks.push({ m, r, t: life });
   }
@@ -763,6 +786,21 @@ export class Elites {
     m.renderOrder = 4;
     this.scene.add(m);
     this.soapBubbles.push({ m, v: dir.clone().multiplyScalar(speed), t: life, wob: Math.random() * 6, y: from.y });
+  }
+
+  balloon(color) {
+    let b = this.balloonPool.find(b => !b.group.parent);
+    if (!b) { b = buildBalloon(color); this.balloonPool.push(b); }
+    b.mat.color.set(color); b.mat.emissive.set(color); b.mat.emissiveIntensity = 0.25;
+    b.group.visible = true; b.group.position.set(0,0,0); b.group.rotation.set(0,0,0); b.group.scale.setScalar(1);
+    return b;
+  }
+
+  wreath(source) {
+    let m = this.wreathPool.find(m => !m.parent);
+    if (!m) { m = thrownWreath(source); this.wreathPool.push(m); }
+    m.visible = true; m.rotation.set(Math.PI/2,0,0); m.scale.setScalar(LOOK.num('wreath-scale',3.2));
+    return m;
   }
 
   // the clock's wreath in flight, a Shot (fx.shot) from `from` to `to`: there in CLOCK_HITS.wreathFlight s, or at
@@ -960,7 +998,7 @@ export class Elites {
               at.y = this.surfaceBelow(at.setY(floor));
               const m = this.mark(e, floorShapeGeometry(kind), this.T.symbols[i], at, new THREE.Vector3(D.radius,1,D.radius));
               m.position.y += .002; m.userData.symbol = kind;
-              const vol = this.fx.volume(hostile('controller'), 'symbol-'+kind, at, new THREE.Vector3(D.radius,D.height,D.radius));
+              const vol = this.volume(hostile('controller'), 'symbol-'+kind, at, new THREE.Vector3(D.radius,D.height,D.radius));
               vol.userData.symbol = kind; e.tele.push(vol);
             });
             sfx.controllerCharge(false, D.windup / CONTENT.elites.pace.tempo);
@@ -981,7 +1019,7 @@ export class Elites {
               struck ||= floorShapeHits(kind, at, D.radius, D.height, P, cfg);
               this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', .03), LOOK.num('controller-symbol-sparks', 8));
               this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', .002), .1, at.y);
-              const pulse = this.fx.volume(hostile('controller'), 'symbol-'+kind, at, m.scale);
+              const pulse = this.volume(hostile('controller'), 'symbol-'+kind, at, m.scale);
               pulse.material.progress = 1;
               this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             }
@@ -997,7 +1035,7 @@ export class Elites {
           const R = 0.22, wind = 1.1;
           if (s < wind) {
             if (!e.tele.length) {
-              e.tele.push(this.warnCircle(surf, R, this.T.red), this.fx.volume(hostile('controller'), 'dome', surf, R));
+              e.tele.push(this.warnCircle(surf, R, this.T.red), this.volume(hostile('controller'), 'dome', surf, R));
               sfx.controllerCharge(true, wind / CONTENT.elites.pace.tempo);
             }
             e.tele[0].userData.fill(s / wind);
@@ -1013,7 +1051,7 @@ export class Elites {
             M.barMat.emissive.setHex(0x3a8aff);
             this.fx.ring(surf, hostile('controller'), R, 0.45);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.05, 22);
-            const pulse = this.fx.volume(hostile('controller'), 'dome', surf, R);
+            const pulse = this.volume(hostile('controller'), 'dome', surf, R);
             pulse.material.progress = 1;
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
             this.fx.burst(surf, [LOOK.color('controller-debris', '#aaa5a0')], 8, LOOK.num('controller-chip-size', 0.002), 0.18, e.base.y);
@@ -1078,7 +1116,7 @@ export class Elites {
               e.locked = true;
               const apex = new THREE.Vector3(muzzle.x, surf.y, muzzle.z);
               this.mark(e, this.coneGeo, this.T.steam, apex, new THREE.Vector3(len, 1, len), heading);
-              e.tele.push(coneVolume(this.fx, hostile('kettle'), apex, heading, len, half));
+              e.tele.push(coneVolume(this, hostile('kettle'), apex, heading, len, half));
             }
             for (const m of e.tele) { m.material.opacity = 0.7 + Math.sin(e.t * 25) * 0.15; m.material.progress = s / wind; }
             g.rotation.z = Math.sin(e.t * 50) * 0.05;
@@ -1187,7 +1225,7 @@ export class Elites {
             if (!e.tele.length) {
               e.dirSweep = Math.random() < 0.5 ? 1 : -1;
               this.mark(e, this.halfGeo, this.T.sweep, surf, new THREE.Vector3(R, 1, R), heading);
-              const vol = this.fx.volume(hostile('clock'), 'half', e.base, new THREE.Vector3(R, CLOCK_HITS.sweepH, R));   // the low space the hand sweeps through
+              const vol = this.volume(hostile('clock'), 'half', e.base, new THREE.Vector3(R, CLOCK_HITS.sweepH, R));   // the low space the hand sweeps through
               vol.rotation.y = heading;
               e.tele.push(vol);
             }
@@ -1240,7 +1278,7 @@ export class Elites {
             e.threw = true;
             e.clearTele();
             M.wreath.visible = false;
-            const m = thrownWreath(M.wreath);
+            const m = this.wreath(M.wreath);
             const from = this.wreathWorld(e);
             m.position.copy(from);
             this.scene.add(m);
@@ -1251,7 +1289,7 @@ export class Elites {
           // Striking the hour: the hands snap to the hour, then three chimes, each a golden ring rolling out over the bench
           const wind = 0.6, gap = 0.7;
           if (s < wind) {
-            if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.06, this.T.chime), this.fx.volume(hostile('clock'), 'ring', e.base, new THREE.Vector3(0.06, CLOCK_HITS.chimeH, 0.06)));
+            if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.06, this.T.chime), this.volume(hostile('clock'), 'ring', e.base, new THREE.Vector3(0.06, CLOCK_HITS.chimeH, 0.06)));
             e.tele[0].userData.fill(s / wind);
             e.tele[1].material.progress = s / wind;
             M.minuteHand.rotation.z += (0 - M.minuteHand.rotation.z) * (1 - Math.exp(-12 * dt));   // to twelve
@@ -1279,7 +1317,7 @@ export class Elites {
           const fill = 1.0, n = angry ? SK.balloon.angryCount : SK.balloon.count, k = Math.floor(s / (fill + 0.25)), u = (s % (fill + 0.25)) / fill;
           if (k < n) {
             if (!e.inflating && u < 1) {
-              e.inflating = buildBalloon(new THREE.Color().setHSL(0.72 + Math.random() * 0.2, 0.8, 0.6).getHex());
+              e.inflating = this.balloon(new THREE.Color().setHSL(0.72 + Math.random() * 0.2, 0.8, 0.6).getHex());
               this.scene.add(e.inflating.group);
               sfx.balloonFill(fill);
             }
@@ -1296,7 +1334,7 @@ export class Elites {
                 // let go: it drifts after you, and bursts 3 s later as a whole-sphere Blast of radius R
                 // round it: its Warning is the circle on the floor under it (no volume: the owner's call,
                 // the balloon itself shows where the burst is)
-                const R = 0.2, warn = new THREE.Mesh(this.flat, this.T.blast.clone());
+                const R = 0.2, warn = this.mark(null, this.flat, this.T.blast, surf, new THREE.Vector3(R, R, R));
                 warn.renderOrder = 3;
                 warn.scale.setScalar(R);
                 this.scene.add(warn);
@@ -1317,7 +1355,7 @@ export class Elites {
               e.locked = true;
               const apex = surf.clone().addScaledVector(fwd, 0.05);
               this.mark(e, this.coneGeo, this.T.cream, apex, new THREE.Vector3(len, 1, len), heading);
-              e.tele.push(coneVolume(this.fx, hostile('whipper'), apex, heading, len, half));
+              e.tele.push(coneVolume(this, hostile('whipper'), apex, heading, len, half));
             }
             for (const m of e.tele) { m.material.progress = s / wind; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
             M.whip.rotation.x = (s / wind) * 0.35;                       // tipping toward you
@@ -1395,7 +1433,7 @@ export class Elites {
           e.holder.rotation.y += d * (1 - Math.exp(-10 * dt));
           const k = e.slams, due = e.rhythm[Math.min(k, e.rhythm.length - 1)], from = k ? e.rhythm[k - 1] : T.turn;
           if (k < e.rhythm.length) {
-            if (s >= from && !e.tele.length) e.tele.push(this.warnCircle(e.slamAt, CROC_SLAM_WARN, this.T.frostRing), this.fx.volume(hostile('croc'), 'ring', e.slamAt, new THREE.Vector3(CROC_SLAM_WARN, T.height, CROC_SLAM_WARN)));
+            if (s >= from && !e.tele.length) e.tele.push(this.warnCircle(e.slamAt, CROC_SLAM_WARN, this.T.frostRing), this.volume(hostile('croc'), 'ring', e.slamAt, new THREE.Vector3(CROC_SLAM_WARN, T.height, CROC_SLAM_WARN)));
             const u = THREE.MathUtils.clamp((s - from) / (due - from), 0, 1);
             if (e.tele.length) { e.tele[0].userData.fill(u); e.tele[1].material.progress = u; }
             const lift = s < from ? 0 : Math.sin(Math.min(1, u / 0.8) * Math.PI * 0.5) * (u > 0.8 ? (1 - u) / 0.2 : 1);   // up, then down hard
@@ -1416,7 +1454,7 @@ export class Elites {
           // over it), leaps, and lands where it started as a Blast round itself: too big to jump
           // clear, get out of it
           const Q = SK.pounce, wind = angry ? Q.angryWindup : Q.windup, land = wind + Q.air;
-          if (!e.tele.length && !e.landed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.pounce), this.fx.volume(hostile('croc'), 'dome', surf, Q.radius));
+          if (!e.tele.length && !e.landed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.pounce), this.volume(hostile('croc'), 'dome', surf, Q.radius));
           if (e.tele.length) { const u = Math.min(1, s / land); e.tele[0].userData.fill(u); e.tele[1].material.progress = u; }
           if (s < wind) {
             const c = Math.min(1, s / (wind * 0.6));
@@ -1452,7 +1490,7 @@ export class Elites {
           // Warning (a circle and the half sphere over it) fills round it; then a Blast round
           // itself knocks you away. Too big to jump: off the table, or take it
           const Q = SK.rush, wind = angry ? Q.angryWindup : Q.windup, big = angry ? Q.angryHorns : Q.horns;
-          if (!e.tele.length && !e.rushed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.rush), this.fx.volume(col, 'dome', surf, Q.radius));
+          if (!e.tele.length && !e.rushed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.rush), this.volume(col, 'dome', surf, Q.radius));
           if (s < wind) {
             const u = s / wind, k = THREE.MathUtils.smoothstep(u, 0, 0.75);
             e.tele[0].userData.fill(u);
@@ -1520,7 +1558,7 @@ export class Elites {
               m.scale.setScalar(0.01);
               this.scene.add(m);
               this.mark(e, this.stripGeo, this.T.lane, at.clone().setY(y + 0.002), new THREE.Vector3(N.width, 1, N.reach), yaw);
-              const vol = this.fx.volume(col, 'lane', at.clone().setY(y + 0.002), new THREE.Vector3(N.width, N.height, N.reach));
+              const vol = this.volume(col, 'lane', at.clone().setY(y + 0.002), new THREE.Vector3(N.width, N.height, N.reach));
               vol.rotation.y = yaw;
               e.tele.push(vol);
               this.fx.puff(at.clone().setY(y + 0.02), 0xf0d0c0, 0.03, 0.4);
@@ -1570,7 +1608,7 @@ export class Elites {
             const dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, d = Math.hypot(dx, dz);
             if (d > A.range) { e.aim.x = e.base.x + (dx / d) * A.range; e.aim.z = e.base.z + (dz / d) * A.range; }
             e.aim.y = this.surfaceBelow(e.aim);
-            e.tele.push(this.warnCircle(e.aim, A.radius, this.T.coffer), this.fx.volume(col, 'dome', e.aim, A.radius));
+            e.tele.push(this.warnCircle(e.aim, A.radius, this.T.coffer), this.volume(col, 'dome', e.aim, A.radius));
             sfx.cofferWheeze(unfold / tempo);
           }
           const to = g.worldToLocal(this._to.copy(e.aim));                  // the spot, in its frame
@@ -1674,7 +1712,7 @@ export class Elites {
             e.locked = true;
             const n = angry ? J.angryCount : J.count;
             e.spots = this.cofferSpots(e, n, J);
-            for (const at of e.spots) e.tele.push(this.warnCircle(at, J.radius, this.T.coffer), this.fx.volume(col, 'dome', at, J.radius));
+            for (const at of e.spots) e.tele.push(this.warnCircle(at, J.radius, this.T.coffer), this.volume(col, 'dome', at, J.radius));
             // each jewel leaves from a spot on the lid, at its own moment, up and a little out
             e.gems = e.spots.map((_, i) => ({ from: g.localToWorld(new THREE.Vector3((Math.random() - 0.5) * 0.15, C.lift + COFFER.base + C.gap + COFFER.lid, (Math.random() - 0.5) * 0.12)), dx: (Math.random() - 0.5) * 0.5, dz: (Math.random() - 0.5) * 0.5, at: i * 0.035, spin: Math.random() * 6, out: false }));
             e.rained = e.burst = false;
@@ -1886,7 +1924,7 @@ export class Elites {
     for (const p of this.controllerPulses) {
       p.t += dt;
       p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * LOOK.num('controller-pulse-opacity', 0.45);
-      if (p.t >= p.life) { this.scene.remove(p.m); p.m.material.dispose(); }
+      if (p.t >= p.life) this.scene.remove(p.m);
     }
     this.controllerPulses = this.controllerPulses.filter(p => p.t < p.life);
 

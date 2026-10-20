@@ -6,12 +6,14 @@ import * as THREE from 'three';
 // The compressed apartment shares index buffers between meshes, and reordering one in place
 // scrambled the others (holes in furniture).
 const BVH_OPTIONS = { indirect: true };
+const CELL = 0.5; // metres: broad phase only; the triangle sweep still decides contact
+const indexOrder = (a, b) => a - b;
 
 // Raycast-based collision against the apartment meshes. Rays use each mesh's
 // current transform, so things that move (doors, the cat) still collide.
 // Each collider gets a BVH so a ray only tests the few triangles near it.
 export class World {
-  constructor(scene, { exclude = [] } = {}) {
+  constructor(scene, { exclude = [], staticScene = false } = {}) {
     this.colliders = [];
     scene.updateMatrixWorld(true);
     const skip = new Set(exclude);
@@ -53,6 +55,15 @@ export class World {
       return new THREE.Sphere();
     });
     this.sweepBounds = this.colliders.map(sweepBounds);
+    this.staticScene = staticScene;
+    // The apartment refreshes all transforms once per focus() tick. Other worlds keep
+    // live transform checks on every sweep, as do colliders added individually later.
+    this.dynamicColliders = staticScene ? [] : this.colliders.map((_, i) => i);
+    this.sweepCells = new Map();
+    this.sweepCandidates = [];
+    this.sweepSeen = [];
+    this.sweepQuery = 0;
+    this.sweepBounds.forEach((_, i) => this.indexCollider(i));
     this.nearby = this.colliders;
     this.nearbySpheres = this.spheres;
     this._focus = new THREE.Vector3(Infinity, 0, 0);
@@ -63,10 +74,10 @@ export class World {
   // Add a mesh that isn't part of the apartment (invisible walls, props)
   // Everything solid under these objects (an act's rooms arriving: apartment.js)
   addObjects(roots) {
-    for (const r of roots) r.traverse((o) => { if (isSolid(o)) this.addCollider(o); });
+    for (const r of roots) r.traverse((o) => { if (isSolid(o)) this.addCollider(o, !this.staticScene); });
   }
 
-  addCollider(mesh) {
+  addCollider(mesh, dynamic = true) {
     mesh.updateMatrixWorld(true);
     plainPositions(mesh.geometry);
     if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
@@ -75,12 +86,16 @@ export class World {
     this.colliders.push(mesh);
     this.spheres.push(new THREE.Sphere());
     this.sweepBounds.push(sweepBounds(mesh));
+    const i = this.colliders.length - 1;
+    if (dynamic) this.dynamicColliders.push(i);
+    this.indexCollider(i);
     this._focusAge = Infinity; // rebuild the nearby list next frame
   }
 
   // Keep a short list of colliders around the player so each ray only checks those.
   // Rebuilt when the player moves or every quarter second (doors swing, the cat walks).
   focus(center, dt, radius = 1.6) {
+    for (let i = 0; i < this.colliders.length; i++) this.refreshCollider(i);
     this._focusAge += dt;
     if (this._focus.distanceToSquared(center) < 0.04 && this._focusAge < 0.25) return;
     this._focus.copy(center);
@@ -94,6 +109,60 @@ export class World {
         this.nearbySpheres.push(s);
       }
     });
+  }
+
+  indexCollider(i) {
+    const b = this.sweepBounds[i], box = b.box;
+    b.cells = [];
+    for (let x = Math.floor(box.min.x / CELL); x <= Math.floor(box.max.x / CELL); x++) {
+      let column = this.sweepCells.get(x);
+      if (!column) this.sweepCells.set(x, column = new Map());
+      for (let z = Math.floor(box.min.z / CELL); z <= Math.floor(box.max.z / CELL); z++) {
+        let cell = column.get(z);
+        if (!cell) column.set(z, cell = new Set());
+        cell.add(i); b.cells.push([x, z]);
+      }
+    }
+  }
+
+  refreshCollider(i) {
+    const m = this.colliders[i], b = this.sweepBounds[i];
+    if (b.matrix.equals(m.matrixWorld)) return;
+    for (const [x, z] of b.cells) {
+      const column = this.sweepCells.get(x), cell = column.get(z);
+      cell.delete(i);
+      if (!cell.size) column.delete(z);
+      if (!column.size) this.sweepCells.delete(x);
+    }
+    b.matrix.copy(m.matrixWorld);
+    b.box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);
+    this.indexCollider(i);
+    this.allSpheres = null;
+  }
+
+  sweepNearby(box) {
+    for (const i of this.dynamicColliders) this.refreshCollider(i);
+    const out = this.sweepCandidates; out.length = 0;
+    const minX = Math.floor(box.min.x / CELL), maxX = Math.floor(box.max.x / CELL);
+    const minZ = Math.floor(box.min.z / CELL), maxZ = Math.floor(box.max.z / CELL);
+    // Very long shoves cost at most the old full scan, rather than millions of empty cells.
+    if ((maxX-minX+1)*(maxZ-minZ+1) > this.colliders.length) {
+      for (let i = 0; i < this.colliders.length; i++) out.push(i);
+      return out;
+    }
+    const query = ++this.sweepQuery;
+    for (let x = minX; x <= maxX; x++) {
+      const column = this.sweepCells.get(x);
+      if (!column) continue;
+      for (let z = minZ; z <= maxZ; z++) {
+        const cell = column.get(z);
+        if (!cell) continue;
+        for (const i of cell) if (this.sweepSeen[i] !== query) {
+          this.sweepSeen[i] = query; out.push(i);
+        }
+      }
+    }
+    return out.sort(indexOrder); // retain contact tie-breaking at corners
   }
 
   // Like cast(), but checks every collider (slow; for rare lookups far from the player). Its hit
@@ -202,13 +271,9 @@ export class World {
     s.ray.set(center, this._p.copy(delta).divideScalar(s.length));
     s.box.makeEmpty().expandByPoint(s.line.start).expandByPoint(s.line.end).expandByScalar(radius);
     out.hit = false;
-    for (let mi = 0; mi < this.colliders.length; mi++) {
+    for (const mi of this.sweepNearby(s.box)) {
       const m = this.colliders[mi], bounds = this.sweepBounds[mi];
       if (!visibleChain(m)) continue;
-      if (!bounds.matrix.equals(m.matrixWorld)) {
-        bounds.matrix.copy(m.matrixWorld);
-        bounds.box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);
-      }
       if (!s.box.intersectsBox(bounds.box)) continue;
       s.localBox.copy(s.box).applyMatrix4(this._inv.copy(m.matrixWorld).invert());
       const g = m.geometry, bvh = g.boundsTree, pos = g.attributes.position.array, idx = g.index?.array;
