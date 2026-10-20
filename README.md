@@ -4,6 +4,10 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v227 indexes scenery bounds before bug-body collision, preserving full triangle sweeps, corners, moving props and distant enemies. Elite warnings, volumes, puddles, slicks, balloons and thrown wreaths reuse prepared meshes/materials after removal. Inactive batches release model references. Attack shapes, damage, timings and movement rules are unchanged.
+
+Gameplay stories now use reproducible random seeds and save screenshots on failure. GitHub's Game checks workflow runs the guards and every story with pinned browser/Three.js dependencies before merging.
+
 v226 replaces the Controller's three-shot barrage with a circle, square, triangle and X charging on the floor at and around the jelly. After one second at the current elite tempo they explode together for 3 damage, with matching 6 cm high warning volumes: step clear or jump. Positions stay fixed throughout the charge, and overlapping shapes only deal damage once.
 
 v225 keeps moving bugs on their side of walls with a body-radius sweep against the apartment's actual triangles. Retreating spiders, walking and rolling bugs, flyers, jumps, crowd separation and knockback stop or slide at walls, edges and corners, including outside the player's nearby collision list. Falling roots resolve their landing hit where their body actually lands.
@@ -201,7 +205,17 @@ story suite. See `CLAUDE.md` for checks required by each kind of change. The loc
 pre-push hook runs the fast check on every push and requires a full passing run
 on the exact clean commit being pushed to `main`; commit first, run the full suite,
 then push. GitHub merges do not execute local hooks, so complete required checks
-before merging a pull request.
+before merging a pull request. The `Game checks` GitHub Actions job runs the same
+guards and full story suite on pull requests, main pushes and merge groups. Its
+status is the required merge check. Failure logs and screenshots are attached to
+the workflow run as `game-check-results`.
+
+Stories use a fixed default seed, reset independently for each story. Reproduce
+another set of rolls with `node tests/run.mjs --seed=42` (combine with a story
+filter for a focused replay). Failures print the story seed and save a screenshot
+under `.wrangler/story-failures/`. The fast check also proves the random generator
+replays the same sequence. The luck comparison uses identical draws for both
+values; the beetle timing story checks the exact eligibility boundary directly.
 
 ## The game
 

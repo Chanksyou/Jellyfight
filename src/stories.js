@@ -10,6 +10,7 @@
 
 import { currentAct, goToAct } from './stages.js';
 import { G, STORIES, restore } from './stories/kit.js';
+import { DEFAULT_SEED, seededRandom, seedFor } from './story-random.mjs';
 import './stories/traversal.js';
 import './stories/camera.js';
 import './stories/treasures-in-room.js';
@@ -17,6 +18,7 @@ import './stories/first-run.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/bug-collision.js';
+import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
 import './stories/fire.js';
 import './stories/damage-numbers.js';
@@ -47,17 +49,20 @@ export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()
 // may be async (one that waits for a download).
-export async function runStory(name) {
+export async function runStory(name, baseSeed = DEFAULT_SEED) {
   const s = STORIES[name];
+  const random = Math.random, seed = seedFor(name, baseSeed);
+  Math.random = seededRandom(seed);
   const t0 = performance.now();
   try {
     s.setup();
     const r = await s.play();
-    return { name, ok: r.ok, info: r.info, ms: Math.round(performance.now() - t0) };
+    return { name, seed, ok: r.ok, info: r.info, ms: Math.round(performance.now() - t0) };
   } catch (e) {
-    return { name, ok: false, info: { error: String(e && e.stack || e).split('\n').slice(0, 3).join(' | ') }, ms: Math.round(performance.now() - t0) };
+    return { name, seed, ok: false, info: { error: String(e && e.stack || e).split('\n').slice(0, 3).join(' | ') }, ms: Math.round(performance.now() - t0) };
   } finally {
     restore();
+    Math.random = random;
     G().input.keys = new Set();
   }
 }

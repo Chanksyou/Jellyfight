@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import { seededRandom } from '../src/story-random.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -19,7 +20,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 
 // three.js for the tests: JF_THREE (an unpacked three@0.186.1 npm package), else the copy the
 // session start hook unpacks (.claude/hooks/session-start.sh), else the CDN
-export const THREE_DIR = process.env.JF_THREE || (fs.existsSync(path.join(ROOT, 'tests/.three/package/build')) ? path.join(ROOT, 'tests/.three/package') : null);
+export const THREE_DIR = process.env.JF_THREE || [path.join(ROOT, 'tests/.three/package'), path.join(ROOT, 'tests/node_modules/three')].find(dir => fs.existsSync(path.join(dir, 'build/three.module.js'))) || null;
 
 function installedChromium() {
   const roots = [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers', path.join(process.env.HOME || '', '.cache/ms-playwright')].filter(Boolean);
@@ -63,8 +64,9 @@ export async function start() {
 // Open the game and wait until it's ready to play; exits with the on-screen error if it can't start
 // (act: open that act, the way the game's own act change does: stages.js)
 // (newPlayer: play as a first-time player: first-run.js)
-export async function openGame({ url, browser }, { act, newPlayer = false, ...opts } = {}) {
+export async function openGame({ url, browser }, { act, seed, newPlayer = false, ...opts } = {}) {
   const page = await browser.newPage(opts);
+  if (seed !== undefined) await page.addInitScript({ content: `Math.random = (${seededRandom.toString()})(${seed >>> 0});` });
   if (act) await page.addInitScript((a) => sessionStorage.setItem('jellyfight.act', JSON.stringify(a)), act);
   // a fresh browser is a brand-new player to the game (first-run.js); pages play as a returning one
   // unless a test asks for a first run

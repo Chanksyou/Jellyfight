@@ -47,16 +47,17 @@ act3('night-dragonflies-mantises-then-nests', {
   },
 });
 act3('stag-beetles-from-1-00', {
-  about: 'Stag beetles join the act 3 night at 1:00: none come before, and some do after.',
+  about: 'A roll favoring the last eligible bug cannot spawn a stag beetle before 1:00, but spawns one at exactly 1:00.',
   setup() { fresh({ waves: true, elites: false }); },
   play() {
-    const { run, enemies } = G();
-    const during = (t, frames) => {
-      let n = 0;
-      step(frames, () => { run.t = t; for (const e of enemies.list) if (!e.dead && !e.proxy) { if (e.type === 'beetle') n++; enemies.kill(e, true); } });
-      return n;
+    const { run, enemies, player } = G();
+    stub(Math, 'random', () => .999999);
+    stub(run, 'spawnPoint', () => player.position.clone()); // eligibility is separate from scenery placement
+    const during = t => {
+      enemies.clear(); run.t = t; run.spawnAcc = 1; run.spawnWaves(0);
+      return enemies.list.filter(e => e.type === 'beetle').length;
     };
-    const before = during(55, 1800), after = during(65, 2400);
+    const before = during(59.999), after = during(60);
     return ok(!before && after > 0, { before, after });
   },
 });

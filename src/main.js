@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v226';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v227';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -158,7 +158,7 @@ scene.background = new THREE.Color(LOOK.color('night-sky', '#05060c'));
 scene.fog = new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
 dressSet(scene, APT.root);             // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
-const world = new World(scene);
+const world = new World(scene, { staticScene: true });
 addStageWalls(world, stage, scene);
 if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
 // Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
