@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v226 replaces the Controller's three-shot barrage with a circle, square, triangle and X charging on the floor at and around the jelly. After one second at the current elite tempo they explode together for 3 damage, with matching 6 cm high warning volumes: step clear or jump. Positions stay fixed throughout the charge, and overlapping shapes only deal damage once.
+
 v225 keeps moving bugs on their side of walls with a body-radius sweep against the apartment's actual triangles. Retreating spiders, walking and rolling bugs, flyers, jumps, crowd separation and knockback stop or slide at walls, edges and corners, including outside the player's nearby collision list. Falling roots resolve their landing hit where their body actually lands.
 
 This release also reduces the wake distances of the Controller to 1.1 m, Mug to 0.9 m, Kettle to 1.4 m, Soap Dispenser to 1.2 m and Cream Whipper to 1.25 m.

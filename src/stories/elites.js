@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { juice } from '../juice.js';
 import { sfx } from '../sfx.js';
 import { bus } from '../events.js';
-import { shotTarget, hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
+import { FLOOR_SHAPES, floorShapeHits, shotTarget, hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
 import { CONTROLLER_AT, G, JUMP_FEET, V, fresh, holdJelly, offs, ok, record, startCoffeeLob, startController, startKettle, step, story, stub, theKettle, tp, warningsAt } from './kit.js';
 
 // --- elites: targetable, and every attack telegraphs before it lands
@@ -123,7 +123,7 @@ story('elites/mug-coffee-builds-no-shader', {
   },
 });
 
-// --- 3D attacks: Shots aim in 3D (the shared Shot, vfx.js / fx.js), and the Controller is built on
+// --- The shared Shot aims in 3D; Controller explosions use fixed floor prisms.
 // every Controller hit from now on (the log keeps filling as the story steps)
 function controllerHits() { const c = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'controller') c.push(d); })); return c; }
 story('elites/shot-hits-jelly-mid-jump', {
@@ -142,54 +142,66 @@ story('elites/shot-hits-jelly-mid-jump', {
     return ok(hits.length === 1 && inBody, { hits: hits.length, shotY: y && +(y - floor).toFixed(3), feet: JUMP_FEET });
   },
 });
-// a barrage's aim lines once they've locked: where each starts and ends, and the floor under the jelly
-function lockedBarrage(e) {
-  step(400, () => e.state === 'windup' && e.locked);
-  const floor = G().run.elites.surfaceBelow(G().player.position);
-  return { floor, ends: e.tele.map((m) => (m.updateMatrixWorld(), m.localToWorld(V(0, 0, 1)))), starts: e.tele.map((m) => m.localToWorld(V(0, 0, 0))) };
-}
-story('elites/controller-aim-lines-show-height', {
-  about: "The Controller's aim lines tilt to each button's height: they alternate floor level (4.5 cm) and jump height (16 cm), and each Shot flies along its line.",
+story('elites/controller-four-fixed-floor-shapes', {
+  about: 'Four recognizable floor symbols and matching 6 cm prisms charge together, stay fixed when the player moves, then disappear together.',
   setup() { startController(0); },
   play() {
-    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
-    holdJelly();
-    const { floor, ends, starts } = lockedBarrage(e);
-    const heights = ends.map((p) => +(p.y - floor).toFixed(3));
-    const n0 = run.elites.bullets.length;
-    step(60, () => run.elites.bullets.length > n0);
-    const shots = run.elites.bullets.slice(-3);
-    // each Shot's path passes through its line's end
-    const along = shots.map((s, i) => {
-      const dir = s.v.clone().normalize(), rel = ends[i].clone().sub(starts[i]);
-      return +rel.sub(dir.multiplyScalar(rel.dot(dir))).length().toFixed(4);
-    });
-    const low = (h) => Math.abs(h - 0.045) < 0.006, high = (h) => Math.abs(h - 0.16) < 0.006;
-    const mixed = heights.every((h) => low(h) || high(h)) && low(heights[0]) !== low(heights[1]) && low(heights[1]) !== low(heights[2]);
-    return ok(ends.length === 3 && shots.length === 3 && mixed && along.every((d) => d < 0.004), { heights, along });
+    const { run } = G(), e = run.elites.list.find(e => e.kind === 'controller'), player = holdJelly();
+    step(400, () => e.tele.length === 8);
+    const floors = e.tele.filter(m => m.material instanceof TeleMaterial), vols = e.tele.filter(m => m.material instanceof VolumeMaterial);
+    const positions = e.tele.map(m => m.position.clone()), first = floors[0].material.progress;
+    const dimensions = vols.every(m => { const box = new THREE.Box3().setFromObject(m); return Math.abs(box.max.y-box.min.y-.06)<1e-5 && Math.abs(box.min.y-m.position.y)<1e-5; });
+    const centered = Math.hypot(floors[0].position.x-player.position.x, floors[0].position.z-player.position.z)<1e-6;
+    player.position.x += .35; step(20);
+    const fixed = e.tele.every((m,i) => m.position.distanceTo(positions[i])<1e-8);
+    const filling = floors.every((m,i) => m.material.progress>first && m.material.progress === vols[i].material.progress);
+    const kinds = floors.map(m => m.material.shape).join(',');
+    step(120, () => e.state === 'idle');
+    return ok(centered && dimensions && fixed && filling && kinds === 'circle,square,triangle,x' && !e.tele.length && !run.elites.bullets.length,
+      { centered, dimensions, fixed, filling, kinds, warnings: e.tele.length });
   },
 });
-story('elites/controller-barrage-low-and-high', {
-  about: 'In a barrage, floor-level buttons pass under a jumping jelly and jump-height buttons pass over a grounded one (and each hits the jelly that doesn\'t dodge it).',
+story('elites/controller-shapes-hit-and-can-be-dodged', {
+  about: 'Each of the four shapes deals 3 damage on the floor, but misses above its 6 cm top or outside its footprint; it never hits again after detonation.',
   setup() { startController(0); },
   play() {
-    const { run } = G(), e = run.elites.list.find((x) => x.kind === 'controller');
-    const player = holdJelly(), hits = controllerHits(), result = {};
-    player.position.x = e.base.x + 0.3;   // far enough that only the middle line reaches you
-    // four barrages: the middle line (the one aimed at you) alternates low and high, and the jelly
-    // stays down for two and jumps for two
-    for (const jump of [false, false, true, true]) {
-      e.next = 0; e.cool = 0;
-      player.position.y = run.elites.surfaceBelow(player.position); player.grounded = true;
-      const { floor, ends } = lockedBarrage(e);
-      const kind = ends[1].y - floor > 0.1 ? 'high' : 'low';
-      if (jump) { player.position.y = floor + JUMP_FEET; player.grounded = false; }
-      const h0 = hits.length;
-      step(120, () => e.state === 'idle' && !run.elites.bullets.length);
-      result[`${kind} vs ${jump ? 'jumping' : 'grounded'}`] = hits.length - h0;
+    const { run } = G(), E = run.elites, e = E.list.find(e => e.kind === 'controller'), player = holdJelly(), hits = controllerHits(), result = {};
+    for (const kind of FLOOR_SHAPES) for (const dodge of ['none','jump','step']) {
+      player.position.set(...CONTROLLER_AT); e.next=0; e.cool=0;
+      step(400, () => e.tele.length === 8 && e.stateT>.3);
+      const m = e.tele.find(m => m.material instanceof VolumeMaterial && m.userData.symbol === kind);
+      if (!m) return ok(false,{kind,dodge,state:e.state,tele:e.tele.length,hp:e.hp,phase:run.phase,next:e.next,time:e.stateT,position:player.position.toArray()});
+      player.position.copy(m.position);
+      if (dodge === 'jump') player.position.y += JUMP_FEET;
+      if (dodge === 'step') player.position.x += 2;
+      const n = hits.length;
+      step(120, () => e.state === 'idle'); e.cool=99; step(30);
+      result[kind+' '+dodge] = hits.length-n;
     }
-    const pass = result['low vs jumping'] === 0 && result['high vs grounded'] === 0 && result['low vs grounded'] === 1 && result['high vs jumping'] === 1;
-    return ok(pass, result);
+    const pass = Object.entries(result).every(([k,n]) => n === (k.endsWith('none') ? 1 : 0));
+    return ok(pass && hits.every(h => h.amount === 3), result);
+  },
+});
+story('elites/controller-shape-footprints', {
+  about: 'The square corners and triangle/X gaps match their visible polygons, rather than using one circular damage area for all symbols.',
+  setup() {},
+  play() {
+    const at=V(0,0,0), body={height:.09,radius:.001}, hit=(k,x,z,y=0)=>floorShapeHits(k,at,1,.06,V(x,y,z),body);
+    const yes = [hit('circle',0,0),hit('square',.9,.9),hit('triangle',0,-.9),hit('x',.6,.6),hit('x',-.6,.6)];
+    const no = [hit('circle',.9,.9),hit('square',1.1,0),hit('triangle',.7,-.7),hit('x',.7,0),hit('x',0,.7),hit('square',0,0,.061),hit('circle',0,0,-.1)];
+    return ok(yes.every(Boolean) && no.every(v=>!v), { yes, no });
+  },
+});
+story('elites/controller-shapes-cancel-on-death-and-reset', {
+  about: 'Death or restarting removes all eight warning meshes and cancels their damage; completed cosmetic pulses fade and reset removes them.',
+  setup() { startController(0); },
+  play() {
+    const {run}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'); holdJelly(); const hits=controllerHits();
+    step(400,()=>e.tele.length===8); const meshes=[...e.tele]; e.damage(e.hp); step(100);
+    const dead = !e.tele.length && meshes.every(m=>!m.parent) && !hits.length;
+    startController(0); const next=E.list.find(e=>e.kind==='controller'); holdJelly();
+    step(400,()=>next.tele.length===8); const pending=[...next.tele]; E.clear(); step(100);
+    return ok(dead && pending.every(m=>!m.parent) && !E.controllerPulses.length, {dead, cleared:pending.every(m=>!m.parent)});
   },
 });
 // the rumble's Warning meshes round the Controller: its floor circle and its volume
@@ -239,14 +251,14 @@ story('elites/controller-rumble-hits-inside-the-dome', {
 });
 for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
   story(`elites/controller-${name}-builds-no-shader`, {
-    about: `Starting the Controller's ${name} builds no new shader: its Warning and Shots were built behind Play.`,
+    about: `Starting the Controller's ${name} builds no new shader: its warnings and explosions were built behind Play.`,
     setup() { startController(atk); },
     play() {
       const { run, APT, batcher } = G(), e = run.elites.list.find((x) => x.kind === 'controller'), programs = APT.renderer.info.programs.length;
       step(400, () => e.state === 'windup' && e.stateT > 0.5);
       const shown = e.tele.length;
       batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
-      if (atk === 0) { step(30, () => run.elites.bullets.length > 0); batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); }
+      if (atk === 0) { step(120, () => run.elites.controllerPulses.length > 0); batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); }
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown > 0 && newShaders === 0, { shown, newShaders });
     },
@@ -254,21 +266,20 @@ for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
 }
 
 story('elites/controller-barrage-feedback', {
-  about: 'Buttons press and charge, aim lock clicks once, and the original three Shots release with recoil and sound on the same frame. End fragments and contact sounds play once per Shot.',
+  about: 'Four symbols charge with pressed buttons, click once and discharge with same-frame recoil, shape pulses, localized impact and mechanical sound; all pulses fade.',
   setup() { startController(0); },
   play() {
-    const { run } = G(), E = run.elites, e = E.list.find(e => e.kind === 'controller'); holdJelly();
-    let charge = 0, lock = 0, fire = 0, ends = 0;
-    stub(sfx, 'controllerCharge', () => charge++); stub(sfx, 'controllerLock', () => lock++);
-    stub(sfx, 'controllerFire', () => fire++); stub(sfx, 'controllerContact', () => ends++);
-    step(400, () => e.state === 'windup' && e.stateT > 0.4);
-    const pressed = e.model.buttons.every(b => b.position.y < 0.027 && b.material.emissiveIntensity > 1);
-    step(80, () => e.volley === 1);
-    const shots = [...E.bullets], released = e.stateT >= 0.85 && e.stateT < 0.88 && e.model.group.rotation.x < 0 && fire === 1;
-    e.cool = 99; step(120, () => !E.bullets.length);
-    const debris = G().fx.chunks.some(c => c.alive);
-    return ok(pressed && released && charge === 1 && lock === 1 && ends === 3 && shots.length === 3 && shots.every(s => s.damage === 3 && Math.abs(s.v.length() - 0.9) < 1e-9) && debris,
-      { pressed, released, charge, lock, fire, ends, shots: shots.length, debris });
+    const {run,fx}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'); holdJelly();
+    let charge=0, lock=0, fire=0, ends=0;
+    stub(sfx,'controllerCharge',()=>charge++); stub(sfx,'controllerLock',()=>lock++);
+    stub(sfx,'controllerFire',()=>fire++); stub(sfx,'controllerContact',()=>ends++);
+    step(400,()=>e.state==='windup' && e.stateT>.4);
+    const pressed=e.model.buttons.every(b=>b.position.y<.027 && b.material.emissiveIntensity>1);
+    step(120,()=>E.controllerPulses.length===4); e.cool=99;
+    const pulses=[...E.controllerPulses], released=e.state==='idle' && e.model.group.rotation.x<0 && !E.bullets.length;
+    const debris=fx.chunks.some(c=>c.alive); step(30);
+    return ok(pressed && released && charge===1 && lock===1 && fire===1 && ends===1 && debris && !E.controllerPulses.length && pulses.every(p=>!p.m.parent),
+      {pressed,released,charge,lock,fire,ends,debris,pulses:pulses.length});
   },
 });
 
@@ -441,3 +452,42 @@ for (const [atk, name] of [[0, 'steam'], [1, 'boil-over']]) {
     },
   });
 }
+
+story('elites/controller-overlapping-shapes-hit-once', {
+  about: 'Even four overlapping symbols subtract exactly 3 Health once; their harmless pulses cannot hurt again.',
+  setup() { startController(0,{hurt:true}); },
+  play() {
+    const {run}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'), player=holdJelly(), hp=run.health;
+    stub(e.def.skills,'barrage',{...e.def.skills.barrage,spread:0});
+    step(400,()=>e.tele.length===8); player.position.copy(e.tele[1].position);
+    const hits=controllerHits(); step(120,()=>E.controllerPulses.length===4); e.cool=99; step(40);
+    return ok(hits.length===1 && run.health===hp-3 && !E.controllerPulses.length,{hits:hits.length,damage:hp-run.health});
+  },
+});
+story('phone/controller-shapes-on-low', {
+  phone: true,
+  about: 'Low graphics and Reduce Effects keep all four floor symbols and matching prisms readable, without new shaders during charging or detonation.',
+  setup() { startController(0); },
+  play() {
+    const {run,APT,batcher}=G(), e=run.elites.list.find(e=>e.kind==='controller'); holdJelly();
+    const calm=juice.calm, programs=APT.renderer.info.programs.length;
+    try {
+      juice.calm=true; step(400,()=>e.tele.length===8 && e.stateT>.5);
+      const visible=e.tele.length===8 && e.tele.every(m=>m.visible && m.material.progress>0 && m.material.opacity>.5);
+      batcher.sync(); APT.renderer.compile(APT.scene,APT.camera);
+      step(120,()=>run.elites.controllerPulses.length===4); e.cool=99;
+      batcher.sync(); APT.renderer.compile(APT.scene,APT.camera);
+      return ok(visible && APT.renderer.info.programs.length===programs,{visible,newShaders:APT.renderer.info.programs.length-programs});
+    } finally {juice.calm=calm;}
+  },
+});
+story('elites/controller-explosion-ring-first-frame-size', {
+  about: 'A new or recycled impact ring starts at its intended small size on the exact release frame, rather than briefly covering the whole console.',
+  setup() { startController(0); },
+  play() {
+    const {fx}=G(), at=V(...CONTROLLER_AT); fx.clear();
+    fx.ring(at,hostile('controller'),.072,.3); const ring=fx.rings.find(r=>r.alive), initial=ring.m.scale.x;
+    step(30); fx.ring(at,hostile('controller'),.03,.3);
+    return ok(Math.abs(initial-.0144)<1e-8 && Math.abs(ring.m.scale.x-.006)<1e-8 && ring.m.userData.opacity===.9,{initial,reused:ring.m.scale.x});
+  },
+});

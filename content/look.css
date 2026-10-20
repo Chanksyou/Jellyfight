@@ -24,6 +24,9 @@
   --controller-button-press: 0.002;
   --controller-vibration: 0.004;
   --controller-pulse-life: 0.22;
+  --controller-symbol-impact: 0.03;
+  --controller-symbol-sparks: 8;
+  --controller-symbol-chips: 3;
   --controller-debris: #aaa5a0;
   --controller-chip-size: 0.002;
   --controller-scuff: #514949;

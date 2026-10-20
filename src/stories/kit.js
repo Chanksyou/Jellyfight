@@ -218,11 +218,11 @@ export function warningsAt(to) {
 }
 // hold the jelly still where it is put (its own update is switched off for this story)
 export function holdJelly() { const { player } = G(); stub(player, 'update', () => {}); player.velocity.set(0, 0, 0); return player; }
-// them: its button barrage mixes floor-level and jump-height Shots, and its rumble is a dome Blast
+// Controller stories: four low floor symbols and a dome rumble.
 export const CONTROLLER_AT = [1.62, 0.61, 4.47];
 export const JUMP_FEET = 0.12;   // feet 12 cm up: a jelly near the top of its jump (body 12 to 21 cm)
-export function startController(atk) {
-  fresh({ bubbles: false, lash: false });
+export function startController(atk, { hurt = false } = {}) {
+  fresh({ bubbles: false, lash: false, hurt });
   tp(CONTROLLER_AT[0], CONTROLLER_AT[1] + 0.05, CONTROLLER_AT[2], 0);
   const e = G().run.elites.list.find((x) => x.kind === 'controller');
   e.next = atk; e.cool = 0;
@@ -405,7 +405,7 @@ function guardSnap() {
 }
 export const EVERY_ATTACK = {
   1: {
-    controller: { barrage: { is: 'shot', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
+    controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
     mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'hazard' } },
     kettle: { steam: { is: 'volume', start: held(() => startKettle(0)) }, 'boil-over': { is: 'volume', start: held(() => startKettle(1)) } },
     vacuum: {

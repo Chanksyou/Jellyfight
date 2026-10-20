@@ -207,6 +207,8 @@ export class Fx {
     r.m.visible = true;
     r.m.position.copy(pos);
     r.m.userData.color.set(color);
+    r.m.scale.setScalar(radius * 0.2);
+    r.m.userData.opacity = 0.9;
   }
 
   // A projectile: a white-hot core of radius `size` that glows `color`. Move it yourself, call
