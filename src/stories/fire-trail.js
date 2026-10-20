@@ -155,3 +155,17 @@ story('evolutions/cinder-prepared-on-low', {
     } finally { gfx.setTier(quality); }
   },
 });
+
+story('evolutions/cinder-look-restoration-keeps-mirage-ready', {
+  about: 'Rebuilding the same selected look after species previews reuses the prepared Mirage model and its shaders.',
+  setup,
+  play() {
+    const { run, player } = G(), look = player.avatar.look, M = run.mirage;
+    try {
+      M.prepare(); const ghost = M.avatar;
+      player.setAvatar(buildCharacter(look, run.cfg.height)); M.prepare();
+      const reused = M.avatar === ghost && M.source === player.avatar;
+      return ok(reused && M.avatar.look.color === player.avatar.look.color, { reused });
+    } finally { player.setAvatar(buildCharacter(look, run.cfg.height)); M.prepare(); }
+  },
+});

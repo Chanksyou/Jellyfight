@@ -18,8 +18,11 @@ export class Mirage {
   prepare() {
     const avatar = this.run.player.avatar;
     if (!avatar || this.source === avatar) return;
-    if (this.avatar) { this.group.remove(this.avatar.root); this.avatar.dispose(); }
     this.source = avatar;
+    const lookKey = JSON.stringify(avatar.look);
+    if (this.avatar && this.lookKey === lookKey) return;
+    this.lookKey = lookKey;
+    if (this.avatar) { this.group.remove(this.avatar.root); this.avatar.dispose(); }
     this.avatar = buildCharacter(avatar.look, this.run.cfg.height);
     this.group.add(this.avatar.root);
     this.materials = [];
