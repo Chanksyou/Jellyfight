@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v224 reduces the wake distances of the Controller to 1.1 m, Mug to 0.9 m, Kettle to 1.4 m, Soap Dispenser to 1.2 m and Cream Whipper to 1.25 m.
+
 v223 makes small and large XP drops gold, including their glow, pickup streaks and collection flash, matching the XP bar and separating them from water splats.
 
 v222 gives enemy deaths different motions: roaches crumple and skid, ant squads tumble apart, flying bugs spin and flutter down, and ladybugs, millipedes and stag beetles shed a recognizable piece of their own shell. Harmless bodies last briefly with a 12-body cap; Reduce Effects skips them, burning deaths retain their ash treatment, and rewards and removal from combat still happen immediately.
