@@ -296,7 +296,7 @@ export class Enemies {
   // elite: 35% bigger, 2.2x health, 4x XP, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
-    const { body: mesh, face, anim, ballRadius } = this.looks[T.model || type]();
+    const { body: mesh, face, anim, ballRadius, deathParts } = this.looks[T.model || type]();
     const root = new THREE.Group();
     if (elite && !anim) {
       T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
@@ -318,7 +318,7 @@ export class Enemies {
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      id: nextId(), type, T, root, mesh, face, anim, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
+      id: nextId(), type, T, root, mesh, face, anim, deathParts, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -424,7 +424,10 @@ export class Enemies {
     e.chargeSound?.();                    // a dragonfly killed mid-charge goes quiet
     this.byId.delete(e.id);
     this.scene.remove(e.root);
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent });
+    e.pos = e.pos.clone();                 // keep the gameplay death position while feedback moves the body
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent,
+      remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
+        floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
   }
 

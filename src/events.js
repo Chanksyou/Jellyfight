@@ -11,7 +11,7 @@
 //   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
-//   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent }
+//   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent, remains? } remains: presentation-only model/pose, never a target
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded? }
 //   xp_collected    { amount, chain }                grouped pickup feedback, at most once per XP feedback gap
