@@ -119,6 +119,7 @@ act2('leads-to-act-3', {
     const { run, menus } = G();
     run.metamorph();
     document.querySelector('.jf-card')?.click();     // the evolution
+    document.querySelector('.jf-evolution-footer button').click(); // skip its transformation
     document.querySelector('.jf-card')?.click();     // the boss's Legendary
     const text = document.querySelector('.jf-modal')?.innerText || '';
     const go = [...document.querySelectorAll('.jf-modal button')].some((b) => /On to act 3/.test(b.textContent));

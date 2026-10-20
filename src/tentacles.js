@@ -11,6 +11,7 @@
 // facing +z); the chain is simulated in world space (scaled to model units), so the jelly
 // moving, turning and tilting is what drags the tentacles.
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 
 const SEG = 20;       // rings along a tentacle (and points in its chain)
 const RAD = 8;        // vertices around a ring
@@ -21,7 +22,7 @@ const K_ROOT = 700, K_TIP = 45, DAMP = 0.55, STEP = 1 / 120;
 const KEEP = 0.15;
 const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
-const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0);
+const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
 function tubeGeometry() {
   const g = new THREE.BufferGeometry();
@@ -43,9 +44,13 @@ export class TentacleRig {
   // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material, angles? (each one's place around the ring) }
   constructor(parent, opts) {
     this.parent = parent;
+    this.floorRoot = opts.floorRoot || parent;
     this.count = opts.count;
     this.length = opts.length;
     this.thick = opts.thickness;
+    this.venom = false;
+    this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
+    this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
     this.flare = opts.flare ?? 0.3;
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
@@ -71,6 +76,7 @@ export class TentacleRig {
     this.fresh = true;                  // first frame (or a jump cut): start the chain on its pose
     this.lastRoot = new THREE.Vector3();
     this.inv = new THREE.Matrix4();
+    this.tipWorld = new THREE.Matrix4();
     // each point's spring and damping, root to tip
     this.K = Array.from({ length: SEG + 1 }, (_, j) => K_ROOT + (K_TIP - K_ROOT) * (j / SEG) ** 0.6);
     this.C = this.K.map((k) => 2 * DAMP * Math.sqrt(k));
@@ -84,13 +90,14 @@ export class TentacleRig {
   }
 
   // Send tentacle i toward a world point. k: 0 = resting, 1 = fully out. null to release.
-  aim(i, worldPoint, k = 0, golden = false) {
+  aim(i, worldPoint, k = 0, golden = false, impact = 0) {
     const T = this.list[i];
     if (!T) return;
-    if (!worldPoint || k <= 0) { T.aim = null; T.k = 0; return; }
+    if (!worldPoint || k === 0) { T.aim = null; T.k = T.impact = 0; return; }
     T.aim = (T.aim || new THREE.Vector3()).copy(worldPoint);
     T.k = k;
     T.golden = golden;
+    T.impact = impact;
   }
 
   // state: { localVel (units/s, in the parent's frame), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
@@ -111,6 +118,7 @@ export class TentacleRig {
     _v.setFromMatrixPosition(M).divideScalar(unit);
     if (this.fresh || dt <= 0 || dt > 0.25 || _v.distanceTo(this.lastRoot) > 3) this.fresh = true;
     this.lastRoot.copy(_v);
+    const floorY = this.floorRoot.getWorldPosition(_o).y + 0.015 * (1 - fall) * unit;
 
     for (const T of this.list) {
       // --- the pose the chain is pulled toward: hang close under the bell (a lean jelly),
@@ -164,8 +172,19 @@ export class TentacleRig {
 
       // --- striking: a whip arc from the root out to the target, blended over the chain (which
       // follows it, so the tentacle swings back on its own when the strike ends)
+      const glow = T.baseGlow * (this.venom ? this.venomGlow : 1);
       if (T.aim) {
         const target = this.parent.worldToLocal(_v.copy(T.aim));
+        if (T.k < 0) {
+          // Draw the resting tip away from the target, gathering tension before the snap.
+          _d.copy(target).sub(T.anchor).normalize();
+          for (let j = 1; j <= SEG; j++) {
+            const w = (j / SEG) ** 2 * -T.k;
+            T.pts[j].addScaledVector(_d, -w * 0.3).y += w * 0.18;
+            T.pts[j].y = Math.max(floor, T.pts[j].y);
+          }
+          this.build(T, floorY); continue;
+        }
         const end = _t.copy(T.anchor).lerp(target, T.k);
         const dist = end.distanceTo(T.anchor);
         const ctrl = _n.copy(T.anchor).add(end).multiplyScalar(0.5).addScaledVector(T.out, dist * 0.25);
@@ -180,12 +199,13 @@ export class TentacleRig {
           T.sim[j].copy(T.pts[j]).applyMatrix4(M).divideScalar(unit);
         }
         T.mat.emissive.setHex(T.golden ? 0xffc23a : 0xfff6b0);
-        T.mat.emissiveIntensity = 0.6 + T.k * 1.4;
-      } else if (T.mat.emissiveIntensity !== T.baseGlow) {
+        const strikeGlow = 0.6 + T.k * 1.4;
+        T.mat.emissiveIntensity = this.venom ? Math.max(glow, strikeGlow) : strikeGlow;
+      } else {
         T.mat.emissive.copy(T.baseEmissive);
-        T.mat.emissiveIntensity = T.baseGlow;
+        T.mat.emissiveIntensity = glow;
       }
-      this.build(T);
+      this.build(T, floorY);
     }
     this.fresh = false;
   }
@@ -194,7 +214,9 @@ export class TentacleRig {
   reset() { this.fresh = true; }
 
   // Skin the tube around the points
-  build(T) {
+  build(T, floorY) {
+    const thick = this.thick * (this.venom ? this.venomThickness : 1);
+    const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
     const P = T.pts;
     for (let j = 0; j <= SEG; j++) {
@@ -205,19 +227,29 @@ export class TentacleRig {
       if (j === 0) _n.crossVectors(_t, Math.abs(_t.z) < 0.9 ? Z : X).normalize();
       else _n.addScaledVector(_t, -_n.dot(_t)).normalize();
       _b.crossVectors(_t, _n);
-      const s = j / SEG, r = this.thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3);
+      const s = j / SEG, r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3);
       for (let k = 0; k < RAD; k++) {
         const th = (k / RAD) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
         const nx = _n.x * c + _b.x * s, ny = _n.y * c + _b.y * s, nz = _n.z * c + _b.z * s;
         const i = j * RAD + k;
-        pos.setXYZ(i, P[j].x + nx * r, P[j].y + ny * r, P[j].z + nz * r);
+        const x = P[j].x + nx * r, z = P[j].z + nz * r;
+        const floor = (floorY - M[1] * x - M[9] * z - M[13]) / M[5];
+        pos.setXYZ(i, x, Math.max(floor, P[j].y + ny * r), z);
         nor.setXYZ(i, nx, ny, nz);
       }
     }
     pos.needsUpdate = true;
     nor.needsUpdate = true;
     T.tip.position.copy(P[SEG]);
-    T.tip.scale.setScalar(this.thick * 0.45);
+    T.tip.scale.setScalar(thick * 0.45);
+    if (T.impact > 0) {
+      T.tip.quaternion.setFromUnitVectors(Y, _t.copy(P[SEG]).sub(P[SEG - 1]).normalize());
+      T.tip.scale.multiply(_s.set(1 + T.impact * 1.8, 1 - T.impact * 0.65, 1 + T.impact * 1.8));
+    }
+    T.tip.updateMatrix();
+    const W = this.tipWorld.multiplyMatrices(this.parent.matrixWorld, T.tip.matrix).elements;
+    const tipFloor = (floorY + Math.hypot(W[1], W[5], W[9]) - M[1] * T.tip.position.x - M[9] * T.tip.position.z - M[13]) / M[5];
+    T.tip.position.y = Math.max(T.tip.position.y, tipFloor);
   }
 
   dispose() {

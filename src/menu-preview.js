@@ -75,7 +75,8 @@ function frame(now) {
     const w = innerWidth, h = innerHeight;
     camera.position.set(0.06, 0.08, 0.25); camera.lookAt(0, 0.045, 0);
     camera.setViewOffset(w, h, w > 640 ? 170 : 0, w > 640 ? 0 : h * 0.29, w, h);
-  } else menu.update(dt, !overlay.hidden);
+  }
+  menu.update(dt, !overlay.hidden, creating);
   if (wasLaunching && !menu.launching) back.hidden = false;
   renderer.render(scene, camera);
 }

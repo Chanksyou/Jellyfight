@@ -419,6 +419,7 @@ act3('beating-the-pothos-wins-the-run', {
     await wait(2400);                                     // the metamorphosis comes a moment after
     const grow = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // the evolution
+    run.evolutionReveal.finish();                        // skip its portrait before the victory summary
     const end = modal()?.innerText || '';
     const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act/.test(b.textContent));
     [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();

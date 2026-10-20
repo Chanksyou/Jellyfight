@@ -14,6 +14,7 @@ import { TestKit } from './test-kit.js';
 import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
 import { MainMenu } from './main-menu.js';
+import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { STAGES, currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
@@ -34,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v214';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v220';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -213,7 +214,7 @@ function saveLook(l) {
 applyLook(state.look);
 
 const run = new Run({
-  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops,
+  scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops, gfx,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
   carry: carried(),                    // a later act: the run so far (stages.js)
 });
@@ -327,6 +328,7 @@ function openCreator() {
   camSys.setCreatorView();
 }
 function closeCreator() {
+  mainMenu.restore();
   state.mode = 'play';
   input.enabled = true;
   creator.close();
@@ -476,7 +478,8 @@ const GAME = {
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
-    mainMenu.update(dt, !overlay.hidden && state.mode === 'play');
+    mainMenu.update(dt, !overlay.hidden && state.mode === 'play', state.mode === 'creator');
+    run.evolutionReveal.update(dt);   // the portrait animates while gameplay and menus hold the run still
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
     systems.hud.update(dt);
@@ -593,8 +596,9 @@ async function warmUp() {
   run.energyShield.group.scale.setScalar(0.001);
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
-  const warmAdorn = ['rebound-bands', 'mirage-rim', 'flaming-feet'].map(k => run.adorn.piece(k).group);
+  const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
+  run.evolutionReveal.warm(true);
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
   enemies.warm(true, P.clone());                          // a sap lob's Warning and its puddle (the lob word)
   run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
@@ -625,6 +629,7 @@ async function warmUp() {
   run.energyShield.update(0);
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
+  run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
   enemies.warm(false);

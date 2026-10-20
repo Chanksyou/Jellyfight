@@ -1,11 +1,13 @@
 // Stories: evolution words. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
+import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
 import { newMods, TREASURE_WORDS, TIMED_WORDS } from '../words.js';
 import { CONTENT, isRemoved, compileTreasures } from '../content.js';
 import { balanceGroups, applyBalance, toggleRemoved, resetBalance } from '../balance-editor.js';
 import { BASE_STATS, xpToNext, rollCards } from '../stats.js';
 import { parse } from '../kdl.js';
+import { buildCharacter, SPECIES } from '../character.js';
 import { G, STORIES, dmgBy, evolve, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
 
 // --- evolutions (content/evolutions.kdl): one story per word they brought
@@ -88,6 +90,64 @@ story('treasures/while-rooted', {
     const near = (a, c) => Math.abs(a - c) < 1e-6;
     return ok(near(early, b.fireRate) && near(rooted[0], b.fireRate + BASE_STATS.fireRate * 0.8) && near(rooted[1], b.regen + 1) && rooted[2] === 1 && near(moving, b.fireRate) && fronds,
       { early, rooted, moving, fronds });
+  },
+});
+story('evolutions/box-jelly-existing-tentacles', {
+  about: 'Box Jelly brightens and thickens the current tentacles instead of adding floor-clipping strands, and a new run restores them.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, player } = G(), avatar = player.avatar, rig = avatar.tentacles;
+    const meshes = rig.list.map((t) => t.mesh), glow = rig.list[0].baseGlow;
+    evolve('boxJelly'); step(3);
+    const enhanced = rig.venom && rig.list.every((t, i) => t.mesh === meshes[i] && t.mat.emissiveIntensity > glow) && !run.adorn.pieces['venom-tips']?.group.children.length;
+    run.onMainMenu();
+    const clearedBeforePlay = !rig.venom;
+    step(3);
+    const restored = rig.list.every((t) => t.mat.emissiveIntensity === t.baseGlow);
+    fresh({ bubbles: false, lash: false });
+    return ok(enhanced && player.avatar === avatar && clearedBeforePlay && restored, { enhanced, clearedBeforePlay, restored, sameAvatar: player.avatar === avatar });
+  },
+});
+story('look/box-jelly-tentacles-every-species', {
+  about: 'Every species keeps its tentacle count and length with Box Jelly, glows during a Lash, and keeps thicker tubes and tips off the floor.',
+  setup() {},
+  play() {
+    const failures = [];
+    for (const body of Object.keys(SPECIES)) {
+      const c = buildCharacter({ body }, 1), rig = c.tentacles, T = rig.list[0];
+      c.root.position.set(2, 0.2, 3);
+      c.root.rotation.y = 0.7;
+      const state = { speed: 0, walkSpeed: 1, grounded: true, vy: 0 };
+      c.update(0, state);
+      const width = T.tip.scale.x, count = rig.count, length = rig.length;
+      rig.venom = true;
+      c.update(0, state);
+      let good = T.tip.scale.x >= width * 2.9 && rig.count === count && rig.length === length;
+      for (const phase of [null, -0.14, 0.65, 1, null]) {
+        const striking = phase !== null;
+        state.speed = striking ? 0.35 : 0;
+        state.walkSpeed = 0.35;
+        state.vel = new THREE.Vector3(0.3, 0, 0.2);
+        if (striking) rig.aim(0, T.mesh.localToWorld(T.anchor.clone().setY(0)), phase, false, phase === 1 ? 1 : 0);
+        else rig.aim(0, null);
+        c.update(1 / 60, state);
+        c.root.updateMatrixWorld(true);
+        for (const t of rig.list) {
+          const p = new THREE.Vector3();
+          for (const mesh of [t.mesh, t.tip]) {
+            const positions = mesh.geometry.attributes.position;
+            for (let i = 0; i < positions.count; i++) {
+              p.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld);
+              good &&= p.y >= c.root.position.y;
+            }
+          }
+          good &&= t.mat.emissiveIntensity >= t.baseGlow * 2.9;
+        }
+      }
+      if (!good) failures.push(body);
+      c.dispose();
+    }
+    return ok(failures.length === 0, { failures });
   },
 });
 story('treasures/adorn', {

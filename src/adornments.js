@@ -1,9 +1,9 @@
 // Adornments: the extra pieces an evolution adds to the jelly (the adorn word, content/evolutions.kdl).
-// They sit on top of the player's own jelly, never change it: the body, colours and face the player
-// made stay exactly as they are. Each piece is a few procedural meshes, built the first time it's
+// The body, colours and face the player made stay exactly as they are. Box Jelly strengthens
+// the existing tentacles; other pieces are a few procedural meshes, built the first time they're
 // needed and hidden when the run doesn't have it.
 //
-//   venom-tips  Box Jelly: four long glowing venom strands trailing from the rim
+//   venom-tips  Box Jelly: thickens and brightens the jelly's existing tentacles
 //   sail        Man o' War: a translucent crest on the bell, and the orbiting polyps (polyps word)
 //   halo        Immortal Jelly: a gold ring over the bell, dim once its rebirth is spent
 //   moon-ring   Moon Jelly: a pale ring round the bell that flares on every pulse
@@ -36,7 +36,7 @@ export class Adornments {
 
   piece(kind) {
     if (this.pieces[kind]) return this.pieces[kind];
-    const P = this[`make_${kind.replace(/-/g, '_')}`]();   // venom-tips -> make_venom_tips
+    const P = this[`make_${kind.replace(/-/g, '_')}`]();
     this.pieces[kind] = P;
     (P.free ? this.free : this.body).add(P.group);
     return P;
@@ -46,6 +46,9 @@ export class Adornments {
   update(dt, run) {
     this.t += dt;
     const want = new Set(run.mods.adorn);
+    const venom = want.delete('venom-tips');
+    const rig = this.player.avatar?.tentacles;
+    if (rig) rig.venom = venom;
     for (const k of want) this.piece(k).group.visible = true;
     for (const [k, P] of Object.entries(this.pieces)) {
       P.group.visible = want.has(k);
@@ -57,7 +60,8 @@ export class Adornments {
     if (Pl) polyps.tick(dt, run);
   }
 
-  make_venom_tips() { return this.make_strands('venom', '#8dff5a', 4, 0.1, 0.0024, 0.9); }
+  // The portrait and shader warmup enumerate all adornments; this one styles the existing rig.
+  make_venom_tips() { return { group: new THREE.Group(), tick() {} }; }
 
   make_flaming_feet() {
     const group = new THREE.Group(), feet = [], geo = new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0);
@@ -93,8 +97,9 @@ export class Adornments {
       band.rotation.x = Math.PI / 2; band.rotation.z = i * Math.PI;
       band.position.y = h * (0.8 - i * 0.15); group.add(band);
     }
-    return { group, tick: (dt, run) => {
-      const returning = run.bubbles.list.some(b => b.returning);
+    let reveal = null;
+    return { group, reveal: u => { reveal = u; }, tick: (dt, run) => {
+      const returning = reveal === null ? run.bubbles.list.some(b => b.returning) : reveal > 0.65;
       group.rotation.y += dt * (returning ? -2 : 2);
       group.scale.setScalar(1 + Math.sin(this.t * 5) * 0.04);
     } };
@@ -112,25 +117,6 @@ export class Adornments {
       mat.emissive.copy(mat.color);
       ring.scale.setScalar(1 + (run.mirage.left > 0 ? 0.08 : 0));
     } };
-  }
-
-  // long thin glowing strands hanging from the rim, swaying
-  make_strands(token, fallback, n, len, thick, droop) {
-    const group = new THREE.Group(), mat = glowMat(token, fallback, { emissiveIntensity: 2.4 }), h = this.h, strands = [];
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + Math.PI / n;
-      // down and out from the rim (local +x points away from the bell), curling at the end
-      const curve = new THREE.CatmullRomCurve3([0, 0.3, 0.65, 1].map((k) => new THREE.Vector3(k * len * 0.55 * droop, -k * len * 0.8, Math.sin(k * 3) * len * 0.12)));
-      const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, thick, 5), mat);
-      const pivot = new THREE.Group();
-      pivot.position.set(Math.cos(a) * h * 0.34, h * 0.42, Math.sin(a) * h * 0.34);   // just outside the rim
-      pivot.rotation.order = 'YXZ';
-      pivot.rotation.y = -a;
-      pivot.add(m);
-      group.add(pivot);
-      strands.push({ pivot, a });
-    }
-    return { group, tick: () => { for (const S of strands) { S.pivot.rotation.x = Math.sin(this.t * 3 + S.a * 2) * 0.25; S.pivot.rotation.z = Math.cos(this.t * 2.3 + S.a) * 0.2; } } };
   }
 
   // Man o' War: a translucent sail-crest standing on the bell

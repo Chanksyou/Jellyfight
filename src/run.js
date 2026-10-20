@@ -16,6 +16,8 @@ import { Adornments } from './adornments.js';
 import { EnergyShield } from './energy-shield.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
+import { EvolutionReveal } from './evolution-reveal.js';
+import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -81,6 +83,7 @@ export class Run {
     this.energyShield = new EnergyShield(this);
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
+    this.evolutionReveal = new EvolutionReveal(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -154,6 +157,7 @@ export class Run {
 
   // ------------------------------------------------------------ setup
   start() {
+    this.evolutionReveal.cancel();
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
@@ -168,6 +172,8 @@ export class Run {
     this.lastTreasureSpot = null;
     this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
+    this.xpChain = this.xpChainT = this.xpFeedbackT = 0;
+    this.hud.resetXp();
     this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
@@ -262,6 +268,7 @@ export class Run {
       if (!this.spots.length) this.spots = s.spots.map((sp) => ({ ...sp, y: sp.at[1] }));
     }
     this.setNight(s.clock[0]);
+    this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
     this.energyShield.update(0);
     this.refreshHud();
   }
@@ -414,7 +421,19 @@ export class Run {
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
     const got = this.xpDrops.update(dt, origin, this.mods.xpReach);
-    if (got) { this.gainXp(got); sfx.xp(juice.combo); }
+    this.xpChainT -= dt; this.xpFeedbackT -= dt;
+    if (got) {
+      this.gainXp(got);
+      if (this.xpFeedbackT <= 0) {
+        this.xpChain = this.xpChainT > 0 ? Math.min(10, this.xpChain + 1) : 0;
+        this.xpFeedbackT = LOOK.num('xp-feedback-gap', 0.075);
+        sfx.xp(this.xpChain, got >= 5);
+        bus.emit('xp_collected', { amount: got, chain: this.xpChain });
+        const big = got >= 5, quiet = juice.calm || this.fx.reducedMotion.matches;
+        this.fx.glow.emit(origin, this.xpDrops.bigMat.color, LOOK.num('xp-collect-size', 0.012) * (big ? 1.5 : 1), 0, LOOK.num('xp-collect-life', 0.16), quiet ? 0.2 : 0.5);
+      }
+      this.xpChainT = LOOK.num('xp-chain-window', 0.65);
+    }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
     if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
     juice.update(dt);
@@ -1057,13 +1076,15 @@ export class Run {
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, choices, (evo) => {
+      const before = this.mods;
       this.evolved.push(evo.id);
       this.health = this.S.health;
-      this.phase = 'won';
-      // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
-      if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-      // the last act: the run is won
-      else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      this.evolutionReveal.begin(evo, before, () => {
+        this.phase = 'won';
+        // The transformation finishes before the next reward replaces its portrait.
+        if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
+        else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      });
     });
   }
 
