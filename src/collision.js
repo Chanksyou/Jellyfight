@@ -1,4 +1,4 @@
-import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
+import { MeshBVH, ExtendedTriangle, acceleratedRaycast } from 'three-mesh-bvh';
 
 import * as THREE from 'three';
 
@@ -42,10 +42,17 @@ export class World {
     this._tri = new THREE.Triangle();
     this._stack = new Int32Array(128);
     this._views = new WeakMap();       // BVH node buffer -> its typed-array views, made once
+    this._sweep = {
+      line: new THREE.Line3(), ray: new THREE.Ray(), delta: new THREE.Vector3(),
+      box: new THREE.Box3(), localBox: new THREE.Box3(), triangle: new ExtendedTriangle(),
+      point: new THREE.Vector3(), onLine: new THREE.Vector3(), normal: new THREE.Vector3(),
+      radius: 0, length: 0, best: 1, out: null,
+    };
     this.spheres = this.colliders.map((m) => {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       return new THREE.Sphere();
     });
+    this.sweepBounds = this.colliders.map(sweepBounds);
     this.nearby = this.colliders;
     this.nearbySpheres = this.spheres;
     this._focus = new THREE.Vector3(Infinity, 0, 0);
@@ -67,6 +74,7 @@ export class World {
     mesh.raycast = acceleratedRaycast;
     this.colliders.push(mesh);
     this.spheres.push(new THREE.Sphere());
+    this.sweepBounds.push(sweepBounds(mesh));
     this._focusAge = Infinity; // rebuild the nearby list next frame
   }
 
@@ -181,6 +189,94 @@ export class World {
     }
     this._best = Math.min(this._best, bestT * k);
   }
+
+  // Sweep a whole bug body, including triangle edges, from either side of a wall.
+  // Checks all scenery: distant bugs must not depend on the player's nearby ray list.
+  // `out` is owned by the caller; no objects are allocated in this hot path.
+  sweepSphere(center, delta, radius, out) {
+    const s = this._sweep;
+    s.length = delta.length();
+    if (s.length < 1e-9) return false;
+    s.line.start.copy(center); s.line.end.copy(center).add(delta);
+    s.delta.copy(delta); s.radius = radius; s.best = 1; s.out = out;
+    s.ray.set(center, this._p.copy(delta).divideScalar(s.length));
+    s.box.makeEmpty().expandByPoint(s.line.start).expandByPoint(s.line.end).expandByScalar(radius);
+    out.hit = false;
+    for (let mi = 0; mi < this.colliders.length; mi++) {
+      const m = this.colliders[mi], bounds = this.sweepBounds[mi];
+      if (!visibleChain(m)) continue;
+      if (!bounds.matrix.equals(m.matrixWorld)) {
+        bounds.matrix.copy(m.matrixWorld);
+        bounds.box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);
+      }
+      if (!s.box.intersectsBox(bounds.box)) continue;
+      s.localBox.copy(s.box).applyMatrix4(this._inv.copy(m.matrixWorld).invert());
+      const g = m.geometry, bvh = g.boundsTree, pos = g.attributes.position.array, idx = g.index?.array;
+      for (const root of bvh._roots) {
+        let v = this._views.get(root);
+        if (!v) this._views.set(root, v = { f: new Float32Array(root), u16: new Uint16Array(root), u32: new Uint32Array(root) });
+        const { f, u16, u32 } = v, box = s.localBox, stack = this._stack;
+        let count = 0; stack[count++] = 0;
+        while (count) {
+          const n = stack[--count];
+          if (f[n] > box.max.x || f[n + 3] < box.min.x || f[n + 1] > box.max.y || f[n + 4] < box.min.y || f[n + 2] > box.max.z || f[n + 5] < box.min.z) continue;
+          if (u16[n * 2 + 15] !== 0xFFFF) { stack[count++] = n + 8; stack[count++] = u32[n + 6]; continue; }
+          for (let i = u32[n + 6], end = i + u16[n * 2 + 14]; i < end; i++) {
+            const t = bvh.resolveTriangleIndex(i) * 3, tri = s.triangle;
+            tri.a.fromArray(pos, (idx ? idx[t] : t) * 3).applyMatrix4(m.matrixWorld);
+            tri.b.fromArray(pos, (idx ? idx[t + 1] : t + 1) * 3).applyMatrix4(m.matrixWorld);
+            tri.c.fromArray(pos, (idx ? idx[t + 2] : t + 2) * 3).applyMatrix4(m.matrixWorld);
+            tri.needsUpdate = true;
+            this.sweepTriangle();
+          }
+        }
+      }
+    }
+    out.distance = s.best * s.length;
+    return out.hit;
+  }
+
+  sweepTriangle() {
+    const s = this._sweep, tri = s.triangle, r2 = s.radius * s.radius;
+    tri.closestPointToPoint(s.line.start, s.point);
+    s.normal.subVectors(s.line.start, s.point);
+    if (s.normal.lengthSq() <= r2 + 1e-12) {
+      if (s.normal.lengthSq() < 1e-14) tri.getNormal(s.normal);
+      s.normal.normalize();
+      // Resting on a floor or moving away from an existing contact must stay possible.
+      if (s.delta.dot(s.normal) >= -1e-9) return;
+      s.best = 0; s.out.hit = true;
+      s.out.normal.copy(s.normal); s.out.point.copy(s.point);
+      return;
+    }
+    let hi;
+    if (s.ray.intersectTriangle(tri.a, tri.b, tri.c, false, s.point) && s.point.distanceToSquared(s.line.start) <= s.length ** 2) {
+      hi = s.point.distanceTo(s.line.start) / s.length;
+    } else {
+      if (tri.closestPointToSegment(s.line, s.point, s.onLine) >= s.radius) return;
+      hi = s.onLine.sub(s.line.start).dot(s.delta) / (s.length * s.length);
+    }
+    // Distance to a triangle is convex along the path. Find its first body contact,
+    // rather than stopping at the later closest approach (which could cross a thin wall).
+    let lo = 0;
+    for (let i = 0; i < 16 && (hi - lo) * s.length > 0.00002; i++) {
+      const mid = (lo + hi) * 0.5;
+      s.onLine.copy(s.line.start).addScaledVector(s.delta, mid);
+      tri.closestPointToPoint(s.onLine, s.point);
+      if (s.onLine.distanceToSquared(s.point) < r2) hi = mid; else lo = mid;
+    }
+    if (lo >= s.best) return;
+    s.onLine.copy(s.line.start).addScaledVector(s.delta, lo);
+    tri.closestPointToPoint(s.onLine, s.point);
+    s.out.normal.subVectors(s.onLine, s.point).normalize(); s.out.point.copy(s.point);
+    s.best = lo; s.out.hit = true;
+  }
+}
+
+// Cache static scenery's world bounds; doors and other moving meshes refresh on transform changes.
+function sweepBounds(mesh) {
+  if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+  return { matrix: mesh.matrixWorld.clone(), box: mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld) };
 }
 
 // castMesh walks the BVH's node buffers itself, which only works with the node layout of the

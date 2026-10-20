@@ -16,6 +16,7 @@ import './stories/treasures-in-room.js';
 import './stories/first-run.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
+import './stories/bug-collision.js';
 import './stories/treasures.js';
 import './stories/fire.js';
 import './stories/damage-numbers.js';

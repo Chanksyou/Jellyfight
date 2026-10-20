@@ -104,8 +104,9 @@ export const ENEMY_WORDS = {
             e.vel.set(0, 0, 0);
             const u = Math.min(1, 1 - e.stateT / p.time);
             e.leapK = u;
-            e.pos.lerpVectors(e.leapFrom, e.leapAt, u);
-            e.pos.y += 4 * p.height * u * (1 - u);
+            _spot.lerpVectors(e.leapFrom, e.leapAt, u);
+            _spot.y += 4 * p.height * u * (1 - u);
+            en.moveTo(e, _spot);
             if (u >= 1) { e.airborne = false; e.grounded = false; e.state = 'rest'; e.stateT = p.rest; e.leapCd = p.every; en.slam(e, c, p.radius, p.dmg); }
           } else if (e.state === 'rest') {
             c.speed *= 0.2;
@@ -122,7 +123,7 @@ export const ENEMY_WORDS = {
     props: { above: 0.07, speed: 0.33, circle: 0.4 },
     make: ([distance], p) => ({
       fly: true,
-      tick(e, c) {
+      tick(e, c, en) {
         if (e.flyHeld) return;              // another word is holding it still (a poke)
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
@@ -130,7 +131,7 @@ export const ENEMY_WORDS = {
         const to = _spot.copy(c.pc).addScaledVector(away, distance).setY(c.pc.y + p.above).sub(e.pos);
         const s = p.speed * c.slow;
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
-        e.pos.addScaledVector(e.vel, c.dt);
+        en.move(e, e.vel, c.dt);
       },
     }),
   },
@@ -156,7 +157,7 @@ export const ENEMY_WORDS = {
           const to = _spot.set(c.foot.x + Math.cos(e.orbit) * p.circle, c.foot.y + p.height + Math.sin(c.t * 2 + e.phase) * 0.03, c.foot.z + Math.sin(e.orbit) * p.circle).sub(e.pos);
           const s = p.speed * c.slow;
           e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
-          e.pos.addScaledVector(e.vel, c.dt);
+          en.move(e, e.vel, c.dt);
           if (e.stateT <= 0) {
             // land on the floor between it and you, `land` from you
             const away = _away.copy(e.pos).sub(c.foot).setY(0);
@@ -169,8 +170,9 @@ export const ENEMY_WORDS = {
           }
         } else if (e.state === 'land') {
           const u = THREE.MathUtils.smoothstep(1 - Math.max(0, e.stateT) / e.landMax, 0, 1);
-          e.pos.lerpVectors(e.landFrom, e.landAt, u);
-          e.pos.y += Math.sin(u * Math.PI) * 0.03;
+          _spot.lerpVectors(e.landFrom, e.landAt, u);
+          _spot.y += Math.sin(u * Math.PI) * 0.03;
+          en.moveTo(e, _spot);
           e.vel.set(0, 0, 0);
           e.flyK = 1 - u * 0.6;
           if (e.stateT <= 0) { e.state = 'raise'; e.stateT = 0.45; e.flyK = 0; e.wingK = 0; en.ladyLand(e); }
@@ -275,7 +277,7 @@ export const ENEMY_WORDS = {
             if (c.dist < p.range && e.pokeCd <= 0 && live) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
           } else if (e.state === 'windup') {
             e.vel.multiplyScalar(Math.exp(-10 * c.dt));
-            e.pos.addScaledVector(e.vel, c.dt * live);
+            en.move(e, e.vel, c.dt * live);
             if (e.stateT > p.windup * 0.5) lock(e, c);
             else e.faceLock = true;                                     // locked on: it stops turning after you
             if (e.stateT <= 0) { e.state = 'poke'; e.stateT = p.time + p.hold; e.pokeHit = false; }
@@ -325,14 +327,14 @@ export const ENEMY_WORDS = {
           // darting: full speed, then stopping dead at the end
           const step = Math.min(e.zipLeft, p.speed * c.slow * c.dt);
           e.vel.copy(e.zipDir).multiplyScalar(c.dt > 0 ? step / c.dt : 0);
-          e.pos.addScaledVector(e.zipDir, step);
+          en.move(e, e.zipDir, step);
           e.zipLeft -= step;
           if (e.zipLeft <= 1e-4 || c.slow === 0) { e.zipLeft = 0; e.zipT = p.pause * (0.6 + Math.random() * 0.8); e.vel.multiplyScalar(0.05); }   // and stops dead
           return;
         }
         // hanging in the air: it drifts to a stop
         e.vel.multiplyScalar(Math.exp(-12 * c.dt));
-        e.pos.addScaledVector(e.vel, c.dt);
+        en.move(e, e.vel, c.dt);
         if ((e.zipT -= c.dt * (c.slow > 0 ? 1 : 0)) > 0) return;
         // the next dart: any way at all, leaning toward its spot near you
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
@@ -383,7 +385,7 @@ export const ENEMY_WORDS = {
         }
         if (e.dodgeLeft > 0) {
           const step = Math.min(e.dodgeLeft, p.speed * c.dt);
-          e.pos.addScaledVector(e.dodgeDir, step);
+          en.move(e, e.dodgeDir, step);
           e.vel.copy(e.dodgeDir).multiplyScalar(p.speed);
           e.dodgeLeft -= step;
           if (e.dodgeLeft <= 1e-4) { e.dodgeLeft = 0; e.flyHeld = false; e.vel.multiplyScalar(0.2); }
@@ -594,21 +596,21 @@ export const ENEMY_WORDS = {
           if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
         } else if (e.state === 'windup') {
           e.vel.multiplyScalar(Math.exp(-10 * c.dt));
-          e.pos.addScaledVector(e.vel, c.dt * live);
+          en.move(e, e.vel, c.dt * live);
           e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
           if (e.stateT <= 0) { e.state = 'dive'; e.diveLeft = p.reach; e.diveDir.copy(c.toP).normalize(); }   // it aims where you are now, and doesn't turn again
         } else if (e.state === 'dive') {
           if (!live) return;
           const step = Math.min(e.diveLeft, p.speed * c.dt);
           const wall = en.world.cast(e.pos, e.diveDir, step + e.r * 0.5);
-          e.pos.addScaledVector(e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step);
+          const blocked = en.move(e, e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
           if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + e.r * 0.6) { en.sting(e, c, p); return; }   // stung you: it dies
-          if (wall || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
+          if (wall || blocked || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
         } else if (e.state === 'rest') {
           e.vel.multiplyScalar(Math.exp(-4 * c.dt));
-          e.pos.addScaledVector(e.vel, c.dt * live);
+          en.move(e, e.vel, c.dt * live);
           if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
         }
       },
@@ -663,7 +665,7 @@ export const ENEMY_WORDS = {
         if (e.state !== 'drop') return;
         e.stateT -= c.dt;
         const k = Math.max(0, e.stateT) / p.time;
-        e.pos.copy(e.dropAt).setY(e.dropAt.y + p.height * k * k);   // falling faster and faster
+        en.moveTo(e, _spot.copy(e.dropAt).setY(e.dropAt.y + p.height * k * k));   // falling faster and faster
         e.vel.set(0, 0, 0);
         if (e.stateT <= 0) { e.state = 'approach'; e.stateT = 0; e.airborne = false; en.drop(e, p); }
       },
