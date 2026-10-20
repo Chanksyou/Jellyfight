@@ -295,7 +295,29 @@ export const sfx = {
     for (let k = 0; k < (big ? 6 : 3); k++) noise(7000 + Math.random() * 4000, 4, 0.012, (big ? 0.06 : 0.045) * (1 - k * 0.15), 'bandpass', 0.02 + k * 0.016 + Math.random() * 0.01);
   },
   // a tentacle sting: a quick zip
-  sting() { if (!ready() || !gap('sting', 40)) return; noise(2500 * jitter(), 6, 0.06, 0.08, 'bandpass', 0, 6000); },
+  lashDraw() { if (!ready() || !gap('lashDraw', 75)) return; const j = jitter(0.14); tone('sine', 210*j, 330*j, 0.045, 0.025); },
+  evolutionGather() {
+    if (!ready()) return;
+    const j = jitter(0.05);
+    tone('sine', 160*j, 510*j, 0.65, 0.08);
+    noise(1200, 1, 0.55, 0.045, 'bandpass', 0, 3600);
+  },
+  evolutionBloom() {
+    if (!ready()) return;
+    const j = jitter(0.04);
+    tone('sine', 240*j, 80*j, 0.16, 0.07);
+    [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523*j*2**(s/12), 523*j*2**(s/12), 0.28, 0.07, i*0.055));
+    noise(4200, 1.5, 0.18, 0.04, 'bandpass', 0.02);
+  },
+  lashRelease() { if (!ready() || !gap('lashRelease', 55)) return; noise(1700*jitter(0.16), 2, 0.045, 0.045, 'bandpass', 0, 5800); },
+  sting() {
+    if (!ready() || !gap('sting', 40)) return;
+    const j = jitter(0.15);
+    noise(4200*j, 2, 0.018, 0.09, 'highpass');
+    tone('sine', 210*j, 80*j, 0.065, 0.07);
+    noise(1500*j, 1.2, 0.065, 0.06, 'bandpass', 0.008);
+    for (let i = 0; i < 2; i++) tone('sine', (1100+i*320)*j, (1700+i*350)*j, 0.025, 0.025, 0.035+i*0.018);
+  },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // an enemy dies: a crunchy squish; bigger for bigger things

@@ -15,6 +15,7 @@ import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
 import { EnergyShield } from './energy-shield.js';
 import { Mirage } from './mirage.js';
+import { EvolutionReveal } from './evolution-reveal.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -79,6 +80,7 @@ export class Run {
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.energyShield = new EnergyShield(this);
     this.mirage = new Mirage(this);
+    this.evolutionReveal = new EvolutionReveal(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -152,6 +154,7 @@ export class Run {
 
   // ------------------------------------------------------------ setup
   start() {
+    this.evolutionReveal.cancel();
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
@@ -1051,13 +1054,15 @@ export class Run {
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, choices, (evo) => {
+      const before = this.mods;
       this.evolved.push(evo.id);
       this.health = this.S.health;
-      this.phase = 'won';
-      // the Boss reward: a Legendary pick (always with an element you don't have), before moving on
-      if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-      // the last act: the run is won
-      else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      this.evolutionReveal.begin(evo, before, () => {
+        this.phase = 'won';
+        // The transformation finishes before the next reward replaces its portrait.
+        if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
+        else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+      });
     });
   }
 

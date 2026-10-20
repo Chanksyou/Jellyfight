@@ -1,5 +1,6 @@
 // Full-screen choices and messages: level-up cards, treasure reveal, metamorphosis, run end.
 import { STAT_INFO, cardText } from './stats.js';
+import { esc } from './leaderboard.js';
 
 // How hard a pick card wears its rarity (treasure-pick-screen plan, step 2): the whole
 // card washes and glows in the tier colour, harder the rarer it is — [inner glow %, background wash %].
@@ -109,6 +110,19 @@ export class UI {
     this.modal.hidden = true;
     this.modal.innerHTML = '';
     this.keyHandler = null;
+    this.modal.classList.remove('jf-evolution');
+  }
+
+  evolution(evo, skip) {
+    this.close();
+    this.modal.classList.add('jf-evolution');
+    this.modal.innerHTML = `<div class="jf-evolution-heading"><p>Metamorphosis</p><h2>${esc(evo.name)}</h2></div><div class="jf-evolution-footer"><p>${esc(evo.text)}</p><button type="button">Skip animation</button></div>`;
+    this.modal.hidden = false;
+    const button = this.modal.querySelector('button');
+    this.modal.onclick = e => { if (e.target.closest('button')) skip(); };
+    this.keyHandler = e => { if (['Escape', 'Enter', 'Space'].includes(e.code)) { e.preventDefault(); skip(); } };
+    button.focus({ preventScroll: true });
+    return this._gen;
   }
 
   // cards: from rollCards(); stats: current stats; onPick(card); onReroll() -> new cards or null

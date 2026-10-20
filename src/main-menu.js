@@ -4,7 +4,7 @@ import { LOOK } from './look.js';
 import { isNewPlayer } from './first-run.js';
 
 // One unlit screen quad: drifting light and caustics, with no textures or new lights.
-class UnderwaterBackdrop {
+export class UnderwaterBackdrop {
   constructor(scene, camera) {
     this.scene = scene;
     this.camera = camera;

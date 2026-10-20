@@ -66,8 +66,9 @@ export class Adornments {
       band.rotation.x = Math.PI / 2; band.rotation.z = i * Math.PI;
       band.position.y = h * (0.8 - i * 0.15); group.add(band);
     }
-    return { group, tick: (dt, run) => {
-      const returning = run.bubbles.list.some(b => b.returning);
+    let reveal = null;
+    return { group, reveal: u => { reveal = u; }, tick: (dt, run) => {
+      const returning = reveal === null ? run.bubbles.list.some(b => b.returning) : reveal > 0.65;
       group.rotation.y += dt * (returning ? -2 : 2);
       group.scale.setScalar(1 + Math.sin(this.t * 5) * 0.04);
     } };

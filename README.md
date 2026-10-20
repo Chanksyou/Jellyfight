@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v215 makes tentacle stings pull back, snap, squash at confirmed contact and recoil, with a short curved wet trace, floor droplets and layered stretch/snap/slap sounds. The existing 70 ms contact time, attack cadence, damage and knockback are retained. Evolution choices now show the selected jelly gathering energy and blooming into its new adornments in a 1.6-second underwater portrait before the next reward. Skip by button, Enter, Space or Escape; Reduce Effects uses a brief static reveal. Rebound bands reverse, Mirage separates a ghost, and Aegis assembles its shell; other adornments grow into place.
+
 v213 adds Rebound Jelly (ordinary bubbles hit once on each outward/return leg, with 20% lower Fire rate) and Mirage Jelly (3-second copies attract nearby bugs every 8 seconds spent moving, with 15% less maximum Health). Returning bubbles seek your current position; existing projectiles, locked attacks, Elites and bosses still threaten the real jelly. Rebound adds reversing light bands; Mirage adds an iridescent rim and a fading copy of your own design.
 
 v212 adds Aegis Jelly: an energy shield absorbs 10 damage, bursts for a flat 10 damage within 20 cm when depleted, and fully recharges 8 seconds after breaking. Overflow reaches Health; a partial shield does not refill. Its shell and evolution cooldown icon show when protection is available.

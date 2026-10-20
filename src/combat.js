@@ -12,6 +12,7 @@ import { juice } from './juice.js';
 import { knockFor } from './stats.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
+const DRAW = 0.025;   // the pullback fits inside the existing 70 ms strike; no extra attack delay
 
 export class Lash {
   constructor(scene, enemies, fx) {
@@ -31,6 +32,7 @@ export class Lash {
     this.onLash = null;           // () => void: the jelly's body answers as its tentacles whip out (run.js)
     this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
     this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
+    this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#d8faff'));
   }
 
   reset() {
@@ -108,6 +110,7 @@ export class Lash {
       m.material = this.mat;
     }
     this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits });
+    sfx.lashDraw();
   }
 
   // venom: each stack burns its share every 0.25 s until the stacks run out
@@ -128,9 +131,14 @@ export class Lash {
       s.t += dt;
       const a = s.fixedFrom || origin;
       const b = this.enemies.center(s.target, this._b);
-      if (!s.hit && s.t >= EXTEND) { s.hit = true; this.land(s, a, b); }
-      const k = s.t < EXTEND ? s.t / EXTEND : s.t < EXTEND + HOLD ? 1 : 1 - (s.t - EXTEND - HOLD) / RETRACT;
-      if (s.rig) { s.rig.aim(s.tent, b, Math.max(0, k), s.golden); continue; }
+      if (!s.released && s.t >= DRAW) { s.released = true; sfx.lashRelease(); }
+      if (!s.hit && s.t >= EXTEND) { s.hit = true; s.landed = this.land(s, a, b); }
+      const out = THREE.MathUtils.clamp((s.t - DRAW) / (EXTEND - DRAW), 0, 1);
+      const back = THREE.MathUtils.clamp((s.t - EXTEND - HOLD) / RETRACT, 0, 1);
+      const k = s.t < DRAW ? -LOOK.num('lash-coil', 0.18) * Math.sin(s.t / DRAW * Math.PI / 2)
+        : s.t < EXTEND ? out * out : s.t < EXTEND + HOLD ? 1 : (1 - back) ** 2;
+      const impact = s.landed ? Math.max(0, 1 - (s.t - EXTEND) / HOLD) : 0;
+      if (s.rig) { s.rig.aim(s.tent, b, k, s.golden, impact); continue; }
       const dir = this._a.copy(b).sub(a);
       const full = dir.length();
       if (full < 1e-5 || k <= 0) { s.mesh.visible = false; continue; }
@@ -146,13 +154,13 @@ export class Lash {
   }
 
   land(s, a, b) {
+    if (s.target.dead || s.target.proxy?.shielded) return false;
     const H = s.hits;
     this.fx.puff(b, 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
     this.fx.impact(b, 0xffc2e6, 0.01, 4);     // the flash where it lands
     sfx.sting();
     juice.feel('hit');
     const id = s.target.id;
-    if (s.target.dead) return;
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
     let dmg = s.dmg, color = '#fff', crit = false;
     if (H.crit && Math.random() < H.crit.chance) {
@@ -163,6 +171,14 @@ export class Lash {
     // a shove away from the jelly: the harder the sting, the further
     if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: knockFor(dmg) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
+    // A short curved wet trace and floor droplets show the strike without another damage label.
+    const trail = this._a;
+    for (let i = 1; i <= 6; i++) {
+      const u = i / 6;
+      trail.copy(a).lerp(b, u); trail.y += Math.sin(u * Math.PI) * a.distanceTo(b) * 0.16;
+      this.fx.glow.emit(trail, this.traceColor, LOOK.num('lash-trace-size', 0.003), 0, LOOK.num('lash-trace-life', 0.11), 0.45);
+    }
+    this.fx.splat(b.clone().setY(this.enemies.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));
     // venom (Box Jelly): another stack, and they all last a while longer
     const Vn = H.venom;
     if (Vn && !s.target.dead) {
@@ -172,6 +188,7 @@ export class Lash {
       V.t = Vn.time;
       this.venom.set(s.target, V);
     }
+    return true;
   }
 }
 
