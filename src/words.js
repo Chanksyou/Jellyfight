@@ -734,7 +734,7 @@ export function newMods() {
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     energyShield: null,              // energy-shield: a damage pool that bursts on depletion, then recharges
-    rebound: false, decoy: null,
+    rebound: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
@@ -761,7 +761,7 @@ export const ELEMENT_BASE = {
   lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
   ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 1.35 },         // chill s, frost: chills the whole splash, slowed enemies take x
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
-  wind: { push: 0.3, pierce: 1, speed: 1.4, rate: 0.88, dmg: 1.1, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
+  wind: { push: 0.6, pierce: 1, speed: 1.4, rate: 0.88, dmg: 1.1, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
   glitter: { width: 2.2, splash: 1, slow: 0, rate: 1.05 },            // splash width x, splash damage x, slow s
 };
 // element-up numbers that add (the rest multiply)
@@ -818,7 +818,7 @@ export const TIMED_WORDS = {
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim'];
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet'];
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted'];
 
@@ -875,6 +875,14 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.every > 0 && p.time > 0 && p.range > 0 && p.time <= p.every)) throw new Error('decoy: positive every, time and range required; time cannot exceed every');
       return (m) => { m.decoy = { ...p }; };
+    },
+  },
+  'fire-trail': {
+    doc: 'Walking leaves a floor trail for `time` seconds, `radius` m either side of the actual route and `height` m tall. Touching bugs take `dps` times power per second, once per `tick`, without overlap stacking. Air, climbs and vents leave no trail.',
+    props: { time: 2, radius: 0.025, height: 0.035, dps: 0.5, tick: 0.25 },
+    make: (_, p) => {
+      if (!(p.time > 0 && p.radius > 0 && p.height > 0 && p.dps > 0 && p.tick > 0)) throw new Error('fire-trail: time, radius, height, dps and tick must be positive');
+      return m => { m.fireTrail = { ...p }; };
     },
   },
   'energy-shield': {

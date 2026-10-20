@@ -175,7 +175,7 @@ export class Player {
 
     // --- Move -------------------------------------------------------------
     const px = env.push ? env.push.x : 0, pz = env.push ? env.push.z : 0;
-    this.moveHorizontal((this.velocity.x + px) * dt, (this.velocity.z + pz) * dt);
+    this.moveHorizontal((this.velocity.x + px) * dt, (this.velocity.z + pz) * dt, this.grounded && !this.climbing ? env.onWalk : null);
     this.depenetrate();
     const wasGrounded = this.grounded;
     const vyBefore = this.velocity.y;
@@ -200,17 +200,17 @@ export class Player {
     this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded || this.climbing, vy: this.climbing ? 0 : this.velocity.y, swim: this.swim, vel: this.velocity, push });
   }
 
-  moveHorizontal(dx, dz) {
+  moveHorizontal(dx, dz, onWalk = null) {
     const len = Math.hypot(dx, dz);
     if (len < 1e-8) return;
     // Sub-step so we never move more than half a radius per step (no tunneling)
     const steps = Math.max(1, Math.ceil(len / (this.cfg.radius * 0.5)));
     const step = new THREE.Vector3(dx / steps, 0, dz / steps);
-    for (let i = 0; i < steps; i++) this.tryMove(step.clone());
+    for (let i = 0; i < steps; i++) this.tryMove(step.clone(), onWalk);
   }
 
   // Move by v, sliding along whatever we hit.
-  tryMove(v) {
+  tryMove(v, onWalk = null) {
     const r = this.cfg.radius;
     for (let iter = 0; iter < 3; iter++) {
       const len = v.length();
@@ -224,9 +224,10 @@ export class Player {
         if (hit && (!nearest || hit.distance < nearest.distance)) nearest = hit;
       }
 
-      if (!nearest) { this.position.add(v); return; }
+      if (!nearest) { onWalk?.(this.position, dir, len); this.position.add(v); return; }
 
       const allowed = Math.max(0, nearest.distance - r);
+      if (allowed > 1e-8) onWalk?.(this.position, dir, allowed);
       this.position.addScaledVector(dir, allowed);
 
       const n = nearest.normal;

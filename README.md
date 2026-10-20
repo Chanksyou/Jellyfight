@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v220 adds Cinder Jelly: flaming tentacle tips leave a blue-white fire trail along actual grounded movement. Each section burns for two seconds, dealing half power per second to touching bugs without stacking where paths overlap. Jumps, climbs and vents leave gaps; standing still creates no new trail. Range is 20% lower. The trail follows floor height, uses one bounded mesh, and the feet are instanced for phones. Wind's base push is also doubled from 0.3 to 0.6, preserving damage-based extra shove, Box Fan scaling and scenery collision rules.
+
 v219 makes Box Jelly's existing tentacles three times thicker and brighter, with no extra strands. The thicker tubes and tips stay above their floor limit, including during the newer sting pullback and contact squash.
 
 v218 reduces Controller/Mug/Kettle aggro to 1.3/1.1/1.5 m. The Controller now charges and presses its buttons, clicks on aim lock, kicks back as its barrage launches, and sheds small fading fragments when Shots end. Its rumble revs up, compresses and vibrates, then discharges through its existing 22 cm dome with a recoil, debris and a small harmless scuff. Varied mechanical charge, firing, impact and debris sounds follow the attack. Damage, attack timing, Shot speed and hit areas are retained; Reduce Effects removes the new vibration.
@@ -95,6 +97,9 @@ vines while the pot stays seated. Recovery pauses are 0.95 s (0.35 s angry),
 and the boss resumes attacking after its 1 s dragonfly summon while the shield
 lasts independently. Whip/sweep warnings, 1.5 s heart openings, damage and Health
 are unchanged. Sweeps now flash at confirmed contact. See `docs/pothos-fluidity.md`.
+Wind (v220): doubled its base push from 2.1 cm to 4.2 cm. Damage-based extra shove
+and Box Fan's 60% multiplier retain their existing rules; scenery still stops
+the push and deals one equal-damage collision hit.
 
 Sting feel (v182): the tentacle sting now completes its Attack Feel chain (7/7,
 up from 4/9). The bell twitches as the tentacles whip out, each sting lands with

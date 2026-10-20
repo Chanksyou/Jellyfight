@@ -1,4 +1,4 @@
-# Wind attack — v181
+# Wind attack — v183
 
 ## Rules
 
@@ -10,7 +10,9 @@ the windup, so the steady release cadence remains half the bubble rate.
 Windup delay is explicitly requested for this attack; other automatic attacks
 retain their immediate firing rules.
 
-Existing damage, arc, extra projectiles, piercing and push upgrades remain.
+v220 doubles the base push multiplier from 0.3 to 0.6 (2.1 cm to 4.2 cm).
+The separate damage-based shove is unchanged, and Box Fan still multiplies the
+base push by 1.6. Damage, arc, extra projectiles and piercing remain unchanged.
 A wind hit first deals its normal damage, then pushes a surviving target.
 The push is swept against the scenery collision world with five body probes.
 It stops short of a wall/object instead of teleporting through it. A confirmed
@@ -21,6 +23,9 @@ produce collision damage. A lethal initial hit grants its normal kill without
 an extra damage event; a collision kill also grants its reward exactly once.
 
 ## Seven phases and nine-row audit
+
+v220 is a base-push tuning change: all nine feedback rows remain unchanged,
+so the code audit stays 9/9 → 9/9. A farther push can produce more scenery hits.
 
 | Row | Before | After | Evidence |
 |---|---:|---:|---|

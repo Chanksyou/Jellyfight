@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
+import { batcher } from './batch.js';
 
 const glowMat = (name, fallback, opts = {}) => {
   const c = new THREE.Color(LOOK.color(name, fallback));
@@ -61,6 +62,32 @@ export class Adornments {
 
   // The portrait and shader warmup enumerate all adornments; this one styles the existing rig.
   make_venom_tips() { return { group: new THREE.Group(), tick() {} }; }
+
+  make_flaming_feet() {
+    const group = new THREE.Group(), feet = [], geo = new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0);
+    const points = geo.attributes.position;
+    for (let i = 0; i < points.count; i++) points.setX(i, points.getX(i) + 0.32 * points.getY(i) ** 2);
+    const flame = new THREE.MeshBasicMaterial({ color: LOOK.color('cinder-flame', '#55caff'), transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false });
+    const core = new THREE.MeshBasicMaterial({ color: LOOK.color('cinder-core', '#e6fcff'), depthWrite: false, toneMapped: false });
+    for (let i = 0; i < 8; i++) {
+      const foot = new THREE.Group(), outer = new THREE.Mesh(geo, flame), inner = new THREE.Mesh(geo, core), lick = new THREE.Mesh(geo, flame);
+      lick.scale.set(0.6, 0.7, 0.6); lick.position.x = -0.5; lick.rotation.y = Math.PI;
+      inner.scale.set(0.5, 0.65, 0.5); foot.add(outer, inner, lick); group.add(foot); feet.push(foot);
+    }
+    batcher.track(group);
+    return { group, free: true, tick: (dt, run) => {
+      const rig = this.player.avatar?.tentacles;
+      feet.forEach((foot, i) => {
+        foot.visible = !!rig?.list[i] && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+        if (!foot.visible) return;
+        rig.list[i].tip.getWorldPosition(foot.position);
+        foot.position.y = Math.max(foot.position.y, this.player.position.y + 0.002);
+        const flicker = 0.85 + Math.sin(this.t * 19 + i * 2.7) * 0.15;
+        foot.scale.set(LOOK.num('cinder-foot-width', 0.0045), LOOK.num('cinder-foot-height', 0.018) * flicker, LOOK.num('cinder-foot-width', 0.0045));
+        foot.rotation.z = Math.sin(this.t * 11 + i) * 0.16;
+      });
+    } };
+  }
 
   make_rebound_bands() {
     const group = new THREE.Group(), h = this.h;

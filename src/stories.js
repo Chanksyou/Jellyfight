@@ -24,6 +24,7 @@ import './stories/wind.js';
 import './stories/evolutions.js';
 import './stories/energy-shield.js';
 import './stories/rebound-mirage.js';
+import './stories/fire-trail.js';
 import './stories/feel-reveal.js';
 import './stories/xp-feel.js';
 import './stories/elites.js';

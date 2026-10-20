@@ -394,6 +394,21 @@ export const sfx = {
     noise(2900 * jitter(0.15), 1.6, 0.045, 0.045, 'bandpass');
     noise(6500, 2, 0.012, 0.035, 'highpass', 0.025);
   },
+  cinderStep() {
+    if (!ready() || !gap('cinderStep', 220)) return;
+    const j = jitter(0.16);
+    noise(2400 * j, 1.3, 0.09, 0.03, 'bandpass', 0, 3800 * j);
+    tone('sine', 190 * j, 280 * j, 0.04, 0.02);
+    noise(6500 * j, 2, 0.015, 0.02, 'highpass', 0.035);
+  },
+  cinderHit() {
+    if (!ready() || !gap('cinderHit', 100)) return;
+    const j = jitter(0.15);
+    noise(4800 * j, 1.5, 0.025, 0.06, 'highpass');
+    tone('sine', 150 * j, 65 * j, 0.07, 0.04);
+    noise(2300 * j, 1.3, 0.1, 0.04, 'bandpass', 0.015);
+    noise(7000 * j, 2, 0.016, 0.025, 'highpass', 0.06);
+  },
   fire(weight = 1) {
     if (!ready() || !gap('fire', 95)) return;
     const w = Math.max(0.7, Math.min(1.6, weight)), j = jitter(0.14) / Math.sqrt(w), g = 0.85 + w * 0.3;

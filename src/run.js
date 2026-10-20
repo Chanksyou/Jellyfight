@@ -15,6 +15,7 @@ import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
 import { EnergyShield } from './energy-shield.js';
 import { Mirage } from './mirage.js';
+import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
@@ -81,6 +82,7 @@ export class Run {
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
     this.energyShield = new EnergyShield(this);
     this.mirage = new Mirage(this);
+    this.fireTrail = new FireTrail(this);
     this.evolutionReveal = new EvolutionReveal(this);
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
@@ -177,6 +179,7 @@ export class Run {
     this.lash.reset();
     this.energyShield.reset();
     this.mirage.reset();
+    this.fireTrail.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -327,6 +330,7 @@ export class Run {
   update(dt) {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
+    this.fireTrail.update(dt);
     this.energyShield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
@@ -353,10 +357,12 @@ export class Run {
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0,
+        onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
     }
 
     // --- timers
+    this.fireTrail.draw();
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
     this.slowHardT = Math.max(0, this.slowHardT - dt);
