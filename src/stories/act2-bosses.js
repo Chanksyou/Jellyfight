@@ -146,7 +146,7 @@ act2('clog-dendi-finish', {
     B.damage(99999);
     const doomed = B.dying && !B.dead;
     let smacked = false, catNear = false;
-    step(60 * 6, () => {
+    step(60 * 10, () => {
       if (d.state() === 'smack') smacked = true;
       if (B.dead && !catNear) {
         const c = B.center(), gp = d.group.position;

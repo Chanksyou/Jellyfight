@@ -318,6 +318,22 @@ export const sfx = {
     noise(1500*j, 1.2, 0.065, 0.06, 'bandpass', 0.008);
     for (let i = 0; i < 2; i++) tone('sine', (1100+i*320)*j, (1700+i*350)*j, 0.025, 0.025, 0.035+i*0.018);
   },
+  catStep() {
+    if (!ready()) return;
+    const j = jitter(.12); noise(260*j, 1, .07, .035, 'lowpass'); tone('sine',100*j,65*j,.07,.025);
+  },
+  catWind() {
+    if (!ready()) return;
+    noise(1200*jitter(.1),1,.3,.055,'bandpass',0,4200);
+  },
+  catImpact() {
+    if (!ready()) return;
+    const j = jitter(.1);
+    noise(2600*j,1,.035,.22,'highpass');
+    tone('sine',140*j,38*j,.3,.24);
+    noise(450*j,1,.28,.13,'lowpass');
+    for (let i=0;i<4;i++) noise((1700+i*500)*j,2,.07,.035,'bandpass',.08+i*.055);
+  },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // an enemy dies: a crunchy squish; bigger for bigger things

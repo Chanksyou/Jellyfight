@@ -5,6 +5,7 @@ import { bus, PLAYER } from '../events.js';
 import { STAGES } from '../stages.js';
 import { hostile } from '../vfx.js';
 import { juice } from '../juice.js';
+import { sfx, unlock as unlockAudio } from '../sfx.js';
 import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, fresh, holdJelly, ok, r3, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- the event bus: what hits, kills, freezes and rewards do
@@ -171,7 +172,7 @@ story('boss/dendi-finishes-the-vacuum', {
     const doomed = B.dying && !B.dead;
     let smacked = false, catNear = false, onScreen = false;
     const v = new THREE.Vector3();
-    step(60 * 5, () => {
+    step(60 * 10, () => {
       if (d.state() === 'smack') smacked = true;
       // the camera shows him: his middle inside the frame while he smacks (it once kept the player's angle and left him off-screen)
       if (smacked && d.group.visible) { d.group.getWorldPosition(v); v.y += 0.15; v.project(G().APT.camera); if (Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 && v.z < 1) onScreen = true; }
@@ -183,6 +184,86 @@ story('boss/dendi-finishes-the-vacuum', {
     });
     return ok(doomed && smacked && catNear && onScreen && run.bossWon && !d.group.visible,
       { doomed, smacked, catNear, onScreen, won: run.bossWon, goneAfter: !d.group.visible });
+  },
+});
+story('boss/finish-walk-impact-and-return', {
+  about: 'The seven-second finish walks Dendi in, holds gameplay, kills exactly on his paw strike, then restores the player/camera/HUD under a second fade before awarding the win.',
+  setup() { startVacuum('charge'); stub(juice,'calm',false); },
+  play() {
+    const {run,player,tpc,hud,input}=G(), B=run.boss, d=G().dendi;
+    const at=player.position.clone(), yaw=tpc.yaw, t=run.t, die=B.die;
+    let calls=0, walkAt=null, walked=0, deadAt=0, withheld=false, frozen=true, locked=true, cameraYaw;
+    stub(B,'die',function(){calls++;return die.call(this);});
+    B.damage(99999);
+    let elapsed=0;
+    step(60*10,()=>{
+      elapsed+=1/60;
+      frozen &&= Math.abs(run.t-t)<.04;
+      if(d.state()==='walk') {
+        walkAt ||= d.group.position.clone(); walked=Math.max(walked,walkAt.distanceTo(d.group.position));
+        if(cameraYaw===undefined) cameraYaw=tpc.yaw;else locked &&= Math.abs(tpc.yaw-cameraYaw)<1e-6;
+        input.mouseDX=200;
+      }
+      if(B.dead && !deadAt) {deadAt=elapsed;withheld=!run.bossWon;}
+      return run.bossWon;
+    });
+    const fade=document.querySelector('.boss-fade');
+    return ok(run.bossWon && calls===1 && walked>.05 && deadAt>3 && withheld && frozen && locked && elapsed>6 && elapsed<9
+      && player.position.distanceTo(at)<1e-6 && tpc.yaw===yaw && !hud.el.hidden && !d.group.visible && Number(fade.style.opacity)===0,
+      {calls,walked,deadAt,withheld,frozen,locked,elapsed,returned:player.position.distanceTo(at),yaw:tpc.yaw,hidden:hud.el.hidden});
+  },
+});
+story('boss/finish-reduced-effects', {
+  about: 'Reduce Effects keeps a short static cat finish, one confirmed kill, no shake, and a clean return in under three seconds.',
+  setup() { startVacuum('charge'); stub(juice,'calm',true); juice.trauma=0; },
+  play() {
+    const {run,hud}=G(), d=G().dendi;run.boss.damage(99999);
+    let walked=false, elapsed=0;
+    step(240,()=>{elapsed+=1/60;walked ||= d.state()==='walk';return run.bossWon;});
+    return ok(run.bossWon && !walked && elapsed<3 && juice.trauma===0 && !d.group.visible && !hud.el.hidden,{won:run.bossWon,walked,elapsed,trauma:juice.trauma});
+  },
+});
+story('boss/finish-cancels-on-restart', {
+  about: 'Restarting during the approach clears the cat, fade and HUD state without restoring the old scene over the new run.',
+  setup() { startVacuum('charge'); stub(juice,'calm',false); },
+  play() {
+    const {run,player,hud,tpc}=G();run.boss.damage(99999);step(100);
+    fresh({elites:false});const at=player.position.clone(), yaw=tpc.yaw;step(2);
+    return ok(!G().dendi.group.visible && Number(document.querySelector('.boss-fade').style.opacity)===0 && !hud.el.hidden && !run.bossWon && player.position.distanceTo(at)<.01 && tpc.yaw===yaw,
+      {cat:G().dendi.group.visible,fade:document.querySelector('.boss-fade').style.opacity,hud:hud.el.hidden,moved:player.position.distanceTo(at)});
+  },
+});
+story('boss/finish-pauses-before-contact', {
+  about: 'Pausing while the paw rises freezes the cat and kill together, discards camera drag, and resumes to exactly one finishing contact.',
+  setup() { startVacuum('charge'); stub(juice,'calm',false); },
+  play() {
+    const {run,input,tpc}=G(), d=G().dendi, B=run.boss, overlay=document.querySelector('#g-over');
+    B.damage(99999);step(360,()=>d.state()==='smack');step(5);
+    const paw=d.bones.legFR0.quaternion.clone(), yaw=tpc.yaw;
+    overlay.hidden=false;input.mouseDX=300;step(120);
+    const held=paw.angleTo(d.bones.legFR0.quaternion)<1e-6 && !B.dead && tpc.yaw===yaw;
+    overlay.hidden=true;step(600,()=>run.bossWon);
+    return ok(held && run.bossWon && !d.group.visible,{held,won:run.bossWon});
+  },
+});
+story('boss/finish-respects-os-reduced-motion', {
+  about: 'The operating system reduced-motion preference also selects the short static finish without camera shake, even if Effects full was saved.',
+  setup() { startVacuum('charge'); stub(juice,'calm',false); stub(G().fx,'reducedMotion',{matches:true}); juice.trauma=0; },
+  play() {
+    const {run}=G();run.boss.damage(99999);let frames=0,walked=false;
+    step(240,()=>{frames++;walked ||= G().dendi.state()==='walk';return run.bossWon;});
+    return ok(run.bossWon && frames<180 && !walked && juice.trauma===0,{won:run.bossWon,frames,walked,trauma:juice.trauma});
+  },
+});
+story('boss/finish-layered-sound', {
+  about: 'The walking steps, paw whoosh and one finishing thump execute on live Web Audio with the boss finish.',
+  setup() { startVacuum('charge'); stub(juice,'calm',false); },
+  async play() {
+    unlockAudio();await new Promise(r=>setTimeout(r,200));
+    const calls={catStep:0,catWind:0,catImpact:0};
+    for(const name of Object.keys(calls)){const real=sfx[name];stub(sfx,name,()=>{calls[name]++;real();});}
+    const {run}=G();run.boss.damage(99999);step(600,()=>run.bossWon);
+    return ok(run.bossWon && calls.catStep>0 && calls.catWind===1 && calls.catImpact===1,calls);
   },
 });
 story('boss/vacuum-charge-warning-is-a-lane', {
