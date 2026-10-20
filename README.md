@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v218 reduces Controller/Mug/Kettle aggro to 1.3/1.1/1.5 m. The Controller now charges and presses its buttons, clicks on aim lock, kicks back as its barrage launches, and sheds small fading fragments when Shots end. Its rumble revs up, compresses and vibrates, then discharges through its existing 22 cm dome with a recoil, debris and a small harmless scuff. Varied mechanical charge, firing, impact and debris sounds follow the attack. Damage, attack timing, Shot speed and hit areas are retained; Reduce Effects removes the new vibration.
+
 v217 gives jelly customization the same underwater background as the home screen, including drifting light and caustics. Live look changes stay visible, Reduce Effects freezes the water, and leaving customization restores the normal scene layers.
 
 v216 adds elastic curved XP pickup streaks, a compact collection glow, rising chimes for continuous collection (with a fuller note for big pickups), and a pulsing XP bar. The chime chain resets after a collection gap and on restart. Feedback is grouped for crowded pickups; Reduce Effects keeps collection quiet. XP values, magnet range, movement speed and collection timing are unchanged.

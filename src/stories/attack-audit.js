@@ -54,7 +54,9 @@ export const AUDIT = {
   notBugAttacks: ['chase', 'hover', 'zip', 'evade', 'hatch', 'rooted', 'hangs', 'brood', 'rolls'],
   // every Elite and Boss attack (src/stories/kit.js EVERY_ATTACK, itself checked against the game)
   hostile: {
-    'controller/barrage': todo, 'controller/rumble': todo, 'mug/coffee': todo, 'mug/spill': todo,
+    'controller/barrage': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v218, previously unscored: pressed charging buttons and unchanged height-aware aim strips; a lock click, same-frame launch flash, physical recoil and layered launch snap/body/whiz; existing bright-core Shots with trails and localized contact flash; actual player hurt/Health receipt; brief pooled fragments settling harmlessly after each Shot ends, with varied contact crack/body and debris ticks. Damage, 0.85 phase time, speed and low/high dodges retained. Stories cover choreography, confirmed damage and shader readiness. Code/stepped visual audit, not a play-speed listening claim.' },
+    'controller/rumble': { score: [1, 1, 1, 1, 1, 1, 1, 1, 1], seen: 'code', note: 'v218, previously unscored: growing motor vibration, compressed body, bright light bar and synchronized floor/22 cm dome Warning; same-frame discharge flash, kick and motor crack/bass/debris sound; a brief dome shows the exact blast extent (instant area attack, no projectile flight); existing confirmed hurt/knockback/Health feedback; harmless pooled chips and a small fading scuff record the discharge. Damage, 1.1 phase time, 22 cm hit area and knockback retained. Reduce Effects removes new vibration; pulse expires and reset removes it. Code/stepped visual audit, not a play-speed listening claim.' },
+    'mug/coffee': todo, 'mug/spill': todo,
     'kettle/steam': todo, 'kettle/boil-over': todo,
     'vacuum/charge': todo, 'vacuum/brushes': todo, 'vacuum/spin': todo, 'vacuum/suction': todo, 'vacuum/flies': todo, 'vacuum/dump': todo,
     'soap/squirt': todo, 'soap/bubble-ring': todo, 'clock/sweep': todo, 'clock/wreath': todo, 'clock/hour': todo,
