@@ -1046,13 +1046,13 @@ export class Run {
     }
   }
 
-  onBossDead() {
+  onBossDead({ impact = true } = {}) {
     this.bossDeadT = true;
     this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
-    juice.feel('boss-kill'); sfx.boom();
+    if (impact) { juice.feel('boss-kill'); sfx.boom(); }
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);

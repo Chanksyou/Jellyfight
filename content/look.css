@@ -325,6 +325,15 @@
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
   --cat-scene-distance: 1.2;   /* meters behind the jelly while Dendi finishes a boss (he is 26 cm at the shoulder) */
   --cat-scene-tilt: 0.6;       /* radians down from level then (~35 degrees) */
+  --cat-scene-fade: 0.55;     /* seconds for each fade into/out of the finishing scene */
+  --cat-scene-walk: 1.8;
+  --cat-scene-approach: 0.45; /* metres, shortened by scenery and surface edges */
+  --cat-scene-watch: 0.7;
+  --cat-scene-strike: 0.5;    /* contact after the paw starts rising */
+  --cat-scene-aftermath: 1.8;
+  --cat-scene-impact-color: #fff0c9;
+  --cat-scene-impact-size: 0.045;
+  --cat-scene-debris-color: #6a6057;
   /* the Pothos fight's view (eased in for that fight only, back out after): further back and less
      steep, so its heart, up in its leaves on the pillows, stays in frame from the bed */
   --pothos-camera-distance: 0.95;  /* meters behind the jelly */

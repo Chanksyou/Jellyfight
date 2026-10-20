@@ -284,7 +284,7 @@ act3('pothos-fight-camera-keeps-the-heart-in-frame', {
     const fight = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
     const view = heartFrame(B);
     B.damage(B.hp + 1);
-    step(60 * 3, () => B.dead);                           // Dendi finishes it
+    step(60 * 10, () => run.bossWon);                     // the full approach and return fade
     step(240);                                            // the fight's over: eased back
     const after = { d: +tpc.currentDistance.toFixed(3), p: +tpc.viewPitch.toFixed(3) };
     return ok(before.d === +own.d.toFixed(3) && before.p === +own.p.toFixed(3) && atStart && Math.abs(fight.d - LOOK.num('pothos-camera-distance', 0.95)) < 0.02 && Math.abs(fight.p - LOOK.num('pothos-camera-tilt', 0.785)) < 0.03 && view.good
@@ -393,7 +393,7 @@ act3('dendi-finishes-the-pothos', {
     const doomed = B.dying && !B.dead;
     let smacked = false, onBed = false, onScreen = false, attacks = 0;
     const v = new THREE.Vector3();
-    step(60 * 5, () => {
+    step(60 * 10, () => {
       if (B.dying) attacks = Math.max(attacks, shownWarnings().floor.length);
       if (d.state() === 'smack') smacked = true;
       if (smacked && d.group.visible) {
@@ -415,7 +415,7 @@ act3('beating-the-pothos-wins-the-run', {
     let posted = null;
     stub(run, 'board', { status: 'online', keepBest: () => false, post: (e) => { posted = e; return Promise.resolve({ posted: true }); } });
     B.damage(B.hp + 1);
-    step(60 * 5, () => run.bossWon);                      // Dendi finishes it, then the run sees it beaten
+    step(60 * 10, () => run.bossWon);                     // Dendi finishes it, then the run sees it beaten
     step(5);
     await wait(2400);                                     // the metamorphosis comes a moment after
     const grow = modal()?.innerText || '';

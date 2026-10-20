@@ -630,7 +630,7 @@ export function applyState(cat, state, t, opts = {}) {
       // settle. Ears back, tail lashing, the other front leg braced.
       const up = sstep(t, 0, 0.16), down = sstep(t, 0.16, 0.27), back = sstep(t, 0.36, 0.85);
       const live = 1 - back;
-      R(B.legFR0, (-1.12 * up + 1.6 * down) * live, 0, -0.1 * live);
+      R(B.legFR0, (-1.12 * up + 0.62 * down) * live, 0, -0.1 * live);
       R(B.legFR1, (0.55 * up - 0.7 * down) * live, 0, 0);
       R(B.legFR2, (-0.35 * up + 0.25 * down) * live, 0, 0);
       R(B.legFL0, 0.08 * live, 0, 0);
@@ -692,14 +692,19 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
   let t = Math.random() * 10, step = 0, left = ROUTINE[0][1], state = ROUTINE[0][0], pose = state;
   // The boss finish (main.js runs the scene): placeForSmack puts him beside
   // the doomed boss, beginSmack starts the chop, endScene hands him back.
-  let sceneMode = null, sceneT = 0;
+  let sceneMode = null, sceneT = 0, smackRate = 1, walkTime = 0;
+  let walkPath = [];
   const placeForSmack = (pos, faceYaw) => {
     cat.group.visible = true;
     cat.group.position.copy(pos);
     cat.group.rotation.y = faceYaw;
     sceneMode = 'await'; sceneT = 0;
   };
-  const beginSmack = () => { if (sceneMode === 'await') { sceneMode = 'smack'; sceneT = 0; } };
+  const approach = (path, duration) => {
+    walkPath = path; walkTime = duration;
+    cat.group.position.copy(path[0]); sceneMode = 'walk'; sceneT = 0;
+  };
+  const beginSmack = (rate = 1) => { if (sceneMode === 'await') { sceneMode = 'smack'; sceneT = 0; smackRate = rate; } };
   const home = { pos: at.clone(), yaw, hidden: !!opts.hidden };
   // the scene over: back to his creation transform and visibility (in the
   // game: hidden — he only ever showed up for the smack)
@@ -711,9 +716,15 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
   };
   const tick = (dt, jellyPos) => {
     if (sceneMode) {
-      sceneT += dt;
-      pose = sceneMode === 'smack' ? 'smack' : 'curious';   // poised, watching the boss, until the chop
-      applyState(cat, pose, sceneMode === 'smack' ? sceneT : t + sceneT);
+      sceneT += dt * (sceneMode === 'smack' ? smackRate : 1);
+      if (sceneMode === 'walk') {
+        const k = Math.min(1, sceneT / Math.max(.001, walkTime));
+        const f = k * (walkPath.length-1), i = Math.min(walkPath.length-2,Math.floor(f));
+        cat.group.position.lerpVectors(walkPath[i], walkPath[i+1], f-i);
+        if (k === 1) { sceneMode = 'await'; sceneT = 0; }
+      }
+      pose = sceneMode === 'smack' ? 'smack' : sceneMode === 'walk' ? 'walk' : 'curious';
+      applyState(cat, pose, sceneMode === 'await' ? t + sceneT : sceneT);
       return pose;
     }
     if (!cat.group.visible) return pose;
@@ -739,5 +750,5 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
     pose = state;
     return pose;
   };
-  return { ...cat, tick, state: () => pose, placeForSmack, beginSmack, endScene };
+  return { ...cat, tick, state: () => pose, placeForSmack, approach, beginSmack, endScene };
 }

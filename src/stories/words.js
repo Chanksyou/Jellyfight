@@ -259,6 +259,7 @@ story('words/zip', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.7, 0, 0.1)); e.beamCd = 99; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], pc = player.position, start = e.pos.distanceTo(pc);
+    stub(player.avatar, 'update', () => {}); // cosmetic blink timing must not choose the dragonfly's random path
     let still = 0, frames = 0, notAtYou = 0, n = 0, closest = start;
     const d = darts(e, 6, () => {
       frames++;

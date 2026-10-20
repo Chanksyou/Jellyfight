@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v227';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v228';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -270,7 +270,8 @@ board.onChange = () => mainMenu.refreshGreeting();
 if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction()?.boss || peekAction()?.layout) {
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }
-const menuOpen = () => mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+let bossScene = null;
+const menuOpen = () => !!bossScene || mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
@@ -394,34 +395,67 @@ function updateMusic(dt) {
 }
 
 // --- The boss finish --------------------------------------------------------
-// A doomed boss (0 hp, `dying`) doesn't die on its own. The screen fades to
-// black, Dendi appears beside it with the jelly watching from just behind
-// him, the screen fades back — and his paw coming down is what kills it
-// (boss.die()). Gameplay freezes throughout; the boss's own update keeps
-// running so its death animation plays out while the world holds still.
+// Gameplay holds while Dendi approaches, winds up and finishes the doomed boss.
+// Both camera cuts happen under black; rewards wait until the return fade ends.
 const blackout = document.createElement('div');
-blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:60;';
+blackout.className = 'boss-fade';
+blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60;';
 document.body.appendChild(blackout);
-let bossScene = null;
 const sceneRay = new THREE.Raycaster();
 function startBossScene(boss) {
-  bossScene = { boss, t: 0, phase: 'out', smacked: false };
-  blackout.style.opacity = '1';
+  const short = juice.calm || fx.reducedMotion.matches, scale = short ? .35 : 1;
+  bossScene = {
+    boss, t: 0, phase: 'out', smacked: false, short,
+    fade: LOOK.num('cat-scene-fade', .55) * scale,
+    walk: short ? 0 : LOOK.num('cat-scene-walk', 1.8),
+    watch: LOOK.num('cat-scene-watch', .7) * scale,
+    strike: short ? .25 : LOOK.num('cat-scene-strike', .5),
+    aftermath: LOOK.num('cat-scene-aftermath', 1.8) * scale,
+    playerAt: player.position.clone(), yaw: tpc.yaw, view: tpc.fight, hudHidden: hud.el.hidden,
+  };
+  hud.el.hidden = true;
+  run.bubbles.silenceAttacks();
+  music?.duck(true);
+}
+function restoreBossView(S) {
+  dendi.endScene();
+  player.position.copy(S.playerAt); player.mesh.position.copy(S.playerAt);
+  tpc.yaw = S.yaw; tpc.fight = S.view; tpc.snapTo(player.position);
 }
 function stepBossScene(dt) {
   const S = bossScene;
-  if (run.boss !== S.boss) {           // the run ended mid-scene: just fade back
-    blackout.style.opacity = '0'; dendi?.endScene(); if ('view' in S) tpc.fight = S.view; bossScene = null; return;
+  if (run.boss !== S.boss || run.phase !== 'boss') {
+    // A restart owns its new player/camera transform; never restore the old run over it.
+    blackout.style.opacity = '0'; dendi.endScene(); hud.el.hidden = state.mode === 'creator' || S.hudHidden; bossScene = null; return;
   }
+  input.consumeMouse();
+  if (!overlay.hidden || run.paused || state.mode !== 'play') return;
+  juice.update(dt);
   S.t += dt;
   const B = S.boss;
-  if (S.phase === 'out' && S.t >= 0.5) {
+  const next = phase => { S.phase = phase; S.t = 0; };
+  if (S.phase === 'out') blackout.style.opacity = String(Math.min(1, S.t / S.fade));
+  if (S.phase === 'out' && S.t >= S.fade) {
     // behind the black: the cat beside the boss, on the side the jelly was on
     const c = B.center(), hp = B.holder.position;
     const dir = new THREE.Vector3(player.position.x - c.x, 0, player.position.z - c.z);
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
-    const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), hp.y, c.z + dir.z * (B.r + 0.16));
+    const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), B.floor ?? hp.y, c.z + dir.z * (B.r + 0.16));
+    // A short surface-checked path fits the tub and bed too: no walking through walls or off edges.
+    const down = new THREE.Vector3(0,-1,0), ground = world.castAll(catPos.clone().add(new THREE.Vector3(0,.3,0)),down,.6);
+    if (ground && ground.normal?.y > .55) catPos.y = ground.point.y + .002;
+    const from = catPos.clone(), at = catPos.clone(), path = [catPos.clone()], hit = {normal:new THREE.Vector3(),point:new THREE.Vector3()};
+    if (!S.short) for (let distance = .025; distance <= LOOK.num('cat-scene-approach', .45); distance += .025) {
+      at.copy(catPos).addScaledVector(dir, distance);
+      const floor = world.castAll(at.clone().setY(from.y+.2), down, .4);
+      if (!floor || floor.normal?.y < .55 || Math.abs(floor.point.y-from.y) > .08) break;
+      at.y = floor.point.y + .002;
+      if (world.sweepSphere(from.clone().add(new THREE.Vector3(0,.15,0)), at.clone().sub(from), .1, hit)) break;
+      from.copy(at); path.unshift(at.clone());
+    }
+    S.catFrom = from; S.catTo = catPos; S.catPath = path;
     dendi.placeForSmack(catPos, Math.atan2(c.x - catPos.x, c.z - catPos.z));
+    dendi.group.position.copy(from);
     // the jelly in front of the pair and the camera behind it, side-on, so the cat and the boss stand left and
     // right in the frame (the player's own camera angle left him off-screen or showed only his back). Of a few
     // angles round the pair, the first whose jelly and camera are both inside the arena with nothing of the
@@ -445,19 +479,43 @@ function stepBossScene(dt) {
     player.mesh.position.copy(player.position);   // (gameplay, which moves the model with it, waits during the scene)
     tpc.yaw = view.yaw;
     // pulled back to fit a 26 cm cat and the boss: a fight view (camera.js), handed back after
-    S.view = tpc.fight;
     tpc.fight = { distance: far, pitch: view.tilt, ahead: 0 };
     tpc.fightK = 1;
     tpc.snapTo(player.position);
-    blackout.style.opacity = '0';
-    S.phase = 'in'; S.t = 0;
-  } else if (S.phase === 'in' && S.t >= 0.5) {
-    dendi.beginSmack(); S.phase = 'smack'; S.t = 0;
+    next('in');
+  } else if (S.phase === 'in') {
+    blackout.style.opacity = String(Math.max(0, 1-S.t/S.fade));
+    if (S.t >= S.fade) {
+      if (S.walk && S.catPath.length > 1) { dendi.approach(S.catPath,S.walk); S.footstep = 0; next('walk'); }
+      else next('watch');
+    }
+  } else if (S.phase === 'walk') {
+    const step = Math.floor(S.t / .3125);
+    if (step > S.footstep) { S.footstep = step; sfx.catStep(); }
+    if (S.t >= S.walk) next('watch');
+  } else if (S.phase === 'watch' && S.t >= S.watch) {
+    dendi.beginSmack(.25 / S.strike); sfx.catWind(); next('smack');
   } else if (S.phase === 'smack') {
-    if (!S.smacked && S.t >= 0.25) { B.die(); S.smacked = true; }
-    B.update(dt, player);              // the death animation, while everything else waits
-    if (S.t >= 1.6) { dendi.endScene(); tpc.fight = S.view; bossScene = null; }
+    if (!S.smacked && S.t >= S.strike) {
+      B.die(); S.smacked = true;
+      if (!S.short) juice.feel('boss-kill');
+      sfx.catImpact();
+      const c = dendi.bones.legFR2.getWorldPosition(new THREE.Vector3()), color = LOOK.color('cat-scene-impact-color', '#fff0c9');
+      fx.impact(c,color,LOOK.num('cat-scene-impact-size',.045),S.short ? 3 : 12);
+      fx.burst(c,[color,LOOK.color('cat-scene-debris-color','#6a6057')],S.short ? 3 : 12,.005,.25,S.catTo.y);
+    }
+    if (S.t >= S.strike + S.aftermath) next('exit');
+  } else if (S.phase === 'exit') {
+    blackout.style.opacity = String(Math.min(1,S.t/S.fade));
+    if (S.t >= S.fade) { restoreBossView(S); next('return'); }
+  } else if (S.phase === 'return') {
+    blackout.style.opacity = String(Math.max(0,1-S.t/S.fade));
+    if (S.t >= S.fade) {
+      hud.el.hidden = S.hudHidden; bossScene = null;
+      run.onBossDead({ impact: false });
+    }
   }
+  B.update(dt, player);              // attack-free waiting and the boss's death animation only
 }
 
 const GAME = {
@@ -473,7 +531,7 @@ const GAME = {
     if (!bossScene && run.phase === 'boss' && run.boss?.dying && !run.boss.dead) {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
     }
-    dendi?.tick(dt, player.position);
+    dendi?.tick(bossScene && (!overlay.hidden || run.paused || state.mode !== 'play') ? 0 : dt, player.position);
     updateForceFields(player.position, camera.position);   // (where the camera was last frame)
     systems.avatar.update(dt);
     systems.input.update(dt);
