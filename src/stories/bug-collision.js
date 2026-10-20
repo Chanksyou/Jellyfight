@@ -128,6 +128,20 @@ story('collision/openings-and-vertical-clearance', {
   },
 });
 
+story('collision/wind-floor-contact-is-not-a-slam', {
+  about: 'A wind shove blocked by floor contact still never grants scenery-slam damage; only side contacts count.',
+  setup,
+  play() {
+    const { origin } = room({ wall: false }), { enemies } = G(), e = spawn('roach', origin, { still: true, hp: 9999 });
+    stub(enemies.world, 'sweepSphere', (_center, _delta, _r, hit) => {
+      hit.normal.set(0, 1, 0); hit.point.copy(e.pos); hit.distance = 0; return true;
+    });
+    const damage = record('damage_taken'), hp = e.hp;
+    enemies.push(e, V(1, 0, 0), 0.1, 7);
+    return ok(e.hp === hp && !damage.some(d => d.source === 'wind-collision'), { hp: e.hp, collisionHits: damage.length });
+  },
+});
+
 story('collision/rooted-bugs-settle-on-their-surface', {
   about: 'Anchored cuttings still settle under gravity and become grounded, while shoves and crowd separation cannot move their anchor sideways.',
   setup,

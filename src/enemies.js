@@ -1307,7 +1307,8 @@ export class Enemies {
       if (reach <= travel) { travel = reach; S.windContact.copy(hit.point); contact = true; }
     }
     if (this.move(e, dir, travel, false)) {
-      contact = true; S.windContact.copy(S.moveHit.point);
+      contact = Math.abs(S.moveHit.normal.y) <= 0.7 && Math.abs(S.moveHit.normal.dot(dir)) >= 0.15;
+      if (contact) S.windContact.copy(S.moveHit.point);
     }
     if (contact) {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
