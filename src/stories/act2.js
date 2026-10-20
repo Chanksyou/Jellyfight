@@ -17,6 +17,7 @@ story('acts/act-1-leads-to-act-2', {
     run.kills = 12;
     run.metamorph();
     document.querySelector('.jf-card')?.click();     // the evolution
+    run.evolutionReveal.finish();                  // skip the transformation before the next reward
     document.querySelector('.jf-card')?.click();     // the boss's element reward
     const text = document.querySelector('.jf-modal, .jf-panel, #g-ui')?.innerText || document.body.innerText;
     const go = [...document.querySelectorAll('button')].some((b) => /On to act 2/.test(b.textContent));

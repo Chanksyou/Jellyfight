@@ -346,6 +346,7 @@ story('boss/legendary-reward', {
     run.metamorph();
     const first = modal().querySelector('h2')?.textContent;
     modal().querySelector('.jf-card').click();                        // an evolution
+    modal().querySelector('.jf-evolution-footer button').click();      // skip its transformation
     const second = modal().querySelector('h2')?.textContent;
     const offered = [...modal().querySelectorAll('.jf-card .big')].map((n) => n.textContent);
     const tiers = [...modal().querySelectorAll('.jf-card .rar')].map((n) => n.textContent);
