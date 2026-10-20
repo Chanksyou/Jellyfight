@@ -19,13 +19,14 @@ export function wireFeedback(fx, isBurning = () => false) {
   });
 
   // it bursts: bits fly and bounce, the screen kicks, the game catches its breath for a beat
-  bus.on('enemy_killed', ({ targetId, type, pos, floor, r, silent }) => {
+  bus.on('enemy_killed', ({ targetId, type, pos, floor, r, silent, remains }) => {
     const fire = isBurning(targetId);
     if (!fire) fx.puff(pos, 0xe6ded0, r * 1.6);
     if (silent) return;
     const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
     if (!fire) {
-      fx.burst(pos, GUTS[type] || ['#ffffff'], 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
+      const body = remains && fx.deaths.add(remains);
+      fx.burst(pos, GUTS[type] || ['#ffffff'], body ? 4 : 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
       fx.ring(pos.clone().setY(floor + 0.003), LOOK.color('kill-ring', '#9fd8ff'), Math.min(r * 3, LOOK.num('kill-ring-max', 0.08)), 0.25);   // capped: a big bug's (3x its size) was a huge white circle round you
     }
     juice.feel(big ? 'kill-big' : 'kill');

@@ -19,6 +19,7 @@ import './stories/words.js';
 import './stories/treasures.js';
 import './stories/fire.js';
 import './stories/damage-numbers.js';
+import './stories/death-remains.js';
 import './stories/hud-health.js';
 import './stories/wind.js';
 import './stories/evolutions.js';

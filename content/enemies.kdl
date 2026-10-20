@@ -5,15 +5,18 @@
 //   xp     XP it drops       model  which model to build (src/critters.js, src/enemies.js)
 
 enemy "roach" name="Cockroach" hp=25 r=0.024 dmg=1 xp=1 model="roach" {
+    death-motion "crumple"
     chase 0.3                       // a little slower than you swim (0.42), so you can always get away
 }
 
 enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 xp=2 model="ants" {
+    death-motion "tumble"
     chase 0.225
     curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3
 }
 
 enemy "mosquito" name="Mosquito" hp=40 r=0.04 dmg=1 xp=3 model="mosquito" {
+    death-motion "flutter"
     hover 0.2 above=0.07 speed=0.33
     spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=2 aim=0.5
 }
@@ -21,6 +24,7 @@ enemy "mosquito" name="Mosquito" hp=40 r=0.04 dmg=1 xp=3 model="mosquito" {
 // The spotted lanternfly (from 2:00): it crawls after you, then crouches (a red
 // ring marks where it will land), springs high with its red wings flashing and slams down.
 enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.039 dmg=1 xp=4 model="lanternfly" {
+    death-motion "flutter"
     chase 0.2
     leap range=0.4 windup=0.55 height=0.2 time=0.75 radius=0.1 dmg=4 rest=0.9 every=1.5
 }
@@ -37,6 +41,7 @@ enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 xp=5 model="spider" {
 // legs and draws its head back while a short line on the floor shows where it will strike, then
 // pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
 enemy "housefly" name="House fly" hp=45 r=0.03 dmg=2 xp=4 model="housefly" {
+    death-motion "flutter"
     hover 0.1 above=0.01 speed=0.42 circle=0.9
     poke range=0.14 windup=0.5 reach=0.15 dmg=4 time=0.08 hold=0.15 rest=0.7 every=1.4
 }
@@ -46,6 +51,7 @@ enemy "housefly" name="House fly" hp=45 r=0.03 dmg=2 xp=4 model="housefly" {
 // while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
 // down it at you. Get out of the lane; hit it once it uncurls.
 enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 xp=8 model="millipede" {
+    death-motion "shell"
     chase 0.3 weave=0.8 rate=0.9 turn=2.2   // swings round in arcs, never pivots on the spot
     ball-charge range=0.4 curl=0.45 spin=0.9 speed=0.95 time=0.7 dmg=5 uncurl=0.5 rest=0.8 every=2.5
 }
@@ -55,6 +61,7 @@ enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 xp=8 model="millipe
 // its back. The missile hunts you for 4 s, turning only so fast: outrun it or break sharply, and
 // it sputters out and falls. Hit it while it's grounded and locking on.
 enemy "ladybug" name="Ladybug" hp=80 r=0.04 dmg=2 xp=9 model="ladybug" {
+    death-motion "shell"
     sortie circle=0.3 height=0.12 speed=0.5 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=5
 }
 
@@ -64,6 +71,7 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.04 dmg=2 xp=9 model="ladybug" {
 // whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
 // it and it darts away in a random direction (at most once every 5 s), breaking off a charge.
 enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
+    death-motion "flutter"
     zip distance=0.3 above=0.06 speed=1.4 length=0.14 pause=0.35
     charge-beam range=0.45 charge=2 dmg=3 reach=0.8 width=0.008 every=3.5
     evade every=5 distance=0.25 speed=2.2
@@ -97,6 +105,7 @@ enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=1 xp=8 model="worm" {
 // whine; its aim locks part way through), then fires it at you: a big fast Shot that explodes where it
 // lands, a Blast 7 cm round. Step well aside once it locks.
 enemy "beetle" name="Stag beetle" hp=210 r=0.092 dmg=1 xp=12 model="beetle" {
+    death-motion "shell"
     chase 0.14
     charge-shot range=0.6 charge=1 lock=0.6 speed=1.2 dmg=3 size=0.019 blast=0.07 knock=0.6 life=1.2 rest=0.7 every=3.5
 }
@@ -113,6 +122,7 @@ enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=1 xp=15 model="nest" {
 // buzz, then nosedives at you: a sting is a big hit (6), and the wasp dies doing it. Move off its
 // line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
 enemy "wasp" name="Wasp" hp=40 r=0.025 dmg=1 xp=0 model="wasp" {
+    death-motion "flutter"
     hover 0.2 above=0.08 speed=0.55 circle=1.6
     dive range=0.35 every=3 windup=0.5 speed=1.4 reach=0.6 dmg=6 rest=0.6
 }

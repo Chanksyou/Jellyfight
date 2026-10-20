@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
+import { DeathRemains } from './death-remains.js';
 import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, shotHits, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
@@ -33,6 +34,7 @@ export class Fx {
     this.rings = [];
     this.chunks = [];
     this.fireCorpses = [];
+    this.deaths = new DeathRemains(scene);
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
     this.splats = [];
@@ -320,6 +322,7 @@ export class Fx {
   }
 
   update(dt) {
+    this.deaths.update(dt);
     this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
@@ -410,6 +413,7 @@ export class Fx {
   }
 
   clear() {
+    this.deaths.clear();
     for (const c of this.fireCorpses) this.freeFireCorpse(c);
     this.fireCorpses.length = 0;
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });

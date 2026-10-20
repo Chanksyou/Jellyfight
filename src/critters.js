@@ -102,7 +102,7 @@ export function buildRoach() {
     body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
     body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
   };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
 }
 
 // ------------------------------------------------------------------ ant squad
@@ -195,7 +195,7 @@ export function buildAnts() {
     ball.rotation.z = e.state === 'windup' ? Math.sin(t * 5) * 0.12 : 0;   // a quick shiver: it's about to roll
     ball.position.y = 0.42 - curl * 0.06;
   };
-  return { body, face: new THREE.Group(), anim };
+  return { body, face: new THREE.Group(), anim, deathParts: ants.map(A => A.a) };
 }
 
 // ------------------------------------------------------------------ mosquito
@@ -867,7 +867,7 @@ export function buildMillipede() {
     if (i > 0 && i < N - 2) { legs = new THREE.Mesh(G.legs, M.milPart); seg.add(legs); }
     if (i === 0) { const face = angryEyes({ y: 0.14, z: 0.36, size: 0.12, gap: 0.16 }); seg.add(face); }
     body.add(seg);
-    segs.push({ seg, legs });
+    segs.push({ seg, legs, shell });
   }
 
   // the body as a chain (world x, z per segment): each one follows the one in front at a fixed
@@ -932,7 +932,7 @@ export function buildMillipede() {
       }
     }
   };
-  return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius };   // radius units: how big the rolling ball is
+  return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
 }
 
 // ------------------------------------------------------------------ homing missile
@@ -1113,7 +1113,7 @@ export function buildLadybug() {
     pod.visible = shell > 0.55 && e.loaded !== false;
     pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
   };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: [elytra[1].pivot] };
 }
 
 // ------------------------------------------------------------------ dragonfly
@@ -1557,13 +1557,15 @@ function beetleParts() {
   const C = STAG, elyY = (z) => 0.42 + 0.3 * Math.sqrt(Math.max(0, 1 - ((z + 0.32) / 0.8) ** 2));
   // the top of the wing cases' plate at (x, z): |x|^p + |y|^p + |z|^p = 1 with p = 2 / e
   const elytra = (x, z) => 0.42 + 0.3 * Math.max(0, 1 - Math.abs(x / 0.54) ** (2 / 0.78) - Math.abs((z + 0.32) / 0.8) ** (2 / 0.78)) ** (0.78 / 2);
-  const body = [
+  const shell = [
     plate(0.54, 0.3, 0.8, V(0, 0.42, -0.32), C.dark, C.red, 0.78),          // the wing cases
-    plate(0.48, 0.16, 0.84, V(0, 0.32, -0.28), '#030604', '#08120c', 0.7),   // the belly under them
     tube(Array.from({ length: 10 }, (_, i) => { const z = 0.42 - i * 0.16; return V(0, elyY(z) + 0.004, z); }), 0.01, C.tip, 20),   // the seam down the middle
     // fine ridges along each wing case, then the paler rim round its edge
     ...[0.12, 0.24, 0.35].flatMap((x) => [-1, 1].map((s) => tube(Array.from({ length: 12 }, (_, i) => { const z = 0.36 - i * 0.135; return V(s * x * (1 - 0.18 * ((z + 0.32) / 0.8) ** 2), elytra(x, z) + 0.003, z); }), 0.007, C.ridge, 22))),
     tube(Array.from({ length: 33 }, (_, i) => { const a = Math.PI * 2 * i / 32, c = Math.cos(a), sn = Math.sin(a); return V(Math.sign(sn) * 0.545 * Math.abs(sn) ** 0.78, 0.43, -0.32 + Math.sign(c) * 0.805 * Math.abs(c) ** 0.78); }), 0.012, C.rim, 64),
+  ];
+  const body = [
+    plate(0.48, 0.16, 0.84, V(0, 0.32, -0.28), '#030604', '#08120c', 0.7),   // the belly under them
     plate(0.012, 0.012, 0.22, V(0, 0.665, 0.7), C.armour, C.tip, 0.8, 10),  // the groove down the pronotum
     ...[-1, 1].map((s) => rod(V(s * 0.42, 0.47, 0.62), V(s * 0.53, 0.46, 0.6), 0.03, 0.004, C.armourLit)),   // a tooth at each side corner of the pronotum
     plate(0.08, 0.04, 0.07, V(0, 0.7, 0.36), C.armour, C.armourLit, 0.7, 12),   // the little shield where they meet the pronotum
@@ -1612,6 +1614,7 @@ function beetleParts() {
   };
   return {
     body: merge(body),
+    shell: merge(shell),
     mandibles: [-1, 1].map((s) => mandible(s)),
     legs: [[0.74, 1.05], [0.3, 0.95], [-0.12, 1.05]].map(([z, len], i) => ({ z, i, geo: [-1, 1].map((s) => leg(s, len)) })),
   };
@@ -1624,6 +1627,8 @@ export function buildBeetle() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.stag));
+  const shell = new THREE.Mesh(G.shell, M.stag);
+  body.add(shell);
   body.add(angryEyes({ y: 0.5, z: 1.26, size: 0.085, gap: 0.27 }));
   const jaws = G.mandibles.map((geo, i) => {
     const s = i ? 1 : -1, hinge = new THREE.Group();
@@ -1661,7 +1666,7 @@ export function buildBeetle() {
     body.position.y = Math.abs(Math.sin(t)) * 0.012 * k;
     body.rotation.z = Math.sin(t) * 0.02 * k;
   };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
 }
 
 // ------------------------------------------------------------------ horsehair worm
