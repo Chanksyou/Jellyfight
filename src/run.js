@@ -16,6 +16,7 @@ import { Adornments } from './adornments.js';
 import { EnergyShield } from './energy-shield.js';
 import { Mirage } from './mirage.js';
 import { EvolutionReveal } from './evolution-reveal.js';
+import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -169,6 +170,8 @@ export class Run {
     this.lastTreasureSpot = null;
     this.recentTreasureSpots = [];   // the last few spots, so each one turns up somewhere new
     this.xpDrops.clear();
+    this.xpChain = this.xpChainT = this.xpFeedbackT = 0;
+    this.hud.resetXp();
     this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
@@ -411,7 +414,19 @@ export class Run {
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
     const got = this.xpDrops.update(dt, origin, this.mods.xpReach);
-    if (got) { this.gainXp(got); sfx.xp(juice.combo); }
+    this.xpChainT -= dt; this.xpFeedbackT -= dt;
+    if (got) {
+      this.gainXp(got);
+      if (this.xpFeedbackT <= 0) {
+        this.xpChain = this.xpChainT > 0 ? Math.min(10, this.xpChain + 1) : 0;
+        this.xpFeedbackT = LOOK.num('xp-feedback-gap', 0.075);
+        sfx.xp(this.xpChain, got >= 5);
+        bus.emit('xp_collected', { amount: got, chain: this.xpChain });
+        const big = got >= 5, quiet = juice.calm || this.fx.reducedMotion.matches;
+        this.fx.glow.emit(origin, this.xpDrops.bigMat.color, LOOK.num('xp-collect-size', 0.012) * (big ? 1.5 : 1), 0, LOOK.num('xp-collect-life', 0.16), quiet ? 0.2 : 0.5);
+      }
+      this.xpChainT = LOOK.num('xp-chain-window', 0.65);
+    }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
     if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
     juice.update(dt);

@@ -112,13 +112,14 @@ export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
     bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText }) => this.setBoss(name, hp / maxHp, shielded, shieldText));
+    bus.on('xp_collected', ({ amount }) => this.pulseXp(amount));
     this.el = document.createElement('div');
     this.el.id = 'hud';
     this.el.innerHTML = `<style>${CSS}</style>
       <div class="tl">
         <div class="lvl"></div>
         <div class="player-health" role="progressbar" aria-label="Health"><div class="bar moist"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
-        <div class="bar xp"><i></i></div>
+        <div class="bar xp" role="progressbar" aria-label="XP"><i></i></div>
         <div class="items"></div>
       </div>
       <div class="tc"><div class="clock"></div><div class="stage"></div></div>
@@ -265,6 +266,19 @@ export class Hud {
     this.$('.xp i').style.transform = `scaleX(${Math.min(1, xp / need)})`;
     this.set('lvl', '.lvl', () => `${level}`);
     this.$('.lvl').title = `Level ${level} · ${xp} / ${need} XP`;
+    const bar = this.$('.xp');
+    bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(need)); bar.setAttribute('aria-valuenow', String(xp));
+  }
+
+  resetXp() { this.xpAnimation?.cancel(); this.xpAnimation = null; }
+
+  pulseXp(amount) {
+    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) { this.resetXp(); return; }
+    if (this.xpAnimation?.playState === 'running') return;
+    this.xpAnimation = this.$('.xp').animate([
+      { transform: `scaleY(${LOOK.num('xp-bar-pulse', 1.35)})`, filter: `brightness(${amount >= 5 ? 1.8 : 1.4})` },
+      { transform: 'scaleY(1)', filter: 'brightness(1)' },
+    ], { duration: LOOK.num('xp-bar-time', 180), easing: 'ease-out' });
   }
 
   setItems(items) {
