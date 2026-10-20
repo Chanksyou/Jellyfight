@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bus } from '../events.js';
 import { sfx } from '../sfx.js';
-import { BASE_STATS } from '../stats.js';
+import { BASE_STATS, knockFor } from '../stats.js';
 import { G, V, give, offs, ok, record, roachAt, setupFight, step, story, stub } from './kit.js';
 
 function setup() { setupFight({ bubbles: false, lash: false }); give('paperFan'); roachAt(0, -0.18); step(2); }
@@ -39,6 +39,21 @@ story('attack/wind-scenery-collision', {
     const travelled = start.distanceTo(e.pos);
     return ok(hits.length === 2 && collision.length === 1 && collision[0].amount === b.dmg && e.dead && kills.filter(k => k.targetId === e.id).length === 1 && travelled > 0 && travelled < 0.014,
       { amounts: hits.map(h => h.amount), collisionHits: collision.length, dead: e.dead, travelled });
+  },
+});
+
+story('attack/wind-doubled-base-push', {
+  about: 'Wind uses a 0.6 base push multiplier (4.2 cm), adds its original damage-based shove, and Box Fan multiplies only the base by 1.6.',
+  setup,
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], knocks = record('knockback');
+    stub(enemies.world, 'cast', () => null);
+    const base = blade(), push = run.mods.element.wind.push;
+    run.bubbles.strike(base, e, run.mods);
+    give('boxFan'); const upgraded = blade(); run.bubbles.strike(upgraded, e, run.mods);
+    const forces = knocks.filter(k => k.targetId === e.id).map(k => k.force);
+    const expected = [0.042 + knockFor(base.dmg), 0.042 * 1.6 + knockFor(upgraded.dmg)];
+    return ok(push === 0.6 && forces.length === 2 && forces.every((f, i) => Math.abs(f - expected[i]) < 1e-9), { push, forces, expected });
   },
 });
 
