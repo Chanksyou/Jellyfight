@@ -265,6 +265,7 @@ export class Run {
       if (!this.spots.length) this.spots = s.spots.map((sp) => ({ ...sp, y: sp.at[1] }));
     }
     this.setNight(s.clock[0]);
+    this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
     this.energyShield.update(0);
     this.refreshHud();
   }
