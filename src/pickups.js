@@ -21,10 +21,10 @@ export class XpDrops {
     this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
     this.mat = look
       ? new THREE.MeshStandardMaterial({ color: LOOK.color(look, '#ffb47a'), emissive: LOOK.color(look, '#ffb47a'), emissiveIntensity: 0.35, roughness: 0.6 })
-      : new THREE.MeshStandardMaterial({ color: 0x9fe2ff, emissive: 0x3aa8ff, emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
+      : new THREE.MeshStandardMaterial({ color: LOOK.color('xp-color', '#ffd25a'), emissive: LOOK.color('xp-glow', '#e8a21b'), emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
     // a big drop (worth BIG): about twice as wide and brighter, so a 5-XP drop reads as one thing
     this.bigGeo = new THREE.SphereGeometry(0.0035 * 1.9, 16, 12);
-    this.bigMat = new THREE.MeshStandardMaterial({ color: 0xc8f0ff, emissive: 0x5ac8ff, emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
+    this.bigMat = new THREE.MeshStandardMaterial({ color: LOOK.color('xp-big-color', '#ffe27a'), emissive: LOOK.color('xp-big-glow', '#ffc43a'), emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
     this.magnetAll = false;
     this._to = new THREE.Vector3();
     this.xpLook = !look;

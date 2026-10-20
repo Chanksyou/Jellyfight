@@ -22,6 +22,10 @@
   --controller-chip-size: 0.002;
   --controller-scuff: #514949;
   --controller-scuff-size: 0.018;
+  --xp-color: #ffd25a;
+  --xp-glow: #e8a21b;
+  --xp-big-color: #ffe27a;
+  --xp-big-glow: #ffc43a;
   --xp-pull-bend: 0.008;
   --xp-pull-stretch: 0.8;
   --xp-feedback-gap: 0.075;
@@ -262,7 +266,7 @@
   --moon-ring: #dff4ff;          /* Moon Jelly: the ring round the bell */
   --mane: #ffb46a;               /* Lion's Mane: the hair round the rim */
   --fronds: #6affc0;
-  --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): warm, not XP blue */
+  --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): peach, distinct from gold XP */
   --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
   --laser-length: 0.03;        /* meters: how long a bolt is */
   --laser-aim-width: 0.006;    /* meters: how wide the aiming beam's glow is (its bright core is a third of it) */

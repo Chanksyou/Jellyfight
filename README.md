@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v221 makes small and large XP drops gold, including their glow, pickup streaks and collection flash, matching the XP bar and separating them from water splats.
+
 v220 adds Cinder Jelly: flaming tentacle tips leave a blue-white fire trail along actual grounded movement. Each section burns for two seconds, dealing half power per second to touching bugs without stacking where paths overlap. Jumps, climbs and vents leave gaps; standing still creates no new trail. Range is 20% lower. The trail follows floor height, uses one bounded mesh, and the feet are instanced for phones. Wind's base push is also doubled from 0.3 to 0.6, preserving damage-based extra shove, Box Fan scaling and scenery collision rules.
 
 v219 makes Box Jelly's existing tentacles three times thicker and brighter, with no extra strands. The thicker tubes and tips stay above their floor limit, including during the newer sting pullback and contact squash.
