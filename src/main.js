@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v216';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v217';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -328,6 +328,7 @@ function openCreator() {
   camSys.setCreatorView();
 }
 function closeCreator() {
+  mainMenu.restore();
   state.mode = 'play';
   input.enabled = true;
   creator.close();
@@ -477,7 +478,7 @@ const GAME = {
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
-    mainMenu.update(dt, !overlay.hidden && state.mode === 'play');
+    mainMenu.update(dt, !overlay.hidden && state.mode === 'play', state.mode === 'creator');
     run.evolutionReveal.update(dt);   // the portrait animates while gameplay and menus hold the run still
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);

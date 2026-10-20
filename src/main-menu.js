@@ -62,7 +62,9 @@ export class UnderwaterBackdrop {
   }
 
   update(dt, subject, calm) {
+    if (this.cameraMask !== null && this.subject !== subject) this.hide();
     if (this.cameraMask === null) {
+      this.subject = subject;
       this.cameraMask = this.camera.layers.mask;
       const include = object => {
         this.layers.set(object, object.layers.mask);
@@ -84,6 +86,7 @@ export class UnderwaterBackdrop {
     for (const [object, mask] of this.layers) object.layers.mask = mask;
     this.layers.clear();
     this.cameraMask = null;
+    this.subject = null;
   }
 }
 
@@ -204,7 +207,12 @@ export class MainMenu {
     this.camera.clearViewOffset();
   }
 
-  update(dt, visible) {
+  update(dt, visible, customizing = false) {
+    if (customizing) {
+      if (this.root) this.restore();
+      this.water?.update(dt, this.player.avatar.root, this.calm());
+      return;
+    }
     if (this.launching) {
       this.elapsed += dt;
       const u = this.calm() ? 1 : Math.min(1, this.elapsed / this.duration);

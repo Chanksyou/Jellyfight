@@ -1,5 +1,6 @@
 // Menu presentation must never move the actual player or replay when resuming a run.
-import { story, G, fresh, ok, step, stub } from './kit.js';
+import { story, phone, G, fresh, ok, step, stub } from './kit.js';
+import { SPECIES } from '../character.js';
 
 story('menu/portrait-controls-centered', {
   about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
@@ -63,6 +64,43 @@ story('menu/change-your-look', {
     }
   },
 });
+
+const customizeWater = {
+  about: 'Customization reuses the home water and excludes apartment scenery. Every jelly rebuild remains visible; Reduce Effects freezes the water, and Done and Escape restore scene layers.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu, player, APT } = G(), over = menu.overlay;
+    const oldBody = player.avatar.look.body, checked = [];
+    let calm = false;
+    stub(menu, 'calm', () => calm);
+    menu.restore(); const mask = menu.camera.layers.mask;
+    const open = () => { over.hidden = false; over.querySelector('[data-act="creator"]').click(); step(1); };
+    try {
+      menu.show(); over.hidden = false; step(1);
+      const water = menu.water, time = water.material.uniforms.time.value;
+      open();
+      const shared = menu.water === water && water.mesh.visible && water.material.uniforms.time.value > time;
+      for (const body of Object.keys(SPECIES)) {
+        document.querySelector(`#creator [data-k="body"][data-v="${body}"]`).click(); step(1);
+        checked.push(menu.camera.layers.test(player.avatar.root.layers) && !menu.camera.layers.test(APT.root.layers));
+      }
+      calm = true; const held = water.material.uniforms.time.value; step(30);
+      const frozen = water.material.uniforms.time.value === held;
+      document.querySelector('#creator [data-act="done"]').click();
+      const done = !water.mesh.visible && menu.camera.layers.mask === mask && player.avatar.root.layers.mask === 1;
+      open(); dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      const escaped = !water.mesh.visible && menu.camera.layers.mask === mask && document.querySelector('#creator').hidden;
+      return ok(shared && checked.every(Boolean) && frozen && done && escaped, { shared, checked, frozen, done, escaped });
+    } finally {
+      if (document.querySelector('#creator').hidden) open();
+      document.querySelector(`#creator button[data-k="body"][data-v="${oldBody}"]`).click();
+      document.querySelector('#creator [data-act="done"]').click();
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+};
+story('menu/customize-underwater-background', customizeWater);
+phone('customize-underwater-background', customizeWater);
 
 story('menu/living-jelly', {
   about: 'Poking the title jelly stays bounded, changes no gameplay position, and returns its model and camera when Play finishes. Pause Play does not repeat the launch. Reduce Effects starts immediately.',
