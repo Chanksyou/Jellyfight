@@ -10,7 +10,7 @@
 pace recover=1 tempo=1.4
 
 elite "controller" name="The Controller" hp=250 aggro=1.1 {
-    barrage dmg=3
+    barrage dmg=3 windup=1.4 radius=0.075 height=0.06 spread=0.19 rest=1.6
     rumble dmg=3
 }
 

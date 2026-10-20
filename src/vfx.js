@@ -43,7 +43,7 @@ const LOGF_PARS = '#include <logdepthbuf_pars_fragment>';
 // A warning shape on a surface. shape: 'circle' (a CircleGeometry: fills from the middle out),
 // 'wedge' (a sector of one: half = its half-angle; fills from the apex out) or 'strip' (a plane
 // along +z, uv.y 0 -> 1: fills from the near end). progress 0..1 is how close the hit is.
-const SHAPE = { circle: 0, wedge: 1, strip: 2 };
+const SHAPE = { circle: 0, wedge: 1, strip: 2, square: 3, triangle: 4, x: 5 };
 export class TeleMaterial extends THREE.ShaderMaterial {
   constructor(color = '#ff3a3a', shape = 'circle', half = 0.45) {
     super({
@@ -80,6 +80,15 @@ export class TeleMaterial extends THREE.ShaderMaterial {
               float a = abs(atan(p.y, p.x)), side = (uHalf - a) * r;
               edge = max(edge * step(a, uHalf), (1.0 - smoothstep(0.0, 0.035, side)) * step(0.06, r));
             }
+          } else if (uShape > 2.5) {
+            vec2 p = vUv * 2.0 - 1.0;
+            if (uShape < 3.5) r = max(abs(p.x), abs(p.y));
+            else if (uShape < 4.5) r = max(-2.0 * p.y, 1.7320508 * abs(p.x) + p.y);
+            else {
+              vec2 q = abs(vec2(p.x + p.y, p.y - p.x) * 0.70710678);
+              r = min(max(q.x, q.y / 0.25), max(q.x / 0.25, q.y));
+            }
+            edge = smoothstep(0.86, 0.94, r);
           } else {
             r = 1.0 - vUv.y;                                  // a strip plane's uv.y runs from its far end (0) to the start (1)
             float sx = min(vUv.x, 1.0 - vUv.x);
@@ -160,7 +169,42 @@ function arcGeometry(seg = 4) {
   g.computeVertexNormals();
   return g;
 }
+// One outline defines each symbol's floor warning, low prism and hit footprint.
+export const FLOOR_SHAPES = ['circle', 'square', 'triangle', 'x'];
+const CROSS = [[-1,-.25],[-.25,-.25],[-.25,-1],[.25,-1],[.25,-.25],[1,-.25],[1,.25],[.25,.25],[.25,1],[-.25,1],[-.25,.25],[-1,.25]];
+const OUTLINES = {
+  circle: Array.from({ length: 48 }, (_, i) => [Math.cos(i*Math.PI/24), Math.sin(i*Math.PI/24)]),
+  square: [[-1,-1],[1,-1],[1,1],[-1,1]],
+  triangle: [[0,1],[-Math.sqrt(3)/2,-.5],[Math.sqrt(3)/2,-.5]],
+  x: CROSS.map(([x,y]) => [(x-y)*Math.SQRT1_2, (x+y)*Math.SQRT1_2]),
+};
+function symbolGeometry(kind, volume) {
+  const shape = new THREE.Shape(OUTLINES[kind].map(([x,y]) => new THREE.Vector2(x,y)));
+  const g = volume ? new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false, steps: 1 }) : new THREE.ShapeGeometry(shape);
+  if (!volume) {
+    const p = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i)+1)/2, (p.getY(i)+1)/2);
+  }
+  return g.rotateX(-Math.PI/2);
+}
+const FLOOR_GEO = {};
+export const floorShapeGeometry = kind => (FLOOR_GEO[kind] ||= symbolGeometry(kind, false));
+// A low prism: the body's footprint touches the polygon and its height overlaps the prism.
+export function floorShapeHits(kind, at, radius, height, feet, body) {
+  if (feet.y >= at.y+height || feet.y+body.height <= at.y) return false;
+  const x = (feet.x-at.x)/radius, y = -(feet.z-at.z)/radius, reach = body.radius/radius;
+  if (kind === 'circle') return Math.hypot(x,y) < 1+reach;
+  const poly = OUTLINES[kind]; let inside = false;
+  for (let i = 0, j = poly.length-1; i < poly.length; j = i++) {
+    const [ax,ay] = poly[j], [bx,by] = poly[i], dx = bx-ax, dy = by-ay;
+    if ((ay > y) !== (by > y) && x < ax+(y-ay)*dx/dy) inside = !inside;
+    const t = Math.max(0, Math.min(1, ((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy)));
+    if (Math.hypot(x-ax-t*dx, y-ay-t*dy) < reach) return true;
+  }
+  return inside;
+}
 const VOLUME = {
+  ...Object.fromEntries(FLOOR_SHAPES.map(kind => ['symbol-'+kind, { bottom: 0, height: 1, geo: () => symbolGeometry(kind, true) }])),
   arc: { bottom: 0, height: 1, geo: () => arcGeometry() },   // a piece of a low slab over a floor wedge's outer band: see arcGeometry
   dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius
   sphere: { bottom: -1, height: 2, geo: () => new THREE.SphereGeometry(1, 28, 16) },                                // a mid-air Blast: centred; scale = radius
@@ -249,7 +293,7 @@ export function blastHits(centre, r, feet, body) {
 // or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
 // volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
 // The two volley heights (m above the floor), shared by every volley that mixes them: the
-// Controller's barrage, the Soap Dispenser's bubble rings, the Vacuum's spin, the Clog's spray.
+// Soap Dispenser's bubble rings, the Vacuum's spin and the Clog's spray.
 export const SHOT_HEIGHT = { floor: 0.045, jump: 0.16 };
 export function shotTarget(feet, body, height = null, floor = feet.y, out = new THREE.Vector3()) {
   return height == null ? out.set(feet.x, feet.y + body.height * 0.5, feet.z) : out.set(feet.x, floor + height, feet.z);

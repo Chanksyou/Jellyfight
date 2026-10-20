@@ -4,8 +4,7 @@
 // can read it and dodge. Beating one gives a treasure pick (run.js).
 //
 //   controller  on the media console.
-//     Button barrage: the buttons glow and three colored aim lines sweep toward you, then lock;
-//                     a shot flies down each line.
+//     Button barrage: four floor symbols charge at and around you, then explode in low prisms.
 //     Rumble:         it buzzes while a red circle fills around it, then a shockwave knocks
 //                     you back off the console if you're inside.
 //   mug         on the standing desk.
@@ -106,7 +105,7 @@ import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, FLOOR_SHAPES, floorShapeGeometry, floorShapeHits, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
@@ -439,8 +438,6 @@ const KINDS = {
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
   coffer: { name: 'The Latticework Coffer', build: cofferModel },
 };
-// the Controller's button barrage: the aim lines' spread (rad); its Shots fly at SHOT_HEIGHT (vfx.js)
-const BARRAGE = { spread: [-0.22, 0, 0.22] };
 const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
 // high over the bench (jump them); the wreath is a Shot with this hit radius, flying out in this many s
@@ -499,7 +496,6 @@ class Elite {
     this.cool = 1.5;
     this.state = 'idle';
     this.next = 0;                       // which attack comes next (they alternate)
-    this.volley = 0;                     // the Controller's barrages so far: which lines fly low, which high
     this.hitPop = 0;
     this.tele = [];                      // telegraph meshes for the current attack
     // stand in for the real object while alive
@@ -534,7 +530,7 @@ class Elite {
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
-  clearTele() { this.tele.forEach((m) => this.owner.scene.remove(m)); this.tele = []; }
+  clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); if (m.userData.symbol) m.material.dispose(); }); this.tele = []; }
 
   remove() {
     this.clearTele();
@@ -581,7 +577,7 @@ export class Elites {
     this.T = {
       brown: new TeleMaterial(hostile('mug'), 'strip'), red: new TeleMaterial(hostile('controller')), orange: new TeleMaterial(hostile('kettle')),
       mugCircle: new TeleMaterial(hostile('mug')), steam: new TeleMaterial(hostile('kettle'), 'wedge', 0.45),
-      aim: [0, 1, 2].map(() => new TeleMaterial(hostile('controller'), 'strip')),
+      symbols: FLOOR_SHAPES.map(shape => new TeleMaterial(hostile('controller'), shape)),
       puddle: new TeleMaterial(hostile('mug')),
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
       blast: new TeleMaterial(hostile('whipper')), cream: new TeleMaterial(hostile('whipper'), 'wedge', 0.45),
@@ -642,7 +638,7 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.aim].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.steam, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.symbols].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
       const soap = soapModel();
       soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
       const whip = buildWhipper(), bal = buildBalloon();
@@ -954,47 +950,46 @@ export class Elites {
       if (e.kind === 'controller') {
         const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
-          // Button barrage: three aim lines sweep toward you for 0.6 s, lock for 0.25 s, then each
-          // fires a Shot along its line. The lines alternate floor level (the jelly's middle on the
-          // floor: jump it) and jump height (stay down), and the middle one flips each barrage; each
-          // line tilts from the muzzle up or down to its Shot's height where you are.
-          if (s < 0.85) {
-            const charge = s / 0.85;
+          // Fixed floor symbols give a full warning beat; all four discharge together.
+          const D = SK.barrage, charge = Math.min(1, s / D.windup);
+          if (!e.tele.length) {
+            const floor = this.surfaceBelow(P), angle = Math.atan2(P.x-e.base.x, P.z-e.base.z);
+            FLOOR_SHAPES.forEach((kind, i) => {
+              const a = angle + (i-1)*Math.PI*2/3, at = P.clone();
+              if (i) { at.x += Math.sin(a)*D.spread; at.z += Math.cos(a)*D.spread; }
+              at.y = this.surfaceBelow(at.setY(floor));
+              const m = this.mark(e, floorShapeGeometry(kind), this.T.symbols[i], at, new THREE.Vector3(D.radius,1,D.radius));
+              m.position.y += .002; m.userData.symbol = kind;
+              const vol = this.fx.volume(hostile('controller'), 'symbol-'+kind, at, new THREE.Vector3(D.radius,D.height,D.radius));
+              vol.userData.symbol = kind; e.tele.push(vol);
+            });
+            sfx.controllerCharge(false, D.windup / CONTENT.elites.pace.tempo);
+          }
+          if (s < D.windup) {
             g.rotation.x = charge * LOOK.num('controller-windup-tilt', 0.12);
             M.buttons.forEach((b, i) => {
               b.position.y -= charge * LOOK.num('controller-button-press', 0.002);
               b.material.emissive.copy(hostile('controller'));
               b.material.emissiveIntensity = 0.5 + charge * LOOK.num('controller-button-glow', 3) + (Math.sin(e.t * 30 + i) * 0.5 + 0.5);
             });
-            if (!e.tele.length) {
-              sfx.controllerCharge(false, 0.85 / CONTENT.elites.pace.tempo);
-              BARRAGE.spread.forEach((_, i) => { this.mark(e, this.stripGeo, this.T.aim[i], muzzle, ONE).rotation.order = 'YXZ'; });
-            }
-            if (s > 0.6 && !e.locked) { e.locked = true; sfx.controllerLock(); }
-            if (!e.locked) {
-              const floor = this.surfaceBelow(P), reach = Math.max(0.1, Math.hypot(P.x - muzzle.x, P.z - muzzle.z));
-              e.tele.forEach((m, i) => {
-                const rise = floor + ((i + e.volley) % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor) - muzzle.y;
-                m.position.copy(muzzle);
-                m.rotation.set(-Math.atan2(rise, reach), e.holder.rotation.y + BARRAGE.spread[i], 0);
-                m.scale.set(0.008, 1, Math.hypot(reach, rise));
-              });
-            }
-            e.tele.forEach((m) => { m.material.opacity = e.locked ? 1 : 0.55 + Math.sin(e.t * 20) * 0.2; m.material.progress = Math.min(1, s / 0.85); });
+            if (charge > .75 && !e.locked) { e.locked = true; sfx.controllerLock(); }
+            e.tele.forEach(m => { m.material.progress = charge; });
           } else {
-            for (const m of e.tele) {
-              const shot = this.shoot(muzzle, (m.updateMatrixWorld(), m.localToWorld(new THREE.Vector3(0, 0, 1))), hostile('controller'), 'controller', SK.barrage.dmg);
-              shot.onEnd = (b, struck) => {
-                const at = b.m.position, floor = this.surfaceBelow(at);
-                this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], 4, LOOK.num('controller-chip-size', 0.002), 0.1, floor);
-                sfx.controllerContact(struck);
-              };
+            let struck = false;
+            for (const m of e.tele) if (m.material instanceof VolumeMaterial) {
+              const at = m.position, kind = m.userData.symbol;
+              struck ||= floorShapeHits(kind, at, D.radius, D.height, P, cfg);
+              this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', .03), LOOK.num('controller-symbol-sparks', 8));
+              this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', .002), .1, at.y);
+              const pulse = this.fx.volume(hostile('controller'), 'symbol-'+kind, at, m.scale);
+              pulse.material.progress = 1;
+              this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             }
-            M.buttons.forEach((b) => { b.material.emissiveIntensity = 0.5; });
-            this.fx.impact(muzzle, hostile('controller'), 0.012, 6);
-            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
-            g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15); sfx.controllerFire();
-            e.state = 'idle'; e.cool = 1.6; e.locked = false; e.volley++;
+            if (struck) hit(D.dmg, 'controller'); // overlapping symbols are one attack receipt
+            sfx.controllerFire(); sfx.controllerContact(struck); juice.feel('impact-big');
+            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', .2);
+            g.scale.y *= 1 - LOOK.num('controller-recoil-squash', .15);
+            e.state = 'idle'; e.cool = D.rest; e.locked = false;
           }
         } else {
           // Rumble: buzz while a red dome fills over its circle, then a shockwave: a floor Blast
@@ -1152,7 +1147,7 @@ export class Elites {
           // Bubble ring: foams up (pumping fast, the ring filling round it), then lets go a ring
           // of 16 bubbles drifting outward with a gap; angry, a second ring with its gap elsewhere.
           // They alternate floor level (the jelly's middle on the floor: jump them) and jump height
-          // (the barrage's high Shots: stay down)
+          // (high Shots: stay down)
           const wind = 1.0;
           if (s < wind) {
             if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.17, this.T.soapRing));
@@ -1227,7 +1222,7 @@ export class Elites {
             const from = this.wreathWorld(e), dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, len = Math.max(0.05, Math.hypot(dx, dz));
             if (!e.tele.length) {
               this.mark(e, this.stripGeo, this.T.wreath, surf, new THREE.Vector3(0.05, 1, len), Math.atan2(dx, dz));
-              this.mark(e, this.stripGeo, this.T.wreath, from || surf, ONE).rotation.order = 'YXZ';   // its height: tilted like the Controller's aim lines
+              this.mark(e, this.stripGeo, this.T.wreath, from || surf, ONE).rotation.order = 'YXZ';   // its height: tilted to the Shot's height
             }
             e.tele[0].rotation.y = Math.atan2(dx, dz);
             e.tele[0].scale.z = len;
@@ -1881,7 +1876,7 @@ export class Elites {
     }
     this.slicks = this.slicks.filter((p) => p.t > 0);
 
-    // Shots in flight (the Controller's buttons): each hits the jelly's whole body
+    // Shots in flight: each hits the jelly's whole body
     for (const b of this.bullets) {
       const struck = this.fx.shotStep(b, dt, this.world, P, cfg);
       if (struck) hit(b.damage, b.source);
