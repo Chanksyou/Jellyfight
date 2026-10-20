@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v225 keeps moving bugs on their side of walls with a body-radius sweep against the apartment's actual triangles. Retreating spiders, walking and rolling bugs, flyers, jumps, crowd separation and knockback stop or slide at walls, edges and corners, including outside the player's nearby collision list. Falling roots resolve their landing hit where their body actually lands.
+
 v223 makes small and large XP drops gold, including their glow, pickup streaks and collection flash, matching the XP bar and separating them from water splats.
 
 v222 gives enemy deaths different motions: roaches crumple and skid, ant squads tumble apart, flying bugs spin and flutter down, and ladybugs, millipedes and stag beetles shed a recognizable piece of their own shell. Harmless bodies last briefly with a 12-body cap; Reduce Effects skips them, burning deaths retain their ash treatment, and rewards and removal from combat still happen immediately.

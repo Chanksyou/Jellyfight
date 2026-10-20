@@ -1011,9 +1011,9 @@ export class Enemies {
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
   // ---------------------------------------------------------------- Aerial roots (drops, holds)
-  // it lands on its spot: a thud, a puff of bark dust, and it has reached you if any of you is in the dome
+  // It lands where scenery stopped its body, which may be above its original floor target.
   drop(e, { radius, color }) {
-    const at = e.dropAt, col = hostile(color);
+    const at = e.pos, col = hostile(color);
     sfx.clogSplat();
     this.fx.impact(S.spot.copy(at).setY(at.y + 0.01), col, radius * 0.4, 10);
     this.fx.puff(S.spot, this.barkDust, radius * 0.8, 0.35);
@@ -1271,8 +1271,8 @@ export class Enemies {
         const d2 = dx * dx + dz * dz;
         if (d2 >= min * min || d2 < 1e-10 || Math.abs(a.pos.y - b.pos.y) > min) continue;
         const d = Math.sqrt(d2), push = (min - d) * 0.5 / d;
-        a.pos.x -= dx * push; a.pos.z -= dz * push;
-        b.pos.x += dx * push; b.pos.z += dz * push;
+        this.move(a, S.separate.set(-dx * push, 0, -dz * push));
+        this.move(b, S.separate.set(dx * push, 0, dz * push));
       }
     }
 
@@ -1295,7 +1295,7 @@ export class Enemies {
 
   // Only the scenery collision world is queried, never other enemies.
   push(e, direction, distance, collisionDamage = 0) {
-    if (!(collisionDamage > 0)) { e.pos.addScaledVector(direction, distance); return; }
+    if (!(collisionDamage > 0)) { this.move(e, direction, distance); return; }
     const dir = S.windDir.copy(direction).setY(0).normalize(), center = this.center(e, S.windCenter), across = S.windAcross.set(-dir.z, 0, dir.x);
     let travel = distance, contact = false;
     for (const [side, height] of PUSH_RAYS) {
@@ -1306,7 +1306,9 @@ export class Enemies {
       const reach = Math.max(0, hit.distance - front - 0.001);
       if (reach <= travel) { travel = reach; S.windContact.copy(hit.point); contact = true; }
     }
-    e.pos.addScaledVector(dir, travel);
+    if (this.move(e, dir, travel, false)) {
+      contact = true; S.windContact.copy(S.moveHit.point);
+    }
     if (contact) {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
@@ -1315,44 +1317,48 @@ export class Enemies {
     }
   }
 
+  // The one movement path for bodies: walk, retreat, flight, leaps, separation and shove.
+  // Scene rays remain for aiming and floor lookups; a moving body sweeps its full radius.
+  move(e, delta, scale = 1, slide = true) {
+    if (e.dead || e.proxy || e.T.rooted) return false;
+    const remaining = S.moveDelta.copy(delta).multiplyScalar(scale), radius = e.hitR || e.r;
+    let blocked = false;
+    for (let i = 0; i < 4; i++) {
+      const len = remaining.length();
+      if (len < 1e-8) break;
+      const center = this.center(e, S.moveCenter);
+      if (!this.world.sweepSphere(center, remaining, radius, S.moveHit)) { e.pos.add(remaining); break; }
+      blocked = true;
+      const fraction = Math.max(0, S.moveHit.distance - 0.0001) / len;
+      e.pos.addScaledVector(remaining, fraction);
+      if (S.moveHit.normal.y > 0.5 && remaining.y < 0) { e.grounded = true; e.vy = 0; }
+      const into = e.vel.dot(S.moveHit.normal);
+      if (into < 0) e.vel.addScaledVector(S.moveHit.normal, -into);
+      if (!slide) break;
+      remaining.multiplyScalar(1 - fraction);
+      const inward = remaining.dot(S.moveHit.normal);
+      if (inward < 0) remaining.addScaledVector(S.moveHit.normal, -inward);
+    }
+    return blocked;
+  }
+
+  moveTo(e, target) { return this.move(e, S.moveTo.subVectors(target, e.pos)); }
+
   moveGround(e, dt, near) {
     if (e.airborne) return;               // mid-leap: the leap word flies it
-    const w = this.world;
-    const step = S.step.set(e.vel.x * dt, 0, e.vel.z * dt);
-    const len = step.length();
-    if (near && len > 1e-6) {
-      const dir = S.dir.copy(step).divideScalar(len);
-      const o = S.o.set(e.pos.x, e.pos.y + e.r, e.pos.z);
-      const hit = w.cast(o, dir, e.r + len);
-      if (hit) {
-        const n = hit.normal; n.y = 0;
-        if (n.lengthSq() > 1e-6) {
-          n.normalize();
-          step.addScaledVector(n, -step.dot(n));
-          e.vel.addScaledVector(n, -e.vel.dot(n));
-        }
-        if (e.state === 'dash') { e.state = 'rest'; e.stateT = 0.6; }
-      }
-    }
-    e.pos.add(step);
-
-    // gravity and ground (every other frame per enemy to save rays)
-    if (!near) return;
+    const blocked = this.move(e, S.step.set(e.vel.x * dt, 0, e.vel.z * dt));
+    if (blocked && e.state === 'dash') { e.state = 'rest'; e.stateT = 0.6; }
+    // Gravity uses the same sweep, including for bugs outside the camera's nearby list.
     e.vy = Math.max(-1, e.vy - 1.0 * dt);
-    if ((this.frame + e.phase * 10) % 2 < 1 || !e.grounded) {
-      const o = S.o.set(e.pos.x, e.pos.y + e.r, e.pos.z);
-      const hit = w.cast(o, DOWN, e.r + Math.max(0.004, -e.vy * dt * 2));
-      if (hit) { e.pos.y = hit.point.y; e.vy = 0; e.grounded = true; return; }
-      e.grounded = false;
-    }
-    if (!e.grounded) e.pos.y += e.vy * dt;
+    e.grounded = false;
+    this.move(e, DOWN, -e.vy * dt);
   }
 }
 
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3() };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), separate: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;
