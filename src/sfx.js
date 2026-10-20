@@ -329,12 +329,13 @@ export const sfx = {
     tone('sine', 520 * j, 1040 * j, 0.08, 0.06, 0.03);
   },
   // XP collected: a chime that climbs with the combo
-  xp(combo = 0) {
+  xp(chain = 0, big = false) {
     if (!ready() || !gap('xp', 45)) return;
-    const step = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24][Math.min(10, Math.floor(combo / 3))];
+    const step = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24][Math.min(10, Math.max(0, Math.floor(chain)))];
     const f = 880 * Math.pow(2, step / 12);
     tone('sine', f, f, 0.12, 0.08);
     tone('triangle', f * 2, f * 2, 0.06, 0.03, 0.01);
+    if (big) tone('sine', f / 2, f / 2, 0.16, 0.045);
   },
   // you get hurt: a low wobbly bonk
   hurt() { if (!ready() || !gap('hurt', 150)) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },

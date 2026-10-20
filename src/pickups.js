@@ -4,8 +4,10 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { TREASURE_RARITY } from './stats.js';
 import { sfx } from './sfx.js';
+import { juice } from './juice.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const UP = new THREE.Vector3(0, 1, 0);
 const MAGNET = 0.09;          // meters: XP drifts to you from this far
 const BIG = 5;                // XP a big drop is worth: every 5 XP comes as one big drop, easier to read
 
@@ -25,6 +27,8 @@ export class XpDrops {
     this.bigMat = new THREE.MeshStandardMaterial({ color: 0xc8f0ff, emissive: 0x5ac8ff, emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
     this.magnetAll = false;
     this._to = new THREE.Vector3();
+    this.xpLook = !look;
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   }
 
   // `count` drops worth `value` each, paid out as big drops (worth BIG each) and small ones for the rest
@@ -33,7 +37,7 @@ export class XpDrops {
     for (let i = 0; i < bigs + smalls; i++) {
       const big = i < bigs, worth = big ? BIG : 1;
       if (this.list.length >= 220) {           // too many: fold into the nearest one
-        const n = this.list.reduce((a, d) => (!a || d.m.position.distanceToSquared(pos) < a.m.position.distanceToSquared(pos) ? d : a), null);
+        const n = this.list.reduce((a, d) => (!a || d.pos.distanceToSquared(pos) < a.pos.distanceToSquared(pos) ? d : a), null);
         n.value += worth;
         continue;
       }
@@ -42,7 +46,7 @@ export class XpDrops {
       this.scene.add(m);
       const a = Math.random() * Math.PI * 2, s = 0.04 + Math.random() * 0.05;
       const hit = this.world.cast(new THREE.Vector3(pos.x, pos.y + 0.01, pos.z), DOWN, 3);
-      this.list.push({ m, value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + 0.0035 * (big ? 1.9 : 1) : pos.y, pull: false, t: 0 });
+      this.list.push({ m, pos: pos.clone(), value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + 0.0035 * (big ? 1.9 : 1) : pos.y, pull: false, pullT: 0, t: 0 });
     }
   }
 
@@ -54,21 +58,33 @@ export class XpDrops {
   // returns XP collected this frame
   update(dt, target, magnetMul = 1) {
     let got = 0;
+    const quiet = juice.calm || this.reducedMotion.matches;
     for (const d of this.list) {
       d.t += dt;
-      const p = d.m.position;
+      const p = d.pos;
       const dist = p.distanceTo(target);
       if (d.pull || dist < MAGNET * magnetMul || this.magnetAll) d.pull = true;
       if (d.pull) {
+        d.pullT += dt;
         const sp = 0.25 + d.t * 0.4 + (this.magnetAll ? 1 : 0);
         p.addScaledVector(this._to.copy(target).sub(p).normalize(), Math.min(dist, sp * dt));
         if (dist < 0.012) { got += d.value; d.done = true; this.scene.remove(d.m); }
+        // The bend and stretch are cosmetic; magnet range, speed and collection stay unchanged.
+        d.m.position.copy(p);
+        if (this.xpLook && !quiet) {
+          const bend = Math.sin(d.pullT * Math.PI / 0.18) * Math.max(0, 1 - d.pullT / 0.18) * Math.min(1, dist / 0.04) * LOOK.num('xp-pull-bend', 0.008);
+          d.m.position.x += this._to.z * bend; d.m.position.z -= this._to.x * bend;
+          d.m.quaternion.setFromUnitVectors(UP, this._to);
+          const stretch = LOOK.num('xp-pull-stretch', 0.8) * Math.min(1, d.pullT / 0.08);
+          d.m.scale.set(1 / Math.sqrt(1 + stretch), 1 + stretch, 1 / Math.sqrt(1 + stretch));
+        } else d.m.scale.setScalar(1);
       } else {
         // pop out, fall, settle
         d.vel.y -= 1.2 * dt;
         p.addScaledVector(d.vel, dt);
         if (p.y <= d.floor) { p.y = d.floor; d.vel.set(0, 0, 0); }
         d.m.scale.setScalar(1 + Math.sin(d.t * 5) * 0.08);
+        d.m.position.copy(p);
       }
     }
     if (got || this.list.some((d) => d.done)) this.list = this.list.filter((d) => !d.done);
