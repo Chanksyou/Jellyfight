@@ -4,6 +4,22 @@ import { G, near, ok, phone, record, setupFight, step, story, stub } from './kit
 
 const setup = () => { setupFight({ bubbles: false, lash: false }); step(120); };
 
+story('pickups/xp-gold-palette', {
+  about: 'Both XP sizes and their collection flash use gold; Health crumbs keep their peach color.',
+  setup,
+  play() {
+    const { xpDrops, run, fx } = G(), flashes = [];
+    xpDrops.drop(near(0.3, 0, 0), 1, 6);
+    const small = xpDrops.list.find(d => !d.big), big = xpDrops.list.find(d => d.big);
+    const colors = [small.m.material.color, small.m.material.emissive, big.m.material.color, big.m.material.emissive].map(c => c.getHexString());
+    stub(xpDrops, 'update', () => 1);
+    stub(fx.glow, 'emit', (_pos, color) => flashes.push(color.getHexString()));
+    step(1);
+    const crumb = run.crumbs.mat.color.getHexString();
+    return ok(colors.join() === 'ffd25a,e8a21b,ffe27a,ffc43a' && flashes.includes('ffe27a') && crumb === 'ffb47a', { colors, flashes, crumb });
+  },
+});
+
 story('pickups/xp-elastic-path-keeps-timing', {
   about: 'The XP bend and stretch are visual only: each logical position, collection frame and total matches the original straight magnet movement.',
   setup,
