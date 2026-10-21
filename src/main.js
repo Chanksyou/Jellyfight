@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v229';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v230';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -524,6 +524,7 @@ const GAME = {
     updateMusic(dt);
     systems.traversal.update(dt);
     systems.fx.update(dt);
+    run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));
     systems.layout.update(dt);
     systems.touch.update(dt);
     if (bossScene) stepBossScene(dt); else systems.gameplay.update(dt);
@@ -678,7 +679,7 @@ async function warmUp() {
   seeThrough.forEach((m) => scene.add(m));
   try {
     await renderer.compileAsync(scene, camera);
-    uploadAll();
+    uploadAll(true);
   } catch (e) {
     reportError(e, 'preparing graphics');
   }
@@ -710,17 +711,29 @@ async function warmUp() {
 // Put every texture and mesh on the GPU now. Otherwise each goes up the first time it comes into
 // view, and a turn of the camera that brings in a corner of the room stalls a phone for a frame.
 const tiny = new THREE.WebGLRenderTarget(4, 4);
-function uploadAll() {
+function uploadAll(gamePasses = false) {
+  const cameraMask = camera.layers.mask;
   scene.traverse((o) => {
     for (const m of [].concat(o.material || [])) for (const k in m) if (m[k]?.isTexture) renderer.initTexture(m[k]);
   });
   const culled = [];
   scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
-  const was = renderer.getRenderTarget();
-  renderer.setRenderTarget(tiny);
-  renderer.render(scene, camera);
-  renderer.setRenderTarget(was);
-  culled.forEach((o) => { o.frustumCulled = true; });
+  const was = renderer.getRenderTarget(), tone = renderer.toneMapping, color = tiny.texture.colorSpace;
+  try {
+    if (gamePasses) camera.layers.enable(0);   // the home portrait may already have isolated its own layer
+    renderer.setRenderTarget(tiny);
+    renderer.render(scene, camera);
+    if (gamePasses && gfx.composer) {
+      tiny.texture.colorSpace = THREE.LinearSRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
+      renderer.render(scene, camera);   // the composer's beauty pass uses linear output without tone mapping
+    }
+  } finally {
+    renderer.toneMapping = tone; tiny.texture.colorSpace = color;
+    renderer.setRenderTarget(was);
+    culled.forEach((o) => { o.frustumCulled = true; });
+    camera.layers.mask = cameraMask;
+  }
 }
 
 overlay.hidden = false;

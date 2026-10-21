@@ -236,6 +236,36 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 export const sfx = {
+  gadgetChord(){
+    if(!ready()||!gap('gadgetChord',120))return;const j=jitter(.03);
+    for(const [i,f]of [220,277.18,329.63].entries())tone('triangle',f*j,f*j*.98,.35,.035,i*.008);
+    noise(1900*j,2,.035,.045,'bandpass');tone('sine',110*j,90*j,.16,.04);
+  },
+  gadgetNeedles(){
+    if(!ready()||!gap('gadgetNeedles',120))return;const j=jitter(.12);
+    noise(4300*j,2,.09,.05,'highpass',0,1800);tone('triangle',1600*j,700*j,.04,.025,.025);
+  },
+  gadgetMouse(phase){
+    if(!ready()||!gap('gadgetMouse-'+phase,phase==='run'?170:100))return;const j=jitter(.09);
+    if(phase==='hit'){noise(650*j,1,.045,.07,'lowpass');tone('triangle',380*j,120*j,.09,.045);tone('sine',1100*j,500*j,.14,.025,.025);}
+    else if(phase==='wind'){tone('triangle',700*j,1200*j,.1,.03);noise(2500*j,3,.04,.025,'bandpass',.025);}
+    else{noise(2200*j,3,.025,.018);tone('triangle',480*j,350*j,.035,.012,.03);}
+  },
+  gadgetBrick(hit=false){
+    if(!ready()||!gap('gadgetBrick-'+hit,70))return;const j=jitter(.12);
+    noise(1800*j,2,.035,hit?.07:.035);tone('triangle',hit?240*j:640*j,hit?90*j:440*j,.06,hit?.055:.025);
+    if(hit)for(let i=0;i<3;i++)tone('triangle',(1200+i*200)*j,800*j,.035,.018,.025+i*.025);
+  },
+  gadgetMarble(phase){
+    if(!ready()||!gap('gadgetMarble-'+phase,phase==='roll'?210:65))return;const j=jitter(.06);
+    if(phase==='roll')noise(650*j,2,.13,.012,'bandpass',0,450);
+    else{tone('sine',(phase==='wall'?2100:1300)*j,900*j,.12,.035);noise(500*j,1,.035,.03,'lowpass');}
+  },
+  gadgetFocus(acquire=false){
+    if(!ready()||!gap('gadgetFocus',150))return;const j=jitter(.05);
+    tone('sine',acquire?800*j:1400*j,acquire?1400*j:1100*j,.09,.014);
+    noise(3200*j,3,.08,.012,'bandpass',0,4200*j);
+  },
   windCharge(duration) {
     if (!ready() || !gap('windCharge', 35)) return;
     const t = now(), source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();

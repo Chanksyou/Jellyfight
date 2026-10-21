@@ -2,6 +2,31 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --gadget-friendly: #a6f6ed;
+  --gadget-focus: #c6f6ff;
+  --gadget-focus-height: 0.22;
+  --gadget-focus-opacity: 0.12;
+  --gadget-mouse-rim: #386d79;
+  --gadget-mouse-prepare: 0.25;
+  --gadget-needles: 32;
+  --gadget-marble-swirl: #247e90;
+  --gadget-arcs: 16;
+  --gadget-streaks: 64;
+  --gadget-studs: 24;
+  --gadget-pulse-life: 0.4;
+  --gadget-streak-width: 0.0012;
+  --gadget-debris-life: 0.65;
+  --gadget-debris-gravity: 1.2;
+  --gadget-mouse-after: 0.24;
+  --gadget-mouse-scurry: 50;
+  --gadget-spring-size: 0.003;
+  --gadget-chord-prepare: 0.25;
+  --gadget-brick-drop: 0.16;
+  --gadget-brick-lift: 0.02;
+  --gadget-marble-trail-gap: 0.045;
+  --gadget-marble-trail-width: 0.0014;
+  --gadget-needle-width: 0.0013;
+  --gadget-needle-life: 0.16;
   --death-body-cap: 12;
   --death-body-life: 1.1;
   --death-skid: 0.055;
