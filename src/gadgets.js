@@ -84,6 +84,7 @@ export class Gadgets {
   }
 
   reset() {
+    this.warming=false;
     this.looks.reset();
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
@@ -103,6 +104,7 @@ export class Gadgets {
 
   // Show everything for a frame so its shaders get compiled up front (main.js warmUp)
   warm(on, at) {
+    this.warming=on;
     this.looks.warm(on,at);
     this.focus.visible=this.chordReady.visible=on;
     this.mouseReady.visible=on;
@@ -162,6 +164,7 @@ export class Gadgets {
 
   // Uses the ordinary Fx clock, including when combat stops for menus or a boss ceremony.
   animate(dt, active = true) {
+    if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
     if(!active){this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}

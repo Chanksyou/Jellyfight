@@ -69,6 +69,7 @@ story('treasure-feel/quiet-pools-and-suspended-combat-cleanup',{
   about:'OS reduced motion suppresses arc wobble and trails; visual lifetimes still end during polyp/ceremony suspension and reset clears every pooled piece.',
   setup(){ready();},
   play(){const {run,fx}=G(),g=run.gadgets,L=g.looks,c=context();stub(fx,'reducedMotion',{matches:true});
+    g.warm(true,c.feet);g.animate(2,false);const heldWarm=alive(L).length===Object.keys(L.geo).length&&alive(L).every(p=>p.m.visible);g.warm(false);
     const m=L.arc(c.feet,.1);L.studs(c.feet,L.color);const spin=m.rotation.y;
     g.animate(.05);const quiet=L.quiet&&m.rotation.y===spin;
     run.polypT=2;step(65);const expired=alive(L).length===0;
@@ -77,7 +78,7 @@ story('treasure-feel/quiet-pools-and-suspended-combat-cleanup',{
     const cleared=!alive(L).length&&!g.focus.visible&&!g.mouse.visible;
     run.polypT=0;give('toyMouse');roachAt(.15,0);g.t.mouse=0;const hits=record('damage_taken');juice.trauma=0;
     step(200,()=>hits.some(d=>d.source==='toy-mouse'));const noShake=hits.some(d=>d.source==='toy-mouse')&&juice.trauma===0;g.reset();
-    return ok(quiet&&expired&&capped&&cleared&&noShake,{quiet,expired,capped,cleared,noShake,counts:Object.fromEntries(Object.entries(L.pools).map(([k,p])=>[k,p.length]))});},
+    return ok(heldWarm&&quiet&&expired&&capped&&cleared&&noShake,{heldWarm,quiet,expired,capped,cleared,noShake,counts:Object.fromEntries(Object.entries(L.pools).map(([k,p])=>[k,p.length]))});},
 });
 story('treasure-feel/prepared-shaders-and-reusable-bodies',{
   about:'Six combined treasures compile no gameplay shaders; repeated resets reuse body meshes and clear all transient cosmetics.',
