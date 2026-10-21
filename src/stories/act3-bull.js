@@ -5,8 +5,9 @@
 import * as THREE from 'three';
 import { hostile } from '../vfx.js';
 import { CONTENT } from '../content.js';
-import { unlock as unlockAudio, audio } from '../sfx.js';
-import { G, V, act3, bull, fresh, ok, onTable, r3, record, startBull, step, tp, volumePairs } from './kit.js';
+import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
+import { juice } from '../juice.js';
+import { G, V, act3, bull, fresh, ok, onTable, r3, record, spy, startBull, step, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(-0.2, 0.05, 8.9, 0);                // on the floor in front of the dresser
 const isBull = (o) => o.material.uniforms.uColor.value.getHex() === hostile('bull').getHex();
@@ -201,6 +202,49 @@ act3('bull-minis-burst-on-each-other-and-are-jumped', {
     }
     const side = CONTENT.elites.bull.skills.minis.side, meet = (r) => r.burst.length === 2 && r.burst.every((a) => a > side * 0.5 && a < side) && !r.hits && !r.left;
     return ok(meet(out.stepped) && meet(out.jumped), out);
+  },
+});
+
+// the feel of each attack (docs/agents/attack-feel.md): what the jelly sees and hears as it lands
+const liveSplats = () => G().fx.splats.filter((x) => x.alive).length;
+
+act3('bull-rush-feel', {
+  about: 'Bull rush feel: the Blast slams the Bull down flat (springing back), throws up stuffing, leaves a scuff on the table that fades, shakes the screen hard (feel impact-big) with its own layered boom, and flashes at the jelly it hit.',
+  setup() { startBull(0); },
+  play() {
+    const { e, player, table } = startBull(0), { fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact'), booms = spy(sfx, 'bullRush');
+    player.position.set(e.base.x + CONTENT.elites.bull.skills.rush.radius * 0.6, table, e.base.z);
+    const before = liveSplats();
+    let squash = 0, splats = 0;
+    step(60 * 4, () => { squash = Math.max(squash, e.squash || 0); splats = Math.max(splats, liveSplats() - before); return e.state === 'idle' && log.length; });
+    const atJelly = impacts.some(([at]) => Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.01);
+    return ok(log.some((d) => d.source === 'bull-rush') && squash > 0.9 && splats >= 1 && feels.some(([k]) => k === 'impact-big') && booms.length === 1 && atJelly,
+      { hits: log.length, squash: +squash.toFixed(2), splats, booms: booms.length, atJelly });
+  },
+});
+
+act3('bull-spiral-feel', {
+  about: 'Spiral feel: each beat flashes where its Shots leave, its body pulses and a puff sounds; a Shot that reaches the jelly throws a little stuffing, leaves a scuff under it that fades and thuds.',
+  setup() { startBull(1, { x: -0.3 }); },
+  play() {
+    const { e } = startBull(1, { x: -0.3 }), { run } = G(), log = record('damage_taken'), beats = spy(sfx, 'bullShot'), struck = spy(sfx, 'bullHit'), splats = spy(G().fx, 'splat');
+    let pulse = 0;
+    step(60 * 6, () => { if (e.attack === 1 && e.stateT > CONTENT.elites.bull.skills.spiral.warn) pulse = Math.max(pulse, e.hitPop); return e.state === 'idle' && beats.length && !run.elites.bullets.length; });
+    const hits = log.filter((d) => d.source === 'bull-spiral').length;
+    return ok(beats.length > 10 && pulse > 0.3 && hits >= 1 && struck.length >= 1 && splats.length >= 1, { beats: beats.length, pulse: +pulse.toFixed(2), hits, struck: struck.length, splats: splats.length });
+  },
+});
+
+act3('bull-minis-feel', {
+  about: 'Little bulls feel: as they charge the big Bull stamps them off (a squash), each kicks up dust with a flash and a snort sounds; the one that reaches the jelly bursts with a shake (feel impact), stuffing and a scuff that fades.',
+  setup() { startBull(2); },
+  play() {
+    const { e } = startBull(2), log = record('damage_taken'), feels = spy(juice, 'feel'), snorts = spy(sfx, 'bullSnort'), bursts = spy(sfx, 'bullMini');
+    const before = liveSplats();
+    let squash = 0, splats = 0;
+    step(60 * 4, () => { squash = Math.max(squash, e.squash || 0); splats = Math.max(splats, liveSplats() - before); return e.state === 'idle' && log.length; });
+    return ok(log.some((d) => d.source === 'bull-mini') && squash > 0.4 && snorts.length === 1 && bursts.some(([hit]) => hit) && feels.some(([k]) => k === 'impact') && splats >= 1,
+      { hits: log.length, squash: +squash.toFixed(2), snorts: snorts.length, bursts: bursts.map(([h]) => h), splats });
   },
 });
 

@@ -6,8 +6,10 @@ import { CONTENT } from '../content.js';
 import { LOOK } from '../look.js';
 import { STAGES, nav } from '../stages.js';
 import { STAGE3 } from '../stage3.js';
-import { unlock as unlockAudio, audio } from '../sfx.js';
-import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, pothosFight, pothosFloor, r3, record, shownWarnings, sim, spawn, step, stripLine, stub, tp, volumePairs } from './kit.js';
+import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
+import { juice } from '../juice.js';
+import { ATTACKS as POTHOS_ATTACKS } from '../pothos.js';
+import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, pothosFight, pothosFloor, r3, record, shownWarnings, sim, spawn, spy, step, stripLine, stub, tp, volumePairs } from './kit.js';
 
 // --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
 act3('carries-the-run', {
@@ -469,6 +471,43 @@ act3('aerial-roots-land-near-and-creep', {
     step(30);
     const crept = far.length > 0 && far.every((e, i) => e.state === 'hold' || Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < d0[i] - 0.05);
     return ok(R.length >= 2 && Math.min(...near) < 0.01 && Math.max(...near) < 0.25 && marked && landed && crept, { roots: R.length, near, marked, landed, crept });
+  },
+});
+act3('pothos-cutting-feel', {
+  about: 'Cuttings feel: as the pause before them runs out the heart swells, drawing in glowing motes with a rustle; on the frame it lets go the heart jolts and flashes with a snap and whoosh, glowing motes arc from it to where the Cutting grows in, and as they get there it lands with a flash, a puff of soil and a thud, leaving soil on the quilt that fades.',
+  setup() {},
+  play() {
+    const B = pothosFight(), { fx } = G();
+    holdJelly();
+    const gathers = spy(sfx, 'pothosGather'), flings = spy(sfx, 'pothosFling'), plants = spy(sfx, 'pothosPlant'), splats = spy(fx, 'splat'), motes = spy(fx.glow, 'emit');
+    B.state = 'idle'; B.stateT = 0.6; B.next = POTHOS_ATTACKS.calm.indexOf('cutting');   // the pause before its Cuttings, running out
+    const rest = B.model.heart.scale.x;
+    let swell = 0, kick = 0, flungAt = -1, plantedAt = -1, frame = 0, thrown = 0;
+    step(60 * 2, () => {
+      frame++;
+      if (B.state === 'idle') swell = Math.max(swell, B.model.heart.scale.x / rest);
+      if (flings.length && flungAt < 0) { flungAt = frame; kick = B.kick; thrown = motes.filter(([, , , , , , , g]) => g === 3).length; }
+      if (plants.length && plantedAt < 0) plantedAt = frame;
+      return plantedAt > 0;
+    });
+    const flight = (plantedAt - flungAt) / 60, T = LOOK.num('pothos-fling-time', 0.25);
+    return ok(gathers.length === 1 && swell > 1.05 && flings.length === 1 && kick > 0.9 && thrown >= 5 && Math.abs(flight - T) < 0.05 && splats.length >= 1,
+      { gathers: gathers.length, swell: +swell.toFixed(2), flings: flings.length, kick: +kick.toFixed(2), thrown, flight: +flight.toFixed(2), splats: splats.length });
+  },
+});
+act3('pothos-roots-feel', {
+  about: 'Aerial roots feel: on the frame it drops them the heart jolts and flashes with a snap; each root shakes loose with a puff where it starts, and lands with a flash, bark dust and its layered thud, leaving dust on the quilt that fades; the one landing on the jelly shakes the screen (feel impact).',
+  setup() {},
+  play() {
+    const B = pothosFight(), { fx } = G();
+    holdJelly();
+    const flings = spy(sfx, 'pothosFling'), lands = spy(sfx, 'rootLand'), splats = spy(fx, 'splat'), feels = spy(juice, 'feel');
+    B.begin('roots');
+    const kick = B.kick, n = rootsOut().length;
+    B.stateT = 1e9;                                       // no next attack
+    step(60 * 2, () => rootsOut().every((e) => e.state !== 'drop'));
+    return ok(flings.length === 1 && kick > 0.9 && n >= 2 && lands.length >= 1 && splats.length >= n && feels.some(([k]) => k === 'impact'),
+      { flings: flings.length, kick, roots: n, lands: lands.length, splats: splats.length, feels: feels.map(([k]) => k) });
   },
 });
 act3('aerial-root-killed-in-time-does-nothing', {

@@ -25,6 +25,8 @@ export function stub(obj, key, fn) {
   patched.push([obj, key, Object.prototype.hasOwnProperty.call(obj, key), obj[key]]);
   obj[key] = fn;
 }
+// stub obj[key] with a pass-through that logs each call's arguments in the returned list
+export function spy(obj, key) { const log = [], real = obj[key]; stub(obj, key, function (...a) { log.push(a); return real.apply(this, a); }); return log; }
 export const offs = [];
 // record every payload of a bus event during this story (stopped by fresh/restore)
 export function record(type) { const log = []; offs.push(bus.on(type, (p) => log.push(p))); return log; }

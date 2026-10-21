@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { hostile, VolumeMaterial } from '../vfx.js';
 import { CONTENT } from '../content.js';
 import { eliteChestsReachable } from './act2.js';
-import { G, V, act3, croc, everyAttack, fresh, ok, onBed, r3, record, shownWarnings, startCroc, step, tp, volumePairs } from './kit.js';
+import { juice } from '../juice.js';
+import { sfx } from '../sfx.js';
+import { G, V, act3, croc, everyAttack, fresh, ok, onBed, r3, record, shownWarnings, spy, startCroc, step, stub, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(1.0, 0.05, 8.85, 0);                 // by the door, off the bed
 const isCroc = (o) => o.material.uniforms.uColor.value.getHex() === hostile('croc').getHex();
@@ -151,6 +153,65 @@ act3('croc-pounce', {
     }
     const { beside: b, over: o, outside: x } = out;
     return ok(Math.abs(b.radius - R) < 0.005 && b.peak > 0.06 && b.home && b.hits[0] === 4 && b.knocked >= 1 && o.hits[0] === 4 && !x.hits.length, out);
+  },
+});
+
+// the feel of each attack (docs/agents/attack-feel.md): what the jelly sees and hears as it lands
+const liveSplats = () => G().fx.splats.filter((x) => x.alive).length;
+const near3 = (log, p, d = 0.03) => log.some(([at]) => at.distanceTo(p) < d);
+
+act3('croc-frost-volley-feel', {
+  about: 'Frost volley feel: on the frame the frost balls leave its mouth there is a flash at its mouth, the launch sound and its head kicks back; landing on the jelly, the balls shake the screen once (feel impact) and leave harmless rime on the quilt that fades.',
+  setup() { startCroc(0); },
+  play() {
+    const { e } = startCroc(0), { run, fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact');
+    let launchedWith = null, recoil = 0;
+    stub(sfx, 'frostLaunch', () => { launchedWith = { flown: run.elites.blobs.filter((b) => b.flown).length, flash: near3(impacts, e.model.muzzle.clone().applyAxisAngle(V(0, 1, 0), e.holder.rotation.y).add(e.base)) }; });
+    const before = liveSplats();
+    let splats = 0;
+    step(60 * 4, () => { recoil = Math.max(recoil, e.recoil || 0); splats = Math.max(splats, liveSplats() - before); return e.state === 'idle' && !run.elites.blobs.length; });
+    const hits = log.filter((d) => d.source === 'croc-frost').length, impactFeels = feels.filter(([k]) => k === 'impact').length;
+    return ok(launchedWith?.flown >= 1 && launchedWith.flash && recoil > 0.5 && hits === 1 && impactFeels === 1 && splats >= 3, { launchedWith, recoil: +recoil.toFixed(2), hits, impactFeels, splats });
+  },
+});
+
+act3('croc-tail-slam-feel', {
+  about: 'Tail slam feel: each slam flashes where the tail lands and leaves a dent that fades; where a ring wall meets the jelly a flash goes off at the jelly as it is hit.',
+  setup() { startCroc(1); },
+  play() {
+    const { e, player } = startCroc(1), { run, fx } = G(), log = record('damage_taken'), impacts = spy(fx, 'impact'), splats = spy(fx, 'splat');
+    let atJelly = 0, slams = 0, hitsSeen = 0, impactsSeen = 0;
+    step(60 * 8, () => {
+      slams = Math.max(slams, e.slams || 0);
+      const fresh = impacts.slice(impactsSeen); impactsSeen = impacts.length;   // this frame's flashes
+      const tails = log.filter((d) => d.source === 'croc-tail').length;
+      if (tails > hitsSeen && fresh.some(([at]) => Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.05)) atJelly++;   // (its shove may have moved the jelly since)
+      hitsSeen = tails;
+      return e.state === 'idle' && slams && !run.elites.rings.length;
+    });
+    const hits = log.filter((d) => d.source === 'croc-tail').length, slamFlash = impacts.filter(([at]) => at.distanceTo(e.slamAt) < 0.02).length, dents = splats.filter(([at]) => at.distanceTo(e.slamAt) < 0.02).length;
+    return ok(slams >= 3 && slamFlash >= slams && dents >= slams && hits === slams && atJelly === hits, { slams, slamFlash, dents, hits, atJelly });
+  },
+});
+
+act3('croc-pounce-feel', {
+  about: 'Pounce feel: it pushes off with a puff, lands squashed flat and springs back, throws up fluff and leaves a dent that fades, the screen shakes hard (feel impact-big) and a flash goes off at the jelly it hit. With Reduce effects on, the landing shakes nothing.',
+  setup() { startCroc(2); },
+  play() {
+    const out = {};
+    for (const calm of [false, true]) {
+      const { e, player } = startCroc(2), { run, fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact');
+      stub(juice, 'calm', calm); juice.trauma = 0;
+      const R = CONTENT.elites.croc.skills.pounce.radius, a = e.holder.rotation.y;
+      player.position.set(e.base.x + Math.sin(a) * R * 0.6, 0, e.base.z + Math.cos(a) * R * 0.6);
+      player.position.y = run.elites.surfaceBelow(player.position.clone().setY(1));
+      const before = liveSplats();
+      let squash = 0, splats = 0, trauma = 0;
+      step(60 * 4, () => { squash = Math.max(squash, e.squash || 0); splats = Math.max(splats, liveSplats() - before); if (log.length) trauma = Math.max(trauma, juice.trauma); return e.state === 'idle' && e.landed === false && log.length; });
+      out[calm ? 'calm' : 'normal'] = { hits: log.filter((d) => d.source === 'croc-pounce').length, big: feels.some(([k]) => k === 'impact-big'), squash: +squash.toFixed(2), splats, trauma: +trauma.toFixed(2), atJelly: impacts.some(([at]) => Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.3 && at.distanceTo(e.base) > 0.02) };
+    }
+    const { normal: n, calm: c } = out;
+    return ok(n.hits === 1 && n.big && n.squash > 0.9 && n.splats >= 1 && n.trauma > 0.3 && n.atJelly && c.hits === 1 && c.trauma === 0, out);
   },
 });
 

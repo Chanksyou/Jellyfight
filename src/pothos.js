@@ -621,6 +621,10 @@ export class Pothos {
     this.sweepT = -1; this.sweepDir = 1;
     // the opening: how far the leaves round the heart have parted (0..1), and for how long more
     this.open = 0; this.openT = 0;
+    // feel only: kick (0..1) the heart's jolt as it flings something; gathering, the rustle before it;
+    // plants: Cuttings in flight (motes on their way), landing with a thud when they get there
+    this.kick = 0; this.gathering = false; this.plants = [];
+    this._mote = new THREE.Vector3(); this._vel = new THREE.Vector3();
   }
 
   get position() { return this.holder.position; }
@@ -718,9 +722,29 @@ export class Pothos {
       M.close += (shut - M.close) * Math.min(1, dt * 6);
       if (Math.abs(shut - M.close) < 0.01) M.close = shut;
     }
-    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * this.openGrow));
+    // what it flings next (Cuttings, Aerial roots): the heart swells and draws in glowing motes as the pause runs out
+    this.kick = Math.max(0, this.kick - dt * 4);
+    const order = this.angry ? ATTACKS.angry : ATTACKS.calm, coming = this.state === 'idle' && this.rise >= 1 ? order[this.next % order.length] : null;
+    const wind = LOOK.num('pothos-fling-windup', 0.45), gather = (coming === 'cutting' || coming === 'roots') ? Math.max(0, 1 - this.stateT / wind) : 0;
+    if (gather > 0 && !this.gathering) { this.gathering = true; sfx.pothosGather(Math.min(wind, this.stateT)); }
+    if (gather > 0 && Math.random() < dt * 30) {
+      const c = this.center(this._heart), a = Math.random() * Math.PI * 2, d = 0.07 + Math.random() * 0.05;
+      this._mote.set(c.x + Math.cos(a) * d, c.y + (Math.random() - 0.3) * d, c.z + Math.sin(a) * d);
+      this.fx.glow.emit(this._mote, hostile('pothos'), 0.008, 0.002, 0.25, 0.9, this._vel.subVectors(c, this._mote).multiplyScalar(4));
+    }
+    M.heart.scale.setScalar(HEART * (1 + beat * 0.05 + this.hitPop * 0.12 + open * this.openGrow + gather * LOOK.num('pothos-gather-grow', 0.12) + this.kick * LOOK.num('pothos-fling-pulse', 0.2)));
     M.heart.material.emissiveIntensity = (0.3 + beat * 0.15 + open * 0.8) * (1 - M.close * 0.75);
     this.fx.glow.hold(this.center(this._heart), this.glowColor, (0.14 * (0.8 + beat * 0.3) + open * this.openHalo) * (1 - M.close * 0.6), (0.6 + open * 0.4) * (1 - M.close * 0.7));
+    // Cuttings in flight land (feel only: each is already on the bed, growing in)
+    for (const q of this.plants) {
+      if ((q.t -= dt) > 0) continue;
+      this.fx.impact(q.at.setY(q.at.y + 0.01), hostile('pothos'), 0.02, 8);
+      this.fx.puff(q.at, LOOK.color('pothos-soil', '#6b5a3a'), 0.025, 0.35);
+      this.fx.burst(q.at, LOOK.list('pothos-leaf-bits', ['#164d18', '#ffdf4a', '#6b5a3a']), 5, 0.0025, 0.22, q.at.y - 0.01);
+      this.fx.splat(q.at.setY(q.at.y - 0.01), LOOK.color('pothos-soil', '#6b5a3a'), LOOK.num('pothos-soil-size', 0.02));   // a little scatter of soil, fading
+      sfx.pothosPlant();
+    }
+    if (this.plants.length) this.plants = this.plants.filter((q) => q.t > 0);
     // its attacks, in turn
     const SW = this.def.skills.swarm;
     if (this.rise >= 1 && SW && !this.swarmed && this.state === 'idle' && this.hp < this.maxHp * SW.at) this.begin('swarm');
@@ -766,6 +790,7 @@ export class Pothos {
     const SK = this.def.skills[name];
     this.state = name;
     this.stateT = SK.time;
+    this.gathering = false;
     if (name === 'roots') this.roots(SK);
     if (name === 'cutting') this.cuttings(SK);
     if (name === 'swarm') this.swarm(SK);
@@ -990,9 +1015,10 @@ export class Pothos {
       const e = this.enemies.spawn('cutting', at);
       e.root.rotation.y = Math.random() * Math.PI * 2;
       e.grounded = true;
-      this.fx.impact(at.clone().setY(at.y + 0.01), hostile('pothos'), 0.02, 8);
+      this.fling(at);
+      this.plants.push({ at: at.clone(), t: LOOK.num('pothos-fling-time', 0.25) });   // it lands as it grows in (enemies.js spawnT)
     }
-    sfx.clogRustle?.();
+    this.flung();
   }
 
   // Aerial roots: they drop from the canopy and the shelf over the bed, one onto where you are and the
@@ -1004,7 +1030,25 @@ export class Pothos {
       const a = base + (k - 1) * Math.PI * 2 / Math.max(1, count - 1) + (Math.random() - 0.5) * 0.6, d = k ? spread * (0.5 + 0.5 * Math.random()) : 0;
       const at = this._drop.set(P.x + Math.sin(a) * d, P.y + 0.1, P.z + Math.cos(a) * d);
       at.y = this.enemies.floorBelow(at, P.y);
-      this.enemies.spawn('root', at);
+      const e = this.enemies.spawn('root', at);
+      this.fx.puff(e.pos, LOOK.color('pothos-soil', '#6b5a3a'), 0.02, 0.4);   // shaken loose from the canopy (the drops word lifts it there)
+      this.fx.glow.emit(e.pos, hostile('pothos'), 0.012, 0.03, 0.15, 1);
+    }
+    this.flung();
+  }
+  // the frame it lets go: the heart jolts and flashes, the snap and whoosh
+  flung() {
+    this.kick = 1;
+    this.fx.impact(this.center(this._heart), hostile('pothos'), 0.025, 8);
+    sfx.pothosFling();
+  }
+  // glowing motes thrown in an arc from the heart, reaching `to` as the Cutting there finishes growing in
+  fling(to) {
+    const c = this.center(this._heart), T = LOOK.num('pothos-fling-time', 0.25), g = 3;
+    for (let k = 0; k < 5; k++) {
+      const T1 = T * (0.92 + k * 0.04);
+      this._vel.set((to.x - c.x) / T1, (to.y - c.y) / T1 + g * T1 / 2, (to.z - c.z) / T1);
+      this.fx.glow.emit(c, hostile('pothos'), 0.014 - k * 0.002, 0.006, T1, 1, this._vel, g);
     }
   }
 

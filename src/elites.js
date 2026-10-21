@@ -616,6 +616,15 @@ export class Elites {
       coffer: new TeleMaterial(hostile('coffer')),
     };
     this.minis = [];         // the Bull's little bulls, charging along their lanes
+    // a spiral Shot that reached the jelly leaves a little stuffing and a scuff under it
+    this._scuff = new THREE.Vector3();
+    this.bullShotEnd = (b, struck) => {
+      if (!struck) return;
+      const at = b.m.position, y = this.surfaceBelow(at);
+      this.fx.burst(at, LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 4, 0.003, 0.2, y);
+      this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-shot-scuff', 0.012));
+      sfx.bullHit();
+    };
     this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3();   // scratch for the Bull
     // the pull on the jelly this frame (m/s, flat), or null: the Coffer's tongue. The run adds it
     // to the jelly's movement next frame, as it does a Boss's `push`
@@ -765,12 +774,12 @@ export class Elites {
   // floor Blast of radius r, so its Warning has the half-sphere volume over the circle too.
   // arc: how high it rises on the way (m); wait: s it holds before it flies, its Warning filling
   // all along to the landing (the Alligator's frost balls); size: the orb's
-  lob(from, to, T, color, warnMat, r, onLand, { dome = false, arc = 0.12, wait = 0, size = 0.007, owner = null } = {}) {
+  lob(from, to, T, color, warnMat, r, onLand, { dome = false, arc = 0.12, wait = 0, size = 0.007, owner = null, onLaunch = null } = {}) {
     const m = this.fx.orb(color, size);
     m.position.copy(from);
     m.visible = !wait;
     const vol = dome ? this.volume(color, 'dome', to, r) : null;
-    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, arc, wait, owner });
+    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, onLaunch, arc, wait, owner });
   }
 
   // a ring wall rolling out from `at` (see the rings in update): a glowing band on the surface with
@@ -976,6 +985,13 @@ export class Elites {
         g.scale.y *= 1 - e.controllerKick * LOOK.num('controller-recoil-squash', 0.15);
         e.model.buttons.forEach(b => { b.position.y = 0.027; b.material.emissive.copy(b.material.color); b.material.emissiveIntensity = 0.5; });
         e.model.barMat.emissiveIntensity = 2;
+      }
+      // act 3's elites answer their own attacks: squash (a landing, a stomp) and recoil (a shot), easing back
+      if (e.squash || e.recoil) {
+        e.squash = Math.max(0, (e.squash || 0) - dt * 5); e.recoil = Math.max(0, (e.recoil || 0) - dt * 6);
+        const q = e.squash * LOOK.num('elite-land-squash', 0.22);
+        g.scale.y *= 1 - q; g.scale.x *= 1 + q * 0.5; g.scale.z *= 1 + q * 0.5;
+        g.rotation.x -= e.recoil * LOOK.num('elite-recoil', 0.16);
       }
       e.cool -= dt * CONTENT.elites.pace.recover;
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
@@ -1491,6 +1507,9 @@ export class Elites {
             e.volleyed = true;
             e.locked = true;
             const n = angry ? V.angryCount : V.count, side = new THREE.Vector3(fwd.z, 0, -fwd.x);
+            e.frostFelt = false;
+            // the frame the balls leave its mouth: a frosty flash there, its head kicks back, the launch
+            const launch = (b) => { this.fx.impact(b.from, hostile('croc'), 0.02, 8); e.recoil = 1; sfx.frostLaunch(); };
             for (let k = 0; k < n; k++) {
               const at = P.clone().addScaledVector(side, (k - (n - 1) / 2) * V.spread);
               this.platformTarget(e,at,V.radius);
@@ -1498,19 +1517,20 @@ export class Elites {
                 this.fx.impact(p.clone().setY(p.y + 0.01), hostile('croc'), 0.03, 12);
                 this.fx.burst(p.clone().setY(p.y + 0.01), ['#ffffff', '#cfe0ff', '#7f94ff'], 8, 0.003, 0.3, p.y);
                 this.fx.ring(p.clone().setY(p.y + 0.003), hostile('croc'), V.radius, 0.35);
-                sfx.shatter(); sfx.frostLand();
+                this.fx.splat(p, LOOK.color('croc-frost-splat', '#dfe8ff'), V.radius * LOOK.num('croc-frost-splat-size', 0.35));   // harmless rime, fading
+                if (!e.frostFelt) { e.frostFelt = true; juice.feel('impact'); }       // once a volley: they land together
+                sfx.frostLand();
                 if (blastHits(p, V.radius, P, cfg)) {
                   hit(V.dmg, 'croc-frost');
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
-              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size, owner: e });
+              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size, owner: e, onLaunch: k ? null : launch });
             }
             sfx.freeze();
           }
           jaw(Math.min(1, s / wind));
-          if (s >= wind / tempo && !e.launched) { e.launched = true; sfx.frostLaunch(); }   // the balls leave its mouth
           if (s < wind && Math.random() < dt * 25) this.fx.glow.emit(muzzle, hostile('croc'), 0.03, 0.006, 0.3, 0.9);   // frost gathering in its mouth
-          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = e.launched = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
+          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
         } else if (e.attack === 1) {
           // Tail slam: it turns its back to you, then slams its tail on the bed in a rhythm of its
           // own each time (gaps picked as it starts); before each slam a small Warning (a circle and
@@ -1544,7 +1564,11 @@ export class Elites {
               e.hitPop = 0.6;
               juice.feel('impact');
               sfx.crocThump(0.8);
-              this.fx.puff(e.slamAt.clone().setY(e.slamAt.y + 0.01), 0xdfe6ff, 0.04, 0.4);
+              const at = e.slamAt.clone().setY(e.slamAt.y + 0.01);
+              this.fx.puff(at, 0xdfe6ff, 0.04, 0.4);
+              this.fx.impact(at, hostile('croc'), 0.025, 10);
+              this.fx.burst(at, LOOK.list('croc-fluff', ['#7fa36a', '#a8c690', '#ffffff']), 6, 0.003, 0.25, e.slamAt.y);
+              this.fx.splat(e.slamAt, LOOK.color('croc-frost-splat', '#dfe8ff'), CROC_SLAM_WARN * LOOK.num('croc-dent-size', 0.6));   // a dent in the quilt, fading
               this.ring(e.slamAt, hostile('croc'), T, 'croc-tail', { band: T.band, speed: T.speed, max: T.reach, follow: true });
             }
           } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? T.angryRest : T.rest; }
@@ -1563,7 +1587,7 @@ export class Elites {
             jaw(c * 0.25);
           } else if (s < land) {
             const u = (s - wind) / Q.air;
-            if (!e.leapt) { e.leapt = true; sfx.wind(); }
+            if (!e.leapt) { e.leapt = true; sfx.wind(); sfx.crocThump(0.5); this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, 0.05, 0.4); e.squash = 0.6; }   // the push off
             g.position.y = Math.sin(u * Math.PI) * Q.leap;
             g.rotation.x = -0.35 * Math.cos(u * Math.PI);                       // nose up going up, down coming down
             M.tail.forEach((t, i) => { t.rotation.x = 0.25 - u * 0.4 + i * 0.05; });
@@ -1575,8 +1599,11 @@ export class Elites {
             this.fx.ring(surf, hostile('croc'), Q.radius, 0.5);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('croc'), 0.05, 22);
             this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, Q.radius * 0.8, 0.6);
+            this.fx.burst(surf.clone().setY(surf.y + 0.02), LOOK.list('croc-fluff', ['#7fa36a', '#a8c690', '#ffffff']), 10, 0.004, 0.35, surf.y);
+            this.fx.splat(surf, LOOK.color('croc-frost-splat', '#dfe8ff'), Q.radius * LOOK.num('croc-dent-size', 0.6) * 0.5);
+            e.squash = 1;                                                        // it lands flat, then springs back
             juice.feel('impact-big'); sfx.crocThump(1.4);
-            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); }
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); this.fx.impact(pc, hostile('croc'), 0.02, 8); }
           } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
       }
@@ -1608,8 +1635,11 @@ export class Elites {
             this.fx.ring(surf, col, Q.radius, 0.5);
             this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.06, 24);
             this.fx.puff(surf.clone().setY(surf.y + 0.02), 0xf0d0c0, Q.radius * 0.7, 0.55);
-            juice.feel('impact-big'); sfx.boom();
-            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush'); knock(e.base, Q.knock); }
+            this.fx.burst(surf.clone().setY(surf.y + 0.03), LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 12, 0.004, 0.4, surf.y);   // stuffing and fluff thrown up
+            this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), Q.radius * LOOK.num('bull-scuff-size', 0.2));   // a scuff where it stamped, fading
+            e.squash = 1;                                                        // it slams down into the table and springs back
+            juice.feel('impact-big'); sfx.bullRush();
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush'); knock(e.base, Q.knock); this.fx.impact(pc, col, 0.02, 8); }
           } else {
             const k = Math.max(0, 1 - (s - wind) / 0.4);                        // the horns shrink back
             for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
@@ -1637,8 +1667,11 @@ export class Elites {
                 const y = e.base.y + (k % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor);
                 this._from.set(e.base.x + dx * e.r * 0.8, y, e.base.z + dz * e.r * 0.8);
                 this._to.set(this._from.x + dx, y, this._from.z + dz);
-                this.shoot(this._from, this._to, col, 'bull-spiral', S.dmg, { speed: S.speed, size: S.size, life: S.reach / S.speed });
+                this.shoot(this._from, this._to, col, 'bull-spiral', S.dmg, { speed: S.speed, size: S.size, life: S.reach / S.speed }).onEnd = this.bullShotEnd;
+                this.fx.glow.emit(this._from, col, S.size * 4, S.size * 7, 0.12, 1);   // a flash where it leaves
               }
+              e.hitPop = Math.max(e.hitPop, LOOK.num('bull-spiral-pulse', 0.35));   // its body pulses with each beat
+              sfx.bullShot();
             }
           } else if (s > S.warn + S.time + 0.2) { e.locked = false; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest; }
         } else {
@@ -1671,7 +1704,15 @@ export class Elites {
             for (const m of e.tele) { m.material.progress = s / N.warn; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
           } else if (e.tele.length) {
             e.clearTele();
-            for (const b of e.minis) { b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed; }
+            for (const b of e.minis) {
+              b.state = 'charge'; b.speed = angry ? N.angrySpeed : N.speed;
+              // off they go: a kick of dust behind each and a flash at its horns, a snort
+              const p = this._mid.copy(b.m.position).setY(b.y + N.height * 0.5);
+              this.fx.puff(this._to.copy(p).addScaledVector(b.dir, -N.width * 0.5).setY(b.y + 0.01), 0xf0d0c0, 0.03, 0.35);
+              this.fx.impact(p.addScaledVector(b.dir, N.width * 0.4), col, 0.012, 6);
+            }
+            e.squash = 0.5;                                                      // the big Bull stamps them off
+            sfx.bullSnort();
             sfx.milliRoll(N.reach / e.minis[0].speed);   // (its length: without one, live audio threw)
           } else if (e.minis.every((b) => b.done)) { e.minis = null; e.locked = false; e.state = 'idle'; e.cool = angry ? N.angryRest : N.rest; }
         }
@@ -1696,8 +1737,11 @@ export class Elites {
             e.clearTele();
             this.fx.impact(this._mid.copy(e.aim).setY(e.aim.y + 0.01), col, 0.03, 14);
             this.fx.puff(this._mid, 0x8a6a4a, 0.035, 0.35);
-            juice.shake(0.2); sfx.cofferSlam();
-            if (blastHits(e.aim, A.radius, P, cfg)) hit(A.dmg, 'coffer-accordion');
+            this.fx.burst(this._mid, LOOK.list('coffer-chips', ['#8a6a4a', '#c8a878', '#e8d8b0']), 6, 0.003, 0.28, e.aim.y);   // splinters off the lid
+            this.fx.splat(e.aim, LOOK.color('coffer-scuff', '#5a4632'), A.radius * LOOK.num('coffer-scuff-size', 0.45));      // a dusty mark where it landed, fading
+            e.hitPop = Math.max(e.hitPop, 0.4);                                  // the box jolts with the slam
+            juice.feel('impact'); sfx.cofferSlam();
+            if (blastHits(e.aim, A.radius, P, cfg)) { hit(A.dmg, 'coffer-accordion'); this.fx.impact(pc, col, 0.015, 6); }
             e.lidFrom.copy(e.lidAt);
           }
           if (k < n && k !== e.strike) {
@@ -1828,7 +1872,7 @@ export class Elites {
             const G = e.gems[i], up = (s - G.at) / 0.4, p = this._mid;
             if (up >= 0 && up < 1) {
               // shooting up, fast, out of sight
-              if (!G.out) { G.out = true; sfx.jewelLaunch(i); }
+              if (!G.out) { G.out = true; sfx.jewelLaunch(i); this.fx.glow.emit(G.from, col, 0.012, 0.03, 0.14, 1); }   // a glint as it leaves the lid
               p.set(G.from.x + G.dx * up * 0.3, G.from.y + J.up * up * up * 1.6, G.from.z + G.dz * up * 0.3);
             } else if (s >= fallAt) {
               const f = Math.min(1, (s - fallAt) / J.drop), at = e.spots[i];
@@ -1850,9 +1894,11 @@ export class Elites {
             for (const at of e.spots) {
               this.fx.impact(this._mid.copy(at).setY(at.y + 0.01), col, 0.03, 10);
               this.fx.burst(this._mid, ['#ffb22a', '#ff7a00', '#ffe0a0'], 5, 0.003, 0.3, at.y);
-              if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel'); }
+              this.fx.splat(at, LOOK.color('coffer-shards', '#b89a6a'), J.radius * LOOK.num('coffer-shards-size', 0.25));   // glittering grit, fading
+              if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel'); this.fx.impact(pc, col, 0.015, 6); }
             }
-            juice.shake(0.25); sfx.jewelCrack();
+            e.hitPop = Math.max(e.hitPop, 0.4);
+            juice.feel('impact'); sfx.jewelCrack();
           }
           if (s > J.rain + 0.4) { e.spots = e.gems = null; e.locked = false; e.state = 'idle'; e.cool = angry ? J.angryRest : J.rest; }
         }
@@ -1879,14 +1925,18 @@ export class Elites {
         if (Math.random() < dt * 20) this.fx.puff(this._mid.copy(m.position).setY(b.y + 0.005), 0xf0d0c0, 0.01, 0.25);
         const c = this._mid.copy(m.position).setY(b.y + N.height / 2);
         let burst = b.along >= N.reach;
-        if (!b.pair.struck && blastHits(c, N.width / 2, P, cfg)) { b.pair.struck = true; burst = true; hit(N.dmg, 'bull-mini'); knock(m.position, N.knock); }
+        let struckYou = false;
+        if (!b.pair.struck && blastHits(c, N.width / 2, P, cfg)) { b.pair.struck = true; burst = struckYou = true; hit(N.dmg, 'bull-mini'); knock(m.position, N.knock); }
         for (const o of this.minis) if (o !== b && o.pair === b.pair && o.state === 'charge' && o.m.position.distanceTo(m.position) < N.width) { o.state = 'burst'; o.t = 0; burst = true; }
         if (!burst && b.along > N.side && this.surfaceBelow(m.position) < b.y - 0.03) burst = true;   // off the table's edge
         if (burst) {
           b.state = 'burst'; b.t = 0;
           this.fx.impact(c, hostile('bull'), 0.03, 12);
           this.fx.puff(c, 0xf0d0c0, 0.04, 0.4);
-          sfx.pop();
+          this.fx.burst(c, LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 6, 0.003, 0.3, b.y);
+          this.fx.splat(this._scuff.set(c.x, b.y, c.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-mini-scuff', 0.02));
+          if (struckYou) juice.feel('impact');
+          sfx.bullMini(struckYou);
         }
       } else if (b.state === 'burst') {
         const u = Math.min(1, b.t / 0.18);
@@ -1980,7 +2030,7 @@ export class Elites {
         r.m.position.y = r.y + 0.006;
         r.vol.position.y = r.y;
       }
-      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; hit(r.skill.dmg, r.source); if (r.skill.knock) knock(r.at, r.skill.knock); r.onHit?.(); }   // (a wave with knock= shoves you on, away from where it started)
+      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; this.fx.impact(this._scuff.set(P.x, r.y + 0.01, P.z), r.color, 0.02, 8); hit(r.skill.dmg, r.source); if (r.skill.knock) knock(r.at, r.skill.knock); r.onHit?.(); }   // (a wave with knock= shoves you on, away from where it started)
       if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     }
     this.rings = this.rings.filter((r) => !r.done);
@@ -2037,6 +2087,7 @@ export class Elites {
       b.t += dt;
       const k = Math.min(1, b.t / (b.wait + b.T)), f = Math.max(0, Math.min(1, (b.t - b.wait) / b.T));   // the Warning's fill, and how far it has flown
       if (b.t >= b.wait) {
+        if (!b.flown) { b.flown = true; b.onLaunch?.(b); }   // the frame it leaves
         b.m.visible = true;
         b.m.position.lerpVectors(b.from, b.to, f);
         b.m.position.y += 4 * b.arc * f * (1 - f);   // a thrown arc: steady across, gravity pulling it up and back down to its apex `arc` over the line
