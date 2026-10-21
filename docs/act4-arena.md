@@ -133,3 +133,52 @@ transparent wing panels so both wings display equal intensity. Software Chromium
 submission averaged about 0.52 ms for both viewports; this is not a physical phone FPS
 measurement. Targeted arena/model stories: 11 passed; guards passed. Full-suite and
 GitHub results are recorded on the PR.
+
+## Floor patterns (v237)
+
+The Encore's first attack family: the floor lights up in shapes that travel across it one step a
+beat, in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
+holds the patterns, the floor that plays them and the preview's setlist.
+
+- **ring** expands from the front of the pyramid a tile a beat, one tile thick: jump it as it reaches you.
+- **arc** is a ring with a gap (52°, its heading varies): jump it or run to the gap.
+- **arrow** is a 45° chevron, tip first, crossing the floor down, left or right a row a beat. The
+  setlist's three arrows four beats apart are three jumps in a row.
+
+Each step goes off on its beat. Its Warning starts 2 beats before (`--encore-floor-lead`): the tiles
+glow dimly in `--hostile-encore` and a low volume rises out of them to the height the hit reaches
+(`--encore-floor-height`, 4 cm). On the beat the tiles flash bright, pushed towards white so the
+beat's line stands out from the Warning ahead, and anything of the jelly inside the volume (its feet
+below 4 cm, its footprint over a hot tile) is hit once a pattern for 4 Health (heavy, few hits; it
+moves to `content/bosses.kdl` when the Encore joins the campaign). The pyramid, or the wing an arrow
+comes from, fills over the bar before a pattern and flashes as it starts.
+
+**Why every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 121 BPM a beat
+is 0.5 s, so the jelly can't jump every beat: a hit beat every 4 leaves time to land and get set,
+and a jump pressed up to about 2 beats early still clears it. Patterns are written in beats; the
+floor takes its time from `Music.beatNow()` (the audio clock less the output latency), so it stays on
+the speakers' beat. Going back in time drops what was playing; going forward more than a beat (a
+pause, a long frame) passes the missed steps without hitting.
+
+**The song.** `SONGS.encore` in `src/music.js`: an original French-house track, D minor at 121 BPM
+(Dm9, Bbmaj7, F, C6): an octave-jumping disco bass whose filter opens with intensity, chopped chord
+stabs (a new `stab` voice) pumping under the kick, four on the floor with claps and offbeat open
+hats, an arpeggio and a supersaw hook in the upper layers. It borrows the genre, not any record.
+
+**In the preview.** **Fight: floor patterns** starts the song and the setlist (8 bars, round and
+round) with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` shake (Reduce effects
+silences it) and a pop up off the floor, and Health fills back up at 0. **Stop the fight** ends it.
+
+**Cost.** No light is added. The tiles are the arena's existing instanced colours; the volumes are
+one more instanced draw (144 boxes, unlit, additive, no depth write) that is black when idle.
+
+**Feel audit (code, not yet watched at play speed): 5/9.** Anticipation, release, travel, target
+reaction (the pop) and camera reaction are there. Missing: an impact at the contact point (the
+preview has no fx pools), aftermath, a damage number, and a layered hit sound. They come with the
+game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
+scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
+
+Stories `encore/*` (8 new): the ring's travel and thickness, a standing jelly hit on the beat only,
+a real jump on the beat clearing it (and one 2.7 beats early not), the arc's gap, the arrow's shape
+and its three-jump run, the Warning rising to the beat with no light added, hitches and jumps in
+time, and the song scheduling at 121 BPM.
