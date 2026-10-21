@@ -557,7 +557,7 @@ act2('whipper-burst-misses-outside', {
 });
 act2('whipper-cream-spray', {
   about: 'Cream spray: the whipper tips toward you while a wedge and its cone fill on the floor, then sprays whipped cream along it: 3, and it slows you.',
-  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; },
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.25, 0.02, 8.6, 0); const e = whipper(); e.cool = 0; e.next = 1; },
   play() {
     const { run } = G(), e = whipper(), log = record('damage_taken');
     let warned = false, slowed = false;

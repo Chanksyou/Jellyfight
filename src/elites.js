@@ -532,6 +532,32 @@ class Elite {
 
   clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); }); this.tele = []; }
 
+  cancelAttack() {
+    this.clearTele();
+    if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }
+    this.owner.blobs = this.owner.blobs.filter(b => {
+      if (b.owner !== this || b.t >= b.wait) return true;
+      this.owner.fx.free(b.m); this.owner.scene.remove(b.warn); if (b.vol) this.owner.scene.remove(b.vol);
+      return false;
+    });
+    for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
+    // These are local windup/choreography fields. Released attacks live in the manager and continue.
+    for (const key of ['aim','beam','burst','chimed','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const o of this.model.loose || []) o.visible = false;
+    if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
+    if (this.model.lever) this.model.lever.rotation.z = 0;
+    if (this.model.whip) this.model.whip.rotation.x = 0;
+    if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
+    if (this.kind === 'clock') this.spin = 0;
+    if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; }
+    if (this.kind === 'soap') {
+      const M = this.model;
+      M.head.position.y = M.headY; M.stem.scale.y = 1; M.stem.position.y = M.headY - 0.012;
+    }
+    this.model.group.rotation.set(0,0,0);
+    this.state = 'idle'; this.stateT = 0; this.locked = false; this.cool = 0;
+  }
+
   remove() {
     this.clearTele();
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
@@ -673,6 +699,29 @@ export class Elites {
     return h ? h.point.y : p.y;
   }
 
+  onPlatform(e, p) {
+    const W = e.spec.wake;
+    return !W || p.x >= W.min[0] && p.x <= W.max[0] && p.y >= W.min[1] && p.y <= W.max[1] && p.z >= W.min[2] && p.z <= W.max[2];
+  }
+
+  canSee(e, pc, radius) {
+    const from = this._from.copy(e.model.muzzle).applyAxisAngle(UP,e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
+    const delta = this._dir.copy(pc).sub(from), distance = delta.length();
+    if (distance < radius) return true;
+    const hit = this.world.castAll(from,delta.multiplyScalar(1/distance),distance);
+    return !hit || hit.distance >= distance-radius;
+  }
+
+  platformTarget(e, at, inset = 0) {
+    const W = e.spec.wake;
+    if (W) for (const [axis,i] of [['x',0],['z',2]]) {
+      const margin = Math.min(inset,(W.max[i]-W.min[i])/2);
+      at[axis] = THREE.MathUtils.clamp(at[axis],W.min[i]+margin,W.max[i]-margin);
+    }
+    at.y = this.surfaceBelow(at);
+    return at;
+  }
+
   // Detached warnings are available again; reset every animated property before reuse.
   volume(color, kind, pos, scale) {
     const hex = color.isColor ? color.getHex() : new THREE.Color(color).getHex();
@@ -716,12 +765,12 @@ export class Elites {
   // floor Blast of radius r, so its Warning has the half-sphere volume over the circle too.
   // arc: how high it rises on the way (m); wait: s it holds before it flies, its Warning filling
   // all along to the landing (the Alligator's frost balls); size: the orb's
-  lob(from, to, T, color, warnMat, r, onLand, { dome = false, arc = 0.12, wait = 0, size = 0.007 } = {}) {
+  lob(from, to, T, color, warnMat, r, onLand, { dome = false, arc = 0.12, wait = 0, size = 0.007, owner = null } = {}) {
     const m = this.fx.orb(color, size);
     m.position.copy(from);
     m.visible = !wait;
     const vol = dome ? this.volume(color, 'dome', to, r) : null;
-    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, arc, wait });
+    this.blobs.push({ m, warn: this.warnCircle(to, r, warnMat), vol, from: from.clone(), to: to.clone(), t: 0, T, onLand, arc, wait, owner });
   }
 
   // a ring wall rolling out from `at` (see the rings in update): a glowing band on the surface with
@@ -885,9 +934,14 @@ export class Elites {
       e.fill.material.color.setHSL(0.33 * k, 0.85, 0.55);          // green -> yellow -> red
       const to = pc.clone().sub(e.base);
       // awake: you're within aggro of it, and on its ground if it has one (spec.wake: a box)
-      const W = e.spec.wake, onIts = !W || (P.x > W.min[0] && P.x < W.max[0] && P.y > W.min[1] && P.y < W.max[1] && P.z > W.min[2] && P.z < W.max[2]);
-      const awake = to.length() < e.aggro && onIts;
+      const onIts = this.onPlatform(e,P), awake = onIts && to.length() < e.aggro;
       e.awake = awake;
+      const raining = e.kind === 'coffer' && e.attack === 2 && e.gems; // fixed landing spots for airborne jewels
+      if (raining && !onIts) for (let i = e.gems.length - 1; i >= 0; i--) if (!e.gems[i].out) {
+        e.gems.splice(i, 1); e.spots.splice(i, 1);
+        for (const m of e.tele.splice(i * 2, 2)) this.scene.remove(m);
+      }
+      if (e.state !== 'idle' && !onIts && (!raining || !e.gems.length)) e.cancelAttack();
       // a hanging elite comes down its wall while you're close (and fights only once it's down)
       if (e.wall) {
         if (awake || e.state !== 'idle') e.downT = 1.5; else e.downT = Math.max(0, (e.downT || 0) - dt);
@@ -972,7 +1026,7 @@ export class Elites {
 
       // start the next attack
       if (e.state === 'idle') {
-        if (!awake || e.cool > 0 || (e.wall && !e.ready)) continue;
+        if (!awake || e.cool > 0 || (e.wall && !e.ready) || !this.canSee(e,pc,cfg.radius)) continue;
         // finish turning to face you first, so the telegraph points where you are
         const off = Math.atan2(Math.sin(Math.atan2(to.x, to.z) - heading), Math.cos(Math.atan2(to.x, to.z) - heading));
         if (Math.abs(off) > 0.15 && !e.wall) continue;
@@ -995,7 +1049,7 @@ export class Elites {
             FLOOR_SHAPES.forEach((kind, i) => {
               const a = angle + (i-1)*Math.PI*2/3, at = P.clone();
               if (i) { at.x += Math.sin(a)*D.spread; at.z += Math.cos(a)*D.spread; }
-              at.y = this.surfaceBelow(at.setY(floor));
+              this.platformTarget(e,at.setY(floor),D.radius);
               const m = this.mark(e, floorShapeGeometry(kind), this.T.symbols[i], at, new THREE.Vector3(D.radius,1,D.radius));
               m.position.y += .002; m.userData.symbol = kind;
               const vol = this.volume(hostile('controller'), 'symbol-'+kind, at, new THREE.Vector3(D.radius,D.height,D.radius));
@@ -1075,7 +1129,7 @@ export class Elites {
             if (blastHits(at, R, P, cfg)) hit(SK.coffee.dmg, 'mug');
             this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid();
           };
-          const throwAt = () => { const target = P.clone(); target.y = this.surfaceBelow(P); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true }); e.hitPop = 0.6; };
+          const throwAt = () => { const target = this.platformTarget(e,P.clone(),R); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true }); e.hitPop = 0.6; };
           if (!e.thrown) e.thrown = 0;
           if (e.thrown < SK.coffee.lobs && s >= e.thrown * 0.6) { e.thrown++; throwAt(); }
           if (s > SK.coffee.lobs * 0.6) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
@@ -1093,6 +1147,7 @@ export class Elites {
             if (k !== e.poured && k < SK.spill.puddles) {
               e.poured = k;
               const at = e.base.clone().addScaledVector(fwd, e.r + 0.05 + k * 0.075);
+              if (!this.onPlatform(e,at)) continue;
               at.y = this.surfaceBelow(at);
               this.puddle(at, 0.04, 3);
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#3a2214', '#6a4a2a'], 5, 0.003, 0.25, at.y);
@@ -1142,8 +1197,8 @@ export class Elites {
             const center = P.clone(); center.y = this.surfaceBelow(P);
             for (let k = 0; k < SK.boil.drops; k++) {
               const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
-              at.y = this.surfaceBelow(at);
               const R = 0.035;
+              this.platformTarget(e,at,R);
               this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, R, (p) => {
                 this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
@@ -1168,7 +1223,7 @@ export class Elites {
           press(k < n ? Math.sin(Math.min(1, ph * 1.6) * Math.PI) : 0);
           if (k < n && k !== e.squirted) {
             e.squirted = k;
-            const target = P.clone(); target.y = this.surfaceBelow(P);
+            const target = this.platformTarget(e,P.clone(),R);
             this.lob(muzzle, target, 0.75, hostile('soap'), this.T.soap, R, (at) => {
               this.fx.impact(at.clone().setY(at.y + 0.008), hostile('soap'), 0.02, 8);
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
@@ -1394,7 +1449,7 @@ export class Elites {
             const n = angry ? V.angryCount : V.count, side = new THREE.Vector3(fwd.z, 0, -fwd.x);
             for (let k = 0; k < n; k++) {
               const at = P.clone().addScaledVector(side, (k - (n - 1) / 2) * V.spread);
-              at.y = this.surfaceBelow(at);
+              this.platformTarget(e,at,V.radius);
               this.lob(muzzle, at, V.flight, hostile('croc'), this.T.frost, V.radius, (p) => {
                 this.fx.impact(p.clone().setY(p.y + 0.01), hostile('croc'), 0.03, 12);
                 this.fx.burst(p.clone().setY(p.y + 0.01), ['#ffffff', '#cfe0ff', '#7f94ff'], 8, 0.003, 0.3, p.y);
@@ -1404,7 +1459,7 @@ export class Elites {
                   hit(V.dmg, 'croc-frost');
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
-              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size });
+              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size, owner: e });
             }
             sfx.freeze();
           }
@@ -1426,7 +1481,7 @@ export class Elites {
             e.slams = 0;
             e.backYaw = heading + Math.PI;
             e.slamAt = e.base.clone().addScaledVector(fwd, M.tailReach * e.size);   // its tail, once it has turned, lies toward you
-            e.slamAt.y = this.surfaceBelow(e.slamAt);
+            this.platformTarget(e,e.slamAt,CROC_SLAM_WARN);
           }
           let d = e.backYaw - e.holder.rotation.y;
           d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -1607,7 +1662,7 @@ export class Elites {
             e.aim.copy(P);
             const dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, d = Math.hypot(dx, dz);
             if (d > A.range) { e.aim.x = e.base.x + (dx / d) * A.range; e.aim.z = e.base.z + (dz / d) * A.range; }
-            e.aim.y = this.surfaceBelow(e.aim);
+            this.platformTarget(e,e.aim,A.radius);
             e.tele.push(this.warnCircle(e.aim, A.radius, this.T.coffer), this.volume(col, 'dome', e.aim, A.radius));
             sfx.cofferWheeze(unfold / tempo);
           }
@@ -1764,6 +1819,7 @@ export class Elites {
     // and an impact) on the jelly (once a pair: 'bull-mini'), on each other, at the lane's end or
     // off the table's edge. Each is a jelly-sized body: a ball round its middle, as wide as its lane
     for (const b of this.minis) {
+      if (b.done) continue;
       b.t += dt;
       const N = CONTENT.elites.bull.skills.minis, m = b.m;
       if (b.state === 'warn') {

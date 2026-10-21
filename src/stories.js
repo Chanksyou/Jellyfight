@@ -32,6 +32,7 @@ import './stories/fire-trail.js';
 import './stories/feel-reveal.js';
 import './stories/xp-feel.js';
 import './stories/elites.js';
+import './stories/elite-platforms.js';
 import './stories/events-boss.js';
 import './stories/main-screen-modes-engine.js';
 import './stories/main-menu.js';

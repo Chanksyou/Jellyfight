@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v229 confines new elite attacks to their own platform and clear sight of the jelly. Leaving cancels unfinished windups; released shots, lobs, wreaths, rings, balloons and jewels finish normally. Ground targets stay within the platform footprint. Damage, counts and timing values are unchanged.
+
 v228 gives every boss a longer Dendi finish: the screen fades into a staged view, the cat walks up along a short surface-checked path, pauses, raises his paw and lands a layered finishing thump. A contact flash, debris, the boss's collapse and a lingering aftermath precede a second fade back to the jelly and rewards. Gameplay waits throughout; Reduce Effects uses a shorter static finish. No combat or reward values changed.
 
 v227 indexes scenery bounds before bug-body collision, preserving full triangle sweeps, corners, moving props and distant enemies. Elite warnings, volumes, puddles, slicks, balloons and thrown wreaths reuse prepared meshes/materials after removal. Inactive batches release model references. Attack shapes, damage, timings and movement rules are unchanged.

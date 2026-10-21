@@ -12,7 +12,7 @@
 // It's an elite in act 2 (elites.js, kind 'clock'): it hangs at `wall`, and when you come onto the
 // bench it slides down the wall to fight you there; `at` is the bench top below it. It stands in
 // for the apartment's own simple clock, which every act hides (`hide`). Act 1 sees it down the hall.
-export const HALL_CLOCK = { kind: 'clock', at: [1.8, 0.46, 7.415], wall: { x: 1.76, y: 1.12, z: 7.415, yaw: Math.PI / 2 }, area: 'cubby bench' };
+export const HALL_CLOCK = { kind: 'clock', at: [1.8, 0.46, 7.415], wall: { x: 1.76, y: 1.12, z: 7.415, yaw: Math.PI / 2 }, area: 'cubby bench', wake: { min: [1.78, 0.41, 7.04], max: [2.18, 1.16, 7.79] } };
 
 export const STAGE1 = {
   id: 1,
@@ -79,9 +79,9 @@ export const STAGE1 = {
   // High-ground elites (elites.js): real objects that came alive, one on each raised area.
   // `hide` is the apartment object each one stands in for while it's alive.
   elites: [
-    { kind: 'controller', at: [1.31, 0.603, 4.52], hide: 'Controllers', area: 'media console' },
-    { kind: 'mug', at: [0.65, 0.775, 2.715], hide: 'Mug', area: 'standing desk' },
-    { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop' },
+    { kind: 'controller', at: [1.31, 0.603, 4.52], hide: 'Controllers', area: 'media console', wake: { min: [0.85, 0.55, 4.35], max: [2.4, 1.3, 4.83] } },
+    { kind: 'mug', at: [0.65, 0.775, 2.715], hide: 'Mug', area: 'standing desk', wake: { min: [0.09, 0.72, 2.54], max: [0.8, 1.48, 3.85] } },
+    { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop', wake: { min: [4.3, 0.85, 1.47], max: [5.01, 1.65, 4.31] } },
   ],
 
   // The boss: a robot vacuum that powers on in front of the kitchen (vacuum.js). While it's

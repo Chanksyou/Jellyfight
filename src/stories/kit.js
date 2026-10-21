@@ -295,7 +295,7 @@ export const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts y
 // the balloon's Warning as the scene holds it: its floor circle (and a volume, which it shouldn't have)
 export function balloonWarning(B) { return warningsAt(B.m.position); }
 export const startBalloon = () => { fresh({ bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; };
-export const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.27, 0.02, 8.78, 0); const e = whipper(); e.cool = 0; e.next = 1; };
+export const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.25, 0.02, 8.6, 0); const e = whipper(); e.cool = 0; e.next = 1; };
 // act 3's Alligator on the pillows at the head of the bed (elites.js kind 'croc', croc-model.js):
 // start one of its attacks with the jelly held on the bed in front of it (x, z), facing it
 export const croc = () => G().run.elites.list.find((e) => e.kind === 'croc');

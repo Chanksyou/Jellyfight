@@ -52,11 +52,11 @@ act3('coffer-wakes-when-you-are-on-the-desk', {
 });
 
 act3('coffer-accordion', {
-  about: 'Accordion: five strikes in a row. Each locks where the jelly is then (no further than 80 cm from the Coffer) and a Warning (a 6 cm circle with the half sphere over it) fills there over 0.5 s while the lid shoots out on its stretching bellows; then the lid slams down on it: 3 to a jelly still on it, nothing to one that moved off it (or stood past the 80 cm).',
+  about: 'Accordion: five strikes in a row. Each locks where the jelly is then (no further than 80 cm from the Coffer) and a Warning (a 6 cm circle with the half sphere over it) fills there over 0.5 s while the lid shoots out on its stretching bellows; then the lid slams down on it: 3 to a jelly still on it, nothing to one that moved off the mark; every target stays on the desk.',
   setup() { startCoffer(0); },
   play() {
     const { e, player, desk } = startCoffer(0), log = record('damage_taken'), A = CONTENT.elites.coffer.skills.accordion, tempo = CONTENT.elites.pace.tempo;
-    const far = V(-1.52, desk, 9.5), back = V(-1.5, desk, 8.85);
+    const far = V(-1.82, desk, 9.29), back = V(-1.5, desk, 8.85);
     const locks = [], hitAt = [];
     let arm = 0, k = -1, frames = 0, radius = 0, seen = 0;
     step(60 * 6, () => {
@@ -64,7 +64,7 @@ act3('coffer-accordion', {
       if (e.strike != null && e.strike !== k) {
         k = e.strike;
         locks.push({ aim: e.aim.clone(), jelly: player.position.clone(), at: frames });
-        if (k === 1) player.position.copy(far);            // moves off strike 2, and stands too far for strike 3
+        if (k === 1) player.position.copy(far);            // dodges strike 2 and tests the desk edge for strike 3
         if (k === 2) player.position.copy(back);           // back in reach for strikes 4 and 5
       }
       const n = hitsBy(log, 'coffer-accordion').length;
@@ -79,7 +79,8 @@ act3('coffer-accordion', {
     const fill = locks.slice(1).map((l, i) => +(((l.at - locks[i].at) / 60) * tempo).toFixed(2));   // each Warning's fill, in the attack's time
     const reach = locks.map((l) => +flat(l.aim, e.base).toFixed(3));
     const onJelly = locks.map((l, i) => (i === 2 ? null : +flat(l.aim, l.jelly).toFixed(3)));
-    return ok(locks.length === 5 && fill.every((g) => Math.abs(g - A.unfold) < 0.04) && reach.every((d) => d <= A.range + 0.001) && Math.abs(reach[2] - A.range) < 0.005
+    const W = e.spec.wake, bounded = locks.every(({ aim }) => aim.x >= W.min[0]+A.radius && aim.x <= W.max[0]-A.radius && aim.z >= W.min[2]+A.radius && aim.z <= W.max[2]-A.radius);
+    return ok(locks.length === 5 && bounded && fill.every((g) => Math.abs(g - A.unfold) < 0.04) && reach.every((d) => d <= A.range + 0.001)
       && onJelly.every((d) => d === null || d < 0.001) && Math.abs(radius - A.radius) < 0.002 && struck.every((n) => n === A.dmg) && hitAt.join() === '0,3,4' && arm > 0.45,
       { locks: locks.length, fill, reach, onJelly, radius: +radius.toFixed(3), struck, hitAt, arm: +arm.toFixed(3) });
   },
