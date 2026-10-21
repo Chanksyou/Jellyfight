@@ -14,8 +14,6 @@ import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
 import { ATTACKS as POTHOS_ATTACKS } from '../pothos.js';
-import { juice } from '../juice.js';
-import { sfx } from '../sfx.js';
 
 export const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export const G = () => window;                       // main.js puts the game objects on window
