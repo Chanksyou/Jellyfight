@@ -10,7 +10,6 @@ import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { batcher } from './batch.js';
 
-const UP = new THREE.Vector3(0, 1, 0);
 const _to = new THREE.Vector3();
 
 export class Gadgets {
@@ -30,6 +29,7 @@ export class Gadgets {
     // Fairy Lights: three warm bulbs that circle you
     this.bulbs = [0xffd27a, 0xff9ad8, 0x9fe2ff, 0xffd27a, 0xff9ad8, 0x9fe2ff].map((c) => {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.005, 12, 8), glow(c, 2.4));
+      const core=new THREE.Mesh(new THREE.SphereGeometry(.0022,8,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));m.add(core);
       m.visible = false;
       this.group.add(m);
       return m;
@@ -58,6 +58,7 @@ export class Gadgets {
     // Glow Stick: a green glow on the floor around you
     this.aura = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x6aff8a, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.auraLip=new THREE.Mesh(this.looks.geo.arc,focusMat);this.aura.add(this.auraLip);this.auraLip.scale.setScalar(.99);
     this.aura.visible = false;
     this.group.add(this.aura);
     // Lego bricks and marbles
@@ -69,8 +70,6 @@ export class Gadgets {
     this.marbleGeo = new THREE.SphereGeometry(0.007, 16, 12);
     this.swirlGeo = new THREE.TorusGeometry(.0067,.00065,5,24,Math.PI*1.6);
     this.swirlMat = new THREE.MeshBasicMaterial({color:LOOK.color('gadget-marble-swirl','#247e90')});
-    // Remote Control zaps
-    this.zapMat = new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true });
     // Cat Toy Mouse: a little grey wind-up mouse with pink ears, a tail and a brass key
     const grey = new THREE.MeshStandardMaterial({ color: 0x9a948c, roughness: 0.8 }), pink = new THREE.MeshStandardMaterial({ color: 0xf2a0b0, roughness: 0.6 });
     grey.emissive.set(LOOK.color('gadget-mouse-rim','#386d79'));grey.emissiveIntensity=.3;
@@ -97,10 +96,8 @@ export class Gadgets {
     this.t = {};
     for (const b of this.bricks || []) this.group.remove(b.m);
     for (const m of this.marbles || []) this.group.remove(m.m);
-    for (const z of this.zaps || []) this.group.remove(z.line);
     this.bricks = [];
     this.marbles = [];
-    this.zaps = [];
     this.orbit = 0;
     this.mouseRun = null;
     this.mouse.visible = false;
@@ -128,7 +125,7 @@ export class Gadgets {
       const brick=this.brickMesh(),marble=this.marbleMesh();
       brick.position.copy(at);marble.position.copy(at);this.group.add(brick,marble);
       this._warm = [this.brickMats.map((m) => new THREE.Mesh(this.brickGeo, m)), new THREE.Mesh(this.marbleGeo, this.marbleMat),
-        brick,marble,new THREE.Line(new THREE.BufferGeometry().setFromPoints([at, at.clone().add(UP)]), this.zapMat)].flat();
+        brick,marble].flat();
       this._warm.forEach((m) => { m.position.copy(at); this.group.add(m); });
     } else {
       (this._warm || []).forEach((m) => this.group.remove(m));
@@ -206,14 +203,13 @@ export class Gadgets {
           const r=.026+.018*this.t[T.key]/LOOK.num('gadget-bath-prepare',.3);
           this.bathReady.children.forEach((m,i)=>{const a=i/8*Math.PI*2;m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);});
         }
+        if(ef.look==='puff'&&this.t[T.key]<LOOK.num('gadget-fizz-prepare',.3)){this.chordReady.visible=true;this.chordReady.position.copy(center);this.chordReady.scale.setScalar(.022);}
         if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
           this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
           this.chordReady.scale.setScalar(ef.radius*(.25+.35*(1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25))));
         }
       }
     }
-    for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }
-    this.zaps = this.zaps.filter((z) => z.t > 0);
 
     // orbit-lights: bulbs circle you and sting whatever they brush
     const O = M.orbit, n = O ? Math.min(O.count, this.bulbs.length) : 0;
@@ -226,6 +222,7 @@ export class Gadgets {
       for (const e of this.near(b.position, 0.008)) {
         if ((e.fairyT || 0) > 0) continue;
         e.fairyT = 0.4;
+        this.looks.contact(E.center(e),this.looks.color,.007);sfx.gadgetFairy();ctx.pulse?.(.06);
         bus.emit('damage_taken', { targetId: e.id, amount: power * O.dmg, color: '#ffe7a8', source: 'orbit-lights' });
       }
     });
@@ -264,8 +261,8 @@ export class Gadgets {
     this.aura.visible = !!A;
     if (A) {
       this.aura.position.copy(feet).setY(feet.y + 0.002);
-      this.aura.scale.setScalar(A.radius * (1 + Math.sin(this.orbit * 2) * 0.05));
-      if (this.every('aura', dt, A.tick)) for (const e of this.near(center, A.radius)) bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });
+      this.aura.scale.setScalar(A.radius);
+      if (this.every('aura', dt, A.tick)) {this.looks.arc(feet.clone().setY(feet.y+.003),A.radius,this.looks.color,.18);for (const e of this.near(center, A.radius)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura();bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });}}
     }
 
     // touch-sting (Lion's Mane): whatever touches you gets stung
@@ -380,7 +377,7 @@ export class Gadgets {
     const E = this.enemies, fx = this.fx;
     if (ef.kind === 'ring') {
       const col = new THREE.Color(ef.color);
-      if (ef.look === 'puff') fx.puff(feet.clone().setY(feet.y + 0.01), col.getHex(), ef.radius, 0.35);
+      if (ef.look === 'puff') {this.looks.fizzBurst(feet.clone().setY(feet.y+.004),ef.radius);sfx.gadgetFizz();ctx.pulse?.(.25);}
       else if(ef.look==='chord'){
         for(let i=0;i<3;i++)this.looks.arc(feet.clone().setY(feet.y+.004+i*.002),ef.radius*(1-i*.035),col,ef.show);
         sfx.gadgetChord();ctx.pulse?.(.3);
@@ -389,7 +386,7 @@ export class Gadgets {
       }
       else fx.ring(feet.clone().setY(feet.y + 0.004), col.getHex(), ef.radius, ef.show);
       for (const e of this.near(center, ef.radius, { proxies: ef.elites })) {
-        if(ef.look==='chord'||ef.look==='needles'){
+        if(ef.look==='chord'||ef.look==='needles'||ef.look==='puff'){
           const at=E.center(e);
           this.looks.contact(at,col,Math.max(.006,e.r*.6));
           if(ef.look==='needles')this.looks.streak(center,at,col,LOOK.num('gadget-needle-width',.0013),LOOK.num('gadget-needle-life',.16),'needle');
@@ -402,12 +399,8 @@ export class Gadgets {
       }
     } else if (ef.kind === 'zap') {
       for (const e of this.near(center, ef.range).slice(0, ef.count)) {
-        const to = E.center(e), pts = [center.clone()];
-        for (let k = 1; k < 6; k++) pts.push(center.clone().lerp(to, k / 6).add(new THREE.Vector3().randomDirection().multiplyScalar(0.008)));
-        pts.push(to);
-        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), this.zapMat);
-        this.group.add(line);
-        this.zaps.push({ line, t: 0.25 });
+        const to = E.center(e);
+        this.looks.signal(center,to);sfx.gadgetRemote();ctx.pulse?.(.12);
         bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
     } else if (ef.kind === 'brick') {
