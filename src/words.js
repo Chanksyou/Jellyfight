@@ -781,7 +781,7 @@ export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; `look` is "ring" or "puff".',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
     args: ['radius'],
     props: { dmg: 1, push: 0, freeze: 0, slow: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),

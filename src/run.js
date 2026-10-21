@@ -396,6 +396,7 @@ export class Run {
       if (!polyp) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
+        pulse: (k) => P.avatar?.pulse(k),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
@@ -618,7 +619,7 @@ export class Run {
       this.hurtCd[H.key] = this.t + H.cooldown;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
       const lash = (e, k) => this.lash.strike(center, e, this.S.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
-      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash };
+      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from);

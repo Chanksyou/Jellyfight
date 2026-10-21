@@ -237,16 +237,16 @@ treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Enemies you
 // --- things that attack on their own (gadgets.js)
 treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true text="Every 5 s a chord rings out, stinging and pushing back everything close." {
     every 5 {
-        ring 0.13 dmg=1 push=0.035 color="#c08aff" show=0.45
+        ring 0.13 dmg=1 push=0.035 color="#c08aff" look="chord" show=0.45
     }
     level 2 text="Level 2: a chord every 4 s, wider and harder." {
         every 4 {
-            ring 0.14 dmg=1.1 push=0.04 color="#c08aff" show=0.45
+            ring 0.14 dmg=1.1 push=0.04 color="#c08aff" look="chord" show=0.45
         }
     }
     level 3 text="Level 3: a chord every 3 s, wider and harder still." {
         every 3 {
-            ring 0.15 dmg=1.2 push=0.045 color="#c08aff" show=0.45
+            ring 0.15 dmg=1.2 push=0.045 color="#c08aff" look="chord" show=0.45
         }
     }
 }
@@ -473,7 +473,7 @@ treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="10
 // --- when hit (when-hit): getting hurt hits back
 treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When you're hit, needles spray at every bug within 25 cm (once a second)." stack=3 {
     when-hit cooldown=1 {
-        ring 0.25 dmg=0.35 color="#8fffc8" show=0.35
+        ring 0.25 dmg=0.35 color="#8fffc8" look="needles" show=0.35
     }
 }
 treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When a bug hits you, a tentacle lashes back at it for twice your Tentacle damage (once a second)." stack=3 {
