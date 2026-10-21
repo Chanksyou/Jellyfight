@@ -442,6 +442,49 @@ export const sfx = {
     noise(170*j, 1.4, 0.24, 0.09, 'lowpass', 0.015, 60);
     for (let i = 0; i < 4; i++) noise((700+i*350)*j, 3, 0.035, 0.025, 'bandpass', 0.06+i*0.035);
   },
+  // the Mug flinging coffee: a slosh off the rim, then the whoosh of it flying
+  mugLob() {
+    if (!ready() || !gap('mugLob', 90)) return; const j = jitter(0.12);
+    noise(2400*j, 2, 0.03, 0.08, 'bandpass'); tone('sine', 360*j, 210*j, 0.07, 0.05);
+    noise(900*j, 1.2, 0.3, 0.035, 'bandpass', 0.03, 2600*j);
+  },
+  // coffee landing: a wet slap, a thud, drops pattering round it (louder on the jelly)
+  mugSplash(hit = false) {
+    if (!ready() || !gap('mugSplash', 70)) return; const j = jitter(0.14), k = hit ? 1 : 0.6;
+    noise(3800*j, 1, 0.04, 0.16*k, 'highpass'); tone('sine', 170*j, 60, 0.12, 0.12*k);
+    noise(800*j, 0.9, 0.14, 0.08*k, 'lowpass', 0.01, 220);
+    for (let i = 0; i < 3; i++) noise((2200 + Math.random()*1800)*j, 4, 0.015, 0.04*k, 'bandpass', 0.05 + i*0.04 + Math.random()*0.02);
+  },
+  // the Mug tipping out its wave: a heavy glug, then the pour running out
+  mugPour() {
+    if (!ready() || !gap('mugPour', 200)) return; const j = jitter(0.1);
+    tone('sine', 240*j, 120*j, 0.12, 0.1); noise(1200*j, 1, 0.05, 0.1, 'bandpass');
+    noise(1800*j, 0.8, 0.8, 0.07, 'bandpass', 0.04, 700*j);
+    for (let i = 0; i < 4; i++) tone('sine', (300 + i*40)*j, 180*j, 0.06, 0.04, 0.12 + i*0.13);
+  },
+  // standing in something scalding: a short sizzle
+  scald() { if (!ready() || !gap('scald', 220)) return; const j = jitter(0.15); noise(6000*j, 1, 0.12, 0.05, 'highpass'); noise(2400*j, 3, 0.05, 0.03, 'bandpass', 0.03); },
+  // the Kettle's steam blast: a crack as it vents, a roaring hiss that falls away, spits of water
+  kettleBlast() {
+    if (!ready() || !gap('kettleBlast', 300)) return; const j = jitter(0.1);
+    noise(5200*j, 0.8, 0.04, 0.2, 'highpass'); tone('sine', 140*j, 55, 0.18, 0.14);
+    noise(3600*j, 0.7, 0.95, 0.12, 'bandpass', 0.02, 1400*j);
+    for (let i = 0; i < 5; i++) noise((3000 + Math.random()*3000)*j, 4, 0.012, 0.05, 'bandpass', 0.1 + i*0.16 + Math.random()*0.05);
+  },
+  // the Kettle's lid popping: a clank, a boiling burble, the drops whooshing up
+  kettlePop() {
+    if (!ready() || !gap('kettlePop', 200)) return; const j = jitter(0.1);
+    tone('triangle', 1500*j, 1100*j, 0.09, 0.06); noise(4200*j, 2, 0.03, 0.12, 'bandpass');
+    for (let i = 0; i < 4; i++) tone('sine', (220 + Math.random()*160)*j, 400*j, 0.05, 0.05, 0.03 + i*0.05);
+    noise(800*j, 1, 0.35, 0.06, 'bandpass', 0.05, 2800*j);
+  },
+  // a boiling drop landing: a plop, a thud, a sizzle and spatter
+  kettleDrop(hit = false) {
+    if (!ready() || !gap('kettleDrop', 60)) return; const j = jitter(0.15), k = hit ? 1 : 0.6;
+    noise(2600*j, 3, 0.03, 0.12*k, 'bandpass'); tone('sine', 200*j, 80, 0.1, 0.1*k);
+    noise(6500*j, 1, 0.25, 0.05*k, 'highpass', 0.02);
+    for (let i = 0; i < 2; i++) noise((3000 + Math.random()*2000)*j, 4, 0.012, 0.04*k, 'bandpass', 0.06 + i*0.05);
+  },
   // XP collected: a chime that climbs with continuous collection
   xp(chain = 0, big = false) {
     if (!ready() || !gap('xp', 45)) return;
@@ -607,24 +650,36 @@ export const sfx = {
   // the ram itself: a roaring whoosh
   vacRam() {
     if (!ready()) return;
-    noise(300, 0.8, 0.8, 0.3, 'lowpass', 0, 3500);
-    tone('sawtooth', 70, 190, 0.8, 0.14); tone('square', 140, 300, 0.6, 0.05);
+    const j = jitter(0.08);
+    tone('triangle', 260 * j, 90, 0.07, 0.14); noise(2200 * j, 1.5, 0.04, 0.12, 'bandpass');   // the clunk as its wheels bite
+    noise(300 * j, 0.8, 0.8, 0.3, 'lowpass', 0, 3500 * j);
+    tone('sawtooth', 70 * j, 190 * j, 0.8, 0.14); tone('square', 140 * j, 300 * j, 0.6, 0.05);
+  },
+  // the ram landing on the jelly: a hard plastic thwack, a thud, a rattle of its insides
+  vacSmack() {
+    if (!ready() || !gap('vacSmack', 150)) return;
+    const j = jitter(0.1);
+    noise(3400 * j, 1.2, 0.035, 0.3, 'bandpass'); tone('sine', 150 * j, 45, 0.25, 0.32);
+    noise(700 * j, 0.8, 0.2, 0.18, 'lowpass', 0.01, 160);
+    for (let k = 0; k < 4; k++) noise((1800 + Math.random() * 2400) * j, 4, 0.015, 0.06, 'bandpass', 0.06 + k * 0.04 + Math.random() * 0.02);
   },
   // slamming into a wall (or stopping hard): a boom, a crunch and a metal clang
   vacImpact(hard = true) {
     if (!ready() || !gap('vacImpact', 200)) return;
-    tone('sine', 130, 32, 0.5, hard ? 0.5 : 0.3);
-    noise(900, 0.7, 0.35, hard ? 0.35 : 0.2, 'lowpass', 0, 120);
-    if (hard) { tone('triangle', 1830, 1790, 0.5, 0.07); tone('triangle', 2470, 2400, 0.4, 0.05); tone('triangle', 3610, 3500, 0.3, 0.03); }
+    const j = jitter(0.08);
+    tone('sine', 130 * j, 32, 0.5, hard ? 0.5 : 0.3);
+    noise(900 * j, 0.7, 0.35, hard ? 0.35 : 0.2, 'lowpass', 0, 120);
+    if (hard) { tone('triangle', 1830 * j, 1790 * j, 0.5, 0.07); tone('triangle', 2470 * j, 2400 * j, 0.4, 0.05); tone('triangle', 3610 * j, 3500 * j, 0.3, 0.03); }
   },
   // suction: a dub-wobbling roar that swells in, a sub that breathes in, and a rising whistle
   vacSuction(dur) {
     if (!ready()) return;
     const t = now(), src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(), j = jitter(0.08);
+    tone('triangle', 220 * j, 70, 0.1, 0.14); noise(1600 * j, 1.5, 0.05, 0.1, 'bandpass');   // the motor kicking in
     src.buffer = noiseBuf; src.loop = true;
     f.type = 'lowpass'; f.Q.value = 9;
-    f.frequency.setValueAtTime(700, t);
+    f.frequency.setValueAtTime(700 * j, t);
     lfo.frequency.setValueAtTime(7, t); lfo.frequency.linearRampToValueAtTime(2.5, t + dur);   // the wobble slows as it pulls harder
     lg.gain.value = 600;
     lfo.connect(lg).connect(f.frequency);
@@ -640,7 +695,14 @@ export const sfx = {
     sg.gain.setValueAtTime(0.0001, t); sg.gain.linearRampToValueAtTime(0.22, t + 0.6); sg.gain.setValueAtTime(0.22, t + dur - 0.3); sg.gain.linearRampToValueAtTime(0, t + dur + 0.2);
     sub.connect(sg).connect(master);
     sub.start(t); sub.stop(t + dur + 0.25); sl.start(t); sl.stop(t + dur + 0.25);
-    tone('sawtooth', 180, 720, dur, 0.035);
+    tone('sawtooth', 180 * j, 720 * j, dur, 0.035);
+  },
+  // something caught in its mouth: a grinding crunch and grit rattling round the intake
+  vacGrind() {
+    if (!ready() || !gap('vacGrind', 160)) return;
+    const j = jitter(0.15);
+    noise(1300 * j, 2, 0.06, 0.12, 'bandpass'); tone('square', 110 * j, 70, 0.08, 0.05);
+    for (let k = 0; k < 3; k++) noise((2500 + Math.random() * 2500) * j, 5, 0.012, 0.04, 'bandpass', 0.03 + k * 0.03);
   },
   // the side brushes whirring up (a rising, fluttering whine), and each sweep (a swish and a thump)
   vacBrushes(dur) {
@@ -654,21 +716,31 @@ export const sfx = {
   },
   vacSweep() {
     if (!ready() || !gap('vacSweep', 120)) return;
-    noise(5000, 1.2, 0.28, 0.3, 'bandpass', 0, 700);
-    tone('sine', 160, 60, 0.18, 0.25);
+    const j = jitter(0.1);
+    noise(5000 * j, 1.2, 0.28, 0.3, 'bandpass', 0, 700 * j);
+    tone('sine', 160 * j, 60, 0.18, 0.25);
+    for (let k = 0; k < 4; k++) noise((2000 + Math.random() * 3000) * j, 5, 0.012, 0.05, 'bandpass', 0.1 + k * 0.05 + Math.random() * 0.03);   // grit flicked off
   },
   // the bin dropping roaches: a clunk, the hatch hissing, a scatter of tiny legs
+  // before it: the bin rattling as the hatch unlatches
+  vacDumpWind() {
+    if (!ready()) return;
+    const j = jitter(0.1);
+    for (let k = 0; k < 6; k++) noise(1400 * j, 4, 0.025, 0.06, 'bandpass', k * 0.08);
+    tone('triangle', 500 * j, 700 * j, 0.4, 0.025);
+  },
   vacDump() {
     if (!ready()) return;
-    tone('triangle', 320, 110, 0.16, 0.22);
-    noise(2500, 1, 0.3, 0.12, 'highpass', 0.05);
+    const j = jitter(0.1);
+    tone('triangle', 320 * j, 110, 0.16, 0.22);
+    noise(2500 * j, 1, 0.3, 0.12, 'highpass', 0.05);
     for (let k = 0; k < 8; k++) noise(4000 + Math.random() * 3000, 6, 0.01, 0.07, 'bandpass', 0.15 + k * 0.035 + Math.random() * 0.02);
   },
   // spinning: a whirling siren with a whoosh going round, and a pft for every dust clump
   vacSpin(dur) {
     if (!ready()) return;
     const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
-    o.type = 'sawtooth'; o.frequency.value = 600;
+    o.type = 'sawtooth'; o.frequency.value = 600 * jitter(0.06);
     lfo.frequency.value = 4.5; lg.gain.value = 260; lfo.connect(lg).connect(o.frequency);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.2); g.gain.setValueAtTime(0.06, t + dur - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(master);
@@ -676,6 +748,14 @@ export const sfx = {
     for (let k = 0; k * 0.22 < dur; k++) noise(800, 0.7, 0.2, 0.12, 'bandpass', k * 0.22, 2400);
   },
   vacSpray() { if (!ready() || !gap('vacSpray', 90)) return; noise(1400 * jitter(0.2), 1, 0.08, 0.12, 'bandpass', 0, 500); },
+  // a dust clump bursting: a dull pff and grit (on the jelly: a thump under it)
+  vacClump(hit = false) {
+    if (!ready() || !gap('vacClump', hit ? 60 : 110)) return;
+    const j = jitter(0.18);
+    noise(1100 * j, 1, 0.07, hit ? 0.16 : 0.06, 'lowpass', 0, 300);
+    if (hit) tone('sine', 160 * j, 60, 0.1, 0.12);
+    noise((3000 + Math.random() * 2000) * j, 5, 0.012, hit ? 0.05 : 0.025, 'bandpass', 0.04);
+  },
   // launching the lanternflies: a rising alarm wail, then four pops out of the bin
   vacFliesWind() {
     if (!ready()) return;
@@ -683,7 +763,9 @@ export const sfx = {
   },
   vacFliesLaunch() {
     if (!ready()) return;
-    for (let k = 0; k < 4; k++) { tone('sine', 260, 900, 0.09, 0.2, k * 0.07); noise(1800, 1, 0.06, 0.15, 'bandpass', k * 0.07); }
+    const j = jitter(0.08);
+    for (let k = 0; k < 4; k++) { const q = j * jitter(0.05); tone('sine', 260 * q, 900 * q, 0.09, 0.2, k * 0.07); noise(1800 * q, 1, 0.06, 0.15, 'bandpass', k * 0.07); }
+    noise(900 * j, 1, 0.45, 0.06, 'bandpass', 0.05, 3000 * j);   // them whooshing up out of the bin
   },
   // the shield: up (a shimmering chord swelling in), hit (a ringing deflect), broken (shattering glass)
   shieldUp() {

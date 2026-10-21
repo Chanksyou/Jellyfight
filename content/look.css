@@ -128,6 +128,18 @@
   --pothos-soil-size: 0.02;
   --pothos-leaf-bits: #164d18 #ffdf4a #6b5a3a;
   --drop-scuff-size: 0.4;        /* an Aerial root's landing mark, of its Warning's radius */
+  /* the Mug's and Kettle's kick as they attack (radians back, and squash) */
+  --elite-recoil-squash: 0.12;
+  --mug-coffee: #3a2214;         /* coffee drops flying off a lob or the spill */
+  --mug-coffee-light: #6a4a2a;
+  --kettle-wet: #b8c8d8;         /* the harmless wet marks steam and boiling drops leave (fx.splat) */
+  --kettle-wet-size: 0.03;
+  /* the Vacuum's own body answering its attacks: it rears (radians) and squashes, and shudders (m) while it sucks or rattles its bin */
+  --vacuum-recoil: 0.18;
+  --vacuum-recoil-squash: 0.1;
+  --vacuum-shudder: 0.0015;
+  --vacuum-dust: #8a8278;        /* dust and grit it leaves on the floor (fx.splat, fx.burst): harmless, fading */
+  --vacuum-scuff-size: 0.05;
   --xp-color: #ffd25a;
   --xp-glow: #e8a21b;
   --xp-big-color: #ffe27a;
