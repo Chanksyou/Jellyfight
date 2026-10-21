@@ -1,4 +1,4 @@
-# Act 4: concert arena and Encore model (v234)
+# Act 4: concert arena and Encore model (v235)
 
 The supplied reference pictures establish a dark tiled concert floor, amber edge light,
 cool overhead shafts and four elevated speaker arrays. The jelly sketch sets the scale.
@@ -89,3 +89,47 @@ still only two lights. Sixty tile changes compiled zero new shader programs and 
 no console errors. Software Chromium CPU step+render submission averaged about 0.50 ms
 desktop / 0.49 ms phone viewport. These are diagnostics, not physical phone FPS or GPU
 completion measurements. Physical flagship phones remain unchecked.
+
+## Attack lighting controls (v235)
+
+The visual model exposes synchronous controls, with no attack timing or damage attached:
+
+```js
+const boss = arena.boss;
+boss.setLighting('pyramid', '#ff5935', 0.5);
+boss.setLighting('leftWing', '#ff5935', 1);
+boss.setLighting('rightWing', '#ff5935', 1);
+boss.setLighting('all', '#ff5935', 1);
+boss.setTriangle(7, '#ff5935', 0.8);
+boss.clearLighting();
+```
+
+Each setter returns false for an unknown part, invalid triangle index or nonfinite
+strength without changing anything. Finite strength clamps to 0–1. Omitted color and
+strength use `--encore-charge` and full strength; `--encore-charge-brightness` sets gain.
+Colors use the Three.js color format. Strength zero extinguishes that selection;
+`clearLighting()` extinguishes every selection. Reset before changing attack patterns
+or on interruption, recovery, death and restart. A later attack system owns its timing
+and must use the established hostile warning/volume language for actual hazards.
+
+Triangle indices are deterministic: 0–47 front pyramid face, 48–71 right face,
+72–119 rear face, 120–143 left face, 144 left wing, 145 right wing. Pyramid faces visit
+rows bottom to top, columns in face order, then the two triangles of each cell.
+`triangleCount` is 146. Parts may overlap previous per-triangle settings: the most recent
+write wins for each triangle.
+
+The always-present additive layer has one dynamic vertex-color buffer and one material.
+Its initial colors are zero. It sits just above the metal panels, leaves the LED lattice
+visible, and uses no scene lights or bloom. Setting or clearing lighting reuses its
+geometry, material and buffer, including on Low. Disposal includes the new resources.
+The static **Boss lights** preview cycles off → pyramid → left wing → right wing → all.
+Three new stories cover addressing, reset, intensity, invalid input, bounded resources
+and independent instances. Physical phone performance remains unchecked.
+
+Desktop and phone-sized Low previews were inspected for all five states. Final complete
+scene: 106 draws, 111,938 triangles, two fixed lights; 60 lighting writes produced zero
+new shader programs and no console errors. The single-pass overlay renders after the
+transparent wing panels so both wings display equal intensity. Software Chromium CPU
+submission averaged about 0.52 ms for both viewports; this is not a physical phone FPS
+measurement. Targeted arena/model stories: 11 passed; guards passed. Full-suite and
+GitHub results are recorded on the PR.

@@ -3,6 +3,8 @@
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
   --encore-leather-grain: 0.00012;
+  --encore-charge: #ff5935;
+  --encore-charge-brightness: 0.8;
   --encore-panel: #10182a;
   --encore-suit: #151c2a;
   --encore-leather: #273143;

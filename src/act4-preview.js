@@ -32,7 +32,7 @@ export async function startAct4Preview({scene,renderer,camera}){
   #act4-preview strong{font-size:18px;margin-right:12px}#act4-preview button,#act4-preview a{pointer-events:auto;color:#e5edff;background:#0b1226cc;border:1px solid #64789970;border-radius:10px;padding:9px 12px;text-decoration:none;font:inherit}
   #act4-preview p{flex-basis:100%;margin:0;text-shadow:0 2px 4px #000}#act4-preview button[aria-pressed=true]{border-color:#f5b660;color:#ffcf8b}
   @media(max-height:500px){#act4-preview{font-size:11px;inset:6px 6px auto}#act4-preview strong{font-size:14px}#act4-preview p{display:none}}
-  </style><strong>Act 4 · The Encore</strong><button data-view aria-pressed="false">Walk arena</button><button data-boss>Boss close-up</button><button data-tiles aria-pressed="false">Tile lights</button><a href="./">Back to game</a><p>Environment preview · WASD move · mouse look · Space jump · R return · v234</p>`;
+  </style><strong>Act 4 · The Encore</strong><button data-view aria-pressed="false">Walk arena</button><button data-boss>Boss close-up</button><button data-charge>Boss lights: off</button><button data-tiles aria-pressed="false">Tile lights</button><a href="./">Back to game</a><p>Environment preview · WASD move · mouse look · Space jump · R return · v235</p>`;
   document.body.append(panel);
   let overview=true,lit=false,paused=false;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
@@ -41,6 +41,8 @@ export async function startAct4Preview({scene,renderer,camera}){
   panel.querySelector('[data-boss]').onclick=()=>{view(true);camera.position.set(.24,.44,-.03);camera.lookAt(0,.255,-.435);};
   panel.querySelector('[data-view]').onclick=()=>view(!overview);
   panel.querySelector('[data-tiles]').onclick=()=>{lit=!lit;arena.clearTiles();if(lit)for(let r=0;r<STAGE4.tiles;r++)for(let c=0;c<STAGE4.tiles;c++)if((r*7+c*3)%5<3)arena.setTile(r,c,['#0066ff','#9415ff','#ff6504'][(r+c)%3],.55);panel.querySelector('[data-tiles]').setAttribute('aria-pressed',String(lit));};
+  const lightSamples=['off','pyramid','leftWing','rightWing','all'];let lightSample=0;
+  panel.querySelector('[data-charge]').onclick=()=>{lightSample=(lightSample+1)%lightSamples.length;arena.boss.clearLighting();if(lightSample)arena.boss.setLighting(lightSamples[lightSample]);panel.querySelector('[data-charge]').textContent=`Boss lights: ${['off','pyramid','left wing','right wing','all'][lightSample]}`;};
   view(true);
   await renderer.compileAsync(scene,camera);gfx.render();
   document.getElementById('loading').classList.add('gone');

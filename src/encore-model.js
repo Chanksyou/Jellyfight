@@ -58,6 +58,16 @@ export function buildEncoreBoss(){
     const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
     put(geo(new THREE.TubeGeometry(curve,Math.max(12,points.length*5),r,6,false)),m,[0,0,0],[1,1,1],[0,0,0],parent);
   }
+  // One always-prepared additive layer; future attacks only change vertex colors.
+  const litPositions=[],litPanels=[],lightColor=new THREE.Color();
+  function lightTriangle(points,part){
+    const normal=new THREE.Vector3().subVectors(points[1],points[0]).cross(new THREE.Vector3().subVectors(points[2],points[0])).normalize();
+    // Wings face forward; pyramid faces already have outward winding.
+    if(part!=='pyramid'&&normal.z<0)normal.negate();
+    const start=litPositions.length/3;
+    for(const p of points)litPositions.push(p.x+normal.x*.00025,p.y+normal.y*.00025,p.z+normal.z*.00025);
+    litPanels.push({part,start});
+  }
   // Truncated pyramid: independently inset triangular metal plates under the luminous lattice.
   const w0=.286,w1=.156,d0=.17,d1=.078,y0=.012,y1=.18;
   const faces=[[[ -w0,y0,d0],[w0,y0,d0],[w1,y1,d1],[-w1,y1,d1]],
@@ -73,7 +83,7 @@ export function buildEncoreBoss(){
       const p=[facePoint(face,c/cols,r/rows),facePoint(face,(c+1)/cols,r/rows),facePoint(face,(c+1)/cols,(r+1)/rows),facePoint(face,c/cols,(r+1)/rows)];
       const tris=[[0,1,2],[0,2,3]];
       for(const tri of tris){const center=new THREE.Vector3();tri.forEach(i=>center.add(p[i]));center.multiplyScalar(1/3);const verts=tri.map(i=>p[i].clone().lerp(center,.022));
-        const g=new THREE.BufferGeometry().setFromPoints(verts);g.setIndex([0,1,2]);g.computeVertexNormals();put(geo(g),panel,[0,0,0]);
+        const g=new THREE.BufferGeometry().setFromPoints(verts);g.setIndex([0,1,2]);g.computeVertexNormals();put(geo(g),panel,[0,0,0]);lightTriangle(verts,'pyramid');
         for(let i=0;i<3;i++)uniqueLed(p[tri[i]],p[tri[(i+1)%3]]);
       }
     }
@@ -91,7 +101,7 @@ export function buildEncoreBoss(){
   for(const side of [-1,1]){
     const A=[side*.43,0,-.13],B=[side*.17,.355,-.13],C=[side*.17,0,-.13];
     const tri=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...A),new THREE.Vector3(...B),new THREE.Vector3(...C)]);tri.setIndex(side<0?[0,2,1]:[0,1,2]);tri.computeVertexNormals();
-    const wing=mat(new THREE.MeshStandardMaterial({color:0x131e30,transparent:true,opacity:.5,roughness:.65,metalness:.2,side:THREE.DoubleSide,depthWrite:false}));put(geo(tri),wing,[0,0,0]);
+    const wing=mat(new THREE.MeshStandardMaterial({color:0x131e30,transparent:true,opacity:.5,roughness:.65,metalness:.2,side:THREE.DoubleSide,depthWrite:false}));put(geo(tri),wing,[0,0,0]);lightTriangle([A,B,C].map(p=>new THREE.Vector3(...p)),side<0?'leftWing':'rightWing');
     const v=(a,b,t)=>new THREE.Vector3(...a).lerp(new THREE.Vector3(...b),t).toArray();
     for(const edge of [[A,B],[B,C],[C,A]])bar(...edge,.0032,steel);
     const front=p=>[p[0],p[1],p[2]+.004];
@@ -191,8 +201,28 @@ export function buildEncoreBoss(){
     const converted=list.map(g=>{const n=g.index?g.toNonIndexed():g;const attributes=n.attributes;for(const key of Object.keys(attributes))if(!['position','normal','uv'].includes(key))n.deleteAttribute(key);if(!n.attributes.uv)n.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(n.attributes.position.count*2),2));return n;});
     const merged=geo(mergeGeometries(converted));converted.forEach(g=>g.dispose());list.forEach(g=>g.dispose());const m=new THREE.Mesh(merged,material);m.userData.noCollide=true;parent.add(m);
   }
+  const lightGeometry=geo(new THREE.BufferGeometry());
+  lightGeometry.setAttribute('position',new THREE.Float32BufferAttribute(litPositions,3));
+  const lightColors=new THREE.Float32BufferAttribute(new Float32Array(litPositions.length),3);lightColors.setUsage(THREE.DynamicDrawUsage);lightGeometry.setAttribute('color',lightColors);
+  const lightMaterial=mat(new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,toneMapped:false,fog:false}));
+  const lightMesh=new THREE.Mesh(lightGeometry,lightMaterial);lightMesh.name='Encore attack lighting';lightMesh.renderOrder=1;lightMesh.userData.noCollide=true;root.add(lightMesh);
+  const charge=LOOK.color('encore-charge','#ff5935'),gain=LOOK.num('encore-charge-brightness',.8);
+  function paint(panel,color,strength){
+    lightColor.set(color).multiplyScalar(THREE.MathUtils.clamp(strength,0,1)*gain);
+    for(let v=panel.start;v<panel.start+3;v++)lightColors.setXYZ(v,lightColor.r,lightColor.g,lightColor.b);
+    lightColors.needsUpdate=true;
+  }
+  // Part names and triangle order are stable; reset before switching attack patterns.
+  function setLighting(part,color=charge,strength=1){
+    if(!['all','pyramid','leftWing','rightWing'].includes(part)||!Number.isFinite(strength))return false;
+    for(const panel of litPanels)if(part==='all'||part===panel.part)paint(panel,color,strength);return true;
+  }
+  function setTriangle(index,color=charge,strength=1){
+    if(!Number.isInteger(index)||index<0||index>=litPanels.length||!Number.isFinite(strength))return false;
+    paint(litPanels[index],color,strength);return true;
+  }
   let time=0;
-  return {root,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),
+  return {root,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),
     update(dt,quiet=false){time+=dt;for(const {head,side}of heads){head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07);head.rotation.x=quiet?0:.04+Math.sin(time*.9+side)*.025;}for(const {hand,phase}of hands)hand.rotation.x=quiet?0:Math.sin(time*1.6+phase)*.045;},
     dispose(){root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }
