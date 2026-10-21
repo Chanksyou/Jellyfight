@@ -78,6 +78,33 @@
   --controller-chip-size: 0.002;
   --controller-scuff: #514949;
   --controller-scuff-size: 0.018;
+  /* act 3's Elites and the Pothos answering their own attacks (src/elites.js, src/pothos.js): feel
+     only, harmless fading leftovers in muted colours (never their --hostile-* hue) */
+  --elite-land-squash: 0.22;     /* a landing or stomp flattens the body this much, springing back */
+  --elite-recoil: 0.16;          /* a shot kicks its head back this far (radians) */
+  --croc-frost-splat: #dfe8ff;   /* rime where a frost ball burst; a dent in the quilt */
+  --croc-frost-splat-size: 0.35; /* of the Blast's radius */
+  --croc-dent-size: 0.6;
+  --croc-fluff: #7fa36a #a8c690 #ffffff;
+  --bull-fluff: #f0d0c0 #ffffff #a83a3a;
+  --bull-scuff: #6a5048;
+  --bull-scuff-size: 0.2;        /* of the rush's radius */
+  --bull-shot-scuff: 0.012;
+  --bull-mini-scuff: 0.02;
+  --bull-spiral-pulse: 0.35;     /* its body pulses with each spiral beat */
+  --coffer-chips: #8a6a4a #c8a878 #e8d8b0;
+  --coffer-scuff: #5a4632;
+  --coffer-scuff-size: 0.45;
+  --coffer-shards: #b89a6a;
+  --coffer-shards-size: 0.25;
+  --pothos-fling-windup: 0.45;   /* s before it flings Cuttings or drops roots: its heart swells, drawing in motes */
+  --pothos-gather-grow: 0.12;
+  --pothos-fling-pulse: 0.2;     /* the heart's jolt as it lets go */
+  --pothos-fling-time: 0.25;     /* the flung motes' flight: as long as a Cutting takes to grow in */
+  --pothos-soil: #6b5a3a;
+  --pothos-soil-size: 0.02;
+  --pothos-leaf-bits: #164d18 #ffdf4a #6b5a3a;
+  --drop-scuff-size: 0.4;        /* an Aerial root's landing mark, of its Warning's radius */
   --xp-color: #ffd25a;
   --xp-glow: #e8a21b;
   --xp-big-color: #ffe27a;

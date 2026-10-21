@@ -1016,10 +1016,13 @@ export class Enemies {
   // It lands where scenery stopped its body, which may be above its original floor target.
   drop(e, { radius, color }) {
     const at = e.pos, col = hostile(color);
-    sfx.clogSplat();
+    sfx.rootLand();
     this.fx.impact(S.spot.copy(at).setY(at.y + 0.01), col, radius * 0.4, 10);
     this.fx.puff(S.spot, this.barkDust, radius * 0.8, 0.35);
+    this.fx.burst(S.spot, [this.barkDust, '#a07a4a'], 5, 0.0025, 0.22, at.y);
+    this.fx.splat(at, this.barkDust, radius * LOOK.num('drop-scuff-size', 0.4));   // a scatter of bark dust where it struck, fading
     e.landedOn = !!this.player && blastHits(at, radius, this.player.position, this.player);
+    juice.feel(e.landedOn ? 'impact' : 'hit');
   }
   grab(e, color) { sfx.clogSnare(); this.fx.impact(S.spot.copy(e.pos).setY(e.pos.y + 0.02), hostile(color), 0.02, 8); }
   // the hold tightens: you're slowed by `strength` and lose `dmg` (no flinch, no i-frames) for `dur` s

@@ -563,8 +563,15 @@ export const sfx = {
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its
   // mouth, and a crunchy ice crash with a low thud as each one lands
-  frostLaunch() { if (!ready() || !gap('frostLaunch', 120)) return; tone('sine', 140, 55, 0.18, 0.22); noise(900, 0.8, 0.35, 0.12, 'bandpass', 0, 3600); tone('triangle', 1200, 2400, 0.25, 0.03, 0.05); },
-  frostLand() { if (!ready() || !gap('frostLand', 40)) return; tone('sine', 110, 45, 0.16, 0.2); noise(3200, 0.7, 0.18, 0.18, 'bandpass', 0, 1400); noise(7000, 1, 0.12, 0.08, 'highpass', 0.02); },
+  // the Alligator's frost balls: a cough of cold air leaving its mouth (crack, thump, the whoosh away, a
+  // shimmer), and each landing: an icy crack, a thud, the hiss of frost and a few tinkling bits
+  frostLaunch() { if (!ready() || !gap('frostLaunch', 120)) return; const j = jitter(0.1); noise(5200 * j, 1, 0.03, 0.12, 'highpass'); tone('sine', 140 * j, 55, 0.18, 0.22); noise(900 * j, 0.8, 0.35, 0.12, 'bandpass', 0, 3600 * j); tone('triangle', 1200 * j, 2400 * j, 0.25, 0.03, 0.05); },
+  frostLand() {
+    if (!ready() || !gap('frostLand', 40)) return; const j = jitter(0.12);
+    noise(6000 * j, 1, 0.05, 0.22, 'highpass'); tone('sine', 110 * j, 45, 0.16, 0.2);
+    noise(3200 * j, 0.7, 0.18, 0.16, 'bandpass', 0, 1400); noise(7000, 1, 0.12, 0.07, 'highpass', 0.02);
+    for (let k = 0; k < 3; k++) { const f = (2200 + Math.random() * 1600) * j; tone('triangle', f, f * 0.7, 0.06, 0.025, 0.04 + k * 0.035 + Math.random() * 0.02); }
+  },
   shatter() { if (!ready() || !gap('shatter', 60)) return; noise(6000, 1, 0.3, 0.25, 'highpass'); tone('triangle', 2400, 800, 0.2, 0.08); },
   acid() { if (!ready() || !gap('acid', 90)) return; tone('sine', 300 * jitter(), 180, 0.1, 0.07); tone('sine', 420 * jitter(), 250, 0.08, 0.05, 0.05); },
   wind() {
@@ -869,6 +876,24 @@ export const sfx = {
     noise(1900 * j, 1.4, 0.08, 0.18, 'bandpass', 0.01, 700);
     for (let k = 0; k < 5; k++) noise(1200 + Math.random() * 2600, 3, 0.02, 0.05, 'bandpass', 0.08 + Math.random() * 0.3);
   },
+  // the Pothos: a rustle gathering in its leaves (dur), the snap and whoosh of something flung from
+  // it, a Cutting planting in the quilt (a soft thud and soil pattering), an Aerial root landing
+  pothosGather(dur = 0.4) { if (!ready()) return; const j = jitter(0.1); noise(2400 * j, 2, dur, 0.04, 'bandpass', 0, 4200 * j); tone('sine', 180 * j, 320 * j, dur, 0.02); },
+  pothosFling() {
+    if (!ready() || !gap('pothosFling', 80)) return; const j = jitter(0.12);
+    noise(5000 * j, 1, 0.03, 0.14, 'highpass'); noise(1400 * j, 1.4, 0.22, 0.09, 'bandpass', 0.01, 3600 * j);
+    for (let k = 0; k < 4; k++) noise((2600 + Math.random() * 1800) * j, 2, 0.05, 0.035, 'bandpass', 0.03 + k * 0.05);
+  },
+  pothosPlant() {
+    if (!ready() || !gap('pothosPlant', 40)) return; const j = jitter(0.15);
+    noise(1800 * j, 1.5, 0.03, 0.1, 'bandpass'); noise(400 * j, 0.8, 0.12, 0.18, 'lowpass', 0, 120); tone('sine', 150 * j, 60, 0.1, 0.1);
+    for (let k = 0; k < 3; k++) noise((700 + Math.random() * 500) * j, 2, 0.03, 0.035, 'lowpass', 0.05 + k * 0.035);
+  },
+  rootLand() {
+    if (!ready() || !gap('rootLand', 50)) return; const j = jitter(0.12);
+    noise(3600 * j, 1.5, 0.03, 0.14, 'bandpass'); noise(900 * j, 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140 * j, 55, 0.12, 0.12);
+    for (let k = 0; k < 3; k++) noise((600 + Math.random() * 500) * j, 2, 0.03, 0.04, 'lowpass', 0.06 + k * 0.04);
+  },
   clogSplat() { if (!ready() || !gap('clogSplat', 70)) return; noise(900 * jitter(), 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140, 60, 0.1, 0.12); },
   clogDeath() {
     if (!ready()) return;
@@ -919,7 +944,29 @@ export const sfx = {
   // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
   // little lower each time), the wreath whirring through the air
   // the Alligator (elites.js): a soft plush thump on the bed, its tail or its whole body landing
-  crocThump(k = 1) { if (!ready() || !gap('crocThump', 60)) return; noise(260, 0.8, 0.18 * k, 0.3, 'lowpass', 0, 90); tone('sine', 110, 45, 0.22 * k, 0.22); },
+  // (k: how heavy) a fabric slap, the plush body's thump, then a soft patter as the quilt settles
+  crocThump(k = 1) {
+    if (!ready() || !gap('crocThump', 60)) return; const j = jitter(0.1);
+    noise(1500 * j, 1.2, 0.035, 0.12 * Math.min(1, k), 'bandpass', 0, 600);
+    noise(260 * j, 0.8, 0.18 * k, 0.3, 'lowpass', 0, 90); tone('sine', 110 * j, 45, 0.22 * k, 0.22);
+    for (let i = 0; i < 3; i++) noise((500 + Math.random() * 400) * j, 1.5, 0.04, 0.05 * Math.min(1, k), 'lowpass', 0.07 + i * 0.05 + Math.random() * 0.02);
+  },
+  // the Bull: its rush landing (a snap, a deep boom through the table, stuffing pattering down), a
+  // puff for each spiral beat, a spiral Shot striking, the snort sending its little bulls off and
+  // a little bull bursting (hit: on the jelly, heavier)
+  bullRush() {
+    if (!ready()) return; const j = jitter(0.1);
+    noise(2600 * j, 1, 0.04, 0.2, 'bandpass'); noise(300 * j, 0.7, 0.6, 0.38, 'lowpass', 0, 60); tone('sine', 120 * j, 38, 0.5, 0.3);
+    for (let i = 0; i < 5; i++) noise((700 + Math.random() * 600) * j, 2, 0.04, 0.05, 'lowpass', 0.1 + i * 0.06 + Math.random() * 0.03);
+  },
+  bullShot() { if (!ready() || !gap('bullShot', 70)) return; const j = jitter(0.15); noise(1800 * j, 2, 0.05, 0.05, 'bandpass', 0, 3200 * j); tone('sine', 260 * j, 140 * j, 0.05, 0.035); },
+  bullHit() { if (!ready() || !gap('bullHit', 60)) return; const j = jitter(0.12); noise(3000 * j, 2, 0.03, 0.1, 'bandpass'); tone('sine', 180 * j, 70 * j, 0.09, 0.1); noise(900 * j, 1.5, 0.05, 0.04, 'lowpass', 0.05); },
+  bullSnort() { if (!ready()) return; const j = jitter(0.1); for (let i = 0; i < 2; i++) noise(900 * j, 1.2, 0.12, 0.12, 'bandpass', i * 0.14, 400); tone('sawtooth', 90 * j, 70 * j, 0.25, 0.03, 0.04); },
+  bullMini(hit = false) {
+    if (!ready() || !gap('bullMini', 30)) return; const j = jitter(0.12);
+    noise(2400 * j, 1.5, 0.03, 0.12, 'bandpass'); tone('sine', (hit ? 130 : 200) * j, 50, hit ? 0.2 : 0.1, hit ? 0.2 : 0.12);
+    for (let i = 0; i < (hit ? 4 : 2); i++) noise((800 + Math.random() * 500) * j, 2, 0.03, 0.04, 'lowpass', 0.05 + i * 0.04);
+  },
   // the Latticework Coffer (elites.js): its bellows wheezing out as the lid shoots off (dur: how
   // long it unfolds) and the lid slamming down; its lid creaking open (dur), the tongue lashing
   // out (and snapping back), latching on wet, and the chomp; its jewels pinging off its lid (k:
@@ -929,7 +976,11 @@ export const sfx = {
     noise(700, 1.2, dur, 0.14, 'bandpass', 0, 2200);
     for (const f of [196, 247, 294]) tone('sawtooth', f * jitter(0.02), f * 1.06, dur, 0.018);   // a reedy accordion chord
   },
-  cofferSlam() { if (!ready() || !gap('cofferSlam', 60)) return; noise(320, 0.8, 0.16, 0.32, 'lowpass', 0, 90); tone('square', 140, 55, 0.12, 0.08); noise(3200, 2, 0.03, 0.12, 'bandpass'); },
+  cofferSlam() {
+    if (!ready() || !gap('cofferSlam', 60)) return; const j = jitter(0.1);
+    noise(3200 * j, 2, 0.03, 0.12, 'bandpass'); noise(320 * j, 0.8, 0.16, 0.32, 'lowpass', 0, 90); tone('square', 140 * j, 55, 0.12, 0.08);
+    for (let i = 0; i < 3; i++) { const f = (900 + Math.random() * 700) * j; tone('triangle', f, f * 0.8, 0.03, 0.025, 0.05 + i * 0.04 + Math.random() * 0.02); }   // the lattice rattling
+  },
   cofferCreak(dur = 0.4) { if (!ready()) return; tone('sawtooth', 70, 110, dur, 0.05); noise(1100, 6, dur, 0.06, 'bandpass', 0, 600); },
   tongueLash() { if (!ready() || !gap('tongueLash', 80)) return; noise(5000, 0.7, 0.07, 0.25, 'highpass'); noise(1400, 1.5, 0.12, 0.14, 'bandpass', 0, 3600); },
   tongueLatch() { if (!ready()) return; noise(600, 1.4, 0.18, 0.25, 'lowpass', 0, 200); tone('sine', 300, 120, 0.15, 0.12); tone('sine', 520, 260, 0.08, 0.05, 0.05); },
@@ -939,8 +990,8 @@ export const sfx = {
   cofferCrunch() { if (!ready() || !gap('cofferCrunch', 60)) return; const j = jitter(0.15); noise(2600 * j, 1.2, 0.07, 0.22, 'bandpass', 0, 900); tone('square', 160 * j, 70, 0.06, 0.07); noise(700 * j, 0.8, 0.1, 0.12, 'lowpass', 0.02, 250); },
   cofferSpit() { if (!ready()) return; const j = jitter(0.1); noise(1200 * j, 0.7, 0.18, 0.22, 'lowpass', 0, 3200); tone('sine', 420 * j, 160, 0.12, 0.08); noise(5000, 1, 0.06, 0.08, 'highpass', 0.08); },
   jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
-  jewelWhistle(dur = 0.25) { if (!ready()) return; tone('sine', 2600, 700, dur, 0.06); tone('sine', 2750, 760, dur, 0.03); },
-  jewelCrack() { if (!ready()) return; noise(6500, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) tone('triangle', 2200 + k * 450, 2000 + k * 400, 0.09, 0.04, k * 0.02); noise(500, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
+  jewelWhistle(dur = 0.25) { if (!ready()) return; const j = jitter(0.06); tone('sine', 2600 * j, 700 * j, dur, 0.06); tone('sine', 2750 * j, 760 * j, dur, 0.03); },
+  jewelCrack() { if (!ready()) return; const j = jitter(0.08); noise(6500 * j, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) { const f = (2200 + k * 450) * j * jitter(0.05); tone('triangle', f, f * 0.9, 0.09, 0.04, k * 0.02 + Math.random() * 0.015); } noise(500 * j, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
   clockSweep() { if (!ready()) return; noise(900, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160, 420, 0.45, 0.05); },
   clockChime(k = 0) {
