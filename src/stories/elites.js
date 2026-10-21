@@ -6,7 +6,7 @@ import { juice } from '../juice.js';
 import { sfx } from '../sfx.js';
 import { bus } from '../events.js';
 import { FLOOR_SHAPES, floorShapeHits, shotTarget, hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
-import { CONTROLLER_AT, G, JUMP_FEET, V, fresh, holdJelly, offs, ok, record, startCoffeeLob, startController, startKettle, step, story, stub, theKettle, tp, warningsAt } from './kit.js';
+import { CONTROLLER_AT, G, JUMP_FEET, V, feelSpy, fresh, holdJelly, offs, ok, record, startCoffeeLob, startController, startKettle, step, story, stub, theKettle, tp, warningsAt } from './kit.js';
 
 // --- elites: targetable, and every attack telegraphs before it lands
 const ELITE_SPOTS = { controller: [1.42, 0.61, 4.5], mug: [0.66, 0.78, 2.84], kettle: [4.6, 0.91, 3.8] };
@@ -489,5 +489,69 @@ story('elites/controller-explosion-ring-first-frame-size', {
     fx.ring(at,hostile('controller'),.072,.3); const ring=fx.rings.find(r=>r.alive), initial=ring.m.scale.x;
     step(30); fx.ring(at,hostile('controller'),.03,.3);
     return ok(Math.abs(initial-.0144)<1e-8 && Math.abs(ring.m.scale.x-.006)<1e-8 && ring.m.userData.opacity===.9,{initial,reused:ring.m.scale.x});
+  },
+});
+
+// --- Attack Feel (docs/agents/attack-feel.md): the Mug's and Kettle's attacks complete the chain on a real hit
+story('elites/mug-coffee-feel', {
+  about: 'Each coffee lob is flung with a flash at the rim, the Mug leaning back and a slosh-and-whoosh on the throw frame; landing on the jelly it throws coffee drops, a wet slap with patter and shakes the screen (feel impact); standing in the puddle steams and sizzles off the jelly.',
+  setup() { startCoffeeLob(); },
+  play() {
+    const { run, fx } = G(), E = run.elites, e = E.list.find((x) => x.kind === 'mug'), hits = coffeeHits();
+    const { feels, n } = feelSpy('mugLob', 'mugSplash', 'scald');
+    const b = firstCoffee(), kicked = e.kick > 0.8 && n.mugLob.length === 1;
+    step(200, () => !E.blobs.includes(b));
+    const drops = fx.chunks.some((c) => c.alive);
+    step(30);
+    return ok(kicked && hits.length >= 1 && n.mugSplash.includes(true) && feels.includes('impact') && drops && n.scald.length >= 1,
+      { kicked, hits: hits.length, splash: n.mugSplash, feels: [...new Set(feels)], drops, scald: n.scald.length });
+  },
+});
+story('elites/mug-spill-feel', {
+  about: 'The spill lets go on one frame (a flash at the rim, the Mug jolting on as it tips, a glug and a light shake), each puddle splashes, and a jelly standing in the wave steams and sizzles.',
+  setup() { fresh({ bubbles: false, lash: false }); tp(0.62, 0.83, 3.0, 0); const e = G().run.elites.list.find((x) => x.kind === 'mug'); e.next = 1; e.cool = 0; },
+  play() {
+    const E = G().run.elites, e = E.list.find((x) => x.kind === 'mug'), drains = record('damage_taken');
+    const { feels, n } = feelSpy('mugPour', 'mugSplash', 'scald');
+    step(400, () => e.state === 'windup' && e.poured >= 0);
+    const released = e.kick > 0.8 && n.mugPour.length === 1 && feels.includes('hit');
+    step(60, () => E.puddles.length >= 3);
+    const player = holdJelly(), wet = E.puddles[2].m.position;
+    player.position.set(wet.x, wet.y - 0.0015, wet.z); player.grounded = true;   // standing in the wave
+    step(120, () => e.state === 'idle');
+    const scalded = drains.some((d) => d.source === 'coffee');
+    return ok(released && n.mugSplash.length >= 3 && scalded && n.scald.length >= 1, { released, splashes: n.mugSplash.length, scalded, scald: n.scald.length });
+  },
+});
+story('elites/kettle-steam-feel', {
+  about: 'The steam blast vents on one frame (a flash at the spout, the Kettle kicking back with its lid jumping, a crack and roaring hiss); where it scalds the jelly a flash and steam burst there with the impact shake; after it the counter stays wet along the cone for a moment.',
+  setup() { startKettle(0); },
+  play() {
+    const { fx } = G(), e = theKettle(), hits = kettleHits();
+    const { feels, n } = feelSpy('kettleBlast');
+    steamStarted();
+    const { apex, dir } = steamAim();
+    step(400, () => e.blasted);
+    const released = e.kick > 0.8 && n.kettleBlast.length === 1 && e.model.lid.position.y > 0.12;
+    const player = holdJelly();
+    player.position.copy(apex).addScaledVector(dir, 0.25); player.grounded = true;
+    step(10);
+    const struck = hits.length >= 1 && feels.includes('impact');
+    step(120, () => e.state === 'idle');
+    const wet = fx.splats.filter((s) => s.alive).length;
+    return ok(released && struck && wet >= 3, { released, hits: hits.length, feels: [...new Set(feels)], wet });
+  },
+});
+story('elites/kettle-boil-over-feel', {
+  about: 'The lid pops on one frame (a flash at the lid, the Kettle kicking, a clank and burble); a boiling drop landing on the jelly plops and sizzles and shakes the screen (feel impact), and each drop leaves a harmless wet mark that fades.',
+  setup() { startKettle(1); },
+  play() {
+    const { fx } = G(), e = theKettle(), hits = kettleHits();
+    const { feels, n } = feelSpy('kettlePop', 'kettleDrop');
+    const b = firstDrop(), released = e.kick > 0.5 && n.kettlePop.length === 1;
+    holdJelly().position.copy(b.to);
+    step(200, () => !G().run.elites.blobs.includes(b));
+    const wet = fx.splats.some((s) => s.alive);
+    return ok(released && hits.length >= 1 && n.kettleDrop.includes(true) && feels.includes('impact') && wet, { released, hits: hits.length, drops: n.kettleDrop, feels: [...new Set(feels)], wet });
   },
 });

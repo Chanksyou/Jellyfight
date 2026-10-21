@@ -542,7 +542,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','burst','chimed','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -959,6 +959,8 @@ export class Elites {
       }
       g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
       g.rotation.set(0, 0, 0);
+      e.kick = Math.max(0, (e.kick || 0) - dt * 6);   // an attack's kick (the Mug's, the Kettle's): it leans back and squashes
+      if (e.kick) { g.rotation.x = -e.kick * LOOK.num('elite-recoil', 0.15); g.scale.y *= 1 - e.kick * LOOK.num('elite-recoil-squash', 0.12); }
       if (e.kind === 'controller') {
         e.controllerKick = Math.max(0, (e.controllerKick || 0) - dt * 6);
         g.rotation.x = -e.controllerKick * LOOK.num('controller-recoil', 0.2);
@@ -1126,10 +1128,16 @@ export class Elites {
           // floor Blast (jump it) and leaves a scalding puddle
           const R = 0.045;
           const land = (at) => {
-            if (blastHits(at, R, P, cfg)) hit(SK.coffee.dmg, 'mug');
-            this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10); sfx.acid();
+            const struck = blastHits(at, R, P, cfg);
+            if (struck) hit(SK.coffee.dmg, 'mug');
+            this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10);
+            this.fx.burst(at.clone().setY(at.y + 0.01), [LOOK.color('mug-coffee', '#3a2214'), LOOK.color('mug-coffee-light', '#6a4a2a')], 6, 0.003, 0.3, at.y);
+            juice.feel(struck ? 'impact' : 'hit'); sfx.mugSplash(struck);
           };
-          const throwAt = () => { const target = this.platformTarget(e,P.clone(),R); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true }); e.hitPop = 0.6; };
+          const throwAt = () => {
+            const target = this.platformTarget(e,P.clone(),R); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true });
+            e.hitPop = 0.6; e.kick = 1; this.fx.impact(muzzle, hostile('mug'), 0.012, 5); sfx.mugLob();   // flung: a flash at the rim as it leans back
+          };
           if (!e.thrown) e.thrown = 0;
           if (e.thrown < SK.coffee.lobs && s >= e.thrown * 0.6) { e.thrown++; throwAt(); }
           if (s > SK.coffee.lobs * 0.6) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
@@ -1142,16 +1150,17 @@ export class Elites {
             e.tele[0].material.progress = s / wind;
             g.rotation.x = (s / wind) * 0.7;                                  // tipping over
           } else if (s < wind + Math.max(0.5, SK.spill.puddles * 0.12 + 0.02)) {
-            g.rotation.x = 0.9;
+            g.rotation.x = 0.9 + e.kick * 0.25;                               // tipped, jolting on as it lets go
             const k = Math.floor((s - wind) / 0.12);
             if (k !== e.poured && k < SK.spill.puddles) {
+              if (e.poured < 0) { e.kick = 1; this.fx.impact(muzzle, hostile('mug'), 0.015, 6); juice.feel('hit'); sfx.mugPour(); }   // the release: it lets go
               e.poured = k;
               const at = e.base.clone().addScaledVector(fwd, e.r + 0.05 + k * 0.075);
               if (!this.onPlatform(e,at)) continue;
               at.y = this.surfaceBelow(at);
               this.puddle(at, 0.04, 3);
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#3a2214', '#6a4a2a'], 5, 0.003, 0.25, at.y);
-              sfx.acid();
+              sfx.mugSplash();
             }
           } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.8; }
         }
@@ -1179,21 +1188,30 @@ export class Elites {
             if (Math.random() < dt * 20) this.fx.puff(muzzle, 0xffffff, 0.006, 0.3);
             if (Math.random() < dt * 6) sfx.wind();
           } else if (s < wind + 1.0) {
+            if (!e.blasted) { e.blasted = true; e.kick = 1; this.fx.impact(muzzle, hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettleBlast(); }   // the release: it vents
+            M.lid.position.y = 0.112 + e.kick * 0.012;
             for (const m of e.tele) { m.material.opacity = 0.45; m.material.progress = 1; }
             if (Math.random() < dt * 40) {
               const k = Math.random();
               const side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.5 * k);
               this.fx.puff(muzzle.clone().addScaledVector(fwd, 0.05 + k * len * 0.9).add(side).setY(muzzle.y - k * 0.06), 0xf2f6ff, 0.015 + k * 0.03, 0.45);
             }
-            if (e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) { hit(SK.steam.dmg, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt }); }
-          } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; }
+            if (e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) {
+              hit(SK.steam.dmg, 'kettle'); bus.emit('knockback', { targetId: PLAYER, dir: fwd, force: 1.5 * dt });
+              if (!(e.steamFxT > e.t)) { e.steamFxT = e.t + 0.4; this.fx.impact(pc, hostile('kettle'), 0.025, 10); this.fx.puff(pc, 0xffffff, 0.025, 0.4); juice.feel('impact'); }   // scalded where it reaches you
+            }
+          } else {
+            // the counter stays wet along the cone for a moment (harmless, fading)
+            for (const k of [0.25, 0.5, 0.75]) this.fx.splat(this._mid.set(muzzle.x, surf.y, muzzle.z).addScaledVector(fwd, k * len * 0.8), LOOK.color('kettle-wet', '#b8c8d8'), LOOK.num('kettle-wet-size', 0.03) * (0.6 + k));
+            e.clearTele(); e.locked = false; e.blasted = false; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112;
+          }
         } else {
           // Boil over: the lid pops, four boiling drops fall on filling orange circles around you, each
           // landing as a small floor Blast (jump it)
           if (!e.popped) {
             e.popped = true;
             M.led.material.emissiveIntensity = 4;
-            sfx.fire();
+            e.kick = 0.7; this.fx.impact(M.lid.getWorldPosition(this._mid), hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettlePop();   // the release: the lid jumps
             const center = P.clone(); center.y = this.surfaceBelow(P);
             for (let k = 0; k < SK.boil.drops; k++) {
               const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
@@ -1202,7 +1220,10 @@ export class Elites {
               this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, R, (p) => {
                 this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
-                if (blastHits(p, R, P, cfg)) hit(SK.boil.dmg, 'kettle');
+                this.fx.splat(p, LOOK.color('kettle-wet', '#b8c8d8'), LOOK.num('kettle-wet-size', 0.03));   // a harmless wet mark, fading
+                const struck = blastHits(p, R, P, cfg);
+                if (struck) hit(SK.boil.dmg, 'kettle');
+                juice.feel(struck ? 'impact' : 'hit'); sfx.kettleDrop(struck);
               }, { dome: true });
             }
           }
@@ -2007,13 +2028,17 @@ export class Elites {
     this.blobs = this.blobs.filter((b) => !b.done);
 
     // scalding puddles
+    let scalded = false;
     for (const p of this.puddles) {
       p.t -= dt;
       p.m.scale.setScalar(p.r * Math.min(1, p.t * 2));
       const d = Math.hypot(P.x - p.m.position.x, P.z - p.m.position.z);
-      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { bus.emit('damage_taken', { targetId: PLAYER, amount: CONTENT.elites.mug.skills.coffee.drain * dt, source: 'coffee', drain: true }); bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 0.3 }); }
+      if (d < p.r && Math.abs(P.y - p.m.position.y) < 0.02 && player.grounded) { scalded = true; bus.emit('damage_taken', { targetId: PLAYER, amount: CONTENT.elites.mug.skills.coffee.drain * dt, source: 'coffee', drain: true }); bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: 0.3 }); }
       if (p.t <= 0) this.scene.remove(p.m);
     }
+    // the jelly answers the scald: steam and a sizzle off it, a few times a second while it stands in one
+    this.scaldT = scalded ? (this.scaldT || 0) - dt : 0;
+    if (scalded && this.scaldT <= 0) { this.scaldT = 0.25; this.fx.puff(P, 0xffffff, 0.015, 0.4); this.fx.impact(P, hostile('mug'), 0.008, 3); sfx.scald(); }
     this.puddles = this.puddles.filter((p) => p.t > 0);
   }
 }

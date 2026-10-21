@@ -8,6 +8,8 @@ import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
 import { hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
+import { juice } from '../juice.js';
+import { sfx } from '../sfx.js';
 import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
@@ -217,6 +219,14 @@ export function warningsAt(to) {
   return { floor: kids.find((o) => o.material instanceof TeleMaterial), volume: kids.find((o) => o.material instanceof VolumeMaterial) };
 }
 // hold the jelly still where it is put (its own update is switched off for this story)
+// spy on the --feel-* steps (juice.feel) and on the named sfx voices while a story steps (they
+// still play): feels lists the steps, n[voice] each call's first argument (true when none)
+export function feelSpy(...sounds) {
+  const feels = [], n = Object.fromEntries(sounds.map((k) => [k, []]));
+  const feel = juice.feel.bind(juice); stub(juice, 'feel', (k) => { feels.push(k); feel(k); });
+  for (const k of sounds) { const real = sfx[k].bind(sfx); stub(sfx, k, (...a) => { n[k].push(a[0] ?? true); real(...a); }); }
+  return { feels, n };
+}
 export function holdJelly() { const { player } = G(); stub(player, 'update', () => {}); player.velocity.set(0, 0, 0); return player; }
 // Controller stories: four low floor symbols and a dome rumble.
 export const CONTROLLER_AT = [1.62, 0.61, 4.47];
