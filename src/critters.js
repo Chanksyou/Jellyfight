@@ -260,7 +260,7 @@ export function buildMosquito() {
     for (const W of wings) W.pivot.rotation.z = W.s * (0.25 + Math.sin(t * 60) * 0.5);   // a blur of wings
     legs.rotation.x = Math.sin(t * 2.3) * 0.08;
     body.position.y = Math.sin(t * 4 + e.phase) * 0.1;                  // radius units: a gentle hover bob
-    body.rotation.x = -0.15 + (e.aimT > 0 ? -0.35 : 0);                 // dips its nose to shoot
+    body.rotation.x = -0.15 + (e.aimT > 0 ? -0.35 : 0) + Math.max(0, e.firedT || 0) * 1.4;   // dips its nose to shoot, kicks back as it spits
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
@@ -1327,7 +1327,9 @@ export function buildDragonfly() {
     tail.rotation.x = Math.sin(t * 1.7 + e.phase) * 0.05 + dart * 0.08;
     tail.rotation.y = Math.sin(t * 1.3 + e.phase) * 0.04;
     body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5);
-    body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03;   // nose down to dart
+    const kick = Math.max(0, e.firedT || 0) * 1.6;                     // its beam fired: it rocks back, tail flicking
+    body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03 - kick;   // nose down to dart
+    tail.rotation.x += kick * 0.8;
     body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
   };
   return { body: outer, face: new THREE.Group(), anim };

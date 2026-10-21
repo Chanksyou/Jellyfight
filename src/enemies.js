@@ -28,6 +28,8 @@ const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the st
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
+const GOO = LOOK.list('hurt-goo', ['#8fd8ff', '#dff8ff']);              // drops of jelly a bug's hit knocks off (they splat and fade)
+const SCUFF = LOOK.color('bug-scuff', '#4a3c30');                      // a fading dust mark where a bug slammed or struck the floor
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -286,6 +288,11 @@ export class Enemies {
         e.slowT = Math.max(e.slowT || 0, duration);
       }
     });
+    // a bug's hit really landed on the jelly (run.js): the bug answers it (landed)
+    bus.on('player_hurt', ({ from, contact }) => {
+      const e = this.byId.get(from);
+      if (e && !e.dead && !e.proxy) this.landed(e, contact);
+    });
     bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0 }) => {
       const e = this.byId.get(targetId);
       if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage);
@@ -454,6 +461,24 @@ export class Enemies {
     this.puddles = [];
   }
 
+  // A bug's hit landed on the jelly (the player_hurt event): the bug squashes with the blow (e.recoil,
+  // drawn in update), a few drops of jelly fly off and splat on the floor under it (harmless, fading),
+  // and a wet slap. A touch (contact: a bite, a rolling ball) also flashes where the two met.
+  landed(e, contact) {
+    const P = this.player;
+    if (!P) return;
+    const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
+    e.recoil = 1;
+    if (contact) {
+      const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
+      this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);
+    }
+    const floor = this.floorBelow(P.position, P.position.y);
+    this.fx.burst(mid, GOO, 5, 0.0025, 0.3, floor);
+    this.fx.splat(S.o.set(P.position.x, floor, P.position.z), GOO[0], 0.012);
+    sfx.bugHit(contact);
+  }
+
   // ---------------------------------------------------------------- the Pothos's plants (becomes, lob)
   // the countdown ran out (the becomes word): `what` takes e's place where it stood, as tough as it was
   become(e, what) {
@@ -464,7 +489,9 @@ export class Enemies {
     w.grounded = e.grounded;
     this.fx.impact(at.clone().setY(at.y + 0.01), col, 0.03, 10);
     this.fx.puff(at.clone().setY(at.y + 0.01), this.sproutPuff, 0.05, 0.4);
-    sfx.wormBurst?.();
+    this.fx.burst(at.clone().setY(at.y + 0.01), [this.sproutPuff, this.barkDust, col], 6, 0.003, 0.25, at.y);   // soil and leaf bits thrown up
+    this.fx.splat(at, this.barkDust, 0.03);                                                                   // the soil it broke (fades)
+    sfx.sprout();
     return w;
   }
   // the countdown circle round every bug that will become another (the becomes word)
@@ -503,6 +530,7 @@ export class Enemies {
     W.floor.material.opacity = 1;
     const from = e.pos.clone().setY(e.pos.y + e.r * 2.6), m = this.fx.orb(col, 0.006);
     m.position.copy(from);
+    this.fx.impact(from, col, 0.008, 4);                  // the release, at the pod
     this.lobs.push({ m, warn: W, from, to, t: 0, k: 0, T: flight, r: radius, dmg, puddle, col, source: e.type, id: e.id, done: false });
     e.lobbedT = 1;
     sfx.acid?.();
@@ -525,6 +553,7 @@ export class Enemies {
       b.warn.floor.visible = b.warn.dome.visible = false;
       this.lobWarns.push(b.warn);
       this.fx.impact(S.spot.copy(b.to).setY(b.to.y + 0.008), b.col, 0.025, 10);
+      sfx.lobSplat();
       if (P && blastHits(b.to, b.r, P.position, P)) bus.emit('damage_taken', { targetId: PLAYER, amount: b.dmg, source: b.source, from: b.id });
       if (b.puddle > 0) this.puddle(b.to, b.r, b.puddle, b.col);
     }
@@ -591,6 +620,7 @@ export class Enemies {
       this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
+    sfx.spit(kind);
   }
 
   // A leaping bug comes down (the leap word): a thump, a ring of dust, and the jelly is hit if
@@ -600,10 +630,17 @@ export class Enemies {
     this.fx.impact(at.clone().setY(at.y + 0.01), hostile('leap'), radius * 0.45, 16);
     this.fx.ring(at.clone().setY(at.y + 0.003), hostile('leap'), radius * 1.05, 0.4);
     this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
+    this.fx.splat(at, SCUFF, radius * 0.55);              // a scuff in the dust where it came down (fades)
+    sfx.leapSlam();
     e.landT = 1;
     const dx = (c.realFoot || c.foot).x - at.x, dz = (c.realFoot || c.foot).z - at.z;
     if (Math.hypot(dx, dz) < radius && Math.abs((c.realFoot || c.foot).y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
+
+  // springing off (the leap word): a kick of dust where it crouched, a flick of wings
+  leapGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.005), 0xd8c8b4, e.r * 1.2, 0.3); sfx.leapJump(); }
+  // an ant squad setting off rolling (the curl-dash word): dust kicked up behind it, a skitter
+  curlGo(e) { this.fx.puff(S.spot.copy(e.pos).addScaledVector(e.dashDir, -e.r).setY(e.pos.y + 0.005), 0xd8c8b4, e.r * 0.9, 0.3); sfx.antDash(); }
 
   // ---------------------------------------------------------------- ladybugs (the sortie word)
   // the floor under a point (or `fallback`)
@@ -739,8 +776,10 @@ export class Enemies {
     this.fx.impact(P, red, 0.035, 10);
     this.fx.burst(P, ['#fff0b0', '#ffb040', '#ff4a20', '#3a3a3a'], 16, 0.003, 0.35, this.floorBelow(P, P.y - 0.1));
     this.fx.puff(P, 0x5a5550, 0.06, 0.9);
-    this.fx.ring(new THREE.Vector3(P.x, this.floorBelow(P, P.y - 0.05) + 0.004, P.z), red, 0.09, 0.4);
-    juice.feel('impact-big');
+    const floor = this.floorBelow(P, P.y - 0.05);
+    this.fx.ring(new THREE.Vector3(P.x, floor + 0.004, P.z), red, 0.09, 0.4);
+    if (P.y - floor < 0.12) this.fx.splat(S.spot.set(P.x, floor, P.z), SCORCH, 0.04);   // a scorch on the floor (fades)
+    if (P.distanceTo(pc) < 0.4) juice.feel('impact-big');   // only on you or a near miss: bugs stay quieter than Elites (L2)
     sfx.missileBoom();
     if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile' });
   }
@@ -826,6 +865,10 @@ export class Enemies {
     sfx.beamFire();
     this.fx.impact(from, color, 0.008, 4);
     this.fx.impact(near ? (c.realPc || c.pc).clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
+    if (!near && wall) {                                   // where it struck: an ember dying out, and a scorch on a floor
+      this.fx.glow.emit(to, color, 0.008, 0.002, 0.6, 0.9);
+      if (wall.normal?.y > 0.5) this.fx.splat(to, SCORCH, 0.008);
+    }
     if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   drawBeams(dt) {
@@ -967,6 +1010,7 @@ export class Enemies {
     this.fx.ring(at.clone().setY(e.pos.y + 0.003), col, radius * 1.05, 0.4);
     this.fx.puff(at, 0x8ab840, radius * 0.7, 0.45);
     this.fx.burst(at, [0x6aa826, 0x94c440, 0x2a1a10], 14, 0.004, 0.4, e.pos.y);
+    this.fx.splat(S.spot.set(at.x, e.pos.y, at.z), LOOK.color('worm-gore', '#4a6a1a'), radius * 0.4);   // what it burst out of, spattered (fades)
     if (this.player && blastHits(at, radius, this.player.position, this.player)) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   // The worm cracks down along its line: you're hit if you're on it and not jumping over it
@@ -978,8 +1022,11 @@ export class Enemies {
     const hit = off < (this.playerRadius || 0.03) + width && (c.realFoot || c.foot).y < (e.whipFloor ?? e.pos.y) + 0.03;
     const tip = S.spot.set(a.x + d.x * reach, (e.whipFloor ?? e.pos.y) + 0.005, a.z + d.z * reach);
     this.fx.impact(hit ? (c.realPc || c.pc).clone() : tip.clone(), hostile('worm'), hit ? 0.02 : 0.012, hit ? 10 : 6);
+    this.fx.puff(tip, 0xc8b8a0, 0.02, 0.35);
+    this.fx.splat(tip.lerp(S.o.set(a.x, tip.y, a.z), 0.3), SCUFF, 0.014);   // a scuff along where it cracked down (fades)
     if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
+  whipLash(e) { sfx.whipLash(); }
   // a pooled floor Warning: the i-th mark of `pool`, made with `make` the first time
   mark(pool, i, make) {
     let M = pool[i];
@@ -1018,20 +1065,28 @@ export class Enemies {
   // It lands where scenery stopped its body, which may be above its original floor target.
   drop(e, { radius, color }) {
     const at = e.pos, col = hostile(color);
-    sfx.clogSplat();
+    sfx.rootLand();
     this.fx.impact(S.spot.copy(at).setY(at.y + 0.01), col, radius * 0.4, 10);
     this.fx.puff(S.spot, this.barkDust, radius * 0.8, 0.35);
+    this.fx.splat(at, this.barkDust, radius * 0.5);       // bark dust where it came down (fades)
+    e.recoil = 1;                                          // it squashes as it lands
     e.landedOn = !!this.player && blastHits(at, radius, this.player.position, this.player);
   }
   grab(e, color) { sfx.clogSnare(); this.fx.impact(S.spot.copy(e.pos).setY(e.pos.y + 0.02), hostile(color), 0.02, 8); }
   // the hold tightens: you're slowed by `strength` and lose `dmg` (no flinch, no i-frames) for `dur` s
-  squeeze(e, strength, dmg, dur) {
+  squeeze(e, strength, dmg, dur, color) {
+    const P = this.player;
+    if (P) this.fx.impact(S.spot.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.4), hostile(color), 0.01, 4);   // the jelly visibly squeezed
+    e.recoil = 1;
+    sfx.rootSqueeze();
     bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: dur, strength });
     if (dmg) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, drain: true });
   }
   // spent: it withers away (no kill for you, no XP)
   wither(e) {
     this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), this.barkDust, e.r * 1.6, 0.5);
+    this.fx.burst(S.spot, [this.barkDust, 0x3a2a18], 5, 0.003, 0.2, e.pos.y);
+    sfx.rootWither();
     this.kill(e, true);
   }
   // the Warning under everything dropping: a floor circle with the dome of space it lands in over it,
@@ -1065,11 +1120,13 @@ export class Enemies {
 
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
+  diveGo(e) { sfx.diveGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.8, 0.25); }
   // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
   sting(e, c, { dmg }) {
     sfx.waspSting();
     this.fx.impact((c.realPc || c.pc).clone(), hostile('wasp'), 0.025, 14);
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+    this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
   hatch(nest, wasp) { sfx.waspHatch(); this.fx.puff((nest.emergeAt || nest.pos).clone(), 0xb8b8b2, nest.r * 1.5, 0.3); }
@@ -1258,6 +1315,11 @@ export class Enemies {
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
       e.mesh.scale.setScalar(sc);
       e.face.scale.setScalar(sc);
+      if (e.recoil > 0) {                    // its hit landed (landed): a quick squash with the blow
+        e.recoil = Math.max(0, e.recoil - dt * 5);
+        const q = e.recoil * e.recoil;
+        e.mesh.scale.y *= 1 - 0.28 * q; e.mesh.scale.x *= 1 + 0.14 * q; e.mesh.scale.z *= 1 + 0.14 * q;
+      }
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) e.anim(dt, e);
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
@@ -1364,7 +1426,7 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), separate: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;

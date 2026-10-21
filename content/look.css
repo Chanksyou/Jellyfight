@@ -282,6 +282,10 @@
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
+  --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant squad, hair tangle): a small flash where they meet */
+  --hurt-goo: #8fd8ff #dff8ff;   /* drops of jelly a bug's hit knocks off; they splat on the floor and fade (harmless) */
+  --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
+  --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
