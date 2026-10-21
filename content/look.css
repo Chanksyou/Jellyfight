@@ -295,6 +295,20 @@
   --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
   --wreath-glow: 1.1;            /* how bright it glows in its hostile colour */
   --wreath-scale: 3.2;           /* how much bigger than the one in her hand, so you can see it coming */
+  /* how act 2's Elites' and the Clog's attacks land (src/elites.js, src/clog.js): the flash where
+     each fires (m), and the harmless leftovers (fx.splat: they fade; never the colour of a hazard) */
+  --act2-muzzle-flash: 0.014;    /* the flash at a nozzle, a hand or the Clog's hair as an attack leaves it */
+  --act2-contact-flash: 0.03;    /* the flash on the jelly where an attack catches it */
+  --soap-suds: #f6e4ee;          /* a popped soap bubble's suds (pale: the pink slick is the hazard) */
+  --soap-suds-size: 0.009;
+  --clock-scuff: #6a5426;        /* a dull gilt scuff where the clock's hand, wreath or chime struck */
+  --clock-glints: #fff0b0 #ffc23a #e0b048;   /* gilt glints thrown off where it struck */
+  --cream-splat: #fff6e8;        /* whipped cream left on the floor after the spray */
+  --cream-splat-size: 0.022;
+  --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
+  --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */
+  --clog-scum: #8a9a7a;          /* the scum rings the drained bath leaves round the drain */
+  --clog-trail-every: 0.1;       /* seconds between the gunk smears its roll leaves */
   --vacuum-sweep-life: 0.25;     /* seconds a brush sweep's wall takes to spread out and fade */
   /* (the sweep's reach moved to content/bosses.kdl: brushes reach) */
   /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
