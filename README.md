@@ -4,7 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v233 adds the standalone Act 4 concert arena preview: open `index.html?arena=act4`, or Dev → Act 4 preview. Explore the tiled floor, raised rear riser, suspended side speakers and amber/blue lighting. “Tile lights” shows a static lighting sample. The pyramid boss, performers, attacks and campaign transition are not implemented yet. See [the arena note](docs/act4-arena.md).
+v234 adds the Encore boss visual model to the Act 4 preview: a triangular LED pyramid booth, braced glowing wings, silver and gold helmeted performers, fitted suits, articulated gloves and twin DJ decks. Use **Boss close-up** to inspect it. The model has restrained idle movement and adds no lights. Combat and campaign entry are still pending. See [the arena note](docs/act4-arena.md).
+
+v233 adds the standalone Act 4 concert arena preview: open `index.html?arena=act4`, or Dev → Act 4 preview. Explore the tiled floor, raised rear riser, suspended side speakers and amber/blue lighting. “Tile lights” shows a static lighting sample. The initial environment was followed by the v234 boss visual model; attacks and campaign transition remain pending. See [the arena note](docs/act4-arena.md).
 
 v232 gives twelve more treasures distinct feedback: Bobby Pin, Gold Ring, Reed Stick, Sticky Note, Pen Spring, Bath Bomb, TV Remote, Fairy Lights, Glow Stick, Static Balloon, Thumbtack and Snooze Button. Bounded effects clarify real procs, contacts and recovery without changing combat rules. See [the design note](docs/treasure-effects-v232.md).
 

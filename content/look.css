@@ -2,6 +2,14 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --encore-leather-grain: 0.00012;
+  --encore-panel: #10182a;
+  --encore-suit: #151c2a;
+  --encore-leather: #273143;
+  --encore-blue: #9bbaff;
+  --encore-amber: #ff8c25;
+  --encore-led-width: 0.00075;
+  --encore-halo-opacity: 0.11;
   --arena-background: #030611;
   --arena-metal: #10131d;
   --arena-steel: #273044;
