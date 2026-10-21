@@ -5,8 +5,9 @@
 import { hostile } from '../vfx.js';
 import { CONTENT } from '../content.js';
 import { CONFIG } from '../config.js';
-import { unlock as unlockAudio, audio } from '../sfx.js';
-import { G, V, act3, coffer, fresh, onDesk, ok, r3, record, startCoffer, step, tp, volumePairs } from './kit.js';
+import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
+import { juice } from '../juice.js';
+import { G, V, act3, coffer, fresh, onDesk, ok, r3, record, spy, startCoffer, step, stub, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(-1.2, 0.05, 9.5, 0);                // on the floor between the desk and the bassinet
 const isCoffer = (o) => o.material.uniforms.uColor.value.getHex() === hostile('coffer').getHex();
@@ -203,6 +204,40 @@ act3('coffer-jewels', {
     const { in: a, between: b } = out;
     return ok(a.spots === J.count && a.shown === J.count && a.apart >= J.spread * 0.75 && a.onDesk && Math.abs(a.rain - J.rain) < 0.06 && a.up > 0.3 && a.falling > 0.1
       && a.hits.length === 1 && a.hits[0] === J.dmg && b.spots === J.count && (!b.at || !b.hits.length), out);
+  },
+});
+
+// the feel of each attack (docs/agents/attack-feel.md): what the jelly sees and hears as it lands
+const liveSplats = () => G().fx.splats.filter((x) => x.alive).length;
+
+act3('coffer-accordion-feel', {
+  about: 'Accordion feel: every slam shakes the screen on the feel ladder (impact, never a number of its own), jolts the box, throws splinters and leaves a dusty mark that fades, with the slam\'s layered sound; one that lands on the jelly flashes at it.',
+  setup() { startCoffer(0); },
+  play() {
+    const { e, player } = startCoffer(0), { fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), shakes = spy(juice, 'shake'), slams = spy(sfx, 'cofferSlam'), impacts = spy(fx, 'impact');
+    const n = CONTENT.elites.coffer.skills.accordion.strikes, before = liveSplats();
+    let pop = 0, splats = 0;
+    step(60 * 6, () => { pop = Math.max(pop, e.hitPop); splats = Math.max(splats, liveSplats() - before); return e.state === 'idle' && slams.length; });
+    const impactFeels = feels.filter(([k]) => k === 'impact').length, atJelly = impacts.some(([at]) => at.y > player.position.y + 0.005 && Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.01);
+    return ok(slams.length === n && impactFeels >= n && shakes.length === feels.length && pop > 0.3 && splats >= n && log.some((d) => d.source === 'coffer-accordion') && atJelly,
+      { slams: slams.length, impactFeels, shakes: shakes.length, feels: feels.length, pop: +pop.toFixed(2), splats, hits: log.length, atJelly });
+  },
+});
+
+act3('coffer-jewels-feel', {
+  about: 'Jewels feel: as the jewels land the screen shakes on the feel ladder (impact), the box jolts, each spot leaves glittering grit that fades, and the jelly hit in one flashes.',
+  setup() { startCoffer(2); },
+  play() {
+    const { e, player } = startCoffer(2), { fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact');
+    let pop = 0, splats = 0, before = 0, placed = false;
+    step(60 * 5, () => {
+      if (!placed && e.spots) { placed = true; player.position.copy(e.spots[0]); before = liveSplats(); }
+      if (e.burst) { pop = Math.max(pop, e.hitPop); splats = Math.max(splats, liveSplats() - before); }
+      return e.state === 'idle' && placed;
+    });
+    const atJelly = impacts.some(([at]) => at.y > player.position.y + 0.005 && Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.01);
+    return ok(log.some((d) => d.source === 'coffer-jewel') && feels.some(([k]) => k === 'impact') && pop > 0.3 && splats >= CONTENT.elites.coffer.skills.jewels.count && atJelly,
+      { hits: log.length, pop: +pop.toFixed(2), splats, atJelly });
   },
 });
 

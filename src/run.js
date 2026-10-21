@@ -82,6 +82,10 @@ export class Run {
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
+    // a soft cool ring under the jelly that fades in while bugs crowd it, so you can always find yourself
+    this.crowdRing = new THREE.Mesh(new THREE.RingGeometry(0.72, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: this.friendly, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.crowdRing.renderOrder = 3; this.crowdRing.visible = false;
+    ctx.scene.add(this.crowdRing);
     this.energyShield = new EnergyShield(this);
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
@@ -115,11 +119,11 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-      else this.hit(amount, from);          // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
+      else this.hit(amount, from, contact); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength }) => {
@@ -345,6 +349,7 @@ export class Run {
     }
     this.t += dt;
     const P = this.player, s = this.S;
+    this.crowdCue(dt);
 
     // --- movement, with vents, fabric, the drain's pull and an elite's (the Coffer's tongue: elites.pull,
     // set as it updated last frame)
@@ -522,6 +527,20 @@ export class Run {
     else this.elites.start([D.elite]);
   }
 
+  // the crowd ring: how many bugs are pressed round the jelly (flat, within --crowd-near), easing the
+  // ring in from the 2nd and to full by the 5th
+  crowdCue(dt) {
+    const P = this.player.position, near = LOOK.num('crowd-near', 0.12), R = this.crowdRing;
+    let n = 0;
+    for (const e of this.enemies.list) if (!e.dead && !e.proxy && Math.abs(e.pos.y - P.y) < 0.1 && Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < near) n++;
+    const want = Math.min(1, Math.max(0, (n - 1) / 4)) * LOOK.num('crowd-ring', 0.5);
+    R.material.opacity += (want - R.material.opacity) * (1 - Math.exp(-6 * dt));
+    R.visible = R.material.opacity > 0.01;
+    if (!R.visible) return;
+    R.position.set(P.x, P.y + 0.003, P.z);
+    R.scale.setScalar(this.cfg.radius * 2.3 * (1 + 0.05 * Math.sin(this.t * 6)));
+  }
+
   // ------------------------------------------------------------ waves
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
@@ -573,13 +592,13 @@ export class Run {
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // ant squads hit harder rolling
-        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id });
+        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true });
       }
     }
   }
 
   // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
-  hit(amount, from = null) {
+  hit(amount, from = null, contact = false) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
     const M = this.mods;
@@ -630,10 +649,10 @@ export class Run {
       const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
-    this.hurt(amount, false, from);
+    this.hurt(amount, false, from, contact);
   }
 
-  hurt(amount, silent = false, from = null) {
+  hurt(amount, silent = false, from = null, contact = false) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
     amount = this.energyShield.absorb(amount, silent);
@@ -648,6 +667,7 @@ export class Run {
       const away = attacker ? this.player.position.clone().sub(this.enemies.center(attacker)).setY(0) : new THREE.Vector3();
       if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
       bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: this.cfg.hitKnockback ?? 0.06 });
+      bus.emit('player_hurt', { amount, from, contact });   // the hit really landed: its attacker's feedback (enemies.js landed)
     }
     if (!silent) this.player.avatar?.land(1.5);
     // death-save: once per run, the last of your Health holds

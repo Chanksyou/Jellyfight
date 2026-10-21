@@ -35,6 +35,7 @@ import { CONTENT } from './content.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const _rel = new THREE.Vector3();
+const GUNK = () => LOOK.color('clog-gunk', '#3a2a16');   // its wet smears (fx.splat: harmless, they fade)
 const HAIR = ['#1e130c', '#2a1a10', '#33200f', '#3b2618', '#24160e', '#4a2a16', '#5a3418', '#7a7470', '#b8904a'];   // mostly dark brown; a grey and a blonde one
 
 // a shudder as it winds up (its root jitters sideways)
@@ -272,7 +273,7 @@ export class Clog {
     // tick() scratch: the per-frame paths (chase heading, the whirlpool, the lash strike) reuse
     // these instead of minting vectors every frame
     this._toP = new THREE.Vector3(); this._toDrain = new THREE.Vector3(); this._side = new THREE.Vector3();
-    this._d = new THREE.Vector3(); this._tip = new THREE.Vector3(); this._lane = new THREE.Vector3(); this._puff = new THREE.Vector3();
+    this._d = new THREE.Vector3(); this._tip = new THREE.Vector3(); this._lane = new THREE.Vector3(); this._puff = new THREE.Vector3(); this._contact = new THREE.Vector3();
     this.tuftGeo = new THREE.ConeGeometry(0.004, 0.05, 5).translate(0, 0.025, 0);
     this.tuftMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.8 });
     // the drain itself: a dark grate that churns while it gurgles
@@ -420,6 +421,7 @@ export class Clog {
           this.struck = true;
           sfx.clogLash();
           juice.feel('impact');
+          this.squash = Math.max(this.squash, 0.45);                     // it heaves down with the rope
           this.lines.forEach((L, i) => {
             if (!L.visible) return;
             L.material.progress = 1;
@@ -427,8 +429,10 @@ export class Clog {
             const tip = this._tip.copy(p).addScaledVector(d, 0.42).setY(this.floor + 0.01);
             this.fx.impact(tip, hostile('clog'), 0.03, 12);
             this.fx.burst(tip, ['#3b2618', '#8a9a5a', '#5a3a24'], 6, 0.003, 0.25, this.floor);
+            this.fx.splat(tip, GUNK(), 0.03);                              // where the rope slapped down: a wet smear
+            this.fx.splat(this._puff.copy(p).addScaledVector(d, 0.22).setY(this.floor), GUNK(), 0.022);
             // anything of the jelly in the low lane along the line (jumping over it clears it)
-            if (laneHits(this._lane.copy(L.position).setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; }
+            if (laneHits(this._lane.copy(L.position).setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; this.contact(P, player.cfg); }
           });
         }
         this.rearing = -1;                                              // slammed down along the line
@@ -450,6 +454,10 @@ export class Clog {
         if (Math.random() < dt * 20) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x8a9a5a, 0.02, 0.3);
         if (this.stateT <= 0) {
           this.locked = true; this.stateT = SK.roll.time; this.rollWind = null; L.visible = false; sfx.clogRoll();
+          // off it goes: a burst of grime behind it, stretched long, the camera kicked
+          this.fx.impact(this._puff.copy(p).setY(this.floor + 0.02), hostile('clog'), LOOK.num('act2-muzzle-flash', 0.014) * 2.5, 10);
+          this.fx.puff(this._puff, 0x6a5a3a, 0.05, 0.4);
+          this.squash = -0.5; this.trailT = 0; juice.feel('hit');
           this.rollAt.copy(p).setY(this.floor); this.rollDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.rollHit = false;
         }
       } else {
@@ -458,14 +466,17 @@ export class Clog {
         const reached = Math.min(this.rollLen, _rel.copy(p).sub(this.rollAt).dot(this.rollDir) + this.r);
         if (!this.rollHit && this.knock <= 0 && laneHits(this.rollAt, this.rollDir, reached, this.rollW, this.rollH, P, player.cfg)) {
           this.rollHit = true; out.hit = SK.roll.dmg; this.knockBack(toP, 1.0);
+          this.slam(_rel.copy(toP).normalize().multiplyScalar(this.r).add(p).setY(P.y + 0.03), 1);   // it rolls into you: the wet slam where it struck
         }
         const wall = this.drive(dt, null, angry ? SK.roll.angrySpeed : SK.roll.speed, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x6a5a3a, 0.025, 0.35);
+        if ((this.trailT -= dt) <= 0) { this.trailT = LOOK.num('clog-trail-every', 0.1); this.fx.splat(this._puff.copy(p).setY(this.floor), GUNK(), this.r * 0.35); }   // the track it leaves
         if (wall || this.stateT <= 0) {
           this.locked = false; sfx.clogSlam(); this.squash = 0.9;
           this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16);
           this.fx.burst(p.clone().setY(this.floor + 0.04), HAIR.slice(0, 6), 12, 0.004, 0.45, this.floor);
-          if (wall) juice.feel('impact-big');
+          this.fx.splat(this._puff.copy(p).setY(this.floor), GUNK(), this.r * 0.6);
+          juice.feel(wall ? 'impact-big' : 'hit');
           this.toChase();
         }
       }
@@ -490,8 +501,11 @@ export class Clog {
         this.sprung = true;
         sfx.clogSnare();
         juice.feel('impact');
+        this.squash = Math.max(this.squash, 0.5); this.chomp = 0.3;   // it clenches as its hair springs
         for (const m of this.snares) {
           const c = m.position;
+          this.fx.impact(this._puff.copy(c).setY(this.floor + 0.01), hostile('clog'), 0.025, 8);
+          this.fx.splat(this._puff.setY(this.floor), GUNK(), 0.035);
           for (let k = 0; k < 7; k++) {
             const tuft = new THREE.Mesh(this.tuftGeo, this.tuftMat);
             const a = (k / 7) * Math.PI * 2;
@@ -501,7 +515,7 @@ export class Clog {
             this.tufts.push({ m: tuft, t: 0 });
           }
           this.fx.burst(c.clone().setY(this.floor + 0.01), ['#3b2618', '#2a1a10', '#8a9a5a'], 6, 0.003, 0.3, this.floor);
-          if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = SK.snare.dmg; out.slow = SK.snare.slow; }   // a floor Blast: its half sphere
+          if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = SK.snare.dmg; out.slow = SK.snare.slow; this.contact(P, player.cfg); }   // a floor Blast: its half sphere
           m.visible = false;
         }
       }
@@ -530,7 +544,13 @@ export class Clog {
         this.stream.visible = false;
         s.material.progress = 1;
         s.material.opacity = 1;
-        if (!this.plugged) { this.plugged = true; sfx.clogDrain(drainT); }
+        if (!this.plugged) {
+          this.plugged = true; sfx.clogDrain(drainT); sfx.clogPlug();
+          // the plug pulled: a flash and a ring at the drain, the hairball heaving, the camera kicked
+          this.fx.impact(this._puff.copy(this.drain).setY(this.waterY + 0.01), hostile('clog'), 0.05, 16);
+          this.fx.ring(this._puff, hostile('clog'), 0.2, 0.5);
+          this.squash = Math.max(this.squash, 0.6); this.chomp = 0.5; juice.feel('impact');
+        }
       } else {
         // draining: the level drops fast and the whirlpool pulls
         const u = Math.min(1, (el - fill - hold) / drainT);
@@ -543,14 +563,28 @@ export class Clog {
         const toDrain = this._toDrain.copy(this.drain).sub(P).setY(0), dd = toDrain.length(), side = this._side.set(-toDrain.z, 0, toDrain.x).normalize();
         const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your move speed (0.42) up close
         out.push = toDrain.normalize().multiplyScalar(SK.flood.pull * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
-        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) out.hurt = SK.flood.dmg * dt;
+        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) {
+          out.hurt = SK.flood.dmg * dt;
+          // sucked in against it: a gulp every so often (a flash and a splash on you, it squashes and chomps)
+          if ((this.gulpT = (this.gulpT || 0) - dt) <= 0) {
+            this.gulpT = 0.3;
+            this.fx.impact(this._puff.copy(P).setY(P.y + player.cfg.height * 0.5), hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * 0.7, 8);
+            this.fx.burst(this._puff, ['#dff4ff', '#8a9a5a', '#3b2618'], 5, 0.003, 0.3, this.floor);
+            this.squash = Math.max(this.squash, 0.35); this.chomp = 0.3; sfx.clogSplat();
+          }
+        }
         this.grate.rotation.y += dt * 14;
         if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this._puff.copy(this.drain).add(this._side.set(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }   // _side's work (out.push) is done by now
       }
       W.position.y = this.waterY;
       W.material.opacity = 0.55;
       mouth = 0.7;
-      if (this.stateT <= 0) { this.floodOn = this.plugged = false; W.visible = this.whirl.visible = this.stream.visible = s.visible = false; this.toChase(); }
+      if (this.stateT <= 0) {
+        this.floodOn = this.plugged = false; W.visible = this.whirl.visible = this.stream.visible = s.visible = false;
+        // the bath gone, scum rings are left round the drain a while (harmless: they fade)
+        for (let k = 0; k < 6; k++) { const a = k * 1.05 + Math.random() * 0.5, rr = 0.06 + Math.random() * 0.2; this.fx.splat(this._puff.set(this.drain.x + Math.cos(a) * rr, this.floor, this.drain.z + Math.sin(a) * rr), LOOK.color('clog-scum', '#8a9a7a'), 0.03 + Math.random() * 0.03); }
+        this.toChase();
+      }
     } else if (this.state === 'shed') {
       // it shakes, and hair tangles fly off it
       mouth = 0.5;
@@ -562,9 +596,16 @@ export class Clog {
           const q = p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(this.r + 0.04));
           this.clampIn(q);
           this.enemies.spawn('hair', q.setY(this.floor), 1.3);
+          // a clump flying off it to where the tangle lands (it grows in as the clump gets there), and a smear there
+          const from = this.center(this._puff);
+          this.fx.glow.emit(from, hostile('clog'), 0.03, 0.012, 0.22, 1, this._side.copy(q).sub(from).divideScalar(0.22));
+          this.fx.burst(from, HAIR.slice(0, 6), 3, 0.004, 0.4, this.floor);
+          this.fx.splat(q, GUNK(), 0.03);
         }
         this.fx.puff(this.center(), 0x3b2618, 0.07, 0.5);
-        sfx.clogSplat();
+        this.fx.impact(this.center(this._puff), hostile('clog'), 0.04, 14);
+        this.squash = Math.max(this.squash, 0.6); juice.feel('hit');
+        sfx.clogShed();
       }
       if (this.stateT <= 0) { M.root.position.x = 0; this.toChase(); }
     } else if (this.state === 'spray') {
@@ -583,8 +624,10 @@ export class Clog {
           const a = this.heading + k * Math.PI * 2 / 3, dir = V(Math.sin(a), 0, Math.cos(a));
           const from = p.clone().addScaledVector(dir, this.r).setY(y), to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);
           this.shots.push(this.fx.shot(hostile('clog'), from, to, { speed: SK.spray.speed, size: 0.008, life: 1.4 }));
+          this.fx.impact(from, hostile('clog'), LOOK.num('act2-muzzle-flash', 0.014), 2);   // spat out of its hair
         }
-        sfx.clogSplat();
+        this.squash = Math.max(this.squash, 0.15);                       // a heave with every volley
+        sfx.clogSpit();
       }
       if (this.stateT <= 0) this.toChase();
     } else if (this.state === 'swarm') {
@@ -643,7 +686,10 @@ export class Clog {
     if (this.knock > 0) { this.knock -= dt; out.push = (out.push || new THREE.Vector3()).clone().addScaledVector(this.knockDir, this.knockSpeed); }
 
     // gunk globs
-    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, SK.spray.dmg);
+    for (const s of this.shots) {
+      if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) { out.hit = Math.max(out.hit, SK.spray.dmg); this.contact(P, player.cfg, 0.6); }
+      if (s.done) { this.fx.splat(this._puff.set(s.m.position.x, this.floor, s.m.position.z), GUNK(), 0.014); sfx.clogSplat(); }   // where the glob ended: a smear
+    }
     this.shots = this.shots.filter((s) => !s.done);
     // hair tufts from a snare: up, then back down
     for (const f of this.tufts) {
@@ -749,10 +795,20 @@ export class Clog {
     this.fx.impact(at, hostile('clog'), 0.045 * k, 20);
     this.fx.burst(at, [...HAIR.slice(0, 6), '#8a9a5a', '#8a9a5a'], 14, 0.0045, 0.5, this.floor);
     this.fx.puff(at, 0x3b2618, 0.05 * k, 0.5);
-    this.fx.splat(_rel.set(at.x, this.floor, at.z), 0x3a2a16, 0.045 * k);
+    this.fx.splat(_rel.set(at.x, this.floor, at.z), GUNK(), 0.045 * k);
     juice.feel('impact-big');
     sfx.clogSlam();
     this.squash = Math.max(this.squash, 0.8);
+  }
+
+  // an attack catching the jelly (P its feet): a flash and gunk flying off it, a smear under it,
+  // the impact shake (k: how big)
+  contact(P, cfg, k = 1) {
+    const c = this._contact.copy(P).setY(P.y + cfg.height * 0.5);
+    this.fx.impact(c, hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * k, 10);
+    this.fx.burst(c, [...HAIR.slice(0, 4), '#8a9a5a'], 6, 0.0035, 0.35, this.floor);
+    this.fx.splat(this._contact.setY(this.floor), GUNK(), 0.025 * k);
+    juice.feel('impact');
   }
 
   // Pinball: three leaps at you. Each crouch and flight its landing spot (a circle with a half

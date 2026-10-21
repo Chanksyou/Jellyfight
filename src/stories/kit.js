@@ -8,6 +8,8 @@ import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
 import { hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
+import { juice } from '../juice.js';
+import { sfx } from '../sfx.js';
 import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
@@ -23,6 +25,8 @@ export function stub(obj, key, fn) {
   patched.push([obj, key, Object.prototype.hasOwnProperty.call(obj, key), obj[key]]);
   obj[key] = fn;
 }
+// stub obj[key] with a pass-through that logs each call's arguments in the returned list
+export function spy(obj, key) { const log = [], real = obj[key]; stub(obj, key, function (...a) { log.push(a); return real.apply(this, a); }); return log; }
 export const offs = [];
 // record every payload of a bus event during this story (stopped by fresh/restore)
 export function record(type) { const log = []; offs.push(bus.on(type, (p) => log.push(p))); return log; }
@@ -88,6 +92,19 @@ export const spawn = (type, at, { still = false, hp } = {}) => {
   return e;
 };
 export const ok = (pass, info = {}) => ({ ok: !!pass, info });
+// spy on an attack's feedback for this story (after fresh()): every juice.feel step, where each
+// fx.impact and fx.splat went, and which sfx voices played
+export function feelSpy(fx = G().run.elites.fx) {
+  const log = { feels: [], impacts: [], splats: [], sounds: [] };
+  const spy = (obj, key, put) => { const f = obj[key]; stub(obj, key, function (...a) { put(...a); return f.apply(this, a); }); };
+  spy(juice, 'feel', (k) => log.feels.push(k));
+  spy(fx, 'impact', (p) => log.impacts.push(p.clone()));
+  spy(fx, 'splat', (p) => log.splats.push(p.clone()));
+  for (const [k, f] of Object.entries(sfx)) if (typeof f === 'function') spy(sfx, k, () => log.sounds.push(k));
+  // an impact within `d` m of `p` (seen from index `from` on)
+  log.near = (p, d = 0.06, from = 0) => log.impacts.slice(from).some((q) => q.distanceTo(p) < d);
+  return log;
+}
 export const ELEMENTS_IDS = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
 export const STORIES = {};
 export const story = (name, s) => { STORIES[name] = s; };
@@ -217,6 +234,14 @@ export function warningsAt(to) {
   return { floor: kids.find((o) => o.material instanceof TeleMaterial), volume: kids.find((o) => o.material instanceof VolumeMaterial) };
 }
 // hold the jelly still where it is put (its own update is switched off for this story)
+// spy on the --feel-* steps (juice.feel) and on the named sfx voices while a story steps (they
+// still play): feels lists the steps, n[voice] each call's first argument (true when none)
+export function feelVoices(...sounds) {
+  const feels = [], n = Object.fromEntries(sounds.map((k) => [k, []]));
+  const feel = juice.feel.bind(juice); stub(juice, 'feel', (k) => { feels.push(k); feel(k); });
+  for (const k of sounds) { const real = sfx[k].bind(sfx); stub(sfx, k, (...a) => { n[k].push(a[0] ?? true); real(...a); }); }
+  return { feels, n };
+}
 export function holdJelly() { const { player } = G(); stub(player, 'update', () => {}); player.velocity.set(0, 0, 0); return player; }
 // Controller stories: four low floor symbols and a dome rumble.
 export const CONTROLLER_AT = [1.62, 0.61, 4.47];

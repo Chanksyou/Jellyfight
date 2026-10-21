@@ -8,11 +8,12 @@ import { CONTENT, compileEnemies } from '../content.js';
 import { TREASURES, STAT_INFO, EVOLUTIONS } from '../stats.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
+import { sfx } from '../sfx.js';
 import { SPECIES, buildCharacter, normalizeLook } from '../character.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
 import { applyState } from '../cat.js';
-import { G, STORIES, V, fresh, holdJelly, near, ok, pothosFloor, record, shownWarnings, sim, spawn, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
+import { G, STORIES, V, offs, fresh, holdJelly, near, ok, pothosFloor, record, shownWarnings, sim, spawn, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
 
 // --- the vocabulary: one story per behaviour word (src/words.js), proving what it does
 story('words/chase', {
@@ -933,6 +934,122 @@ story('enemies/sap-puddle-slows', {
     return ok(pud && inside > 0 && beside === 0 && vol === 0, { puddle: !!pud, inside, beside, vol });
   },
 });
+
+// --- how the bugs' attacks feel (docs/agents/attack-feel.md, src/stories/attack-audit.js): the
+// feedback each one makes when it really lands, checked by spying on the sounds and effects
+function feelSpy() {
+  const log = { sfx: [], impact: [], splat: 0, burst: 0 };
+  for (const [k, f] of Object.entries(sfx)) if (typeof f === 'function') stub(sfx, k, function (...a) { log.sfx.push(k); return f.apply(this, a); });
+  const { fx } = G();
+  for (const k of ['splat', 'burst']) { const f = fx[k]; stub(fx, k, function (...a) { log[k]++; return f.apply(this, a); }); }
+  const imp = fx.impact;
+  stub(fx, 'impact', function (p, ...a) { log.impact.push(p.clone()); return imp.call(this, p, ...a); });
+  return log;
+}
+const jellyMid = () => { const P = G().player.position; return P.clone().setY(P.y + CONFIG.player.height * 0.5); };
+// steps until `source` really hurts the jelly; then: which voices played, whether an impact flashed
+// within 5 cm of it, splats made, and how squashed its bug was the moment its hit landed
+function feelOfHit(source, secs = 6, amount = null, log = feelSpy()) {
+  const { enemies } = G(), e = enemies.list[0];
+  let recoil = 0, landed = null, pending = null;
+  // (run.js answers damage_taken before this listener, so a hit that lands has its player_hurt first)
+  offs.push(bus.on('player_hurt', (h) => { pending = h; }));
+  offs.push(bus.on('damage_taken', (d) => {
+    if (d.targetId !== PLAYER) return;
+    if (!landed && pending && d.source === source && (amount == null || d.amount === amount)) { landed = pending; recoil = e.recoil || 0; }
+    pending = null;
+  }));
+  step(60 * secs, () => landed);
+  const mid = jellyMid(), near = log.impact.some((p) => p.distanceTo(mid) < 0.05);
+  return { landed: !!landed, contact: !!landed?.contact, near, recoil: +recoil.toFixed(2), splats: log.splat, voices: [...new Set(log.sfx)], e };
+}
+const played = (r, ...v) => v.every((n) => r.voices.includes(n));
+const feelStory = (word, about, setup, check) => story(`words/${word}-feel`, { about, setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); setup(); }, play: check });
+const hitFelt = (r, ...voices) => ok(r.landed && r.recoil > 0.5 && r.splats >= 1 && played(r, 'bugHit', ...voices), { ...r, e: undefined });
+
+feelStory('contact', 'A cockroach biting the jelly: a flash where they touch, the roach squashes with the bite, drops of jelly splat on the floor, a crunch and a wet slap. Blocked by i-frames, none of it happens.',
+  () => spawn('roach', near(0.15, 0)),
+  () => {
+    const { run } = G();
+    const spy = feelSpy();
+    run.iFrames = 9;                                     // first: touching while it can't hurt
+    step(60);
+    const quiet = !spy.sfx.includes('bugHit') && !G().enemies.list[0].recoil;
+    spy.sfx.length = spy.impact.length = spy.splat = 0;
+    run.iFrames = 0;
+    const r = feelOfHit('roach', 3, null, spy);
+    return ok(quiet && r.contact && r.near && r.recoil > 0.5 && r.splats >= 1 && played(r, 'bugHit'), { quiet, ...r, e: undefined });
+  });
+feelStory('curl-dash', 'An ant squad setting off rolling kicks up dust with a skitter; rolling into the jelly it flashes where they meet, squashes, and the jelly\'s drops splat with a wet slap.',
+  () => spawn('ants', near(0.25, 0)),
+  () => { const r = feelOfHit('ants', 6, 3); return ok(r.contact && r.near && hitFelt(r, 'antDash').ok, { ...r, e: undefined }); });
+feelStory('leap', 'A lanternfly springs off with a flick of wings and slams down on the jelly with a thud: a scuff in the dust and the jelly\'s drops are left on the floor, and it squashes.',
+  () => { spawn('lanternfly', near(0, -0.45)).leapCd = 0; },
+  () => { const r = feelOfHit('lanternfly', 8); return ok(r.splats >= 2 && hitFelt(r, 'leapJump', 'leapSlam').ok, { ...r, e: undefined }); });
+feelStory('spit', 'A mosquito\'s laser leaves with a zap (it kicks back) and lands on the jelly with a flash, a wet slap and drops splatting.',
+  () => spawn('mosquito', near(0, -0.15, 0.1)),
+  () => { G().run.iFrames = 0; const r = feelOfHit('spit', 10); return ok(r.near && hitFelt(r, 'spit').ok, { ...r, e: undefined }); });
+feelStory('poke', 'A house fly\'s poke lands with a jab and a wet slap: it squashes, the jelly\'s drops splat.',
+  () => { spawn('housefly', near(0.2, 0, 0.03)).pokeCd = 0.8; },
+  () => { const r = feelOfHit('housefly', 5, 4); return hitFelt(r, 'flyPoke'); });
+feelStory('ball-charge', 'A millipede\'s ball rolling into the jelly flashes in its amber where they meet, squashes, and leaves the jelly\'s drops on the floor with a crunch and a slap.',
+  () => { spawn('millipede', near(0, -0.32)).ballCd = 0.3; },
+  () => { const r = feelOfHit('millipede', 6, 5); return ok(r.contact && r.near && hitFelt(r, 'milliRoll').ok, { ...r, e: undefined }); });
+feelStory('charge-beam', 'A dragonfly\'s beam hitting the jelly: a flash on it, the dragonfly rocks back, a crack with a sizzle and the jelly\'s drops splat.',
+  () => { spawn('dragonfly', near(0.3, 0, 0.08)).beamCd = 0; },
+  () => { const r = feelOfHit('dragonfly', 4); return ok(r.near && hitFelt(r, 'beamFire').ok, { ...r, e: undefined }); });
+feelStory('swat', 'A mantis\'s swat landing: a flash on the jelly, a snap and a wet slap, the mantis squashes, the jelly\'s drops splat.',
+  () => { stub(G().run, 'contactDamage', () => {}); spawn('mantis', near(0.12, 0)).swatCd = 0.3; },   // (its touch alone, contact-feel, would keep the jelly's i-frames up)
+  () => { const r = feelOfHit('mantis', 8, 3); return ok(r.near && hitFelt(r, 'mantisSwat').ok, { ...r, e: undefined }); });
+feelStory('burst', 'The worm bursting out under the jelly: a wet burst with bits pattering, a spatter left on the floor with the jelly\'s drops.',
+  () => { const e = spawn('worm', near(0.3, 0)); step(1); tp(e.emergeAt.x, G().player.position.y, e.emergeAt.z); },
+  () => { const r = feelOfHit('worm', 2, 2); return ok(r.splats >= 2 && hitFelt(r, 'wormBurst').ok, { ...r, e: undefined }); });
+feelStory('whip', 'The worm\'s whip leaves with a whoosh and cracks down on the jelly: a flash on it, a scuff on the floor and the jelly\'s drops, a crack with dust pattering.',
+  () => spawn('worm', near(0.18, 0)),
+  () => { const r = feelOfHit('worm', 5, 3); return ok(r.near && r.splats >= 2 && hitFelt(r, 'whipLash', 'wormCrack').ok, { ...r, e: undefined }); });
+feelStory('dive', 'A wasp sets off on its dive with a buzzing rip and stings the jelly: a flash, the sting and a wet slap, the wasp breaking up, the jelly\'s drops splatting.',
+  () => { spawn('wasp', near(0.22, 0, 0.1)).diveCd = 0; },
+  () => {
+    const r = feelOfHit('wasp', 4, 6);
+    return ok(r.near && r.e.dead && hitFelt(r, 'diveGo', 'waspSting').ok, { ...r, dead: r.e.dead, e: undefined });
+  });
+feelStory('lob', 'A Sap sprout\'s glob leaves its pod with a flash and lands on the jelly with a splat and a plop; the sprout squashes, the jelly\'s drops splat.',
+  () => { holdJelly(); spawn('sprout', near(0.25, 0)); },
+  () => { const r = feelOfHit('sprout', 7); return hitFelt(r, 'acid', 'lobSplat'); });
+feelStory('sortie', 'A ladybug\'s missile goes off on the jelly with a varied boom and leaves a scorch on the floor that fades.',
+  () => { spawn('ladybug', near(0.3, 0, 0.12)).stateT = 1.2; },
+  () => {
+    const log = feelSpy(), hits = record('damage_taken');
+    step(60 * 8, () => hits.some((d) => d.source === 'missile'));
+    const hit = hits.some((d) => d.source === 'missile'), voices = [...new Set(log.sfx)];
+    return ok(hit && log.splat >= 1 && ['missileLaunch', 'missileBoom'].every((v) => voices.includes(v)), { hit, splats: log.splat, voices });
+  });
+feelStory('becomes', 'A Cutting sprouting into a Sap sprout: a flash, soil and leaf bits thrown up, broken soil left on the floor (it fades), a rustle, creak and pop of its own.',
+  () => spawn('cutting', near(0.2, 0)),
+  () => {
+    const log = feelSpy(), { enemies } = G();
+    step(60 * 7, () => enemies.list.some((x) => x.type === 'sprout' && !x.dead));
+    const sprout = enemies.list.some((x) => x.type === 'sprout' && !x.dead), voices = [...new Set(log.sfx)];
+    return ok(sprout && log.splat >= 1 && log.burst >= 1 && voices.includes('sprout'), { sprout, splats: log.splat, bursts: log.burst, voices });
+  });
+feelStory('drops', 'An Aerial root landing: a woody thunk, it squashes as it lands, and bark dust is left on the floor (it fades).',
+  () => spawn('root', near(0.15, 0)),
+  () => {
+    const log = feelSpy(), e = G().enemies.list[0];
+    let recoil = 0;
+    step(60 * 2, () => { if (e.state !== 'drop') { recoil = e.recoil || 0; return true; } });
+    const voices = [...new Set(log.sfx)];
+    return ok(recoil > 0.5 && log.splat >= 1 && voices.includes('rootLand'), { recoil: +recoil.toFixed(2), splats: log.splat, voices });
+  });
+feelStory('holds', 'An Aerial root holding on: every squeeze flashes on the jelly with a creak and the root writhes tighter; spent, it withers with a dry rustle and bits of bark.',
+  () => {},
+  () => {
+    const e = spawn('root', near(0, 0)), log = feelSpy();
+    let tightened = false;
+    step(60 * 6, () => { if (e.state === 'hold' && e.recoil > 0.5) tightened = true; return e.dead; });
+    const mid = jellyMid(), flashes = log.impact.filter((p) => p.distanceTo(mid) < 0.06).length, voices = [...new Set(log.sfx)];
+    return ok(e.dead && tightened && flashes >= 4 && log.burst >= 1 && ['clogSnare', 'rootSqueeze', 'rootWither'].every((v) => voices.includes(v)), { dead: e.dead, tightened, flashes, bursts: log.burst, voices });
+  });
 
 // --- guards: the vocabulary stays complete, and content mistakes are caught
 // The words GLOSSARY.md retires (its _Avoid_ lists) stay out of what players read: content names and

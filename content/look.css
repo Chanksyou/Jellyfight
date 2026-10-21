@@ -101,6 +101,45 @@
   --controller-chip-size: 0.002;
   --controller-scuff: #514949;
   --controller-scuff-size: 0.018;
+  /* act 3's Elites and the Pothos answering their own attacks (src/elites.js, src/pothos.js): feel
+     only, harmless fading leftovers in muted colours (never their --hostile-* hue) */
+  --elite-land-squash: 0.22;     /* a landing or stomp flattens the body this much, springing back */
+  --elite-recoil: 0.16;          /* a shot kicks its head back this far (radians) */
+  --croc-frost-splat: #dfe8ff;   /* rime where a frost ball burst; a dent in the quilt */
+  --croc-frost-splat-size: 0.35; /* of the Blast's radius */
+  --croc-dent-size: 0.6;
+  --croc-fluff: #7fa36a #a8c690 #ffffff;
+  --bull-fluff: #f0d0c0 #ffffff #a83a3a;
+  --bull-scuff: #6a5048;
+  --bull-scuff-size: 0.2;        /* of the rush's radius */
+  --bull-shot-scuff: 0.012;
+  --bull-mini-scuff: 0.02;
+  --bull-spiral-pulse: 0.35;     /* its body pulses with each spiral beat */
+  --coffer-chips: #8a6a4a #c8a878 #e8d8b0;
+  --coffer-scuff: #5a4632;
+  --coffer-scuff-size: 0.45;
+  --coffer-shards: #b89a6a;
+  --coffer-shards-size: 0.25;
+  --pothos-fling-windup: 0.45;   /* s before it flings Cuttings or drops roots: its heart swells, drawing in motes */
+  --pothos-gather-grow: 0.12;
+  --pothos-fling-pulse: 0.2;     /* the heart's jolt as it lets go */
+  --pothos-fling-time: 0.25;     /* the flung motes' flight: as long as a Cutting takes to grow in */
+  --pothos-soil: #6b5a3a;
+  --pothos-soil-size: 0.02;
+  --pothos-leaf-bits: #164d18 #ffdf4a #6b5a3a;
+  --drop-scuff-size: 0.4;        /* an Aerial root's landing mark, of its Warning's radius */
+  /* the Mug's and Kettle's kick as they attack (radians back, and squash) */
+  --elite-recoil-squash: 0.12;
+  --mug-coffee: #3a2214;         /* coffee drops flying off a lob or the spill */
+  --mug-coffee-light: #6a4a2a;
+  --kettle-wet: #b8c8d8;         /* the harmless wet marks steam and boiling drops leave (fx.splat) */
+  --kettle-wet-size: 0.03;
+  /* the Vacuum's own body answering its attacks: it rears (radians) and squashes, and shudders (m) while it sucks or rattles its bin */
+  --vacuum-recoil: 0.18;
+  --vacuum-recoil-squash: 0.1;
+  --vacuum-shudder: 0.0015;
+  --vacuum-dust: #8a8278;        /* dust and grit it leaves on the floor (fx.splat, fx.burst): harmless, fading */
+  --vacuum-scuff-size: 0.05;
   --xp-color: #ffd25a;
   --xp-glow: #e8a21b;
   --xp-big-color: #ffe27a;
@@ -305,6 +344,10 @@
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
+  --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant squad, hair tangle): a small flash where they meet */
+  --hurt-goo: #8fd8ff #dff8ff;   /* drops of jelly a bug's hit knocks off; they splat on the floor and fade (harmless) */
+  --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
+  --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
@@ -314,6 +357,20 @@
   --wreath-color: #e0b048;       /* the Wall Clock's thrown wreath: its gold */
   --wreath-glow: 1.1;            /* how bright it glows in its hostile colour */
   --wreath-scale: 3.2;           /* how much bigger than the one in her hand, so you can see it coming */
+  /* how act 2's Elites' and the Clog's attacks land (src/elites.js, src/clog.js): the flash where
+     each fires (m), and the harmless leftovers (fx.splat: they fade; never the colour of a hazard) */
+  --act2-muzzle-flash: 0.014;    /* the flash at a nozzle, a hand or the Clog's hair as an attack leaves it */
+  --act2-contact-flash: 0.03;    /* the flash on the jelly where an attack catches it */
+  --soap-suds: #f6e4ee;          /* a popped soap bubble's suds (pale: the pink slick is the hazard) */
+  --soap-suds-size: 0.009;
+  --clock-scuff: #6a5426;        /* a dull gilt scuff where the clock's hand, wreath or chime struck */
+  --clock-glints: #fff0b0 #ffc23a #e0b048;   /* gilt glints thrown off where it struck */
+  --cream-splat: #fff6e8;        /* whipped cream left on the floor after the spray */
+  --cream-splat-size: 0.022;
+  --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
+  --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */
+  --clog-scum: #8a9a7a;          /* the scum rings the drained bath leaves round the drain */
+  --clog-trail-every: 0.1;       /* seconds between the gunk smears its roll leaves */
   --vacuum-sweep-life: 0.25;     /* seconds a brush sweep's wall takes to spread out and fade */
   /* (the sweep's reach moved to content/bosses.kdl: brushes reach) */
   /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
@@ -332,6 +389,10 @@
   --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
   --acid-deep: #1f8a06;         /* the acid puddle: its deep toxic middle */
   --acid-bright: #b8ff4a;       /* and its glowing rim, ripples and blisters */
+  --hit-flash: 0.07;            /* s a bug flashes white when hit, */
+  --hit-flash-gap: 0.2;         /* and how long before it can flash again (steady fire: it blinks, not stays white) */
+  --crowd-ring: 0.5;            /* the cool ring under the jelly while 2+ bugs crowd it: its brightness at 5+ */
+  --crowd-near: 0.12;           /* m round the jelly that counts as crowding it */
   --kill-ring: #9fd8ff;         /* the ring a bug leaves on the floor as it dies: a soft cool blue, not white */
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */

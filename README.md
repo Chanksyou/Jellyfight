@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v236 finishes the enemy feel pass: every Elite, Boss and bug attack is now scored on the attack-feel scoreboard (none left to do). Each one has a release mark, the attacker reacting, something at the point of contact, a fading leftover and varied sound, through `juice.feel` and pooled effects. A bug hit that lands now squashes the bug, splashes jelly off you and plays a wet slap. Readability: a bug hit flashes white at most every 0.2 s (`--hit-flash-gap`), a soft ring under the jelly shows where you are in a crowd (`--crowd-ring`), and toasts sit on a dark pill. Damage, timings, ranges, Warnings and cooldowns are unchanged.
+
 v235 makes the Encore pyramid triangles and each side wing independently lightable for future attacks. Color and brightness can be set per part or per triangle, then cleared. **Boss lights** in the Act 4 preview cycles static samples. This adds one prepared mesh and no lights or attack behavior.
 
 v234 adds the Encore boss visual model to the Act 4 preview: a triangular LED pyramid booth, braced glowing wings, silver and gold helmeted performers, fitted suits, articulated gloves and twin DJ decks. Use **Boss close-up** to inspect it. The model has restrained idle movement and adds no lights. Combat and campaign entry are still pending. See [the arena note](docs/act4-arena.md).

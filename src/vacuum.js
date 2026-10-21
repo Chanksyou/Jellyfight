@@ -21,6 +21,7 @@ import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
 import { hostile, TeleMaterial, laneHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { sfx } from './sfx.js';
+import { juice } from './juice.js';
 import { CONTENT } from './content.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -52,6 +53,7 @@ export class Vacuum {
     this.shieldT = 0;
     this.shields = 0;         // fly shields raised so far: two at most
     this.enrageT = 0;         // the enrage animation, when it drops below half health
+    this.kick = 0;            // its body answering its own attack: rears up and squashes, decaying
 
     const root = new THREE.Group();
     const shell = std(0x2a2c31, { roughness: 0.25, metalness: 0.2 });
@@ -106,6 +108,7 @@ export class Vacuum {
     standOut(root, { base: LOOK.num('boss-glow', 0.15), rim: LOOK.num('boss-rim', 0.6) });     // readable in the dark room
 
     this.body = root;
+    root.rotation.order = 'YXZ';   // heading first, so a rear (rotation.x) tips it about its own side
     this.holder = new THREE.Group();
     this.holder.add(root);
     this.holder.position.set(...arena.drain);
@@ -238,7 +241,13 @@ export class Vacuum {
       return out;
     }
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 6);
-    this.body.scale.setScalar(1 + this.hitPop * 0.03);
+    this.kick = Math.max(0, this.kick - dt * 5);
+    const pop = 1 + this.hitPop * 0.03, sq = this.kick * LOOK.num('vacuum-recoil-squash', 0.1);
+    this.body.scale.set(pop * (1 + sq * 0.5), pop * (1 - sq), pop * (1 + sq * 0.5));
+    this.body.rotation.x = -this.kick * LOOK.num('vacuum-recoil', 0.18);
+    // it shudders while it sucks, and while its bin rattles before a dump (none with Reduce effects)
+    const shudder = juice.calm || (this.state !== 'suction' && !(this.state === 'dump' && this.stateT > 0.6)) ? 0 : LOOK.num('vacuum-shudder', 0.0015);
+    this.body.position.x = Math.sin(this.t * 97) * shudder; this.body.position.z = Math.cos(this.t * 83) * shudder;
     this.lidar.rotation.y += dt * 8;
     // dropping below half health: it enrages (once), then does everything twice as fast
     if (this.angry && !this.wasAngry) {
@@ -277,6 +286,10 @@ export class Vacuum {
         if (this.stateT <= 0) {
           this.locked = true; this.stateT = SK.charge.time; this.line.material.opacity = 0; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
           this.laneAt.copy(p); this.laneDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.laneHit = false;
+          // the release: it rears as its wheels bite, a flash at its bumper, dust kicked out behind
+          this.kick = 0.8;
+          this.fx.impact(_rel.copy(p).addScaledVector(this.laneDir, this.r).setY(p.y + 0.03), hostile('vacuum'), 0.02, 8);
+          this.fx.burst(_rel.copy(p).addScaledVector(this.laneDir, -this.r).setY(p.y + 0.01), [LOOK.color('vacuum-dust', '#8a8278')], 6, 0.003, 0.3, p.y);
         }
       } else {
         this.setLight(0xff2a2a, 3);
@@ -284,11 +297,20 @@ export class Vacuum {
         // charge), jumping over it isn't
         const reached = Math.min(this.chargeLen, _rel.copy(p).sub(this.laneAt).dot(this.laneDir) + this.r);
         if (!this.laneHit && this.knock <= 0 && laneHits(this.laneAt, this.laneDir, reached, this.r * 1.6, this.h, P, player.cfg)) {
-          this.laneHit = true; out.hit = SK.charge.dmg; this.knockBack(toP, 1.0);
+          this.laneHit = true; out.hit = SK.charge.dmg; this.knockBack(toP, 1.0); this.smack(P, player.cfg);
         }
         const wall = this.drive(dt, null, SK.charge.speed, 0);
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(0.01), 0xb8b0a4, 0.03, 0.35);
-        if (wall || this.stateT <= 0) { sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18); this.toChase(); }
+        if (wall || this.stateT <= 0) {
+          sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18);
+          // it crunches to a stop: rears back, shakes the room if it hit a wall, and scuffs the floor
+          const front = _rel.copy(p).addScaledVector(this.laneDir, this.r).setY(p.y);
+          this.fx.splat(front, LOOK.color('vacuum-dust', '#8a8278'), LOOK.num('vacuum-scuff-size', 0.05));
+          this.fx.burst(front.setY(p.y + 0.02), [LOOK.color('vacuum-dust', '#8a8278'), '#3b3f47'], wall ? 10 : 5, 0.004, 0.35, p.y);
+          this.kick = wall ? 1 : 0.5;
+          if (wall) juice.feel('impact-big');
+          this.toChase();
+        }
       }
     } else if (this.state === 'suction') {
       // pull you in toward it; too close and it hurts
@@ -298,12 +320,27 @@ export class Vacuum {
       this.swirl.material.opacity = 0.75;              // its stripes pour into the middle: you're being pulled in
       const pull = toP.clone().normalize().multiplyScalar(-SK.suction.pull * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
       out.push = pull;
-      if (dist < this.r + 0.04 && P.y < 0.1) out.hurt = SK.suction.dmg * dt;
+      if (!this.sucking) {   // the release: its motor kicks in, a flash at its intake and a puff out of the bin
+        this.sucking = true; this.kick = 0.6;
+        this.fx.impact(_rel.set(Math.sin(this.heading), 0, Math.cos(this.heading)).multiplyScalar(this.r).add(p).setY(p.y + 0.02), hostile('vacuum'), 0.02, 8);
+        this.fx.puff(_rel.set(-Math.sin(this.heading), 0, -Math.cos(this.heading)).multiplyScalar(this.r + 0.02).add(p).setY(p.y + 0.04), 0x9c958b, 0.04, 0.5);
+      }
+      if (dist < this.r + 0.04 && P.y < 0.1) {
+        out.hurt = SK.suction.dmg * dt;
+        // caught in its mouth: a grinding spark burst on the jelly, a few times a second
+        this.grindT = (this.grindT || 0) - dt;
+        if (this.grindT <= 0) { this.grindT = 0.2; this.kick = Math.max(this.kick, 0.3); this.fx.impact(_rel.copy(P).setY(P.y + 0.02), hostile('vacuum'), 0.015, 6); juice.feel('hit'); sfx.vacGrind(); }
+      }
       if (Math.random() < dt * 30) {
         const a = Math.random() * Math.PI * 2, rr = this.r + 0.05 + Math.random() * 0.3;
         this.fx.puff(p.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0.01, Math.sin(a) * rr)), 0xcfc6b8, 0.008, 0.25);
       }
-      if (this.stateT <= 0) { this.swirl.material.opacity = 0; this.toChase(); }
+      if (this.stateT <= 0) {
+        this.swirl.material.opacity = 0; this.sucking = false;
+        this.fx.splat(p, LOOK.color('vacuum-dust', '#8a8278'), this.r + 0.12);   // the swept floor round it: a fading ring of dust
+        this.fx.puff(_rel.set(-Math.sin(this.heading), 0, -Math.cos(this.heading)).multiplyScalar(this.r + 0.02).add(p).setY(p.y + 0.04), 0x9c958b, 0.05, 0.6);
+        this.toChase();
+      }
     } else if (this.state === 'brushes') {
       // brushes whirr up (the warning), then two sweeps: each a low wall spreading out to its reach,
       // hitting everything close on the floor (jumping it clears it)
@@ -317,7 +354,17 @@ export class Vacuum {
           this.fx.ring(p.clone().setY(0.004), hostile('vacuum'), reach, 0.4);
           this.sweepT = 0;
           sfx.vacSweep();
-          if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) { out.hit = SK.brushes.dmg; this.knockBack(toP, 0.5); }
+          this.kick = Math.max(this.kick, 0.4);
+          // grit flicked out to its reach, left as dust round it
+          for (let k = 0; k < 4; k++) {
+            const a = this.heading + (k + 0.5) * Math.PI / 2 + at * 2;
+            this.fx.splat(_rel.set(p.x + Math.sin(a) * reach * 0.85, p.y, p.z + Math.cos(a) * reach * 0.85), LOOK.color('vacuum-dust', '#8a8278'), 0.018);
+            this.fx.burst(_rel.setY(p.y + 0.01), [LOOK.color('vacuum-dust', '#8a8278')], 2, 0.002, 0.15, p.y);
+          }
+          if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) {
+            out.hit = SK.brushes.dmg; this.knockBack(toP, 0.5);
+            this.fx.impact(_rel.copy(P).setY(P.y + 0.01), hostile('vacuum'), 0.025, 10); juice.feel('impact');
+          }
         }
       }
       if (this.stateT <= 0) this.toChase();
@@ -333,6 +380,9 @@ export class Vacuum {
         }
         this.fx.puff(p.clone().addScaledVector(back, this.r + 0.02).setY(0.03), 0x9c958b, 0.06, 0.5);
         sfx.vacDump();
+        this.kick = 0.7; juice.feel('hit');
+        this.fx.splat(_rel.copy(p).addScaledVector(back, this.r + 0.05), LOOK.color('vacuum-dust', '#8a8278'), 0.05);   // a dust pile where the bin emptied
+        this.fx.burst(_rel.setY(p.y + 0.02), [LOOK.color('vacuum-dust', '#8a8278')], 6, 0.003, 0.3, p.y);
       }
       if (this.stateT <= 0) this.toChase();
     } else if (this.state === 'flies') {
@@ -358,6 +408,7 @@ export class Vacuum {
         const to = p.clone().addScaledVector(dir, Math.max(dist, this.r + 0.15)).setY(y);       // at that height by the jelly's distance
         this.shots.push(this.fx.shot(hostile('vacuum'), from, to, { speed: SK.spin.speed, size: 0.007, life: 1.33 }));   // dust clumps, glowing so you can read them
         sfx.vacSpray();
+        this.fx.impact(from, hostile('vacuum'), 0.01, 3); this.kick = Math.max(this.kick, 0.25);   // spat out: a puff of light at its bumper, a jolt
       }
       if (this.stateT <= 0) this.toChase();
     }
@@ -372,6 +423,7 @@ export class Vacuum {
     if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < (ramming ? this.h : 0.1)) {   // feet over its floor: a jump clears it
       out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? SK.charge.dmg : this.def.contact);
       this.knockBack(toP, this.state === 'charge' && this.locked ? 1.0 : 0.6);
+      if (ramming) this.smack(P, player.cfg);
     }
     if (this.knock > 0) {
       this.knock -= dt;
@@ -379,7 +431,15 @@ export class Vacuum {
     }
 
     // dust clumps
-    for (const s of this.shots) if (this.fx.shotStep(s, dt, this.world, P, player.cfg)) out.hit = Math.max(out.hit, SK.spin.dmg);
+    for (const s of this.shots) {
+      const struck = this.fx.shotStep(s, dt, this.world, P, player.cfg);
+      if (struck) { out.hit = Math.max(out.hit, SK.spin.dmg); juice.feel('impact'); }
+      if (s.done) {   // it bursts (fx.shotStep's impact): grit falls and leaves a speck of dust on the floor
+        sfx.vacClump(struck);
+        this.fx.burst(s.m.position, [LOOK.color('vacuum-dust', '#8a8278')], 2, 0.002, 0.15, p.y);
+        this.fx.splat(_rel.set(s.m.position.x, p.y, s.m.position.z), LOOK.color('vacuum-dust', '#8a8278'), 0.008);
+      }
+    }
     this.shots = this.shots.filter((s) => !s.done);
     return out;
   }
@@ -422,6 +482,7 @@ export class Vacuum {
     this.shields++;
     sfx.vacFliesLaunch();
     sfx.shieldUp();
+    this.kick = 1; juice.feel('impact');   // it heaves them out
     this.fx.impact(p.clone().setY(p.y + 0.1), hostile('vacuum'), 0.05, 14);
     this.fx.puff(p.clone().setY(p.y + 0.08), 0x9c958b, 0.06, 0.5);
   }
@@ -473,6 +534,12 @@ export class Vacuum {
     return out;
   }
 
+  // the ram landing on the jelly: a flash where it struck, the room shakes, it rears back
+  smack(P, cfg) {
+    this.fx.impact(_rel.copy(P).setY(P.y + cfg.height * 0.4), hostile('vacuum'), 0.035, 16);
+    juice.feel('impact-big'); sfx.vacSmack(); this.kick = 1;
+  }
+
   knockBack(toP, speed) {
     this.knock = 0.3;
     this.knockSpeed = speed;
@@ -494,9 +561,9 @@ export class Vacuum {
     this.stateT = { charge: SK.charge.windup, suction: SK.suction.time, brushes: SK.brushes.time, dump: SK.dump.time, spin: SK.spin.time, flies: SK.flies.windup }[this.state];
     // every attack announces itself
     ({ charge: () => sfx.vacChargeWind(this.stateT), suction: () => sfx.vacSuction(this.stateT), brushes: () => sfx.vacBrushes(this.stateT),
-      spin: () => sfx.vacSpin(this.stateT), flies: () => sfx.vacFliesWind() })[this.state]?.();
+      spin: () => sfx.vacSpin(this.stateT), flies: () => sfx.vacFliesWind(), dump: () => sfx.vacDumpWind() })[this.state]?.();
     this.prevT = this.stateT;
-    this.locked = false;
+    this.locked = false; this.sucking = false;
   }
 
   dispose() {

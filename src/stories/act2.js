@@ -6,7 +6,7 @@ import { bus } from '../events.js';
 import { STAGES } from '../stages.js';
 import { isDeep, pitch } from '../sfx.js';
 import { TeleMaterial, VolumeMaterial, hostile } from '../vfx.js';
-import { G, JUMP_FEET, V, act2, balloonWarning, besideSoap, byDoor, fresh, hallClock, holdJelly, offs, ok, onBench, record, restore, sim, soapElite, startClock, startSoap, step, story, stub, tp, warningsAt, whipper } from './kit.js';
+import { G, JUMP_FEET, V, act2, balloonWarning, besideSoap, byDoor, feelSpy, fresh, hallClock, holdJelly, offs, ok, onBench, record, restore, sim, soapElite, startBalloon, startClock, startSoap, startSpray, step, story, stub, tp, warningsAt, whipper } from './kit.js';
 
 // --- act 1 hands over to act 2
 story('acts/act-1-leads-to-act-2', {
@@ -577,5 +577,96 @@ act2('whipper-angry-balloons', {
       warned = Math.max(warned, run.elites.balloons.filter((B) => { const w = balloonWarning(B); return w.floor && !w.volume; }).length);
     });
     return ok(most === 3 && warned === 3, { most, warned });
+  },
+});
+
+// --- how act 2's Elite attacks land (docs/agents/attack-feel.md): each story catches the jelly with
+// one attack and checks its feedback fires on the real hit: the flash where it leaves, the flash on
+// the jelly where it lands, the shake step, the harmless leftover splat, the layered sound
+const middle = (p) => p.clone().setY(p.y + CONFIG.player.height * 0.5);
+function caught(source) { const out = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) out.push(d); })); return out; }
+act2('feel-soap-squirt', {
+  about: 'A soap glob lands with weight: a flash at the nozzle as it leaves (the pump with its squirt and whoosh), a flash where it lands on the jelly, a small shake (hit), and the splat with its droplets.',
+  setup() { startSoap(0); },
+  play() {
+    const { run } = G(), spy = feelSpy(), hits = caught('soap');
+    const b = firstGlob(), player = holdJelly();
+    player.position.copy(b.to); player.grounded = true;
+    step(200, () => !run.elites.blobs.includes(b));
+    const out = { hit: hits.length, release: spy.near(b.from, 0.01), landed: spy.near(b.to, 0.02), feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hit === 1 && out.release && out.landed && out.feels.includes('hit') && ['soapPump', 'soapSplat'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-soap-bubble-ring', {
+  about: 'A bubble ring lets go with a flash at the nozzle and a small shake (hit); a bubble that bursts on the jelly flashes there and leaves pale suds on the vanity under it (harmless, they fade), with the pop.',
+  setup() { startSoap(1); },
+  play() {
+    const { run } = G(), e = soapElite(), player = holdJelly(), spy = feelSpy(), hits = caught('soap-bubble');
+    step(400, () => run.elites.soapBubbles.length > 0);
+    const released = spy.feels.includes('hit') && spy.sounds.includes('soapBubbles') && spy.impacts.length > 0;
+    // one floor-level bubble alone, the jelly standing in its way
+    e.state = 'idle'; e.cool = 99; e.rings = 0; e.clearTele();
+    const b = run.elites.soapBubbles.find((q) => q.y - e.base.y < 0.1);
+    for (const q of run.elites.soapBubbles) if (q !== b) run.elites.scene.remove(q.m);
+    run.elites.soapBubbles = [b];
+    const dir = b.v.clone().normalize();
+    player.position.set(e.base.x + dir.x * 0.2, e.base.y, e.base.z + dir.z * 0.2); player.grounded = true;
+    const i0 = spy.impacts.length, s0 = spy.splats.length;
+    step(150, () => !run.elites.soapBubbles.includes(b));
+    const out = { released, hit: hits.length, flash: spy.near(b.m.position, 0.01, i0), suds: spy.splats.length - s0, popped: spy.sounds.includes('bubblePop') };
+    return ok(released && out.hit === 1 && out.flash && out.suds >= 1 && out.popped, out);
+  },
+});
+act2('feel-clock-sweep', {
+  about: 'The sweeping hand lets go with a flash at its pivot and a small shake (hit); catching the jelly, it flashes on it, throws off gilt glints, leaves a scuff under it, clangs and shakes the screen (impact); it clacks into its stop at the far side (a flash and a scuff there).',
+  setup() { startClock(0); },
+  play() {
+    const { e, player } = startClock(0), spy = feelSpy(), hits = caught('clock');
+    let swept = false;
+    step(60 * 3, () => { if (e.beam) swept = true; return swept && e.state === 'idle'; });
+    const out = { hit: hits.map((h) => h.amount), onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hit[0] === 4 && out.onJelly && out.splats >= 2 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['clockSweep', 'clockStrike'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-clock-wreath', {
+  about: "Victory's wreath leaves her hand with a flash, a small shake (hit) and a throw's shing; each time it catches the jelly it flashes on it, throws gilt glints, scuffs the bench under it, clangs and shakes (impact); back in her hand it clinks.",
+  setup() { startClock(1); },
+  play() {
+    const { e, player } = startClock(1), run = G().run, spy = feelSpy(), hits = caught('clock-wreath');
+    let flew = false;
+    step(60 * 4, () => { if (run.elites.thrown.length) flew = true; return flew && e.state === 'idle' && !run.elites.thrown.length; });
+    const out = { hits: hits.length, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hits === 2 && out.onJelly && out.splats >= 2 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['wreathWhirr', 'clockStrike', 'wreathCatch'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-clock-hour', {
+  about: 'Each chime of the hour flashes at the clock with a small shake (hit); a ring wall that catches the jelly flashes on it, scuffs the bench, clangs and shakes (impact).',
+  setup() { startClock(2, { angry: true }); },
+  play() {
+    const { e, player } = startClock(2, { angry: true, x: 2.06, z: 7.5 }), run = G().run, spy = feelSpy(), hits = caught('clock-chime');
+    step(60 * 4, () => e.chimed === -1 && e.state === 'idle' && !run.elites.rings.length);
+    const out = { hits: hits.length, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hits >= 1 && out.onJelly && out.splats >= 1 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['clockChime', 'clockStrike'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-whipper-balloon', {
+  about: 'The balloon is let go with a flash at the nozzle and a squeak; its burst catching the jelly flashes on it too, shakes (impact), and leaves its limp scrap of rubber on the floor (harmless, it fades).',
+  setup() { startBalloon(); },
+  play() {
+    const { run } = G(), player = holdJelly(), spy = feelSpy(), hits = caught('balloon');
+    let first = null;
+    step(60 * 6, () => { first ||= run.elites.balloons[0]; return first && !run.elites.balloons.includes(first); });
+    const out = { hit: hits.length, onJelly: spy.near(middle(player.position), 0.01), impacts: spy.impacts.length, splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hit >= 1 && out.onJelly && out.impacts >= 3 && out.splats >= 1 && out.feels.includes('impact') && ['balloonLoose', 'balloonPop'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-whipper-cream', {
+  about: 'The cream spray opens with a flash at the nozzle and a small shake (hit); catching the jelly it flashes on it, splashes cream off it, shakes (impact) and splats; after the spray, cream lies along the cone on the floor (harmless, it fades).',
+  setup() { startSpray(); },
+  play() {
+    const e = whipper(), player = holdJelly(), spy = feelSpy(), hits = caught('cream');
+    step(60 * 3, () => e.sprayed && e.state === 'idle');
+    const out = { hit: hits.length, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hit === 1 && out.onJelly && out.splats >= 4 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['creamSpray', 'creamSplat'].every((k) => out.sounds.includes(k)), out);
   },
 });

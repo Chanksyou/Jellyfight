@@ -4,9 +4,10 @@ import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
 import { STAGES } from '../stages.js';
 import { hostile } from '../vfx.js';
+import { ATTACKS } from '../vacuum.js';
 import { juice } from '../juice.js';
 import { sfx, unlock as unlockAudio } from '../sfx.js';
-import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, fresh, holdJelly, ok, r3, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
+import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, feelVoices, fresh, holdJelly, ok, r3, record, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- the event bus: what hits, kills, freezes and rewards do
 story('events/player-hit-feedback', {
@@ -398,6 +399,92 @@ for (const attack of ['charge', 'brushes', 'spin']) {
     },
   });
 }
+
+// --- Attack Feel (docs/agents/attack-feel.md): each Vacuum attack completes the chain on a real hit
+const alive = (pool) => pool.filter((x) => x.alive).length;
+story('boss/vacuum-charge-feel', {
+  about: 'The ram is released on one frame (it rears, a flash at its bumper, dust behind, a clunk under the roar); hitting the jelly flashes where it struck with a thwack and the big impact shake, and it rears back; it stops with a crunch and leaves a fading scuff.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, hits = bossHits(), { feels, n } = feelVoices('vacRam', 'vacSmack');
+    holdJelly(); againVacuum(B, 'charge');
+    step(120, () => B.locked);
+    const released = B.kick > 0.7 && n.vacRam.length === 1;
+    step(120, () => hits.length > 0);
+    const struck = hits[0]?.amount === 4 && n.vacSmack.length === 1 && feels.includes('impact-big') && B.kick > 0.8;
+    step(120, () => B.state !== 'charge');
+    const scuff = alive(G().fx.splats);
+    return ok(released && struck && scuff >= 1, { released, struck, smacks: n.vacSmack.length, feels: [...new Set(feels)], scuff });
+  },
+});
+story('boss/vacuum-brushes-feel', {
+  about: 'Each brush sweep jolts the Vacuum, flicks grit out that leaves fading dust round it, and where the low wall catches the jelly a flash there with the impact shake; the sweep sound is pitch-varied with grit pattering.',
+  setup() { startVacuum('brushes'); },
+  play() {
+    const B = G().run.boss, hits = bossHits(), { feels, n } = feelVoices('vacSweep');
+    holdJelly(); againVacuum(B, 'brushes', 0.26);
+    let kick = 0;
+    step(120, () => { kick = Math.max(kick, B.kick); return B.state !== 'brushes'; });
+    const dust = alive(G().fx.splats), sweeps = hits.filter((h) => h.amount === 3).length;
+    return ok(n.vacSweep.length === 2 && sweeps === 2 && feels.includes('impact') && kick > 0.3 && dust >= 4, { sweeps, sounds: n.vacSweep.length, feels: [...new Set(feels)], kick: +kick.toFixed(2), dust });
+  },
+});
+story('boss/vacuum-spin-feel', {
+  about: 'Each dust clump is spat out with a puff of light and a jolt of the spinning Vacuum; one bursting on the jelly thumps and shakes the screen (feel impact), and every clump that bursts leaves grit and a speck of dust on the floor.',
+  setup() { startVacuum('spin'); },
+  play() {
+    const B = G().run.boss, player = holdJelly(), hits = bossHits(), { feels, n } = feelVoices('vacClump');
+    againVacuum(B, 'spin', 0.45); B.stateT = 1.0;
+    const aim = () => { B.heading = Math.atan2(player.position.x - B.position.x, player.position.z - B.position.z) - 9 / 60; };
+    aim();
+    let kick = 0;
+    step(200, () => { kick = Math.max(kick, B.kick); if (B.state === 'spin') aim(); return B.state !== 'spin' && !B.shots.length; });
+    const dust = alive(G().fx.splats), clumps = hits.filter((h) => h.amount === 3).length;
+    return ok(clumps >= 1 && n.vacClump.includes(true) && feels.includes('impact') && kick > 0.2 && dust >= 2, { clumps, sounds: n.vacClump.length, feels: [...new Set(feels)], kick: +kick.toFixed(2), dust });
+  },
+});
+story('boss/vacuum-suction-feel', {
+  about: 'Suction starts on one frame (its motor kicks, a flash at its intake, a puff out of the bin) and it shudders while it pulls (not with Reduce effects); a jelly caught in its mouth grinds with sparks, a crunch and a light shake a few times a second; when it stops a fading ring of dust is left round it.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, drains = record('damage_taken'), { feels, n } = feelVoices('vacGrind');
+    const player = holdJelly(); againVacuum(B, 'charge', B.r + 0.02);
+    B.next = ATTACKS.calm.indexOf('suction'); B.pick();
+    let kick = 0, shook = 0;
+    step(30, () => { kick = Math.max(kick, B.kick); shook = Math.max(shook, Math.abs(B.body.position.x)); });
+    const caught = drains.some((d) => d.source === 'boss' && d.drain) && n.vacGrind.length >= 2 && feels.includes('hit');
+    stub(juice, 'calm', true); step(2);
+    const calmStill = B.body.position.x === 0 && B.body.position.z === 0;
+    player.position.z += 1;   // out of its mouth for the rest
+    step(400, () => B.state !== 'suction');
+    const dust = alive(G().fx.splats);
+    return ok(kick > 0.5 && shook > 0 && caught && calmStill && dust >= 1, { kick: +kick.toFixed(2), shook: +shook.toFixed(4), caught, grinds: n.vacGrind.length, calmStill, dust });
+  },
+});
+story('boss/vacuum-flies-feel', {
+  about: 'Launching the lanternflies, the Vacuum heaves (rears and squashes) with a flash at its bin and a shake (feel impact), pitch-varied pops and a whoosh as they fly.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, { feels, n } = feelVoices('vacFliesLaunch');
+    holdJelly(); againVacuum(B, 'charge');
+    B.next = ATTACKS.calm.indexOf('flies'); B.pick();
+    step(120, () => B.guards.length > 0);
+    return ok(B.state === 'flies' && B.guards.length === 4 && B.kick > 0.8 && n.vacFliesLaunch.length === 1 && feels.includes('impact'), { guards: B.guards.length, kick: +B.kick.toFixed(2), feels: [...new Set(feels)] });
+  },
+});
+story('boss/vacuum-dump-feel', {
+  about: 'Before a dump the bin rattles (a rattle sound, the Vacuum shuddering); on the drop it squats with a clunk and a light shake, and leaves a fading pile of dust where the bin emptied.',
+  setup() { startVacuum('charge'); },
+  play() {
+    const B = G().run.boss, { feels, n } = feelVoices('vacDumpWind', 'vacDump');
+    holdJelly(); againVacuum(B, 'charge', 0.5);
+    B.next = ATTACKS.calm.indexOf('dump'); B.pick();
+    let shook = 0;
+    step(60, () => { shook = Math.max(shook, Math.abs(B.body.position.x)); return n.vacDump.length > 0; });
+    const dropped = B.kick > 0.6 && feels.includes('hit') && alive(G().fx.splats) >= 1;
+    return ok(n.vacDumpWind.length === 1 && shook > 0 && dropped, { wind: n.vacDumpWind.length, shook: +shook.toFixed(4), dropped, kick: +B.kick.toFixed(2) });
+  },
+});
 
 story('modes/quick-restart-after-death', {
   about: 'Starting a new run right after dying: the old run\'s death screen (it comes 0.7 s after) doesn\'t land on the new run.',
