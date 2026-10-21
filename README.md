@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v233 adds the standalone Act 4 concert arena preview: open `index.html?arena=act4`, or Dev → Act 4 preview. Explore the tiled floor, raised rear riser, suspended side speakers and amber/blue lighting. “Tile lights” shows a static lighting sample. The pyramid boss, performers, attacks and campaign transition are not implemented yet. See [the arena note](docs/act4-arena.md).
+
 v232 gives twelve more treasures distinct feedback: Bobby Pin, Gold Ring, Reed Stick, Sticky Note, Pen Spring, Bath Bomb, TV Remote, Fairy Lights, Glow Stick, Static Balloon, Thumbtack and Snooze Button. Bounded effects clarify real procs, contacts and recovery without changing combat rules. See [the design note](docs/treasure-effects-v232.md).
 
 v231 gives Disco Ball, Bubble Bath, Cotton Ball, Bath Salt, Rubber Duck and Hand Mirror distinct release, contact and recovery effects with layered sounds. Cosmetics reuse bounded pools, support reduced motion, and compile during loading. Damage, cooldowns and hit rules are unchanged. See [the design and verification note](docs/treasure-effects-v231.md).

@@ -35,7 +35,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v232';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v233';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -122,7 +122,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="effects">✨ Effects full</button><button data-act="board">🏆 Leaderboard</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
@@ -563,6 +563,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
+  else if (b.dataset.act === 'arena4') location.href='?arena=act4';
   else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
     overlay.hidden = true;
     const picks = run.duelChoices();
