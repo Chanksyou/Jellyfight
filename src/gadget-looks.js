@@ -11,19 +11,21 @@ export class GadgetLooks {
     for(let i=0;i<=72;i++){const t=i/72,a=t*Math.PI*10;coil.push(new THREE.Vector3(Math.cos(a),t*4,Math.sin(a)));}
     this.geo={arc:new THREE.RingGeometry(.96,1,48,1,0,Math.PI*1.8).rotateX(-Math.PI/2),
       rod:new THREE.CylinderGeometry(1,1,1,6), needle:new THREE.ConeGeometry(1,1,5), stud:new THREE.CylinderGeometry(1,1,1,8),
+      crystal:new THREE.OctahedronGeometry(1), foam:new THREE.SphereGeometry(1,10,6),
       spring:new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil),72,.12,5,false)};
     this.mat=new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
     this.mat.userData.perInstance=true;
     this.pools=Object.fromEntries(Object.keys(this.geo).map(k=>[k,[]]));
-    this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2};
+    this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2,crystal:LOOK.num('gadget-crystals',32),foam:LOOK.num('gadget-foam',16)};
     this.color=new THREE.Color(LOOK.color('gadget-friendly','#a6f6ed'));
+    for(const [k,v] of Object.entries({silver:'#d3eaff',cotton:'#e8e5ff',duck:'#a8e9ce',disco:'#d8beff'}))this[k]=new THREE.Color(LOOK.color('gadget-'+k,v));
   }
   get quiet(){return juice.calm||this.fx.reducedMotion.matches;}
   take(kind,at,color,life) {
     const pool=this.pools[kind];let p=pool.find(p=>!p.alive);
     if(!p){if(pool.length>=this.caps[kind])return null;
       p={m:this.fx.piece(this.geo[kind],this.mat),v:new THREE.Vector3(),size:new THREE.Vector3()};pool.push(p);}
-    Object.assign(p,{alive:true,t:0,life,kind,floor:at.y});p.v.set(0,0,0);
+    Object.assign(p,{alive:true,t:0,life,kind,floor:at.y,alpha:.85});p.v.set(0,0,0);
     const m=p.m;m.position.copy(at);m.quaternion.identity();m.scale.setScalar(1);m.visible=true;
     m.userData.color.set(color);m.userData.opacity=this.quiet?.45:.85;
     return p;
@@ -37,14 +39,16 @@ export class GadgetLooks {
     for(const pool of Object.values(this.pools))for(const p of pool)if(p.alive){
       p.t+=dt;const u=Math.min(1,p.t/p.life),m=p.m;
       if(u>=1){p.alive=false;m.visible=false;continue;}
-      m.userData.opacity=(this.quiet?.4:.85)*(1-u)*(1-u);
+      m.userData.opacity=Math.min(p.alpha,this.quiet?.4:1)*(1-u)*(1-u);
       if(p.kind==='arc'){
         const wave=this.quiet?1:1+Math.sin(p.t*55)*.025*(1-u);
         m.scale.set(p.size.x*wave,1,p.size.z/wave);m.rotation.y+=dt*(this.quiet?0:1.5);
-      }else if(p.kind==='stud'){
+      }else if(p.kind==='stud'||p.kind==='crystal'){
         m.position.addScaledVector(p.v,dt);p.v.y-=dt*LOOK.num('gadget-debris-gravity',1.2);
         if(m.position.y<p.floor){m.position.y=p.floor;p.v.y=Math.abs(p.v.y)*.25;p.v.x*=.7;p.v.z*=.7;}
         if(!this.quiet){m.rotation.x+=dt*7;m.rotation.z+=dt*5;}
+      }else if(p.kind==='foam'){
+        m.scale.copy(p.size).multiplyScalar(1+u*.3);m.position.y+=dt*.012;
       }else if(p.kind==='spring'){
         m.scale.set(p.size.x*(1-u*.4),p.size.y*(1-u*.8),p.size.z*(1-u*.4));
         if(!this.quiet){m.position.y+=dt*.015;m.rotation.y+=dt*5;}
@@ -70,6 +74,37 @@ export class GadgetLooks {
       const p=this.take('stud',at,color,LOOK.num('gadget-debris-life',.65));if(!p)break;
       const a=i*2.39996;p.m.scale.set(.0025,.003,.0025);
       p.v.set(Math.cos(a)*.07,.12+(i%3)*.025,Math.sin(a)*.07);p.floor=at.y-.005;
+    }
+  }
+  // Instantaneous areas stay at full reach; the fading marks never sweep delayed damage.
+  cushion(at,radius){
+    const ring=this.arc(at.clone().add(new THREE.Vector3(0,.003,0)),radius,this.cotton,.3);
+    if(ring){const p=this.pools.arc.find(p=>p.m===ring);p.alpha=.35;ring.userData.opacity=p.alpha;}
+    for(let i=0;i<(this.quiet?2:5);i++){
+      const a=i*2.39996,p=this.take('foam',at,this.cotton,LOOK.num('gadget-cotton-life',.32)+i*.025);if(!p)break;
+      p.m.position.add(new THREE.Vector3(Math.cos(a)*radius*.35,.005,Math.sin(a)*radius*.35));
+      p.size.set(radius*.22,.004,radius*.22);p.m.scale.copy(p.size);p.alpha=LOOK.num('gadget-cotton-opacity',.16);p.m.userData.opacity=p.alpha;
+    }
+  }
+  squeak(at,radius){
+    for(let i=0;i<(this.quiet?1:3);i++){
+      const m=this.arc(at.clone().add(new THREE.Vector3(0,.003+i*.004,0)),radius*(1-i*.08),this.duck,.22+i*.045);
+      if(m)m.rotation.y=i*2;
+    }
+  }
+  salt(at,radius,prepare=false){
+    if(!prepare)this.arc(at,radius,this.silver,.18);
+    for(let i=0;i<(this.quiet?2:prepare?3:7);i++){
+      const a=i*2.39996,p=this.take('crystal',at,this.silver,prepare?.12:LOOK.num('gadget-salt-life',.36));if(!p)break;
+      p.m.position.add(new THREE.Vector3(Math.cos(a)*radius*.2,.002,Math.sin(a)*radius*.2));
+      p.m.scale.setScalar(prepare?.002:.003);p.v.set(Math.cos(a)*.045,.06,Math.sin(a)*.045);
+    }
+  }
+  echo(at,radius){
+    for(let i=0;i<(this.quiet?1:3);i++){
+      const p=this.take('crystal',at,this.disco,.18);if(!p)break;
+      const a=i*Math.PI*2/3;p.m.position.x+=Math.cos(a)*radius;p.m.position.z+=Math.sin(a)*radius;
+      p.m.scale.set(.0025,.004,.0025);p.v.set(Math.cos(a)*.025,.025,Math.sin(a)*.025);
     }
   }
   spring(at){
