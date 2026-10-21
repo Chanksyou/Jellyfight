@@ -7,7 +7,7 @@ import { isDeep } from '../sfx.js';
 import { juice } from '../juice.js';
 import { TeleMaterial, VolumeMaterial, hostile } from '../vfx.js';
 import { BALLOON_MID } from '../elites.js';
-import { G, JUMP_FEET, V, act2, balloonWarning, bossHits, byDoor, cameraStory, clogAgain, clogAttack, clogFight, fresh, holdJelly, near, offs, ok, r3, record, shownWarnings, sim, startBalloon, startSpray, step, stub, tp, whipper } from './kit.js';
+import { G, JUMP_FEET, V, act2, balloonWarning, bossHits, byDoor, cameraStory, clogAgain, clogAttack, clogFight, feelSpy, fresh, holdJelly, near, offs, ok, r3, record, shownWarnings, sim, startBalloon, startSpray, step, stub, tp, whipper } from './kit.js';
 
 // --- 3D attacks: the balloon bursts as a whole-sphere Blast round its middle (beside, below or level
 // all count), shown only by its floor circle (no volume, the owner's call); the cream spray is a cone
@@ -573,5 +573,81 @@ act2('clog-comb', {
     }
     const st = out.staying, dg = out.dodging;
     return ok(st.shown === 3 && Math.abs(st.tall - 0.12) < 1e-6 && st.together && st.hits.includes(3) && dg.hits.length === 0, out);
+  },
+});
+
+// --- how the Clog's attacks land (docs/agents/attack-feel.md): each story runs one attack on a
+// jelly held in its way and checks its feedback fires on the real hit: the flash where it leaves,
+// the flash on the jelly, the shake steps, the harmless gunk smears it leaves, the layered sound
+const bodyOf = (p) => p.clone().setY(p.y + CONFIG.player.height * 0.5);
+const seen = (spy) => ({ feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)], splats: spy.splats.length });
+act2('feel-clog-lash', {
+  about: "The Clog's lash catching the jelly: it heaves down with the rope, a flash on the jelly as well as at the rope's tip, the impact shake, wet smears along the line (harmless, they fade), and the crack with its slap and pattering bits.",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), player = clogAgain(B, 'lash', B.drain.x + 0.25), spy = feelSpy(B.fx);
+    step(60 * 2, () => B.struck);
+    step(2);
+    const out = { hit: hits[0]?.amount, onJelly: spy.near(bodyOf(player.position), 0.01), ...seen(spy) };
+    return ok(out.hit === 3 && out.onJelly && out.splats >= 3 && out.feels.includes('impact') && out.sounds.includes('clogLash'), out);
+  },
+});
+act2('feel-clog-snare', {
+  about: "The Clog's snare springing on the jelly: a flash in each circle and on the jelly, the Clog clenching, the impact shake, a gunk smear in each circle (harmless, they fade), and the snap with its thump and settling strands.",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), player = clogAgain(B, 'snare', B.drain.x + 0.3), spy = feelSpy(B.fx);
+    step(60 * 2, () => B.sprung);
+    step(2);
+    const out = { hit: hits.length, onJelly: spy.near(bodyOf(player.position), 0.01), ...seen(spy) };
+    return ok(out.hit >= 1 && out.onJelly && out.splats >= 4 && out.feels.includes('impact') && out.sounds.includes('clogSnare'), out);
+  },
+});
+act2('feel-clog-roll', {
+  about: "The Clog's roll: it sets off with a burst of grime behind it and a small shake (hit), smears a gunk track down its lane, and rolling into the jelly is the heavy wet slam where it struck (impact-big).",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits(), player = clogAgain(B, 'roll', B.drain.x + 0.35), spy = feelSpy(B.fx);
+    let i0 = -1;
+    step(60 * 3, () => { if (B.locked && i0 < 0) i0 = spy.impacts.length; return hits.length > 0; });
+    step(10);
+    const out = { hit: hits[0]?.amount, released: i0 > 0, slam: spy.impacts.length > i0, ...seen(spy) };
+    return ok(out.hit === 4 && out.released && out.slam && out.splats >= 3 && ['hit', 'impact-big'].every((k) => out.feels.includes(k)) && ['clogRoll', 'clogSlam'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-clog-spray', {
+  about: "The Clog's gunk spray: each glob spat out with a flash at its hair, a heave and a wet spit; a glob catching the jelly flashes on it and shakes (impact); every glob leaves a smear where it ends (harmless, they fade).",
+  setup() {},
+  play() {
+    const B = clogFight(), hits = bossHits();
+    B.swarmed = true; B.hp = B.maxHp * 0.4;
+    const player = clogAgain(B, 'spray', B.drain.x + 0.3), spy = feelSpy(B.fx);
+    B.state = 'spray'; B.stateT = 2; B.prevT = 2;
+    step(60 * 2, () => hits.length > 0);
+    step(5);
+    const out = { hit: hits[0]?.amount, onJelly: spy.near(bodyOf(player.position), 0.03), ...seen(spy) };
+    return ok(out.hit === 2 && out.onJelly && out.splats >= 1 && out.feels.includes('impact') && ['clogSpit', 'clogSplat'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-clog-flood', {
+  about: "The Clog's flood: pulling the plug flashes and rings at the drain with a hollow thoonk, the Clog heaving and the impact shake; sucked in against it, the jelly is gulped at (a flash and a splash on it every so often); once the bath is gone scum rings are left round the drain (harmless, they fade).",
+  setup() {},
+  play() {
+    const B = clogFight(), drains = record('damage_taken'), player = clogAgain(B, 'flood', B.drain.x), spy = feelSpy(B.fx);
+    step(60 * 9, () => B.state === 'chase');
+    const out = { drained: drains.filter((d) => d.drain).length > 0, plug: spy.near(B.drain.clone().setY(B.floor), 0.12), onJelly: spy.near(bodyOf(player.position), 0.01), ...seen(spy) };
+    return ok(out.drained && out.plug && out.onJelly && out.splats >= 6 && out.feels.includes('impact') && ['clogPlug', 'clogDrain'].every((k) => out.sounds.includes(k)), out);
+  },
+});
+act2('feel-clog-shed', {
+  about: "The Clog's shed: it heaves with a flash and a small shake (hit) and a wet rip, a glowing clump flies off it to each spot where a tangle grows in, and each lands on a gunk smear (harmless, it fades).",
+  setup() {},
+  play() {
+    const B = clogFight(), { enemies } = G();
+    clogAgain(B, 'shed', B.drain.x + 0.4);
+    const spy = feelSpy(B.fx), before = enemies.list.length;
+    step(60 * 2, () => B.state === 'chase');
+    const tangles = enemies.list.length - before, out = { tangles, ...seen(spy) };
+    return ok(tangles >= 3 && out.splats >= tangles && out.feels.includes('hit') && out.sounds.includes('clogShed') && spy.impacts.length >= 1, out);
   },
 });

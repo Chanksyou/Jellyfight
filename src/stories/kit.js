@@ -12,6 +12,8 @@ import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
 import { ATTACKS as POTHOS_ATTACKS } from '../pothos.js';
+import { juice } from '../juice.js';
+import { sfx } from '../sfx.js';
 
 export const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export const G = () => window;                       // main.js puts the game objects on window
@@ -88,6 +90,19 @@ export const spawn = (type, at, { still = false, hp } = {}) => {
   return e;
 };
 export const ok = (pass, info = {}) => ({ ok: !!pass, info });
+// spy on an attack's feedback for this story (after fresh()): every juice.feel step, where each
+// fx.impact and fx.splat went, and which sfx voices played
+export function feelSpy(fx = G().run.elites.fx) {
+  const log = { feels: [], impacts: [], splats: [], sounds: [] };
+  const spy = (obj, key, put) => { const f = obj[key]; stub(obj, key, function (...a) { put(...a); return f.apply(this, a); }); };
+  spy(juice, 'feel', (k) => log.feels.push(k));
+  spy(fx, 'impact', (p) => log.impacts.push(p.clone()));
+  spy(fx, 'splat', (p) => log.splats.push(p.clone()));
+  for (const [k, f] of Object.entries(sfx)) if (typeof f === 'function') spy(sfx, k, () => log.sounds.push(k));
+  // an impact within `d` m of `p` (seen from index `from` on)
+  log.near = (p, d = 0.06, from = 0) => log.impacts.slice(from).some((q) => q.distanceTo(p) < d);
+  return log;
+}
 export const ELEMENTS_IDS = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
 export const STORIES = {};
 export const story = (name, s) => { STORIES[name] = s; };

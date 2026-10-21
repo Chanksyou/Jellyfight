@@ -829,11 +829,36 @@ export const sfx = {
     for (let k = 0; k < 6; k++) { const f = 120 + Math.random() * 120; tone('sine', f, f * 1.6, 0.06, 0.07, 0.1 + k * 0.14); }   // gurgling in it
   },
   clogLashWind() { if (!ready()) return; tone('sawtooth', 160, 420, 0.8, 0.04); noise(2200, 3, 0.8, 0.05, 'bandpass', 0, 4000); },
-  clogLash() { if (!ready()) return; noise(6000, 0.6, 0.06, 0.4, 'highpass'); noise(700, 0.9, 0.25, 0.3, 'lowpass', 0.03, 150); tone('sine', 160, 50, 0.25, 0.25, 0.03); },
+  // the crack (transient), the wet slap down (body), hair and gunk pattering after (debris)
+  clogLash() {
+    if (!ready()) return; const j = jitter(0.1);
+    noise(6000 * j, 0.6, 0.06, 0.4, 'highpass'); noise(700 * j, 0.9, 0.25, 0.3, 'lowpass', 0.03, 150); tone('sine', 160 * j, 50, 0.25, 0.25, 0.03);
+    for (let k = 0; k < 4; k++) noise(1400 + Math.random() * 2400, 3, 0.02, 0.05, 'bandpass', 0.09 + Math.random() * 0.25);
+  },
   clogRollWind() { if (!ready()) return; tone('sawtooth', 80, 300, 1.0, 0.06); noise(900, 1, 1.0, 0.08, 'bandpass', 0, 2500); },
-  clogRoll() { if (!ready()) return; noise(250, 0.7, 1.1, 0.28, 'lowpass', 0, 600); for (let k = 0; k < 8; k++) noise(500, 2, 0.06, 0.1, 'lowpass', k * 0.13); },
+  clogRoll() { if (!ready()) return; const j = jitter(0.1); noise(2200 * j, 1.2, 0.05, 0.12, 'bandpass'); noise(250 * j, 0.7, 1.1, 0.28, 'lowpass', 0, 600); for (let k = 0; k < 8; k++) noise(500 * jitter(0.15), 2, 0.06, 0.1, 'lowpass', k * 0.13); },
   clogRustle() { if (!ready()) return; for (let k = 0; k < 8; k++) noise(3000 + Math.random() * 2000, 2, 0.08, 0.05, 'bandpass', k * 0.1); },
-  clogSnare() { if (!ready()) return; noise(4500, 0.8, 0.15, 0.3, 'highpass'); noise(1200, 1.5, 0.3, 0.15, 'bandpass', 0.03, 400); },
+  // the snap of hair springing up (transient), a wet thump (body), strands settling (debris)
+  clogSnare() {
+    if (!ready()) return; const j = jitter(0.1);
+    noise(4500 * j, 0.8, 0.15, 0.3, 'highpass'); noise(1200 * j, 1.5, 0.3, 0.15, 'bandpass', 0.03, 400);
+    tone('sine', 130 * j, 50, 0.18, 0.18, 0.02);
+    for (let k = 0; k < 4; k++) noise(3000 + Math.random() * 2500, 3, 0.03, 0.04, 'bandpass', 0.12 + Math.random() * 0.25);
+  },
+  // a glob of gunk spat out as it spins: a wet click (transient) and a short whiz away (travel)
+  clogSpit() { if (!ready() || !gap('clogSpit', 60)) return; const j = jitter(0.15); noise(1800 * j, 2, 0.03, 0.12, 'bandpass'); tone('sine', 260 * j, 120 * j, 0.05, 0.06); noise(2400 * j, 1.4, 0.16, 0.05, 'bandpass', 0.02, 900); },
+  // the plug pulled: a deep hollow thoonk (transient and body), then the first glugs (debris)
+  clogPlug() {
+    if (!ready()) return; const j = jitter(0.08);
+    noise(1600 * j, 2, 0.04, 0.2, 'bandpass'); tone('sine', 95 * j, 38, 0.35, 0.3); noise(300 * j, 0.8, 0.3, 0.2, 'lowpass', 0.02, 80);
+    for (let k = 0; k < 4; k++) { const f = 80 + Math.random() * 120; tone('sine', f, f * 2, 0.07, 0.08, 0.12 + k * 0.08 + Math.random() * 0.03); }
+  },
+  // it shakes the tangles loose: a wet rip (transient), a squelch (body), hair landing (debris)
+  clogShed() {
+    if (!ready()) return; const j = jitter(0.1);
+    noise(3800 * j, 1, 0.08, 0.22, 'bandpass', 0, 1200); noise(600 * j, 0.9, 0.2, 0.22, 'lowpass', 0.02, 180); tone('sine', 150 * j, 60, 0.16, 0.15, 0.02);
+    for (let k = 0; k < 5; k++) noise(1200 + Math.random() * 2000, 3, 0.03, 0.05, 'bandpass', 0.15 + Math.random() * 0.25);
+  },
   clogGurgle(dur = 3) {
     if (!ready()) return;
     noise(200, 0.8, dur, 0.22, 'lowpass', 0, 120);
@@ -905,17 +930,25 @@ export const sfx = {
     noise(3500, 1.5, dur, 0.08, 'bandpass', 0, 5500);
     for (let k = 0; k < 4; k++) tone('triangle', 300 + k * 90, 380 + k * 120, 0.08, 0.035, k * dur / 4 + 0.05);
   },
-  balloonLoose() { if (!ready()) return; tone('square', 900, 1400, 0.12, 0.03); tone('sine', 600, 1100, 0.15, 0.04); },
+  balloonLoose() { if (!ready()) return; const j = jitter(0.08); tone('square', 900 * j, 1400 * j, 0.12, 0.03); tone('sine', 600 * j, 1100 * j, 0.15, 0.04); noise(3000 * j, 1.5, 0.25, 0.04, 'bandpass', 0.05, 1500); },
   balloonTick() { if (!ready() || !gap('balloonTick', 80)) return; tone('sine', 1800, 1700, 0.03, 0.03); },
   balloonPop() {
     if (!ready()) return;
-    noise(2500, 0.6, 0.18, 0.5, 'highpass'); noise(400, 0.8, 0.35, 0.35, 'lowpass', 0, 90);
-    tone('sine', 140, 40, 0.4, 0.35);
+    const j = jitter(0.1);
+    noise(2500 * j, 0.6, 0.18, 0.5, 'highpass'); noise(400 * j, 0.8, 0.35, 0.35, 'lowpass', 0, 90);
+    tone('sine', 140 * j, 40, 0.4, 0.35);
     for (let k = 0; k < 5; k++) noise(5000 + Math.random() * 3000, 4, 0.015, 0.06, 'bandpass', 0.05 + k * 0.04);   // scraps of rubber
   },
   // your ears going funny: a long slide down
   daze() { if (!ready()) return; tone('sine', 520, 180, 0.9, 0.08); tone('triangle', 260, 90, 1.1, 0.06); },
-  creamSpray(dur = 0.8) { if (!ready()) return; noise(2600, 0.9, dur, 0.18, 'bandpass', 0, 1600); noise(700, 1, dur * 0.6, 0.1, 'lowpass'); },
+  // the nozzle opening (a pssht), the cream rushing out, and it sputtering as it runs dry
+  creamSpray(dur = 0.8) {
+    if (!ready()) return; const j = jitter(0.1);
+    noise(5200 * j, 1, 0.05, 0.16, 'highpass'); noise(2600 * j, 0.9, dur, 0.18, 'bandpass', 0, 1600); noise(700 * j, 1, dur * 0.6, 0.1, 'lowpass');
+    for (let k = 0; k < 3; k++) noise(1100 * jitter(0.2), 2, 0.04, 0.06, 'lowpass', dur - 0.1 + k * 0.06);
+  },
+  // cream splatting onto the jelly: a soft wet slap and a few drops
+  creamSplat() { if (!ready() || !gap('creamSplat', 80)) return; const j = jitter(0.12); noise(1500 * j, 1, 0.1, 0.2, 'lowpass', 0, 400); tone('sine', 240 * j, 110, 0.09, 0.08); for (let k = 0; k < 3; k++) noise(3500 * jitter(0.3), 3, 0.02, 0.04, 'bandpass', 0.06 + k * 0.05); },
   // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
   // little lower each time), the wreath whirring through the air
   // the Alligator (elites.js): a soft plush thump on the bed, its tail or its whole body landing
@@ -942,26 +975,39 @@ export const sfx = {
   jewelWhistle(dur = 0.25) { if (!ready()) return; tone('sine', 2600, 700, dur, 0.06); tone('sine', 2750, 760, dur, 0.03); },
   jewelCrack() { if (!ready()) return; noise(6500, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) tone('triangle', 2200 + k * 450, 2000 + k * 400, 0.09, 0.04, k * 0.02); noise(500, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
-  clockSweep() { if (!ready()) return; noise(900, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160, 420, 0.45, 0.05); },
+  clockSweep() { if (!ready()) return; const j = jitter(0.08); tone('square', 1800 * j, 1600 * j, 0.03, 0.05); noise(900 * j, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160 * j, 420 * j, 0.45, 0.05); },
+  // gilt striking: a bright clang (transient), a thud if it caught the jelly (body), and the
+  // ringing tinkle after (debris). hit false: the hand clacking into its stop
+  clockStrike(hit = true) {
+    if (!ready() || !gap('clockStrike', 60)) return; const j = jitter(0.06);
+    noise(5000 * j, 2, 0.03, 0.14, 'highpass'); tone('triangle', 1250 * j, 1150 * j, 0.18, 0.06);
+    if (hit) tone('sine', 170 * j, 60, 0.18, 0.2);
+    for (let k = 0; k < 3; k++) tone('sine', (2600 + k * 700) * jitter(0.05), (2500 + k * 650), 0.12, 0.02, 0.04 + k * 0.05);
+  },
+  // the wreath back in Victory's hand: a soft metal catch
+  wreathCatch() { if (!ready()) return; const j = jitter(0.06); tone('triangle', 1700 * j, 1600 * j, 0.08, 0.05); noise(900 * j, 1.5, 0.06, 0.08, 'lowpass'); },
   clockChime(k = 0) {
     if (!ready()) return;
-    const f = 392 * Math.pow(2, -k * 2 / 12);
+    const f = 392 * Math.pow(2, -k * 2 / 12) * jitter(0.006);
     for (const [m, v, d] of [[1, 0.16, 1.6], [2.01, 0.07, 1.1], [2.76, 0.05, 0.8], [5.4, 0.025, 0.4]]) tone('sine', f * m, f * m * 0.998, d, v);
     noise(3000, 2, 0.03, 0.08, 'bandpass');                              // the strike
   },
-  wreathWhirr() { if (!ready()) return; for (let k = 0; k < 6; k++) noise(1600 + k * 100, 3, 0.09, 0.07, 'bandpass', k * 0.09, 800); },
+  wreathWhirr() { if (!ready()) return; const j = jitter(0.08); noise(4200 * j, 1.5, 0.05, 0.12, 'highpass'); tone('triangle', 900 * j, 1500 * j, 0.08, 0.04); for (let k = 0; k < 6; k++) noise((1600 + k * 100) * j, 3, 0.09, 0.07, 'bandpass', k * 0.09, 800); },
   // the Soap Dispenser: a wet pump squelch, a squirt landing, a burst of bubbles let go, one popping
   soapPump() {
     if (!ready()) return;
     const j = jitter(0.08);
     noise(700 * j, 1.5, 0.14, 0.18, 'lowpass', 0, 180); tone('sine', 320 * j, 140 * j, 0.12, 0.12);
+    noise(3200 * j, 2, 0.04, 0.07, 'highpass', 0.03); noise(1800 * j, 1.2, 0.3, 0.04, 'bandpass', 0.04, 700);   // the squirt, and the glob whooshing off
   },
-  soapSplat() { if (!ready() || !gap('soapSplat', 60)) return; noise(1400 * jitter(), 1.2, 0.1, 0.16, 'bandpass', 0, 500); tone('sine', 220, 110, 0.08, 0.08); },
+  soapSplat() { if (!ready() || !gap('soapSplat', 60)) return; const j = jitter(); noise(1400 * j, 1.2, 0.1, 0.16, 'bandpass', 0, 500); tone('sine', 220 * j, 110, 0.08, 0.08); for (let k = 0; k < 3; k++) tone('sine', 1800 * jitter(0.3), 2600, 0.03, 0.025, 0.05 + k * 0.04); },
   soapBubbles() {
     if (!ready()) return;
+    noise(900 * jitter(), 1, 0.08, 0.1, 'lowpass');                      // the foam letting go
     for (let k = 0; k < 9; k++) { const f = 500 + Math.random() * 700; tone('sine', f, f * 1.8, 0.05, 0.05, k * 0.025 + Math.random() * 0.02); }
+    noise(1500 * jitter(), 1, 0.5, 0.03, 'bandpass', 0.05, 600);         // the ring drifting off
   },
-  bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); },
+  bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); tone('sine', f * 2.6, f * 3, 0.02, 0.015, 0.03); },
   // a hit glancing off armour: a short metallic tink
   clink() { if (!ready() || !gap('clink', 80)) return; const j = jitter(0.06); tone('triangle', 2600 * j, 2400 * j, 0.08, 0.05); tone('sine', 3900 * j, 3700 * j, 0.05, 0.03); },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
