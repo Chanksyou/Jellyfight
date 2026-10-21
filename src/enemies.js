@@ -413,7 +413,9 @@ export class Enemies {
     e.hp -= amount;
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
     e.pop = 1;
-    e.flashT = 0.07;                      // flashes white for a moment
+    // flashes white for a moment, then can't again for a beat: under steady fire a big bug blinks with
+    // the hits instead of staying a solid white shape
+    if (!(e.flashCd > 0)) { e.flashT = LOOK.num('hit-flash', 0.07); e.flashCd = LOOK.num('hit-flash-gap', 0.2); }
     bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound, feedback });
     if (e.hp <= 0) this.kill(e);
   }
@@ -1243,6 +1245,7 @@ export class Enemies {
       }
       e.pop = Math.max(0, e.pop - dt * 6);
       // white hit flash: swap every mesh to a flat white for a moment
+      if (e.flashCd > 0) e.flashCd -= dt;
       if (e.flashT > 0 || e.flashing) {
         e.flashT = Math.max(0, (e.flashT || 0) - dt);
         const on = e.flashT > 0;

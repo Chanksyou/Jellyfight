@@ -82,6 +82,10 @@ export class Run {
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
     this.friendly = friendlyColor().getHex();   // look.css --friendly: reflect and death-save flashes
+    // a soft cool ring under the jelly that fades in while bugs crowd it, so you can always find yourself
+    this.crowdRing = new THREE.Mesh(new THREE.RingGeometry(0.72, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: this.friendly, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.crowdRing.renderOrder = 3; this.crowdRing.visible = false;
+    ctx.scene.add(this.crowdRing);
     this.energyShield = new EnergyShield(this);
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
@@ -345,6 +349,7 @@ export class Run {
     }
     this.t += dt;
     const P = this.player, s = this.S;
+    this.crowdCue(dt);
 
     // --- movement, with vents, fabric, the drain's pull and an elite's (the Coffer's tongue: elites.pull,
     // set as it updated last frame)
@@ -520,6 +525,20 @@ export class Run {
     D.wait = 0;
     if (D.bug) this.duelSpawn();
     else this.elites.start([D.elite]);
+  }
+
+  // the crowd ring: how many bugs are pressed round the jelly (flat, within --crowd-near), easing the
+  // ring in from the 2nd and to full by the 5th
+  crowdCue(dt) {
+    const P = this.player.position, near = LOOK.num('crowd-near', 0.12), R = this.crowdRing;
+    let n = 0;
+    for (const e of this.enemies.list) if (!e.dead && !e.proxy && Math.abs(e.pos.y - P.y) < 0.1 && Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < near) n++;
+    const want = Math.min(1, Math.max(0, (n - 1) / 4)) * LOOK.num('crowd-ring', 0.5);
+    R.material.opacity += (want - R.material.opacity) * (1 - Math.exp(-6 * dt));
+    R.visible = R.material.opacity > 0.01;
+    if (!R.visible) return;
+    R.position.set(P.x, P.y + 0.003, P.z);
+    R.scale.setScalar(this.cfg.radius * 2.3 * (1 + 0.05 * Math.sin(this.t * 6)));
   }
 
   // ------------------------------------------------------------ waves

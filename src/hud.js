@@ -81,7 +81,7 @@ body.calm #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(
 #hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
 #hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
-#hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: 24px; font-weight: 800; text-shadow: 0 2px 6px #000c; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+#hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: 20px; font-weight: 800; text-shadow: 0 1px 3px #000c; opacity: 0; transition: opacity .3s; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; padding: 6px 16px; border-radius: 999px; background: #0a0f1ab8; box-shadow: 0 4px 16px #0006; }
 #hud .toast.on { opacity: 1; }
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity .5s; }
 #hud .hurt.on { opacity: .5; transition: none; }
@@ -101,7 +101,7 @@ body.calm #hud .hurt.on { opacity: .25; }
   #hud .clock { font-size: 18px; }
   #hud .stage { font-size: 9.5px; margin-top: 2px; }
   #hud .boss { top: 70px; }
-  #hud .toast { font-size: 17px; top: 30%; }
+  #hud .toast { font-size: 15px; top: 30%; padding: 5px 12px; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
 body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 195px; height: 195px; }

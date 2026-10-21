@@ -309,6 +309,10 @@
   --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
   --acid-deep: #1f8a06;         /* the acid puddle: its deep toxic middle */
   --acid-bright: #b8ff4a;       /* and its glowing rim, ripples and blisters */
+  --hit-flash: 0.07;            /* s a bug flashes white when hit, */
+  --hit-flash-gap: 0.2;         /* and how long before it can flash again (steady fire: it blinks, not stays white) */
+  --crowd-ring: 0.5;            /* the cool ring under the jelly while 2+ bugs crowd it: its brightness at 5+ */
+  --crowd-near: 0.12;           /* m round the jelly that counts as crowding it */
   --kill-ring: #9fd8ff;         /* the ring a bug leaves on the floor as it dies: a soft cool blue, not white */
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
