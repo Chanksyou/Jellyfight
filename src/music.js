@@ -109,7 +109,46 @@ const MACHINERY = {
   },
 };
 
-export const SONGS = { drift: DRIFT, machinery: MACHINERY };
+// The Encore (act 4): an original French-house track for the concert floor, in the style of the
+// late-90s Paris filter-house records, none of their melodies: D minor, 4/4 at 121 BPM, through
+// Dm9, Bbmaj7, F and C6. An octave-jumping disco bass whose filter opens with intensity, chopped
+// chord stabs pumping against the kick, four on the floor with claps and offbeat open hats, and a
+// talking supersaw hook for the last stretch. The floor patterns (encore-floor.js) land on its beats.
+const ENCORE = {
+  name: 'Encore', bpm: 121, steps: 16, per: 1, pump: true, supersaw: true, arpWave: 'square',
+  layers: { pad: -1, bass: -1, drums: -1, full: 0.45, lead: 0.72 },
+  chords: [
+    { stab: [57, 60, 64, 65, 69], arp: [62, 65, 69, 72, 76], root: 38 },   // Dm9
+    { stab: [57, 58, 62, 65, 69], arp: [58, 62, 65, 69, 74], root: 34 },   // Bbmaj7
+    { stab: [57, 60, 65, 69, 72], arp: [60, 65, 69, 72, 77], root: 41 },   // F
+    { stab: [55, 57, 60, 64, 67], arp: [60, 64, 67, 69, 72], root: 36 },   // C6
+  ],
+  bass: [[0, 0], [2, 12], [3, 0], [6, 12], [7, 7], [10, 12], [11, 0], [14, 12]],   // [step, semitones over the root]
+  stabs: [2, 6, 10, 13],                                                            // the chopped chords, off the kick
+  arp: [0, 2, 4, 2, 1, 3, 4, 3, 0, 2, 4, 2, 1, 3, 2, 4],
+  lead: [
+    [0, 0, 74, 3], [0, 3, 72, 3], [0, 6, 69, 2], [0, 10, 72, 4], [0, 14, 74, 2],
+    [1, 0, 77, 6], [1, 6, 74, 2], [1, 10, 70, 6],
+    [2, 0, 72, 3], [2, 3, 69, 3], [2, 6, 65, 2], [2, 10, 69, 4], [2, 14, 72, 2],
+    [3, 0, 76, 4], [3, 4, 74, 2], [3, 6, 72, 2], [3, 8, 67, 8],
+  ],
+  tick(m, s, bar, t, L) {
+    const C = this.chords[bar % this.chords.length], dur = m.stepDur, beat = dur * 4;
+    if (s % 4 === 0) m.pumpAt(t, beat);
+    for (const [st, up] of this.bass) if (st === s) m.bass(C.root + 12 + up, t, dur * 1.6, 0.2, 0.15 + 0.75 * m.I);
+    if (this.stabs.includes(s)) m.stab(C.stab, t, dur * 1.4, 0.03, 600 + 3400 * m.I);
+    if (L.full) m.pluck(C.arp[this.arp[s]] + 12, t, 0.025, 0.3 + 0.6 * m.I, s % 2 ? 0.5 : -0.5);
+    if (s % 4 === 0) m.kick(t, 0.62);
+    if (s === 4 || s === 12) m.clap(t, 0.17);
+    const open = s % 4 === 2;
+    m.hat(t, open ? 0.06 : L.full ? 0.022 : 0, open);
+    if (s === 0 && bar % 8 === 0) m.crash(t, 0.12);
+    if (s === 0 && bar % 8 === 7) m.riser(t, dur * 16, 0.06 + 0.05 * m.I);
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 4 && st === s) m.lead(n, t, dur * len, 0.06 * L.lead);
+  },
+};
+
+export const SONGS = { drift: DRIFT, machinery: MACHINERY, encore: ENCORE };
 
 // --------------------------------------------------------------------------- the engine
 export class Music {
@@ -181,8 +220,16 @@ export class Music {
     this.pump.gain.setValueAtTime(1, now);
     this.song = song;
     this.step = 0;
-    this.nextT = now + (swap ? 0.55 : 0.08);
+    this.nextT = this.t0 = now + (swap ? 0.55 : 0.08);
     this.out.gain.linearRampToValueAtTime(this.volume, this.nextT + (swap ? 0.3 : fade));
+  }
+
+  // where the song is in beats from its first downbeat, as the speakers play it (the scheduler runs
+  // ahead; the output latency is taken off), or null with no song. Attacks on the beat read this.
+  beatNow() {
+    if (!this.song) return null;
+    const c = this.ctx, late = (c.outputLatency || 0) + (c.baseLatency || 0);
+    return (c.currentTime - late - this.t0) * this.song.bpm / 60;
   }
 
   // behind a menu: muffled and quieter
@@ -250,6 +297,19 @@ export class Music {
         o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det + (saws ? (i % 2 ? 4 : -4) : 0);
         o.connect(f); o.start(t); o.stop(t + dur + 0.9);
       }
+    });
+  }
+
+  // a chopped chord stab: saws through a lowpass, short and punchy, into the pumped bus and the delay
+  stab(notes, t, dur, vol, cutoff) {
+    const c = this.ctx, f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'lowpass'; f.frequency.setValueAtTime(cutoff, t); f.frequency.exponentialRampToValueAtTime(cutoff * 0.4, t + dur); f.Q.value = 2;
+    this.env(g, t, 0.004, vol, 0.02, t + dur);
+    f.connect(g); g.connect(this.bus); g.connect(this.dly);
+    notes.forEach((n, i) => {
+      const o = c.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = i % 2 ? 7 : -7;
+      o.connect(f); o.start(t); o.stop(t + dur + 0.02);
     });
   }
 

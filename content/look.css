@@ -349,6 +349,12 @@
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
+  --hostile-encore: #ff1f5a;     /* the Encore's floor patterns and its wind-up lights (act 4): hot pink-red, apart from the arena's amber footlights and cool blue */
+  --encore-floor-lead: 2;        /* beats a tile glows (its Warning) before it goes off */
+  --encore-floor-fade: 0.5;      /* beats a tile stays lit after */
+  --encore-floor-height: 0.04;   /* m: how high a hot tile hits; the jelly's feet must be above it (a jump clears it for about 1.1 s) */
+  --encore-volume-opacity: 0.5;
+  --encore-floor-hot-white: 0.35; /* how far a tile going off is pushed towards white */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
   --beetle-fire: #ffd060;        /* the yellow heart of the fireball when its ball explodes, round the orange */

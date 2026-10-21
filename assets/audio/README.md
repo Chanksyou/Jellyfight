@@ -25,3 +25,13 @@ sounds until they load; `lightning-sounds.html` plays each one.
 | chain-1..3 | LightningStrikeSolo_13, _16, _26 (first 0.25 s) | each chain jump, pitched up per jump |
 
 Supplied but unused: LightningStrikeSolo_21 and _28.
+
+# The Encore's song
+
+`encore-around-the-world.mp3` is the owner's supplied
+`DAFT_PUNK_-_AROUND_THE_WORLD_WESTEND_EDIT_FREE_DOWNLOAD_KLICKAUD.mp3`: Westend's edit of Daft Punk's
+"Around the World", released by Westend as a free download on SoundCloud. The recording is Daft
+Punk's; the free download is not a licence for it. The owner chose to include it for their own
+play, knowing this repository is public. `src/song-track.js` (`TRACKS.encore`) holds its measured beat
+grid (128 BPM, first beat 0.052 s, 159 bars, breakdown bars 75 to 79; it starts and loops back 64 beats in); the act 4 preview falls back
+to the synthesized `SONGS.encore` (`src/music.js`) if it can't load.
