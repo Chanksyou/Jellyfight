@@ -21,6 +21,7 @@ import './stories/bug-collision.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
 import './stories/treasure-feel.js';
+import './stories/treasure-feel-more.js';
 import './stories/fire.js';
 import './stories/damage-numbers.js';
 import './stories/death-remains.js';
@@ -94,4 +95,3 @@ export function list(note = '') {
       items.map(([n, s]) => `<a href="?story=${encodeURIComponent(n)}" style="display:block;color:#9fe2ff;padding:5px 0">${n.split('/')[1]}<br><span style="color:#fff9;font-size:12px">${s.about}</span></a>`).join('')).join('');
   document.body.appendChild(el);
 }
-import './stories/treasure-feel-more.js';
