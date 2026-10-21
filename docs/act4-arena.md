@@ -153,19 +153,22 @@ below 4 cm, its footprint over a hot tile) is hit once a pattern for 4 Health (h
 moves to `content/bosses.kdl` when the Encore joins the campaign). The pyramid, or the wing an arrow
 comes from, fills over the bar before a pattern and flashes as it starts.
 
-**Why every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 121 BPM a beat
-is 0.5 s, so the jelly can't jump every beat: a hit beat every 4 leaves time to land and get set,
+**Why every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 128 BPM a beat
+is 0.47 s, so the jelly can't jump every beat: a hit beat every 4 leaves time to land and get set,
 and a jump pressed up to about 2 beats early still clears it. Patterns are written in beats; the
-floor takes its time from `Music.beatNow()` (the audio clock less the output latency), so it stays on
-the speakers' beat. Going back in time drops what was playing; going forward more than a beat (a
-pause, a long frame) passes the missed steps without hitting.
+floor takes its time from what is playing (`beatNow()`: the audio clock less the output latency), so
+it stays on the speakers' beat. Going back in time drops what was playing; going forward more than a
+beat (a pause, a long frame) passes the missed steps without hitting.
 
-**The song.** `SONGS.encore` in `src/music.js`: an original French-house track, D minor at 121 BPM
-(Dm9, Bbmaj7, F, C6): an octave-jumping disco bass whose filter opens with intensity, chopped chord
-stabs (a new `stab` voice) pumping under the kick, four on the floor with claps and offbeat open
-hats, an arpeggio and a supersaw hook in the upper layers. It borrows the genre, not any record.
+**The song.** The owner's choice: Westend's edit of Daft Punk's "Around the World"
+(`assets/audio/encore-around-the-world.mp3`, see `assets/audio/README.md`), played by
+`src/song-track.js`. Its beat grid was measured from the file: 128 BPM, first beat 0.052 s in. It
+loops on its 159 whole bars, so the beat counts on with no slip, and the floor rests through its
+breakdown (bars 75 to 79, the kick out): the setlist leaves out any pattern that would play into
+it. If the file can't load, the preview plays `SONGS.encore` in `src/music.js` instead: an original
+French-house track at 121 BPM (Dm9, Bbmaj7, F, C6; a new `stab` voice for its chopped chords).
 
-**In the preview.** **Fight: floor patterns** starts the song and the setlist (8 bars, round and
+**In the preview.** **Fight: floor patterns** starts the track and the setlist (8 bars, round and
 round) with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` shake (Reduce effects
 silences it) and a pop up off the floor, and Health fills back up at 0. **Stop the fight** ends it.
 
@@ -178,7 +181,8 @@ preview has no fx pools), aftermath, a damage number, and a layered hit sound. T
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (8 new): the ring's travel and thickness, a standing jelly hit on the beat only,
-a real jump on the beat clearing it (and one 2.7 beats early not), the arc's gap, the arrow's shape
+Stories `encore/*` (10 new): the ring's travel and thickness, a standing jelly hit on the beat only,
+a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
 and its three-jump run, the Warning rising to the beat with no light added, hitches and jumps in
-time, and the song scheduling at 121 BPM.
+time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
+fallback song scheduling.

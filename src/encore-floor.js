@@ -183,15 +183,17 @@ export const SETLIST = [
 export const SET_BEATS = 64;
 
 // Plays the SETLIST round and round from beat `from`, casting each pattern 6 beats ahead of its first
-// step (time for its Warning and the Encore's wind-up). After a jump in time it skips what was missed.
+// step (time for its Warning and the Encore's wind-up). After a jump in time it skips what was missed;
+// `quiet(beat)` true (the song's breakdown, its kick out) rests the floor: a pattern that would play
+// into it is left out.
 export class EncoreSet {
-  constructor(floor, from, random = Math.random) { Object.assign(this, { floor, from, random }); this.next = 0; }
+  constructor(floor, from, random = Math.random, quiet = () => false) { Object.assign(this, { floor, from, random, quiet }); this.next = 0; }
   update(beat) {
     for (;;) {
       const loop = Math.floor(this.next / SETLIST.length), [b, name, opts = {}] = SETLIST[this.next % SETLIST.length];
       const at = this.from + loop * SET_BEATS + b;
       if (beat < at - 6) return;
-      if (at > beat) this.floor.cast(name, at, name === 'arc' ? { heading: (this.random() - 0.5) * 1.6, ...opts } : opts);
+      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.floor.cast(name, at, name === 'arc' ? { heading: (this.random() - 0.5) * 1.6, ...opts } : opts);
       this.next++;
     }
   }

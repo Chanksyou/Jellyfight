@@ -17,6 +17,7 @@ import { Music, SONGS } from './music.js';
 import { unlock as unlockAudio, audio, sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { BASE_STATS } from './stats.js';
+import { SongTrack, TRACKS } from './song-track.js';
 
 export async function startAct4Preview({scene,renderer,camera}){
   scene.background=new THREE.Color(LOOK.color('arena-background','#030611'));
@@ -56,12 +57,16 @@ export async function startAct4Preview({scene,renderer,camera}){
     if(health<=0)health=maxHealth;showHealth();
   }});
   // the song's own clock once it exists (it holds still until the audio starts); without audio, frames at its tempo
-  const beatNow=dt=>music?.song?music.beatNow():clock+=dt*SONGS.encore.bpm/60;
+  // the beat comes from what's playing: the Encore's track, or the synthesized song if the track won't
+  // load; null while the track loads (the fight waits); with no audio at all, frames at the song's tempo
+  let track=null,source=null,waiting=false;
+  const beatNow=dt=>source?source.beatNow():waiting?null:clock+=dt*SONGS.encore.bpm/60;
   function fight(on){
     fighting=on;floor.reset();set=null;health=maxHealth;showHealth();healthEl.hidden=!on;
     const b=panel.querySelector('[data-fight]');b.setAttribute('aria-pressed',String(on));b.textContent=on?'Stop the fight':'Fight: floor patterns';
-    if(on){unlockAudio();const A=audio();if(A){music||=new Music(A.ctx,A.master);music.play('encore');}if(lit)panel.querySelector('[data-tiles]').click();view(false);}
-    else music?.play(null);
+    if(on){unlockAudio();const A=audio();if(lit)panel.querySelector('[data-tiles]').click();view(false);
+      if(A){waiting=true;track||=new SongTrack(A.ctx,A.master,TRACKS.encore);track.load().then(ok=>{waiting=false;if(!fighting)return;if(ok){track.play();source=track;}else{music||=new Music(A.ctx,A.master);music.play('encore');source=music;}});}}
+    else{track?.stop();music?.play(null);source=null;waiting=false;}
   }
   panel.querySelector('[data-fight]').onclick=()=>fight(!fighting);
   view(true);
@@ -69,9 +74,9 @@ export async function startAct4Preview({scene,renderer,camera}){
   document.getElementById('loading').classList.add('gone');
   const fps=IS_TOUCH?LOOK.num('phone-fps',60):60;
   const pacer=new FramePacer({fps}),governor=new FrameGovernor({fps:fps||60,scale:maxScale,min:Math.min(maxScale,LOOK.num('min-pixel-ratio',1)),max:maxScale});let last=0;
-  const preview={arena,world,player,tpc,gfx,scene,renderer,camera,input,setOverview:view,step(dt){juice.calm=reducedMotion.matches;music?.duck(paused);music?.update(dt,.8);if(paused)return;juice.update(dt);arena.boss.update(dt,reducedMotion.matches);if(fighting){const beat=beatNow(dt);set||=new EncoreSet(floor,Math.ceil(beat/4)*4+4);set.update(beat);floor.update(beat,player);}world.focus(player.position,dt);if(input.consumeReset()){player.spawn(new THREE.Vector3(...STAGE4.start));world.focus(player.position,1);player.snapToGround();}if(!overview){player.update(dt,input,tpc.yaw);tpc.update(dt,input.consumeMouse(),player.position);camera.position.add(juice.offset(shake));}else player.avatar.update(dt,{speed:0,walkSpeed:CONFIG.player.walkSpeed,grounded:true,vy:0,swim:0});},render:()=>gfx.render()};
+  const preview={arena,world,player,tpc,gfx,scene,renderer,camera,input,setOverview:view,step(dt){juice.calm=reducedMotion.matches;music?.duck(paused);track?.duck(paused);music?.update(dt,.8);if(paused)return;juice.update(dt);arena.boss.update(dt,reducedMotion.matches);if(fighting){const beat=beatNow(dt);if(beat!==null){set||=new EncoreSet(floor,Math.ceil(beat/4)*4+4,Math.random,b=>!!source?.quiet?.(b));set.update(beat);floor.update(beat,player);}}world.focus(player.position,dt);if(input.consumeReset()){player.spawn(new THREE.Vector3(...STAGE4.start));world.focus(player.position,1);player.snapToGround();}if(!overview){player.update(dt,input,tpc.yaw);tpc.update(dt,input.consumeMouse(),player.position);camera.position.add(juice.offset(shake));}else player.avatar.update(dt,{speed:0,walkSpeed:CONFIG.player.walkSpeed,grounded:true,vy:0,swim:0});},render:()=>gfx.render()};
   preview.floor=floor;preview.fight=fight;
   window.ACT4=preview;
   renderer.setAnimationLoop(now=>{if(!pacer.due(now))return;const elapsed=last?now-last:1000/60,change=governor.sample(elapsed);if(change){renderer.setPixelRatio(change.scale);gfx.resize();}const dt=Math.min(.04,elapsed/1000);last=now;preview.step(dt);preview.render();});
-  addEventListener('pagehide',event=>{if(event.persisted)return;renderer.setAnimationLoop(null);music?.play(null);floor.dispose();arena.dispose();},{once:true});
+  addEventListener('pagehide',event=>{if(event.persisted)return;renderer.setAnimationLoop(null);music?.play(null);track?.stop();floor.dispose();arena.dispose();},{once:true});
 }

@@ -7,11 +7,12 @@ import { World } from '../collision.js';
 import { CONFIG } from '../config.js';
 import { Player } from '../player.js';
 import { Music, SONGS } from '../music.js';
+import { SongTrack, TRACKS } from '../song-track.js';
 import { LOOK } from '../look.js';
 import { story, ok, V } from './kit.js';
 
 const N = STAGE4.tiles, S = STAGE4.tileSize, BOSS = STAGE4.bossSpace;
-const BPM = SONGS.encore.bpm, DT = 1 / 60;
+const BPM = TRACKS.encore.bpm, DT = 1 / 60;   // the floor plays to the Encore's track
 function make() {
   const scene = new THREE.Scene(), arena = buildAct4(scene), world = new World(scene, { staticScene: true });
   for (const m of arena.solids) if (m.userData.noCollide) world.addCollider(m, false);
@@ -77,10 +78,10 @@ function jumpTheRing(early) {
   } finally { T.done(); }
 }
 story('encore/a-jump-on-the-beat-clears-the-floor', {
-  about: 'A real jump pressed just before the beat (a quarter beat) clears the hot tile; one pressed 2.7 beats early has landed by then and is hit, and so is a jelly that never jumps. A jump hangs about 2.5 beats at 121 BPM.',
+  about: 'A real jump pressed just before the beat (a quarter beat) clears the hot tile; one pressed 3 beats early has landed by then and is hit, and so is a jelly that never jumps. A jump hangs about 2.7 beats at 128 BPM.',
   setup() {},
   play() {
-    const onBeat = jumpTheRing(0.25), early = jumpTheRing(2.7), never = jumpTheRing(null);
+    const onBeat = jumpTheRing(0.25), early = jumpTheRing(3), never = jumpTheRing(null);
     return ok(onBeat.hits === 0 && early.hits === 1 && never.hits === 1 && onBeat.maxY > 0.15, { onBeat, early, never });
   },
 });
@@ -159,13 +160,46 @@ story('encore/a-jump-in-time-drops-patterns-instead-of-firing-them', {
 });
 
 story('encore/the-encore-song-plays-at-121-bpm', {
-  about: 'The Encore\'s own song (original, French house) schedules its bars without error, and Music.beatNow counts its beats from the first downbeat.',
+  about: 'The synthesized fallback song (original French house, played if the track can\'t load) schedules its bars without error, and Music.beatNow counts its beats from the first downbeat.',
   setup() {},
   play() {
-    const ctx = new OfflineAudioContext(2, 44100 * 3, 44100), m = new Music(ctx, ctx.destination);
+    const ctx = new OfflineAudioContext(2, 44100 * 3, 44100), m = new Music(ctx, ctx.destination), BPM = SONGS.encore.bpm;
     m.play('encore'); m.I = m.target = 0.9;
     m.schedule(m.t0 + 8 * 60 / BPM * 4);                              // 8 bars, every layer
     const beat = m.beatNow(), expect = -m.t0 * BPM / 60;
     return ok(SONGS.encore.bpm === 121 && m.step >= 8 * 16 && Math.abs(beat - expect) < 1e-6, { bpm: SONGS.encore.bpm, steps: m.step, beat });
+  },
+});
+
+story('encore/the-track-loops-on-whole-bars-and-rests-in-its-breakdown', {
+  about: 'The Encore\'s track loops on its 159 whole bars, so its beat counts on across the loop, and the setlist leaves out any pattern that would play into its breakdown (the kick out, bars 75 to 79), on every time round.',
+  setup() {},
+  play() {
+    const ctx = new OfflineAudioContext(1, 44100, 44100), T = new SongTrack(ctx, ctx.destination, TRACKS.encore);
+    T.buffer = ctx.createBuffer(1, 44100 * 300, 44100); T.play();
+    const p = 60 / T.bpm, whole = Math.abs(T.src.loopEnd - T.src.loopStart - 159 * 4 * p) < 1e-9 && T.src.loopEnd <= T.buffer.duration;
+    const L = T.loopBeats, quiet = T.quiet(75 * 4) && T.quiet(79 * 4 + 3) && !T.quiet(74 * 4 + 3) && !T.quiet(80 * 4) && T.quiet(L + 77 * 4);
+    const floor = { casts: [], cast(name, at) { this.casts.push(at); } }, set = new EncoreSet(floor, 0, () => 0.5, (b) => T.quiet(b));
+    for (let b = 0; b < 2 * L; b += 0.5) set.update(b);
+    const rests = floor.casts.every((at) => !T.quiet(at) && !T.quiet(at + 8)), plays = floor.casts.length > 30;
+    T.stop();
+    return ok(whole && quiet && rests && plays, { whole, quiet, rests, casts: floor.casts.length });
+  },
+});
+
+story('encore/the-track-beat-grid-lands-on-its-kicks', {
+  about: 'The track loads and its measured grid (128 BPM, first beat 0.052 s) sits on the kicks: the low end is far louder just after each beat than halfway between beats, through the whole song.',
+  setup() {},
+  async play() {
+    const T = TRACKS.encore, data = await (await fetch(T.url)).arrayBuffer();
+    const rate = 11025, buf = await new OfflineAudioContext(1, 1, rate).decodeAudioData(data);
+    const off = new OfflineAudioContext(1, Math.ceil(buf.duration * rate), rate), src = off.createBufferSource(), lp = off.createBiquadFilter();
+    src.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 150; src.connect(lp).connect(off.destination); src.start();
+    const x = (await off.startRendering()).getChannelData(0), p = 60 / T.bpm;
+    const loud = (t) => { let e = 0; const a = Math.round(t * rate); for (let i = a; i < a + rate * 0.04; i++) e += x[i] * x[i]; return e; };
+    let on = 0, between = 0;
+    for (let k = 8; k < T.bars * 4 - 8; k++) { const t = T.offset + k * p; if (T.quiet.includes(Math.floor(k / 4))) continue; on += loud(t); between += loud(t + p / 2); }
+    const ratio = on / between;
+    return ok(Math.abs(buf.duration - 300) < 1 && T.offset + T.bars * 4 * p <= buf.duration && ratio > 2, { duration: buf.duration, ratio });
   },
 });
