@@ -281,8 +281,11 @@ export class Bubbles {
     const a0 = Math.random() * Math.PI * 2;
     for (let k = 0; k < count; k++) {
       const a = a0 + (k / count) * Math.PI * 2;
-      this.blow(origin, null, { size: stats.bubbleSize, dmg, pierce: mods.bubbles.pierce, dir: new THREE.Vector3(Math.cos(a), 0, Math.sin(a)) });
+      const dir=new THREE.Vector3(Math.cos(a),0,Math.sin(a));
+      this.blow(origin, null, { size: stats.bubbleSize, dmg, pierce: mods.bubbles.pierce, dir });
+      this.treasureLooks?.streak(origin,origin.clone().addScaledVector(dir,.035),this.treasureLooks.color,.0009,.16);
     }
+    this.treasureLooks?.arc(origin,.035,this.treasureLooks.color,.22);sfx.gadgetBath();
     this.onBlow?.();
   }
 
@@ -347,6 +350,11 @@ export class Bubbles {
       b.m.position.addScaledVector(b.vel, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
+      if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
+        b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
+        this.treasureLooks.arc(b.m.position,b.r*1.1,this.treasureLooks.disco,.12);
+        if(!this.treasureLooks.quiet)this.treasureLooks.streak(b.m.position.clone().addScaledVector(b.vel,-.045),b.m.position,this.treasureLooks.disco,.0008,.14);
+      }
       if (b.rebound && b.returning && (b.trailT -= dt) <= 0) {
         b.trailT = LOOK.num('rebound-trail-interval', 0.055);
         this.fx.ring(b.m.position, this.friendly, b.r * 1.4, 0.16);
@@ -590,12 +598,13 @@ export class Bubbles {
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }
     }
+    if(b.child){this.treasureLooks?.echo(p,b.r);sfx.gadgetEcho(true);}
     // echo-bubble: the pop fires again at the next enemy close by (once), at a share of its damage
     // (it starts inside the enemy it popped on: it skips the ones its parent already hit)
     const echo = mods.bubbles.echo;
     if (echo && !b.child) {
       const next = this.inRange(p, 0.2, b.hit)[0];
-      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg * echo.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size; }
+      if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg * echo.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size;this.treasureLooks?.echo(p,b.r);sfx.gadgetEcho(); }
     }
   }
 }

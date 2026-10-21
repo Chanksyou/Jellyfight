@@ -236,6 +236,30 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 export const sfx = {
+  gadgetBath(){
+    if(!ready()||!gap('gadgetBath',140))return;const j=jitter(.08);
+    tone('sine',170*j,480*j,.16,.06);noise(2200*j,1,.14,.025,'bandpass',0,4400);
+  },
+  gadgetEcho(hit=false){
+    if(!ready()||!gap('gadgetEcho-'+hit,70))return;const j=jitter(.05),f=(hit?1800:1200)*j;
+    tone('sine',f,f*1.4,.08,.025);tone('triangle',f*1.5,f*.8,.05,.012,.015);
+  },
+  gadgetCotton(){
+    if(!ready()||!gap('gadgetCotton',120))return;const j=jitter(.1);
+    tone('sine',100*j,55*j,.18,.075);noise(700*j,1,.23,.05,'lowpass',0,140);
+  },
+  gadgetSalt(){
+    if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14);
+    noise(4200*j,3,.035,.055,'highpass');tone('triangle',2600*j,900*j,.07,.025);noise(6500*j,2,.1,.02,'highpass',.025);
+  },
+  gadgetSqueak(){
+    if(!ready()||!gap('gadgetSqueak',150))return;const j=jitter(.12);
+    tone('triangle',480*j,1300*j,.07,.055);tone('sine',1300*j,360*j,.12,.045,.065);noise(1800*j,2,.08,.025,'bandpass',.03);
+  },
+  gadgetMirror(){
+    if(!ready()||!gap('gadgetMirror',150))return;const j=jitter(.04);
+    tone('sine',2400*j,1800*j,.18,.04);tone('sine',3600*j,2700*j,.13,.02,.015);noise(5000*j,3,.035,.025,'highpass');
+  },
   gadgetChord(){
     if(!ready()||!gap('gadgetChord',120))return;const j=jitter(.03);
     for(const [i,f]of [220,277.18,329.63].entries())tone('triangle',f*j,f*j*.98,.35,.035,i*.008);

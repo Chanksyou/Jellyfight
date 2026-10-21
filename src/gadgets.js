@@ -49,6 +49,12 @@ export class Gadgets {
     this.focusCore=new THREE.Mesh(new THREE.CircleGeometry(1,24).rotateX(-Math.PI/2),focusMat);
     this.focus.add(this.focusRing,this.focusCore);this.group.add(this.focus);this.focus.visible=false;
     this.chordReady=new THREE.Mesh(this.looks.geo.arc,focusMat);this.group.add(this.chordReady);this.chordReady.visible=false;
+    this.bathReady=new THREE.Group();this.group.add(this.bathReady);
+    const beadGeo=new THREE.SphereGeometry(LOOK.num('gadget-bath-bead',.003),10,6);
+    for(let i=0;i<8;i++)this.bathReady.add(new THREE.Mesh(beadGeo,focusMat));
+    this.mirrorReady=new THREE.Mesh(new THREE.TorusGeometry(LOOK.num('gadget-mirror-radius',.035),.0008,4,32,Math.PI*1.35),focusMat);
+    this.mirrorSheen=new THREE.Mesh(this.mirrorReady.geometry,focusMat);
+    this.group.add(this.mirrorReady,this.mirrorSheen);
     // Glow Stick: a green glow on the floor around you
     this.aura = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x6aff8a, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -85,6 +91,7 @@ export class Gadgets {
 
   reset() {
     this.warming=false;
+    this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=false;
     this.looks.reset();
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
@@ -108,6 +115,7 @@ export class Gadgets {
     this.looks.warm(on,at);
     this.focus.visible=this.chordReady.visible=on;
     this.mouseReady.visible=on;
+    for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen]){m.visible=on;if(on)m.position.copy(at);}
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
     if (on) {
@@ -125,6 +133,13 @@ export class Gadgets {
     } else {
       (this._warm || []).forEach((m) => this.group.remove(m));
     }
+  }
+
+  mirrorState(at,ready,active){
+    this.mirrorReady.visible=!!ready&&!active;this.mirrorSheen.visible=!!active;
+    this.mirrorReady.position.copy(at);this.mirrorSheen.position.copy(at);
+    this.mirrorReady.rotation.set(.35,this.looks.quiet?0:this.orbit||0,.4);
+    this.mirrorSheen.rotation.set(-.35,-(this.looks.quiet?0:this.orbit||0),-.4);
   }
 
   brickMesh() {
@@ -167,7 +182,7 @@ export class Gadgets {
     if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
-    if(!active){this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
+    if(!active){this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
     if(!this.mouseRun&&this.mouseAfter>0){
       const k=this.mouseAfter/LOOK.num('gadget-mouse-after',.24);
       this.mouse.scale.set(1+.2*k,1-.35*k,1-.2*k);this.mouseNose.scale.set(1,1,.5);this.mouse.visible=true;
@@ -179,14 +194,22 @@ export class Gadgets {
   update(dt, ctx) {
     const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
-    this.chordReady.visible=false;
+    this.chordReady.visible=this.bathReady.visible=false;
+    this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive);
 
     // timed effects: every N s, do what's in the block
     for (const T of M.timed) {
       if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
-      else for(const ef of T.effects) if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
-        this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
-        this.chordReady.scale.setScalar(ef.radius*(.25+.35*(1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25))));
+      else for(const ef of T.effects) {
+        if(ef.kind==='bubble-ring'&&this.t[T.key]<LOOK.num('gadget-bath-prepare',.3)){
+          this.bathReady.visible=true;this.bathReady.position.copy(center);
+          const r=.026+.018*this.t[T.key]/LOOK.num('gadget-bath-prepare',.3);
+          this.bathReady.children.forEach((m,i)=>{const a=i/8*Math.PI*2;m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);});
+        }
+        if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
+          this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
+          this.chordReady.scale.setScalar(ef.radius*(.25+.35*(1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25))));
+        }
       }
     }
     for (const z of this.zaps) { z.t -= dt; if (z.t <= 0) { this.group.remove(z.line); z.line.geometry.dispose(); } }

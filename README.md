@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v231 gives Disco Ball, Bubble Bath, Cotton Ball, Bath Salt, Rubber Duck and Hand Mirror distinct release, contact and recovery effects with layered sounds. Cosmetics reuse bounded pools, support reduced motion, and compile during loading. Damage, cooldowns and hit rules are unchanged. See [the design and verification note](docs/treasure-effects-v231.md).
+
 v230 gives Cat Toy Mouse, Marble, Lego Brick, Guitar Pick, Magnifying Glass and Windowsill Cactus distinct movement, contact effects and layered sounds. Reusable effect meshes, reduced motion support and loading-time shader preparation keep these signatures bounded. Combat values and hit rules are unchanged. See [the design and verification note](docs/treasure-effects-v230.md).
 
 v229 confines new elite attacks to their own platform and clear sight of the jelly. Leaving cancels unfinished windups; released shots, lobs, wreaths, rings, balloons and jewels finish normally. Ground targets stay within the platform footprint. Damage, counts and timing values are unchanged.

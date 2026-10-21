@@ -76,6 +76,7 @@ export class Run {
     Object.assign(this, ctx);
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
+    this.bubbles.treasureLooks=this.gadgets.looks;
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
@@ -225,6 +226,7 @@ export class Run {
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
     this.player.avatar?.root.scale.setScalar(1);
     this.squeakCd = []; this.hurtCd = {};
+    this.mirrorUntil = 0;
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
     this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {};
@@ -397,6 +399,7 @@ export class Run {
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
+        mirrorReady: this.t>=this.reflectAt, mirrorActive: this.t<this.mirrorUntil&&this.iFrames>0,
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
@@ -590,11 +593,13 @@ export class Run {
     if (M.reflect && this.t >= this.reflectAt) {
       this.reflectAt = this.t + M.reflect.every;
       this.iFrames = M.reflect.invuln;
+      this.mirrorUntil=this.t+M.reflect.invuln;
       const P = this.player.position, at = P.clone().setY(P.y + this.cfg.height * 0.5);
-      this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.06, 0.4);
+      this.gadgets.mirrorState(at,false,true);
+      this.gadgets.looks.contact(at,this.gadgets.looks.silver,.018);sfx.gadgetMirror();this.player.avatar?.pulse(.18);
       this.fx.number(at.clone().setY(at.y + 0.04), 'REFLECT', '#cfe8ff', 18);
       const e = from != null && this.enemies.list.find((x) => x.id === from && !x.dead);
-      if (e) { this.fx.impact(this.enemies.center(e), this.friendly, 0.02, 8); bus.emit('damage_taken', { targetId: e.id, amount, color: '#cfe8ff', source: 'reflect' }); }
+      if (e) { this.gadgets.looks.streak(at,this.enemies.center(e),this.gadgets.looks.silver,.0015,.18);this.fx.impact(this.enemies.center(e), this.friendly, 0.02, 8); bus.emit('damage_taken', { targetId: e.id, amount, color: '#cfe8ff', source: 'reflect' }); }
       return;
     }
     // squeak-when-hit effects (they stack), each on its own cooldown
@@ -602,7 +607,7 @@ export class Run {
       if ((this.squeakCd[i] || 0) > this.t) return;
       this.squeakCd[i] = this.t + Q.cooldown;
       const P = this.player.position;
-      this.fx.puff(P.clone().setY(P.y + 0.015), 0xffe066, Q.radius, 0.35);
+      this.gadgets.looks.squeak(P,Q.radius);sfx.gadgetSqueak();
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
       for (const e of this.enemies.list) {
         if (e.dead || e.proxy) continue;
@@ -610,6 +615,7 @@ export class Run {
         const d = away.length();
         if (d > Q.radius) continue;
         if (Q.push) bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: Q.push });
+        this.gadgets.looks.streak(this.enemies.center(e),this.enemies.center(e).addScaledVector(away,.018),this.gadgets.looks.duck,.001,.16);
         bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
       }
     });
@@ -740,7 +746,7 @@ export class Run {
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') { this.dropTreasure(_drop.set(c.x, floor, c.z)); this.hud.toast('✨ Elite cleared! It left a treasure.', 1800); }
     }
-    if (this.mods.burstOnKill) this.bursts.push(c);
+    if (this.mods.burstOnKill) {this.gadgets.looks.salt(c,this.mods.burstOnKill.radius,true);this.bursts.push(c);}
   }
 
   // One of the high-ground elites (elites.js) is beaten
@@ -756,20 +762,20 @@ export class Run {
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
   shockwave(c, radius, dmg, color) {
-    this.fx.puff(c.clone().setY(c.y + 0.01), color, radius, 0.35);
+    this.gadgets.looks.cushion(c,radius);this.player.avatar?.pulse(.3);sfx.gadgetCotton();
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < radius + e.r) bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' });
+      if (this.enemies.center(e).distanceTo(c) < radius + e.r) {this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.cotton,.008);bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' });}
     }
   }
 
   burst(c) {
     const B = this.mods.burstOnKill;
     if (!B) return;
-    this.fx.puff(c, 0xffffff, B.radius, 0.3);
+    this.gadgets.looks.salt(c,B.radius);sfx.gadgetSalt();
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < B.radius + e.r) bus.emit('damage_taken', { targetId: e.id, amount: this.power * B.dmg, color: '#bfe8ff', source: 'burst' });
+      if (this.enemies.center(e).distanceTo(c) < B.radius + e.r) {this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.silver,.006);bus.emit('damage_taken', { targetId: e.id, amount: this.power * B.dmg, color: '#bfe8ff', source: 'burst' });}
     }
   }
 
