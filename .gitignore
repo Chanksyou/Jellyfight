@@ -3,3 +3,6 @@ tools/node_modules/
 .wrangler/
 tests/.three/
 tests/.last-green
+
+# User reference attachments supplied by the desktop app
+.codex-remote-attachments/

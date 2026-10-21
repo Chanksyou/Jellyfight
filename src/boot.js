@@ -42,6 +42,11 @@ resize();
 
 const bar = document.querySelector('#loading .bar i');
 try {
+  if(new URLSearchParams(location.search).get('arena')==='act4'){
+    await loadLook();
+    const {startAct4Preview}=await import('./act4-preview.js');
+    await startAct4Preview({scene,renderer,camera});
+  }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
   const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; }, currentStage().parts);
   const lights = scaleLightsOnRender(renderer, scene);
@@ -49,6 +54,7 @@ try {
   await loadLook();                 // content/look.css: colours and render numbers
   await loadContent();              // content/*.kdl: the bugs and the waves
   await import('./main.js');
+  }
   document.getElementById('loading').classList.add('gone');
 } catch (e) {
   reportError(e, 'loading');

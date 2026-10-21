@@ -184,7 +184,7 @@ story('menu/dev-tools-locked', {
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,boss,duel,kit,tuner,diag',   // tuner joined the row in v143; the Other act button left in v157 (act choice lives in the pickers and the layout editor now)
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag',   // Act 4 environment preview joins the locked Dev row in v233.
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
   },
 });
