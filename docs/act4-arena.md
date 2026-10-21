@@ -163,7 +163,8 @@ beat (a pause, a long frame) passes the missed steps without hitting.
 **The song.** The owner's choice: Westend's edit of Daft Punk's "Around the World"
 (`assets/audio/encore-around-the-world.mp3`, see `assets/audio/README.md`), played by
 `src/song-track.js`. Its beat grid was measured from the file: 128 BPM, first beat 0.052 s in. It
-loops on its 159 whole bars, so the beat counts on with no slip, and the floor rests through its
+starts 64 beats (16 bars, about 30 s) in, skipping the intro, and loops from the end of its 159th
+bar back to there, a whole number of bars, so the beat counts on with no slip, and the floor rests through its
 breakdown (bars 75 to 79, the kick out): the setlist leaves out any pattern that would play into
 it. If the file can't load, the preview plays `SONGS.encore` in `src/music.js` instead: an original
 French-house track at 121 BPM (Dm9, Bbmaj7, F, C6; a new `stab` voice for its chopped chords).

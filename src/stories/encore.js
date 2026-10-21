@@ -172,13 +172,13 @@ story('encore/the-encore-song-plays-at-121-bpm', {
 });
 
 story('encore/the-track-loops-on-whole-bars-and-rests-in-its-breakdown', {
-  about: 'The Encore\'s track loops on its 159 whole bars, so its beat counts on across the loop, and the setlist leaves out any pattern that would play into its breakdown (the kick out, bars 75 to 79), on every time round.',
+  about: 'The Encore\'s track starts 64 beats in (the intro skipped) and loops back there from the end of its 159th bar, a whole number of bars, so its beat counts on across the loop; the setlist leaves out any pattern that would play into its breakdown (the kick out, the file\'s bars 75 to 79), on every time round.',
   setup() {},
   play() {
     const ctx = new OfflineAudioContext(1, 44100, 44100), T = new SongTrack(ctx, ctx.destination, TRACKS.encore);
     T.buffer = ctx.createBuffer(1, 44100 * 300, 44100); T.play();
-    const p = 60 / T.bpm, whole = Math.abs(T.src.loopEnd - T.src.loopStart - 159 * 4 * p) < 1e-9 && T.src.loopEnd <= T.buffer.duration;
-    const L = T.loopBeats, quiet = T.quiet(75 * 4) && T.quiet(79 * 4 + 3) && !T.quiet(74 * 4 + 3) && !T.quiet(80 * 4) && T.quiet(L + 77 * 4);
+    const p = 60 / T.bpm, from = TRACKS.encore.offset + 64 * p, whole = Math.abs(T.src.loopStart - from) < 1e-9 && Math.abs(T.src.loopEnd - T.src.loopStart - (159 * 4 - 64) * p) < 1e-9 && T.src.loopEnd <= T.buffer.duration && T.loopBeats === 159 * 4 - 64;
+    const L = T.loopBeats, f = (fileBeat) => fileBeat - 64, quiet = T.quiet(f(75 * 4)) && T.quiet(f(79 * 4 + 3)) && !T.quiet(f(74 * 4 + 3)) && !T.quiet(f(80 * 4)) && T.quiet(L + f(77 * 4)) && !T.quiet(0);
     const floor = { casts: [], cast(name, at) { this.casts.push(at); } }, set = new EncoreSet(floor, 0, () => 0.5, (b) => T.quiet(b));
     for (let b = 0; b < 2 * L; b += 0.5) set.update(b);
     const rests = floor.casts.every((at) => !T.quiet(at) && !T.quiet(at + 8)), plays = floor.casts.length > 30;
