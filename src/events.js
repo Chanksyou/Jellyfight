@@ -7,6 +7,9 @@
 //                   from: the enemy id that dealt it, when one did (on-hurt treasures answer it)
 //                   drain: ongoing damage that skips i-frames and the flinch (puddles, suction)
 //                   feedback?: { crit, element, tick, slam, dir } presentation only; forwarded through confirmed damage, never changes hit rules
+//                   contact: a bug touching the jelly (run.js contactDamage), presentation only
+//   player_hurt     { amount, from?, contact? }   a hit on the jelly that really landed (past i-frames, dodge,
+//                   shields), after its Health went down; feedback only (enemies.js answers its attacker)
 //   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw'
 //   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down

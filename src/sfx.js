@@ -235,6 +235,11 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
   s.stop(t + dur + 0.02);
 }
 
+// debris: `n` tiny ticks scattered from `from` s to `from + spread` s (bits and drops pattering down)
+function patter(n, from, spread, vol = 0.04) {
+  for (let k = 0; k < n; k++) noise(3000 + Math.random() * 3500, 3, 0.015, vol * (1 - k * 0.15), 'bandpass', from + Math.random() * spread);
+}
+
 export const sfx = {
   gadgetBubble(kind){
     if(!ready()||!gap('gadgetBubble-'+kind,100))return;const j=jitter(.08);
@@ -710,6 +715,45 @@ export const sfx = {
     tone('sawtooth', 240 * j, 520 * j, 0.09, 0.05); tone('sawtooth', 248 * j, 540 * j, 0.09, 0.035);
     noise(3200 * j, 4, 0.04, 0.08, 'bandpass', 0.07);
   },
+  // a bug's hit landing on the jelly (enemies.js landed): a wet slap with a low body and droplets
+  // pattering after; a touch (contact) adds a dry crunch of a bite or a ram. Many bugs: one per 90 ms
+  bugHit(contact = false) {
+    if (!ready() || !gap('bugHit', 90)) return;
+    const j = jitter(0.12);
+    if (contact) noise(3600 * j, 2, 0.03, 0.12, 'bandpass');
+    noise(1100 * j, 1, 0.09, 0.18, 'lowpass', 0, 300); tone('sine', 190 * j, 70, 0.1, 0.1);
+    patter(3, 0.04, 0.12);
+  },
+  // an ant squad setting off rolling: a skittering whoosh, little feet ticking under it
+  antDash() {
+    if (!ready() || !gap('antDash', 80)) return;
+    const j = jitter(0.12);
+    noise(2200 * j, 1.2, 0.22, 0.07, 'bandpass', 0, 900 * j);
+    for (let k = 0; k < 4; k++) noise(5000 + Math.random() * 2000, 5, 0.01, 0.05, 'bandpass', k * 0.05);
+  },
+  // the lanternfly springing off (a flick and a whirr of wings) and slamming down (a thud with bits pattering)
+  leapJump() { if (!ready() || !gap('leapJump', 80)) return; const j = jitter(0.12); tone('triangle', 500 * j, 1200 * j, 0.06, 0.05); noise(2600 * j, 1.5, 0.25, 0.05, 'bandpass', 0.02, 1400 * j); },
+  leapSlam() {
+    if (!ready() || !gap('leapSlam', 70)) return;
+    const j = jitter(0.12);
+    noise(5000 * j, 1, 0.03, 0.1, 'highpass'); tone('sine', 140 * j, 45, 0.18, 0.2); noise(500 * j, 0.8, 0.18, 0.18, 'lowpass', 0, 120);
+    patter(3, 0.06, 0.25);
+  },
+  // spit leaving the mouth: a laser's zap with a thin whine as it flies, or a web ball's wet thwip
+  spit(kind = 'laser') {
+    if (!ready() || !gap('spit', 80)) return;
+    const j = jitter(0.1);
+    if (kind === 'web') { noise(1600 * j, 1.5, 0.1, 0.1, 'bandpass', 0, 600); tone('sine', 300 * j, 140, 0.08, 0.06); return; }
+    tone('sawtooth', 1800 * j, 500 * j, 0.08, 0.04); noise(6000 * j, 1, 0.03, 0.06, 'highpass'); tone('sine', 2400 * j, 1600 * j, 0.18, 0.015, 0.02);
+  },
+  // a glob of sap landing: a splat, a low plop and drops pattering
+  lobSplat() { if (!ready() || !gap('lobSplat', 70)) return; const j = jitter(0.12); noise(900 * j, 1, 0.14, 0.2, 'lowpass', 0, 220); tone('sine', 160 * j, 60, 0.12, 0.12); patter(3, 0.05, 0.2); },
+  // a Cutting sprouting: a leafy rustle, a creak of a stem shooting up and a pop
+  sprout() { if (!ready() || !gap('sprout', 120)) return; const j = jitter(0.1); noise(3000 * j, 2, 0.15, 0.08, 'bandpass'); tone('sawtooth', 120 * j, 200 * j, 0.25, 0.03); tone('sine', 300 * j, 700 * j, 0.08, 0.06, 0.05); patter(3, 0.1, 0.2); },
+  // an Aerial root: a woody thunk as it lands, a creak each time its hold tightens, a dry rustle as it withers
+  rootLand() { if (!ready() || !gap('rootLand', 70)) return; const j = jitter(0.12); noise(5000 * j, 2, 0.02, 0.08, 'bandpass'); tone('triangle', 180 * j, 80, 0.1, 0.1); noise(600 * j, 1, 0.12, 0.12, 'lowpass'); patter(3, 0.05, 0.2); },
+  rootSqueeze() { if (!ready() || !gap('rootSqueeze', 300)) return; const j = jitter(0.1); tone('sawtooth', 90 * j, 70 * j, 0.18, 0.03); noise(800 * j, 5, 0.18, 0.04, 'bandpass', 0, 500); },
+  rootWither() { if (!ready() || !gap('rootWither', 120)) return; for (let k = 0; k < 4; k++) noise(2500 + Math.random() * 2000, 3, 0.05, 0.04, 'bandpass', k * 0.06); },
   // the millipede: a clicking rattle as it coils (all those plates), a whirr that revs up, a rolling rumble
   milliCurl() {
     if (!ready()) return;
@@ -726,7 +770,8 @@ export const sfx = {
   },
   milliRoll(dur) {
     if (!ready()) return;
-    noise(260, 0.8, dur, 0.22, 'lowpass', 0, 520); tone('sine', 90, 60, dur, 0.12);
+    const j = jitter(0.1);
+    noise(260 * j, 0.8, dur, 0.22, 'lowpass', 0, 520 * j); tone('sine', 90 * j, 60, dur, 0.12);
   },
   // the dragonfly: a dry papery whirr as it darts, a sharper one as it dodges a hit, the beam's
   // charge (a whine climbing for the whole charge, thickening as it goes: the only warning) and
@@ -752,9 +797,11 @@ export const sfx = {
     return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
   },
   beamFire() {
-    if (!ready()) return;
-    noise(6000, 0.7, 0.06, 0.25, 'highpass');
-    tone('sawtooth', 2400, 300, 0.18, 0.08); tone('square', 1200, 150, 0.14, 0.04);
+    if (!ready() || !gap('beamFire', 60)) return;
+    const j = jitter(0.1);
+    noise(6000 * j, 0.7, 0.06, 0.25, 'highpass');
+    tone('sawtooth', 2400 * j, 300, 0.18, 0.08); tone('square', 1200 * j, 150, 0.14, 0.04);
+    noise(3800 * j, 2, 0.25, 0.04, 'bandpass', 0.08, 1500);              // a sizzle dying away where it struck
   },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
@@ -799,9 +846,11 @@ export const sfx = {
   },
   // the mantis: a dry rustle of a swat and the snap of its forelegs; the worm in it: a wet burst
   // out of the body and the crack of its whip
-  mantisSwat() { if (!ready()) return; noise(2400, 1.2, 0.12, 0.16, 'bandpass', 0, 900); tone('square', 900, 300, 0.05, 0.04, 0.09); noise(5000, 3, 0.03, 0.12, 'bandpass', 0.1); },
-  wormBurst() { if (!ready()) return; noise(500, 0.8, 0.35, 0.3, 'lowpass', 0, 160); tone('sine', 160, 50, 0.3, 0.14); noise(2600, 2, 0.15, 0.1, 'bandpass', 0.05); },
-  wormCrack() { if (!ready()) return; noise(1600, 1.5, 0.1, 0.12, 'bandpass', 0, 4800); noise(7000, 0.7, 0.04, 0.3, 'highpass', 0.09); },
+  mantisSwat() { if (!ready() || !gap('mantisSwat', 70)) return; const j = jitter(0.1); noise(2400 * j, 1.2, 0.12, 0.16, 'bandpass', 0, 900 * j); tone('square', 900 * j, 300, 0.05, 0.04, 0.09); noise(5000 * j, 3, 0.03, 0.12, 'bandpass', 0.1); },
+  wormBurst() { if (!ready() || !gap('wormBurst', 70)) return; const j = jitter(0.1); noise(500 * j, 0.8, 0.35, 0.3, 'lowpass', 0, 160); tone('sine', 160 * j, 50, 0.3, 0.14); noise(2600 * j, 2, 0.15, 0.1, 'bandpass', 0.05); patter(4, 0.12, 0.3); },
+  wormCrack() { if (!ready() || !gap('wormCrack', 70)) return; const j = jitter(0.1); noise(1600 * j, 1.5, 0.1, 0.12, 'bandpass', 0, 4800 * j); noise(7000 * j, 0.7, 0.04, 0.3, 'highpass', 0.09); noise(400 * j, 0.8, 0.12, 0.12, 'lowpass', 0.1, 120); patter(3, 0.14, 0.25); },
+  // the worm's lash leaving: a whoosh as it cracks down (wormCrack is where it lands)
+  whipLash() { if (!ready() || !gap('whipLash', 70)) return; const j = jitter(0.12); noise(1100 * j, 1.2, 0.12, 0.08, 'bandpass', 0, 4200 * j); },
   // wasps: a buzz climbing as one rears to dive (the only warning), the sting, one crawling out of its nest
   waspWind(dur = 0.5) {
     if (!ready()) return;
@@ -813,7 +862,9 @@ export const sfx = {
     o.connect(g); o2.connect(g); g.connect(master);
     o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
   },
-  waspSting() { if (!ready()) return; noise(4200, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900, 120, 0.2, 0.08); noise(700, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); },
+  waspSting() { if (!ready() || !gap('waspSting', 60)) return; const j = jitter(0.1); noise(4200 * j, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900 * j, 120, 0.2, 0.08); noise(700 * j, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); patter(3, 0.1, 0.25); },
+  // a wasp setting off on its dive: a buzzing rip that climbs away
+  diveGo() { if (!ready() || !gap('diveGo', 80)) return; const j = jitter(0.12); noise(2000 * j, 1.5, 0.2, 0.07, 'bandpass', 0, 5000 * j); tone('sawtooth', 420 * j, 620 * j, 0.15, 0.03); },
   waspHatch() { if (!ready() || !gap('waspHatch', 300)) return; noise(3000, 3, 0.08, 0.05, 'bandpass'); tone('sawtooth', 220, 260, 0.25, 0.02, 0.05); },
   // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
   // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
@@ -883,19 +934,21 @@ export const sfx = {
   lockBeep(k = 0) { if (!ready()) return; const f = 1500 + k * 900; tone('square', f, f, 0.045, 0.035); },
   missileLaunch() {
     if (!ready()) return;
-    noise(5000, 0.7, 0.08, 0.25, 'highpass');                         // the crack of ignition
-    noise(400, 0.7, 0.6, 0.3, 'lowpass', 0.02, 2600);                 // the roar, rising
-    tone('sawtooth', 110, 380, 0.5, 0.07, 0.02);
+    const j = jitter(0.1);
+    noise(5000 * j, 0.7, 0.08, 0.25, 'highpass');                     // the crack of ignition
+    noise(400 * j, 0.7, 0.6, 0.3, 'lowpass', 0.02, 2600 * j);         // the roar, rising
+    tone('sawtooth', 110 * j, 380 * j, 0.5, 0.07, 0.02);
   },
   missileHiss() { if (!ready() || !gap('missileHiss', 150)) return; noise(3800 * jitter(), 1.4, 0.24, 0.035, 'bandpass'); },
   missileSputter() { if (!ready()) return; tone('sawtooth', 300, 70, 0.7, 0.06); for (let k = 0; k < 5; k++) noise(700, 1, 0.05, 0.12, 'lowpass', 0.05 + k * 0.11 + Math.random() * 0.05); },
   missileCough() { if (!ready() || !gap('missileCough', 90)) return; noise(500 * jitter(0.2), 1, 0.06, 0.1, 'lowpass'); },
   missileClink() { if (!ready()) return; tone('triangle', 2300, 2200, 0.09, 0.05); tone('triangle', 3400, 3300, 0.06, 0.03, 0.05); noise(1500, 1, 0.3, 0.06, 'bandpass', 0.05, 600); },
   missileBoom() {
-    if (!ready()) return;
-    noise(3000, 0.6, 0.15, 0.35, 'highpass');
-    noise(500, 0.7, 0.7, 0.45, 'lowpass', 0, 60);
-    tone('sine', 120, 35, 0.6, 0.4);
+    if (!ready() || !gap('missileBoom', 70)) return;
+    const j = jitter(0.1);
+    noise(3000 * j, 0.6, 0.15, 0.35, 'highpass');
+    noise(500 * j, 0.7, 0.7, 0.45, 'lowpass', 0, 60);
+    tone('sine', 120 * j, 35, 0.6, 0.4);
     for (let k = 0; k < 6; k++) noise(2500 + Math.random() * 3000, 3, 0.02, 0.08, 'bandpass', 0.08 + Math.random() * 0.35);   // crackle
   },
   // the Cream Whipper: the regulator hissing as a balloon fills (rubber creaking as it stretches),

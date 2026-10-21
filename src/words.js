@@ -58,12 +58,12 @@ export const ENEMY_WORDS = {
     props: { windup: 0.45, time: 0.45, speed: 0.825, rest: 0.6, dmg: null, range: 0.2 },
     make: (_, p) => ({
       rollDmg: p.dmg,
-      tick(e, c) {
+      tick(e, c, en) {
         e.stateT -= c.dt;
         if (e.state === 'approach' && c.flat < p.range && e.grounded) { e.state = 'windup'; e.stateT = p.windup; }
         else if (e.state === 'windup') {
           c.speed = 0;
-          if (e.stateT <= 0) { e.state = 'dash'; e.stateT = p.time; e.dashDir.copy(c.flatDir); }
+          if (e.stateT <= 0) { e.state = 'dash'; e.stateT = p.time; e.dashDir.copy(c.flatDir); en.curlGo(e); }
         } else if (e.state === 'dash') {
           c.speed = p.speed * c.slow;
           c.dir.copy(e.dashDir);
@@ -97,7 +97,7 @@ export const ENEMY_WORDS = {
             c.speed = 0;
             e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
             if (e.stateT > p.windup * 0.5) target(e, c);
-            if (e.stateT <= 0) { e.state = 'leap'; e.stateT = p.time; e.leapK = 0; (e.leapFrom ||= new THREE.Vector3()).copy(e.pos); e.airborne = true; }
+            if (e.stateT <= 0) { e.state = 'leap'; e.stateT = p.time; e.leapK = 0; (e.leapFrom ||= new THREE.Vector3()).copy(e.pos); e.airborne = true; en.leapGo(e); }
           } else if (e.state === 'leap') {
             // a ballistic arc from where it crouched onto the marked spot (it flies itself: no walking, no gravity)
             c.speed = 0;
@@ -541,7 +541,7 @@ export const ENEMY_WORDS = {
           if (flat < p.range && e.whipCd <= 0 && live) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
         } else if (e.state === 'windup') {
           if (e.stateT > p.windup * 0.5) aim();
-          if (e.stateT <= 0) { e.state = 'lash'; e.stateT = 0.12; }
+          if (e.stateT <= 0) { e.state = 'lash'; e.stateT = 0.12; en.whipLash(e); }
         } else if (e.state === 'lash') {
           if (e.stateT <= 0) { e.state = 'down'; e.stateT = p.down; en.whip(e, c, p); }
         } else if (e.state === 'down') {
@@ -598,7 +598,7 @@ export const ENEMY_WORDS = {
           e.vel.multiplyScalar(Math.exp(-10 * c.dt));
           en.move(e, e.vel, c.dt * live);
           e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
-          if (e.stateT <= 0) { e.state = 'dive'; e.diveLeft = p.reach; e.diveDir.copy(c.toP).normalize(); }   // it aims where you are now, and doesn't turn again
+          if (e.stateT <= 0) { e.state = 'dive'; e.diveLeft = p.reach; e.diveDir.copy(c.toP).normalize(); en.diveGo(e); }   // it aims where you are now, and doesn't turn again
         } else if (e.state === 'dive') {
           if (!live) return;
           const step = Math.min(e.diveLeft, p.speed * c.dt);
@@ -688,7 +688,7 @@ export const ENEMY_WORDS = {
         e.vel.set(0, 0, 0);
         e.pos.copy((c.realFoot || c.foot));                 // wrapped round you, it goes where you go
         e.stateT -= c.dt;
-        if ((e.squeezeT -= c.dt) <= 0 && c.slow > 0) { e.squeezeT = 0.5; en.squeeze(e, p.slow, p.dmg * 0.5, 0.55); }
+        if ((e.squeezeT -= c.dt) <= 0 && c.slow > 0) { e.squeezeT = 0.5; en.squeeze(e, p.slow, p.dmg * 0.5, 0.55, p.color); }
         if (e.stateT <= 0) en.wither(e);
       },
     }),

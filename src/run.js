@@ -115,11 +115,11 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-      else this.hit(amount, from);          // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
+      else this.hit(amount, from, contact); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength }) => {
@@ -573,13 +573,13 @@ export class Run {
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // ant squads hit harder rolling
-        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id });
+        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true });
       }
     }
   }
 
   // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
-  hit(amount, from = null) {
+  hit(amount, from = null, contact = false) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
     const M = this.mods;
@@ -630,10 +630,10 @@ export class Run {
       const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
-    this.hurt(amount, false, from);
+    this.hurt(amount, false, from, contact);
   }
 
-  hurt(amount, silent = false, from = null) {
+  hurt(amount, silent = false, from = null, contact = false) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
     amount = this.energyShield.absorb(amount, silent);
@@ -648,6 +648,7 @@ export class Run {
       const away = attacker ? this.player.position.clone().sub(this.enemies.center(attacker)).setY(0) : new THREE.Vector3();
       if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
       bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: this.cfg.hitKnockback ?? 0.06 });
+      bus.emit('player_hurt', { amount, from, contact });   // the hit really landed: its attacker's feedback (enemies.js landed)
     }
     if (!silent) this.player.avatar?.land(1.5);
     // death-save: once per run, the last of your Health holds
