@@ -8,6 +8,9 @@
 // are retained; unscored elite attacks remain unscored (no new claim of play-speed verification).
 // v219: Box Jelly reuses the existing Lash rig with thicker, brighter tubes. Strike timing,
 // target feedback, venom and sound are retained; the existing sting score is unchanged.
+// v229: elite eligibility and fixed ground targets respect platforms. Departure cancels local
+// anticipation and restores the source pose; released travel/impact/aftermath retain their chain.
+// Phase scores stay unchanged; no new play-speed audio claim.
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
 import { CONTENT } from '../content.js';
