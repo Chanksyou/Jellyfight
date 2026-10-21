@@ -274,6 +274,8 @@ export class Enemies {
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
       if (!e || e.dead || e.proxy) return;
+      if(status==='mark'){this.treasureLooks?.stamp(this.center(e).add(new THREE.Vector3(0,e.r,0)),e.r);sfx.gadgetPaper();}
+      if(status==='pin'){this.treasureLooks?.stamp(this.center(e),e.r,true,e,duration);sfx.gadgetPin();}
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
       else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);

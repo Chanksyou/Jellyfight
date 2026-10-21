@@ -159,6 +159,7 @@ export class Player {
         this.avatar?.pulse?.();
       } else if (this.airJumps > 0 && !env.climb) {
         this.airJumps--;
+        this.onAirJump?.();
         this.velocity.y = Math.max(this.velocity.y, v * c.airJumpMul);
         this.swim = 0;                                   // a big squeeze of the bell
         this.avatar?.pulse?.();

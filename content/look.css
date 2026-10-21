@@ -2,6 +2,15 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --gadget-signal-bend: 0.006;
+  --gadget-tag-life: 0.25;
+  --gadget-pin-height: 0.014;
+  --gadget-fizz-prepare: 0.3;
+  --gadget-tags: 24;
+  --gadget-gold: #f5e7a7;
+  --gadget-signal: #a5e5ff;
+  --gadget-fizz: #b7ffe4;
+  --gadget-special-trail-gap: 0.1;
   --gadget-silver: #d3eaff;
   --gadget-cotton: #e8e5ff;
   --gadget-duck: #a8e9ce;

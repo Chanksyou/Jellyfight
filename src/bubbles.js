@@ -307,6 +307,10 @@ export class Bubbles {
     b.homing = true;
     m.scale.setScalar(0.001);
     this.list.push(b);
+    if(!o.tint&&(o.golden||o.big)){
+      const L=this.treasureLooks;if(L)L.arc(origin,b.r*(o.big?1.4:1.1),o.golden?L.gold:L.silver,.2);
+      sfx.gadgetBubble(o.big?'giant':'gold');
+    }
     if (o.tint === 'fire') {
       b.fireWeight = Math.min(1.6, Math.sqrt(o.size) * (1 + Math.max(0, (o.ep?.burn ?? 1) - 1) * 0.2 + Math.min(3, o.ep?.count ?? 0) * 0.12));
       this.looks.fireLaunch(origin, b.r); b.stopFireAudio = sfx.fireLaunch(b.fireWeight);
@@ -366,6 +370,10 @@ export class Bubbles {
         const grow = Math.min(1, b.t * 8);
         b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       }
+      if(!b.tint&&(b.big||b.golden)&&(b.signatureT=(b.signatureT??0)-dt)<=0){
+        b.signatureT=LOOK.num('gadget-special-trail-gap',.1);
+        const L=this.treasureLooks;if(L)L.arc(b.m.position,b.r*1.05,b.golden?L.gold:L.silver,.16);
+      }
       // touching an enemy?
       for (const e of E.list) {
         if (b.rebound && b.hit.size >= b.pierce) break;
@@ -415,6 +423,11 @@ export class Bubbles {
 
   // damage one enemy
   strike(b, e, mods) {
+    if(!b.tint&&b.pierce>1){
+      const L=this.treasureLooks,at=this.enemies.center(e);
+      L?.streak(at.clone().addScaledVector(b.vel,-.025),at.clone().addScaledVector(b.vel,.025),L.silver,.001,.16,'needle');
+      sfx.gadgetBubble('pierce');
+    }
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
     if (H.crit && Math.random() < H.crit.chance) {
@@ -593,7 +606,8 @@ export class Bubbles {
     const Z = mods.popZap;
     if (Z && Math.random() < Z.chance) {
       for (const e of this.inRange(p, Z.range, b.hit).slice(0, Z.count)) {
-        this.zap(p, E.center(e, c));
+        E.center(e,c);
+        if(this.treasureLooks){this.treasureLooks.signal(p,c,true);sfx.gadgetStatic();}else this.zap(p,c);
         bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Z.stun });
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }

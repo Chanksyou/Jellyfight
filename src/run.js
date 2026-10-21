@@ -77,6 +77,7 @@ export class Run {
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles.treasureLooks=this.gadgets.looks;
+    this.enemies.treasureLooks=this.gadgets.looks;
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
@@ -142,6 +143,7 @@ export class Run {
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.health);
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
+    this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     this.player.onLand = (drop) => {
       const M = this.mods;
       const L = M.landingShockwave;
@@ -658,6 +660,7 @@ export class Run {
       const P = this.player.position;
       this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.12, 0.6);
       this.fx.impact(P.clone().setY(P.y + this.cfg.height * 0.5), this.friendly, 0.05, 16);
+      this.gadgets.looks.snooze(P.clone().setY(P.y+.008));sfx.gadgetSnooze();this.player.avatar?.pulse(.6);
       this.hud.toast('⏰ Snooze! Back up with half your Health.', 2400);
       return;
     }

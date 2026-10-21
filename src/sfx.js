@@ -236,6 +236,21 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 export const sfx = {
+  gadgetBubble(kind){
+    if(!ready()||!gap('gadgetBubble-'+kind,100))return;const j=jitter(.08);
+    if(kind==='giant'){tone('sine',100*j,180*j,.18,.05);noise(700,1,.18,.025,'lowpass');}
+    else if(kind==='gold'){tone('sine',1400*j,2100*j,.16,.035);tone('triangle',2100*j,2800*j,.1,.018,.025);}
+    else{noise(4200*j,3,.025,.025,'highpass');tone('sine',1800*j,900*j,.04,.02);}
+  },
+  gadgetSpring(){if(!ready()||!gap('gadgetSpring',150))return;const j=jitter();tone('triangle',260*j,900*j,.14,.045);tone('sine',900*j,500*j,.12,.025,.06);},
+  gadgetFizz(){if(!ready()||!gap('gadgetFizz',150))return;const j=jitter();noise(4500*j,1,.3,.04,'highpass');tone('sine',180*j,80*j,.13,.045);},
+  gadgetRemote(){if(!ready()||!gap('gadgetRemote',90))return;const j=jitter();tone('square',1100*j,700*j,.035,.025);noise(3000*j,2,.07,.03,'bandpass');},
+  gadgetStatic(){if(!ready()||!gap('gadgetStatic',90))return;noise(6200*jitter(),4,.035,.04,'highpass');tone('triangle',1900,700,.06,.02);},
+  gadgetFairy(){if(!ready()||!gap('gadgetFairy',160))return;const j=jitter();tone('sine',1700*j,1500*j,.08,.018);tone('sine',2500*j,2300*j,.1,.008,.015);},
+  gadgetPaper(){if(!ready()||!gap('gadgetPaper',180))return;noise(3500*jitter(),2,.045,.018,'highpass');},
+  gadgetAura(){if(!ready()||!gap('gadgetAura',300))return;tone('sine',330*jitter(.04),300,.12,.012);},
+  gadgetPin(){if(!ready()||!gap('gadgetPin',120))return;const j=jitter();tone('triangle',1800*j,700*j,.045,.03);noise(2200*j,2,.025,.025);},
+  gadgetSnooze(){if(!ready()||!gap('gadgetSnooze',500))return;const j=jitter(.03);for(const [i,f]of [659,523,784].entries())tone('sine',f*j,f*j,.28,.055,i*.08);noise(1400,1,.15,.025,'bandpass');},
   gadgetBath(){
     if(!ready()||!gap('gadgetBath',140))return;const j=jitter(.08);
     tone('sine',170*j,480*j,.16,.06);noise(2200*j,1,.14,.025,'bandpass',0,4400);

@@ -22,6 +22,7 @@ import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
 import './stories/treasure-feel.js';
 import './stories/treasure-feel-more.js';
+import './stories/treasure-feel-twelve.js';
 import './stories/fire.js';
 import './stories/damage-numbers.js';
 import './stories/death-remains.js';
