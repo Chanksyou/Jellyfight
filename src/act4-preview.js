@@ -44,7 +44,7 @@ export async function startAct4Preview({scene,renderer,camera}){
   let overview=true,lit=false,paused=false;const shake=new THREE.Vector3();
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const touch=new TouchControls(input,{onPause:()=>{paused=!paused;}});touch.mount(document.body);input.touchOnly=IS_TOUCH;
-  function view(on){overview=on;healthEl.hidden=on&&!fighting;input.enabled=!on;touch.show(IS_TOUCH&&!on);panel.querySelector('[data-view]').textContent=on?'Walk arena':'Arena overview';panel.querySelector('[data-view]').setAttribute('aria-pressed',String(!on));if(on){document.exitPointerLock?.();camera.position.set(.35,1.12,1.46);camera.lookAt(0,.11,-.05);}else tpc.snapTo(player.position);}
+  function view(on){overview=on;showHealth();healthEl.hidden=on&&!fighting;input.enabled=!on;touch.show(IS_TOUCH&&!on);panel.querySelector('[data-view]').textContent=on?'Walk arena':'Arena overview';panel.querySelector('[data-view]').setAttribute('aria-pressed',String(!on));if(on){document.exitPointerLock?.();camera.position.set(.35,1.12,1.46);camera.lookAt(0,.11,-.05);}else tpc.snapTo(player.position);}
   panel.querySelector('[data-boss]').onclick=()=>{view(true);camera.position.set(.24,.44,-.03);camera.lookAt(0,.255,-.435);};
   panel.querySelector('[data-view]').onclick=()=>view(!overview);
   panel.querySelector('[data-tiles]').onclick=()=>{if(fighting)return;lit=!lit;arena.clearTiles();if(lit)for(let r=0;r<STAGE4.tiles;r++)for(let c=0;c<STAGE4.tiles;c++)if((r*7+c*3)%5<3)arena.setTile(r,c,['#0066ff','#9415ff','#ff6504'][(r+c)%3],.55);panel.querySelector('[data-tiles]').setAttribute('aria-pressed',String(lit));};
