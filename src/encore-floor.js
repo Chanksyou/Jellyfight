@@ -1,16 +1,18 @@
-// The Encore's floor patterns (act 4): shapes of hot tiles that travel across the concert floor one
-// step a beat, in time with its song, like notes coming down a rhythm game's lane. Each step of a
-// pattern is a set of tiles that goes off on its beat. Its Warning is those tiles glowing in the
-// Encore's colour for `lead` beats before, with a low volume rising out of them to the height the
-// hit reaches (docs/adr/0001); on the beat, anything of the jelly inside that volume (its feet below
-// --encore-floor-height) is hit. So: jump as it passes, or (an arc) step into its gap.
+// The Encore's floor patterns (act 4): shapes of hot tiles that sweep across the concert floor a
+// tile every third of a beat, in time with its song, like notes coming down a rhythm game's lane. Each step
+// of a pattern is a set of tiles that goes off in its turn, with a low volume over them to the
+// height the hit reaches; anything of the jelly inside it (its feet below --encore-floor-height) is
+// hit. There are no Warning tiles ahead of the wave, by the owner's call (docs/adr/0001): you watch
+// the wave come at you. The Encore's wind-up is its Warning: the pyramid (or a wing) lights over the
+// bar before, and the DJ whose wave it is throws an arm up and pumps it on the beat until it's done.
+// Each wave is that DJ's colour. So: jump as it passes, or (an arc) step into its gap.
 //
 //   ring   expands from the pyramid, a tile thick: jump it as it reaches you
 //   arc    a ring with a gap: jump it, or run to the gap
 //   arrow  a chevron crossing the floor (dir down, left or right): a volley of them is a run of jumps
 //
-// Time is in beats, read from the music (Music.beatNow) by whoever drives it, so the floor stays on
-// the speakers' beat; it never adds or removes a light, and redraws only the arena's tile colours.
+// Time is in beats, read from the music (beatNow) by whoever drives it, so the floor stays on the
+// speakers' beat; it never adds or removes a light, and redraws only the arena's tile colours.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { STAGE4 } from './stage4.js';
@@ -22,6 +24,9 @@ const BOSS = STAGE4.bossSpace;
 // Health one hit takes: heavy and few, like the Vacuum's charge. It moves to content/bosses.kdl with
 // the Encore's other numbers when the Encore joins the campaign.
 export const FLOOR_DMG = 4;
+// beats between a wave's steps: a tile every third of a beat (8th-note triplets)
+export const FLOOR_STEP = 1 / 3;
+export const DJS = ['silver', 'gold'];
 // the tiles a pattern can use: not under the boss's riser and reserved space
 const OPEN = [];
 for (let i = 0; i < N * N; i++) {
@@ -29,13 +34,26 @@ for (let i = 0; i < N * N; i++) {
   if (!(Math.abs(x - BOSS.center[0]) < BOSS.width / 2 && Math.abs(z - BOSS.center[2]) < BOSS.depth / 2)) OPEN.push(i);
 }
 
-// each pattern: its steps (step k goes off on beat k), and which part of the Encore lights up for it
+// each pattern: its steps (step k goes off FLOOR_STEP × k beats after it starts), and which part(s)
+// of the Encore light up for it
+const fromWing = (o) => ({ left: 'rightWing', right: 'leftWing' })[o.dir] || 'pyramid';
 export const PATTERNS = {
   ring: { part: 'pyramid', steps: (o) => rings(o) },
   arc: { part: 'pyramid', steps: (o) => rings({ gap: 0.9, ...o }) },
-  arrow: { part: (o) => ({ left: 'rightWing', right: 'leftWing' })[o.dir] || 'pyramid', steps: (o) => chevrons(o) },
+  arrow: { part: fromWing, steps: (o) => chevrons(o) },
+  sweep: { part: 'pyramid', steps: (o) => sweep(o) },
+  closing: { part: ['leftWing', 'rightWing'], steps: (o) => closing(o) },
+  gate: { part: fromWing, steps: (o) => gate(o) },
+  pincer: { part: ['leftWing', 'rightWing'], steps: () => pincer() },
 };
-// a ring a tile thick from the front of the pyramid, a tile further out each beat; `gap` (radians)
+// a tile's place along a wave's way (row for down, column for right, mirrored for left) and across it
+function axes(i, dir) {
+  const row = (i / N) | 0, col = i % N;
+  return dir === 'down' ? [row, col] : dir === 'right' ? [col, row] : [N - 1 - col, row];
+}
+// the first row in front of the boss's space: where a wave coming down starts
+const FRONT = Math.ceil((BOSS.center[2] + BOSS.depth / 2 + HALF) / S);
+// a ring a tile thick from the front of the pyramid, a tile further out each step; `gap` (radians)
 // leaves the tiles within gap/2 of `heading` (0 = straight down the floor, towards the jelly's start) cold
 function rings({ gap = 0, heading = 0 } = {}) {
   const ox = BOSS.center[0], oz = BOSS.center[2], r0 = BOSS.depth / 2 + S / 2, out = [];
@@ -51,57 +69,103 @@ function rings({ gap = 0, heading = 0 } = {}) {
     out.push(step);
   }
 }
-// a chevron, its tip leading, a row (or column) on each beat: two tiles of the tip, then the arms
+// a chevron, its tip leading, a row (or column) each step: two tiles of the tip, then the arms
 // sweeping back a tile for every tile across (a 45° V)
 function chevrons({ dir = 'down' } = {}) {
   // a down arrow starts with its tip on the first row in front of the boss's space
-  const out = [], first = dir === 'down' ? Math.ceil((BOSS.center[2] + BOSS.depth / 2 + HALF) / S) : 0;
-  for (let front = first; front < N + N / 2; front++) {
+  const out = [];
+  for (let front = dir === 'down' ? FRONT : 0; front < N + N / 2; front++) {
     const step = [];
-    for (const i of OPEN) {
-      const row = (i / N) | 0, col = i % N;
-      const [along, across] = dir === 'down' ? [row, col] : dir === 'right' ? [col, row] : [N - 1 - col, row];
-      if (along === front - Math.floor(Math.abs(across - (N - 1) / 2))) step.push(i);
-    }
+    for (const i of OPEN) { const [along, across] = axes(i, dir); if (along === front - Math.floor(Math.abs(across - (N - 1) / 2))) step.push(i); }
     if (step.length) out.push(step);
   }
   return out;
 }
+// a radar line from the pyramid swinging across the floor, `spin` 1 (left to right) or -1, an
+// angle a step: jump it as it swings over you
+function sweep({ spin = 1 } = {}) {
+  const ox = BOSS.center[0], oz = BOSS.center[2], reach = 1.45, d = 0.16, out = [];
+  for (let a = -reach; a < reach; a += d) {
+    const lo = spin > 0 ? a : -a - d, step = [];
+    for (const i of OPEN) {
+      const dx = tileX(i % N) - ox, dz = tileZ((i / N) | 0) - oz, t = Math.atan2(dx, dz);
+      if (t >= lo && t < lo + d) step.push(i);
+    }
+    out.push(step);
+  }
+  return out;
+}
+// a ring closing in on a spot (`on`: [x, z], where the jelly stood when it was cast), a tile nearer
+// each step, ending on it: you can't outrun it, so jump as it reaches you
+function closing({ on = [0, 0.3] } = {}) {
+  const out = [];
+  for (let r = 7 * S; r > -S / 2; r -= S) {
+    const step = [];
+    for (const i of OPEN) if (Math.abs(Math.hypot(tileX(i % N) - on[0], tileZ((i / N) | 0) - on[1]) - Math.max(0, r)) < S / 2) step.push(i);
+    out.push(step);                                       // kept even when empty, so it closes on time
+  }
+  return out;
+}
+// a wall right across the floor, a row a step, with a gap two tiles wide at `gap` (the first of the
+// two, across its way): run to the gap or jump it
+function gate({ dir = 'down', gap = 5 } = {}) {
+  const out = [];
+  for (let front = dir === 'down' ? FRONT : 0; front < N; front++) {
+    const step = [];
+    for (const i of OPEN) { const [along, across] = axes(i, dir); if (along === front && (across < gap || across > gap + 1)) step.push(i); }
+    if (step.length) out.push(step);
+  }
+  return out;
+}
+// two walls, one from each side, closing on the middle a column a step: jump one as it passes you
+function pincer() {
+  const out = [];
+  for (let k = 0; k < N / 2; k++) out.push(OPEN.filter((i) => i % N === k || i % N === N - 1 - k));
+  return out;
+}
 
 const _c = new THREE.Color(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+const PARTS = ['pyramid', 'leftWing', 'rightWing'];
 
 export class EncoreFloor {
-  // arena: buildAct4's; onHit(dmg, cast): the jelly was hit on the beat
+  // arena: buildAct4's; onHit(dmg, cast): the jelly was hit
   constructor(arena, { onHit = () => {} } = {}) {
     this.arena = arena; this.onHit = onHit;
-    this.color = LOOK.color('hostile-encore', '#ff1f5a');
-    this.hotColor = new THREE.Color(this.color).lerp(new THREE.Color('#ffffff'), LOOK.num('encore-floor-hot-white', 0.35));   // a tile going off: brighter, towards white, so the beat's tiles stand out from the Warning ahead
+    // each DJ's colour, and a tile going off in it: pushed towards white so the wave's edge reads
+    const white = new THREE.Color('#ffffff'), toWhite = LOOK.num('encore-floor-hot-white', 0.08);
+    this.colors = DJS.map((dj, i) => new THREE.Color(LOOK.color(`hostile-encore-${dj}`, ['#3d6bff', '#ffb01e'][i])));
+    this.hotColors = this.colors.map((c) => c.clone().lerp(white, toWhite));
+    this.tileGain = LOOK.num('encore-floor-glow', 1); this.volumeGain = LOOK.num('encore-volume-glow', 0.7);
     this.casts = [];
     this.beat = null;
-    this.warm = new Float32Array(N * N); this.hot = new Float32Array(N * N);
+    this.turn = 0;                                        // whose wave is next, when a cast doesn't say
+    this.hot = new Float32Array(N * N); this.who = new Uint8Array(N * N);
     this.lit = false;
-    // the volumes over the warned tiles: one instanced draw, unlit, no depth write, black (unseen) when idle
+    // the volumes over the hot tiles: one instanced draw, unlit, no depth write, black (unseen) when idle
     const geo = new THREE.BoxGeometry(S - 0.006, 1, S - 0.006).translate(0, 0.5, 0);
     const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: LOOK.num('encore-volume-opacity', 0.5), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     this.volumes = new THREE.InstancedMesh(geo, mat, N * N);
-    this.volumes.name = 'Encore floor Warning volumes';
+    this.volumes.name = 'Encore floor hit volumes';
     this.volumes.userData.noCollide = true;
     this.volumes.frustumCulled = false;
     for (let i = 0; i < N * N; i++) { this.place(i, 0); this.volumes.setColorAt(i, _c.set(0)); }
     arena.root.add(this.volumes);
   }
 
-  // play `name` with its first step going off on beat `at` (its Warning starts `lead` beats before)
+  // play `name` with its first step going off on beat `at`; opts.dj ('silver' | 'gold') is whose wave
+  // it is (else they take turns)
   cast(name, at, opts = {}) {
     const P = PATTERNS[name], o = { ...opts };
-    const cast = { name, at, steps: P.steps(o), part: typeof P.part === 'function' ? P.part(o) : P.part, dmg: o.dmg ?? FLOOR_DMG, hit: false, fired: -1 };
+    const dj = DJS.includes(o.dj) ? o.dj : DJS[this.turn++ % 2];
+    const cast = { name, at, dj, steps: P.steps(o), step: o.step ?? FLOOR_STEP, part: typeof P.part === 'function' ? P.part(o) : P.part, dmg: o.dmg ?? FLOOR_DMG, hit: false, fired: -1 };
     this.casts.push(cast);
     return cast;
   }
-  get lead() { return LOOK.num('encore-floor-lead', 2); }
+  // the beat step k of a cast goes off, and its last
+  stepAt(c, k) { return c.at + k * c.step; }
+  endOf(c) { return this.stepAt(c, c.steps.length - 1); }
   get busy() { return this.casts.length > 0; }
-  // the beat the last step of everything playing goes off
-  get endsAt() { return this.casts.reduce((m, c) => Math.max(m, c.at + c.steps.length - 1), -Infinity); }
+  get endsAt() { return this.casts.reduce((m, c) => Math.max(m, this.endOf(c)), -Infinity); }
 
   // beat: where the song is now; player: the jelly (its feet at player.position)
   update(beat, player) {
@@ -110,26 +174,29 @@ export class EncoreFloor {
     if (this.beat !== null && beat < this.beat) this.casts.length = 0;
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
-    const lead = this.lead, fade = LOOK.num('encore-floor-fade', 0.5), band = LOOK.num('encore-floor-height', 0.04);
-    this.warm.fill(0); this.hot.fill(0);
-    const boss = { pyramid: 0, leftWing: 0, rightWing: 0 };
+    const fade = LOOK.num('encore-floor-fade', 0.45), band = LOOK.num('encore-floor-height', 0.04);
+    this.hot.fill(0);
+    const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false };
     for (const c of this.casts) {
-      // steps whose beat has come: hit the jelly if it's in one (once a cast)
-      while (c.fired + 1 < c.steps.length && beat >= c.at + c.fired + 1) {
+      const who = DJS.indexOf(c.dj);
+      // steps whose time has come: hit the jelly if it's in one (once a cast)
+      while (c.fired + 1 < c.steps.length && beat >= this.stepAt(c, c.fired + 1)) {
         c.fired++;
         if (!skip && !c.hit && player && player.position.y < band && this.touches(c.steps[c.fired], player)) { c.hit = true; this.onHit(c.dmg, c); }
       }
-      for (let k = Math.max(0, c.fired - 1); k < c.steps.length; k++) {
-        const B = c.at + k;
-        if (beat < B - lead) break;
-        const w = beat < B ? (beat - (B - lead)) / lead : 0, h = beat >= B ? Math.max(0, 1 - (beat - B) / fade) : 0;
-        for (const i of c.steps[k]) { if (w > this.warm[i]) this.warm[i] = w; if (h > this.hot[i]) this.hot[i] = h; }
+      // the wave: steps gone off, held near full then falling away over `fade` beats, so its front stays solid
+      for (let k = Math.max(0, c.fired - Math.ceil(fade / c.step)); k <= c.fired; k++) {
+        const u = (beat - this.stepAt(c, k)) / fade, h = Math.max(0, 1 - u * u);
+        for (const i of c.steps[k]) if (h > this.hot[i]) { this.hot[i] = h; this.who[i] = who; }
       }
       // the Encore winds up for it: its part fills over the bar before, flashes on the first step, fades after
-      const u = beat - c.at;
-      boss[c.part] = Math.max(boss[c.part], u < -4 ? 0 : u < 0 ? (u + 4) / 4 * 0.6 : Math.max(0, 1 - u / 2));
+      const u = beat - c.at, b = u < -4 ? 0 : u < 0 ? (u + 4) / 4 * 0.6 : Math.max(0, 1 - u / 2);
+      for (const part of [].concat(c.part)) if (b > boss[part][0]) boss[part] = [b, who];
+      // and its DJ dances from the wind-up to the wave's end
+      if (u >= -4 && beat <= this.endOf(c) + fade) dancing[c.dj] = true;
     }
-    this.casts = this.casts.filter((c) => c.fired + 1 < c.steps.length || beat < c.at + c.steps.length - 1 + fade);
+    this.casts = this.casts.filter((c) => beat < this.endOf(c) + fade);
+    for (const dj of DJS) this.arena.boss.dance?.(dj, dancing[dj] ? beat : null);
     this.draw(band, boss);
   }
 
@@ -153,48 +220,80 @@ export class EncoreFloor {
     if (!any && !this.lit) return;
     const A = this.arena;
     for (let i = 0; i < N * N; i++) {
-      const w = this.warm[i], h = this.hot[i];
-      // the floor: a dim Warning that brightens as its beat nears, then the hot tile full on the beat
-      const warn = w > 0 ? 0.04 + 0.2 * w * w : 0, hot = h > warn;
-      A.setTile((i / N) | 0, i % N, hot ? this.hotColor : this.color, hot ? h : warn);
-      // the volume rises out of the tile to the hit's height as the beat nears, and is gone just after
-      this.place(i, w > 0 ? band * w : h > 0 ? band : 0);
-      if (hot) this.volumes.setColorAt(i, _c.copy(this.hotColor).multiplyScalar(h));
-      else this.volumes.setColorAt(i, _c.set(this.color).multiplyScalar(w > 0 ? 0.03 + 0.15 * w : 0));
+      const h = this.hot[i], c = this.hotColors[this.who[i]];
+      // the wave: a tile lit in its DJ's colour as it goes off, fading behind; its volume shows how high it hits
+      A.setTile((i / N) | 0, i % N, c, h * this.tileGain);
+      this.place(i, h > 0 ? band : 0);
+      this.volumes.setColorAt(i, _c.copy(c).multiplyScalar(h * this.volumeGain));
     }
     this.volumes.instanceMatrix.needsUpdate = true; this.volumes.instanceColor.needsUpdate = true;
-    for (const part of ['pyramid', 'leftWing', 'rightWing']) A.boss.setLighting(part, this.color, boss[part]);
+    for (const part of PARTS) A.boss.setLighting(part, this.colors[boss[part][1]], boss[part][0]);
     this.lit = any;
   }
 
-  // stop everything and put the floor and the Encore dark
-  reset() { this.casts.length = 0; this.lit = true; this.warm.fill(0); this.hot.fill(0); this.draw(0, { pyramid: 0, leftWing: 0, rightWing: 0 }); this.beat = null; }
+  // stop everything: the floor and the Encore dark, the DJs back on the decks
+  reset() {
+    this.casts.length = 0; this.lit = true; this.hot.fill(0);
+    this.draw(0, { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] });
+    for (const dj of DJS) this.arena.boss.dance?.(dj, null);
+    this.beat = null;
+  }
   dispose() { this.volumes.removeFromParent(); this.volumes.geometry.dispose(); this.volumes.material.dispose(); this.volumes.dispose(); }
 }
 
-// The set the Encore plays in the preview: 8 bars, then again. Each entry: [beat in the loop, pattern, opts].
-// The arrows four beats apart are three jumps in a row; the arc's gap moves each time round.
-export const SETLIST = [
-  [0, 'ring'],
-  [12, 'arrow', { dir: 'down' }], [16, 'arrow', { dir: 'down' }], [20, 'arrow', { dir: 'down' }],
-  [32, 'arc'],
-  [44, 'arrow', { dir: 'right' }], [48, 'arrow', { dir: 'left' }],
-];
-export const SET_BEATS = 64;
+// What the Encore plays: a wave every 4 beats (a jump hangs about 2.7, so that is as tight as it
+// goes), each one picked at random, never the same pattern twice running, with its direction, gap,
+// spin and DJ picked too; at a drop (the song's `drop(beat)`), two waves at once, one from each DJ.
+export const WAVE_GAP = 4;
+const DIRS = ['down', 'left', 'right'];
+const pick = (list, random) => list[Math.floor(random() * list.length) % list.length];
+// a wave's options, picked; `on` is where the jelly is (the closing ring closes on it)
+function options(name, random, on) {
+  const dir = pick(DIRS, random);
+  switch (name) {
+    case 'arc': return { heading: (random() - 0.5) * 1.6 };
+    case 'arrow': return { dir };
+    case 'sweep': return { spin: random() < 0.5 ? 1 : -1 };
+    case 'closing': return { on };
+    case 'gate': return { dir, gap: 1 + Math.floor(random() * (N - 3)) };
+    default: return {};
+  }
+}
+// an arrow or a gate from a wing is the DJ on that side (silver on the left)
+const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' : null);
 
-// Plays the SETLIST round and round from beat `from`, casting each pattern 6 beats ahead of its first
-// step (time for its Warning and the Encore's wind-up). After a jump in time it skips what was missed;
-// `quiet(beat)` true (the song's breakdown, its kick out) rests the floor: a pattern that would play
-// into it is left out.
+// Plays waves from beat `from`, casting each 6 beats ahead of its first step (time for the Encore's
+// wind-up). After a jump in time it skips what was missed. The song's `quiet(beat)` (its breakdown,
+// the kick out) rests the floor; its `drop(beat)` doubles the waves. `target()` is where the jelly is.
 export class EncoreSet {
-  constructor(floor, from, random = Math.random, quiet = () => false) { Object.assign(this, { floor, from, random, quiet }); this.next = 0; }
+  constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3] } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target });
+    this.next = 0; this.last = null; this.dj = 0;
+  }
   update(beat) {
     for (;;) {
-      const loop = Math.floor(this.next / SETLIST.length), [b, name, opts = {}] = SETLIST[this.next % SETLIST.length];
-      const at = this.from + loop * SET_BEATS + b;
+      const at = this.from + this.next * WAVE_GAP;
       if (beat < at - 6) return;
-      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.floor.cast(name, at, name === 'arc' ? { heading: (this.random() - 0.5) * 1.6, ...opts } : opts);
+      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.wave(at, this.drop(at) ? 2 : 1);
       this.next++;
     }
+  }
+  // `count` waves on beat `at`, different patterns. Two at once are one from each DJ: a wave from a
+  // wing is that side's DJ, so the other wave is turned away from that wing.
+  wave(at, count) {
+    const names = Object.keys(PATTERNS), waves = [];
+    for (let n = 0; n < count; n++) {
+      const name = pick(names.filter((x) => x !== this.last && !waves.some((w) => w.name === x)), this.random);
+      waves.push({ name, o: options(name, this.random, this.target()) });
+    }
+    const [a, b] = waves;
+    if (b) {
+      if (sideDj(a.o) && sideDj(b.o)) b.o.dir = 'down';              // not both from the same (or opposite) wings
+      const first = sideDj(a.o) ?? (sideDj(b.o) === 'silver' ? 'gold' : 'silver');
+      a.o.dj = first; b.o.dj = first === 'silver' ? 'gold' : 'silver';
+      if (sideDj(b.o) && sideDj(b.o) !== b.o.dj) b.o.dir = 'down';
+    } else a.o.dj = sideDj(a.o) ?? ['silver', 'gold'][this.dj++ % 2];
+    for (const w of waves) this.floor.cast(w.name, at, w.o);
+    this.last = waves[waves.length - 1].name;
   }
 }

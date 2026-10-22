@@ -4,10 +4,11 @@
 //
 // The owner's supplied track for the Encore (assets/audio/README.md). Measured from the file: 128 BPM,
 // its first beat 0.052 s in, 159 whole bars before the end; the kick drops out for bars 75 to 79 (the
-// breakdown), where the floor rests. It starts (and loops back to) `start` beats in, skipping the intro;
-// bars stay counted from the file's first beat.
+// breakdown), where the floor rests; bars 32 to 39 are its drop (64 beats into the fight), where the
+// waves come two at a time. It starts (and loops back to) `start` beats in, skipping the intro; bars
+// stay counted from the file's first beat.
 export const TRACKS = {
-  encore: { url: './assets/audio/encore-around-the-world.mp3', bpm: 128, offset: 0.052, bars: 159, start: 64, quiet: [75, 76, 77, 78, 79] },
+  encore: { url: './assets/audio/encore-around-the-world.mp3', bpm: 128, offset: 0.052, bars: 159, start: 64, quiet: [75, 76, 77, 78, 79], drop: [32, 33, 34, 35, 36, 37, 38, 39] },
 };
 
 export class SongTrack {
@@ -37,6 +38,10 @@ export class SongTrack {
   duck(on) { if (on === this.ducked) return; this.ducked = on; if (this.src) this.out.gain.setTargetAtTime(on ? this.volume * 0.3 : this.volume, this.ctx.currentTime, 0.2); }
   // beats since it started playing, as the speakers play it; counts on across loops (null until it plays)
   beatNow() { if (!this.src) return null; const c = this.ctx; return (c.currentTime - (c.outputLatency || 0) - (c.baseLatency || 0) - this.t0) * this.bpm / 60; }
+  // the file's bar at this beat (counting on across loops)
+  bar(beat) { const L = this.loopBeats; return Math.floor(((this.track.start || 0) + (((beat % L) + L) % L)) / 4); }
   // is the kick out at this beat (a breakdown): the floor rests
-  quiet(beat) { const L = this.loopBeats, bar = Math.floor(((this.track.start || 0) + (((beat % L) + L) % L)) / 4); return this.track.quiet.includes(bar); }
+  quiet(beat) { return this.track.quiet.includes(this.bar(beat)); }
+  // is this beat in a drop: the waves come two at a time
+  drop(beat) { return !!this.track.drop?.includes(this.bar(beat)); }
 }

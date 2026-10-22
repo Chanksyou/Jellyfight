@@ -349,12 +349,16 @@
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
-  --hostile-encore: #ff1f5a;     /* the Encore's floor patterns and its wind-up lights (act 4): hot pink-red, apart from the arena's amber footlights and cool blue */
-  --encore-floor-lead: 2;        /* beats a tile glows (its Warning) before it goes off */
-  --encore-floor-fade: 0.5;      /* beats a tile stays lit after */
+  --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
+  --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
+  --encore-floor-fade: 0.45;     /* beats a tile stays lit after it goes off (held, then falling away): the wave's trail */
   --encore-floor-height: 0.04;   /* m: how high a hot tile hits; the jelly's feet must be above it (a jump clears it for about 1.1 s) */
   --encore-volume-opacity: 0.5;
-  --encore-floor-hot-white: 0.35; /* how far a tile going off is pushed towards white */
+  --encore-floor-glow: 1;        /* a hot tile's glow, and its volume's: strong enough that the DJ's colour beats the blue-grey floor */
+  --encore-volume-glow: 0.7;
+  --encore-floor-hot-white: 0.08; /* how far a tile going off is pushed towards white (a touch: the DJ colour must read) */
+  --encore-dance-raise: 1.35;    /* radians a DJ throws his outer arm up while his wave plays */
+  --encore-dance-pump: 0.32;     /* and how far it pumps, down on every beat */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
   --beetle-fire: #ffd060;        /* the yellow heart of the fireball when its ball explodes, round the orange */
