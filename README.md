@@ -4,7 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v246 gives room chest options base chances of 60% Common / 30% Rare / 8% Epic / 2% Legendary, and elite chest options 40% / 40% / 15% / 5%. These are per option at 0 Luck, normalized if a rarity has no eligible treasure left. There is no forced minimum rarity; unopened chests use a neutral gold glow. Every third chest still offers an owned Element upgrade using its chest weights among eligible upgrade rarities. New Elements remain starting/boss rewards; ordinary Legendary treasures can now appear in either chest source.
+v247 gives room chest options base chances of 60% Common / 30% Rare / 8% Epic / 2% Legendary, and elite chest options 40% / 40% / 15% / 5%. These are per option at 0 Luck, normalized if a rarity has no eligible treasure left. There is no forced minimum rarity; unopened chests use a neutral gold glow. Every third chest still offers an owned Element upgrade using its chest weights among eligible upgrade rarities. New Elements remain starting/boss rewards; ordinary Legendary treasures can now appear in either chest source.
+
+v246 makes the leaderboard big and easy to read (larger rows and scores, on phones too) and puts each player's own customized jelly in a round picture by their name, drawn from the look they posted with their score (`src/jelly-portrait.js`: each look is drawn once, off screen, and kept). Old scores without a look get a jelly of their species.
 
 v245 makes the Encore call 2 beetles at a time instead of 4, and makes its force field much easier to see: brighter, with big hex cells, and wrapped round the whole booth instead of half hidden inside it. See [the arena note](docs/act4-arena.md).
 

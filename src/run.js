@@ -1215,7 +1215,7 @@ export class Run {
     this.endView = 'board';
     const draw = () => {
       if (this.endView !== 'board') return;
-      this.ui.message('🏆 Leaderboard', B.note(), B.table(), [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }]);
+      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace), [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }], 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)

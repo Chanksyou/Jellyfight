@@ -47,6 +47,13 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-stats { margin: 4px auto 0; display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; opacity: .9; }
 .jf-stats b { text-align: right; }
 .jf-stats small { font-weight: 600; opacity: .75; }
+/* the leaderboard: big rows, each player's own jelly by their name */
+.jf-board .jf-stats { font-size: 22px; gap: 10px 36px; min-width: min(560px, 90vw); }
+.jf-board .jf-stats > span { display: flex; align-items: center; gap: 12px; }
+.jf-board .jf-stats > b { align-self: center; font-size: 24px; }
+.jf-board .jf-rank { font-style: normal; min-width: 1.6em; }
+.jf-board .jf-jelly { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 0 0 2px #ffffff30, 0 4px 14px #0008; flex: none; }
+.jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .jf-score { font-size: 1.5em; color: #ffd23a; }
 .jf-name { font: 600 15px system-ui, sans-serif; width: 11em; max-width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; text-align: right; }
 .jf-name::placeholder { color: #ffffff80; }
@@ -75,6 +82,9 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
   .jf-modal .btns { margin-top: 10px; }
   .jf-modal .btns small { display: none; }
   .jf-stats { font-size: 13px; }
+  .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
+  .jf-board .jf-stats > b { font-size: 17px; }
+  .jf-board .jf-jelly { width: 40px; height: 40px; }
   .jf-pop { top: 12%; padding: 8px 12px; }
   .jf-pop .ic { font-size: 28px; }
   .jf-pop b { font-size: 14px; }
@@ -215,9 +225,10 @@ export class UI {
   }
 
   // rows: [[label, value]], buttons: [{ label, go, onClick }]
-  message(title, sub, rows, buttons) {
+  // cls: a class for this dialog (the leaderboard's 'jf-board' lays its rows out big)
+  message(title, sub, rows, buttons, cls = '') {
     this._gen++;
-    this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
+    this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2><p class="sub">${sub}</p>
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`).join('')}</div></div>`;
     this.modal.hidden = false;
