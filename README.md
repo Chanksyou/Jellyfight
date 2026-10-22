@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v248 gives the Encore fight much more juice. At half Health its booth shorts out in a cut scene: the game holds and the camera cuts in on the booth as sparks spray out of it, smoke rises and its panels flicker and fail red, with one big blow-out. From then on it keeps sparking, its panels pulse red on the beat, and its disco ball comes down for good, wheeling and striking every 4 beats. Its booth now flashes white and jolts when you hit it, the DJs nod and the booth pumps on every beat, its force field grows in as the beetles arrive and shatters when the last one dies, and each of its hits flashes at the jelly in that attack's colour. Lighter hits: the club lasers take 2 Health and the floor waves 3 (the disco spots and the stage edge stay at 4). See [the arena note](docs/act4-arena.md).
+
 v247 gives room chest options base chances of 60% Common / 30% Rare / 8% Epic / 2% Legendary, and elite chest options 40% / 40% / 15% / 5%. These are per option at 0 Luck, normalized if a rarity has no eligible treasure left. There is no forced minimum rarity; unopened chests use a neutral gold glow. Every third chest still offers an owned Element upgrade using its chest weights among eligible upgrade rarities. New Elements remain starting/boss rewards; ordinary Legendary treasures can now appear in either chest source.
 
 v246 makes the leaderboard big and easy to read (larger rows and scores, on phones too) and puts each player's own customized jelly in a round picture by their name, drawn from the look they posted with their score (`src/jelly-portrait.js`: each look is drawn once, off screen, and kept). Old scores without a look get a jelly of their species.

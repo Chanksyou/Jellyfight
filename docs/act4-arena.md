@@ -375,3 +375,27 @@ like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading ap
 Its attacks are on the attack list (`EVERY_ATTACK[4]`) and the scoreboard, unscored until a feel
 pass. Stories `act4/*`: the fight starts straight away, the beetles and force field, winning, and
 the attack list. The act 3 story `act3/beating-the-pothos-goes-on-to-act-4` covers the way in.
+
+## Juice and the meltdown (v248)
+
+- **Lighter hits.** `LASER_DMG` 2 and `FLOOR_DMG` 3 (the owner's call; disco spots and the stage
+  edge stay at 4). Each Encore hit on the jelly flashes at it (`fx.impact`) in that attack's colour.
+- **The booth reacts.** A hit flashes its panels white and squashes it a touch. On every beat the
+  DJs nod and the booth pumps.
+- **The force field** grows in over the booth as the beetles land, and shatters in cyan shards (a
+  ring and `juice.feel('impact')`) when the last beetle dies.
+- **The meltdown** (`encore.js` `meltdown`, at `boss "encore" meltdown at=` or half Health). The set
+  stops and the boss sets `cut` ({ t, length, from, to, look }). `main.js` holds gameplay, hides the HUD
+  and eases the camera from `from` to `to` looking at the booth, after the follow camera's update.
+  - **The scene** (`--encore-meltdown-time` 3.4 s, 1.2 s with reduced effects): sparks burst from the
+    pyramid's face faster and faster. Each burst is a flash, glowing streaks that fall and skip off the
+    floor (`Sparks`: one pooled additive instanced draw, no lights) and a puff of smoke.
+  - **Panels and DJs:** the panels stutter red with white surges, the booth shakes and the DJs' heads
+    jolt. Two thirds in comes one big blow-out (`juice.feel('elite-kill')`).
+  - **No damage lands on it** during the scene.
+  - **After:** it keeps sparking every second or two, its panels pulse `--encore-broken` red on the
+    beat between floor waves, and the disco ball stays down (`EncoreDisco.stay`). It strikes every 4
+    beats, swinging one way then back, with fresh spots every 8 beats.
+
+Story: `act4/at-half-health-its-booth-shorts-out`.
+
