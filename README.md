@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v238 makes the Encore's floor waves twice as fast (a tile every half beat) with no Warning tiles ahead of them: you watch the wave come. Each wave is one DJ's colour (the silver DJ's electric blue, the gold DJ's gold), and that DJ throws an arm up and pumps it on the beat while it plays. See [the arena note](docs/act4-arena.md).
+
 v237 gives the Encore its first attacks in the Act 4 preview (Dev → Act 4 preview → **Fight: floor patterns**): the floor lights up in rings, arcs and arrows that travel a tile a beat to Westend's edit of "Around the World" (128 BPM, the owner's pick; an original synthesized track if it can't load), and you jump them on the beat or run to an arc's gap. Each hit takes 4 Health. See [the arena note](docs/act4-arena.md).
 
 v236 finishes the enemy feel pass: every Elite, Boss and bug attack is now scored on the attack-feel scoreboard (none left to do). Each one has a release mark, the attacker reacting, something at the point of contact, a fading leftover and varied sound, through `juice.feel` and pooled effects. A bug hit that lands now squashes the bug, splashes jelly off you and plays a wet slap. Readability: a bug hit flashes white at most every 0.2 s (`--hit-flash-gap`), a soft ring under the jelly shows where you are in a crowd (`--crowd-ring`), and toasts sit on a dark pill. Damage, timings, ranges, Warnings and cooldowns are unchanged.

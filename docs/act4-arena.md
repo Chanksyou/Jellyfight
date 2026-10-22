@@ -134,28 +134,36 @@ submission averaged about 0.52 ms for both viewports; this is not a physical pho
 measurement. Targeted arena/model stories: 11 passed; guards passed. Full-suite and
 GitHub results are recorded on the PR.
 
-## Floor patterns (v237)
+## Floor patterns (v237, v238)
 
-The Encore's first attack family: the floor lights up in shapes that travel across it one step a
-beat, in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
+The Encore's first attack family: the floor lights up in shapes that sweep across it a tile every
+half beat, in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
 holds the patterns, the floor that plays them and the preview's setlist.
 
-- **ring** expands from the front of the pyramid a tile a beat, one tile thick: jump it as it reaches you.
+- **ring** expands from the front of the pyramid, one tile thick: jump it as it reaches you.
 - **arc** is a ring with a gap (52°, its heading varies): jump it or run to the gap.
-- **arrow** is a 45° chevron, tip first, crossing the floor down, left or right a row a beat. The
-  setlist's three arrows four beats apart are three jumps in a row.
+- **arrow** is a 45° chevron, tip first, crossing the floor down, left or right. The setlist's three
+  arrows four beats apart are three jumps in a row.
 
-Each step goes off on its beat. Its Warning starts 2 beats before (`--encore-floor-lead`): the tiles
-glow dimly in `--hostile-encore` and a low volume rises out of them to the height the hit reaches
-(`--encore-floor-height`, 4 cm). On the beat the tiles flash bright, pushed towards white so the
-beat's line stands out from the Warning ahead, and anything of the jelly inside the volume (its feet
-below 4 cm, its footprint over a hot tile) is hit once a pattern for 4 Health (heavy, few hits; it
-moves to `content/bosses.kdl` when the Encore joins the campaign). The pyramid, or the wing an arrow
-comes from, fills over the bar before a pattern and flashes as it starts.
+**Whose wave.** Each wave belongs to one DJ and is his colour: the silver DJ's electric blue
+(`--hostile-encore-silver`, his helmet's blue piping made hot) or the gold DJ's gold
+(`--hostile-encore-gold`). An arrow from a wing is the DJ on that side (silver on the left). From the
+bar before his wave until it's done, that DJ throws his outer arm up and pumps it, down on every
+beat (`boss.dance(who, beat)` in `src/encore-model.js`: the outer arm is its own part, pivoting at
+the shoulder), and the pyramid, or the wing an arrow comes from, fills in his colour and flashes as
+the wave starts.
 
-**Why every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 128 BPM a beat
-is 0.47 s, so the jelly can't jump every beat: a hit beat every 4 leaves time to land and get set,
-and a jump pressed up to about 2 beats early still clears it. Patterns are written in beats; the
+**No Warning tiles** (the owner's call, recorded in `docs/adr/0001`): you watch the wave come. A tile
+lights in its DJ's colour the moment its step goes off, held near full and then falling away over
+0.6 beats (`--encore-floor-fade`), the wave's trail. While lit, a low volume over it shows the height
+it hits (`--encore-floor-height`, 4 cm). The jelly is hit when a step goes off with its feet below
+4 cm and its footprint over one of the step's tiles, once a wave, for 4 Health (heavy, few hits; it
+moves to `content/bosses.kdl` when the Encore joins the campaign).
+
+**Why waves every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 128 BPM
+a beat is 0.47 s, so a jump hangs about 2.7 beats: a new wave every 4 beats leaves time to land and
+get set. A wave crosses a tile in half a beat, so the jump only has to be in the air as it passes;
+one pressed up to about 2 beats early still clears it. Patterns are written in beats; the
 floor takes its time from what is playing (`beatNow()`: the audio clock less the output latency), so
 it stays on the speakers' beat. Going back in time drops what was playing; going forward more than a
 beat (a pause, a long frame) passes the missed steps without hitting.
@@ -174,16 +182,18 @@ round) with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` 
 silences it) and a pop up off the floor, and Health fills back up at 0. **Stop the fight** ends it.
 
 **Cost.** No light is added. The tiles are the arena's existing instanced colours; the volumes are
-one more instanced draw (144 boxes, unlit, additive, no depth write) that is black when idle.
+one more instanced draw (144 boxes, unlit, additive, no depth write) that is black when idle. The two
+dancing arms are their own parts, a few more merged draws in the model's budget.
 
-**Feel audit (code, not yet watched at play speed): 5/9.** Anticipation, release, travel, target
-reaction (the pop) and camera reaction are there. Missing: an impact at the contact point (the
+**Feel audit (code, not yet watched at play speed): 5/9.** Anticipation (the wind-up and the DJ's
+arm), release, travel (the wave itself), target reaction (the pop) and the attacker and camera
+reacting (the pumping DJ, the shake) are there. Missing: an impact at the contact point (the
 preview has no fx pools), aftermath, a damage number, and a layered hit sound. They come with the
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (10 new): the ring's travel and thickness, a standing jelly hit on the beat only,
+Stories `encore/*` (11): the ring's travel and thickness, a standing jelly hit on the beat only,
 a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
-and its three-jump run, the Warning rising to the beat with no light added, hitches and jumps in
+and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, hitches and jumps in
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
 fallback song scheduling.

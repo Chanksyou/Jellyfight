@@ -6,7 +6,7 @@ import { LOOK } from './look.js';
 
 export function buildEncoreBoss(){
   const root=new THREE.Group();root.name='The Encore · pyramid and helmeted duo';root.userData.noCollide=true;
-  const geometries=new Set(),materials=new Set(),textures=new Set(),groups=new Map(),heads=[],hands=[];
+  const geometries=new Set(),materials=new Set(),textures=new Set(),groups=new Map(),heads=[],hands=[],dancers=[];
   const geo=g=>(geometries.add(g),g),mat=m=>(materials.add(m),m);
   const blue=LOOK.color('encore-blue','#9bbaff'),amber=LOOK.color('encore-amber','#ff8c25');
   const suit=mat(new THREE.MeshStandardMaterial({color:LOOK.color('encore-suit','#151c2a'),roughness:.64,metalness:.12}));
@@ -179,14 +179,18 @@ export function buildEncoreBoss(){
       const chin=[];for(let i=0;i<=20;i++){const x=-.018+i*.0018,z=.003+.022*Math.sqrt(1-(x/.023)**2-.25**2);chin.push([x,-.022,z+.0005]);}path(chin,.0006,color,head);
       path([[0,.035,-.012],[0,.037,0],[0,.03,.02]],.00065,metal,head);
     }
-    // Two bent arms finish in articulated gloves poised over the controls.
+    // Two bent arms finish in articulated gloves poised over the controls. The outer arm is its own
+    // part, pivoting at the shoulder, so it can be thrown up and pumped on the beat (dance).
     for(const arm of [-1,1]){
-      const shoulder=[arm*.04,.227,.008],elbow=[arm*.055,.218,.035],wrist=[arm*.034,.214,.09];
-      put(ball,leather,shoulder,[.014,.015,.014],[0,0,0],body);bar(shoulder,elbow,.012,suit,body);put(ball,leather,elbow,[.013,.011,.012],[0,0,0],body);bar(elbow,wrist,.0105,suit,body);
-      path([[arm*.05,.219,.028],[arm*.054,.207,.042],[arm*.038,.195,.078]],.0005,seam,body);
-      for(let fold=0;fold<3;fold++)path([[arm*.047,.211-fold*.003,.043+fold*.006],[arm*.056,.212-fold*.003,.047+fold*.006],[arm*.06,.208-fold*.003,.049+fold*.006]],.00045,leather,body);
-      put(cylinder,steel,wrist,[.011,.004,.011],[Math.PI/2,0,0],body);
-      const hand=new THREE.Group();hand.name='Gloved hand';hand.position.fromArray(wrist);body.add(hand);hands.push({hand,phase:side+arm});
+      const shoulder=[arm*.04,.227,.008],outer=arm===side;
+      const part=outer?new THREE.Group():body;if(outer){part.name='Dancing arm';part.position.fromArray(shoulder);body.add(part);dancers.push({arm:part,side,raise:0,beat:null});}
+      const at=p=>outer?[p[0]-shoulder[0],p[1]-shoulder[1],p[2]-shoulder[2]]:p;
+      const S=at(shoulder),elbow=at([arm*.055,.218,.035]),wrist=at([arm*.034,.214,.09]);
+      put(ball,leather,S,[.014,.015,.014],[0,0,0],part);bar(S,elbow,.012,suit,part);put(ball,leather,elbow,[.013,.011,.012],[0,0,0],part);bar(elbow,wrist,.0105,suit,part);
+      path([[arm*.05,.219,.028],[arm*.054,.207,.042],[arm*.038,.195,.078]].map(at),.0005,seam,part);
+      for(let fold=0;fold<3;fold++)path([[arm*.047,.211-fold*.003,.043+fold*.006],[arm*.056,.212-fold*.003,.047+fold*.006],[arm*.06,.208-fold*.003,.049+fold*.006]].map(at),.00045,leather,part);
+      put(cylinder,steel,wrist,[.011,.004,.011],[Math.PI/2,0,0],part);
+      const hand=new THREE.Group();hand.name='Gloved hand';hand.position.fromArray(wrist);part.add(hand);hands.push({hand,phase:side+arm});
       put(ball,leather,[0,-.001,.008],[.009,.005,.012],[0,0,0],hand);
       for(let finger=0;finger<4;finger++){
         const x=(finger-1.5)*.004,z=.017+(finger===1?.003:0);bar([x,-.001,.009],[x,-.004,z],.0016,leather,hand);bar([x,-.004,z],[x,-.006,z+.005],.0014,leather,hand);
@@ -222,7 +226,13 @@ export function buildEncoreBoss(){
     paint(litPanels[index],color,strength);return true;
   }
   let time=0;
-  return {root,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),
-    update(dt,quiet=false){time+=dt;for(const {head,side}of heads){head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07);head.rotation.x=quiet?0:.04+Math.sin(time*.9+side)*.025;}for(const {hand,phase}of hands)hand.rotation.x=quiet?0:Math.sin(time*1.6+phase)*.045;},
+  // The DJ move: dance('silver' | 'gold', beat) each frame throws that performer's outer arm up and
+  // pumps it, down on every beat; dance(who, null) lets it ease back to the decks.
+  const dancer=who=>dancers.find(d=>d.side===(who==='silver'?-1:who==='gold'?1:0));
+  const raised=LOOK.num('encore-dance-raise',1.35),pump=LOOK.num('encore-dance-pump',.32);
+  return {root,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),arms:dancers.map(d=>d.arm),
+    dance(who,beat){const d=dancer(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
+    update(dt,quiet=false){time+=dt;for(const {head,side}of heads){head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07);head.rotation.x=quiet?0:.04+Math.sin(time*.9+side)*.025;}for(const {hand,phase}of hands)hand.rotation.x=quiet?0:Math.sin(time*1.6+phase)*.045;
+      for(const d of dancers){d.raise+=((d.beat===null?0:1)-d.raise)*Math.min(1,dt*8);const bob=d.beat===null||quiet?0:-Math.cos(d.beat*Math.PI*2);d.arm.rotation.x=-d.raise*(raised+pump*bob);d.arm.rotation.z=d.side*.25*d.raise;}},
     dispose(){root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }
