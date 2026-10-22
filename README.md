@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v240 adds the Encore's disco ball: every 8 bars, from 32 bars in, a mirror ball drops over the floor for 8 beats and throws 32 light spots that wheel round for 3 beats, stop and flash on the 4th, then strike where they stopped. Twice, then it rises away. Step off a spot or jump it. See [the arena note](docs/act4-arena.md).
+
 v239 rigs the Encore's arena with club lasers: an emitter on each corner post fires a fan of green beams, a laser plane, down to a line through where you stand. A thin line flashes faintly on the floor for 2 beats where it will land, then it fires and sweeps 10 cm to one side: get well clear of the line, or jump it far from its corner. One fires every 4 beats, alongside the floor waves. See [the arena note](docs/act4-arena.md).
 
 v238 makes the Encore's floor waves three times as fast (a tile every third of a beat), a new wave every 4 beats with no rests between, picked at random and never the same twice running, and no Warning tiles ahead of them: you watch the wave come. Four new waves join the ring, arc and arrow: a sweep, a closing ring, a gate with a gap and a pincer. At the track's drop, 64 beats in, two waves come at once. Each wave is one DJ's colour (the silver DJ's electric blue, the gold DJ's gold), and that DJ throws an arm up and pumps it on the beat while it plays. See [the arena note](docs/act4-arena.md).

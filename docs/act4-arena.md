@@ -205,7 +205,7 @@ preview has no fx pools), aftermath, a damage number, and a layered hit sound. T
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (18): the ring's travel and thickness, a standing jelly hit on the beat only,
+Stories `encore/*` (20): the ring's travel and thickness, a standing jelly hit on the beat only,
 a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
 and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, the four newer shapes and how they hit, the random picking, the drop's pairs, hitches and jumps in
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
@@ -231,3 +231,22 @@ to a random side.
   nothing at the far end, so far from the corner a jump clears it; near it, it can't.
 
 Two pooled planes and bands, four emitters: a few unlit draws, no light added.
+
+## Disco ball (v240)
+
+`src/encore-disco.js`: every 8 bars, from 32 bars into the fight (beat 128), a big mirror ball
+(`--encore-disco-radius`, 24 cm across, about three jellies tall) drops on its rod from above the
+arena over the beat before and hangs over the floor (`--encore-disco-hang`) for 8 beats, then rises
+away. It throws 32 light spots across the open floor, each on its own beam from the ball.
+
+Twice, 4 beats each:
+- for 3 beats the spots wheel round as the ball turns (`--encore-disco-spin`), warm white and harmless;
+- on the 4th they stop and flash fast between white and hot magenta (`--hostile-encore-disco`): the
+  Warning, where they will strike;
+- as that beat ends they strike (`sfx.encoreDisco`): a jelly standing on one, its feet below the
+  floor's hit height (4 cm), takes 4 Health, once a strike. Step off the spot, or jump.
+
+The second 4 beats turn the other way. Spots are scattered afresh for each show, always where they
+stop on open floor, so all 32 are there to strike. The song's breakdown skips a show. The floor waves
+and lasers carry on through it. The ball, rod, beams and spots are four draws (beams and spots
+instanced), no light added.
