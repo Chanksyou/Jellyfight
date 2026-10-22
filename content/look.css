@@ -351,7 +351,7 @@
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
-  --encore-floor-fade: 0.6;      /* beats a tile stays lit after it goes off (held, then falling away): the wave's trail */
+  --encore-floor-fade: 0.45;     /* beats a tile stays lit after it goes off (held, then falling away): the wave's trail */
   --encore-floor-height: 0.04;   /* m: how high a hot tile hits; the jelly's feet must be above it (a jump clears it for about 1.1 s) */
   --encore-volume-opacity: 0.5;
   --encore-floor-glow: 1;        /* a hot tile's glow, and its volume's: strong enough that the DJ's colour beats the blue-grey floor */

@@ -137,7 +137,7 @@ GitHub results are recorded on the PR.
 ## Floor patterns (v237, v238)
 
 The Encore's first attack family: the floor lights up in shapes that sweep across it a tile every
-half beat, in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
+third of a beat (8th-note triplets), in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
 holds the patterns, the floor that plays them and the preview's setlist.
 
 - **ring** expands from the front of the pyramid, one tile thick: jump it as it reaches you.
@@ -155,14 +155,15 @@ the wave starts.
 
 **No Warning tiles** (the owner's call, recorded in `docs/adr/0001`): you watch the wave come. A tile
 lights in its DJ's colour the moment its step goes off, held near full and then falling away over
-0.6 beats (`--encore-floor-fade`), the wave's trail. While lit, a low volume over it shows the height
+0.45 beats (`--encore-floor-fade`), the wave's trail. While lit, a low volume over it shows the height
 it hits (`--encore-floor-height`, 4 cm). The jelly is hit when a step goes off with its feet below
 4 cm and its footprint over one of the step's tiles, once a wave, for 4 Health (heavy, few hits; it
 moves to `content/bosses.kdl` when the Encore joins the campaign).
 
 **Why waves every 4 beats.** A jump lasts about 1.26 s and clears 4 cm for about 1.1 s. At 128 BPM
-a beat is 0.47 s, so a jump hangs about 2.7 beats: a new wave every 4 beats leaves time to land and
-get set. A wave crosses a tile in half a beat, so the jump only has to be in the air as it passes;
+a beat is 0.47 s, so a jump hangs about 2.7 beats: a new wave every 4 beats, with no rests between,
+leaves just time to land and get set. Waves can overlap on the floor (a side arrow takes 6 beats to
+cross), but any one spot gets about 4 beats between them. A wave crosses a tile in a third of a beat, so the jump only has to be in the air as it passes;
 one pressed up to about 2 beats early still clears it. Patterns are written in beats; the
 floor takes its time from what is playing (`beatNow()`: the audio clock less the output latency), so
 it stays on the speakers' beat. Going back in time drops what was playing; going forward more than a
@@ -177,7 +178,7 @@ breakdown (bars 75 to 79, the kick out): the setlist leaves out any pattern that
 it. If the file can't load, the preview plays `SONGS.encore` in `src/music.js` instead: an original
 French-house track at 121 BPM (Dm9, Bbmaj7, F, C6; a new `stab` voice for its chopped chords).
 
-**In the preview.** **Fight: floor patterns** starts the track and the setlist (8 bars, round and
+**In the preview.** **Fight: floor patterns** starts the track and the setlist (8 waves in 8 bars, round and
 round) with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` shake (Reduce effects
 silences it) and a pop up off the floor, and Health fills back up at 0. **Stop the fight** ends it.
 

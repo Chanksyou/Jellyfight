@@ -1,6 +1,6 @@
 // The Encore's floor patterns (act 4): shapes of hot tiles that sweep across the concert floor a
-// tile every half beat, in time with its song, like notes coming down a rhythm game's lane. Each step
-// of a pattern is a set of tiles that goes off on its half beat, with a low volume over them to the
+// tile every third of a beat, in time with its song, like notes coming down a rhythm game's lane. Each step
+// of a pattern is a set of tiles that goes off in its turn, with a low volume over them to the
 // height the hit reaches; anything of the jelly inside it (its feet below --encore-floor-height) is
 // hit. There are no Warning tiles ahead of the wave, by the owner's call (docs/adr/0001): you watch
 // the wave come at you. The Encore's wind-up is its Warning: the pyramid (or a wing) lights over the
@@ -24,8 +24,8 @@ const BOSS = STAGE4.bossSpace;
 // Health one hit takes: heavy and few, like the Vacuum's charge. It moves to content/bosses.kdl with
 // the Encore's other numbers when the Encore joins the campaign.
 export const FLOOR_DMG = 4;
-// beats between a wave's steps: a tile every half beat (8th notes)
-export const FLOOR_STEP = 0.5;
+// beats between a wave's steps: a tile every third of a beat (8th-note triplets)
+export const FLOOR_STEP = 1 / 3;
 export const DJS = ['silver', 'gold'];
 // the tiles a pattern can use: not under the boss's riser and reserved space
 const OPEN = [];
@@ -123,7 +123,7 @@ export class EncoreFloor {
     if (this.beat !== null && beat < this.beat) this.casts.length = 0;
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
-    const fade = LOOK.num('encore-floor-fade', 0.6), band = LOOK.num('encore-floor-height', 0.04);
+    const fade = LOOK.num('encore-floor-fade', 0.45), band = LOOK.num('encore-floor-height', 0.04);
     this.hot.fill(0);
     const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false };
     for (const c of this.casts) {
@@ -190,16 +190,18 @@ export class EncoreFloor {
   dispose() { this.volumes.removeFromParent(); this.volumes.geometry.dispose(); this.volumes.material.dispose(); this.volumes.dispose(); }
 }
 
-// The set the Encore plays in the preview: 8 bars, then again. Each entry: [beat in the loop, pattern, opts].
-// The arrows four beats apart are three jumps in a row; the arc's gap moves each time round.
-// Whose wave each is alternates; an arrow from a wing is the DJ on that side (silver on the left).
+// The set the Encore plays in the preview: a wave every 4 beats (a jump hangs about 2.7, so that is
+// as tight as it goes), 8 bars, then again. Each entry: [beat in the loop, pattern, opts]. The three
+// arrows down are three jumps in a row; the arcs' gaps move each time round. Whose wave each is
+// alternates; an arrow from a wing is the DJ on that side (silver on the left).
 export const SETLIST = [
   [0, 'ring', { dj: 'silver' }],
-  [12, 'arrow', { dir: 'down', dj: 'gold' }], [16, 'arrow', { dir: 'down', dj: 'silver' }], [20, 'arrow', { dir: 'down', dj: 'gold' }],
-  [32, 'arc', { dj: 'silver' }],
-  [44, 'arrow', { dir: 'right', dj: 'silver' }], [48, 'arrow', { dir: 'left', dj: 'gold' }],
+  [4, 'arrow', { dir: 'down', dj: 'gold' }], [8, 'arrow', { dir: 'down', dj: 'silver' }], [12, 'arrow', { dir: 'down', dj: 'gold' }],
+  [16, 'arc', { dj: 'silver' }],
+  [20, 'arrow', { dir: 'right', dj: 'silver' }], [24, 'arrow', { dir: 'left', dj: 'gold' }],
+  [28, 'arc', { dj: 'gold' }],
 ];
-export const SET_BEATS = 64;
+export const SET_BEATS = 32;
 
 // Plays the SETLIST round and round from beat `from`, casting each pattern 6 beats ahead of its first
 // step (time for the Encore's wind-up). After a jump in time it skips what was missed;

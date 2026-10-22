@@ -27,7 +27,7 @@ function play(floor, player, from, to, each) { for (let b = from; b <= to; b += 
 const at = (i) => [tileX(i % N), tileZ((i / N) | 0)];
 
 story('encore/ring-travels-a-tile-a-beat', {
-  about: 'The ring leaves the front of the pyramid and moves out a tile every half beat, one tile thick, so each tile goes off once.',
+  about: 'The ring leaves the front of the pyramid and moves out a tile every third of a beat, one tile thick, so each tile goes off once.',
   setup() {},
   play() {
     const steps = PATTERNS.ring.steps({}), r0 = BOSS.depth / 2 + S / 2, seen = new Map();
@@ -43,7 +43,7 @@ story('encore/ring-travels-a-tile-a-beat', {
 });
 
 story('encore/a-standing-jelly-is-hit-on-the-beat', {
-  about: 'A jelly standing on a tile of the ring\'s 4th step is hit when that step goes off (1.5 beats in, a step every half beat), not before, once, for the floor\'s heavy damage.',
+  about: 'A jelly standing on a tile of the ring\'s 4th step is hit when that step goes off (a beat in, a step every third of a beat), not before, once, for the floor\'s heavy damage.',
   setup() {},
   play() {
     const T = make();
@@ -52,12 +52,13 @@ story('encore/a-standing-jelly-is-hit-on-the-beat', {
       const tile = T.floor.casts[0].steps[3][Math.floor(T.floor.casts[0].steps[3].length / 2)];
       play(T.floor, standing(...at(tile)), -3, 8);
       const h = T.hits[0];
-      return ok(FLOOR_STEP === 0.5 && T.hits.length === 1 && h.beat >= 1.5 && h.beat < 1.5 + 0.05 && h.dmg === FLOOR_DMG, { hits: T.hits });
+      const due = 3 * FLOOR_STEP;
+      return ok(Math.abs(FLOOR_STEP - 1 / 3) < 1e-9 && T.hits.length === 1 && h.beat >= due && h.beat < due + 0.05 && h.dmg === FLOOR_DMG, { hits: T.hits });
     } finally { T.done(); }
   },
 });
 
-// a real jelly on the arena floor, on a tile the ring's 5th step reaches (2 beats in); it jumps
+// a real jelly on the arena floor, on a tile the ring's 5th step reaches; it jumps
 // `early` beats before then (null: it never jumps)
 function jumpTheRing(early) {
   const T = make();
@@ -103,7 +104,7 @@ story('encore/the-arc-gap-is-safe-to-stand-in', {
 });
 
 story('encore/arrows-four-beats-apart-are-a-run-of-jumps', {
-  about: 'A chevron leads with its tip and crosses the floor a row every half beat. The setlist\'s three arrows four beats apart each hit a jelly that stands still: three jumps in a row.',
+  about: 'A chevron leads with its tip and crosses the floor a row every third of a beat. The setlist\'s three arrows down, four beats apart, each hit a jelly that stands still: three jumps in a row.',
   setup() {},
   play() {
     const T = make();
@@ -112,7 +113,7 @@ story('encore/arrows-four-beats-apart-are-a-run-of-jumps', {
       const rows = (cols) => mid.filter((i) => cols.includes(i % N)).map((i) => (i / N) | 0);
       const tipLeads = Math.min(...rows([5, 6])) > Math.max(...rows([0, 11]));
       const set = new EncoreSet(T.floor, 0, () => 0.5);
-      play(T.floor, standing(tileX(5), tileZ(9)), -8, 30, (b) => set.update(b));
+      play(T.floor, standing(tileX(5), tileZ(9)), -8, 17.5, (b) => set.update(b));   // to the end of the third arrow down
       const arrows = T.hits.filter((h) => h.name === 'arrow').length;
       return ok(tipLeads && arrows === 3, { tipLeads, hits: T.hits.map((h) => `${h.name}@${h.beat.toFixed(2)}`) });
     } finally { T.done(); }
@@ -120,7 +121,7 @@ story('encore/arrows-four-beats-apart-are-a-run-of-jumps', {
 });
 
 story('encore/the-wave-has-no-warning-and-is-its-djs-colour', {
-  about: 'By the owner\'s call there are no Warning tiles: a tile stays dark until its step goes off, then lights in its DJ\'s colour (the silver DJ\'s electric blue, the gold DJ\'s gold) with its volume at the hit\'s height, both gone 0.6 beats after. The pyramid lights in that colour over the bar before. No light is added.',
+  about: 'By the owner\'s call there are no Warning tiles: a tile stays dark until its step goes off, then lights in its DJ\'s colour (the silver DJ\'s electric blue, the gold DJ\'s gold) with its volume at the hit\'s height, both gone just under half a beat after. The pyramid lights in that colour over the bar before. No light is added.',
   setup() {},
   play() {
     const T = make();
@@ -130,7 +131,7 @@ story('encore/the-wave-has-no-warning-and-is-its-djs-colour', {
       const c = new THREE.Color(), m = new THREE.Matrix4(), pos = V(0, 0, 0), q = new THREE.Quaternion(), sc = V(0, 0, 0), panels = T.arena.root.getObjectByName('Encore attack lighting').geometry.attributes.color;
       let now = 2;
       const look = (b) => { for (; now < b; now = Math.min(b, now + 0.05)) T.floor.update(now, null); T.floor.update(b, null); T.arena.tiles.getColorAt(i, c); T.floor.volumes.getMatrixAt(i, m); m.decompose(pos, q, sc); return { r: c.r, g: c.g, b: c.b, height: sc.y, pyramid: [panels.getX(0), panels.getY(0), panels.getZ(0)] }; };
-      const windup = look(4), before = look(due - 0.05), on = look(due), after = look(due + 0.65);
+      const windup = look(4), before = look(due - 0.05), on = look(due), after = look(due + 0.5);
       const band = LOOK.num('encore-floor-height', 0.04), blue = (v) => v.b > v.r && v.b > 0.3;
       const dark = before.r + before.g + before.b === 0 && before.height < 1e-3;
       const lit = blue(on) && Math.abs(on.height - band) < 1e-6 && after.r + after.g + after.b === 0 && after.height < 1e-3;
@@ -177,8 +178,8 @@ story('encore/a-jump-in-time-drops-patterns-instead-of-firing-them', {
       const burst = T.hits.length - before;
       play(T.floor, spot, 40, 60, (b) => set.update(b));
       // a 1.2 s hitch in the middle of a ring keeps the ring: its later steps still go off
-      T.floor.reset(); T.floor.cast('ring', 70); play(T.floor, null, 66, 71);
-      T.floor.update(73.4, null); const kept = T.floor.casts.length === 1 && T.floor.casts[0].fired === 6;
+      T.floor.reset(); const ring = T.floor.cast('ring', 70); play(T.floor, null, 66, 70.5);
+      T.floor.update(71.9, null); const kept = T.floor.casts.length === 1 && ring.fired === Math.floor(1.9 / FLOOR_STEP + 1e-9);
       return ok(burst === 0 && kept && T.floor.casts.length + T.hits.length > before, { before, burst, kept, after: T.hits.length });
     } finally { T.done(); }
   },
