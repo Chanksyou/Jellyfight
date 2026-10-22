@@ -570,7 +570,7 @@ export class Bubbles {
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
       if (b.tint && b.tint !== 'wind') {   // each element lands its own way (ice: its shards skip off the floor under it)
-        const floor = b.tint === 'ice' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
+        const floor = b.tint === 'ice' || b.tint === 'acid' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
         this.looks.contact(b.tint, p, b.r, floor); sfx.elementHit(b.tint);
       }
       else if (!b.elems.has('wind')) sfx.pop(b.big);
