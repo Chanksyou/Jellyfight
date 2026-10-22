@@ -10,6 +10,7 @@ import { Music, SONGS } from '../music.js';
 import { SongTrack, TRACKS } from '../song-track.js';
 import { EncoreLasers, CORNERS, LASER_DMG } from '../encore-laser.js';
 import { EncoreDisco, DISCO, DISCO_DMG } from '../encore-disco.js';
+import { EncorePulses, PULSE, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
 import { story, ok, V } from './kit.js';
 
@@ -417,6 +418,49 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
       let after = 0; T.arena.root.traverse((o) => { if (o.isLight) after++; });
       const strikes = on.n === 1 && on.dmg === DISCO_DMG && on.at >= 132 && on.at < 132.1 && beside.n === 0 && jumping.n === 0;
       return ok(moves && stops && flashes && reverse && strikes && lights === after, { moves, stops, colours: [...colours], reverse, on, beside, jumping });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/speakers-fire-a-pulse-each-beat-from-bar-16-in-turn', {
+  about: 'From bar 16 of the fight (beat 64), one corner speaker fires a white sound ring on every beat, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor. None before bar 16, none in the breakdown.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), arena = buildAct4(scene), P = new EncorePulses(arena, { quiet: (b) => b >= 80 && b < 84 });
+    try {
+      const seen = [];
+      for (let b = 50; b <= 90; b += 1 / 30) { P.update(b, null); for (const p of P.live) if (!seen.includes(p)) seen.push(p); }
+      const first = seen[0]?.at === PULSE.first, every = seen.every((p, k) => k === 0 || p.at - seen[k - 1].at === (seen[k - 1].at === 79 ? 5 : 1));
+      const turns = seen.every((p) => p.from === ((p.at - PULSE.first) % 4)), rest = !seen.some((p) => p.at >= 80 && p.at < 84);
+      const mid = P.at(seen[0], 0.5, new THREE.Vector3()), [ax, az] = SPEAKERS[seen[0].from], [bx, bz] = SPEAKERS[(seen[0].from + 2) % 4];
+      const across = Math.abs(mid.y - 0.06) < 1e-9 && Math.abs(mid.x - (ax + bx) / 2) < 1e-9 && Math.abs(mid.z - (az + bz) / 2) < 1e-9;
+      return ok(first && every && turns && rest && across, { first: seen[0]?.at, count: seen.length, every, turns, rest, across });
+    } finally { P.dispose(); arena.dispose(); }
+  },
+});
+
+story('encore/a-speaker-pulse-shoves-the-jelly-5-cm-and-does-no-damage', {
+  about: 'A sound ring rolling through a real jelly standing in its path shoves it 5 cm the way it is going (slid over a moment, not a jump), once, and does no damage (it has no hit at all); a jelly jumping as it passes is not moved.',
+  setup() {},
+  play() {
+    const T = make();
+    try {
+      const run = (jump) => {
+        const p = new Player(T.world, CONFIG.player); T.scene.add(p.mesh);
+        const P = new EncorePulses(T.arena, { push: (dx, dz) => { p.moveHorizontal(dx, dz); p.syncMesh(); } });
+        const [ax, az] = SPEAKERS[0], [bx, bz] = SPEAKERS[2], spot = V(ax + (bx - ax) * 0.35, 0.01, az + (bz - az) * 0.35);
+        p.spawn(spot); p.snapToGround(); T.world.focus(p.position, 1);
+        const start = p.position.clone(); let j = false;
+        const input = { moveAxes: () => ({ x: 0, y: 0 }), consumeJump: () => { const k = j; j = false; return k; }, jumpHeld: false };
+        let jumped = false;
+        for (let b = 63; b <= 66.5; b += DT * BPM / 60) { if (jump && !jumped && b >= 64.2) { j = jumped = true; } T.world.focus(p.position, DT); p.update(DT, input, 0); P.update(b, p, DT); }
+        const moved = V(p.position.x - start.x, 0, p.position.z - start.z), dir = V(bx - ax, 0, bz - az).normalize();
+        P.dispose(); T.scene.remove(p.mesh);
+        return { along: +moved.dot(dir).toFixed(4), side: +Math.abs(moved.x * dir.z - moved.z * dir.x).toFixed(4) };
+      };
+      const shoved = run(false), jumping = run(true);
+      const push = LOOK.num('encore-pulse-push', 0.05);
+      return ok(Math.abs(shoved.along - push) < 0.006 && shoved.side < 0.004 && Math.abs(jumping.along) < 0.004, { shoved, jumping, push });
     } finally { T.done(); }
   },
 });

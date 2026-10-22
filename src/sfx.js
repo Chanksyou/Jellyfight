@@ -408,6 +408,8 @@ export const sfx = {
     noise(450*j,1,.28,.13,'lowpass');
     for (let i=0;i<4;i++) noise((1700+i*500)*j,2,.07,.035,'bandpass',.08+i*.055);
   },
+  // an Encore speaker pulse shoving the jelly (act 4): a soft sub whomp with an airy rush
+  encorePulse() { if (!ready() || !gap('encorePulse', 120)) return; const j = jitter(0.08); tone('sine', 120 * j, 45 * j, 0.22, 0.09); noise(900 * j, 0.7, 0.2, 0.04, 'lowpass', 0, 300); },
   // the Encore's disco ball spots striking (act 4): a glassy shimmer over a hard snap
   encoreDisco() { if (!ready() || !gap('encoreDisco', 120)) return; const j = jitter(0.06); for (let k = 0; k < 4; k++) tone('triangle', (1800 + k * 420) * j, (1700 + k * 400) * j, 0.22, 0.018, k * 0.012); noise(3200 * j, 0.9, 0.08, 0.05, 'bandpass'); tone('square', 180 * j, 70 * j, 0.09, 0.05); },
   // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it

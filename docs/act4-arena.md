@@ -205,7 +205,7 @@ preview has no fx pools), aftermath, a damage number, and a layered hit sound. T
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (20): the ring's travel and thickness, a standing jelly hit on the beat only,
+Stories `encore/*` (22): the ring's travel and thickness, a standing jelly hit on the beat only,
 a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
 and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, the four newer shapes and how they hit, the random picking, the drop's pairs, hitches and jumps in
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
@@ -335,3 +335,13 @@ The second 4 beats turn the other way. Spots are scattered afresh for each show,
 stop on open floor, so all 32 are there to strike. The song's breakdown skips a show. The floor waves
 and lasers carry on through it. The ball (tiles, grout, glints), rod, beams and spots are six draws (beams and spots
 instanced), no light added.
+
+## Speaker pulses (v242)
+
+`src/encore-pulse.js`: from bar 16 of the fight (beat 64), on every beat one corner speaker fires a
+white sound ring (`--encore-pulse`, 6 cm, `--encore-pulse-radius`), the four stacks taking turns
+round the arena. It drops from the speaker to jelly height and rolls across the floor to the opposite
+corner's speaker in 2 beats (`--encore-pulse-travel`), three fading echoes trailing it. It does no
+damage: a jelly it rolls through is shoved 5 cm (`--encore-pulse-push`) the way it is going, slid
+over 0.15 s with the jelly's own collision, once a pulse, with a soft whomp (`sfx.encorePulse`).
+Jump it to stay put. The song's breakdown quiets it. Every ring in flight is one instanced draw.
