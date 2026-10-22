@@ -72,3 +72,20 @@ story('encore/contact-resources-stay-bounded-and-dispose',{
  setup(){},
  play(){const {arena,scene}=make();const contact=new EncoreContact(scene,arena.shockSolids);try{const p={position:V(0,0,-.189),cfg:CONFIG.player},array=contact.positions.array;let nodes=0;contact.root.traverse(()=>nodes++);for(let i=0;i<2000;i++)contact.update(1/60,p);let after=0;contact.root.traverse(()=>after++);let disposed=0;for(const r of [contact.geometry,contact.material,contact.flashGeometry,contact.flashMaterial,contact.edgeGeometry,contact.edgeMaterial])r.addEventListener('dispose',()=>disposed++);contact.dispose();return ok(nodes===after&&array===contact.positions.array&&disposed===6&&contact.root.parent===null,{nodes,after,disposed});}finally{arena.dispose();}},
 });
+
+story('arena4/ambient-pulse-follows-absolute-music-beat',{
+ setup(){},
+ play(){const {arena}=make();try{const lights=[];arena.root.traverse(o=>{if(o.isLight)lights.push(o);});const base=lights.map(l=>l.intensity);const peak=arena.updateAmbience(4),lit=lights.map(l=>l.intensity),tail=arena.updateAmbience(4.5),ordinary=arena.updateAmbience(5),repeat=arena.updateAmbience(8);arena.updateAmbience();const reset=lights.every((l,i)=>l.intensity===base[i]);return ok(peak===1&&tail<.1&&ordinary===.75&&repeat===peak&&lit.every((v,i)=>v>base[i])&&reset,{peak,tail,ordinary,repeat,base,lit,reset});}finally{arena.dispose();}},
+});
+story('arena4/ambient-quiet-breakdown-and-no-song-stay-steady',{
+ setup(){},
+ play(){const {arena}=make();try{const fill=[];arena.root.traverse(o=>{if(o.isLight)fill.push(o);});const base=fill.map(l=>l.intensity);const quiet=[arena.updateAmbience(4,true),arena.updateAmbience(4.5,true),arena.updateAmbience(5,true)].every(v=>v===0);const rest=arena.updateAmbience(4,false,true)===0;const invalid=[null,NaN,Infinity,-.1].every(b=>arena.updateAmbience(b)===0);return ok(quiet&&rest&&invalid&&fill.every((l,i)=>l.intensity===base[i]),{quiet,rest,invalid});}finally{arena.dispose();}},
+});
+story('arena4/ambient-keeps-hazard-colours-and-resources-stable',{
+ setup(){},
+ play(){const {arena}=make();try{arena.setTile(4,5,'#3d6bff');arena.boss.setLighting('leftWing','#ff5935');const tile=arena.tiles.instanceColor.array.slice(),panels=arena.boss.root.getObjectByName('Encore attack lighting').geometry.attributes.color.array.slice(),nodes=[];arena.root.traverse(o=>nodes.push([o,o.geometry,o.material]));for(let i=0;i<2000;i++)arena.updateAmbience(i/60);const after=[];arena.root.traverse(o=>after.push(o));const same=nodes.length===after.length&&nodes.every(([o,g,m],i)=>o===after[i]&&g===o.geometry&&m===o.material),unchanged=tile.every((v,i)=>v===arena.tiles.instanceColor.array[i])&&panels.every((v,i)=>v===arena.boss.root.getObjectByName('Encore attack lighting').geometry.attributes.color.array[i]);return ok(same&&unchanged&&after.filter(o=>o.isLight).length===2,{same,unchanged,lights:after.filter(o=>o.isLight).length});}finally{arena.dispose();}},
+});
+story('arena4/speaker-cabinets-drivers-grilles-and-cleanup',{
+ setup(){},
+ play(){const {arena}=make();const names=['Speaker cabinets','Speaker baffles','Speaker drivers','Speaker surrounds','Speaker grilles','Speaker blue trim','Speaker amber trim'],meshes=names.map(n=>arena.root.getObjectByName('Arena '+n));try{const present=meshes.every(Boolean),cabinets=meshes[0].geometry.attributes.position.count===20*24,drivers=meshes[2].geometry.attributes.position.count>40*50,grille=meshes[4].material.map;let released=0;grille.addEventListener('dispose',()=>released++);const materials=meshes.map(m=>m.material);materials.forEach(m=>m.addEventListener('dispose',()=>released++));arena.dispose();return ok(present&&cabinets&&drivers&&released===8,{present,cabinets,drivers,released});}catch(e){arena.dispose();throw e;}},
+});
