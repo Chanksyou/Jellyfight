@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v240 pulses the Act 4 overhead beams, perimeter spill, speaker trim and existing fill/key lights to the playing track’s beat. The blue-white/amber ambience fades smoothly, rests during breakdowns, and stays steady under reduced motion. The four speaker stacks now have clearer five-cabinet silhouettes, recessed twin drivers, perforated grilles, metal surrounds and side handles. No extra lights or combat changes.
+
 v239 makes the Encore booth, sloped pyramid and side wings solid. Its energized stage edge warns before contact; touching it deals 4 Health at most once per second, with local lightning, a brief jelly glow, recoil, layered electrical sound and a damage receipt. This works in Walk arena and the floor-pattern fight; overview stays safe. Reset/fight restart clears the effect.
 
 v238 makes the Encore's floor waves three times as fast (a tile every third of a beat), a new wave every 4 beats with no rests between, picked at random and never the same twice running, and no Warning tiles ahead of them: you watch the wave come. Four new waves join the ring, arc and arrow: a sweep, a closing ring, a gate with a gap and a pincer. At the track's drop, 64 beats in, two waves come at once. Each wave is one DJ's colour (the silver DJ's electric blue, the gold DJ's gold), and that DJ throws an arm up and pumps it on the beat while it plays. See [the arena note](docs/act4-arena.md).
