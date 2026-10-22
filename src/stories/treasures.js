@@ -101,43 +101,28 @@ story('treasures/element-up', {
   },
 });
 story('treasures/rarity-by-source', {
-  about: 'A chest that turns up in the room offers Common and Rare treasures; one a beaten Elite leaves offers Rare and Epic; neither ever offers a Legendary. Luck still favours the rarer of the two.',
+  about: 'At 0 Luck, ordinary room options roll 60/30/8/2 and elite options 40/40/15/5 across Common/Rare/Epic/Legendary. Luck still lifts rarer tiers.',
   setup() { setupFight({ lash: false }); },
   play() {
-    const { run } = G();
-    const seen = { room: {}, elite: {} };
-    let src = 'room';
-    stub(run.ui, 'choose', (t, s, list) => { for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; });
-    for (src of ['room', 'elite']) for (let i = 0; i < 300; i++) run.pickTreasure('', '', src);
-    // luck: the rarer tier's share of the room's picks goes up
-    // Compare luck with the same random draws, so sampling noise cannot reverse its effect.
-    const rareShare = (luck) => { stub(Math, 'random', seededRandom(41023)); run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) run.pickTreasure('', '', 'room'); return seen.room.rare / (seen.room.rare + seen.room.common); };
-    const plain = rareShare(0), lucky = rareShare(100);
-    run.stats.luck = 0;
-    restore();
-    const R = seen.elite, rooms = Object.keys(seen.room), elites = Object.keys(R);
-    return ok(rooms.every((r) => r === 'common' || r === 'rare') && elites.every((r) => r === 'rare' || r === 'epic') && R.rare > 0 && R.epic > 0 && lucky > plain * 1.2,   // the chest's promise already guarantees a Rare per room pick, so luck's lift starts from that floor
-      { elite: R, plain: +plain.toFixed(2), lucky: +lucky.toFixed(2) });
+    const { run } = G(), seen = { room: {}, elite: {} };let src = 'room';
+    stub(run, 'offer', (t, s, list) => { for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; });
+    run.stats.luck = 0;stub(Math, 'random', seededRandom(41023));
+    for (src of ['room', 'elite']) for (let i = 0; i < 1600; i++) { run.chestsOpened = 0; run.pickTreasure('', '', src); }
+    const rates = { room: { ...seen.room }, elite: { ...seen.elite } }, expected = { room: { common: .6, rare: .3, epic: .08, legendary: .02 }, elite: { common: .4, rare: .4, epic: .15, legendary: .05 } };
+    const matches = Object.entries(expected).every(([source, tiers]) => Object.entries(tiers).every(([tier, share]) => rates[source][tier] > 0 && Math.abs(rates[source][tier] / 4800 - share) < .025));
+    const rareShare = (luck) => { stub(Math, 'random', seededRandom(41023)); run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) { run.chestsOpened = 0; run.pickTreasure('', '', 'room'); } return seen.room.rare / (seen.room.rare + seen.room.common); };
+    const plain = rareShare(0), lucky = rareShare(100);run.stats.luck = 0;restore();
+    return ok(matches && lucky > plain * 1.2, { rates, matches, plain, lucky });
   },
 });
-story('treasures/the-pick-keeps-the-chests-promise', {
-  about: 'A chest\'s glow promises the best rarity its pick holds, and the pick keeps it: every room pick holds a Rare and every Elite pick an Epic, even when the plain roll would have come up short.',
+story('treasures/chest-rolls-have-no-minimum-rarity', {
+  about: 'Either source can offer three Common treasures; no old Rare/Epic guarantee replaces the final option.',
   setup() { setupFight({ lash: false }); },
   play() {
-    const { run } = G();
-    let list = [];
-    stub(run.ui, 'choose', (t, s, l) => { list = l; });
-    let kept = true;
-    for (let i = 0; i < 40 && kept; i++) {
-      run.chestsOpened = 1;                       // never the every-3rd-chest Element upgrade pick
-      run.pickTreasure('', '', 'room');
-      kept = list.some((c) => c.rarity === 'rare');
-      run.chestsOpened = 1;
-      run.pickTreasure('', '', 'elite');
-      kept = kept && list.some((c) => c.rarity === 'epic');
-    }
-    restore();
-    return ok(kept, { kept });
+    const { run } = G();let list = [];const allCommon = {};
+    stub(run, 'offer', (t, s, l) => { list = l; });stub(Math, 'random', seededRandom(125833));run.stats.luck = 0;
+    for (const source of ['room', 'elite']) for (let i = 0; i < 200; i++) {run.chestsOpened = 0;run.pickTreasure('', '', source);allCommon[source] ||= list.length === 3 && list.every(c => c.rarity === 'common');}
+    restore();return ok(allCommon.room && allCommon.elite, { allCommon });
   },
 });
 story('treasures/pick-screen-order-and-rarity', {
