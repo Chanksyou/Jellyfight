@@ -25,7 +25,7 @@ import { EncorePulses } from './encore-pulse.js';
 import { EncoreContact } from './encore-contact.js';
 
 // what it does, for the attack audit (src/stories/kit.js EVERY_ATTACK)
-export const ATTACKS = ['floor', 'laser', 'pulse', 'disco', 'contact', 'beetles'];
+export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact', 'beetles'], angry: [] };
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17];
 

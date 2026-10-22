@@ -1063,13 +1063,14 @@ export class Run {
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
       this.boss = makeBoss(B, this.scene, this.enemies, this.fx, this.world, { arena: this.arena, song: this.song, toughness: this.stage.toughness });
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
-      // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame) turns
-      // you to face it, and the camera eases into that view for the fight
-      if (this.boss.camera) {
+      // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame), or a
+      // stage that asks (B.faceBoss: act 4's arena), turns you to face it; with a view, the camera
+      // eases into it for the fight
+      if (this.boss.camera || B.faceBoss) {
         const bp = this.boss.position;
         this.tpc.yaw = Math.atan2(P.position.x - bp.x, P.position.z - bp.z);
         P.facing = this.tpc.yaw - Math.PI;
-        this.tpc.fight = this.boss.camera;
+        if (this.boss.camera) this.tpc.fight = this.boss.camera;
       }
       this.enemies.addProxy(this.boss);
       this.later(() => { this.fade.style.opacity = 0; }, 150);

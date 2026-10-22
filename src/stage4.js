@@ -35,5 +35,6 @@ export const STAGE4 = {
     arenaMin: [-HALF, 0, -HALF],
     arenaMax: [HALF, 1, HALF],
     playerStart: [0, 0.01, 0.48],
+    faceBoss: true,                   // start facing the booth (run.js)
   },
 };

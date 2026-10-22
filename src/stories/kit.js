@@ -14,6 +14,7 @@ import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
 import { ATTACKS as POTHOS_ATTACKS } from '../pothos.js';
+import { ATTACKS as ENCORE_ATTACKS } from '../encore.js';
 
 export const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export const G = () => window;                       // main.js puts the game objects on window
@@ -471,12 +472,19 @@ export const EVERY_ATTACK = {
       root: { is: 'volume', ...bugWarns('root', (e) => e.state === 'drop') },             // dropping from above
     },
   },
+  4: {
+    // the Encore (encore.js): every attack on its song's beat, each proven by its own encore/* story.
+    // Floor waves have no Warning by decision (you watch the wave come: docs/adr/0001); a laser's
+    // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
+    // stage edge is a hazard; the beetles are bugs it calls
+    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' }, beetles: { is: 'none' } },
+  },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
-const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos' })[G().run.stage.boss.kind] || 'clog';
+const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos', encore: 'encore' })[G().run.stage.boss.kind] || 'clog';
 // the attacks the game has this act: each fighting Elite's, and the Boss's (calm and angry)
 function attacksInGame(act) {
-  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS }[boss];
+  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS, encore: ENCORE_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the Pothos's guarding vines)
   // Bugs that warn (so far only the Pothos's: Cuttings, Sap sprouts, Aerial roots) are checked in act 3
@@ -552,6 +560,16 @@ export function everyAttack(act) {
 }
 // run as if the Clog was just beaten (tests/run.mjs)
 export const act3 = (name, s) => story('act3/' + name, { act: 3, ...s });
+// run as if the Pothos was just beaten: act 4, the Encore's concert arena (tests/run.mjs)
+export const act4 = (name, s) => story('act4/' + name, { act: 4, ...s });
+// the Encore (encore.js): an act with no night goes straight into its fight; `beat`: where its set starts
+export const encoreFight = ({ beat = 0, ...opts } = {}) => {
+  fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
+  const { run } = G();
+  step(60 * 3, () => run.phase === 'boss' && run.boss);
+  if (run.boss) run.boss.clock = beat;
+  return run.boss;
+};
 // the Pothos (pothos.js): straight into the boss fight on the bed
 export const pothosFight = (opts = {}) => {
   fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });

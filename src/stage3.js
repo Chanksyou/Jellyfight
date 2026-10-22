@@ -1,5 +1,6 @@
 // Stage 3: Medusa. The bedroom, 4 am to 6 am. Reached by beating stage 2's boss (the run carries
-// on, as into act 2), and the last act: beating its boss, the Pothos, wins the run.
+// on, as into act 2). Beating its boss, the Pothos, carries the run on into act 4, the Encore's
+// concert (stage4.js).
 // All positions are world meters (x, y, z); y is the height.
 //
 // Rough layout (x runs west to east, z from the hallway toward the back wall):
