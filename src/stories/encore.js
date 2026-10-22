@@ -9,6 +9,8 @@ import { Player } from '../player.js';
 import { Music, SONGS } from '../music.js';
 import { SongTrack, TRACKS } from '../song-track.js';
 import { EncoreLasers, CORNERS, LASER_DMG } from '../encore-laser.js';
+import { EncoreDisco, DISCO, DISCO_DMG } from '../encore-disco.js';
+import { EncorePulses, PULSE, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
 import { story, ok, V } from './kit.js';
 
@@ -366,5 +368,100 @@ story('encore/a-laser-fires-every-4-beats', {
     const every4 = shots.length > 40 && shots.every((s, k) => s.at === 4 * k), withWaves = shots.every((s) => f.casts.some((c) => c.at === s.at));
     const corners = new Set(shots.map((s) => s.corner)).size === 4, sides = new Set(shots.map((s) => s.side)).size === 2, aimed = shots.every((s) => s.target()[0] === 0.1);
     return ok(every4 && withWaves && corners && sides && aimed, { lasers: shots.length, every4, withWaves, corners, sides, aimed });
+  },
+});
+
+// the disco ball on an arena of its own, hits recorded
+function discoOn(opts = {}) {
+  const scene = new THREE.Scene(), arena = buildAct4(scene), hits = [];
+  const disco = new EncoreDisco(arena, { onHit: (dmg) => hits.push({ dmg, beat: disco.beat }), ...opts });
+  return { scene, arena, disco, hits, done() { disco.dispose(); arena.dispose(); } };
+}
+const roll = (d, from, to, p = null) => { for (let b = from; b <= to; b += 1 / 30) d.update(b, p); };
+story('encore/the-disco-ball-comes-every-8-bars-from-32-bars-in', {
+  about: 'The disco ball first drops 32 bars into the fight (beat 128), then every 8 bars, for 8 beats each, skipping the song\'s breakdown; it hangs low over the floor while it plays and is out of sight otherwise.',
+  setup() {},
+  play() {
+    const T = discoOn({ quiet: (b) => b >= 224 && b < 232 });
+    try {
+      const D = T.disco, shows = [0, 100, 127.5, 128, 135.9, 150, 160, 192, 224, 256].map((b) => D.showAt(b));
+      const when = shows.join() === [null, null, 128, 128, 128, null, 160, 192, null, 256].join();
+      roll(D, 120, 126); const before = D.hanger.visible;
+      roll(D, 126, 130); const down = D.hanger.visible && D.hanger.position.y < 0.6 && D.spots.visible;
+      roll(D, 130, 140); const after = !D.hanger.visible && !D.spots.visible;
+      return ok(when && !before && down && after && DISCO.spots === 32, { shows, before, down, after });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
+  about: 'Each 4 beats of the show: the 32 spots wheel round for 3 beats (moving), then stop and flash fast between warm white and hot magenta for the 4th; as it ends they strike where they stopped, hurting a jelly standing on one (once, for 4 Health), not one beside them, nor one jumping. The second 4 beats turn the other way and strike again. No light is added.',
+  setup() {},
+  play() {
+    const T = discoOn();
+    try {
+      const D = T.disco, q = new THREE.Vector3(), m = new THREE.Matrix4(), c = new THREE.Color();
+      let lights = 0; T.arena.root.traverse((o) => { if (o.isLight) lights++; });
+      roll(D, 127, 128.5); const a = D.spot(0, D.turn(0.5), new THREE.Vector3()).clone();
+      roll(D, 128.5, 129.5); const b = D.spot(0, D.turn(1.5), new THREE.Vector3()).clone();
+      const moves = a.distanceTo(b) > 0.01;
+      roll(D, 129.5, 131.2); const s1 = D.spot(0, D.turn(3.2), new THREE.Vector3()).clone();
+      roll(D, 131.2, 131.8); const s2 = D.spot(0, D.turn(3.8), new THREE.Vector3()).clone();
+      const stops = s1.distanceTo(s2) < 1e-9;
+      const colours = new Set(); for (let x = 131.0; x < 132; x += 1 / 16) { D.update(x, null); D.spots.getColorAt(0, c); colours.add(c.getHexString()); }
+      const flashes = colours.size >= 2;
+      const reverse = Math.sign(D.turn(5) - D.turn(4.5)) !== Math.sign(D.turn(1) - D.turn(0.5));
+      // strikes: on a stopped spot, beside one, jumping
+      const strike = (place, y = 0) => { const R = discoOn({ random: (() => { let s = 9; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); })() }); try { roll(R.disco, 126, 127.9); const t = R.disco.turn(DISCO.move); const spot = R.disco.spot(0, t, new THREE.Vector3()).clone(); const p = standing(...place(spot, R.disco), y); roll(R.disco, 127.9, 132.2, p); return { n: R.hits.length, dmg: R.hits[0]?.dmg, at: R.hits[0]?.beat }; } finally { R.done(); } };
+      const on = strike((s) => [s.x, s.z]), clear = (s, d) => { for (let k = 0; k < 64; k++) { const x = s.x + Math.cos(k) * 0.12, z = s.z + Math.sin(k) * 0.12; let near = false; for (let i = 0; i < 32; i++) { const o = d.spot(i, d.turn(DISCO.move), new THREE.Vector3()); if (o && Math.hypot(o.x - x, o.z - z) < 0.07) near = true; } if (!near) return [x, z]; } return [9, 9]; };
+      const beside = strike(clear), jumping = strike((s) => [s.x, s.z], 0.08);
+      let after = 0; T.arena.root.traverse((o) => { if (o.isLight) after++; });
+      const strikes = on.n === 1 && on.dmg === DISCO_DMG && on.at >= 132 && on.at < 132.1 && beside.n === 0 && jumping.n === 0;
+      return ok(moves && stops && flashes && reverse && strikes && lights === after, { moves, stops, colours: [...colours], reverse, on, beside, jumping });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/speakers-fire-one-pulse-at-a-time-from-bar-16-in-turn', {
+  about: 'From bar 16 of the fight (beat 64), one corner speaker at a time fires a white sound wave, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor, and the next fires as it arrives, so only one is ever in flight. None before bar 16, none in the breakdown.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), arena = buildAct4(scene), P = new EncorePulses(arena, { quiet: (b) => b >= 80 && b < 84 });
+    try {
+      const seen = [];
+      let maxLive = 0;
+      for (let b = 50; b <= 90; b += 1 / 30) { P.update(b, null); maxLive = Math.max(maxLive, P.live.length); for (const p of P.live) if (!seen.includes(p)) seen.push(p); }
+      const T = LOOK.num('encore-pulse-travel', 2), first = seen[0]?.at === PULSE.first, every = seen.every((p, k) => k === 0 || p.at - seen[k - 1].at === (seen[k - 1].at === 78 ? 3 * T : T));
+      const turns = seen.every((p) => p.from === ((p.at - PULSE.first) / T) % 4), rest = !seen.some((p) => p.at >= 80 && p.at < 84), single = maxLive <= 1;
+      const mid = P.at(seen[0], 0.5, new THREE.Vector3()), [ax, az] = SPEAKERS[seen[0].from], [bx, bz] = SPEAKERS[(seen[0].from + 2) % 4];
+      const across = Math.abs(mid.y - 0.06) < 1e-9 && Math.abs(mid.x - (ax + bx) / 2) < 1e-9 && Math.abs(mid.z - (az + bz) / 2) < 1e-9;
+      return ok(first && every && turns && rest && across && single, { first: seen[0]?.at, at: seen.map((p) => p.at), every, turns, rest, across, maxLive });
+    } finally { P.dispose(); arena.dispose(); }
+  },
+});
+
+story('encore/a-speaker-pulse-shoves-the-jelly-12-cm-and-does-no-damage', {
+  about: 'A sound wave rolling through a real jelly standing in its path shoves it 12 cm the way it is going (slid over a moment, not a jump), once, and does no damage (it has no hit at all); a jelly jumping as it passes is not moved.',
+  setup() {},
+  play() {
+    const T = make();
+    try {
+      const run = (jump) => {
+        const p = new Player(T.world, CONFIG.player); T.scene.add(p.mesh);
+        const P = new EncorePulses(T.arena, { push: (dx, dz) => { p.moveHorizontal(dx, dz); p.syncMesh(); } });
+        const [ax, az] = SPEAKERS[0], [bx, bz] = SPEAKERS[2], spot = V(ax + (bx - ax) * 0.35, 0.01, az + (bz - az) * 0.35);
+        p.spawn(spot); p.snapToGround(); T.world.focus(p.position, 1);
+        const start = p.position.clone(); let j = false;
+        const input = { moveAxes: () => ({ x: 0, y: 0 }), consumeJump: () => { const k = j; j = false; return k; }, jumpHeld: false };
+        let jumped = false;
+        for (let b = 63; b <= 66.5; b += DT * BPM / 60) { if (jump && !jumped && b >= 64.2) { j = jumped = true; } T.world.focus(p.position, DT); p.update(DT, input, 0); P.update(b, p, DT); }
+        const moved = V(p.position.x - start.x, 0, p.position.z - start.z), dir = V(bx - ax, 0, bz - az).normalize();
+        P.dispose(); T.scene.remove(p.mesh);
+        return { along: +moved.dot(dir).toFixed(4), side: +Math.abs(moved.x * dir.z - moved.z * dir.x).toFixed(4) };
+      };
+      const shoved = run(false), jumping = run(true);
+      const push = LOOK.num('encore-pulse-push', 0.05);
+      return ok(Math.abs(shoved.along - push) < 0.006 && shoved.side < 0.004 && Math.abs(jumping.along) < 0.004, { shoved, jumping, push });
+    } finally { T.done(); }
   },
 });

@@ -365,6 +365,20 @@
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
+  --encore-pulse: #f4f8ff;       /* the speakers' sound waves: white (they shove, they don't hurt) */
+  --encore-pulse-radius: 0.22;   /* m: the front arc of a wave (about 40 cm across) */
+  --encore-pulse-arc: 2.2;       /* radians each arc spans (about 125°) */
+  --encore-pulse-gap: 0.03;      /* m between a wave's nested arcs */
+  --encore-pulse-travel: 2;      /* beats it takes corner to corner */
+  --encore-pulse-push: 0.12;     /* m it shoves the jelly */
+  --hostile-encore-disco: #ff2fd2; /* the disco ball's spots as they stop and flash, about to strike: hot magenta */
+  --encore-disco-light: #fff4e2; /* its spots while they wheel round: warm white, harmless */
+  --encore-disco-radius: 0.12;   /* m: the ball (24 cm across, about three jellies tall) */
+  --encore-disco-hang: 0.5;      /* m: its centre when it's down */
+  --encore-disco-spot: 0.028;    /* m: a spot's radius on the floor */
+  --encore-disco-spin: 0.35;     /* radians the ball turns a beat while it wheels */
+  --encore-disco-beam: 0.35;     /* its beams' opacity */
+  --encore-disco-rings: 26;      /* rings of mirror tiles on the ball (about 900 tiles) */
   --hostile-encore-laser: #39ff14; /* the Encore's club lasers: laser green */
   --encore-laser-height: 0.35;   /* m: the emitters on the corner posts (the plane's apex) */
   --encore-laser-lead: 2;        /* beats its floor band flashes before it fires */
