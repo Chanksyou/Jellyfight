@@ -112,6 +112,40 @@ story('attack/wind-windup-and-rate', {
   },
 });
 
+story('attack/ice-shatter-feel', {
+  about: 'Ice lands like ice: a shard that hits throws real crystal shards that skip off the floor and melt away, and a frost flower spreads where it struck and fades; the chilled bug wears a crown of ice spikes exactly while the chill lasts; a bug that dies chilled shatters into ice (shards and a frost flower, its shatter sound, no body left), and everything is gone again within about 2.5 s. Its looks were prepared at load: no new shader mid-fight.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack'); roachAt(0, -0.18); roachAt(0.2, -0.2); step(2); },
+  play() {
+    const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, other] = enemies.list, P = run.mods.element.ice;
+    const programs = APT.renderer.info.programs.length;
+    let shatters = 0; const ice = sfx.iceShatter; sfx.iceShatter = function (...a) { shatters++; return ice.apply(this, a); };
+    try {
+      // a shard that hits
+      const b = B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 0.1, tint: 'ice', elems: ['ice'], ep: P, pierce: 1 });
+      for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+      step(1);
+      const hit = fx.ice.live, crowned = !!e.iceCrown?.visible && e.chillT > 0;
+      // the chill wears off: the crown goes with it
+      step(Math.ceil(60 * ((e.chillT || 0) + 0.1)));
+      const thawed = !e.iceCrown?.visible && !(e.chillT > 0);
+      step(60 * 2.5);
+      const melted = fx.ice.live === 0;
+      // a bug that dies chilled shatters
+      const bodies = fx.deaths.list.length;
+      bus.emit('status_applied', { targetId: other.id, status: 'chill', duration: 2 });
+      step(1);
+      enemies.kill(other);
+      step(1);
+      const shattered = other.dead && shatters === 1 && fx.ice.live > 10 && fx.deaths.list.length === bodies;
+      step(60 * 2.5);
+      const gone = fx.ice.live === 0;
+      APT.renderer.compile(APT.scene, APT.camera);
+      const shaders = APT.renderer.info.programs.length - programs;
+      return ok(hit >= 6 && crowned && thawed && melted && shattered && gone && shaders === 0, { hit, crowned, thawed, melted, shattered, shatters, gone, shaders });
+    } finally { sfx.iceShatter = ice; }
+  },
+});
+
 story('attack/ice-slow-and-followup-upgrade', {
   about: 'Freezer Pack and Snow Globe only slow; Freezer Burn doubles a follow-up shard against an already slowed enemy.',
   setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'freezerBurn', 'snowGlobe'); roachAt(0, -0.18); roachAt(0.01, -0.18); step(2); },

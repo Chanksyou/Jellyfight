@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v248';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v249';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -730,6 +730,8 @@ async function warmUp() {
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
+  temp[2].slowT = temp[2].chillT = 1;           // the slow ring and a chilled bug's ice crown
+  enemies.markLook(temp[2], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
   const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });   // this act's boss
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);

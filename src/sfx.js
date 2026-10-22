@@ -574,7 +574,11 @@ export const sfx = {
       tone('sine', 500 * j, 2600 * j, 0.09, 0.035, 0.01);
       for (let k = 0; k < 4; k++) noise(3500 + Math.random() * 3500, 4, 0.012, 0.05, 'bandpass', 0.03 + k * 0.035 + Math.random() * 0.02);
     }
-    else if (el === 'ice') { tone('sine', 2600 * j, 2400 * j, 0.06, 0.04); tone('sine', 3900 * j, 3700 * j, 0.05, 0.025, 0.012); noise(3000 * j, 1.2, 0.18, 0.05, 'bandpass', 0.02, 1100); }
+    else if (el === 'ice') {   // a cold crystalline ring with an airy rush behind it: a glassy chord, a breath of frost
+      tone('sine', 2600 * j, 2450 * j, 0.09, 0.045); tone('sine', 3900 * j, 3650 * j, 0.08, 0.03, 0.01); tone('triangle', 5200 * j, 5000 * j, 0.06, 0.012, 0.02);
+      noise(5200 * j, 2.5, 0.02, 0.06, 'highpass');                                   // the crisp snap of it leaving
+      noise(3000 * j, 1.2, 0.2, 0.05, 'bandpass', 0.02, 1100);                         // the cold whoosh
+    }
     else if (el === 'acid') { tone('sine', 180 * j, 430 * j, 0.08, 0.08); noise(700 * j, 1, 0.12, 0.06, 'lowpass', 0.01, 300); }
     else if (el === 'glitter') { for (let k = 0; k < 3; k++) tone('sine', (2200 + k * 700) * j, (2400 + k * 700) * j, 0.04, 0.035, k * 0.025); noise(2600 * j, 1.4, 0.18, 0.04, 'bandpass', 0.03, 900); }
   },
@@ -591,7 +595,12 @@ export const sfx = {
       noise(320 * j, 0.8, 0.55, 0.13, 'lowpass', 0.02, 70);
       for (let k = 0; k < 7; k++) noise(3000 + Math.random() * 4500, 4, 0.012 + Math.random() * 0.01, 0.06 * (1 - k * 0.1), 'bandpass', 0.05 + Math.random() * 0.35);
     }
-    else if (el === 'ice') { noise(3200 * j, 1.5, 0.06, 0.16, 'bandpass', 0, 1800); tone('sine', 130 * j, 60, 0.08, 0.12); for (let k = 0; k < 4; k++) tone('triangle', (3000 + Math.random() * 2500) * j, 2600, 0.04, 0.03, 0.04 + k * 0.05); }
+    else if (el === 'ice') {   // it shatters: a sharp crystal crack, a crunch, a low thud under it, then shards tinkling down
+      noise(7500 * j, 1, 0.018, 0.3, 'highpass');                                      // the crack
+      noise(3200 * j, 1.5, 0.07, 0.17, 'bandpass', 0.004, 1800);                       // the crunch
+      tone('sine', 130 * j, 55, 0.1, 0.14);                                             // the thud
+      for (let k = 0; k < 6; k++) tone('triangle', (3000 + Math.random() * 3500) * j, 2800, 0.035 + Math.random() * 0.03, 0.025 * (1 - k * 0.1), 0.04 + k * 0.045 + Math.random() * 0.02);   // tinkling down
+    }
     else if (el === 'acid') { noise(800 * j, 0.9, 0.1, 0.16, 'lowpass', 0, 250); tone('sine', 300 * j, 180, 0.1, 0.07); tone('sine', 420 * j, 250, 0.08, 0.05, 0.05); noise(6000, 1, 0.3, 0.025, 'highpass', 0.08); }
     else if (el === 'glitter') { tone('sine', 900 * j, 2200 * j, 0.04, 0.1); tone('sine', 140 * j, 70, 0.08, 0.1); for (let k = 0; k < 6; k++) tone('sine', (2400 + Math.random() * 3000) * j, 2600, 0.05, 0.025, 0.03 + k * 0.04); }
   },
@@ -614,6 +623,17 @@ export const sfx = {
     tone('sine', 520 * j, 900 * j, 0.03, 0.025, 0.04 + Math.random() * 0.08);
   },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
+  // a chilled bug dying: it shatters like glass. A heavy crack, a spray of breaking ice, a low crunch,
+  // and a long tinkling rain of shards (bigger bugs, a deeper crack and more shards)
+  iceShatter(big = false) {
+    if (!ready() || !gap('iceShatter', 60)) return;
+    const j = jitter(0.1), d = big ? 0.8 : 1;
+    noise(8000 * j, 0.8, 0.03, 0.4, 'highpass');
+    noise(2400 * j * d, 1.2, 0.14, 0.26, 'bandpass', 0.005, 900);
+    tone('sine', 110 * j * d, 40, 0.18, 0.2);
+    noise(5500 * j, 2, 0.35, 0.06, 'bandpass', 0.03, 2500);
+    for (let k = 0; k < (big ? 12 : 9); k++) tone('triangle', (2600 + Math.random() * 4200) * j, 2400, 0.03 + Math.random() * 0.04, 0.03 * (1 - k * 0.06), 0.05 + k * 0.04 + Math.random() * 0.03);
+  },
   freeze() { if (!ready() || !gap('freeze', 80)) return; [0, 5, 9].forEach((s, i) => tone('sine', 1760 * Math.pow(2, s / 12), 1760 * Math.pow(2, s / 12), 0.2, 0.05, i * 0.03)); },
   // the Alligator's frost volley: a catapult thump and a rising icy whoosh as the balls leave its
   // mouth, and a crunchy ice crash with a low thud as each one lands

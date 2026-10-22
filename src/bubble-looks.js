@@ -109,6 +109,7 @@ export class BubbleLooks {
     };
     const F = this.fire;
     const ball = new THREE.IcosahedronGeometry(1, 2);
+    const crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
     // Base at the hot core, tapered point trailing along local -z. No dynamic lights.
     const tongue = new THREE.ConeGeometry(1, 1, 7).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
     // each element's parts: [geometry, material, { name, s: [x, y, z] scale, at: [x, y, z] }]
@@ -125,7 +126,10 @@ export class BubbleLooks {
         [ball, lit(0xffc800, 0.45), { name: 'halo', s: [1.6, 1.6, 1.6] }],
       ],
       ice: [
-        [new THREE.OctahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true }), { name: 'shard', s: [0.75, 0.75, 2.2] }],
+        [crystal, iceMat, { name: 'shard', s: [0.75, 0.75, 2.2] }],
+        [crystal, lit(0xffffff), { name: 'core', s: [0.3, 0.3, 1.6] }],           // a white-hot heart inside it
+        [crystal, iceMat, { name: 'chip1', s: [0.22, 0.22, 0.6] }],               // two chips of ice orbiting it
+        [crystal, iceMat, { name: 'chip2', s: [0.18, 0.18, 0.5] }],
         [ball, lit(0x2a9aff, 0.25), { s: [1.4, 1.4, 2.4] }],
       ],
       acid: [
@@ -238,7 +242,7 @@ export class BubbleLooks {
   }
 
   // impact, only for a confirmed hit (bubbles.js pop on an enemy): each element lands its own way
-  contact(el, pos, r) {
+  contact(el, pos, r, floor = pos.y - 0.03) {
     const glow = this.fx.glow, [a, b] = this.tones(el);
     glow.emit(pos, b, r * 3.2, r * 0.6, 0.09, 1.3);                                    // the sharp contact
     if (el === 'lightning') {
@@ -247,7 +251,12 @@ export class BubbleLooks {
       for (let k = 0; k < 6; k++) this.strike(pos, _b.copy(pos).add(_v.randomDirection().multiplyScalar(r * (4 + Math.random() * 3))), r * 0.35);   // forks crackling off it
       for (let k = 0; k < 10; k++) glow.emit(pos, k % 2 ? COL.spark : COL.bolt, r * 0.45, 0, 0.25 + Math.random() * 0.25, 1, _v.randomDirection().multiplyScalar(0.25 + Math.random() * 0.3), 1.2);   // sparks spat out
     } else if (el === 'ice') {
-      this.fx.burst(pos, ['#e8f8ff', '#9fe8ff', '#6ad0ff'], 8, r * 0.45, 0.32, pos.y - 0.03);   // shards of ice
+      // it shatters: a cold white flash, real crystal shards tumbling out and skipping off the floor,
+      // a frost flower spreading where it struck, frost settling
+      glow.emit(pos, COL.snow, r * 9, r * 3, 0.07, 1.1);
+      glow.emit(pos, COL.frost, r * 5, r * 2, 0.22, 0.6);
+      this.fx.ice.shatter(pos, 9, r * 0.55, 0.5, floor);
+      this.fx.ice.bloom(_p.set(pos.x, floor, pos.z), r * LOOK.num('ice-bloom', 5), 1.6);
       for (let k = 0; k < 5; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 1.5)), COL.snow, r * 0.5, r * 0.3, 0.8 + Math.random() * 0.5, 0.9, _a.set((Math.random() - 0.5) * 0.03, 0.01, (Math.random() - 0.5) * 0.03), 0.06);   // frost settling
     } else if (el === 'acid') {
       glow.emit(pos, a, r * 4.5, r * 2, 0.2, 0.7);
@@ -465,8 +474,11 @@ export class BubbleLooks {
         break;
       }
       case 'ice': {
-        U.shard.rotation.z += dt * 9;
+        U.shard.rotation.z += dt * 9; U.core.rotation.z -= dt * 14;
+        U.chip1.position.set(Math.cos(t * 11 + w) * 1.5, Math.sin(t * 11 + w) * 1.5, -0.4); U.chip1.rotation.set(t * 13, t * 7, 0);
+        U.chip2.position.set(Math.cos(t * 11 + w + Math.PI) * 1.3, Math.sin(t * 11 + w + Math.PI) * 1.3, -0.9); U.chip2.rotation.set(t * 9, t * 15, 0);
         glow.hold(m.position, COL.frost, r * 3, 0.3);
+        if (Math.random() < dt * 14) glow.emit(_a.copy(m.position).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.snow, r * 0.9, 0, 0.07, 1.4);   // a glint off a facet
         if (tick) {
           for (let k = 0; k < steps; k++) glow.emit(along(k), COL.frost, r * 1.8, r * 0.4, 0.45, 0.5);   // the frosty trail hangs in the air
           if (Math.random() < 0.4) glow.emit(tail, COL.snow, r * 0.45, r * 0.3, 0.7, 1, _v.set((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.04), 0.15);
