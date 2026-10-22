@@ -339,10 +339,12 @@ instanced), no light added.
 ## Speaker pulses (v242)
 
 `src/encore-pulse.js`: from bar 16 of the fight (beat 64), one corner speaker at a time fires a
-white sound ring (`--encore-pulse`, 6 cm, `--encore-pulse-radius`), the four stacks taking turns
-round the arena. It drops from the speaker to jelly height and rolls across the floor to the opposite
-corner's speaker in 2 beats (`--encore-pulse-travel`), three fading echoes trailing it, and the next
-speaker fires as it arrives, so only one is ever in flight. It does no
-damage: a jelly it rolls through is shoved 5 cm (`--encore-pulse-push`) the way it is going, slid
-over 0.15 s with the jelly's own collision, once a pulse, with a soft whomp (`sfx.encorePulse`).
-Jump it to stay put. The song's breakdown quiets it. Every ring in flight is one instanced draw.
+white sound wave (`--encore-pulse`), the four stacks taking turns round the arena; the next fires as
+it arrives, so only one is ever in flight. The wave is a packet of five concentric arcs lying flat at
+jelly height, like a drawn sound wave: the widest at the front (`--encore-pulse-radius`, about 40 cm
+across, `--encore-pulse-arc` about 125°), bulging the way it travels, the others nested behind it
+(`--encore-pulse-gap`). It drops from the speaker and rolls across the floor to the opposite corner's
+speaker in 2 beats (`--encore-pulse-travel`). It does no damage: a jelly its front passes through is
+shoved 12 cm (`--encore-pulse-push`) the way it is going, slid over 0.2 s with the jelly's own
+collision, once a wave, with a soft whomp (`sfx.encorePulse`). Jump it to stay put. The song's
+breakdown quiets it. Every arc in flight is one instanced draw.

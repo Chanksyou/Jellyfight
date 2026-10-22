@@ -423,7 +423,7 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
 });
 
 story('encore/speakers-fire-one-pulse-at-a-time-from-bar-16-in-turn', {
-  about: 'From bar 16 of the fight (beat 64), one corner speaker at a time fires a white sound ring, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor, and the next fires as it arrives, so only one is ever in flight. None before bar 16, none in the breakdown.',
+  about: 'From bar 16 of the fight (beat 64), one corner speaker at a time fires a white sound wave, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor, and the next fires as it arrives, so only one is ever in flight. None before bar 16, none in the breakdown.',
   setup() {},
   play() {
     const scene = new THREE.Scene(), arena = buildAct4(scene), P = new EncorePulses(arena, { quiet: (b) => b >= 80 && b < 84 });
@@ -440,8 +440,8 @@ story('encore/speakers-fire-one-pulse-at-a-time-from-bar-16-in-turn', {
   },
 });
 
-story('encore/a-speaker-pulse-shoves-the-jelly-5-cm-and-does-no-damage', {
-  about: 'A sound ring rolling through a real jelly standing in its path shoves it 5 cm the way it is going (slid over a moment, not a jump), once, and does no damage (it has no hit at all); a jelly jumping as it passes is not moved.',
+story('encore/a-speaker-pulse-shoves-the-jelly-12-cm-and-does-no-damage', {
+  about: 'A sound wave rolling through a real jelly standing in its path shoves it 12 cm the way it is going (slid over a moment, not a jump), once, and does no damage (it has no hit at all); a jelly jumping as it passes is not moved.',
   setup() {},
   play() {
     const T = make();
