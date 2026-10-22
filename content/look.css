@@ -456,6 +456,13 @@
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
+  /* ice (Freezer Pack): its shards, the frost flower where one strikes, a chilled bug's crown (ice-looks.js, enemies.js) */
+  --ice-shard: #cfefff;          /* the crystal shards that burst out of a hit and a chilled bug's shatter */
+  --ice-shard-glow: #3aa8ff;     /* their cold inner glow */
+  --ice-shard-tints: #ffffff #cfefff #8fd8ff;
+  --ice-frost: #9fe4ff;          /* frost flowers on the floor, frost drifting off a chilled bug */
+  --ice-bloom: 5;                /* a hit's frost flower, in shard radii */
+  --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
   --venom: #8dff5a;              /* the puffs of a venomed bug */

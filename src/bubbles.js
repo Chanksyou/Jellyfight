@@ -44,6 +44,7 @@ export const ELEMENTS = [
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
+const _down = new THREE.Vector3(0, -1, 0);
 const _zero = new THREE.Vector3();
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
 const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
@@ -560,7 +561,10 @@ export class Bubbles {
       this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
-      if (b.tint && b.tint !== 'wind') { this.looks.contact(b.tint, p, b.r); sfx.elementHit(b.tint); }   // each element lands its own way
+      if (b.tint && b.tint !== 'wind') {   // each element lands its own way (ice: its shards skip off the floor under it)
+        const floor = b.tint === 'ice' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
+        this.looks.contact(b.tint, p, b.r, floor); sfx.elementHit(b.tint);
+      }
       else if (!b.elems.has('wind')) sfx.pop(b.big);
       // the wet mark it leaves on the floor, fading (only a plain bubble's: an Element's colour
       // on the floor would look like an acid puddle)

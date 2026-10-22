@@ -28,6 +28,19 @@ const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the st
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
+const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
+// a chilled bug's crown: seven ice spikes in a ring round its feet, leaning out, uneven (one shared geometry)
+function iceCrown() {
+  const parts = [];
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 7) * Math.PI * 2 + (k % 2) * 0.2, h = 0.45 + ((k * 37) % 5) * 0.09;
+    const g = new THREE.ConeGeometry(0.11, h, 4).translate(0, h / 2, 0);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationZ(-0.35).premultiply(new THREE.Matrix4().makeRotationY(-a)).setPosition(Math.cos(a), 0, Math.sin(a)));
+    parts.push(g.toNonIndexed());
+  }
+  const g = mergeGeometries(parts); g.computeVertexNormals();
+  return g;
+}
 const GOO = LOOK.list('hurt-goo', ['#8fd8ff', '#dff8ff']);              // drops of jelly a bug's hit knocks off (they splat and fade)
 const SCUFF = LOOK.color('bug-scuff', '#4a3c30');                      // a fading dust mark where a bug slammed or struck the floor
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
@@ -284,8 +297,9 @@ export class Enemies {
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
-      else if (status === 'chill') {
+      else if (status === 'chill') {   // ice: a slow that shows as frost (chillT), so a chilled death shatters
         e.slowT = Math.max(e.slowT || 0, duration);
+        e.chillT = Math.max(e.chillT || 0, duration);
       }
     });
     // a bug's hit really landed on the jelly (run.js): the bug answers it (landed)
@@ -380,6 +394,24 @@ export class Enemies {
       e.slowRing.visible = slowed;
       if (slowed) e.slowRing.rotation.y += dt * 2.5;
     }
+    // chilled (ice): a crown of ice spikes round its feet as well, turning the other way, and frost
+    // drifting up off it, exactly while the chill lasts (a slow, never a frozen shell)
+    const chilled = slowed && e.chillT > 0 && !e.dead;
+    if (chilled && !e.iceCrown) {
+      this.crownGeo ||= iceCrown();
+      this.crownMat ||= new THREE.MeshStandardMaterial({ color: LOOK.color('ice-shard', '#cfefff'), emissive: LOOK.color('ice-shard-glow', '#3aa8ff'), emissiveIntensity: 0.8, roughness: 0.05, metalness: 0.35, flatShading: true, transparent: true, opacity: 0.85 });
+      e.iceCrown = new THREE.Mesh(this.crownGeo, this.crownMat);
+      e.iceCrown.scale.setScalar(e.r * 1.35);
+      e.iceCrown.position.y = (e.T.fly ? -e.r : 0) + 0.001;
+      e.root.add(e.iceCrown);
+    }
+    if (e.iceCrown) {
+      e.iceCrown.visible = chilled;
+      if (chilled) {
+        e.iceCrown.rotation.y -= dt * 1.2;
+        if (Math.random() < dt * 6) this.fx.glow.emit(S.spot.copy(this.center(e, S.o)).add(S.ray.randomDirection().multiplyScalar(e.r)), FROST, e.r * 0.35, e.r * 0.2, 0.6, 0.8, S.want.set(0, 0.03, 0), 0.1);
+      }
+    }
     // stunned (lightning): sparks crackle over it for exactly as long as the stun lasts
     if (e.stunT > 0 && !e.dead && Math.random() < dt * 20) {                  // a little arc jumping across it
       const c = this.center(e, S.o), a = S.spot.copy(c).add(S.ray.randomDirection().multiplyScalar(e.r)), b = S.away.copy(c).add(S.want.randomDirection().multiplyScalar(e.r));
@@ -436,7 +468,7 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent,
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
@@ -1269,6 +1301,7 @@ export class Enemies {
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
       if (e.blockT > 0) e.blockT -= dt;
       e.slowT = Math.max(0, e.slowT - dt);
+      e.chillT = Math.max(0, (e.chillT || 0) - dt);
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning

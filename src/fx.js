@@ -1,5 +1,6 @@
 // Little bits of feedback: floating damage numbers, poofs and expanding rings, and the combat
 // visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
+import { IceLooks } from './ice-looks.js';
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -34,6 +35,7 @@ export class Fx {
     this.rings = [];
     this.chunks = [];
     this.fireCorpses = [];
+    this.ice = new IceLooks(scene);   // the ice Element's shards and frost flowers (ice-looks.js)
     this.deaths = new DeathRemains(scene);
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
@@ -325,6 +327,7 @@ export class Fx {
 
   update(dt) {
     this.deaths.update(dt);
+    this.ice.update(dt);
     this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
@@ -416,6 +419,7 @@ export class Fx {
 
   clear() {
     this.deaths.clear();
+    this.ice.clear();
     for (const c of this.fireCorpses) this.freeFireCorpse(c);
     this.fireCorpses.length = 0;
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });
