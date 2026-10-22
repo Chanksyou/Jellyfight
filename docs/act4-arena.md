@@ -366,8 +366,9 @@ like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading ap
   source. While the file loads the fight waits; with music off or no audio the boss keeps its own
   128 BPM clock; if the file won't load, the synthesized song plays.
 - **Beetles and the force field.** At beat 32 (bar 8), and every 64 beats (16 bars) after, it tops
-  the floor up to 4 stag beetles. While any live, a blue hex shell (`vfx.js` `VolumeMaterial`,
-  `--encore-shield`) covers the booth and hits bounce off ("SHIELDED"). It drops after 90 s at most.
+  the floor up to 2 stag beetles at a time (v245; it was 4). While either lives, a bright blue hex
+  shell (`vfx.js` `VolumeMaterial`, `--encore-shield-*`) covers the whole booth, sized from the booth's
+  collider with room to spare, and hits bounce off ("SHIELDED"). It drops after 90 s at most.
 - **Winning.** At 0 Health the set stops and its beetles go. There is no cat finish here. After one
   more metamorphosis the run ends as a win with the stage's `won` line.
 
