@@ -4,8 +4,9 @@
 import { STAGE1 } from './stage1.js';
 import { STAGE2 } from './stage2.js';
 import { STAGE3 } from './stage3.js';
+import { STAGE4 } from './stage4.js';
 
-export const STAGES = [STAGE1, STAGE2, STAGE3];
+export const STAGES = [STAGE1, STAGE2, STAGE3, STAGE4];
 const KEY = 'jellyfight.act';
 
 // The act's state lives in sessionStorage, or in window.name where storage is blocked (a

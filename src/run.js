@@ -8,6 +8,7 @@ import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { Pothos } from './pothos.js';
+import { Encore } from './encore.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
@@ -61,13 +62,14 @@ export function nestMiddle(spot, r) {
 }
 
 // The boss classes, by the kind a stage's boss block names (the Clog is 'hair')
-export const BOSSES = { vacuum: Vacuum, hair: Clog, pothos: Pothos };
+export const BOSSES = { vacuum: Vacuum, hair: Clog, pothos: Pothos, encore: Encore };
 // the boss a stage's boss block names (B.kind), built for its arena; an unknown kind is a mistake in
-// the stage file, not a reason to fight some other boss
-export function makeBoss(B, scene, enemies, fx, world) {
+// the stage file, not a reason to fight some other boss. ctx: what an arena boss needs (encore.js:
+// the built arena, the song it plays to, the act's toughness for what it calls)
+export function makeBoss(B, scene, enemies, fx, world, ctx = {}) {
   const Boss = BOSSES[B.kind];
   if (!Boss) throw new Error(`no boss of kind "${B.kind}" (${B.name}): the kinds are ${Object.keys(BOSSES).join(', ')} (run.js BOSSES)`);
-  return new Boss(scene, enemies, fx, B, world);
+  return new Boss(scene, enemies, fx, B, world, ctx);
 }
 
 export class Run {
@@ -333,6 +335,8 @@ export class Run {
   }
   // seconds until the boss comes (treasures can make the night longer)
   get duration() { return this.stage.duration; }
+  // how far through the night (0..1); an act with no night (duration 0, act 4) is straight into its fight
+  get night() { return this.duration ? Math.min(1, this.t / this.duration) : 1; }
 
   // ------------------------------------------------------------ main update
   update(dt) {
@@ -391,7 +395,7 @@ export class Run {
     if (this.nightT <= 0) {
       this.nightT = 10;
       const [c0, c1] = this.stage.clock;
-      this.setNight(c0 + (c1 - c0) * Math.min(1, this.t / this.duration));
+      this.setNight(c0 + (c1 - c0) * this.night);
     }
 
     // --- attacks and enemies
@@ -1028,7 +1032,7 @@ export class Run {
   startBossIntro() {
     this.phase = 'intro';
     this.liftT = 0;
-    this.hud.toast(`⏰ Time's up! ${this.stage.boss.name} is coming…`, 2400);
+    if (this.duration) this.hud.toast(`⏰ Time's up! ${this.stage.boss.name} is coming…`, 2400);
     for (const e of this.enemies.list) if (!e.dead) this.enemies.kill(e, true);
     this.xpDrops.magnetAll = true;
   }
@@ -1057,7 +1061,7 @@ export class Run {
       P.facing = -Math.PI / 2;
       this.tpc.snapTo(P.position);
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
-      this.boss = makeBoss(B, this.scene, this.enemies, this.fx, this.world);
+      this.boss = makeBoss(B, this.scene, this.enemies, this.fx, this.world, { arena: this.arena, song: this.song, toughness: this.stage.toughness });
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
       // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame) turns
       // you to face it, and the camera eases into that view for the fight
@@ -1113,7 +1117,7 @@ export class Run {
         this.phase = 'won';
         // The transformation finishes before the next reward replaces its portrait.
         if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
-        else this.endRun('🏆 You won!', 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
+        else this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
       });
     });
   }
@@ -1243,9 +1247,9 @@ export class Run {
       const P = this.player.position;
       let near = 0;
       for (const e of this.enemies.list) if (!e.dead && e.pos.distanceTo(P) < 0.7) near += e.proxy ? 4 : 1;   // elites count for more
-      return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * Math.min(1, this.t / this.duration)) };
+      return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * this.night) };
     }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' || (this.boss.state === 'flood' && this.boss.plugged) };
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: this.boss.music || 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' || (this.boss.state === 'flood' && this.boss.plugged) };
     return { song: null, intensity: 0 };
   }
 
@@ -1283,7 +1287,7 @@ export class Run {
     h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
     h.setCooldowns(this.cooldowns());
     const [c0, c1] = this.stage.clock;
-    const mins = c0 + (c1 - c0) * Math.min(1, this.t / this.duration);
+    const mins = c0 + (c1 - c0) * this.night;
     const hh = Math.floor(mins / 60), mm = Math.floor(mins % 60);
     const left = Math.max(0, Math.ceil(this.duration - this.t));
     // big: how long until the boss; small: the night's clock and who's coming

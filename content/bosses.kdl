@@ -80,3 +80,12 @@ boss "pothos" name="The Pothos" hp=1500 contact=2 {
     bump    push=0.6 every=0.3
     rise    rate=0.55
 }
+
+// act 4's, the DJ booth on the concert stage: src/encore.js. Its attacks all land on its song's beat
+// (src/encore-floor.js, encore-laser.js, encore-pulse.js, encore-disco.js, encore-contact.js, their
+// numbers in content/look.css --encore-*). Beetles: at beat `at` (bar 8) and every `every` beats
+// after (16 bars), it calls stag beetles (content/enemies.kdl "beetle") up to `count` on the floor;
+// its force field holds while any live, or for `timeout` s at most
+boss "encore" name="The Encore" hp=3000 contact=0 {
+    beetles at=32 every=64 count=4 timeout=90
+}
