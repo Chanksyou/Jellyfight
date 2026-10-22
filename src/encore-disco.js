@@ -122,6 +122,7 @@ export class EncoreDisco {
 
   // the show playing at this beat: its first beat, or null
   showAt(beat) {
+    if (this.stayFrom != null && beat >= this.stayFrom - 1) return this.stayFrom;   // down for good (stay)
     if (beat < DISCO.first - 1) return null;
     const at = DISCO.first + Math.floor((beat - DISCO.first + 1) / DISCO.every) * DISCO.every;
     return beat < at + DISCO.length + 1.5 && !this.quiet(at) && !this.quiet(at + DISCO.length - 1) ? at : null;
@@ -140,10 +141,10 @@ export class EncoreDisco {
   }
   // how far the ball has turned (radians) at `u` beats into its show: it wheels for 3 beats of each 4,
   // stopped for the 4th; the second 4 beats turn the other way
+  // (one way, then back the other: every other 4 beats, so a show that stays keeps swinging)
   turn(u) {
     const spin = LOOK.num('encore-disco-spin', 0.35), c = Math.floor(u / DISCO.cycle), k = Math.min(DISCO.move, u - c * DISCO.cycle);
-    const first = Math.min(1, c) * DISCO.move;                // how far the first 4 beats turned it
-    return spin * (c === 0 ? k : first - k);
+    return spin * (c % 2 === 0 ? k : DISCO.move - k);
   }
   // spot i's place on the floor at turn `t`, or null off the floor
   spot(i, t, out = _p) {
@@ -158,14 +159,17 @@ export class EncoreDisco {
     const at = this.showAt(beat), u = at === null ? null : beat - at;
     if (at !== this.show) { this.show = at; this.struck = -1; if (at !== null) this.scatter(); }
     // each 4 beats strike as they end (beats 4 and 8 of the show), where the spots stopped
-    if (u !== null) for (let c = this.struck + 1; c < Math.min(DISCO.length / DISCO.cycle, Math.floor(u / DISCO.cycle)); c++) this.strike(c, player, skip);
+    const len = this.stayFrom != null ? Infinity : DISCO.length;
+    if (u !== null) for (let c = this.struck + 1; c < Math.min(len / DISCO.cycle, Math.floor(u / DISCO.cycle)); c++) this.strike(c, player, skip || this.quiet(at + c * DISCO.cycle));
+    // staying: fresh spots every 8 beats, at the turn back to where they started
+    if (this.stayFrom != null && u >= 0 && Math.floor(u / (DISCO.cycle * 2)) !== this.dealt) { this.dealt = Math.floor(u / (DISCO.cycle * 2)); this.scatter(); }
     // the ball: drops over the beat before, hangs for the show, rises away over the beat and a half after
-    const down = u === null ? 0 : u < 0 ? 1 + u : u <= DISCO.length ? 1 : Math.max(0, 1 - (u - DISCO.length) / 1.5);
+    const down = u === null ? 0 : u < 0 ? 1 + u : u <= len ? 1 : Math.max(0, 1 - (u - len) / 1.5);
     this.hanger.visible = down > 0.001;
     const y = this.top + (this.hang - this.top) * (1 - (1 - down) ** 3);
     this.hanger.position.set(CENTER[0], y, CENTER[1]);
     this.rod.scale.set(1, Math.max(0.01, this.top + 0.4 - y), 1);
-    const playing = u !== null && u >= 0 && u < DISCO.length;
+    const playing = u !== null && u >= 0 && u < len && !(this.stayFrom != null && this.quiet(beat));
     if (playing) this.ball.rotation.y = -this.turn(u);
     if (this.hanger.visible) twinkle(this.glints, this.ball.rotation.y, beat);
     this.spots.visible = this.beams.visible = playing;
@@ -197,6 +201,10 @@ export class EncoreDisco {
     for (let i = 0; i < DISCO.spots; i++) if (this.spot(i, t, q) && Math.hypot(q.x - p.x, q.z - p.z) < this.spotR + r * 0.6) { this.onHit(DISCO_DMG, { name: 'disco' }); return; }
   }
 
-  reset() { this.beat = null; this.show = null; this.struck = -1; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
+  // from beat `at` the ball comes down and stays, wheeling, stopping and striking every 4 beats
+  // (the Encore after half Health); null: back to its every-8-bars shows
+  stay(at) { this.stayFrom = at; this.dealt = -1; }
+
+  reset() { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
   dispose() { this.root.removeFromParent(); this.spots.dispose(); this.beams.dispose(); for (const o of this.owned) o.dispose(); }
 }

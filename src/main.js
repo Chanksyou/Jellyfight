@@ -36,7 +36,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v245';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v247';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -548,6 +548,33 @@ function stepBossScene(dt) {
   B.update(dt, player);              // attack-free waiting and the boss's death animation only
 }
 
+// A boss's own cut scene (encore.js at half Health: its booth shorts out). While the boss has a
+// `cut` ({ t, length, from, to, look }), gameplay holds, the HUD hides and the camera eases from `from`
+// to `to` looking at `look`; the boss plays the scene in its own update. Then back to the fight's view
+let bossCut = null;
+function stepBossCut(dt) {
+  const B = run.boss, C = B?.cut;
+  if (!C || run.phase !== 'boss' || !bossCut) {
+    if (bossCut) { hud.el.hidden = bossCut.hudHidden; tpc.snapTo(player.position); bossCut = null; }
+    return false;
+  }
+  input.consumeMouse();
+  if (!overlay.hidden || run.paused || state.mode !== 'play') return true;
+  juice.update(dt);
+  B.update(dt, player);
+  return true;
+}
+// (after the follow camera's own update, which this frame's shot replaces)
+function frameBossCut() {
+  const C = bossCut && run.boss?.cut;
+  if (!C) return;
+  const k = Math.min(1, C.t / C.length), e = k * k * (3 - 2 * k);
+  camera.position.lerpVectors(C.from, C.to, e).add(juice.offset(cutShake));
+  camera.lookAt(C.look);
+  gfx.focus = camera.position.distanceTo(C.look);
+}
+const cutShake = new THREE.Vector3();
+
 const GAME = {
   loadRooms,
   step(dt) {
@@ -557,7 +584,8 @@ const GAME = {
     run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));
     systems.layout.update(dt);
     systems.touch.update(dt);
-    if (bossScene) stepBossScene(dt); else systems.gameplay.update(dt);
+    if (!bossScene && !bossCut && run.phase === 'boss' && run.boss?.cut) { bossCut = { hudHidden: hud.el.hidden }; hud.el.hidden = true; }
+    if (bossScene) stepBossScene(dt); else if (!(bossCut && stepBossCut(dt))) systems.gameplay.update(dt);
     menus.tick(dt);          // the pick screen's outro runs on this clock
     if (!bossScene && run.phase === 'boss' && run.boss?.dying && !run.boss.dead) {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
@@ -567,6 +595,7 @@ const GAME = {
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
+    frameBossCut();
     mainMenu.update(dt, !overlay.hidden && state.mode === 'play', state.mode === 'creator');
     run.evolutionReveal.update(dt);   // the portrait animates while gameplay and menus hold the run still
     lightSlots?.update(dt, player.position);

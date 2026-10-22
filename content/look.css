@@ -365,6 +365,13 @@
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
+  --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
+  --encore-sparks: #fff6c8 #ffd23a #ff8a1e;   /* the flash where sparks spray out of its booth */
+  --encore-spark-hot: #ffe58a;   /* each spark streak, white-hot as it leaves... */
+  --encore-spark-cool: #ff7a14;  /* ...cooling to orange as it falls */
+  --encore-smoke: #8c8c99;       /* the smoke off its broken booth */
+  --encore-meltdown-time: 3.4;   /* its short-out cut scene (s); --encore-meltdown-calm-time with reduced effects */
+  --encore-meltdown-calm-time: 1.2;
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
   --encore-shield-opacity: 0.9;
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */

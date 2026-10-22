@@ -21,9 +21,8 @@ const N = STAGE4.tiles, S = STAGE4.tileSize, HALF = (N * S) / 2;
 export const tileX = (col) => (col + 0.5) * S - HALF;
 export const tileZ = (row) => (row + 0.5) * S - HALF;
 const BOSS = STAGE4.bossSpace;
-// Health one hit takes: heavy and few, like the Vacuum's charge. It moves to content/bosses.kdl with
-// the Encore's other numbers when the Encore joins the campaign.
-export const FLOOR_DMG = 4;
+// Health one hit takes (the owner's call: 3, lighter than the disco spots' and the stage edge's 4)
+export const FLOOR_DMG = 3;
 // beats between a wave's steps: a tile every third of a beat (8th-note triplets)
 export const FLOOR_STEP = 1 / 3;
 export const DJS = ['silver', 'gold'];

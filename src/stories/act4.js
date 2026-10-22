@@ -45,6 +45,38 @@ act4('its-beetles-hold-up-a-force-field-until-they-die', {
   },
 });
 
+act4('at-half-health-its-booth-shorts-out', {
+  about: 'Bring the Encore to half Health and its booth shorts out in a short cut scene: the game holds (the jelly stays put, the HUD hides, hits do nothing), the camera cuts in on the booth, and sparks and smoke burst out of it while its panels flicker. Then the fight plays on: it keeps sparking, and its disco ball comes down for good, striking every 4 beats.',
+  setup() {},
+  play() {
+    const B = encoreFight({ beat: 10 }), { fx, player, hud, APT } = G(), camera = APT.camera;
+    step(30);
+    let sparks = 0;
+    const impact = fx.impact;
+    fx.impact = function (...a) { sparks++; return impact.apply(this, a); };
+    try {
+      B.damage(B.hp - B.maxHp * 0.49);
+      step(2);
+      const at = player.position.clone(), hp = B.hp, booth = B.booth.getCenter(new THREE.Vector3());
+      const inCut = !!B.cut && B.broken && hud.el.hidden && camera.position.distanceTo(booth) < 1.1, cut = { on: !!B.cut, hud: hud.el.hidden, cam: +camera.position.distanceTo(booth).toFixed(2) };
+      B.damage(100);
+      const immune = B.hp === hp;
+      let frames = step(60 * 6, () => !B.cut);
+      step(2);
+      const held = player.position.distanceTo(at) < 1e-6, during = sparks, back = !B.cut && !hud.el.hidden;
+      // after: the disco ball down for good, striking every 4 beats; the booth still sparking
+      let strikes = 0, up = 0;
+      const strike = B.disco.strike;
+      B.disco.strike = function (...a) { strikes++; return strike.apply(this, a); };
+      sparks = 0;
+      step(60 * 9, () => { if (B.disco.stayFrom != null && B.beat > B.disco.stayFrom && !B.disco.hanger.visible) up++; });
+      B.disco.strike = strike;
+      return ok(inCut && immune && held && during >= 8 && back && frames < 60 * 6 && B.disco.stayFrom != null && up === 0 && strikes >= 3 && sparks >= 2,
+        { inCut, cut, immune, held, during, back, cutFrames: frames, stay: B.disco.stayFrom, up, strikes, after: sparks });
+    } finally { fx.impact = impact; }
+  },
+});
+
 act4('beating-the-encore-wins-the-run', {
   about: 'Bring the Encore\'s Health to 0 and the set stops: the jelly takes one more metamorphosis, then the run ends as a win ("brought the house down") with no Legendary pick and no act after it, and the score posts to the Leaderboard.',
   setup() {},
