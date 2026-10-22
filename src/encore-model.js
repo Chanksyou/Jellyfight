@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { LOOK } from './look.js';
 
 export function buildEncoreBoss(){
@@ -225,12 +226,21 @@ export function buildEncoreBoss(){
     if(!Number.isInteger(index)||index<0||index>=litPanels.length||!Number.isFinite(strength))return false;
     paint(litPanels[index],color,strength);return true;
   }
+  // Low-poly closed collision hulls reuse the model dimensions; LEDs and fingers stay decorative.
+  const hulls=[geo(new ConvexGeometry(faces.flat().map(p=>new THREE.Vector3(...p))))];
+  function collisionBox(x,y,z,w,h,d){const g=new THREE.BoxGeometry(w,h,d).translate(x,y,z);hulls.push(geo(g));}
+  collisionBox(0,0,0,.63,.028,.39);collisionBox(0,.187,0,.331,.022,.177);
+  for(const side of [-1,1]){
+    const points=[];for(const z of [-.135,-.125])for(const p of [[side*.43,0],[side*.17,.355],[side*.17,0]])points.push(new THREE.Vector3(p[0],p[1],z));
+    hulls.push(geo(new ConvexGeometry(points)));collisionBox(side*.35,-.036,-.13,.18,.07,.11);
+  }
+  const collisionParts=hulls.map(g=>{const n=g.index?geo(g.toNonIndexed()):g;n.deleteAttribute('uv');return n;}),collisionGeometry=geo(mergeGeometries(collisionParts));
   let time=0;
   // The DJ move: dance('silver' | 'gold', beat) each frame throws that performer's outer arm up and
   // pumps it, down on every beat; dance(who, null) lets it ease back to the decks.
   const dancer=who=>dancers.find(d=>d.side===(who==='silver'?-1:who==='gold'?1:0));
   const raised=LOOK.num('encore-dance-raise',1.35),pump=LOOK.num('encore-dance-pump',.32);
-  return {root,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),arms:dancers.map(d=>d.arm),
+  return {root,collisionGeometry,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),arms:dancers.map(d=>d.arm),
     dance(who,beat){const d=dancer(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
     update(dt,quiet=false){time+=dt;for(const {head,side}of heads){head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07);head.rotation.x=quiet?0:.04+Math.sin(time*.9+side)*.025;}for(const {hand,phase}of hands)hand.rotation.x=quiet?0:Math.sin(time*1.6+phase)*.045;
       for(const d of dancers){d.raise+=((d.beat===null?0:1)-d.raise)*Math.min(1,dt*8);const bob=d.beat===null||quiet?0:-Math.cos(d.beat*Math.PI*2);d.arm.rotation.x=-d.raise*(raised+pump*bob);d.arm.rotation.z=d.side*.25*d.raise;}},
