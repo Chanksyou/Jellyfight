@@ -376,7 +376,7 @@ Its attacks are on the attack list (`EVERY_ATTACK[4]`) and the scoreboard, unsco
 pass. Stories `act4/*`: the fight starts straight away, the beetles and force field, winning, and
 the attack list. The act 3 story `act3/beating-the-pothos-goes-on-to-act-4` covers the way in.
 
-## Juice and the meltdown (v247)
+## Juice and the meltdown (v248)
 
 - **Lighter hits.** `LASER_DMG` 2 and `FLOOR_DMG` 3 (the owner's call; disco spots and the stage
   edge stay at 4). Each Encore hit on the jelly flashes at it (`fx.impact`) in that attack's colour.

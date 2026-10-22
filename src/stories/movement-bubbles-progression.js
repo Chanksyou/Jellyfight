@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext } from '../stats.js';
+import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext } from '../stats.js';
 import { sfx } from '../sfx.js';
 import { ELEMENTS_IDS, G, V, fresh, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
@@ -173,7 +173,7 @@ story('treasures/element-rewards', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { run, menus } = G();
-    const isUp = (t) => t.vocabulary.includes('element-up');
+    const isUp = (t) => ELEMENT_UPGRADES.includes(t.id);
     let starts = 0, sample = null;
     stub(menus, 'choose', (title, sub, list) => {
       if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id) && t.tier?.name === 'Legendary')) starts++;
