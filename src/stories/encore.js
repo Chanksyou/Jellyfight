@@ -8,6 +8,7 @@ import { CONFIG } from '../config.js';
 import { Player } from '../player.js';
 import { Music, SONGS } from '../music.js';
 import { SongTrack, TRACKS } from '../song-track.js';
+import { EncoreLasers, CORNERS, LASER_DMG } from '../encore-laser.js';
 import { LOOK } from '../look.js';
 import { story, ok, V } from './kit.js';
 
@@ -304,5 +305,66 @@ story('encore/the-drop-sends-two-waves-at-once-one-per-dj', {
       const both = T.arena.boss.arms.every((arm) => arm.rotation.x < -0.8);
       return ok(pairs && singles && again && both, { inDrop: inDrop.map(([at, w]) => `${at}:${w.map((c) => `${c.name}/${c.dj}`).join('+')}`), singles, again, both });
     } finally { T.done(); }
+  },
+});
+
+// the lasers on an arena of their own, hits recorded
+function lasersOn() {
+  const scene = new THREE.Scene(), arena = buildAct4(scene), hits = [];
+  const lasers = new EncoreLasers(arena, { onHit: (dmg, c) => hits.push({ dmg, beat: lasers.beat }) });
+  return { scene, arena, lasers, hits, done() { lasers.dispose(); arena.dispose(); } };
+}
+story('encore/the-laser-flashes-its-band-then-fires-a-plane-that-sweeps', {
+  about: 'A club laser\'s Warning is a thin line (3 cm) flashing faintly green on the floor for 2 beats where it will land, with the plane barely there over it; on the beat the plane fires full from its corner\'s emitter and swings 10 cm across the band over a beat, then it is gone and its slot free. No light is added.',
+  setup() {},
+  play() {
+    const T = lasersOn();
+    try {
+      let lights = 0; T.arena.root.traverse((o) => { if (o.isLight) lights++; });
+      const c = T.lasers.cast(4, { corner: 1, on: [0, 0.3], side: 1 }), { plane, band } = c.slot;
+      const at = (b) => { for (let x = T.lasers.beat ?? 0; x < b; x += 0.05) T.lasers.update(x, null); T.lasers.update(b, null); return { band: band.visible, flash: band.material.opacity, on: plane.material.uniforms.uOn.value, plane: plane.visible }; };
+      const idle = at(1.5), warnA = at(2.6), warnB = at(3.1), fire = at(4.3);
+      const apex = new THREE.Vector3().fromBufferAttribute(plane.geometry.attributes.position, 0), [cx, cz] = CORNERS[1];
+      const fromEmitter = Math.abs(apex.x - cx) < 1e-6 && Math.abs(apex.z - cz) < 1e-6 && apex.y > 0.3;
+      const a0 = T.lasers.line(c, 0).nx, s0 = T.lasers.line(c, 0), p0 = new THREE.Vector3(), p1 = new THREE.Vector3();
+      T.lasers.line(c, 0, p0); T.lasers.line(c, 1, p1);
+      const swept = Math.abs(p1.clone().sub(p0).dot(new THREE.Vector3(s0.nx, 0, s0.nz)) - LOOK.num('encore-laser-sweep', 0.1)) < 1e-6;
+      const gone = at(5.6), freed = !c.slot.cast && !T.lasers.busy;
+      let after = 0; T.arena.root.traverse((o) => { if (o.isLight) after++; });
+      const thin = Math.abs(band.scale.x - LOOK.num('encore-laser-band', 0.03)) < 1e-9;
+      const warns = thin && !idle.band && warnA.band && warnB.band && warnA.flash !== warnB.flash && Math.max(warnA.flash, warnB.flash) <= 0.2 && warnA.on > 0 && warnA.on <= 0.04;
+      return ok(warns && fire.on === 1 && fromEmitter && swept && !gone.band && !gone.plane && freed && lights === 2 && after === 2 && typeof a0 === 'number', { idle, warnA, warnB, fire, gone, fromEmitter, swept, freed, lights });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/the-laser-hits-in-its-sweep-and-can-be-jumped-far-from-its-corner', {
+  about: 'Standing where the laser is aimed, or in the 10 cm it sweeps over, is a hit (once, for 4 Health); standing just outside its band on the other side is safe. The plane is tall by its corner and low at the far end, so a jump clears it far away and not near the corner.',
+  setup() {},
+  play() {
+    const T = lasersOn();
+    try {
+      const run = (spot, y = 0) => { T.lasers.reset(); T.hits.length = 0; const c = T.lasers.cast(2, { corner: 3, on: [0, 0], side: 1 }); const p = standing(...spot, y); for (let b = 0; b <= 4; b += 1 / 30) T.lasers.update(b, p); return { n: T.hits.length, c }; };
+      const probe = T.lasers.cast(0, { corner: 3, on: [0, 0], side: 1 }), L = T.lasers.line(probe, 0); T.lasers.reset();
+      const [cx, cz] = CORNERS[3], along = (t, off) => [cx + L.ux * t + L.nx * off, cz + L.uz * t + L.nz * off];
+      const aimed = run(along(0.9, 0)).n, swept = run(along(0.9, 0.06)).n, other = run(along(0.9, -0.08)).n, beyond = run(along(0.9, 0.16)).n;
+      const farJump = run(along(L.far - 0.15, 0.03), 0.08).n, nearJump = run(along(0.2, 0.03), 0.08).n;
+      const dmg = (() => { run(along(0.9, 0)); return T.hits[0]?.dmg; })();
+      return ok(aimed === 1 && swept === 1 && other === 0 && beyond === 0 && farJump === 0 && nearJump === 1 && dmg === LASER_DMG, { aimed, swept, other, beyond, farJump, nearJump, far: L.far });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/a-laser-fires-every-4-beats', {
+  about: 'With the lasers rigged, a club laser fires on every wave\'s beat, every 4 beats, alongside the random floor waves, from a random corner (all four turn up) to a random side, aimed where the jelly is.',
+  setup() {},
+  play() {
+    const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const shots = [], lasers = { cast(at, o) { shots.push({ at, ...o }); } }, f = recorder();
+    const set = new EncoreSet(f, 0, { random: lcg(7), lasers, target: () => [0.1, 0.2] });
+    for (let b = -6; b <= 200; b += 0.5) set.update(b);
+    const every4 = shots.length > 40 && shots.every((s, k) => s.at === 4 * k), withWaves = shots.every((s) => f.casts.some((c) => c.at === s.at));
+    const corners = new Set(shots.map((s) => s.corner)).size === 4, sides = new Set(shots.map((s) => s.side)).size === 2, aimed = shots.every((s) => s.target()[0] === 0.1);
+    return ok(every4 && withWaves && corners && sides && aimed, { lasers: shots.length, every4, withWaves, corners, sides, aimed });
   },
 });

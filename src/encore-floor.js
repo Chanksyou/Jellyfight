@@ -265,16 +265,20 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 // Plays waves from beat `from`, casting each 6 beats ahead of its first step (time for the Encore's
 // wind-up). After a jump in time it skips what was missed. The song's `quiet(beat)` (its breakdown,
 // the kick out) rests the floor; its `drop(beat)` doubles the waves. `target()` is where the jelly is.
+// With `lasers` (encore-laser.js), a club laser fires from a random corner on every wave's beat too.
 export class EncoreSet {
-  constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3] } = {}) {
-    Object.assign(this, { floor, from, random, quiet, drop, target });
+  constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target, lasers });
     this.next = 0; this.last = null; this.dj = 0;
   }
   update(beat) {
     for (;;) {
       const at = this.from + this.next * WAVE_GAP;
       if (beat < at - 6) return;
-      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.wave(at, this.drop(at) ? 2 : 1);
+      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) {
+        this.wave(at, this.drop(at) ? 2 : 1);
+        this.lasers?.cast(at, { corner: Math.floor(this.random() * 4) % 4, side: this.random() < 0.5 ? 1 : -1, target: this.target });
+      }
       this.next++;
     }
   }

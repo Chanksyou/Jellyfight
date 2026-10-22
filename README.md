@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v241 rigs the Encore's arena with club lasers: an emitter on each corner post fires a fan of green beams, a laser plane, down to a line through where you stand. A thin line flashes faintly on the floor for 2 beats where it will land, then it fires and sweeps 10 cm to one side: get well clear of the line, or jump it far from its corner. One fires every 4 beats, alongside the floor waves. See [the arena note](docs/act4-arena.md).
+
 v240 pulses the Act 4 overhead beams, perimeter spill, speaker trim and existing fill/key lights to the playing track’s beat. The blue-white/amber ambience fades smoothly, rests during breakdowns, and stays steady under reduced motion. The four speaker stacks now have clearer five-cabinet silhouettes, recessed twin drivers, perforated grilles, metal surrounds and side handles. No extra lights or combat changes.
 
 v239 makes the Encore booth, sloped pyramid and side wings solid. Its energized stage edge warns before contact; touching it deals 4 Health at most once per second, with local lightning, a brief jelly glow, recoil, layered electrical sound and a damage receipt. This works in Walk arena and the floor-pattern fight; overview stays safe. Reset/fight restart clears the effect.
