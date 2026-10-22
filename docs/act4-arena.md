@@ -211,7 +211,48 @@ and its three-jump run, no Warning tiles and each wave in its DJ's colour with n
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
 fallback song scheduling.
 
-## Club lasers (v239)
+## Solid boss structure and contact electricity (v239)
+
+The pyramid's model dimensions now produce a closed low-poly collision hull. It follows
+all four sloped faces, the deck cap, plinth, both triangular wing prisms and their bases.
+The arena registers this invisible hull with the existing World/Player collision path;
+the stage riser remains solid as well. Decorative performers, fingers and LEDs are not
+individual colliders. Collision geometry is owned and disposed by the model.
+
+`EncoreContact` checks the player's radius/height capsule against those same hulls and
+the stage riser using transformed triangles. A 3 mm tolerance covers movement's resting
+contact; no broad box can shock a jelly merely passing through empty space above the
+wings. The contact point comes from the nearest triangle. Touching deals 4 Health,
+at most once per second. This preview-only contact hazard works whenever walking,
+including outside the floor fight; overview has no new hits. As with the floor preview,
+Health refills at zero. Fight restart or R clears the effect/cooldown. Pause freezes it.
+
+A constant amber energized outline is its warning. Confirmed contact sends a jagged arc
+from the surface to the jelly, with short crawling bolts and a local additive body flash.
+The source outline flashes as well. The jelly flinches and is moved away through collision,
+with the existing hurt pop and impact-big camera feel. A projected “Shock! −4 Health”
+receipt confirms the hit. Electrical impact and hurt voices supply layered, varied sound.
+The remaining arcs fade for 0.32 seconds. Reduced motion keeps the receipt/arc information,
+softens the local flash, fixes the jagged shape and disables the existing camera shake.
+No full-screen strobe, added light, or per-hit scene allocation is used. Fixed geometry,
+materials, triangle cache and numeric buffers are reused and disposed with the preview.
+Look tokens: `--encore-contact`, `--encore-contact-life`, `--encore-contact-warning`.
+
+Contact feel audit: **9/9 from code**, not a new campaign scoreboard entry yet. The
+persistent surface cue is anticipation; the same-frame source pulse is release; the
+surface-to-body arc is travel/contact; the flash marks impact; flinch/push and source
+pulse/camera answer; fading arcs are aftermath; Health and the receipt confirm damage;
+layered electrical/hurt voices provide sound. Visual states were inspected in stepped
+real-game desktop and phone-sized Low previews. Audio playback was not listened to.
+
+Four new stories prove front/side/back and airborne collision, vertical/wing proximity,
+contact cooldown/reset/quiet behavior, and bounded effect resources/disposal. All 30
+arena/Encore stories and guards pass. Desktop and phone preview: 119 draws, no errors,
+zero new shader programs on a shock, Health 25 → 21, and no second hit after recoil takes
+the jelly clear. Physical phone performance remains unchecked. Balance bot was not run:
+it does not play this standalone Act 4 preview. Full-suite results are on the PR.
+
+## Club lasers (v240)
 
 `src/encore-laser.js`: an emitter on each of the arena's four corner posts, 35 cm up
 (`--encore-laser-height`). It fires a fan of green beams (`--hostile-encore-laser`,

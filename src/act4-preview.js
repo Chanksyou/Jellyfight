@@ -18,6 +18,7 @@ import { Music, SONGS } from './music.js';
 import { unlock as unlockAudio, audio, sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { BASE_STATS } from './stats.js';
+import { EncoreContact } from './encore-contact.js';
 import { SongTrack, TRACKS } from './song-track.js';
 
 export async function startAct4Preview({scene,renderer,camera}){
@@ -44,7 +45,7 @@ export async function startAct4Preview({scene,renderer,camera}){
   let overview=true,lit=false,paused=false;const shake=new THREE.Vector3();
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const touch=new TouchControls(input,{onPause:()=>{paused=!paused;}});touch.mount(document.body);input.touchOnly=IS_TOUCH;
-  function view(on){overview=on;input.enabled=!on;touch.show(IS_TOUCH&&!on);panel.querySelector('[data-view]').textContent=on?'Walk arena':'Arena overview';panel.querySelector('[data-view]').setAttribute('aria-pressed',String(!on));if(on){document.exitPointerLock?.();camera.position.set(.35,1.12,1.46);camera.lookAt(0,.11,-.05);}else tpc.snapTo(player.position);}
+  function view(on){overview=on;showHealth();healthEl.hidden=on&&!fighting;input.enabled=!on;touch.show(IS_TOUCH&&!on);panel.querySelector('[data-view]').textContent=on?'Walk arena':'Arena overview';panel.querySelector('[data-view]').setAttribute('aria-pressed',String(!on));if(on){document.exitPointerLock?.();camera.position.set(.35,1.12,1.46);camera.lookAt(0,.11,-.05);}else tpc.snapTo(player.position);}
   panel.querySelector('[data-boss]').onclick=()=>{view(true);camera.position.set(.24,.44,-.03);camera.lookAt(0,.255,-.435);};
   panel.querySelector('[data-view]').onclick=()=>view(!overview);
   panel.querySelector('[data-tiles]').onclick=()=>{if(fighting)return;lit=!lit;arena.clearTiles();if(lit)for(let r=0;r<STAGE4.tiles;r++)for(let c=0;c<STAGE4.tiles;c++)if((r*7+c*3)%5<3)arena.setTile(r,c,['#0066ff','#9415ff','#ff6504'][(r+c)%3],.55);panel.querySelector('[data-tiles]').setAttribute('aria-pressed',String(lit));};
@@ -53,18 +54,17 @@ export async function startAct4Preview({scene,renderer,camera}){
   // Fight: the Encore's floor patterns on its song. A hit takes Health; at 0 it fills back up.
   const maxHealth=BASE_STATS.health;let health=maxHealth,fighting=false,set=null,music=null,clock=0;
   const healthEl=panel.querySelector('[data-health]'),showHealth=()=>{healthEl.textContent=`Health ${Math.max(0,Math.round(health))}/${maxHealth}`;};
-  const onHit=dmg=>{
-    health-=dmg;sfx.hurt();juice.feel('impact-big');player.velocity.y=Math.max(player.velocity.y,.45);
-    if(health<=0)health=maxHealth;showHealth();
-  };
-  const floor=new EncoreFloor(arena,{onHit}),lasers=new EncoreLasers(arena,{onHit});
-  // the song's own clock once it exists (it holds still until the audio starts); without audio, frames at its tempo
+  function hurt(dmg){health-=dmg;sfx.hurt();juice.feel('impact-big');player.velocity.y=Math.max(player.velocity.y,.45);player.avatar?.land(1);if(health<=0)health=maxHealth;showHealth();}
+  const floor=new EncoreFloor(arena,{onHit:hurt}),lasers=new EncoreLasers(arena,{onHit:hurt});
+  const shockEl=document.createElement('div');shockEl.setAttribute('role','status');shockEl.style.cssText='position:fixed;pointer-events:none;z-index:14;font:700 18px system-ui;color:#ffd285;text-shadow:0 2px 4px #000;transform:translate(-50%,-100%);opacity:0';document.body.append(shockEl);
+  const receipt=new THREE.Vector3(),away=new THREE.Vector3();
+  const contact=new EncoreContact(scene,arena.shockSolids,{onShock(dmg,point){hurt(dmg);sfx.elementHit('lightning');shockEl.textContent=`⚡ Shock! −${dmg} Health`;away.subVectors(player.position,point);away.y=0;if(away.lengthSq()>1e-8){away.normalize();player.moveHorizontal(away.x*.025,away.z*.025);player.syncMesh();}}});
   // the beat comes from what's playing: the Encore's track, or the synthesized song if the track won't
   // load; null while the track loads (the fight waits); with no audio at all, frames at the song's tempo
   let track=null,source=null,waiting=false;
   const beatNow=dt=>source?source.beatNow():waiting?null:clock+=dt*SONGS.encore.bpm/60;
   function fight(on){
-    fighting=on;floor.reset();lasers.reset();set=null;health=maxHealth;showHealth();healthEl.hidden=!on;
+    fighting=on;floor.reset();lasers.reset();contact.reset();set=null;health=maxHealth;showHealth();healthEl.hidden=overview&&!on;
     const b=panel.querySelector('[data-fight]');b.setAttribute('aria-pressed',String(on));b.textContent=on?'Stop the fight':'Fight: floor patterns';
     if(on){unlockAudio();const A=audio();if(lit)panel.querySelector('[data-tiles]').click();view(false);
       if(A){waiting=true;track||=new SongTrack(A.ctx,A.master,TRACKS.encore);track.load().then(ok=>{waiting=false;if(!fighting)return;if(ok){track.play();source=track;}else{music||=new Music(A.ctx,A.master);music.play('encore');source=music;}});}}
@@ -76,9 +76,9 @@ export async function startAct4Preview({scene,renderer,camera}){
   document.getElementById('loading').classList.add('gone');
   const fps=IS_TOUCH?LOOK.num('phone-fps',60):60;
   const pacer=new FramePacer({fps}),governor=new FrameGovernor({fps:fps||60,scale:maxScale,min:Math.min(maxScale,LOOK.num('min-pixel-ratio',1)),max:maxScale});let last=0;
-  const preview={arena,world,player,tpc,gfx,scene,renderer,camera,input,setOverview:view,step(dt){juice.calm=reducedMotion.matches;music?.duck(paused);track?.duck(paused);music?.update(dt,.8);if(paused)return;juice.update(dt);arena.boss.update(dt,reducedMotion.matches);if(fighting){const beat=beatNow(dt);if(beat!==null){set||=new EncoreSet(floor,Math.ceil(beat/4)*4+4,{quiet:b=>!!source?.quiet?.(b),drop:b=>!!source?.drop?.(b),target:()=>[player.position.x,player.position.z],lasers});set.update(beat);floor.update(beat,player);lasers.update(beat,player);}}world.focus(player.position,dt);if(input.consumeReset()){player.spawn(new THREE.Vector3(...STAGE4.start));world.focus(player.position,1);player.snapToGround();}if(!overview){player.update(dt,input,tpc.yaw);tpc.update(dt,input.consumeMouse(),player.position);camera.position.add(juice.offset(shake));}else player.avatar.update(dt,{speed:0,walkSpeed:CONFIG.player.walkSpeed,grounded:true,vy:0,swim:0});},render:()=>gfx.render()};
-  preview.floor=floor;preview.lasers=lasers;preview.fight=fight;
+  const preview={arena,world,player,tpc,gfx,scene,renderer,camera,input,setOverview:view,step(dt){juice.calm=reducedMotion.matches;music?.duck(paused);track?.duck(paused);music?.update(dt,.8);if(paused)return;juice.update(dt);arena.boss.update(dt,reducedMotion.matches);if(fighting){const beat=beatNow(dt);if(beat!==null){set||=new EncoreSet(floor,Math.ceil(beat/4)*4+4,{quiet:b=>!!source?.quiet?.(b),drop:b=>!!source?.drop?.(b),target:()=>[player.position.x,player.position.z],lasers});set.update(beat);floor.update(beat,player);lasers.update(beat,player);}}world.focus(player.position,dt);if(input.consumeReset()){player.spawn(new THREE.Vector3(...STAGE4.start));world.focus(player.position,1);player.snapToGround();contact.reset();}if(!overview){player.update(dt,input,tpc.yaw);tpc.update(dt,input.consumeMouse(),player.position);contact.update(dt,player,true,reducedMotion.matches);camera.position.add(juice.offset(shake));}else{contact.update(dt,player,false,reducedMotion.matches);}if(overview)player.avatar.update(dt,{speed:0,walkSpeed:CONFIG.player.walkSpeed,grounded:true,vy:0,swim:0});if(contact.life>0){receipt.copy(player.position);receipt.y+=CONFIG.player.height*1.4;receipt.project(camera);shockEl.style.left=`${(receipt.x*.5+.5)*innerWidth}px`;shockEl.style.top=`${(-receipt.y*.5+.5)*innerHeight}px`;}shockEl.style.opacity=String(contact.life/contact.duration);},render:()=>gfx.render()};
+  preview.contact=contact;preview.floor=floor;preview.lasers=lasers;preview.fight=fight;
   window.ACT4=preview;
   renderer.setAnimationLoop(now=>{if(!pacer.due(now))return;const elapsed=last?now-last:1000/60,change=governor.sample(elapsed);if(change){renderer.setPixelRatio(change.scale);gfx.resize();}const dt=Math.min(.04,elapsed/1000);last=now;preview.step(dt);preview.render();});
-  addEventListener('pagehide',event=>{if(event.persisted)return;renderer.setAnimationLoop(null);music?.play(null);track?.stop();lasers.dispose();floor.dispose();arena.dispose();},{once:true});
+  addEventListener('pagehide',event=>{if(event.persisted)return;renderer.setAnimationLoop(null);music?.play(null);track?.stop();contact.dispose();shockEl.remove();lasers.dispose();floor.dispose();arena.dispose();},{once:true});
 }

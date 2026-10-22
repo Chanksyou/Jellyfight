@@ -1,5 +1,6 @@
 // Act 4 environment only: no campaign or boss rules are introduced.
 import * as THREE from 'three';
+import { EncoreContact, CONTACT_DMG } from '../encore-contact.js';
 import { buildEncoreBoss } from '../encore-model.js';
 import { buildAct4 } from '../act4-arena.js';
 import { STAGE4 } from '../stage4.js';
@@ -53,4 +54,21 @@ story('encore/lighting-rejects-invalid-and-clamps-strength',{
 story('encore/lighting-reuses-resources-and-isolates-instances',{
  setup(){},
  play(){const a=buildEncoreBoss(),b=buildEncoreBoss();try{const layer=a.root.getObjectByName('Encore attack lighting'),geometry=layer.geometry,material=layer.material,array=geometry.attributes.color.array;let nodes=0;a.root.traverse(()=>nodes++);for(let i=0;i<1000;i++){a.setLighting('all','#ff5500',(i%100)/100);a.setTriangle(i%a.triangleCount,'#ff0000');}let after=0,lights=0;a.root.traverse(o=>{after++;if(o.isLight)lights++;});const separate=b.root.getObjectByName('Encore attack lighting').geometry.attributes.color.array.every(v=>v===0);return ok(nodes===after&&lights===0&&layer.geometry===geometry&&layer.material===material&&geometry.attributes.color.array===array&&separate,{nodes,after,lights,separate});}finally{a.dispose();b.dispose();}},
+});
+
+story('encore/structure-stops-front-side-and-airborne-entry',{
+ setup(){},
+ play(){const {arena,world}=make();try{const p=new Player(world,CONFIG.player),checks=[];for(const [at,move,axis,limit,sign]of [[[0,0,.1],[0,-.004],'z',-.192,1],[[.55,0,-.56],[-.004,0],'x',.46,1],[[0,.1,-.05],[0,-.004],'z',-.35,1],[[0,0,-.69],[0,.004],'z',-.66,-1]]){p.spawn(V(...at));for(let i=0;i<150;i++){world.focus(p.position,1/60);p.moveHorizontal(...move);p.depenetrate();}checks.push(sign*(p.position[axis]-limit)>0);}const hit=world.cast(V(0,.6,-.43),V(0,-1,0),1);return ok(checks.every(Boolean)&&hit&&hit.point.y>.25,{checks,top:hit?.point.y});}finally{arena.dispose();}},
+});
+story('encore/contact-matches-base-slope-wings-and-height',{
+ setup(){},
+ play(){const {arena,scene}=make();const contact=new EncoreContact(scene,arena.shockSolids);try{const p={position:V(0,0,0),cfg:CONFIG.player},checks=[];for(const [at,expected]of [[[0,0,-.189],true],[[0,0,.1],false],[[0,.5,-.43],false],[[0,.27,-.43],true],[[-.29,.22,-.53],true],[[.29,.22,-.53],true],[[.5,0,-.43],false]]){p.position.set(...at);checks.push(contact.touching(p)===expected);}return ok(checks.every(Boolean),{checks});}finally{contact.dispose();arena.dispose();}},
+});
+story('encore/contact-rate-reset-and-quiet-feedback',{
+ setup(){},
+ play(){const {arena,scene}=make();let damage=0;const contact=new EncoreContact(scene,arena.shockSolids,{onShock:d=>damage+=d});try{const p={position:V(0,0,-.189),cfg:CONFIG.player};contact.update(0,p);for(let i=0;i<30;i++)contact.update(1/60,p);const once=damage===CONTACT_DMG;for(let i=0;i<31;i++)contact.update(1/60,p);const twice=damage===CONTACT_DMG*2;contact.reset();contact.update(0,p,false);const inactive=contact.life===0;contact.update(0,p,true,true);const quiet=contact.life>0&&contact.material.opacity>0&&contact.flashMaterial.opacity<=.18;contact.reset();const reset=contact.life===0&&contact.material.opacity===0;return ok(once&&twice&&inactive&&quiet&&reset,{once,twice,inactive,quiet,reset,damage});}finally{contact.dispose();arena.dispose();}},
+});
+story('encore/contact-resources-stay-bounded-and-dispose',{
+ setup(){},
+ play(){const {arena,scene}=make();const contact=new EncoreContact(scene,arena.shockSolids);try{const p={position:V(0,0,-.189),cfg:CONFIG.player},array=contact.positions.array;let nodes=0;contact.root.traverse(()=>nodes++);for(let i=0;i<2000;i++)contact.update(1/60,p);let after=0;contact.root.traverse(()=>after++);let disposed=0;for(const r of [contact.geometry,contact.material,contact.flashGeometry,contact.flashMaterial,contact.edgeGeometry,contact.edgeMaterial])r.addEventListener('dispose',()=>disposed++);contact.dispose();return ok(nodes===after&&array===contact.positions.array&&disposed===6&&contact.root.parent===null,{nodes,after,disposed});}finally{arena.dispose();}},
 });
