@@ -3,6 +3,7 @@
 // is no night: the fight starts straight away, and beating the Encore wins the run. Shared helpers
 // are in ./kit.js; src/stories.js imports this file in order.
 
+import * as THREE from 'three';
 import { CONTENT } from '../content.js';
 import { G, act4, encoreFight, everyAttack, ok, record, step, stub } from './kit.js';
 
@@ -21,12 +22,16 @@ act4('the-encore-fight-starts-straight-away', {
 });
 
 act4('its-beetles-hold-up-a-force-field-until-they-die', {
-  about: 'At bar 8 (beat 32) the Encore calls 4 stag beetles onto the floor and a blue force field rises over its booth: while any beetle lives your hits bounce off. Kill the 4 and it takes damage again. 16 bars later (beat 96) it calls 4 more.',
+  about: 'At bar 8 (beat 32) the Encore calls 2 stag beetles onto the floor (2 at a time, bosses.kdl `count`) and a bright blue force field rises over its whole booth: while either beetle lives your hits bounce off. Kill them and it takes damage again. 16 bars later (beat 96) it calls 2 more.',
   setup() {},
   play() {
-    const B = encoreFight({ beat: 31.5 }), { enemies } = G();
+    const B = encoreFight({ beat: 31.5 }), { enemies } = G(), count = CONTENT.bosses.encore.skills.beetles.count;
     step(60);
     const called = B.guards.length, beetles = B.guards.every((g) => g.type === 'beetle'), up = B.shielded && B.field.visible;
+    // the dome stands out round the booth: past its sides, its front and its top (not hidden inside it)
+    const box = new THREE.Box3().setFromObject(B.arenaView.boss.root), f = B.field, inside = (x, y, z) => ((x - f.position.x) / f.scale.x) ** 2 + ((y - f.position.y) / f.scale.y) ** 2 + ((z - f.position.z) / f.scale.z) ** 2 <= 1;
+    const mx = (box.min.x + box.max.x) / 2, mz = (box.min.z + box.max.z) / 2, low = box.min.y + 0.01;
+    const covers = inside(box.min.x, low, mz) && inside(box.max.x, low, mz) && inside(mx, low, box.max.z) && inside(mx, box.max.y, mz);   // its sides, its front and its top
     const hp0 = B.hp; B.damage(50);
     const bounced = B.hp === hp0;
     for (const g of [...B.guards]) enemies.kill(g);
@@ -36,7 +41,7 @@ act4('its-beetles-hold-up-a-force-field-until-they-die', {
     const hurt = B.hp === hp0 - 50;
     B.clock = 95.5; step(60);
     const again = B.guards.length;
-    return ok(called === 4 && beetles && up && bounced && down && hurt && again === 4, { called, beetles, up, bounced, down, hurt, again });
+    return ok(count === 2 && called === count && beetles && up && covers && bounced && down && hurt && again === count, { count, called, beetles, up, covers, bounced, down, hurt, again });
   },
 });
 

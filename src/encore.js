@@ -3,7 +3,7 @@
 //   the floor waves and a laser every 4 beats (encore-floor.js EncoreSet, encore-laser.js),
 //   from bar 16 the speaker waves (encore-pulse.js), from bar 32 the disco ball (encore-disco.js),
 //   and its stage edge shocks a jelly that touches it (encore-contact.js).
-// At bar 8, and every 16 bars after, it calls 4 stag beetles (content/enemies.kdl "beetle") onto the
+// At bar 8, and every 16 bars after, it calls 2 stag beetles (content/enemies.kdl "beetle") onto the
 // floor and raises a force field: while any of them lives it takes no damage. Otherwise your attacks
 // hurt it like any boss (its hit sphere is in front of the booth, clear of the stage's collider), and
 // at 0 Health the set stops and it is beaten.
@@ -57,7 +57,7 @@ export class Encore {
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
     this.set = null;
-    this.field = forceField(); this.field.position.set(0, 0.07, -0.43); A.root.add(this.field);
+    this.field = forceField(A.boss); A.root.add(this.field);
   }
 
   get position() { return this.holder.position; }
@@ -93,7 +93,7 @@ export class Encore {
     return (this.clock += dt * TRACKS.encore.bpm / 60);
   }
 
-  // At bar 8 and every 16 bars after: 4 beetles on the open floor, and the force field while they live
+  // At bar 8 and every 16 bars after: beetles on the open floor (bosses.kdl `count`, 2), and the force field while they live
   summon(beat) {
     const S = this.def.skills.beetles || {}, at = S.at ?? 32, every = S.every ?? 64, count = S.count ?? 4;
     const n = Math.floor((beat - at) / every);
@@ -145,13 +145,20 @@ export class Encore {
   }
 }
 
-// The force field: the shared hex shell (vfx.js VolumeMaterial) as a see-through dome over the booth,
-// in its own cyber blue, flaring when a hit bounces off it
-function forceField() {
+// The force field: the shared hex shell (vfx.js VolumeMaterial) as a see-through dome over the whole
+// booth (sized from its collider, with room to spare, so none of it hides inside the booth), in its
+// own cyber blue with big bright cells (`--encore-shield-hex`, `--encore-shield-glow`), flaring when a
+// hit bounces off it
+function forceField(booth) {
   const mat = new VolumeMaterial(LOOK.color('encore-shield', '#3fd0ff'), 'dome');
   mat.progress = 1;
-  mat.uniforms.uHex.value = LOOK.num('energy-shield-hex', 65);
+  mat.uniforms.uHex.value = LOOK.num('encore-shield-hex', 28);
+  mat.uniforms.uGlow.value = LOOK.num('encore-shield-glow', 2.4);
+  const box = (booth.collisionGeometry.boundingBox || (booth.collisionGeometry.computeBoundingBox(), booth.collisionGeometry.boundingBox)).clone().translate(booth.root.position);
+  const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()), room = LOOK.num('encore-shield-room', 1.3);
   const m = new THREE.Mesh(volumeGeometry('dome'), mat);
-  m.scale.set(0.5, 0.42, 0.32); m.name = 'Encore force field'; m.userData.noCollide = true; m.visible = false; m.renderOrder = 5;
+  m.position.set(c.x, box.min.y, c.z);
+  m.scale.set(size.x / 2 * room, size.y * room, size.z / 2 * room);
+  m.name = 'Encore force field'; m.userData.noCollide = true; m.visible = false; m.renderOrder = 5;
   return m;
 }
