@@ -504,6 +504,26 @@ story('modes/quick-restart-after-death', {
   },
 });
 
+story('boss/a-level-up-after-the-boss-is-never-swept-away', {
+  about: 'Beating the boss, its XP often levels you up: that pick stays open as long as you like, and the metamorphosis comes after it, never in its place.',
+  setup() { fresh({ bubbles: false, lash: false, hurt: false, levels: true }); },
+  async play() {
+    const { run } = G();
+    const modal = () => document.querySelector('.jf-modal');
+    run.pendingLevels = 1;
+    run.levelUp();                                                    // the level-up the boss's XP brought
+    const levelUp = modal().querySelector('h2')?.textContent;
+    run.later(() => run.metamorph(), 0);                              // onBossDead's metamorphosis comes due
+    await new Promise((r) => setTimeout(r, 2600));                    // a slow pick: well past the 2.2 s
+    const still = modal().querySelector('h2')?.textContent;
+    modal().querySelector('.jf-card').click();                        // take a card
+    await new Promise((r) => setTimeout(r, 400));
+    const after = modal().querySelector('h2')?.textContent;
+    G().menus.close();
+    return ok(still === levelUp && run.phase === 'metamorph' && /Metamorphosis/.test(after), { levelUp, still, after, phase: run.phase });
+  },
+});
+
 story('boss/legendary-reward', {
   about: 'The Boss reward: after the metamorphosis, a Legendary pick of three with at least one element you don\'t have yet, then the act is complete.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); },
