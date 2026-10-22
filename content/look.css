@@ -372,6 +372,10 @@
   --encore-smoke: #8c8c99;       /* the smoke off its broken booth */
   --encore-meltdown-time: 3.4;   /* its short-out cut scene (s); --encore-meltdown-calm-time with reduced effects */
   --encore-meltdown-calm-time: 1.2;
+  --encore-defeat-time: 4.6;     /* its defeat scene (s): explosions, panels dying, the DJs slumping; --encore-defeat-calm-time with reduced effects */
+  --encore-defeat-calm-time: 1.5;
+  --victory-bubble: #bff4ff;     /* the bubbles rising past the jelly as it swims home (victory.js) */
+  --victory-continue-after: 1.6; /* s before Continue shows on the win screen */
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
   --encore-shield-opacity: 0.9;
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */

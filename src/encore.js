@@ -83,7 +83,7 @@ export class Encore {
   }
 
   damage(amount, color = '#fff', feedback = {}) {
-    if (this.dead || this.cut) return;                              // (nothing lands while it shorts out)
+    if (this.dead || this.cut || this.falling) return;              // (nothing lands while it shorts out or falls)
     if (this.shielded) { this.flash = 1; this.fx.number(this.center().setY(this.holder.position.y + 0.1), 'SHIELDED', LOOK.color('encore-shield', '#3fd0ff'), 12); return; }   // it bounces off the force field
     this.hp -= amount;
     this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, 16, feedback);
@@ -114,14 +114,65 @@ export class Encore {
     big ? sfx.lightningBig?.() : sfx.zap?.();
     return p;
   }
-  // no cat to finish it: the music stops and it's beaten (run.js onBossDead)
+  // No cat to finish it: it goes down in its own cut scene (`falling`, main.js frames `cut`), the music
+  // cut dead (run.js musicState). Its set stops and its beetles drop; explosions climb over the booth,
+  // its panels die section by section, the DJs slump over their decks and the disco ball crashes down
+  // and shatters; one last blow-out, then the smoke settles and it's beaten (`dead`: run.js onBossDead)
   beaten() {
-    this.hp = 0; this.dead = true; this.state = 'beaten';
-    this.floor.reset(); this.lasers.reset(); this.disco.reset(); this.pulses.reset(); this.contact.reset();
-    this.arenaView.boss.clearLighting?.();
+    if (this.falling || this.dead) return;
+    this.hp = 0; this.state = 'falling';
+    this.floor.reset(); this.lasers.reset(); this.pulses.reset(); this.contact.reset(); this.set = null;
     for (const g of this.guards) if (!g.dead) this.enemies.kill(g, true);
     this.guards = [];
     this.field.visible = false;
+    const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
+    const length = LOOK.num(short ? 'encore-defeat-calm-time' : 'encore-defeat-time', short ? 1.5 : 4.6);
+    this.falling = { t: 0, length, next: 0, blown: false, ball: this.disco.hanger.visible ? { y: this.disco.hanger.position.y, v: 0, down: false } : null };
+    // the shot: a wide view of the whole stage, drifting slowly back as it comes apart
+    this.cut = { t: 0, length, from: new THREE.Vector3(c.x - 0.3, b.max.y * 1.1, b.max.z + 0.7), to: new THREE.Vector3(c.x - 0.15, b.max.y * 1.4, b.max.z + 1.0), look: c.clone().setY(b.max.y * 0.45) };
+    for (const who of ['silver', 'gold']) this.arenaView.boss.dance(who, null);
+    this.arenaView.boss.setLighting('all', 0xffffff, 1);
+    juice.feel('boss-kill'); sfx.lightningBig?.(); sfx.boom();
+  }
+  // each frame of its fall (after the model's own update, so the slump sticks)
+  fallDown(dt) {
+    const F = this.falling, C = this.cut, M = this.arenaView.boss, D = this.disco, u = Math.min(1, F.t / F.length);
+    F.t += dt; if (C) C.t = F.t;
+    // explosions, faster and faster until the blow-out at 60%, then dying away
+    if (F.t >= F.next) { F.next = F.t + (u < 0.6 ? 0.3 - 0.22 * (u / 0.6) : 0.25 + (u - 0.6)); if (u < 0.85) this.spark(u > 0.35 && Math.random() < 0.4); }
+    if (!F.blown && u >= 0.6) {
+      F.blown = true;
+      for (let k = 0; k < 4; k++) this.spark(true);
+      const c = this.booth.getCenter(_hit);
+      this.fx.impact(c, LOOK.color('encore-broken', '#ff2a3a'), 0.18, 30);
+      this.fx.ring(c.setY(0.01), 0xffd23a, 0.7, 0.6);
+      juice.feel('boss-kill'); sfx.boom(); sfx.lightningBig?.();
+    }
+    // its panels die section by section: still lit ones stutter, then go dark for good
+    const n = M.triangleCount || 0, alive = Math.ceil(n * (1 - Math.min(1, u / 0.62)));
+    for (let i = 0; i < n; i++) M.setTriangle(i, Math.random() < 0.5 ? 0xffffff : LOOK.color('encore-broken', '#ff2a3a'), i < alive ? Math.random() * 0.8 : 0);
+    // it shudders, and after the blow-out sags a little to one side
+    const sag = THREE.MathUtils.smoothstep(u, 0.6, 0.75);
+    M.root.position.copy(this.home).add(_hit.set((Math.random() - 0.5) * 0.01 * (1 - sag), -0.012 * sag, 0));
+    M.root.rotation.z = 0.04 * sag;
+    // the DJs slump over their decks
+    const slump = THREE.MathUtils.smoothstep(u, 0.15, 0.7);
+    for (const h of M.heads) { h.rotation.x += slump * 0.7; h.rotation.z = (Math.random() - 0.5) * 0.3 * (1 - slump); }
+    // the disco ball (if it was down) snaps off and crashes onto the floor, shattering
+    if (F.ball && !F.ball.down) {
+      if (u > 0.25) { F.ball.v -= 2.5 * dt; F.ball.y += F.ball.v * dt; }
+      D.hanger.position.y = F.ball.y; D.hanger.rotation.z += dt * (u > 0.25 ? 3 : 0);
+      if (F.ball.y < 0.12) {
+        F.ball.down = true; D.hanger.visible = D.spots.visible = D.beams.visible = false;
+        const p = D.hanger.position.clone().setY(0.03);
+        this.fx.impact(p, 0xffffff, 0.12, 24); this.fx.ice.shatter(p, 30, 0.012, 0.8, 0);
+        juice.feel('impact-big'); sfx.shatter?.();
+      }
+    }
+    if (F.t >= F.length) {
+      this.falling = null; this.cut = null; this.dead = true; this.state = 'beaten';
+      D.reset(); M.clearLighting?.();
+    }
   }
 
   // the beat now: the song's, or its own tempo clock (no song, music off, or the song still loading)
@@ -154,7 +205,8 @@ export class Encore {
     this.shove.x = this.shove.z = 0;
     this.guards = this.guards.filter((g) => !g.dead);
     const A = this.arenaView, beat = this.dead ? null : this.beatNow(dt), M = A.boss;
-    if (this.cut) this.shortOut(dt, beat);
+    if (this.falling) { /* its fall: fallDown, after the model's update */ }
+    else if (this.cut) this.shortOut(dt, beat);
     else if (!this.dead && beat !== null) {
       this.beat = beat;
       this.set ||= new EncoreSet(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z], lasers: this.lasers });
@@ -171,8 +223,9 @@ export class Encore {
       if (this.shielded && (this.shieldT += dt) > (this.def.skills.beetles?.timeout ?? 90)) { for (const g of this.guards) this.enemies.kill(g, true); this.guards = []; }
     }
     this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
-    A.updateAmbience?.(this.dead ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat));
+    A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat));
     M.update(dt, !!this.fx.reducedMotion?.matches);
+    if (this.falling) this.fallDown(dt);
     // its panels: a white flash when a hit lands; broken, a red pulse on the beat between floor waves
     this.hurtT = Math.max(0, this.hurtT - dt * 6);
     if (!this.cut && !this.dead) {

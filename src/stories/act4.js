@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { CONTENT } from '../content.js';
-import { G, act4, encoreFight, everyAttack, ok, record, step, stub } from './kit.js';
+import { G, act4, encoreFight, everyAttack, fresh, ok, record, step, stub } from './kit.js';
 
 act4('the-encore-fight-starts-straight-away', {
   about: 'Act 4 has no night to explore: the run goes straight into the Encore\'s fight in the concert arena (no "Time\'s up!"), with its Health bar up, its set playing and no bugs waiting.',
@@ -77,29 +77,72 @@ act4('at-half-health-its-booth-shorts-out', {
   },
 });
 
-act4('beating-the-encore-wins-the-run', {
-  about: 'Bring the Encore\'s Health to 0 and the set stops: the jelly takes one more metamorphosis, then the run ends as a win ("brought the house down") with no Legendary pick and no act after it, and the score posts to the Leaderboard.',
+act4('beating-the-encore-plays-its-defeat', {
+  about: 'At 0 Health the Encore goes down in its own scene: its set stops and the music cuts out, the camera pulls back on the stage (the HUD hidden, the game held, no more hits landing), explosions climb over the booth, its panels die and the DJs slump over their decks, one last blow-out, and only then is it beaten.',
+  setup() {},
+  play() {
+    const B = encoreFight({ beat: 10 }), { run, hud, fx } = G(), M = B.arenaView.boss;
+    step(20);
+    let bursts = 0; const impact = fx.impact; fx.impact = function (...a) { bursts++; return impact.apply(this, a); };
+    try {
+      B.damage(B.hp + 1);
+      step(3);
+      const falling = !!B.falling && !!B.cut && !B.dead && hud.el.hidden && run.musicState().song === null;
+      const hp = B.hp; B.damage(50); const immune = B.hp === hp;
+      step(Math.round(60 * B.falling.length * 0.8));
+      const slumped = M.heads.every((h) => h.rotation.x > 0.3), dark = !B.dead;
+      step(60 * 2, () => B.dead);
+      step(2);
+      return ok(falling && immune && slumped && dark && B.dead && run.bossWon && bursts >= 6, { falling, immune, slumped, dark, dead: B.dead, won: run.bossWon, bursts });
+    } finally { fx.impact = impact; }
+  },
+});
+
+act4('winning-swims-the-jelly-home-then-the-score', {
+  about: 'After the Encore\'s defeat the run is won with no more metamorphosis: "Congratulations! You won!" over the sea, where the player\'s own jelly swims away home; Continue (after a moment) brings up the score, with its name box and Submit because it makes the top 10, and it posts to the Leaderboard as a win.',
   setup() {},
   async play() {
-    const B = encoreFight(), { run, menus } = G();
+    const B = encoreFight({ beat: 10 }), { run, menus, APT } = G();
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const modal = () => document.querySelector('.jf-modal');
     let posted = null;
-    stub(run, 'board', { status: 'online', keepBest: () => false, post: (e) => { posted = e; return Promise.resolve({ posted: true }); } });
+    stub(run, 'board', { status: 'online', mine: null, keepBest: () => false, qualifies: () => true, cutoff: () => 0, post: (e) => { posted = e; return Promise.resolve({ posted: true }); } });
     B.damage(B.hp + 1);
-    step(10, () => run.bossWon);
+    step(60 * 6, () => run.bossWon);
     step(5);
-    await wait(2400);
-    const grow = modal()?.innerText || '';
-    modal()?.querySelector('.jf-card')?.click();
-    run.evolutionReveal.finish();
+    await wait(2500);
+    const V = run.victory, banner = document.querySelector('.jf-victory')?.innerText || '';
+    const sea = V.active && APT.camera.layers.mask === 1 << 30 && !modal()?.innerText.includes('Metamorphosis');
+    const waits = !!document.querySelector('.jf-victory button')?.hidden;
+    const startY = V.body.position.y;
+    step(60 * 2);
+    const swims = V.body.position.y > startY, ready = !document.querySelector('.jf-victory button').hidden;
+    document.querySelector('.jf-victory button').click();
     const end = modal()?.innerText || '';
-    const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act/.test(b.textContent));
+    const entry = !!modal()?.querySelector('input[name="player"]');
     [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();
     await wait(50);
     menus.close();
-    return ok(B.dead && run.bossWon && /Metamorphosis/.test(grow) && !/Legendary/.test(end) && /brought the house down/.test(end) && !next && posted?.won,
-      { dead: B.dead, won: run.bossWon, grow: grow.slice(0, 160), end: end.slice(0, 160), next, posted: !!posted });
+    return ok(/Congratulations/.test(banner) && /You won/.test(banner) && /sea/.test(banner) && sea && waits && swims && ready && /brought the house down/.test(end) && entry && posted?.won,
+      { banner: banner.slice(0, 120), sea, waits, swims, ready, end: end.slice(0, 120), entry, posted: !!posted });
+  },
+});
+
+act4('a-score-off-the-top-10-is-not-entered', {
+  about: 'A winning score that would not make the top 10 gets no name box or Submit on the end screen, just a line saying so (and what #10 has); one that would, gets them.',
+  setup() {},
+  async play() {
+    fresh({ hurt: false });
+    const { run, menus } = G(), modal = () => document.querySelector('.jf-modal');
+    stub(run, 'board', { status: 'online', mine: null, keepBest: () => false, qualifies: () => false, cutoff: () => 99999, post: () => Promise.resolve({ posted: true }) });
+    run.endRun('🏆 You won!', 'won', 'Play again');
+    const low = modal()?.innerText || '', lowEntry = !!modal()?.querySelector('input[name="player"]'), lowSubmit = /Submit score/.test(low);
+    menus.close();
+    stub(run.board, 'qualifies', () => true);
+    run.endRun('🏆 You won!', 'won', 'Play again');
+    const highEntry = !!modal()?.querySelector('input[name="player"]');
+    menus.close();
+    return ok(!lowEntry && !lowSubmit && /not enough for the top 10/.test(low) && /99,999/.test(low) && highEntry, { lowEntry, lowSubmit, low: low.slice(0, 160), highEntry });
   },
 });
 

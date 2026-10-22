@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v251';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v252';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -600,6 +600,7 @@ const GAME = {
     frameBossCut();
     mainMenu.update(dt, !overlay.hidden && state.mode === 'play', state.mode === 'creator');
     run.evolutionReveal.update(dt);   // the portrait animates while gameplay and menus hold the run still
+    run.victory.update(dt);           // the ending: the jelly swimming home to the sea
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
     systems.hud.update(dt);
