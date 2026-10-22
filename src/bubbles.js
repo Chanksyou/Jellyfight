@@ -539,11 +539,19 @@ export class Bubbles {
     b.splashed = true;
     const p = b.m.position, glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
-    if (glitter) for (let k = 0; k < 6; k++) this.fx.puff(p.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(splash * 0.7)), [0xff9ae8, 0xffffff, 0xffe07a][k % 3], 0.005, 0.4);
+    if (glitter) {
+      // the bomb goes off: real glitter flakes thrown out to the splash's edge, fluttering down and
+      // lying on the floor glinting, a bright pop at its heart and a second, wider ring of sparkle
+      const floor = this.enemies.floorBelow(p, p.y - 0.03);
+      this.fx.glitter.burst(p, Math.round(LOOK.num('glitter-burst-flakes', 46) * Math.min(2, splash / 0.05)), splash, floor);
+      this.looks.glitterPop(p, splash);
+      juice.feel('hit-big');
+    }
     this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
       if (E.center(e, c).distanceTo(p) >= splash + e.r) continue;
+      if (glitter) this.looks.glittered(E.center(e, c), e.r);                                                               // sparkles stuck on everything it hits
       if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
       if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
       bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash', feedback: { element: b.tint } });

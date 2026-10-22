@@ -450,6 +450,7 @@ export class Enemies {
     }
     if (e.markT > 0) amount *= 1 + (e.markMore ?? 0.5);   // Sticky Note
     e.hp -= amount;
+    e.lastElement = feedback.element;     // what finished it, if this was the last hit (feedback.js: a glitter-finished bug bursts into glitter)
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
     e.pop = 1;
     // flashes white for a moment, then can't again for a beat: under steady fire a big bug blinks with
@@ -468,7 +469,7 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0,
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
