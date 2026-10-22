@@ -2,7 +2,6 @@
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
-import { TREASURE_RARITY } from './stats.js';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 
@@ -99,10 +98,7 @@ export class XpDrops {
 // seconds, with a gold ring on the floor that drains as its time runs out (blinking for the last
 // few seconds); one an elite drops waits for good (stay = Infinity, no ring).
 // The chest's materials and shapes are shared by every chest, so a second one needs no new shaders.
-// A chest's light tells the best rarity its pick holds (the TREASURE_RARITY colours): a room
-// chest's pick holds a Rare, an Elite's an Epic — and the pick keeps the promise (run.js
-// pickTreasure). The chest itself stays gold; only its glow, ring and burst change colour.
-const TIER_COLOR = Object.fromEntries(TREASURE_RARITY.map((r) => [r.id, new THREE.Color(r.color)]));
+// Contents are unknown until opening: both sources use a neutral gold glow, ring and burst.
 let CHEST = null;
 function chestParts(fx) {
   if (CHEST) return CHEST;
@@ -162,17 +158,13 @@ export class RoomTreasure {
 
   get pos() { return this.g.position; }
   get timed() { return Number.isFinite(this.stay); }
-  // the best rarity this chest's pick holds: a timed (room) chest's pick holds a Rare,
-  // one an Elite left (it waits for good) holds an Epic (run.js PICK_TIERS)
-  get tier() { return this.timed ? 'rare' : 'epic'; }
-
   // at: { at: [x, y, z], y, label } (a spot) or a Vector3; stay: seconds, or Infinity
   show(at, stay = Infinity, facing = 0) {
     this.spot = at.isVector3 ? null : at;
     this.stay = stay;
     this.left = stay;
     this.active = true;
-    this.tierColor = TIER_COLOR[this.tier];
+    this.tierColor = this.gold;   // unknown contents: the glow promises no minimum rarity
     this.ring.material.uniforms.uColor.value.copy(this.tierColor);
     this.opening = null;
     this.lidPivot.rotation.x = 0;
