@@ -366,7 +366,10 @@
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
-  --encore-shield-opacity: 0.55;
+  --encore-shield-opacity: 0.9;
+  --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */
+  --encore-shield-glow: 2.4;
+  --encore-shield-room: 1.3;      /* how much bigger than the booth the dome is */
   --encore-pulse: #f4f8ff;       /* the speakers' sound waves: white (they shove, they don't hurt) */
   --encore-pulse-radius: 0.22;   /* m: the front arc of a wave (about 40 cm across) */
   --encore-pulse-arc: 2.2;       /* radians each arc spans (about 125°) */

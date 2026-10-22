@@ -4,7 +4,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v245 gives room chest options base chances of 60% Common / 30% Rare / 8% Epic / 2% Legendary, and elite chest options 40% / 40% / 15% / 5%. These are per option at 0 Luck, normalized if a rarity has no eligible treasure left. There is no forced minimum rarity; unopened chests use a neutral gold glow. Every third chest still offers an owned Element upgrade using its chest weights among eligible upgrade rarities. New Elements remain starting/boss rewards; ordinary Legendary treasures can now appear in either chest source.
+v246 gives room chest options base chances of 60% Common / 30% Rare / 8% Epic / 2% Legendary, and elite chest options 40% / 40% / 15% / 5%. These are per option at 0 Luck, normalized if a rarity has no eligible treasure left. There is no forced minimum rarity; unopened chests use a neutral gold glow. Every third chest still offers an owned Element upgrade using its chest weights among eligible upgrade rarities. New Elements remain starting/boss rewards; ordinary Legendary treasures can now appear in either chest source.
+
+v245 makes the Encore call 2 beetles at a time instead of 4, and makes its force field much easier to see: brighter, with big hex cells, and wrapped round the whole booth instead of half hidden inside it. See [the arena note](docs/act4-arena.md).
 
 v244 makes Act 4 a real act. Beat the Pothos, take your Legendary treasure, and the run carries on into the Encore's concert arena. There's no night to explore: the fight starts straight away to its song, with every attack so far (floor waves, lasers, speaker waves, the disco ball, the shock on its stage edge). At bar 8, and every 16 bars after, it calls 4 stag beetles onto the floor and a blue hex force field rises over its booth: your hits bounce off until all 4 are dead. Bring its Health (3000) to 0 and the run ends as a win, after one more metamorphosis. See [the arena note](docs/act4-arena.md).
 
