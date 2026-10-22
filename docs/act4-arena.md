@@ -252,7 +252,48 @@ zero new shader programs on a shock, Health 25 → 21, and no second hit after r
 the jelly clear. Physical phone performance remains unchecked. Balance bot was not run:
 it does not play this standalone Act 4 preview. Full-suite results are on the PR.
 
-## Club lasers (v240)
+## Beat ambience and speaker readability (v240)
+
+`arena.updateAmbience(beat, reducedMotion, breakdown)` uses the exact absolute music beat
+passed to the floor system. It modulates the existing hemisphere fill/directional key,
+shared perimeter light-pool opacity, blue-white/amber overhead shaft opacity and matching
+speaker trim. Downbeats get the strongest accent; other beats get three quarters of it.
+The envelope decays exponentially within each beat. A hitch or rewind reads its new phase
+directly; it cannot queue missed flashes or drift into a separate metronome.
+
+No song, loading, negative pre-roll, invalid beat, breakdown and reduced motion restore
+steady base lighting. Stopping/restarting a fight resets it immediately. Pause freezes the
+visual scene with the rest of the preview. No screen flashes, light-count changes or
+postprocessing passes are introduced. Floor attack colors and the pyramid/wing warning
+buffers are untouched. The blue-white/amber washes stay on broad scenery and fixtures;
+they do not turn safe floor tiles into warning tiles.
+
+All four suspended speakers have five separate cabinets, lighter side ribs and suspension
+caps, recessed twin cones, metallic driver surrounds, dust caps, perforated grille faces,
+side handle recesses and blue (left) / amber (right) edge strips. A single shared 64² grille
+texture and static geometry merged by material keep the detail bounded. Speaker faces
+point inward on both sides; cabinet depth and side details keep the outer silhouette
+readable too. All new geometry, materials and the grille texture dispose with the arena.
+
+Look tokens use `--arena-speaker-*` for cabinet/baffle/driver/grille colors and
+`--arena-beat-*` for fill/key/spill/beam/trim amplitude and envelope decay. Light intensities
+never fall below their readable base values. The ambient layer introduces no damage,
+contact changes, audio processing or attack timing changes.
+
+Four new stories cover absolute beat/decay/downbeat/reset, quiet/invalid/breakdown states,
+unchanged hazard buffers and scene resources after 2,000 updates, speaker detail and
+owned grille/material cleanup. All 34 targeted arena/Encore stories passed. Independent
+review found no blockers. Final guards/full-suite results are recorded on the PR.
+
+Desktop 1280 × 853 and phone 844 × 390 Low overview/close-up states were inspected.
+Complete preview: 128 draws, 126,310 triangles, two existing lights. A 120-frame sequence
+compiled zero new shader programs, logged no errors, and submitted CPU work in about
+0.36 ms desktop / 0.34 ms phone viewport in software Chromium. These are not physical
+phone FPS measurements. Audio-clock integration and reduced-motion delivery are checked
+in the live preview; audio playback was not listened to. No balance bot: no combat values
+or behavior changed. Physical flagship phone performance remains unchecked.
+
+## Club lasers (v241)
 
 `src/encore-laser.js`: an emitter on each of the arena's four corner posts, 35 cm up
 (`--encore-laser-height`). It fires a fan of green beams (`--hostile-encore-laser`,
@@ -273,7 +314,7 @@ to a random side.
 
 Two pooled planes and bands, four emitters: a few unlit draws, no light added.
 
-## Disco ball (v241)
+## Disco ball (v242)
 
 `src/encore-disco.js`: every 8 bars, from 32 bars into the fight (beat 128), a big mirror ball
 (`--encore-disco-radius`, 24 cm across, about three jellies tall) drops on its rod from above the
