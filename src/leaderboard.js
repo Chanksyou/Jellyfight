@@ -140,11 +140,12 @@ export class Leaderboard {
   // Your place on the board (1-based), or null when you're not in the top 10
   rank() { const i = this.shown().findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1; }
 
-  // Rows for the in-game table: [label, value] pairs, names escaped (they're other players' input)
-  table() {
+  // Rows for the in-game table: [label, value] pairs, names escaped (they're other players' input).
+  // face(look): a picture of that player's own jelly (jelly-portrait.js), shown by their name
+  table(face = null) {
     if (this.status === 'offline') return [];
     return this.shown().map((r, i) => [
-      `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}`,
+      `<i class="jf-rank">${['🥇', '🥈', '🥉'][i] || `${i + 1}.`}</i>${face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : ''}<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}</span>`,
       `${Number(r.score).toLocaleString()}${r.won ? ' 🏆' : ''}`,
     ]);
   }
