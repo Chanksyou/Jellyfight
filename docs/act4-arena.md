@@ -138,12 +138,25 @@ GitHub results are recorded on the PR.
 
 The Encore's first attack family: the floor lights up in shapes that sweep across it a tile every
 third of a beat (8th-note triplets), in time with the Encore's song, like notes scrolling down a rhythm game. `src/encore-floor.js`
-holds the patterns, the floor that plays them and the preview's setlist.
+holds the patterns, the floor that plays them and the random set that picks them.
 
 - **ring** expands from the front of the pyramid, one tile thick: jump it as it reaches you.
 - **arc** is a ring with a gap (52°, its heading varies): jump it or run to the gap.
-- **arrow** is a 45° chevron, tip first, crossing the floor down, left or right. The setlist's three
-  arrows four beats apart are three jumps in a row.
+- **arrow** is a 45° chevron, tip first, crossing the floor down, left or right.
+- **sweep** is a radar line swinging across the floor from the pyramid, either way round: jump it as
+  it swings over you.
+- **closing** is a ring that closes in a tile a step on where the jelly stood when it was cast,
+  ending on it: you can't outrun it, so jump it.
+- **gate** is a wall right across the floor (down, left or right) with a two-tile gap at a random
+  place: run to the gap or jump it.
+- **pincer** is two walls from the sides squeezing to the middle: jump one as it passes.
+
+**Random, never predictable.** `EncoreSet` picks every wave at random, a new one every 4 beats: never
+the same pattern twice running, with its direction, gap, spin or heading picked too. Whose wave it is
+alternates, and a wave from a wing is the DJ on that side. **At the drop** (the track's bars 32 to 39,
+64 beats into the fight, and again every time the song loops round) the waves come two at a time:
+two different patterns, one from each DJ, so both DJs pump at once. Two waves from wings are never
+from the same side.
 
 **Whose wave.** Each wave belongs to one DJ and is his colour: the silver DJ's electric blue
 (`--hostile-encore-silver`, his helmet's blue piping made hot) or the gold DJ's gold
@@ -174,12 +187,11 @@ beat (a pause, a long frame) passes the missed steps without hitting.
 `src/song-track.js`. Its beat grid was measured from the file: 128 BPM, first beat 0.052 s in. It
 starts 64 beats (16 bars, about 30 s) in, skipping the intro, and loops from the end of its 159th
 bar back to there, a whole number of bars, so the beat counts on with no slip, and the floor rests through its
-breakdown (bars 75 to 79, the kick out): the setlist leaves out any pattern that would play into
+breakdown (bars 75 to 79, the kick out): the set leaves out any wave that would play into
 it. If the file can't load, the preview plays `SONGS.encore` in `src/music.js` instead: an original
 French-house track at 121 BPM (Dm9, Bbmaj7, F, C6; a new `stab` voice for its chopped chords).
 
-**In the preview.** **Fight: floor patterns** starts the track and the setlist (8 waves in 8 bars, round and
-round) with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` shake (Reduce effects
+**In the preview.** **Fight: floor patterns** starts the track and the random waves with Health from `BASE_STATS`; a hit is the hurt sound, the `impact-big` shake (Reduce effects
 silences it) and a pop up off the floor, and Health fills back up at 0. **Stop the fight** ends it.
 
 **Cost.** No light is added. The tiles are the arena's existing instanced colours; the volumes are
@@ -193,8 +205,8 @@ preview has no fx pools), aftermath, a damage number, and a layered hit sound. T
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (11): the ring's travel and thickness, a standing jelly hit on the beat only,
+Stories `encore/*` (15): the ring's travel and thickness, a standing jelly hit on the beat only,
 a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
-and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, hitches and jumps in
+and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, the four newer shapes and how they hit, the random picking, the drop's pairs, hitches and jumps in
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
 fallback song scheduling.

@@ -104,7 +104,7 @@ story('encore/the-arc-gap-is-safe-to-stand-in', {
 });
 
 story('encore/arrows-four-beats-apart-are-a-run-of-jumps', {
-  about: 'A chevron leads with its tip and crosses the floor a row every third of a beat. The setlist\'s three arrows down, four beats apart, each hit a jelly that stands still: three jumps in a row.',
+  about: 'A chevron leads with its tip and crosses the floor a row every third of a beat. Three arrows down, four beats apart, each hit a jelly that stands still: three jumps in a row.',
   setup() {},
   play() {
     const T = make();
@@ -112,8 +112,8 @@ story('encore/arrows-four-beats-apart-are-a-run-of-jumps', {
       const steps = PATTERNS.arrow.steps({ dir: 'down' }), mid = steps.find((s) => s.some((i) => (i / N | 0) === 8));
       const rows = (cols) => mid.filter((i) => cols.includes(i % N)).map((i) => (i / N) | 0);
       const tipLeads = Math.min(...rows([5, 6])) > Math.max(...rows([0, 11]));
-      const set = new EncoreSet(T.floor, 0, () => 0.5);
-      play(T.floor, standing(tileX(5), tileZ(9)), -8, 17.5, (b) => set.update(b));   // to the end of the third arrow down
+      for (const at of [4, 8, 12]) T.floor.cast('arrow', at, { dir: 'down' });
+      play(T.floor, standing(tileX(5), tileZ(9)), -2, 18);
       const arrows = T.hits.filter((h) => h.name === 'arrow').length;
       return ok(tipLeads && arrows === 3, { tipLeads, hits: T.hits.map((h) => `${h.name}@${h.beat.toFixed(2)}`) });
     } finally { T.done(); }
@@ -171,7 +171,7 @@ story('encore/a-jump-in-time-drops-patterns-instead-of-firing-them', {
   play() {
     const T = make();
     try {
-      const spot = standing(tileX(5), tileZ(9)), set = new EncoreSet(T.floor, 0, () => 0.5);
+      const spot = standing(tileX(5), tileZ(9)), set = new EncoreSet(T.floor, 0, { random: () => 0.5 });
       play(T.floor, spot, -8, 13, (b) => set.update(b));
       const before = T.hits.length;
       set.update(40); T.floor.update(40, spot);                       // 27 beats later at once
@@ -205,7 +205,7 @@ story('encore/the-track-loops-on-whole-bars-and-rests-in-its-breakdown', {
     T.buffer = ctx.createBuffer(1, 44100 * 300, 44100); T.play();
     const p = 60 / T.bpm, from = TRACKS.encore.offset + 64 * p, whole = Math.abs(T.src.loopStart - from) < 1e-9 && Math.abs(T.src.loopEnd - T.src.loopStart - (159 * 4 - 64) * p) < 1e-9 && T.src.loopEnd <= T.buffer.duration && T.loopBeats === 159 * 4 - 64;
     const L = T.loopBeats, f = (fileBeat) => fileBeat - 64, quiet = T.quiet(f(75 * 4)) && T.quiet(f(79 * 4 + 3)) && !T.quiet(f(74 * 4 + 3)) && !T.quiet(f(80 * 4)) && T.quiet(L + f(77 * 4)) && !T.quiet(0);
-    const floor = { casts: [], cast(name, at) { this.casts.push(at); } }, set = new EncoreSet(floor, 0, () => 0.5, (b) => T.quiet(b));
+    const floor = { casts: [], cast(name, at) { this.casts.push(at); } }, set = new EncoreSet(floor, 0, { random: () => 0.5, quiet: (b) => T.quiet(b) });
     for (let b = 0; b < 2 * L; b += 0.5) set.update(b);
     const rests = floor.casts.every((at) => !T.quiet(at) && !T.quiet(at + 8)), plays = floor.casts.length > 30;
     T.stop();
@@ -227,5 +227,82 @@ story('encore/the-track-beat-grid-lands-on-its-kicks', {
     for (let k = 8; k < T.bars * 4 - 8; k++) { const t = T.offset + k * p; if (T.quiet.includes(Math.floor(k / 4))) continue; on += loud(t); between += loud(t + p / 2); }
     const ratio = on / between;
     return ok(Math.abs(buf.duration - 300) < 1 && T.offset + T.bars * 4 * p <= buf.duration && ratio > 2, { duration: buf.duration, ratio });
+  },
+});
+
+// a pattern's steps, and the tile a spot is on
+const tileAt = (x, z) => Math.floor((z + N * S / 2) / S) * N + Math.floor((x + N * S / 2) / S);
+const angle = (i) => Math.atan2(tileX(i % N) - BOSS.center[0], tileZ((i / N) | 0) - BOSS.center[2]);
+story('encore/sweep-closing-gate-and-pincer-shapes', {
+  about: 'The four newer waves: a sweep is a radar line swinging across the floor from the pyramid (each tile in front once, in angle order, either way round); a closing ring shrinks a tile a step onto its spot, ending on it; a gate is a whole row with a two-tile gap; a pincer is two walls from the sides meeting in the middle.',
+  setup() {},
+  play() {
+    const cw = PATTERNS.sweep.steps({ spin: 1 }), ccw = PATTERNS.sweep.steps({ spin: -1 }), flat = (st) => st.flat();
+    const once = new Set(flat(cw)).size === flat(cw).length && flat(cw).length > 80;
+    const order = cw.every((st, k) => k === 0 || st.every((i) => cw[k - 1].every((j) => angle(i) >= angle(j))));
+    const reverse = ccw.every((st, k) => k === 0 || st.every((i) => ccw[k - 1].every((j) => angle(i) <= angle(j))));
+    const on = [tileX(3), tileZ(8)], cl = PATTERNS.closing.steps({ on });
+    const ends = cl.at(-1).includes(tileAt(...on)) && cl.length === 8 && !cl.slice(0, -1).some((st) => st.includes(tileAt(...on)));
+    const g = PATTERNS.gate.steps({ dir: 'down', gap: 4 }), gapOpen = g.every((st) => !st.some((i) => i % N === 4 || i % N === 5)), rows = g.every((st) => new Set(st.map((i) => (i / N) | 0)).size === 1 && st.length === N - 2);
+    const pc = PATTERNS.pincer.steps(), meets = pc.length === N / 2 && pc.every((st, k) => st.every((i) => i % N === k || i % N === N - 1 - k));
+    return ok(once && order && reverse && ends && gapOpen && rows && meets, { sweepSteps: cw.length, once, order, reverse, closing: cl.length, ends, gapOpen, rows, meets });
+  },
+});
+
+story('encore/the-gap-the-squeeze-and-the-closing-ring-hit-as-they-should', {
+  about: 'Standing in a gate\'s gap is safe and anywhere else on its way is hit; a pincer hits a jelly in the middle as its walls meet; a closing ring cast on the jelly hits it standing still and misses it jumping as it closes.',
+  setup() {},
+  play() {
+    const T = make();
+    try {
+      const run = (name, o, spot, to = 12) => { T.floor.reset(); T.hits.length = 0; T.floor.cast(name, 0, o); play(T.floor, spot, -2, to); return T.hits.length; };
+      const inGap = run('gate', { dir: 'down', gap: 4 }, standing(tileX(4), tileZ(9))), offGap = run('gate', { dir: 'down', gap: 4 }, standing(tileX(8), tileZ(9)));
+      const middle = run('pincer', {}, standing(tileX(5), tileZ(9)));
+      const on = [tileX(6), tileZ(9)], still = run('closing', { on }, standing(...on));
+      const lastAt = (7 * FLOOR_STEP), jumping = (() => { T.floor.reset(); T.hits.length = 0; T.floor.cast('closing', 0, { on }); const p = standing(...on); play(T.floor, p, -2, 6, (b) => { p.position.y = b > lastAt - 0.5 && b < lastAt + 0.5 ? 0.1 : 0; }); return T.hits.length; })();
+      return ok(inGap === 0 && offGap === 1 && middle === 1 && still === 1 && jumping === 0, { inGap, offGap, middle, still, jumping });
+    } finally { T.done(); }
+  },
+});
+
+// a stand-in floor that only records what it's asked to play
+const recorder = () => ({ casts: [], cast(name, at, o) { this.casts.push({ name, at, ...o }); } });
+story('encore/waves-come-at-random-and-never-twice-running', {
+  about: 'The Encore picks every wave at random, a new one every 4 beats: never the same pattern twice running, all seven turning up, its options (direction, gap, spin) picked too, and two different rolls give different sets.',
+  setup() {},
+  play() {
+    const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const roll = (seed) => { const f = recorder(), set = new EncoreSet(f, 0, { random: lcg(seed) }); for (let b = -6; b <= 800; b += 0.5) set.update(b); return f.casts; };
+    const a = roll(1), b = roll(2), names = a.map((c) => c.name);
+    const never = names.every((n, k) => k === 0 || n !== names[k - 1]);
+    const all = Object.keys(PATTERNS).every((n) => names.includes(n));
+    const spaced = a.every((c, k) => k === 0 || c.at - a[k - 1].at === 4);
+    const differ = a.slice(0, 8).map((c) => c.name).join() !== b.slice(0, 8).map((c) => c.name).join();
+    const varied = new Set(a.filter((c) => c.name === 'gate').map((c) => `${c.dir}${c.gap}`)).size > 3 && new Set(a.filter((c) => c.dir).map((c) => c.dir)).size === 3;
+    const sides = a.every((c) => (c.dir === 'right' ? c.dj === 'silver' : c.dir === 'left' ? c.dj === 'gold' : true));
+    return ok(never && all && spaced && differ && varied && sides, { waves: a.length, never, all, spaced, differ, varied, sides, first: names.slice(0, 10) });
+  },
+});
+
+story('encore/the-drop-sends-two-waves-at-once-one-per-dj', {
+  about: 'At the track\'s drop, 64 beats into the fight (the file\'s bars 32 to 39), the waves come two at a time, different patterns, one from each DJ, so both DJs pump; before and after it, one at a time. The drop comes round again on every loop.',
+  setup() {},
+  play() {
+    const ctx = new OfflineAudioContext(1, 44100, 44100), track = new SongTrack(ctx, ctx.destination, TRACKS.encore);
+    const f = recorder(), set = new EncoreSet(f, 0, { drop: (b) => track.drop(b) });
+    for (let b = -6; b <= 200; b += 0.5) set.update(b);
+    const byBeat = new Map(); for (const c of f.casts) byBeat.set(c.at, [...(byBeat.get(c.at) || []), c]);
+    const inDrop = [...byBeat].filter(([at]) => at >= 64 && at < 96), outside = [...byBeat].filter(([at]) => at < 64 || at >= 96);
+    const pairs = inDrop.length === 8 && inDrop.every(([, w]) => w.length === 2 && w[0].name !== w[1].name && new Set(w.map((c) => c.dj)).size === 2);
+    const singles = outside.every(([, w]) => w.length === 1);
+    const again = track.drop(64 + track.loopBeats) && !track.drop(63) && !track.drop(96);
+    // and on the real floor both DJs dance through it
+    const T = make();
+    try {
+      const real = new EncoreSet(T.floor, 0, { drop: (b) => track.drop(b) });
+      for (let b = 56; b <= 72; b += 1 / 30) { real.update(b); T.floor.update(b, null); T.arena.boss.update(1 / 60); }
+      const both = T.arena.boss.arms.every((arm) => arm.rotation.x < -0.8);
+      return ok(pairs && singles && again && both, { inDrop: inDrop.map(([at, w]) => `${at}:${w.map((c) => `${c.name}/${c.dj}`).join('+')}`), singles, again, both });
+    } finally { T.done(); }
   },
 });

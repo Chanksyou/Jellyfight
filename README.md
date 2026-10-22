@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v238 makes the Encore's floor waves three times as fast (a tile every third of a beat), a new wave every 4 beats with no rests between, and no Warning tiles ahead of them: you watch the wave come. Each wave is one DJ's colour (the silver DJ's electric blue, the gold DJ's gold), and that DJ throws an arm up and pumps it on the beat while it plays. See [the arena note](docs/act4-arena.md).
+v238 makes the Encore's floor waves three times as fast (a tile every third of a beat), a new wave every 4 beats with no rests between, picked at random and never the same twice running, and no Warning tiles ahead of them: you watch the wave come. Four new waves join the ring, arc and arrow: a sweep, a closing ring, a gate with a gap and a pincer. At the track's drop, 64 beats in, two waves come at once. Each wave is one DJ's colour (the silver DJ's electric blue, the gold DJ's gold), and that DJ throws an arm up and pumps it on the beat while it plays. See [the arena note](docs/act4-arena.md).
 
 v237 gives the Encore its first attacks in the Act 4 preview (Dev → Act 4 preview → **Fight: floor patterns**): the floor lights up in rings, arcs and arrows that travel a tile a beat to Westend's edit of "Around the World" (128 BPM, the owner's pick; an original synthesized track if it can't load), and you jump them on the beat or run to an arc's gap. Each hit takes 4 Health. See [the arena note](docs/act4-arena.md).
 

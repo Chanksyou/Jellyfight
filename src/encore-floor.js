@@ -34,12 +34,25 @@ for (let i = 0; i < N * N; i++) {
   if (!(Math.abs(x - BOSS.center[0]) < BOSS.width / 2 && Math.abs(z - BOSS.center[2]) < BOSS.depth / 2)) OPEN.push(i);
 }
 
-// each pattern: its steps (step k goes off FLOOR_STEP × k beats after it starts), and which part of the Encore lights up for it
+// each pattern: its steps (step k goes off FLOOR_STEP × k beats after it starts), and which part(s)
+// of the Encore light up for it
+const fromWing = (o) => ({ left: 'rightWing', right: 'leftWing' })[o.dir] || 'pyramid';
 export const PATTERNS = {
   ring: { part: 'pyramid', steps: (o) => rings(o) },
   arc: { part: 'pyramid', steps: (o) => rings({ gap: 0.9, ...o }) },
-  arrow: { part: (o) => ({ left: 'rightWing', right: 'leftWing' })[o.dir] || 'pyramid', steps: (o) => chevrons(o) },
+  arrow: { part: fromWing, steps: (o) => chevrons(o) },
+  sweep: { part: 'pyramid', steps: (o) => sweep(o) },
+  closing: { part: ['leftWing', 'rightWing'], steps: (o) => closing(o) },
+  gate: { part: fromWing, steps: (o) => gate(o) },
+  pincer: { part: ['leftWing', 'rightWing'], steps: () => pincer() },
 };
+// a tile's place along a wave's way (row for down, column for right, mirrored for left) and across it
+function axes(i, dir) {
+  const row = (i / N) | 0, col = i % N;
+  return dir === 'down' ? [row, col] : dir === 'right' ? [col, row] : [N - 1 - col, row];
+}
+// the first row in front of the boss's space: where a wave coming down starts
+const FRONT = Math.ceil((BOSS.center[2] + BOSS.depth / 2 + HALF) / S);
 // a ring a tile thick from the front of the pyramid, a tile further out each step; `gap` (radians)
 // leaves the tiles within gap/2 of `heading` (0 = straight down the floor, towards the jelly's start) cold
 function rings({ gap = 0, heading = 0 } = {}) {
@@ -60,16 +73,54 @@ function rings({ gap = 0, heading = 0 } = {}) {
 // sweeping back a tile for every tile across (a 45° V)
 function chevrons({ dir = 'down' } = {}) {
   // a down arrow starts with its tip on the first row in front of the boss's space
-  const out = [], first = dir === 'down' ? Math.ceil((BOSS.center[2] + BOSS.depth / 2 + HALF) / S) : 0;
-  for (let front = first; front < N + N / 2; front++) {
+  const out = [];
+  for (let front = dir === 'down' ? FRONT : 0; front < N + N / 2; front++) {
     const step = [];
-    for (const i of OPEN) {
-      const row = (i / N) | 0, col = i % N;
-      const [along, across] = dir === 'down' ? [row, col] : dir === 'right' ? [col, row] : [N - 1 - col, row];
-      if (along === front - Math.floor(Math.abs(across - (N - 1) / 2))) step.push(i);
-    }
+    for (const i of OPEN) { const [along, across] = axes(i, dir); if (along === front - Math.floor(Math.abs(across - (N - 1) / 2))) step.push(i); }
     if (step.length) out.push(step);
   }
+  return out;
+}
+// a radar line from the pyramid swinging across the floor, `spin` 1 (left to right) or -1, an
+// angle a step: jump it as it swings over you
+function sweep({ spin = 1 } = {}) {
+  const ox = BOSS.center[0], oz = BOSS.center[2], reach = 1.45, d = 0.16, out = [];
+  for (let a = -reach; a < reach; a += d) {
+    const lo = spin > 0 ? a : -a - d, step = [];
+    for (const i of OPEN) {
+      const dx = tileX(i % N) - ox, dz = tileZ((i / N) | 0) - oz, t = Math.atan2(dx, dz);
+      if (t >= lo && t < lo + d) step.push(i);
+    }
+    out.push(step);
+  }
+  return out;
+}
+// a ring closing in on a spot (`on`: [x, z], where the jelly stood when it was cast), a tile nearer
+// each step, ending on it: you can't outrun it, so jump as it reaches you
+function closing({ on = [0, 0.3] } = {}) {
+  const out = [];
+  for (let r = 7 * S; r > -S / 2; r -= S) {
+    const step = [];
+    for (const i of OPEN) if (Math.abs(Math.hypot(tileX(i % N) - on[0], tileZ((i / N) | 0) - on[1]) - Math.max(0, r)) < S / 2) step.push(i);
+    out.push(step);                                       // kept even when empty, so it closes on time
+  }
+  return out;
+}
+// a wall right across the floor, a row a step, with a gap two tiles wide at `gap` (the first of the
+// two, across its way): run to the gap or jump it
+function gate({ dir = 'down', gap = 5 } = {}) {
+  const out = [];
+  for (let front = dir === 'down' ? FRONT : 0; front < N; front++) {
+    const step = [];
+    for (const i of OPEN) { const [along, across] = axes(i, dir); if (along === front && (across < gap || across > gap + 1)) step.push(i); }
+    if (step.length) out.push(step);
+  }
+  return out;
+}
+// two walls, one from each side, closing on the middle a column a step: jump one as it passes you
+function pincer() {
+  const out = [];
+  for (let k = 0; k < N / 2; k++) out.push(OPEN.filter((i) => i % N === k || i % N === N - 1 - k));
   return out;
 }
 
@@ -140,7 +191,7 @@ export class EncoreFloor {
       }
       // the Encore winds up for it: its part fills over the bar before, flashes on the first step, fades after
       const u = beat - c.at, b = u < -4 ? 0 : u < 0 ? (u + 4) / 4 * 0.6 : Math.max(0, 1 - u / 2);
-      if (b > boss[c.part][0]) boss[c.part] = [b, who];
+      for (const part of [].concat(c.part)) if (b > boss[part][0]) boss[part] = [b, who];
       // and its DJ dances from the wind-up to the wave's end
       if (u >= -4 && beat <= this.endOf(c) + fade) dancing[c.dj] = true;
     }
@@ -190,32 +241,59 @@ export class EncoreFloor {
   dispose() { this.volumes.removeFromParent(); this.volumes.geometry.dispose(); this.volumes.material.dispose(); this.volumes.dispose(); }
 }
 
-// The set the Encore plays in the preview: a wave every 4 beats (a jump hangs about 2.7, so that is
-// as tight as it goes), 8 bars, then again. Each entry: [beat in the loop, pattern, opts]. The three
-// arrows down are three jumps in a row; the arcs' gaps move each time round. Whose wave each is
-// alternates; an arrow from a wing is the DJ on that side (silver on the left).
-export const SETLIST = [
-  [0, 'ring', { dj: 'silver' }],
-  [4, 'arrow', { dir: 'down', dj: 'gold' }], [8, 'arrow', { dir: 'down', dj: 'silver' }], [12, 'arrow', { dir: 'down', dj: 'gold' }],
-  [16, 'arc', { dj: 'silver' }],
-  [20, 'arrow', { dir: 'right', dj: 'silver' }], [24, 'arrow', { dir: 'left', dj: 'gold' }],
-  [28, 'arc', { dj: 'gold' }],
-];
-export const SET_BEATS = 32;
+// What the Encore plays: a wave every 4 beats (a jump hangs about 2.7, so that is as tight as it
+// goes), each one picked at random, never the same pattern twice running, with its direction, gap,
+// spin and DJ picked too; at a drop (the song's `drop(beat)`), two waves at once, one from each DJ.
+export const WAVE_GAP = 4;
+const DIRS = ['down', 'left', 'right'];
+const pick = (list, random) => list[Math.floor(random() * list.length) % list.length];
+// a wave's options, picked; `on` is where the jelly is (the closing ring closes on it)
+function options(name, random, on) {
+  const dir = pick(DIRS, random);
+  switch (name) {
+    case 'arc': return { heading: (random() - 0.5) * 1.6 };
+    case 'arrow': return { dir };
+    case 'sweep': return { spin: random() < 0.5 ? 1 : -1 };
+    case 'closing': return { on };
+    case 'gate': return { dir, gap: 1 + Math.floor(random() * (N - 3)) };
+    default: return {};
+  }
+}
+// an arrow or a gate from a wing is the DJ on that side (silver on the left)
+const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' : null);
 
-// Plays the SETLIST round and round from beat `from`, casting each pattern 6 beats ahead of its first
-// step (time for the Encore's wind-up). After a jump in time it skips what was missed;
-// `quiet(beat)` true (the song's breakdown, its kick out) rests the floor: a pattern that would play
-// into it is left out.
+// Plays waves from beat `from`, casting each 6 beats ahead of its first step (time for the Encore's
+// wind-up). After a jump in time it skips what was missed. The song's `quiet(beat)` (its breakdown,
+// the kick out) rests the floor; its `drop(beat)` doubles the waves. `target()` is where the jelly is.
 export class EncoreSet {
-  constructor(floor, from, random = Math.random, quiet = () => false) { Object.assign(this, { floor, from, random, quiet }); this.next = 0; }
+  constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3] } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target });
+    this.next = 0; this.last = null; this.dj = 0;
+  }
   update(beat) {
     for (;;) {
-      const loop = Math.floor(this.next / SETLIST.length), [b, name, opts = {}] = SETLIST[this.next % SETLIST.length];
-      const at = this.from + loop * SET_BEATS + b;
+      const at = this.from + this.next * WAVE_GAP;
       if (beat < at - 6) return;
-      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.floor.cast(name, at, name === 'arc' ? { heading: (this.random() - 0.5) * 1.6, ...opts } : opts);
+      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.wave(at, this.drop(at) ? 2 : 1);
       this.next++;
     }
+  }
+  // `count` waves on beat `at`, different patterns. Two at once are one from each DJ: a wave from a
+  // wing is that side's DJ, so the other wave is turned away from that wing.
+  wave(at, count) {
+    const names = Object.keys(PATTERNS), waves = [];
+    for (let n = 0; n < count; n++) {
+      const name = pick(names.filter((x) => x !== this.last && !waves.some((w) => w.name === x)), this.random);
+      waves.push({ name, o: options(name, this.random, this.target()) });
+    }
+    const [a, b] = waves;
+    if (b) {
+      if (sideDj(a.o) && sideDj(b.o)) b.o.dir = 'down';              // not both from the same (or opposite) wings
+      const first = sideDj(a.o) ?? (sideDj(b.o) === 'silver' ? 'gold' : 'silver');
+      a.o.dj = first; b.o.dj = first === 'silver' ? 'gold' : 'silver';
+      if (sideDj(b.o) && sideDj(b.o) !== b.o.dj) b.o.dir = 'down';
+    } else a.o.dj = sideDj(a.o) ?? ['silver', 'gold'][this.dj++ % 2];
+    for (const w of waves) this.floor.cast(w.name, at, w.o);
+    this.last = waves[waves.length - 1].name;
   }
 }
