@@ -146,6 +146,35 @@ story('attack/ice-shatter-feel', {
   },
 });
 
+story('attack/glitter-bomb-feel', {
+  about: 'Glitter lands like a glitter bomb: when it goes off, real flakes fly out to the splash\'s edge, flutter down and lie on the floor glinting, then fade (all gone in about 3 s); every bug the splash hits sparkles; a bug finished by glitter bursts into glitter (flakes, its sparkly pop, no body left). Its flakes are prepared at load: no new shader mid-fight.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('glitter'); roachAt(0, -0.18); roachAt(0.025, -0.18); roachAt(0.4, -0.3); step(2); },
+  play() {
+    const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, near, far] = enemies.list, P = run.mods.element.glitter;
+    const programs = APT.renderer.info.programs.length;
+    let bursts = 0, sparkled = 0; const gb = sfx.glitterBurst; sfx.glitterBurst = function (...a) { bursts++; return gb.apply(this, a); };
+    const gl = B.looks.glittered.bind(B.looks); stub(B.looks, 'glittered', (...a) => { sparkled++; return gl(...a); });
+    try {
+      B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 0.1, tint: 'glitter', elems: ['glitter'], ep: P, pierce: 1 });
+      for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+      step(60);
+      const flakes = fx.glitter.live, landed = fx.glitter.list.some((f) => f.life && f.down);
+      const reach = Math.max(...fx.glitter.list.filter((f) => f.life).map((f) => Math.hypot(f.p.x - e.pos.x, f.p.z - e.pos.z)));
+      step(60 * 2.5);
+      const faded = fx.glitter.live === 0;
+      // finished by glitter: it bursts into glitter
+      const bodies = fx.deaths.list.length;
+      e.lastElement = 'glitter'; enemies.kill(e); step(1);
+      const burst = bursts === 1 && fx.glitter.live > 20 && fx.deaths.list.length === bodies;
+      step(60 * 3.5);
+      const gone = fx.glitter.live === 0;
+      APT.renderer.compile(APT.scene, APT.camera);
+      const shaders = APT.renderer.info.programs.length - programs;
+      return ok(flakes >= 30 && landed && reach > 0.02 && reach < 0.2 && faded && sparkled >= 1 && burst && gone && shaders === 0, { flakes, landed, reach: +reach.toFixed(3), faded, sparkled, burst, bursts, gone, shaders });
+    } finally { sfx.glitterBurst = gb; }
+  },
+});
+
 story('attack/ice-slow-and-followup-upgrade', {
   about: 'Freezer Pack and Snow Globe only slow; Freezer Burn doubles a follow-up shard against an already slowed enemy.',
   setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'freezerBurn', 'snowGlobe'); roachAt(0, -0.18); roachAt(0.01, -0.18); step(2); },

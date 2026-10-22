@@ -109,7 +109,7 @@ export class BubbleLooks {
     };
     const F = this.fire;
     const ball = new THREE.IcosahedronGeometry(1, 2);
-    const crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
+    const flake = new THREE.CircleGeometry(1, 6), crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
     // Base at the hot core, tapered point trailing along local -z. No dynamic lights.
     const tongue = new THREE.ConeGeometry(1, 1, 7).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
     // each element's parts: [geometry, material, { name, s: [x, y, z] scale, at: [x, y, z] }]
@@ -145,8 +145,11 @@ export class BubbleLooks {
         [ball, lit(0xeef6ff, 0.6, true), { s: [0.6, 0.6, 0.6] }],
       ],
       glitter: [
-        [ball, lit(0xff2ab0)],
-        [ball, lit(0xff4ac0, 0.4), { name: 'halo', s: [1.6, 1.6, 1.6] }],
+        // a clear bauble with a hot pink heart and glitter swirling round inside it
+        [ball, lit(0xff2ab0), { name: 'heart', s: [0.55, 0.55, 0.55] }],
+        [ball, lit(0xffd0f0, 0.22, true), { name: 'bauble', s: [1.25, 1.25, 1.25] }],
+        [ball, lit(0xff4ac0, 0.35), { name: 'halo', s: [1.6, 1.6, 1.6] }],
+        ...[0xffc81a, 0x2ae0ff, 0xb04aff, 0x6aff6a, 0xffffff, 0xff2ab0].map((c, k) => [flake, lit(c, 1, true), { name: 'f' + k, s: [0.24, 0.24, 0.24] }]),
       ],
     };
     // lightning arcs, all of them in one line buffer, rebuilt every frame
@@ -268,9 +271,24 @@ export class BubbleLooks {
       this.fx.puff(_p.copy(pos).setY(pos.y + r), 0x9ab08a, r * 2.4, 0.6);                      // the sizzle's smoke
     } else if (el === 'glitter') {
       glow.emit(pos, a, r * 5, r * 3, 0.16, 0.6);
-      this.fx.burst(pos, ['#ff2ab0', '#ffc81a', '#2ae0ff', '#b04aff', '#6aff6a'], 10, r * 0.3, 0.38, pos.y - 0.03);   // confetti
       for (let k = 0; k < 8; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 2)), COL.glitter[k % 5], r * 0.5, 0, 0.9 + Math.random() * 0.6, 1, _a.set((Math.random() - 0.5) * 0.05, 0.03, (Math.random() - 0.5) * 0.05), 0.05);   // twinkles drifting down
     }
+  }
+
+  // the glitter bomb going off (bubbles.js splash; its flakes are fx.glitter's): a white-hot pop, a
+  // flash of every colour, and a ring of sparkle racing out to the splash's real edge
+  glitterPop(pos, radius) {
+    const glow = this.fx.glow;
+    glow.emit(pos, COL.snow, radius * 1.2, radius * 0.6, 0.07, 1.4);
+    for (let k = 0; k < 5; k++) glow.emit(pos, COL.glitter[k], radius * 0.7, radius * 0.5, 0.2, 0.5);
+    for (let k = 0; k < 18; k++) {                                            // sparkles flung to the edge
+      const a = (k / 18) * Math.PI * 2;
+      glow.emit(pos, COL.glitter[k % 5], radius * 0.09, 0, 0.3 + Math.random() * 0.15, 1.2, _v.set(Math.cos(a) * radius * 3, 0.03, Math.sin(a) * radius * 3), 0.15);
+    }
+  }
+  // a bug the glitter splash hit: it sparkles all over for a moment
+  glittered(pos, r) {
+    for (let k = 0; k < 5; k++) this.fx.glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.glitter[(Math.random() * 5) | 0], r * 0.45, 0, 0.35 + Math.random() * 0.4, 1.3, _a.set(0, 0.015, 0), 0.1);
   }
 
   // the acid puddle splashing down: a ring of drops thrown out to its edge and a bright splat
@@ -518,6 +536,10 @@ export class BubbleLooks {
       }
       case 'glitter': {
         U.halo.scale.setScalar(1.5 + 0.2 * Math.sin(t * 25 + w));
+        for (let k = 0; k < 6; k++) {                                          // the glitter swirling inside the bauble, flashing as it turns
+          const f = U['f' + k], a = t * (5 + k) + w + k * 1.05, h = Math.sin(t * 3.1 + k * 2.3) * 0.55;
+          f.position.set(Math.cos(a) * 0.8, h, Math.sin(a) * 0.8); f.rotation.set(t * (11 + k), t * (7 + k * 2), 0);
+        }
         glow.hold(m.position, COL.glitter[0], r * 3, 0.3);
         if (tick) for (let s = 0; s < 3; s++) {
           glow.emit(_v.copy(m.position).addScaledVector(_a.randomDirection(), r * 1.5), COL.glitter[(Math.random() * 5) | 0], r * 1.2, 0, 0.35 + Math.random() * 0.3, 1, _b.randomDirection().multiplyScalar(0.06), 0.2);
