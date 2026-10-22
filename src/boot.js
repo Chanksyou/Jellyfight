@@ -46,6 +46,15 @@ try {
     await loadLook();
     const {startAct4Preview}=await import('./act4-preview.js');
     await startAct4Preview({scene,renderer,camera});
+  }else if(currentStage().arena){
+  // an act played in a built arena, not the apartment (act 4's concert): no rooms to load, and its
+  // own lights as tuned (no apartment light scaling)
+  await loadLook();
+  const {buildAct4}=await import('./act4-arena.js'), stage=currentStage(), arena=buildAct4(scene);
+  window.APT = { root: arena.root, plan: stage.plan, arena, doors: {}, scene, renderer, camera, lights: { rescan() {} }, load: async () => [] };
+  bar.style.width = '100%';
+  await loadContent();
+  await import('./main.js');
   }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
   const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; }, currentStage().parts);

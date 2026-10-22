@@ -51,15 +51,18 @@ const text = (good, name, ms, info) => `${good ? '✓' : '✗'} ${name}${ms != n
 const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
 // act 3 starts as if the Clog was just beaten: a level-10 run with act 1's and act 2's evolutions
 const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
+// act 4 as if the Pothos was just beaten: a level-15 run with three evolutions
+const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
 const PAGES = [
   { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },
   { key: 'portrait', opts: { viewport: { width: 960, height: 1000 } } },
   { key: 'act2', opts: { viewport: { width: 1100, height: 650 }, act: { act: 2, carry: CARRY } } },
   { key: 'act3', opts: { viewport: { width: 1100, height: 650 }, act: { act: 3, carry: CARRY3 } } },
+  { key: 'act4', opts: { viewport: { width: 1100, height: 650 }, act: { act: 4, carry: CARRY4 } } },
   { key: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
   { key: 'phone3', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, act: { act: 3, carry: CARRY3 } } },
 ];
-const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : 'act1');
+const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : n.startsWith('act4/') ? 'act4' : 'act1');
 // Most of a full run is the game booting (a minute or more each: its shaders are built in software),
 // not the stories, so pages play side by side (--jobs=N, default 3, each in its own browser) and boot
 // two at a time (--boots=N): more at once starve each other's shader building past openGame's wait.

@@ -407,8 +407,8 @@ act3('dendi-finishes-the-pothos', {
     return ok(doomed && attacks === 0 && smacked && onBed && onScreen && B.dead && !d.group.visible, { doomed, attacks, smacked, onBed, onScreen, dead: B.dead, goneAfter: !d.group.visible });
   },
 });
-act3('beating-the-pothos-wins-the-run', {
-  about: 'Beating the Pothos grows the jelly into a Medusa (its pick doesn\'t promise a rest of the run: this is the end), then the run ends as a win straight away, with no Legendary pick after the last boss: "the apartment is yours", the score with its parts, and the score posts to the Leaderboard.',
+act3('beating-the-pothos-goes-on-to-act-4', {
+  about: 'Beating the Pothos grows the jelly into a Medusa, then a Legendary pick to take into act 4, then "Act 3 complete" with the score so far and a button on to act 4, the Encore\'s concert (the run goes on: nothing posts to the Leaderboard yet).',
   setup() {},
   async play() {
     const B = pothosFight(), { run, menus } = G();
@@ -422,14 +422,14 @@ act3('beating-the-pothos-wins-the-run', {
     await wait(2400);                                     // the metamorphosis comes a moment after
     const grow = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // the evolution
-    run.evolutionReveal.finish();                        // skip its portrait before the victory summary
-    const end = modal()?.innerText || '';
-    const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act/.test(b.textContent));
-    [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();
-    await wait(50);
+    run.evolutionReveal.finish();                        // skip its portrait
+    const legendary = modal()?.innerText || '';
+    modal()?.querySelector('.jf-card')?.click();          // a Legendary treasure
+    const done = modal()?.innerText || '';
+    const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act 4/.test(b.textContent));
     menus.close();
-    return ok(/Medusa/.test(grow) && !/rest of the run/.test(grow) && !/Legendary/.test(end) && /apartment is yours/.test(end) && /Earlier acts/.test(end) && /The Pothos beaten/.test(end) && !next && posted?.won && posted.score === run.score() && run.evolved.length === 3,
-      { grow: grow.slice(0, 200), end: end.slice(0, 160), next, posted });
+    return ok(/Medusa/.test(grow) && /rest of the run/.test(grow) && /Legendary/.test(legendary) && /act 4/.test(legendary) && /Act 3 complete/.test(done) && next && !posted && run.evolved.length === 3,
+      { grow: grow.slice(0, 200), legendary: legendary.slice(0, 120), done: done.slice(0, 160), next, posted });
   },
 });
 act3('dying-starts-over-in-act-1', {

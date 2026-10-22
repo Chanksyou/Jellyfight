@@ -28,6 +28,7 @@ import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
+import { SongTrack, TRACKS } from './song-track.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
@@ -35,7 +36,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v243';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v244';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -149,16 +150,20 @@ const creator = new Creator({
 creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
-applyLayout(APT.root, currentAct());   // your saved furniture edits for this act (dev layout editor)
+const ARENA = APT.arena || null;       // an act in a built arena (act 4's concert: boot.js), not the apartment
+if (!ARENA) applyLayout(APT.root, currentAct());   // your saved furniture edits for this act (dev layout editor)
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
 scene.environmentIntensity = LOOK.num('night-fill', 0.12);
-scene.background = new THREE.Color(LOOK.color('night-sky', '#05060c'));
-scene.fog = new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
-dressSet(scene, APT.root);             // detailed TV / soundbar / shower curtain replace the flat baked ones
+scene.background = new THREE.Color(LOOK.color(ARENA ? 'arena-background' : 'night-sky', ARENA ? '#030611' : '#05060c'));
+scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'), LOOK.num('arena-haze', 0.3))
+  : new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
+if (!ARENA) dressSet(scene, APT.root);   // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
 const world = new World(scene, { staticScene: true });
+// the arena's invisible solids (its continuous floor, the jump-safe rails, the Encore's stage) collide
+if (ARENA) for (const m of ARENA.solids) if (m.userData.noCollide) world.addCollider(m, false);
 addStageWalls(world, stage, scene);
 if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
 // Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
@@ -166,7 +171,7 @@ if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the coll
 // gone again. Both boss stages get one; a stage with no boss needs none.
 const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hidden until he finishes a boss
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
-addSurfaceDetail(world.colliders, {
+if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 
@@ -187,7 +192,7 @@ function mapFurniture() {
   }
   hud.setFurniture(out);
 }
-mapFurniture();
+if (!ARENA) mapFurniture();
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
@@ -195,7 +200,7 @@ const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
 const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
-const slotCount = IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);
+const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
 const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
 if (lightSlots) APT.lights.rescan();
 const enemies = new Enemies(scene, world, fx);
@@ -213,10 +218,28 @@ function saveLook(l) {
 }
 applyLook(state.look);
 
+// A song with a recording (song-track.js TRACKS: the Encore's) plays that, loaded once audio starts,
+// and the synthesized one only if the file won't load; its beat is what a boss on the beat reads (`song`)
+const tracks = {};
+function trackFor(name) {
+  const A = audio(), T = TRACKS[name];
+  if (!A || !T) return null;
+  if (!tracks[name]) { const t = tracks[name] = { track: new SongTrack(A.ctx, A.master, T), state: 'loading' }; t.track.load().then((ok) => { t.state = ok ? 'ready' : 'failed'; }); }
+  return tracks[name];
+}
+// the run's song as a beat source (encore.js): its beat, null while it loads (the fight waits), or
+// undefined with no music (the boss keeps its own time); only a recording knows its breakdown and drop
+const song = {
+  playing: null,
+  beat() { const t = this.playing; if (!t) return undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
+  quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
+  drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
+};
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops, gfx,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
   carry: carried(),                    // a later act: the run so far (stages.js)
+  arena: ARENA, song,                  // act 4's built arena and the song its boss plays to (encore.js)
 });
 wireFeedback(fx, targetId => {
   for (const [enemy, burn] of run.bubbles.burning) if (enemy.id === targetId && burn.t > 0) return true;
@@ -293,7 +316,8 @@ const systems = {
 // Dev layout editor: move the furniture around (layout.js)
 let layoutChanged = false;
 function openLayout() {
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.map((_, i) => i + 1), onAct: (n) => goToAct(n, null, { layout: true }) });
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (a built arena, act 4, has no furniture to lay out)
+    onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
@@ -388,7 +412,13 @@ function setCalm(on, save = true) {
 function updateMusic(dt) {
   if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
   const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
-  music.play(st.song);
+  if (stage.arena) for (const name in TRACKS) trackFor(name);   // start loading the act's recording early
+  const rec = st.song ? trackFor(st.song) : null;
+  for (const name in tracks) if (tracks[name] !== rec) tracks[name].track.stop();
+  song.playing = rec;
+  if (rec?.state === 'ready') rec.track.play();
+  rec?.track.duck(menuOpen() || run.paused);
+  music.play(rec && rec.state !== 'failed' ? null : st.song);
   music.duck(menuOpen() || run.paused);
   music.suck(!!st.suck);              // the Vacuum sucking drags the music through a dub filter
   music.update(dt, st.intensity);
@@ -670,7 +700,7 @@ async function warmUp() {
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world);   // this act's boss
+  const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });   // this act's boss
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

@@ -3,7 +3,7 @@
 The supplied reference pictures establish a dark tiled concert floor, amber edge light,
 cool overhead shafts and four elevated speaker arrays. The jelly sketch sets the scale.
 The preview includes the environment and the visual pyramid boss with two helmeted
-performers. Attack patterns, combat hitboxes and campaign transition are not implemented.
+performers. Since v244 it is also act 4 of the campaign: see [The Encore fight](#the-encore-fight-v244).
 
 ## Open and explore
 
@@ -348,3 +348,29 @@ speaker in 2 beats (`--encore-pulse-travel`). It does no damage: a jelly its fro
 shoved 12 cm (`--encore-pulse-push`) the way it is going, slid over 0.2 s with the jelly's own
 collision, once a wave, with a soft whomp (`sfx.encorePulse`). Jump it to stay put. The song's
 breakdown quiets it. Every arc in flight is one instanced draw.
+
+## The Encore fight (v244)
+
+Act 4 is a real act now (`src/stage4.js`, in `STAGES`). Beating the Pothos carries the run into it
+like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading apartment rooms, and
+`main.js` skips the apartment's layout, set dressing, lamps and furniture map for it.
+
+- **No night.** `duration: 0`: the run goes straight into the boss intro (no "Time's up!"), then
+  the fight, facing the booth (`faceBoss`).
+- **The boss** is `src/encore.js`, registered in `run.js` `BOSSES` as `encore`. Its Health and
+  beetle numbers are in `content/bosses.kdl`. It owns the floor waves, lasers, speaker waves, disco
+  ball and stage-edge shock, all on its song's beat. Its hit sphere sits in front of the booth, so a
+  bubble reaches it before the stage's collider.
+- **The song.** `musicState` asks for the boss's `music` (`encore`). `main.js` plays the recording
+  (`song-track.js` `TRACKS`), loaded as soon as audio starts in this act, and hands the boss a beat
+  source. While the file loads the fight waits; with music off or no audio the boss keeps its own
+  128 BPM clock; if the file won't load, the synthesized song plays.
+- **Beetles and the force field.** At beat 32 (bar 8), and every 64 beats (16 bars) after, it tops
+  the floor up to 4 stag beetles. While any live, a blue hex shell (`vfx.js` `VolumeMaterial`,
+  `--encore-shield`) covers the booth and hits bounce off ("SHIELDED"). It drops after 90 s at most.
+- **Winning.** At 0 Health the set stops and its beetles go. There is no cat finish here. After one
+  more metamorphosis the run ends as a win with the stage's `won` line.
+
+Its attacks are on the attack list (`EVERY_ATTACK[4]`) and the scoreboard, unscored until a feel
+pass. Stories `act4/*`: the fight starts straight away, the beetles and force field, winning, and
+the attack list. The act 3 story `act3/beating-the-pothos-goes-on-to-act-4` covers the way in.

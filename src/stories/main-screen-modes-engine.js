@@ -199,11 +199,11 @@ story('dev/layout-editor-acts-and-delete', {
     document.querySelector('#g-over [data-act="layout"]').click(); step(30);
     const L = window.layout;
     if (!L) return ok(false, { layout: null });
-    // the top bar offers every other act in STAGES, however many there are
+    // the top bar offers every other apartment act in STAGES, however many there are (an arena act has no furniture)
     const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
-    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 1).map((n) => 'act' + n).join();
-    // every act in STAGES has a baked-layout section, and act 3's slot is ready for it
-    const slots = STAGES.every((_, i) => !!BAKED_LAYOUT[i + 1]) && !!BAKED_LAYOUT[3] && typeof loadLayout(3) === 'object';
+    const wantActs = STAGES.filter((s) => !s.arena).map((s) => s.id).filter((n) => n !== 1).map((n) => 'act' + n).join();
+    // every apartment act in STAGES has a baked-layout section, and act 3's slot is ready for it
+    const slots = STAGES.filter((s) => !s.arena).every((s) => !!BAKED_LAYOUT[s.id]) && !!BAKED_LAYOUT[3] && typeof loadLayout(3) === 'object';
     // pick an object from the list and delete it: gone, and recorded as deleted
     const it = L.items[0];
     L.listEl.value = it.key; L.listEl.dispatchEvent(new Event('change'));
@@ -237,7 +237,7 @@ story('dev/layout-editor-act-2', {
     if (!L) return ok(false, { layout: null });
     const bath = L.items.some((x) => /Bathtub|Vanity/.test(x.key));
     const acts = [...L.el.querySelectorAll('[data-a^="act"]')].map((b) => b.dataset.a);
-    const wantActs = STAGES.map((_, i) => i + 1).filter((n) => n !== 2).map((n) => 'act' + n).join();
+    const wantActs = STAGES.filter((s) => !s.arena).map((s) => s.id).filter((n) => n !== 2).map((n) => 'act' + n).join();
     L.onDone();
     return ok(L.act === 2 && bath && acts.join() === wantActs, { act: L.act, bath, acts });
   },
