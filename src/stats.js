@@ -64,6 +64,11 @@ export const TREASURE_RARITY = [
   { id: 'epic', name: 'Epic', color: '#c77bff', weight: 12 },
   { id: 'legendary', name: 'Legendary', color: '#ffe9a0', weight: 3 },   // unique rule-changers and the Elements
 ];
+// Base chance per offered chest option at 0 Luck, before eligible-pool normalization.
+export const CHEST_WEIGHTS = {
+  room: { common: 60, rare: 30, epic: 8, legendary: 2 },
+  elite: { common: 40, rare: 40, epic: 15, legendary: 5 },
+};
 const TREASURE_TIER = Object.fromEntries(TREASURE_RARITY.map((r, i) => [r.id, i]));
 export const treasureTier = (t) => TREASURE_RARITY[TREASURE_TIER[t.rarity]];
 

@@ -56,7 +56,7 @@ story('treasures/touch-the-chest', {
     stub(run.ui, 'choose', (tt, s, list) => { offered = true; tiers = list.map((c) => c.rarity); });
     tp(p.x, p.y + 0.01, p.z);
     step(50, () => offered);   // the chest strains, pops and sits open (~0.6 s) before the pick
-    const roomTiers = tiers.every((r) => r === 'common' || r === 'rare');   // a room chest: Common and Rare
+    const roomTiers = tiers.length === 3 && tiers.every((r) => ['common', 'rare', 'epic', 'legendary'].includes(r));
     return ok(offered && !t.active && small && roomTiers, { offered, small, tiers, size: r3(size), at: r3(p) });
   },
 });
@@ -84,23 +84,22 @@ story('treasures/elites-leave-a-chest', {
     step(60 * 60);                                          // a minute later, both still wait
     const stayed = waiting(false).length === 2;
     tp(fromBug.pos.x, fromBug.pos.y + 0.01, fromBug.pos.z); step(110, () => picks);   // an Elite's chest builds and sits open (~1.25 s) before its pick
-    const eliteTiers = tiers.every((r) => r === 'rare' || r === 'epic');   // an Elite's chest: Rare and Epic
+    const eliteTiers = tiers.length === 3 && tiers.every((r) => ['common', 'rare', 'epic', 'legendary'].includes(r));
     return ok(bugSpot && eliteSpot && noPickYet && noHeal && stayed && picks === 1 && !fromBug.active && eliteTiers,
       { bugSpot, eliteSpot, noPickYet, noHeal, stayed, picks, tiers, health: run.health });
   },
 });
-story('treasures/chest-glow-tells-its-best', {
-  about: 'A chest\'s light tells what its pick holds: a room chest glows Rare blue and its timer ring matches; an Elite\'s chest glows Epic purple. The chest itself stays gold.',
+story('treasures/chest-glow-is-neutral-until-opening', {
+  about: 'Room and elite chests glow neutral gold, with a matching timer ring, because no minimum rarity is guaranteed.',
   setup() { fresh({ elites: false, treasures: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G();
     const room = run.placeTreasure(V(3.0, 0.05, 2.6), 22);
     const elite = run.placeTreasure(V(3.4, 0.05, 3.4), Infinity);
     const hex = (c) => '#' + c.getHexString();
-    return ok(room.tier === 'rare' && elite.tier === 'epic'
-      && hex(room.tierColor) === '#5fb4ff' && hex(elite.tierColor) === '#c77bff'
-      && hex(room.ring.material.uniforms.uColor.value) === '#5fb4ff',
-      { room: room.tier, elite: elite.tier, roomGlow: hex(room.tierColor), eliteGlow: hex(elite.tierColor), ring: hex(room.ring.material.uniforms.uColor.value) });
+    return ok(hex(room.tierColor) === '#ffc93a' && hex(elite.tierColor) === '#ffc93a'
+      && hex(room.ring.material.uniforms.uColor.value) === '#ffc93a',
+      { roomGlow: hex(room.tierColor), eliteGlow: hex(elite.tierColor), ring: hex(room.ring.material.uniforms.uColor.value) });
   },
 });
 story('treasures/chest-opens-with-a-snap', {

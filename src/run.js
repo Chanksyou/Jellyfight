@@ -2,7 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -33,15 +33,11 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-// Which rarities a treasure pick offers, by where it came from: a chest that turned up in the room
-// (on the schedule) or one a beaten Elite left. The Boss reward is Legendary only (pickLegendary).
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
 // not a rug or a threshold
 // Under this share of max Health counts as low (a `while low-health` treasure)
 const ROOTED = 1;          // seconds standing still on the ground before a `while "rooted"` holds
 const LOW_HEALTH = 0.3;
-
-const PICK_TIERS = { room: ['common', 'rare'], elite: ['rare', 'epic'] };
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
 // The treasures you own: a set of ids that also counts copies of stackable ones (stack=N)
@@ -842,25 +838,19 @@ export class Run {
       () => { this.firstRun.elementChosen = true; this.resume(); });
   }
 
-  // start: the starting pick, two elements for your bubbles and one of anything else
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest; every 3rd chest, one of them is an Element upgrade. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
-  // source: where the pick came from, which decides the rarities it offers (PICK_TIERS)
+  // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
   pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.', source = 'room') {
-    const tiers = PICK_TIERS[source];
+    const weights = CHEST_WEIGHTS[source];
+    // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
+    const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
     const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs));
-    const can = (t) => tiers.includes(t.rarity) && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
+    const can = (t) => weights[t.rarity] > 0 && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
     // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
     const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
-    const up = ups.length ? rollTreasures(ups, 1, this.S.luck) : [];
-    const rolled = rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck);
-    // the chest's glow promises its best rarity (pickups.js RoomTreasure.tier): if the roll
-    // came up short, bend its last slot to that rarity, when one can still be taken
-    const best = tiers[tiers.length - 1];
-    if (rolled.length && !rolled.some((t) => t.rarity === best)) {
-      const cand = TREASURES.filter((t) => can(t) && t.rarity === best && !rolled.includes(t));
-      if (cand.length) rolled[rolled.length - 1] = cand[(Math.random() * cand.length) | 0];
-    }
+    const up = ups.length ? rollTreasures(ups, 1, this.S.luck, favor) : [];
+    const rolled = rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck, favor);
     let left = shuffle([...up, ...rolled]);
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
