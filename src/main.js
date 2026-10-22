@@ -29,6 +29,7 @@ import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from
 import { unlock as unlockAudio, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
 import { SongTrack, TRACKS } from './song-track.js';
+import { jellyPortrait } from './jelly-portrait.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { wireFeedback } from './feedback.js';
@@ -259,6 +260,7 @@ run.onMainMenu = () => {
 };
 run.playerBody = () => state.look.body;
 run.playerLook = () => state.look;
+run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {

@@ -144,6 +144,32 @@ story('engine/leaderboard', {
 });
 
 // --- the main screen
+story('engine/leaderboard-shows-each-players-jelly', {
+  about: 'The leaderboard is big and easy to read, and every score has that player\'s own customized jelly by their name (drawn from the look they posted with it): different jellies look different, the same jelly is drawn once, and an old score with no look still gets a jelly.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Leaderboard } = await import('../leaderboard.js');
+    const { run, menus } = G(), realBoard = run.board;
+    const fake = fakeClaude({ id: 'u_me' });
+    fake.docs.set('scores/u_pink', { score: 30000, name: 'Pinky', look: { body: 'moon', color: '#ff5fa2', accent: '#ffd23a', top: 'crown' } });
+    fake.docs.set('scores/u_green', { score: 20000, name: 'Greeny', look: { body: 'lion', color: '#4dff7a', accent: '#1f6b3a' } });
+    fake.docs.set('scores/u_old', { score: 10000, name: 'Oldie', body: 'box' });
+    window.claude = fake;
+    run.board = new Leaderboard();
+    run.showBoard(() => menus.close());
+    await new Promise((r) => setTimeout(r, 300));
+    const board = document.querySelector('.jf-modal .jf-board');
+    const imgs = [...(board?.querySelectorAll('img.jf-jelly') || [])], srcs = imgs.map((i) => i.getAttribute('src'));
+    const pictures = imgs.length === 3 && srcs.every((s) => s.startsWith('data:image/png')) && new Set(srcs).size === 3;
+    const big = parseFloat(getComputedStyle(board.querySelector('.jf-stats')).fontSize) >= 20 && imgs[0]?.getBoundingClientRect().width >= 48;
+    const t0 = performance.now(); run.jellyFace(fake.docs.get('scores/u_pink').look); const cached = performance.now() - t0 < 5;
+    menus.close();
+    delete window.claude;
+    run.board = realBoard;
+    return ok(pictures && big && cached, { rows: imgs.length, unique: new Set(srcs).size, big, cached, size: board && getComputedStyle(board.querySelector('.jf-stats')).fontSize });
+  },
+});
+
 story('menu/reduce-effects', {
   about: 'The ✨ button in the pause menu turns Reduce effects on and off and remembers it: on, a kill still lands its hit-stop but shakes nothing; off, the kill shakes by its step on look.css\'s --feel-* ladder.',
   setup() { fresh({ elites: false }); },
