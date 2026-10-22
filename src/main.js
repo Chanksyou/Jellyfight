@@ -316,7 +316,8 @@ const systems = {
 // Dev layout editor: move the furniture around (layout.js)
 let layoutChanged = false;
 function openLayout() {
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.map((_, i) => i + 1), onAct: (n) => goToAct(n, null, { layout: true }) });
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (a built arena, act 4, has no furniture to lay out)
+    onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
