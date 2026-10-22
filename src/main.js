@@ -37,13 +37,14 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v252';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v253';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run, makeBoss } from './run.js';
+import { bagHtml } from './treasure-bag.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -98,6 +99,21 @@ ui.innerHTML = `
   #g-over .dev-lock input { font: 14px system-ui, sans-serif; width: 140px; padding: 7px 10px; border-radius: 10px; border: 1px solid #ffffff40; background: #0006; color: #fff; }
   #g-over .dev-lock input.wrong { border-color: #ff6b6b; }
   #g-over .dev-tools button { font-size: 13px !important; padding: 6px 11px !important; background: #ffffff10 !important; }
+  /* the pause menu's list of what you carry (treasure-bag.js) */
+  #g-over .g-bag { max-width: 880px; margin: 14px auto 0; text-align: left; }
+  #g-over .g-bag:empty, #g-over.menu-home .g-bag, #g-over.cont .g-bag { display: none; }
+  #g-over .g-bag h2 { margin: 0 0 8px; text-align: center; font: 700 16px system-ui, sans-serif; }
+  #g-over .g-bag .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
+  #g-over .g-bag .t { display: flex; gap: 9px; align-items: flex-start; background: #000a; border: 1px solid #ffffff22; border-radius: 10px; padding: 7px 10px; }
+  #g-over .g-bag .i { font-size: 22px; line-height: 1.1; }
+  #g-over .g-bag .t > div { min-width: 0; flex: 1; }
+  #g-over .g-bag .n { font: 600 14px system-ui, sans-serif; }
+  #g-over .g-bag .tag { font-weight: 500; font-size: 11.5px; background: #ffffff24; border-radius: 6px; padding: 1px 6px; margin-left: 2px; }
+  #g-over .g-bag p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.35; opacity: .82; }
+  #g-over .g-bag .g { margin-top: 4px; font-size: 12.5px; color: #c6ffb0; }
+  #g-over .g-bag .g.dim { color: #fff; opacity: .55; }
+  #g-over .g-bag .g i { display: block; height: 5px; margin-top: 3px; border-radius: 3px; background: #ffffff22; overflow: hidden; }
+  #g-over .g-bag .g i::after { content: ''; display: block; height: 100%; width: calc(var(--k) * 100%); background: #7dff9a; }
   #g-over .keys { margin-top: 14px; opacity: .6; font-size: 12.5px; line-height: 1.9; }
   #g-over kbd { background: #fff2; border: 1px solid #fff4; border-radius: 4px; padding: 1px 6px; font-size: 12.5px; }
   #g-over > div { max-height: 100%; overflow-y: auto; padding: 12px 16px; box-sizing: border-box; }
@@ -126,6 +142,7 @@ ui.innerHTML = `
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
   <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
+  <div class="g-bag"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
     <div class="rotate">Tip: turn your phone sideways.</div>
@@ -250,6 +267,9 @@ wireFeedback(fx, targetId => {
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
 const board = new Leaderboard();
 run.board = board;
+// whenever the pause menu opens, it lists what you carry as it stands (treasure-bag.js)
+const bag = overlay.querySelector('.g-bag');
+new MutationObserver(() => { if (!overlay.hidden) bag.innerHTML = bagHtml(run); }).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
 // the end-of-run screen's 🏠 Main menu: back to act 1's menu (a later act reloads into act 1)
 run.onMainMenu = () => {
   if (currentAct() > 1) { goToAct(1); return; }

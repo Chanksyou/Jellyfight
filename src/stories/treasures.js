@@ -601,6 +601,28 @@ story('treasures/grow-on-kills', {
       { max0, after4, after10: run.S.health, capped: +capped.toFixed(3), second: +second.toFixed(3) });
   },
 });
+story('treasures/pause-lists-what-you-carry', {
+  about: 'Pausing lists every treasure you carry with what it does, its copies or level, and for the ones that grow during the run what they have given so far and how near the next step is.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('trophy', 'lemon', 'lemon', 'bobbyPin', 'bobbyPin', 'paperclipChain', 'dustpan'); },
+  async play() {
+    const { run } = G(), overlay = document.getElementById('g-over');
+    const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, xp: 1 });
+    for (let i = 0; i < 13; i++) kill();
+    overlay.hidden = false;
+    await Promise.resolve();                                  // the menu fills as it opens
+    const card = (id) => overlay.querySelector(`.g-bag .t[data-id="${id}"]`)?.textContent || '';
+    const shown = overlay.querySelector('.g-bag').getBoundingClientRect().height > 0;
+    const trophy = card('trophy'), lemon = card('lemon'), pin = card('bobbyPin'), clip = card('paperclipChain'), pan = card('dustpan');
+    overlay.hidden = true;
+    return ok(shown && run.level === 1
+      && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Bubble damage') && trophy.includes('Next +0.25 Bubble damage in 7 bugs')
+      && lemon.includes('×2') && lemon.includes('+2 bubble damage')
+      && pin.includes('Level 2') && pin.includes('pierce up to 5') && pin.includes('Take it again for Level 3')
+      && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2')
+      && pan.includes('So far: +2.6% Bubble damage') && pan.includes('of the most it can give, +100% Bubble damage'),
+    { shown, trophy, lemon, pin, clip, pan });
+  },
+});
 story('treasures/crumb-on-kill', {
   about: 'crumb-on-kill (Meatball, Leftover): a bug you clear sometimes leaves a crumb; it drifts to you like XP and gives back 1 Health.',
   setup() { setupFight({ bubbles: false, lash: false }); give('meatball'); },
