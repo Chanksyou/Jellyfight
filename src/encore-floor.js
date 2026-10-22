@@ -265,7 +265,7 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 // Plays waves from beat `from`, casting each 6 beats ahead of its first step (time for the Encore's
 // wind-up). After a jump in time it skips what was missed. The song's `quiet(beat)` (its breakdown,
 // the kick out) rests the floor; its `drop(beat)` doubles the waves. `target()` is where the jelly is.
-// With `lasers` (encore-laser.js), a club laser from a corner is one of the picks.
+// With `lasers` (encore-laser.js), a club laser fires from a random corner on every wave's beat too.
 export class EncoreSet {
   constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null } = {}) {
     Object.assign(this, { floor, from, random, quiet, drop, target, lasers });
@@ -275,25 +275,20 @@ export class EncoreSet {
     for (;;) {
       const at = this.from + this.next * WAVE_GAP;
       if (beat < at - 6) return;
-      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) this.wave(at, this.drop(at) ? 2 : 1);
+      if (at > beat && !this.quiet(at) && !this.quiet(at + 8)) {
+        this.wave(at, this.drop(at) ? 2 : 1);
+        this.lasers?.cast(at, { corner: Math.floor(this.random() * 4) % 4, side: this.random() < 0.5 ? 1 : -1, target: this.target });
+      }
       this.next++;
     }
   }
   // `count` waves on beat `at`, different patterns. Two at once are one from each DJ: a wave from a
   // wing is that side's DJ, so the other wave is turned away from that wing.
   wave(at, count) {
-    const names = [...Object.keys(PATTERNS), ...(this.lasers ? ['laser'] : [])], waves = [];
+    const names = Object.keys(PATTERNS), waves = [];
     for (let n = 0; n < count; n++) {
       const name = pick(names.filter((x) => x !== this.last && !waves.some((w) => w.name === x)), this.random);
-      waves.push({ name, o: name === 'laser' ? { corner: Math.floor(this.random() * 4) % 4, side: this.random() < 0.5 ? 1 : -1, target: this.target } : options(name, this.random, this.target()) });
-    }
-    // a laser is the venue's rig, not a DJ's: the floor wave with it takes its turn as usual
-    const laser = waves.find((w) => w.name === 'laser');
-    if (laser) {
-      this.lasers.cast(at, laser.o);
-      for (const w of waves) if (w !== laser) { w.o.dj = sideDj(w.o) ?? ['silver', 'gold'][this.dj++ % 2]; this.floor.cast(w.name, at, w.o); }
-      this.last = waves[waves.length - 1].name;
-      return;
+      waves.push({ name, o: options(name, this.random, this.target()) });
     }
     const [a, b] = waves;
     if (b) {

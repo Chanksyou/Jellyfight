@@ -315,7 +315,7 @@ function lasersOn() {
   return { scene, arena, lasers, hits, done() { lasers.dispose(); arena.dispose(); } };
 }
 story('encore/the-laser-flashes-its-band-then-fires-a-plane-that-sweeps', {
-  about: 'A club laser\'s Warning is its band flashing green on the floor for 2 beats (the line and the 10 cm it will sweep), with the plane faint over it; on the beat the plane fires full from its corner\'s emitter and swings 10 cm across the band over a beat, then it is gone and its slot free. No light is added.',
+  about: 'A club laser\'s Warning is a thin line (3 cm) flashing faintly green on the floor for 2 beats where it will land, with the plane barely there over it; on the beat the plane fires full from its corner\'s emitter and swings 10 cm across the band over a beat, then it is gone and its slot free. No light is added.',
   setup() {},
   play() {
     const T = lasersOn();
@@ -331,7 +331,8 @@ story('encore/the-laser-flashes-its-band-then-fires-a-plane-that-sweeps', {
       const swept = Math.abs(p1.clone().sub(p0).dot(new THREE.Vector3(s0.nx, 0, s0.nz)) - LOOK.num('encore-laser-sweep', 0.1)) < 1e-6;
       const gone = at(5.6), freed = !c.slot.cast && !T.lasers.busy;
       let after = 0; T.arena.root.traverse((o) => { if (o.isLight) after++; });
-      const warns = !idle.band && warnA.band && warnB.band && warnA.flash !== warnB.flash && warnA.on > 0 && warnA.on <= 0.12;
+      const thin = Math.abs(band.scale.x - LOOK.num('encore-laser-band', 0.03)) < 1e-9;
+      const warns = thin && !idle.band && warnA.band && warnB.band && warnA.flash !== warnB.flash && Math.max(warnA.flash, warnB.flash) <= 0.2 && warnA.on > 0 && warnA.on <= 0.04;
       return ok(warns && fire.on === 1 && fromEmitter && swept && !gone.band && !gone.plane && freed && lights === 2 && after === 2 && typeof a0 === 'number', { idle, warnA, warnB, fire, gone, fromEmitter, swept, freed, lights });
     } finally { T.done(); }
   },
@@ -354,17 +355,16 @@ story('encore/the-laser-hits-in-its-sweep-and-can-be-jumped-far-from-its-corner'
   },
 });
 
-story('encore/lasers-are-among-the-random-picks', {
-  about: 'With the lasers rigged, a club laser from a random corner is one of the Encore\'s random picks (never twice running), aimed where the jelly is; the floor wave alongside one still takes a DJ.',
+story('encore/a-laser-fires-every-4-beats', {
+  about: 'With the lasers rigged, a club laser fires on every wave\'s beat, every 4 beats, alongside the random floor waves, from a random corner (all four turn up) to a random side, aimed where the jelly is.',
   setup() {},
   play() {
     const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const shots = [], lasers = { cast(at, o) { shots.push({ at, ...o }); } }, f = recorder();
     const set = new EncoreSet(f, 0, { random: lcg(7), lasers, target: () => [0.1, 0.2] });
-    for (let b = -6; b <= 800; b += 0.5) set.update(b);
-    const seq = [...shots.map((s) => ({ at: s.at, name: 'laser' })), ...f.casts].sort((a, b) => a.at - b.at);
-    const never = seq.every((w, k) => k === 0 || w.name !== 'laser' || seq[k - 1].name !== 'laser' || seq[k - 1].at !== w.at - 4);
-    const corners = new Set(shots.map((s) => s.corner)).size === 4, aimed = shots.every((s) => s.target()[0] === 0.1);
-    return ok(shots.length > 10 && never && corners && aimed && f.casts.every((c) => c.dj), { lasers: shots.length, never, corners, aimed });
+    for (let b = -6; b <= 200; b += 0.5) set.update(b);
+    const every4 = shots.length > 40 && shots.every((s, k) => s.at === 4 * k), withWaves = shots.every((s) => f.casts.some((c) => c.at === s.at));
+    const corners = new Set(shots.map((s) => s.corner)).size === 4, sides = new Set(shots.map((s) => s.side)).size === 2, aimed = shots.every((s) => s.target()[0] === 0.1);
+    return ok(every4 && withWaves && corners && sides && aimed, { lasers: shots.length, every4, withWaves, corners, sides, aimed });
   },
 });

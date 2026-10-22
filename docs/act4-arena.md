@@ -214,18 +214,20 @@ fallback song scheduling.
 ## Club lasers (v239)
 
 `src/encore-laser.js`: an emitter on each of the arena's four corner posts, 35 cm up
-(`--encore-laser-height`). A laser is one of the Encore's random picks (never twice running; at the
-drop, it can be one of the two at once). It fires a fan of green beams (`--hostile-encore-laser`,
+(`--encore-laser-height`). It fires a fan of green beams (`--hostile-encore-laser`,
 laser green) from its corner down to a line on the floor through where the jelly is when its Warning
 starts: a laser plane, crisp anti-aliased beams over a haze, brightest where it burns the floor.
+One fires on every wave's beat, every 4 beats, alongside the random floor waves, from a random corner
+to a random side.
 
-- **Warning:** the line and the band it will sweep (10 cm, `--encore-laser-sweep`) flash green on the
-  floor for 2 beats (`--encore-laser-lead`, a strip `TeleMaterial`), with the plane faint over it
-  as its volume.
+- **Warning:** a thin line (3 cm, `--encore-laser-band`) where it will land flashes faintly green on
+  the floor for 2 beats (`--encore-laser-lead`, a strip `TeleMaterial` at `--encore-laser-warn`),
+  with the plane barely there over it as its volume (`--encore-laser-warn-plane`). It then sweeps
+  10 cm (`--encore-laser-sweep`) to one side, so get clear of the line by more than that.
 - **Fire:** on the beat the plane fires full and swings 10 cm sideways across the band over a beat
   (`--encore-laser-fire`), with a zap (`sfx.encoreLaser`). Anything of the jelly inside it is hit,
   once a laser, for 4 Health.
-- **Dodge:** step out of the band. The plane is a fan from up high, tall by its corner and down to
+- **Dodge:** step well clear of the line. The plane is a fan from up high, tall by its corner and down to
   nothing at the far end, so far from the corner a jump clears it; near it, it can't.
 
 Two pooled planes and bands, four emitters: a few unlit draws, no light added.

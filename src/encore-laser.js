@@ -1,6 +1,6 @@
 // The Encore's club lasers (act 4): emitters on the arena's four corner posts. One fires a fan of
 // green beams, a laser plane, from its corner down to a line on the floor through where the jelly
-// is. Its Warning is that line and the band it will sweep, flashing green on the floor for `lead`
+// is. Its Warning is that line, flashing faintly green on the floor for `lead`
 // beats (the faint plane over it is its volume, docs/adr/0001); on the beat it fires and swings
 // `--encore-laser-sweep` (10 cm) sideways across the band over a beat. The plane is tall by its corner
 // and low at the far end, as a fan from up high is: step out of the band, or far from the corner, jump it.
@@ -129,18 +129,19 @@ export class EncoreLasers {
       if (u < -lead) { plane.visible = band.visible = false; continue; }
       if (!c.on) c.on = c.target?.() ?? [0, 0.3];                          // aimed as its Warning starts
       const s = Math.min(1, Math.max(0, u / fire));
-      // the floor band: the line and the 10 cm it will sweep, flashing on each half beat until it fires
-      const { ux, uz, nx, nz, far } = this.line(c, 0), w = LOOK.num('encore-laser-sweep', 0.1) + 0.02;
+      // the floor band: a thin line where it will land, flashing on each half beat until it fires
+      const { ux, uz, far } = this.line(c, 0), w = LOOK.num('encore-laser-band', 0.03);
       band.visible = u < fire;
       if (band.visible) {
-        band.position.set(_a.x + nx * (w / 2 - 0.01), 0, _a.z + nz * (w / 2 - 0.01));
+        band.position.set(_a.x, 0, _a.z);
         band.rotation.set(0, Math.atan2(ux, uz), 0); band.scale.set(w, 1, far - 0.06);
         const m = band.material; m.progress = u < 0 ? 1 + u / lead : 1;
-        m.opacity = u < 0 ? 0.55 + 0.45 * (Math.floor(beat * 2) % 2) : 0.35;
+        const warn = LOOK.num('encore-laser-warn', 0.2);                 // faint: a hint of where it will be, not a beam
+        m.opacity = u < 0 ? warn * (0.55 + 0.45 * (Math.floor(beat * 2) % 2)) : warn * 0.6;
         m.uniforms.uTime.value = beat;
       }
       // the plane: faint over its Warning (its volume), full from the beat it fires, fading after
-      const on = u < 0 ? 0.12 * (1 + u / lead) : u < fire ? 1 : Math.max(0, 1 - (u - fire) / fade);
+      const on = u < 0 ? LOOK.num('encore-laser-warn-plane', 0.035) * (1 + u / lead) : u < fire ? 1 : Math.max(0, 1 - (u - fire) / fade);
       plane.visible = on > 0;
       if (plane.visible) {
         const [cx, cz] = CORNERS[c.corner], pos = plane.geometry.attributes.position;

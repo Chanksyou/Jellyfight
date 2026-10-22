@@ -354,6 +354,9 @@
   --hostile-encore-laser: #39ff14; /* the Encore's club lasers: laser green */
   --encore-laser-height: 0.35;   /* m: the emitters on the corner posts (the plane's apex) */
   --encore-laser-lead: 2;        /* beats its floor band flashes before it fires */
+  --encore-laser-band: 0.03;     /* m: how wide that flashing line is (where it lands; it then sweeps --encore-laser-sweep) */
+  --encore-laser-warn: 0.2;      /* how bright that band flashes (faint: a hint, not a beam) */
+  --encore-laser-warn-plane: 0.035; /* and the plane over it before it fires */
   --encore-laser-fire: 1;        /* beats it fires, sweeping across its band */
   --encore-laser-sweep: 0.1;     /* m it swings sideways while it fires */
   --encore-laser-beams: 28;      /* beams fanning across the plane */
