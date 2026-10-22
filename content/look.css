@@ -456,6 +456,13 @@
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
+  /* acid (Nail Polish): its real drops, the spots they leave, a bug it finishes melting (acid-looks.js) */
+  --acid-drop: #7aff2a;
+  --acid-drop-glow: #2aa800;
+  --acid-spot: #3aff00;          /* the green spot a drop (or a melted bug) leaves, fading */
+  --acid-fizz: #b8ff6a;          /* the fizz where a drop lands and off a melting bug */
+  --acid-goo: #5aff1a;           /* what a melting bug turns into */
+  --acid-melt-time: 0.8;         /* s a bug takes to melt into the floor */
   /* glitter (Glitter): the bomb's real flakes (glitter-looks.js), the pop, a glitter-finished bug bursting */
   --glitter-flakes: #ff2ab0 #ffc81a #2ae0ff #b04aff #6aff6a #ffffff;
   --glitter-flake-size: 0.0022;  /* m across */

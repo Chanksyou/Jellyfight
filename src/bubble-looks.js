@@ -263,7 +263,7 @@ export class BubbleLooks {
       for (let k = 0; k < 5; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 1.5)), COL.snow, r * 0.5, r * 0.3, 0.8 + Math.random() * 0.5, 0.9, _a.set((Math.random() - 0.5) * 0.03, 0.01, (Math.random() - 0.5) * 0.03), 0.06);   // frost settling
     } else if (el === 'acid') {
       glow.emit(pos, a, r * 4.5, r * 2, 0.2, 0.7);
-      this.fx.burst(pos, ['#5aff1a', '#3aff00', '#c8ff6a'], 10, r * 0.4, 0.32, pos.y - 0.03);   // a splash of droplets
+      this.fx.acid.drops(pos, 14, 0.32, floor, r * 0.28);                                      // real drops of acid splashing out, each landing with a fizz and a spot
       for (let k = 0; k < 10; k++) {                                                            // a crown of drops thrown up and falling
         const ang = k * 0.63 + Math.random() * 0.3;
         glow.emit(pos, k % 3 ? COL.acid : COL.fume, r * 0.7, r * 0.35, 0.5 + Math.random() * 0.25, 1, _v.set(Math.cos(ang) * 0.12, 0.16 + Math.random() * 0.1, Math.sin(ang) * 0.12), 1.3);
@@ -317,6 +317,9 @@ export class BubbleLooks {
     glow.emit(pos, COL.acid, r * 1.2, r * 0.4, 0.2, 0.8);
     for (let k = 0; k < 4; k++) glow.emit(pos, COL.fume, r * 0.25, 0, 0.35, 1, _v.set((Math.random() - 0.5) * 0.06, 0.08 + Math.random() * 0.05, (Math.random() - 0.5) * 0.06), 0.6);
     this.fx.puff(_p.copy(pos).setY(pos.y + r * 0.5), 0x9ab08a, r * 1.1, 0.45);
+    // froth: green bubbles welling up over the bug as the acid eats at it, a drop or two running off
+    for (let k = 0; k < 6; k++) glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r * 1.6, Math.random() * r * 1.4, (Math.random() - 0.5) * r * 1.6)), k % 2 ? COL.acid : COL.drip, r * 0.18, r * 0.32, 0.3 + Math.random() * 0.2, 0.9, _a.set(0, 0.01, 0));
+    if (Math.random() < 0.5) this.fx.acid.drops(_p.copy(pos).setY(pos.y + r), 2, 0.15, pos.y - r * 0.6, r * 0.12);
   }
 
   // a bolt along `pts`: a bright core inside a yellow halo, widest in the middle and tapering to

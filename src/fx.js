@@ -2,6 +2,7 @@
 // visual language's pieces (vfx.js): glowing projectiles, impacts, floor warnings.
 import { IceLooks } from './ice-looks.js';
 import { GlitterLooks } from './glitter-looks.js';
+import { AcidLooks } from './acid-looks.js';
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
@@ -38,6 +39,7 @@ export class Fx {
     this.fireCorpses = [];
     this.ice = new IceLooks(scene);   // the ice Element's shards and frost flowers (ice-looks.js)
     this.glitter = new GlitterLooks(scene, camera);   // the glitter Element's flakes (glitter-looks.js)
+    this.acid = new AcidLooks(scene, this);           // the acid Element's drops and melting bugs (acid-looks.js)
     this.deaths = new DeathRemains(scene);
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
@@ -331,6 +333,7 @@ export class Fx {
     this.deaths.update(dt);
     this.ice.update(dt);
     this.glitter.update(dt);
+    this.acid.update(dt);
     this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
@@ -424,6 +427,7 @@ export class Fx {
     this.deaths.clear();
     this.ice.clear();
     this.glitter.clear();
+    this.acid.clear();
     for (const c of this.fireCorpses) this.freeFireCorpse(c);
     this.fireCorpses.length = 0;
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });

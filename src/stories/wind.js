@@ -175,6 +175,35 @@ story('attack/glitter-bomb-feel', {
   },
 });
 
+story('attack/acid-melt-feel', {
+  about: 'Acid lands like acid: a glob that hits splashes real drops that arc out and land with a fizz and a green spot; a bug finished by acid melts, its own body turning to glowing goo and slumping into the floor in under a second (its melt sound, a stain, no guts or body flung), then its model gets its own materials back. The goo is prepared at load: no new shader mid-fight.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('nailPolish'); roachAt(0, -0.18); roachAt(0.3, -0.25); step(2); },
+  play() {
+    const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, other] = enemies.list, P = run.mods.element.acid;
+    const programs = APT.renderer.info.programs.length;
+    let melts = 0; const am = sfx.acidMelt; sfx.acidMelt = function (...a) { melts++; return am.apply(this, a); };
+    try {
+      B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 0.1, tint: 'acid', elems: ['acid'], ep: P, pierce: 1 });
+      for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
+      step(1);
+      const drops = fx.acid.list.filter((d) => d.life).length;
+      const splats = () => fx.splats.filter((s) => s.alive).length, before = splats();
+      step(60);
+      const landed = fx.acid.list.every((d) => !d.life) && splats() > before;
+      // finished by acid: it melts
+      const bodies = fx.deaths.list.length, root = other.root, h = root.scale.y;
+      other.lastElement = 'acid'; enemies.kill(other); step(30);
+      const melting = melts === 1 && fx.acid.melts.length === 1 && root.scale.y < h * 0.8 && root.parent && fx.deaths.list.length === bodies;
+      step(60);
+      let restored = true; root.traverse((o) => { if (o.isMesh && o.material === fx.acid.gooMat) restored = false; });
+      const gone = fx.acid.melts.length === 0 && !root.parent && restored && root.scale.y === h;
+      APT.renderer.compile(APT.scene, APT.camera);
+      const shaders = APT.renderer.info.programs.length - programs;
+      return ok(drops >= 10 && landed && melting && gone && shaders === 0, { drops, landed, melting, melts, gone, restored, shaders });
+    } finally { sfx.acidMelt = am; }
+  },
+});
+
 story('attack/ice-slow-and-followup-upgrade', {
   about: 'Freezer Pack and Snow Globe only slow; Freezer Burn doubles a follow-up shard against an already slowed enemy.',
   setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'freezerBurn', 'snowGlobe'); roachAt(0, -0.18); roachAt(0.01, -0.18); step(2); },

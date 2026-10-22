@@ -579,7 +579,11 @@ export const sfx = {
       noise(5200 * j, 2.5, 0.02, 0.06, 'highpass');                                   // the crisp snap of it leaving
       noise(3000 * j, 1.2, 0.2, 0.05, 'bandpass', 0.02, 1100);                         // the cold whoosh
     }
-    else if (el === 'acid') { tone('sine', 180 * j, 430 * j, 0.08, 0.08); noise(700 * j, 1, 0.12, 0.06, 'lowpass', 0.01, 300); }
+    else if (el === 'acid') {   // a wet gloop out of the bell: a sliding bloop, a slosh, a bubble popping behind it
+      tone('sine', 180 * j, 430 * j, 0.08, 0.08); tone('sine', 140 * j, 300 * j, 0.1, 0.05, 0.02);
+      noise(700 * j, 1, 0.12, 0.06, 'lowpass', 0.01, 300);
+      tone('sine', 900 * j, 1400 * j, 0.03, 0.03, 0.09);
+    }
     else if (el === 'glitter') {   // a lob: a soft pop out of the bell, a twinkling run up a major arpeggio, an airy swish
       tone('sine', 520 * j, 900 * j, 0.06, 0.06); noise(2200 * j, 1, 0.04, 0.05, 'bandpass');
       for (let k = 0; k < 4; k++) tone('sine', [1568, 1976, 2349, 3136][k] * j, [1568, 1976, 2349, 3136][k] * j * 1.01, 0.07, 0.03, 0.02 + k * 0.03);
@@ -605,7 +609,13 @@ export const sfx = {
       tone('sine', 130 * j, 55, 0.1, 0.14);                                             // the thud
       for (let k = 0; k < 6; k++) tone('triangle', (3000 + Math.random() * 3500) * j, 2800, 0.035 + Math.random() * 0.03, 0.025 * (1 - k * 0.1), 0.04 + k * 0.045 + Math.random() * 0.02);   // tinkling down
     }
-    else if (el === 'acid') { noise(800 * j, 0.9, 0.1, 0.16, 'lowpass', 0, 250); tone('sine', 300 * j, 180, 0.1, 0.07); tone('sine', 420 * j, 250, 0.08, 0.05, 0.05); noise(6000, 1, 0.3, 0.025, 'highpass', 0.08); }
+    else if (el === 'acid') {   // the splat: a wet slap, two bloops, the drops pattering down, then a long corrosive hiss
+      noise(800 * j, 0.9, 0.1, 0.18, 'lowpass', 0, 250);
+      noise(2400 * j, 1.5, 0.04, 0.08, 'bandpass');
+      tone('sine', 300 * j, 180, 0.1, 0.07); tone('sine', 420 * j, 250, 0.08, 0.05, 0.05);
+      for (let k = 0; k < 5; k++) noise((1500 + Math.random() * 1500) * j, 3, 0.02, 0.04, 'bandpass', 0.1 + k * 0.05 + Math.random() * 0.03);
+      noise(6000 * j, 1, 0.45, 0.035, 'highpass', 0.08);
+    }
     else if (el === 'glitter') {   // the bomb: a bright pop, a low boom under it, a hiss of flakes and a long shimmer of tinkles settling
       noise(6000 * j, 1, 0.025, 0.24, 'highpass');                                     // the pop
       tone('sine', 900 * j, 2400 * j, 0.05, 0.1);
@@ -633,6 +643,14 @@ export const sfx = {
     tone('sine', 520 * j, 900 * j, 0.03, 0.025, 0.04 + Math.random() * 0.08);
   },
   zap() { if (!ready() || !gap('zap', 60)) return; tone('sawtooth', 1800 * jitter(), 300, 0.12, 0.07); noise(5000, 3, 0.08, 0.08, 'highpass'); },
+  // a bug finished by acid melting down: a sinking gurgle, bubbles glooping up through it, a long hiss
+  acidMelt(big = false) {
+    if (!ready() || !gap('acidMelt', 80)) return;
+    const j = jitter(0.1), d = big ? 0.8 : 1;
+    tone('sine', 260 * j * d, 70 * d, 0.5, 0.12); noise(500 * j, 1, 0.5, 0.12, 'lowpass', 0, 150);
+    for (let k = 0; k < 6; k++) tone('sine', (200 + Math.random() * 300) * j, (500 + Math.random() * 500) * j, 0.05, 0.05, 0.05 + k * 0.08 + Math.random() * 0.04);
+    noise(6500 * j, 1, 0.7, 0.04, 'highpass', 0.1);
+  },
   // a bug finished by glitter bursting into it: a sparkly pop and a quick rising run of chimes
   glitterBurst(big = false) {
     if (!ready() || !gap('glitterBurst', 60)) return;
