@@ -76,15 +76,41 @@ export function buildAct4(scene){
   const riser=solid('Rear stage riser',0,.035,-.43,.63,.07,.42);
   for(const z of [-.20,-.18]){put(box,dark,0,.012,z,[.64,.024,.025]);put(box,edge,0,.025,z+.009,[.62,.002,.002]);}
   put(box,edge,0,.071,-.219,[.62,.002,.003]);
-  // Four suspended line arrays, with visible segmented cabinets and cone faces.
-  const cone=geo(new THREE.CylinderGeometry(1,1,.08,12).rotateX(Math.PI/2));
+  // Four suspended line arrays: readable cabinets, recessed twin drivers and side handles.
+  const speakerBody=mat(new THREE.MeshStandardMaterial({color:LOOK.color('arena-speaker-body','#334257'),roughness:.55,metalness:.32}));speakerBody.name='Speaker cabinets';
+  const speakerBaffle=mat(new THREE.MeshStandardMaterial({color:LOOK.color('arena-speaker-baffle','#0b1423'),roughness:.8,metalness:.1}));speakerBaffle.name='Speaker baffles';
+  const speakerCone=mat(new THREE.MeshStandardMaterial({color:LOOK.color('arena-speaker-cone','#28394e'),roughness:.65,metalness:.18}));speakerCone.name='Speaker drivers';
+  const speakerSurround=mat(new THREE.MeshStandardMaterial({color:LOOK.color('arena-speaker-surround','#74869d'),roughness:.38,metalness:.55}));speakerSurround.name='Speaker surrounds';
+  const speakerBlue=mat(new THREE.MeshBasicMaterial({color:blue,toneMapped:false}));speakerBlue.name='Speaker blue trim';
+  const speakerWarm=mat(new THREE.MeshBasicMaterial({color:amber,toneMapped:false}));speakerWarm.name='Speaker amber trim';
+  const cone=geo(new THREE.CylinderGeometry(.72,1,.22,16).rotateX(Math.PI/2)),surround=geo(new THREE.TorusGeometry(1,.055,4,16)),dustCap=geo(new THREE.SphereGeometry(1,10,6));
+  const grilleCanvas=document.createElement('canvas');grilleCanvas.width=grilleCanvas.height=64;const grilleContext=grilleCanvas.getContext('2d');
+  grilleContext.fillStyle=LOOK.color('arena-speaker-grille','#33445d');grilleContext.fillRect(0,0,64,64);grilleContext.fillStyle=LOOK.color('arena-speaker-baffle','#0b1423');
+  for(let y=2;y<64;y+=6)for(let x=2;x<64;x+=6){grilleContext.beginPath();grilleContext.arc(x,y,1.6,0,Math.PI*2);grilleContext.fill();}
+  const grilleTexture=new THREE.CanvasTexture(grilleCanvas);grilleTexture.colorSpace=THREE.SRGBColorSpace;textures.push(grilleTexture);
+  const grilleMat=mat(new THREE.MeshStandardMaterial({map:grilleTexture,roughness:.7,metalness:.25}));grilleMat.name='Speaker grilles';
+  const faceGeo=geo(new THREE.PlaneGeometry(1,1));
   for(const x of [-.64,.64])for(const z of [-.53,.53]){
-    for(const dx of [-.025,.025])bar([x+dx,.18,z],[x+dx,.86,z],.003,steel);
+    const side=Math.sign(x),front=-side,trim=side<0?speakerBlue:speakerWarm;
+    for(const dx of [-.03,.03])bar([x+dx,.706,z],[x+dx,.86,z],.003,steel);
+    put(box,speakerSurround,x,.7,z,[.095,.012,.12]);
     for(let k=0;k<5;k++){
-      const y=.47+k*.045,xx=x+(x>0?-1:1)*(4-k)*.004;
-      put(box,dark,xx,y,z,[.065,.042,.092]);
-      put(cone,steel,xx+(x>0?-.034:.034),y,z,[.028,.028,.028],[0,Math.PI/2,0]);
-      for(const dz of [-.044,.044])put(box,edge,xx+(x>0?-.034:.034),y,z+dz,[.002,.034,.002]);
+      const y=.47+k*.05,xx=x+front*(4-k)*.004,fx=xx+front*.044;
+      put(box,speakerBody,xx,y,z,[.085,.047,.112]);
+      put(box,speakerBaffle,fx,y,z,[.004,.039,.104]);
+      put(faceGeo,grilleMat,fx+front*.0025,y,z,[.098,.035,1],[0,front*Math.PI/2,0]);
+      for(const dz of [-.026,.026]){
+        put(cone,speakerCone,fx+front*.003,y,z+dz,[.016,.016,.016],[0,front*Math.PI/2,0]);
+        put(surround,speakerSurround,fx+front*.005,y,z+dz,[.017,.017,.017],[0,front*Math.PI/2,0]);
+        put(dustCap,speakerBaffle,fx+front*.005,y,z+dz,[.003,.006,.006]);
+      }
+      for(const dz of [-.053,.053])put(box,trim,fx+front*.003,y,z+dz,[.002,.039,.002]);
+      // Lighter side ribs and handle cutouts distinguish the stacks from the dark trusses.
+      for(const dz of [-.057,.057]){
+        put(box,speakerSurround,xx,y+.021,z+dz,[.08,.002,.002]);
+        put(box,speakerBaffle,xx,y,z+dz,[.023,.012,.002]);
+        put(box,steel,xx,y+.006,z+dz*1.015,[.024,.002,.002]);
+      }
     }
   }
   // Overhead truss frame, braces and lamp cans. Geometry only, no individual light sources.
@@ -97,7 +123,7 @@ export function buildAct4(scene){
     bar([side*.79,y,-.79],[side*.79,y,.79],.004,steel);
   }
   for(const x of [-.58,-.28,.28,.58]){
-    put(box,dark,x,.86,-.72,[.035,.035,.045]);put(box,cool,x,.839,-.712,[.022,.002,.025]);
+    put(box,dark,x,.86,-.72,[.035,.035,.045]);put(box,x<0?cool:edge,x,.839,-.712,[.022,.002,.025]);
   }
   // Reusable soft light pools fake spill/reflection instead of planar reflections or tile lights.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');
@@ -126,19 +152,32 @@ export function buildAct4(scene){
   const reflection=new THREE.Mesh(geo(new THREE.PlaneGeometry(span,span).rotateX(-Math.PI/2)),spillMat);reflection.position.y=.0003;reflection.userData.noCollide=true;root.add(reflection);
   // Faint translucent shafts, fixed in place: four low-poly draws merged into one.
   const beamMat=mat(new THREE.MeshBasicMaterial({color:blue,transparent:true,opacity:LOOK.num('arena-beam-opacity',.035),depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+  const warmBeamMat=mat(beamMat.clone());warmBeamMat.color.set(amber);
   const beamGeo=geo(new THREE.ConeGeometry(.13,.7,12,1,true));
-  for(const x of [-.58,-.28,.28,.58])put(beamGeo,beamMat,x,.49,-.4,[1,1,1],[-.4,0,0]);
-  for(const [material,list]of batches){const merged=geo(mergeGeometries(list));list.forEach(g=>g.dispose());const m=new THREE.Mesh(merged,material);m.userData.noCollide=true;root.add(m);}
+  for(const x of [-.58,-.28,.28,.58])put(beamGeo,x<0?beamMat:warmBeamMat,x,.49,-.575,[1,1,1],[-.4,0,0]);
+  for(const [material,list]of batches){const merged=geo(mergeGeometries(list));list.forEach(g=>g.dispose());const m=new THREE.Mesh(merged,material);m.name=`Arena ${material.name||'scenery'}`;m.userData.noCollide=true;root.add(m);}
   const boss=buildEncoreBoss();boss.root.position.set(0,.07,-.43);root.add(boss.root);
   const bossSolid=new THREE.Mesh(boss.collisionGeometry,fenceMat);bossSolid.name='Encore structure collider';bossSolid.userData.noCollide=true;bossSolid.position.copy(boss.root.position);root.add(bossSolid);solids.push(bossSolid);
   const shockSolids=[riser,bossSolid];
   const fill=new THREE.HemisphereLight(0x8aa9ec,0x191017,LOOK.num('arena-fill',.75));
   const key=new THREE.DirectionalLight(0xffc589,LOOK.num('arena-key',1.15));key.position.set(-.4,1,.5);root.add(fill,key);
+  const fillBase=fill.intensity,keyBase=key.intensity,spillBase=poolMat.opacity,beamBase=beamMat.opacity;
+  const pulseFill=LOOK.num('arena-beat-fill',.22),pulseKey=LOOK.num('arena-beat-key',.12),pulseSpill=LOOK.num('arena-beat-spill',.2),pulseBeam=LOOK.num('arena-beat-beam',1.3),pulseTrim=LOOK.num('arena-beat-trim',.35),decay=LOOK.num('arena-beat-decay',5);
+  const blueTint=new THREE.Color(blue),amberTint=new THREE.Color(amber);
+  // Absolute music beat: no local metronome drift, missed-beat replay, new lights or allocations.
+  function updateAmbience(beat=null,quiet=false,breakdown=false){
+    const pulse=Number.isFinite(beat)&&beat>=0&&!quiet&&!breakdown?Math.exp(-(beat%1)*decay)*(Math.floor(beat)%4===0?1:.75):0;
+    fill.intensity=fillBase*(1+pulse*pulseFill);key.intensity=keyBase*(1+pulse*pulseKey);
+    poolMat.opacity=Math.min(1,spillBase*(1+pulse*pulseSpill));
+    beamMat.opacity=warmBeamMat.opacity=beamBase*(1+pulse*pulseBeam);
+    speakerBlue.color.copy(blueTint).multiplyScalar(1+pulse*pulseTrim);speakerWarm.color.copy(amberTint).multiplyScalar(1+pulse*pulseTrim);
+    return pulse;
+  }
   function setTile(row,col,color=null,strength=1){
     if(!Number.isInteger(row)||!Number.isInteger(col)||row<0||col<0||row>=n||col>=n||!Number.isFinite(strength))return false;
     tint.set(color??0).multiplyScalar(THREE.MathUtils.clamp(strength,0,1));tiles.setColorAt(row*n+col,tint);tiles.instanceColor.needsUpdate=true;return true;
   }
   function clearTiles(){for(let row=0;row<n;row++)for(let col=0;col<n;col++)setTile(row,col);}
-  return {root,floor,tiles,solids,shockSolids,span,setTile,clearTiles,boss,
+  return {root,floor,tiles,solids,shockSolids,span,setTile,clearTiles,boss,updateAmbience,
     dispose(){boss.dispose();root.removeFromParent();root.traverse(o=>{if(o.isInstancedMesh)o.dispose();});ownedGeo.forEach(g=>g.dispose());ownedMat.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

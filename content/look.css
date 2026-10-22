@@ -15,6 +15,17 @@
   --encore-amber: #ff8c25;
   --encore-led-width: 0.00075;
   --encore-halo-opacity: 0.11;
+  --arena-speaker-body: #334257;
+  --arena-speaker-grille: #33445d;
+  --arena-speaker-baffle: #0b1423;
+  --arena-speaker-cone: #28394e;
+  --arena-speaker-surround: #74869d;
+  --arena-beat-fill: 0.22;
+  --arena-beat-key: 0.12;
+  --arena-beat-spill: 0.2;
+  --arena-beat-beam: 1.3;
+  --arena-beat-trim: 0.35;
+  --arena-beat-decay: 5;
   --arena-background: #030611;
   --arena-metal: #10131d;
   --arena-steel: #273044;
