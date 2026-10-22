@@ -73,7 +73,7 @@ export function buildAct4(scene){
     }
   }
   // Rear riser supports the visual boss model; combat and collision remain separate.
-  solid('Rear stage riser',0,.035,-.43,.63,.07,.42);
+  const riser=solid('Rear stage riser',0,.035,-.43,.63,.07,.42);
   for(const z of [-.20,-.18]){put(box,dark,0,.012,z,[.64,.024,.025]);put(box,edge,0,.025,z+.009,[.62,.002,.002]);}
   put(box,edge,0,.071,-.219,[.62,.002,.003]);
   // Four suspended line arrays, with visible segmented cabinets and cone faces.
@@ -130,6 +130,8 @@ export function buildAct4(scene){
   for(const x of [-.58,-.28,.28,.58])put(beamGeo,beamMat,x,.49,-.4,[1,1,1],[-.4,0,0]);
   for(const [material,list]of batches){const merged=geo(mergeGeometries(list));list.forEach(g=>g.dispose());const m=new THREE.Mesh(merged,material);m.userData.noCollide=true;root.add(m);}
   const boss=buildEncoreBoss();boss.root.position.set(0,.07,-.43);root.add(boss.root);
+  const bossSolid=new THREE.Mesh(boss.collisionGeometry,fenceMat);bossSolid.name='Encore structure collider';bossSolid.userData.noCollide=true;bossSolid.position.copy(boss.root.position);root.add(bossSolid);solids.push(bossSolid);
+  const shockSolids=[riser,bossSolid];
   const fill=new THREE.HemisphereLight(0x8aa9ec,0x191017,LOOK.num('arena-fill',.75));
   const key=new THREE.DirectionalLight(0xffc589,LOOK.num('arena-key',1.15));key.position.set(-.4,1,.5);root.add(fill,key);
   function setTile(row,col,color=null,strength=1){
@@ -137,6 +139,6 @@ export function buildAct4(scene){
     tint.set(color??0).multiplyScalar(THREE.MathUtils.clamp(strength,0,1));tiles.setColorAt(row*n+col,tint);tiles.instanceColor.needsUpdate=true;return true;
   }
   function clearTiles(){for(let row=0;row<n;row++)for(let col=0;col<n;col++)setTile(row,col);}
-  return {root,floor,tiles,solids,span,setTile,clearTiles,boss,
+  return {root,floor,tiles,solids,shockSolids,span,setTile,clearTiles,boss,
     dispose(){boss.dispose();root.removeFromParent();root.traverse(o=>{if(o.isInstancedMesh)o.dispose();});ownedGeo.forEach(g=>g.dispose());ownedMat.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }
