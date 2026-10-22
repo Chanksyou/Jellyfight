@@ -408,6 +408,8 @@ export const sfx = {
     noise(450*j,1,.28,.13,'lowpass');
     for (let i=0;i<4;i++) noise((1700+i*500)*j,2,.07,.035,'bandpass',.08+i*.055);
   },
+  // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it
+  encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // an enemy dies: a crunchy squish; bigger for bigger things

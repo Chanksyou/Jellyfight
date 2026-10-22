@@ -205,8 +205,27 @@ preview has no fx pools), aftermath, a damage number, and a layered hit sound. T
 game's own fx, HUD and sounds when the Encore joins the campaign; until then it isn't on the
 scoreboard, which lists only attacks in the game (`EVERY_ATTACK`).
 
-Stories `encore/*` (15): the ring's travel and thickness, a standing jelly hit on the beat only,
+Stories `encore/*` (18): the ring's travel and thickness, a standing jelly hit on the beat only,
 a real jump on the beat clearing it (and one 3 beats early not), the arc's gap, the arrow's shape
 and its three-jump run, no Warning tiles and each wave in its DJ's colour with no light added, the DJ's arm pumping on the beat, the four newer shapes and how they hit, the random picking, the drop's pairs, hitches and jumps in
 time, the track's grid landing on its kicks, its whole-bar loop and breakdown rest, and the
 fallback song scheduling.
+
+## Club lasers (v239)
+
+`src/encore-laser.js`: an emitter on each of the arena's four corner posts, 35 cm up
+(`--encore-laser-height`). A laser is one of the Encore's random picks (never twice running; at the
+drop, it can be one of the two at once). It fires a fan of green beams (`--hostile-encore-laser`,
+laser green) from its corner down to a line on the floor through where the jelly is when its Warning
+starts: a laser plane, crisp anti-aliased beams over a haze, brightest where it burns the floor.
+
+- **Warning:** the line and the band it will sweep (10 cm, `--encore-laser-sweep`) flash green on the
+  floor for 2 beats (`--encore-laser-lead`, a strip `TeleMaterial`), with the plane faint over it
+  as its volume.
+- **Fire:** on the beat the plane fires full and swings 10 cm sideways across the band over a beat
+  (`--encore-laser-fire`), with a zap (`sfx.encoreLaser`). Anything of the jelly inside it is hit,
+  once a laser, for 4 Health.
+- **Dodge:** step out of the band. The plane is a fan from up high, tall by its corner and down to
+  nothing at the far end, so far from the corner a jump clears it; near it, it can't.
+
+Two pooled planes and bands, four emitters: a few unlit draws, no light added.
