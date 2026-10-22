@@ -358,6 +358,7 @@
   --encore-disco-spot: 0.028;    /* m: a spot's radius on the floor */
   --encore-disco-spin: 0.35;     /* radians the ball turns a beat while it wheels */
   --encore-disco-beam: 0.35;     /* its beams' opacity */
+  --encore-disco-rings: 26;      /* rings of mirror tiles on the ball (about 900 tiles) */
   --hostile-encore-laser: #39ff14; /* the Encore's club lasers: laser green */
   --encore-laser-height: 0.35;   /* m: the emitters on the corner posts (the plane's apex) */
   --encore-laser-lead: 2;        /* beats its floor band flashes before it fires */

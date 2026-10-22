@@ -20,6 +20,68 @@ const CENTER = [0, 0.3];                           // over the floor, out in fro
 const UP = new THREE.Vector3(0, 1, 0);
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Color();
 
+// The club around it as a mirror sees it: a small cube map of dark haze with hot pools of the arena's
+// lights (amber, cool blue, laser green, magenta, white), made once
+function clubLights() {
+  const faces = [], hues = ['#ff8a2a', '#7fa8ff', '#39ff14', '#ff2fd2', '#ffffff', '#ffd27a'];
+  for (let f = 0; f < 6; f++) {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    // silver haze, brighter above (+y), with a mottle so neighbouring tiles differ
+    const base = g.createLinearGradient(0, 0, 0, 64); base.addColorStop(0, f === 2 ? '#c9cfdc' : '#8d93a3'); base.addColorStop(1, f === 3 ? '#3a3e4a' : '#5d6372');
+    g.fillStyle = base; g.fillRect(0, 0, 64, 64);
+    for (let k = 0; k < 40; k++) { const v = 90 + Math.random() * 150 | 0; g.fillStyle = `rgba(${v},${v},${v + 8},0.5)`; g.fillRect(Math.random() * 64, Math.random() * 64, 6 + Math.random() * 10, 6 + Math.random() * 10); }
+    for (let k = 0; k < 5; k++) { const x = Math.random() * 64, y = Math.random() * 64, w = g.createRadialGradient(x, y, 0, x, y, 6); w.addColorStop(0, '#ffffff'); w.addColorStop(1, '#fff0'); g.fillStyle = w; g.fillRect(0, 0, 64, 64); }
+    for (let k = 0; k < 5; k++) {
+      const x = Math.random() * 64, y = Math.random() * 64, r = 5 + Math.random() * 12, grad = g.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, hues[(f + k) % hues.length]); grad.addColorStop(1, '#0000'); g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+    }
+    faces.push(c);
+  }
+  const t = new THREE.CubeTexture(faces); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true;
+  return t;
+}
+// rings of square tiles round a sphere of radius r, each a flat quad (its own normal) inset from its
+// neighbours so the grout shows between
+function mirrorTiles(r, rings) {
+  const pos = [], nor = [], gap = 0.12, dl = Math.PI / rings, v = new THREE.Vector3(), n = new THREE.Vector3();
+  const at = (lat, lon) => v.set(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)).multiplyScalar(r).toArray();
+  for (let i = 0; i < rings; i++) {
+    const lat = -Math.PI / 2 + (i + 0.5) * dl, cols = Math.max(4, Math.round(2 * rings * Math.cos(lat))), dn = (2 * Math.PI) / cols;
+    for (let j = 0; j < cols; j++) {
+      const lon = j * dn + (i % 2) * dn / 2, h = (dl * (1 - gap)) / 2, w = (dn * (1 - gap)) / 2;
+      const q = [at(lat - h, lon - w), at(lat - h, lon + w), at(lat + h, lon + w), at(lat + h, lon - w)];
+      n.set(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon));
+      for (const k of [0, 2, 1, 0, 3, 2]) { pos.push(...q[k]); nor.push(n.x, n.y, n.z); }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return geo;
+}
+// a few four-pointed star glints sitting on the ball's surface
+function glints(r, count) {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32); grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.18, '#ffffffaa'); grad.addColorStop(1, '#fff0');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64); g.fillStyle = '#fff';
+  g.fillRect(31, 0, 2, 64); g.fillRect(0, 31, 64, 2);
+  const pos = [], col = [], phase = [];
+  for (let k = 0; k < count; k++) {
+    const y = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, s = Math.sqrt(1 - y * y);
+    pos.push(Math.cos(a) * s * r * 1.01, y * r * 1.01, Math.sin(a) * s * r * 1.01); col.push(0, 0, 0); phase.push(Math.random() * 40);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: r * 0.5, map: new THREE.CanvasTexture(c), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  pts.userData.phase = phase; pts.userData.noCollide = true;
+  return pts;
+}
+// each glint flares as the ball turns a tile's worth past it, with a little shimmer on the beat
+function twinkle(pts, turn, beat) {
+  const col = pts.geometry.attributes.color, ph = pts.userData.phase;
+  for (let k = 0; k < ph.length; k++) { const b = Math.max(0, Math.sin(ph[k] + turn * 9 + beat * 0.7)) ** 12; col.setXYZ(k, b, b, b); }
+  col.needsUpdate = true;
+}
+
 export class EncoreDisco {
   // arena: buildAct4's; onHit(dmg): the jelly was struck; quiet(beat): the song's breakdown;
   // random: where the spots scatter
@@ -33,12 +95,15 @@ export class EncoreDisco {
     this.hot = new THREE.Color(LOOK.color('hostile-encore-disco', '#ff2fd2'));
     this.beat = null; this.show = null; this.struck = -1;
     this.root = new THREE.Group(); this.root.name = 'Encore disco ball'; arena.root.add(this.root);
-    // the ball: a mosaic of mirror tiles (each face its own shade), turning
-    const ballGeo = new THREE.SphereGeometry(this.r, 22, 14).toNonIndexed(), shade = [];
-    for (let f = 0; f < ballGeo.attributes.position.count / 3; f++) { const v = Math.random() < 0.08 ? 1.8 : 0.25 + 0.75 * Math.random(); for (let k = 0; k < 3; k++) shade.push(v, v, v * 1.03); }   // mirror tiles, a few catching the light
-    ballGeo.setAttribute('color', new THREE.Float32BufferAttribute(shade, 3)); ballGeo.computeVertexNormals();
-    this.ballMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.55, roughness: 0.12, flatShading: true, emissive: '#5a5a66', emissiveIntensity: 1 });
+    // the ball: rings of small square mirror tiles, each a flat facet reflecting the club's lights,
+    // over dark grout, turning; a few star glints twinkle on it
+    this.env = clubLights();
+    const ballGeo = mirrorTiles(this.r, LOOK.num('encore-disco-rings', 26));
+    this.ballMat = new THREE.MeshBasicMaterial({ color: '#ffffff', envMap: this.env, combine: THREE.MultiplyOperation, reflectivity: 1 });
     this.ball = new THREE.Mesh(ballGeo, this.ballMat); this.ball.userData.noCollide = true;
+    const groutGeo = new THREE.SphereGeometry(this.r * 0.985, 24, 16);
+    this.ball.add(new THREE.Mesh(groutGeo, new THREE.MeshBasicMaterial({ color: '#07080b' })));
+    this.glints = glints(this.r, 22); this.ball.add(this.glints);
     const rodGeo = new THREE.CylinderGeometry(0.0025, 0.0025, 1, 6).translate(0, 0.5, 0);
     this.rod = new THREE.Mesh(rodGeo, new THREE.MeshBasicMaterial({ color: '#1a1e28' })); this.rod.userData.noCollide = true;
     this.hanger = new THREE.Group(); this.hanger.add(this.ball, this.rod); this.hanger.visible = false;
@@ -51,7 +116,7 @@ export class EncoreDisco {
     this.beams = new THREE.InstancedMesh(beamGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: LOOK.num('encore-disco-beam', 0.35), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }), n);
     for (const m of [this.spots, this.beams]) { m.frustumCulled = false; m.userData.noCollide = true; m.visible = false; m.renderOrder = 4; this.root.add(m); }
     for (let i = 0; i < n; i++) { this.spots.setColorAt(i, _c.set(0)); this.beams.setColorAt(i, _c.set(0)); }
-    this.owned = [ballGeo, this.ballMat, rodGeo, this.rod.material, spotGeo, this.spots.material, beamGeo, this.beams.material];
+    this.owned = [ballGeo, this.ballMat, this.env, groutGeo, this.ball.children[0].material, this.glints.geometry, this.glints.material, this.glints.material.map, rodGeo, this.rod.material, spotGeo, this.spots.material, beamGeo, this.beams.material];
     this.layout = [];                                         // each spot: how far out from under the ball, and its angle round it
   }
 
@@ -102,6 +167,7 @@ export class EncoreDisco {
     this.rod.scale.set(1, Math.max(0.01, this.top + 0.4 - y), 1);
     const playing = u !== null && u >= 0 && u < DISCO.length;
     if (playing) this.ball.rotation.y = -this.turn(u);
+    if (this.hanger.visible) twinkle(this.glints, this.ball.rotation.y, beat);
     this.spots.visible = this.beams.visible = playing;
     if (!playing) return;
     // the spots: soft white while they wheel; stopped, they flash fast between white and the hot colour

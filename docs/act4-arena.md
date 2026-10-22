@@ -237,7 +237,10 @@ Two pooled planes and bands, four emitters: a few unlit draws, no light added.
 `src/encore-disco.js`: every 8 bars, from 32 bars into the fight (beat 128), a big mirror ball
 (`--encore-disco-radius`, 24 cm across, about three jellies tall) drops on its rod from above the
 arena over the beat before and hangs over the floor (`--encore-disco-hang`) for 8 beats, then rises
-away. It throws 32 light spots across the open floor, each on its own beam from the ball.
+away. It is a real mirror ball: about 900 square tiles in rings (`--encore-disco-rings`), each a flat
+facet over dark grout, reflecting a small generated cube map of the club (silver haze, white
+highlights, pools of the arena's amber, blue, green and magenta), so it shimmers as it turns; star
+glints twinkle on it. It throws 32 light spots across the open floor, each on its own beam from the ball.
 
 Twice, 4 beats each:
 - for 3 beats the spots wheel round as the ball turns (`--encore-disco-spin`), warm white and harmless;
@@ -248,5 +251,5 @@ Twice, 4 beats each:
 
 The second 4 beats turn the other way. Spots are scattered afresh for each show, always where they
 stop on open floor, so all 32 are there to strike. The song's breakdown skips a show. The floor waves
-and lasers carry on through it. The ball, rod, beams and spots are four draws (beams and spots
+and lasers carry on through it. The ball (tiles, grout, glints), rod, beams and spots are six draws (beams and spots
 instanced), no light added.
