@@ -18,6 +18,7 @@ import { EnergyShield } from './energy-shield.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
+import { Victory } from './victory.js';
 import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
@@ -88,6 +89,7 @@ export class Run {
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
     this.evolutionReveal = new EvolutionReveal(this);
+    this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -163,6 +165,7 @@ export class Run {
   // ------------------------------------------------------------ setup
   start() {
     this.evolutionReveal.cancel();
+    this.victory.cancel();
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
@@ -1083,7 +1086,24 @@ export class Run {
     this.xpDrops.drop(c, 1, 30);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200);
-    this.later(() => this.metamorph(), 2200);
+    // the last act's boss: straight on to the ending (nothing after it to grow into); otherwise the metamorphosis
+    this.later(() => (STAGES[this.stage.id] ? this.metamorph() : this.won()), 2200);
+  }
+
+  // The run is won (the last act's boss is beaten): the jelly swims home to the sea (victory.js), then
+  // the score, to post if it makes the top 10
+  won() {
+    if (this.ui.open || this.pendingLevels > 0) { this.later(() => this.won(), 250); return; }   // (a pick still open finishes first)
+    this.phase = 'won';
+    if (!this.dev) markPlayed();
+    this.bossDeadT = false;
+    const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);   // whatever XP hadn't reached you still counts
+    this.xpDrops.clear();
+    this.collectAll = false;
+    if (left) this.gainXp(left);
+    this.hud.setBoss(null);
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.victory.begin(() => this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }));
   }
 
   metamorph() {
@@ -1170,7 +1190,9 @@ export class Run {
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
         ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary()];
-      const canPost = B && B.status !== 'offline' && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
+      // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
+      const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
+      if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
@@ -1243,7 +1265,7 @@ export class Run {
       for (const e of this.enemies.list) if (!e.dead && e.pos.distanceTo(P) < 0.7) near += e.proxy ? 4 : 1;   // elites count for more
       return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * this.night) };
     }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) return { song: this.boss.music || 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' || (this.boss.state === 'flood' && this.boss.plugged) };
+    if (this.phase === 'boss' && this.boss && !this.boss.dead && !this.boss.falling) return { song: this.boss.music || 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' || (this.boss.state === 'flood' && this.boss.plugged) };
     return { song: null, intensity: 0 };
   }
 

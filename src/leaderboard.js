@@ -137,6 +137,15 @@ export class Leaderboard {
     } catch { return { posted: false, why: 'error' }; }
   }
 
+  // Would `score` make the top 10 (and beat your own best on it)? The end screen only offers to post it then
+  qualifies(score) {
+    if (this.mine && this.mine.score >= score) return false;
+    const rows = this.shown().filter((r) => r.id !== this.id);
+    return rows.length < 10 || score > rows[rows.length - 1].score;
+  }
+  // the score to beat for a place: #10's (0 while the board has room)
+  cutoff() { const rows = this.shown().filter((r) => r.id !== this.id); return rows.length < 10 ? 0 : rows[rows.length - 1].score; }
+
   // Your place on the board (1-based), or null when you're not in the top 10
   rank() { const i = this.shown().findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1; }
 
