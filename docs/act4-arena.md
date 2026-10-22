@@ -338,10 +338,11 @@ instanced), no light added.
 
 ## Speaker pulses (v242)
 
-`src/encore-pulse.js`: from bar 16 of the fight (beat 64), on every beat one corner speaker fires a
+`src/encore-pulse.js`: from bar 16 of the fight (beat 64), one corner speaker at a time fires a
 white sound ring (`--encore-pulse`, 6 cm, `--encore-pulse-radius`), the four stacks taking turns
 round the arena. It drops from the speaker to jelly height and rolls across the floor to the opposite
-corner's speaker in 2 beats (`--encore-pulse-travel`), three fading echoes trailing it. It does no
+corner's speaker in 2 beats (`--encore-pulse-travel`), three fading echoes trailing it, and the next
+speaker fires as it arrives, so only one is ever in flight. It does no
 damage: a jelly it rolls through is shoved 5 cm (`--encore-pulse-push`) the way it is going, slid
 over 0.15 s with the jelly's own collision, once a pulse, with a soft whomp (`sfx.encorePulse`).
 Jump it to stay put. The song's breakdown quiets it. Every ring in flight is one instanced draw.

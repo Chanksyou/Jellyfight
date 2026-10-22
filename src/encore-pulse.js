@@ -1,6 +1,6 @@
-// The Encore's speaker pulses (act 4). From bar 16 of the fight (beat 64), on every beat one corner
-// speaker fires a white sound ring (`--encore-pulse-radius`, 6 cm), the four taking turns round the
-// arena. It drops from its speaker to jelly height and rolls across the floor to the opposite corner's
+// The Encore's speaker pulses (act 4). From bar 16 of the fight (beat 64), one corner speaker at a
+// time fires a white sound ring (`--encore-pulse-radius`, 6 cm), the four taking turns round the
+// arena: the next fires the moment the last reaches its far corner. It drops from its speaker to jelly height and rolls across the floor to the opposite corner's
 // speaker over `--encore-pulse-travel` beats, a trailing echo behind it. It does no damage: a jelly it
 // passes through is shoved `--encore-pulse-push` (5 cm) the way it's travelling, once a pulse. Jump
 // it to stay put. The song's breakdown quiets it.
@@ -44,11 +44,13 @@ export class EncorePulses {
     if (this.beat !== null && beat < this.beat) { this.live.length = 0; this.fired = PULSE.first - 1; }
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
-    // fire on each beat from the first: the next speaker round
-    for (let b = Math.max(this.fired + 1, PULSE.first); b <= beat; b++) {
+    // one at a time: the next speaker round fires as the last pulse arrives, `travel` beats on
+    const T = this.travel;
+    for (let k = Math.max(0, Math.floor((this.fired - PULSE.first) / T) + 1); PULSE.first + k * T <= beat; k++) {
+      const b = PULSE.first + k * T;
       this.fired = b;
-      if (skip || this.quiet(b) || beat - b > this.travel) continue;
-      this.live.push({ at: b, from: ((b - PULSE.first) % 4 + 4) % 4, hit: false });
+      if (skip || this.quiet(b) || beat - b > T) continue;
+      this.live.push({ at: b, from: k % 4, hit: false });
     }
     this.live = this.live.filter((p) => beat - p.at < this.travel);
     // the rings: the pulse and its echoes trailing it, each fainter, smaller and thinner

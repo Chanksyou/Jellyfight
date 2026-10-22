@@ -422,19 +422,20 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
   },
 });
 
-story('encore/speakers-fire-a-pulse-each-beat-from-bar-16-in-turn', {
-  about: 'From bar 16 of the fight (beat 64), one corner speaker fires a white sound ring on every beat, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor. None before bar 16, none in the breakdown.',
+story('encore/speakers-fire-one-pulse-at-a-time-from-bar-16-in-turn', {
+  about: 'From bar 16 of the fight (beat 64), one corner speaker at a time fires a white sound ring, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor, and the next fires as it arrives, so only one is ever in flight. None before bar 16, none in the breakdown.',
   setup() {},
   play() {
     const scene = new THREE.Scene(), arena = buildAct4(scene), P = new EncorePulses(arena, { quiet: (b) => b >= 80 && b < 84 });
     try {
       const seen = [];
-      for (let b = 50; b <= 90; b += 1 / 30) { P.update(b, null); for (const p of P.live) if (!seen.includes(p)) seen.push(p); }
-      const first = seen[0]?.at === PULSE.first, every = seen.every((p, k) => k === 0 || p.at - seen[k - 1].at === (seen[k - 1].at === 79 ? 5 : 1));
-      const turns = seen.every((p) => p.from === ((p.at - PULSE.first) % 4)), rest = !seen.some((p) => p.at >= 80 && p.at < 84);
+      let maxLive = 0;
+      for (let b = 50; b <= 90; b += 1 / 30) { P.update(b, null); maxLive = Math.max(maxLive, P.live.length); for (const p of P.live) if (!seen.includes(p)) seen.push(p); }
+      const T = LOOK.num('encore-pulse-travel', 2), first = seen[0]?.at === PULSE.first, every = seen.every((p, k) => k === 0 || p.at - seen[k - 1].at === (seen[k - 1].at === 78 ? 3 * T : T));
+      const turns = seen.every((p) => p.from === ((p.at - PULSE.first) / T) % 4), rest = !seen.some((p) => p.at >= 80 && p.at < 84), single = maxLive <= 1;
       const mid = P.at(seen[0], 0.5, new THREE.Vector3()), [ax, az] = SPEAKERS[seen[0].from], [bx, bz] = SPEAKERS[(seen[0].from + 2) % 4];
       const across = Math.abs(mid.y - 0.06) < 1e-9 && Math.abs(mid.x - (ax + bx) / 2) < 1e-9 && Math.abs(mid.z - (az + bz) / 2) < 1e-9;
-      return ok(first && every && turns && rest && across, { first: seen[0]?.at, count: seen.length, every, turns, rest, across });
+      return ok(first && every && turns && rest && across && single, { first: seen[0]?.at, at: seen.map((p) => p.at), every, turns, rest, across, maxLive });
     } finally { P.dispose(); arena.dispose(); }
   },
 });
