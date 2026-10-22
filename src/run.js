@@ -300,11 +300,8 @@ export class Run {
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
     if (per.length) {
-      const health = S.health, speedBonus = (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100;
-      for (const c of per) {
-        const src = c.of === 'max-health' ? health : c.of === 'move-speed-bonus' ? Math.max(0, speedBonus) : c.of === 'levels' ? this.level - 1 : this.chestsOpened || 0;
-        S[c.stat] += (src / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
-      }
+      const was = (this._perAt ||= {}); was.health = S.health; was.moveSpeed = S.moveSpeed;
+      for (const c of per) S[c.stat] += (this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
@@ -312,6 +309,11 @@ export class Run {
     if (this.mods.noRegen) S.regen = 0;                           // no-regen (Immortal Jelly)
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
+  }
+
+  // what a per converter counts (`of`), read from stats S
+  perSource(of, S) {
+    return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1 : this.chestsOpened || 0;
   }
 
   get power() { return this.S.bubbleDamage * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
