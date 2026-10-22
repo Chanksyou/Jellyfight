@@ -1097,6 +1097,9 @@ export class Run {
   }
 
   metamorph() {
+    // a pick still open (a level-up from the boss's XP) or still to come: it's finished first, never
+    // replaced by the metamorphosis
+    if (this.ui.open || this.pendingLevels > 0) { this.later(() => this.metamorph(), 250); return; }
     this.phase = 'metamorph';
     if (!this.dev) markPlayed();      // a run ended: the player isn't new any more (first-run.js)
     this.bossDeadT = false;

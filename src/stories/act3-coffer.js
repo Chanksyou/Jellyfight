@@ -7,7 +7,7 @@ import { CONTENT } from '../content.js';
 import { CONFIG } from '../config.js';
 import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
 import { juice } from '../juice.js';
-import { G, V, act3, coffer, fresh, onDesk, ok, r3, record, spy, startCoffer, step, stub, tp, volumePairs } from './kit.js';
+import { G, V, act3, coffer, fresh, holdJelly, onDesk, ok, r3, record, spy, startCoffer, step, stub, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(-1.2, 0.05, 9.5, 0);                // on the floor between the desk and the bassinet
 const isCoffer = (o) => o.material.uniforms.uColor.value.getHex() === hostile('coffer').getHex();
@@ -84,6 +84,23 @@ act3('coffer-accordion', {
     return ok(locks.length === 5 && bounded && fill.every((g) => Math.abs(g - A.unfold) < 0.04) && reach.every((d) => d <= A.range + 0.001)
       && onJelly.every((d) => d === null || d < 0.001) && Math.abs(radius - A.radius) < 0.002 && struck.every((n) => n === A.dmg) && hitAt.join() === '0,3,4' && arm > 0.45,
       { locks: locks.length, fill, reach, onJelly, radius: +radius.toFixed(3), struck, hitAt, arm: +arm.toFixed(3) });
+  },
+});
+
+act3('coffer-reaches-the-top-of-the-vanity-chair', {
+  about: 'The top of the vanity chair\'s back (90 cm up, just off the desk) is the Coffer\'s ground too: a jelly perched there wakes it and its Accordion strikes land there, so there is no safe perch to shoot it from. (Down on the seat the desk top hides each from the other.)',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); },
+  play() {
+    const { player } = G(), e = coffer(), log = record('damage_taken');
+    tp(-1.265, 1.0, 8.83, 0); player.snapToGround();
+    const feet = +player.position.y.toFixed(3);
+    holdJelly(); e.cool = 99;
+    step(60);
+    const awake = e.awake;
+    e.cool = 0; e.next = 0;
+    step(60 * 6, () => e.state === 'idle' && e.strike != null);
+    const struck = hitsBy(log, 'coffer-accordion').length;
+    return ok(feet > 0.85 && awake && struck > 0, { feet, awake, struck });
   },
 });
 
@@ -174,7 +191,7 @@ function safeSpot(spots, r) {
 }
 
 act3('coffer-jewels', {
-  about: 'Jewels: ten amber jewels shoot up out of sight off the Coffer\'s lid while ten Warnings (5 cm circles with the half sphere over each) fill on random spots of the desk top, spread out (`spread` apart, closing up a little when they do not all fit: at least 3/4 of it), for 2 s; then the jewels fall fast onto them (seen falling) and burst as Blasts: 3 to a jelly in one, nothing to a jelly standing in a gap between them when there is one (at the owner\'s wide 10 cm circles they can cover the desk: then you jump or get off it).',
+  about: 'Jewels: ten amber jewels shoot up out of sight off the Coffer\'s lid while ten Warnings (5 cm circles with the half sphere over each) fill on random spots of its ground (the desk top and the vanity chair beside it), spread out (`spread` apart, closing up a little when they do not all fit: at least 3/4 of it), for 2 s; then the jewels fall fast onto them (seen falling) and burst as Blasts: 3 to a jelly in one, nothing to a jelly standing in a gap between them when there is one (at the owner\'s wide 10 cm circles they can cover the desk: then you jump or get off it).',
   setup() { startCoffer(2); },
   play() {
     const J = CONTENT.elites.coffer.skills.jewels, tempo = CONTENT.elites.pace.tempo, out = {};
@@ -198,7 +215,7 @@ act3('coffer-jewels', {
         return e.state === 'idle' && spots;
       });
       const apart = Math.min(...spots.flatMap((a, i) => spots.slice(i + 1).map((b) => flat(a, b))));
-      const onDesk = spots.every((s) => s.x > DESK.min[0] && s.x < DESK.max[0] && s.z > DESK.min[1] && s.z < DESK.max[1] && s.y > DESK.top - 0.01);
+      const W = e.spec.wake, onDesk = spots.every((s) => s.x > W.min[0] && s.x < W.max[0] && s.z > W.min[2] && s.z < W.max[2] && s.y > W.min[1]);   // its ground: the desk top and the chair
       out[where] = { spots: spots.length, shown, apart: +apart.toFixed(3), onDesk, rain: +((burstAt / 60) * tempo).toFixed(2), up: +up.toFixed(2), falling: +falling.toFixed(2), hits: hitsBy(log, 'coffer-jewel'), at: safe && r3(safe) };
     }
     const { in: a, between: b } = out;

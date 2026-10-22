@@ -109,7 +109,7 @@ export const STAGE3 = {
     // the Latticework Coffer on the vanity desk, where its inlaid wooden box sat (hidden above), at
     // the back of the desk's open front strip, facing down it (south); the vent by the vanity lands
     // you 70 cm in front of it. Awake while you're on the desk top (its jewels rain anywhere in `wake`)
-    { kind: 'coffer', at: [-1.545, 0.78, 8.51], face: 0, area: 'vanity desk', wake: { min: [-1.89, 0.74, 8.4], max: [-1.43, 1.4, 9.34] }, stand: [-1.52, 0.78, 9.0] },
+    { kind: 'coffer', at: [-1.545, 0.78, 8.51], face: 0, area: 'vanity desk', wake: { min: [-1.89, 0.74, 8.4], max: [-1.19, 1.4, 9.34] }, stand: [-1.52, 0.78, 9.0] },
   ],
 
   // The boss arena: the top of the bed. You're carried up when the timer runs out; the Pothos
