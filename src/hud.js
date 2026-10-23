@@ -431,7 +431,7 @@ export class Hud {
       if (m.kind === 'vent' || m.kind === 'enemy') continue;
       const p = toMap(m.x, m.z);
       if (p.d > rim) { p.x = R + (p.x - R) * rim / p.d; p.y = R + (p.y - R) * rim / p.d; }
-      const mx = p.x, mz = p.y, r = (m.big ? 4.5 : 3.5) * u;
+      const mx = p.x, mz = p.y, r = (m.big ? 4.5 : 3.5) * u * (m.kind === 'treasure' ? LOOK.num('map-treasure-scale', 1.33) : 1);
       if (m.big) { g.globalAlpha = 0.25 + 0.2 * Math.sin(t * 4); dot(mx, mz, r * 2.4, m.color); g.globalAlpha = 1; }
       dot(mx, mz, r, m.color);
       const dy = m.y - pos.y;

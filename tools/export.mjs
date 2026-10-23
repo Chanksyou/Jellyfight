@@ -15,7 +15,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const local = process.env.THREE_LOCAL;
 const types = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json' };
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// CHROMIUM=/path/to/chrome: use that browser instead of Playwright's own (a cloud image's Chromium may be another build)
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'], executablePath: process.env.CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
 page.on('pageerror', (e) => console.error('page error:', e.message));
 await page.route('**/*', (r) => {
