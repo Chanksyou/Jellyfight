@@ -77,6 +77,31 @@ act4('at-half-health-its-booth-shorts-out', {
   },
 });
 
+act4('after-shorting-out-it-reboots-behind-its-force-field', {
+  about: 'Once the short-out cut scene ends the Encore reboots behind its force field for 10 s (bosses.kdl meltdown `guard`): hits bounce off as SHIELDED, its Health bar counts the reboot down, and its set keeps playing; when the 10 s are up the field shatters and hits land again.',
+  setup() {},
+  play() {
+    const B = encoreFight({ beat: 10 }), { run } = G(), bars = record('boss_health');
+    step(30);
+    B.damage(B.hp - B.maxHp * 0.49);
+    step(60 * 6, () => !B.cut); step(2);
+    const guard = B.guardT, hp = B.hp;
+    B.damage(100);
+    const blocked = B.hp === hp && B.shielded && B.field.visible;
+    const text = bars.at(-1)?.shieldText || '';
+    const beat0 = B.beat;
+    step(60 * 5);
+    const playing = B.beat > beat0 + 4 && B.shielded;           // its set plays on while it's shielded
+    step(60 * 5.5);
+    for (const g of [...B.guards]) G().enemies.kill(g, true);   // (its beetles come at bar 8: their shield is another story)
+    step(2);
+    B.damage(100);
+    const lands = B.hp === hp - 100 && !B.shielded && B.guardT === 0;
+    return ok(Math.abs(guard - (CONTENT.bosses.encore.skills.meltdown.guard ?? 10)) < 0.1 && blocked && /rebooting/.test(text) && playing && lands && run.phase === 'boss',
+      { guard, blocked, text, playing, lands, hp: B.hp });
+  },
+});
+
 act4('beating-the-encore-plays-its-defeat', {
   about: 'At 0 Health the Encore goes down in its own scene: its set stops and the music cuts out, the camera pulls back on the stage (the HUD hidden, the game held, no more hits landing), explosions climb over the booth, its panels die and the DJs slump over their decks, one last blow-out, and only then is it beaten.',
   setup() {},

@@ -48,7 +48,7 @@ export class Encore {
     this.dead = false; this.dying = false; this.rise = 1;
     this.state = 'set';
     this.t = 0; this.clock = 0; this.beat = null;
-    this.guards = []; this.summoned = -1; this.shieldT = 0; this.flash = 0;
+    this.guards = []; this.summoned = -1; this.shieldT = 0; this.flash = 0; this.guardT = 0;
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
     this.toughness = ctx.toughness ?? 1;
     const A = this.arenaView;
@@ -72,8 +72,8 @@ export class Encore {
 
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position); }
-  // up while any of the beetles it called is alive
-  get shielded() { return this.guards.length > 0; }
+  // up while any of the beetles it called is alive, and while it reboots after shorting out (guardT)
+  get shielded() { return this.guards.length > 0 || this.guardT > 0; }
 
   quiet(b) { return !!this.song?.quiet?.(b); }
   hurtPlayer(dmg, color = null) {
@@ -217,10 +217,11 @@ export class Encore {
       this.disco.update(beat, player);
       this.pulses.update(beat, player, dt);
       this.summon(beat);
+      if (this.guardT > 0) this.guardT = Math.max(0, this.guardT - dt);   // rebooting: counts down while its set plays
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }
       // never stuck behind a shield for ever (a beetle that can't reach you)
-      if (this.shielded && (this.shieldT += dt) > (this.def.skills.beetles?.timeout ?? 90)) { for (const g of this.guards) this.enemies.kill(g, true); this.guards = []; }
+      if (this.guards.length && (this.shieldT += dt) > (this.def.skills.beetles?.timeout ?? 90)) { for (const g of this.guards) this.enemies.kill(g, true); this.guards = []; }
     }
     this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
     A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat));
@@ -251,7 +252,7 @@ export class Encore {
     this.field.scale.copy(this.fieldScale).multiplyScalar(0.6 + 0.4 * (1 - (1 - this.fieldUp) ** 3));
     this.flash = Math.max(0, this.flash - dt * 4);
     this.field.material.opacity = LOOK.num('encore-shield-opacity', 0.55) * (0.85 + 0.15 * Math.sin(this.t * 3)) + this.flash;
-    bus.emit('boss_health', { name: this.B.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: this.shielded ? `Shielded: beat the beetles (${this.guards.length} left)` : undefined });
+    bus.emit('boss_health', { name: this.B.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: this.guards.length ? `Shielded: beat the beetles (${this.guards.length} left)` : this.guardT > 0 ? `Shielded: rebooting (${Math.ceil(this.guardT)} s)` : undefined });
     return { push: dt > 0 && (this.shove.x || this.shove.z) ? { x: this.shove.x / dt, z: this.shove.z / dt } : null };
   }
 
@@ -268,7 +269,12 @@ export class Encore {
     M.setLighting('all', surge ? 0xffffff : LOOK.color('encore-broken', '#ff2a3a'), surge ? 0.7 : Math.random() < 0.35 ? 0 : 0.2 + Math.random() * 0.7);
     M.root.position.copy(this.home).add(new THREE.Vector3((Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.004, 0).multiplyScalar(1 - u * 0.5));
     for (const h of M.heads) h.rotation.z = (Math.random() - 0.5) * 0.5 * (1 - u);
-    if (C.t >= C.length) { for (const h of M.heads) h.rotation.z = 0; this.cut = null; M.root.position.copy(this.home); this.floor.lit = true; }
+    if (C.t >= C.length) {
+      for (const h of M.heads) h.rotation.z = 0; this.cut = null; M.root.position.copy(this.home); this.floor.lit = true;
+      // it reboots behind its force field: it can't be hurt for a while (bosses.kdl meltdown `guard`)
+      this.guardT = this.def.skills.meltdown?.guard ?? 10;
+      if (this.guardT > 0) bus.emit('toast', { text: `The Encore reboots behind its force field: it can't be hurt for ${Math.round(this.guardT)} s!` });
+    }
   }
 
   dispose() {
