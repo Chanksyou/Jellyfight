@@ -150,7 +150,24 @@ export class Hud {
     this.bounds = { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
   }
 
-  mount(parent) { parent.appendChild(this.el); }
+  mount(parent) {
+    parent.appendChild(this.el);
+    addEventListener('resize', () => this.fit());
+    this.fit();
+  }
+
+  // The HUD grows and shrinks with the window: one scale (CSS zoom on the whole HUD) from the window
+  // against a base size (content/look.css --hud-base-*), kept within --hud-scale-min/max. Phones and
+  // small windows keep their own layout (the small-screen rules below and body.touch) at 1.
+  fit() {
+    const w = innerWidth, h = innerHeight;
+    const small = document.body.classList.contains('touch') || h <= 520 || w <= 700;
+    const s = small ? 1 : Math.min(LOOK.num('hud-scale-max', 1.75), Math.max(LOOK.num('hud-scale-min', 0.85),
+      Math.min(w / LOOK.num('hud-base-width', 1600), h / LOOK.num('hud-base-height', 900))));
+    this.scale = Math.round(s * 100) / 100;
+    this.el.style.zoom = this.scale === 1 ? '' : String(this.scale);
+    this.touch = document.body.classList.contains('touch');
+  }
 
   set(key, sel, fn) { // only touch the DOM when a value changes
     const v = fn();
@@ -371,7 +388,8 @@ export class Hud {
     if (this.map.hidden) return;
     const c = this.map, g = this.ctx;
     const dpr = Math.min(3, devicePixelRatio || 1);
-    const css = c.clientWidth || 285;
+    if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
+    const css = (c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapBase = null; }
     const b = this.bounds, R = W / 2;

@@ -91,3 +91,18 @@ story('hud/player-health-reduce-effects', {
     return ok(!motion && pulse === 'none' && info && semantic, { motion, pulse, info, semantic });
   },
 });
+
+story('hud/scales-with-the-window', {
+  about: 'The HUD grows and shrinks with the window: one zoom from the window against the base size (look.css --hud-base-*), within --hud-scale-min/max, and the minimap is drawn at its zoomed size so it stays sharp; phones (body.touch) keep their own layout at 1.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { hud } = G(), want = Math.round(Math.min(1.75, Math.max(0.85, Math.min(innerWidth / 1600, innerHeight / 900))) * 100) / 100;
+    hud.fit(); step(2);
+    const scale = hud.scale, zoom = +(hud.el.style.zoom || 1), map = hud.$('.map');
+    const sharp = Math.abs(map.width - Math.round(map.clientWidth * scale * Math.min(3, devicePixelRatio || 1))) <= 1;
+    document.body.classList.add('touch'); hud.fit();
+    const phone = hud.scale === 1 && !hud.el.style.zoom;
+    document.body.classList.remove('touch'); hud.fit();
+    return ok(scale === want && zoom === scale && sharp && phone, { scale, want, zoom, map: [map.width, map.clientWidth], phone, window: [innerWidth, innerHeight] });
+  },
+});
