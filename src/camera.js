@@ -6,11 +6,25 @@ import * as THREE from 'three';
 // over the jelly (the coffee table, the media console, the counter's overhang) and anything
 // between the camera and the jelly (a wall behind you, a sofa back), solid again once it's
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
-// ray looks through a few layers (a shelf, then the cabinet behind it).
+// ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
+// for HOLD s after it's last in the way, so pieces don't flicker in and out as the rays sweep past
+// them, and small clutter (a mug, a teapot on a shelf, under SMALL m across) fades all the way out
+// rather than to see-through (still there to bump into: hiding it would take it out of collisions): a shelf of half-transparent cups drawn over each other looked broken.
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
+const HOLD = 0.4;
+const SMALL = 0.15;
 const LAYERS = 3;              // how many things one ray may look through
 const UP = new THREE.Vector3(0, 1, 0);
 const NONE = [];
+const _sphere = new THREE.Sphere();
+// how big a piece is across, in the world (its geometry's bounding sphere, scaled)
+const sizeOf = (m) => {
+  const g = m.geometry;
+  if (!g) return Infinity;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  _sphere.copy(g.boundingSphere).applyMatrix4(m.matrixWorld);
+  return _sphere.radius * 2;
+};
 
 const faded = (mat) => {
   const c = mat.clone();
@@ -86,11 +100,12 @@ export class ThirdPersonCamera {
     for (const m of this.over) {
       if (this._fades.has(m)) continue;
       const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
-      this._fades.set(m, { mats, see, k: 1 });
+      this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
       m.material = see;
     }
     for (const [m, f] of this._fades) {
-      const goal = this.over.has(m) ? SEE_THROUGH : 1;
+      if (this.over.has(m)) f.hold = HOLD; else f.hold -= dt;
+      const goal = f.hold > 0 ? f.low : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
       if (goal === 1 && f.k > 0.98) { m.material = f.mats; for (const c of [].concat(f.see)) c.dispose(); this._fades.delete(m); continue; }   // the clones are this fade's alone: free them, or every fade leaks materials
       for (const s of [].concat(f.see)) s.opacity = s.userData.solid * f.k;
