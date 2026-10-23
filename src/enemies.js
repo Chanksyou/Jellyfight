@@ -451,6 +451,8 @@ export class Enemies {
     if (e.markT > 0) amount *= 1 + (e.markMore ?? 0.5);   // Sticky Note
     e.hp -= amount;
     e.lastElement = feedback.element;     // what finished it, if this was the last hit (feedback.js: a glitter-finished bug bursts into glitter)
+    if (feedback.dir) (e.lastDir ||= new THREE.Vector3()).copy(feedback.dir).multiplyScalar(feedback.slam ? -1 : 1);   // which way it was hit (a wind-finished bug is blown that way; off a wall, back out)
+    else e.lastDir?.set(0, 0, 0);
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
     e.pop = 1;
     // flashes white for a moment, then can't again for a beat: under steady fire a big bug blinks with
@@ -469,7 +471,7 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement, body: e.proxy ? null : e.root,
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, body: e.proxy ? null : e.root,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
@@ -1409,13 +1411,17 @@ export class Enemies {
       const reach = Math.max(0, hit.distance - front - 0.001);
       if (reach <= travel) { travel = reach; S.windContact.copy(hit.point); contact = true; }
     }
+    const from = S.windFrom.copy(e.pos);
     if (this.move(e, dir, travel, false)) {
       contact = Math.abs(S.moveHit.normal.y) <= 0.7 && Math.abs(S.moveHit.normal.dot(dir)) >= 0.15;
       if (contact) S.windContact.copy(S.moveHit.point);
     }
+    if (!e.T.fly && from.distanceToSquared(e.pos) > 1e-6) this.fx.wind.skid(from, e.pos, e.pos.y, e.r);   // dust kicked up along its slide
     if (contact) {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
+      this.fx.wind.debris(S.windContact, S.windBack.copy(dir).negate(), 8, 0.35, e.pos.y);       // dust knocked off the wall, back out at you
+      this.fx.splat(S.windFrom.copy(e.pos), SCUFF, e.r * 1.2);                                    // a scuff where it hit
       sfx.windSlam(); juice.feel('impact');
       bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision', feedback: { element: 'wind', slam: true, dir } });
     }
@@ -1462,7 +1468,7 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;

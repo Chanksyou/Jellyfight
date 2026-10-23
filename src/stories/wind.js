@@ -112,6 +112,37 @@ story('attack/wind-windup-and-rate', {
   },
 });
 
+story('attack/wind-gust-feel', {
+  about: 'Wind lands like wind: the gust bursts out of the bell in speed lines, air rushes along with it, a hit buffets the bug with streaks, a little whirlwind and dust blown off its feet, a shoved bug kicks up dust as it slides, and a slam knocks dust off the wall. A bug finished by wind is blown away: its own body tumbles off along the gust, spinning and shrinking, then puffs into dust (its own sound, no guts, no body left), and its model is put back as it was. Nothing new to build mid-fight.',
+  setup() { setup(); roachAt(0.3, -0.25); step(2); },
+  play() {
+    const { run, enemies, fx, APT } = G(), W = fx.wind, B = run.bubbles, [e, other] = enemies.list;
+    const programs = APT.renderer.info.programs.length;
+    let blows = 0; const ba = sfx.windBlowAway; sfx.windBlowAway = function (...a) { blows++; return ba.apply(this, a); };
+    try {
+      W.clear();
+      run.bubbles.looks.windRelease(G().player.position.clone().add(V(0, 0.06, 0)), 1, V(0, 0, -1));
+      const released = W.streakList.filter((x) => x.life).length;
+      e.hp = 9999;
+      stub(enemies.world, 'cast', () => null);
+      const b = blade(); B.strike(b, e, run.mods);
+      const flecks = W.fleckList.filter((x) => x.life).length, swirls = W.swirls.filter((x) => x.life).length;
+      step(2);
+      const streaks = W.streakList.filter((x) => x.life).length;
+      // finished by wind: blown away along the gust
+      const bodies = fx.deaths.list.length, root = other.root, at = root.position.clone(), q = root.quaternion.clone(), h = root.scale.y;
+      other.lastElement = 'wind'; (other.lastDir ||= V(0, 0, 0)).set(0, 0, -1);
+      enemies.kill(other); step(20);
+      const flying = blows === 1 && W.blown.length === 1 && root.parent && root.position.z < at.z - 0.05 && root.scale.y < h && !root.quaternion.equals(q) && fx.deaths.list.length === bodies;
+      step(40);
+      const gone = W.blown.length === 0 && !root.parent && root.position.equals(at) && root.quaternion.equals(q) && root.scale.y === h;
+      APT.renderer.compile(APT.scene, APT.camera);
+      const shaders = APT.renderer.info.programs.length - programs;
+      return ok(released >= 8 && flecks >= 5 && swirls >= 1 && streaks >= 5 && flying && gone && shaders === 0, { released, flecks, swirls, streaks, flying, blows, gone, shaders });
+    } finally { sfx.windBlowAway = ba; }
+  },
+});
+
 story('attack/ice-shatter-feel', {
   about: 'Ice lands like ice: a shard that hits throws real crystal shards that skip off the floor and melt away, and a frost flower spreads where it struck and fades; the chilled bug wears a crown of ice spikes exactly while the chill lasts; a bug that dies chilled shatters into ice (shards and a frost flower, its shatter sound, no body left), and everything is gone again within about 2.5 s. Its looks were prepared at load: no new shader mid-fight.',
   setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack'); roachAt(0, -0.18); roachAt(0.2, -0.2); step(2); },
