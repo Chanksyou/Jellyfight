@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v261 sizes the HUD to the window. The whole HUD (Health and XP, treasures, clock, boss and elite bars, toasts, minimap) scales by one number: the window against a 1600×900 base, the smaller of the two ratios, kept between 0.85× and 1.75×. A 1366×768 laptop gets 0.85×, 1080p about 1.07×, 1440p 1.44× and 4K 1.75×, so the HUD takes about the same share of the screen everywhere. The minimap is drawn at its scaled size so it stays sharp. Phones and windows under 700×520 keep their own layout. It's CSS `zoom` on `#hud` (`Hud.fit` in `src/hud.js`), set again on every resize; the base size and limits are `--hud-base-*` and `--hud-scale-min/max` in `content/look.css`.
+
 v260 stops the pause menu (and its treasure list) opening behind the end screen. Dying or winning lets go of the mouse, and letting go of the mouse opened the pause menu; once a run is over it no longer does.
 
 v259 makes the Encore much tougher. Its Health goes from 4500 to 18000. The fight opens with its force field up: it can't be hurt for the first 15 s while its set warms up (`start guard=15` in `content/bosses.kdl`; its Health bar reads "Shielded: warming up"). Each of its attacks does 1 more damage: the floor waves 4 (from 3), the lasers 3 (from 2), the disco ball 5 (from 4) and the shock on its stage edge 5 (from 4). The speaker waves still only shove.

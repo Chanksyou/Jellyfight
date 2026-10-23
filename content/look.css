@@ -219,6 +219,12 @@
   --number-wind: #eef8ff;
   --number-glitter: #ffb1ec;
   --number-mixed: #d6f1ff;
+  /* the HUD's size follows the window (hud.js fit): 1 at the base size, the smaller of width and
+     height ratios, kept between min and max; phones and windows under 700x520 keep their own layout */
+  --hud-base-width: 1600;
+  --hud-base-height: 900;
+  --hud-scale-min: 0.85;
+  --hud-scale-max: 1.75;
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
