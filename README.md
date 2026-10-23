@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v256 removes act 1's treasure spot by the window: treasures in the living room no longer turn up on the windowsill (`src/stage1.js`). The other 13 spots are unchanged.
+
 v255 makes the Encore tougher: its Health goes from 3000 to 4500 (`content/bosses.kdl`), so the final fight lasts about half as long again. Nothing else about it changed.
 
 v254 upgrades the wind attack, as fire, lightning, ice, glitter and acid were. The gust bursts out of the bell in a rush of speed lines with a ring of air, and air streaks along with the blade as it flies. A hit buffets the bug: streaks blow past it, a little whirlwind curls up round it, and real flecks of dust and lint blow off its feet, tumble and settle. A shoved bug kicks up dust as it slides, and slamming into the scenery knocks dust off the wall and leaves a scuff. A bug finished by wind is blown away: its own body tumbles off along the gust, spinning and shrinking, then puffs into dust. New layered sounds: a whump-whoosh-whistle launch, a buffeting hit, a cracking slam, and a rising howl when a bug is blown away. No numbers changed; the streaks and dust are two pooled draws (`src/wind-looks.js`).
