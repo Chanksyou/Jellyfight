@@ -70,9 +70,11 @@ export class Fx {
 
   mount(parent) { parent.appendChild(this.layer); }
 
-  // a pooled piece: in the scene for its transform, drawn instanced
+  // a pooled piece: in the scene for its transform, drawn instanced. It starts at size 0: its
+  // geometry is 1 m across, and a new piece drawn before its first update was a huge white flash
   piece(geo, mat) {
     const m = new THREE.Mesh(geo, mat);
+    m.scale.setScalar(0);
     m.userData.color = new THREE.Color();
     m.userData.opacity = 1;
     this.scene.add(m);
@@ -159,6 +161,8 @@ export class Fx {
     p.r = radius;
     p.m.visible = true;
     p.m.position.copy(pos);
+    p.m.scale.setScalar(radius * 0.4);   // its size at t 0 (update grows it), so it never shows at its old or a new piece's size
+    p.m.userData.opacity = 0.55;
     p.m.userData.color.set(color);
   }
 
@@ -199,6 +203,7 @@ export class Fx {
     s.m.visible = true;
     s.m.position.set(pos.x, pos.y + 0.0015, pos.z);
     s.m.rotation.y = Math.random() * Math.PI;
+    s.m.scale.set(0, 1, 0);   // it spreads from nothing (update), never shows at a new piece's 1 m
     s.m.userData.color.set(color ?? LOOK.color('splat', '#9fd8ff'));
   }
 

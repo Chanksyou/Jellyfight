@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v263 fixes the big white circles flashing on the first bug you hit each run. The game's puffs and wet splats are pooled pieces built 1 m across and sized as they play. The first time one was needed it was brand new, and it got drawn for a frame at that full 1 m (a white sphere and a disc) before its first update shrank it. Later hits reused pieces left small, so only the first hit showed it. New pieces now start at size 0, and a puff or splat is sized the moment it spawns (`src/fx.js`).
+
 v262 makes treasures scarcer. Each act's night brings 4 treasures to the room instead of 5, now at 0:15, 1:15, 2:15 and 3:20. Elites still leave theirs. Luck is half as strong: each step up in rarity is (1 + Luck/200)× likelier, where it was Luck/100 (`luckWeights` in `src/stats.js`). The Game Die (level-up cards roll one rarity higher) is now a Legendary treasure, so it only turns up as a rare find or a Boss reward. It was Epic.
 
 v261 sizes the HUD to the window. The whole HUD (Health and XP, treasures, clock, boss and elite bars, toasts, minimap) scales by one number: the window against a 1600×900 base, the smaller of the two ratios, kept between 0.85× and 1.75×. A 1366×768 laptop gets 0.85×, 1080p about 1.07×, 1440p 1.44× and 4K 1.75×, so the HUD takes about the same share of the screen everywhere. The minimap is drawn at its scaled size so it stays sharp. Phones and windows under 700×520 keep their own layout. It's CSS `zoom` on `#hud` (`Hud.fit` in `src/hud.js`), set again on every resize; the base size and limits are `--hud-base-*` and `--hud-scale-min/max` in `content/look.css`.
