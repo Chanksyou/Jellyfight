@@ -19,9 +19,11 @@ export function wireFeedback(fx, isBurning = () => false) {
   });
 
   // it bursts: bits fly and bounce, the screen kicks, the game catches its breath for a beat
-  bus.on('enemy_killed', ({ targetId, type, pos, floor, r, silent, remains, chilled, element, body }) => {
+  bus.on('enemy_killed', ({ targetId, type, pos, floor, r, silent, remains, chilled, element, dir, body }) => {
     const fire = isBurning(targetId), ice = chilled && !fire, sparkle = element === 'glitter' && !fire && !ice, melt = element === 'acid' && !fire && !ice && !!body;
-    if (!fire && !ice && !sparkle && !melt) fx.puff(pos, 0xe6ded0, r * 1.6);
+    const blown = element === 'wind' && !fire && !ice && !!body;
+    const own = fire || ice || sparkle || melt || blown;   // dies its element's own way, with its own sound
+    if (!own) fx.puff(pos, 0xe6ded0, r * 1.6);
     if (silent) return;
     const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
     if (ice) {
@@ -40,6 +42,15 @@ export function wireFeedback(fx, isBurning = () => false) {
       fx.splat(pos.clone().setY(floor), LOOK.color('acid-spot', '#3aff00'), r * 1.5);
       fx.puff(pos, 0x9ab08a, r * 1.8, 0.6);
       sfx.acidMelt(big);
+    } else if (blown) {
+      // finished by wind: it's blown away. Its own body tumbles off along the gust, up and spinning,
+      // shrinking to nothing, then puffs into dust; a whirlwind where it stood and its dust blowing off
+      const way = dir?.lengthSq() > 1e-8 ? dir.clone() : pos.clone().set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+      fx.wind.blowAway(body, way, r);
+      fx.wind.swirl(pos.clone().setY(floor), r * 2.2);
+      fx.wind.streaks(pos, way, big ? 8 : 6, 1.2, r * 4);
+      fx.wind.debris(pos.clone().setY(floor + 0.002), way, big ? 10 : 6, 0.35, floor);
+      sfx.windBlowAway(big);
     } else if (sparkle) {
       // finished by glitter: it bursts into glitter, no body left. A flash of every colour, a shower of
       // flakes the size of the bug that flutter down and glint on the floor, and a sparkling pop
@@ -53,6 +64,6 @@ export function wireFeedback(fx, isBurning = () => false) {
       fx.ring(pos.clone().setY(floor + 0.003), LOOK.color('kill-ring', '#9fd8ff'), Math.min(r * 3, LOOK.num('kill-ring-max', 0.08)), 0.25);   // capped: a big bug's (3x its size) was a huge white circle round you
     }
     juice.feel(big ? 'kill-big' : 'kill');
-    if (!fire && !ice && !sparkle && !melt) sfx.kill(big ? 1.6 : 1);
+    if (!own) sfx.kill(big ? 1.6 : 1);
   });
 }

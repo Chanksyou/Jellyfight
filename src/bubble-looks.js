@@ -216,8 +216,14 @@ export class BubbleLooks {
     }
   }
 
-  windRelease(pos, size) {
+  windRelease(pos, size, vel) {
     this.fx.glow.emit(pos, this.windColor, LOOK.num('wind-release-size', 0.018) * size, LOOK.num('wind-release-size', 0.018) * size * 2, LOOK.num('wind-release-life', 0.12), 0.65);
+    // the gust bursting out of the bell: a rush of speed lines ahead, a ring of air round the bell
+    if (vel) {
+      _v.copy(vel).normalize();
+      this.fx.wind.streaks(_p.copy(pos).addScaledVector(_v, 0.012 * size), _v, 8, 1.4, 0.05 * size);
+      this.fx.ring(pos, 0xe6f8ff, 0.03 * size, 0.18);
+    }
   }
 
   // each element's own colours for its gather, launch and contact: [main, bright accent]
@@ -534,6 +540,7 @@ export class BubbleLooks {
             glow.emit(_v, COL.wisp[s > 0 ? 0 : 1], r * 1.1, r * 0.3, 0.3, 0.8);
           }
           glow.emit(tail, COL.wisp[1], r * 1.4, r * 0.4, 0.22, 0.6);
+          if (Math.random() < 0.5) this.fx.wind.streaks(m.position, dir, 1, b.vel.length() * 0.6, r * WIND_ARC * 2.2);   // air rushing along with it
         }
         break;
       }

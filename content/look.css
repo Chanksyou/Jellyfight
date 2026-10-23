@@ -460,6 +460,13 @@
   --kill-ring-max: 0.08;        /* m, its largest radius (3x the bug, capped: a stag beetle's was 28 cm) */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
   --slowed: #9fe4ff;        /* the frost ring under a slowed bug (Ice Cube, Glitter Glue) */
+  /* wind (Paper Fan): its speed lines, the dust it kicks up, a bug it finishes blown away (wind-looks.js) */
+  --wind-streak: #e6f8ff;
+  --wind-dust: #d8d0c2;          /* the dust cloud a shoved bug kicks up */
+  --wind-debris: #d8cfc0 #b9b2a6 #f2efe8 #8d877c;   /* flecks of dust and lint */
+  --wind-fleck-size: 0.0028;     /* m across */
+  --wind-swirl-time: 0.45;       /* s the little whirlwind where it hits lasts */
+  --wind-blow-time: 0.7;         /* s a bug takes to be blown away */
   /* acid (Nail Polish): its real drops, the spots they leave, a bug it finishes melting (acid-looks.js) */
   --acid-drop: #7aff2a;
   --acid-drop-glow: #2aa800;
