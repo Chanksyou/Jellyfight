@@ -15,7 +15,7 @@ import { sfx } from './sfx.js';
 
 const HALF = (STAGE4.tiles * STAGE4.tileSize) / 2;
 // Health one hit takes (the owner's call: 2, the lightest of the Encore's hits)
-export const LASER_DMG = 2;
+export const LASER_DMG = 3;
 // the emitters: just inside each corner of the floor, on the corner posts
 export const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (HALF - 0.03), sz * (HALF - 0.03)]);
 const POOL = 2;

@@ -14,7 +14,7 @@ import { sfx } from './sfx.js';
 
 const HALF = (STAGE4.tiles * STAGE4.tileSize) / 2, BOSS = STAGE4.bossSpace;
 // Health a strike takes (heavy, as the floor waves); moves to content/bosses.kdl with the campaign
-export const DISCO_DMG = 4;
+export const DISCO_DMG = 5;
 export const DISCO = { first: 128, every: 32, length: 8, cycle: 4, move: 3, spots: 32 };
 const CENTER = [0, 0.3];                           // over the floor, out in front of the DJs
 const UP = new THREE.Vector3(0, 1, 0);

@@ -86,7 +86,9 @@ boss "pothos" name="The Pothos" hp=1500 contact=2 {
 // numbers in content/look.css --encore-*). Beetles: at beat `at` (bar 8) and every `every` beats
 // after (16 bars), it calls stag beetles (content/enemies.kdl "beetle") up to `count` on the floor at once;
 // its force field holds while any live, or for `timeout` s at most
-boss "encore" name="The Encore" hp=4500 contact=0 {
+boss "encore" name="The Encore" hp=18000 contact=0 {
+    // the fight opens with its force field up: it can't be hurt for `guard` s while its set warms up
+    start guard=15
     beetles at=32 every=64 count=2 timeout=90
     // at `at` of its Health its booth shorts out (a cut scene), then its disco ball stays down; as it
     // reboots, its force field holds for `guard` s (it can't be hurt) while its set plays on
