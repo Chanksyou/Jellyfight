@@ -219,6 +219,7 @@
   --number-wind: #eef8ff;
   --number-glitter: #ffb1ec;
   --number-mixed: #d6f1ff;
+  --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
   --hp-heal: #9dffd9;

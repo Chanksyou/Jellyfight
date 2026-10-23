@@ -39,6 +39,18 @@ story('traversal/sofa-climb', {
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 2.6, 0); },
   play() { sim(3, ['Space', 'KeyW']); const r = sim(1, ['KeyW']); return ok(r.pos[1] > 0.45, { end: r.pos }); },
 });
+story('traversal/kitchen-sink-is-recessed', {
+  about: 'The kitchen sink is a real basin under a hole in the counter: dropped over it, the jelly lands about 15 cm below the counter top (a solid plate used to sit on top), on the open counter beside it at the counter top, and a jump gets it back out.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { player } = G(), drop = (x, z) => { tp(x, 1.05, z, 0); sim(1.5); return +player.position.y.toFixed(3); };
+    const sink = drop(4.671, 1.869), counter = drop(4.671, 2.35);
+    tp(4.671, sink + 0.01, 1.869, 0); sim(1.5);
+    sim(2.5, ['Space', 'KeyD'], 0.4); sim(1.5);        // jump and swim toward the room, then settle
+    const out = player.position.y > 0.9 || player.position.x < 4.32;   // back on the counter, or down on the floor
+    return ok(sink > 0.76 && sink < 0.81 && counter > 0.93 && counter < 0.96 && out, { sink, counter, after: [+player.position.x.toFixed(3), +player.position.y.toFixed(3)] });
+  },
+});
 story('traversal/hallway-walled', {
   about: 'The living room opening into the hallway is walled off in stage 1.',
   setup() { fresh({ elites: false }); tp(3.0, 0.05, 4.6, Math.PI); },

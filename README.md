@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v257 makes a treasure's dot on the minimap a third bigger (`--map-treasure-scale` in `content/look.css`), and gives the kitchen a real sink. The counter now has a hole with an undermount brushed-steel basin under it, about 15 cm deep, with a drain. You can drop into it and jump back out (a jump clears 20 cm). It was a flat dark plate on the counter. Baked from `tools/apartment-source.html`, as the bathroom vanity's basin is; `tools/export.mjs` now takes `CHROMIUM=/path/to/chrome` for machines whose Chromium doesn't match Playwright's own.
+
 v256 removes act 1's treasure spot by the window: treasures in the living room no longer turn up on the windowsill (`src/stage1.js`). The other 13 spots are unchanged.
 
 v255 makes the Encore tougher: its Health goes from 3000 to 4500 (`content/bosses.kdl`), so the final fight lasts about half as long again. Nothing else about it changed.
@@ -363,6 +365,8 @@ npm install
 npx playwright install chromium
 npm run export
 ```
+
+Where jsDelivr is blocked or Playwright's Chromium isn't installed (a cloud session), point the bake at a local three.js 0.170.0 (`npm pack three@0.170.0`, unpacked) and the machine's Chromium: `CHROMIUM=/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell THREE_LOCAL=/path/to/three/package node export.mjs`.
 
 The bathroom's close-up details live in the source too: the vanity's undermount basin (a real bowl under a hole in the counter), the oval toilet seat, the loop-pile bath mat, canvas laundry bags, panelled doors and fabric coats. A material whose bump map is its own color map keeps its bump through the bake.
 
