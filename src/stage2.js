@@ -89,7 +89,7 @@ export const STAGE2 = {
   ],
 
   // Treasures in the room, as in stage 1
-  treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
+  treasures: { at: [15, 75, 135, 200], stay: 22 },   // four a night: treasures stay rare; 22 s to reach each
 
   // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
   // lands you beside it)

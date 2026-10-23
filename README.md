@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v262 makes treasures scarcer. Each act's night brings 4 treasures to the room instead of 5, now at 0:15, 1:15, 2:15 and 3:20. Elites still leave theirs. Luck is half as strong: each step up in rarity is (1 + Luck/200)× likelier, where it was Luck/100 (`luckWeights` in `src/stats.js`). The Game Die (level-up cards roll one rarity higher) is now a Legendary treasure, so it only turns up as a rare find or a Boss reward. It was Epic.
+
 v261 sizes the HUD to the window. The whole HUD (Health and XP, treasures, clock, boss and elite bars, toasts, minimap) scales by one number: the window against a 1600×900 base, the smaller of the two ratios, kept between 0.85× and 1.75×. A 1366×768 laptop gets 0.85×, 1080p about 1.07×, 1440p 1.44× and 4K 1.75×, so the HUD takes about the same share of the screen everywhere. The minimap is drawn at its scaled size so it stays sharp. Phones and windows under 700×520 keep their own layout. It's CSS `zoom` on `#hud` (`Hud.fit` in `src/hud.js`), set again on every resize; the base size and limits are `--hud-base-*` and `--hud-scale-min/max` in `content/look.css`.
 
 v260 stops the pause menu (and its treasure list) opening behind the end screen. Dying or winning lets go of the mouse, and letting go of the mouse opened the pause menu; once a run is over it no longer does.

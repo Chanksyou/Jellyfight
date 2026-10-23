@@ -7,7 +7,7 @@ import { G, V, fresh, near, ok, r3, step, story, stub, tp } from './kit.js';
 // time) and where elites fall (for good)
 const waiting = (timed) => G().run.roomTreasures.filter((t) => t.active && (timed === undefined || t.timed === timed));
 story('treasures/appear-on-schedule', {
-  about: 'Treasures turn up in the room at 0:15, 1:00, 1:45, 2:45 and 3:45, each somewhere else, and fade after 22 s if nobody takes them.',
+  about: 'Treasures turn up in the room at 0:15, 1:15, 2:15 and 3:20 (four a night), each somewhere else, and fade after 22 s if nobody takes them.',
   setup() { fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), seen = [], spots = new Set();
@@ -20,8 +20,8 @@ story('treasures/appear-on-schedule', {
       if (t && !wasActive.v) { seen.push(Math.round(run.t)); spots.add(t.spot.label); }
       wasActive.v = !!t;
     }
-    const want = [15, 60, 105, 165, 225];
-    return ok(seen.length === 5 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 4 && spots.size >= 4, { seen, gone, spots: [...spots] });
+    const want = [15, 75, 135, 200];
+    return ok(seen.length === 4 && seen.every((t, k) => Math.abs(t - want[k]) <= 1) && gone >= 3 && spots.size >= 3, { seen, gone, spots: [...spots] });
   },
 });
 story('treasures/elite-chest-never-inside-furniture', {

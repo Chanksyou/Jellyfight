@@ -280,7 +280,7 @@ story('progression/luck', {
       }
       return { epicCards: +(epic / cards).toFixed(3), epicTreasures: +(top / treasures).toFixed(3) };
     };
-    const none = share(0), lucky = share(60);
+    const none = share(0), lucky = share(120);
     return ok(lucky.epicCards > none.epicCards * 1.6 && lucky.epicTreasures > none.epicTreasures * 1.4, { none, lucky });
   },
 });

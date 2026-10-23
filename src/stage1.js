@@ -73,7 +73,7 @@ export const STAGE1 = {
   // times (seconds into the night) at an open spot somewhere else in the room, and waits `stay`
   // seconds. Touch it in time for a treasure pick; if you don't, it fades away. (Elites also leave
   // one where they fall, which waits for good.)
-  treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // five a run: treasures stay a little rare; 22 s to reach each
+  treasures: { at: [15, 75, 135, 200], stay: 22 },   // four a night: treasures stay rare; 22 s to reach each
 
   // High-ground elites (elites.js): real objects that came alive, one on each raised area.
   // `hide` is the apartment object each one stands in for while it's alive.
