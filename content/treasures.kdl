@@ -357,7 +357,7 @@ treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true te
 treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Enemies drop 25% more XP." stack=5 {
     xp-mult 1.25
 }
-treasure "dice" name="Game Die" icon="🎲" rarity="epic" text="Level-up cards roll one rarity higher." stack=1 {
+treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up cards roll one rarity higher." {
     card-rarity 1
 }
 

@@ -72,7 +72,8 @@ story('first-run/treasures-wait-for-the-element-pick', {
     const elementOpen = /element/i.test(modalTitle());
     pickFirstCard(); step(3);
     const t0 = run.t;
-    step(60 * 45, () => sched());                          // the next scheduled time is 1:00
+    const next = run.stage.treasures.at.find((x) => x > t0);   // the next scheduled time (1:15)
+    step(60 * (next - t0 + 2), () => sched());
     const at = Math.round(run.t), first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
     run.dropTreasure(near(0.2, 0));                        // an Elite's Treasure still drops on a first run
     const eliteChest = run.roomTreasures.some((t) => t.active && !t.timed);
@@ -80,8 +81,8 @@ story('first-run/treasures-wait-for-the-element-pick', {
     fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0);
     step(60 * 17, () => sched());
     const otherAt = Math.round(G().run.t);
-    return ok(!before && elementOpen && first && Math.abs(at - 60) <= 1 && told && eliteChest && Math.abs(otherAt - 15) <= 1,
-      { before, elementOpen, t0: Math.round(t0), at, first, told, eliteChest, otherAt });
+    return ok(!before && elementOpen && first && Math.abs(at - next) <= 1 && told && eliteChest && Math.abs(otherAt - 15) <= 1,
+      { before, elementOpen, t0: Math.round(t0), at, next, first, told, eliteChest, otherAt });
   },
 });
 story('first-run/minimap-with-the-first-treasure', {

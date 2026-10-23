@@ -72,9 +72,9 @@ export const CHEST_WEIGHTS = {
 const TREASURE_TIER = Object.fromEntries(TREASURE_RARITY.map((r, i) => [r.id, i]));
 export const treasureTier = (t) => TREASURE_RARITY[TREASURE_TIER[t.rarity]];
 
-// Luck: each tier above common is (1 + luck/100)x likelier per step up, so 30 luck makes rares
+// Luck: each tier above common is (1 + luck/200)x likelier per step up, so 60 luck makes rares
 // 1.3x, epics 1.69x and legendaries 2.2x as likely (before the shares are re-normalised)
-export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * Math.max(0, 1 + luck / 100) ** i);
+export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * Math.max(0, 1 + luck / 200) ** i);
 
 // The cards' numbers — [common, rare, epic] amounts and how likely each is offered — live in
 // content/levelups.kdl (CONTENT.levelups.cards, read fresh on every roll, so the balance

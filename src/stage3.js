@@ -92,7 +92,7 @@ export const STAGE3 = {
     { area: 'Bedroom', at: [-0.6, 0.641, 9.6], label: 'the bed, by the bassinet' },
     { area: 'Bedroom', at: [-0.5, 1.146, 8.25], label: 'the dresser' },
   ],
-  treasures: { at: [15, 60, 105, 165, 225], stay: 22 },   // as in acts 1 and 2
+  treasures: { at: [15, 75, 135, 200], stay: 22 },   // as in acts 1 and 2
 
   // The act's Elites (elites.js): the plush alligator, resting on the pillows at the head of the bed
   // in the gap between them, facing the foot of the bed (`face`; the real plush, out on the
