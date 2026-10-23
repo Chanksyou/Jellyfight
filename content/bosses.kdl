@@ -88,6 +88,7 @@ boss "pothos" name="The Pothos" hp=1500 contact=2 {
 // its force field holds while any live, or for `timeout` s at most
 boss "encore" name="The Encore" hp=4500 contact=0 {
     beetles at=32 every=64 count=2 timeout=90
-    // at `at` of its Health its booth shorts out (a cut scene), then its disco ball stays down
-    meltdown at=0.5
+    // at `at` of its Health its booth shorts out (a cut scene), then its disco ball stays down; as it
+    // reboots, its force field holds for `guard` s (it can't be hurt) while its set plays on
+    meltdown at=0.5 guard=10
 }

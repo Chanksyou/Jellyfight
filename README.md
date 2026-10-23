@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v258 gives the Encore a reboot after it shorts out: when the half-Health cut scene ends, its force field goes up and it can't be hurt for 10 s while its set keeps playing (`meltdown guard=10` in `content/bosses.kdl`). Hits bounce off as SHIELDED, its Health bar reads "Shielded: rebooting (N s)", and when the time is up the field shatters.
+
 v257 makes a treasure's dot on the minimap a third bigger (`--map-treasure-scale` in `content/look.css`), and gives the kitchen a real sink. The counter now has a hole with an undermount brushed-steel basin under it, about 15 cm deep, with a drain. You can drop into it and jump back out (a jump clears 20 cm). It was a flat dark plate on the counter. Baked from `tools/apartment-source.html`, as the bathroom vanity's basin is; `tools/export.mjs` now takes `CHROMIUM=/path/to/chrome` for machines whose Chromium doesn't match Playwright's own.
 
 v256 removes act 1's treasure spot by the window: treasures in the living room no longer turn up on the windowsill (`src/stage1.js`). The other 13 spots are unchanged.
