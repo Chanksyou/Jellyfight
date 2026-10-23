@@ -37,18 +37,28 @@ story('readability/crowd-ring-under-a-swarmed-jelly', {
 });
 
 story('readability/new-effect-pieces-start-small', {
-  about: 'The first hit of a run used to flash huge white circles: a brand-new puff or splat (a pooled piece, 1 m across) was drawn for a frame at full size before its first update. A new piece now starts at size 0, and a puff or splat is sized the moment it\'s spawned.',
+  about: 'The first hit of a run used to flash huge white circles: a brand-new puff or splat (a pooled piece, 1 m across) was drawn for a frame at full size before its first update. A new piece now starts at size 0, and a puff or splat is sized the moment it\'s spawned, whatever size its pooled piece was left at.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { fx, player } = G(), at = player.position.clone();
-    const busy = (list) => { const was = list.map((x) => x.alive); list.forEach((x) => { x.alive = true; }); return () => list.forEach((x, i) => { x.alive = was[i]; }); };
-    const freePuffs = busy(fx.puffs), freeSplats = busy(fx.splats);
-    try {
-      const np = fx.puffs.length, ns = fx.splats.length;
-      fx.puff(at, 0xffffff, 0.02); fx.splat(at, null, 0.02);
-      const puff = fx.puffs[np]?.m, splat = fx.splats.length > ns ? fx.splats[ns].m : null;
-      const puffSize = puff ? +puff.scale.x.toFixed(4) : null, splatSize = splat ? +splat.scale.x.toFixed(4) : 0;
-      return ok(puff && puffSize <= 0.02 && splatSize <= 0.02, { puffSize, splatSize, newSplat: !!splat });
-    } finally { freePuffs(); freeSplats(); }
+    // a brand-new pooled piece: size 0 (the unit geometry is 1 m across)
+    const fresh = fx.piece(fx.puffGeo, fx.puffMat), newSize = fresh.scale.x;
+    fresh.removeFromParent();
+    // a puff and a splat spawned on a piece left at full size: sized at once, before any update
+    const spawn = (list, go) => {
+      const was = list.map((x) => x.alive);
+      list.forEach((x) => { x.alive = true; });
+      const free = list.find((x) => x.m) || null;
+      if (!free) return null;
+      free.alive = false; free.m.scale.setScalar(1);
+      go();
+      const size = +free.m.scale.x.toFixed(4);
+      list.forEach((x, i) => { x.alive = was[i]; });
+      free.alive = false; free.m.visible = false;
+      return size;
+    };
+    fx.puff(at, 0xffffff, 0.02); fx.splat(at, null, 0.02);     // (so each pool has a piece)
+    const puffSize = spawn(fx.puffs, () => fx.puff(at, 0xffffff, 0.02)), splatSize = spawn(fx.splats, () => fx.splat(at, null, 0.02));
+    return ok(newSize === 0 && puffSize !== null && puffSize <= 0.02 && splatSize !== null && splatSize <= 0.02, { newSize, puffSize, splatSize });
   },
 });
