@@ -327,16 +327,24 @@ export const sfx = {
       source.stop(end + 0.02);
     };
   },
+  // the gust leaving the bell: a whump of air, a whoosh sweeping down past you, a thin whistle on its edge
   windLaunch() {
     if (!ready() || !gap('windLaunch', 35)) return;
-    noise(2300 * jitter(0.1), 0.6, 0.22, 0.26, 'bandpass', 0, 550);
-    noise(6000, 0.8, 0.05, 0.1, 'highpass');
+    const j = jitter(0.1);
+    tone('sine', 140 * j, 55, 0.12, 0.12);                                       // the whump
+    noise(2300 * j, 0.6, 0.22, 0.26, 'bandpass', 0, 550);                        // the whoosh
+    noise(6000 * j, 0.8, 0.05, 0.1, 'highpass');                                 // the crisp edge of it
+    tone('sine', 1900 * j, 1300 * j, 0.2, 0.018, 0.02);                          // a whistle
   },
+  // a bug slammed into the scenery: a thud, a crack, a knock of wood, dust and bits pattering down
   windSlam() {
     if (!ready() || !gap('windSlam', 65)) return;
-    noise(1300 * jitter(0.12), 0.8, 0.11, 0.23, 'lowpass', 0, 240);
-    tone('sine', 160, 65, 0.1, 0.15);
-    for (let k = 0; k < 3; k++) noise(3500 + Math.random() * 2200, 2, 0.018, 0.06, 'bandpass', 0.025 + k * 0.02);
+    const j = jitter(0.12);
+    noise(1300 * j, 0.8, 0.11, 0.23, 'lowpass', 0, 240);
+    tone('sine', 160 * j, 65, 0.1, 0.15);
+    noise(4200 * j, 1.2, 0.03, 0.12, 'highpass');                                // the crack
+    tone('triangle', 620 * j, 380 * j, 0.06, 0.05, 0.005);                       // the knock
+    for (let k = 0; k < 5; k++) noise(3500 + Math.random() * 2200, 2, 0.018, 0.05, 'bandpass', 0.025 + k * 0.025 + Math.random() * 0.015);
   },
   // Includes short ignition tails whose projectiles have already hit or expired.
   stopFire() {
@@ -684,12 +692,23 @@ export const sfx = {
   },
   shatter() { if (!ready() || !gap('shatter', 60)) return; noise(6000, 1, 0.3, 0.25, 'highpass'); tone('triangle', 2400, 800, 0.2, 0.08); },
   acid() { if (!ready() || !gap('acid', 90)) return; tone('sine', 300 * jitter(), 180, 0.1, 0.07); tone('sine', 420 * jitter(), 250, 0.08, 0.05, 0.05); },
+  // a gust hitting a bug: a buffet of air, a thump, a flutter as the dust blows off
   wind() {
     if (!ready() || !gap('wind', 80)) return;
     const j = jitter(0.12);
     noise(4500 * j, 0.8, 0.035, 0.18, 'highpass');
     noise(1200 * j, 0.7, 0.14, 0.16, 'bandpass', 0.01, 400);
-    for (let k = 0; k < 2; k++) noise(2800 * j, 2, 0.02, 0.045, 'bandpass', 0.06 + k * 0.03);
+    tone('sine', 120 * j, 60, 0.07, 0.08);
+    for (let k = 0; k < 4; k++) noise((2400 + Math.random() * 1200) * j, 2, 0.02, 0.04, 'bandpass', 0.05 + k * 0.03 + Math.random() * 0.01);
+  },
+  // a bug finished by wind blown away: a rising howl as it's swept up, a whoosh, a soft poof of dust
+  windBlowAway(big = false) {
+    if (!ready() || !gap('windBlowAway', 70)) return;
+    const j = jitter(0.1), d = big ? 0.8 : 1;
+    noise(900 * j * d, 0.7, 0.5, 0.18, 'bandpass', 0, 3200 * j);
+    tone('sine', 500 * j * d, 1500 * j * d, 0.35, 0.03, 0.03);
+    noise(6000 * j, 1, 0.3, 0.05, 'highpass', 0.1);
+    noise(700 * j, 1, 0.12, 0.08, 'lowpass', 0.55, 300);
   },
   // a big moment: boss or elite down
   shieldHit() { if (!ready() || !gap('shieldHit', 80)) return; const j = jitter(0.08); tone('sine', 1200 * j, 600 * j, 0.12, 0.08); noise(3200 * j, 2, 0.05, 0.04); },

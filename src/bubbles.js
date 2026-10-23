@@ -189,7 +189,7 @@ export class Bubbles {
             charge.stop?.(); this.windCharge = null;
             if (this.elementVolley(id, P, origin, stats, mods)) {
               this.onWindRelease?.(); sfx.windLaunch(); juice.feel('hit');
-              this.looks.windRelease(origin, stats.bubbleSize);
+              this.looks.windRelease(origin, stats.bubbleSize, this.list[this.list.length - 1]?.vel);
             } else t = 1;
           }
         }
@@ -456,6 +456,11 @@ export class Bubbles {
     if (el.has('wind') && !e.proxy) {
       sfx.wind();
       this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
+      // the gust buffets it: air streaming past, a little whirlwind round it, dust blown off its feet
+      const W = this.fx.wind;
+      W.streaks(c, dir, 5, 1.1, e.r * 3.5);
+      W.swirl(c.clone().setY(c.y - e.r * 0.7), e.r * 1.6);
+      if (!e.T.fly) W.debris(c.clone().setY(e.pos.y + 0.002), dir, 5, 0.3, e.pos.y);
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
