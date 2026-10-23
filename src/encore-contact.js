@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
 import { LOOK } from './look.js';
 
-export const CONTACT_DMG=4,CONTACT_GAP=1;
+export const CONTACT_DMG=5,CONTACT_GAP=1;
 export class EncoreContact {
   constructor(scene,solids,{onShock=()=>{}}={}){
     this.onShock=onShock;this.cooldown=0;this.life=0;this.triangles=[];

@@ -102,6 +102,24 @@ act4('after-shorting-out-it-reboots-behind-its-force-field', {
   },
 });
 
+act4('the-fight-opens-behind-its-force-field', {
+  about: 'The Encore\'s fight opens with its force field up for 15 s (bosses.kdl start `guard`): hits bounce off, its Health bar reads "warming up" and counts down, and its set plays all the while; then the field shatters and hits land.',
+  setup() {},
+  play() {
+    const B = encoreFight({ guard: true }), bars = record('boss_health');
+    const guard = B.guardT, hp = B.hp;
+    step(30);
+    B.damage(100);
+    const blocked = B.hp === hp && B.shielded && B.field.visible, text = bars.at(-1)?.shieldText || '';
+    step(60 * (CONTENT.bosses.encore.skills.start.guard + 0.5));
+    for (const g of [...B.guards]) G().enemies.kill(g, true);   // (no beetles before bar 8 anyway)
+    step(2);
+    B.damage(100);
+    const lands = B.hp === hp - 100 && !B.shielded;
+    return ok(Math.abs(guard - 15) < 0.1 && blocked && /warming up/.test(text) && B.beat > 20 && lands, { guard, blocked, text, beat: B.beat, lands });
+  },
+});
+
 act4('beating-the-encore-plays-its-defeat', {
   about: 'At 0 Health the Encore goes down in its own scene: its set stops and the music cuts out, the camera pulls back on the stage (the HUD hidden, the game held, no more hits landing), explosions climb over the booth, its panels die and the DJs slump over their decks, one last blow-out, and only then is it beaten.',
   setup() {},

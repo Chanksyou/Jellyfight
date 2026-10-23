@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v259 makes the Encore much tougher. Its Health goes from 4500 to 18000. The fight opens with its force field up: it can't be hurt for the first 15 s while its set warms up (`start guard=15` in `content/bosses.kdl`; its Health bar reads "Shielded: warming up"). Each of its attacks does 1 more damage: the floor waves 4 (from 3), the lasers 3 (from 2), the disco ball 5 (from 4) and the shock on its stage edge 5 (from 4). The speaker waves still only shove.
+
 v258 gives the Encore a reboot after it shorts out: when the half-Health cut scene ends, its force field goes up and it can't be hurt for 10 s while its set keeps playing (`meltdown guard=10` in `content/bosses.kdl`). Hits bounce off as SHIELDED, its Health bar reads "Shielded: rebooting (N s)", and when the time is up the field shatters.
 
 v257 makes a treasure's dot on the minimap a third bigger (`--map-treasure-scale` in `content/look.css`), and gives the kitchen a real sink. The counter now has a hole with an undermount brushed-steel basin under it, about 15 cm deep, with a drain. You can drop into it and jump back out (a jump clears 20 cm). It was a flat dark plate on the counter. Baked from `tools/apartment-source.html`, as the bathroom vanity's basin is; `tools/export.mjs` now takes `CHROMIUM=/path/to/chrome` for machines whose Chromium doesn't match Playwright's own.

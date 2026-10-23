@@ -563,11 +563,13 @@ export const act3 = (name, s) => story('act3/' + name, { act: 3, ...s });
 // run as if the Pothos was just beaten: act 4, the Encore's concert arena (tests/run.mjs)
 export const act4 = (name, s) => story('act4/' + name, { act: 4, ...s });
 // the Encore (encore.js): an act with no night goes straight into its fight; `beat`: where its set starts
-export const encoreFight = ({ beat = 0, ...opts } = {}) => {
+// (guard: keep its opening force field, bosses.kdl start `guard`; most stories start past it)
+export const encoreFight = ({ beat = 0, guard = false, ...opts } = {}) => {
   fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
   const { run } = G();
   step(60 * 3, () => run.phase === 'boss' && run.boss);
   if (run.boss) run.boss.clock = beat;
+  if (run.boss && !guard) { run.boss.guardT = 0; run.boss.opening = false; }
   return run.boss;
 };
 // the Pothos (pothos.js): straight into the boss fight on the bed
