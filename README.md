@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v260 stops the pause menu (and its treasure list) opening behind the end screen. Dying or winning lets go of the mouse, and letting go of the mouse opened the pause menu; once a run is over it no longer does.
+
 v259 makes the Encore much tougher. Its Health goes from 4500 to 18000. The fight opens with its force field up: it can't be hurt for the first 15 s while its set warms up (`start guard=15` in `content/bosses.kdl`; its Health bar reads "Shielded: warming up"). Each of its attacks does 1 more damage: the floor waves 4 (from 3), the lasers 3 (from 2), the disco ball 5 (from 4) and the shock on its stage edge 5 (from 4). The speaker waves still only shove.
 
 v258 gives the Encore a reboot after it shorts out: when the half-Health cut scene ends, its force field goes up and it can't be hurt for 10 s while its set keeps playing (`meltdown guard=10` in `content/bosses.kdl`). Hits bounce off as SHIELDED, its Health bar reads "Shielded: rebooting (N s)", and when the time is up the field shatters.

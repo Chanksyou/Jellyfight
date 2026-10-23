@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v259';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v260';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -697,7 +697,7 @@ try { if (sessionStorage.getItem(DEV_KEY)) overlay.classList.add('dev-open'); } 
 document.addEventListener('pointerlockchange', () => {
   if (state.mode !== 'play' || IS_TOUCH) return;
   const locked = document.pointerLockElement === renderer.domElement;
-  overlay.hidden = locked || menus.open;
+  overlay.hidden = locked || menus.open || run.phase === 'dead' || run.phase === 'won';   // a finished run shows its end screen, not the pause menu
   if (locked) mainMenu.launch();
   else mainMenu.cancelLaunch();
 });

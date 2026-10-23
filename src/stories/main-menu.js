@@ -158,3 +158,20 @@ story('menu/welcomes-a-returning-player-by-name', {
     }
   },
 });
+
+story('main-menu/no-pause-menu-behind-the-end-screen', {
+  about: 'When a run ends (dying, or winning) the game lets go of the mouse; that must not open the pause menu (with its treasure list) behind the end screen. Mid-run, letting go of the mouse still opens it.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { run } = G(), overlay = document.getElementById('g-over'), unlock = () => document.dispatchEvent(new Event('pointerlockchange'));
+    overlay.hidden = true; unlock();
+    const midRun = !overlay.hidden;                       // paused, as before
+    overlay.hidden = true; run.phase = 'dead'; unlock();
+    const dead = overlay.hidden;
+    run.phase = 'won'; unlock();
+    const won = overlay.hidden;
+    run.phase = 'explore';
+    return ok(midRun && dead && won, { midRun, dead, won });
+  },
+});
+
