@@ -40,6 +40,7 @@ export class Shark {
     this.r=.19;this.bound=.39;this.rise=0;this.t=0;this.next=0;this.heading=Math.PI;
     this.dead=false;this.dying=false;this.frenzy=0;this.prey=0;this.bleed=0;this.bleedFx=0;
     this.state='idle';this.stateT=1;this.elapsed=0;this.phase='rest';this.beat=0;this.repeats=0;this.lift=0;this.groundT=0;
+    this.gait=0;this.sway=0;this.settle=0;this.walkBlend=0;this.visualTilt=-.4;this.visualRoll=0;
     this.holder=new THREE.Group();this.model=buildShark();this.model.scale.setScalar(.60);
     this.holder.add(this.model);this.holder.position.fromArray(arena.spawn);scene.add(this.holder);
     this.floor=this.floorAt(this.holder.position);this.holder.position.y=this.floor;
@@ -101,6 +102,7 @@ export class Shark {
   }
   clearWarning(){if(!this.warning)return;for(const m of [this.warning.floor,this.warning.volume]){this.scene.remove(m);m.material.dispose();}this.warning=null;}
   burst(at,r,heavy=false){
+    this.settle=1;
     this.fx.impact(at,this.color,r*.25,heavy?18:10);this.fx.ring(at,this.color,r,.4);
     for(let i=0;i<6;i++){const a=i*Math.PI/3;this.fx.puff(at.clone().add(V(Math.sin(a)*r*.5,.025,Math.cos(a)*r*.5)),this.dust,.028,.5);}
     this.fx.splat(at,this.dust,r*.7);juice.feel(heavy?'impact-big':'impact');sfx.crocThump(heavy?1.3:.8);
@@ -223,10 +225,20 @@ export class Shark {
     this.stunT=Math.max(0,this.stunT-dt);if(!this.stunT)this.elapsed+=dt*rate;this.hazards(dt,player);
     if(this.dead||this.dying)return{push:null};
     if(this.stunT>0){this.model.pose({gape:.1});return{push:null};}
-    let gape=.06,tailSwing=Math.sin(this.t*(this.frenzy?9:4))*.18,left=Math.sin(this.t*4)*.1,right=-left,tilt=-.4;this.crouch=0;
+    let gape=.06,tailSwing=Math.sin(this.t*(this.frenzy?9:4))*.18,left=0,right=0,tilt=-.4,coil=0,stretch=0,roll=0,squint=this.hitPop>0?.8:0;this.crouch=0;
     const turn=Math.atan2(player.position.x-this.position.x,player.position.z-this.position.z);
     const delta=Math.atan2(Math.sin(turn-this.heading),Math.cos(turn-this.heading));
     const headTurn=clamp(delta,-.25,.25);
+    this.settle=Math.max(0,this.settle-dt*3.5);
+    this.sway=mix(this.sway,clamp(delta,-1,1),1-Math.exp(-6*dt));
+    const walking=this.phase==='rest'&&this.position.distanceTo(player.position)>.42;
+    this.walkBlend=mix(this.walkBlend,walking?1:0,1-Math.exp(-8*dt));
+    this.gait+=dt*mix(2,7*rate,this.walkBlend);
+    const stride=Math.sin(this.gait),strideBack=Math.sin(this.gait-Math.PI);
+    left=stride*mix(.045,.3,this.walkBlend);right=strideBack*mix(.045,.3,this.walkBlend);
+    tailSwing+=this.sway*.35;roll=this.sway*.08+stride*.045*this.walkBlend+Math.sin(this.t*1.3)*.015;
+    coil=this.settle*.6;stretch=-this.settle*.65;
+    this.lift=Math.abs(stride)*.009*this.walkBlend;
     if(this.rise<1){this.clearWarning();for(const m of this.tornadoVisuals)m.visible=false;this.model.scale.setScalar(.60*Math.max(.01,ease(this.rise)));gape=.5;this.lift=Math.sin(this.rise*Math.PI)*.16;}
     else if(this.phase==='rest'){
       this.heading+=clamp(delta,-dt*2,dt*2);
@@ -241,7 +253,12 @@ export class Shark {
       const sk=this.skill(), progress=clamp(this.elapsed/sk.windup,0,1);
       const difference=Math.atan2(Math.sin(this.aimHeading-this.heading),Math.cos(this.aimHeading-this.heading));
       this.heading+=clamp(difference,-dt*4,dt*4);gape=ease(progress)*.85;tilt-=Math.sin(progress*Math.PI)*.17;
+      coil=ease(progress);tailSwing-=Math.sin(progress*Math.PI)*.35;stretch=-Math.sin(progress*Math.PI)*.4;
+      squint=ease(progress)*.7;
+      if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){tilt+=ease(progress)*1.1;this.lift=-ease(progress)*.09;left=right=-ease(progress)*.4;}
+      else if(this.state==='leap'){this.crouch=ease(progress)*.035;left=right=-ease(progress)*.5;}
       if(this.state==='combo'&&this.beat===1)left=-ease(progress)*1.1;
+      if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){roll=-Math.sin(progress*Math.PI)*.16;coil=ease(progress)*1.5;}
       if(this.warning){this.warning.floor.material.progress=this.warning.volume.material.progress=progress;this.warning.floor.material.time=this.t;}
       if(progress>=1)this.release(player);
     }else if(this.phase==='track'){
@@ -272,6 +289,8 @@ export class Shark {
     }else if(this.phase==='active'){
       const sk=this.skill(), p=clamp(this.elapsed/sk.active,0,1);
       gape=Math.max(.04,(1-p)*.9);tailSwing+=Math.sin(p*Math.PI)*.8;
+      stretch=Math.sin(p*Math.PI)*.65;coil=-Math.sin(p*Math.PI)*.7;
+      squint=-Math.sin(p*Math.PI)*.4;
       if(['bite','rear','combo','spin'].includes(this.state)){
         const bite=this.state==='bite'||this.state==='rear'||(this.state==='combo'&&this.beat===0);
         const sweep=this.state==='spin'||(this.state==='combo'&&this.beat===2);
@@ -288,16 +307,19 @@ export class Shark {
       }
       if(this.state==='leap'){
         this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);this.lift=Math.sin(p*Math.PI)*sk.apex;tilt=-.4+Math.sin(p*Math.PI)*.8;
+        left=right=-Math.sin(p*Math.PI)*.8;tailSwing*=.45;coil=Math.sin(p*Math.PI)*1.2;stretch=Math.sin(p*Math.PI);
         if(p>=1){this.burst(this.target,sk.radius,true);this.hit(player,this.target,sk.radius,sk.height,sk.dmg,false,false);if(this.dead||this.dying||this.phase!=='active')return{push:null};this.clearWarning();}
       }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
         if(this.state==='maelstrom'){this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);}
         if(this.warning)this.warning.floor.material.progress=this.warning.volume.material.progress=p;
         this.lift=Math.sin((.15+p*.85)*Math.PI)*sk.apex;tilt=-.4-Math.sin(p*Math.PI)*.9;gape=.9*Math.sin((.15+p*.85)*Math.PI);
+        coil=-Math.sin(p*Math.PI)*1.1;stretch=Math.sin(p*Math.PI);left=right=-Math.sin(p*Math.PI)*.75;
+        if(this.state==='dive'&&this.repeats<sk.count-1)tilt+=ease(clamp((p-.65)/.35,0,1))*1.2;
         if(p>=1){this.burst(this.position,sk.radius,true);
           if(this.state==='tornado'||this.state==='maelstrom')this.hit(player,this.position,sk.radius,sk.height,sk.dmg,false,false);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};}
-      }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2))this.heading=this.aimHeading+p*Math.PI*2;
-      else if(this.state==='combo'&&this.beat===1)left=Math.sin(p*Math.PI)*1.5;
+      }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){this.heading=this.aimHeading+p*Math.PI*2;roll=Math.sin(p*Math.PI)*.18;coil=Math.sin(p*Math.PI)*1.3;}
+      else if(this.state==='combo'&&this.beat===1){left=Math.sin(p*Math.PI)*1.5;right=-Math.sin(p*Math.PI)*.35;roll=-Math.sin(p*Math.PI)*.14;}
       else this.lift=Math.sin(p*Math.PI)*.035;
       if(p>=1){
         if(this.state==='combo'&&this.beat<2){this.beat++;this.phase='windup';this.elapsed=0;this.aim(player);this.prepare(player);}
@@ -307,8 +329,11 @@ export class Shark {
     }
     if(this.phase!=='active'&&(this.groundT-=dt)<=0){this.groundT=.15;this.floor=this.floorAt(this.position);}
     this.position.y=this.floor;this.holder.rotation.y=this.heading;
-    this.model.position.y=.15+this.lift-this.crouch;this.model.rotation.x=tilt;
-    this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2)});
+    const blend=1-Math.exp(-16*dt);
+    this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll,blend);
+    // The jaw remains frame-exact; only secondary body motion eases between poses.
+    this.model.position.y=.15+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
+    this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2),coil,roll,stretch,time:this.t,energy:this.frenzy>0?1.6:1,squint});
     this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:(this.frenzy>0?.13:0));
     bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});
     return{push:null};
@@ -317,5 +342,6 @@ export class Shark {
     this.off();this.offStatus();this.clearWarning();this.clearHazards();this.scene.remove(this.holder,this.fin,this.fish,...this.tornadoVisuals);
     // Shark model geometry/materials are shared with the warmed template and stay alive.
     this.fin.geometry.dispose();this.circleGeo.dispose();this.fish.dispose(); // hazard geometry/materials stay warmed too
+    this.model.traverse(o=>{if(o.isSkinnedMesh)o.skeleton.dispose();});
   }
 }

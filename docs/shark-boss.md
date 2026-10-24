@@ -9,11 +9,19 @@ The source model is a visual reference; all geometry and textures here are proce
 
 `src/shark-model.js` builds shared, warmed geometry and materials. Seven independently
 posed meshes cover the trunk, upper head, connected lower jaw, eyes, two fin arms,
-and articulated tail stock with its caudal/pelvic fins. The padded chin is a rounded
+and articulated tail stock with its caudal/pelvic fins. Twelve deforming joints (five
+spine, two per fin arm, three tail) blend smooth skin weights. Each clone owns its
+skeleton; geometry and materials remain shared. Neck, fins and tail attach to the
+spine so their roots follow the bend instead of separating from it. The padded chin is a rounded
 lens with an inset mouth floor, rather than a detached white ball or a pink plate.
 The upper mouth is continuous with the skull. Both rows of felt teeth follow the
 snout curve. Head/eyes track before the whole body turns; breathing, planted fin
 steps, crouching, jaw snaps, tail coils, leaps and death have separate poses.
+Turns lean through the body, the tail follows with a delayed wave, fin elbows curl
+through alternating steps, and walking eases in/out. Attacks coil, stretch and tuck
+the fins; landings compress and settle. Blinks, anticipatory squints and hit winces
+add expression. Secondary body tilt/roll is damped while jaw contact stays exact.
+The model is 34,760 triangles in seven meshes; skinning adds no model draw calls.
 
 Only a fin proxy and a capped dust wake remain above the quilt while burrowed.
 The body cannot be targeted while hidden, including the eruption warning interval.

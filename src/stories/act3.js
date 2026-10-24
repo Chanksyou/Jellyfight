@@ -9,6 +9,7 @@ import { STAGE3 } from '../stage3.js';
 import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
 import { juice } from '../juice.js';
 import { ATTACKS as SHARK_ATTACKS } from '../shark.js';
+import { buildShark } from '../shark-model.js';
 import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, offs, sharkFight, pothosFloor, r3, record, shownWarnings, sim, spawn, spy, step, stripLine, stub, tp, volumePairs } from './kit.js';
 
 // --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
@@ -135,6 +136,20 @@ for(const attack of [...new Set([...SHARK_ATTACKS.calm,...SHARK_ATTACKS.angry])]
     let hidden=false,air=false,moving=false;const first=B.position.clone();
     step(60*18,()=>{hidden ||= !B.model.visible&&B.fin.visible;air ||= B.lift>.1;moving ||= B.position.distanceTo(first)>.02;return B.phase==='rest';});
     return ok(paired&&B.phase==='rest'&&!B.warning&&B.model.visible&&!B.fin.visible&&(!['dive','burrowBite','maelstrom','tornado'].includes(attack)||hidden)&&(!['leap','dive','maelstrom','tornado'].includes(attack)||air),{paired,phase:B.phase,hidden,air,moving,player:r3(P.position)});},
+});
+act3('shark-flexible-rig-is-independent-and-normalized',{
+  about:'Twelve joints bend the spine, fin elbows and tail; each clone has its own skeleton with normalized weights.',setup(){},
+  play(){const B=sharkFight({hurt:false}),other=buildShark();let joints=0,valid=true;B.model.traverse(m=>{if(!m.isSkinnedMesh)return;joints+=m.skeleton.bones.length;
+      const w=m.geometry.attributes.skinWeight;for(let i=0;i<w.count;i++)valid&&=Math.abs(w.getX(i)+w.getY(i)+w.getZ(i)+w.getW(i)-1)<1e-5;
+    });B.model.pose({coil:1,time:1,tailSwing:.4,left:.8});other.pose({time:0});
+    const independent=B.model.rig.spine[2]!==other.rig.spine[2]&&B.model.rig.spine[2].rotation.y!==other.rig.spine[2].rotation.y;
+    return ok(joints===12&&valid&&independent&&B.model.rig.fins[0].skeleton.bones[1].rotation.z!==0,{joints,valid,independent});},
+});
+act3('shark-walk-has-overlapping-body-and-fin-motion',{
+  about:'Walking alternates fin steps and elbow bends while the spine and tail follow through continuously.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly();B.recover();B.elapsed=-1e6;P.position.copy(B.position).add(V(0,0,-1));let span=0,last=B.model.rig.spine[2].rotation.y,maxStep=0;
+    for(let i=0;i<45;i++){B.update(1/60,P);const n=B.model.rig.spine[2].rotation.y;span+=Math.abs(n-last);last=n;maxStep=Math.max(maxStep,Math.abs(B.model.rig.fins[0].rotation.y-B.model.rig.fins[1].rotation.y));}
+    return ok(span>.01&&maxStep>.3&&Number.isFinite(B.model.rig.tail.skeleton.bones[2].rotation.y),{span,maxStep});},
 });
 act3('shark-bite-hits-on-jaw-closure',{
   about:'The bite lunges and closes its jaw on the damage frame; a confirmed melee hit marks Prey and triggers frenzy.',setup(){},

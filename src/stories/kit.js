@@ -554,7 +554,7 @@ export const encoreFight = ({ beat = 0, guard = false, ...opts } = {}) => {
   if (run.boss && !guard) { run.boss.guardT = 0; run.boss.opening = false; }
   return run.boss;
 };
-// the Pothos (pothos.js): straight into the boss fight on the bed
+// the Great White One (shark.js): straight into the boss fight on the bed
 export const sharkFight = (opts = {}) => {
   fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
   const { run, menus } = G();

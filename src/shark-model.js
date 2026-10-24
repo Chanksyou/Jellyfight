@@ -3,22 +3,52 @@
 // Metres, nose toward +z. Separate head, hinged chin, fins and tail support the boss's poses.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LOOK } from './look.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ellipsoid = (x, y, z, rx, ry, rz) => new THREE.SphereGeometry(1, 28, 20).scale(rx, ry, rz).translate(x, y, z);
 let SHARED=null; // retain geometry/materials between main.js's shader warmup and the real fight
 function riggedClone(template){
-  const group=template.clone(true),parts=Array.from({length:7},(_,i)=>group.getObjectByName('shark-part-'+i));
+  const group=cloneSkeleton(template),parts=Array.from({length:7},(_,i)=>group.getObjectByName('shark-part-'+i));
   const [trunk,head,jaw,eyes,leftFin,rightFin,tail]=parts;
-  group.rig={trunk,head,jaw,eyes,fins:[leftFin,rightFin],tail,mat:trunk.material};
-  group.pose=({gape=0,headTurn=0,tailSwing=0,left=0,right=0,breath=0,finLift=0}={})=>{
-    head.rotation.y=eyes.rotation.y=headTurn;jaw.rotation.set(gape,headTurn,0);
+  const spine=trunk.skeleton.bones,flippers=[leftFin,rightFin];
+  group.rig={trunk,head,jaw,eyes,fins:flippers,tail,spine,mat:trunk.material};
+  group.pose=({gape=0,headTurn=0,tailSwing=0,left=0,right=0,breath=0,finLift=0,coil=0,roll=0,stretch=0,time=0,energy=1,squint=0}={})=>{
+    head.rotation.set(-coil*.12,headTurn,roll*.15);eyes.rotation.copy(head.rotation);jaw.rotation.set(gape-coil*.12,headTurn,roll*.15);
+    const blinkPhase=(time+1.7)%4.2,blink=time>0&&blinkPhase<.14?Math.sin(blinkPhase/.14*Math.PI):0;
+    eyes.scale.y=Math.max(.15,1-blink*.85-squint*.35);
     leftFin.rotation.set(left*.25,left,-finLift-Math.abs(left)*.3);
     rightFin.rotation.set(right*.25,right,finLift+Math.abs(right)*.3);
+    for(let i=0;i<spine.length;i++){
+      const wave=Math.sin(time*3-i*.7)*.025*energy;
+      spine[i].rotation.set(coil*(i-2)*.055, wave+headTurn*.08+tailSwing*(2-i)*.05,roll*.16);
+    }
+    flippers.forEach((f,i)=>{f.skeleton.bones[1].rotation.z=(i?1:-1)*(Math.abs(i?right:left)*.4+finLift*.35);});
+    tail.skeleton.bones[1].rotation.set(coil*.18,Math.sin(time*3-.9)*.15*energy+tailSwing*.35,0);
+    tail.skeleton.bones[2].rotation.y=Math.sin(time*3-1.6)*.18*energy+tailSwing*.2;
     tail.rotation.y=tailSwing;group.scale.y=group.scale.x*(1+breath*.025);
+    trunk.scale.y=1; // the whole rig breathes together so the neck seam stays closed
+    group.scale.y*=1+stretch*.12;group.scale.z=group.scale.x*(1-stretch*.06);
   };
   group.pose();return group;
+}
+
+// Smooth weights between neighbouring joints, as in the cat's procedural rig.
+function skin(mesh,points,axis='z',direction=1){
+  const geometry=mesh.geometry,p=geometry.attributes.position,indices=new Uint16Array(p.count*4),weights=new Float32Array(p.count*4);
+  const coordinates=points.map(v=>v[axis]*direction);
+  for(let i=0;i<p.count;i++){
+    const v=p.getComponent(i,axis==='z'?2:1)*direction;let b=0;
+    while(b<points.length-2&&v>coordinates[b+1])b++;
+    const t=THREE.MathUtils.smoothstep(v,coordinates[b],coordinates[b+1]);
+    indices[i*4]=b;indices[i*4+1]=b+1;weights[i*4]=1-t;weights[i*4+1]=t;
+  }
+  geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
+  const rigged=new THREE.SkinnedMesh(geometry,mesh.material);rigged.position.copy(mesh.position);mesh.parent.add(rigged);mesh.removeFromParent();
+  const bones=points.map((p,i)=>{const bone=new THREE.Bone();bone.position.copy(p);if(i)bone.position.sub(points[i-1]);return bone;});
+  for(let i=1;i<bones.length;i++)bones[i-1].add(bones[i]);rigged.add(bones[0]);rigged.updateMatrixWorld(true);rigged.bind(new THREE.Skeleton(bones));rigged.frustumCulled=false;
+  return rigged;
 }
 
 function tint(geometry, color) {
@@ -185,12 +215,19 @@ export function buildShark() {
     for(const g of parts)g.translate(-pivot.x,-pivot.y,-pivot.z);
     const mesh=new THREE.Mesh(merge(parts),material);mesh.position.copy(pivot);parent.add(mesh);return mesh;
   };
-  const trunk=piece(cloth,V(0,0,0));
+  const trunk=skin(piece(cloth,V(0,0,0)),[-.25,-.12,.04,.16,.23].map(z=>V(0,.10,z)));
   const skullMesh=piece(head,V(0,.15,.23));
   const chin=piece(jaw,V(0,.10,.235));
   const eyeMesh=piece(eyes,V(0,.15,.23),group,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85}));
-  const fins=flippers.map((parts,i)=>piece(parts,V(i? .115:-.115,.08,.12)));
-  const tailMesh=piece(tail,V(0,.067,-.25));
+  const fins=flippers.map((parts,i)=>skin(piece(parts,V(i? .115:-.115,.08,.12)),[V(0,0,0),V(i?.08:-.08,-.16,-.05)],'y',-1));
+  const tailMesh=skin(piece(tail,V(0,.067,-.25)),[V(0,0,0),V(0,0,-.18),V(0,0,-.35)],'z',-1);
+  group.updateMatrixWorld(true);
+  for(const m of [skullMesh,chin,eyeMesh])trunk.skeleton.bones[4].attach(m);
+  for(const m of fins)trunk.skeleton.bones[2].attach(m);
+  trunk.skeleton.bones[0].attach(tailMesh);
+  group.updateMatrixWorld(true);
+  // Rebind moved skin roots in their final attachment space.
+  for(const m of [...fins,tailMesh])m.bind(m.skeleton);
   [trunk,skullMesh,chin,eyeMesh,...fins,tailMesh].forEach((m,i)=>m.name='shark-part-'+i);
   group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.noCollide = true; } });
   SHARED=group;return riggedClone(SHARED);

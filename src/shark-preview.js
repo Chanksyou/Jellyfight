@@ -46,7 +46,7 @@ try{
       elapsed+=dt;const speed=.27*dt;player.position.x+=((keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0))*speed;player.position.z+=((keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0))*speed;
       player.position.x=THREE.MathUtils.clamp(player.position.x,-.8,.8);player.position.z=THREE.MathUtils.clamp(player.position.z,-1.05,1.05);
       if(jumpT){jumpT+=dt;player.position.y=Math.sin(Math.min(1,jumpT/.65)*Math.PI)*.2;if(jumpT>=.65){jumpT=0;player.position.y=0;}}
-      boss.update(dt,player);if(closeup)boss.model.pose({gape:.18+.32*(.5+.5*Math.sin(elapsed*1.5)),tailSwing:Math.sin(elapsed*2)*.14,breath:Math.sin(elapsed*2)});
+      boss.update(dt,player);if(closeup)boss.model.pose({gape:.18+.32*(.5+.5*Math.sin(elapsed*1.5)),tailSwing:Math.sin(elapsed*2)*.14,breath:Math.sin(elapsed*2),time:elapsed,left:Math.sin(elapsed*2)*.12,right:-Math.sin(elapsed*2)*.12});
       avatar.root.position.copy(player.position);avatar.update(dt,{speed:0,walkSpeed:1,grounded:!jumpT,vy:0});fx.update(dt);hurt=Math.max(0,hurt-dt);avatar.root.scale.setScalar(hurt?1.06:1);
     }
     controls.update();batcher.sync();renderer.render(scene,camera);
