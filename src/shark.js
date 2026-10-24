@@ -58,7 +58,7 @@ export class Shark {
     this.start=V();this.target=V();this.warning=null;this.pools=[];this.tornadoes=[];this.shots=[];
     this.color=hostile('shark');this.dust=new THREE.Color(LOOK.color('shark-dust','#d6c5a7'));
     this.camera={distance:LOOK.num(IS_TOUCH?'shark-camera-distance-phone':'shark-camera-distance',IS_TOUCH?1.25:1.1),pitch:LOOK.num(IS_TOUCH?'shark-camera-tilt-phone':'shark-camera-tilt',IS_TOUCH ? .62 : .88),ahead:IS_TOUCH?1.4:1};
-    this.cameraBase={distance:this.camera.distance,pitch:this.camera.pitch};this.cameraAir=IS_TOUCH?LOOK.num('shark-camera-air-room-phone',3):0;
+    this.cameraBase={distance:this.camera.distance,pitch:this.camera.pitch};this.cameraAir=IS_TOUCH?LOOK.num('shark-camera-air-room-phone',3):0;this.cameraAirView=0;
     // A separate inexpensive fin proxy is visible while the full model is beneath the quilt.
     this.fin=new THREE.Mesh(new THREE.ConeGeometry(.065,.15,3).scale(.18,1,1),this.model.rig.mat);
     this.fin.geometry.setAttribute('color',new THREE.Float32BufferAttribute(Array(this.fin.geometry.attributes.position.count).fill([.23,.38,.48]).flat(),3));
@@ -250,6 +250,11 @@ export class Shark {
     if(this.dead){this.model.rotation.z=mix(this.model.rotation.z,-1.4,1-Math.exp(-5*dt));this.holder.position.y-=dt*.025;return{push:null};}
     const arrival=this.def.skills.arrival;
     this.rise=clamp((this.arrivalT-arrival.barrier)/arrival.breach,0,1);
+    // Make room during anticipation, then hold that view through the jump.
+    const room=this.ready&&this.phase!=='rest'?(this.skill()?.apex||0):0;
+    this.cameraAirView=mix(this.cameraAirView,room,1-Math.exp(-6*dt));
+    this.camera.distance=this.cameraBase.distance+this.cameraAirView*this.cameraAir;
+    this.camera.pitch=this.cameraBase.pitch+Math.min(.3,this.cameraAirView*this.cameraAir*.27);
     this.hitPop=Math.max(0,(this.hitPop||0)-dt);this.frenzy=Math.max(0,this.frenzy-dt);this.prey=Math.max(0,this.prey-dt);
     if(this.dying){this.model.visible=true;this.fin.visible=false;this.lift=0;this.model.position.y=.15;this.model.rotation.x=-.4;this.model.pose({gape:.5,tailSwing:Math.sin(this.t*2)*.07});return{push:null};}
     if(this.bleed>0){this.bleed=Math.max(0,this.bleed-dt);bus.emit('damage_taken',{targetId:PLAYER,amount:this.def.skills.scent.dmg*dt,source:'boss',drain:true});
@@ -380,7 +385,6 @@ export class Shark {
     // The jaw remains frame-exact; only secondary body motion eases between poses.
     this.model.position.y=.15+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
     this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2),coil,roll,stretch,time:this.t,energy:this.frenzy>0?1.6:1,squint});
-    const air=Math.max(0,this.lift);this.camera.distance=this.cameraBase.distance+air*this.cameraAir;this.camera.pitch=this.cameraBase.pitch+Math.min(.3,air*this.cameraAir*.27);
     this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:(this.frenzy>0?.13:0));
     bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});
     return{push:null};

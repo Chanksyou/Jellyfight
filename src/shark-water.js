@@ -39,7 +39,7 @@ export function sharkWaterMaterial(){
         float spread=1.0-smoothstep(uFill*uReach-.025,uFill*uReach,distance(p,uSource));
         if(uFill<.001||spread<.001)discard;
         float a=dot(p,vec2(47.,31.))-uTime*1.5,b=dot(p,vec2(-71.,53.))+uTime*1.1;
-        vec2 slope=vec2(47.,31.)*cos(a)*.0007+vec2(-71.,53.)*cos(b)*.0004;
+        vec2 slope=vec2(47.,31.)*cos(a)*.0012+vec2(-71.,53.)*cos(b)*.0007;
         vec2 wake=p-uPlayer;float d=length(wake);
         slope+=wake/max(d,.001)*cos(d*145.-uTime*7.)*exp(-d*13.)*uWake*.045;
         vec3 n=normalize(vec3(-slope.x,1.,-slope.y)),view=normalize(cameraPosition-vWorld);
@@ -49,6 +49,9 @@ export function sharkWaterMaterial(){
         vec3 clear=uClear+vec3(.10,.13,.14)*fresnel;
         vec3 mud=mix(uDeep,uShallow,.18+eddy*.18);
         vec3 col=mix(clear,mud,uMurky);
+        vec3 reflected=reflect(-view,n);
+        float ceiling=pow(max(0.,sin(reflected.x*6.+reflected.z*4.)),16.);
+        col+=uFoam*ceiling*(.018+fresnel*.12)*(1.-uMurky*.85);
         float ripple=pow(.5+.5*sin(a+sin(b)*.7),12.);
         float wakeRing=pow(.5+.5*sin(d*145.-uTime*7.),12.)*exp(-d*13.)*uWake;
         col+=uFoam*(ripple*.025+wakeRing*.045);
