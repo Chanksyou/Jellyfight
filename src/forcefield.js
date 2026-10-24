@@ -3,7 +3,8 @@
 // Get close and it ripples and lights up around you, so it reads as "you can't go this way".
 // One the camera has ended up behind (the boss arena's wall at your back as a fight starts) is
 // faded out, like furniture between the camera and the jelly (camera.js), till it's clear again.
-//   addForceField(scene, { min, max })  a field over a wall box (null for one that isn't a wall)
+//   addForceField(scene, { min, max }, { hidden })  a field over a wall box (null for one that isn't a wall);
+//                                       hidden: never drawn (a boss arena's, unless look.css --boss-force-field is 1)
 //   showForceField(field, up)           put it up or take it down (a boss arena's: only in the fight)
 //   updateForceFields(playerPos, camPos) once a frame
 import * as THREE from 'three';
@@ -68,7 +69,7 @@ function material() {
   return mat;
 }
 
-export function addForceField(scene, w) {
+export function addForceField(scene, w, { hidden = false } = {}) {
   const size = w.max.map((v, i) => v - w.min[i]);
   if (size[1] < 0.2 || Math.min(size[0], size[2]) > 0.1) return null;   // floors and thick blocks aren't fields
   const alongX = size[0] >= size[2];
@@ -81,6 +82,7 @@ export function addForceField(scene, w) {
   m.renderOrder = 3;
   m.userData.noCollide = true;
   m.userData.up = true;
+  m.userData.hidden = hidden;   // still there and solid, still rising with its fight, just never drawn
   m.userData.box = w;
   m.userData.across = alongX ? 'z' : 'x';      // the axis it stands across
   fields.push(m);
@@ -90,7 +92,7 @@ export function addForceField(scene, w) {
 const fields = [];
 
 export function showForceField(m, up, rise=0) {
-  m.userData.up=up;m.visible=up;m.userData.rise=rise;m.userData.risen=rise?0:1;
+  m.userData.up=up;m.visible=up&&!m.userData.hidden;m.userData.rise=rise;m.userData.risen=rise?0:1;
   const w=m.userData.box,k=rise?.001:1;m.scale.y=k;m.position.y=w.min[1]+(w.max[1]-w.min[1])*k/2;
 }
 
@@ -109,6 +111,6 @@ export function updateForceFields(playerPos, camPos = null, dt=0) {
   if (!camPos) return;
   for (const m of fields) if (m.userData.up) {
     if(m.userData.risen<1){m.userData.risen=Math.min(1,m.userData.risen+dt/m.userData.rise);const t=m.userData.risen,k=Math.max(.001,t*t*(3-2*t)),w=m.userData.box;m.scale.y=k;m.position.y=w.min[1]+(w.max[1]-w.min[1])*k/2;}
-    m.visible = !between(m, playerPos, camPos);
+    m.visible = !m.userData.hidden && !between(m, playerPos, camPos);
   }
 }

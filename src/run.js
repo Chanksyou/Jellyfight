@@ -111,7 +111,7 @@ export class Run {
       m.updateMatrixWorld();
       ctx.world.addCollider(m);
       // and what you see of it: up only while the fight is (forcefield.js)
-      const field = addForceField(ctx.scene, w);
+      const field = addForceField(ctx.scene, w, { hidden: !LOOK.num('boss-force-field', 0) });   // invisible: the camera can stand behind it
       if (field) { showForceField(field, false); m.userData.field = field; }
       return m;
     });
@@ -211,7 +211,6 @@ export class Run {
     this.boss = null;
     this.traversal.bossMode = false;
     this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) showForceField(m.userData.field, false); });
-    this.tpc.bounds = null;
     this.hud.setBoss(null);
     this.hud.setElite(null);
     this.hud.resetHealth(); this.healthPulse = false;
@@ -1069,9 +1068,6 @@ export class Run {
       this.elites.clear();
       this.roomTreasures.forEach((t) => t.hide());
       this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true, CONTENT.bosses[B.kind]?.skills.arrival?.barrier||0); });
-      // the camera stays inside the force field (camera.js bounds), a little in from it
-      const inset = LOOK.num('camera-field-inset', 0.03);
-      if (B.walls?.length) this.tpc.bounds = { min: [B.arenaMin[0] + inset, B.arenaMin[2] + inset], max: [B.arenaMax[0] - inset, B.arenaMax[2] - inset] };
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);
