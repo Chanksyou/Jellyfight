@@ -13,6 +13,8 @@ import * as THREE from 'three';
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
 const HOLD = 0.4;
 const SMALL = 0.15;
+const MAX_TIP = 1.4;
+const JELLY_IN_VIEW = 0.9;     // with a fight view aimed ahead, the jelly stays within this much of the view's half-height from its centre           // how steep it may tip up to stay inside a boss arena's force field (radians)
 const LAYERS = 3;              // how many things one ray may look through
 const UP = new THREE.Vector3(0, 1, 0);
 const NONE = [];
@@ -49,6 +51,10 @@ export class ThirdPersonCamera {
     // fight). `ahead`: it aims that far ahead of the jelly instead of at it, so what's in front (a
     // boss standing taller than you) is in frame with the jelly low in it
     this.fight = null;
+    // A walled boss arena ({ min: [x, z], max: [x, z] }, run.js sets it for the fight): the camera stays
+    // inside it, pulled in towards the jelly rather than standing behind the force field (seen through,
+    // the field blurs the whole view)
+    this.bounds = null;
     this.fightK = 0;           // 0: the player's view .. 1: the fight's
     this._fightView = null;    // the last fight view, to ease back out of
     this.focus = new THREE.Vector3();
@@ -134,11 +140,34 @@ export class ThirdPersonCamera {
     this._end.set(target.x, target.y + c.height, target.z);
     this.focus.lerp(this._end, 1 - Math.exp(-20 * dt));
 
-    this.dirAt(this.viewPitch, this._dir);
+    // inside a walled arena it tips up over the jelly, just as steep as it takes for its distance
+    // behind the jelly to fit inside the field: it looks down over the field, never through it
+    let pitch = this.viewPitch, reach = 1;
+    const B = this.bounds;
+    if (B) {
+      const f = this.focus, sx = Math.sin(this.yaw), sz = Math.cos(this.yaw);
+      let room = Infinity;
+      if (sx > 1e-6) room = Math.min(room, (B.max[0] - f.x) / sx); else if (sx < -1e-6) room = Math.min(room, (B.min[0] - f.x) / sx);
+      if (sz > 1e-6) room = Math.min(room, (B.max[1] - f.z) / sz); else if (sz < -1e-6) room = Math.min(room, (B.min[1] - f.z) / sz);
+      const flat = Math.cos(pitch) * this.currentDistance;
+      if (room < flat) {
+        const steep = Math.min(MAX_TIP, Math.acos(THREE.MathUtils.clamp(room / this.currentDistance, 0, 1)));
+        reach = Math.cos(steep) / Math.cos(pitch);   // what's left of its reach behind the jelly
+        pitch = steep;
+      }
+    }
+    this.dirAt(pitch, this._dir);
     this.camera.position.copy(this.focus).addScaledVector(this._dir, this.currentDistance);
-    const ahead = k ? (F.ahead || 0) * k : 0;
-    if (ahead) this.camera.lookAt(this._ray.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(ahead).add(this.focus));
-    else this.camera.lookAt(this.focus);
+    const ahead = k ? (F.ahead || 0) * k * reach ** 0.85 : 0;   // (tipped up, it aims nearer the jelly: it and the Boss both stay in frame)
+    if (ahead) {
+      // aim ahead of the jelly, but never so far that the jelly drops out of the bottom of the view:
+      // tipped up over it, the aim comes back toward it as far as it takes
+      const T = this._ray.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(ahead).add(this.focus);
+      const C = this.camera.position, keep = THREE.MathUtils.degToRad(this.camera.fov) * 0.5 * JELLY_IN_VIEW;
+      const toJelly = this._side.subVectors(this.focus, C).normalize();
+      for (let i = 0; i < 20 && this._up.subVectors(T, C).normalize().angleTo(toJelly) > keep; i++) T.lerp(this.focus, 0.08);
+      this.camera.lookAt(T);
+    } else this.camera.lookAt(this.focus);
     this.findOver(this.camera.position);
     this.fade(dt);
   }
@@ -169,5 +198,5 @@ export class ThirdPersonCamera {
   }
 
   // Back to the player's own view at once (a new run)
-  endFight() { this.fight = null; this.fightK = 0; }
+  endFight() { this.fight = null; this.fightK = 0; this.bounds = null; }
 }

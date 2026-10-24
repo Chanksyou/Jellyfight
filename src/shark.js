@@ -15,6 +15,8 @@ import { IS_TOUCH } from './touch.js';
 const V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 const clamp=THREE.MathUtils.clamp, mix=THREE.MathUtils.lerp;
 const ease=x=>THREE.MathUtils.smoothstep(x,0,1);
+// its size: the model's scale, and K, the body's other measures against the size it was built at (0.60)
+const SIZE=.45,K=SIZE/.60;
 export const ATTACKS={calm:['bite','leap','combo','spin','rear','dive','burrowBite','maelstrom'],angry:['bite','combo','dive','tornado','leap','spin','maelstrom','burrowBite','rear'],always:['pools']};
 let SHARED_HAZARDS=null;
 function hazardAssets(color){
@@ -38,11 +40,11 @@ export class Shark {
   constructor(scene,enemies,fx,arena,world){
     Object.assign(this,{scene,enemies,fx,arena,world});
     this.kind='shark';this.def=CONTENT.bosses.shark;this.hp=this.maxHp=this.def.hp;
-    this.r=.19;this.bound=.39;this.rise=0;this.t=0;this.next=0;this.heading=Math.PI;
+    this.r=.19*K;this.bound=.39*K;this.rise=0;this.t=0;this.next=0;this.heading=Math.PI;
     this.dead=false;this.dying=false;this.frenzy=0;this.prey=0;this.bleed=0;this.bleedFx=0;
     this.state='idle';this.stateT=1;this.elapsed=0;this.phase='rest';this.beat=0;this.repeats=0;this.lift=0;this.groundT=0;
     this.gait=0;this.sway=0;this.settle=0;this.walkBlend=0;this.visualTilt=-1.1;this.visualRoll=0;
-    this.holder=new THREE.Group();this.model=buildShark();this.model.scale.setScalar(.60);
+    this.holder=new THREE.Group();this.model=buildShark();this.model.scale.setScalar(SIZE);
     this.model.position.y=-.45;this.model.rotation.x=-1.1; // submerged even on the creation frame
     this.holder.add(this.model);this.holder.position.fromArray(arena.spawn);scene.add(this.holder);
     this.floor=this.floorAt(this.holder.position);this.holder.position.y=this.floor;
@@ -60,7 +62,7 @@ export class Shark {
     this.camera={distance:LOOK.num(IS_TOUCH?'shark-camera-distance-phone':'shark-camera-distance',IS_TOUCH?.95:.85),pitch:LOOK.num(IS_TOUCH?'shark-camera-tilt-phone':'shark-camera-tilt',IS_TOUCH ? .62 : .88),ahead:IS_TOUCH?1.8:1};
     this.cameraBase={distance:this.camera.distance,pitch:this.camera.pitch};this.cameraAir=IS_TOUCH?LOOK.num('shark-camera-air-room-phone',.6):0;this.cameraAirView=0;
     // A separate inexpensive fin proxy is visible while the full model is beneath the quilt.
-    this.fin=new THREE.Mesh(new THREE.ConeGeometry(.065,.15,3).scale(.18,1,1),this.model.rig.mat);
+    this.fin=new THREE.Mesh(new THREE.ConeGeometry(.065*K,.15*K,3).scale(.18,1,1),this.model.rig.mat);
     this.fin.geometry.setAttribute('color',new THREE.Float32BufferAttribute(Array(this.fin.geometry.attributes.position.count).fill([.23,.38,.48]).flat(),3));
     this.fin.userData.noCollide=true;this.fin.visible=false;scene.add(this.fin);
     this.circleGeo=new THREE.CircleGeometry(1,48).rotateX(-Math.PI/2);
@@ -89,7 +91,7 @@ export class Shark {
   get ready(){const a=this.def.skills.arrival;return this.arrivalT>=a.barrier+a.breach+a.flood;}
   get shielded(){return !this.model.visible||this.phase==='eruption'||this.rise<1;}
   get buried(){return ['dive','burrowBite','maelstrom','tornado'].includes(this.state)&&this.phase==='track';}
-  center(out=V()){return out.copy(this.position).addScaledVector(this._front.set(Math.sin(this.heading),0,Math.cos(this.heading)),.09).setY(this.position.y+.23+this.lift-(this.crouch||0));}
+  center(out=V()){return out.copy(this.position).addScaledVector(this._front.set(Math.sin(this.heading),0,Math.cos(this.heading)),.09*K).setY(this.position.y+.23*K+this.lift-(this.crouch||0));}
   floorAt(p){
     // Surface casts happen at destinations, not in every animation frame.
     const hit=this.world?.castAll(V(p.x,this.arena.arenaMax[1]+.25,p.z),V(0,-1,0),1.2);
@@ -232,7 +234,7 @@ export class Shark {
     for(const q of this.tornadoes)q.m.visible=false;this.tornadoes.length=0;
     for(const s of this.shots)this.fx.free(s.m);this.shots.length=0;this.fish.count=0;
   }
-  recover(){this.clearWarning();this.phase='rest';this.elapsed=0;this.model.visible=true;this.fin.visible=false;this.lift=0;this.crouch=0;this.model.position.y=.15;this.model.rotation.x=-.4;}
+  recover(){this.clearWarning();this.phase='rest';this.elapsed=0;this.model.visible=true;this.fin.visible=false;this.lift=0;this.crouch=0;this.model.position.y=.15*K;this.model.rotation.x=-.4;}
   updateWater(dt,player){
     const a=this.def.skills.arrival,U=this.water.material.uniforms;
     this.flooded=clamp((this.arrivalT-a.barrier-a.breach)/a.flood,0,1);
@@ -256,7 +258,7 @@ export class Shark {
     this.camera.distance=this.cameraBase.distance+this.cameraAirView*this.cameraAir;
     this.camera.pitch=this.cameraBase.pitch+Math.min(.3,this.cameraAirView*this.cameraAir*.27);
     this.hitPop=Math.max(0,(this.hitPop||0)-dt);this.frenzy=Math.max(0,this.frenzy-dt);this.prey=Math.max(0,this.prey-dt);
-    if(this.dying){this.model.visible=true;this.fin.visible=false;this.lift=0;this.model.position.y=.15;this.model.rotation.x=-.4;this.model.pose({gape:.5,tailSwing:Math.sin(this.t*2)*.07});return{push:null};}
+    if(this.dying){this.model.visible=true;this.fin.visible=false;this.lift=0;this.model.position.y=.15*K;this.model.rotation.x=-.4;this.model.pose({gape:.5,tailSwing:Math.sin(this.t*2)*.07});return{push:null};}
     if(this.bleed>0){this.bleed=Math.max(0,this.bleed-dt);bus.emit('damage_taken',{targetId:PLAYER,amount:this.def.skills.scent.dmg*dt,source:'boss',drain:true});
       if(this.dead||this.dying)return{push:null};
       if((this.bleedFx-=dt)<=0){this.bleedFx=.22;this.fx.puff(player.position.clone().add(V(0,.04,0)),this.color,.009,.3);}}
@@ -279,7 +281,7 @@ export class Shark {
     coil=this.settle*.6;stretch=-this.settle*.65;
     this.lift=Math.abs(stride)*.009*this.walkBlend;
     if(!this.ready){
-      this.clearWarning();for(const m of this.tornadoVisuals)m.visible=false;this.model.scale.setScalar(.60);
+      this.clearWarning();for(const m of this.tornadoVisuals)m.visible=false;this.model.scale.setScalar(SIZE);
       gape=Math.sin(this.rise*Math.PI)*.8;this.lift=mix(-.60,0,ease(this.rise));tilt=mix(-1.1,-.4,ease(this.rise));this.elapsed=0;
       if(this.rise>0&&this.rise<1&&(this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.08;this.fx.puff(this.position,this.dust,.04,.4);}
     }
@@ -311,7 +313,7 @@ export class Shark {
       this.heading+=clamp(change,-dt*2*scent,dt*2*scent);
       if(distance>.01)this.position.addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),Math.min(distance,sk.speed*dt*scent*rate));
       this.clampIn(this.position);
-      this.fin.position.copy(this.position).setY(this.floor+.055);this.fin.rotation.y=this.heading;
+      this.fin.position.copy(this.position).setY(this.floor+.055*K);this.fin.rotation.y=this.heading;
       if((this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.08;this.fx.puff(this.fin.position,this.dust,.015,.25);}
       if(this.elapsed>=sk.track){
         this.target.copy(this.position);this.target.y=this.floorAt(this.target);this.floor=this.target.y;
@@ -383,7 +385,7 @@ export class Shark {
     const blend=1-Math.exp(-16*dt);
     this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll,blend);
     // The jaw remains frame-exact; only secondary body motion eases between poses.
-    this.model.position.y=.15+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
+    this.model.position.y=.15*K+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
     this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2),coil,roll,stretch,time:this.t,energy:this.frenzy>0?1.6:1,squint});
     this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:(this.frenzy>0?.13:0));
     bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});

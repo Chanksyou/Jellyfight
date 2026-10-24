@@ -389,10 +389,10 @@ story('enemies/mantis-swat-dodge', {
     return ok(moved && swatted && !hit, { moved, swatted, hit, gap: +gap.toFixed(3) });
   },
 });
-// --- the stag beetle (act 3): a tank about 3x the jelly that charges an electric ball between its mandibles
+// --- the stag beetle (act 3): a tank over twice the jelly's size that charges an electric ball between its mandibles
 const beetleAt = (d = 0.4) => { const e = spawn('beetle', near(d, 0)); e.shotCd = 0.2; return e; };
 story('enemies/stag-beetle-model', {
-  about: 'The stag beetle (act 3) is about 3x the jelly: its body 3x as wide, and as long (mandibles to wing tips) as three jellies are tall. It walks on six legs that move as it comes.',
+  about: 'The stag beetle (act 3) is over twice the jelly\'s size: its body 2.25x as wide, and as long (mandibles to wing tips) as two and a quarter jellies are tall. It walks on six legs that move as it comes.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); beetleAt(0.6).shotCd = 99; },
   play() {
     const { enemies } = G(), e = enemies.list[0], box = new THREE.Box3(), size = new THREE.Vector3();
@@ -405,7 +405,7 @@ story('enemies/stag-beetle-model', {
     box.setFromObject(e.mesh).getSize(size);
     e.root.quaternion.copy(q); e.root.updateMatrixWorld(true);
     const wide = e.r / CONFIG.player.radius, long = size.z / CONFIG.player.height;
-    return ok(Math.abs(wide - 3) < 0.15 && long > 2.7 && long < 3.6 && before.length === 6 && moved, { wide: +wide.toFixed(2), long: +long.toFixed(2), legs: before.length, moved });
+    return ok(Math.abs(wide - 2.25) < 0.12 && long > 2 && long < 2.7 && before.length === 6 && moved, { wide: +wide.toFixed(2), long: +long.toFixed(2), legs: before.length, moved });
   },
 });
 story('words/charge-shot', {
