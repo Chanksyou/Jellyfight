@@ -2,6 +2,11 @@
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {
+  --shark-blue: #506f83;
+  --shark-belly: #e7e3d6;
+  --shark-mouth: #bc7c83;
+  --shark-eye: #181d23;
+  --shark-grain: 0.0003;
   --encore-leather-grain: 0.00012;
   --encore-contact: #ffb52e;
   --encore-contact-life: 0.32;

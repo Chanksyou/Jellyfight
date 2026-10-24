@@ -20,6 +20,7 @@ export const STAGE3 = {
   name: 'Medusa',
   subtitle: 'Bedroom',
   rooms: ['Bedroom'],
+  shark: { at: [0.3, 0, 8.65], face: Math.PI / 2, length: 1.0 }, // on the floor at the foot of the bed, clear of the boss arena and vents
   parts: ['act1', 'act3'],           // apartment files to load (apartment.js): act 3 adds the bedroom
   evolve: 'Your ephyra grows into a full-grown <b>Medusa</b>.',   // the metamorphosis after the Pothos
   start: [1.0, 0, 8.85],             // open floor between the foot of the bed and the dresser
