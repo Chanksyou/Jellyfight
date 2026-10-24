@@ -1,14 +1,14 @@
 // Stories: on a phone (played in a page that looks like a phone). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
-import { G, firstMinute, fresh, heartFrame, ok, phone, pothosFight, step, tp } from './kit.js';
+import { G, firstMinute, fresh, heartFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
-phone('pothos-fight-keeps-the-heart-below-the-boss-bar', {
+phone('shark-fight-keeps-the-boss-below-the-bar', {
   act: 3,
-  about: 'On a phone (a short, wide screen) the Pothos fight view (look.css --pothos-camera-*-phone) keeps its heart in frame below the boss bar and the toast that it wakes, with the jelly in frame too.',
+  about: 'On a phone (a short, wide screen) the shark fight view keeps the boss in frame below the boss bar and the toast that it wakes, with the jelly in frame too.',
   setup() {},
   play() {
-    const B = pothosFight();
+    const B = sharkFight();
     step(150);                                            // eased in
     const { tpc } = G(), view = heartFrame(B);
     return ok(view.good, { distance: +tpc.currentDistance.toFixed(3), pitch: +tpc.viewPitch.toFixed(3), ...view });

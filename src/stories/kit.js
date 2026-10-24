@@ -13,7 +13,7 @@ import { sfx } from '../sfx.js';
 import { ATTACKS as ELITE_ATTACKS } from '../elites.js';
 import { ATTACKS as VACUUM_ATTACKS } from '../vacuum.js';
 import { ATTACKS as CLOG_ATTACKS } from '../clog.js';
-import { ATTACKS as POTHOS_ATTACKS } from '../pothos.js';
+import { ATTACKS as SHARK_ATTACKS } from '../shark.js';
 import { ATTACKS as ENCORE_ATTACKS } from '../encore.js';
 
 export const BASE_FIRE_RATE = BASE_STATS.fireRate;
@@ -413,22 +413,6 @@ function bugWarns(type, warns) {
     end() { const { enemies } = G(); for (const e of enemies.list) if (!e.dead && ['cutting', 'sprout', 'root'].includes(e.type)) enemies.kill(e, true); it = null; },
   };
 }
-// the Pothos's guarding vines snapping at a jelly held by its heart: warning while a snap is under
-// way; `end` takes the jelly away from the heart and lets the last snap land
-function guardSnap() {
-  const B = () => G().run.boss, on = () => B().snaps.some((L) => L.on);
-  return {
-    is: 'volume',
-    start() {
-      const b = pothosFight(), { world } = G(), player = holdJelly(), c = b.center();
-      b.stateT = 1e9;
-      const hit = world.castAll(V(c.x, c.y + 0.3, c.z - 0.2), V(0, -1, 0), 1);
-      player.position.set(c.x, hit.point.y, c.z - 0.2);
-    },
-    during: on,
-    end() { const { player, run } = G(); player.position.set(...run.stage.boss.playerStart); step(60, () => !on()); },
-  };
-}
 export const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
@@ -450,13 +434,11 @@ export const EVERY_ATTACK = {
     },
   },
   3: {
-    pothos: {                         // each attack joins here as it lands (pothos.js ATTACKS)
-      cutting: { is: 'none' },        // it drops Cuttings: their countdown is the Cutting's own (words/becomes)
-      roots: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('roots'); } },
-      whip: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('whip'); } },
-      sweep: { is: 'volume', start: () => { const B = pothosFight(); holdJelly(); B.begin('sweep'); } },
-      snap: guardSnap(),              // its guarding vines (not a turn: `always`), at a jelly close to its heart
-    },
+    shark: Object.fromEntries([...new Set([...SHARK_ATTACKS.calm,...SHARK_ATTACKS.angry])].map(name=>[name,{
+      is:'volume',start(){const b=sharkFight();holdJelly();if(name==='tornado')b.hp=b.maxHp*.84;b.begin(name);},
+      during:()=>G().run.boss?.state===name&&G().run.boss?.phase!=='rest',
+      end(){const b=G().run.boss;b.recover();b.clearHazards();b.state='idle';b.elapsed=-1e9;},
+    }]).concat([['pools',{is:'hazard'}]])),
     // the Alligator on the pillows (elites.js): its frost balls' Blasts, its tail slams' ring walls, its pounce's Blast
     croc: { volley: { is: 'volume', start: () => startCroc(0) }, 'tail-slam': { is: 'volume', start: () => startCroc(1) }, pounce: { is: 'volume', start: () => startCroc(2) } },
     // the Bull on the changing table (elites.js): its rush's Blast, its spiral's Shots (a circle
@@ -481,10 +463,10 @@ export const EVERY_ATTACK = {
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
-const bossKind = () => ({ vacuum: 'vacuum', pothos: 'pothos', encore: 'encore' })[G().run.stage.boss.kind] || 'clog';
+const bossKind = () => ({ vacuum: 'vacuum', shark: 'shark', encore: 'encore' })[G().run.stage.boss.kind] || 'clog';
 // the attacks the game has this act: each fighting Elite's, and the Boss's (calm and angry)
 function attacksInGame(act) {
-  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, pothos: POTHOS_ATTACKS, encore: ENCORE_ATTACKS }[boss];
+  const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, shark: SHARK_ATTACKS, encore: ENCORE_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the Pothos's guarding vines)
   // Bugs that warn (so far only the Pothos's: Cuttings, Sap sprouts, Aerial roots) are checked in act 3
@@ -573,7 +555,7 @@ export const encoreFight = ({ beat = 0, guard = false, ...opts } = {}) => {
   return run.boss;
 };
 // the Pothos (pothos.js): straight into the boss fight on the bed
-export const pothosFight = (opts = {}) => {
+export const sharkFight = (opts = {}) => {
   fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
   const { run, menus } = G();
   run.startBossIntro();

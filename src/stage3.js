@@ -1,5 +1,5 @@
 // Stage 3: Medusa. The bedroom, 4 am to 6 am. Reached by beating stage 2's boss (the run carries
-// on, as into act 2). Beating its boss, the Pothos, carries the run on into act 4, the Encore's
+// on, as into act 2). Beating its boss, the Great White One, carries the run on into act 4, the Encore's
 // concert (stage4.js).
 // All positions are world meters (x, y, z); y is the height.
 //
@@ -20,9 +20,8 @@ export const STAGE3 = {
   name: 'Medusa',
   subtitle: 'Bedroom',
   rooms: ['Bedroom'],
-  shark: { at: [0.3, 0, 8.65], face: Math.PI / 2, length: 1.0 }, // on the floor at the foot of the bed, clear of the boss arena and vents
   parts: ['act1', 'act3'],           // apartment files to load (apartment.js): act 3 adds the bedroom
-  evolve: 'Your ephyra grows into a full-grown <b>Medusa</b>.',   // the metamorphosis after the Pothos
+  evolve: 'Your ephyra grows into a full-grown <b>Medusa</b>.',
   start: [1.0, 0, 8.85],             // open floor between the foot of the bed and the dresser
   duration: 260,                      // seconds until the boss comes (4:20)
   clock: [240, 360],                  // in-game minutes after midnight: 4:00 AM -> 6:00 AM
@@ -30,7 +29,7 @@ export const STAGE3 = {
   // you take, 1.4x the XP
   toughness: 3,
   eliteHp: 2.4,                       // the Alligator's, the Bull's and the Coffer's Health: 500 x 2.4 = 1200
-  bossHp: 1.6,                        // the Pothos's Health as the Clog's: 1500 x 1.6 = 2400
+  bossHp: 1.6,                        // the shark's Health as the Clog's: 1500 x 1.6 = 2400
   power: 2,
   bugs: 0.85,
   xpMult: 1.4,
@@ -53,8 +52,7 @@ export const STAGE3 = {
     ],
   },
 
-  // the shelf pothos over the bed comes alive as the boss (pothos.js), and the plushies sit where
-  // its pot stands: both gone for the whole act. The plant's leaves are instances of two of the
+  // The retired shelf plant and baked plushies stay hidden to keep the shark arena clear. The plant's leaves are instances of two of the
   // model's shared leaf meshes (Shell_114/115: plants elsewhere use them too), so only the ones
   // under the shelf go; its trailing strands are parts of the shelf (Floating_shelf_3-5)
   // Vanity_desk_22 is the inlaid wooden box on the vanity desk: the Coffer takes its place
@@ -98,8 +96,8 @@ export const STAGE3 = {
   // The act's Elites (elites.js): the plush alligator, resting on the pillows at the head of the bed
   // in the gap between them, facing the foot of the bed (`face`; the real plush, out on the
   // mattress, is hidden above). It sleeps until you're on the bed (`wake`: the top of the bed) and
-  // settles back when you leave; `stand` is where a 1 on 1 with it puts you. The Pothos's pot
-  // takes this spot in the boss fight: elites are cleared at its intro
+  // settles back when you leave; `stand` is where a 1 on 1 with it puts you.
+  // The shark takes over the bed: elites are cleared at its intro.
   elites: [
     { kind: 'croc', at: [-0.105, 0.65, 10.12],   // clear of the pillows (z 10.48 up) even as it turns round (about 33 cm each way)
       face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
@@ -113,19 +111,16 @@ export const STAGE3 = {
     { kind: 'coffer', at: [-1.545, 0.78, 8.51], face: 0, area: 'vanity desk', wake: { min: [-1.89, 0.74, 8.4], max: [-1.19, 1.4, 9.34] }, stand: [-1.52, 0.78, 9.0] },
   ],
 
-  // The boss arena: the top of the bed. You're carried up when the timer runs out; the Pothos
-  // rises in its pot on the pillows at the head of the bed (`pot`).
+  // The shark's arena is the bed: it walks on its fins and dives beneath the quilt.
   boss: {
-    name: 'The Pothos',
-    kind: 'pothos',
-    intro: 'The Pothos wakes!',
+    name: 'The Great White One',
+    kind: 'shark',
+    intro: 'Something is moving beneath the quilt…',
+    spawn: [-0.15, 0.65, 10.5],
+    faceBoss: true,
     arenaMin: [-0.95, 0.6, 9.07],
     arenaMax: [0.74, 1.3, 11.3],
     playerStart: [-0.1, 0.7, 9.4],
-    // between the two pillows, where the plush crocodile sat: the pot stands on the mattress in the
-    // gap between them, nestled in (pothos.js seats it on the lowest surface under its base; y is
-    // only where it looks down from)
-    pot: [-0.15, 0.795, 10.82],
     // round the top of the bed (only there in the fight), a little below the mattress so there's no gap
     walls: [
       { min: [-0.99, 0.55, 9.03], max: [-0.95, 1.3, 11.34] },   // west, by the bassinet

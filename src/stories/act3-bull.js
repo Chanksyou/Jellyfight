@@ -268,7 +268,7 @@ act3('bull-angry', {
   },
 });
 
-act3('bull-gone-when-the-pothos-wakes', {
+act3('bull-gone-when-the-shark-wakes', {
   about: 'When time runs out and the Pothos rises on the bed, the Bull is gone from the changing table too (elites are cleared at the boss intro).',
   setup() { fresh(); },
   play() {

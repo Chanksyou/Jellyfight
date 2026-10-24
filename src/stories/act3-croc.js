@@ -231,8 +231,8 @@ act3('croc-angry', {
   },
 });
 
-act3('croc-gone-when-the-pothos-wakes', {
-  about: 'When time runs out and the Pothos rises in its pot on the pillows, the Alligator is gone from that spot (elites are cleared at the boss intro), and the real plush stays hidden.',
+act3('croc-gone-when-the-shark-wakes', {
+  about: 'When time runs out and the shark wakes on the bed, the Alligator is gone from that spot (elites are cleared at the boss intro), and the real plush stays hidden.',
   setup() { fresh(); },
   play() {
     const { run, menus } = G(), e = croc();

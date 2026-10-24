@@ -184,7 +184,6 @@ const world = new World(scene, { staticScene: true });
 if (ARENA) for (const m of ARENA.solids) if (m.userData.noCollide) world.addCollider(m, false);
 addStageWalls(world, stage, scene);
 if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
-if (stage.shark) (await import('./shark-model.js')).addShark(scene, world, stage.shark);
 // Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
 // purely to show up for the boss finish (see the scene below), then he's
 // gone again. Both boss stages get one; a stage with no boss needs none.
