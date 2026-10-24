@@ -13,7 +13,7 @@ function riggedClone(template){
   const group=cloneSkeleton(template),parts=Array.from({length:7},(_,i)=>group.getObjectByName('shark-part-'+i));
   const [trunk,head,jaw,eyes,leftFin,rightFin,tail]=parts;
   const spine=trunk.skeleton.bones,flippers=[leftFin,rightFin];
-  group.rig={trunk,head,jaw,eyes,fins:flippers,tail,spine,mat:trunk.material};
+  group.rig={trunk,head,jaw,eyes,fins:flippers,tail,spine,mat:trunk.material,clipPlane:trunk.material.clippingPlanes[0]};
   group.pose=({gape=0,headTurn=0,tailSwing=0,left=0,right=0,breath=0,finLift=0,coil=0,roll=0,stretch=0,time=0,energy=1,squint=0}={})=>{
     head.rotation.set(-coil*.12,headTurn,roll*.15);eyes.rotation.copy(head.rotation);jaw.rotation.set(gape-coil*.12,headTurn,roll*.15);
     const blinkPhase=(time+1.7)%4.2,blink=time>0&&blinkPhase<.14?Math.sin(blinkPhase/.14*Math.PI):0;
@@ -209,7 +209,8 @@ export function buildShark() {
     for (const g of new Set([...parts,...flat])) g.dispose();
     result.computeBoundingSphere(); return result;
   };
-  const mat = new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.96,metalness:0,
+  const floorPlane=new THREE.Plane(V(0,1,0),1000);
+  const mat = new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.96,metalness:0,clippingPlanes:[floorPlane],clipShadows:true,
     sheen:.35,sheenRoughness:.9,sheenColor:blue,side:THREE.DoubleSide,bumpMap:fabricGrain(),bumpScale:LOOK.num('shark-grain',.0003)});
   const piece=(parts,pivot,parent=group,material=mat)=>{
     for(const g of parts)g.translate(-pivot.x,-pivot.y,-pivot.z);
@@ -218,7 +219,7 @@ export function buildShark() {
   const trunk=skin(piece(cloth,V(0,0,0)),[-.25,-.12,.04,.16,.23].map(z=>V(0,.10,z)));
   const skullMesh=piece(head,V(0,.15,.23));
   const chin=piece(jaw,V(0,.10,.235));
-  const eyeMesh=piece(eyes,V(0,.15,.23),group,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85}));
+  const eyeMesh=piece(eyes,V(0,.15,.23),group,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,clippingPlanes:[floorPlane],clipShadows:true}));
   const fins=flippers.map((parts,i)=>skin(piece(parts,V(i? .115:-.115,.08,.12)),[V(0,0,0),V(i?.08:-.08,-.16,-.05)],'y',-1));
   const tailMesh=skin(piece(tail,V(0,.067,-.25)),[V(0,0,0),V(0,0,-.18),V(0,0,-.35)],'z',-1);
   group.updateMatrixWorld(true);

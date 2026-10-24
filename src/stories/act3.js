@@ -151,6 +151,15 @@ act3('shark-walk-has-overlapping-body-and-fin-motion',{
     for(let i=0;i<45;i++){B.update(1/60,P);const n=B.model.rig.spine[2].rotation.y;span+=Math.abs(n-last);last=n;maxStep=Math.max(maxStep,Math.abs(B.model.rig.fins[0].rotation.y-B.model.rig.fins[1].rotation.y));}
     return ok(span>.01&&maxStep>.3&&Number.isFinite(B.model.rig.tail.skeleton.bones[2].rotation.y),{span,maxStep});},
 });
+for(const attack of ['dive','burrowBite','maelstrom','tornado'])act3(`shark-${attack}-emerges-through-the-floor`,{
+  about:'The snout emerges before the body; buried geometry is clipped and the partially emerged boss stays shielded until the existing impact frame.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly();B.begin(attack);B.phase='eruption';B.visualTilt=-.4-Math.sin(.15*Math.PI)*.9;const counts=[];let total=0;
+    for(const fraction of [.36,.68,.99]){B.elapsed=B.skill().tell*fraction;B.update(.001,P);B.holder.updateMatrixWorld(true);let above=0;total=0;const p=V(0,0,0);
+      B.model.traverse(m=>{if(!m.isMesh)return;m.skeleton?.update();for(let i=0;i<m.geometry.attributes.position.count;i+=37){m.getVertexPosition(i,p);p.applyMatrix4(m.matrixWorld);above+=p.y>B.floor+.002?1:0;total++;}});counts.push(above);
+    }
+    const hp=B.hp;B.damage(1);const shielded=B.shielded&&B.hp===hp,plane=B.model.rig.clipPlane;
+    return ok(counts[0]===0&&counts[1]>0&&counts[1]<counts[2]&&shielded&&G().APT.renderer.localClippingEnabled&&Math.abs(plane.constant+B.floor)<1e-6,{counts,total,shielded});},
+});
 act3('shark-bite-hits-on-jaw-closure',{
   about:'The bite lunges and closes its jaw on the damage frame; a confirmed melee hit marks Prey and triggers frenzy.',setup(){},
   play(){const B=sharkFight(),P=holdJelly(),{run}=G();B.begin('bite');P.position.copy(B.warning.at);run.iFrames=0;const hits=record('player_hurt');let gape=null,lunge=0;

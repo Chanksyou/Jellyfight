@@ -13,7 +13,7 @@ import { unlock as unlockAudio } from './sfx.js';
 const error=document.getElementById('error');
 try{
   await loadLook();await loadContent();
-  const renderer=new THREE.WebGLRenderer({canvas:document.querySelector('canvas'),antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  const renderer=new THREE.WebGLRenderer({canvas:document.querySelector('canvas'),antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.localClippingEnabled=true;
   const scene=new THREE.Scene();scene.background=new THREE.Color('#e4e4df');batcher.scene=scene;
   const camera=new THREE.PerspectiveCamera(36,1,.01,20),controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.17,0);controls.enableDamping=true;controls.minDistance=.6;controls.maxDistance=6;
   const arena={name:'The Great White One',spawn:[0,0,.45],arenaMin:[-.85,-.045,-1.1],arenaMax:[.85,.65,1.1],playerStart:[0,0,-.65]};

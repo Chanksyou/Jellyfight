@@ -44,6 +44,7 @@ export class Shark {
     this.holder=new THREE.Group();this.model=buildShark();this.model.scale.setScalar(.60);
     this.holder.add(this.model);this.holder.position.fromArray(arena.spawn);scene.add(this.holder);
     this.floor=this.floorAt(this.holder.position);this.holder.position.y=this.floor;
+    this.model.rig.clipPlane.constant=-this.floor;
     this.start=V();this.target=V();this.warning=null;this.pools=[];this.tornadoes=[];this.shots=[];
     this.color=hostile('shark');this.dust=new THREE.Color(LOOK.color('shark-dust','#d6c5a7'));
     this.camera={distance:LOOK.num(IS_TOUCH?'shark-camera-distance-phone':'shark-camera-distance',IS_TOUCH?1.25:1.1),pitch:LOOK.num(IS_TOUCH?'shark-camera-tilt-phone':'shark-camera-tilt',IS_TOUCH ? .62 : .88),ahead:IS_TOUCH?1.4:1};
@@ -74,7 +75,7 @@ export class Shark {
   }
   get position(){return this.holder.position;}
   get angry(){return this.hp<=this.maxHp*this.def.skills.tornado.at;}
-  get shielded(){return !this.model.visible||this.rise<1;}
+  get shielded(){return !this.model.visible||this.phase==='eruption'||this.rise<1;}
   get buried(){return ['dive','burrowBite','maelstrom','tornado'].includes(this.state)&&this.phase==='track';}
   center(out=V()){return out.copy(this.position).addScaledVector(this._front.set(Math.sin(this.heading),0,Math.cos(this.heading)),.09).setY(this.position.y+.23+this.lift-(this.crouch||0));}
   floorAt(p){
@@ -255,7 +256,7 @@ export class Shark {
       this.heading+=clamp(difference,-dt*4,dt*4);gape=ease(progress)*.85;tilt-=Math.sin(progress*Math.PI)*.17;
       coil=ease(progress);tailSwing-=Math.sin(progress*Math.PI)*.35;stretch=-Math.sin(progress*Math.PI)*.4;
       squint=ease(progress)*.7;
-      if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){tilt+=ease(progress)*1.1;this.lift=-ease(progress)*.09;left=right=-ease(progress)*.4;}
+      if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){tilt+=ease(progress)*1.1;this.lift=-ease(progress)*.60;left=right=-ease(progress)*.4;}
       else if(this.state==='leap'){this.crouch=ease(progress)*.035;left=right=-ease(progress)*.5;}
       if(this.state==='combo'&&this.beat===1)left=-ease(progress)*1.1;
       if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){roll=-Math.sin(progress*Math.PI)*.16;coil=ease(progress)*1.5;}
@@ -277,8 +278,14 @@ export class Shark {
     }else if(this.phase==='eruption'){
       const sk=this.skill(), t=clamp(this.elapsed/sk.tell,0,1);
       this.warning.floor.material.progress=this.warning.volume.material.progress=t;
+      // The floor clips the buried portion; reveal the snout before the shoulders and tail.
+      const emerge=ease(clamp((t-.35)/.65,0,1));
+      this.model.visible=emerge>0;this.fin.visible=emerge<.25;
+      this.lift=mix(-.60,sk.apex*.45,emerge);tilt=-.4-Math.sin(.15*Math.PI)*.9;gape=.9*emerge;
+      coil=-emerge*.6;left=right=-emerge*.6;stretch=emerge*.5;
+      if(emerge>0&&emerge<1&&(this.wakeT-=dt)<=0){this.wakeT=.07;this.fx.puff(this.position,this.dust,.035,.3);}
       if(t>=1){this.phase='active';this.elapsed=0;this.start.copy(this.position);this.start.y=this.floor;this.model.visible=true;this.fin.visible=false;this.clearWarning();
-        this.lift=sk.apex*.45;gape=.9;tilt=-1.1;
+        this.lift=sk.apex*.45;gape=.9;
         this.burst(this.target,sk.radius,true);this.hit(player,this.target,sk.radius,sk.height,sk.dmg,this.state==='burrowBite',false);
         if(this.dead||this.dying||this.phase!=='active')return{push:null};
         this.pool(this.target);if(this.state==='tornado')this.launchTornadoes();
@@ -312,9 +319,10 @@ export class Shark {
       }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
         if(this.state==='maelstrom'){this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);}
         if(this.warning)this.warning.floor.material.progress=this.warning.volume.material.progress=p;
-        this.lift=Math.sin((.15+p*.85)*Math.PI)*sk.apex;tilt=-.4-Math.sin(p*Math.PI)*.9;gape=.9*Math.sin((.15+p*.85)*Math.PI);
-        coil=-Math.sin(p*Math.PI)*1.1;stretch=Math.sin(p*Math.PI);left=right=-Math.sin(p*Math.PI)*.75;
-        if(this.state==='dive'&&this.repeats<sk.count-1)tilt+=ease(clamp((p-.65)/.35,0,1))*1.2;
+        this.lift=Math.sin((.15+p*.85)*Math.PI)*sk.apex;tilt=-.4-Math.sin((.15+p*.85)*Math.PI)*.9;gape=.9*Math.sin((.15+p*.85)*Math.PI);
+        coil=-Math.sin((.2+p*.8)*Math.PI)*1.1;stretch=Math.sin((.15+p*.85)*Math.PI);left=right=-Math.sin((.3+p*.7)*Math.PI)*.75;
+        gape=.9*Math.sin((.5+p*.5)*Math.PI);
+        if(this.state==='dive'&&this.repeats<sk.count-1){const sink=ease(clamp((p-.65)/.35,0,1));tilt+=sink*1.2;this.lift-=sink*.60;}
         if(p>=1){this.burst(this.position,sk.radius,true);
           if(this.state==='tornado'||this.state==='maelstrom')this.hit(player,this.position,sk.radius,sk.height,sk.dmg,false,false);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};}
@@ -329,6 +337,7 @@ export class Shark {
     }
     if(this.phase!=='active'&&(this.groundT-=dt)<=0){this.groundT=.15;this.floor=this.floorAt(this.position);}
     this.position.y=this.floor;this.holder.rotation.y=this.heading;
+    this.model.rig.clipPlane.constant=-this.floor;
     const blend=1-Math.exp(-16*dt);
     this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll,blend);
     // The jaw remains frame-exact; only secondary body motion eases between poses.

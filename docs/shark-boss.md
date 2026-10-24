@@ -25,6 +25,11 @@ The model is 34,760 triangles in seven meshes; skinning adds no model draw calls
 
 Only a fin proxy and a capped dust wake remain above the quilt while burrowed.
 The body cannot be targeted while hidden, including the eruption warning interval.
+A permanent warmed material clipping plane hides geometry below the quilt. Burrow
+windups sink nose-first; during eruption tells, the snout rises through the surface
+before the shoulders, belly and tail. Chained dives sink fully before hiding. The
+partially visible boss stays shielded until the original impact frame; attack timings
+and damage are unchanged. Body and eye shadows use the same floor cut.
 
 ## Moves
 
