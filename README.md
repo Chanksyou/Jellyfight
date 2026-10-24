@@ -286,6 +286,13 @@ guards and full story suite on pull requests, main pushes and merge groups. Its
 status is the required merge check. Failure logs and screenshots are attached to
 the workflow run as `game-check-results`.
 
+CI uses the official Playwright container with browsers and system dependencies
+already installed. Keep its image version and version check in
+`.github/workflows/game-checks.yml` aligned with the pinned Playwright dependency
+in `tests/package.json`. Two story pages can run at once, with only one page
+booting at a time to limit software shader compilation load. Every story and the
+mobile touch check still run; the required check name remains `Game checks`.
+
 Stories use a fixed default seed, reset independently for each story. Reproduce
 another set of rolls with `node tests/run.mjs --seed=42` (combine with a story
 filter for a focused replay). Failures print the story seed and save a screenshot

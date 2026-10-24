@@ -19,6 +19,10 @@ jobs:
   game-checks:
     name: Game checks
     runs-on: ubuntu-latest
+    container:
+      # Keep in sync with tests/package.json; the install step checks this pin.
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --init --ipc=host
     timeout-minutes: 30
     defaults:
       run:
@@ -31,16 +35,16 @@ jobs:
           cache: npm
           cache-dependency-path: tests/package-lock.json
       - name: Install pinned dependencies
-        run: npm ci --prefix tests
-      - name: Install Chromium
-        working-directory: tests
-        run: npx playwright install --with-deps chromium
+        run: |
+          npm ci --prefix tests
+          node -e "const { version } = require('./tests/node_modules/playwright/package.json'); if (version !== '1.63.0') throw new Error('Update the Playwright container image and version check to match ' + version);"
       - name: Parse modules and run guards
         run: |
           mkdir -p .wrangler
           node tests/check.mjs | tee .wrangler/ci-guards.log
       - name: Run every gameplay story
-        run: node tests/run.mjs --jobs=1 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
+        # Overlap story playback, but serialize shader-heavy page startup.
+        run: node tests/run.mjs --jobs=2 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
       - name: Save logs and failure screenshots
         if: always()
         uses: actions/upload-artifact@v5
