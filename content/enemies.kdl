@@ -99,12 +99,12 @@ enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=1 xp=8 model="worm" {
     whip range=0.42 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
 }
 
-// Act 3 (from 1:00): the stag beetle, a tank about 3x the jelly (an iridescent green-black shell, a
+// Act 3 (from 1:00): the stag beetle, a tank about 2x the jelly (an iridescent green-black shell, a
 // crested head, big antler mandibles). It plods after you; within reach it stops, turns to you and
 // charges an electric ball between its mandibles (sparks gather, it grows and crackles with a rising
 // whine; its aim locks part way through), then fires it at you: a big fast Shot that explodes where it
 // lands, a Blast 7 cm round. Step well aside once it locks.
-enemy "beetle" name="Stag beetle" hp=210 r=0.092 dmg=1 xp=12 model="beetle" {
+enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
     death-motion "shell"
     chase 0.14
     charge-shot range=0.6 charge=1 lock=0.6 speed=1.2 dmg=3 size=0.019 blast=0.07 knock=0.6 life=1.2 rest=0.7 every=3.5
