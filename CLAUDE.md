@@ -45,8 +45,9 @@ Codex here. Keep project rules in this file so the agents follow the same workfl
    committed checkout and a full passing run on that exact commit, including any
    merge commit. GitHub merges do not run local hooks: record the required checks
    in the pull request and complete them before merging. Then update local `main`.
-   The required GitHub `Game checks` job runs guards and the full suite on the PR
-   integration. Wait for it to pass; do not bypass it. Stories reset to a fixed
+   The required GitHub `Game checks` result requires guards and all four story
+   shards to pass on the PR integration. Wait for it to pass; do not bypass it.
+   Shards never record a local full-suite pass. Stories reset to a fixed
    seed per name; use `node tests/run.mjs --seed=N` to replay other rolls and keep
    failure screenshots/logs from the Actions artifact. The default seed's clean
    full run is what records `tests/.last-green` for the local push hook.
