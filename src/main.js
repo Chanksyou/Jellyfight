@@ -279,6 +279,7 @@ run.onMainMenu = () => {
   overlay.hidden = false;
 };
 run.playerBody = () => state.look.body;
+addEventListener('pagehide', () => run.flushFeats());   // a run left mid-way still counts the bugs it cleared (cosmetics.js)
 run.playerLook = () => state.look;
 run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
 

@@ -70,12 +70,15 @@ export const SPECIES = {
 
 export const OPTIONS = {
   body: Object.entries(SPECIES).map(([id, s]) => [id, s.name]),
-  eyes: [['round', 'Dots'], ['big', 'Big'], ['sleepy', 'Sleepy'], ['angry', 'Fierce'], ['cyclops', 'Cyclops']],
-  mouth: [['smile', 'Smile'], ['open', 'Open'], ['fangs', 'Fangs'], ['none', 'None']],
+  eyes: [['round', 'Dots'], ['big', 'Big'], ['sleepy', 'Sleepy'], ['angry', 'Fierce'], ['cyclops', 'Cyclops'], ['goldmask', 'Golden mask'], ['shades', 'Gold shades']],
+  mouth: [['smile', 'Smile'], ['open', 'Open'], ['fangs', 'Fangs'], ['none', 'None'], ['goldtooth', 'Gold tooth']],
   top: [['none', 'None'], ['antennae', 'Antennae'], ['sprout', 'Sprout'], ['partyhat', 'Party hat'], ['bow', 'Bow'], ['crown', 'Crown'], ['horns', 'Horns'],
     ['tophat', 'Top hat'], ['beanie', 'Beanie'], ['witch', 'Witch hat'], ['cowboy', 'Cowboy hat'], ['halo', 'Halo'], ['flower', 'Flower'],
-    ['propeller', 'Propeller cap'], ['chef', 'Chef hat'], ['catears', 'Cat ears'], ['unicorn', 'Unicorn horn']],
+    ['propeller', 'Propeller cap'], ['chef', 'Chef hat'], ['catears', 'Cat ears'], ['unicorn', 'Unicorn horn'],
+    ['goldcrown', 'Golden crown'], ['laurel', 'Golden laurel'], ['goldantlers', 'Golden antlers']],   // the golden ones are earned (cosmetics.js)
 };
+// tops that keep their own colour (the Hat colour row is hidden for them)
+export const OWN_COLOR_TOPS = ['none', 'sprout', 'chef', 'goldcrown', 'laurel', 'goldantlers'];
 
 export const SWATCHES = ['#ff6fb5', '#ff5a4e', '#ffa23a', '#ffd23a', '#8ee07a', '#37c6a8', '#4fb3ff', '#6b6bff', '#b77bff', '#f4efe6', '#6b5b4f', '#2a2a33'];
 
@@ -114,19 +117,22 @@ export function normalizeLook(look) {
   return out;
 }
 
-export function randomLook() {
+// isOpen(key, id): may this option be picked (the creator passes cosmetics.js unlocked, so a random
+// look never hands out an award not yet earned)
+export function randomLook(isOpen = () => true) {
   const pick = (a) => a[(Math.random() * a.length) | 0];
+  const option = (key) => pick(OPTIONS[key].filter(([id]) => isOpen(key, id)))[0];
   const hsl = (h, s, l) => '#' + new THREE.Color().setHSL(h, s, l).getHexString();
   const h = Math.random();
   return normalizeLook({
     name: pick(['Blip', 'Wobble', 'Gloop', 'Pip', 'Mochi', 'Dot', 'Squish', 'Nib', 'Boba', 'Fizz', 'Medusa', 'Ripple']),
-    body: pick(OPTIONS.body)[0],
+    body: option('body'),
     color: hsl(h, 0.8, 0.6),
     accent: hsl((h + 0.08) % 1, 0.6, 0.85),
-    eyes: pick(OPTIONS.eyes)[0],
+    eyes: option('eyes'),
     eyeColor: hsl(Math.random(), 0.5, 0.25),
-    mouth: pick(OPTIONS.mouth)[0],
-    top: pick(OPTIONS.top)[0],
+    mouth: option('mouth'),
+    top: option('top'),
     topColor: hsl((h + 0.5) % 1, 0.8, 0.6),
   });
 }
@@ -176,6 +182,10 @@ function makeMaterials(look) {
     iris: std(look.eyeColor, { roughness: 0.2, emissive: new THREE.Color(look.eyeColor), emissiveIntensity: 0.15 }),
     lid: std('#' + new THREE.Color(look.color).lerp(new THREE.Color('#000000'), 0.35).getHexString(), { roughness: 0.5 }),
     gold: std('#ffd23a', { roughness: 0.3, metalness: 0.6 }),
+    // the earned golden pieces: polished, with a warm glow of their own so they read in a dark room
+    award: std('#ffc93a', { roughness: 0.2, metalness: 0.9, emissive: new THREE.Color('#6a4300'), emissiveIntensity: 0.6 }),
+    ruby: std('#ff2a4a', { roughness: 0.1, emissive: new THREE.Color('#ff2a4a'), emissiveIntensity: 0.5 }),
+    sapphire: std('#2a7aff', { roughness: 0.1, emissive: new THREE.Color('#2a7aff'), emissiveIntensity: 0.5 }),
     pink: std('#ff9ab8', { roughness: 0.6 }),
     halo: new THREE.MeshBasicMaterial({ color: new THREE.Color(look.topColor), toneMapped: false }),
     black: std('#121018', { roughness: 0.15 }),
@@ -391,12 +401,20 @@ export function buildCharacter(look, heightMeters) {
   // (on a flat bell, like a moon jelly's, they shrink so they stay below its top; a fierce eye
   // leaves room for its brow)
   const room = (shape.bellTop - shape.faceY) / (shape.faceScale || 1);
-  const eyeR = Math.min({ round: 0.075, big: 0.12, sleepy: 0.11, angry: 0.11, cyclops: 0.17 }[look.eyes] ?? 0.11, room * (look.eyes === 'angry' ? 0.5 : 0.68));
+  const eyeR = Math.min({ round: 0.075, big: 0.12, sleepy: 0.11, angry: 0.11, cyclops: 0.17, goldmask: 0.11, shades: 0.12 }[look.eyes] ?? 0.11, room * (look.eyes === 'angry' ? 0.5 : 0.68));
   const eyeAt = (x) => {
     const g = new THREE.Group(), R = eyeR;
     g.position.set(x, 0, -R * 0.12);
     face.add(g);
     eyes.push(g);
+    if (look.eyes === 'shades') {
+      // gold-rimmed shades: a dark glossy lens in a gold rim, a bright glint across it
+      mesh(new THREE.SphereGeometry(R, 24, 16), M.black, g).scale.z = 0.3;
+      mesh(new THREE.TorusGeometry(R, R * 0.13, 8, 28), M.award, g, 0, 0, R * 0.08);
+      const glint = mesh(new THREE.BoxGeometry(R * 1.1, R * 0.12, R * 0.05), M.white, g, -R * 0.1, R * 0.3, R * 0.3);
+      glint.rotation.z = 0.5;
+      return g;
+    }
     if (look.eyes === 'round') {
       mesh(new THREE.SphereGeometry(R, 16, 12), M.black, g).scale.z = 0.5;
       mesh(new THREE.SphereGeometry(R * 0.3, 8, 6), M.eyeWhite, g, R * 0.32, R * 0.36, R * 0.42);
@@ -418,19 +436,33 @@ export function buildCharacter(look, heightMeters) {
       const brow = mesh(new THREE.BoxGeometry(R * 1.7, R * 0.32, R * 0.25), M.black, g, x < 0 ? R * 0.1 : -R * 0.1, R * 1.02, R * 0.25);
       brow.rotation.z = x < 0 ? -0.4 : 0.4;
     }
+    if (look.eyes === 'goldmask') {
+      // a golden masquerade mask: a gold plate behind each eye, swept up and out to a point at the
+      // side like a cat's eye, a rim round the eye and a ruby above it
+      const side = x < 0 ? -1 : 1;
+      const plate = mesh(new THREE.SphereGeometry(R * 1.45, 24, 12), M.award, g, side * R * 0.25, R * 0.1, -R * 0.12);
+      plate.scale.set(1.15, 0.85, 0.22);
+      const tip = mesh(new THREE.SphereGeometry(R * 0.8, 16, 10), M.award, g, side * R * 1.45, R * 0.75, -R * 0.1);
+      tip.scale.set(1.1, 0.45, 0.2); tip.rotation.z = side * 0.6;
+      mesh(new THREE.TorusGeometry(R * 1.05, R * 0.14, 8, 28), M.award, g, 0, 0, R * 0.14).scale.z = 0.5;
+      mesh(new THREE.SphereGeometry(R * 0.2, 10, 8), M.ruby, g, side * R * 0.2, R * 1.2, R * 0.12);
+    }
     return g;
   };
   if (look.eyes === 'cyclops') eyeAt(0);
   else {
-    const gap = Math.max(shape.spread * k, eyeR * 1.2);
+    const gap = Math.max(shape.spread * k, eyeR * (look.eyes === 'goldmask' ? 1.45 : 1.2));
     eyeAt(-gap);
     eyeAt(gap);
+    // the mask and the shades join across the middle
+    if (look.eyes === 'goldmask' || look.eyes === 'shades') mesh(new THREE.BoxGeometry(gap * 0.9, eyeR * 0.22, eyeR * 0.2), M.award, face, 0, eyeR * 0.15, eyeR * 0.05);
   }
 
   const mouthY = (look.eyes === 'cyclops' ? -0.23 : -0.16) * k;
-  if (look.mouth === 'smile' || look.mouth === 'fangs') {
+  if (look.mouth === 'smile' || look.mouth === 'fangs' || look.mouth === 'goldtooth') {
     const m = mesh(new THREE.TorusGeometry(0.06 * k, 0.014 * k, 6, 16, Math.PI), M.mouth, face, 0, mouthY + 0.03 * k, 0.005);
     m.rotation.z = Math.PI;
+    if (look.mouth === 'goldtooth') mesh(new THREE.BoxGeometry(0.036 * k, 0.042 * k, 0.014 * k), M.award, face, 0.03 * k, mouthY - 0.028 * k, 0.014);   // one shining gold tooth, hanging from the smile
     if (look.mouth === 'fangs') {
       for (const s of [-1, 1]) {
         const f = mesh(new THREE.ConeGeometry(0.018 * k, 0.05 * k, 8), M.white, face, s * 0.045 * k, mouthY - 0.03 * k, 0.01);
@@ -659,6 +691,47 @@ export function buildCharacter(look, heightMeters) {
       }
       break;
     }
+    // --- earned (cosmetics.js): polished gold that glows a little
+    case 'goldcrown': {
+      // a tall jewelled crown: a band with a ruby and sapphires, five points topped with pearls
+      mesh(new THREE.CylinderGeometry(0.17, 0.16, 0.08, 28, 1, true), M.award, top, 0, 0.03, 0).material.side = THREE.DoubleSide;
+      mesh(new THREE.TorusGeometry(0.165, 0.012, 8, 32), M.award, top, 0, -0.01, 0).rotation.x = Math.PI / 2;
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const p = mesh(new THREE.ConeGeometry(0.038, 0.13, 4), M.award, top, Math.sin(a) * 0.16, 0.13, Math.cos(a) * 0.16);
+        p.rotation.y = a;
+        mesh(new THREE.SphereGeometry(0.018, 10, 8), M.white, top, Math.sin(a) * 0.16, 0.205, Math.cos(a) * 0.16);
+        mesh(new THREE.SphereGeometry(0.02, 10, 8), i ? M.sapphire : M.ruby, top, Math.sin(a) * 0.172, 0.03, Math.cos(a) * 0.172).scale.z = 0.5;
+      }
+      break;
+    }
+    case 'laurel':
+      // a victor's laurel wreath: a gold band round the bell with two rows of big golden leaves
+      // standing up along it, from the back to either side of the front
+      mesh(new THREE.TorusGeometry(0.17, 0.012, 8, 32), M.award, top, 0, -0.01, 0).rotation.x = Math.PI / 2;
+      for (const s of [-1, 1]) for (let i = 0; i < 6; i++) {
+        const a = s * (0.55 + i * 0.42), x = Math.sin(a) * 0.17, z = Math.cos(a) * 0.17;
+        for (const lift of [0, 1]) {
+          const leaf = mesh(new THREE.SphereGeometry(0.05, 10, 6), M.award, top, x, 0.03 + lift * 0.035, z);
+          leaf.scale.set(0.42, 1, 0.16);
+          leaf.rotation.set(0, a, s * (lift ? -0.5 : 0.5) + s * 0.4);
+        }
+      }
+      break;
+    case 'goldantlers':
+      // golden antlers: a curved beam each side with two tines
+      for (const s of [-1, 1]) {
+        const beam = new THREE.Group();
+        beam.position.set(s * 0.1, 0.02, 0);
+        beam.rotation.z = -s * 0.45;
+        top.add(beam);
+        mesh(new THREE.CylinderGeometry(0.014, 0.022, 0.24, 8), M.award, beam, 0, 0.12, 0);
+        for (const [y, t] of [[0.1, 0.9], [0.18, 0.7]]) {
+          const tine = mesh(new THREE.CylinderGeometry(0.009, 0.014, 0.1, 6), M.award, beam, s * 0.03, y + 0.03, 0);
+          tine.rotation.z = -s * t;
+        }
+      }
+      break;
   }
 
   // --- Animation --------------------------------------------------------------
