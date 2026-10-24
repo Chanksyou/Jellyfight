@@ -218,6 +218,18 @@ act3('shark-tornado-unlocks-at-85-percent',{
     step(600,()=>B.tornadoes.length===3);const count=B.tornadoes.length;step(120);
     return ok(!before&&after&&!SHARK_ATTACKS.calm.includes('tornado')&&SHARK_ATTACKS.angry.includes('tornado')&&count===3&&B.shots.length<=12,{before,after,count,shots:B.shots.length});},
 });
+act3('shark-the-jelly-never-leaves-the-arena',{
+  about:'During the fight the jelly stays on the bed: shoved hard at each wall and into each corner (where two walls meet it once squeezed out and fell to the floor), or jumping high at them, it never ends up outside the arena or below the mattress (run.js keepInArena).',
+  setup(){},
+  play(){const B=sharkFight(),{run,player:P}=G(),A=run.stage.boss;stub(B,'update',()=>({push:null}));run.health=run.stats.health=1e9;
+    const pushes={west:[-.85,9.8,-1,0],east:[.64,9.8,1,0],foot:[-.1,9.17,0,-1],head:[-.1,10.38,0,1],cornerNW:[-.88,10.42,-.7,.7],cornerNE:[.68,10.42,.7,.7],cornerSW:[-.88,9.12,-.7,-.7],cornerSE:[.68,9.12,.7,-.7]};
+    const worst={};let out=-9,low=9;
+    for(const [name,[x,z,dx,dz]] of Object.entries(pushes))for(const jump of [false,true]){
+      P.spawn(V(x,.7,z));P.snapToGround();let o=-9;
+      step(90,()=>{P.velocity.x=dx*3;P.velocity.z=dz*3;if(jump&&P.grounded)P.velocity.y=1.2;const p=P.position;o=Math.max(o,p.x-A.arenaMax[0],A.arenaMin[0]-p.x,p.z-A.arenaMax[2],A.arenaMin[2]-p.z);low=Math.min(low,p.y);});
+      worst[name+(jump?'+jump':'')]=+o.toFixed(3);out=Math.max(out,o);}
+    return ok(out<=0&&low>A.arenaMin[1]-.05,{out:+out.toFixed(3),low:+low.toFixed(3),worst});},
+});
 act3('shark-fish-circles-hurt-and-slow',{
   about:'A fish circle is wider than it was (17 cm round), and standing in one both drains Health (`dmg` a second) and slows you 30% (content/bosses.kdl pools); step out and the slow wears off.',setup(){},
   play(){const B=sharkFight(),P=holdJelly(),{run}=G(),sk=CONTENT.bosses.shark.skills.pools;B.elapsed=-1e6;

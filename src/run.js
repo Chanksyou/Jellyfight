@@ -390,6 +390,7 @@ export class Run {
         slip: this.slipT > 0 ? 1 : 0,
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
+      if (this.phase === 'boss' && this.boss) this.keepInArena(P);
     }
 
     // --- timers
@@ -1245,6 +1246,22 @@ export class Run {
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved,
     };
+  }
+
+  // A walled boss arena keeps the jelly in. The walls stop it, but should it ever end up past one
+  // (squeezed out where two meet, over the top on a stack of mid-air jumps), it's put straight back
+  // just inside, on the arena's floor, instead of falling out of the fight
+  keepInArena(P) {
+    const B = this.stage.boss;
+    if (!B.walls?.length) return;
+    const p = P.position, r = P.cfg.radius, [x0, y0, z0] = B.arenaMin, [x1, , z1] = B.arenaMax;
+    const out = p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1, fell = p.y < y0 - 0.05;
+    if (!out && !fell) return;
+    p.x = THREE.MathUtils.clamp(p.x, x0 + r, x1 - r);
+    p.z = THREE.MathUtils.clamp(p.z, z0 + r, z1 - r);
+    P.velocity.x = P.velocity.z = 0;
+    if (fell) { p.y = B.arenaMax[1]; P.velocity.y = 0; P.snapToGround(B.arenaMax[1] - y0 + 0.1); }
+    P.syncMesh();
   }
 
   // The lifetime totals earned cosmetics are judged by (cosmetics.js): this run's bugs cleared since
