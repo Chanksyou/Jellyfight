@@ -312,8 +312,8 @@ act3('coffer-beaten-leaves-a-chest', {
   },
 });
 
-act3('coffer-gone-when-the-pothos-wakes', {
-  about: 'When time runs out and the Pothos rises on the bed, the Coffer is gone from the desk too (elites are cleared at the boss intro), its tongue and jewels with it.',
+act3('coffer-gone-when-the-shark-wakes', {
+  about: 'When time runs out and the shark rises on the bed, the Coffer is gone from the desk too (elites are cleared at the boss intro), its tongue and jewels with it.',
   setup() { fresh(); },
   play() {
     const { run, menus } = G(), e = coffer();

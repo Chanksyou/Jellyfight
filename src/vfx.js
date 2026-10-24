@@ -204,6 +204,7 @@ export function floorShapeHits(kind, at, radius, height, feet, body) {
   return inside;
 }
 const VOLUME = {
+  disc: { bottom: 0, height: 1, geo: () => new THREE.CylinderGeometry(1, 1, 1, 48).translate(0, 0.5, 0) }, // finite-height circular melee and pool warnings
   ...Object.fromEntries(FLOOR_SHAPES.map(kind => ['symbol-'+kind, { bottom: 0, height: 1, geo: () => symbolGeometry(kind, true) }])),
   arc: { bottom: 0, height: 1, geo: () => arcGeometry() },   // a piece of a low slab over a floor wedge's outer band: see arcGeometry
   dome: { bottom: 0, height: 1, geo: () => new THREE.SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2) },   // a floor Blast: half a sphere standing on y = 0; scale = radius

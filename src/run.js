@@ -7,7 +7,7 @@ import { inPoly } from './hud.js';
 import { STAGES, goToAct } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
-import { Pothos } from './pothos.js';
+import { Shark } from './shark.js';
 import { Encore } from './encore.js';
 import { TYPES } from './enemies.js';
 import { CONTENT, compileMods, isRemoved } from './content.js';
@@ -61,7 +61,7 @@ export function nestMiddle(spot, r) {
 }
 
 // The boss classes, by the kind a stage's boss block names (the Clog is 'hair')
-export const BOSSES = { vacuum: Vacuum, hair: Clog, pothos: Pothos, encore: Encore };
+export const BOSSES = { vacuum: Vacuum, hair: Clog, shark: Shark, encore: Encore };
 // the boss a stage's boss block names (B.kind), built for its arena; an unknown kind is a mistake in
 // the stage file, not a reason to fight some other boss. ctx: what an arena boss needs (encore.js:
 // the built arena, the song it plays to, the act's toughness for what it calls)
@@ -1066,7 +1066,7 @@ export class Run {
       this.traversal.bossMode = true;
       this.elites.clear();
       this.roomTreasures.forEach((t) => t.hide());
-      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true); });
+      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true, CONTENT.bosses[B.kind]?.skills.arrival?.barrier||0); });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);

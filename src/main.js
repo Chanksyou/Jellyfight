@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v266';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v267';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -614,7 +614,7 @@ const GAME = {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
     }
     dendi?.tick(bossScene && (!overlay.hidden || run.paused || state.mode !== 'play') ? 0 : dt, player.position);
-    updateForceFields(player.position, camera.position);   // (where the camera was last frame)
+    updateForceFields(player.position, camera.position,dt);   // (where the camera was last frame)
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
