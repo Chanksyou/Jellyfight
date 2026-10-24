@@ -7,6 +7,7 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LOOK } from './look.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const NECK_WEIGHTS=[0,0,.1,.3,.6];
 const ellipsoid = (x, y, z, rx, ry, rz) => new THREE.SphereGeometry(1, 28, 20).scale(rx, ry, rz).translate(x, y, z);
 let SHARED=null; // retain geometry/materials between main.js's shader warmup and the real fight
 function riggedClone(template){
@@ -15,14 +16,15 @@ function riggedClone(template){
   const spine=trunk.skeleton.bones,flippers=[leftFin,rightFin];
   group.rig={trunk,head,jaw,eyes,fins:flippers,tail,spine,mat:trunk.material,clipPlane:trunk.material.clippingPlanes[0]};
   group.pose=({gape=0,headTurn=0,tailSwing=0,left=0,right=0,breath=0,finLift=0,coil=0,roll=0,stretch=0,time=0,energy=1,squint=0}={})=>{
-    head.rotation.set(-coil*.12,headTurn,roll*.15);eyes.rotation.copy(head.rotation);jaw.rotation.set(gape-coil*.12,headTurn,roll*.15);
+    // The neck carries the complete head so turning cannot split the skull seam.
+    head.rotation.set(0,0,0);eyes.rotation.copy(head.rotation);jaw.rotation.set(gape,0,0);
     const blinkPhase=(time+1.7)%4.2,blink=time>0&&blinkPhase<.14?Math.sin(blinkPhase/.14*Math.PI):0;
     eyes.scale.y=Math.max(.15,1-blink*.85-squint*.35);
     leftFin.rotation.set(left*.25,left,-finLift-Math.abs(left)*.3);
     rightFin.rotation.set(right*.25,right,finLift+Math.abs(right)*.3);
     for(let i=0;i<spine.length;i++){
       const wave=Math.sin(time*3-i*.7)*.025*energy;
-      spine[i].rotation.set(coil*(i-2)*.055, wave+headTurn*.08+tailSwing*(2-i)*.05,roll*.16);
+      spine[i].rotation.set(coil*(i-2)*.055-(i===4?coil*.12:0), wave+headTurn*NECK_WEIGHTS[i]+tailSwing*(2-i)*.05,roll*.16);
     }
     flippers.forEach((f,i)=>{f.skeleton.bones[1].rotation.z=(i?1:-1)*(Math.abs(i?right:left)*.4+finLift*.35);});
     tail.skeleton.bones[1].rotation.set(coil*.18,Math.sin(time*3-.9)*.15*energy+tailSwing*.35,0);

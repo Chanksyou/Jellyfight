@@ -127,7 +127,7 @@ act3('shark-wakes-when-time-runs-out', {
 act3('shark-jaws-and-fins-are-articulated',{
   about:'The connected chin rotates around its cheek hinge, the head leads, and the fins and tail have independent poses.',setup(){},
   play(){const B=sharkFight(),R=B.model.rig;B.model.pose({gape:.8,headTurn:.2,left:.8,right:-.3,tailSwing:.4});B.holder.updateMatrixWorld(true);
-    return ok(R.jaw.rotation.x===.8&&R.head.rotation.y===.2&&R.eyes.rotation.y===.2&&R.fins[0].rotation.y!==R.fins[1].rotation.y&&R.tail.rotation.y===.4&&R.jaw.position.z<R.head.geometry.boundingSphere.center.z+1,{jaw:R.jaw.rotation.x,tail:R.tail.rotation.y});},
+    return ok(R.jaw.rotation.x===.8&&R.spine[4].rotation.y!==0&&R.eyes.parent===R.head.parent&&R.fins[0].rotation.y!==R.fins[1].rotation.y&&R.tail.rotation.y===.4&&R.jaw.position.z<R.head.geometry.boundingSphere.center.z+1,{jaw:R.jaw.rotation.x,tail:R.tail.rotation.y});},
 });
 for(const attack of [...new Set([...SHARK_ATTACKS.calm,...SHARK_ATTACKS.angry])])act3('shark-'+attack+'-warning-and-recovery',{
   about:`${attack} has a floor warning and matching finite volume, animates, then returns to a recovery window.`,setup(){},
