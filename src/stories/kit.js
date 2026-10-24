@@ -559,7 +559,7 @@ export const sharkFight = (opts = {}) => {
   fresh({ hurt: true, bubbles: false, lash: false, elites: false, ...opts });
   const { run, menus } = G();
   run.startBossIntro();
-  step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.rise >= 1; });
+  step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.ready; });
   return run.boss;
 };
 // Where the Pothos's heart and the jelly are on screen in the fight view (pixels from the top): both

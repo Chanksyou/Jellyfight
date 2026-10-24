@@ -73,3 +73,33 @@ Health/numbers scaled by significance; layered, pitch-varied existing voices.
 No zero is intentionally accepted. The old Pothos entries are retired with its controller.
 Normal-speed visual inspection and automated behavior checks complement this audit;
 the code score does not claim that phone hardware or the full sound mix was auditioned.
+
+## Bed entrance and water
+
+The barrier rises for 1.1 s, the shark surfaces through the quilt for 1.1 s, then
+water spreads outward over 1.3 s before the attack rotation begins. `arrival` in
+`content/bosses.kdl` owns those durations, the 0.01 m water depth and 0.15 slow.
+The slow only applies to grounded feet within the covered bed footprint; it expires
+in the same frame, so air, below-bed and out-of-arena positions retain normal movement.
+Piranha pool damage, count and lifetimes remain unchanged. Their water is now brown,
+with ripples, small bubbles and foam. The paired footprint/height warning is a dim
+copper boundary instead of the former luminous orange fill. Fish swim above the
+surface and remain instanced. Phones pull the camera back during airborne poses.
+
+The single bed-water mesh is a 12-triangle thin box. Every pool adds one 48-triangle
+surface draw (at most six); the existing paired warning and fish draws are retained.
+`src/shark-water.js` calculates ripple normals, view-dependent Fresnel, restrained
+specular glints, edge foam and movement wakes in its fragment shader. The material
+program is warmed with the boss; pool materials clone it and dispose on expiry.
+There is no reflection render target, second scene render, fluid simulation, new
+texture download or new game light. This is a fixed-cost visual approximation, not
+a claim of zero GPU cost or a physical-phone frame-time measurement.
+
+### Research behind the rendering choice
+
+- [NVIDIA GPU Gems, Effective Water Simulation from Physical Models](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models) explains analytic wave normals and the strong contribution of fine surface detail. Here, a few analytic waves are evaluated directly rather than generating another texture each frame.
+- [Three.js WebGL Water](https://threejs.org/docs/pages/Water.html) is reflective and documents the additional reflection texture resolution/cost. A shallow bed sheet does not need a mirrored scene pass; Fresnel and soft analytic highlights supply a cheaper stylized cue.
+
+Balance bot skipped per the owner's standing preference. The new 15% water slow is
+an explicit balance change; the other attack numbers are preserved. Physical-phone
+GPU timing remains unmeasured.

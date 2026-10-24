@@ -23,17 +23,19 @@ function material() {
     },
     vertexShader: /* glsl */`
       ${LOGV_PARS}
-      varying vec3 vWorld;
+      attribute float fieldFloor;
+      varying vec3 vWorld;varying float vHeight;
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
+        vHeight = w.y-fieldFloor;
         gl_Position = projectionMatrix * viewMatrix * w;
         #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */`
       ${LOGF_PARS}
       uniform vec3 uColor, uPlayer; uniform float uTime;
-      varying vec3 vWorld;
+      varying vec3 vWorld;varying float vHeight;
       float hexd(vec2 p) { p = abs(p); return max(dot(p, vec2(0.5, 0.866)), p.x); }
       void main() {
         #include <logdepthbuf_fragment>
@@ -44,7 +46,7 @@ function material() {
         vec2 g = dot(a, a) < dot(b, b) ? a : b;
         float d = 0.5 - hexd(g);
         float line = 1.0 - smoothstep(0.0, fwidth(d) * 1.5 + 0.02, d);
-        float y = vWorld.y;
+        float y = vHeight;
         float low = exp(-y / 0.16);                                   // strong at jelly height, gone up high
         float shimmer = 0.6 + 0.4 * sin(y * 40.0 - uTime * 2.5 + (vWorld.x + vWorld.z) * 9.0);
         float foot = 1.0 - smoothstep(0.0, 0.012, y);                 // the glowing line on the floor
@@ -71,6 +73,7 @@ export function addForceField(scene, w) {
   if (size[1] < 0.2 || Math.min(size[0], size[2]) > 0.1) return null;   // floors and thick blocks aren't fields
   const alongX = size[0] >= size[2];
   const geo = new THREE.PlaneGeometry(alongX ? size[0] : size[2], size[1]);
+  geo.setAttribute('fieldFloor',new THREE.Float32BufferAttribute(Array(geo.attributes.position.count).fill(w.min[1]),1));
   if (!alongX) geo.rotateY(Math.PI / 2);
   const m = new THREE.Mesh(geo, material());
   m.position.set(...w.min.map((v, i) => v + size[i] / 2));
@@ -86,7 +89,10 @@ export function addForceField(scene, w) {
 }
 const fields = [];
 
-export function showForceField(m, up) { m.userData.up = up; m.visible = up; }
+export function showForceField(m, up, rise=0) {
+  m.userData.up=up;m.visible=up;m.userData.rise=rise;m.userData.risen=rise?0:1;
+  const w=m.userData.box,k=rise?.001:1;m.scale.y=k;m.position.y=w.min[1]+(w.max[1]-w.min[1])*k/2;
+}
 
 // does the line from the jelly to the camera pass through field m?
 function between(m, p, c) {
@@ -98,8 +104,11 @@ function between(m, p, c) {
   return x > w.min[io] - E && x < w.max[io] + E && y > w.min[1] - E && y < w.max[1] + E;
 }
 
-export function updateForceFields(playerPos, camPos = null) {
+export function updateForceFields(playerPos, camPos = null, dt=0) {
   if (mat) mat.uniforms.uPlayer.value.copy(playerPos).setY(playerPos.y + 0.03);
   if (!camPos) return;
-  for (const m of fields) if (m.userData.up) m.visible = !between(m, playerPos, camPos);
+  for (const m of fields) if (m.userData.up) {
+    if(m.userData.risen<1){m.userData.risen=Math.min(1,m.userData.risen+dt/m.userData.rise);const t=m.userData.risen,k=Math.max(.001,t*t*(3-2*t)),w=m.userData.box;m.scale.y=k;m.position.y=w.min[1]+(w.max[1]-w.min[1])*k/2;}
+    m.visible = !between(m, playerPos, camPos);
+  }
 }

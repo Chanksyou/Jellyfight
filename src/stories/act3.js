@@ -124,6 +124,27 @@ act3('shark-wakes-when-time-runs-out', {
   play(){const {run,menus,player}=G();run.t=run.duration-.05;step(360,()=>{if(menus.open)document.querySelector('.jf-card')?.click();return run.phase==='boss'&&run.boss?.rise>=1;});const B=run.boss,A=run.stage.boss;
     return ok(B?.kind==='shark'&&B.model.rig.jaw&&run.bossWalls.every(m=>m.visible)&&player.position.y>.55&&B.position.x>A.arenaMin[0]&&B.position.z<A.arenaMax[2]&&/GREAT WHITE ONE/i.test(document.querySelector('#hud .boss')?.textContent),{kind:B?.kind,hp:B?.hp});},
 });
+act3('shark-arrival-raises-the-barrier-then-floods-the-bed',{
+  about:'The bed barrier rises first, the shark surfaces through the quilt, then a 1 cm sheet spreads before attacks begin.',setup(){fresh({bubbles:false,lash:false,elites:false});},
+  play(){const {run}=G();run.startBossIntro();step(180,()=>run.phase==='boss'&&run.boss);const B=run.boss,fields=run.bossWalls.map(m=>m.userData.field);holdJelly();
+    step(30);const barrier=fields.every(f=>f.scale.y>0&&f.scale.y<1)&&B.rise===0&&B.flooded===0;
+    step(50);const emerging=B.rise>0&&B.rise<1&&B.flooded===0&&fields.every(f=>f.scale.y===1);
+    step(80);const flooding=B.rise===1&&B.flooded>0&&B.flooded<1&&B.phase==='rest';
+    step(120,()=>B.ready);const depth=B.water.geometry.parameters.height*B.water.scale.y;
+    return ok(barrier&&emerging&&flooding&&B.ready&&Math.abs(depth-.01)<1e-6&&Math.abs(B.water.position.y+.005-B.waterFloor-.01)<1e-6,{barrier,emerging,flooding,ready:B.ready,depth});},
+});
+act3('shark-water-slows-grounded-feet-by-15-percent',{
+  about:'Only feet touching the flooded bed receive 15% slow; jumping, below-bed positions and leaving the arena do not.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly(),log=record('status_applied');B.elapsed=-1e6;P.position.set(B.water.position.x,B.waterFloor+.003,B.water.position.z);P.grounded=true;
+    B.update(1/60,P);const wet=log.filter(e=>e.targetId===PLAYER&&e.status==='slow');log.length=0;
+    P.grounded=false;P.position.y=B.waterFloor+.2;B.update(1/60,P);P.grounded=true;P.position.y=B.waterFloor-.3;B.update(1/60,P);P.position.set(B.arena.arenaMax[0]+.2,B.waterFloor+.003,B.water.position.z);B.update(1/60,P);
+    return ok(wet.length===1&&wet[0].strength===.15&&wet[0].duration===1/60&&!log.some(e=>e.targetId===PLAYER&&e.status==='slow'),{wet,unwanted:log.length});},
+});
+act3('shark-pools-are-murky-and-the-fish-stay-visible',{
+  about:'Piranha pools have subdued brown rippling water and a faint honest boundary instead of a luminous orange fill.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly();B.pool(P.position);B.hazards(.02,P);const p=B.pools[0],U=p.surface.material.uniforms;
+    return ok(U.uMurky.value===1&&U.uTime.value>0&&p.floor.material.opacity<=.12&&p.volume.material.opacity<=.12&&B.fish.count===5&&p.surface.position.y<P.position.y+.018,{murky:U.uMurky.value,warning:p.floor.material.opacity,fish:B.fish.count});},
+});
 act3('shark-jaws-and-fins-are-articulated',{
   about:'The connected chin rotates around its cheek hinge, the head leads, and the fins and tail have independent poses.',setup(){},
   play(){const B=sharkFight(),R=B.model.rig;B.model.pose({gape:.8,headTurn:.2,left:.8,right:-.3,tailSwing:.4});B.holder.updateMatrixWorld(true);

@@ -1066,7 +1066,7 @@ export class Run {
       this.traversal.bossMode = true;
       this.elites.clear();
       this.roomTreasures.forEach((t) => t.hide());
-      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true); });
+      this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true, CONTENT.bosses[B.kind]?.skills.arrival?.barrier||0); });
       const p = new THREE.Vector3(...B.playerStart);
       this.world.focus(p, 1);
       P.spawn(p);

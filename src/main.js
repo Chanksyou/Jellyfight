@@ -614,7 +614,7 @@ const GAME = {
       if (dendi) startBossScene(run.boss); else run.boss.die();   // a stage with no cat: it just dies
     }
     dendi?.tick(bossScene && (!overlay.hidden || run.paused || state.mode !== 'play') ? 0 : dt, player.position);
-    updateForceFields(player.position, camera.position);   // (where the camera was last frame)
+    updateForceFields(player.position, camera.position,dt);   // (where the camera was last frame)
     systems.avatar.update(dt);
     systems.input.update(dt);
     systems.camera.update(dt);
