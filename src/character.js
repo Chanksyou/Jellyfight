@@ -407,6 +407,15 @@ export function buildCharacter(look, heightMeters) {
     g.position.set(x, 0, -R * 0.12);
     face.add(g);
     eyes.push(g);
+    if (look.eyes === 'goldmask') {
+      // the mask's gold plate behind the eye, swept up and out to a point like a cat's eye (the face
+      // is pressed flat onto the bell and layered in the order it's built, so it goes in first)
+      const side = x < 0 ? -1 : 1;
+      const plate = mesh(new THREE.SphereGeometry(R * 1.45, 24, 12), M.award, g, side * R * 0.25, R * 0.1, 0);
+      plate.scale.set(1.15, 0.85, 0.15);
+      const tip = mesh(new THREE.SphereGeometry(R * 0.8, 16, 10), M.award, g, side * R * 1.45, R * 0.75, 0);
+      tip.scale.set(1.1, 0.45, 0.2); tip.rotation.z = side * 0.6;
+    }
     if (look.eyes === 'shades') {
       // gold-rimmed shades: a dark glossy lens in a gold rim, a bright glint across it
       mesh(new THREE.SphereGeometry(R, 24, 16), M.black, g).scale.z = 0.3;
@@ -437,13 +446,8 @@ export function buildCharacter(look, heightMeters) {
       brow.rotation.z = x < 0 ? -0.4 : 0.4;
     }
     if (look.eyes === 'goldmask') {
-      // a golden masquerade mask: a gold plate behind each eye, swept up and out to a point at the
-      // side like a cat's eye, a rim round the eye and a ruby above it
+      // a golden masquerade mask: a rim round the eye and a ruby above it, on the plate added first
       const side = x < 0 ? -1 : 1;
-      const plate = mesh(new THREE.SphereGeometry(R * 1.45, 24, 12), M.award, g, side * R * 0.25, R * 0.1, -R * 0.12);
-      plate.scale.set(1.15, 0.85, 0.22);
-      const tip = mesh(new THREE.SphereGeometry(R * 0.8, 16, 10), M.award, g, side * R * 1.45, R * 0.75, -R * 0.1);
-      tip.scale.set(1.1, 0.45, 0.2); tip.rotation.z = side * 0.6;
       mesh(new THREE.TorusGeometry(R * 1.05, R * 0.14, 8, 28), M.award, g, 0, 0, R * 0.14).scale.z = 0.5;
       mesh(new THREE.SphereGeometry(R * 0.2, 10, 8), M.ruby, g, side * R * 0.2, R * 1.2, R * 0.12);
     }
@@ -462,7 +466,7 @@ export function buildCharacter(look, heightMeters) {
   if (look.mouth === 'smile' || look.mouth === 'fangs' || look.mouth === 'goldtooth') {
     const m = mesh(new THREE.TorusGeometry(0.06 * k, 0.014 * k, 6, 16, Math.PI), M.mouth, face, 0, mouthY + 0.03 * k, 0.005);
     m.rotation.z = Math.PI;
-    if (look.mouth === 'goldtooth') mesh(new THREE.BoxGeometry(0.036 * k, 0.042 * k, 0.014 * k), M.award, face, 0.03 * k, mouthY - 0.028 * k, 0.014);   // one shining gold tooth, hanging from the smile
+    if (look.mouth === 'goldtooth') mesh(new THREE.BoxGeometry(0.042 * k, 0.05 * k, 0.016 * k), M.award, face, 0.03 * k, mouthY - 0.032 * k, 0.014);   // one shining gold tooth, hanging from the smile
     if (look.mouth === 'fangs') {
       for (const s of [-1, 1]) {
         const f = mesh(new THREE.ConeGeometry(0.018 * k, 0.05 * k, 8), M.white, face, s * 0.045 * k, mouthY - 0.03 * k, 0.01);

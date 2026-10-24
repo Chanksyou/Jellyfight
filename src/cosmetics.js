@@ -64,7 +64,7 @@ export const unlockedAwards = (f = feats()) => Object.entries(NEEDS).flatMap(([k
 // What a locked option asks for, in words, for the creator (with how far along you are, given f)
 export function requirementText(need, f = null) {
   if (!need) return '';
-  const so = (k, v) => (f && typeof v === 'number' && k in f ? ` (${Number(f[k] || 0).toLocaleString()} so far)` : '');
+  const so = (k, v) => (f && typeof v === 'number' && v > 1 && k in f ? ` (${Number(f[k] || 0).toLocaleString()} so far)` : '');
   const parts = Object.entries(need).map(([k, v]) => {
     if (k === 'won') return 'win a run';
     if (k === 'wins') return (v === 1 ? 'win a run' : `win ${v} runs`) + so(k, v);

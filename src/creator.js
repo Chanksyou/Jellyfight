@@ -86,7 +86,7 @@ export class Creator {
     const chips = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="chips">${
       OPTIONS[key].map(([id, name]) => {
         const need = requirement(key, id), open = !need || unlocked(key, id, F);
-        return `<button data-k="${key}" data-v="${id}"${open ? '' : ` data-need="${esc(name + ': ' + requirementText(need, F))}"`} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}"${open ? '' : ` title="${esc(requirementText(need, F))}"`}>${need ? '✨ ' : ''}${name}${open ? '' : ' 🔒'}</button>`;
+        return `<button data-k="${key}" data-v="${id}"${open ? '' : ` data-need="${esc(name + ' · ' + requirementText(need, F))}"`} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}"${open ? '' : ` title="${esc(requirementText(need, F))}"`}>${need ? '✨ ' : ''}${name}${open ? '' : ' 🔒'}</button>`;
       }).join('')}</div><div class="need" data-for="${key}"></div></div>`;
     const colors = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="sw">${
       SWATCHES.map((c) => `<button data-k="${key}" data-v="${c}" style="background:${c}" class="${L[key].toLowerCase() === c ? 'on' : ''}" aria-label="${c}"></button>`).join('')

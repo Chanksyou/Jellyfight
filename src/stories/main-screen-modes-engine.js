@@ -9,8 +9,8 @@ import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
-import { NEEDS, requirement, requirementText, unlocked } from '../cosmetics.js';
-import { normalizeLook } from '../character.js';
+import { NEEDS, FEATS_KEY, lifetime, requirement, requirementText, unlocked } from '../cosmetics.js';
+import { normalizeLook, buildCharacter, DEFAULT_LOOK } from '../character.js';
 import { G, V, fresh, near, ok, spawn, step, story, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
@@ -295,30 +295,52 @@ story('modes/creator-layout-debug', {
 });
 
 story('modes/cosmetics-framework', {
-  about: 'The earned-cosmetics framework: the look a run submits is the whole descriptor (it survives a JSON round trip through normalizeLook, so a leaderboard row can draw the actual jelly), and a registered requirement locks its creator option (disabled, 🔒, what it asks for) until the player\'s feats meet it. The registry ships empty: everything is unlocked.',
+  about: 'Earned cosmetics: the look a run submits is the whole descriptor (it survives a JSON round trip through normalizeLook, so a leaderboard row can draw the actual jelly); the golden items are locked in the creator (✨, 🔒, tapping one says what it takes and how far along you are) until the lifetime totals meet them; a run that ends adds its bugs, the run and a win to those totals, and the end screen names what it just unlocked.',
   setup() { fresh({ elites: false }); },
   play() {
-    const { run } = G();
+    const { run, menus } = G();
     const look = run.playerLook();
-    const roundTrip = normalizeLook(JSON.parse(JSON.stringify(look)));
-    const carried = !!look && roundTrip.body === look.body && roundTrip.top === look.top && roundTrip.color === look.color && roundTrip.eyes === look.eyes;
-    const none = { won: false, bestScore: 0, bestLevel: 0, bestKills: 0 }, won = { ...none, won: true };
-    const freeByDefault = unlocked('top', 'crown', none) && requirement('top', 'crown') === null;
-    NEEDS.top = { crown: { won: true } };
-    let lockedOk = false, creatorOk = false;
+    const roundTrip = normalizeLook(JSON.parse(JSON.stringify({ ...look, top: 'goldcrown' })));
+    const carried = !!look && roundTrip.body === look.body && roundTrip.top === 'goldcrown' && roundTrip.color === look.color && roundTrip.eyes === look.eyes;
+    const zero = { runs: 0, wins: 0, kills: 0, elites: 0 };
+    const rules = requirement('top', 'goldcrown')?.wins === 1 && !unlocked('top', 'goldcrown', zero) && unlocked('top', 'goldcrown', { ...zero, wins: 1 })
+      && unlocked('top', 'bow', zero) && requirementText(requirement('top', 'laurel'), { kills: 412 }) === 'Earned: clear 1,000 bugs (412 so far)';
+    // every golden item builds, in gold
+    const GOLD = new THREE.Color('#ffc93a').convertSRGBToLinear().getHexString();   // character.js M.award
+    const gold = (l) => { let n = 0; const c = buildCharacter(normalizeLook({ ...DEFAULT_LOOK, ...l }), 0.03); (c.group || c.root || c).traverse((o) => { if (o.isMesh && o.material.color?.getHexString() === GOLD) n++; }); return n; };
+    const plain = { top: 'none', eyes: 'big', mouth: 'smile' }, base = gold(plain);
+    const built = Object.entries(NEEDS).flatMap(([key, ids]) => Object.keys(ids).map((id) => [`${key}:${id}`, gold({ ...plain, [key]: id }) > base]));
+    const allBuilt = built.length >= 6 && built.every(([, b]) => b);
+    const saved = localStorage.getItem(FEATS_KEY);
+    let creatorOk = false, flushOk = false, endOk = false, info = {};
     try {
-      lockedOk = !unlocked('top', 'crown', none) && unlocked('top', 'crown', won) && unlocked('top', 'bow', none)
-        && requirementText(requirement('top', 'crown')) === 'Earned with win a run';
+      localStorage.setItem(FEATS_KEY, JSON.stringify(zero));
       const over = document.querySelector('#g-over');
       over.hidden = false;
       document.querySelector('#g-over [data-act="creator"]').click(); step(30);
-      const crown = document.querySelector('#creator [data-k="top"][data-v="crown"]');
+      const crown = document.querySelector('#creator [data-k="top"][data-v="goldcrown"]');
       const bow = document.querySelector('#creator [data-k="top"][data-v="bow"]');
-      creatorOk = !!crown && crown.disabled && crown.textContent.includes('🔒') && !!bow && !bow.disabled;
+      crown?.click();
+      const note = document.querySelector('#creator .need[data-for="top"]')?.textContent || '';
+      const wearing = run.playerLook().top;
+      creatorOk = !!crown && crown.classList.contains('locked') && crown.textContent.includes('✨') && crown.textContent.includes('🔒')
+        && /^🔒 Golden crown · Earned: win a run$/.test(note) && wearing !== 'goldcrown' && !!bow && !bow.classList.contains('locked');
+      info.note = note;
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
       over.hidden = true;
-    } finally { delete NEEDS.top; }
-    return ok(carried && freeByDefault && lockedOk && creatorOk, { carried, freeByDefault, lockedOk, creatorOk });
+      // bugs cleared during the run count once, however often it's flushed (act change, page hidden, the end)
+      run.kills = 7; run.flushFeats(); run.flushFeats();
+      flushOk = lifetime().kills === 7;
+      run.phase = 'won';
+      stub(run, 'board', null);
+      run.endRun('🏆 You won!', 'won', 'Play again');
+      const end = document.querySelector('.jf-modal')?.innerText || '';
+      menus.close();
+      const f = lifetime();
+      info = { ...info, f, end: end.slice(0, 160) };
+      endOk = f.runs === 1 && f.wins === 1 && f.kills === 7 && /Unlocked/.test(end) && /Golden crown/.test(end) && unlocked('top', 'goldcrown');
+    } finally { saved === null ? localStorage.removeItem(FEATS_KEY) : localStorage.setItem(FEATS_KEY, saved); }
+    return ok(carried && rules && allBuilt && creatorOk && flushOk && endOk, { carried, rules, built: built.filter(([, b]) => !b), creatorOk, flushOk, endOk, ...info });
   },
 });
 
