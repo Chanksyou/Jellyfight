@@ -284,7 +284,17 @@ then push. GitHub merges do not execute local hooks, so complete required checks
 before merging a pull request. The `Game checks` GitHub Actions job runs the same
 guards and full story suite on pull requests, main pushes and merge groups. Its
 status is the required merge check. Failure logs and screenshots are attached to
-the workflow run as `game-check-results`.
+the workflow run as `game-check-results-1` through `game-check-results-4`.
+
+CI uses the official Playwright container with browsers and system dependencies
+already installed. Keep its image version and version check in
+`.github/workflows/game-checks.yml` aligned with the pinned Playwright dependency
+in `tests/package.json`. Four independent runners split page tasks with
+`--shard=1/4` through `--shard=4/4`; each runner boots and plays one page at a
+time. The reload and mobile touch checks are included exactly once, and guards
+run on the first runner. The required `Game checks` result passes only when all
+four runners pass. A partial shard never records `tests/.last-green` or skips
+because of it. Local full-suite commands remain unchanged.
 
 Stories use a fixed default seed, reset independently for each story. Reproduce
 another set of rolls with `node tests/run.mjs --seed=42` (combine with a story

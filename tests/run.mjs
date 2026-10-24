@@ -5,6 +5,7 @@
 //   node tests/run.mjs elites          only stories whose name contains "elites" (a,b: either)
 //   node tests/run.mjs --no-mobile     skip the phone check
 //   node tests/run.mjs --jobs=N        how many pages play side by side (default 3)
+//   node tests/run.mjs --shard=1/4     one of four disjoint groups of page tasks (CI)
 //   node tests/run.mjs --force         play a full run even if this commit already passed one
 //   node tests/run.mjs --seed=42       reproduce a different deterministic set of story rolls
 //
@@ -23,13 +24,19 @@ const args = process.argv.slice(2);
 const filters = (args.find((a) => !a.startsWith('--')) || '').split(',');
 const wants = (name) => filters.some((f) => name.includes(f));
 const MOBILE = !args.includes('--no-mobile');
+const shardArg = args.find(a => a.startsWith('--shard='));
+const shard = shardArg ? /^--shard=([1-9]\d*)\/([1-9]\d*)$/.exec(shardArg) : null;
+if (shardArg && (!shard || !Number.isSafeInteger(+shard[1]) || !Number.isSafeInteger(+shard[2]) || +shard[1] > +shard[2])) {
+  throw new Error('--shard must be INDEX/TOTAL with 1 <= INDEX <= TOTAL');
+}
+const shardIndex = shard ? +shard[1] - 1 : 0, shardCount = shard ? +shard[2] : 1;
 const seedArg = args.find(a => a.startsWith('--seed='));
 const SEED = seedArg ? Number(seedArg.slice(7)) : DEFAULT_SEED;
 if (!Number.isInteger(SEED) || SEED < 0 || SEED > 0xffffffff) throw new Error('--seed must be an integer from 0 to 4294967295');
 console.log(`Story seed base: ${SEED} (replay with --seed=${SEED})`);
 
 // a full run of a clean checkout whose commit already passed one has nothing new to find (--force plays it anyway)
-if (filters.join('') === '' && MOBILE && !seedArg && !args.includes('--force')) {
+if (!shardArg && filters.join('') === '' && MOBILE && !seedArg && !args.includes('--force')) {
   try {
     const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
     const head = execSync('git rev-parse HEAD', { cwd: ROOT }).toString().trim();
@@ -76,11 +83,12 @@ const gate = async (f) => {
 const prep = async (page) => page.evaluate(() => APT.renderer.setAnimationLoop(null));   // stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise
 const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
 // before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
-const first = PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
+// Start on the likely first page of this shard instead of booting act 1 on every runner.
+const first = shardArg ? PAGES[shardIndex % PAGES.length] : PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
 let listing = await boot(env, first.opts);
 const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
 // one task per page (the page that listed the stories plays its own act's), then the two checks that need a page of their own
-const tasks = PAGES.map((P) => [P, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n)]).filter(([, names]) => names.length)
+let tasks = PAGES.map((P) => [P, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n)]).filter(([, names]) => names.length)
   .map(([P, names]) => async (e) => {
     let got = listing && P === first ? listing : await boot(e, P.opts);
     if (got === listing) listing = null;
@@ -91,6 +99,10 @@ const tasks = PAGES.map((P) => [P, all.filter(([n, k]) => k === P.key && wants(n
 if (listing && !tasks.length) await listing.page.close();
 if (wants('first-run/survives-a-reload')) tasks.push(firstRunReload);
 if (MOBILE && wants('mobile/touch-controls')) tasks.push(touchControls);
+// Partition after adding standalone checks so they run exactly once across the shards.
+tasks = tasks.filter((_, i) => i % shardCount === shardIndex);
+if (!tasks.length) throw new Error('No story tasks selected; check the filter and --shard');
+if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${tasks.length} page tasks`);
 const envs = [env];
 await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, async (_, w) => {
   for (let t; (t = tasks.shift());) console.log((await t(envs[w] ||= await start())).join('\n'));
@@ -174,7 +186,7 @@ await env.close();
 console.log(`\n${passed} passed, ${failed} failed`);
 // a full green run on a clean checkout records its commit: the pre-push hook (.githooks/pre-push)
 // lets that commit go to main
-if (!failed && filters.join('') === '' && MOBILE && SEED === DEFAULT_SEED) {
+if (!shardArg && !failed && filters.join('') === '' && MOBILE && SEED === DEFAULT_SEED) {
   try {
     const clean = !execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
     if (clean) fs.writeFileSync(path.join(ROOT, 'tests/.last-green'), execSync('git rev-parse HEAD', { cwd: ROOT }).toString());
