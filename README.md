@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v264 calms the see-through camera in cluttered spots like the open tea shelves in the act 1 kitchen. As the camera's rays swept across a shelf, cups and teapots faded in and out every few frames, and a pile of half-transparent pieces drawn over each other looked like it was glitching. Now anything the camera fades stays faded for 0.4 s after it's clear, and small clutter (under 15 cm across) fades all the way out instead of to see-through. It's still there to bump into. Furniture and walls fade to see-through as before (`src/camera.js`). Across a 4-second camera sweep at the shelves, pieces switching fade direction within a sixth of a second went from 325 to 8.
+
 v263 fixes the big white circles flashing on the first bug you hit each run. The game's puffs and wet splats are pooled pieces built 1 m across and sized as they play. The first time one was needed it was brand new, and it got drawn for a frame at that full 1 m (a white sphere and a disc) before its first update shrank it. Later hits reused pieces left small, so only the first hit showed it. New pieces now start at size 0, and a puff or splat is sized the moment it spawns (`src/fx.js`).
 
 v262 makes treasures scarcer. Each act's night brings 4 treasures to the room instead of 5, now at 0:15, 1:15, 2:15 and 3:20. Elites still leave theirs. Luck is half as strong: each step up in rarity is (1 + Luck/200)× likelier, where it was Luck/100 (`luckWeights` in `src/stats.js`). The Game Die (level-up cards roll one rarity higher) is now a Legendary treasure, so it only turns up as a rare find or a Boss reward. It was Epic.
