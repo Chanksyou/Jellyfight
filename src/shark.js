@@ -118,12 +118,12 @@ export class Shark {
     this.settle=1;
     this.fx.impact(at,this.color,r*.25,heavy?18:10);this.fx.ring(at,this.color,r,.4);
     for(let i=0;i<6;i++){const a=i*Math.PI/3;this.fx.puff(at.clone().add(V(Math.sin(a)*r*.5,.025,Math.cos(a)*r*.5)),this.dust,.028,.5);}
-    this.fx.splat(at,this.dust,r*.7);juice.feel(heavy?'impact-big':'impact');sfx.crocThump(heavy?1.3:.8);
+    this.fx.splat(at,this.dust,r*.7);juice.feel(heavy?'impact-big':'impact');sfx.sharkSlam(heavy);
   }
   begin(name,player=this.player){
     if(!player||this.dead||this.dying)return;
     this.state=name;this.phase='windup';this.elapsed=0;this.beat=0;this.repeats=0;this.lift=0;
-    this.aim(player);this.prepare(player);sfx.whiz();
+    this.aim(player);this.prepare(player);if(!['dive','burrowBite','maelstrom','tornado'].includes(name))sfx.sharkSwish(.5);
   }
   aim(player){this.aimHeading=Math.atan2(player.position.x-this.position.x,player.position.z-this.position.z);}
   skill(){return this.def.skills[this.state];}
@@ -152,11 +152,11 @@ export class Shark {
   release(player){
     const sk=this.skill();this.phase='active';this.elapsed=0;this.heading=this.aimHeading;this.struck=false;this.lastSpinProgress=0;
     if(['bite','rear','combo','spin'].includes(this.state)){
-      this.fx.impact(this.center(),this.color,.035,6);sfx.whiz();
+      this.fx.impact(this.center(),this.color,.035,6);sfx.sharkSwish();
     }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
-      this.phase='track';this.elapsed=0;this.clearWarning();this.model.visible=false;this.fin.visible=true;
+      this.phase='track';this.elapsed=0;this.clearWarning();this.model.visible=false;this.fin.visible=true;sfx.sharkDive();
       if(this.state==='maelstrom')this.pool(this.position,this.def.skills.maelstrom.radius,true);
-    }else {sfx.whiz();this.fx.puff(this.position,this.dust,.08,.4);}
+    }else {sfx.sharkSwish(1.4);this.fx.puff(this.position,this.dust,.08,.4);}
   }
   pool(at,r=this.def.skills.pools.radius,slow=false){
     const sk=this.def.skills.pools;
@@ -172,11 +172,11 @@ export class Shark {
     surface.position.copy(at).setY(at.y+.011);surface.scale.setScalar(r);surface.renderOrder=2;surface.userData.noCollide=true;this.scene.add(surface);
     U.uMurky.value=1;U.uCircular.value=1;U.uCenter.value.set(at.x,at.z);U.uExtent.value.set(r,r);U.uSource.value.set(at.x,at.z);U.uReach.value=r+.025;U.uFill.value=1;U.uWake.value=0;
     this.pools.push({at:at.clone(),r,floor,volume,surface,life:slow?this.def.skills.maelstrom.life:sk.life,slow,age:0});
-    this.fx.impact(at,this.color,.04,8);sfx.mugSplash();
+    this.fx.impact(at,this.color,.04,8);sfx.sharkFish(true);
   }
   removePool(p){for(const m of [p.floor,p.volume,p.surface]){this.scene.remove(m);m.material.dispose();}}
   launchTornadoes(){
-    const sk=this.def.skills.tornado;
+    const sk=this.def.skills.tornado;sfx.sharkTornado();
     for(let i=0;i<3;i++){
       const m=this.tornadoVisuals[i];m.visible=true;m.scale.setScalar(1);m.position.copy(this.position);
       const a=i*Math.PI*2/3+this.heading;
@@ -187,7 +187,7 @@ export class Shark {
     if(this.shots.length>=12)return;
     const to=this.clampIn(from.clone().add(V(Math.sin(angle)*.45,0,Math.cos(angle)*.45)),.08);to.y=this.floorAt(to);
     const m=this.fx.orb(this.color,.012);m.position.copy(from);this.shots.push({m,from:from.clone(),to,t:0});
-    this.fx.impact(from,this.color,.02,5);sfx.clogSpit();
+    this.fx.impact(from,this.color,.02,5);sfx.sharkFish();
   }
   hazards(dt,player){
     const sk=this.def.skills.pools, T=this.def.skills.tornado;let fish=0;
@@ -201,7 +201,7 @@ export class Shark {
       if(p.life<=0){this.removePool(p);this.pools.splice(i,1);continue;}
       if(Math.hypot(player.position.x-p.at.x,player.position.z-p.at.z)<p.r+player.cfg.radius&&player.position.y<p.at.y+sk.height&&player.position.y+player.cfg.height>p.at.y){
         if(p.slow)bus.emit('status_applied',{targetId:PLAYER,status:'slow',duration:.15});
-        else bus.emit('damage_taken',{targetId:PLAYER,amount:sk.dmg*dt,source:'boss',drain:true});
+        else{bus.emit('status_applied',{targetId:PLAYER,status:'slow',strength:sk.slow,duration:.15});bus.emit('damage_taken',{targetId:PLAYER,amount:sk.dmg*dt,source:'boss',drain:true});}
         if(this.dead||this.dying)return;
       }
       for(let k=0;k<5;k++){const a=this.t*(k%2?2:-2)+k*2.4;this._pos.set(Math.sin(a)*p.r*.65,.018+Math.abs(Math.sin(this.t*5+k))*.024,Math.cos(a)*p.r*.65).add(p.at);drawFish(this._pos,-a,1);}
@@ -315,7 +315,7 @@ export class Shark {
       if((this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.08;this.fx.puff(this.fin.position,this.dust,.015,.25);}
       if(this.elapsed>=sk.track){
         this.target.copy(this.position);this.target.y=this.floorAt(this.target);this.floor=this.target.y;
-        this.warn(this.target,sk.radius,sk.height);this.phase='eruption';this.elapsed=0;sfx.whiz();
+        this.warn(this.target,sk.radius,sk.height);this.phase='eruption';this.elapsed=0;sfx.sharkRumble(sk.tell);
       }
     }else if(this.phase==='eruption'){
       const sk=this.skill(), t=clamp(this.elapsed/sk.tell,0,1);
@@ -349,7 +349,7 @@ export class Shark {
           // Damage callbacks can synchronously kill or stun the attacker.
           const warning=this.warning;this.struck=true;this.hit(player,warning.at,warning.r,warning.height,sk.dmg,bite);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};
-          this.burst(warning.at,warning.r);if(bite)sfx.cofferChomp();else sfx.wind();
+          this.burst(warning.at,warning.r);if(bite)sfx.sharkChomp();else sfx.sharkSwish(1.2);
           if(!sweep)this.clearWarning();
         }
         this.lastSpinProgress=p;

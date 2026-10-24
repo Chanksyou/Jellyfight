@@ -1215,6 +1215,52 @@ export const sfx = {
     noise(260 * j, 0.8, 0.18 * k, 0.3, 'lowpass', 0, 90); tone('sine', 110 * j, 45, 0.22 * k, 0.22);
     for (let i = 0; i < 3; i++) noise((500 + Math.random() * 400) * j, 1.5, 0.04, 0.05 * Math.min(1, k), 'lowpass', 0.07 + i * 0.05 + Math.random() * 0.02);
   },
+  // the Great White One (shark.js): every attack has its own sound, wet and heavy like a plush
+  // shark in a sheet of water
+  // its jaws snapping shut: a breath in, a hard clack, a felt crunch and a deep chomp under it
+  sharkChomp() {
+    if (!ready() || !gap('sharkChomp', 70)) return; const j = jitter(0.08);
+    noise(1400 * j, 1, 0.08, 0.06, 'bandpass', 0, 3200);
+    noise(5200 * j, 2.5, 0.025, 0.24, 'bandpass', 0.07); tone('square', 320 * j, 90, 0.06, 0.1, 0.07);
+    noise(700 * j, 0.8, 0.16, 0.3, 'lowpass', 0.075, 140); tone('sine', 85 * j, 34, 0.3, 0.32, 0.07);
+    for (let i = 0; i < 3; i++) noise((2600 + Math.random() * 1600) * j, 4, 0.018, 0.05, 'bandpass', 0.13 + i * 0.035);
+  },
+  // a fin or tail sweeping through the water (k: how long): a rising swish and a spray behind it
+  sharkSwish(k = 1) {
+    if (!ready() || !gap('sharkSwish', 90)) return; const j = jitter(0.12);
+    noise(600 * j, 1.6, 0.22 * k, 0.16, 'bandpass', 0, 3400 * j); noise(4200 * j, 1, 0.16 * k, 0.07, 'highpass', 0.08 * k);
+    tone('sine', 150 * j, 70, 0.18 * k, 0.08);
+  },
+  // the whole shark crashing down (a leap, an eruption, heavy: the big ones): a sub boom, a slap
+  // of water, the splash sheet hissing out and drops raining back
+  sharkSlam(heavy = false) {
+    if (!ready() || !gap('sharkSlam', 80)) return; const j = jitter(0.08), k = heavy ? 1 : 0.65;
+    tone('sine', 95 * j, 30, 0.55 * k, 0.36 * k); noise(240 * j, 0.7, 0.45 * k, 0.32 * k, 'lowpass', 0, 50);
+    noise(3600 * j, 1, 0.05, 0.22 * k, 'highpass'); noise(1500 * j, 0.8, 0.5 * k, 0.12 * k, 'bandpass', 0.02, 4800 * j);
+    for (let i = 0; i < 6; i++) noise((2400 + Math.random() * 2600) * j, 5, 0.014, 0.045 * k, 'bandpass', 0.16 + i * 0.05 + Math.random() * 0.04);
+  },
+  // going under: a gulp, a sucking swirl, bubbles up after it
+  sharkDive() {
+    if (!ready() || !gap('sharkDive', 120)) return; const j = jitter(0.1);
+    tone('sine', 260 * j, 70 * j, 0.16, 0.14); noise(1900 * j, 1.2, 0.32, 0.1, 'bandpass', 0.02, 380 * j);
+    for (let i = 0; i < 5; i++) tone('sine', (520 + Math.random() * 500) * j, (900 + Math.random() * 500) * j, 0.04, 0.035, 0.2 + i * 0.06);
+  },
+  // something big rising under the water toward you: a low surge that swells to the moment it breaks
+  sharkRumble(time = 0.6) {
+    if (!ready() || !gap('sharkRumble', 200)) return; const j = jitter(0.08);
+    tone('sawtooth', 48 * j, 70 * j, time, 0.05); noise(180 * j, 0.8, time, 0.12, 'lowpass', 0, 420 * j);
+  },
+  // a fish flung out of a whirlwind (a wet flip) and landing (a slap and a splash circle opening)
+  sharkFish(landing = false) {
+    if (!ready() || !gap(landing ? 'sharkFishLand' : 'sharkFish', 70)) return; const j = jitter(0.15);
+    if (!landing) { noise(2800 * j, 2, 0.03, 0.08, 'bandpass'); tone('sine', 520 * j, 980 * j, 0.07, 0.04); return; }
+    noise(4200 * j, 1, 0.035, 0.12, 'highpass'); tone('sine', 210 * j, 70, 0.1, 0.12); noise(900 * j, 1, 0.18, 0.08, 'lowpass', 0.02, 260);
+  },
+  // its tornadoes spinning up: a howling swirl that climbs
+  sharkTornado() {
+    if (!ready() || !gap('sharkTornado', 300)) return; const j = jitter(0.08);
+    noise(500 * j, 3, 0.9, 0.1, 'bandpass', 0, 2200 * j); noise(1100 * j, 4, 0.7, 0.06, 'bandpass', 0.15, 3000 * j); tone('sine', 90 * j, 160 * j, 0.8, 0.07);
+  },
   // the Bull: its rush landing (a snap, a deep boom through the table, stuffing pattering down), a
   // puff for each spiral beat, a spiral Shot striking, the snort sending its little bulls off and
   // a little bull bursting (hit: on the jelly, heavier)
