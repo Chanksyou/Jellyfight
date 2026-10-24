@@ -247,6 +247,21 @@ export const sfx = {
     else if(kind==='gold'){tone('sine',1400*j,2100*j,.16,.035);tone('triangle',2100*j,2800*j,.1,.018,.025);}
     else{noise(4200*j,3,.025,.025,'highpass');tone('sine',1800*j,900*j,.04,.02);}
   },
+  // a jump: a soft bloop sliding up out of the bell, and a little bubbly fizz under it
+  jump() {
+    if (!ready() || !gap('jump', 90)) return;
+    const j = jitter(0.08);
+    tone('sine', 260 * j, 620 * j, 0.11, 0.05);
+    noise(1800 * j, 2, 0.06, 0.025, 'bandpass', 0.01, 3200 * j);
+  },
+  // a landing (k 0..1: how far it fell): a wet pat, a low plop under a harder one, droplets pattering
+  land(k = 0.5) {
+    if (!ready() || !gap('land', 120)) return;
+    const j = jitter(0.1);
+    noise(900 * j, 1, 0.07 + 0.05 * k, 0.04 + 0.06 * k, 'lowpass', 0, 300);
+    tone('sine', 170 * j, 80, 0.09 + 0.05 * k, 0.03 + 0.05 * k);
+    for (let i = 0; i < 2 + Math.round(2 * k); i++) noise((2200 + Math.random() * 1600) * j, 3, 0.015, 0.015 + 0.015 * k, 'bandpass', 0.04 + i * 0.035);
+  },
   gadgetSpring(){if(!ready()||!gap('gadgetSpring',150))return;const j=jitter();tone('triangle',260*j,900*j,.14,.045);tone('sine',900*j,500*j,.12,.025,.06);},
   gadgetFizz(){if(!ready()||!gap('gadgetFizz',150))return;const j=jitter();noise(4500*j,1,.3,.04,'highpass');tone('sine',180*j,80*j,.13,.045);},
   gadgetRemote(){if(!ready()||!gap('gadgetRemote',90))return;const j=jitter();tone('square',1100*j,700*j,.035,.025);noise(3000*j,2,.07,.03,'bandpass');},

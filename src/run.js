@@ -148,7 +148,21 @@ export class Run {
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
+    // a jump's takeoff: a ring of water pushed out under the bell, a pop of bubbles, a bloop
+    this.player.onJump = () => {
+      const P = this.player.position, r = this.cfg.radius, c = LOOK.color('jump-splash', '#cfefff');
+      this.fx.ring(_drop.set(P.x, P.y + 0.002, P.z), c, r * LOOK.num('jump-ring', 2.2), 0.28);
+      this.fx.burst(_drop.set(P.x, P.y + r * 0.3, P.z), [c, '#ffffff'], 5, r * 0.09, 0.22, P.y);
+      sfx.jump();
+    };
     this.player.onLand = (drop) => {
+      // the landing: a splash ring and droplets, bigger and louder the further it fell (not a step down)
+      if (drop > LOOK.num('land-splash-from', 0.04)) {
+        const P = this.player.position, r = this.cfg.radius, k = Math.min(1, drop / 0.3), c = LOOK.color('jump-splash', '#cfefff');
+        this.fx.ring(_drop.set(P.x, P.y + 0.002, P.z), c, r * (1.8 + 1.8 * k), 0.3 + 0.15 * k);
+        this.fx.burst(_drop.set(P.x, P.y + r * 0.2, P.z), [c, '#ffffff', '#9fd8ff'], Math.round(4 + 8 * k), r * 0.1, 0.18 + 0.2 * k, P.y);
+        sfx.land(k);
+      }
       const M = this.mods;
       const L = M.landingShockwave;
       if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff);

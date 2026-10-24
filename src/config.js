@@ -19,6 +19,13 @@ export const CONFIG = {
     turnSpeed: 12,
     climbSpeed: 0.3,     // m/s up fabric
     airJumpMul: 0.85,    // a mid-air jump is a bit weaker than one from the ground
+    // jump feel (platformer conventions: Mario's heavier fall, Celeste's buffer and coyote time)
+    coyoteTime: 0.1,     // s after walking off an edge that a jump still works
+    jumpBuffer: 0.12,    // s before landing that a jump press still counts (it jumps on touchdown)
+    jumpCut: 3,          // gravity x this while rising after jump is let go: a tap is a short hop, a hold the full height
+    fallGravity: 1.7,    // gravity x this on the way down: a snappier arc, still floaty
+    apexHang: 0.55,      // gravity x this near the top of a held jump (|vy| under apexBand): a beat of hang time
+    apexBand: 0.12,      // m/s
   },
   camera: {
     distance: LOOK.num('camera-distance', 0.68),   // how far from the player the camera sits

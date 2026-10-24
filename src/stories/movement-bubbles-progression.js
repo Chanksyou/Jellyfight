@@ -327,3 +327,39 @@ story('progression/level-curve', {
     return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });
+
+story('movement/jump-feel', {
+  about: 'The jump, tuned like a platformer\'s: held, it reaches its full height (20 cm) with a beat of hang at the top, then falls faster than it rose; tapped (let go early) it\'s a short hop; a press just before landing jumps on touchdown (buffer). The bell stretches up at takeoff and squashes flat on landing; takeoff pushes out a ring of water with a bloop, and a real landing splashes.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); step(30); },
+  play() {
+    const { player, input, fx, run } = G(), y0 = player.position.y, rings = () => fx.rings.filter((r) => r.alive).length;
+    let jumps = 0; const oj = run.player.onJump; run.player.onJump = () => { jumps++; oj(); };
+    const jump = (holdFrames) => {
+      const start = player.position.y; let peak = start, up = 0, down = 0, stretch = 1;
+      input.keys.add('Space'); input.jumpQueued = true;
+      for (let i = 0; i < 240; i++) {
+        if (i === holdFrames) input.keys.delete('Space');
+        step(1);
+        stretch = Math.max(stretch, player.avatar.squash.scale.y);
+        if (player.position.y > peak) { peak = player.position.y; up = i; }
+        if (i > 2 && player.grounded) { down = i - up; break; }
+      }
+      input.keys.delete('Space');
+      return { height: +(peak - start).toFixed(3), up, down, stretch: +stretch.toFixed(3) };
+    };
+    const r0 = rings(), full = jump(999), ring = rings() > r0;
+    let squash = 1; for (let i = 0; i < 12; i++) { step(1); squash = Math.min(squash, player.avatar.squash.scale.y); }
+    step(30);
+    const hop = jump(4);
+    step(30);
+    // the buffer: jump, and press again just before touching down; it jumps again on landing
+    input.jumpQueued = true; step(1);
+    step(240, () => player.velocity.y < 0 && player.position.y - y0 < 0.012);
+    const before = jumps; input.jumpQueued = true;
+    step(20);
+    const buffered = jumps === before + 1 && player.velocity.y > 0.2;
+    run.player.onJump = oj;
+    return ok(full.height > 0.19 && full.height < 0.23 && full.down < full.up && hop.height < full.height * 0.6 && buffered && ring && full.stretch > 1.08 && squash < 0.94,
+      { full, hop, buffered, ring, squash: +squash.toFixed(3) });
+  },
+});

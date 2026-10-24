@@ -726,8 +726,14 @@ export function buildCharacter(look, heightMeters) {
     }
   }
 
+  // landing: squash flat (impact > 0), harder the faster it came down; the spring overshoots
+  // into a little stretch and settles. (It used to push the other way: a landing stretched.)
   function land(strength) {
-    impactV -= Math.min(4, strength) * 1.2;
+    impactV += Math.min(1.6, strength) * 4.2;
+  }
+  // takeoff: a stretch up out of the squeeze, on the same spring
+  function takeoff(k = 1) {
+    impactV -= 2.2 * k;
   }
 
   function pulse(k = 1) { kick = Math.max(kick, k); }
@@ -738,5 +744,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => m.dispose());
   }
 
-  return { root, update, land, pulse, dispose, look, tentacles: rig };
+  return { root, update, land, takeoff, pulse, dispose, look, tentacles: rig, squash };
 }
