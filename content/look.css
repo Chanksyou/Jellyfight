@@ -225,6 +225,11 @@
   --hud-base-height: 900;
   --hud-scale-min: 0.85;
   --hud-scale-max: 1.75;
+  /* the jump (run.js onJump / onLand): the ring of water pushed out at takeoff (x the jelly's radius),
+     and a landing's splash, from drops of this many m (a step down makes none) */
+  --jump-splash: #cfefff;
+  --jump-ring: 2.2;
+  --land-splash-from: 0.04;
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;

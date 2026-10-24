@@ -149,29 +149,46 @@ export class Player {
 
     // --- Jump, climbing, updrafts, gravity --------------------------------
     // Jump from the ground, or pulse the bell for a mid-air jump (only with Pen Spring: one per copy)
-    if (this.grounded) { this.airJumps = this.maxAirJumps; this.coyote = 0.1; }
+    // (coyote time: a jump still works just after walking off an edge; a press just before landing
+    // is buffered and jumps on touchdown; let go while rising and the jump is cut short)
+    if (this.grounded) { this.airJumps = this.maxAirJumps; this.coyote = c.coyoteTime ?? 0.1; }
     else this.coyote = Math.max(0, (this.coyote ?? 0) - dt);
-    if (input.consumeJump()) {
+    this.jumpBuffered = Math.max(0, (this.jumpBuffered ?? 0) - dt);
+    const pressed = input.consumeJump();
+    const ground = this.grounded || this.coyote > 0;
+    if (pressed && !ground && !(this.airJumps > 0 && !env.climb)) this.jumpBuffered = c.jumpBuffer ?? 0;
+    if (pressed || (ground && this.jumpBuffered > 0)) {
       const v = Math.sqrt(2 * c.gravity * c.jumpHeight * (env.jumpMul ?? 1));
-      if (this.grounded || this.coyote > 0) {
+      if (ground) {
         this.velocity.y = v;
-        this.coyote = 0;
+        this.coyote = 0; this.jumpBuffered = 0;
+        this.held = input.jumpHeld; this.cut = false;   // a held jump can be cut short by letting go
+        this.grounded = false;
         this.avatar?.pulse?.();
-      } else if (this.airJumps > 0 && !env.climb) {
+        this.avatar?.takeoff?.();
+        this.onJump?.();
+      } else if (pressed && this.airJumps > 0 && !env.climb) {
         this.airJumps--;
         this.onAirJump?.();
         this.velocity.y = Math.max(this.velocity.y, v * c.airJumpMul);
+        this.held = input.jumpHeld; this.cut = false;
         this.swim = 0;                                   // a big squeeze of the bell
         this.avatar?.pulse?.();
+        this.avatar?.takeoff?.();
       }
-      this.grounded = false;
     }
+    if (this.held && !input.jumpHeld) { this.held = false; this.cut = true; }   // let go: from here the rise is cut short
     this.climbing = !!env.climb && input.jumpHeld;
     if (this.climbing) {
       this.velocity.y = c.climbSpeed;
       this.airJumps = this.maxAirJumps;
     } else {
-      this.velocity.y = Math.max(-c.maxFall, this.velocity.y - c.gravity * dt);
+      // a heavier fall than rise, a beat of hang at the top of a held jump, and a short hop if let go
+      const vy = this.velocity.y;
+      const g = vy < -(c.apexBand ?? 0) ? c.fallGravity ?? 1
+        : Math.abs(vy) <= (c.apexBand ?? 0) && this.held ? c.apexHang ?? 1
+        : vy > 0 && this.cut ? c.jumpCut ?? 1 : 1;
+      this.velocity.y = Math.max(-c.maxFall, vy - c.gravity * g * dt);
     }
 
     // --- Move -------------------------------------------------------------
