@@ -37,7 +37,7 @@ export const STAT_INFO = {
   health:          { name: 'Health',          icon: '💧', fmt: (v) => `${Math.round(v)}` },
   moveSpeed:       { name: 'Move speed',      icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
   jumpHeight:      { name: 'Jump height',     icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
-  regen:           { name: 'Health regen',    icon: '💦', fmt: (v) => `${+v.toFixed(2)}/s` },
+  regen:           { name: 'Health regen',    icon: '💦', fmt: (v) => `${+(v * 5).toFixed(2)} every 5 s` },
   dodge:           { name: 'Dodge',           icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
   luck:            { name: 'Luck',            icon: '🍀', fmt: (v) => `${Math.round(v)}` },
   pierce:          { name: 'Pierce',          icon: '🧷', fmt: (v) => `+${Math.round(v)}` },
@@ -84,7 +84,7 @@ const CARD_FLAGS = {
   range:      { pct: true },
   fireRate:   { pct: true },
   moveSpeed:  { pct: true },
-  regen:      { suffix: '/s' },   // health a second
+  regen:      { per: 5 },         // Health a second, read as Health every `per` seconds
   dodge:      { suffix: '%' },    // percentage points
   bubbleSize: { pct: true },
 };
@@ -98,6 +98,7 @@ export const bubbleShare = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
   const v = CARD_FLAGS[card.stat] || {};
+  if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} seconds`;
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
   return `+${amount} ${info.name}`;
