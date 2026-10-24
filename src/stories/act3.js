@@ -124,6 +124,16 @@ act3('shark-wakes-when-time-runs-out', {
   play(){const {run,menus,player}=G();run.t=run.duration-.05;step(360,()=>{if(menus.open)document.querySelector('.jf-card')?.click();return run.phase==='boss'&&run.boss?.rise>=1;});const B=run.boss,A=run.stage.boss;
     return ok(B?.kind==='shark'&&B.model.rig.jaw&&run.bossWalls.every(m=>m.visible)&&player.position.y>.55&&B.position.x>A.arenaMin[0]&&B.position.z<A.arenaMax[2]&&/GREAT WHITE ONE/i.test(document.querySelector('#hud .boss')?.textContent),{kind:B?.kind,hp:B?.hp});},
 });
+act3('shark-arena-stops-at-the-pillows',{
+  about:'The force field closes right along the front of the pillows: the two pillows and the bolster behind them are outside the fight, and nothing inside it stands more than the folded quilt\'s 4-5 cm edge above the sheet, so the shark can reach every part of it.',
+  setup(){sharkFight();},
+  play(){const {run,APT}=G(),B=run.boss,A=run.stage.boss,box=new THREE.Box3();
+    let pillowFront=Infinity;APT.scene.traverse(o=>{if(o.isMesh&&/pillow/i.test(o.name)&&o.position){box.setFromObject(o);if(box.max.x>A.arenaMin[0]&&box.min.x<A.arenaMax[0]&&box.min.z>9&&box.min.z<11.3)pillowFront=Math.min(pillowFront,box.min.z);}});
+    const head=run.bossWalls.map(m=>m.position.z).reduce((a,b)=>Math.max(a,b),0);
+    const ys=[];for(let x=A.arenaMin[0]+.03;x<A.arenaMax[0];x+=.1)for(let z=A.arenaMin[2]+.03;z<A.arenaMax[2];z+=.1)ys.push(B.floorAt(V(x,0,z)));
+    const rise=Math.max(...ys)-Math.min(...ys);
+    return ok(pillowFront>=A.arenaMax[2]-.005&&Math.abs(head-pillowFront)<.05&&rise<.06,{pillowFront:+pillowFront.toFixed(3),head:+head.toFixed(3),edge:A.arenaMax[2],rise:+rise.toFixed(3)});},
+});
 act3('shark-arrival-raises-the-barrier-then-floods-the-bed',{
   about:'The bed barrier rises first, the shark surfaces through the quilt, then a 1 cm sheet spreads before attacks begin.',setup(){fresh({bubbles:false,lash:false,elites:false});},
   play(){const {run}=G();run.startBossIntro();step(180,()=>run.phase==='boss'&&run.boss);const B=run.boss,fields=run.bossWalls.map(m=>m.userData.field);holdJelly();
@@ -207,6 +217,23 @@ act3('shark-tornado-unlocks-at-85-percent',{
   play(){const B=sharkFight({hurt:false});holdJelly();B.hp=B.maxHp*.851;const before=B.angry;B.hp=B.maxHp*.85;const after=B.angry;B.begin('tornado');
     step(600,()=>B.tornadoes.length===3);const count=B.tornadoes.length;step(120);
     return ok(!before&&after&&!SHARK_ATTACKS.calm.includes('tornado')&&SHARK_ATTACKS.angry.includes('tornado')&&count===3&&B.shots.length<=12,{before,after,count,shots:B.shots.length});},
+});
+act3('shark-fish-circles-hurt-and-slow',{
+  about:'A fish circle is wider than it was (17 cm round), and standing in one both drains Health (`dmg` a second) and slows you 30% (content/bosses.kdl pools); step out and the slow wears off.',setup(){},
+  play(){const B=sharkFight(),P=holdJelly(),{run}=G(),sk=CONTENT.bosses.shark.skills.pools;B.elapsed=-1e6;
+    const at=P.position.clone();B.pool(at);const r=B.pools[0].r;let hp=run.health;
+    B.hazards(.1,P);const hurt=hp-run.health,slowed=run.slowHardT>0&&run.slowK===sk.slow;
+    P.position.x+=r+.1;step(30);const freed=!(run.slowHardT>0);
+    return ok(r===sk.radius&&r>=.17&&sk.slow===.3&&sk.dmg>=3&&hurt>0&&slowed&&freed,{r,hurt:+hurt.toFixed(3),slowK:run.slowK,slowed,freed});},
+});
+act3('shark-attacks-have-their-own-sounds',{
+  about:'Each kind of shark attack plays its own sound: a swish as a bite or leap starts, its jaws chomping, a heavy slam where it lands or erupts, a gulp as it dives, a rising rumble before an eruption, the tornadoes howling, fish flicked out and slapping down.',setup(){},
+  play(){const B=sharkFight(),P=holdJelly(),{run}=G();run.health=run.stats.health=1e6;
+    const names=['sharkChomp','sharkSwish','sharkSlam','sharkDive','sharkRumble','sharkTornado','sharkFish'],heard={};for(const k of names)heard[k]=spy(sfx,k);
+    for(const name of ['bite','leap','dive','tornado']){B.recover();B.stunT=0;B.begin(name,P);step(60*8,()=>B.phase==='rest');B.elapsed=-1e6;}
+    step(60*3);
+    const counts=Object.fromEntries(names.map(k=>[k,heard[k].length])),landed=heard.sharkFish.some(([l])=>l),flung=heard.sharkFish.some(([l])=>!l);
+    return ok(names.every(k=>counts[k]>0)&&landed&&flung,{counts,landed,flung});},
 });
 act3('shark-pools-are-bounded-expire-and-can-be-jumped',{
   about:'Pools never exceed six, have visible fish, cannot hurt below the bed, can be jumped, and disappear after their lifetime.',setup(){},

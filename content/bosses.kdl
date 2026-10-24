@@ -48,17 +48,18 @@ boss "clog" name="The Clog" hp=1500 contact=3 {
 // Pools are capped and expire, keeping a route open on the small bed arena.
 boss "shark" name="The Great White One" hp=1500 contact=0 {
     arrival barrier=1.1 breach=1.1 flood=1.3 depth=0.01 slow=0.15
-    motion speed=0.10 rise=0.7 rest=1.15 punish=2.4 knock=0.55
-    bite windup=0.75 active=0.28 radius=0.16 height=0.14 reach=0.24 dmg=4
-    rear windup=0.95 active=0.30 radius=0.16 height=0.14 reach=0.24 dmg=4
-    combo windup=0.65 active=0.32 radius=0.15 sweep=0.34 height=0.10 reach=0.23 dmg=3
-    spin windup=1.0 active=0.55 radius=0.39 height=0.07 reach=0 dmg=4
-    leap windup=1.0 active=0.9 radius=0.23 height=0.16 apex=0.45 dmg=5
-    dive windup=0.7 track=1.4 speed=0.38 tell=0.65 active=0.7 radius=0.21 height=0.25 apex=0.35 count=4 dmg=4
-    burrowBite windup=0.6 track=1.0 speed=0.30 tell=0.65 active=0.45 radius=0.16 height=0.14 apex=0.12 dmg=3
-    maelstrom windup=0.9 track=1.8 speed=0.20 tell=0.8 active=0.9 radius=0.28 height=0.18 apex=0.40 life=5 dmg=4
-    tornado windup=1.2 track=1.2 speed=0.30 tell=1.2 active=1.3 radius=0.30 height=0.20 apex=0.65 at=0.85 life=5 travel=0.18 fishEvery=1.3 flight=0.8 fishDmg=2 dmg=4
-    pools max=6 life=20 radius=0.13 height=0.05 dmg=2
+    motion speed=0.16 rise=0.7 rest=1.15 punish=2.4 knock=0.55
+    bite windup=0.75 active=0.2 radius=0.16 height=0.14 reach=0.24 dmg=4
+    rear windup=0.95 active=0.22 radius=0.16 height=0.14 reach=0.24 dmg=4
+    combo windup=0.65 active=0.24 radius=0.15 sweep=0.34 height=0.10 reach=0.23 dmg=3
+    spin windup=1.0 active=0.4 radius=0.39 height=0.07 reach=0 dmg=4
+    leap windup=1.0 active=0.6 radius=0.23 height=0.16 apex=0.45 dmg=5
+    dive windup=0.7 track=1.0 speed=0.6 tell=0.65 active=0.7 radius=0.21 height=0.25 apex=0.35 count=4 dmg=4
+    burrowBite windup=0.6 track=0.75 speed=0.48 tell=0.65 active=0.45 radius=0.16 height=0.14 apex=0.12 dmg=3
+    maelstrom windup=0.9 track=1.3 speed=0.32 tell=0.8 active=0.65 radius=0.28 height=0.18 apex=0.40 life=5 dmg=4
+    tornado windup=1.2 track=0.9 speed=0.45 tell=1.2 active=1.3 radius=0.30 height=0.20 apex=0.65 at=0.85 life=5 travel=0.3 fishEvery=1.3 flight=0.55 fishDmg=2 dmg=4
+    // the fish circles left where it lands: `dmg` Health a second and you swim `slow` slower inside one
+    pools max=6 life=20 radius=0.17 height=0.05 dmg=3 slow=0.3
     scent time=6 speed=1.4 bleed=3 dmg=0.6
     frenzy time=4 tempo=1.25 damage=1.15
 }

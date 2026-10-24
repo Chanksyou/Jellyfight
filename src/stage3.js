@@ -116,17 +116,20 @@ export const STAGE3 = {
     name: 'The Great White One',
     kind: 'shark',
     intro: 'Something is moving beneath the quilt…',
-    spawn: [-0.15, 0.65, 10.5],
+    spawn: [-0.15, 0.65, 10.05],       // the middle of the open bed, in front of the pillows
     faceBoss: true,
+    // the flat of the bed, from its foot to the front edge of the pillows (z 10.48): the force field
+    // closes right along the pillows, so the pillows and the bolster behind them stay outside the
+    // fight and the whole arena is level, somewhere the shark can reach
     arenaMin: [-0.95, 0.6, 9.07],
-    arenaMax: [0.74, 1.3, 11.3],
+    arenaMax: [0.74, 1.3, 10.48],
     playerStart: [-0.1, 0.7, 9.4],
-    // round the top of the bed (only there in the fight), a little below the mattress so there's no gap
+    // round the open bed (only there in the fight), a little below the mattress so there's no gap
     walls: [
-      { min: [-0.99, 0.55, 9.03], max: [-0.95, 1.3, 11.34] },   // west, by the bassinet
-      { min: [0.74, 0.55, 9.03], max: [0.78, 1.3, 11.34] },     // east
+      { min: [-0.99, 0.55, 9.03], max: [-0.95, 1.3, 10.52] },   // west, by the bassinet
+      { min: [0.74, 0.55, 9.03], max: [0.78, 1.3, 10.52] },     // east
       { min: [-0.99, 0.55, 9.03], max: [0.78, 1.3, 9.07] },     // the foot
-      { min: [-0.99, 0.55, 11.3], max: [0.78, 1.3, 11.34] },    // the headboard
+      { min: [-0.99, 0.55, 10.48], max: [0.78, 1.3, 10.52] },   // along the front of the pillows
     ],
   },
 };
