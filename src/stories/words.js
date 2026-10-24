@@ -13,7 +13,7 @@ import { SPECIES, buildCharacter, normalizeLook } from '../character.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
 import { applyState } from '../cat.js';
-import { G, STORIES, V, offs, fresh, holdJelly, near, ok, pothosFloor, record, shownWarnings, sim, spawn, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
+import { G, STORIES, V, offs, fresh, holdJelly, near, ok, record, shownWarnings, sim, spawn, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
 
 // --- the vocabulary: one story per behaviour word (src/words.js), proving what it does
 story('words/chase', {
@@ -800,141 +800,6 @@ story('words/rolls', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('hair', near(0.4, 0)); },
   play() { const e = G().enemies.list[0], a = e.mesh.rotation.x; step(30); return ok(Math.abs(e.mesh.rotation.x - a) > 1, { turned: +(e.mesh.rotation.x - a).toFixed(2) }); },
 });
-story('words/drops', {
-  about: 'An Aerial root drops from above onto a circle on the floor near you: the circle and the dome of space over it fill together as it falls, it lands right there as they fill (about 1 s), and both go.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('root', near(0.15, 0)); },
-  play() {
-    const { enemies, player } = G(), e = enemies.list[0], spot = near(0.15, 0), floor = player.position.y;
-    step(1);
-    const high = e.pos.y - floor;
-    const pair = () => volumePairs().find(([v, f]) => f && Math.hypot(v.position.x - spot.x, v.position.z - spot.z) < 0.01);
-    step(10);
-    const p1 = pair(), was = p1?.[0].material.progress;
-    step(20);
-    const p2 = pair(), filling = !!(p1 && p2 && p2[0].material.progress > was && p2[0].material.progress === p2[1].material.progress);
-    let frames = 31;
-    step(60 * 2, () => { frames++; return e.state !== 'drop'; });
-    const secs = frames / 60, landed = Math.hypot(e.pos.x - spot.x, e.pos.z - spot.z) < 0.01 && Math.abs(e.pos.y - floor) < 0.01;
-    step(2);
-    const w = shownWarnings(), gone = !w.floor.length && !w.volume.length;
-    return ok(high > 0.3 && filling && landed && secs > 0.9 && secs < 1.15 && gone, { high: +high.toFixed(2), filling, landed, secs: +secs.toFixed(2), gone });
-  },
-});
-story('words/holds', {
-  about: 'An Aerial root that reaches you holds on for 3 s: you swim at half speed and lose a little Health (1 a second, no flinch), then it withers away, worth no XP, and you swim at full speed again.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
-  play() {
-    const { enemies, player } = G(), home = player.position.clone();
-    const swim = () => { tp(home.x, home.y, home.z, 0); step(5); const p0 = player.position.clone(); sim(0.5, ['KeyW']); return Math.hypot(player.position.x - p0.x, player.position.z - p0.z); };
-    const free = swim();
-    tp(home.x, home.y, home.z, 0);
-    const e = spawn('root', near(0, 0)), hurt = record('damage_taken'), kills = record('enemy_killed');
-    step(60 * 2, () => e.state === 'hold');
-    const grabbed = e.state === 'hold', t0 = G().run.t;
-    const held = swim();
-    step(60 * 4, () => e.dead);
-    const secs = G().run.t - t0, lost = hurt.filter((d) => d.source === 'root').reduce((s, d) => s + d.amount, 0);
-    const drained = hurt.filter((d) => d.source === 'root').every((d) => d.drain);
-    step(30);
-    const after = swim(), spent = kills.find((k) => k.targetId === e.id);
-    return ok(grabbed && Math.abs(held / free - 0.5) < 0.08 && after / free > 0.92 && Math.abs(secs - 3) < 0.15 && lost >= 2.5 && lost <= 3.5 && drained && spent?.silent,
-      { free: +free.toFixed(3), held: +held.toFixed(3), after: +after.toFixed(3), secs: +secs.toFixed(2), lost, drained, silent: spent?.silent });
-  },
-});
-
-// --- the Pothos's Cuttings and Sap sprouts (act 3's boss drops them; they're bugs like any other)
-story('words/becomes', {
-  about: 'A Cutting left alone: a floor circle round it fills like a countdown over about 6 s, and when it fills a Sap sprout takes its place where it stood.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('cutting', near(0.2, 0)); },
-  play() {
-    const { enemies } = G(), c = enemies.list[0];
-    step(3);
-    const at = c.pos.clone();
-    let frames = 3, mid = null, sprout = null, warned = false;
-    step(60 * 8, () => {
-      frames++;
-      const w = pothosFloor();
-      if (w.length && Math.hypot(w[0].position.x - at.x, w[0].position.z - at.z) < 0.01) warned = true;
-      if (frames === 180) mid = w[0]?.material.progress;
-      sprout = enemies.list.find((x) => x.type === 'sprout' && !x.dead);
-      return sprout;
-    });
-    const secs = frames / 60, where = sprout ? Math.hypot(sprout.pos.x - at.x, sprout.pos.z - at.z) : null;
-    return ok(warned && mid > 0.4 && mid < 0.6 && sprout && c.dead && secs > 5.8 && secs < 6.3 && where < 0.005,
-      { warned, mid: mid && +mid.toFixed(2), secs: +secs.toFixed(2), sprout: !!sprout, cutting: c.dead ? 'gone' : 'still there', where });
-  },
-});
-story('enemies/cutting-killed-in-time-never-sprouts', {
-  about: 'A Cutting killed within its countdown does nothing more: no Sap sprout comes, and its Warning goes with it.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('cutting', near(0.2, 0)); },
-  play() {
-    const { enemies } = G(), c = enemies.list[0];
-    step(60 * 3);
-    const shown = pothosFloor().length;
-    bus.emit('damage_taken', { targetId: c.id, amount: 9999 });
-    step(60 * 5);
-    const sprouts = enemies.list.filter((x) => x.type === 'sprout' && !x.dead).length;
-    return ok(shown === 1 && c.dead && !sprouts && !pothosFloor().length, { shown, dead: c.dead, sprouts, after: pothosFloor().length });
-  },
-});
-// a Sap sprout near the jelly, held still, and the first glob it lobs
-function sapLob() {
-  fresh({ hurt: true, elites: false, bubbles: false, lash: false });
-  tp(3.2, 0.05, 3.0, 0);
-  holdJelly();
-  spawn('sprout', near(0.25, 0));
-}
-const firstSap = () => { step(60 * 6, () => G().enemies.lobs.length > 0); return G().enemies.lobs[0]; };
-const shownAt = (to) => { const w = warningsAt(to); return { floor: w.floor?.visible ? w.floor : null, volume: w.volume?.visible ? w.volume : null }; };
-story('words/lob', {
-  about: 'A Sap sprout lobs sap at you: its Warning is a floor circle where you stand with a dome over it, filling together while the glob flies; it lands as a Blast that hits a jelly inside, and both go.',
-  setup() { sapLob(); },
-  play() {
-    const log = record('damage_taken'), b = firstSap(), to = b?.to.clone();
-    if (!b) return ok(false, { lobbed: false });
-    step(10);
-    const w1 = shownAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
-    step(10);
-    const w2 = shownAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
-    const together = w1.floor && w1.volume && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[0] > p1[0];
-    step(60 * 2, () => b.done);
-    const hit = log.find((d) => d.source === 'sprout'), after = shownAt(to);
-    return ok(together && hit && !after.floor && !after.volume, { p1, p2, hit: hit?.amount, after: { floor: !!after.floor, volume: !!after.volume } });
-  },
-});
-story('enemies/sap-jump-clears', {
-  about: 'A jelly in the air over the circle when the sap lands is clear of the Blast.',
-  setup() { sapLob(); },
-  play() {
-    const { player } = G(), log = record('damage_taken'), b = firstSap();
-    if (!b) return ok(false, { lobbed: false });
-    step(60 * 2, () => b.k > 0.9);
-    player.position.y += 0.1; player.grounded = false;      // jumped as it comes down
-    step(60 * 2, () => b.done);
-    const hit = log.some((d) => d.source === 'sprout');
-    return ok(b.done && !hit, { landed: b.done, hit });
-  },
-});
-story('enemies/sap-puddle-slows', {
-  about: 'Where sap lands it leaves a sticky puddle (a floor hazard, no volume): a jelly standing in it is slowed, one just beside it isn\'t.',
-  setup() { sapLob(); },
-  play() {
-    const { player, enemies } = G(), b = firstSap();
-    if (!b) return ok(false, { lobbed: false });
-    const to = b.to.clone(), slows = record('status_applied');
-    step(60 * 2, () => b.done);
-    step(20);
-    const inside = slows.filter((s) => s.targetId === PLAYER && s.status === 'slow').length;
-    const pud = enemies.puddles.find((p) => Math.hypot(p.m.position.x - to.x, p.m.position.z - to.z) < 0.01);
-    const vol = shownWarnings().volume.length;
-    player.position.set(to.x + (pud?.r || 0.05) + 0.04, player.position.y, to.z);
-    slows.length = 0;
-    step(20);
-    const beside = slows.filter((s) => s.targetId === PLAYER && s.status === 'slow').length;
-    return ok(pud && inside > 0 && beside === 0 && vol === 0, { puddle: !!pud, inside, beside, vol });
-  },
-});
-
 // --- how the bugs' attacks feel (docs/agents/attack-feel.md, src/stories/attack-audit.js): the
 // feedback each one makes when it really lands, checked by spying on the sounds and effects
 function feelSpy() {
@@ -1013,9 +878,6 @@ feelStory('dive', 'A wasp sets off on its dive with a buzzing rip and stings the
     const r = feelOfHit('wasp', 4, 6);
     return ok(r.near && r.e.dead && hitFelt(r, 'diveGo', 'waspSting').ok, { ...r, dead: r.e.dead, e: undefined });
   });
-feelStory('lob', 'A Sap sprout\'s glob leaves its pod with a flash and lands on the jelly with a splat and a plop; the sprout squashes, the jelly\'s drops splat.',
-  () => { holdJelly(); spawn('sprout', near(0.25, 0)); },
-  () => { const r = feelOfHit('sprout', 7); return hitFelt(r, 'acid', 'lobSplat'); });
 feelStory('sortie', 'A ladybug\'s missile goes off on the jelly with a varied boom and leaves a scorch on the floor that fades.',
   () => { spawn('ladybug', near(0.3, 0, 0.12)).stateT = 1.2; },
   () => {
@@ -1023,32 +885,6 @@ feelStory('sortie', 'A ladybug\'s missile goes off on the jelly with a varied bo
     step(60 * 8, () => hits.some((d) => d.source === 'missile'));
     const hit = hits.some((d) => d.source === 'missile'), voices = [...new Set(log.sfx)];
     return ok(hit && log.splat >= 1 && ['missileLaunch', 'missileBoom'].every((v) => voices.includes(v)), { hit, splats: log.splat, voices });
-  });
-feelStory('becomes', 'A Cutting sprouting into a Sap sprout: a flash, soil and leaf bits thrown up, broken soil left on the floor (it fades), a rustle, creak and pop of its own.',
-  () => spawn('cutting', near(0.2, 0)),
-  () => {
-    const log = feelSpy(), { enemies } = G();
-    step(60 * 7, () => enemies.list.some((x) => x.type === 'sprout' && !x.dead));
-    const sprout = enemies.list.some((x) => x.type === 'sprout' && !x.dead), voices = [...new Set(log.sfx)];
-    return ok(sprout && log.splat >= 1 && log.burst >= 1 && voices.includes('sprout'), { sprout, splats: log.splat, bursts: log.burst, voices });
-  });
-feelStory('drops', 'An Aerial root landing: a woody thunk, it squashes as it lands, and bark dust is left on the floor (it fades).',
-  () => spawn('root', near(0.15, 0)),
-  () => {
-    const log = feelSpy(), e = G().enemies.list[0];
-    let recoil = 0;
-    step(60 * 2, () => { if (e.state !== 'drop') { recoil = e.recoil || 0; return true; } });
-    const voices = [...new Set(log.sfx)];
-    return ok(recoil > 0.5 && log.splat >= 1 && voices.includes('rootLand'), { recoil: +recoil.toFixed(2), splats: log.splat, voices });
-  });
-feelStory('holds', 'An Aerial root holding on: every squeeze flashes on the jelly with a creak and the root writhes tighter; spent, it withers with a dry rustle and bits of bark.',
-  () => {},
-  () => {
-    const e = spawn('root', near(0, 0)), log = feelSpy();
-    let tightened = false;
-    step(60 * 6, () => { if (e.state === 'hold' && e.recoil > 0.5) tightened = true; return e.dead; });
-    const mid = jellyMid(), flashes = log.impact.filter((p) => p.distanceTo(mid) < 0.06).length, voices = [...new Set(log.sfx)];
-    return ok(e.dead && tightened && flashes >= 4 && log.burst >= 1 && ['clogSnare', 'rootSqueeze', 'rootWither'].every((v) => voices.includes(v)), { dead: e.dead, tightened, flashes, bursts: log.burst, voices });
   });
 
 // --- guards: the vocabulary stays complete, and content mistakes are caught

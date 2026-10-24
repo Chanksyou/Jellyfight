@@ -135,7 +135,7 @@
   --controller-chip-size: 0.002;
   --controller-scuff: #514949;
   --controller-scuff-size: 0.018;
-  /* act 3's Elites and the Pothos answering their own attacks (src/elites.js, src/pothos.js): feel
+  /* act 3's Elites answering their own attacks (src/elites.js): feel
      only, harmless fading leftovers in muted colours (never their --hostile-* hue) */
   --elite-land-squash: 0.22;     /* a landing or stomp flattens the body this much, springing back */
   --elite-recoil: 0.16;          /* a shot kicks its head back this far (radians) */
@@ -154,14 +154,6 @@
   --coffer-scuff-size: 0.45;
   --coffer-shards: #b89a6a;
   --coffer-shards-size: 0.25;
-  --pothos-fling-windup: 0.45;   /* s before it flings Cuttings or drops roots: its heart swells, drawing in motes */
-  --pothos-gather-grow: 0.12;
-  --pothos-fling-pulse: 0.2;     /* the heart's jolt as it lets go */
-  --pothos-fling-time: 0.25;     /* the flung motes' flight: as long as a Cutting takes to grow in */
-  --pothos-soil: #6b5a3a;
-  --pothos-soil-size: 0.02;
-  --pothos-leaf-bits: #164d18 #ffdf4a #6b5a3a;
-  --drop-scuff-size: 0.4;        /* an Aerial root's landing mark, of its Warning's radius */
   /* the Mug's and Kettle's kick as they attack (radians back, and squash) */
   --elite-recoil-squash: 0.12;
   --mug-coffee: #3a2214;         /* coffee drops flying off a lob or the spill */
@@ -315,50 +307,6 @@
   --boss-glow: 0.15;
   --boss-rim: 0.6;
   --rim-color: #ffcc9e;
-  /* the Pothos (src/pothos.js): variegated leaves, deep green streaked with gold, and its heart */
-  --pothos-leaf-deep: #0a2a0c;   /* the leaf's edges */
-  --pothos-leaf: #164d18;        /* its middle */
-  --pothos-leaf-gold: #ffdf4a;   /* the variegated streaks, high contrast */
-  --pothos-leaf-rib: #e0c235;    /* the midrib */
-  --pothos-vine: #3f6a26;        /* the trailing vines */
-  --pothos-heart: #7dff5a;
-  --pothos-heart-gold: #ffd34a;
-  --pothos-heart-vein: #ffe066;  /* the veins on the heart */
-  --pothos-heart-pit: #1f5a10;   /* the dark pits between them */
-  --pothos-heart-glow: #2f8a14;  /* its emissive, kept below white so the colour reads */
-  --pothos-heart-halo: #5ee83a;  /* the glow round it */
-  --pothos-heart-angry: #c8460e; /* its emissive once it's angry (below 45% Health): burning hot */
-  --pothos-heart-angry-halo: #ff8a2a; /* the glow round it then */
-  --pothos-leaf-angry: #220902;  /* its leaves' smoulder then, with each heartbeat */
-  --pothos-leaf-open: #3b5a0a;   /* its leaves light up green-gold while they're parted after a Vine Whip (the opening) */
-  --pothos-open-grow: 0.4;       /* how much bigger the heart swells then */
-  --pothos-open-halo: 0.5;       /* how far its glow spreads then (m, before the plant's scale) */
-  --pothos-sway: 0.025;          /* canopy/heart travel in the plant's frame; pot remains seated */
-  --pothos-sway-rate: 1.8;       /* radians per second, faster when angry */
-  --pothos-flutter: 0.18;        /* phased leaf motion along the canopy and vines */
-  --pothos-sweep-impact: 0.025;  /* confirmed contact flash, not a new damage area */
-  --pothos-leaf-glow: #071405;   /* the leaves' own faint glow (the Pothos's, and its Cuttings' and Sap sprouts') */
-  --pothos-vine-glow: #0a1a06;   /* the vines' */
-  --pothos-pot: #b8653c;         /* its terracotta pot */
-  --pothos-pot-dark: #7e3f22;    /* the darker blotches in the clay */
-  --pothos-pot-moss: #58772c;    /* the moss creeping up it and over the rim */
-  --pothos-pot-crack: #2a1608;   /* its cracks */
-  --pothos-soil: #241509;        /* the soil in it */
-  --pothos-stem: #2f6a22;        /* a Cutting's and a Sap sprout's stem */
-  --pothos-stem-dark: #1d4416;   /* the node on it, the sprout's pod cup */
-  --pothos-root-nub: #7a5a30;    /* their little root nubs */
-  --sprout-puff: #6a8a2a;        /* the puff as a Cutting sprouts */
-  --sap: #8fbf1a;                /* a Sap sprout's sticky puddle */
-  --sap-glow: #3a6a08;           /* its glow */
-  /* an Aerial root: woody bark with darker grooves, thinning to a pale, waxy, green-tinged tip */
-  --root-bark: #5a3a20;
-  --root-groove: #2e1b0d;
-  --root-tip: #efe6c4;
-  --root-tip-green: #c9dc8e;
-  --rootlet: #4a2e18;            /* its fine rootlets */
-  --rootlet-pale: #8a6a48;
-  --root-cap: #f4eccf;           /* the cap on its tip */
-  --bark-dust: #6a4a2c;          /* the puff as one lands or withers */
   --eye-glow: 0.35;            /* the whites of the angry eyes */
   --iris-glow: 1.1;            /* the red irises */
   /* --- attacks (src/vfx.js): hostile is hot, friendly is cool, and they never share a colour.
@@ -370,7 +318,6 @@
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
   --hostile-web: #ff5ad8;        /* the house spider's web balls: white silk in a hot pink glow */
   --hostile-clog: #d8ff3a;       /* the Clog's lashes, snares, roll lane, drain swirl and gunk: sickly yellow-green */
-  --hostile-pothos: #9cff1e;     /* the Pothos's whips, Cuttings, sap and roots: toxic green-gold, greener than the Clog's */
   --hostile-croc: #3d5cff;       /* the Alligator's frost balls, tail-slam rings and pounce: electric frost blue (not the friendly cyan, not the violets) */
   --hostile-bull: #ff0a1a;       /* the Bull's rush, spiral Shots and little bulls: red, as the owner asked (a touch bluer than the ladybug's missile red, which is act 2's; far from act 3's dragonfly rose and worm orange) */
   --hostile-coffer: #e02bff;     /* the Latticework Coffer's accordion strikes, tongue and falling jewels: electric orchid, the one hot hue left free (between the Vacuum's violet and the Controller's magenta; nothing else in act 3 is near it) */
@@ -588,16 +535,6 @@
   --cat-scene-impact-color: #fff0c9;
   --cat-scene-impact-size: 0.045;
   --cat-scene-debris-color: #6a6057;
-  /* the Pothos fight's view (eased in for that fight only, back out after): further back and less
-     steep, so its heart, up in its leaves on the pillows, stays in frame from the bed */
-  --pothos-camera-distance: 0.95;  /* meters behind the jelly */
-  --pothos-camera-tilt: 0.785;     /* radians down from level (45 degrees) */
-  --pothos-camera-ahead: 1.0;      /* meters ahead of the jelly it aims: the heart in frame below the boss bar and the toast, the jelly low in it */
-  /* a phone's (short, wide screen, the boss bar and toast taking more of it): further back, flatter
-     and aiming further ahead, so the heart sits below them (story phone/pothos-fight-keeps-the-heart-below-the-boss-bar) */
-  --pothos-camera-distance-phone: 1.1;
-  --pothos-camera-tilt-phone: 0.6;   /* (about 34 degrees) */
-  --pothos-camera-ahead-phone: 1.5;
 }
 
 /* Main-menu typography and motion. Pause and act-loading screens keep their compact layout. */

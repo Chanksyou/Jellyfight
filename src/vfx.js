@@ -27,7 +27,7 @@ import { LOOK } from './look.js';
 
 // The hostile palette (content/look.css), by the source of the attack
 export const HOSTILE = {};
-const DEFAULTS = { laser: '#ff2a4a', controller: '#ff3ad0', mug: '#ff8a1a', kettle: '#ffd23a', leap: '#ff3a2a', vacuum: '#b04aff', spit: '#ff2a4a', web: '#ff5ad8', fly: '#ff5a14', millipede: '#ffa000', soap: '#ff4a9a', clock: '#ffc23a', whipper: '#a65aff', missile: '#ff2020', clog: '#d8ff3a', pothos: '#9cff1e', croc: '#3d5cff', bull: '#ff0a1a', coffer: '#e02bff', dragonfly: '#ff2a80', mantis: '#ffcc00', worm: '#ff3c00', wasp: '#ffe600', beetle: '#ff9a1f', bite: '#ff5c48' };
+const DEFAULTS = { laser: '#ff2a4a', controller: '#ff3ad0', mug: '#ff8a1a', kettle: '#ffd23a', leap: '#ff3a2a', vacuum: '#b04aff', spit: '#ff2a4a', web: '#ff5ad8', fly: '#ff5a14', millipede: '#ffa000', soap: '#ff4a9a', clock: '#ffc23a', whipper: '#a65aff', missile: '#ff2020', clog: '#d8ff3a', croc: '#3d5cff', bull: '#ff0a1a', coffer: '#e02bff', dragonfly: '#ff2a80', mantis: '#ffcc00', worm: '#ff3c00', wasp: '#ffe600', beetle: '#ff9a1f', bite: '#ff5c48' };
 export function hostile(name) {
   return (HOSTILE[name] ||= new THREE.Color(LOOK.color('hostile-' + name, DEFAULTS[name] || '#ff3a3a')));
 }
@@ -149,8 +149,8 @@ function coneGeometry(segZ = 8, segA = 16) {
   g.computeVertexNormals();
   return g;
 }
-// An arc: one piece of a low slab over a floor wedge's outer band (a sweep across a wedge, the
-// Pothos's sweeping vine): from ARC_IN to 1 of its radius, ARC_STEP radians wide, centred on +z.
+// An arc: one piece of a low slab over a floor wedge's outer band (a sweep across a wedge: the
+// shark's tail spin): from ARC_IN to 1 of its radius, ARC_STEP radians wide, centred on +z.
 // Lay pieces side by side (rotation.y) to cover a wedge, each at the height of the bed under it;
 // scale (radius, height, radius).
 export const ARC_IN = 0.4, ARC_STEP = Math.PI / 12;
@@ -289,8 +289,7 @@ export function blastHits(centre, r, feet, body) {
 }
 
 // ------------------------------------------------------------------ shots
-// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading
-// (the one named exception: the Pothos's Vine Whip leads by about 0.5 s, docs/adr/0001);
+// Where a Shot aims (fx.shot): the jelly's middle where it is now, mid-jump included, no leading;
 // or, for a volley, `height` above `floor` (default: the feet) straight over the jelly. Floor-level
 // volley Shots fly at the jelly's middle on the floor, jump-height ones over a grounded jelly's head.
 // The two volley heights (m above the floor), shared by every volley that mixes them: the

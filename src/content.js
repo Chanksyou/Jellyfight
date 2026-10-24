@@ -6,7 +6,7 @@
 //   content/waves.kdl     how the night fills with them
 //   content/treasures.kdl the treasures (effect words: src/words.js)
 //   content/evolutions.kdl what the jelly can become after an act's boss (the same effect words)
-//   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js, src/pothos.js)
+//   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js, src/shark.js, src/encore.js)
 //   content/elites.kdl    the elites: Health, aggro and every attack's numbers (src/elites.js)
 //   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
 //   content/look.css      colours and render numbers (src/look.js)

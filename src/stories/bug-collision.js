@@ -143,10 +143,10 @@ story('collision/wind-floor-contact-is-not-a-slam', {
 });
 
 story('collision/rooted-bugs-settle-on-their-surface', {
-  about: 'Anchored cuttings still settle under gravity and become grounded, while shoves and crowd separation cannot move their anchor sideways.',
+  about: 'Anchored (rooted) bugs, like the horsehair worm, still settle under gravity and become grounded, while shoves and crowd separation cannot move their anchor sideways.',
   setup,
   play() {
-    const { origin } = room(), e = spawn('cutting', origin.clone().add(V(0.2, 0.015, 0))), start = e.pos.clone();
+    const { origin } = room(), e = spawn('worm', origin.clone().add(V(0.2, 0.015, 0))), start = e.pos.clone();
     step(60); bus.emit('knockback', { targetId: e.id, dir: V(1, 0, 0), force: 1 });
     return ok(e.grounded && Math.abs(e.pos.y - origin.y) < 0.001 && e.pos.x === start.x && e.pos.z === start.z,
       { grounded: e.grounded, y: e.pos.y, floor: origin.y, x: e.pos.x });
@@ -164,19 +164,6 @@ story('collision/moving-collider-bounds-refresh', {
     const newPosition = world.sweepSphere(origin.clone().add(V(0.6, 0.2, 0)), V(0.4, 0, 0), 0.02, hit);
     const oldPosition = world.sweepSphere(origin.clone().add(V(0, 0.2, 0)), V(0.4, 0, 0), 0.02, hit);
     return ok(before && newPosition && !oldPosition, { before, newPosition, oldPosition });
-  },
-});
-
-story('collision/blocked-root-lands-on-scenery', {
-  about: 'A falling root stopped on furniture impacts that surface and cannot hit or grab the jelly through it at the old floor target.',
-  setup,
-  play() {
-    const { group, origin, box } = room({ wall: false }), { enemies } = G();
-    box([0.6, 0.02, 0.6], [0, 0.25, 0]); stub(enemies, 'world', new World(group));
-    const damage = record('damage_taken'), root = spawn('root', origin);
-    step(75);
-    return ok(root.pos.y >= origin.y + 0.26 - 0.0001 && root.state !== 'hold' && !root.landedOn && !damage.some(d => d.source === 'root'),
-      { y: root.pos.y, surface: origin.y + 0.26, state: root.state, landedOn: root.landedOn, damage: damage.length });
   },
 });
 
