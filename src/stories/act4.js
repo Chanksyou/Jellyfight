@@ -1,5 +1,5 @@
 // Stories: act 4, the Encore's concert (stage4.js, act4-arena.js, encore.js). The run comes here
-// after beating the Pothos (tests/run.mjs opens these on an act-4 page with that run's carry). There
+// after beating the shark (tests/run.mjs opens these on an act-4 page with that run's carry). There
 // is no night: the fight starts straight away, and beating the Encore wins the run. Shared helpers
 // are in ./kit.js; src/stories.js imports this file in order.
 

@@ -1077,7 +1077,7 @@ export class Run {
       this.tpc.yaw = -Math.PI / 2 + Math.PI;
       this.boss = makeBoss(B, this.scene, this.enemies, this.fx, this.world, { arena: this.arena, song: this.song, toughness: this.stage.toughness });
       this.boss.maxHp = this.boss.hp = Math.round(this.boss.maxHp * (B.hpScale ?? this.stage.bossHp ?? 1));
-      // a boss with its own fight view (the Pothos: back and up, to keep its heart in frame), or a
+      // a boss with its own fight view (the shark: back and up, to keep it and the bed in frame), or a
       // stage that asks (B.faceBoss: act 4's arena), turns you to face it; with a view, the camera
       // eases into it for the fight
       if (this.boss.camera || B.faceBoss) {

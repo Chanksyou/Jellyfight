@@ -58,7 +58,7 @@ const text = (good, name, ms, info) => `${good ? '✓' : '✗'} ${name}${ms != n
 const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
 // act 3 starts as if the Clog was just beaten: a level-10 run with act 1's and act 2's evolutions
 const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
-// act 4 as if the Pothos was just beaten: a level-15 run with three evolutions
+// act 4 as if the shark was just beaten: a level-15 run with three evolutions
 const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
 const PAGES = [
   { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },

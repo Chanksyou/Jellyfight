@@ -1,6 +1,6 @@
 // Stories: on a phone (played in a page that looks like a phone). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
-import { G, firstMinute, fresh, heartFrame, ok, phone, sharkFight, step, tp } from './kit.js';
+import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 phone('shark-fight-keeps-the-boss-below-the-bar', {
@@ -10,7 +10,7 @@ phone('shark-fight-keeps-the-boss-below-the-bar', {
   play() {
     const B = sharkFight();
     step(150);                                            // eased in
-    const { tpc } = G(), view = heartFrame(B);
+    const { tpc } = G(), view = bossFrame(B);
     return ok(view.good, { distance: +tpc.currentDistance.toFixed(3), pitch: +tpc.viewPitch.toFixed(3), ...view });
   },
 });

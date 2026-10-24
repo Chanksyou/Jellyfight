@@ -10,7 +10,7 @@ import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
 import { juice } from '../juice.js';
 import { ATTACKS as SHARK_ATTACKS } from '../shark.js';
 import { buildShark } from '../shark-model.js';
-import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, heartFrame, holdJelly, near, ok, offs, sharkFight, pothosFloor, r3, record, shownWarnings, sim, spawn, spy, step, stripLine, stub, tp, volumePairs } from './kit.js';
+import { G, JUMP_FEET, V, act3, bossHits, cameraStory, cameraTour, everyAttack, fresh, bossFrame, holdJelly, near, ok, offs, sharkFight, r3, record, shownWarnings, sim, spawn, spy, step, stripLine, stub, tp, volumePairs } from './kit.js';
 
 // --- act 3: the bedroom (stage3.js). These play in a page opened on act 3, carrying a level-10
 act3('carries-the-run', {
@@ -292,7 +292,7 @@ act3('shark-health-as-the-clogs',{
   about:'The replacement preserves Act 3 boss Health scaling.',setup(){},play(){const B=sharkFight();return ok(B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{hp:B.hp});},
 });
 act3('shark-fight-camera',{
-  about:'The fight view uses finite pitch and distance and keeps the boss and jelly in the viewport.',setup(){},play(){const B=sharkFight({hurt:false});B.elapsed=-1e6;step(180);const {tpc}=G(),view=heartFrame(B);return ok(Number.isFinite(tpc.viewPitch)&&Number.isFinite(tpc.currentDistance)&&view.good,{view,pitch:tpc.viewPitch,distance:tpc.currentDistance});},
+  about:'The fight view uses finite pitch and distance and keeps the boss and jelly in the viewport.',setup(){},play(){const B=sharkFight({hurt:false});B.elapsed=-1e6;step(180);const {tpc}=G(),view=bossFrame(B);return ok(Number.isFinite(tpc.viewPitch)&&Number.isFinite(tpc.currentDistance)&&view.good,{view,pitch:tpc.viewPitch,distance:tpc.currentDistance});},
 });
 act3('attacks-every-warning-has-volume',{
   about:'Every shark, Alligator, Bull and Coffer attack has its required paired warning; all attack materials are warmed.',setup(){fresh({bubbles:false,lash:false});},play(){return everyAttack(3);},

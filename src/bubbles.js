@@ -406,7 +406,7 @@ export class Bubbles {
   }
 
   // Something that isn't the room's but stops bubbles all the same: a boss's body that can't be
-  // hurt (the Pothos's vines and leaves), whatever has a blocks(pos, dir, len, r)
+  // hurt, whatever has a blocks(pos, dir, len, r)
   blocked(pos, dir, len, r) {
     for (const e of this.enemies.list) if (!e.dead && e.proxy?.blocks?.(pos, dir, len, r)) return true;
     return false;

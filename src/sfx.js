@@ -931,14 +931,6 @@ export const sfx = {
     if (kind === 'web') { noise(1600 * j, 1.5, 0.1, 0.1, 'bandpass', 0, 600); tone('sine', 300 * j, 140, 0.08, 0.06); return; }
     tone('sawtooth', 1800 * j, 500 * j, 0.08, 0.04); noise(6000 * j, 1, 0.03, 0.06, 'highpass'); tone('sine', 2400 * j, 1600 * j, 0.18, 0.015, 0.02);
   },
-  // a glob of sap landing: a splat, a low plop and drops pattering
-  lobSplat() { if (!ready() || !gap('lobSplat', 70)) return; const j = jitter(0.12); noise(900 * j, 1, 0.14, 0.2, 'lowpass', 0, 220); tone('sine', 160 * j, 60, 0.12, 0.12); patter(3, 0.05, 0.2); },
-  // a Cutting sprouting: a leafy rustle, a creak of a stem shooting up and a pop
-  sprout() { if (!ready() || !gap('sprout', 120)) return; const j = jitter(0.1); noise(3000 * j, 2, 0.15, 0.08, 'bandpass'); tone('sawtooth', 120 * j, 200 * j, 0.25, 0.03); tone('sine', 300 * j, 700 * j, 0.08, 0.06, 0.05); patter(3, 0.1, 0.2); },
-  // an Aerial root: a woody thunk as it lands, a creak each time its hold tightens, a dry rustle as it withers
-  rootLand() { if (!ready() || !gap('rootLand', 70)) return; const j = jitter(0.12); noise(5000 * j, 2, 0.02, 0.08, 'bandpass'); tone('triangle', 180 * j, 80, 0.1, 0.1); noise(600 * j, 1, 0.12, 0.12, 'lowpass'); patter(3, 0.05, 0.2); },
-  rootSqueeze() { if (!ready() || !gap('rootSqueeze', 300)) return; const j = jitter(0.1); tone('sawtooth', 90 * j, 70 * j, 0.18, 0.03); noise(800 * j, 5, 0.18, 0.04, 'bandpass', 0, 500); },
-  rootWither() { if (!ready() || !gap('rootWither', 120)) return; for (let k = 0; k < 4; k++) noise(2500 + Math.random() * 2000, 3, 0.05, 0.04, 'bandpass', k * 0.06); },
   // the millipede: a clicking rattle as it coils (all those plates), a whirr that revs up, a rolling rumble
   milliCurl() {
     if (!ready()) return;
@@ -1129,24 +1121,6 @@ export const sfx = {
     tone('sine', 115 * j, 36, 0.32, 0.34); noise(800 * j, 0.8, 0.28, 0.3, 'lowpass', 0, 140);
     noise(1900 * j, 1.4, 0.08, 0.18, 'bandpass', 0.01, 700);
     for (let k = 0; k < 5; k++) noise(1200 + Math.random() * 2600, 3, 0.02, 0.05, 'bandpass', 0.08 + Math.random() * 0.3);
-  },
-  // the Pothos: a rustle gathering in its leaves (dur), the snap and whoosh of something flung from
-  // it, a Cutting planting in the quilt (a soft thud and soil pattering), an Aerial root landing
-  pothosGather(dur = 0.4) { if (!ready()) return; const j = jitter(0.1); noise(2400 * j, 2, dur, 0.04, 'bandpass', 0, 4200 * j); tone('sine', 180 * j, 320 * j, dur, 0.02); },
-  pothosFling() {
-    if (!ready() || !gap('pothosFling', 80)) return; const j = jitter(0.12);
-    noise(5000 * j, 1, 0.03, 0.14, 'highpass'); noise(1400 * j, 1.4, 0.22, 0.09, 'bandpass', 0.01, 3600 * j);
-    for (let k = 0; k < 4; k++) noise((2600 + Math.random() * 1800) * j, 2, 0.05, 0.035, 'bandpass', 0.03 + k * 0.05);
-  },
-  pothosPlant() {
-    if (!ready() || !gap('pothosPlant', 40)) return; const j = jitter(0.15);
-    noise(1800 * j, 1.5, 0.03, 0.1, 'bandpass'); noise(400 * j, 0.8, 0.12, 0.18, 'lowpass', 0, 120); tone('sine', 150 * j, 60, 0.1, 0.1);
-    for (let k = 0; k < 3; k++) noise((700 + Math.random() * 500) * j, 2, 0.03, 0.035, 'lowpass', 0.05 + k * 0.035);
-  },
-  rootLand() {
-    if (!ready() || !gap('rootLand', 50)) return; const j = jitter(0.12);
-    noise(3600 * j, 1.5, 0.03, 0.14, 'bandpass'); noise(900 * j, 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140 * j, 55, 0.12, 0.12);
-    for (let k = 0; k < 3; k++) noise((600 + Math.random() * 500) * j, 2, 0.03, 0.04, 'lowpass', 0.06 + k * 0.04);
   },
   clogSplat() { if (!ready() || !gap('clogSplat', 70)) return; noise(900 * jitter(), 1, 0.12, 0.22, 'lowpass', 0, 250); tone('sine', 140, 60, 0.1, 0.12); },
   clogDeath() {

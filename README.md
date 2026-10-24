@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v270 clears out what was left of the Pothos, act 3's old boss, after the shark replaced it. Gone: its three bugs (the Cutting, the Sap sprout and the Aerial root, which nothing spawned any more) with their models, sounds and stories; the four behaviour words only they used (`becomes`, `lob`, `drops`, `holds`) and their code in `src/enemies.js`; its colours, camera numbers and the rest of its look values in `content/look.css`; its glossary entries; and `docs/pothos-fluidity.md`. Comments that still named it now name the shark. Nothing in play changes. (The apartment's own pothos plant on the bedroom shelf stays hidden in act 3, as before.)
+
 v269 fixes falling out of a boss arena. The arena's force-field walls stop the jelly along their length, but where two walls meet it could squeeze out of the corner and fall off the bed to the floor, and a stack of mid-air jumps could carry it over the top. Now, during a fight in a walled arena (the Vacuum's, the shark's bed), a jelly that ever ends up outside is put straight back just inside, on the arena's floor (`keepInArena` in `src/run.js`). The story `act3/shark-the-jelly-never-leaves-the-arena` shoves it hard at every wall and corner, walking and jumping.
 
 v268 tightens the shark fight. The force field now closes right along the front of the pillows, so the pillows and the bolster behind them sit outside the arena and the whole fight is on the open bed (only the folded quilt's 4-5 cm edge stands up from the sheet). The Great White One moves and travels faster: it swims at 0.16 m/s (was 0.10), its bites, sweeps and leap land quicker, it tracks under the quilt about half again as fast for less time, and its tornadoes and flung fish fly faster (windups are unchanged, so every attack is still readable). Its fish circles are wider (17 cm, was 13), drain 3 Health a second (was 2) and slow you 30% while you stand in one. Every attack has its own sound now: a swish as a bite or leap starts, a jaw chomp, a heavy water slam where it lands or erupts, a gulp as it dives, a rumble building under an eruption, howling tornadoes, fish flicking out and slapping down. The water looks richer for the same cost (still one draw, no reflection pass or texture): four crossing wave trains, Schlick Fresnel over a reflected room, sharper glints, a moving web of caustic light on the quilt and in the fish circles, crest foam and a foam line on the flood as it spreads. Numbers: content/bosses.kdl `shark`.
@@ -194,7 +196,7 @@ v184 Pothos: its heart and canopy sway continuously and leaves ripple along the
 vines while the pot stays seated. Recovery pauses are 0.95 s (0.35 s angry),
 and the boss resumes attacking after its 1 s dragonfly summon while the shield
 lasts independently. Whip/sweep warnings, 1.5 s heart openings, damage and Health
-are unchanged. Sweeps now flash at confirmed contact. See `docs/pothos-fluidity.md`.
+are unchanged. Sweeps now flash at confirmed contact.
 Wind (v220): doubled its base push from 2.1 cm to 4.2 cm. Damage-based extra shove
 and Box Fan's 60% multiplier retain their existing rules; scenery still stops
 the push and deals one equal-damage collision hit.

@@ -44,7 +44,7 @@ export class ThirdPersonCamera {
     this.viewPitch = this.pitch;
     this.distance = cfg.distance;
     this.currentDistance = cfg.distance;   // the distance it's at now (this.distance, unless a fight view is easing in)
-    // A boss's fight view ({ distance, pitch, ahead }: the Pothos's, look.css): while it's set the
+    // A boss's fight view ({ distance, pitch, ahead }: the shark's, look.css): while it's set the
     // view eases to it, and back to the player's own once it's cleared (run.js sets it for the
     // fight). `ahead`: it aims that far ahead of the jelly instead of at it, so what's in front (a
     // boss standing taller than you) is in frame with the jelly low in it

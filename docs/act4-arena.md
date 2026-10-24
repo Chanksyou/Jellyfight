@@ -351,7 +351,7 @@ breakdown quiets it. Every arc in flight is one instanced draw.
 
 ## The Encore fight (v244)
 
-Act 4 is a real act now (`src/stage4.js`, in `STAGES`). Beating the Pothos carries the run into it
+Act 4 is a real act now (`src/stage4.js`, in `STAGES`). Beating act 3's boss (the Great White One since v267) carries the run into it
 like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading apartment rooms, and
 `main.js` skips the apartment's layout, set dressing, lamps and furniture map for it.
 
@@ -374,7 +374,7 @@ like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading ap
 
 Its attacks are on the attack list (`EVERY_ATTACK[4]`) and the scoreboard, unscored until a feel
 pass. Stories `act4/*`: the fight starts straight away, the beetles and force field, winning, and
-the attack list. The act 3 story `act3/beating-the-pothos-goes-on-to-act-4` covers the way in.
+the attack list. The act 3 story `act3/beating-the-shark-goes-on-to-act-4` covers the way in.
 
 ## Juice and the meltdown (v248)
 

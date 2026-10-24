@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v269';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v270';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -743,7 +743,6 @@ async function warmUp() {
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
-  enemies.warm(true, P.clone());                          // a sap lob's Warning and its puddle (the lob word)
   run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
@@ -778,7 +777,6 @@ async function warmUp() {
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
-  enemies.warm(false);
   run.roomTreasures[0].hide();
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));

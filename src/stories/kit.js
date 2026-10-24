@@ -213,8 +213,6 @@ export function asNewPlayer(fn) {
   finally { keys.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]))); }
 }
 export const near = (dx, dz, dy = 0) => G().player.position.clone().add(V(dx, dy, dz));
-// the floor Warnings in the scene in the Pothos's colour, showing
-export const pothosFloor = () => shownWarnings().floor.filter((o) => o.material.uniforms.uColor.value.getHex() === hostile('pothos').getHex());
 export const give = (...ids) => { for (const id of ids) G().run.owned.add(id); };
 export const evolve = (id) => { G().run.evolved.push(id); };   // take an evolution (content/evolutions.kdl)
 export const dmgBy = (log, source) => log.filter((d) => d.source === source && d.targetId !== PLAYER);
@@ -404,15 +402,6 @@ const atClog = (a) => () => {
   clogAgain(B, a, 0.75);
   if (a === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
 };
-// a Bug of `type` put down near the held jelly; it's warning while `warns(it)`; `end` takes it away
-function bugWarns(type, warns) {
-  let it = null;
-  return {
-    start() { const { player } = G(); holdJelly(); it = spawn(type, player.position.clone().add(V(0.15, 0, 0.1))); },
-    during: () => !!it && warns(it),
-    end() { const { enemies } = G(); for (const e of enemies.list) if (!e.dead && ['cutting', 'sprout', 'root'].includes(e.type)) enemies.kill(e, true); it = null; },
-  };
-}
 export const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
@@ -447,12 +436,6 @@ export const EVERY_ATTACK = {
     // the Coffer on the vanity desk (elites.js): its accordion strikes' Blasts, its jewels' Blasts. Its
     // tongue has no Warning: it can't be dodged, by the owner's call (docs/adr/0001)
     coffer: { accordion: { is: 'volume', start: () => startCoffer(0) }, tongue: { is: 'none' }, jewels: { is: 'volume', start: () => startCoffer(2) } },
-    // the Bugs it sends that warn (a behaviour word with a hostile `color`): each started on its own
-    bugs: {
-      cutting: { is: 'floor', ...bugWarns('cutting', (e) => !e.dead) },                     // its countdown (becomes): a floor circle only, by decision
-      sprout: { is: 'volume', ...bugWarns('sprout', () => G().enemies.lobs.some((b) => !b.done)) },   // the sap lob's Blast
-      root: { is: 'volume', ...bugWarns('root', (e) => e.state === 'drop') },             // dropping from above
-    },
   },
   4: {
     // the Encore (encore.js): every attack on its song's beat, each proven by its own encore/* story.
@@ -468,9 +451,11 @@ const bossKind = () => ({ vacuum: 'vacuum', shark: 'shark', encore: 'encore' })[
 function attacksInGame(act) {
   const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, shark: SHARK_ATTACKS, encore: ENCORE_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
-  out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the Pothos's guarding vines)
-  // Bugs that warn (so far only the Pothos's: Cuttings, Sap sprouts, Aerial roots) are checked in act 3
-  if (act === 3) out.bugs = Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id);
+  out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the shark's pools)
+  // Bugs that warn (a behaviour word with a hostile `color`; none do now) are checked in act 3, listed
+  // under `bugs` in EVERY_ATTACK
+  const warning = act === 3 ? Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id) : [];
+  if (warning.length) out.bugs = warning;
   return out;
 }
 // the behaviour words a Bug warns with: those drawn in a hostile colour (src/words.js `color`)
@@ -478,8 +463,7 @@ const warnsWith = (T) => T.vocabulary.filter((w) => ENEMY_WORDS[w]?.props && 'co
 // Elite and Boss Shots in flight
 const shotsFlying = () => { const { run } = G(), els = run.elites; return els.bullets.length + els.soapBubbles.length + els.thrown.length + (run.boss?.shots?.length || 0); };
 // each volume showing, with the floor Warning under it (same spot, same fill), if there is one
-// (a curved floor strip, the Pothos's Vine Whip, carries a chain of lane volumes along it: each
-// stands on the strip's centre line)
+// (a curved floor strip carries a chain of lane volumes along it: each stands on the strip's centre line)
 export function volumePairs() {
   const w = shownWarnings(), at = (f, v) => Math.hypot(f.position.x - v.position.x, f.position.z - v.position.z) < 0.01 || (f.material.shape === 'strip' && stripLine(f).some((c) => Math.hypot(c.x - v.position.x, c.z - v.position.z) < 0.01));
   const under = (v) => (f) => at(f, v) && Math.abs(f.material.progress - v.material.progress) < 1e-6;
@@ -542,7 +526,7 @@ export function everyAttack(act) {
 }
 // run as if the Clog was just beaten (tests/run.mjs)
 export const act3 = (name, s) => story('act3/' + name, { act: 3, ...s });
-// run as if the Pothos was just beaten: act 4, the Encore's concert arena (tests/run.mjs)
+// run as if the shark was just beaten: act 4, the Encore's concert arena (tests/run.mjs)
 export const act4 = (name, s) => story('act4/' + name, { act: 4, ...s });
 // the Encore (encore.js): an act with no night goes straight into its fight; `beat`: where its set starts
 // (guard: keep its opening force field, bosses.kdl start `guard`; most stories start past it)
@@ -562,10 +546,10 @@ export const sharkFight = (opts = {}) => {
   step(60 * 6, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.phase === 'boss' && run.boss?.ready; });
   return run.boss;
 };
-// Where the Pothos's heart and the jelly are on screen in the fight view (pixels from the top): both
-// in frame, the top of the heart (swollen as in an opening) below the top HUD band (the boss bar and
-// the intro toast "The Pothos wakes!"), the jelly above the bottom edge
-export const heartFrame = (B) => {
+// Where the Boss and the jelly are on screen in the fight view (pixels from the top): both in frame,
+// the top of the Boss below the top HUD band (the boss bar and the intro toast), the jelly above the
+// bottom edge
+export const bossFrame = (B) => {
   const { APT, player } = G(), cv = APT.renderer.domElement.getBoundingClientRect();
   APT.camera.updateMatrixWorld();
   const px = (p) => { const q = p.clone().project(APT.camera); return { x: Math.round((q.x + 1) / 2 * cv.width), y: Math.round((1 - q.y) / 2 * cv.height), z: q.z }; };
