@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v266';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v267';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -279,6 +279,7 @@ run.onMainMenu = () => {
   overlay.hidden = false;
 };
 run.playerBody = () => state.look.body;
+addEventListener('pagehide', () => run.flushFeats());   // a run left mid-way still counts the bugs it cleared (cosmetics.js)
 run.playerLook = () => state.look;
 run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
 

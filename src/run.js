@@ -19,6 +19,8 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
+import { addFeats, unlockedAwards } from './cosmetics.js';
+import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
@@ -228,6 +230,7 @@ export class Run {
     this.health = this.stats.health;
     this.owned = new Owned();
     this.kills = 0;
+    this.featKills = 0;               // of those, already added to the lifetime totals (cosmetics.js)
     this.eliteBugs = 0;               // golden elite bugs cleared (score)
     this.elitesBeaten = 0;            // high-ground elites beaten (score)
     this.bossStartT = null;
@@ -795,6 +798,7 @@ export class Run {
   eliteDefeated(e) {
     this.kills++;
     this.elitesBeaten++;
+    if (!this.dev) addFeats({ elites: 1 });
     juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
@@ -1198,6 +1202,10 @@ export class Run {
     const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
+    // the run counts toward earned cosmetics; anything it just unlocked is shown here
+    const had = new Set(unlockedAwards());
+    this.flushFeats({ runs: 1, wins: this.phase === 'won' ? 1 : 0 });
+    const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return OPTIONS[key].find(([v]) => v === id)?.[1] || id; });
     let typed = savedName();
     // result: what came of a Submit (null until you submit)
     const show = (result) => {
@@ -1206,6 +1214,7 @@ export class Run {
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
         ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary()];
+      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map(esc).join(', ')}</b> <small>· wear it from Change your look</small>`]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
@@ -1238,13 +1247,23 @@ export class Run {
     };
   }
 
+  // The lifetime totals earned cosmetics are judged by (cosmetics.js): this run's bugs cleared since
+  // last time, and anything else (a run ended, a win). Called as a run ends, before the next act
+  // loads, and when the page goes away mid-run (main.js), so no bug is counted twice or lost.
+  // A dev mode (1 on 1, fight the boss) counts nothing.
+  flushFeats(extra = {}) {
+    if (this.dev) return;
+    addFeats({ kills: this.kills - this.featKills, ...extra });
+    this.featKills = this.kills;
+  }
+
   // An act beaten with another to come: the run moves on with everything it has (level, stats,
   // treasures, score so far); you submit the score at the end of the run
   actComplete(next) {
     const carry = this.carryOver(), score = carry.score;
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => goToAct(next.id, carry, { continue: true }) }]);   // straight into it, no main menu
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
 
   // The leaderboard as a dialog; back() returns to where it was opened from
