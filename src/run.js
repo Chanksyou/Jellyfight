@@ -851,7 +851,7 @@ export class Run {
   }
 
   resume() {
-    if (!this.ui.open) this.onResume?.();
+    if (!this.ui.open || this.ui.closing) this.onResume?.();
   }
 
   // a dev mode's run (1 on 1, fight the boss): played as a normal run, and not counted as one

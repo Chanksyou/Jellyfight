@@ -113,6 +113,7 @@ export class UI {
   }
 
   get open() { return !this.modal.hidden; }
+  get closing() { return this._outro > 0 && this._outroGen === this._gen; }
 
   close() {
     this._outro = 0;
@@ -193,11 +194,11 @@ export class UI {
       const cards = [...this.modal.querySelectorAll('.jf-card')];
       cards.forEach((el, j) => el.classList.add(j === i ? 'jf-won' : 'jf-burn'));
       this.flyIcon(cards[i]);
-      onPick(c);
       // the outro runs on the game's clock (tick, from GAME.step), not a wall timer:
       // a wall timer can't fire while the story harness steps the game synchronously
       this._outroGen = gen;
       this._outro = document.body.classList.contains('calm') ? 0.01 : 0.64;
+      onPick(c);   // resume can capture the mouse during this click, before user activation expires
     };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
     this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
