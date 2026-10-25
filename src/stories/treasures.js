@@ -156,6 +156,39 @@ story('treasures/pick-screen-order-and-rarity', {
       { tints, deltas, sheen, sheenAnim, outro, resolvedAtOnce, closed });
   },
 });
+story('treasures/choices-resume-mouse-during-selection', {
+  about: 'Treasure and Element picks resume synchronously during the selection gesture, once, while their visual outro remains. A newer modal still blocks resume and survives the old outro.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G(), ui = run.ui;
+    let resumes = 0;
+    stub(run, 'onResume', () => { resumes++; });
+    run.pickTreasure();
+    const blockedBeforePick = ui.open && !ui.closing;
+    run.resume();
+    const noEarlyResume = resumes === 0;
+    const card = ui.modal.querySelector('.jf-card');
+    card.click(); card.click();
+    const treasure = resumes === 1 && ui.open && ui.closing;
+    ui.tick(1);
+    const closed = !ui.open && !ui.closing && resumes === 1;
+    run.pickStartElement();
+    ui.keyHandler({ code: 'Digit1' });
+    const element = resumes === 2 && ui.closing && run.firstRun.elementChosen;
+    ui.tick(1);
+    const choice = { icon: '*', name: 'Next menu', text: '' };
+    ui.choose('One', '', [choice], () => {
+      ui.choose('Two', '', [choice], () => {});
+      run.resume();
+    });
+    ui.modal.querySelector('.jf-card').click();
+    ui.tick(1);
+    const nextMenu = ui.open && !ui.closing && resumes === 2 && ui.modal.textContent.includes('Two');
+    ui.close(); restore();
+    return ok(blockedBeforePick && noEarlyResume && treasure && closed && element && nextMenu,
+      { resumes, blockedBeforePick, noEarlyResume, treasure, closed, element, nextMenu });
+  },
+});
 story('treasures/levels', {
   about: 'Treasures with level blocks (Fairy Lights) level up when taken again: 3 bulbs, then 4, then 5; the pick offers only the next level ("Lv 2" with what it adds), and nothing past level 3.',
   setup() { setupFight({ lash: false }); },
