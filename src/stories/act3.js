@@ -291,14 +291,16 @@ for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(cons
 act3('shark-health-as-the-clogs',{
   about:'The replacement preserves Act 3 boss Health scaling.',setup(){},play(){const B=sharkFight();return ok(B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{hp:B.hp});},
 });
-act3('shark-camera-stays-inside-the-force-field',{
-  about:'In the shark fight the camera never stands behind the force field (looking through it blurs the whole view): with the jelly backed against each wall and the camera facing out past it, the camera tips up over the jelly so it stays inside the arena, or up over the top of the field.',
+act3('shark-force-field-is-invisible-and-the-camera-stays-level',{
+  about:'The bed arena\'s force field is invisible (look.css --boss-force-field 0) but still solid and still rises with the fight: with the jelly backed against each wall and the camera facing out past it, the camera keeps the fight view\'s own angle and distance (it doesn\'t tip up), so it may stand behind the field, and no field is ever drawn.',
   setup(){},
-  play(){const B=sharkFight({hurt:false}),{run,tpc,APT,player:P}=G(),A=run.stage.boss;B.elapsed=-1e6;holdJelly();
-    const spots={foot:[-.1,9.15,Math.PI],head:[-.1,10.4,0],west:[-.87,9.8,-Math.PI/2],east:[.66,9.8,Math.PI/2]},out={};let worst=-9;
-    for(const [name,[x,z,yaw]] of Object.entries(spots)){P.position.set(x,.65,z);P.snapToGround();tpc.snapTo(P.position);tpc.yaw=yaw;step(40);
-      const c=APT.camera.position,o=c.y>A.arenaMax[1]?-1:Math.max(c.x-A.arenaMax[0],A.arenaMin[0]-c.x,c.z-A.arenaMax[2],A.arenaMin[2]-c.z);out[name]=+o.toFixed(3);worst=Math.max(worst,o);}
-    return ok(!!tpc.bounds&&worst<0,{worst:+worst.toFixed(3),out});},
+  play(){const B=sharkFight({hurt:false}),{run,tpc}=G(),P=holdJelly();B.elapsed=-1e6;
+    const fields=run.bossWalls.map(m=>m.userData.field),risen=fields.every(f=>f.userData.up&&f.scale.y>.99);
+    const spots={foot:[-.1,9.15,Math.PI],head:[-.1,10.4,0],west:[-.87,9.8,-Math.PI/2],east:[.66,9.8,Math.PI/2]},out={};let drawn=false,level=true;
+    for(const [name,[x,z,yaw]] of Object.entries(spots)){P.position.set(x,.65,z);P.snapToGround();tpc.snapTo(P.position);tpc.yaw=yaw;step(40,()=>{drawn||=fields.some(f=>f.visible);});
+      out[name]={pitch:+tpc.viewPitch.toFixed(3),distance:+tpc.currentDistance.toFixed(3)};level&&=Math.abs(tpc.viewPitch-B.camera.pitch)<.01&&Math.abs(tpc.currentDistance-B.camera.distance)<.01;}
+    const solid=run.bossWalls.every(m=>m.visible);
+    return ok(risen&&!drawn&&level&&solid,{risen,drawn,level,solid,out});},
 });
 act3('shark-fight-camera',{
   about:'The fight view uses finite pitch and distance and keeps the boss and jelly in the viewport.',setup(){},play(){const B=sharkFight({hurt:false});B.elapsed=-1e6;step(180);const {tpc}=G(),view=bossFrame(B);return ok(Number.isFinite(tpc.viewPitch)&&Number.isFinite(tpc.currentDistance)&&view.good,{view,pitch:tpc.viewPitch,distance:tpc.currentDistance});},

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext } from '../stats.js';
+import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
 import { ELEMENTS_IDS, G, V, fresh, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
@@ -240,7 +240,7 @@ story('content/levelup-and-elite-tuning', {
     };
     const expected = {
       xp: { base: 4, growth: 1.4 }, rarities: { common: 65, rare: 25, epic: 10 },
-      cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.2, 0.4, 0.6], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
+      cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.2, 0.3, 0.4], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
       bubbles: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [9, 10, 3, 5],
     };
     return ok(JSON.stringify(actual) === JSON.stringify(expected), { actual });
@@ -292,6 +292,16 @@ story('content/every-treasure-has-a-rarity', {
     for (const t of CONTENT.treasures) count[t.rarity] = (count[t.rarity] ?? NaN) + 1;
     const plainElements = CONTENT.treasures.filter((t) => t.vocabulary.includes('element') && t.rarity !== 'legendary').map((t) => t.id);
     return ok(ids.every((id) => count[id] > 0) && Object.keys(count).length === ids.length && !plainElements.length, { ...count, plainElements });
+  },
+});
+story('progression/regen-card-reads-every-5-seconds', {
+  about: 'The Health regen level-up card gives 0.2 / 0.3 / 0.4 Health a second (common / rare / epic) and reads as Health every 5 seconds: +1, +1.5, +2.',
+  setup() {},
+  play() {
+    const amounts = CONTENT.levelups.cards.regen.amounts;
+    const texts = amounts.map((amount) => cardText({ stat: 'regen', amount }));
+    const want = ['+1 Health every 5 seconds', '+1.5 Health every 5 seconds', '+2 Health every 5 seconds'];
+    return ok(amounts.join() === '0.2,0.3,0.4' && texts.every((t, i) => t === want[i]), { amounts, texts });
   },
 });
 story('progression/regen', {
