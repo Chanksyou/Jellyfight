@@ -243,6 +243,24 @@ story('dev/balance-editor', {
       { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2, mugDmg0, mugDmg1, xp0, xp1, card0, card1, mugRemoved, healthOffered, restored });
   },
 });
+story('dev/balance-editor-hints', {
+  about: 'Every number of every bug, treasure and evolution in the balance editor has a short note on what it does (from its word\'s doc, or the file\'s own key), and tapping a number in an open row shows that note in the row\'s one hint line: Cockroach chase speed says it walks at that many m/s.',
+  setup() { fresh(); },
+  play() {
+    const groups = balanceGroups().filter((g) => ['bug', 'treasure', 'evolution'].includes(g.kind));
+    const bare = groups.flatMap((g) => g.fields.filter((f) => !f.hint).map((f) => `${g.id} ${f.label}`));
+    const panel = window.tuner; panel.show(G().run, {});
+    panel.el.querySelector('.row[data-id="roach"] .head').click();
+    const row = panel.el.querySelector('.row[data-id="roach"]');
+    const before = row.querySelector('.hint').textContent;
+    const input = [...row.querySelectorAll('.fld')].find((l) => l.textContent.startsWith('chase speed')).querySelector('input');
+    input.focus();
+    const after = row.querySelector('.hint').textContent, bold = row.querySelector('.hint b')?.textContent;
+    panel.hide();
+    return ok(groups.length > 50 && !bare.length && /tap a number/i.test(before) && /walks straight at you at speed m\/s/i.test(after) && bold === 'speed',
+      { groups: groups.length, bare: bare.slice(0, 8), before, after, bold });
+  },
+});
 story('hud/treasure-timers', {
   about: 'Treasures show big in the HUD, and a timed one wears a clock face: Guitar Pick (every 5 s) greys out and its dark wedge shrinks as the chord comes round, lighting up when it goes off; Snooze Button stays lit until it saves you, then greys out for good; one with no timer (Lemon Slice) has no face.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('guitarPick', 'snooze', 'lemon'); },
