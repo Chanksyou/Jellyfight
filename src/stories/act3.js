@@ -303,7 +303,7 @@ act3('shark-force-field-is-invisible-and-the-camera-stays-level',{
     return ok(risen&&!drawn&&level&&solid,{risen,drawn,level,solid,out});},
 });
 act3('shark-fight-camera',{
-  about:'The fight view uses finite pitch and distance and keeps the boss and jelly in the viewport.',setup(){},play(){const B=sharkFight({hurt:false});B.elapsed=-1e6;step(180);const {tpc}=G(),view=bossFrame(B);return ok(Number.isFinite(tpc.viewPitch)&&Number.isFinite(tpc.currentDistance)&&view.good,{view,pitch:tpc.viewPitch,distance:tpc.currentDistance});},
+  about:'The fight view has about the Vacuum fight\'s high angle: the shark in view below the boss bar and the jelly near the middle of the screen (not pinned to its bottom edge).',setup(){},play(){const B=sharkFight({hurt:false});B.elapsed=-1e6;step(180);const {tpc}=G(),view=bossFrame(B);return ok(Number.isFinite(tpc.viewPitch)&&Number.isFinite(tpc.currentDistance)&&view.good,{view,pitch:tpc.viewPitch,distance:tpc.currentDistance});},
 });
 act3('attacks-every-warning-has-volume',{
   about:'Every shark, Alligator, Bull and Coffer attack has its required paired warning; all attack materials are warmed.',setup(){fresh({bubbles:false,lash:false});},play(){return everyAttack(3);},
