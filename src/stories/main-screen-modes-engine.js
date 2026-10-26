@@ -171,25 +171,18 @@ story('engine/leaderboard-shows-each-players-jelly', {
 });
 
 story('menu/reduce-effects', {
-  about: 'The ✨ button in the pause menu turns Reduce effects on and off and remembers it: on, a kill still lands its hit-stop but shakes nothing; off, the kill shakes by its step on look.css\'s --feel-* ladder.',
+  about: 'There is no ✨ Effects button (the Graphics row is the one visual setting): Reduce effects follows the device\'s reduced-motion setting. On, a kill still lands its hit-stop but shakes nothing; off, the kill shakes by its step on look.css\'s --feel-* ladder.',
   setup() { fresh({ elites: false }); },
   play() {
     const { enemies } = G(), btn = document.querySelector('#g-over [data-act="effects"]');
-    let saved = null;
-    try { saved = localStorage.getItem('jellyfight.effects'); } catch {}
+    const follows = juice.calm === matchMedia('(prefers-reduced-motion: reduce)').matches;
     const was = juice.calm;
-    const killOne = () => { juice.reset(); enemies.kill(spawn('roach', near(0.1, 0.1), { still: true })); return { shake: juice.trauma, stop: juice.stop }; };
-    if (juice.calm) btn.click();
-    const full = killOne(), fullText = btn.textContent;
-    btn.click();
-    const calm = killOne(), calmText = btn.textContent, remembered = localStorage.getItem('jellyfight.effects'), bodyCalm = document.body.classList.contains('calm');
-    if (juice.calm !== was) btn.click();
-    try { saved === null ? localStorage.removeItem('jellyfight.effects') : localStorage.setItem('jellyfight.effects', saved); } catch {}
-    juice.reset();
+    const killOne = (calm) => { juice.calm = calm; juice.reset(); enemies.kill(spawn('roach', near(0.1, 0.1), { still: true })); return { shake: juice.trauma, stop: juice.stop }; };
+    let full, calm;
+    try { full = killOne(false); calm = killOne(true); } finally { juice.calm = was; juice.reset(); }
     const [kShake, kStop] = LOOK.list('feel-kill', []).map(Number);
-    return ok(Math.abs(full.shake - kShake) < 1e-6 && full.stop === kStop && calm.shake === 0 && calm.stop === kStop
-      && /full/.test(fullText) && /reduced/.test(calmText) && remembered === 'reduced' && bodyCalm,
-      { full, calm, fullText, calmText, remembered, bodyCalm, ladder: [kShake, kStop] });
+    return ok(!btn && follows && Math.abs(full.shake - kShake) < 1e-6 && full.stop === kStop && calm.shake === 0 && calm.stop === kStop,
+      { button: !!btn, follows, full, calm, ladder: [kShake, kStop] });
   },
 });
 story('menu/dev-tools-locked', {

@@ -3,7 +3,7 @@
 //   feel(step)  how hard a moment lands: a step on content/look.css's --feel-* ladder (shake + hit-stop)
 //   shake(k)    k ~0.2 for a pop, 1 for a big hit; stacks up to a cap and decays fast
 //   hitstop(s)  freeze the game (not the rendering) for s seconds: a kill "lands"
-//   calm        Reduce effects is on (the pause menu): no shake; hit-stop stays, it isn't motion
+//   calm        Reduce effects is on (the device asks for reduced motion): no shake; hit-stop stays, it isn't motion
 //   combo       kills within 2.5 s of each other chain; more XP as it grows
 import { LOOK } from './look.js';
 
