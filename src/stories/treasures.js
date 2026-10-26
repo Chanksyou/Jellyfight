@@ -273,18 +273,19 @@ story('treasures/bubble-ring', {
   },
 });
 story('treasures/toy-mouse', {
-  about: 'toy-mouse (Cat Toy Mouse): a wind-up mouse scurries to the nearest bug and hits it for 30; it never trips over the jelly.',
-  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('toyMouse'); roachAt(0.25, 0.1); },
+  about: 'toy-mouse (Cat Toy Mouse): a big wind-up mouse trundles to the nearest bug and slams into it for 8x your power, hitting a bug beside it too (splash) but not one far off; it never trips over the jelly.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('toyMouse'); roachAt(0.25, 0.1); roachAt(0.25, 0.16); roachAt(-0.6, 0.6); },
   play() {
-    const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
+    const { run } = G(), [e, side, far] = G().enemies.list, log = record('damage_taken'), hard = run.power * run.mods.mouse.dmg;
     let sent = 0, bit = 0, me = 0;
     for (let k = 0; k < 4; k++) {
       run.gadgets.t.mouse = 0.001; step(1);
       if (run.gadgets.mouse.visible) sent++;
-      step(60 * 3, () => log.some((d) => d.source === 'toy-mouse' && !d.counted && (d.counted = true)));
+      step(60 * 4, () => log.some((d) => d.source === 'toy-mouse' && d.targetId === e.id && !d.counted && (d.counted = true)));
     }
-    for (const d of log) if (d.source === 'toy-mouse') d.targetId === PLAYER ? me++ : d.targetId === e.id && d.amount === 30 && bit++;
-    return ok(sent === 4 && bit === 4 && me === 0, { sent, bit, me });
+    let splashed = 0, farHit = 0;
+    for (const d of log) if (d.source === 'toy-mouse') d.targetId === PLAYER ? me++ : d.targetId === e.id && d.amount === hard ? bit++ : d.targetId === side.id ? splashed++ : d.targetId === far.id && farHit++;
+    return ok(sent === 4 && bit === 4 && splashed === 4 && farHit === 0 && me === 0 && run.gadgets.mouse.scale.x > 2, { sent, bit, splashed, farHit, me });
   },
 });
 story('treasures/pin-on-crit', {
@@ -388,7 +389,7 @@ story('treasures/ring-slow', {
   },
 });
 story('treasures/reflect', {
-  about: 'reflect (Hand Mirror): the first hit bounces back at the bug that dealt it, you take none of it and can\'t be hurt for 1 s; another hit within 20 s lands as usual.',
+  about: 'reflect (Hand Mirror): the first hit bounces back at the bug that dealt it for 8x your power, you take none of it and can\'t be hurt for 1 s; another hit within 15 s lands as usual.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('handMirror'); roachAt(0.1, 0); },
   play() {
     const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -398,8 +399,22 @@ story('treasures/reflect', {
     step(70);                                                   // past the 1 s, well inside the 20 s
     bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
     const p = run.stage.power || 1, h2 = run.health;
-    return ok(back.length === 1 && back[0].targetId === e.id && h1 === 20 && inv === 1 && Math.abs(h2 - (20 - 3 * p)) < 1e-6 && dmgBy(log, 'reflect').length === 1,
+    return ok(back.length === 1 && back[0].targetId === e.id && back[0].amount === run.power * run.mods.reflect.dmg && h1 === 20 && inv === 1 && Math.abs(h2 - (20 - 3 * p)) < 1e-6 && dmgBy(log, 'reflect').length === 1,
       { back: back.map((d) => d.amount), h1, inv, h2 });
+  },
+});
+story('treasures/reflect-shockwave', {
+  about: 'reflect burst (Hand Mirror): as the bounce goes off, a shockwave hits every bug within 15 cm for 3x your power and throws it back; a bug farther off is untouched.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('handMirror'); roachAt(0.05, 0); roachAt(-0.08, 0.04); roachAt(0.5, 0.5); },
+  play() {
+    const { run, enemies } = G(), [e, close, far] = enemies.list, log = record('damage_taken'), shoves = record('knockback');
+    run.health = 20;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
+    const R = run.mods.reflect, by = (x) => dmgBy(log, 'reflect').filter((d) => d.targetId === x.id).map((d) => d.amount);
+    const pushed = (x) => shoves.some((k) => k.targetId === x.id);
+    step(2); const shell = run.gadgets.mirrorShell.visible;
+    return ok(by(e)[0] === run.power * R.dmg && by(close)[0] === run.power * R.burstDmg && !by(far).length && pushed(close) && pushed(e) && !pushed(far) && shell,
+      { attacker: by(e), close: by(close), far: by(far), shell });
   },
 });
 story('treasures/death-save', {
@@ -519,16 +534,19 @@ story('treasures/while', {
   },
 });
 story('treasures/while-low-health', {
-  about: 'while low-health (Hot Water Bottle): +50% Fire rate and +20% Move speed only while under 30% of max Health.',
+  about: 'while low-health under=0.5 (Hot Water Bottle): +50% Fire rate, +40% Bubble damage and +20% Move speed only while under half your max Health; steam pours off you while it holds.',
   setup() { setupFight({ lash: false }); give('hotWaterBottle'); },
   play() {
-    const { run } = G(), pct = (k) => (run.S[k] - run.stats[k]) / BASE_STATS[k] * 100;
+    const { run } = G(), g = run.gadgets, pct = (k) => (run.S[k] - run.stats[k]) / BASE_STATS[k] * 100;
+    const read = () => [pct('fireRate'), pct('bubbleDamage'), pct('moveSpeed')];
     run.health = run.S.health;
-    const full = [pct('fireRate'), pct('moveSpeed')];
-    run.health = run.S.health * 0.2;
-    const low = [pct('fireRate'), pct('moveSpeed')];
-    const same = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(same(full[0], 0) && same(full[1], 0) && same(low[0], 50) && same(low[1], 20), { full, low });
+    const full = read(); step(5); const dry = !g.steamOn;
+    run.health = run.S.health * 0.55;
+    const above = read();
+    run.health = run.S.health * 0.45;
+    const low = read(); step(20); const steam = g.steamOn && g.looks.pools.foam.some((p) => p.alive);
+    const same = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
+    return ok(same(full, [0, 0, 0]) && same(above, [0, 0, 0]) && same(low, [50, 40, 20]) && dry && steam, { full, above, low, dry, steam });
   },
 });
 story('treasures/power-bank', {
