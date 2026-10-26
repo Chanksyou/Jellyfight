@@ -4,81 +4,81 @@
 //   hp     health            r      body radius (m)        dmg    damage when it touches you
 //   xp     XP it drops       model  which model to build (src/critters.js, src/enemies.js)
 
-enemy "roach" name="Cockroach" hp=25 r=0.024 dmg=1 xp=1 model="roach" {
+enemy "roach" name="Cockroach" hp=25 r=0.028 dmg=1 xp=1 model="roach" {
     death-motion "crumple"
-    chase 0.3                       // a little slower than you swim (0.42), so you can always get away
+    chase 0.35                      // a little slower than you swim (0.42), so you can always get away
 }
 
 // The ant (from 0:30): a red wood ant with a pushpin in its jaws. It walks after you and keeps a
 // little off; then it stands, braces and coils back (no line on the floor: watch the ant; its aim
 // locks halfway through), and throws it spinning at you. A new pin appears in its jaws. Step aside
 // as it coils. A pin that misses sticks in whatever it hits for a moment.
-enemy "ants" name="Ant" hp=66 r=0.048 dmg=1 xp=2 model="ants" {
+enemy "ants" name="Ant" hp=45 r=0.038 dmg=1 xp=2 model="ants" {
     death-motion "crumple"
-    chase 0.225 stop=0.3
-    spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=-0.4 still=true
+    chase 0.3 stop=0.3
+    spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true
 }
 
-enemy "mosquito" name="Mosquito" hp=40 r=0.04 dmg=1 xp=3 model="mosquito" {
+enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
     death-motion "flutter"
     hover 0.2 above=0.07 speed=0.33
-    spit every=2.4 reach=0.45 speed=0.9 life=0.8 dmg=2 aim=0.5
+    spit every=2 reach=0.45 speed=1 life=1 dmg=2 aim=0.3
 }
 
 // The spotted lanternfly (from 2:00): it crawls after you, then crouches (a red
 // ring marks where it will land), springs high with its red wings flashing and slams down.
-enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.039 dmg=1 xp=4 model="lanternfly" {
+enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.045 dmg=2 xp=4 model="lanternfly" {
     death-motion "flutter"
     chase 0.2
-    leap range=0.4 windup=0.55 height=0.2 time=0.75 radius=0.1 dmg=4 rest=0.9 every=1.5
+    leap range=0.6 windup=0.55 height=0.3 time=1 radius=0.2 dmg=5 rest=1 every=2.5
 }
 
 // Act 2. The giant house spider: it stalks after you on eight long legs; at range it rears
 // up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
 // and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
-enemy "spider" name="House spider" hp=55 r=0.042 dmg=2 xp=5 model="spider" {
-    chase 0.27 stop=0.55               // keeps its distance (backs off if you close in) so it can lob webs
-    spit every=2.8 reach=0.9 speed=0.6 life=2 dmg=3 aim=0.7 shot="web" height=1.2 arc=0.9 slow=2
+enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
+    chase 0.3 stop=0.55                // keeps its distance (backs off if you close in) so it can lob webs
+    spit every=2 reach=1 speed=0.8 life=2.5 dmg=3 aim=0.7 shot="web" height=0.5 arc=0.7 slow=2
 }
 
 // Act 2. The house fly (from 0:30): it buzzes in close beside you, hangs there rubbing its front
 // legs and draws its head back while a short line on the floor shows where it will strike, then
 // pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
-enemy "housefly" name="House fly" hp=45 r=0.03 dmg=2 xp=4 model="housefly" {
+enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
     death-motion "flutter"
-    hover 0.1 above=0.01 speed=0.42 circle=0.9
-    poke range=0.14 windup=0.5 reach=0.15 dmg=4 time=0.08 hold=0.15 rest=0.7 every=1.4
+    hover 0.05 above=0.01 speed=0.42 circle=0.9
+    poke range=0.2 windup=0.3 reach=0.2 dmg=4 time=0.08 hold=0.15 rest=1 every=1.5
 }
 
 // Act 2. The giant millipede (from 1:00): it slithers after you like a snake, its legs rippling
 // in waves. Up close it curls into an armoured ball standing on its edge (hits do 75% less
 // while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
 // down it at you. Get out of the lane; hit it once it uncurls.
-enemy "millipede" name="Giant millipede" hp=70 r=0.035 dmg=2 xp=8 model="millipede" {
+enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipede" {
     death-motion "shell"
-    chase 0.3 weave=0.8 rate=0.9 turn=2.2   // swings round in arcs, never pivots on the spot
-    ball-charge range=0.4 curl=0.45 spin=0.9 speed=0.95 time=0.7 dmg=5 uncurl=0.5 rest=0.8 every=2.5
+    chase 0.3 weave=1 rate=2 turn=3   // swings round in arcs, never pivots on the spot
+    ball-charge range=0.4 curl=0.45 spin=1.5 speed=2 time=0.8 dmg=5 uncurl=0.5 rest=1 every=2.5
 }
 
 // Act 2. The ladybug (from 1:30): it flies round you, then lands, lifts its red carapace and
 // locks on (a red reticle closes in round you, beeping faster), and fires a homing missile from
 // its back. The missile hunts you for 4 s, turning only so fast: outrun it or break sharply, and
 // it sputters out and falls. Hit it while it's grounded and locking on.
-enemy "ladybug" name="Ladybug" hp=80 r=0.04 dmg=2 xp=9 model="ladybug" {
+enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
     death-motion "shell"
-    sortie circle=0.3 height=0.12 speed=0.5 fly=3 land=0.35 aim=0.9 rest=0.7 rocket=0.36 turn=2.4 fuel=4 dmg=5
+    sortie circle=0.3 height=0.12 speed=0.7 fly=4 land=0.35 aim=0.6 rest=1 rocket=0.6 turn=3 fuel=4 dmg=5
 }
 
 // Act 3 (the bedroom, from the start of the night): the dragonfly. It never flies straight
 // at you: it hangs in the air, then darts off a short way in some new direction, zigzagging in.
-// Within reach it turns to face you and holds dead still for 2 s, charging; the only warning is a
+// Within reach it turns to face you and holds dead still for 1 s, charging; the only warning is a
 // whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
-// it and it darts away in a random direction (at most once every 5 s), breaking off a charge.
+// it and it darts away in a random direction (at most once every 4 s), breaking off a charge.
 enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     death-motion "flutter"
-    zip distance=0.3 above=0.06 speed=1.4 length=0.14 pause=0.35
-    charge-beam range=0.45 charge=2 dmg=3 reach=0.8 width=0.008 every=3.5
-    evade every=5 distance=0.25 speed=2.2
+    zip distance=0.3 above=0.06 speed=2 length=0.2 pause=0.35
+    charge-beam range=0.65 charge=1 dmg=3 reach=0.8 width=0.03 every=3
+    evade every=4 distance=0.25 speed=2.2
 }
 
 // Act 3 (from 0:45): the praying mantis stalks after you on four legs, its forelegs folded.
@@ -86,9 +86,9 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 // then lunges and snaps them shut across a wedge in front of it, reaching a little farther than a
 // house fly's poke.
 // When it dies, the worm that was living inside it takes its place.
-enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=1 xp=10 model="mantis" {
-    chase 0.2
-    swat range=0.16 windup=0.7 reach=0.19 arc=80 dmg=3 rest=0.8 every=1.6
+enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=2 xp=10 model="mantis" {
+    chase 0.4
+    swat range=0.3 windup=0.3 reach=0.3 arc=120 dmg=4 rest=0.5 every=1
     hatch "worm"
 }
 
@@ -97,38 +97,38 @@ enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=1 xp=10 model="mantis" {
 // you from there like a whip: it rears back while a line on the floor shows where it will crack
 // down. It can't leave the body, so get out of its reach or jump the line. It's as big as the
 // mantis it was in.
-enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=1 xp=8 model="worm" {
+enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
     rooted
-    burst delay=0.9 radius=0.1 dmg=2
-    whip range=0.42 windup=0.7 reach=0.28 width=0.012 dmg=3 down=0.35 rest=1 every=1.4
+    burst delay=1.5 radius=0.4 dmg=5
+    whip range=0.5 windup=0.7 reach=0.28 width=0.03 dmg=3 down=0.35 rest=1 every=1
 }
 
 // Act 3 (from 1:00): the stag beetle, a tank about 2x the jelly (an iridescent green-black shell, a
 // crested head, big antler mandibles). It plods after you; within reach it stops, turns to you and
 // charges an electric ball between its mandibles (sparks gather, it grows and crackles with a rising
 // whine; its aim locks part way through), then fires it at you: a big fast Shot that explodes where it
-// lands, a Blast 7 cm round. Step well aside once it locks.
+// lands, a Blast 30 cm round. Step well aside once it locks.
 enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
     death-motion "shell"
     chase 0.14
-    charge-shot range=0.6 charge=1 lock=0.6 speed=1.2 dmg=3 size=0.019 blast=0.07 knock=0.6 life=1.2 rest=0.7 every=3.5
+    charge-shot range=0.6 charge=2 lock=0.5 speed=2 dmg=5 size=0.08 blast=0.3 knock=0.6 life=2 rest=0.7 every=3.5
 }
 
 // Act 3 (from 1:30, src/stage3.js nests): the wasp nest, a grey paper teardrop stuck to a wall or the side of
-// furniture in the bedroom (src/stage3.js lists where). It never moves; every 5 s a wasp crawls
+// furniture in the bedroom (src/stage3.js lists where). It never moves; every 4 s a wasp crawls
 // out of the entrance at its bottom. Destroy it to stop them.
-enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=1 xp=15 model="nest" {
+enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
     hangs size=0.13                  // hits anywhere on the nest count (it's 30 cm tall)
-    brood "wasp" every=5 max=6
+    brood "wasp" every=4 max=9
 }
 
 // The wasps from a nest. They circle you, and now and then one stops and rears up with a rising
 // buzz, then nosedives at you: a sting is a big hit (6), and the wasp dies doing it. Move off its
 // line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
-enemy "wasp" name="Wasp" hp=40 r=0.025 dmg=1 xp=0 model="wasp" {
+enemy "wasp" name="Wasp" hp=40 r=0.04 dmg=1 xp=0 model="wasp" {
     death-motion "flutter"
     hover 0.2 above=0.08 speed=0.55 circle=1.6
-    dive range=0.35 every=3 windup=0.5 speed=1.4 reach=0.6 dmg=6 rest=0.6
+    dive range=0.5 every=3 windup=0.5 speed=3 reach=0.8 dmg=6 rest=0.6
 }
 
 // The Clog (act 2 boss) sheds hair tangles into the fight

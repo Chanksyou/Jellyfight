@@ -24,13 +24,13 @@ story('movement/jelly-steady-speed', {
   },
 });
 story('movement/roach-slower-than-jelly', {
-  about: 'A cockroach chases at 0.3 m/s, slower than the jelly, so one can always be outswum.',
+  about: 'A cockroach chases at 0.35 m/s, slower than the jelly, so one can always be outswum.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 4.0, 0); spawn('roach', V(3.2, 0, 2.3)); },
   play() {
     const e = G().enemies.list[0];
     step(40); const a = e.pos.clone(); step(60);
     const v = e.pos.distanceTo(a);
-    return ok(Math.abs(v - 0.3) < 0.02 && v < CONFIG.player.walkSpeed, { roach: +v.toFixed(3), jelly: CONFIG.player.walkSpeed });
+    return ok(Math.abs(v - 0.35) < 0.02 && v < CONFIG.player.walkSpeed, { roach: +v.toFixed(3), jelly: CONFIG.player.walkSpeed });
   },
 });
 
