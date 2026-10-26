@@ -11,17 +11,46 @@
 // what you changed, ready to make permanent (or hand to an agent), and Reset puts the file
 // values back and restores everything removed. Only for tuning; players never see it.
 import { CONTENT, recompileContent, REMOVED } from './content.js';
-import { ENEMY_WORDS, TREASURE_WORDS } from './words.js';
+import { ENEMY_WORDS, TREASURE_WORDS, ELEMENT_HINTS, ELEMENT_ADD } from './words.js';
 import { STAT_INFO } from './stats.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+// What a number means, for the ones no word's doc describes: a bug's, treasure's, boss's or
+// elite's own numbers, and the skill numbers the boss and elite files share (their headers).
+const HINTS = {
+  hp: 'its Health', r: 'body radius (m)', dmg: 'Health taken per hit', xp: 'XP it drops',
+  contact: 'damage when it bumps into you', stack: 'how many copies you can own (1–5)',
+  aggro: 'how close (m) you get before it wakes', angry: 'the Health fraction under which it turns angry',
+  recover: 'rest between attacks runs down this many × as fast', tempo: 'each attack plays this many × as fast',
+  base: 'XP for the first level-up', growth: 'each level-up needs this many × the XP of the last',
+  weight: 'how likely it is offered (1 = as likely as any; 0 = never)',
+  windup: 'warning time (s)', time: 'how long it runs (s)', speed: 'm/s', rest: 'rest afterwards (s)',
+  every: 'seconds between goes', slow: 'seconds you stay slowed', at: 'the Health fraction that trips it',
+  radius: 'radius (m)', reach: 'how far it reaches (m)', count: 'how many', height: 'how high (m)',
+};
+const OWN_HINTS = { ...HINTS, dmg: 'damage when it touches you' };   // an entry's own dmg is its touch
+
+// A word's doc names each of its numbers in backticks (`speed` m/s); the hint for one is the
+// clause of the doc around it, with the number's name in bold, e.g. "dashes at **speed** m/s".
+export function hintFrom(doc, key) {
+  const i = doc?.indexOf('`' + key + '`') ?? -1;
+  if (i < 0) return '';
+  const left = Math.max(0, ...['. ', ', ', '; ', ': ', '(', ') '].map((b) => { const j = doc.lastIndexOf(b, i - 1); return j < 0 ? 0 : j + b.length; }));
+  const ends = [',', ';', ':', ')', '. '].map((b) => doc.indexOf(b, i + key.length + 2)).filter((j) => j >= 0).sort((a, b) => a - b);
+  // too short to say much on its own ("With stop (m)"): run on to the next break
+  const end = ends.find((j) => j - left >= 16) ?? doc.length;
+  let s = doc.slice(left, end).replace(/\.$/, '').trim();
+  if (s.includes('(') && !s.includes(')')) s += ')';
+  return s.replace('`' + key + '`', '**' + key + '**').replace(/`/g, '').replace(/ s\b/g, ' seconds');
+}
 const originals = new Map();   // field -> the value it has in the file
 
 // One editable number: a slot in a parsed content node (an arg or a prop), remembering the
 // value it started with so changes can be listed and reset.
-function leaf(where, label, box, key) {
+function leaf(where, label, box, key, hint = '') {
   const f = {
-    where, label,
+    where, label, hint,
     get: () => box[key],
     edited: () => originals.has(f) && f.get() !== originals.get(f),
     set: (v) => { if (!originals.has(f)) originals.set(f, box[key]); box[key] = v; },
@@ -34,8 +63,9 @@ function leaf(where, label, box, key) {
 // props, then its block's words (every N { … }).
 function wordFields(where, node, registry, path, out) {
   const def = registry?.[node.name];
-  node.args.forEach((a, i) => { if (isNum(a)) out.push(leaf(where, `${path}${node.name} ${def?.args?.[i] ?? 'arg ' + (i + 1)}`, node.args, i)); });
-  for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, `${path}${node.name} ${k}`, node.props, k));
+  const hint = (k) => (def ? hintFrom(def.doc, k) : '') || (node.name === 'element-up' && ELEMENT_HINTS[k] && `${ELEMENT_ADD.has(k) ? 'adds to' : 'multiplies'} ${ELEMENT_HINTS[k]}`) || HINTS[k] || '';
+  node.args.forEach((a, i) => { if (isNum(a)) { const k = def?.args?.[i]; out.push(leaf(where, `${path}${node.name} ${k ?? 'arg ' + (i + 1)}`, node.args, i, hint(k))); } });
+  for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, `${path}${node.name} ${k}`, node.props, k, hint(k)));
   for (const c of node.children) wordFields(where, c, def?.block ?? registry, path, out);
 }
 
@@ -43,7 +73,7 @@ function wordFields(where, node, registry, path, out) {
 // stack), then its words; a treasure's levels get their own word lists, labelled Lv2, Lv3.
 function entryFields(where, node, registry) {
   const out = [];
-  for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, k, node.props, k));
+  for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, k, node.props, k, OWN_HINTS[k] || ''));
   for (const c of node.children) {
     if (c.name === 'level') for (const w of c.children) wordFields(where, w, registry, `Lv${c.args[0]} · `, out);
     else wordFields(where, c, registry, '', out);
@@ -121,6 +151,7 @@ const CSS = `
 .jf-tune button.on { background: #3d8cff55; border-color: #5fb4ff; }
 .jf-tune button.go { background: #2ff0c455; border-color: #2ff0c4; font-weight: 700; }
 .jf-tune .note { padding: 0 14px 8px; font-size: 12px; opacity: .7; }
+.jf-tune .note summary { cursor: pointer; }
 .jf-tune .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
 .jf-tune .chips button { padding: 5px 10px; min-height: 32px; font-size: 13px; }
 .jf-tune input[type=search] { margin: 0 14px 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid #ffffff30; background: #0006; color: #fff; font: inherit; }
@@ -138,11 +169,15 @@ const CSS = `
 .jf-tune .fld { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .95; }
 .jf-tune .fld input { width: 76px; padding: 6px 8px; border-radius: 8px; border: 1px solid #ffffff30; background: #0006; color: #fff; font: inherit; font-size: 13px; }
 .jf-tune .fld input.edited { border-color: #ffd34d; }
+.jf-tune .hint { margin: 0 6px 6px 46px; padding: 6px 8px; border-radius: 8px; background: #ffffff0d; font-size: 12px; line-height: 1.35; min-height: 16px; }
+.jf-tune .hint i { font-style: normal; opacity: .6; margin-right: 6px; }
+.jf-tune .hint b { color: #5fb4ff; }
 .jf-tune .status { padding: 6px 14px 0; font-size: 12px; min-height: 16px; color: #ffd34d; }
 .jf-tune footer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #ffffff18; }
 .jf-tune footer .go { flex: 1; }
 `;
 
+const TAP = 'Tap a number to see what it does.';
 const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions'], ['boss', 'Bosses'], ['elite', 'Elites'], ['levelup', 'Level-ups']];
 
 export class BalanceEditor {
@@ -163,6 +198,15 @@ export class BalanceEditor {
     this.el.addEventListener('click', (e) => this.click(e));
     this.el.addEventListener('input', (e) => { if (e.target.type === 'search') { this.query = e.target.value.trim().toLowerCase(); this.drawList(); } });
     this.el.addEventListener('change', (e) => this.change(e));
+    this.el.addEventListener('focusin', (e) => this.explain(e.target));
+  }
+
+  // Tapping (or tabbing into) a number says what it does, in the row's one hint line.
+  explain(input) {
+    const hint = input.dataset?.f && input.closest('.row')?.querySelector('.hint');
+    if (!hint) return;
+    const f = this.groups[+input.dataset.g].fields[+input.dataset.f];
+    hint.innerHTML = `<i>${f.label}</i>${f.hint ? f.hint.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : 'No note for this one yet.'}`;
   }
 
   get open() { return !this.el.hidden; }
@@ -175,7 +219,7 @@ export class BalanceEditor {
     this.groups = balanceGroups();
     this.el.innerHTML = `<div class="box">
       <header><h2>⚖️ Balance editor</h2><button data-k="back">✕</button></header>
-      <div class="note">Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss or elite uses a skill's new numbers from its next attack (its Health, from its next spawn or power-on). Level-up numbers land at the next level-up. ✕ Remove takes an elite out of the run or a card out of the offers until you restore it. Nothing is saved to the files — Copy changes lists your edits to make permanent.</div>
+      <details class="note"><summary>How it works</summary>Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss or elite uses a skill's new numbers from its next attack (its Health, from its next spawn or power-on). Level-up numbers land at the next level-up. ✕ Remove takes an elite out of the run or a card out of the offers until you restore it. Nothing is saved to the files — Copy changes lists your edits to make permanent. Tap a number to see what it does.</details>
       <input type="search" placeholder="Search bugs, treasures, bosses, elites and level-ups" value="${this.query}">
       <div class="chips">${FILTERS.map(([id, label]) => `<button data-f="${id}">${label}</button>`).join('')}</div>
       <div class="list"></div>
@@ -211,8 +255,8 @@ export class BalanceEditor {
     list.innerHTML = this.items().map((g) => {
       const gi = this.groups.indexOf(g);
       const removed = g.removeKey && REMOVED.has(g.removeKey);
-      const fields = g.id === this.openId ? `<div class="fields">${g.fields.map((f, fi) =>
-        `<label class="fld">${f.label} <input type="number" step="any" data-g="${gi}" data-f="${fi}" value="${f.get()}" class="${f.edited() ? 'edited' : ''}"></label>`).join('')}</div>` : '';
+      const fields = g.id === this.openId ? `<div class="hint">${TAP}</div><div class="fields">${g.fields.map((f, fi) =>
+        `<label class="fld" title="${f.hint.replace(/\*\*/g, '')}">${f.label} <input type="number" step="any" data-g="${gi}" data-f="${fi}" value="${f.get()}" class="${f.edited() ? 'edited' : ''}"></label>`).join('')}</div>` : '';
       return `<div class="row${removed ? ' removed' : ''}" data-id="${g.id}">
         <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}${g.removeKey ? `<span class="rm" data-k="remove" data-g="${gi}">${removed ? '↩ Restore' : '✕ Remove'}</span>` : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
         ${fields}

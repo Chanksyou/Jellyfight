@@ -118,7 +118,7 @@ export const ENEMY_WORDS = {
   },
 
   hover: {
-    doc: 'Flies `distance` m from you and `above` m higher, circling slowly, at up to `speed` m/s.',
+    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s.',
     args: ['distance'],
     props: { above: 0.07, speed: 0.33, circle: 0.4 },
     make: ([distance], p) => ({
@@ -703,13 +703,24 @@ export const ELEMENT_BASE = {
   glitter: { width: 2.2, splash: 1, slow: 0, rate: 1.05 },            // splash width x, splash damage x, slow s
 };
 // element-up numbers that add (the rest multiply)
-const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
+export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
+// What each of those numbers is, for the balance editor
+export const ELEMENT_HINTS = {
+  rate: 'shots a second', dmg: 'damage per hit (× bubble damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
+  speed: 'shot speed', range: 'how far it reaches', burn: 'burn damage a second', burnTime: 'seconds a burn lasts',
+  spread: 'how far (m) a burning kill spreads the burn', chain: 'enemies a bolt arcs to', bolt: 'arc damage',
+  stun: 'stun seconds', chainRange: 'arc reach (m)', chill: 'chill seconds', frost: 'chilling the whole splash (1 = on)',
+  slowedMul: 'extra damage slowed enemies take', puddleDmg: 'puddle damage', puddleSize: 'puddle size',
+  puddleTime: 'seconds a puddle lasts', puddles: 'most puddles at once', push: 'how far it pushes',
+  windup: 'wind-up before each shot (s)', collision: 'damage when a pushed enemy hits furniture',
+  width: 'splash width', splash: 'splash damage', slow: 'slow seconds',
+};
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
     args: ['radius'],
     props: { dmg: 1, push: 0, freeze: 0, slow: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
