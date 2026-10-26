@@ -49,6 +49,14 @@ phone('glass-loses-its-clearcoat', {
       { softened: mats.length, clearcoat: mats.map((m) => m.clearcoat), roughness: mats.map((m) => m.roughness) });
   },
 });
+phone('camera-starts-close', {
+  about: 'On a phone the camera starts a little closer than on a desktop (44 cm back instead of 50), at the same low tilt.',
+  setup() {},
+  play() {
+    const { tpc } = G();
+    return ok(Math.abs(tpc.distance - 0.44) < 1e-6, { distance: tpc.distance, pitch: tpc.pitch });
+  },
+});
 phone('minimap-is-small', {
   about: 'On a phone the minimap is small (135 px across, a third of a landscape phone\'s height), tucked under the pause button on the right, and still drawn sharp; a desktop keeps its 285 px map.',
   setup() { fresh({ elites: false }); },

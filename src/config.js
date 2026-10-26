@@ -30,8 +30,8 @@ export const CONFIG = {
     apexBand: 0.12,      // m/s
   },
   camera: {
-    distance: LOOK.num('camera-distance', 0.68),   // how far from the player the camera sits
-    pitch: LOOK.num('camera-tilt', 1.05),         // starting tilt (~60 degrees down): mostly top-down, still behind the player
+    distance: LOOK.num('camera-distance', 0.5),   // how far from the player the camera sits
+    pitch: LOOK.num('camera-tilt', 0.45),         // starting tilt (~26 degrees down): low behind the player, looking out over the floor
     minDistance: 0.2,
     maxDistance: 0.9,
     height: 0.051,       // look-at point above the player's feet

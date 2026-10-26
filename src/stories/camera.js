@@ -2,9 +2,24 @@
 
 import * as THREE from 'three';
 import { G, cameraSpots, cameraStory, fresh, ok, step, story, stub, tp } from './kit.js';
+import { CONFIG } from '../config.js';
 
 // --- the camera (camera.js): up against walls and furniture it looks over them instead of
 story('camera/fixed-view-fades-what-blocks', cameraStory([], 'Media_console_6'));
+story('camera/starts-close-and-low', {
+  about: 'A run starts with the camera close and low behind the jelly (about 26 degrees down, 50 cm back): the floor ahead runs out to the furniture, with the jelly near the middle of the screen. The player can still tilt it up and zoom out.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, run } = G(), camera = tpc.camera, c = CONFIG.camera, was = [tpc.pitch, tpc.distance], s = run.stage.start;
+    try {
+      tpc.pitch = c.pitch; tpc.distance = c.distance;
+      tp(s[0], 0.05, s[2], 0); step(30);
+      const at = tpc.focus.clone().project(camera), up = camera.position.y - tpc.focus.y;
+      return ok(Math.abs(c.pitch - 0.45) < 1e-6 && Math.abs(c.distance - 0.5) < 1e-6 && c.pitch >= c.minPitch && c.distance <= c.maxDistance && up < 0.25 && Math.abs(at.x) < 0.05 && Math.abs(at.y) < 0.2,
+        { pitch: c.pitch, distance: c.distance, height: +up.toFixed(3), onScreen: [+at.x.toFixed(2), +at.y.toFixed(2)] });
+    } finally { [tpc.pitch, tpc.distance] = was; }
+  },
+});
 story('camera/fade-disposes-its-clones', {
   about: 'When whatever the camera faded comes back into the clear, the mesh gets its own material back and the see-through clones the fade made are disposed (nothing else holds them, so keeping them would leak a material per fade).',
   setup() { fresh({ elites: false }); },

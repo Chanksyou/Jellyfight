@@ -6,7 +6,8 @@ import * as THREE from 'three';
 // over the jelly (the coffee table, the media console, the counter's overhang) and anything
 // between the camera and the jelly (a wall behind you, a sofa back), solid again once it's
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
-// ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
+// ray looks through a few layers (a shelf, then the cabinet behind it; a wall drawn as several
+// meshes is one layer). A faded piece stays faded
 // for HOLD s after it's last in the way, so pieces don't flicker in and out as the rays sweep past
 // them, and small clutter (a mug, a teapot on a shelf, under SMALL m across) fades all the way out
 // rather than to see-through (still there to bump into: hiding it would take it out of collisions): a shelf of half-transparent cups drawn over each other looked broken.
@@ -14,6 +15,8 @@ const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall l
 const HOLD = 0.4;
 const SMALL = 0.15;
 const LAYERS = 3;              // how many things one ray may look through
+const SAME_LAYER = 0.01;       // m: pieces hit this close behind the last one are the same layer (a wall drawn as several meshes)
+const MAX_HITS = 12;           // and never more than this many pieces on one ray
 const UP = new THREE.Vector3(0, 1, 0);
 const NONE = [];
 const _sphere = new THREE.Sphere();
@@ -84,9 +87,10 @@ export class ThirdPersonCamera {
   }
 
   look(dir, far) {
-    for (let i = 0; i < LAYERS; i++) {
+    for (let n = 0, layers = 0, last = -1; n < MAX_HITS; n++) {
       const h = this.world.cast(this.focus, dir, far, this.over);
       if (!h?.mesh) return;
+      if (h.distance - last > SAME_LAYER) { if (layers++ === LAYERS) return; last = h.distance; }
       this.over.add(h.mesh);
       // and the instanced parts of the same piece (a sideboard's flutes): nothing collides with
       // instanced meshes, so no ray finds them
