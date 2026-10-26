@@ -272,12 +272,12 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
-    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0, still: false },
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'web', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
-      if (!['laser', 'web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "web" or "pin", not "${p.shot}"`);
+      if (!['web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "web" or "pin", not "${p.shot}"`);
       return {
-      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
+      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; },
       tick(e, c, en) {
         e.shootT -= c.dt * (c.slow > 0 ? 1 : 0);
         e.aimT = Math.max(0, e.aimT - c.dt);
@@ -593,6 +593,51 @@ export const ENEMY_WORDS = {
         }
       },
     }),
+  },
+
+  bite: {
+    doc: 'Up close (within `range` m) every `every` s or so, stops and draws back for `windup` s (its whine climbing; the aim locks halfway through), then darts at you at `speed` m/s for up to `reach` m: if it reaches you it bites for `dmg` and bounces off. Hit or miss, it backs off, rests `rest` s and goes back to flying. List it after the flying word.',
+    props: { range: 0.25, every: 1.6, windup: 0.35, speed: 1.6, reach: 0.4, dmg: 1, rest: 0.5 },
+    make: (_, p) => ({
+      init(e) { e.biteCd = 0.8 + Math.random(); e.biteDir = new THREE.Vector3(); e.biteK = 0; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it stays put
+        e.stateT -= c.dt * live;
+        e.biteCd -= c.dt;
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.biteCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; en.biteWind(e, p.windup); }
+        } else if (e.state === 'windup') {
+          if (e.stateT > p.windup * 0.5) e.biteDir.copy(c.toP).normalize();   // tracks you, then locks on
+          else e.faceLock = true;
+          e.biteK = 1 - Math.max(0, e.stateT) / p.windup;
+          e.vel.copy(e.biteDir).multiplyScalar(-0.12 * live);                // drawing back
+          en.move(e, e.vel, c.dt * live);
+          e.root.rotation.y = Math.atan2(e.biteDir.x, e.biteDir.z);
+          if (e.stateT <= 0) { e.state = 'dart'; e.biteLeft = p.reach; e.biteK = 0; en.biteGo(e); }
+        } else if (e.state === 'dart') {
+          if (!live) return;
+          const step = Math.min(e.biteLeft, p.speed * c.dt);
+          const wall = en.world.cast(e.pos, e.biteDir, step + e.r * 0.5);
+          const blocked = en.move(e, e.biteDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
+          e.vel.copy(e.biteDir).multiplyScalar(p.speed);
+          e.biteLeft -= step;
+          const hit = e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + e.r * 0.6;
+          if (hit) en.bite(e, c, p.dmg);
+          if (hit || wall || blocked || e.biteLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.copy(e.biteDir).multiplyScalar(hit ? -0.6 : -0.15).setY(0.15); }   // bounces off you (or pulls up)
+        } else if (e.state === 'rest') {
+          e.vel.multiplyScalar(Math.exp(-4 * c.dt));
+          en.move(e, e.vel, c.dt * live);
+          if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.biteCd = p.every; }
+        }
+      },
+    }),
+  },
+
+  bleeds: {
+    doc: 'Its hits that land (past i-frames, dodges and shields) make you bleed: you lose `dps` Health a second for `seconds` s. Every hit adds its own bleed, so they stack.',
+    args: ['seconds'],
+    props: { dps: 1 },
+    make: ([seconds], p) => ({ init(e) { e.bleeds = { seconds, dps: p.dps }; } }),
   },
 
   rolls: {

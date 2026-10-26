@@ -27,9 +27,9 @@ story('words/spit-pin', {
   play() {
     const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     run.iFrames = 0;
-    let stood = true, beam = false, aimed = false, spun = 0, held = null, gone = false;
+    let stood = true, aimed = false, spun = 0, held = null, gone = false;
     step(60 * 8, () => {
-      if (e.aimT > 0) { aimed = true; if (enemies.aimBeams.some((b) => b.visible)) beam = true; if (e.aimT < e.aimMax * 0.5 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }   // (it eases to a stop)
+      if (e.aimT > 0) { aimed = true; if (e.aimT < e.aimMax * 0.5 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }   // (it eases to a stop)
       const s = enemies.shots.find((q) => q.roll);
       if (s) {
         spun = Math.max(spun, Math.abs(s.m.rotation.z));
@@ -41,7 +41,7 @@ story('words/spit-pin', {
     const hit = log.find((d) => d.source === 'pin');
     step(45);
     const back = held?.scale.x;
-    return ok(aimed && stood && !beam && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, beam, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
+    return ok(aimed && stood && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
   },
 });
 story('words/spit-pin-sticks', {
@@ -320,7 +320,7 @@ story('words/charge-beam', {
     step(60 * 3, () => {
       frames++;
       held = Math.max(held, e.pos.distanceTo(at));
-      if (enemies.aimBeams.some((b) => b.visible) || enemies.pokeMarks.some((m) => m.visible) || enemies.chargeMarks.some((m) => m.visible)) shown = true;
+      if (enemies.pokeMarks.some((m) => m.visible) || enemies.chargeMarks.some((m) => m.visible)) shown = true;
       return log.some((d) => d.source === 'dragonfly');
     });
     delete enemies.beamCharge;
@@ -770,18 +770,18 @@ story('enemies/ladybug-missile-can-be-shaken', {
   },
 });
 story('words/hover', {
-  about: 'hover: a mosquito circles about 20 cm from you, above your head.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.shootT = 99; },
+  about: 'hover: a mosquito circles about 15 cm from you, above your head.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.biteCd = 99; },
   play() {
     const e = G().enemies.list[0], pc = () => G().player.position.clone().setY(G().player.position.y + CONFIG.player.height * 0.5);
     step(60 * 4);
     const flat = Math.hypot(e.pos.x - pc().x, e.pos.z - pc().z), above = e.pos.y - pc().y;
-    return ok(Math.abs(flat - 0.2) < 0.06 && above > 0.03, { flat: +flat.toFixed(3), above: +above.toFixed(3) });
+    return ok(Math.abs(flat - 0.15) < 0.06 && above > 0.02, { flat: +flat.toFixed(3), above: +above.toFixed(3) });
   },
 });
 story('words/spit', {
-  about: 'spit: a mosquito dips its nose and spits; the shot costs you health.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mosquito', near(0, -0.15, 0.1)); },
+  about: 'spit: an ant braces, coils back and throws its pin; the shot costs you health.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', near(0, -0.3)); },
   play() {
     const { run } = G();
     run.iFrames = 0;
@@ -792,18 +792,64 @@ story('words/spit', {
   },
 });
 story('words/spit-dodge', {
-  about: 'spit: the laser flies down its aiming line, so stepping off the line after it locks on dodges it.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0, -0.2, 0.1)); e.shootT = 0.6; },
+  about: 'spit: the aim locks halfway through the wind-up, so stepping aside after it locks dodges the pin.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('ants', near(0, -0.3)); e.shootT = 1; },
   play() {
     const { run, enemies } = G(), e = enemies.list[0], P = G().player.position;
     run.iFrames = 0;
     const m0 = run.health;
     let shot = false;
-    // wait until the aim has locked, then slip 6 cm to the side
-    step(60, () => e.aimT > 0 && e.aimT < e.aimMax * 0.4);
-    tp(P.x + 0.06, P.y, P.z);
+    // wait until the aim has locked, then slip 8 cm to the side
+    step(90, () => e.aimT > 0 && e.aimT < e.aimMax * 0.4);
+    tp(P.x + 0.08, P.y, P.z);
     step(90, () => { if (enemies.shots.length) shot = true; });
     return ok(shot && run.health === m0, { shot, lost: m0 - run.health });
+  },
+});
+story('words/bite', {
+  about: 'bite: a mosquito up close stops and draws back, darts in and bites you, then bounces off.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); stub(G().run, 'contactDamage', () => {}); spawn('mosquito', near(0, -0.18, 0.05)).biteCd = 0.3; },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], seen = new Set(), log = [];
+    offs.push(bus.on('damage_taken', (d) => { if (d.targetId === PLAYER) log.push(d); }));
+    run.iFrames = 0;
+    let at = null;
+    step(60 * 6, () => { seen.add(e.state); if (at == null && log.some((d) => d.source === 'mosquito')) at = e.pos.distanceTo(jellyMid()); return at != null && seen.has('rest'); });
+    step(15);
+    const after = e.pos.distanceTo(jellyMid()), bit = log.find((d) => d.source === 'mosquito');
+    return ok(['windup', 'dart', 'rest'].every((st) => seen.has(st)) && bit?.contact && after > at, { states: [...seen], bit: !!bit, at: at && +at.toFixed(3), after: +after.toFixed(3) });
+  },
+});
+story('words/bite-dodge', {
+  about: 'bite: the mosquito locks its aim halfway through drawing back, so moving off after that makes it miss.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); stub(G().run, 'contactDamage', () => {}); spawn('mosquito', near(0, -0.2, 0.05)).biteCd = 0.3; },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], P = G().player.position, log = [];
+    offs.push(bus.on('damage_taken', (d) => { if (d.targetId === PLAYER) log.push(d.source); }));
+    run.iFrames = 0;
+    step(60 * 4, () => e.state === 'windup' && e.stateT < 0.1);
+    tp(P.x + 0.12, P.y, P.z);
+    let darted = false;
+    step(60, () => { if (e.state === 'dart') darted = true; return darted && e.state === 'rest'; });
+    return ok(darted && !log.includes('mosquito'), { darted, hits: log });
+  },
+});
+story('words/bleeds', {
+  about: 'bleeds: a mosquito\'s bite that lands makes you bleed 1 Health a second for 3 s, and a second bite stacks another on top.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mosquito', near(0.4, 0, 0.1), { still: true }).hold = true; },
+  play() {
+    const e = G().enemies.list[0];
+    let bled = 0;
+    offs.push(bus.on('damage_taken', (d) => { if (d.targetId === PLAYER && d.source === 'bleed') bled += d.amount; }));
+    bus.emit('player_hurt', { amount: 1, from: e.id });          // its hit lands
+    step(60);
+    const one = bled;
+    bus.emit('player_hurt', { amount: 1, from: e.id });          // a second one while the first still runs
+    step(60);
+    const two = bled - one;
+    step(60 * 3);
+    const total = bled, drips = G().run.bleeds.length;
+    return ok(Math.abs(one - 1) < 0.05 && Math.abs(two - 2) < 0.05 && Math.abs(total - 6) < 0.05 && drips === 0, { one: +one.toFixed(3), two: +two.toFixed(3), total: +total.toFixed(3), left: drips });
   },
 });
 story('words/leap', {
@@ -880,9 +926,9 @@ feelStory('spit-pin', 'An ant\'s pushpin leaves its jaws with a whoosh (the ant 
 feelStory('leap', 'A lanternfly springs off with a flick of wings and slams down on the jelly with a thud: a scuff in the dust and the jelly\'s drops are left on the floor, and it squashes.',
   () => { spawn('lanternfly', near(0, -0.45)).leapCd = 0; },
   () => { const r = feelOfHit('lanternfly', 8); return ok(r.splats >= 2 && hitFelt(r, 'leapJump', 'leapSlam').ok, { ...r, e: undefined }); });
-feelStory('spit', 'A mosquito\'s laser leaves with a zap (it kicks back) and lands on the jelly with a flash, a wet slap and drops splatting.',
-  () => spawn('mosquito', near(0, -0.15, 0.1)),
-  () => { G().run.iFrames = 0; const r = feelOfHit('spit', 10); return ok(r.near && hitFelt(r, 'spit').ok, { ...r, e: undefined }); });
+feelStory('bite', 'A mosquito\'s bite: a whine climbing as it draws back, a zip as it darts, a red flash and a prick where it meets the jelly, the mosquito squashes, the jelly\'s drops splat, and it starts to bleed.',
+  () => { stub(G().run, 'contactDamage', () => {}); spawn('mosquito', near(0, -0.18, 0.05)).biteCd = 0.3; },   // (its touch alone would keep the jelly's i-frames up)
+  () => { G().run.iFrames = 0; const r = feelOfHit('mosquito', 6); const bleeding = G().run.bleeds.length > 0; return ok(r.contact && r.near && bleeding && hitFelt(r, 'biteWind', 'biteGo', 'bite').ok, { ...r, bleeding, e: undefined }); });
 feelStory('poke', 'A house fly\'s poke lands with a jab and a wet slap: it squashes, the jelly\'s drops splat.',
   () => { stub(G().run, 'contactDamage', () => {}); spawn('housefly', near(0.2, 0, 0.03)).pokeCd = 0.8; },   // (it hovers close enough to touch, which would keep the jelly's i-frames up)
   () => { const r = feelOfHit('housefly', 5, 4); return hitFelt(r, 'flyPoke'); });

@@ -259,15 +259,16 @@ story('enemies/ant-keeps-off-and-throws', {
     return ok(thrown && d > 0.2 && d < 0.5, { thrown, distance: +d.toFixed(2) });
   },
 });
-story('enemies/mosquito-spits', {
-  about: 'A mosquito hovers out of reach and its spit costs you health.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('mosquito', P.clone().add(V(0, 0.1, -0.15))); },
+story('enemies/mosquito-bites', {
+  about: 'A mosquito zips round you faster than you swim, then darts in and bites, and you bleed.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('mosquito', P.clone().add(V(0, 0.1, -0.3))); },
   play() {
-    const { run } = G();
+    const { run } = G(), e = G().enemies.list[0];
     run.iFrames = 0;
     const m0 = run.health;
-    step(60 * 10, () => run.health < m0);
-    return ok(run.health < m0, { lost: +(m0 - run.health).toFixed(2) });
+    let fastest = 0;
+    step(60 * 10, () => { if (e.state === 'approach') fastest = Math.max(fastest, e.vel.length()); return run.bleeds.length > 0; });
+    return ok(run.health < m0 && run.bleeds.length > 0 && fastest > CONFIG.player.walkSpeed, { lost: +(m0 - run.health).toFixed(2), bleeding: run.bleeds.length, fastest: +fastest.toFixed(2), swim: CONFIG.player.walkSpeed });
   },
 });
 

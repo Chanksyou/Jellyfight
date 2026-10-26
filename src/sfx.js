@@ -919,13 +919,12 @@ export const sfx = {
     noise(5000 * j, 1, 0.03, 0.1, 'highpass'); tone('sine', 140 * j, 45, 0.18, 0.2); noise(500 * j, 0.8, 0.18, 0.18, 'lowpass', 0, 120);
     patter(3, 0.06, 0.25);
   },
-  // spit leaving the mouth: a laser's zap with a thin whine as it flies, a web ball's wet thwip, or a pin's whoosh
-  spit(kind = 'laser') {
+  // spit leaving the mouth: a web ball's wet thwip, or a pin's whoosh
+  spit(kind = 'web') {
     if (!ready() || !gap('spit', 80)) return;
     const j = jitter(0.1);
     if (kind === 'web') { noise(1600 * j, 1.5, 0.1, 0.1, 'bandpass', 0, 600); tone('sine', 300 * j, 140, 0.08, 0.06); return; }
-    if (kind === 'pin') { noise(3200 * j, 2, 0.02, 0.08, 'bandpass'); noise(1800 * j, 1.2, 0.16, 0.05, 'bandpass', 0.02, 700 * j); tone('triangle', 900 * j, 1400 * j, 0.12, 0.02, 0.03); return; }   // a click of jaws, a whirring whoosh
-    tone('sawtooth', 1800 * j, 500 * j, 0.08, 0.04); noise(6000 * j, 1, 0.03, 0.06, 'highpass'); tone('sine', 2400 * j, 1600 * j, 0.18, 0.015, 0.02);
+    noise(3200 * j, 2, 0.02, 0.08, 'bandpass'); noise(1800 * j, 1.2, 0.16, 0.05, 'bandpass', 0.02, 700 * j); tone('triangle', 900 * j, 1400 * j, 0.12, 0.02, 0.03);   // a pin: a click of jaws, a whirring whoosh
   },
   // a thrown pin sinking into the scenery: a hard tock and a little twang
   pinStick() {
@@ -1044,6 +1043,20 @@ export const sfx = {
   waspSting() { if (!ready() || !gap('waspSting', 60)) return; const j = jitter(0.1); noise(4200 * j, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900 * j, 120, 0.2, 0.08); noise(700 * j, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); patter(3, 0.1, 0.25); },
   // a wasp setting off on its dive: a buzzing rip that climbs away
   diveGo() { if (!ready() || !gap('diveGo', 80)) return; const j = jitter(0.12); noise(2000 * j, 1.5, 0.2, 0.07, 'bandpass', 0, 5000 * j); tone('sawtooth', 420 * j, 620 * j, 0.15, 0.03); },
+  // a mosquito's bite: its thin whine climbing as it draws back (the warning), a zip as it darts in,
+  // and a sharp prick as it bites
+  biteWind(dur = 0.35) {
+    if (!ready()) return;
+    const t = now(), o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), k = pitch();
+    o.type = 'sawtooth'; o2.type = 'triangle';
+    o.frequency.setValueAtTime(560 * k, t); o.frequency.exponentialRampToValueAtTime(1150 * k, t + dur);
+    o2.frequency.setValueAtTime(574 * k, t); o2.frequency.exponentialRampToValueAtTime(1180 * k, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.06);
+    o.connect(g); o2.connect(g); g.connect(master);
+    o.start(t); o2.start(t); o.stop(t + dur + 0.08); o2.stop(t + dur + 0.08);
+  },
+  biteGo() { if (!ready() || !gap('biteGo', 80)) return; const j = jitter(0.12); noise(4200 * j, 2, 0.12, 0.05, 'bandpass', 0, 7000 * j); tone('sawtooth', 1100 * j, 1500 * j, 0.1, 0.02); },
+  bite() { if (!ready() || !gap('bite', 60)) return; const j = jitter(0.12); noise(6000 * j, 3, 0.03, 0.14, 'bandpass'); tone('sine', 1800 * j, 700 * j, 0.06, 0.05); },
   waspHatch() { if (!ready() || !gap('waspHatch', 300)) return; noise(3000, 3, 0.08, 0.05, 'bandpass'); tone('sawtooth', 220, 260, 0.25, 0.02, 0.05); },
   // the Clog: a deep gurgle rising out of the drain, a wet growl of a roar, hair ropes creaking
   // taut then cracking down, a squelching roll, rustling hair, the drain glugging, a splat, death
