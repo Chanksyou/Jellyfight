@@ -59,7 +59,8 @@ export class Shark {
     U.uReach.value=Math.hypot(Math.max(this.position.x-A.arenaMin[0],A.arenaMax[0]-this.position.x),Math.max(this.position.z-A.arenaMin[2],A.arenaMax[2]-this.position.z))+.04;
     this.start=V();this.target=V();this.warning=null;this.pools=[];this.tornadoes=[];this.shots=[];
     this.color=hostile('shark');this.dust=new THREE.Color(LOOK.color('shark-dust','#d6c5a7'));
-    this.camera={distance:LOOK.num(IS_TOUCH?'shark-camera-distance-phone':'shark-camera-distance',IS_TOUCH?.95:.85),pitch:LOOK.num(IS_TOUCH?'shark-camera-tilt-phone':'shark-camera-tilt',IS_TOUCH ? .62 : .88),ahead:IS_TOUCH?1.8:1};
+    // the fight view: the Vacuum's high angle, aimed a little ahead so the jelly sits just below the middle with the shark in front
+    const ph=IS_TOUCH?'-phone':'';this.camera={distance:LOOK.num('shark-camera-distance'+ph,IS_TOUCH?.85:1.15),pitch:LOOK.num('shark-camera-tilt'+ph,IS_TOUCH?.95:.98),ahead:LOOK.num('shark-camera-ahead'+ph,IS_TOUCH?.3:.25)};
     this.cameraBase={distance:this.camera.distance,pitch:this.camera.pitch};this.cameraAir=IS_TOUCH?LOOK.num('shark-camera-air-room-phone',.6):0;this.cameraAirView=0;
     // A separate inexpensive fin proxy is visible while the full model is beneath the quilt.
     this.fin=new THREE.Mesh(new THREE.ConeGeometry(.065*K,.15*K,3).scale(.18,1,1),this.model.rig.mat);
