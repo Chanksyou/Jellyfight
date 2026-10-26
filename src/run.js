@@ -19,7 +19,8 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
-import { addFeats, unlockedAwards } from './cosmetics.js';
+import { addFeats, unlockedAwards, nextAward, needText, feats } from './cosmetics.js';
+import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
 import { Elites, ELITE_NAMES } from './elites.js';
@@ -254,6 +255,7 @@ export class Run {
     this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
+    this.newFinds = [];               // first-ever finds this run, for the end screen (collection.js)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
     if (C) {
@@ -263,6 +265,7 @@ export class Run {
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
       this.evolved = [...(C.evolved || [])];
+      this.newFinds = [...(C.newFinds || [])];
       this.saved = !!C.saved;
       this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
@@ -807,6 +810,7 @@ export class Run {
     this.kills++;
     this.elitesBeaten++;
     if (!this.dev) addFeats({ elites: 1 });
+    this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
@@ -916,12 +920,17 @@ export class Run {
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
 
+  // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
+  markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
+  found(kind, id, label = id) { if (!this.dev && discover(kind, id)) this.newFinds.push(label); }
+
   offer(title, sub, choices, then = () => this.resume()) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
-    this.ui.choose(title, sub, choices, (t) => {
+    this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
       const before = this.S.health;
       this.owned.add(t.id);
+      this.found('treasures', t.id, `${t.icon} ${t.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
       this.ui.treasure(t);
       then();
@@ -1106,6 +1115,7 @@ export class Run {
     this.bossDeadT = true;
     this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
+    this.found('bosses', this.stage.boss.kind, this.stage.boss.name);
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
     if (impact) { juice.feel('boss-kill'); sfx.boom(); }
@@ -1151,9 +1161,10 @@ export class Run {
     const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
-    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, choices, (evo) => {
+    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, this.markNew('evolutions', choices), (evo) => {
       const before = this.mods;
       this.evolved.push(evo.id);
+      this.found('evolutions', evo.id, `${evo.icon} ${evo.name}`);
       this.health = this.S.health;
       this.evolutionReveal.begin(evo, before, () => {
         this.phase = 'won';
@@ -1215,13 +1226,23 @@ export class Run {
     this.flushFeats({ runs: 1, wins: this.phase === 'won' ? 1 : 0 });
     const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return OPTIONS[key].find(([v]) => v === id)?.[1] || id; });
     let typed = savedName();
+    // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
+    const dead = this.phase === 'dead', near = dead ? this.howClose() : null, next = dead ? nextAward() : null;
+    // your own jelly wearing it (jelly-portrait.js, as the leaderboard draws players)
+    const unlockFace = next && this.jellyFace?.({ ...(this.playerLook?.() || {}), [next.key]: next.id });
+    const pull = [
+      ...(near ? [['So close', near]] : []),
+      ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
+      ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needText(next.need, feats())}</small>`]] : []),
+    ];
+    const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit)
     const show = (result) => {
       this.endView = 'summary';
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
-        ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary()];
+        ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary(), ...finds];
       if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map(esc).join(', ')}</b> <small>· wear it from Change your look</small>`]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
@@ -1229,16 +1250,18 @@ export class Run {
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
+      // a run always starts over from act 1; after a death, starting again is the big button (Enter still submits)
+      const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } };
+      if (dead) buttons.push(tryAgain);
       if (canPost) {
-        buttons.push({ label: '📤 Submit score', go: true, onClick: (v) => {
+        buttons.push({ label: '📤 Submit score', go: !dead, enter: true, onClick: (v) => {
           typed = (v.player || '').trim().slice(0, 20);
           saveName(typed);
           show({ posted: false, why: 'sending' });
           B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = r; if (this.endView === 'summary') show(r); });
         } });
       }
-      // a run always starts over from act 1
-      buttons.push({ label: again, go: !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } });
+      if (!dead) buttons.push(tryAgain);
       if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons);
@@ -1246,12 +1269,20 @@ export class Run {
     show(null);
   }
 
+  // How near a death came to beating the act: the boss's time still to come, or its Health left
+  howClose() {
+    const name = this.stage.boss.name, B = this.boss;
+    if (B && !this.bossWon) return `${name} had ${Math.max(1, Math.round((100 * Math.max(0, B.hp)) / B.maxHp))}% Health left`;
+    const left = Math.ceil(this.duration - this.t);
+    return left > 0 ? `${name} was ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} away` : null;
+  }
+
   // What the run takes into the next act (stages.js; Run.start reads it back as this.carry)
   carryOver() {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
-      chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved,
+      chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved, newFinds: this.newFinds,
     };
   }
 
@@ -1290,6 +1321,18 @@ export class Run {
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
+  }
+
+  // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not
+  showBook(back) {
+    const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'];
+    const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(kind, x.id, f) })) });
+    this.ui.book('📖 Treasure book', 'Every Treasure and evolution you\'ve picked, and every Elite and boss you\'ve beaten.', [
+      sec('Treasures', 'treasures', [...TREASURES].sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color }))),
+      sec('Evolutions', 'evolutions', EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text }))),
+      sec('Elites', 'elites', Object.values(CONTENT.elites).filter((e) => e.id).map((e) => ({ id: e.id, icon: '👾', name: e.name, text: 'beaten.' }))),
+      sec('Bosses', 'bosses', STAGES.map((st) => ({ id: st.boss.kind, icon: '👑', name: st.boss.name, text: 'beaten.' }))),
+    ], back);
   }
 
   // The leaderboard as a dialog; back() returns to where it was opened from
