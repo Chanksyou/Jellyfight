@@ -93,6 +93,7 @@ export const STAGE1 = {
     arenaMax: [4.3, 0.6, 4.3],
     playerStart: [3.1, 0, 3.9],
     drain: [3.6, 0, 3.1],             // where it powers on
+    forceField: true,                 // its walls' force field is drawn (look.css --boss-force-field hides other arenas')
     walls: [
       { min: [2.85, 0, 1.95], max: [2.9, 0.6, 4.35] },
       { min: [4.3, 0, 1.95], max: [4.35, 0.6, 4.35] },
