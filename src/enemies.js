@@ -1056,9 +1056,6 @@ export class Enemies {
         this.scene.add(B);
         this.aimBeams.push(B);
       }
-      const col = e.aimKind === 'pin' ? hostile('pin') : this.laserColor;   // in the shooter's colour
-      B.material.color.copy(col).multiplyScalar(1.6);
-      B.children[0].material.color.copy(col).lerp(WHITE, 0.6).multiplyScalar(1.5);
       const a = e.pos, b = e.aimAt, len = a.distanceTo(b) + 0.03;   // runs a little past you
       B.position.copy(a);
       B.lookAt(b);
@@ -1291,7 +1288,6 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const WHITE = new THREE.Color('#ffffff');
 const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow

@@ -326,7 +326,7 @@
   --coffer-tongue-width: 0.026;      /* its tongue: how wide (m, thinning a little as it stretches), */
   --coffer-tongue-thickness: 0.012;  /* how thick, */
   --coffer-tongue-tip: 0.02;         /* and the fleshy tip that latches on */
-  --hostile-pin: #ff1f78;        /* the ant's thrown pushpin: its aim line, halo and trail, hot scarlet-pink (between act 1's laser red and the Controller's magenta) */
+  --hostile-pin: #ff1f78;        /* the ant's thrown pushpin: its halo and trail, hot scarlet-pink (between act 1's laser red and the Controller's magenta) */
   --pin-stuck: 2;                /* seconds a missed pin stays stuck in the scenery */
   --hostile-missile: #ff2020;   /* the ladybug's lock-on reticle and missile glow */
   --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and cream spray: violet */

@@ -272,12 +272,12 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, aimed with a beam like the laser; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
     props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
       if (!['laser', 'web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "web" or "pin", not "${p.shot}"`);
       return {
-      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot !== 'web'; e.aimKind = p.shot; },
+      init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {
         e.shootT -= c.dt * (c.slow > 0 ? 1 : 0);
         e.aimT = Math.max(0, e.aimT - c.dt);

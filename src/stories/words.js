@@ -22,14 +22,14 @@ story('words/chase', {
   play() { const e = G().enemies.list[0], d0 = e.pos.distanceTo(G().player.position); step(60); const d1 = e.pos.distanceTo(G().player.position); return ok(d0 - d1 > 0.2, { before: +d0.toFixed(3), after: +d1.toFixed(3) }); },
 });
 story('words/spit-pin', {
-  about: 'spit shot="pin": the ant stands still, braces and coils back while a line shows where the pin will go, throws its pushpin spinning at you (it costs you Health), and a new pin appears in its jaws.',
+  about: 'spit shot="pin": the ant stands still, braces and coils back (no aim line), throws its pushpin spinning at you (it costs you Health), and a new pin appears in its jaws.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', near(0.4, 0)); },
   play() {
     const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     run.iFrames = 0;
     let stood = true, aimed = false, spun = 0, held = null, gone = false;
     step(60 * 8, () => {
-      if (e.aimT > 0) { aimed = true; if (e.aimT < e.aimMax - 0.1 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }
+      if (e.aimT > 0) { aimed = true; if (enemies.aimBeams.some((b) => b.visible)) stood = false; if (e.aimT < e.aimMax - 0.1 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }
       const s = enemies.shots.find((q) => q.roll);
       if (s) {
         spun = Math.max(spun, Math.abs(s.m.rotation.z));
