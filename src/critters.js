@@ -235,19 +235,22 @@ function mosquitoGeometry() {
     const w = 0.2 - Math.abs(k - 2.5) * 0.02;
     parts.push(ellipsoid(w, w * 0.85, 0.1, V(0, -0.06 - k * 0.045, z), k % 2 ? white : blood, 12));
   }
+  // six long legs, each jointed at the hip and the knee so they can dangle and swing in flight:
+  // a thigh from the hip to the knee, then the long white-banded shin to the foot (both sides built,
+  // so nothing is drawn mirrored)
   const legs = [];
   for (const s of [-1, 1]) for (const z of [0.25, 0.1, -0.05]) {
-    const knee = V(s * 0.55, 0.2, z + 0.15), foot = V(s * 0.8, -1.0, z + 0.3 - (0.25 - z) * 1.8);
-    legs.push(rod(V(s * 0.12, -0.05, z), knee, 0.03, 0.022, black));
-    // white bands down the long shins
-    for (let b = 0; b < 4; b++) legs.push(rod(knee.clone().lerp(foot, b / 4), knee.clone().lerp(foot, (b + 1) / 4), 0.02 - b * 0.003, 0.017 - b * 0.003, b % 2 ? white : black));
+    const hip = V(s * 0.12, -0.05, z), knee = V(s * 0.55, 0.2, z + 0.15), foot = V(s * 0.8, -1.0, z + 0.3 - (0.25 - z) * 1.8);
+    const shin = foot.clone().sub(knee), bands = [];
+    for (let b = 0; b < 4; b++) bands.push(rod(shin.clone().multiplyScalar(b / 4), shin.clone().multiplyScalar((b + 1) / 4), 0.02 - b * 0.003, 0.017 - b * 0.003, b % 2 ? white : black));
+    legs.push({ s, z, hip, knee: knee.clone().sub(hip), thigh: rod(V(0, 0, 0), knee.clone().sub(hip), 0.03, 0.022, black), shin: merge(bands) });
   }
   const shape = new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.3, 0.2, 1.1, 0.2, 1.3, 0).bezierCurveTo(1.1, -0.14, 0.3, -0.14, 0, 0);
   const wing = new THREE.ShapeGeometry(shape, 12);
   wing.rotateX(-Math.PI / 2).rotateY(Math.PI * 0.62);
   // wing veins: a few dark lines along the wing
   const veins = new THREE.BufferGeometry().setFromPoints([0.05, -0.03, 0.03].flatMap((o, i) => [V(0, 0, 0), V(1.15, 0, o * (i + 1))]).map((p) => p.applyAxisAngle(V(0, 1, 0), Math.PI * 0.62)));
-  return { body: merge(parts), legs: merge(legs), wing, veins };
+  return { body: merge(parts), legs, wing, veins };
 }
 
 export function buildMosquito() {
@@ -257,9 +260,16 @@ export function buildMosquito() {
   M.vein ||= new THREE.LineBasicMaterial({ color: 0x3a3a48, transparent: true, opacity: 0.7 });
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  const shell = new THREE.Mesh(G.body, M.shell);
-  const legs = new THREE.Mesh(G.legs, M.matte);
-  body.add(shell, legs);
+  body.add(new THREE.Mesh(G.body, M.shell));
+  const legs = G.legs.map((L, i) => {
+    const hip = new THREE.Group(), knee = new THREE.Group();
+    hip.position.copy(L.hip);
+    knee.position.copy(L.knee);
+    hip.add(new THREE.Mesh(L.thigh, M.matte), knee);
+    knee.add(new THREE.Mesh(L.shin, M.matte));
+    body.add(hip);
+    return { hip, knee, s: L.s, pair: i % 3, phase: i * 1.7, swing: 0, sway: 0 };   // pair 0 front, 2 hind
+  });
   const wings = [-1, 1].map((s) => {
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.12, 0.2, 0.12);
@@ -273,13 +283,41 @@ export function buildMosquito() {
   // small angry brows over the compound eyes
   const face = angryEyes({ y: 0.1, z: 0.56, size: 0.12, gap: 0.12 });
   body.add(face);
-  let t = 0;
+  let t = 0, fwd = 0, side = 0, wind = 0, dart = 0;
   const anim = (dt, e) => {
     t += dt;
-    for (const W of wings) W.pivot.rotation.z = W.s * (0.25 + Math.sin(t * 60) * 0.5);   // a blur of wings
-    legs.rotation.x = Math.sin(t * 2.3) * 0.08;
-    body.position.y = Math.sin(t * 4 + e.phase) * 0.1;                  // radius units: a gentle hover bob
-    body.rotation.x = -0.15 + (e.aimT > 0 ? -0.35 : 0) + Math.max(0, e.firedT || 0) * 1.4;   // dips its nose to shoot, kicks back as it spits
+    const k = 1 - Math.exp(-8 * dt);
+    // how it's flying, in its own frame: forward and sideways speed (m/s)
+    const ry = e.root?.rotation.y || 0, v = e.vel;
+    const vf = v ? v.x * Math.sin(ry) + v.z * Math.cos(ry) : 0, vs = v ? v.x * Math.cos(ry) - v.z * Math.sin(ry) : 0;
+    fwd += (vf - fwd) * k; side += (vs - side) * k;
+    wind += ((e.state === 'windup' ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
+    dart += ((e.state === 'dart' ? 1 : 0) - dart) * (1 - Math.exp(-20 * dt));
+    // wings: a blur of beats, each one sweeping forward and back as it goes up and down (a figure of eight)
+    const beat = t * (60 + wind * 25);
+    for (const W of wings) {
+      W.pivot.rotation.z = W.s * (0.25 + Math.sin(beat) * 0.5);
+      W.pivot.rotation.y = W.s * Math.cos(beat) * 0.3;
+    }
+    // legs: hanging long under it, each swinging on its own like a pendulum, swept back by its speed and
+    // flung out sideways in a turn; the hind pair held up behind (as mosquitoes do). Drawing back to bite
+    // the front legs reach for you; darting, they all stream behind.
+    const trail = THREE.MathUtils.clamp(fwd * 1.2, -0.4, 0.9) * (1 - dart) + dart * 1.1;
+    for (const L of legs) {
+      const free = 1 - wind * 0.6;
+      const want = trail * (L.pair === 0 ? 0.7 : 1) + (L.pair === 2 ? 0.55 : L.pair === 1 ? 0.15 : -0.1) - wind * (L.pair === 0 ? 0.9 : L.pair === 1 ? 0.3 : -0.2);
+      L.swing += (want - L.swing) * (1 - Math.exp(-(5 + L.pair) * dt));    // the legs lag behind the body
+      L.sway += (THREE.MathUtils.clamp(-side * 1.5, -0.5, 0.5) - L.sway) * (1 - Math.exp(-4 * dt));
+      L.hip.rotation.x = L.swing + Math.sin(t * 2.6 + L.phase) * 0.12 * free;
+      L.hip.rotation.z = L.sway * 0.6 + Math.sin(t * 2.1 + L.phase * 1.3) * 0.08 * free + L.s * wind * 0.15;
+      L.knee.rotation.x = Math.sin(t * 3.4 + L.phase) * 0.18 * free + (L.pair === 2 ? 0.25 : 0) + wind * (L.pair === 0 ? -0.35 : 0.1);
+    }
+    // the body: a hovering bob, nose down into its speed, banked into turns; drawing back to bite it
+    // rears, quivering, its mouth lined up on you; darting, it lunges nose first
+    body.position.y = Math.sin(t * 4 + e.phase) * 0.1 * (1 - wind);
+    body.position.z = -wind * 0.15 + dart * 0.12;
+    body.rotation.x = -0.15 + THREE.MathUtils.clamp(fwd * 0.5, -0.2, 0.35) * (1 - dart) - wind * 0.35 - dart * 0.25 + Math.sin(t * 47) * 0.04 * wind;
+    body.rotation.z = THREE.MathUtils.clamp(side * 0.9, -0.45, 0.45) + Math.sin(t * 53) * 0.03 * wind;
   };
   return { body: outer, face: new THREE.Group(), anim };
 }
