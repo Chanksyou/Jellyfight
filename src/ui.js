@@ -58,6 +58,7 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-stats { margin: 4px auto 0; display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; opacity: .9; }
 .jf-stats b { text-align: right; }
 .jf-stats small { font-weight: 600; opacity: .75; }
+.jf-stats .jf-unlock { width: 56px; height: 56px; border-radius: 50%; vertical-align: middle; margin-right: 10px; box-shadow: 0 0 0 2px #ffc93a99, 0 4px 14px #0008; }
 /* the leaderboard: big rows, each player's own jelly by their name */
 .jf-board .jf-stats { font-size: 22px; gap: 10px 36px; min-width: min(560px, 90vw); }
 .jf-board .jf-stats > span { display: flex; align-items: center; gap: 12px; }
@@ -93,6 +94,7 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
   .jf-modal .btns { margin-top: 10px; }
   .jf-modal .btns small { display: none; }
   .jf-stats { font-size: 13px; }
+  .jf-stats .jf-unlock { width: 40px; height: 40px; }
   .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
   .jf-board .jf-stats > b { font-size: 17px; }
   .jf-board .jf-jelly { width: 40px; height: 40px; }

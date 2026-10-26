@@ -1221,10 +1221,12 @@ export class Run {
     let typed = savedName();
     // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
     const dead = this.phase === 'dead', near = dead ? this.howClose() : null, next = dead ? nextAward() : null;
+    // your own jelly wearing it (jelly-portrait.js, as the leaderboard draws players)
+    const unlockFace = next && this.jellyFace?.({ ...(this.playerLook?.() || {}), [next.key]: next.id });
     const pull = [
       ...(near ? [['So close', near]] : []),
       ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
-      ...(next ? [['🎯 Next unlock', `${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needText(next.need, feats())}</small>`]] : []),
+      ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needText(next.need, feats())}</small>`]] : []),
     ];
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit)

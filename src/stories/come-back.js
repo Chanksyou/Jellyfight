@@ -16,7 +16,7 @@ const modal = () => document.querySelector('.jf-modal');
 const fakeBoard = (posts) => ({ status: 'online', localBest: { score: 9999 }, mine: null, keepBest: () => false, qualifies: () => true, cutoff: () => 0, post: (e) => { posts.push(e); return new Promise(() => {}); } });
 
 story('end/death-pulls-you-back', {
-  about: 'Dying shows how close it came (the boss\'s time still to come, or its Health left), your best score, and the unlock you\'re nearest with how far along you are; Try again is the big button, and Enter still submits the score.',
+  about: 'Dying shows how close it came (the boss\'s time still to come, or its Health left), your best score, and the unlock you\'re nearest (a picture of your jelly wearing it) with how far along you are; Try again is the big button, and Enter still submits the score.',
   setup() { fresh({ elites: false }); },
   play() {
     const { run, menus } = G();
@@ -33,6 +33,7 @@ story('end/death-pulls-you-back', {
       const away = text.includes(`${run.stage.boss.name} was 0:42 away`);
       const best = /Your best\s*9,999/.test(text);
       const unlock = /Next unlock\s*Golden laurel · clear 1,000 bugs \(812 so far\)/.test(text);
+      const pictured = /^data:image/.test(modal().querySelector('.jf-stats .jf-unlock')?.src || '');   // your jelly wearing it
       const order = /Try again/.test(btns[0]?.textContent) && btns[0].classList.contains('go') && btns.some((b) => /Submit score/.test(b.textContent) && !b.classList.contains('go'));
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' }));
       const entered = posts.length === 1;
@@ -42,7 +43,7 @@ story('end/death-pulls-you-back', {
       run.endRun('You dried out', 'dead', 'Try again');
       const left = modal().innerText.includes(`${run.stage.boss.name} had 38% Health left`);
       menus.close();
-      return ok(away && best && unlock && order && entered && left, { away, best, unlock, order, entered, left, text: text.slice(0, 300) });
+      return ok(away && best && unlock && pictured && order && entered && left, { away, best, unlock, pictured, order, entered, left, text: text.slice(0, 300) });
     });
   },
 });
