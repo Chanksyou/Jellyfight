@@ -35,6 +35,15 @@ export function goToAct(act, carry = null, then = null) {
   save({ act, carry, then });
   nav.reload();
 }
+// A run kept on the device (localStorage) from the start of the act it reached, so a closed tab or a
+// phone dropping the page can pick it up again: the act 1 menu offers "Continue act N". Written as
+// the run moves on to the next act, gone when the run ends or a new one starts. Mid-act progress isn't kept.
+export const SAVE_KEY = 'jellyfight.run';
+export function keepRun(act, carry) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ act, carry })); } catch {} }
+export function keptRun() {
+  try { const v = JSON.parse(localStorage.getItem(SAVE_KEY)); return v && v.carry && STAGES[v.act - 1] ? v : null; } catch { return null; }
+}
+export function forgetRun() { try { localStorage.removeItem(SAVE_KEY); } catch {} }
 // the same, without using it up (main.js shows a different loading screen for { continue: true })
 export const peekAction = () => load()?.then || null;
 export function pendingAction() {

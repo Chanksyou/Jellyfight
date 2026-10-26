@@ -571,6 +571,16 @@
   border: 1px solid #fff8; border-radius: 24px; box-shadow: 0 5px 0 #9d7435, 0 14px 30px #0004;
   transform-origin: center; transition: transform .12s, background .12s;
 }
+/* a run kept from a closed tab: Continue act N is the gold button, a new run's Play steps back */
+#g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) {
+  display: block; margin: 26px 0 0; padding: 12px 30px; text-align: left; cursor: pointer;
+  font: 800 20px system-ui, sans-serif; color: var(--menu-ink); background: var(--menu-gold);
+  border: 1px solid #fff8; border-radius: 24px; box-shadow: 0 5px 0 #9d7435, 0 14px 30px #0004;
+}
+#g-over .resume small { display: block; font-weight: 600; font-size: 13px; opacity: .72; margin-top: 2px; }
+#g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play {
+  margin-top: 16px; background: #ffffff14; color: var(--menu-paper); box-shadow: none; border-color: #ffffff40;
+}
 #g-over:is(.menu-home, .menu-launching) .play:enabled:hover { background: var(--menu-paper); transform: translateY(-2px); }
 #g-over:is(.menu-home, .menu-launching) button:enabled:active { transform: translateY(3px) scale(.96, .93); }
 #g-over:is(.menu-home, .menu-launching) .row { justify-content: flex-start; gap: 7px; max-width: 440px; }
@@ -620,6 +630,8 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
   #g-over:is(.menu-home, .menu-launching) h1 { font-size: 65px; margin-bottom: 10px; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
   #g-over:is(.menu-home, .menu-launching) .play { margin: 16px 0; padding: 11px 30px; font-size: 18px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 12px; padding: 9px 24px; font-size: 17px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 12px; }
   #g-over:is(.menu-home, .menu-launching) .row button { padding: 7px 10px; font-size: 12px; }
   #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 9px; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { right: 3%; width: 39%; }
@@ -631,6 +643,7 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
   #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); margin-bottom: 14px; transform-origin: center; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
   #g-over:is(.menu-home, .menu-launching) .play { margin: 20px auto; padding: 13px 35px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin: 20px auto 0; text-align: center; }
   #g-over:is(.menu-home, .menu-launching) .row { justify-content: center; margin-left: auto; margin-right: auto; }
   #g-over:is(.menu-home, .menu-launching) .row button { font-size: 12px; padding: 8px 12px; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { top: 3vh; right: 15%; width: 70%; height: 29vh; padding-bottom: 0; }

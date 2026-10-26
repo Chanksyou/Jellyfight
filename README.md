@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v287 keeps a run when the tab closes. Moving on to a new act now also keeps the run on the device (level, stats, Treasures and score so far), so if the page is closed or the phone drops the tab, the main menu offers **Continue act 2** (with the act's rooms, your level and score) above Play, which steps back to a quieter button. Continuing loads straight into that act as if you'd just beaten the one before. Only act starts are kept, not progress inside an act; the run ending (dying or winning) or starting a new one with Play forgets it, and dev runs keep nothing (`keepRun`/`keptRun`/`forgetRun` in `src/stages.js`). Story: `menu/continue-a-kept-run`.
+
 v285 gives the Great White One angry eyes. A fabric lid now covers the top of each eye with a dark stitched brow along its edge, both sloping down toward the nose, so the shark scowls instead of looking blank; they close with its blink. Clearest side-on and up close (`shark-preview.html`, Face or Close-up). Story: `act3/shark-has-angry-brows`.
 
 v283 removes the ✨ Effects button from the main screen; the Graphics row (Low, Medium, High) is the one visual setting. Reduce effects (no screen shake, a softer hurt glow, quieter menus and reveals) now simply follows the device's own reduced-motion setting, and an old pick saved by the button is forgotten. Story: `menu/reduce-effects`.

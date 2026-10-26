@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
 import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS } from './stats.js';
 import { inPoly } from './hud.js';
-import { STAGES, goToAct } from './stages.js';
+import { STAGES, forgetRun, goToAct, keepRun } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { Shark } from './shark.js';
@@ -1225,6 +1225,7 @@ export class Run {
   // Leaderboard, given by main.js), and a button to see the board
   // (parts: also list what the score is made of, as the winning end does)
   endRun(title, sub, again, { parts = false } = {}) {
+    if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     const score = this.score();
     const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
@@ -1328,7 +1329,7 @@ export class Run {
     const carry = this.carryOver(), score = carry.score;
     this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
 
   // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not
