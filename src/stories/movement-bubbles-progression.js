@@ -233,6 +233,21 @@ story('enemies/ant-pin-colours', {
     return ok(seen.size === 5 && held, { colours: [...seen].sort(), held });
   },
 });
+story('enemies/ant-and-roach-same-size', {
+  about: 'An ant and a cockroach are the same length nose to tail (within 5 mm), so neither reads as the bigger bug.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', near(0.5, 0), { still: true }); spawn('ants', near(-0.5, 0), { still: true }); },
+  play() {
+    step(90);                                            // grown in
+    const len = {};
+    for (const e of G().enemies.list) {
+      const q = e.root.quaternion.clone();
+      e.root.quaternion.identity(); e.root.updateMatrixWorld(true);
+      len[e.type] = +new THREE.Box3().setFromObject(e.mesh).getSize(new THREE.Vector3()).z.toFixed(3);
+      e.root.quaternion.copy(q); e.root.updateMatrixWorld(true);
+    }
+    return ok(Math.abs(len.roach - len.ants) < 0.005, len);
+  },
+});
 story('enemies/ant-keeps-off-and-throws', {
   about: 'An ant walks after you, stops a little off, and throws its pushpin at you.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('ants', P.clone().add(V(0.6, 0, 0))); },

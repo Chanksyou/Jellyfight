@@ -4,7 +4,7 @@
 //   hp     health            r      body radius (m)        dmg    damage when it touches you
 //   xp     XP it drops       model  which model to build (src/critters.js, src/enemies.js)
 
-enemy "roach" name="Cockroach" hp=25 r=0.028 dmg=1 xp=1 model="roach" {
+enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
     death-motion "crumple"
     chase 0.35                      // a little slower than you swim (0.42), so you can always get away
 }
@@ -13,7 +13,7 @@ enemy "roach" name="Cockroach" hp=25 r=0.028 dmg=1 xp=1 model="roach" {
 // little off; then it stands, braces and coils back (no line on the floor: watch the ant; its aim
 // locks halfway through), and throws it spinning at you. A new pin appears in its jaws. Step aside
 // as it coils. A pin that misses sticks in whatever it hits for a moment.
-enemy "ants" name="Ant" hp=45 r=0.038 dmg=1 xp=2 model="ants" {
+enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
     death-motion "crumple"
     chase 0.3 stop=0.3
     spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true

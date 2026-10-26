@@ -820,7 +820,7 @@ story('words/leap', {
       if (e.state === 'crouch' && enemies.leapMarks[0]?.visible) mark = true;
       return run.health < m0;
     });
-    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 5;   // leap damage 5 since v289
+    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 5;   // leap damage 5 since v291
     return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.health });
   },
 });
