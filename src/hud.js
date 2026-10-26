@@ -104,7 +104,7 @@ body.calm #hud .hurt.on { opacity: .25; }
   #hud .toast { font-size: 15px; top: 30%; padding: 5px 12px; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
-body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 195px; height: 195px; }
+body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 135px; height: 135px; }
 body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 `;
 

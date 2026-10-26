@@ -49,6 +49,21 @@ phone('glass-loses-its-clearcoat', {
       { softened: mats.length, clearcoat: mats.map((m) => m.clearcoat), roughness: mats.map((m) => m.roughness) });
   },
 });
+phone('minimap-is-small', {
+  about: 'On a phone the minimap is small (135 px across, a third of a landscape phone\'s height), tucked under the pause button on the right, and still drawn sharp; a desktop keeps its 285 px map.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { hud } = G(), map = hud.$('.map');
+    hud.showMap(true); step(2);
+    const r = map.getBoundingClientRect(), dpr = Math.min(3, devicePixelRatio || 1);
+    const sharp = Math.abs(map.width - Math.round(map.clientWidth * dpr)) <= 1;
+    document.body.classList.remove('touch');
+    const desktop = map.clientWidth;
+    document.body.classList.add('touch');
+    return ok(r.width === 135 && r.height <= innerHeight * 0.36 && r.right <= innerWidth && sharp && desktop === 285,
+      { size: [r.width, r.height], window: [innerWidth, innerHeight], sharp, canvas: map.width, desktop });
+  },
+});
 phone('the-first-minute', {
   about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, the first card, the Element pick, then the first Treasure with the minimap.',
   setup() {},
