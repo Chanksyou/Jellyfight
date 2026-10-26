@@ -4,7 +4,7 @@
 // One the camera has ended up behind (the boss arena's wall at your back as a fight starts) is
 // faded out, like furniture between the camera and the jelly (camera.js), till it's clear again.
 //   addForceField(scene, { min, max }, { hidden })  a field over a wall box (null for one that isn't a wall);
-//                                       hidden: never drawn (a boss arena's, unless look.css --boss-force-field is 1)
+//                                       hidden: never drawn (a boss arena's, unless its stage sets forceField or look.css --boss-force-field is 1)
 //   showForceField(field, up)           put it up or take it down (a boss arena's: only in the fight)
 //   updateForceFields(playerPos, camPos) once a frame
 import * as THREE from 'three';
