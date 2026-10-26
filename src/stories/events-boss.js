@@ -123,6 +123,32 @@ story('boss/vacuum-lanternfly-shield', {
   },
 });
 
+story('boss/vacuum-force-field-shows-and-holds-its-bugs', {
+  about: "The Vacuum's arena force field is drawn while the fight is on (the shark's stays hidden), and the cockroaches it dumps with its back to a wall land inside the field, not in or behind it, then come out for the jelly.",
+  setup() { startVacuum('charge'); },
+  play() {
+    const { run, enemies } = G(), A = run.stage.boss, B = run.boss;
+    const fields = run.bossWalls.map((m) => m.userData.field);
+    const drawn = fields.filter((f) => f.visible).length;
+    const out = {};
+    for (const [wall, x, z, heading] of [['west', A.arenaMin[0] + B.r, 3.2, Math.PI / 2], ['north', 3.6, A.arenaMin[2] + B.r, 0], ['corner', A.arenaMin[0] + B.r, A.arenaMin[2] + B.r, Math.PI / 4]]) {
+      enemies.clear();
+      B.position.set(x, B.position.y, z); B.heading = heading; B.holder.rotation.y = heading;
+      B.state = 'dump'; B.stateT = 0.62; B.prevT = 0.62;
+      step(2);
+      const roaches = enemies.list.filter((e) => !e.proxy && !e.dead);
+      const from = roaches.map((e) => e.pos.clone());
+      B.state = 'chase'; B.stateT = 99; B.position.set(4.1, B.position.y, 4.1);   // out of their way
+      step(120);
+      const inside = roaches.every((e) => e.pos.x >= A.arenaMin[0] + e.r - 1e-3 && e.pos.z >= A.arenaMin[2] + e.r - 1e-3);
+      const moved = roaches.every((e, i) => e.pos.distanceTo(from[i]) > 0.05);
+      out[wall] = { n: roaches.length, inside, moved };
+    }
+    const held = Object.values(out).every((w) => w.n >= 3 && w.inside && w.moved);
+    return ok(drawn > 0 && fields.every((f) => !f.userData.hidden) && held, { drawn, out });
+  },
+});
+
 story('boss/vacuum-enrages-at-half', {
   about: 'Below half health the Vacuum enrages: it stops and shudders for a moment (ENRAGED!), then does everything twice as fast.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },

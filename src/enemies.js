@@ -299,6 +299,17 @@ export class Enemies {
     });
   }
 
+  // A walled boss arena holds its bugs in (run.js keepInArena): any bug closer to its walls than its
+  // own radius (dumped out of the Vacuum's bin against one, knocked through) is put back just inside
+  keepIn(min, max) {
+    for (const e of this.list) {
+      if (e.dead || e.proxy) continue;
+      const p = e.pos, r = e.r;
+      p.x = THREE.MathUtils.clamp(p.x, min[0] + r, max[0] - r);
+      p.z = THREE.MathUtils.clamp(p.z, min[2] + r, max[2] - r);
+    }
+  }
+
   // living bugs (the wave cap): not the elites or the boss, nor the dead the list still holds
   get alive() { let n = 0; for (const e of this.list) if (!e.dead && !e.proxy) n++; return n; }
 
