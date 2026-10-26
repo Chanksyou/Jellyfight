@@ -24,13 +24,13 @@ story('movement/jelly-steady-speed', {
   },
 });
 story('movement/roach-slower-than-jelly', {
-  about: 'A cockroach chases at 0.3 m/s, slower than the jelly, so one can always be outswum.',
+  about: 'A cockroach chases at 0.35 m/s, slower than the jelly, so one can always be outswum.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 4.0, 0); spawn('roach', V(3.2, 0, 2.3)); },
   play() {
     const e = G().enemies.list[0];
     step(40); const a = e.pos.clone(); step(60);
     const v = e.pos.distanceTo(a);
-    return ok(Math.abs(v - 0.3) < 0.02 && v < CONFIG.player.walkSpeed, { roach: +v.toFixed(3), jelly: CONFIG.player.walkSpeed });
+    return ok(Math.abs(v - 0.35) < 0.02 && v < CONFIG.player.walkSpeed, { roach: +v.toFixed(3), jelly: CONFIG.player.walkSpeed });
   },
 });
 
@@ -231,6 +231,21 @@ story('enemies/ant-pin-colours', {
     enemies.spit(e, near(0, 0, 0.05), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: -0.4 });
     const thrown = enemies.shots.at(-1).m.geometry, held = e.root.getObjectsByProperty('geometry', thrown).length > 0;
     return ok(seen.size === 5 && held, { colours: [...seen].sort(), held });
+  },
+});
+story('enemies/ant-and-roach-same-size', {
+  about: 'An ant and a cockroach are the same length nose to tail (within 5 mm), so neither reads as the bigger bug.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', near(0.5, 0), { still: true }); spawn('ants', near(-0.5, 0), { still: true }); },
+  play() {
+    step(90);                                            // grown in
+    const len = {};
+    for (const e of G().enemies.list) {
+      const q = e.root.quaternion.clone();
+      e.root.quaternion.identity(); e.root.updateMatrixWorld(true);
+      len[e.type] = +new THREE.Box3().setFromObject(e.mesh).getSize(new THREE.Vector3()).z.toFixed(3);
+      e.root.quaternion.copy(q); e.root.updateMatrixWorld(true);
+    }
+    return ok(Math.abs(len.roach - len.ants) < 0.005, len);
   },
 });
 story('enemies/ant-keeps-off-and-throws', {

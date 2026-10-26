@@ -307,7 +307,7 @@ story('words/zip', {
 });
 const S2 = new THREE.Vector3();
 story('words/charge-beam', {
-  about: 'Within reach the dragonfly faces you and holds dead still for 2 s with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
+  about: 'Within reach the dragonfly faces you and holds dead still for 1 s with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -325,7 +325,7 @@ story('words/charge-beam', {
     });
     delete enemies.beamCharge;
     const hit = log.find((d) => d.source === 'dragonfly'), secs = frames / 60;
-    return ok(whined === 2 && hit?.amount === 3 && held < 0.001 && !shown && secs > 1.9 && secs < 2.1, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
+    return ok(whined === 1 && hit?.amount === 3 && held < 0.001 && !shown && secs > 0.9 && secs < 1.1, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/dragonfly-beam-dodge', {
@@ -335,7 +335,7 @@ story('enemies/dragonfly-beam-dodge', {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
     step(60 * 3, () => e.state === 'charge');
     const charged = e.state === 'charge';
-    step(60);
+    step(30);
     const side = V(-e.beamDir.z, 0, e.beamDir.x).normalize(), P = player.position;
     tp(P.x + side.x * 0.1, P.y, P.z + side.z * 0.1);
     let fired = false;
@@ -383,7 +383,7 @@ story('enemies/dragonfly-dodge-breaks-charge', {
   },
 });
 story('words/swat', {
-  about: 'Up close the mantis rears up with its forelegs raised (nothing shows on the floor), then lunges and snaps them shut: 3 damage if you\'re in front of it.',
+  about: 'Up close the mantis rears up with its forelegs raised (nothing shows on the floor), then lunges and snaps them shut: 4 damage if you\'re in front of it.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mantis', near(0.12, 0)); e.swatCd = 0.3; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -393,10 +393,10 @@ story('words/swat', {
         reared = true;                                   // anything drawn on the floor near it? (a Warning is a TeleMaterial)
         e.root.parent.traverse((o) => { if (o.visible && o.material instanceof TeleMaterial && o.position.distanceTo(e.pos) < 0.5) marked = true; });
       }
-      return log.some((d) => d.source === 'mantis' && d.amount === 3);
+      return log.some((d) => d.source === 'mantis' && d.amount === 4);
     });
-    const hit = log.find((d) => d.source === 'mantis' && d.amount === 3);
-    return ok(reared && !marked && hit?.amount === 3, { reared, marked, hit: hit?.amount });
+    const hit = log.find((d) => d.source === 'mantis' && d.amount === 4);
+    return ok(reared && !marked && hit?.amount === 4, { reared, marked, hit: hit?.amount });
   },
 });
 story('enemies/mantis-swat-dodge', {
@@ -408,13 +408,13 @@ story('enemies/mantis-swat-dodge', {
     step(60 * 4, () => {
       if (!moved && e.state === 'windup' && e.stateT < e.swatMax * 0.4) {
         const P = player.position;
-        tp(P.x + e.swatDir.x * 0.2, P.y, P.z + e.swatDir.z * 0.2);
+        tp(P.x + e.swatDir.x * 0.35, P.y, P.z + e.swatDir.z * 0.35);
         moved = true;
       }
       if (e.state === 'swat' && !swatted) { swatted = true; gap = Math.hypot(player.position.x - e.pos.x, player.position.z - e.pos.z); }
       return swatted && e.state === 'rest';
     });
-    const hit = log.some((d) => d.source === 'mantis' && d.amount === 3);
+    const hit = log.some((d) => d.source === 'mantis' && d.amount === 4);
     return ok(moved && swatted && !hit, { moved, swatted, hit, gap: +gap.toFixed(3) });
   },
 });
@@ -438,14 +438,14 @@ story('enemies/stag-beetle-model', {
   },
 });
 story('words/charge-shot', {
-  about: 'Within reach the stag beetle stops, turns to you and charges a ball between its mandibles for 1 s (it grows as it charges), then fires it at your middle: a Shot that hits a jelly standing still for 3.',
+  about: 'Within reach the stag beetle stops, turns to you and charges a ball between its mandibles for 2 s (it grows as it charges), then fires it at your middle: a Shot that hits a jelly standing still for 5.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); beetleAt(); },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     step(60 * 3, () => e.state === 'charge');
     const at = e.pos.clone(), grew = [];
     let frames = 0, moved = 0;
-    step(60 * 2, () => {
+    step(60 * 3, () => {
       if (e.state === 'charge') { frames++; grew.push(e.ballK); moved = Math.max(moved, e.pos.distanceTo(at)); }
       return e.state !== 'charge';
     });
@@ -453,7 +453,7 @@ story('words/charge-shot', {
     step(60, () => log.some((d) => d.source === 'beetle'));
     const hit = log.find((d) => d.source === 'beetle'), secs = frames / 60;
     const growing = grew.length > 10 && grew[0] < 0.2 && grew[grew.length - 1] > 0.9 && grew.every((k, i) => !i || k >= grew[i - 1]);
-    return ok(secs > 0.9 && secs < 1.1 && moved < 0.005 && growing && flying === 1 && hit?.amount === 3, { secs: +secs.toFixed(2), moved: +moved.toFixed(4), growing, flying, hit: hit?.amount });
+    return ok(secs > 1.9 && secs < 2.1 && moved < 0.005 && growing && flying === 1 && hit?.amount === 5, { secs: +secs.toFixed(2), moved: +moved.toFixed(4), growing, flying, hit: hit?.amount });
   },
 });
 story('enemies/stag-beetle-shot-dodge', {
@@ -503,7 +503,7 @@ story('words/hatch', {
   },
 });
 story('words/burst', {
-  about: 'The mantis\'s carcass twitches while a circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 2 damage if you\'re inside the circle.',
+  about: 'The mantis\'s carcass twitches while a circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 5 damage if you\'re inside the circle.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.3, 0)); },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -511,22 +511,22 @@ story('words/burst', {
     const out = e.emergeAt, round = Math.hypot(out.x - e.pos.x, out.z - e.pos.z) > e.r;   // it comes out away from the middle (the rear end)
     tp(out.x, player.position.y, out.z);                                                   // stand right where it comes out
     let warned = false, frames = 1;
-    step(60 * 2, () => {
+    step(60 * 3, () => {
       frames++;
       if (e.state === 'emerge' && enemies.burstMarks.some((m) => m.visible)) warned = true;
-      return log.some((d) => d.source === 'worm' && d.amount === 2);
+      return log.some((d) => d.source === 'worm' && d.amount === 5);
     });
-    const hit = log.find((d) => d.source === 'worm' && d.amount === 2), secs = frames / 60;
-    return ok(round && warned && hit?.amount === 2 && secs > 0.85 && secs < 1, { round, warned, hit: hit?.amount, secs: +secs.toFixed(2) });
+    const hit = log.find((d) => d.source === 'worm' && d.amount === 5), secs = frames / 60;
+    return ok(round && warned && hit?.amount === 5 && secs > 1.45 && secs < 1.6, { round, warned, hit: hit?.amount, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/worm-burst-clear', {
   about: 'Standing outside the circle when the worm bursts out of the mantis\'s carcass, you\'re not hurt.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0, -0.15)); },
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0, -0.55)); },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    step(60 * 1.3);
-    return ok(e.state !== 'emerge' && !log.some((d) => d.source === 'worm' && d.amount === 2), { state: e.state, hits: log.length });
+    step(60 * 1.8);
+    return ok(e.state !== 'emerge' && !log.some((d) => d.source === 'worm' && d.amount === 5), { state: e.state, hits: log.length });
   },
 });
 story('words/rooted', {
@@ -651,31 +651,31 @@ story('words/hangs', {
   },
 });
 story('words/brood', {
-  about: 'Every 5 s a wasp crawls out of the entrance at the bottom of its nest.',
+  about: 'Every 4 s a wasp crawls out of the entrance at the bottom of its nest.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('nest', near(0.6, 0, 0.25)); },
   play() {
     const { enemies } = G(), nest = enemies.list[0];
     const out = [], real = enemies.hatch;                 // every wasp it sends out (one may sting you and be gone)
     enemies.hatch = function (n, w) { if (n === nest) out.push({ w, at: w.pos.distanceTo(n.emergeAt), below: w.pos.y < n.pos.y }); return real.call(this, n, w); };
-    step(Math.round(60 * 4.9));
+    step(Math.round(60 * 3.9));
     const early = out.length;
     step(Math.round(60 * 0.2));
     const first = out[0], at = first?.at, below = first?.below;
-    step(60 * 5);
+    step(60 * 4);
     const later = out.length;
     delete enemies.hatch;
     return ok(early === 0 && first && at < 0.02 && below && later === 2, { early, out: !!first, at: at && +at.toFixed(3), below, later });
   },
 });
 story('enemies/nest-brood-limit', {
-  about: 'A nest stops sending out wasps while six of its own are still alive.',
+  about: 'A nest stops sending out wasps while nine of its own are still alive.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('nest', near(0.6, 0, 0.25)); e.broodT = 0.1; },
   play() {
     const { enemies } = G(), nest = enemies.list[0];
-    for (let i = 0; i < 6; i++) { const w = spawn('wasp', near(-0.6, 0, 0.1 + i * 0.03), { still: true }); w.motherId = nest.id; }
+    for (let i = 0; i < 9; i++) { const w = spawn('wasp', near(-0.6, 0, 0.1 + i * 0.03), { still: true }); w.motherId = nest.id; }
     step(60 * 6);
     const n = enemies.list.filter((x) => !x.dead && x.motherId === nest.id).length;
-    return ok(n === 6, { wasps: n });
+    return ok(n === 9, { wasps: n });
   },
 });
 story('words/dive', {
@@ -800,7 +800,7 @@ story('words/spit-dodge', {
     const m0 = run.health;
     let shot = false;
     // wait until the aim has locked, then slip 6 cm to the side
-    step(60, () => e.aimT > 0 && e.aimT < 0.2);
+    step(60, () => e.aimT > 0 && e.aimT < e.aimMax * 0.4);
     tp(P.x + 0.06, P.y, P.z);
     step(90, () => { if (enemies.shots.length) shot = true; });
     return ok(shot && run.health === m0, { shot, lost: m0 - run.health });
@@ -820,7 +820,7 @@ story('words/leap', {
       if (e.state === 'crouch' && enemies.leapMarks[0]?.visible) mark = true;
       return run.health < m0;
     });
-    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 4;   // leap damage 4 since v144
+    const ok1 = ['approach', 'crouch', 'leap', 'rest'].every((s) => seen.has(s)) && top > 0.15 && mark && m0 - run.health === 5;   // leap damage 5 since v291
     return ok(ok1, { states: [...seen], height: +top.toFixed(3), mark, lost: m0 - run.health });
   },
 });
@@ -884,7 +884,7 @@ feelStory('spit', 'A mosquito\'s laser leaves with a zap (it kicks back) and lan
   () => spawn('mosquito', near(0, -0.15, 0.1)),
   () => { G().run.iFrames = 0; const r = feelOfHit('spit', 10); return ok(r.near && hitFelt(r, 'spit').ok, { ...r, e: undefined }); });
 feelStory('poke', 'A house fly\'s poke lands with a jab and a wet slap: it squashes, the jelly\'s drops splat.',
-  () => { spawn('housefly', near(0.2, 0, 0.03)).pokeCd = 0.8; },
+  () => { stub(G().run, 'contactDamage', () => {}); spawn('housefly', near(0.2, 0, 0.03)).pokeCd = 0.8; },   // (it hovers close enough to touch, which would keep the jelly's i-frames up)
   () => { const r = feelOfHit('housefly', 5, 4); return hitFelt(r, 'flyPoke'); });
 feelStory('ball-charge', 'A millipede\'s ball rolling into the jelly flashes in its amber where they meet, squashes, and leaves the jelly\'s drops on the floor with a crunch and a slap.',
   () => { spawn('millipede', near(0, -0.32)).ballCd = 0.3; },
@@ -894,10 +894,10 @@ feelStory('charge-beam', 'A dragonfly\'s beam hitting the jelly: a flash on it, 
   () => { const r = feelOfHit('dragonfly', 4); return ok(r.near && hitFelt(r, 'beamFire').ok, { ...r, e: undefined }); });
 feelStory('swat', 'A mantis\'s swat landing: a flash on the jelly, a snap and a wet slap, the mantis squashes, the jelly\'s drops splat.',
   () => { stub(G().run, 'contactDamage', () => {}); spawn('mantis', near(0.12, 0)).swatCd = 0.3; },   // (its touch alone, contact-feel, would keep the jelly's i-frames up)
-  () => { const r = feelOfHit('mantis', 8, 3); return ok(r.near && hitFelt(r, 'mantisSwat').ok, { ...r, e: undefined }); });
+  () => { const r = feelOfHit('mantis', 8, 4); return ok(r.near && hitFelt(r, 'mantisSwat').ok, { ...r, e: undefined }); });
 feelStory('burst', 'The worm bursting out under the jelly: a wet burst with bits pattering, a spatter left on the floor with the jelly\'s drops.',
   () => { const e = spawn('worm', near(0.3, 0)); step(1); tp(e.emergeAt.x, G().player.position.y, e.emergeAt.z); },
-  () => { const r = feelOfHit('worm', 2, 2); return ok(r.splats >= 2 && hitFelt(r, 'wormBurst').ok, { ...r, e: undefined }); });
+  () => { const r = feelOfHit('worm', 3, 5); return ok(r.splats >= 2 && hitFelt(r, 'wormBurst').ok, { ...r, e: undefined }); });
 feelStory('whip', 'The worm\'s whip leaves with a whoosh and cracks down on the jelly: a flash on it, a scuff on the floor and the jelly\'s drops, a crack with dust pattering.',
   () => spawn('worm', near(0.18, 0)),
   () => { const r = feelOfHit('worm', 5, 3); return ok(r.near && r.splats >= 2 && hitFelt(r, 'whipLash', 'wormCrack').ok, { ...r, e: undefined }); });
