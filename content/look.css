@@ -73,10 +73,19 @@
   --gadget-duck: #a8e9ce;
   --gadget-disco: #d8beff;
   --gadget-crystals: 32;
-  --gadget-foam: 16;
+  --gadget-foam: 24;
   --gadget-bath-prepare: 0.3;
   --gadget-bath-bead: 0.003;
   --gadget-mirror-radius: 0.035;
+  --gadget-mirror-shard: 0.009;   /* Hand Mirror: the shards circling you while it's ready */
+  --gadget-mirror-orbit: 0.05;
+  --gadget-mirror-shell: 0.055;    /* the faceted shell while you can't be hurt */
+  --gadget-steam-ring: 0.06;       /* Hot Water Bottle: steam as the low-Health boost starts and while it holds */
+  --gadget-steam-life: 0.7;
+  --gadget-steam-opacity: 0.85;
+  --gadget-steam-rise: 0.06;
+  --gadget-steam-size: 0.014;
+  --gadget-steam-gap: 0.08;
   --gadget-echo-trail-gap: 0.055;
   --gadget-cotton-opacity: 0.16;
   --gadget-cotton-life: 0.32;

@@ -634,8 +634,8 @@ export function newMods() {
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null } },
     popZap: null,
-    mouse: null,                     // toy-mouse: { every, dmg, speed }
-    reflect: null,                   // reflect: { every, invuln }
+    mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
+    reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
     landingShockwave: null, extraJumps: 0,
@@ -758,7 +758,7 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage.', props: { dmg: 1 }, make: (_, p) => (m) => { m.bubbles.echo = { dmg: p.dmg }; } },
-  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse scurries (`speed` m/s) to the nearest enemy and hits it for `dmg` (a flat number).', props: { every: 12, dmg: 30, speed: 0.6 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
+  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
@@ -791,7 +791,7 @@ export const TREASURE_WORDS = {
     block: TIMED_WORDS,
     make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
   },
-  reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did), and you take none of it, then can\'t be hurt for `invuln` s.', props: { every: 20, invuln: 1 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
+  reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did) for at least `dmg` times your power, and you take none of it, then can\'t be hurt for `invuln` s. A shockwave hits every enemy within `burst` m for `burstDmg` times your power and shoves it `push` m.', props: { every: 20, invuln: 1, dmg: 0, burst: 0, burstDmg: 0, push: 0 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
   venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
@@ -854,14 +854,14 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health or rooted (standing still on the ground for 1 s or more) (under 30% of your max Health). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given) or rooted (standing still on the ground for 1 s or more). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
-    props: { percent: false },
+    props: { percent: false, under: 0.3 },
     make: ([when, name, amount], p) => {
       if (!WHILE_WHEN.includes(when)) throw new Error(`while: when must be one of ${WHILE_WHEN.join(', ')}, not "${when}"`);
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`while: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
-      return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent }); };
+      return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent, under: p.under }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },

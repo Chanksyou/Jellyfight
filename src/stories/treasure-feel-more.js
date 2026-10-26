@@ -43,11 +43,11 @@ story('treasure-feel-more/duck-cooldown-and-confirmed-recoil',{
 });
 story('treasure-feel-more/mirror-ready-block-attacker-and-expiry',{
   setup(){ready('handMirror');roachAt(.2,0);},
-  play(){const {run,enemies}=G(),g=run.gadgets,log=record('damage_taken');step(1);const ready=g.mirrorReady.visible,hp=run.health;run.iFrames=0;run.hit(3,enemies.list[0].id);
-    const block=run.health===hp&&g.mirrorSheen.visible&&!g.mirrorReady.visible&&log.some(d=>d.source==='reflect'&&d.amount===3)&&g.looks.pools.rod.some(p=>p.alive);
-    step(65);const expired=!g.mirrorSheen.visible&&!g.mirrorReady.visible;run.reflectAt=run.t;run.iFrames=0;g.looks.reset();run.hit(2);
+  play(){const {run,enemies}=G(),g=run.gadgets,log=record('damage_taken');step(1);const ready=g.mirrorReady.visible,shards=g.mirrorShards.visible,hp=run.health;run.iFrames=0;run.hit(3,enemies.list[0].id);
+    const block=run.health===hp&&g.mirrorSheen.visible&&g.mirrorShell.visible&&!g.mirrorReady.visible&&log.some(d=>d.source==='reflect'&&d.amount===run.power*run.mods.reflect.dmg)&&g.looks.pools.rod.some(p=>p.alive);
+    step(65);const expired=!g.mirrorSheen.visible&&!g.mirrorShell.visible&&!g.mirrorReady.visible;run.reflectAt=run.t;run.iFrames=0;g.looks.reset();run.hit(2);
     const environmental=run.health===hp&&!g.looks.pools.rod.some(p=>p.alive)&&log.filter(d=>d.source==='reflect').length===1;
-    g.animate(1,false);const hidden=!g.mirrorSheen.visible;g.reset();return ok(ready&&block&&expired&&environmental&&hidden,{ready,block,expired,environmental,hidden});},
+    g.animate(1,false);const hidden=!g.mirrorSheen.visible&&!g.mirrorShards.visible&&!g.mirrorShell.visible;g.reset();return ok(ready&&shards&&block&&expired&&environmental&&hidden,{ready,shards,block,expired,environmental,hidden});},
 });
 story('treasure-feel-more/prepared-capped-quiet-and-reset',{
   setup(){ready(...six);roachAt(.06,0);},

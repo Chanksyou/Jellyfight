@@ -291,9 +291,10 @@ export const sfx = {
     if(!ready()||!gap('gadgetSqueak',150))return;const j=jitter(.12);
     tone('triangle',480*j,1300*j,.07,.055);tone('sine',1300*j,360*j,.12,.045,.065);noise(1800*j,2,.08,.025,'bandpass',.03);
   },
-  gadgetMirror(){
+  gadgetMirror(burst=false){
     if(!ready()||!gap('gadgetMirror',150))return;const j=jitter(.04);
     tone('sine',2400*j,1800*j,.18,.04);tone('sine',3600*j,2700*j,.13,.02,.015);noise(5000*j,3,.035,.025,'highpass');
+    if(burst){tone('sine',160*j,60*j,.25,.06);noise(900*j,1,.12,.06,'lowpass');for(let i=0;i<3;i++)tone('sine',(3000+i*700)*j,(2600+i*500)*j,.09,.015,.05+i*.04);}
   },
   gadgetChord(){
     if(!ready()||!gap('gadgetChord',120))return;const j=jitter(.03);
@@ -306,7 +307,8 @@ export const sfx = {
   },
   gadgetMouse(phase){
     if(!ready()||!gap('gadgetMouse-'+phase,phase==='run'?170:100))return;const j=jitter(.09);
-    if(phase==='hit'){noise(650*j,1,.045,.07,'lowpass');tone('triangle',380*j,120*j,.09,.045);tone('sine',1100*j,500*j,.14,.025,.025);}
+    if(phase==='slam'){noise(420*j,1,.09,.11,'lowpass');tone('sine',120*j,45*j,.22,.07);tone('triangle',380*j,120*j,.09,.045,.01);noise(2600*j,3,.05,.03,'bandpass',.06);}
+    else if(phase==='hit'){noise(650*j,1,.045,.07,'lowpass');tone('triangle',380*j,120*j,.09,.045);tone('sine',1100*j,500*j,.14,.025,.025);}
     else if(phase==='wind'){tone('triangle',700*j,1200*j,.1,.03);noise(2500*j,3,.04,.025,'bandpass',.025);}
     else{noise(2200*j,3,.025,.018);tone('triangle',480*j,350*j,.035,.012,.03);}
   },
