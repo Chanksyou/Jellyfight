@@ -1,8 +1,10 @@
 // Reasons to play another run: the death screen (how close it came, your best, the unlock you're
-// nearest, Try again first) and the Treasure book (collection.js: what you've found across runs).
+// nearest, Try again first), the Treasure book (collection.js: what you've found across runs) and a
+// run kept across a closed tab (stages.js: Continue act N).
 import { FEATS_KEY } from '../cosmetics.js';
 import { FOUND_KEY, isFound } from '../collection.js';
 import { TREASURES } from '../stats.js';
+import { SAVE_KEY, STAGES, keptRun, nav } from '../stages.js';
 import { G, fresh, ok, step, story, stub } from './kit.js';
 
 // run fn with these localStorage keys emptied, then put back what was there
@@ -105,5 +107,49 @@ story('menu/treasure-book', {
     const back = !over.hidden && modal().hidden;
     over.hidden = true;
     return ok(opened && back, { opened, back });
+  },
+});
+
+story('menu/continue-a-kept-run', {
+  about: 'Moving on to the next act keeps the run on the device; the act 1 menu then shows Continue act 2 (with its level and score) above Play, and it reloads into act 2 with the run carried. The run ending forgets it, and a dev run keeps nothing.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus, GAME } = G();
+    const over = document.querySelector('#g-over'), btn = over.querySelector('.resume');
+    const was = sessionStorage.getItem('jellyfight.act');
+    let reloads = 0;
+    stub(nav, 'reload', () => { reloads++; });
+    try {
+      return withEmpty([SAVE_KEY], () => {
+        const none = (GAME.showKept(), btn.hidden);
+        run.level = 7;
+        run.actComplete(STAGES[1]);
+        [...modal().querySelectorAll('.btns button')].find((b) => /On to act 2/.test(b.textContent)).click();
+        menus.close();
+        const k = keptRun(), kept = k?.act === 2 && k.carry.level === 7;
+        GAME.showKept();
+        const shown = !btn.hidden && /Continue act 2/.test(btn.textContent) && /Level 7/.test(btn.textContent) && btn.nextElementSibling === over.querySelector('.play');
+        sessionStorage.removeItem('jellyfight.act');
+        btn.click();
+        const went = JSON.parse(sessionStorage.getItem('jellyfight.act') || 'null');
+        const continues = reloads === 2 && went?.act === 2 && went.carry?.level === 7 && went.then?.continue;
+        stub(run, 'board', null);
+        run.phase = 'dead';
+        run.endRun('You dried out', 'dead', 'Try again');
+        menus.close();
+        const forgotten = !keptRun();
+        GAME.showKept();
+        const hidden = btn.hidden;
+        run.dev = true;
+        run.actComplete(STAGES[1]);
+        [...modal().querySelectorAll('.btns button')].find((b) => /On to act 2/.test(b.textContent)).click();
+        menus.close();
+        run.dev = false;
+        const devKeepsNothing = !keptRun();
+        return ok(none && kept && shown && continues && forgotten && hidden && devKeepsNothing, { none, kept, shown, continues, forgotten, hidden, devKeepsNothing, label: btn.textContent, went });
+      });
+    } finally {
+      if (was === null) sessionStorage.removeItem('jellyfight.act'); else sessionStorage.setItem('jellyfight.act', was);
+    }
   },
 });

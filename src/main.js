@@ -17,7 +17,7 @@ import { MainMenu } from './main-menu.js';
 import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { STAGES, currentStage, currentAct, carried, goToAct, pendingAction, peekAction } from './stages.js';
+import { STAGES, currentStage, currentAct, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v286';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v288';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -79,6 +79,7 @@ ui.innerHTML = `
     font: 600 13px system-ui, sans-serif; color: #fff; background: #0008; border: 1px solid #ffffff33; border-radius: 8px; padding: 4px 9px; }
   #g-over .play { margin: 16px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
     border-radius: 14px; padding: 12px 34px; cursor: pointer; }
+  #g-over .resume[hidden] { display: none; }
   #g-over .play:disabled { opacity: .6; cursor: progress; }
   #g-over .row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 8px 0; }
   #g-over .row button { font: 14px system-ui, sans-serif; color: #fff; background: #ffffff1a; border: 1px solid #ffffff30;
@@ -137,6 +138,7 @@ ui.innerHTML = `
   <h1>Jelly Fight</h1>
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
+  <button class="resume" hidden></button>
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
@@ -636,7 +638,8 @@ renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.classList.contains('play')) { play(); endContinue(); }
+  if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }); }
+  else if (b.classList.contains('play')) { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); }
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
@@ -827,6 +830,14 @@ if (continuing) {
   titleEl.textContent = `Act ${stage.id}`;
   overlay.querySelector('.cont-note').textContent = stage.subtitle;
 }
+// a run kept from a closed tab (stages.js): the act 1 menu offers to pick it up at the act it reached
+function showKept() {
+  const k = stage.id === 1 && !continuing ? keptRun() : null, btn = overlay.querySelector('.resume');
+  btn.hidden = !k;
+  if (k) btn.innerHTML = `Continue act ${k.act}<small>${STAGES[k.act - 1].subtitle} · Level ${k.carry.level} · Score ${(+k.carry.score || 0).toLocaleString()}</small>`;
+}
+showKept();
+GAME.showKept = showKept;
 function endContinue() {
   if (!overlay.classList.contains('cont')) return;
   overlay.classList.remove('cont');
