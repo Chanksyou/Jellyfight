@@ -11,7 +11,7 @@
 //                   knock: the attack shoves the jelly itself, so the hit adds no pushback of its own (a boss's push)
 //   player_hurt     { amount, from?, contact? }   a hit on the jelly that really landed (past i-frames, dodge,
 //                   shields), after its Health went down; feedback only (enemies.js answers its attacker)
-//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw'
+//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw' | 'bleed' (the jelly: `strength` Health a second for `duration` s, each one stacking)
 //   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }

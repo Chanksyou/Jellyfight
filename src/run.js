@@ -134,6 +134,12 @@ export class Run {
         this.slowHardT = Math.max(this.slowHardT, duration);
       }
       if (targetId === PLAYER && status === 'slip') this.slipT = Math.max(this.slipT, duration);   // soap underfoot: you slide
+      // bleed (a mosquito's bite): `strength` Health a second for `duration` s; every bleed runs on its own, so they stack
+      if (targetId === PLAYER && status === 'bleed' && this.phase !== 'dead') {
+        this.bleeds.push({ t: duration, dps: strength ?? 1 });
+        const P = this.player.position;
+        this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.1), 'BLEED', LOOK.color('bleed', '#ff2a4a'), 13);
+      }
     });
     bus.on('knockback', ({ targetId, dir, force, launch }) => {
       if (targetId !== PLAYER) return;
@@ -244,6 +250,8 @@ export class Run {
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
     this.slipT = 0;
+    this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
+    this.bleedDripT = 0;
     this.stillT = 0;
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
@@ -407,6 +415,7 @@ export class Run {
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
+    if (this.bleeds.length) this.bleed(dt);
     // --- the night: waves, treasures, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
     else if (this.phase === 'explore') {
@@ -688,6 +697,19 @@ export class Run {
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from, contact, knock);
+  }
+
+  // bleeding: Health lost each second (no i-frames, no flinch), and drops of it dripping off the
+  // jelly to the floor, faster the more bleeds are running, for exactly as long as it lasts
+  bleed(dt) {
+    let dps = 0;
+    for (const b of this.bleeds) { const run = Math.min(dt, b.t); dps += b.dps * run / dt; b.t -= dt; }
+    this.bleeds = this.bleeds.filter((b) => b.t > 0);
+    if (dps > 0) bus.emit('damage_taken', { targetId: PLAYER, amount: dps * dt, source: 'bleed', drain: true });
+    if ((this.bleedDripT -= dt) > 0) return;
+    this.bleedDripT = LOOK.num('bleed-drip', 0.22) / Math.min(3, this.bleeds.length + 1);
+    const P = this.player.position, c = LOOK.color('bleed', '#ff2a4a');
+    this.fx.burst(_drop.set(P.x, P.y + this.cfg.height * 0.35, P.z), [c, c, '#ffffff'], 3, this.cfg.radius * LOOK.num('bleed-drop', 0.16), 0.12, P.y);
   }
 
   hurt(amount, silent = false, from = null, contact = false, knock = false) {

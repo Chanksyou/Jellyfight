@@ -1,5 +1,5 @@
 // Enemies. The bugs (critters.js) are the waves: cockroaches, ants that throw pushpins,
-// mosquitoes that hover out of reach and spit, and the act 2 bugs. The hair
+// mosquitoes that dart in to bite, and the act 2 bugs. The hair
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -225,21 +225,8 @@ export class Enemies {
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.byId = new Map();    // id -> enemy, for events that name their target
-    this.shots = [];          // mosquito laser bolts (the spit word)
+    this.shots = [];          // web balls and pushpins in flight (the spit word)
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
-    // a bolt: a thin bright core inside a soft coloured glow, stretched along its flight
-    const laser = new THREE.Color(LOOK.color('laser-color', '#ff2a4a')), len = LOOK.num('laser-length', 0.03);
-    this.laserColor = laser;
-    this.shotGeo = new THREE.CapsuleGeometry(0.0022, len, 4, 8).rotateX(Math.PI / 2);   // along +z
-    this.shotMat = new THREE.MeshBasicMaterial({ color: laser.clone().lerp(new THREE.Color('#ffffff'), 0.65), toneMapped: false });
-    this.glowGeo = new THREE.CapsuleGeometry(0.0055, len * 1.15, 4, 8).rotateX(Math.PI / 2);
-    this.glowMat = new THREE.MeshBasicMaterial({ color: laser.clone().multiplyScalar(2), transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-    // aiming beams: while a mosquito dips to shoot, a beam (a bright core in a red glow) marks
-    // where the bolt will go. Real geometry, since WebGL draws lines 1 pixel wide whatever you ask.
-    const aw = LOOK.num('laser-aim-width', 0.006);
-    this.aimCoreGeo = new THREE.CylinderGeometry(aw / 6, aw / 6, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m long along +z
-    this.aimGlowGeo = new THREE.CylinderGeometry(aw / 2, aw / 2, 1, 10, 1, true).rotateX(Math.PI / 2);
-    this.aimBeams = [];       // pooled: one per mosquito aiming this frame
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
     const wad = new THREE.IcosahedronGeometry(0.009, 2), wp = wad.attributes.position;
     for (let i = 0; i < wp.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(wp, i); v.multiplyScalar(0.8 + 0.4 * Math.abs(Math.sin(v.x * 900 + v.y * 1300 + v.z * 700))); wp.setXYZ(i, v.x, v.y, v.z); }
@@ -490,6 +477,7 @@ export class Enemies {
   // drawn in update), a few drops of jelly fly off and splat on the floor under it (harmless, fading),
   // and a wet slap. A touch (contact: a bite, a rolling ball) also flashes where the two met.
   landed(e, contact) {
+    if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps });   // the bleeds word
     const P = this.player;
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
@@ -505,27 +493,25 @@ export class Enemies {
   }
 
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
-  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle. A pin is the
-  // ant's pushpin (its own model, at the ant's size), thrown from its jaws spinning on its long axis.
+  // across `spread` degrees, with a flash at the muzzle. A pin is the ant's pushpin (its own model, at the ant's size), thrown from its jaws spinning on its long axis.
   // A web ball is lobbed: it arcs up and falls onto where you were (gravity `arc` m/s²), and
   // sticks: `slow` s of slowed swimming on a hit.
-  spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0, slow = 0, arc = 0 }) {
+  spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'web', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
     const kind = shot;
-    const color = kind === 'laser' ? this.laserColor : hostile(kind);
+    const color = hostile(kind);
     const flight = at.distanceTo(from) / speed;
     for (let i = 0; i < count; i++) {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const m = batcher.track(kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(kind === 'web' ? this.webGeo : this.shotGeo, kind === 'web' ? this.webMat : this.shotMat));
-      if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
+      const m = batcher.track(kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(this.webGeo, this.webMat));
       if (kind === 'pin') m.scale.setScalar(e.r);
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
@@ -978,6 +964,15 @@ export class Enemies {
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
+  // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
+  // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
+  biteWind(e, dur) { sfx.biteWind(dur); }
+  biteGo(e) { sfx.biteGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.5, 0.2); }
+  bite(e, c, dmg) {
+    sfx.bite();
+    this.fx.impact(this.center(e, S.spot).lerp(c.realPc || c.pc, 0.5), hostile(e.type), 0.016, 8);
+    bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, contact: true });
+  }
   hatch(nest, wasp) { sfx.waspHatch(); this.fx.puff((nest.emergeAt || nest.pos).clone(), 0xb8b8b2, nest.r * 1.5, 0.3); }
 
   // A fly's straw reaches full length (the poke word): a sharp jab sound, and you're hit if you're
@@ -1041,43 +1036,13 @@ export class Enemies {
     for (let i = n; i < this.leapMarks.length; i++) this.leapMarks[i].visible = false;
   }
 
-  // the aiming beam of every mosquito about to fire (the spit word sets e.aimT, e.aimMax and e.aimAt):
-  // it flickers, and burns brighter and steadier as the shot gets close
-  drawAim(t) {
-    let n = 0;
-    for (const e of this.list) {
-      if (e.dead || !(e.aimT > 0) || !e.aimAt || e.aimBeam === false) continue;
-      let B = this.aimBeams[n];
-      if (!B) {
-        const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-        B = new THREE.Mesh(this.aimGlowGeo, mat(this.laserColor.clone().multiplyScalar(1.6), 0.5));
-        B.add(new THREE.Mesh(this.aimCoreGeo, mat(this.laserColor.clone().lerp(new THREE.Color('#ffffff'), 0.6).multiplyScalar(1.5), 1)));
-        B.frustumCulled = B.children[0].frustumCulled = false;
-        this.scene.add(B);
-        this.aimBeams.push(B);
-      }
-      const a = e.pos, b = e.aimAt, len = a.distanceTo(b) + 0.03;   // runs a little past you
-      B.position.copy(a);
-      B.lookAt(b);
-      B.translateZ(len / 2);
-      B.scale.set(1, 1, len);
-      const charge = 1 - e.aimT / (e.aimMax || 0.5);                // 0 when it starts aiming, 1 as it fires
-      const flick = 0.75 + 0.25 * Math.abs(Math.sin(t * 40));
-      B.material.opacity = (0.3 + 0.5 * charge) * flick;
-      B.children[0].material.opacity = (0.55 + 0.45 * charge) * flick;
-      B.visible = true;
-      n++;
-    }
-    for (let i = n; i < this.aimBeams.length; i++) this.aimBeams[i].visible = false;
-  }
-
-  // Mosquito spit that reached the player this frame
+  // a web ball or pin that reached the player this frame
   shotHits(pc, radius) {
     for (const s of this.shots) {
       if (s.done || s.stuckT > 0 || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit', from: s.from });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from });
       if (s.slow) {                                                      // webbed: stuck for a moment
         bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: s.slow });
         this.fx.puff(s.m.position, 0xf4f2ee, 0.035, 0.6);
@@ -1207,7 +1172,6 @@ export class Enemies {
     this.updateShots(dt);
     this.updateSparkShots(dt);
     this.drawSparkBalls();
-    this.drawAim(t);
     this.drawLeaps(t);
     this.drawPokes(t);
     this.drawCharges(t);

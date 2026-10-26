@@ -349,6 +349,7 @@
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
   --hostile-mantis: #ffcc00;     /* the mantis's swat: the flash where its forelegs snap shut */
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
+  --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
   --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant, hair tangle): a small flash where they meet */
@@ -491,9 +492,9 @@
   --mane: #ffb46a;               /* Lion's Mane: the hair round the rim */
   --fronds: #6affc0;
   --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): peach, distinct from gold XP */
-  --laser-color: #ff2a4a;      /* the mosquito's laser bolt and its aiming line */
-  --laser-length: 0.03;        /* meters: how long a bolt is */
-  --laser-aim-width: 0.006;    /* meters: how wide the aiming beam's glow is (its bright core is a third of it) */
+  --bleed: #ff2a4a;             /* bleeding (a mosquito's bite): the drops dripping off the jelly while it lasts, and its BLEED */
+  --bleed-drip: 0.22;           /* seconds between drips with one bleed running (faster with more, up to 3x) */
+  --bleed-drop: 0.16;           /* how big each drop is, x the jelly's radius */
 
   /* what each bug bursts into when it dies */
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;
