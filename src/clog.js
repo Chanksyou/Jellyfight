@@ -332,7 +332,7 @@ export class Clog {
   update(dt, player) {
     const out = this.tick(dt, player);
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
-    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
+    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss', knock: this.knock > 0 });
     if (out.slow) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: out.slow });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'IN THE DRAIN' });
     return { push: out.push };

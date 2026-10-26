@@ -35,6 +35,25 @@ story('movement/roach-slower-than-jelly', {
 });
 
 // --- the bubble stream
+story('movement/hit-pushes-the-jelly-back', {
+  about: 'A hit shoves the jelly away from what hit it, harder the more it hurt (CONFIG.player.hitPush): a 6-damage hit pushes further than a 1-damage one. An attack that sends its own knockback (before or after its damage), or says knock: true (a boss already pushing you), adds no second shove.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', near(0.15, 0), { still: true, hp: 9999 }); },
+  play() {
+    const { run, player, enemies } = G(), e = enemies.list[0], P = player.position;
+    const hitBy = (amount, extra = {}, before, after) => {
+      tp(3.2, 0.05, 3.0, 0); step(20); run.iFrames = 0; run.health = 99;
+      const shoves = record('knockback'), x0 = P.x;
+      before?.(); bus.emit('damage_taken', { targetId: PLAYER, amount, source: 'story', from: e.id, ...extra }); after?.();
+      step(30);
+      return { shoves: shoves.filter((k) => k.targetId === PLAYER).map((k) => +k.force.toFixed(3)), dirX: +(shoves.find((k) => k.targetId === PLAYER)?.dir.x ?? 0).toFixed(2), moved: +(x0 - P.x).toFixed(4) };
+    };
+    const own = () => bus.emit('knockback', { targetId: PLAYER, dir: V(0, 0, 1), force: 0.3 });
+    const small = hitBy(1), big = hitBy(6), ownAfter = hitBy(6, {}, null, own), ownBefore = hitBy(6, {}, own), boss = hitBy(6, { knock: true });
+    return ok(small.shoves.length === 1 && big.shoves.length === 1 && big.shoves[0] > small.shoves[0] && big.dirX < -0.9 && big.moved > small.moved && big.moved > 0.015
+      && ownAfter.shoves.length === 1 && ownAfter.shoves[0] === 0.3 && ownBefore.shoves.length === 1 && ownBefore.shoves[0] === 0.3 && boss.shoves.length === 0,
+      { small, big, ownAfter, ownBefore, boss });
+  },
+});
 story('attack/bubble-stream', {
   about: 'With one bubble, bubbles come out one at a time (never two in a frame), about 1.76 a second to start.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.2)), { still: true, hp: 9999 }); },

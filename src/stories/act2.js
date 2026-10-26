@@ -162,6 +162,7 @@ act2('soap-dispenser-angry', {
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
+    holdJelly();   // counting its attacks: the globs' pushback can carry the jelly out of its reach
     let globs = 0, domes = 0, bubbles = 0;
     const heights = Array.from({ length: 5 }, () => ({ low: 0, high: 0 }));
     const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
