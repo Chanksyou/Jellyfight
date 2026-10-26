@@ -55,6 +55,16 @@ export class Gadgets {
     this.mirrorReady=new THREE.Mesh(new THREE.TorusGeometry(LOOK.num('gadget-mirror-radius',.035),.0008,4,32,Math.PI*1.35),focusMat);
     this.mirrorSheen=new THREE.Mesh(this.mirrorReady.geometry,focusMat);
     this.group.add(this.mirrorReady,this.mirrorSheen);
+    // Hand Mirror: shards of mirror circle you while it's ready; a faceted mirror shell holds while it's active
+    const silver=LOOK.color('gadget-silver','#d3eaff');
+    const shardMat=new THREE.MeshBasicMaterial({color:silver,transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+    const shardGeo=new THREE.OctahedronGeometry(LOOK.num('gadget-mirror-shard',.0045)).scale(1,1.6,.35);
+    this.mirrorShards=new THREE.Group();
+    for(let i=0;i<6;i++)this.mirrorShards.add(new THREE.Mesh(shardGeo,shardMat));
+    this.mirrorShell=new THREE.Group();
+    this.mirrorShell.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshBasicMaterial({color:silver,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false})),
+      new THREE.Mesh(new THREE.IcosahedronGeometry(1.01,1),new THREE.MeshBasicMaterial({color:silver,wireframe:true,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false})));
+    this.group.add(this.mirrorShards,this.mirrorShell);this.mirrorPop=0;
     // Glow Stick: a green glow on the floor around you
     this.aura = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x6aff8a, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -90,7 +100,7 @@ export class Gadgets {
 
   reset() {
     this.warming=false;
-    this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=false;
+    this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.mirrorPop=0;this.steamOn=false;
     this.looks.reset();
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
@@ -112,7 +122,7 @@ export class Gadgets {
     this.looks.warm(on,at);
     this.focus.visible=this.chordReady.visible=on;
     this.mouseReady.visible=on;
-    for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen]){m.visible=on;if(on)m.position.copy(at);}
+    for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen,this.mirrorShards,this.mirrorShell]){m.visible=on;if(on)m.position.copy(at);}
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
     if (on) {
@@ -132,11 +142,34 @@ export class Gadgets {
     }
   }
 
-  mirrorState(at,ready,active){
+  mirrorState(at,ready,active,dt=1/60){
     this.mirrorReady.visible=!!ready&&!active;this.mirrorSheen.visible=!!active;
     this.mirrorReady.position.copy(at);this.mirrorSheen.position.copy(at);
     this.mirrorReady.rotation.set(.35,this.looks.quiet?0:this.orbit||0,.4);
     this.mirrorSheen.rotation.set(-.35,-(this.looks.quiet?0:this.orbit||0),-.4);
+    // ready: six shards circle you, a glint running round them; active: the shell, popping in, the shards spinning on it
+    const o=this.looks.quiet?0:this.orbit||0,R=LOOK.num('gadget-mirror-orbit',.05),shell=LOOK.num('gadget-mirror-shell',.055);
+    this.mirrorShards.visible=!!ready||!!active;this.mirrorShell.visible=!!active;
+    this.mirrorShards.position.copy(at);this.mirrorShell.position.copy(at);
+    this.mirrorShards.children.forEach((m,i)=>{
+      const a=(active?o*2.5:o*.6)+i/6*Math.PI*2,r=active?shell:R,glint=Math.max(0,Math.cos(o*1.4-i/6*Math.PI*2));
+      m.position.set(Math.cos(a)*r,(active?0:.006)*Math.sin(o*2+i),Math.sin(a)*r);m.rotation.set(0,-a,0);
+      m.scale.setScalar(active?1.2:1+glint**8*.8);
+    });
+    if(active){
+      this.mirrorPop=Math.max(0,this.mirrorPop-dt);const u=this.mirrorPop/.15;   // 0.15 s pop: in big, settles
+      this.mirrorShell.scale.setScalar(shell*(1+.35*u*u));this.mirrorShell.rotation.y=o*.8;
+      this.mirrorShell.children[0].material.opacity=.14+.25*u;
+    }
+  }
+
+  // Hand Mirror going off: a flash, mirror splinters thrown out and a ring to the shockwave's edge
+  mirrorBurst(at,feet,radius){
+    this.mirrorPop=.15;
+    this.looks.contact(at,this.looks.silver,.04);this.fx.impact(at,this.looks.silver.getHex(),.03,12);
+    if(radius){this.fx.ring(feet.clone().setY(feet.y+.004),this.looks.silver.getHex(),radius,.45);this.looks.arc(feet.clone().setY(feet.y+.006),radius*.7,this.looks.silver,.3);}
+    this.looks.salt(at,.05);this.looks.salt(at,.03);
+    if(!this.looks.quiet)juice.feel('impact');
   }
 
   brickMesh() {
@@ -179,10 +212,10 @@ export class Gadgets {
     if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
-    if(!active){this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
+    if(!active){this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
     if(!this.mouseRun&&this.mouseAfter>0){
-      const k=this.mouseAfter/LOOK.num('gadget-mouse-after',.24);
-      this.mouse.scale.set(1+.2*k,1-.35*k,1-.2*k);this.mouseNose.scale.set(1,1,.5);this.mouse.visible=true;
+      const k=this.mouseAfter/LOOK.num('gadget-mouse-after',.24),z=this.mouseSize||1;
+      this.mouse.scale.set(z*(1+.2*k),z*(1-.35*k),z*(1-.2*k));this.mouseNose.scale.set(1,1,.5);this.mouse.visible=true;
       if(!this.looks.quiet)this.mouse.position.addScaledVector(_to.set(Math.sin(this.mouse.rotation.y),0,Math.cos(this.mouse.rotation.y)),dt*.025);
     }else if(!this.mouseRun)this.mouse.visible=false;
   }
@@ -192,7 +225,12 @@ export class Gadgets {
     const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
     this.chordReady.visible=this.bathReady.visible=false;
-    this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive);
+    this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
+
+    // a low-health boost (while "low-health"): steam pours off you while it holds, a burst of it as it starts
+    if(ctx.steaming&&!this.steamOn){this.looks.steam(center,true);sfx.gadgetFizz();ctx.pulse?.(.35);}
+    this.steamOn=!!ctx.steaming;
+    if(this.steamOn&&(this.steamT=(this.steamT??0)-dt)<=0){this.steamT=LOOK.num('gadget-steam-gap',.12);this.looks.steam(center);}
 
     // timed effects: every N s, do what's in the block
     for (const T of M.timed) {
@@ -272,7 +310,7 @@ export class Gadgets {
       fx.puff(E.center(e), 0xffc2e6, 0.006, 0.2);
     }
 
-    // toy-mouse: now and then it scurries to the nearest enemy and hits it
+    // toy-mouse: now and then it scurries to the nearest enemy and slams into it
     const Mo = M.mouse;
     this.mouseReady.visible=false;
     if(Mo&&!this.mouseRun&&(this.t.mouse??Mo.every*.6)>0&&(this.t.mouse??Mo.every*.6)<LOOK.num('gadget-mouse-prepare',.25)){
@@ -289,7 +327,7 @@ export class Gadgets {
           const a = Math.random() * Math.PI * 2;
           this.mouse.position.set(feet.x + Math.cos(a) * 0.06, feet.y, feet.z + Math.sin(a) * 0.06);   // it winds up beside you
           this.mouse.visible = true;
-          this.mouse.scale.setScalar(1);this.mouseNose.scale.setScalar(1);this.mouse.rotation.set(0,0,0);
+          this.mouseSize = Mo.size; this.mouse.scale.setScalar(Mo.size);this.mouseNose.scale.setScalar(1);this.mouse.rotation.set(0,0,0);
           this.mouseAfter=0;sfx.gadgetMouse('wind');ctx.pulse?.(.2);
         }
       }
@@ -307,14 +345,23 @@ export class Gadgets {
           this.mouseKey.rotation.z += dt * 18;                    // the key winds down as it runs
           const scurry=this.looks.quiet?0:Math.sin(run.t*LOOK.num('gadget-mouse-scurry',50));
           this.mouse.rotation.z=scurry*.09;this.mouseBody.position.y=.006+Math.abs(scurry)*.0015;
+          if(Mo.splash&&!this.looks.quiet&&(this.mouseDust=(this.mouseDust??0)-dt)<=0){this.mouseDust=.09;fx.puff(m.clone().setY(m.y+.003),0xd8d0c8,.004*Mo.size,.4);}   // a big mouse kicks up dust
           this.mouseTail.rotation.y=scurry*.28;
           if(Math.floor(run.t*5)!==Math.floor((run.t-dt)*5))sfx.gadgetMouse('run');
-          if (d < 0.012 + run.prey.r) {
-            fx.puff(m.clone().setY(m.y + 0.008), 0xd8d0c8, 0.02, 0.3);
-            bus.emit('damage_taken', { targetId: run.prey.id, amount: Mo.dmg, color: '#ffe7a8', source: 'toy-mouse' });
-            this.looks.contact(E.center(run.prey),this.looks.color,.018);this.looks.spring(m);
-            this.looks.arc(m,.025,this.looks.color,.22);sfx.gadgetMouse('hit');if(!this.looks.quiet)juice.feel('hit-big');ctx.pulse?.(.35);
-            this.mouse.scale.set(1.2,.65,.8);this.mouseNose.scale.set(1,1,.5);
+          if (d < 0.012 * Mo.size + run.prey.r) {
+            fx.puff(m.clone().setY(m.y + 0.008), 0xd8d0c8, 0.02 * Mo.size, 0.3);
+            // the slam: the prey, and with splash everything close to the mouse
+            const hit = Mo.splash ? this.near(m, Mo.splash, { proxies: false }) : [run.prey];
+            if (!hit.includes(run.prey)) hit.push(run.prey);
+            for (const e of hit) {
+              bus.emit('damage_taken', { targetId: e.id, amount: power * Mo.dmg, color: '#ffe7a8', source: 'toy-mouse' });
+              if (Mo.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(m).setY(0).normalize(), force: Mo.push });
+              this.looks.contact(E.center(e),this.looks.color,Math.max(.012,e.r*.7));
+            }
+            this.looks.spring(m);
+            if (Mo.splash) { fx.ring(m.clone().setY(m.y + 0.004), this.looks.color.getHex(), Mo.splash, 0.45); this.looks.studs(m.clone().setY(m.y + 0.01), this.looks.color, 8); }
+            this.looks.arc(m,.025*Mo.size,this.looks.color,.22);sfx.gadgetMouse(Mo.splash?'slam':'hit');if(!this.looks.quiet)juice.feel(Mo.splash?'impact':'hit-big');ctx.pulse?.(.35);
+            this.mouse.scale.set(1.2*Mo.size,.65*Mo.size,.8*Mo.size);this.mouseNose.scale.set(1,1,.5);
             this.mouseRun = null; this.mouseAfter=LOOK.num('gadget-mouse-after',.24);
           }
         }

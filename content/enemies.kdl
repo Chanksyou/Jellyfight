@@ -9,10 +9,14 @@ enemy "roach" name="Cockroach" hp=25 r=0.024 dmg=1 xp=1 model="roach" {
     chase 0.3                       // a little slower than you swim (0.42), so you can always get away
 }
 
-enemy "ants" name="Ant squad" hp=66 r=0.048 dmg=1 xp=2 model="ants" {
-    death-motion "tumble"
-    chase 0.225
-    curl-dash windup=0.6 time=0.7 speed=0.75 rest=0.8 dmg=3
+// The ant (from 0:30): a red wood ant with a pushpin in its jaws. It walks after you and keeps a
+// little off; then it stands, braces and coils back (no line on the floor: watch the ant; its aim
+// locks halfway through), and throws it spinning at you. A new pin appears in its jaws. Step aside
+// as it coils. A pin that misses sticks in whatever it hits for a moment.
+enemy "ants" name="Ant" hp=66 r=0.048 dmg=1 xp=2 model="ants" {
+    death-motion "crumple"
+    chase 0.225 stop=0.3
+    spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=-0.4 still=true
 }
 
 enemy "mosquito" name="Mosquito" hp=40 r=0.04 dmg=1 xp=3 model="mosquito" {

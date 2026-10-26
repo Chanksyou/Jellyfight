@@ -39,9 +39,7 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
 // not a rug or a threshold
-// Under this share of max Health counts as low (a `while low-health` treasure)
 const ROOTED = 1;          // seconds standing still on the ground before a `while "rooted"` holds
-const LOW_HEALTH = 0.3;
 
 // The treasures you own; counts changes so the combined effects are rebuilt only when needed
 // The treasures you own: a set of ids that also counts copies of stackable ones (stack=N)
@@ -314,8 +312,7 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      const low = this.health < S.health * LOW_HEALTH;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : low) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : this.health < S.health * c.under) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
     }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
@@ -433,6 +430,7 @@ export class Run {
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
         mirrorReady: this.t>=this.reflectAt, mirrorActive: this.t<this.mirrorUntil&&this.iFrames>0,
+        steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
@@ -617,7 +615,7 @@ export class Run {
       if (!e.T.dmg) continue;                               // harmless to touch (an Aerial root: its hold does the hurting)
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
-        // ant squads hit harder rolling
+        // rolling bugs hit harder (a millipede's ball)
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true });
       }
     }
@@ -642,11 +640,20 @@ export class Run {
       this.iFrames = M.reflect.invuln;
       this.mirrorUntil=this.t+M.reflect.invuln;
       const P = this.player.position, at = P.clone().setY(P.y + this.cfg.height * 0.5);
-      this.gadgets.mirrorState(at,false,true);
-      this.gadgets.looks.contact(at,this.gadgets.looks.silver,.018);sfx.gadgetMirror();this.player.avatar?.pulse(.18);
-      this.fx.number(at.clone().setY(at.y + 0.04), 'REFLECT', '#cfe8ff', 18);
+      const R = M.reflect, power = this.power;
+      this.gadgets.mirrorState(at,false,true);this.gadgets.mirrorBurst(at,P,R.burst);
+      sfx.gadgetMirror(true);this.player.avatar?.pulse(.3);
+      this.fx.number(at.clone().setY(at.y + 0.04), 'REFLECT', '#cfe8ff', 22);
       const e = from != null && this.enemies.list.find((x) => x.id === from && !x.dead);
-      if (e) { this.gadgets.looks.streak(at,this.enemies.center(e),this.gadgets.looks.silver,.0015,.18);this.fx.impact(this.enemies.center(e), this.friendly, 0.02, 8); bus.emit('damage_taken', { targetId: e.id, amount, color: '#cfe8ff', source: 'reflect' }); }
+      if (e) { this.gadgets.looks.streak(at,this.enemies.center(e),this.gadgets.looks.silver,.0025,.22);this.fx.impact(this.enemies.center(e), this.friendly, 0.025, 10); bus.emit('damage_taken', { targetId: e.id, amount: Math.max(amount, power * R.dmg), color: '#cfe8ff', source: 'reflect' }); }
+      // the shockwave: everything close is hit and thrown back (the attacker already took its bounce)
+      if (R.burst) for (const n of this.gadgets.near(at, R.burst)) {
+        if (n === e) continue;
+        if (R.burstDmg) bus.emit('damage_taken', { targetId: n.id, amount: power * R.burstDmg, color: '#cfe8ff', source: 'reflect' });
+        if (R.push) bus.emit('knockback', { targetId: n.id, dir: n.pos.clone().sub(P).setY(0).normalize(), force: R.push });
+        this.gadgets.looks.streak(at,this.enemies.center(n),this.gadgets.looks.silver,.0012,.16);
+      }
+      if (e && R.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(P).setY(0).normalize(), force: R.push });
       return;
     }
     // squeak-when-hit effects (they stack), each on its own cooldown

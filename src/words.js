@@ -21,10 +21,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
   'death-motion': {
-    doc: 'On death, leaves a harmless body that `style` animates: crumple, tumble, flutter or shell. Rewards and removal from combat are immediate.',
+    doc: 'On death, leaves a harmless body that `style` animates: crumple, flutter or shell. Rewards and removal from combat are immediate.',
     args: ['style'],
     make: ([style]) => {
-      if (!['crumple', 'tumble', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, tumble, flutter or shell');
+      if (!['crumple', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, flutter or shell');
       return { init(e) { e.deathMotion = style; } };
     },
   },
@@ -49,29 +49,6 @@ export const ENEMY_WORDS = {
         if (!p.stop || c.flat > p.stop) return;
         if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
         else c.speed = 0;                                                      // in range: hold
-      },
-    }),
-  },
-
-  'curl-dash': {
-    doc: 'Up close, stops and winds up for `windup` s, dashes at `speed` m/s for `time` s (hitting for `dmg`), then rests for `rest` s. List it after the walking word.',
-    props: { windup: 0.45, time: 0.45, speed: 0.825, rest: 0.6, dmg: null, range: 0.2 },
-    make: (_, p) => ({
-      rollDmg: p.dmg,
-      tick(e, c, en) {
-        e.stateT -= c.dt;
-        if (e.state === 'approach' && c.flat < p.range && e.grounded) { e.state = 'windup'; e.stateT = p.windup; }
-        else if (e.state === 'windup') {
-          c.speed = 0;
-          if (e.stateT <= 0) { e.state = 'dash'; e.stateT = p.time; e.dashDir.copy(c.flatDir); en.curlGo(e); }
-        } else if (e.state === 'dash') {
-          c.speed = p.speed * c.slow;
-          c.dir.copy(e.dashDir);
-          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; }
-        } else if (e.state === 'rest') {
-          c.speed *= 0.3;
-          if (e.stateT <= 0) e.state = 'approach';
-        }
       },
     }),
   },
@@ -295,10 +272,10 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go) or "web" (a ball of silk). `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
-    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0 },
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
-      if (!['laser', 'web'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser" or "web", not "${p.shot}"`);
+      if (!['laser', 'web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "web" or "pin", not "${p.shot}"`);
       return {
       init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {
@@ -310,6 +287,7 @@ export const ENEMY_WORDS = {
         if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.25; }
         else if (e.shootT <= 0) e.shootT = 0.5;
         if (e.firedT > 0) e.firedT -= c.dt;
+        if (p.still && (e.aimT > 0 || e.firedT > 0)) c.speed = 0;
       },
       };
     },
@@ -656,8 +634,8 @@ export function newMods() {
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null } },
     popZap: null,
-    mouse: null,                     // toy-mouse: { every, dmg, speed }
-    reflect: null,                   // reflect: { every, invuln }
+    mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
+    reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
     stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
     landingShockwave: null, extraJumps: 0,
@@ -780,7 +758,7 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage.', props: { dmg: 1 }, make: (_, p) => (m) => { m.bubbles.echo = { dmg: p.dmg }; } },
-  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse scurries (`speed` m/s) to the nearest enemy and hits it for `dmg` (a flat number).', props: { every: 12, dmg: 30, speed: 0.6 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
+  'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   element: {
@@ -813,7 +791,7 @@ export const TREASURE_WORDS = {
     block: TIMED_WORDS,
     make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
   },
-  reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did), and you take none of it, then can\'t be hurt for `invuln` s.', props: { every: 20, invuln: 1 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
+  reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did) for at least `dmg` times your power, and you take none of it, then can\'t be hurt for `invuln` s. A shockwave hits every enemy within `burst` m for `burstDmg` times your power and shoves it `push` m.', props: { every: 20, invuln: 1, dmg: 0, burst: 0, burstDmg: 0, push: 0 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
   venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
@@ -876,14 +854,14 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health or rooted (standing still on the ground for 1 s or more) (under 30% of your max Health). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given) or rooted (standing still on the ground for 1 s or more). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
-    props: { percent: false },
+    props: { percent: false, under: 0.3 },
     make: ([when, name, amount], p) => {
       if (!WHILE_WHEN.includes(when)) throw new Error(`while: when must be one of ${WHILE_WHEN.join(', ')}, not "${when}"`);
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`while: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
-      return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent }); };
+      return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent, under: p.under }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },

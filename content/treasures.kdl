@@ -492,8 +492,8 @@ treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true tex
 }
 
 // --- Legendary: rule-changers, one of a kind (the Boss reward offers these)
-treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 15 s, the first hit you take bounces back at whatever dealt it, and you can't be hurt for 1 s." {
-    reflect every=15 invuln=1
+treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 15 s, the first hit you take shatters back: whatever dealt it takes a heavy hit, a shockwave hits and throws back everything close, and you can't be hurt for 1 s." {
+    reflect every=15 invuln=1 dmg=8 burst=0.15 burstDmg=3 push=0.05
 }
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
@@ -506,9 +506,10 @@ treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#
         bubble-ring 8
     }
 }
-treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below 30% Health: +50% Fire rate and +20% Move speed." {
-    while "low-health" "fire-rate" 50 percent=#true
-    while "low-health" "move-speed" 20 percent=#true
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health you steam: +50% Fire rate, +40% Bubble damage and +20% Move speed." {
+    while "low-health" "fire-rate" 50 percent=#true under=0.5
+    while "low-health" "bubble-damage" 40 percent=#true under=0.5
+    while "low-health" "move-speed" 20 percent=#true under=0.5
 }
 treasure "powerBank" name="Power Bank" icon="🔆" rarity="legendary" attack=#true text="Every element you own fires 50% faster." {
     element-up "fire" rate=1.5
@@ -518,8 +519,8 @@ treasure "powerBank" name="Power Bank" icon="🔆" rarity="legendary" attack=#tr
     element-up "wind" rate=1.5
     element-up "glitter" rate=1.5
 }
-treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 10 s a wind-up mouse scurries to the nearest bug and hits it for 30." {
-    toy-mouse every=10 dmg=30
+treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 7 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
+    toy-mouse every=7 dmg=8 speed=0.25 size=3 splash=0.12 push=0.025
 }
 
 // --- more combinations of the words above (no new code)

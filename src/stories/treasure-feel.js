@@ -10,13 +10,13 @@ function effect(kind,look){return G().run.mods.timed.flatMap(t=>t.effects).find(
 const alive=L=>Object.values(L.pools).flat().filter(p=>p.alive);
 
 story('treasure-feel/mouse-contact-and-recovery',{
-  about:'The mouse scurries, hits once for 30, compresses at contact and leaves a short spring afterimage without delaying the next timer.',
+  about:'The big mouse scurries, slams once for 8x your power with a ring to its splash edge, compresses at contact and leaves a short spring afterimage without delaying the next timer.',
   setup(){ready('toyMouse');roachAt(.25,0);},
   play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');let prepared=false;step(500,()=>{prepared ||= g.mouseReady.visible;return g.mouseRun;});step(3);
     const animated=g.mouse.visible&&g.mouseTail.rotation.y!==0&&g.mouseKey.rotation.z!==0;
     step(500,()=>log.some(d=>d.source==='toy-mouse'));step(1);
     const hits=log.filter(d=>d.source==='toy-mouse'),after=g.mouse.visible&&g.mouseNose.scale.z<1&&g.looks.pools.spring.some(p=>p.alive);
-    step(30);return ok(prepared&&animated&&after&&hits.length===1&&hits[0].amount===30&&!g.mouse.visible,{prepared,animated,after,hits:hits.map(d=>d.amount),hidden:!g.mouse.visible});},
+    step(30);return ok(prepared&&animated&&after&&hits.length===1&&hits[0].amount===run.power*run.mods.mouse.dmg&&!g.mouse.visible,{prepared,animated,after,hits:hits.map(d=>d.amount),hidden:!g.mouse.visible});},
 });
 story('treasure-feel/marble-roll-bounce-and-one-hit',{
   about:'The marble has a turning swirl and bounded trail, preserves speed/reflection and damages each bug once.',

@@ -18,7 +18,7 @@ export class GadgetLooks {
     this.pools=Object.fromEntries(Object.keys(this.geo).map(k=>[k,[]]));
     this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2,crystal:LOOK.num('gadget-crystals',32),foam:LOOK.num('gadget-foam',16),tag:LOOK.num('gadget-tags',24)};
     this.color=new THREE.Color(LOOK.color('gadget-friendly','#a6f6ed'));
-    for(const [k,v] of Object.entries({silver:'#d3eaff',cotton:'#e8e5ff',duck:'#a8e9ce',disco:'#d8beff',gold:'#f5e7a7',signalColor:'#a5e5ff',fizz:'#b7ffe4'}))this[k]=new THREE.Color(LOOK.color('gadget-'+(k==='signalColor'?'signal':k),v));
+    for(const [k,v] of Object.entries({mist:'#eef6ff',silver:'#d3eaff',cotton:'#e8e5ff',duck:'#a8e9ce',disco:'#d8beff',gold:'#f5e7a7',signalColor:'#a5e5ff',fizz:'#b7ffe4'}))this[k]=new THREE.Color(LOOK.color('gadget-'+(k==='signalColor'?'signal':k),v));
   }
   get quiet(){return juice.calm||this.fx.reducedMotion.matches;}
   take(kind,at,color,life) {
@@ -51,7 +51,7 @@ export class GadgetLooks {
       }else if(p.kind==='tag'){
         if(!this.quiet){m.rotation.z=Math.sin(u*Math.PI)*.3;m.position.y+=dt*.01;}
       }else if(p.kind==='foam'){
-        m.scale.copy(p.size).multiplyScalar(1+u*.3);m.position.y+=dt*.012;
+        m.scale.copy(p.size).multiplyScalar(1+u*.3);m.position.y+=dt*(.012+p.v.y);
       }else if(p.kind==='spring'){
         m.scale.set(p.size.x*(1-u*.4),p.size.y*(1-u*.8),p.size.z*(1-u*.4));
         if(!this.quiet){m.position.y+=dt*.015;m.rotation.y+=dt*5;}
@@ -142,6 +142,16 @@ export class GadgetLooks {
     this.streak(at,at.clone().add(new THREE.Vector3(.02,0,0)),this.silver,.0018,.5);
     this.streak(at,at.clone().add(new THREE.Vector3(0,0,-.03)),this.silver,.0018,.5);
     this.salt(at,.03);
+  }
+  // Hot water: a wisp of steam rising off the jelly; burst=true when the boost starts (a ring and a cloud)
+  steam(at,burst=false){
+    if(burst)this.arc(at,LOOK.num('gadget-steam-ring',.06),this.mist,.4);
+    for(let i=0;i<(burst?(this.quiet?3:8):1);i++){
+      const a=Math.random()*Math.PI*2,r=burst?.025:.015,z=LOOK.num('gadget-steam-size',.01),p=this.take('foam',at,this.mist,LOOK.num('gadget-steam-life',.7));if(!p)break;
+      p.m.position.add(new THREE.Vector3(Math.cos(a)*r,.015,Math.sin(a)*r));
+      p.size.setScalar(burst?z*1.4:z);p.m.scale.copy(p.size);p.alpha=LOOK.num('gadget-steam-opacity',.3);p.m.userData.opacity=p.alpha;
+      p.v.set(0,this.quiet?0:LOOK.num('gadget-steam-rise',.05),0);
+    }
   }
   spring(at){
     const p=this.take('spring',at,this.color,LOOK.num('gadget-mouse-after',.24));if(!p)return;

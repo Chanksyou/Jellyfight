@@ -1,4 +1,4 @@
-// The bugs: cockroaches, ant squads, mosquitoes, the lanternfly, the house spider, the house fly, the dragonfly, the mantis and the worm inside it, the stag beetle. Procedural models with moving legs and
+// The bugs: cockroaches, ants with pushpins, mosquitoes, the lanternfly, the house spider, the house fly, the dragonfly, the mantis and the worm inside it, the stag beetle. Procedural models with moving legs and
 // wings, so you can see them scuttle, curl up and fly at you.
 //
 // Each builder returns { body, face, anim(dt, e) } in "radius units" (the enemy's collision
@@ -105,97 +105,116 @@ export function buildRoach() {
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
 }
 
-// ------------------------------------------------------------------ ant squad
+// ------------------------------------------------------------------ ant
+// A red wood ant with a red pushpin in its jaws (the owner's character sheet): a dark heart-shaped
+// head with black eyes, elbowed antennae, a ridged red thorax on a narrow waist, a big banded dark
+// gaster, and six long jointed legs. It throws the pin (the spit word, shot="pin") and a new one
+// appears in its jaws. Each ant's pins are one of the --pin-colors (content/look.css).
+const PIN = { steel: '#d4d8dc', size: 1.35 };
+const pinColors = () => LOOK.list('pin-colors', ['#e01a1a']);
+// the pushpin in colour i of --pin-colors, in the ant's radius units, gripped at z=0 with the needle
+// out along +z (one geometry per colour, built once)
+function pinGeometry(i) {
+  const col = pinColors()[i] || '#e01a1a', dark = '#' + new THREE.Color(col).multiplyScalar(0.72).getHexString();
+  const part = (g, hex) => tint(g.rotateX(Math.PI / 2), hex);
+  return merge([
+    ellipsoid(0.1, 0.1, 0.05, V(0, 0, 0), dark, 12),                                             // the grip's end
+    part(new THREE.CylinderGeometry(0.08, 0.07, 0.24, 12).translate(0, 0.12, 0), col),             // the grip
+    part(new THREE.CylinderGeometry(0.2, 0.08, 0.1, 14).translate(0, 0.29, 0), col),               // the flare to the head
+    ellipsoid(0.25, 0.25, 0.05, V(0, 0, 0.36), col, 16),                                           // the flat head
+    part(new THREE.CylinderGeometry(0.004, 0.025, 0.58, 6).translate(0, 0.67, 0), PIN.steel),      // the needle
+  ]).scale(PIN.size, PIN.size, PIN.size);
+}
 function antGeometry() {
-  const black = '#1c0a06', red = '#5a1a0c', white = '#ffffff', shine = '#3a1a10';
-  const body = merge([
-    ellipsoid(0.16, 0.13, 0.2, V(0, 0.2, 0.28), black),      // head
-    ellipsoid(0.07, 0.04, 0.05, V(-0.08, 0.14, 0.44), red),  // mandibles
-    ellipsoid(0.07, 0.04, 0.05, V(0.08, 0.14, 0.44), red),
-    ellipsoid(0.1, 0.09, 0.16, V(0, 0.19, 0.02), red),       // thorax
-    ellipsoid(0.05, 0.05, 0.05, V(0, 0.18, -0.13), black),   // petiole
-    ellipsoid(0.17, 0.15, 0.22, V(0, 0.22, -0.33), black),   // gaster
-    ellipsoid(0.08, 0.04, 0.1, V(0, 0.33, -0.3), shine),     // glossy highlight band
-    ellipsoid(0.05, 0.05, 0.03, V(-0.07, 0.25, 0.46), white, 8),   // angry little eyes
-    ellipsoid(0.05, 0.05, 0.03, V(0.07, 0.25, 0.46), white, 8),
-    ellipsoid(0.025, 0.025, 0.02, V(-0.065, 0.24, 0.485), '#c8231c', 6),
-    ellipsoid(0.025, 0.025, 0.02, V(0.065, 0.24, 0.485), '#c8231c', 6),
-    tint(new THREE.BoxGeometry(0.1, 0.02, 0.02).rotateZ(-0.45).translate(-0.07, 0.3, 0.47), black),
-    tint(new THREE.BoxGeometry(0.1, 0.02, 0.02).rotateZ(0.45).translate(0.07, 0.3, 0.47), black),
+  const red = '#6e200e', head = '#561a0a', dark = '#22100a', band = '#6a3e1e', leg = '#621e0c', jaw = '#2e0c04';
+  const body = [
+    ellipsoid(0.38, 0.32, 0.5, V(0, 0.58, -0.88), dark),           // gaster
+    ellipsoid(0.09, 0.15, 0.09, V(0, 0.6, -0.36), red),             // petiole node
+    ellipsoid(0.13, 0.13, 0.14, V(0, 0.6, -0.22), red),             // propodeum
+    ellipsoid(0.15, 0.14, 0.2, V(0, 0.64, -0.02), red),             // mesonotum
+    ellipsoid(0.2, 0.18, 0.22, V(0, 0.68, 0.2), red),               // pronotum
+    ellipsoid(0.08, 0.08, 0.1, V(0, 0.7, 0.4), red),                // neck
+    ellipsoid(0.29, 0.26, 0.3, V(0, 0.78, 0.62), head),             // head
+    ellipsoid(0.08, 0.09, 0.08, V(-0.25, 0.85, 0.66), '#0a0505', 10),  // eyes
+    ellipsoid(0.08, 0.09, 0.08, V(0.25, 0.85, 0.66), '#0a0505', 10),
+    ...[-1, 1].map((s) => rod(V(s * 0.15, 0.64, 0.82), V(s * 0.05, 0.6, 0.96), 0.05, 0.022, jaw)),   // mandibles
+  ];
+  for (const dz of [-0.62, -0.84, -1.06]) {                        // pale bands round the gaster
+    const k = Math.sqrt(1 - ((dz + 0.88) / 0.5) ** 2);
+    body.push(ellipsoid(0.385 * k, 0.325 * k, 0.03, V(0, 0.58, dz), band, 16));
+  }
+  // an elbowed antenna, built at its base on the head: a long scape up and out, the rest bent forward
+  const antenna = (s) => merge([rod(V(0, 0, 0), V(s * 0.24, 0.34, 0.08), 0.025, 0.02, leg), tube([V(s * 0.24, 0.34, 0.08), V(s * 0.34, 0.42, 0.32), V(s * 0.4, 0.36, 0.6)], 0.016, leg, 8)]);
+  // a leg built at its hip: femur up and out to the knee, tibia down, tarsus along the floor
+  const legGeo = (s, f) => merge([
+    rod(V(0, 0, 0), V(s * 0.45, 0.32, f * 0.3), 0.04, 0.03, leg),
+    rod(V(s * 0.45, 0.32, f * 0.3), V(s * 0.8, -0.44, f * 0.6), 0.03, 0.02, leg),
+    rod(V(s * 0.8, -0.44, f * 0.6), V(s * 0.92, -0.55, f * 0.72), 0.018, 0.01, jaw),
   ]);
-  // antennae, built at their base on the head
-  const antenna = (s) => merge([rod(V(0, 0, 0), V(s * 0.12, 0.14, 0.12), 0.015, 0.01, black), rod(V(s * 0.12, 0.14, 0.12), V(s * 0.16, 0.08, 0.28), 0.01, 0.006, black)]);
-  // one leg built at its hip
-  const leg = (s, z) => merge([rod(V(0, 0, 0), V(s * 0.14, 0.08, z * 1.5), 0.02, 0.015, black), rod(V(s * 0.14, 0.08, z * 1.5), V(s * 0.24, -0.18, z * 3), 0.015, 0.008, black)]);
-  return { body, antL: antenna(-1), antR: antenna(1), leg };
+  return { body: merge(body), antL: antenna(-1), antR: antenna(1), legGeo };
 }
 
-// five ants: marching in a tight 2-1-2 block, or curled up together into a ball made of
-// their own bodies (backs out, heads and legs tucked in; no shell, just ants)
-const FORMATION = [[-0.3, 0.38], [0.3, 0.38], [0, -0.02], [-0.3, -0.42], [0.3, -0.42]];
-// a trigonal bipyramid: five ants cover a ball evenly
-const BALL = [V(0, 1, 0), V(0, -1, 0), V(1, 0, 0), V(-0.5, 0, 0.866), V(-0.5, 0, -0.866)];
+// a pin on its own in colour i, for a thrown one (enemies.js spit): in the ant's radius units
+const pinGeo = (i) => (GEO['pin' + i] ||= pinGeometry(i));
+export function buildPushpin(i = 0) { return new THREE.Mesh(pinGeo(i), mats().shell); }
+
+// legs: [hip z, how far forward the foot reaches]
+const ANT_LEGS = [[0.2, 1], [0.02, 0], [-0.16, -1]];
 export function buildAnts() {
-  const G = (GEO.ants ||= antGeometry()), M = mats();
-  const LEGS = (GEO.antLegs ||= [-1, 1].flatMap((s) => [0.08, 0, -0.08].map((z) => ({ s, z, geo: G.leg(s, z) }))));
-  const body = new THREE.Group();
-  const ball = new THREE.Group();          // rolls as one while curled
-  ball.position.y = 0.42;
-  body.add(ball);
-  const q0 = new THREE.Quaternion();
-  const ants = FORMATION.map(([x, z], i) => {
-    const a = new THREE.Group();
-    const shell = new THREE.Mesh(G.body, M.shell);
-    a.add(shell);
-    const legs = LEGS.map((L, j) => {
-      const pivot = new THREE.Group();
-      pivot.position.set(L.s * 0.06, 0.18, L.z);
-      pivot.add(new THREE.Mesh(L.geo, M.shell));
-      a.add(pivot);
-      return { pivot, phase: (j % 2) ^ (L.s > 0 ? 1 : 0) ? Math.PI : 0 };   // tripod gait
-    });
-    const ants2 = [G.antL, G.antR].map((geo, j) => {
-      const p = new THREE.Group();
-      p.position.set(j ? 0.08 : -0.08, 0.28, 0.4);
-      p.add(new THREE.Mesh(geo, M.shell));
-      a.add(p);
-      return p;
-    });
-    ball.add(a);
-    // curled: back out along its ball direction, each twisted a different way so the bodies
-    // interlock into a round clump
-    const dir = BALL[i];
-    const curlQ = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), i * 1.26 + 0.4));
-    return { a, legs, ants: ants2, phase: i * 1.7, walkPos: V(x, -0.42, z), curlPos: dir.clone().multiplyScalar(0.12).add(V(0, -0.2, 0)), curlQ };
+  const G = (GEO.ant ||= antGeometry()), M = mats();
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(G.body, M.shell));
+  outer.userData.pin = Math.floor(Math.random() * pinColors().length);   // this ant's pin colour, for the ones it throws too
+  const legs = [];
+  for (const s of [-1, 1]) ANT_LEGS.forEach(([z, f], i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.1, 0.55, z);
+    pivot.add(new THREE.Mesh((GEO['antLeg' + s + i] ||= G.legGeo(s, f)), M.shell));
+    body.add(pivot);
+    legs.push({ pivot, s, phase: (i + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });   // tripod gait
   });
-  let t = 0, curl = 0, k = 0;
+  const antennae = [G.antL, G.antR].map((geo, j) => {
+    const p = new THREE.Group();
+    p.position.set(j ? 0.11 : -0.11, 0.98, 0.78);
+    p.add(new THREE.Mesh(geo, M.shell));
+    body.add(p);
+    return p;
+  });
+  const pin = new THREE.Group();
+  pin.position.set(0, 0.6, 0.94);                                  // gripped in the mandibles
+  pin.add(new THREE.Mesh(pinGeo(outer.userData.pin), M.shell));
+  body.add(pin);
+  const ease = THREE.MathUtils.smoothstep;
+  let t = 0, k = 0, fired = 0, since = 9;
   const anim = (dt, e) => {
-    const want = e.state === 'windup' || e.state === 'dash' ? 1 : 0;
-    curl += (want - curl) * (1 - Math.exp(-(want ? 12 : 5) * dt));
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (3 + 16 * k);
-    const walk = 1 - curl;
-    for (const A of ants) {
-      A.a.position.lerpVectors(A.walkPos, A.curlPos, curl);
-      A.a.quaternion.slerpQuaternions(q0, A.curlQ, curl);
-      A.a.scale.setScalar(1 + curl * 0.1);
-      // marching: a little bob and sway each, legs in a tripod gait, antennae feeling around
-      A.a.position.y += walk * Math.abs(Math.sin(t + A.phase)) * 0.025 * k;
-      A.a.rotation.z += walk * Math.sin(t * 0.5 + A.phase) * 0.06;
-      for (const L of A.legs) {
-        L.pivot.rotation.y = walk * Math.sin(t + A.phase + L.phase) * 0.45 * k;
-        L.pivot.rotation.x = walk * Math.max(0, Math.cos(t + A.phase + L.phase)) * -0.3 * k;
-        L.pivot.scale.setScalar(1 - curl * 0.7);        // legs tuck in when curled
-      }
-      A.ants.forEach((p, j) => { p.rotation.x = Math.sin(t * 0.7 + A.phase + j) * 0.4; p.rotation.y = Math.sin(t * 0.9 + A.phase * 2 + j * 2) * 0.35; p.scale.setScalar(1 - curl * 0.8); });
+    // the throw (the spit word's aimT and firedT): ready, brace, coil, then thrust and release
+    const c = e.aimT > 0 ? 1 - e.aimT / (e.aimMax || 0.5) : 0;
+    const brace = ease(c, 0.15, 0.5), coil = ease(c, 0.5, 1);
+    if ((e.firedT || 0) > fired) since = 0;                       // it just threw
+    fired = e.firedT || 0;
+    since += dt;
+    const thrust = since < 0.3 ? Math.sin(Math.PI * since / 0.3) : 0;
+    body.position.set(0, Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coil * 0.03, coil * -0.16 + thrust * 0.26);
+    body.rotation.x = coil * -0.18 + thrust * 0.2;                 // rears back, then drives its head down
+    body.rotation.z = Math.sin(t) * 0.03 * k;
+    for (const L of legs) {
+      L.pivot.rotation.y = Math.sin(t + L.phase) * 0.4 * k;
+      L.pivot.rotation.z = (Math.max(0, Math.cos(t + L.phase)) * 0.25 * k + brace * 0.12) * L.s;   // lifts a foot; braced, splays out
     }
-    if (e.state === 'dash') ball.rotation.x += speed * dt / 0.42;
-    else ball.rotation.x *= Math.exp(-6 * dt);
-    ball.rotation.z = e.state === 'windup' ? Math.sin(t * 5) * 0.12 : 0;   // a quick shiver: it's about to roll
-    ball.position.y = 0.42 - curl * 0.06;
+    antennae.forEach((p, j) => {
+      p.rotation.x = Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.4;
+      p.rotation.y = Math.sin(t * 0.9 + j * 2) * 0.2;
+    });
+    // the pin: gone as it's thrown, then a new one swells into its jaws
+    const grow = THREE.MathUtils.clamp((since - 0.25) / 0.3, 0, 1);
+    pin.scale.setScalar(since < 0.25 ? 0 : 1 + 2.7 * (grow - 1) ** 3 + 1.7 * (grow - 1) ** 2);   // with a little overshoot
+    pin.rotation.x = coil * 0.12;
   };
-  return { body, face: new THREE.Group(), anim, deathParts: ants.map(A => A.a) };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.pivot) };
 }
 
 // ------------------------------------------------------------------ mosquito
