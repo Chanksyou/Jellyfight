@@ -202,6 +202,18 @@ story('treasures/element-rewards', {
     return ok(starts === 60 && !wrong.length && !baseEl && plainThird, { starts, wrong: wrong.slice(0, 5), baseEl, plainThird, sample });
   },
 });
+story('enemies/ant-pin-colours', {
+  about: 'Each ant spawns with one of the five thumbtack colours (--pin-colors), and the pin it throws is that colour too.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { enemies } = G(), seen = new Set();
+    for (let i = 0; i < 40; i++) seen.add(spawn('ants', near(0.5 + (i % 8) * 0.06, 0.3 + Math.floor(i / 8) * 0.06), { still: true }).mesh.userData.pin);
+    const e = enemies.list[0];
+    enemies.spit(e, near(0, 0, 0.05), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: -0.4 });
+    const thrown = enemies.shots.at(-1).m.geometry, held = e.root.getObjectsByProperty('geometry', thrown).length > 0;
+    return ok(seen.size === 5 && held, { colours: [...seen].sort(), held });
+  },
+});
 story('enemies/ant-keeps-off-and-throws', {
   about: 'An ant walks after you, stops a little off, and throws its pushpin at you.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('ants', P.clone().add(V(0.6, 0, 0))); },

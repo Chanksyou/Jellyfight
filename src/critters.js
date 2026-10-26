@@ -109,16 +109,19 @@ export function buildRoach() {
 // A red wood ant with a red pushpin in its jaws (the owner's character sheet): a dark heart-shaped
 // head with black eyes, elbowed antennae, a ridged red thorax on a narrow waist, a big banded dark
 // gaster, and six long jointed legs. It throws the pin (the spit word, shot="pin") and a new one
-// appears in its jaws.
-const PIN = { red: '#e01a1a', dark: '#a50f12', steel: '#d4d8dc', size: 1.35 };
-// the pushpin, in the ant's radius units, gripped at z=0 with the needle out along +z
-function pinGeometry() {
+// appears in its jaws. Each ant's pins are one of the --pin-colors (content/look.css).
+const PIN = { steel: '#d4d8dc', size: 1.35 };
+const pinColors = () => LOOK.list('pin-colors', ['#e01a1a']);
+// the pushpin in colour i of --pin-colors, in the ant's radius units, gripped at z=0 with the needle
+// out along +z (one geometry per colour, built once)
+function pinGeometry(i) {
+  const col = pinColors()[i] || '#e01a1a', dark = '#' + new THREE.Color(col).multiplyScalar(0.72).getHexString();
   const part = (g, hex) => tint(g.rotateX(Math.PI / 2), hex);
   return merge([
-    ellipsoid(0.1, 0.1, 0.05, V(0, 0, 0), PIN.dark, 12),                                         // the grip's end
-    part(new THREE.CylinderGeometry(0.08, 0.07, 0.24, 12).translate(0, 0.12, 0), PIN.red),         // the grip
-    part(new THREE.CylinderGeometry(0.2, 0.08, 0.1, 14).translate(0, 0.29, 0), PIN.red),           // the flare to the head
-    ellipsoid(0.25, 0.25, 0.05, V(0, 0, 0.36), PIN.red, 16),                                       // the flat head
+    ellipsoid(0.1, 0.1, 0.05, V(0, 0, 0), dark, 12),                                             // the grip's end
+    part(new THREE.CylinderGeometry(0.08, 0.07, 0.24, 12).translate(0, 0.12, 0), col),             // the grip
+    part(new THREE.CylinderGeometry(0.2, 0.08, 0.1, 14).translate(0, 0.29, 0), col),               // the flare to the head
+    ellipsoid(0.25, 0.25, 0.05, V(0, 0, 0.36), col, 16),                                           // the flat head
     part(new THREE.CylinderGeometry(0.004, 0.025, 0.58, 6).translate(0, 0.67, 0), PIN.steel),      // the needle
   ]).scale(PIN.size, PIN.size, PIN.size);
 }
@@ -148,11 +151,12 @@ function antGeometry() {
     rod(V(s * 0.45, 0.32, f * 0.3), V(s * 0.8, -0.44, f * 0.6), 0.03, 0.02, leg),
     rod(V(s * 0.8, -0.44, f * 0.6), V(s * 0.92, -0.55, f * 0.72), 0.018, 0.01, jaw),
   ]);
-  return { body: merge(body), antL: antenna(-1), antR: antenna(1), legGeo, pin: pinGeometry() };
+  return { body: merge(body), antL: antenna(-1), antR: antenna(1), legGeo };
 }
 
-// the pin on its own, for a thrown one (enemies.js spit): in the ant's radius units
-export function buildPushpin() { return new THREE.Mesh((GEO.ant ||= antGeometry()).pin, mats().shell); }
+// a pin on its own in colour i, for a thrown one (enemies.js spit): in the ant's radius units
+const pinGeo = (i) => (GEO['pin' + i] ||= pinGeometry(i));
+export function buildPushpin(i = 0) { return new THREE.Mesh(pinGeo(i), mats().shell); }
 
 // legs: [hip z, how far forward the foot reaches]
 const ANT_LEGS = [[0.2, 1], [0.02, 0], [-0.16, -1]];
@@ -161,6 +165,7 @@ export function buildAnts() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.shell));
+  outer.userData.pin = Math.floor(Math.random() * pinColors().length);   // this ant's pin colour, for the ones it throws too
   const legs = [];
   for (const s of [-1, 1]) ANT_LEGS.forEach(([z, f], i) => {
     const pivot = new THREE.Group();
@@ -178,7 +183,7 @@ export function buildAnts() {
   });
   const pin = new THREE.Group();
   pin.position.set(0, 0.6, 0.94);                                  // gripped in the mandibles
-  pin.add(new THREE.Mesh(G.pin, M.shell));
+  pin.add(new THREE.Mesh(pinGeo(outer.userData.pin), M.shell));
   body.add(pin);
   const ease = THREE.MathUtils.smoothstep;
   let t = 0, k = 0, fired = 0, since = 9;

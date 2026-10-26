@@ -519,7 +519,7 @@ export class Enemies {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const m = batcher.track(kind === 'pin' ? buildPushpin() : new THREE.Mesh(kind === 'web' ? this.webGeo : this.shotGeo, kind === 'web' ? this.webMat : this.shotMat));
+      const m = batcher.track(kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(kind === 'web' ? this.webGeo : this.shotGeo, kind === 'web' ? this.webMat : this.shotMat));
       if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
       if (kind === 'pin') m.scale.setScalar(e.r);
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
