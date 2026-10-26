@@ -21,14 +21,43 @@ story('words/chase', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', near(0.35, 0)); },
   play() { const e = G().enemies.list[0], d0 = e.pos.distanceTo(G().player.position); step(60); const d1 = e.pos.distanceTo(G().player.position); return ok(d0 - d1 > 0.2, { before: +d0.toFixed(3), after: +d1.toFixed(3) }); },
 });
-story('words/curl-dash', {
-  about: 'curl-dash: an ant squad stops, curls into a ball, and rolls at you.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', near(0.25, 0)); },
+story('words/spit-pin', {
+  about: 'spit shot="pin": the ant stands still, braces and coils back while a line shows where the pin will go, throws its pushpin spinning at you (it costs you Health), and a new pin appears in its jaws.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', near(0.4, 0)); },
   play() {
-    const e = G().enemies.list[0], seen = new Set();
-    let dashSpeed = 0;
-    step(60 * 6, () => { seen.add(e.state); if (e.state === 'dash') dashSpeed = Math.max(dashSpeed, Math.hypot(e.vel.x, e.vel.z)); return seen.has('rest'); });
-    return ok(seen.has('windup') && seen.has('dash') && dashSpeed > 0.5, { states: [...seen], dashSpeed: +dashSpeed.toFixed(2) });
+    const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    run.iFrames = 0;
+    let stood = true, aimed = false, spun = 0, held = null, gone = false;
+    step(60 * 8, () => {
+      if (e.aimT > 0) { aimed = true; if (e.aimT < e.aimMax - 0.1 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }
+      const s = enemies.shots.find((q) => q.roll);
+      if (s) {
+        spun = Math.max(spun, Math.abs(s.m.rotation.z));
+        held ||= e.root.getObjectsByProperty('geometry', s.m.geometry).find((m) => m !== s.m)?.parent;   // the pin in its jaws
+        if (held && held.scale.x < 0.01) gone = true;
+      }
+      return log.some((d) => d.source === 'pin');
+    });
+    const hit = log.find((d) => d.source === 'pin');
+    step(45);
+    const back = held?.scale.x;
+    return ok(aimed && stood && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
+  },
+});
+story('words/spit-pin-sticks', {
+  about: 'A pushpin that misses sticks in the scenery for a moment (harmless), then goes.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { enemies, player } = G(), log = record('damage_taken');
+    const e = spawn('ants', near(0.4, 0), { still: true });
+    enemies.spit(e, near(0, 0, -0.2), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: -0.4 });   // straight down into the floor in front of it
+    const s = enemies.shots.at(-1);
+    let stuckAt = null;
+    step(60 * 2, () => { if (s.stuckT > 0) stuckAt = s.m.position.clone(); return !!stuckAt; });
+    step(30);
+    const still = stuckAt && s.m.position.distanceTo(stuckAt) < 1e-6 && enemies.shots.includes(s);
+    step(60 * 2.5);
+    return ok(stuckAt && still && !enemies.shots.includes(s) && !log.some((d) => d.source === 'pin'), { stuck: !!stuckAt, still, gone: !enemies.shots.includes(s), y: stuckAt && +(stuckAt.y - player.position.y).toFixed(3) });
   },
 });
 story('enemies/spider-web-ball', {
@@ -845,9 +874,9 @@ feelStory('contact', 'A cockroach biting the jelly: a flash where they touch, th
     const r = feelOfHit('roach', 3, null, spy);
     return ok(quiet && r.contact && r.near && r.recoil > 0.5 && r.splats >= 1 && played(r, 'bugHit'), { quiet, ...r, e: undefined });
   });
-feelStory('curl-dash', 'An ant squad setting off rolling kicks up dust with a skitter; rolling into the jelly it flashes where they meet, squashes, and the jelly\'s drops splat with a wet slap.',
-  () => spawn('ants', near(0.25, 0)),
-  () => { const r = feelOfHit('ants', 6, 3); return ok(r.contact && r.near && hitFelt(r, 'antDash').ok, { ...r, e: undefined }); });
+feelStory('spit-pin', 'An ant\'s pushpin leaves its jaws with a whoosh (the ant lunges) and lands on the jelly with a flash, a wet slap and drops splatting.',
+  () => spawn('ants', near(0.35, 0)),
+  () => { G().run.iFrames = 0; const r = feelOfHit('pin', 10); return ok(r.near && hitFelt(r, 'spit').ok, { ...r, e: undefined }); });
 feelStory('leap', 'A lanternfly springs off with a flick of wings and slams down on the jelly with a thud: a scuff in the dust and the jelly\'s drops are left on the floor, and it squashes.',
   () => { spawn('lanternfly', near(0, -0.45)).leapCd = 0; },
   () => { const r = feelOfHit('lanternfly', 8); return ok(r.splats >= 2 && hitFelt(r, 'leapJump', 'leapSlam').ok, { ...r, e: undefined }); });
@@ -940,7 +969,7 @@ story('content/mistakes-are-caught', {
     const tryIt = (src) => { try { compileEnemies(parse(src, 'test.kdl'), 'test.kdl'); return null; } catch (e) { return e.message; } };
     const unknown = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    lurk 3\n}');
     const badArgs = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    chase\n}');
-    const badProp = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    chase 0.3\n    curl-dash wndup=1\n}');
+    const badProp = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    chase 0.3\n    spit wndup=1\n}');
     const noMove = tryIt('enemy "x" hp=1 r=0.01 dmg=1 xp=1 {\n    rolls\n}');
     const good = /test\.kdl:2: unknown word "lurk"/.test(unknown) && /"chase" takes speed/.test(badArgs) && /no setting "wndup"/.test(badProp) && /no way to move/.test(noMove);
     return ok(good, { unknown, badArgs, badProp, noMove });

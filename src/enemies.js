@@ -1,9 +1,9 @@
-// Enemies. The bugs (critters.js) are the waves: cockroaches, ant squads that curl into a ball
-// and roll at you, mosquitoes that hover out of reach and spit, and the act 2 bugs. The hair
+// Enemies. The bugs (critters.js) are the waves: cockroaches, ants that throw pushpins,
+// mosquitoes that hover out of reach and spit, and the act 2 bugs. The hair
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile, buildBeetle } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile, buildBeetle, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -494,27 +494,27 @@ export class Enemies {
   }
 
   // the spit word: `count` shots from e at `at` (the jelly's middle when it locked on), fanned
-  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle.
+  // across `spread` degrees. A laser is a streak of light with a flash at the muzzle. A pin is the
+  // ant's pushpin (its own model, at the ant's size), thrown from its jaws spinning on its long axis.
   // A web ball is lobbed: it arcs up and falls onto where you were (gravity `arc` m/s²), and
   // sticks: `slow` s of slowed swimming on a hit.
   spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'laser', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
-    const kind = shot === 'web' ? 'web' : 'laser';
+    const kind = shot;
     const color = kind === 'laser' ? this.laserColor : hostile(kind);
     const flight = at.distanceTo(from) / speed;
     for (let i = 0; i < count; i++) {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const geo = { web: this.webGeo, laser: this.shotGeo }[kind];
-      const mat = { web: this.webMat, laser: this.shotMat }[kind];
-      const m = batcher.track(new THREE.Mesh(geo, mat));
+      const m = batcher.track(kind === 'pin' ? buildPushpin() : new THREE.Mesh(kind === 'web' ? this.webGeo : this.shotGeo, kind === 'web' ? this.webMat : this.shotMat));
       if (kind === 'laser') m.add(new THREE.Mesh(this.glowGeo, this.glowMat));
-      m.position.copy(from).addScaledVector(v, 0.03 / speed);           // leaves from in front of its mouth
+      if (kind === 'pin') m.scale.setScalar(e.r);
+      m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind === 'laser' ? 'spit' : kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
@@ -536,8 +536,6 @@ export class Enemies {
 
   // springing off (the leap word): a kick of dust where it crouched, a flick of wings
   leapGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.005), 0xd8c8b4, e.r * 1.2, 0.3); sfx.leapJump(); }
-  // an ant squad setting off rolling (the curl-dash word): dust kicked up behind it, a skitter
-  curlGo(e) { this.fx.puff(S.spot.copy(e.pos).addScaledVector(e.dashDir, -e.r).setY(e.pos.y + 0.005), 0xd8c8b4, e.r * 0.9, 0.3); sfx.antDash(); }
 
   // ---------------------------------------------------------------- ladybugs (the sortie word)
   // the floor under a point (or `fallback`)
@@ -1047,6 +1045,9 @@ export class Enemies {
         this.scene.add(B);
         this.aimBeams.push(B);
       }
+      const col = e.aimKind === 'pin' ? hostile('pin') : this.laserColor;   // in the shooter's colour
+      B.material.color.copy(col).multiplyScalar(1.6);
+      B.children[0].material.color.copy(col).lerp(WHITE, 0.6).multiplyScalar(1.5);
       const a = e.pos, b = e.aimAt, len = a.distanceTo(b) + 0.03;   // runs a little past you
       B.position.copy(a);
       B.lookAt(b);
@@ -1065,7 +1066,7 @@ export class Enemies {
   // Mosquito spit that reached the player this frame
   shotHits(pc, radius) {
     for (const s of this.shots) {
-      if (s.done || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
+      if (s.done || s.stuckT > 0 || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
       bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source || 'spit', from: s.from });
@@ -1078,15 +1079,26 @@ export class Enemies {
 
   updateShots(dt) {
     for (const s of this.shots) {
+      if (s.stuckT > 0) {                                // a pin stuck in the scenery, harmless, until it goes
+        if ((s.stuckT -= dt) <= 0) { s.done = true; this.scene.remove(s.m); }
+        continue;
+      }
       s.t -= dt;
       const step = s.v.length() * dt;
-      if (this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004)) { s.done = true; this.fx.impact(s.m.position, s.c, 0.012, 6); }   // scorches (or pings off) the wall
+      const wall = this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004 + (s.roll ? s.r * 1.28 : 0));   // (a pin's tip is out in front)
+      if (wall) {
+        this.fx.impact(s.roll ? wall.point : s.m.position, s.c, 0.012, 6);   // scorches (or pings off) the wall
+        if (s.roll) { s.stuckT = LOOK.num('pin-stuck', 2); s.m.position.copy(wall.point).addScaledVector(S.ray, -s.r * 1); sfx.pinStick(); continue; }   // the needle sinks in
+        s.done = true;
+      }
       if (s.arc) s.v.y -= s.arc * dt;                    // a lobbed web ball falls
       s.m.position.addScaledVector(s.v, dt);
       if (s.spin) s.m.rotateX(s.spin * dt);              // web balls roll
+      if (s.roll) s.m.rotateZ(s.roll * dt);              // a pin spins on its long axis
       // a halo and a glowing trail, in the shooter's colour
-      this.fx.glow.hold(s.m.position, s.c, s.spin ? 0.04 : 0.05, 0.9);
-      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.spin ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
+      const small = s.spin || s.roll;
+      this.fx.glow.hold(s.m.position, s.c, small ? 0.04 : 0.05, 0.9);
+      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, small ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
       if (s.done) this.scene.remove(s.m);
     }
@@ -1268,6 +1280,7 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
+const WHITE = new THREE.Color('#ffffff');
 const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow

@@ -202,14 +202,15 @@ story('treasures/element-rewards', {
     return ok(starts === 60 && !wrong.length && !baseEl && plainThird, { starts, wrong: wrong.slice(0, 5), baseEl, plainThird, sample });
   },
 });
-story('enemies/ants-curl-and-roll', {
-  about: 'An ant squad curls into a ball and rolls at you.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('ants', P.clone().add(V(0.25, 0, 0))); },
+story('enemies/ant-keeps-off-and-throws', {
+  about: 'An ant walks after you, stops a little off, and throws its pushpin at you.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('ants', P.clone().add(V(0.6, 0, 0))); },
   play() {
-    const e = G().enemies.list[0];
-    const seen = new Set();
-    step(60 * 6, () => { seen.add(e.state); return seen.has('dash'); });
-    return ok(seen.has('windup') && seen.has('dash'), { states: [...seen] });
+    const { enemies, player } = G(), e = enemies.list[0];
+    let thrown = false;
+    step(60 * 8, () => (thrown = enemies.shots.some((s) => s.roll)));
+    const d = Math.hypot(e.pos.x - player.position.x, e.pos.z - player.position.z);
+    return ok(thrown && d > 0.2 && d < 0.5, { thrown, distance: +d.toFixed(2) });
   },
 });
 story('enemies/mosquito-spits', {

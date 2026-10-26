@@ -909,13 +909,6 @@ export const sfx = {
     noise(1100 * j, 1, 0.09, 0.18, 'lowpass', 0, 300); tone('sine', 190 * j, 70, 0.1, 0.1);
     patter(3, 0.04, 0.12);
   },
-  // an ant squad setting off rolling: a skittering whoosh, little feet ticking under it
-  antDash() {
-    if (!ready() || !gap('antDash', 80)) return;
-    const j = jitter(0.12);
-    noise(2200 * j, 1.2, 0.22, 0.07, 'bandpass', 0, 900 * j);
-    for (let k = 0; k < 4; k++) noise(5000 + Math.random() * 2000, 5, 0.01, 0.05, 'bandpass', k * 0.05);
-  },
   // the lanternfly springing off (a flick and a whirr of wings) and slamming down (a thud with bits pattering)
   leapJump() { if (!ready() || !gap('leapJump', 80)) return; const j = jitter(0.12); tone('triangle', 500 * j, 1200 * j, 0.06, 0.05); noise(2600 * j, 1.5, 0.25, 0.05, 'bandpass', 0.02, 1400 * j); },
   leapSlam() {
@@ -924,12 +917,19 @@ export const sfx = {
     noise(5000 * j, 1, 0.03, 0.1, 'highpass'); tone('sine', 140 * j, 45, 0.18, 0.2); noise(500 * j, 0.8, 0.18, 0.18, 'lowpass', 0, 120);
     patter(3, 0.06, 0.25);
   },
-  // spit leaving the mouth: a laser's zap with a thin whine as it flies, or a web ball's wet thwip
+  // spit leaving the mouth: a laser's zap with a thin whine as it flies, a web ball's wet thwip, or a pin's whoosh
   spit(kind = 'laser') {
     if (!ready() || !gap('spit', 80)) return;
     const j = jitter(0.1);
     if (kind === 'web') { noise(1600 * j, 1.5, 0.1, 0.1, 'bandpass', 0, 600); tone('sine', 300 * j, 140, 0.08, 0.06); return; }
+    if (kind === 'pin') { noise(3200 * j, 2, 0.02, 0.08, 'bandpass'); noise(1800 * j, 1.2, 0.16, 0.05, 'bandpass', 0.02, 700 * j); tone('triangle', 900 * j, 1400 * j, 0.12, 0.02, 0.03); return; }   // a click of jaws, a whirring whoosh
     tone('sawtooth', 1800 * j, 500 * j, 0.08, 0.04); noise(6000 * j, 1, 0.03, 0.06, 'highpass'); tone('sine', 2400 * j, 1600 * j, 0.18, 0.015, 0.02);
+  },
+  // a thrown pin sinking into the scenery: a hard tock and a little twang
+  pinStick() {
+    if (!ready() || !gap('pinStick', 60)) return;
+    const j = jitter(0.12);
+    noise(4200 * j, 3, 0.02, 0.1, 'bandpass'); tone('sine', 1300 * j, 900 * j, 0.12, 0.03, 0.01);
   },
   // the millipede: a clicking rattle as it coils (all those plates), a whirr that revs up, a rolling rumble
   milliCurl() {
