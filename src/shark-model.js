@@ -192,7 +192,15 @@ export function buildShark() {
     // Embroidered eye patches sit flush to the side of the snout, facing slightly forward.
     const eye = ellipsoid(0,0,0,.004,.013,.015).rotateY(s * -.38).translate(s*.126,.167,.276);
     eyes.push(tint(eye, solid(dark)));
-    eyes.push(tint(ellipsoid(s*.130,.171,.281,.002,.003,.003),solid(cream)));
+    eyes.push(tint(ellipsoid(s*.130,.163,.279,.002,.003,.003),solid(cream)));
+    // An angry fabric lid covers the top of each eye, sloping down toward the nose,
+    // with a dark stitched brow along its edge. Both close with the blink.
+    const browY=z=>.0085-z*.62,arc=Array.from({length:17},(_,i)=>{const z=(i/8-1)*.018;return[z,Math.max(.0001,.016*Math.sqrt(1-(z/.018)**2))];});
+    const lid=new THREE.Shape([...arc,...arc.reverse().map(([z,y])=>[z,Math.min(y,browY(z))])].map(([z,y])=>new THREE.Vector2(z,y)));
+    const toEye=g=>g.rotateY(s*-.38).translate(s*.126,.167,.276);
+    eyes.push(tint(toEye(new THREE.ExtrudeGeometry(lid,{depth:.009,bevelEnabled:false}).translate(0,0,-.0045).rotateY(-Math.PI/2)),solid(blue.clone().multiplyScalar(.88))));
+    const brow=[-.021,0,.024].map(z=>V(s*(z?.005:.0058),browY(z),z));
+    eyes.push(tint(toEye(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(brow),12,.0028,6)),solid(dark)));
     // Three short, stitched gill arcs behind each eye.
     for (let k=0;k<3;k++) {
       const z=.195-k*.027;

@@ -160,6 +160,15 @@ act3('shark-jaws-and-fins-are-articulated',{
   play(){const B=sharkFight(),R=B.model.rig;B.model.pose({gape:.8,headTurn:.2,left:.8,right:-.3,tailSwing:.4});B.holder.updateMatrixWorld(true);
     return ok(R.jaw.rotation.x===.8&&R.spine[4].rotation.y!==0&&R.eyes.parent===R.head.parent&&R.fins[0].rotation.y!==R.fins[1].rotation.y&&R.tail.rotation.y===.4&&R.jaw.position.z<R.head.geometry.boundingSphere.center.z+1,{jaw:R.jaw.rotation.x,tail:R.tail.rotation.y});},
 });
+act3('shark-has-angry-brows',{
+  about:'Each eye has a dark stitched brow longer than the eye that slopes down toward the nose (its back end higher than its front), over a fabric lid, and they close with the blink.',setup(){},
+  play(){const M=buildShark(),E=M.rig.eyes,g=E.geometry,p=g.attributes.position,c=g.attributes.color,dark=new THREE.Color(LOOK.color('shark-eye','#181d23'));const sides={};
+    for(let i=0;i<p.count;i++){if(Math.abs(c.getX(i)-dark.r)+Math.abs(c.getY(i)-dark.g)+Math.abs(c.getZ(i)-dark.b)>.01)continue;const k=p.getX(i)<0?'left':'right',S=sides[k]||={top:null,front:null},v=[p.getY(i),p.getZ(i)];
+      if(!S.top||v[0]>S.top[0])S.top=v;if(!S.front||v[1]>S.front[1])S.front=v;}
+    const slope=Object.fromEntries(Object.entries(sides).map(([k,S])=>[k,S.front[1]-S.top[1]>.03?+((S.top[0]-S.front[0])/(S.front[1]-S.top[1])).toFixed(2):0]));
+    M.pose({time:2.6});const blink=E.scale.y;
+    return ok(Object.keys(slope).length===2&&Object.values(slope).every(v=>v>.4)&&blink<.5,{slope,blink:+blink.toFixed(2)});},
+});
 for(const attack of [...new Set([...SHARK_ATTACKS.calm,...SHARK_ATTACKS.angry])])act3('shark-'+attack+'-warning-and-recovery',{
   about:`${attack} has a floor warning and matching finite volume, animates, then returns to a recovery window.`,setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly();if(attack==='tornado')B.hp=B.maxHp*.84;B.begin(attack);step(8);
