@@ -27,9 +27,9 @@ story('words/spit-pin', {
   play() {
     const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     run.iFrames = 0;
-    let stood = true, aimed = false, spun = 0, held = null, gone = false;
+    let stood = true, beam = false, aimed = false, spun = 0, held = null, gone = false;
     step(60 * 8, () => {
-      if (e.aimT > 0) { aimed = true; if (enemies.aimBeams.some((b) => b.visible)) stood = false; if (e.aimT < e.aimMax - 0.1 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }
+      if (e.aimT > 0) { aimed = true; if (enemies.aimBeams.some((b) => b.visible)) beam = true; if (e.aimT < e.aimMax * 0.5 && Math.hypot(e.vel.x, e.vel.z) > 0.03) stood = false; }   // (it eases to a stop)
       const s = enemies.shots.find((q) => q.roll);
       if (s) {
         spun = Math.max(spun, Math.abs(s.m.rotation.z));
@@ -41,7 +41,7 @@ story('words/spit-pin', {
     const hit = log.find((d) => d.source === 'pin');
     step(45);
     const back = held?.scale.x;
-    return ok(aimed && stood && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
+    return ok(aimed && stood && !beam && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, beam, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
   },
 });
 story('words/spit-pin-sticks', {
