@@ -61,8 +61,21 @@ export function unlocked(key, id, f = feats()) {
 // every award unlocked with these feats, as 'key:id'
 export const unlockedAwards = (f = feats()) => Object.entries(NEEDS).flatMap(([key, ids]) => Object.keys(ids).filter((id) => unlocked(key, id, f)).map((id) => `${key}:${id}`));
 
+// The locked award a player is nearest to, by its least-done requirement, as { key, id, need },
+// or null when all are earned (the death screen points at it)
+export function nextAward(f = feats()) {
+  let best = null, most = -1;
+  for (const [key, ids] of Object.entries(NEEDS)) for (const [id, need] of Object.entries(ids)) {
+    if (unlocked(key, id, f)) continue;
+    const done = Math.min(...Object.entries(need).map(([k, v]) => (v === true ? +!!f[k] : (f[k] || 0) / v)));
+    if (done > most) { most = done; best = { key, id, need }; }
+  }
+  return best;
+}
+
 // What a locked option asks for, in words, for the creator (with how far along you are, given f)
-export function requirementText(need, f = null) {
+export const requirementText = (need, f = null) => (need ? 'Earned: ' + needText(need, f) : '');
+export function needText(need, f = null) {
   if (!need) return '';
   const so = (k, v) => (f && typeof v === 'number' && v > 1 && k in f ? ` (${Number(f[k] || 0).toLocaleString()} so far)` : '');
   const parts = Object.entries(need).map(([k, v]) => {
@@ -76,5 +89,5 @@ export function requirementText(need, f = null) {
     if (k === 'bestKills') return `${v} kills in a run`;
     return k;
   });
-  return 'Earned: ' + parts.join(' and ');
+  return parts.join(' and ');
 }

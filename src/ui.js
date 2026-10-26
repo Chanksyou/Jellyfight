@@ -40,6 +40,17 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-card .now { font-size: 12.5px; opacity: .7; }
 .jf-card .txt { font-size: 14px; line-height: 1.35; opacity: .92; }
 .jf-card .key { position: absolute; top: 8px; left: 10px; font-size: 12px; opacity: .55; font-weight: 700; }
+.jf-card .jf-new { position: absolute; top: -11px; right: 12px; box-shadow: 0 2px 8px #0008; font-size: 11px; font-weight: 800; letter-spacing: .06em; background: #ffd23a; color: #1d1a12; padding: 2px 7px; border-radius: 999px; }
+/* the Treasure book: a grid per kind, found ones in their colour, the rest as ? */
+.jf-book { width: min(900px, 94vw); max-height: 92vh; overflow-y: auto; padding: 12px 12px 16px; box-sizing: border-box; background: #12142af0; border-radius: 16px; }
+.jf-book h3 { margin: 18px 0 8px; font-size: 17px; text-align: left; }
+.jf-book h3 small { opacity: .65; font-weight: 600; }
+.jf-book .say { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 10px; min-height: 2.6em; font-size: 14px; background: #1d2034f0; border-radius: 10px; }
+.jf-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.jf-book-grid button { font: 600 11px system-ui, sans-serif; color: #fff; background: color-mix(in srgb, var(--c, #fff) 12%, #1d2034); border: 2px solid var(--c, #ffffff22); border-radius: 10px;
+  padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
+.jf-book-grid button .ic { font-size: 26px; line-height: 1.1; }
+.jf-book-grid button:disabled { cursor: default; opacity: .4; }
 .jf-modal .btns { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
 .jf-modal .btns button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
 .jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
@@ -180,7 +191,7 @@ export class UI {
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
       <div class="jf-cards jf-pick">${choices.map((c, i) => { const [tint, wash] = TIER_TINT[c.tier?.name] || [18, 0]; return `
         <button class="jf-card${c.tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" style="--d:${i * 90}ms; --c:${c.tier?.color || '#7ff6ee'}; --tint:${tint}%; --wash:${wash}%">
-          <span class="key">${i + 1}</span><span class="big">${c.name}</span><span class="ic">${c.icon}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>${c.delta ? `<span class="delta">${c.delta}</span>` : ''}
+          <span class="key">${i + 1}</span>${c.fresh ? '<span class="jf-new">New!</span>' : ''}<span class="big">${c.name}</span><span class="ic">${c.icon}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>${c.delta ? `<span class="delta">${c.delta}</span>` : ''}
         </button>`; }).join('')}</div></div>`;
     this.modal.hidden = false;
     // The pick resolves at once (the game flows on exactly as before), but the modal
@@ -225,7 +236,7 @@ export class UI {
     setTimeout(() => el.remove(), 620);
   }
 
-  // rows: [[label, value]], buttons: [{ label, go, onClick }]
+  // rows: [[label, value]], buttons: [{ label, go, enter?, onClick }] (Enter presses the `enter` one, else the `go` one)
   // cls: a class for this dialog (the leaderboard's 'jf-board' lays its rows out big)
   message(title, sub, rows, buttons, cls = '') {
     this._gen++;
@@ -240,8 +251,28 @@ export class UI {
       this.close();
       btn.onClick(vals);
     };
-    this.keyHandler = (e) => { if (e.code === 'Enter') { const btn = buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
+    this.keyHandler = (e) => { if (e.code === 'Enter') { const btn = buttons.find((b) => b.enter) || buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
     if (!matchMedia('(pointer: coarse)').matches) this.modal.querySelector('input')?.focus({ preventScroll: true });   // not on phones: it would pop the keyboard up
+  }
+
+  // The Treasure book (run.showBook): sections [{ title, items: [{ icon, name, text, color?, found }] }].
+  // Tap a found one to read what it does; unfound ones stay a ?
+  book(title, sub, sections, onBack) {
+    this._gen++;
+    const cell = (it) => (it.found
+      ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || '#7ff6ee'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
+      : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
+    this.modal.innerHTML = `<div class="jf-book"><h2>${title}</h2><p class="sub">${sub}</p><p class="say" aria-live="polite">Tap one you've found to read it.</p>
+      ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
+      <div class="btns"><button class="go" data-back>Back</button></div></div>`;
+    this.modal.hidden = false;
+    const back = () => { this.close(); onBack(); };
+    this.modal.onclick = (e) => {
+      const b = e.target.closest('button');
+      if (b?.dataset.say) this.modal.querySelector('.say').textContent = b.dataset.say;
+      else if (b && 'back' in b.dataset) back();
+    };
+    this.keyHandler = (e) => { if (e.code === 'Escape' || e.code === 'Enter') back(); };
   }
 
   // what's typed into the dialog's named inputs: { name: value }
