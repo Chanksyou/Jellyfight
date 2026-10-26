@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v282';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v283';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -138,7 +138,7 @@ ui.innerHTML = `
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <button class="play">Play</button>
-  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="effects">✨ Effects full</button><button data-act="board">🏆 Leaderboard</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
+  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
   <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
@@ -417,21 +417,17 @@ async function loadRooms(parts, onProgress) {
 const MUSIC_KEY = 'jellyfight.music';
 let music = null, musicOn = true;
 try { musicOn = localStorage.getItem(MUSIC_KEY) !== 'off'; } catch {}
-// Reduce effects (✨ button): no screen shake, a softer hurt glow (juice.calm). Starts on when the
-// device asks for reduced motion; the player's own pick is remembered.
-const EFFECTS_KEY = 'jellyfight.effects';
-function setCalm(on, save = true) {
+// Reduce effects: no screen shake, a softer hurt glow (juice.calm). Follows the device's own
+// reduced-motion setting; there's no button for it (the Graphics row is the one visual setting).
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+function setCalm(on) {
   juice.calm = on;
   if (on) juice.trauma = 0;
   document.body.classList.toggle('calm', on);
-  overlay.querySelector('[data-act="effects"]').textContent = on ? '✨ Effects reduced' : '✨ Effects full';
-  if (save) try { localStorage.setItem(EFFECTS_KEY, on ? 'reduced' : 'full'); } catch {}
 }
-{
-  let pick = null;
-  try { pick = localStorage.getItem(EFFECTS_KEY); } catch {}
-  setCalm(pick ? pick === 'reduced' : matchMedia('(prefers-reduced-motion: reduce)').matches, false);
-}
+setCalm(reducedMotion.matches);
+reducedMotion.addEventListener?.('change', (e) => setCalm(e.matches));
+try { localStorage.removeItem('jellyfight.effects'); } catch {}   // the old button's pick
 function updateMusic(dt) {
   if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
   const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
@@ -674,7 +670,6 @@ overlay.addEventListener('click', (e) => {
     try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
     b.textContent = musicOn ? '🎵 Music on' : '🎵 Music off';
   }
-  else if (b.dataset.act === 'effects') setCalm(!juice.calm);
   else if (b.dataset.act === 'board') { overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
