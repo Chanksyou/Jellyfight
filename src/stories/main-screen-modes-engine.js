@@ -177,7 +177,8 @@ story('menu/reduce-effects', {
     const { enemies } = G(), btn = document.querySelector('#g-over [data-act="effects"]');
     const follows = juice.calm === matchMedia('(prefers-reduced-motion: reduce)').matches;
     const was = juice.calm;
-    const killOne = (calm) => { juice.calm = calm; juice.reset(); enemies.kill(spawn('roach', near(0.1, 0.1), { still: true })); return { shake: juice.trauma, stop: juice.stop }; };
+    // a hair tangle: small, so its kill is the plain 'kill' step
+    const killOne = (calm) => { juice.calm = calm; juice.reset(); enemies.kill(spawn('hair', near(0.1, 0.1), { still: true })); return { shake: juice.trauma, stop: juice.stop }; };
     let full, calm;
     try { full = killOne(false); calm = killOne(true); } finally { juice.calm = was; juice.reset(); }
     const [kShake, kStop] = LOOK.list('feel-kill', []).map(Number);

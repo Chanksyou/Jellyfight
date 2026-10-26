@@ -450,7 +450,7 @@ story('treasures/heal-on-kill', {
 });
 story('treasures/burst-on-kill', {
   about: 'burst-on-kill (Bath Salt): bugs you finish off burst and hurt their neighbours.',
-  setup() { setupFight({ lash: false }); give('bathSalt'); G().run.stats.bubbles = 1; roachAt(0, -0.12, { still: true, hp: 12 }); roachAt(0.035, -0.12); },
+  setup() { setupFight({ lash: false }); give('bathSalt'); G().run.stats.bubbles = 1; spawn('hair', near(0, -0.12), { still: true, hp: 12 }); spawn('hair', near(0.035, -0.12), { still: true, hp: 9999 }); },   // small bugs, so the neighbour sits well inside the 3.5 cm burst
   play() { const log = record('damage_taken'); step(400, () => dmgBy(log, 'burst').length > 0); return ok(dmgBy(log, 'burst').length > 0, { bursts: dmgBy(log, 'burst').length }); },
 });
 story('treasures/xp-reach', {
