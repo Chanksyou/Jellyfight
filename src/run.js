@@ -219,7 +219,7 @@ export class Run {
 
     this.phase = 'explore';
     this.t = 0;
-    this.hitPush = null;
+    this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the starting Element pick is offered on the run's first frame
     this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.hint = null; this.hintT = 0;
@@ -362,7 +362,7 @@ export class Run {
   update(dt) {
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
-    this.frame = (this.frame || 0) + 1;
+    this.frame++;
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
     this.fireTrail.update(dt);
