@@ -112,7 +112,7 @@ export class Run {
       m.updateMatrixWorld();
       ctx.world.addCollider(m);
       // and what you see of it: up only while the fight is (forcefield.js)
-      const field = addForceField(ctx.scene, w, { hidden: !LOOK.num('boss-force-field', 0) });   // invisible: the camera can stand behind it
+      const field = addForceField(ctx.scene, w, { hidden: !ctx.stage.boss.forceField && !LOOK.num('boss-force-field', 0) });   // invisible unless the stage draws it: the camera can stand behind it
       if (field) { showForceField(field, false); m.userData.field = field; }
       return m;
     });
@@ -1279,10 +1279,12 @@ export class Run {
 
   // A walled boss arena keeps the jelly in. The walls stop it, but should it ever end up past one
   // (squeezed out where two meet, over the top on a stack of mid-air jumps), it's put straight back
-  // just inside, on the arena's floor, instead of falling out of the fight
+  // just inside, on the arena's floor, instead of falling out of the fight. Its bugs are held inside
+  // too (enemies.keepIn): one the boss dumps out against a wall can't end up stuck in or behind it
   keepInArena(P) {
     const B = this.stage.boss;
     if (!B.walls?.length) return;
+    this.enemies.keepIn(B.arenaMin, B.arenaMax);
     const p = P.position, r = P.cfg.radius, [x0, y0, z0] = B.arenaMin, [x1, , z1] = B.arenaMax;
     const out = p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1, fell = p.y < y0 - 0.05;
     if (!out && !fell) return;
