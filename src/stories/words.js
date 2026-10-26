@@ -770,13 +770,13 @@ story('enemies/ladybug-missile-can-be-shaken', {
   },
 });
 story('words/hover', {
-  about: 'hover: a mosquito circles about 15 cm from you, above your head.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('mosquito', near(0.4, 0, 0.1)); e.biteCd = 99; },
+  about: 'hover: a wasp circles about 20 cm from you, above your head.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('wasp', near(0.4, 0, 0.1)); e.diveCd = 99; },
   play() {
     const e = G().enemies.list[0], pc = () => G().player.position.clone().setY(G().player.position.y + CONFIG.player.height * 0.5);
     step(60 * 4);
     const flat = Math.hypot(e.pos.x - pc().x, e.pos.z - pc().z), above = e.pos.y - pc().y;
-    return ok(Math.abs(flat - 0.15) < 0.06 && above > 0.02, { flat: +flat.toFixed(3), above: +above.toFixed(3) });
+    return ok(Math.abs(flat - 0.2) < 0.06 && above > 0.03, { flat: +flat.toFixed(3), above: +above.toFixed(3) });
   },
 });
 story('words/spit', {

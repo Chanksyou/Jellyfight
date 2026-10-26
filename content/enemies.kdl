@@ -19,12 +19,12 @@ enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
     spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true
 }
 
-// The mosquito (from 1:30): it zips round you fast, faster than you swim, legs dangling. Up close it
+// The mosquito (from 1:30): it flits round you in quick jittery darts, faster than you swim, legs dangling. Up close it
 // stops and draws back with its whine climbing (its aim locks halfway through), then darts in and
 // bites: a small hit, and you bleed for 3 s. Bites stack. Move off as the whine climbs.
 enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
     death-motion "flutter"
-    hover 0.15 above=0.05 speed=0.7 circle=1.6
+    zip distance=0.15 above=0.05 speed=0.9 length=0.07 pause=0.08
     bite range=0.25 every=1.6 windup=0.35 speed=1.4 reach=0.35 dmg=1 rest=0.5
     bleeds 3 dps=1
 }

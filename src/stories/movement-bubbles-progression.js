@@ -267,7 +267,9 @@ story('enemies/mosquito-bites', {
     run.iFrames = 0;
     const m0 = run.health;
     let fastest = 0;
-    step(60 * 10, () => { if (e.state === 'approach') fastest = Math.max(fastest, e.vel.length()); return run.bleeds.length > 0; });
+    e.biteCd = 3;                                               // circling first
+    step(60 * 3, () => { fastest = Math.max(fastest, e.vel.length()); });
+    step(60 * 8, () => run.bleeds.length > 0);
     return ok(run.health < m0 && run.bleeds.length > 0 && fastest > CONFIG.player.walkSpeed, { lost: +(m0 - run.health).toFixed(2), bleeding: run.bleeds.length, fastest: +fastest.toFixed(2), swim: CONFIG.player.walkSpeed });
   },
 });

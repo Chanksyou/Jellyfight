@@ -494,6 +494,7 @@
   --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): peach, distinct from gold XP */
   --bleed: #ff2a4a;             /* bleeding (a mosquito's bite): the drops dripping off the jelly while it lasts, and its BLEED */
   --bleed-drip: 0.22;           /* seconds between drips with one bleed running (faster with more, up to 3x) */
+  --bleed-drop: 0.16;           /* how big each drop is, x the jelly's radius */
 
   /* what each bug bursts into when it dies */
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;

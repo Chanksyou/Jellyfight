@@ -477,9 +477,9 @@ export class Enemies {
   // drawn in update), a few drops of jelly fly off and splat on the floor under it (harmless, fading),
   // and a wet slap. A touch (contact: a bite, a rolling ball) also flashes where the two met.
   landed(e, contact) {
+    if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps });   // the bleeds word
     const P = this.player;
     if (!P) return;
-    if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps });   // the bleeds word
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
     if (contact) {

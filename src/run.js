@@ -709,7 +709,7 @@ export class Run {
     if ((this.bleedDripT -= dt) > 0) return;
     this.bleedDripT = LOOK.num('bleed-drip', 0.22) / Math.min(3, this.bleeds.length + 1);
     const P = this.player.position, c = LOOK.color('bleed', '#ff2a4a');
-    this.fx.burst(_drop.set(P.x, P.y + this.cfg.height * 0.35, P.z), [c, c, '#ffffff'], 2, this.cfg.radius * 0.07, 0.12, P.y);
+    this.fx.burst(_drop.set(P.x, P.y + this.cfg.height * 0.35, P.z), [c, c, '#ffffff'], 3, this.cfg.radius * LOOK.num('bleed-drop', 0.16), 0.12, P.y);
   }
 
   hurt(amount, silent = false, from = null, contact = false, knock = false) {
