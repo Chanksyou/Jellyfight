@@ -39,10 +39,7 @@ function plip() {
   g.gain.setValueAtTime(0.035, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
   o.connect(g).connect(ctx.destination); o.start(); o.stop(t + 0.13);
 }
-function setCalm(on) {
-  calm = on; document.body.classList.toggle('calm', on);
-  overlay.querySelector('[data-act="effects"]').textContent = on ? '✨ Effects reduced' : '✨ Effects full';
-}
+function setCalm(on) { calm = on; document.body.classList.toggle('calm', on); }
 setCalm(calm);
 const menu = new MainMenu({ overlay, player, camera, scene, gfx: {}, height: 0.09, calm: () => calm, onPoke: plip });
 const creator = new Creator({ onChange: applyLook, onDone: next => {
@@ -54,7 +51,6 @@ overlay.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.classList.contains('play')) { plip(); menu.launch(); if (!menu.launching) back.hidden = false; }
   if (b.dataset.act === 'creator') { menu.restore(); creating = true; overlay.hidden = true; creator.open(look); }
-  if (b.dataset.act === 'effects') setCalm(!calm);
   if (b.dataset.act === 'sound') { muted = !muted; b.textContent = muted ? '🔇 Sound off' : '🔊 Sound on'; }
   if (b.dataset.act === 'board') { menu.restore(); overlay.hidden = true; back.hidden = false; }
   if (b.dataset.q) renderer.setPixelRatio(b.dataset.q === 'low' ? 1 : Math.min(devicePixelRatio, 2));
