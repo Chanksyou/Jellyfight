@@ -9,7 +9,9 @@ export const CONFIG = {
     radius: 0.0306 * JELLY,   // collision radius (3.06 cm at --jelly-scale 1)
     height: 0.08925 * JELLY,  // collision height (8.9 cm)
     walkSpeed: 0.42,     // m/s at 100% Pulse
-    hitKnockback: 0.06,  // m/s impulse on a landed hit; ordinary movement quickly damps it
+    // a landed hit shoves you away from what hit you: 0.08 m/s + 0.07 per point of damage, up to 0.6
+    // (about 1 cm for a 1-damage bite, 3 cm for a 6-damage dive); movement damps it in a moment
+    hitPush: { base: 0.08, perDamage: 0.07, max: 0.6 },
     jumpHeight: 0.2,     // 20 cm at 100% Jump height: clears the bathroom sink bowl (17.5 cm deep) with room to spare
     gravity: 1.0,        // very low: a jump hangs in the air for about a second
     maxFall: 1.1,        // terminal fall speed, so long drops stay gentle

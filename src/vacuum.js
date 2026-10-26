@@ -208,8 +208,8 @@ export class Vacuum {
     const out = this.tick(dt * k, player);
     out.hurt /= k;                     // damage over time stays per real second
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
-    if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
-    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss' });
+    if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss', knock: this.knock > 0 });
+    if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss', knock: this.knock > 0 });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded });
     return { push: out.push };
   }
