@@ -547,8 +547,8 @@ export const sharkFight = (opts = {}) => {
   return run.boss;
 };
 // Where the Boss and the jelly are on screen in the fight view (pixels from the top): both in frame,
-// the top of the Boss below the top HUD band (the boss bar and the intro toast), the jelly above the
-// bottom edge
+// the middle of the Boss below the top HUD band (the boss bar and the intro toast), and the jelly
+// near the middle like in the Vacuum fight, not down at the bottom edge (within the middle 30-75%)
 export const bossFrame = (B) => {
   const { APT, player } = G(), cv = APT.renderer.domElement.getBoundingClientRect();
   APT.camera.updateMatrixWorld();
@@ -557,7 +557,8 @@ export const bossFrame = (B) => {
   const bottom = (sel) => { const el = document.querySelector(sel); return el && !el.hidden ? Math.round(el.getBoundingClientRect().bottom - cv.top) : 0; };
   const hud = Math.max(bottom('#hud .boss'), bottom('#hud .toast'));
   const inside = (p) => p.x > 0 && p.x < cv.width && p.y > 0 && p.y < cv.height && p.z < 1;
-  return { good: inside(heart) && inside(jelly) && top.y > hud && hud > 0, heartTop: top.y, hud, heart: [heart.x, heart.y], jelly: [jelly.x, jelly.y], screen: [Math.round(cv.width), Math.round(cv.height)] };
+  const mid = jelly.y > cv.height * 0.3 && jelly.y < cv.height * 0.75;
+  return { good: inside(heart) && inside(jelly) && mid && heart.y > hud && hud > 0, heartTop: top.y, hud, heart: [heart.x, heart.y], jelly: [jelly.x, jelly.y], screen: [Math.round(cv.width), Math.round(cv.height)] };
 };
 // a floor strip's centre line as drawn, in the world: the middle of each row across it, from its start
 export function stripLine(f) {

@@ -5,7 +5,7 @@ import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } fro
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 phone('shark-fight-keeps-the-boss-below-the-bar', {
   act: 3,
-  about: 'On a phone (a short, wide screen) the shark fight view keeps the boss in frame below the boss bar and the toast that it wakes, with the jelly in frame too.',
+  about: 'On a phone (a short, wide screen) the shark fight view keeps the boss in frame below the boss bar and the toast that it wakes, with the jelly near the middle of the screen, not at its bottom edge.',
   setup() {},
   play() {
     const B = sharkFight();
