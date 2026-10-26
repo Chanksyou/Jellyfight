@@ -2,9 +2,9 @@
 // language: each line is a node name, then arguments, then key=value properties, then an
 // optional { block } of child nodes.
 //
-//   enemy "ants" name="Ant squad" hp=66 {
-//       chase 0.225
-//       curl-dash windup=0.6 time=0.7
+//   enemy "ants" name="Ant" hp=66 {
+//       chase 0.225 stop=0.3
+//       spit every=2.6 shot="pin"
 //   }
 //
 // parse(text) returns [{ name, args: [...], props: {...}, children: [...], line }].

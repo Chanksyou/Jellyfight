@@ -24,19 +24,17 @@ story('words/death-motion', {
   },
 });
 
-story('deaths/ants-unravel-from-walk-and-ball', {
-  about: 'Five actual ant bodies spread and tumble, including a squad killed during its curled charge.',
+story('deaths/ant-crumples', {
+  about: 'An ant crumples where it falls, its six legs folding out flat.',
   setup,
   play() {
-    const { enemies, fx } = G(), results = [];
-    for (const state of ['approach', 'dash']) {
-      const e = spawn('ants', near(0.3, 0, 0), { still: true }); e.state = state;
-      step(30); enemies.kill(e);
-      const c = fx.deaths.list.at(-1), old = c.parts.map(p => p.mesh.position.clone());
-      step(18);
-      results.push(c.parts.length === 5 && c.parts.every((p, i) => p.mesh.position.distanceTo(old[i]) > 0.2 && Math.abs(p.mesh.rotation.x - p.rotation.x) > 1));
-    }
-    return ok(results.every(Boolean), { results });
+    const { enemies, fx } = G();
+    const e = spawn('ants', near(0.3, 0, 0), { still: true });
+    step(30); enemies.kill(e);
+    const c = fx.deaths.list.at(-1);
+    step(18);
+    const folded = c.style === 'crumple' && c.parts.length === 6 && c.parts.every((p) => Math.abs(p.mesh.rotation.z - p.rotation.z) > 0.5);
+    return ok(folded, { style: c.style, parts: c.parts.length });
   },
 });
 

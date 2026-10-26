@@ -612,7 +612,7 @@ export class Run {
       if (!e.T.dmg) continue;                               // harmless to touch (an Aerial root: its hold does the hurting)
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
-        // ant squads hit harder rolling
+        // rolling bugs hit harder (a millipede's ball)
         bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true });
       }
     }

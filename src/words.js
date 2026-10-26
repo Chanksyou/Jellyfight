@@ -21,10 +21,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export const ENEMY_WORDS = {
   'death-motion': {
-    doc: 'On death, leaves a harmless body that `style` animates: crumple, tumble, flutter or shell. Rewards and removal from combat are immediate.',
+    doc: 'On death, leaves a harmless body that `style` animates: crumple, flutter or shell. Rewards and removal from combat are immediate.',
     args: ['style'],
     make: ([style]) => {
-      if (!['crumple', 'tumble', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, tumble, flutter or shell');
+      if (!['crumple', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, flutter or shell');
       return { init(e) { e.deathMotion = style; } };
     },
   },
@@ -49,29 +49,6 @@ export const ENEMY_WORDS = {
         if (!p.stop || c.flat > p.stop) return;
         if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
         else c.speed = 0;                                                      // in range: hold
-      },
-    }),
-  },
-
-  'curl-dash': {
-    doc: 'Up close, stops and winds up for `windup` s, dashes at `speed` m/s for `time` s (hitting for `dmg`), then rests for `rest` s. List it after the walking word.',
-    props: { windup: 0.45, time: 0.45, speed: 0.825, rest: 0.6, dmg: null, range: 0.2 },
-    make: (_, p) => ({
-      rollDmg: p.dmg,
-      tick(e, c, en) {
-        e.stateT -= c.dt;
-        if (e.state === 'approach' && c.flat < p.range && e.grounded) { e.state = 'windup'; e.stateT = p.windup; }
-        else if (e.state === 'windup') {
-          c.speed = 0;
-          if (e.stateT <= 0) { e.state = 'dash'; e.stateT = p.time; e.dashDir.copy(c.flatDir); en.curlGo(e); }
-        } else if (e.state === 'dash') {
-          c.speed = p.speed * c.slow;
-          c.dir.copy(e.dashDir);
-          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; }
-        } else if (e.state === 'rest') {
-          c.speed *= 0.3;
-          if (e.stateT <= 0) e.state = 'approach';
-        }
       },
     }),
   },
@@ -295,10 +272,10 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go) or "web" (a ball of silk). `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
-    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0 },
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "laser" (a bolt; while aiming, a beam shows where it will go), "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'laser', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
-      if (!['laser', 'web'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser" or "web", not "${p.shot}"`);
+      if (!['laser', 'web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "laser", "web" or "pin", not "${p.shot}"`);
       return {
       init(e) { e.shootT = 1 + Math.random() * 1.5; e.aimT = 0; e.aimBeam = p.shot === 'laser'; },
       tick(e, c, en) {
@@ -310,6 +287,7 @@ export const ENEMY_WORDS = {
         if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.25; }
         else if (e.shootT <= 0) e.shootT = 0.5;
         if (e.firedT > 0) e.firedT -= c.dt;
+        if (p.still && (e.aimT > 0 || e.firedT > 0)) c.speed = 0;
       },
       };
     },

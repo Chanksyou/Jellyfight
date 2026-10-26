@@ -64,16 +64,6 @@ export class DeathRemains {
         mesh.scale.y *= 1 - move * 0.7;
         root.rotation.z = Math.sin(u * 14) * 0.18 * (1 - move);
         for (const p of c.parts) p.mesh.rotation.z = p.rotation.z - Math.sign(p.pos.x) * move * 1.25;
-      } else if (style === 'tumble') {
-        // Unravel the five actual ants, including a squad killed while curled into its ball.
-        for (let j = 0; j < c.parts.length; j++) {
-          const p = c.parts[j], a = j * Math.PI * 2 / c.parts.length;
-          p.mesh.position.copy(p.pos);
-          p.mesh.position.x += Math.cos(a) * move * 0.8;
-          p.mesh.position.z += Math.sin(a) * move * 0.8;
-          p.mesh.position.y += Math.sin(Math.min(1, u / 0.45) * Math.PI) * 0.5;
-          p.mesh.rotation.set(p.rotation.x + move * (j % 2 ? 2.8 : -2.8), p.rotation.y, p.rotation.z + move * 0.8);
-        }
       } else if (style === 'flutter') {
         root.position.y -= LOOK.num('death-fall-gravity', 1.2) * u * u * 0.5;
         root.position.x += Math.sin(u * 16) * move * r * 0.7;

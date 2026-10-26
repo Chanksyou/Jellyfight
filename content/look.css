@@ -335,6 +335,9 @@
   --coffer-tongue-width: 0.026;      /* its tongue: how wide (m, thinning a little as it stretches), */
   --coffer-tongue-thickness: 0.012;  /* how thick, */
   --coffer-tongue-tip: 0.02;         /* and the fleshy tip that latches on */
+  --hostile-pin: #ff1f78;        /* the ant's thrown pushpin: its halo and trail, hot scarlet-pink (between act 1's laser red and the Controller's magenta) */
+  --pin-colors: #e01a1a #1f5fe0 #f2c21a #1f9e4a #f4f2ea;   /* the ants' thumbtacks: each ant spawns with one of these (red, blue, yellow, green, white) */
+  --pin-stuck: 2;                /* seconds a missed pin stays stuck in the scenery */
   --hostile-missile: #ff2020;   /* the ladybug's lock-on reticle and missile glow */
   --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and cream spray: violet */
   --hostile-clock: #ffc23a;      /* the Wall Clock's sweeping hand, thrown wreath and chime rings: gilt */
@@ -346,7 +349,7 @@
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
-  --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant squad, hair tangle): a small flash where they meet */
+  --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant, hair tangle): a small flash where they meet */
   --hurt-goo: #8fd8ff #dff8ff;   /* drops of jelly a bug's hit knocks off; they splat on the floor and fade (harmless) */
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
