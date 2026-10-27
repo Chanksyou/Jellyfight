@@ -11,7 +11,7 @@ export const STAGE4 = {
   rooms: ['Arena'],
   plan: [['Arena', [[-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF]]]],   // the minimap's outline
   parts: [],
-  won: 'Your Medusa brought the house down. The encore is yours.',   // the winning end's line
+  won: 'Your Medusa brought the house down.',   // the winning end's line
   evolve: 'Your Medusa takes the stage.',
   start: [0, 0.01, 0.48],
   duration: 0,                        // straight into the fight

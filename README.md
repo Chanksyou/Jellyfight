@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v296 trims repeated text across picks, inventory, rewards, combat hints and end screens. Upgraded treasures show their current effect, level labels appear once per pick, and pickup confirmations show the name and level or copy count.
+
 v295 removes jump-climbing from the sofa. Use its floor vent to reach the seat.
 
 v294 starts desktop and phone gameplay fully zoomed out, 0.9 m from the jelly. Desktop players can scroll to zoom in as usual.

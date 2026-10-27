@@ -32,7 +32,7 @@ export function recoverGpu({ renderer, scene, camera, gfx, pause, onRestored = (
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (!state.lost) return;
-      msg.textContent = "The graphics didn't come back by themselves. Reload to keep playing.";
+      msg.textContent = "Graphics recovery failed. Reload to continue.";
       reload.hidden = false;
     }, state.giveUpAfter);
   });

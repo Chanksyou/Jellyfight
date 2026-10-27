@@ -81,7 +81,7 @@ story('engine/leaderboard', {
     const M = new Leaderboard();
     await M.ready;
     const refused = await M.submit({ score: 120, name: 'Newbie' });
-    const refusedNote = /view-only/.test(M.note());
+    const refusedNote = /view-only/i.test(M.note());
     // off claude.ai
     delete window.claude;
     const O = new Leaderboard();

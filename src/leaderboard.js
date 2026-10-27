@@ -161,9 +161,9 @@ export class Leaderboard {
 
   // One line about where things stand, for under the table
   note() {
-    if (this.status === 'offline') return 'The shared leaderboard isn\'t reachable from here. Your best in this browser: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
+    if (this.status === 'offline') return 'Leaderboard unavailable. Best in this browser: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (this.status === 'loading') return 'Loading the leaderboard…';
-    if (!this.id || this.canWrite === false) return 'You can see the board, but this game\'s page is view-only for you, so your scores stay in this browser. Your best here: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
+    if (!this.id || this.canWrite === false) return 'View-only leaderboard. Scores save in this browser. Best: ' + (this.localBest ? this.localBest.score.toLocaleString() : 'none yet') + '.';
     if (!this.shown().length) return 'No scores yet. Be the first!';
     return this.mine ? `Your best: ${this.mine.score.toLocaleString()}${this.rank() ? ` (#${this.rank()})` : ''}` : 'Finish a run to get on the board.';
   }

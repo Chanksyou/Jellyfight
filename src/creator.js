@@ -51,7 +51,7 @@ export class Creator {
     this.look = { ...DEFAULT_LOOK };
     this.el = document.createElement('div');
     this.el.innerHTML = `<style>${CSS}</style><div id="creator" hidden>
-      <header><h2>Make your jellyfish</h2><p>You're about 3&frac12; cm tall. Choose wisely.</p></header>
+      <header><h2>Make your jellyfish</h2></header>
       <div class="scroll"></div>
       <footer><button class="ghost" data-act="random" title="Randomize">🎲 Surprise me</button><button class="go" data-act="done">Let's go!</button></footer>
       </div><div class="cr-hint" hidden>Drag to spin your jellyfish</div>`;

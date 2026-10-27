@@ -196,7 +196,7 @@ story('treasures/levels', {
     const { run } = G(), TREASURES_ALL = () => CONTENT.treasures;
     const bulbs = [], cards = [];
     // what the pick card would say: the only treasure left to offer is the Fairy Lights
-    stub(run.ui, 'choose', (title, sub, list) => { cards.push(list.map((t) => `${t.name} | ${t.text}`).join()); });
+    stub(run.ui, 'choose', (title, sub, list) => { cards.push(list.map((t) => `${t.name} | ${t.text} | ${t.delta || ''}`).join()); });
     const all = TREASURES_ALL();
     for (let k = 0; k < 3; k++) {
       all.forEach((t) => { if (t.id !== 'fairyLights') while (run.owned.count(t.id) < t.stack) run.owned.add(t.id); });
@@ -205,7 +205,7 @@ story('treasures/levels', {
     }
     const before = cards.length; run.pickTreasure(undefined, undefined, 'elite');
     const offeredPast3 = cards.length > before && cards[cards.length - 1].includes('Fairy');
-    const lv2 = /Lv 2/.test(cards[1]) && /four bulbs/.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /five bulbs/.test(cards[2]);
+    const lv2 = /Lv 2/.test(cards[1]) && /four bulbs/i.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /five .*bulbs/i.test(cards[2]);
     return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });
   },
 });
@@ -668,9 +668,9 @@ story('treasures/pause-lists-what-you-carry', {
     return ok(shown && run.level === 1
       && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Bubble damage') && trophy.includes('Next +0.25 Bubble damage in 7 bugs')
       && lemon.includes('×2') && lemon.includes('+2 bubble damage')
-      && pin.includes('Level 2') && pin.includes('pierce up to 5') && pin.includes('Take it again for Level 3')
+      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce, popping on up to 3') && pin.includes('Next level: Bubbles pierce up to 7')
       && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2')
-      && pan.includes('So far: +2.6% Bubble damage') && pan.includes('of the most it can give, +100% Bubble damage'),
+      && pan.includes('+2.6 / +100% Bubble damage') && !pan.includes('So far:'),
     { shown, trophy, lemon, pin, clip, pan });
   },
 });
@@ -805,4 +805,24 @@ story('treasures/aura', {
   about: 'aura (Glow Stick): a glow around you stings anything inside it.',
   setup() { setupFight({ bubbles: false, lash: false }); give('glowStick'); roachAt(0.06, 0); },
   play() { const log = record('damage_taken'); step(90); return ok(dmgBy(log, 'aura').length >= 2, { stings: dmgBy(log, 'aura').length }); },
+});
+
+story('treasures/upgrades-show-current-effect-once', {
+  about: 'An upgrade card shows the complete current effect and one level comparison. Picking it confirms its name and resulting level without repeating the description.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('bobbyPin'); },
+  play() {
+    const { run } = G(), ui = run.ui;
+    const count = run.owned.count.bind(run.owned);
+    stub(run.owned, 'count', (id) => id === 'bobbyPin' ? count(id) : 99);
+    run.chestsOpened = 0;
+    run.pickTreasure();
+    const cards = [...ui.modal.querySelectorAll('.jf-card')], card = cards[0];
+    const name = card?.querySelector('.big').textContent, text = card?.querySelector('.txt').textContent, delta = card?.querySelector('.delta').textContent;
+    card?.click();
+    const toast = ui.pop.textContent;
+    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Bubbles pierce up to 5 enemies in a line.' && delta === 'Lv 1 → Lv 2'
+      && toast.includes('Bobby Pin') && toast.includes('Level 2') && !toast.includes('pierce');
+    step(45);
+    return ok(good, { name, text, delta, toast });
+  },
 });

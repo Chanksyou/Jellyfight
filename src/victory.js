@@ -1,4 +1,4 @@
-// The run's ending, after the last act's boss: "Congratulations, you won!" over the sea, where the
+// The run's ending, after the last act's boss: "You won!" over the sea, where the
 // player's own jelly (a copy of it and its adornments, like the evolution reveal's) swims away home,
 // pulsing up and away from the camera through rising bubbles. Continue goes on to the score
 // (run.js endRun: post it if it makes the top 10); the sea stays behind that until a new run starts.
@@ -61,7 +61,7 @@ export class Victory {
       @keyframes jf-win-fade { from { opacity: 0; transform: translateY(8px); } }
       @media (prefers-reduced-motion: reduce) { .jf-victory h1, .jf-victory p, .jf-victory button { animation: none; } }
     </style>
-    <div><h1>🏆 Congratulations!</h1><p><b>You won!</b> ${esc(S.won || 'The apartment is yours.')}</p><p>Your jelly swims home to the sea.</p></div>
+    <div><h1>🏆 You won!</h1><p>${esc(S.won || 'The apartment is yours.')}</p></div>
     <button type="button" hidden>Continue</button>`;
     this.button = this.el.querySelector('button');
     this.button.onclick = () => this.next();

@@ -899,14 +899,14 @@ export class Run {
   devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'An attack of its own, fired alongside your bubbles. Every third treasure you find offers one of its upgrades. A Boss can bring you another.',
+    this.pickElement('🔥 Pick your element', 'Adds an attack alongside your bubbles. Upgrades appear every third treasure pick.',
       () => { this.firstRun.elementChosen = true; this.resume(); });
   }
 
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest; every 3rd chest, one of them is an Element upgrade. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
-  pickTreasure(title = '✨ A treasure', sub = 'Pick one to keep.', source = 'room') {
+  pickTreasure(title = '✨ A treasure', sub = 'Choose a treasure.', source = 'room') {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
@@ -921,11 +921,10 @@ export class Run {
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
       const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
-      const name = levelled ? `${t.name} <small>Lv ${next}${next > 1 ? ' ⬆' : ''}</small>` : t.stack > 1 ? `${t.name} <small>${next}/${t.stack}</small>` : t.name;
       const text = levelled && next > 1 ? t.levelText[next - 1] : t.text;
       // the pick card's delta line (old → new), only when this take grows the treasure
-      const delta = next < 2 ? null : levelled ? `Lv ${next - 1} → Lv ${next}` : t.stack > 1 ? `×${next - 1} → ×${next}` : null;
-      return { ...t, tier: treasureTier(t), name, text, delta };
+      const delta = levelled ? (next > 1 ? `Lv ${next - 1} → Lv ${next}` : 'Lv 1') : t.stack > 1 ? (next > 1 ? `×${next - 1} → ×${next}` : `1/${t.stack}`) : null;
+      return { ...t, tier: treasureTier(t), text, delta };
     });
     this.offer(title, sub, left);
   }
@@ -962,7 +961,7 @@ export class Run {
       this.owned.add(t.id);
       this.found('treasures', t.id, `${t.icon} ${t.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
-      this.ui.treasure(t);
+      this.ui.treasure(t, this.owned.count(t.id));
       then();
     });
   }
@@ -1028,7 +1027,7 @@ export class Run {
   updateRoomTreasures(dt) {
     for (const t of this.roomTreasures) {
       const r = t.update(dt, this.t, this.player.position);
-      if (r === 'taken') this.pickTreasure('✨ A treasure!', t.timed ? 'You got there in time. Pick one to keep.' : 'Pick one to keep.', t.timed ? 'room' : 'elite');
+      if (r === 'taken') this.pickTreasure('✨ A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
       else if (r === 'gone') this.hud.toast('✨ The treasure faded away…', 1800);
     }
   }
@@ -1171,7 +1170,7 @@ export class Run {
     if (left) this.gainXp(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
-    this.victory.begin(() => this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }));
+    this.victory.begin(() => this.endRun('Run complete', '', 'Play again from act 1', { parts: true }));
   }
 
   metamorph() {
@@ -1190,7 +1189,7 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
-    const pick = next ? 'Choose what it becomes: it changes how you play for the rest of the run.' : 'Choose what it becomes.';   // (the last act: nothing after it to promise)
+    const pick = next ? 'Choose an evolution for the rest of the run.' : 'Choose an evolution.';   // (the last act: nothing after it to promise)
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, this.markNew('evolutions', choices), (evo) => {
       const before = this.mods;
       this.evolved.push(evo.id);
@@ -1199,7 +1198,7 @@ export class Run {
       this.evolutionReveal.begin(evo, before, () => {
         this.phase = 'won';
         // The transformation finishes before the next reward replaces its portrait.
-        if (next) this.pickLegendary('👑 A Legendary treasure', `${this.stage.boss.name} is beaten. Take a Legendary treasure into act ${next.id}.`, () => this.actComplete(next));
+        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => this.actComplete(next));
         else this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
       });
     });
@@ -1219,7 +1218,7 @@ export class Run {
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
-    this.later(() => this.endRun('You dried out', 'But an immortal jelly never really dies. It shrinks back into a polyp… and tries again.', 'Try again'), 700);
+    this.later(() => this.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'), 700);
   }
 
   // ------------------------------------------------------------ score
@@ -1349,7 +1348,7 @@ export class Run {
   // treasures, score so far); you submit the score at the end of the run
   actComplete(next) {
     const carry = this.carryOver(), score = carry.score;
-    this.ui.message(`Act ${this.stage.id} complete`, `${this.stage.subtitle} is yours. Next: act ${next.id}, ${next.subtitle.toLowerCase()}. Your level, stats and treasures come with you.`,
+    this.ui.message(`Act ${this.stage.id} complete`, `Next: ${next.subtitle}. Your progress carries over.`,
       [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
@@ -1358,7 +1357,7 @@ export class Run {
   showBook(back) {
     const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'];
     const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(kind, x.id, f) })) });
-    this.ui.book('📖 Treasure book', 'Every Treasure and evolution you\'ve picked, and every Elite and boss you\'ve beaten.', [
+    this.ui.book('📖 Treasure book', [
       sec('Treasures', 'treasures', [...TREASURES].sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color }))),
       sec('Evolutions', 'evolutions', EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text }))),
       sec('Elites', 'elites', Object.values(CONTENT.elites).filter((e) => e.id).map((e) => ({ id: e.id, icon: '👾', name: e.name, text: 'beaten.' }))),
