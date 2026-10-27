@@ -34,10 +34,17 @@ story('traversal/moved-vent-still-lands', {
     return ok(Math.hypot(x - 2.6, z - 3.0) < 0.08 && Math.abs(y - 0.46) < 0.06 && r.grounded, { end: r.pos });
   },
 });
-story('traversal/sofa-climb', {
-  about: 'Holding jump against the front of the corduroy sofa climbs it.',
+story('traversal/sofa-cannot-be-climbed-with-jump', {
+  about: 'Holding or repeatedly pressing jump against the sofa cannot climb onto its seat, and the sofa offers no climb hint. The vent remains the way up.',
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 2.6, 0); },
-  play() { sim(3, ['Space', 'KeyW']); const r = sim(1, ['KeyW']); return ok(r.pos[1] > 0.45, { end: r.pos }); },
+  play() {
+    const { player, traversal } = G();
+    sim(3, ['Space', 'KeyW'], 30);
+    const r = sim(1, ['KeyW']), climb = !!traversal.query(player.position).climb;
+    const hint = document.querySelector('#hud .hint')?.textContent || '';
+    return ok(r.pos[1] < 0.3 && r.grounded && !player.climbing && !climb && !hint.includes('climb'),
+      { end: r.pos, grounded: r.grounded, climbing: player.climbing, climb, hint });
+  },
 });
 story('traversal/kitchen-sink-is-recessed', {
   about: 'The kitchen sink is a real basin under a hole in the counter: dropped over it, the jelly lands about 15 cm below the counter top (a solid plate used to sit on top), on the open counter beside it at the counter top, and a jump gets it back out.',

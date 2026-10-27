@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v295 removes jump-climbing from the sofa. Use its floor vent to reach the seat.
+
 v294 starts desktop and phone gameplay fully zoomed out, 0.9 m from the jelly. Desktop players can scroll to zoom in as usual.
 
 v293 reworks the mosquito into a fast biter. It no longer spits a laser and has no aiming line. It flits round you in quick jittery darts, faster than you swim (0.9 m/s, about 15 cm out), then stops, draws back with its whine climbing and darts in to bite: 1 damage, and you Bleed 1 Health a second for 3 s. Every bite adds its own Bleed, so they stack. Its aim locks halfway through the draw-back, so moving off as the whine climbs makes it miss. Bleeding shows as red drops dripping off the jelly for exactly as long as it lasts, with a BLEED receipt when a bite lands. Its legs are now jointed and move in flight: they dangle and swing, sweep back with its speed, fling out in turns, the hind pair held up; its wings beat in a figure of eight and it banks into turns. New words `bite` and `bleeds` (`src/words.js`); the spit word's `laser` shot is gone. Stories: `words/bite`, `words/bite-dodge`, `words/bleeds`, `words/bite-feel`, `enemies/mosquito-bites`.
@@ -374,7 +376,7 @@ It's night: the room is lit only by its lamps (warm pools of light, dark corners
 
 **Music:** an adaptive soundtrack synthesized in the browser (`src/music.js`), in the spirit of Risk of Rain 2. Exploring plays "Puddle Drift", inspired by Daft Punk's Tron: Legacy score: dark string pads, then a pulsing sequenced analog bass that carries the song, a slow arpeggio, deep half-time drums and toms, and a low brass lead as more bugs close in and the night gets later, with no bright highs to distract; the Vacuum fight plays "Domestic Machinery", after deadmau5's "HR 8938 Cephei" but dubbier: pumping supersaw chords, a wobbling reese bass that speeds up as the Vacuum weakens, risers into every phrase, and a supersaw lead once it's below about 60% health; its suction drags the whole mix through a dub filter. The Vacuum has its own sounds for everything it does: a boot-up chime, an alarm and a roar for the charge and a clanging crash into the wall, a wobbling dub roar for the suction, whirring brushes and swishing sweeps, a clunk and skittering for the roach dump, a whirling siren for the spin, a wail and four pops for the lanternflies, a shimmering shield that pings when hit and shatters, an angry siren as it enrages at half health, and a long power-down when it dies. The pause menu muffles it; 🎵 turns it off (M mutes everything).
 
-**Getting around:** the jelly swims at a steady speed while its bell pulses in strokes (`src/swim.js`), faster the harder you push. It has a single jump, 20 cm high (`jumpHeight` in `src/config.js`: enough to jump out of the bathroom sink bowl, 17.5 cm deep); each Pen Spring treasure adds a jump in mid-air (take up to 3 for a quadruple jump). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Hold Space to climb the front of the corduroy sofa.
+**Getting around:** the jelly swims at a steady speed while its bell pulses in strokes (`src/swim.js`), faster the harder you push. It has a single jump, 20 cm high (`jumpHeight` in `src/config.js`: enough to jump out of the bathroom sink bowl, 17.5 cm deep); each Pen Spring treasure adds a jump in mid-air (take up to 3 for a quadruple jump). Floor vents fling you in an arc straight onto the sofa, coffee table, media console, desk, lounge chair and stovetop. Use the sofa vent to reach its seat.
 
 ## Changing the game
 
@@ -497,7 +499,7 @@ The player only talks to that interface (`player.setAvatar(avatar)`), so a rigge
 
 | File | What's in it |
 | --- | --- |
-| `src/stage1.js` | The living room: rooms, start, doors, invisible walls, vents (and where each lands you), climbable fabric, treasure spots, boss arena and its walls. Positions are world meters. |
+| `src/stage1.js` | The living room: rooms, start, doors, invisible walls, vents (and where each lands you), treasure spots, boss arena and its walls. Positions are world meters. |
 | `src/stage2.js` | Act 2, the hallway and the bathroom, in the same format, plus `toughness` (bug health multiplier) and `evolve` (the metamorphosis line). Waves pick their act with `act=2` in `content/waves.kdl`. |
 | `src/stage3.js` | Act 3, the bedroom, in the same format, plus where its wasp nests hang (`nests`) and the shark arena on the bed (`boss`; `hide`: the shelf plant and plushies gone for the act). |
 | `src/stages.js` | The acts in order, which one this page plays, and the run carried between them. |

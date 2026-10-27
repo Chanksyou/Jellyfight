@@ -46,10 +46,7 @@ export const STAGE1 = {
     { name: 'Vent by the stove', at: [4.221, 0.013, 2.78], radius: 0.045, land: [4.5, 0.9, 3.35], to: 'the stovetop' },
   ],
 
-  // Fabric you can climb: hold jump inside the box
-  climbs: [
-    { name: 'Corduroy sofa', min: [0.8, 0, 2.28], max: [2.4, 0.5, 2.45] },   // the front of the seat
-  ],
+  climbs: [],
 
   // Where treasures can turn up. At the start of each run the game keeps only spots that
   // are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
