@@ -76,11 +76,11 @@ treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true tex
 // --- element upgrades: never in an ordinary treasure pick. Every 3rd treasure chest opened offers one
 // among its three, for an element you own (needs=…), rolled by its own rarity.
 // fire
-treasure "lighterFluid" name="Lighter Fluid" icon="🛢️" rarity="common" needs="candle" attack=#true text="Fire: burns 50% hotter." {
-    element-up "fire" burn=1.5
+treasure "lighterFluid" name="Lighter Fluid" icon="🛢️" rarity="common" needs="candle" attack=#true text="Fire: burns twice as hot." {
+    element-up "fire" burn=2
 }
-treasure "longMatches" name="Long Matches" icon="🪵" rarity="common" needs="candle" attack=#true text="Fire: enemies burn 2 s longer." {
-    element-up "fire" burnTime=2
+treasure "longMatches" name="Long Matches" icon="🪵" rarity="common" needs="candle" attack=#true text="Fire: enemies burn 3 s longer." {
+    element-up "fire" burnTime=3
 }
 treasure "kindling" name="Kindling" icon="🔥" rarity="rare" needs="candle" attack=#true text="Fire: burning enemies that die set everything twice as far away alight." {
     element-up "fire" spread=2
@@ -95,14 +95,14 @@ treasure "birthdayCake" name="Birthday Cake" icon="🎂" rarity="epic" needs="ca
 treasure "nineVolt" name="9V Battery" icon="🪫" rarity="rare" needs="battery" attack=#true text="Lightning: each pop arcs to 2 more enemies." {
     element-up "lightning" chain=2
 }
-treasure "copperWire" name="Copper Wire" icon="🧶" rarity="common" needs="battery" attack=#true text="Lightning: arcs jump 50% farther." {
-    element-up "lightning" chainRange=1.5
+treasure "copperWire" name="Copper Wire" icon="🧶" rarity="common" needs="battery" attack=#true text="Lightning: arcs jump twice as far." {
+    element-up "lightning" chainRange=2
 }
 treasure "staticSock" name="Static Sock" icon="⚡" rarity="common" needs="battery" attack=#true text="Lightning: stuns last twice as long." {
     element-up "lightning" stun=2
 }
-treasure "powerStrip" name="Power Strip" icon="🔌" rarity="rare" needs="battery" attack=#true text="Lightning: arcs hit 50% harder." {
-    element-up "lightning" bolt=1.5
+treasure "powerStrip" name="Power Strip" icon="🔌" rarity="rare" needs="battery" attack=#true text="Lightning: arcs hit twice as hard." {
+    element-up "lightning" bolt=2
 }
 treasure "phoneCharger" name="Phone Charger" icon="📱" rarity="epic" needs="battery" attack=#true text="Lightning: ball lightning fires 40% faster." {
     element-up "lightning" rate=1.4
@@ -117,8 +117,8 @@ treasure "frozenPeas" name="Frozen Peas" icon="🫛" rarity="common" needs="free
 treasure "snowGlobe" name="Snow Globe" icon="🌨️" rarity="rare" needs="freezerPack" attack=#true text="Ice: each shard's burst slows everything around where it hits." {
     element-up "ice" frost=1
 }
-treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 2 more enemies." {
-    element-up "ice" pierce=2
+treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 3 more enemies." {
+    element-up "ice" pierce=3
 }
 treasure "freezerBurn" name="Freezer Burn" icon="🥶" rarity="epic" needs="freezerPack" attack=#true text="Ice: shards do double damage to slowed enemies." {
     element-up "ice" slowedMul=1
@@ -143,11 +143,11 @@ treasure "quickDry" name="Quick-Dry Spray" icon="💨" rarity="epic" needs="nail
 treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts push enemies 60% farther, helping slam them into scenery." {
     element-up "wind" push=1.6
 }
-treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 2 more enemies." {
-    element-up "wind" pierce=2
+treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 3 more enemies." {
+    element-up "wind" pierce=3
 }
-treasure "deskFan" name="Desk Fan" icon="🌪️" rarity="common" needs="paperFan" attack=#true text="Wind: gusts fire 30% faster." {
-    element-up "wind" rate=1.3
+treasure "deskFan" name="Desk Fan" icon="🌪️" rarity="common" needs="paperFan" attack=#true text="Wind: gusts fire 40% faster." {
+    element-up "wind" rate=1.4
 }
 treasure "pinwheel" name="Pinwheel" icon="🎐" rarity="epic" needs="paperFan" attack=#true text="Wind: one more gust every shot." {
     element-up "wind" count=1
@@ -156,20 +156,20 @@ treasure "draft" name="Draft Stopper" icon="🚪" rarity="rare" needs="paperFan"
     element-up "wind" speed=1.3 range=1.3
 }
 // glitter
-treasure "craftGlitter" name="Craft Glitter" icon="🎨" rarity="common" needs="glitter" attack=#true text="Glitter: the splash is 30% wider." {
-    element-up "glitter" width=1.3
+treasure "craftGlitter" name="Craft Glitter" icon="🎨" rarity="common" needs="glitter" attack=#true text="Glitter: the splash is 40% wider." {
+    element-up "glitter" width=1.4
 }
 treasure "holoGlitter" name="Holo Glitter" icon="🌈" rarity="rare" needs="glitter" attack=#true text="Glitter: the splash hits 50% harder." {
     element-up "glitter" splash=1.5
 }
-treasure "glitterGlue" name="Glitter Glue" icon="🫗" rarity="common" needs="glitter" attack=#true text="Glitter: the splash slows everything it hits for 1 s." {
-    element-up "glitter" slow=1
+treasure "glitterGlue" name="Glitter Glue" icon="🫗" rarity="common" needs="glitter" attack=#true text="Glitter: the splash slows everything it hits for 2 s." {
+    element-up "glitter" slow=2
 }
 treasure "confetti" name="Confetti" icon="🎊" rarity="epic" needs="glitter" attack=#true text="Glitter: one more glitter bomb every shot." {
     element-up "glitter" count=1
 }
-treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" attack=#true text="Glitter: bombs fire 30% faster." {
-    element-up "glitter" rate=1.3
+treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" attack=#true text="Glitter: bombs fire 40% faster." {
+    element-up "glitter" rate=1.4
 }
 
 // --- hits, jumps and your body
@@ -178,41 +178,41 @@ treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
     mark-on-hit 3 by="all"
-    level 2 text="Enemies you hit are marked for 4 s and take 65% more damage from everything." {
-        mark-on-hit 4 by="all" more=0.65
+    level 2 text="Enemies you hit are marked for 4 s and take 60% more damage from everything." {
+        mark-on-hit 4 by="all" more=0.6
     }
-    level 3 text="Enemies you hit are marked for 5 s and take 80% more damage from everything." {
-        mark-on-hit 5 by="all" more=0.8
+    level 3 text="Enemies you hit are marked for 5 s and take 70% more damage from everything." {
+        mark-on-hit 5 by="all" more=0.7
     }
 }
 treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="+1 mid-air jump." stack=3 {
     extra-jumps 1
 }
 treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
-    landing-shockwave 0.2 dmg=5 drop=0.04
+    landing-shockwave 0.2 dmg=3 drop=0.04
     level 2 text="Landing sends out a wider shockwave that stings harder." {
-        landing-shockwave 0.4 dmg=10 drop=0.04
+        landing-shockwave 0.4 dmg=5 drop=0.04
     }
     level 3 text="Landing sends out a large, powerful shockwave." {
-        landing-shockwave 0.6 dmg=15 drop=0.04
+        landing-shockwave 0.6 dmg=7 drop=0.04
     }
 }
-treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When you get hit, a squeak knocks nearby enemies back. (5 s)" {
-    squeak-when-hit radius=0.09 push=0.06 dmg=3 cooldown=5
+treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When hit, a squeak knocks nearby enemies back. 4 s cooldown." {
+    squeak-when-hit radius=0.21 push=0.12 dmg=3 cooldown=4
     level 2 text="When hit, a stronger squeak knocks nearby enemies back. 4 s cooldown." {
-        squeak-when-hit radius=0.11 push=0.07 dmg=6 cooldown=4
+        squeak-when-hit radius=0.21 push=0.15 dmg=6 cooldown=4
     }
     level 3 text="When hit, a powerful squeak knocks nearby enemies back. 3 s cooldown." {
-        squeak-when-hit radius=0.13 push=0.08 dmg=9 cooldown=3
+        squeak-when-hit radius=0.21 push=0.2 dmg=9 cooldown=3
     }
 }
 treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for two seconds and you start spouting, refilling health." {
     spout after=2 heal=1.5
-    level 2 text="Stand still for 1.5 s to restore 2 Health per second." {
-        spout after=1.5 heal=2
+    level 2 text="Stand still for 1.5 s to restore 1.75 Health per second." {
+        spout after=1.5 heal=1.75
     }
-    level 3 text="Stand still for 1 s to restore 3 Health per second." {
-        spout after=1 heal=3
+    level 3 text="Stand still for 1 s to restore 2 Health per second." {
+        spout after=1 heal=2
     }
 }
 treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
@@ -237,31 +237,31 @@ treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Enemies you
 // --- things that attack on their own (gadgets.js)
 treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true text="Every 5 s a chord rings out, stinging and pushing back everything close." {
     every 5 {
-        ring 0.13 dmg=1 push=0.035 color="#c08aff" look="chord" show=0.45
+        ring 0.18 dmg=2 push=0.05 color="#c08aff" look="chord" show=0.45
     }
     level 2 text="Every 4 s, a wide chord stings and pushes back nearby enemies." {
         every 4 {
-            ring 0.14 dmg=1.1 push=0.04 color="#c08aff" look="chord" show=0.45
+            ring 0.22 dmg=3 push=0.07 color="#c08aff" look="chord" show=0.45
         }
     }
     level 3 text="Every 3 s, a powerful, wide chord stings and pushes back nearby enemies." {
         every 3 {
-            ring 0.15 dmg=1.2 push=0.045 color="#c08aff" look="chord" show=0.45
+            ring 0.26 dmg=4 push=0.09 color="#c08aff" look="chord" show=0.45
         }
     }
 }
 treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s you fizz, stinging everything close around you." {
     every 6 first=6 {
-        ring 0.09 dmg=2 color="#ff9ad8" look="puff" elites=#false
+        ring 0.12 dmg=2 color="#ff9ad8" look="puff" elites=#false
     }
     level 2 text="Every 5 s, fizz stings nearby enemies with a stronger burst." {
         every 5 first=5 {
-            ring 0.1 dmg=2.2 color="#ff9ad8" look="puff" elites=#false
+            ring 0.15 dmg=3 color="#ff9ad8" look="puff" elites=#false
         }
     }
     level 3 text="Every 4 s, fizz stings nearby enemies with a powerful burst." {
         every 4 first=4 {
-            ring 0.11 dmg=2.4 color="#ff9ad8" look="puff" elites=#false
+            ring 0.18 dmg=4 color="#ff9ad8" look="puff" elites=#false
         }
     }
 }

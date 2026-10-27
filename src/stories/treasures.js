@@ -78,7 +78,7 @@ story('treasures/wind-blade', {
   },
 });
 story('treasures/element-up', {
-  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns 50% hotter, Long Matches burns 2 s longer, Birthday Cake fires two fireballs a shot; your Fire rate speeds every element attack up too.',
+  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns twice as hot, Long Matches burns 3 s longer, Birthday Cake fires two fireballs a shot; your Fire rate speeds every element attack up too.',
   setup() { setupFight({ lash: false, bubbles: true }); give('candle'); roachAt(0, -0.15); },
   play() {
     const { run, enemies } = G(), B = run.bubbles, e = enemies.list[0];
@@ -96,7 +96,7 @@ story('treasures/element-up', {
     // Fire rate: shots a second scale with it (count the fire timer's progress over 1 s)
     const rateAt = (blow) => { run.stats.fireRate = blow; B.elTimers.fire = 0; let shots = 0; for (let i = 0; i < 60; i++) { const before = B.elTimers.fire; step(1); if (B.elTimers.fire < before) shots++; } return shots + B.elTimers.fire; };
     const slow = rateAt(BASE_FIRE_RATE), fast = rateAt(BASE_FIRE_RATE * 2);
-    return ok(base.burn === 1 && up.burn === 1.5 && up.burnTime === 5 && burnT === 5 && Math.abs(burnDps - 10 * 0.17 * 1.5) < 1e-9 && up.count === 1 && fireballs === 2 && fast > slow * 1.7,
+    return ok(base.burn === 1 && up.burn === 2 && up.burnTime === 6 && burnT === 6 && Math.abs(burnDps - 10 * 0.17 * 2) < 1e-9 && up.count === 1 && fireballs === 2 && fast > slow * 1.7,
       { base, up, burnT, fireballs, slow: +slow.toFixed(2), fast: +fast.toFixed(2) });
   },
 });
@@ -228,7 +228,7 @@ story('treasures/mark-on-hit', {
   play() { const e = G().enemies.list[0]; step(120, () => e.markT > 0); return ok(e.markT > 0 && !!e.note, { markT: +e.markT.toFixed(2) }); },
 });
 story('treasures/mark-on-hit-levels', {
-  about: 'mark-on-hit more= (Sticky Note level 3): marked bugs take 80% more damage, and a hit on one lands 1.8x.',
+  about: 'mark-on-hit more= (Sticky Note level 3): marked bugs take 70% more damage, and a hit on one lands 1.7x.',
   setup() { setupFight({ lash: false }); give('stickyNote', 'stickyNote', 'stickyNote'); roachAt(0, -0.15); },
   play() {
     const e = G().enemies.list[0];
@@ -236,7 +236,7 @@ story('treasures/mark-on-hit-levels', {
     const hp = e.hp;
     bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'test' });
     const landed = +(hp - e.hp).toFixed(3);
-    return ok(e.markT > 0 && landed === 18, { markT: +e.markT.toFixed(2), landed });
+    return ok(e.markT > 0 && landed === 17, { markT: +e.markT.toFixed(2), landed });
   },
 });
 story('treasures/crit', {
@@ -824,5 +824,33 @@ story('treasures/upgrades-show-current-effect-once', {
       && toast.includes('Bobby Pin') && toast.includes('Level 2') && !toast.includes('pierce');
     step(45);
     return ok(good, { name, text, delta, toast });
+  },
+});
+
+story('treasures/tuned-element-upgrades', {
+  about: 'The tuned fire, lightning, ice, wind and glitter upgrades reach the live attack modifiers with their requested durations, multipliers and pierce counts.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('candle', 'battery', 'freezerPack', 'paperFan', 'glitter', 'longMatches', 'lighterFluid', 'copperWire', 'powerStrip', 'popsicleStick', 'hairDryer', 'deskFan', 'craftGlitter', 'glitterGlue', 'sequins'); },
+  play() {
+    const E = G().run.mods.element;
+    const got = [E.fire.burnTime, E.fire.burn, E.lightning.chainRange, E.lightning.bolt, E.ice.pierce, E.wind.pierce, E.wind.rate, E.glitter.width, E.glitter.slow, E.glitter.rate];
+    const want = [6, 2, 0.32, 2, 3, 4, 0.88 * 1.4, 2.2 * 1.4, 2, 1.05 * 1.4];
+    return ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-9), { got, want });
+  },
+});
+story('treasures/tuned-level-effects', {
+  about: 'At each level the tuned Cotton Ball, Rubber Duck, Whale Bath Toy, Guitar Pick, Bath Bomb and Sticky Note feed the requested damage, range, shove, cooldown, healing and mark bonuses into gameplay.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const got = [], want = [
+      [3, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .5],
+      [5, .21, .15, 4, 1.75, .22, 3, .07, .15, 3, .6],
+      [7, .21, .2, 3, 2, .26, 4, .09, .18, 4, .7],
+    ];
+    for (let i = 0; i < 3; i++) {
+      give('cottonBall', 'rubberDuck', 'whale', 'guitarPick', 'bathBomb', 'stickyNote');
+      const M = G().run.mods, duck = M.squeaks[0], rings = M.timed.flatMap((t) => t.effects), chord = rings.find((e) => e.kind === 'ring' && e.look === 'chord'), bomb = rings.find((e) => e.kind === 'ring' && e.look === 'puff');
+      got.push([M.landingShockwave.dmg, duck.radius, duck.push, duck.cooldown, M.spout.heal, chord.radius, chord.dmg, chord.push, bomb.radius, bomb.dmg, M.hits.bubbles.markMore]);
+    }
+    return ok(got.every((row, i) => row.every((v, j) => Math.abs(v - want[i][j]) < 1e-9)), { got, want });
   },
 });

@@ -12,6 +12,10 @@
 // anticipation and restores the source pose; released travel/impact/aftermath retain their chain.
 // Phase scores stay unchanged; no new play-speed audio claim.
 // Bug feel pass: every bug word scored (seen: 'code'); a confirmed bug hit answers through player_hurt (enemies.js landed).
+// v297: owner tuning changes fire/lightning/ice/wind/glitter upgrades, Cotton Ball, Rubber Duck,
+// Guitar Pick and Bath Bomb numbers only. Existing phase implementations and scores are retained:
+// Elements, cotton, chord and fizz 9/9; reactive squeak 8/9 (no pre-hit anticipation).
+// Expanded areas use the same radius-driven contours and confirmed contacts; no new play-speed audio claim.
 // The bar each must reach comes from the rules, not from here (see `bar` below).
 
 import { CONTENT } from '../content.js';
