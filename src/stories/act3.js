@@ -409,3 +409,29 @@ act3('big-bug-kill-ring-is-small-and-tinted', {
     return ok(e.dead && biggest && biggest.radius <= 0.08 + 1e-9 && biggest.color !== 'ffffff', { dead: e.dead, rings });
   },
 });
+
+act3('fewer-regular-bugs', {
+  about: 'Act 3 now sends roughly 18% fewer regular bugs than its old 0.85 multiplier, and its regular-spawn cap tops out at 14.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, enemies, player } = G(), stage = run.stage, previous = stage.bugs, realSpawn = enemies.spawn.bind(enemies);
+    let count = 0;
+    stub(enemies, 'spawn', () => { count++; return null; });
+    stub(run, 'spawnPoint', () => player.position.clone());
+    const waves = Object.getPrototypeOf(run).spawnWaves;
+    const during = multiplier => {
+      stage.bugs = multiplier; run.spawnAcc = 0; run.t = 60; count = 0;
+      for (let i = 0; i < 3600; i++) waves.call(run, 1 / 60);
+      return count;
+    };
+    try {
+      const old = during(.85), now = during(previous);
+      stage.bugs = previous; run.t = 240; run.nestsAt = null; run.spawnAcc = 1; count = 0;
+      // Real enemies exercise the cap independently of the spawn-rate accumulator.
+      for (let i = 0; i < 14; i++) realSpawn('dragonfly', player.position.clone());
+      run.spawnAcc = 1; waves.call(run, 0);
+      return ok(previous === .7 && old === 17 && now === 14 && count === 0,
+        { old, now, alive: enemies.alive, blockedAtCap: count === 0 });
+    } finally { stage.bugs = previous; }
+  },
+});
