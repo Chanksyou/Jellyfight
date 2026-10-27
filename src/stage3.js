@@ -31,7 +31,7 @@ export const STAGE3 = {
   eliteHp: 2.4,                       // the Alligator's, the Bull's and the Coffer's Health: 500 x 2.4 = 1200
   bossHp: 1.6,                        // the shark's Health as the Clog's: 1500 x 1.6 = 2400
   power: 2,
-  bugs: 0.85,
+  bugs: 0.7,                        // 18% fewer regular spawns than before; at most 14 alive
   xpMult: 1.4,
 
   // Wasp nests (content/enemies.kdl "nest"): from `from` seconds into the night (1:30), `count` of

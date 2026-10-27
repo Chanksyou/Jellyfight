@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v298 reduces Act 3's regular bug spawn multiplier from 0.85 to 0.70 (about 18% fewer spawns), lowering its regular-spawn alive cap from 17 to 14. Wasp nests and boss summons keep their existing settings.
+
 v297 applies the owner's 38 treasure tuning values: stronger Element upgrades, wider Rubber Duck, Guitar Pick and Bath Bomb effects, lower Cotton Ball damage and Whale Bath Toy healing, and smaller Sticky Note bonuses at higher levels. Descriptions match the new values.
 
 v296 trims repeated text across picks, inventory, rewards, combat hints and end screens. Upgraded treasures show their current effect, level labels appear once per pick, and pickup confirmations show the name and level or copy count.
