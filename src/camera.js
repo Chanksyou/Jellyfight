@@ -13,7 +13,7 @@ import * as THREE from 'three';
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
 const HOLD = 0.4;
 const SMALL = 0.15;
-const LAYERS = 3;              // how many things one ray may look through
+const LAYERS = 4;              // how many things one ray may look through
 const UP = new THREE.Vector3(0, 1, 0);
 const NONE = [];
 const _sphere = new THREE.Sphere();

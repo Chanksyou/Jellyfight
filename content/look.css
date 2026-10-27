@@ -536,8 +536,8 @@
   --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
 
   /* --- the camera ------------------------------------------------------------ */
-  --camera-distance: 0.68;     /* meters behind the jelly */
-  --camera-distance-phone: 0.6;
+  --camera-distance: 0.9;      /* meters behind the jelly: start fully zoomed out on desktop */
+  --camera-distance-phone: 0.9;
   --boss-force-field: 0;        /* 1: draw every boss arena's force field (0: invisible, still solid, so the camera can stand behind it; a stage's boss `forceField: true` draws its own: the Vacuum's) */
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
   --cat-scene-distance: 1.2;   /* meters behind the jelly while Dendi finishes a boss (he is 26 cm at the shoulder) */
