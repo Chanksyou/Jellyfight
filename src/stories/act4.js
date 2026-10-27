@@ -25,7 +25,7 @@ act4('its-beetles-hold-up-a-force-field-until-they-die', {
   about: 'At bar 8 (beat 32) the Encore calls 2 stag beetles onto the floor (2 at a time, bosses.kdl `count`) and a bright blue force field rises over its whole booth: while either beetle lives your hits bounce off. Kill them and it takes damage again. 16 bars later (beat 96) it calls 2 more.',
   setup() {},
   play() {
-    const B = encoreFight({ beat: 31.5 }), { enemies } = G(), count = CONTENT.bosses.encore.skills.beetles.count;
+    const B = encoreFight({ beat: 31.5 }), { enemies } = G(), cues = record('toast'), count = CONTENT.bosses.encore.skills.beetles.count;
     step(60);
     const called = B.guards.length, beetles = B.guards.every((g) => g.type === 'beetle'), up = B.shielded && B.field.visible;
     // the dome stands out round the booth: past its sides, its front and its top (not hidden inside it)
@@ -41,7 +41,7 @@ act4('its-beetles-hold-up-a-force-field-until-they-die', {
     const hurt = B.hp === hp0 - 50;
     B.clock = 95.5; step(60);
     const again = B.guards.length;
-    return ok(count === 2 && called === count && beetles && up && covers && bounced && down && hurt && again === count, { count, called, beetles, up, covers, bounced, down, hurt, again });
+    return ok(count === 2 && called === count && beetles && up && covers && bounced && down && hurt && again === count && cues.filter((c) => /break its shield/.test(c.text)).length === 1, { cues, count, called, beetles, up, covers, bounced, down, hurt, again });
   },
 });
 
@@ -142,7 +142,7 @@ act4('beating-the-encore-plays-its-defeat', {
 });
 
 act4('winning-swims-the-jelly-home-then-the-score', {
-  about: 'After the Encore\'s defeat the run is won with no more metamorphosis: "Congratulations! You won!" over the sea, where the player\'s own jelly swims away home; Continue (after a moment) brings up the score, with its name box and Submit because it makes the top 10, and it posts to the Leaderboard as a win.',
+  about: 'After the Encore\'s defeat the run is won with no more metamorphosis: one "You won!" heading over the sea, where the player\'s own jelly swims away home; Continue (after a moment) brings up the score, with its name box and Submit because it makes the top 10, and it posts to the Leaderboard as a win.',
   setup() {},
   async play() {
     const B = encoreFight({ beat: 10 }), { run, menus, APT } = G();
@@ -166,7 +166,7 @@ act4('winning-swims-the-jelly-home-then-the-score', {
     [...modal().querySelectorAll('button')].find((b) => /Submit score/.test(b.textContent))?.click();
     await wait(50);
     menus.close();
-    return ok(/Congratulations/.test(banner) && /You won/.test(banner) && /sea/.test(banner) && sea && waits && swims && ready && /brought the house down/.test(end) && entry && posted?.won,
+    return ok(!banner.includes('Congratulations') && (banner.match(/You won/g) || []).length === 1 && /brought the house down/.test(banner) && sea && waits && swims && ready && /Run complete/.test(end) && !end.includes('brought the house down') && entry && posted?.won,
       { banner: banner.slice(0, 120), sea, waits, swims, ready, end: end.slice(0, 120), entry, posted: !!posted });
   },
 });

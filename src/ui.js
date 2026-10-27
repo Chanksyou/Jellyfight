@@ -153,7 +153,7 @@ export class UI {
   levelUp(level, cards, stats, rerolls, onPick, onReroll) {
     this._gen++;
     const render = () => {
-      this.modal.innerHTML = `<div><h2>Level ${level}!</h2><p class="sub">Your polyp grows. Pick one.</p>
+      this.modal.innerHTML = `<div><h2>Level ${level}!</h2><p class="sub">Choose an upgrade.</p>
         <div class="jf-cards">${cards.map((c, i) => `
           <button class="jf-card" data-i="${i}" style="--c:${c.rarity.color}">
             <span class="key">${i + 1}</span>
@@ -242,7 +242,7 @@ export class UI {
   // cls: a class for this dialog (the leaderboard's 'jf-board' lays its rows out big)
   message(title, sub, rows, buttons, cls = '') {
     this._gen++;
-    this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2><p class="sub">${sub}</p>
+    this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`).join('')}</div></div>`;
     this.modal.hidden = false;
@@ -259,12 +259,12 @@ export class UI {
 
   // The Treasure book (run.showBook): sections [{ title, items: [{ icon, name, text, color?, found }] }].
   // Tap a found one to read what it does; unfound ones stay a ?
-  book(title, sub, sections, onBack) {
+  book(title, sections, onBack) {
     this._gen++;
     const cell = (it) => (it.found
       ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || '#7ff6ee'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
       : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
-    this.modal.innerHTML = `<div class="jf-book"><h2>${title}</h2><p class="sub">${sub}</p><p class="say" aria-live="polite">Tap one you've found to read it.</p>
+    this.modal.innerHTML = `<div class="jf-book"><h2>${title}</h2><p class="say" aria-live="polite">Select a discovery to read more.</p>
       ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
       <div class="btns"><button class="go" data-back>Back</button></div></div>`;
     this.modal.hidden = false;
@@ -280,8 +280,9 @@ export class UI {
   // what's typed into the dialog's named inputs: { name: value }
   values() { return Object.fromEntries([...this.modal.querySelectorAll('input[name]')].map((i) => [i.name, i.value])); }
 
-  treasure(t) {
-    this.pop.innerHTML = `<span class="ic">${t.icon}</span><div><b>${t.name}</b><span>${t.text}</span></div>`;
+  treasure(t, count = 1) {
+    const amount = t.levels?.length > 1 ? `Level ${count}` : t.stack > 1 ? `×${count}` : '';
+    this.pop.innerHTML = `<span class="ic">${t.icon}</span><div><b>${t.name}</b>${amount ? `<span>${amount}</span>` : ''}</div>`;
     this.pop.hidden = false;
     clearTimeout(this._popT);
     this._popT = setTimeout(() => { this.pop.hidden = true; }, 3600);

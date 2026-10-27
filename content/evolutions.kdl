@@ -14,7 +14,7 @@ evolution "cinder" name="Cinder Jelly" icon="🔥" text="Flaming feet burn the g
     adorn "flaming-feet"
 }
 
-evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles return to you, hitting each bug once on the way out and once coming back. Move to guide their return path. Fire rate is 20% lower." {
+evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
     rebound
     stat fire-rate -20 percent=#true
     adorn "rebound-bands"
@@ -42,7 +42,7 @@ evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you an
     stat health -20 percent=#true
     adorn "sail"
 }
-evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once each act, a killing blow turns you back into a polyp for 5 s (nothing can hurt you, but you can't attack), then you bloom back with full Health. -25% max Health, and no Health regen." {
+evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, survive a killing blow: become a polyp, invulnerable and unable to attack for 5 s, then recover full Health. -25% max Health. No Health regen." {
     rebirth time=5
     stat health -25 percent=#true
     no-regen

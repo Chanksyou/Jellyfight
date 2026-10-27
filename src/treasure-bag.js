@@ -22,12 +22,12 @@ function growing(run, id) {
   const G = M.growth.filter((g) => g.owner === id);
   if (G.length) {
     const g0 = G[0], total = G.reduce((s, g) => s + (run.growTotal[g.key] || 0), 0);
-    out.push({ text: `So far: ${plus(total, g0.percent, g0.stat)}` });
     const live = G.filter((g) => g.cap == null || (run.growTotal[g.key] || 0) < g.cap);
     if (g0.cap != null) {
       const most = g0.cap * G.length;
-      out.push(live.length ? { text: `${num(total)}${g0.percent ? '%' : ''} of the most it can give, ${plus(most, g0.percent, g0.stat)}`, k: total / most } : { text: 'Maxed out', k: 1 });
+      out.push({ text: `+${num(total)} / ${plus(most, g0.percent, g0.stat)}${live.length ? '' : ' (max)'}`, k: total / most });
     } else {
+      out.push({ text: `So far: ${plus(total, g0.percent, g0.stat)}` });
       // copies count their own kills: the one nearest its next step
       const g = live.reduce((a, b) => ((run.growCount[b.key] || 0) > (run.growCount[a.key] || 0) ? b : a));
       const have = run.growCount[g.key] || 0;
@@ -61,8 +61,8 @@ export function bagRows(run) {
     if (top > 1) {
       const at = Math.min(n, top);
       tag = `Level ${at}${at === top ? ' (max)' : ''}`;
-      if (at > 1) text += ` ${t.levelText[at - 1]}`;
-      if (at < top) lines.push({ text: `Take it again for ${t.levelText[at]}`, dim: true });
+      text = t.levelText[at - 1];
+      if (at < top) lines.push({ text: `Next level: ${t.levelText[at]}`, dim: true });
     }
     rows.push({ id, icon: t.icon, name: t.name, tag, text, lines });
   }

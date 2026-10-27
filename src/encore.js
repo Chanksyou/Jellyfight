@@ -197,7 +197,7 @@ export class Encore {
       if (e) { this.guards.push(e); this.fx.puff?.(p, 0x6fd2ff, 0.08, 0.5); }
     }
     this.shieldT = 0;
-    bus.emit('toast', { text: 'The Encore calls its beetles! Its force field holds while they live.' });
+    if (n === 0) bus.emit('toast', { text: 'Beat the beetles to break its shield.' });
   }
 
   update(dt, player) {
@@ -218,7 +218,6 @@ export class Encore {
       this.disco.update(beat, player);
       this.pulses.update(beat, player, dt);
       this.summon(beat);
-      if (this.opening && !this.openSaid) { this.openSaid = true; bus.emit('toast', { text: `The Encore warms up behind its force field: it can't be hurt for ${Math.round(this.guardT)} s!` }); }
       if (this.guardT > 0) { this.guardT = Math.max(0, this.guardT - dt); if (!this.guardT) this.opening = false; }   // warming up or rebooting: counts down while its set plays
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }
@@ -275,7 +274,6 @@ export class Encore {
       for (const h of M.heads) h.rotation.z = 0; this.cut = null; M.root.position.copy(this.home); this.floor.lit = true;
       // it reboots behind its force field: it can't be hurt for a while (bosses.kdl meltdown `guard`)
       this.guardT = this.def.skills.meltdown?.guard ?? 10; this.opening = false;
-      if (this.guardT > 0) bus.emit('toast', { text: `The Encore reboots behind its force field: it can't be hurt for ${Math.round(this.guardT)} s!` });
     }
   }
 
