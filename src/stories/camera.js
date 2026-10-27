@@ -3,6 +3,23 @@
 import * as THREE from 'three';
 import { G, cameraSpots, cameraStory, fresh, ok, step, story, stub, tp } from './kit.js';
 
+story('camera/desktop-starts-fully-zoomed-out', {
+  about: 'Desktop gameplay starts at the furthest allowed camera distance; the wheel still zooms in and stops at the same outer limit.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, player } = G(), start = tpc.distance;
+    try {
+      const mouse = { x: 0, y: 0, wheel: -1 };
+      tpc.update(1 / 60, mouse, player.position);
+      const zoomedIn = tpc.distance < start;
+      mouse.wheel = 100;
+      tpc.update(1 / 60, mouse, player.position);
+      return ok(start === tpc.cfg.maxDistance && zoomedIn && tpc.distance === start,
+        { start, max: tpc.cfg.maxDistance, zoomedIn, end: tpc.distance });
+    } finally { tpc.distance = start; }
+  },
+});
+
 // --- the camera (camera.js): up against walls and furniture it looks over them instead of
 story('camera/fixed-view-fades-what-blocks', cameraStory([], 'Media_console_6'));
 story('camera/fade-disposes-its-clones', {

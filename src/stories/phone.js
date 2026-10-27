@@ -2,6 +2,15 @@
 
 import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
+phone('camera-starts-fully-zoomed-out', {
+  about: 'Phones start at the same fully zoomed-out 0.9 m camera distance as desktop.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc } = G();
+    return ok(tpc.distance === 0.9 && tpc.distance === tpc.cfg.maxDistance, { distance: tpc.distance });
+  },
+});
+
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 phone('shark-fight-keeps-the-boss-below-the-bar', {
   act: 3,
