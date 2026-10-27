@@ -297,8 +297,8 @@ for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(cons
     const stopped=response==='kill'?B.dying&&!B.pools.length&&!B.tornadoes.length&&!B.shots.length&&!B.warning:B.stunT>0&&B.phase==='rest'&&!B.warning;
     return ok(answered&&stopped,{answered,stopped,phase:B.phase,pools:B.pools.length,shots:B.shots.length});},
 });
-act3('shark-health-as-the-clogs',{
-  about:'The replacement preserves Act 3 boss Health scaling.',setup(){},play(){const B=sharkFight();return ok(B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{hp:B.hp});},
+act3('shark-health-fourfold',{
+  about:'The shark has four times its previous Health: 6000 base and 9600 after Act 3 scaling.',setup(){},play(){const B=sharkFight();return ok(CONTENT.bosses.shark.hp===6000&&B.maxHp===9600&&B.hp===B.maxHp&&B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{base:CONTENT.bosses.shark.hp,hp:B.hp,maxHp:B.maxHp});},
 });
 act3('shark-force-field-is-invisible-and-the-camera-stays-level',{
   about:'The bed arena\'s force field is invisible (look.css --boss-force-field 0) but still solid and still rises with the fight: with the jelly backed against each wall and the camera facing out past it, the camera keeps the fight view\'s own angle and distance (it doesn\'t tip up), so it may stand behind the field, and no field is ever drawn.',

@@ -47,7 +47,7 @@ boss "clog" name="The Clog" hp=1500 contact=3 {
 // Act 3 replacement: finite-height melee can be jumped, landing circles can be dodged.
 // Pools are capped and expire, keeping a route open on the small bed arena.
 // (v273: it moves and its attacks travel 50% faster than v268; windups and warning times are unchanged)
-boss "shark" name="The Great White One" hp=1500 contact=0 {
+boss "shark" name="The Great White One" hp=6000 contact=0 {
     arrival barrier=1.1 breach=1.1 flood=1.3 depth=0.01 slow=0.15
     motion speed=0.24 rise=0.7 rest=1.15 punish=2.4 knock=0.55
     bite windup=0.75 active=0.13 radius=0.16 height=0.14 reach=0.24 dmg=4

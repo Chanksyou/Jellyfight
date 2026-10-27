@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v299 quadruples The Great White One's Health: 1500 to 6000 base, or 2400 to 9600 in Act 3 after its existing 1.6x boss scaling.
+
 v298 reduces Act 3's regular bug spawn multiplier from 0.85 to 0.70 (about 18% fewer spawns), lowering its regular-spawn alive cap from 17 to 14. Wasp nests and boss summons keep their existing settings.
 
 v297 applies the owner's 38 treasure tuning values: stronger Element upgrades, wider Rubber Duck, Guitar Pick and Bath Bomb effects, lower Cotton Ball damage and Whale Bath Toy healing, and smaller Sticky Note bonuses at higher levels. Descriptions match the new values.
