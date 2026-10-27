@@ -29,7 +29,7 @@ export const STAGE3 = {
   // you take, 1.4x the XP
   toughness: 3,
   eliteHp: 2.4,                       // the Alligator's, the Bull's and the Coffer's Health: 500 x 2.4 = 1200
-  bossHp: 1.6,                        // the shark's Health as the Clog's: 1500 x 1.6 = 2400
+  bossHp: 1.6,                        // the shark's Health: 6000 x 1.6 = 9600
   power: 2,
   bugs: 0.7,                        // 18% fewer regular spawns than before; at most 14 alive
   xpMult: 1.4,
