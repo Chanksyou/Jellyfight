@@ -1094,3 +1094,21 @@ story('look/tokens-reach-the-game', {
     return ok(LOOK.has('night-fill') && s.environmentIntensity === LOOK.num('night-fill') && s.fog.density === LOOK.num('haze'), { fill: s.environmentIntensity, haze: s.fog.density });
   },
 });
+
+story('words/leap-subtle-warning', {
+  about: 'The lanternfly landing circle stays subtle through crouch and flight, while keeping the damage radius and countdown fill.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('lanternfly', near(0, -.45)); e.leapCd = 0; },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], samples = [];
+    e.leapAt = e.pos.clone();
+    for (const state of ['crouch', 'leap']) for (const k of [0, .5, 1]) {
+      e.state = state; e.leapK = k;
+      enemies.drawLeaps(k);
+      const m = enemies.leapMarks[0];
+      samples.push({ opacity: m.material.opacity, radius: m.scale.x, progress: m.material.progress, visible: m.visible });
+    }
+    e.state = 'rest'; enemies.drawLeaps(0);
+    return ok(samples.every(s => s.visible && s.opacity >= .24 && s.opacity <= .28 + 1e-9 && s.radius === .2)
+      && samples.map(s => s.progress).join() === '0,0.25,0.5,0.5,0.75,1' && !enemies.leapMarks[0].visible, { samples, hiddenAfter: !enemies.leapMarks[0].visible });
+  },
+});

@@ -1029,7 +1029,7 @@ export class Enemies {
       M.position.copy(e.leapAt).setY(e.leapAt.y + 0.003);
       M.scale.setScalar(r);
       M.material.progress = k;
-      M.material.opacity = 0.85 + 0.15 * Math.abs(Math.sin(t * (e.state === 'leap' ? 24 : 12)));
+      M.material.opacity = LOOK.num('leap-warning-opacity', 0.24) + LOOK.num('leap-warning-pulse', 0.04) * Math.abs(Math.sin(t * (e.state === 'leap' ? 24 : 12)));
       M.visible = true;
       n++;
     }
