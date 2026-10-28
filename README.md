@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v306 softens the dragonfly's charge sound. The whine that climbed to a shrill 1.9–2.9 kHz is now a low hum, two soft tones an octave apart rising from 75–150 Hz to 240–480 Hz under a muffling filter, with a slower flutter. A swarm no longer stacks into noise: at most three hums play at once, the second and third quieter, and any more dragonflies charge silently (their beam still fires). Tune it in `beamCharge` in src/sfx.js.
+
 v302 gives the Clog its acid duck phases and drops its flood and ladybug swarm. Four rubber ducks sit round the middle of the tub floor. At 75% and again at 25% of its Health, the Clog fills the tub half full of green acid (floating in it costs 2 Health a second) and the ducks bob up on it. From the head of the tub, where it can't be hurt, it lobs a hair chunk at three of the four ducks every 1.5 s, eight times: get on the spared duck. Then the acid drains and the fight goes on. The second time, the acid swirls: the ducks circle the middle, carrying you, and each chunk lands where its duck will be. Tune it with `acid` and `ducks` in content/bosses.kdl.
 
 v300 softens the lanternfly's landing warning: opacity now pulses gently between 24% and 28%, down from 85–100%. Its landing radius, fill timing and damage are unchanged. Tune it with --leap-warning-opacity and --leap-warning-pulse in content/look.css.

@@ -192,6 +192,7 @@ export function calm() {
   daze.from = daze.until = daze.back = 0;
   if (deep) { deep.frequency.cancelScheduledValues(ctx.currentTime); deep.frequency.value = 20000; }
 }
+const beamVoices = new Set(), BEAM_VOICES = 3, BEAM_LOUD = [1, 0.6, 0.4];   // the dragonflies' charge hums playing now
 const jitter = (k = 0.08) => 1 + (Math.random() - 0.5) * 2 * k;
 function gap(name, ms) {
   const now = performance.now();
@@ -952,27 +953,36 @@ export const sfx = {
     noise(260 * j, 0.8, dur, 0.22, 'lowpass', 0, 520 * j); tone('sine', 90 * j, 60, dur, 0.12);
   },
   // the dragonfly: a dry papery whirr as it darts, a sharper one as it dodges a hit, the beam's
-  // charge (a whine climbing for the whole charge, thickening as it goes: the only warning) and
-  // the crack of the beam itself. beamCharge returns a function that cuts it off.
+  // charge (a low hum rising through the charge, swelling as it goes: the only warning) and
+  // the crack of the beam itself. beamCharge returns a function that cuts it off. The hum is two
+  // soft tones an octave apart under a lowpass, so a swarm drones instead of shrieking; at most
+  // BEAM_VOICES hum at once, each extra one quieter (a dragonfly past that charges silently).
   zip() { if (!ready() || !gap('zip', 120)) return; const j = jitter(0.15); noise(1800 * j, 2, 0.08, 0.05, 'bandpass', 0, 3400 * j); },
   evade() { if (!ready()) return; noise(1400, 1.5, 0.14, 0.12, 'bandpass', 0, 5200); tone('triangle', 900, 1600, 0.08, 0.03); },
   beamCharge(dur) {
     if (!ready()) return null;
-    const t = now(), k = pitch(), g = ctx.createGain(), oscs = [];
-    for (const [type, f0, f1, d] of [['sine', 220, 1900, 0], ['sawtooth', 110, 950, 4], ['square', 330, 2850, -6]]) {
-      const o = ctx.createOscillator();
-      o.type = type; o.detune.value = d;
+    const t = now();
+    for (const v of beamVoices) if (v.until <= t) beamVoices.delete(v);
+    if (beamVoices.size >= BEAM_VOICES) return null;
+    const k = pitch() * jitter(0.04), g = ctx.createGain(), lp = ctx.createBiquadFilter(), oscs = [];
+    const peak = 0.07 * BEAM_LOUD[beamVoices.size];
+    lp.type = 'lowpass'; lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(600 * k, t); lp.frequency.exponentialRampToValueAtTime(1200 * k, t + dur);
+    for (const [type, f0, f1, v] of [['sine', 150, 480, 1], ['triangle', 75, 240, 0.5]]) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = type; og.gain.value = v;
       o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
-      const og = ctx.createGain(); og.gain.value = type === 'sine' ? 1 : 0.25;
-      o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
+      o.connect(og).connect(lp); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
     }
     const trem = ctx.createOscillator(), tg = ctx.createGain();            // a flutter that speeds up
-    trem.frequency.setValueAtTime(6, t); trem.frequency.exponentialRampToValueAtTime(38, t + dur);
-    tg.gain.value = 0.012; trem.connect(tg).connect(g.gain); trem.start(t); trem.stop(t + dur + 0.05); oscs.push(trem);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.02, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.07, t + dur);
+    trem.frequency.setValueAtTime(5, t); trem.frequency.exponentialRampToValueAtTime(22, t + dur);
+    tg.gain.value = peak * 0.15; trem.connect(tg).connect(g.gain); trem.start(t); trem.stop(t + dur + 0.05); oscs.push(trem);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * 0.3, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(peak, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
-    g.connect(master);
-    return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
+    lp.connect(g).connect(master);
+    const voice = { until: t + dur + 0.05 };
+    beamVoices.add(voice);
+    return () => { beamVoices.delete(voice); const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
   },
   beamFire() {
     if (!ready() || !gap('beamFire', 60)) return;

@@ -8,7 +8,7 @@ import { CONTENT, compileEnemies } from '../content.js';
 import { TREASURES, STAT_INFO, EVOLUTIONS } from '../stats.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
-import { sfx } from '../sfx.js';
+import { sfx, unlock as unlockAudio, audio } from '../sfx.js';
 import { SPECIES, buildCharacter, normalizeLook } from '../character.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
@@ -303,6 +303,30 @@ story('words/zip', {
     turn /= Math.max(1, d.length - 1);
     // it closes in (by zigzags, so how close it is at any one moment varies: the closest it came)
     return ok(d.length >= 8 && turn > 0.6 && notAtYou >= n / 3 && still / frames > 0.25 && closest < start - 0.25, { darts: d.length, turn: +turn.toFixed(2), notAtYou: +(notAtYou / Math.max(1, n)).toFixed(2), still: +(still / frames).toFixed(2), start: +start.toFixed(2), closest: +closest.toFixed(2) });
+  },
+});
+story('words/charge-beam-sound', {
+  about: 'The dragonfly\'s charge hum stays low (no tone above 600 Hz) and a swarm can\'t stack it into noise: at most 3 hum at once, and a slot frees when one is cut off.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  async play() {
+    unlockAudio();
+    await new Promise((r) => setTimeout(r, 200));
+    const { ctx } = audio() || {};
+    if (!ctx || ctx.state !== 'running') return ok(false, { audio: ctx?.state ?? 'none' });
+    let top = 0;
+    const make = ctx.createOscillator;
+    ctx.createOscillator = function () {
+      const o = make.call(this), ramp = o.frequency.exponentialRampToValueAtTime.bind(o.frequency);
+      o.frequency.exponentialRampToValueAtTime = (f, t) => { top = Math.max(top, f); return ramp(f, t); };
+      return o;
+    };
+    const hums = Array.from({ length: 6 }, () => sfx.beamCharge(1));
+    ctx.createOscillator = make;
+    const playing = hums.filter(Boolean).length;
+    hums[0]?.();
+    const again = sfx.beamCharge(1);
+    for (const h of [...hums, again]) h?.();
+    return ok(playing === 3 && !!again && top > 0 && top <= 600, { playing, again: !!again, top: Math.round(top) });
   },
 });
 const S2 = new THREE.Vector3();
