@@ -755,6 +755,7 @@ async function warmUp() {
   temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
   temp[3].mesh.traverse((o) => { if (o.isMesh) o.material = fx.acid.gooMat; });   // an acid-finished bug melting (acid-looks.js)
   const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });   // this act's boss
+  warmBoss.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

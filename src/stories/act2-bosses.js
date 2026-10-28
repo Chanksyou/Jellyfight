@@ -286,41 +286,97 @@ act2('clog-roll', {
     return ok(lane && rolled && hit?.amount === 4, { lane, rolled, hit: hit?.amount });
   },
 });
-act2('clog-flood', {
-  about: 'Fill and drain: the spout gushes and the tub fills, then it drains all at once and the whirlpool drags you to the drain, where the Clog sits waiting (it hurts).',
+// the jelly floating in the acid beside duck i (`out`: m further from the middle than the duck), or
+// on its back, held still
+function byDuck(B, i, onBack) {
+  const player = holdJelly(), d = B.ducks[i].g.position;
+  if (onBack) player.position.set(d.x, B.ducks[i].y + B.duckTop, d.z);
+  else player.position.set(B.mid.x + (d.x - B.mid.x) * 1.5, B.acidFloor.position.y, B.mid.z + (d.z - B.mid.z) * 1.5);
+  player.grounded = true;
+  return player;
+}
+// start an acid phase (the first at 75%, the second at 25%) and step until the tub is full
+function acidUp(B, second = false) {
+  B.acidDone = second ? 1 : 0;
+  B.hp = B.maxHp * (second ? 0.24 : 0.74);
+  step(60 * 5, () => B.acid?.phase === 'volley');
+  return B.acid;
+}
+act2('clog-acid-floats-the-ducks', {
+  about: 'At 75% the Clog fills the tub half full of green acid: the four rubber ducks on the tub floor bob up on it, it moves to the head of the tub where it can\'t be hurt, and floating in the acid costs the jelly 2 Health a second.',
   setup() {},
   play() {
-    const B = clogFight(), { player } = G(), log = record('damage_taken');
-    clogAttack(B, 'flood', [1.3, 0.16, 7.53]);
-    let filled = 0, poured = false;
-    step(60 * 2.2, () => { filled = Math.max(filled, B.waterY - B.floor); if (B.stream.visible) poured = true; });
-    const d0 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
-    step(60 * 1.6);
-    const d1 = Math.hypot(player.position.x - B.drain.x, player.position.z - B.drain.z);
-    step(60 * 6.5);   // flood time is 8 s now: the tub stays full far longer before it drains
-    const drained = !B.water.visible, hurt = log.some((d) => d.source === 'boss');   // dragged into the drain (and the hairball sitting on it)
-    return ok(poured && filled > 0.08 && d1 < d0 - 0.3 && drained && hurt, { poured, filled: +filled.toFixed(3), d0: +d0.toFixed(2), d1: +d1.toFixed(2), drained, hurt });
+    const B = clogFight(), { run } = G();
+    const before = B.ducks.map((d) => +d.g.position.y.toFixed(3)), onFloor = before.every((y) => Math.abs(y - B.floor) < 0.002);
+    const A = acidUp(B), deep = +(B.acidY - B.floor).toFixed(3), floated = B.ducks.every((d) => d.g.position.y > B.floor + 0.15);
+    const head = B.position.x < B.arena.arenaMin[0] + 0.2;
+    const hp = B.hp; B.damage(100);
+    const shielded = B.hp === hp && B.shielded;
+    B.chunks.forEach((c) => { c.on = false; }); A.next = 99;                 // no chunks: just the acid
+    byDuck(B, 0, false);
+    const h0 = run.health; step(60 * 2); const perSecond = +((h0 - run.health) / 2).toFixed(2);
+    return ok(onFloor && A && deep >= 0.19 && floated && head && shielded && Math.abs(perSecond - 2) < 0.15, { onFloor, deep, floated, at: r3(B.position), shielded, perSecond });
   },
 });
-act2('clog-ladybug-swarm-once', {
-  about: 'The first time the Clog drops below 70% it roars, four ladybugs burst out of its hair, and it hides in the drain (it can\'t be hurt) until they\'re dead. It only happens once.',
+act2('clog-acid-spares-one-duck', {
+  about: 'Every 1.5 s the Clog lobs a hair chunk at three of the four ducks, never the same duck spared twice running, each duck showing its circle and half sphere till the chunk lands; a jelly on the spared duck is safe, one on a struck duck is hit and thrown off. After 8 rounds the acid drains and it can be hurt again.',
   setup() {},
   play() {
-    const B = clogFight(), { enemies } = G();
-    tp(1.2, 0.16, 7.53, 0);
-    B.hp = B.maxHp * 0.69;
-    step(60 * 3);
-    const bugs = B.guards.length, hp = B.hp;
-    B.damage(100);
-    const immune = B.hp === hp && B.shielded;
-    for (const e of [...B.guards]) enemies.applyDamage(e, 1e5);
-    step(60 * 3);
-    B.damage(50);
-    const hurtAgain = B.hp === hp - 50, back = B.state !== 'swarm' && B.sink === 0;
-    B.hp = B.maxHp * 0.5;
-    step(60 * 2);
-    const again = B.guards.length;
-    return ok(bugs === 4 && immune && hurtAgain && back && again === 0, { bugs, immune, hurtAgain, back, again });
+    const B = clogFight(), { run } = G(), log = record('damage_taken');
+    const A = acidUp(B);
+    const rounds = [];
+    let player = null, wasRound = 0, hitOnSafe = 0, hitOnStruck = 0;
+    step(60 * 16, () => {
+      if (A.round !== wasRound) {
+        wasRound = A.round;
+        const aimed = B.chunks.filter((c) => c.on).map((c) => c.duck);
+        rounds.push({ safe: A.safe, aimed, warned: B.chunks.every((c) => c.tele.visible && c.vol.visible) });
+        // the even rounds on the spared duck, the odd ones on a struck one
+        const on = A.round % 2 ? aimed[0] : A.safe;
+        player = byDuck(B, on, true);
+        log.length = 0;
+      }
+      if (player) {
+        const d = B.ducks.find((q) => Math.hypot(q.g.position.x - player.position.x, q.g.position.z - player.position.z) < 0.01);
+        if (d) player.position.y = d.y + B.duckTop;                     // ride its bob
+        const hit = log.some((x) => x.source === 'boss' && !x.drain);
+        if (hit && A.round % 2) { hitOnStruck++; player = null; } else if (hit) { hitOnSafe++; player = null; }
+      }
+      return B.state === 'chase';
+    });
+    const distinct = rounds.every((r) => new Set(r.aimed).size === 3 && !r.aimed.includes(r.safe));
+    const changes = rounds.every((r, k) => !k || r.safe !== rounds[k - 1].safe);
+    const hp = B.hp; B.damage(50);
+    const ducksDown = B.ducks.every((d) => Math.abs(d.g.position.y - B.floor) < 0.002);
+    return ok(rounds.length === 8 && distinct && changes && rounds.every((r) => r.warned) && hitOnSafe === 0 && hitOnStruck >= 3 && B.hp === hp - 50 && ducksDown && !B.water.visible,
+      { rounds: rounds.length, distinct, changes, hitOnSafe, hitOnStruck, hurtAfter: hp - B.hp, ducksDown });
+  },
+});
+act2('clog-acid-whirlpool-leads-the-ducks', {
+  about: 'The second acid phase, at 25%, swirls: the ducks circle the middle of the tub evenly (a jelly on one is carried round with it), and each hair chunk lands right where its duck has got to.',
+  setup() {},
+  play() {
+    const B = clogFight(), A = acidUp(B, true);
+    const a0 = B.duckAng, p0 = B.ducks.map((d) => d.g.position.clone());
+    const gaps = () => B.ducks.map((d, i) => d.g.position.distanceTo(B.ducks[(i + 1) % 4].g.position));
+    let miss = 0, landed = 0, carried = 0;
+    const watch = B.chunks.map(() => null);
+    byDuck(B, 0, true);
+    step(60 * 4, () => {
+      B.chunks.forEach((c, k) => {
+        if (c.on) watch[k] = c;
+        else if (watch[k]) { const d = B.ducks[watch[k].duck].g.position; miss = Math.max(miss, Math.hypot(c.to.x - d.x, c.to.z - d.z)); landed++; watch[k] = null; }
+      });
+    });
+    const turned = B.duckAng - a0, even = Math.max(...gaps()) - Math.min(...gaps());
+    // carried: real movement for a jelly on duck 0's back, its push
+    B.chunks.forEach((c) => { c.on = false; }); A.next = 99;
+    const P = G().player; delete P.update; P.position.copy(B.ducks[0].g.position).setY(B.ducks[0].y + B.duckTop); P.grounded = true; P.velocity.set(0, 0, 0);
+    const startAt = P.position.clone(); step(60);
+    carried = +P.position.distanceTo(startAt).toFixed(3);
+    const stillOn = Math.hypot(P.position.x - B.ducks[0].g.position.x, P.position.z - B.ducks[0].g.position.z) < B.duckL * 0.34 + P.cfg.radius;
+    return ok(A.whirl > 0 && turned > 0.5 && even < 0.005 && landed >= 3 && miss < 0.01 && carried > 0.02 && stillOn,
+      { turned: +turned.toFixed(2), even: +even.toFixed(4), landed, miss: +miss.toFixed(4), carried, stillOn, moved: +p0[0].distanceTo(B.ducks[0].g.position).toFixed(3) });
   },
 });
 act2('clog-angry-spray', {
@@ -329,7 +385,7 @@ act2('clog-angry-spray', {
   play() {
     const B = clogFight();
     tp(1.2, 0.16, 7.53, 0);
-    B.swarmed = true;
+    B.acidDone = 1;
     B.hp = B.maxHp * 0.4;
     clogAttack(B, 'spray');                                             // next in its angry order
     // every glob it sprays (they end on the tub's walls, so count them as they're fired)
@@ -353,7 +409,7 @@ act2('clog-lash-warning-is-a-low-lane', {
   play() {
     const B = clogFight(), out = {};
     for (const angry of [false, true]) {
-      if (angry) { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+      if (angry) { B.acidDone = 1; B.hp = B.maxHp * 0.4; }
       clogAgain(B, 'lash', 0.62);
       step(20, () => B.state === 'lash' && clogWarnings().volume.length);
       step(10);
@@ -439,7 +495,7 @@ act2('clog-spray-low-and-high', {
   setup() {},
   play() {
     const B = clogFight(), hits = bossHits(), out = {};
-    B.swarmed = true; B.hp = B.maxHp * 0.4;
+    B.acidDone = 1; B.hp = B.maxHp * 0.4;
     for (const up of [0, JUMP_FEET]) {
       const player = clogAgain(B, 'spray', 0.75, up);
       B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0;
@@ -474,7 +530,7 @@ for (const attack of ['lash', 'snare', 'roll', 'spray']) {
     setup() {},
     play() {
       const B = clogFight(), { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
-      if (attack === 'spray') { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+      if (attack === 'spray') { B.acidDone = 1; B.hp = B.maxHp * 0.4; }
       clogAgain(B, attack, 0.75);
       if (attack === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
       const showing = () => (attack === 'spray' ? B.shots.length > 3 : clogWarnings().volume.length > 0 && clogWarnings().floor.length > 0);
@@ -620,7 +676,7 @@ act2('feel-clog-spray', {
   setup() {},
   play() {
     const B = clogFight(), hits = bossHits();
-    B.swarmed = true; B.hp = B.maxHp * 0.4;
+    B.acidDone = 1; B.hp = B.maxHp * 0.4;
     const player = clogAgain(B, 'spray', B.drain.x + 0.3), spy = feelSpy(B.fx);
     B.state = 'spray'; B.stateT = 2; B.prevT = 2;
     step(60 * 2, () => hits.length > 0);
@@ -629,14 +685,14 @@ act2('feel-clog-spray', {
     return ok(out.hit === 2 && out.onJelly && out.splats >= 1 && out.feels.includes('impact') && ['clogSpit', 'clogSplat'].every((k) => out.sounds.includes(k)), out);
   },
 });
-act2('feel-clog-flood', {
-  about: "The Clog's flood: pulling the plug flashes and rings at the drain with a hollow thoonk, the Clog heaving and the impact shake; sucked in against it, the jelly is gulped at (a flash and a splash on it every so often); once the bath is gone scum rings are left round the drain (harmless, they fade).",
+act2('feel-clog-acid', {
+  about: "The Clog's acid chunks: each round flashes off its hair as it heaves (a hit shake, a spit and crack); each glowing chunk lands on its duck with a flash, hair bits and a puff of acid, the duck dunked and squeaking (the impact shake); floating in the acid fizzes on the jelly with a hiss; once drained, scum rings are left on the tub floor (harmless, they fade).",
   setup() {},
   play() {
-    const B = clogFight(), drains = record('damage_taken'), player = clogAgain(B, 'flood', B.drain.x), spy = feelSpy(B.fx);
-    step(60 * 9, () => B.state === 'chase');
-    const out = { drained: drains.filter((d) => d.drain).length > 0, plug: spy.near(B.drain.clone().setY(B.floor), 0.12), onJelly: spy.near(bodyOf(player.position), 0.01), ...seen(spy) };
-    return ok(out.drained && out.plug && out.onJelly && out.splats >= 6 && out.feels.includes('impact') && ['clogPlug', 'clogDrain'].every((k) => out.sounds.includes(k)), out);
+    const B = clogFight(), A = acidUp(B), spy = feelSpy(B.fx), player = byDuck(B, 0, false);
+    step(60 * 16, () => B.state === 'chase');
+    const out = { onJelly: spy.near(bodyOf(player.position), 0.03), ...seen(spy) };
+    return ok(A && out.onJelly && out.splats >= 6 && out.feels.includes('impact') && out.feels.includes('hit') && ['clogSpit', 'clogSplat', 'duckSqueak', 'acidSizzle', 'clogDrain'].every((k) => out.sounds.includes(k)), out);
   },
 });
 act2('feel-clog-shed', {

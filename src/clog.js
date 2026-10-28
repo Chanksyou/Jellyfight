@@ -14,14 +14,16 @@
 //             clear of it), then tufts of hair spring up in them: 2 and slowed if you're caught
 //   roll      it spins up while its lane lights up, a lane as tall as the hairball (a jump doesn't
 //             clear it: get out of it), then rolls down it at you: 4
-//   flood     the spout gushes and the tub fills (a ring round the drain fills with it), then it
-//             all drains at once: a whirlpool drags you toward the drain; right by it, it hurts
 //   shed      it shakes off hair tangles that join the fight
 //   spray     (angry) it spins, spraying globs of drain gunk all round in three streams: Shots
 //             alternating floor level and jump height
-//   swarm     once, the first time it drops below 70%: it roars, four ladybugs burst out of its
-//             hair, and it sinks into the drain: it can't be hurt until they're dead (30 s at most)
-// Below 45% health it's angry: faster, shorter pauses, the spray and double lashes.
+//   acid      at 75% and again at 25%: the spout pours green acid until the tub is half full (it
+//             hurts to float in), and the four rubber ducks on the tub floor bob up on it. From the
+//             head of the tub, where it can't be hurt, it lobs a hair chunk at three of the ducks
+//             every 1.5 s (each duck's circle and half sphere fill till it lands): get on the fourth.
+//             Eight rounds, then it drains. The second time the acid swirls and the ducks circle;
+//             each chunk lands where its duck will be.
+// Below 65% health it's angry: faster, shorter pauses, the spray and double lashes.
 // Same interface as the Vacuum: position, r, center(), damage(), dead, shielded, update() -> {push}.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -202,8 +204,25 @@ function buildClog(r) {
   return { root, roll, face, maw, teeth, drips, ropes, eyes };
 }
 
+// a rubber duck `L` m long (bill to tail), sat on y 0 facing +z: one merged mesh, coloured per vertex
+function buildDuck(L) {
+  const Y = LOOK.color('clog-duck', '#ffd21a'), B = LOOK.color('clog-duck-bill', '#ff7a1a');
+  const ball = (r, sx, sy, sz, c, x, y, z) => paint(new THREE.SphereGeometry(r, 18, 12).scale(sx, sy, sz).translate(x, y, z), c);
+  return mergeGeometries([
+    ball(L * 0.5, 0.78, 0.62, 1, Y, 0, L * 0.3, -L * 0.04),                    // body
+    ball(L * 0.16, 1, 0.9, 1.1, Y, 0, L * 0.48, -L * 0.4).rotateX(0),          // tail, tipped up
+    ball(L * 0.24, 1, 1, 1, Y, 0, L * 0.66, L * 0.24),                         // head
+    ball(L * 0.12, 1.1, 0.42, 1.25, B, 0, L * 0.6, L * 0.47),                  // bill
+    ball(L * 0.035, 1, 1, 0.6, '#141414', L * 0.12, L * 0.73, L * 0.42),       // eyes
+    ball(L * 0.035, 1, 1, 0.6, '#141414', -L * 0.12, L * 0.73, L * 0.42),
+    ball(L * 0.17, 0.4, 0.8, 1.2, Y, L * 0.36, L * 0.34, -L * 0.06),          // wings
+    ball(L * 0.17, 0.4, 0.8, 1.2, Y, -L * 0.36, L * 0.34, -L * 0.06),
+  ]);
+}
+
 // its attacks in the order it takes them, calm and angry (pick); the stories check each one's Warning
-export const ATTACKS = { calm: ['lash', 'pinball', 'snare', 'roll', 'comb', 'flood', 'shed'], angry: ['pinball', 'lash', 'spray', 'comb', 'roll', 'snare', 'flood', 'lash', 'shed'] };
+// (`always`: not a turn: the acid phases come at set points of its Health)
+export const ATTACKS = { calm: ['lash', 'pinball', 'snare', 'roll', 'comb', 'shed'], angry: ['pinball', 'lash', 'spray', 'comb', 'roll', 'snare', 'lash', 'shed'], always: ['acid'] };
 
 export class Clog {
   constructor(scene, enemies, fx, arena, world) {
@@ -226,9 +245,7 @@ export class Clog {
     this.floor = this.drain.y;
     this.shots = [];
     this.tufts = [];
-    this.guards = [];          // the ladybugs it let loose (the swarm): it's in the drain while they live
-    this.swarmed = false;
-    this.sink = 0;             // 0 up, 1 down in the drain
+    this.sink = 0;             // 0 up, 1 down in the drain (as it dies)
 
     const M = buildClog(this.r);
     Object.assign(this, { model: M, body: M.root });
@@ -241,7 +258,6 @@ export class Clog {
     const tele = (shape, geo) => { const m = new THREE.Mesh(geo, new TeleMaterial(hostile('clog'), shape)); m.material.opacity = 0; m.renderOrder = 3; m.visible = false; scene.add(m); return m; };
     const strip = () => new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
     this.lines = [tele('strip', strip()), tele('strip', strip())];
-    this.swirl = tele('circle', new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2));
     this.snares = [0, 1, 2].map(() => tele('circle', new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)));
     // over them, the space each attack fills (vfx.js volumes), shown and filled with its floor
     // shape (syncVolumes): the lash's low lane (3 cm: jump it), the roll's lane as tall as the
@@ -280,17 +296,25 @@ export class Clog {
     this.grate = new THREE.Mesh(new THREE.CircleGeometry(0.035, 24).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.4 }));
     this.grate.position.copy(this.drain).setY(this.floor + 0.0015);
     scene.add(this.grate);
-    // the bath water (flood): a sheet across the tub that rises and drains, the stream from the
-    // spout, and a whirlpool spiral over the drain while it drains
+    // the acid (acid phases): a green sheet across the tub that rises and drains, the stream from the
+    // spout, and a whirlpool spiral over the middle while it swirls. Under the sheet, an unseen floor
+    // you float on, a little below its top so the jelly wades in it (added to the world on the first
+    // tick, so the shader warm-up's copy of the Clog never leaves one behind)
     const a = arena;
-    this.waterY = this.floor;
-    this.water = new THREE.Mesh(new THREE.PlaneGeometry(a.arenaMax[0] - a.arenaMin[0], a.arenaMax[2] - a.arenaMin[2]).rotateX(-Math.PI / 2),
-      new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, clearcoat: 1, emissive: 0x2a6a8a, emissiveIntensity: 0.25, depthWrite: false }));
-    this.water.position.set((a.arenaMin[0] + a.arenaMax[0]) / 2, this.floor, (a.arenaMin[2] + a.arenaMax[2]) / 2);
+    this.mid = V((a.arenaMin[0] + a.arenaMax[0]) / 2, this.floor, (a.arenaMin[2] + a.arenaMax[2]) / 2);
+    this.acidY = this.floor;
+    const sheet = () => new THREE.PlaneGeometry(a.arenaMax[0] - a.arenaMin[0], a.arenaMax[2] - a.arenaMin[2]).rotateX(-Math.PI / 2);
+    this.water = new THREE.Mesh(sheet(), new THREE.MeshPhysicalMaterial({ color: LOOK.color('clog-acid', '#9be01a'), transparent: true, opacity: 0.72, roughness: 0.08, metalness: 0.05, clearcoat: 1, emissive: LOOK.color('clog-acid-glow', '#3f8a00'), emissiveIntensity: 0.6, depthWrite: false }));
+    this.water.position.copy(this.mid);
     this.water.renderOrder = 2;
     this.water.visible = false;
     scene.add(this.water);
-    this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshPhysicalMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.6, roughness: 0, emissive: 0x4a8aaa, emissiveIntensity: 0.3, depthWrite: false }));
+    this.acidFloor = new THREE.Mesh(sheet(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+    this.acidFloor.name = 'Acid surface';
+    this.acidFloor.position.copy(this.mid);
+    this.acidFloor.visible = false;
+    scene.add(this.acidFloor);
+    this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshPhysicalMaterial({ color: LOOK.color('clog-acid', '#9be01a'), transparent: true, opacity: 0.75, roughness: 0, emissive: LOOK.color('clog-acid-glow', '#3f8a00'), emissiveIntensity: 0.6, depthWrite: false }));
     this.stream.position.set(0.226, this.floor, 7.48);
     this.stream.visible = false;
     scene.add(this.stream);
@@ -300,26 +324,81 @@ export class Clog {
     sg.translate(128, 128);
     for (let k = 0; k < 4; k++) {
       sg.rotate(Math.PI / 2);
-      sg.strokeStyle = 'rgba(230,248,255,.8)'; sg.lineWidth = 7;
+      sg.strokeStyle = 'rgba(230,255,190,.75)'; sg.lineWidth = 7;
       sg.beginPath();
       for (let t = 0; t < 1; t += 0.02) { const r = 10 + t * 115, th = t * 4.2; sg[t ? 'lineTo' : 'moveTo'](Math.cos(th) * r, Math.sin(th) * r); }
       sg.stroke();
     }
     const st = new THREE.CanvasTexture(spiral);
-    this.whirl = new THREE.Mesh(new THREE.CircleGeometry(0.2, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: st, transparent: true, depthWrite: false, opacity: 0.8 }));
+    this.whirl = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: st, transparent: true, depthWrite: false, opacity: 0.5 }));
     this.whirl.renderOrder = 3;
     this.whirl.visible = false;
     scene.add(this.whirl);
+    // the four rubber ducks, evenly round the middle of the tub floor; each has an unseen round
+    // top you can stand on (its back)
+    const D = this.def.skills.ducks;
+    this.duckL = D.size;
+    this.duckR = Math.min(D.ring, (a.arenaMax[2] - a.arenaMin[2]) / 2 - D.size * 0.6, (a.arenaMax[0] - a.arenaMin[0]) / 2 - D.size * 0.6);
+    this.duckTop = D.size * 0.62;   // its back, over its bottom
+    const duckGeo = buildDuck(D.size), duckMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, emissive: LOOK.color('clog-duck', '#ffd21a'), emissiveIntensity: 0.12 });
+    const backGeo = new THREE.CylinderGeometry(D.size * 0.34, D.size * 0.34, this.duckTop, 16).translate(0, this.duckTop / 2, 0), backMat = new THREE.MeshBasicMaterial({ visible: false });
+    this.duckAng = Math.PI / 4;   // the ring turns by this (the whirlpool)
+    this.ducks = [0, 1, 2, 3].map((i) => {
+      const g = new THREE.Group(), body = new THREE.Mesh(duckGeo, duckMat), back = new THREE.Mesh(backGeo, backMat);
+      back.name = 'Rubber duck';
+      g.add(body, back);
+      scene.add(g);
+      return { i, g, body, back, dip: 0, y: this.floor };
+    });
+    this.placeDucks(0);
+    // the hair chunks it lobs at them: a thick clump of curls each, with its Warning on the duck
+    // (a circle on its back and the half sphere over it)
+    const R = rng(31), clump = [];
+    for (let k = 0; k < 26; k++) { const d = new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).normalize(); clump.push(curl(R, d.clone().multiplyScalar(0.008), new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).normalize(), 0.03, 0.0028, HAIR[(R() * 7) | 0], 6)); }
+    clump.push(paint(new THREE.IcosahedronGeometry(0.014, 1), HAIR[1]));
+    const chunkGeo = mergeGeometries(clump), chunkMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
+    this.chunks = [0, 1, 2].map(() => {
+      const m = new THREE.Mesh(chunkGeo, chunkMat);
+      m.visible = false; scene.add(m);
+      return { m, tele: tele('circle', new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)), vol: vol('dome', 1), on: false, duck: 0, t: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
+    });
+    this.acid = null;
+    this.acidDone = 0;   // how many acid phases it has had
   }
+
+  // the shader warm-up (main.js): show what only an acid phase shows, so it's built up front
+  warm(on) { for (const m of [this.water, this.stream, this.whirl, ...this.chunks.map((c) => c.m)]) m.visible = on; }
+
+  // where duck i sits on the ring (its middle on the water, or the floor), turned by duckAng
+  duckAt(i, out, ang = this.duckAng) {
+    const a = ang + i * Math.PI / 2;
+    return out.set(this.mid.x + Math.cos(a) * this.duckR, 0, this.mid.z + Math.sin(a) * this.duckR);
+  }
+  // the ducks: floating on the acid (half under), or sat on the tub floor; each bobs, and dips when hit
+  placeDucks(dt, spin = 0) {
+    for (const d of this.ducks) {
+      const g = d.g;
+      this.duckAt(d.i, g.position);
+      d.y = Math.max(this.floor, this.acidY - this.duckL * 0.3);
+      d.dip *= Math.exp(-6 * dt);
+      const bob = d.y > this.floor ? Math.sin(this.t * 2.2 + d.i * 1.6) * 0.003 : 0;
+      g.position.y = d.y + bob - d.dip * 0.02;
+      g.rotation.y = spin ? -(this.duckAng + d.i * Math.PI / 2) : Math.atan2(this.drain.x - g.position.x, this.drain.z - g.position.z);   // circling: along the ring; still: it looks at the drain
+      g.rotation.z = bob * 6;
+      g.updateMatrixWorld(true);
+    }
+  }
+  // the top of duck i's back (where a chunk lands), at ring angle `ang`
+  duckBack(i, out, ang) { return this.duckAt(i, out, ang).setY(this.ducks[i].y + this.duckTop); }
 
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position).setY(this.holder.position.y + this.r * (1 - this.sink * 0.9)); }
-  get shielded() { return this.guards.length > 0; }
+  get shielded() { return this.state === 'acid'; }
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
   damage(amount, color = '#fff', feedback = {}) {
     if (this.dead || this.dying || this.rise < 1) return;
-    if (this.shielded) { this.fx.number(this.center().setY(this.floor + 0.05), 'IN THE DRAIN', '#cfe6ff', 12); return; }
+    if (this.shielded) { this.fx.number(this.center().setY(this.holder.position.y + this.r * 2.2), 'SHIELDED', '#cfe6ff', 12); return; }
     this.hp -= amount;
     this.hitPop = 1;
     this.fx.number(this.center().setY(this.holder.position.y + this.r * 2.2), amount, color, 16, feedback);
@@ -334,7 +413,7 @@ export class Clog {
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss', knock: this.knock > 0 });
     if (out.slow) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: out.slow });
-    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'IN THE DRAIN' });
+    bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'SHIELDED: GET ON A DUCK' });
     return { push: out.push };
   }
 
@@ -359,12 +438,13 @@ export class Clog {
 
   tick(dt, player) {
     this.t += dt;
+    if (!this.solid) { this.solid = true; this.world.addCollider(this.acidFloor); for (const d of this.ducks) this.world.addCollider(d.back); }
     const SK = this.def.skills;
     const out = { push: null, hurt: 0, hit: 0, slow: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
-    const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.water, this.stream, this.whirl]) { m.visible = false; } this.swirl.visible = false; this.floodOn = this.plugged = false; this.wave = this.pin = this.comb = null; this.lift = 0; };
+    const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh]) { m.visible = false; } this.wave = this.pin = this.comb = this.hop = null; this.lift = 0; this.struck = this.sprung = false; this.rearing = 0; };
     if (this.dead) {
-      if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.guards.forEach((e) => this.enemies.kill(e, true)); this.guards = []; }
+      if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.endAcid(); }
       this.sink = Math.min(1, this.sink + dt * 0.6);
       this.place(dt);
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 0.8));
@@ -390,8 +470,9 @@ export class Clog {
     let mouth = 0;
     this.stateT -= dt;
 
-    // the swarm: the first time it drops below 70%, whatever it was doing
-    if (!this.swarmed && this.hp < this.maxHp * SK.swarm.at && this.state !== 'swarm') { hide(); this.state = 'swarm'; this.stateT = 1.4; this.swarmT = 0; sfx.clogRoar(); }
+    // the acid phases: at 75%, then 25%, whatever it was doing
+    const acidAt = [SK.acid.first, SK.acid.second][this.acidDone];
+    if (acidAt != null && this.hp < this.maxHp * acidAt && this.state !== 'acid') { hide(); this.startAcid(); }
 
     if (this.state === 'chase') {
       this.bound(dt, P, toP, dist, angry);
@@ -520,71 +601,8 @@ export class Clog {
         }
       }
       if (this.stateT <= 0) { this.sprung = false; hide(); this.toChase(); }
-    } else if (this.state === 'flood') {
-      // Fill and drain: the spout gushes and the tub fills (a ring round the drain fills with it,
-      // showing where the whirlpool will be); then the plug pulls and it all drains at once, a
-      // whirlpool dragging you toward the drain. Right by the drain it hurts.
-      const fill = 1.8, hold = 0.3, drainT = 3.0, el = this.floodMax - this.stateT, W = this.water, s = this.swirl;
-      if (!this.floodOn) { this.floodOn = true; W.visible = true; sfx.clogPour(fill); }
-      this.drive(dt, this.drain, el < fill ? 0.05 : 0.12, 2);
-      s.visible = true;
-      s.position.copy(this.drain).setY(this.waterY + 0.002);
-      s.scale.setScalar(0.32);
-      if (el < fill) {
-        // filling: the stream from the spout, the level rising, the ring filling
-        const u = el / fill;
-        this.waterY = this.floor + 0.004 + u * 0.1;
-        this.stream.visible = true;
-        this.stream.scale.y = Math.max(0.01, 0.633 - this.waterY);
-        this.stream.position.y = this.waterY;
-        s.material.progress = u;
-        s.material.opacity = 0.6 + 0.2 * Math.sin(this.t * 12);
-        if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.waterY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), 0xdff4ff, 0.012, 0.35);
-      } else if (el < fill + hold) {
-        this.stream.visible = false;
-        s.material.progress = 1;
-        s.material.opacity = 1;
-        if (!this.plugged) {
-          this.plugged = true; sfx.clogDrain(drainT); sfx.clogPlug();
-          // the plug pulled: a flash and a ring at the drain, the hairball heaving, the camera kicked
-          this.fx.impact(this._puff.copy(this.drain).setY(this.waterY + 0.01), hostile('clog'), 0.05, 16);
-          this.fx.ring(this._puff, hostile('clog'), 0.2, 0.5);
-          this.squash = Math.max(this.squash, 0.6); this.chomp = 0.5; juice.feel('impact');
-        }
-      } else {
-        // draining: the level drops fast and the whirlpool pulls
-        const u = Math.min(1, (el - fill - hold) / drainT);
-        this.waterY = this.floor + 0.004 + 0.1 * (1 - u) * (1 - u);
-        s.material.progress = 1;
-        s.material.opacity = 0.9;
-        this.whirl.visible = true;
-        this.whirl.position.copy(this.drain).setY(this.waterY + 0.003);
-        this.whirl.rotation.y -= dt * 9;
-        const toDrain = this._toDrain.copy(this.drain).sub(P).setY(0), dd = toDrain.length(), side = this._side.set(-toDrain.z, 0, toDrain.x).normalize();
-        const k = THREE.MathUtils.clamp(1.4 - dd * 0.55, 0.75, 1.15) * (1 - u * 0.25) * (angry ? 1.1 : 1);   // strong from anywhere in the tub: just short of your move speed (0.42) up close
-        out.push = toDrain.normalize().multiplyScalar(SK.flood.pull * k).addScaledVector(side, 0.12 * k);   // in and round, like a real whirlpool
-        if (dd < 0.055 && Math.abs(P.y - this.floor) < 0.08) {
-          out.hurt = SK.flood.dmg * dt;
-          // sucked in against it: a gulp every so often (a flash and a splash on you, it squashes and chomps)
-          if ((this.gulpT = (this.gulpT || 0) - dt) <= 0) {
-            this.gulpT = 0.3;
-            this.fx.impact(this._puff.copy(P).setY(P.y + player.cfg.height * 0.5), hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * 0.7, 8);
-            this.fx.burst(this._puff, ['#dff4ff', '#8a9a5a', '#3b2618'], 5, 0.003, 0.3, this.floor);
-            this.squash = Math.max(this.squash, 0.35); this.chomp = 0.3; sfx.clogSplat();
-          }
-        }
-        this.grate.rotation.y += dt * 14;
-        if (Math.random() < dt * 40) { const a = Math.random() * 6.3, rr = 0.03 + Math.random() * 0.28; this.fx.puff(this._puff.copy(this.drain).add(this._side.set(Math.cos(a) * rr, this.waterY - this.drain.y + 0.006, Math.sin(a) * rr)), 0xdff4ff, 0.008, 0.3); }   // _side's work (out.push) is done by now
-      }
-      W.position.y = this.waterY;
-      W.material.opacity = 0.55;
-      mouth = 0.7;
-      if (this.stateT <= 0) {
-        this.floodOn = this.plugged = false; W.visible = this.whirl.visible = this.stream.visible = s.visible = false;
-        // the bath gone, scum rings are left round the drain a while (harmless: they fade)
-        for (let k = 0; k < 6; k++) { const a = k * 1.05 + Math.random() * 0.5, rr = 0.06 + Math.random() * 0.2; this.fx.splat(this._puff.set(this.drain.x + Math.cos(a) * rr, this.floor, this.drain.z + Math.sin(a) * rr), LOOK.color('clog-scum', '#8a9a7a'), 0.03 + Math.random() * 0.03); }
-        this.toChase();
-      }
+    } else if (this.state === 'acid') {
+      mouth = this.acidPhase(dt, P, player, out);
     } else if (this.state === 'shed') {
       // it shakes, and hair tangles fly off it
       mouth = 0.5;
@@ -630,51 +648,18 @@ export class Clog {
         sfx.clogSpit();
       }
       if (this.stateT <= 0) this.toChase();
-    } else if (this.state === 'swarm') {
-      // a roar, four ladybugs burst out of its hair, and down into the drain it goes
-      this.swarmT += dt;
-      mouth = 1;
-      M.root.position.x = (Math.random() - 0.5) * 0.008;
-      if (!this.guards.length && this.swarmT > 0.8 && !this.swarmed) {
-        this.swarmed = true;
-        for (let k = 0; k < SK.swarm.count; k++) {
-          const a = this.heading + (k / 4) * Math.PI * 2 + Math.PI / 4;
-          const q = this.clampIn(p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(this.r + 0.05))).setY(this.floor + 0.1);
-          const e = this.enemies.spawn('ladybug', q, 1.2);
-          e.spawnT = 0.5;
-          e.stateT = 2.5 + k * 0.7;                                     // they don't all land at once
-          e.vel.set(Math.sin(a) * 0.3, 0.35, Math.cos(a) * 0.3);
-          this.guards.push(e);
-        }
-        this.guardT = SK.swarm.shield;
-        this.fx.impact(this.center(), hostile('missile'), 0.06, 20);
-        this.fx.puff(this.center(), 0x3b2618, 0.09, 0.6);
-        sfx.ladyBuzz();
-      }
-      if (this.swarmed) {
-        // into the drain: only the eyes show; out again once the ladybugs are gone
-        this.drive(dt, this.drain, 0.25, 4);
-        const at = Math.hypot(p.x - this.drain.x, p.z - this.drain.z) < 0.02;
-        this.sink += ((at && this.shielded ? 0.75 : 0) - this.sink) * (1 - Math.exp(-3 * dt));
-        this.guards = this.guards.filter((e) => !e.dead);
-        if ((this.guardT -= dt) <= 0) this.guards = [];
-        if (!this.shielded) {
-          if (!this.surfaced) { this.surfaced = true; sfx.clogRise(); this.fx.puff(this.drain.clone().setY(this.floor + 0.02), 0x8a9a5a, 0.08, 0.6); }
-          if (this.sink < 0.05) { this.sink = 0; M.root.position.x = 0; this.toChase(); }
-        }
-      }
     }
     this.syncVolumes();
+    if (this.state !== 'acid') this.placeDucks(dt);
     this.prevT = this.stateT;
-    if (this.state !== 'swarm' && this.sink > 0) this.sink = Math.max(0, this.sink - dt);
     if (angry && !this.wasAngry) sfx.clogRoar();
     this.wasAngry = angry;
     if ((this.chomp = Math.max(0, (this.chomp || 0) - dt)) > 0) mouth = 1;
     this.place(dt);
     this.animate(dt, mouth);
 
-    // bumping into it knocks you back (not while it's down the drain)
-    if (this.knock <= 0 && this.sink < 0.3 && dist < this.r + 0.02 && Math.abs(P.y - (p.y - this.r * 0.05)) < 0.12) {
+    // bumping into it knocks you back
+    if (this.knock <= 0 && dist < this.r + 0.02 && Math.abs(P.y - (p.y - this.r * 0.05)) < 0.12) {
       const rolling = this.state === 'roll' && this.locked;
       out.hit = Math.max(out.hit, rolling ? SK.roll.dmg : this.def.contact);
       out.slow = Math.max(out.slow, SK.chase.tangle ?? 0.8);                  // a mouthful of hair: tangled for a moment
@@ -701,7 +686,7 @@ export class Clog {
     return out;
   }
 
-  volumes() { return [...this.lashVols, this.rollVol, ...this.snareVols, this.pinVol, this.waveVol, ...this.combVols]; }
+  volumes() { return [...this.lashVols, this.rollVol, ...this.snareVols, this.pinVol, this.waveVol, ...this.combVols]; }   // (the chunks' are their own: acidPhase)
   // each volume shows, sits, turns and fills with the floor Warning it stands over
   syncVolumes() {
     const pair = (v, f, on) => {
@@ -927,6 +912,151 @@ export class Clog {
     return 0.8;
   }
 
+  // An acid phase starts: a roar, the spout pours, and what's in the tub (its tangles) melts away
+  startAcid() {
+    const AC = this.def.skills.acid, a = this.arena;
+    this.acid = { phase: 'rise', t: 0, round: 0, next: 0, safe: -1, whirl: this.acidDone === 1 ? AC.whirl : 0, spin: 0, fizzT: 0 };
+    this.acidDone++;
+    this.state = 'acid'; this.stateT = 99; this.locked = false;
+    this.head = V(a.arenaMin[0] + this.r + 0.04, this.floor, this.mid.z);
+    this.water.visible = this.acidFloor.visible = this.stream.visible = true;
+    sfx.clogRoar(); sfx.clogPour(AC.rise);
+    this.squash = Math.max(this.squash, 0.6); this.chomp = 0.6; juice.feel('impact');
+    for (const e of [...this.enemies.list]) {
+      if (e.dead || e.proxy || e.elite || e.pos.x < a.arenaMin[0] || e.pos.x > a.arenaMax[0] || e.pos.z < a.arenaMin[2] || e.pos.z > a.arenaMax[2]) continue;
+      this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid', '#9be01a'), 0.03, 0.5);
+      this.enemies.kill(e, true);
+    }
+  }
+
+  // the acid gone (drained, or the phase cut short): everything it showed hidden, the ducks back down
+  endAcid() {
+    if (!this.acid) return;
+    for (const m of [this.water, this.stream, this.whirl, this.acidFloor]) m.visible = false;
+    for (const c of this.chunks) { c.on = false; c.m.visible = c.tele.visible = c.vol.visible = false; }
+    this.acid = null; this.acidY = this.floor; this.lift = 0;
+    this.placeDucks(0);
+  }
+
+  // Acid: the tub fills (rise), it lobs hair chunks at three of the four ducks a round (volley),
+  // then it drains. It floats at the head of the tub the whole time and can't be hurt. Floating in
+  // the acid hurts; on a duck's back you're safe unless a chunk lands there. The second time the
+  // acid swirls: the ducks circle the middle (carrying you), and each chunk is aimed where its
+  // duck will be when it lands. Returns how open its maw is.
+  acidPhase(dt, P, player, out) {
+    const AC = this.def.skills.acid, A = this.acid, cfg = player.cfg;
+    A.t += dt;
+    let mouth = 0.4;
+    if (A.phase === 'rise') {
+      const u = Math.min(1, A.t / AC.rise);
+      this.acidY = this.floor + 0.004 + u * AC.level;
+      A.spin = A.whirl * u;
+      this.stream.scale.y = Math.max(0.01, 0.633 - this.acidY);
+      this.stream.position.y = this.acidY;
+      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid', '#9be01a'), 0.012, 0.35);
+      this.drive(dt, this.head, Math.min(0.35, this.holder.position.distanceTo(this._at.copy(this.head).setY(this.holder.position.y)) * 4), 6);
+      mouth = 0.8;
+      if (u >= 1) { A.phase = 'volley'; A.t = 0; this.stream.visible = false; }
+    } else if (A.phase === 'volley') {
+      this.drive(dt, this.mid, 0, 4);                                   // facing the ducks
+      if ((A.next -= dt) <= 0 && A.round < AC.rounds) this.lobChunks(AC, A);
+      if (A.round >= AC.rounds && !this.chunks.some((c) => c.on)) { A.phase = 'drain'; A.t = 0; sfx.clogDrain(AC.drain); }
+    } else {
+      const u = Math.min(1, A.t / AC.drain);
+      this.acidY = this.floor + 0.004 + AC.level * (1 - u);
+      A.spin = A.whirl * (1 - u);
+      this.drive(dt, this.mid, 0.12, 2);
+      mouth = 0.2;
+      if (u >= 1) {
+        // the acid gone: scum rings left on the tub floor a while (harmless: they fade)
+        for (let k = 0; k < 8; k++) { const a = k * 0.8 + Math.random() * 0.5, rr = 0.05 + Math.random() * this.duckR * 1.4; this.fx.splat(this._puff.set(this.mid.x + Math.cos(a) * rr, this.floor, this.mid.z + Math.sin(a) * rr), LOOK.color('clog-scum', '#8a9a7a'), 0.03 + Math.random() * 0.03); }
+        this.endAcid(); this.toChase();
+        return 0;
+      }
+    }
+    this.duckAng += A.spin * dt;
+    this.placeDucks(dt, A.whirl);
+    this.lift = Math.max(0, this.acidY - this.floor - this.r * 0.9);   // it floats, half under
+    this.water.position.y = this.acidY;
+    this.acidFloor.position.y = Math.max(this.floor - 0.01, this.acidY - 0.03);   // you wade in it, 3 cm deep
+    this.acidFloor.updateMatrixWorld(true);
+    this.whirl.visible = A.whirl > 0;
+    if (this.whirl.visible) { this.whirl.position.copy(this.mid).setY(this.acidY + 0.002); this.whirl.scale.setScalar(this.duckR * 1.7); this.whirl.rotation.y -= A.spin * dt * 1.5; }
+
+    // the chunks in flight, and their Warnings riding on the ducks they're coming down on
+    for (const c of this.chunks) if (c.on) this.chunkStep(c, dt, AC, P, player, out);
+
+    // on a duck's back: carried round with it while it circles. In the acid: it hurts (and swirls you)
+    const back = this.ducks.find((d) => Math.abs(P.y - (d.y + this.duckTop)) < 0.02 && Math.hypot(P.x - d.g.position.x, P.z - d.g.position.z) < this.duckL * 0.34 + cfg.radius);
+    const toMid = this._toDrain.copy(P).sub(this.mid).setY(0), tan = this._side.set(-toMid.z, 0, toMid.x);
+    if (back && A.spin) out.push = tan.normalize().multiplyScalar(A.spin * this.duckR).clone();
+    else if (!back && this.acidY > this.floor + 0.01 && P.y < this.acidY) {
+      out.hurt = AC.dmg * dt;
+      if (A.spin) out.push = tan.multiplyScalar(A.spin * 0.5).clone();   // (tan is toMid turned: its length is the distance out)
+      // it eats at you: green fizz off the jelly every so often, a hiss
+      if ((A.fizzT -= dt) <= 0) {
+        A.fizzT = 0.35;
+        this.fx.puff(this._puff.copy(P).setY(this.acidY + 0.01), LOOK.color('clog-acid', '#9be01a'), 0.02, 0.4);
+        this.fx.impact(this._puff.setY(P.y + cfg.height * 0.5), hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * 0.4, 4);
+        sfx.acidSizzle();
+      }
+    }
+    return mouth;
+  }
+
+  // a round: a hair chunk lobbed at each duck but one (never the same one spared twice running),
+  // aimed where that duck will be when it lands
+  lobChunks(AC, A) {
+    A.round++; A.next = AC.every;
+    const spare = [0, 1, 2, 3].filter((i) => i !== A.safe);
+    A.safe = spare[(Math.random() * spare.length) | 0];
+    const land = this.duckAng + A.spin * AC.flight, from = this.center(this._puff).setY(this.holder.position.y + this.r * 1.6);
+    let k = 0;
+    for (let i = 0; i < 4; i++) {
+      if (i === A.safe) continue;
+      const c = this.chunks[k++];
+      c.on = true; c.duck = i; c.t = 0;
+      c.from.copy(from);
+      this.duckBack(i, c.to, land);
+      c.m.visible = c.tele.visible = c.vol.visible = true;
+      c.m.position.copy(from);
+    }
+    // thrown out of its hair: a flash there, it heaves and chomps, the spit and crack
+    this.fx.impact(from, hostile('clog'), 0.035, 12);
+    this.fx.burst(from, HAIR.slice(0, 6), 6, 0.004, 0.4, this.acidY);
+    this.squash = Math.max(this.squash, 0.5); this.chomp = 0.35;
+    sfx.clogSpit(); sfx.clogLash(); sfx.clogLeap(); juice.feel('hit');
+  }
+
+  chunkStep(c, dt, AC, P, player, out) {
+    c.t += dt;
+    const u = Math.min(1, c.t / AC.flight), m = c.m, R = AC.radius;
+    m.position.lerpVectors(c.from, c.to, u);
+    m.position.y += 4 * (0.1 + c.from.distanceTo(c.to) * 0.25) * u * (1 - u);   // lobbed high
+    m.rotation.x += dt * 9; m.rotation.z += dt * 5;
+    this.fx.glow.hold(m.position, hostile('clog'), 0.05, 0.6);
+    if (Math.random() < dt * 30) this.fx.glow.emit(m.position, hostile('clog'), 0.02, 0.006, 0.25, 0.7);
+    // its Warning on its duck (where that duck is now: when it lands, that's where the chunk comes down)
+    const at = this.duckBack(c.duck, this._tip, this.duckAng);
+    for (const w of [c.tele, c.vol]) {
+      w.position.copy(at).setY(at.y + (w === c.tele ? 0.003 : 0));
+      w.scale.setScalar(R);
+      w.material.progress = u;
+      w.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(this.t * (u > 0.75 ? 30 : 14)));
+    }
+    if (u < 1) return;
+    // it lands: a wet slam on the duck's back, the duck dunked and squeaking, hair bits on the acid
+    c.on = false; m.visible = c.tele.visible = c.vol.visible = false;
+    const d = this.ducks[c.duck];
+    d.dip = 1;
+    this.fx.impact(c.to, hostile('clog'), 0.04, 14);
+    this.fx.burst(c.to, [...HAIR.slice(0, 6), '#8a9a5a'], 10, 0.0045, 0.45, this.acidY);
+    this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid', '#9be01a'), 0.04, 0.5);
+    sfx.clogSplat(); sfx.duckSqueak();
+    juice.feel('impact');
+    if (blastHits(c.to, R, P, player.cfg)) { out.hit = Math.max(out.hit, AC.hit); this.knockBack(_rel.copy(P).sub(c.to), 0.7); this.contact(P, player.cfg); }
+  }
+
   clampIn(q) {
     const a = this.arena;
     q.x = THREE.MathUtils.clamp(q.x, a.arenaMin[0] + 0.05, a.arenaMax[0] - 0.05);
@@ -952,9 +1082,8 @@ export class Clog {
     const order = this.angry ? ATTACKS.angry : ATTACKS.calm;
     this.state = order[this.next++ % order.length];
     const SK = this.def.skills;
-    this.stateT = { lash: (this.angry ? SK.lash.angryWindup : SK.lash.windup) + 0.3, snare: SK.snare.windup, roll: SK.roll.windup, flood: SK.flood.time, shed: SK.shed.time, spray: SK.spray.time, pinball: 99, comb: 99 }[this.state];
+    this.stateT = { lash: (this.angry ? SK.lash.angryWindup : SK.lash.windup) + 0.3, snare: SK.snare.windup, roll: SK.roll.windup, shed: SK.shed.time, spray: SK.spray.time, pinball: 99, comb: 99 }[this.state];
     this.pin = this.comb = null;
-    this.floodMax = this.stateT;
     ({ lash: () => sfx.clogLashWind(), roll: () => sfx.clogRollWind(), snare: () => sfx.clogRustle(), spray: () => sfx.clogRoar(), pinball: () => sfx.clogRoar(), comb: () => sfx.clogRustle() })[this.state]?.();
     this.prevT = this.stateT;
     this.locked = false;
@@ -962,7 +1091,9 @@ export class Clog {
 
   dispose() {
     this.scene.remove(this.holder);
-    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.swirl, this.grate, this.water, this.stream, this.whirl]) this.scene.remove(m);
+    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.grate, this.water, this.stream, this.whirl, this.acidFloor, ...this.ducks.map((d) => d.g), ...this.chunks.flatMap((c) => [c.m, c.tele, c.vol])]) this.scene.remove(m);
+    // its stand-on surfaces stay in the world's list: hidden, they're never hit again
+    this.acidFloor.visible = false; for (const d of this.ducks) d.back.visible = false;
     this.tufts.forEach((f) => this.scene.remove(f.m));
     this.shots.forEach((s) => this.fx.free(s.m));
   }

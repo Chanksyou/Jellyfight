@@ -398,7 +398,7 @@ const held = (start) => () => { start(); holdJelly(); };
 const atVacuum = (a) => () => { const B = startVacuum(a); holdJelly(); againVacuum(B, a, 0.4); };
 const atClog = (a) => () => {
   const B = clogFight();
-  if (a === 'spray') { B.swarmed = true; B.hp = B.maxHp * 0.4; }
+  if (a === 'spray') { B.acidDone = 1; B.hp = B.maxHp * 0.4; }
   clogAgain(B, a, 0.75);
   if (a === 'spray') { B.state = 'spray'; B.stateT = 1.0; B.prevT = 1.0; }
 };
@@ -419,7 +419,9 @@ export const EVERY_ATTACK = {
     clog: {
       lash: { is: 'volume', start: atClog('lash') }, snare: { is: 'volume', start: atClog('snare') }, roll: { is: 'volume', start: atClog('roll') }, spray: { is: 'shot', start: atClog('spray') },
       pinball: { is: 'volume', start: atClog('pinball') }, comb: { is: 'volume', start: atClog('comb') },
-      flood: { is: 'hazard' }, shed: { is: 'none' },
+      shed: { is: 'none' },
+      // the acid phase: its chunks' Warnings ride on the ducks; ended once they've shown
+      acid: { is: 'volume', start: () => { const B = clogFight(); holdJelly(); B.hp = B.maxHp * 0.74; }, end: () => { const B = G().run.boss; B.endAcid(); B.toChase(); B.stateT = 1e9; } },
     },
   },
   3: {
