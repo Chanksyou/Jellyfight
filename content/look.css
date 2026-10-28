@@ -428,7 +428,11 @@
   --cream-splat-size: 0.022;
   --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
   --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */
-  --clog-scum: #8a9a7a;          /* the scum rings the drained bath leaves round the drain */
+  --clog-scum: #8a9a7a;          /* the scum rings the drained acid leaves on the tub floor */
+  --clog-acid: #9be01a;          /* the Clog's acid filling the tub (acid phases): toxic green */
+  --clog-acid-glow: #3f8a00;     /* its glow */
+  --clog-duck: #ffd21a;          /* the four rubber ducks in the tub */
+  --clog-duck-bill: #ff7a1a;
   --clog-trail-every: 0.1;       /* seconds between the gunk smears its roll leaves */
   --vacuum-sweep-life: 0.25;     /* seconds a brush sweep's wall takes to spread out and fade */
   /* (the sweep's reach moved to content/bosses.kdl: brushes reach) */

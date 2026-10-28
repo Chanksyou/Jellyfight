@@ -1090,11 +1090,10 @@ export const sfx = {
   },
   // a glob of gunk spat out as it spins: a wet click (transient) and a short whiz away (travel)
   clogSpit() { if (!ready() || !gap('clogSpit', 60)) return; const j = jitter(0.15); noise(1800 * j, 2, 0.03, 0.12, 'bandpass'); tone('sine', 260 * j, 120 * j, 0.05, 0.06); noise(2400 * j, 1.4, 0.16, 0.05, 'bandpass', 0.02, 900); },
-  // the plug pulled: a deep hollow thoonk (transient and body), then the first glugs (debris)
-  clogPlug() {
-    if (!ready()) return; const j = jitter(0.08);
-    noise(1600 * j, 2, 0.04, 0.2, 'bandpass'); tone('sine', 95 * j, 38, 0.35, 0.3); noise(300 * j, 0.8, 0.3, 0.2, 'lowpass', 0.02, 80);
-    for (let k = 0; k < 4; k++) { const f = 80 + Math.random() * 120; tone('sine', f, f * 2, 0.07, 0.08, 0.12 + k * 0.08 + Math.random() * 0.03); }
+  // a rubber duck squashed by a hair chunk: a squeak that wheezes up and back down
+  duckSqueak() {
+    if (!ready() || !gap('duckSqueak', 50)) return; const j = jitter(0.12);
+    tone('square', 900 * j, 1500 * j, 0.07, 0.035); tone('square', 1500 * j, 1100 * j, 0.1, 0.03, 0.07); noise(3500 * j, 3, 0.12, 0.03, 'bandpass', 0.02);
   },
   // it shakes the tangles loose: a wet rip (transient), a squelch (body), hair landing (debris)
   clogShed() {
