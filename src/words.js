@@ -584,7 +584,7 @@ export const ENEMY_WORDS = {
           const blocked = en.move(e, e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
-          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + e.r * 0.6) { en.sting(e, c, p); return; }   // stung you: it dies
+          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + (e.hitR || e.r)) { en.sting(e, c, p); return; }   // stung you (as soon as it touches, so its touch can't land first): it dies
           if (wall || blocked || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
         } else if (e.state === 'rest') {
           e.vel.multiplyScalar(Math.exp(-4 * c.dt));
