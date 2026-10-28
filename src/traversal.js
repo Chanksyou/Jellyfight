@@ -38,6 +38,17 @@ export function prepareApartment(apt, stage) {
     if (typeof h === 'string') meshesNamed(apt.scene, h).forEach((m) => { m.visible = false; m.userData.noCollide = true; });
     else meshesNamed(apt.scene, h.name).forEach((m) => hideWithin(m, h.within));
   }
+  // { name, z: [from, by] }: that piece stretched along z, `by` times as deep, measured from the
+  // plane z = `from` (act 2's tub, widened for the Clog: it grows out into the room from the back wall)
+  for (const { name, z: [from, by] } of stage.stretch || []) {
+    const s = new THREE.Matrix4().makeTranslation(0, 0, from).multiply(new THREE.Matrix4().makeScale(1, 1, by)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -from));
+    apt.scene.updateMatrixWorld(true);
+    meshesNamed(apt.scene, name).forEach((m) => {
+      // in the mesh's own space, so it holds whatever it hangs from (a copy: a model may share geometry)
+      const local = m.matrixWorld.clone().invert().multiply(s).multiply(m.matrixWorld);
+      m.geometry = m.geometry.clone().applyMatrix4(local);
+    });
+  }
   for (const name of stage.noCollide || []) meshesNamed(apt.scene, name).forEach((m) => { m.userData.noCollide = true; });
   for (const [name, opacity] of Object.entries(stage.fade || {})) {
     meshesNamed(apt.scene, name).forEach((m) => {

@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v306 makes the bathtub 1.6 times as wide, so the Clog fight has room to move: the inside runs about 1 m front to back instead of 62 cm (the length is unchanged). The tub grows out into the bathroom from the back wall, so what stood in front of it moved: the laundry shelf and everything on it, its drawstring bag, the bath mat and the shower curtain, and the step stool over a little. The bathroom door is gone (it stood where the wider tub is now). The drain, the spout and the fittings on the end wall sit in the middle of the new tub; the Clog's attacks keep their sizes; its comb lanes, the acid and the ducks spread across the whole tub.
+
 v302 gives the Clog its acid duck phases and drops its flood and ladybug swarm. Four rubber ducks sit round the middle of the tub floor. At 75% and again at 25% of its Health, the Clog fills the tub half full of green acid (floating in it costs 2 Health a second) and the ducks bob up on it. From the head of the tub, where it can't be hurt, it lobs a hair chunk at three of the four ducks every 1.5 s, eight times: get on the spared duck. Then the acid drains and the fight goes on. The second time, the acid swirls: the ducks circle the middle, carrying you, and each chunk lands where its duck will be. Tune it with `acid` and `ducks` in content/bosses.kdl.
 
 v300 softens the lanternfly's landing warning: opacity now pulses gently between 24% and 28%, down from 85–100%. Its landing radius, fill timing and damage are unchanged. Tune it with --leap-warning-opacity and --leap-warning-pulse in content/look.css.

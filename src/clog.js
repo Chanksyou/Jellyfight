@@ -315,7 +315,7 @@ export class Clog {
     this.acidFloor.visible = false;
     scene.add(this.acidFloor);
     this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshPhysicalMaterial({ color: LOOK.color('clog-acid', '#9be01a'), transparent: true, opacity: 0.75, roughness: 0, emissive: LOOK.color('clog-acid-glow', '#3f8a00'), emissiveIntensity: 0.6, depthWrite: false }));
-    this.stream.position.set(0.226, this.floor, 7.48);
+    this.stream.position.set(0.226, this.floor, this.drain.z - 0.05);   // from the spout, just behind the drain (bathroom.js)
     this.stream.visible = false;
     scene.add(this.stream);
     const spiral = document.createElement('canvas');
@@ -953,7 +953,7 @@ export class Clog {
       A.spin = A.whirl * u;
       this.stream.scale.y = Math.max(0.01, 0.633 - this.acidY);
       this.stream.position.y = this.acidY;
-      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid', '#9be01a'), 0.012, 0.35);
+      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, this.drain.z - 0.05 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid', '#9be01a'), 0.012, 0.35);
       this.drive(dt, this.head, Math.min(0.35, this.holder.position.distanceTo(this._at.copy(this.head).setY(this.holder.position.y)) * 4), 6);
       mouth = 0.8;
       if (u >= 1) { A.phase = 'volley'; A.t = 0; this.stream.visible = false; }

@@ -235,6 +235,22 @@ act2('tub-is-clear', {
     return ok(!shown, { shown });
   },
 });
+act2('tub-is-wide', {
+  about: 'The bathtub is 1.6 times as wide as the real one, so the Clog fight has room to move: its floor runs right out to the arena\'s front, behind a rim, with nothing (the door, the laundry shelf) standing in front of it.',
+  setup() { fresh(); },
+  play() {
+    const { world, run } = G(), B = run.stage.boss, z0 = B.arenaMin[2];
+    const floorAt = (x, z) => +(world.cast(V(x, 1.2, z), V(0, -1, 0), 2)?.point.y ?? -1).toFixed(3);
+    const out = { depth: +(B.arenaMax[2] - z0).toFixed(2), inside: [], rim: [], before: [] };
+    for (const x of [0.6, 0.9, 1.2, 1.45]) {
+      out.inside.push(floorAt(x, z0 + 0.03), floorAt(x, B.drain[2]), floorAt(x, B.arenaMax[2] - 0.03));
+      out.rim.push(floorAt(x, z0 - 0.06));
+      out.before.push(floorAt(x, z0 - 0.15));
+    }
+    for (const x of [0.2, 0.4]) out.before.push(floorAt(x, z0 - 0.15));   // where the shelf and its bag stood
+    return ok(out.depth >= 0.95 && out.inside.every((y) => y > 0.13 && y < 0.16) && out.rim.every((y) => y > 0.5 && y < 0.6) && out.before.every((y) => y >= 0 && y < 0.03), out);
+  },
+});
 act2('clog-rises-and-chases', {
   about: 'When time runs out the Clog, a big wet matted hairball, rises out of the bathtub drain and rolls after you.',
   setup() {},
