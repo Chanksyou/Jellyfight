@@ -326,6 +326,8 @@
   --hostile-controller: #ff3ad0; /* the Controller's button barrage and rumble */
   --hostile-mug: #ff8a1a;        /* the Mug's coffee lobs, spill and scalding puddles */
   --hostile-kettle: #ffd23a;     /* the Kettle's steam blast and boiling drops */
+  --leap-warning-opacity: 0.24; /* restrained lanternfly landing circle */
+  --leap-warning-pulse: 0.04;   /* small pulse above its base opacity */
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
   --hostile-web: #ff5ad8;        /* the house spider's web balls: white silk in a hot pink glow */
   --hostile-clog: #d8ff3a;       /* the Clog's lashes, snares, roll lane, drain swirl and gunk: sickly yellow-green */

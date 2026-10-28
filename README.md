@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v300 softens the lanternfly's landing warning: opacity now pulses gently between 24% and 28%, down from 85–100%. Its landing radius, fill timing and damage are unchanged. Tune it with --leap-warning-opacity and --leap-warning-pulse in content/look.css.
+
 v299 quadruples The Great White One's Health: 1500 to 6000 base, or 2400 to 9600 in Act 3 after its existing 1.6x boss scaling.
 
 v298 reduces Act 3's regular bug spawn multiplier from 0.85 to 0.70 (about 18% fewer spawns), lowering its regular-spawn alive cap from 17 to 14. Wasp nests and boss summons keep their existing settings.
