@@ -1,12 +1,11 @@
 // Getting around a world built for giants: floor vents that launch you onto furniture, and fabric you can climb.
-// Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
+// Also sets the apartment up for a stage (doors, see-through pieces, invisible walls).
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
-import { LOOK } from './look.js';
 
 // Apartment objects are named after what they are ("Shower curtain"); three.js's loader
 // swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
-function meshesNamed(scene, name) {
+export function meshesNamed(scene, name) {
   const want = THREE.PropertyBinding.sanitizeNodeName(name);
   const out = new Set();
   scene.traverse((o) => {
@@ -52,27 +51,6 @@ export function prepareApartment(apt, stage) {
     const d = apt.doors[id];
     if (d) d.set(state === 'open' ? d.open : typeof state === 'number' ? d.open * state : 0);   // a number: that fraction open (ajar)
   }
-}
-
-// What a boss fight sees through (a stage's boss `seeThrough`: the shower curtain hanging over the
-// tub, which the camera's fade can't catch: it's noCollide, so no ray hits it). on: each named
-// piece swaps to a faint see-through copy of its material (look.css --boss-see-through); off: back
-// to its own. The copies are kept, so a second fight builds nothing new.
-export function seeThrough(scene, names, on) {
-  const opacity = LOOK.num('boss-see-through', 0.15);
-  for (const name of names || []) meshesNamed(scene, name).forEach((m) => {
-    const u = m.userData;
-    if (!on) { if (u.ownMaterial) m.material = u.ownMaterial; return; }
-    u.ownMaterial ??= m.material;
-    u.seeMaterial ??= [].concat(m.material).map((mat) => {
-      const c = mat.clone();
-      c.transparent = true;
-      c.opacity = mat.opacity * opacity;
-      c.depthWrite = false;
-      return c;
-    });
-    m.material = Array.isArray(u.ownMaterial) ? u.seeMaterial : u.seeMaterial[0];
-  });
 }
 
 export function addStageWalls(world, stage, scene) {

@@ -58,6 +58,7 @@ export class ThirdPersonCamera {
     this._ray = new THREE.Vector3();
     this._end = new THREE.Vector3();
     this.over = new Set();     // what the camera sees through: over the jelly, or between it and the jelly
+    this.keep = new Map();     // mesh -> how solid: kept faint whether in the way or not (a boss fight's seeThrough: the Clog's curtain and door)
     this._fades = new Map();   // mesh -> { mats: its own material(s), see: the fading copies, k: opacity }
   }
 
@@ -97,19 +98,37 @@ export class ThirdPersonCamera {
 
   // Fade what's in the way out, and back in (on its own material again) once it's clear
   fade(dt) {
-    for (const m of this.over) {
-      if (this._fades.has(m)) continue;
-      const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
-      this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
-      m.material = see;
-    }
+    for (const m of this.over) this.startFade(m);
+    for (const m of this.keep.keys()) this.startFade(m);
     for (const [m, f] of this._fades) {
-      if (this.over.has(m)) f.hold = HOLD; else f.hold -= dt;
-      const goal = f.hold > 0 ? f.low : 1;
+      if (this.over.has(m) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;
+      const goal = f.hold > 0 ? this.keep.get(m) ?? f.low : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
       if (goal === 1 && f.k > 0.98) { m.material = f.mats; for (const c of [].concat(f.see)) c.dispose(); this._fades.delete(m); continue; }   // the clones are this fade's alone: free them, or every fade leaks materials
       for (const s of [].concat(f.see)) s.opacity = s.userData.solid * f.k;
     }
+  }
+
+  startFade(m) {
+    if (this._fades.has(m)) return;
+    const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
+    this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
+    m.material = see;
+  }
+
+  // Keep these meshes faint (opacity: how solid) until dropKeep: they fade like anything in the way
+  keepFaint(meshes, opacity) { for (const m of meshes) this.keep.set(m, opacity); }
+
+  // Kept pieces solid again at once (a new run), on their own materials
+  dropKeep() {
+    for (const m of this.keep.keys()) {
+      const f = this._fades.get(m);
+      if (!f) continue;
+      m.material = f.mats;
+      for (const c of [].concat(f.see)) c.dispose();
+      this._fades.delete(m);
+    }
+    this.keep.clear();
   }
 
   // Unit vector from the focus toward the camera at this tilt
@@ -146,10 +165,11 @@ export class ThirdPersonCamera {
   // A see-through copy of everything solid (anything can end up between the camera and the
   // jelly), one per material, standing where the original is, so main.js can build their shaders
   // behind the Play button: building one the first time the camera sees through it stalled a
-  // phone for a frame or more. `within`: only colliders inside this box (a newly loaded act's rooms)
-  seeThroughWarmers(within = null) {
+  // phone for a frame or more. `within`: only colliders inside this box (a newly loaded act's rooms);
+  // `also`: pieces it doesn't collide with that it keeps faint (keepFaint: the Clog's curtain)
+  seeThroughWarmers(within = null, also = []) {
     const found = new Map(), box = new THREE.Box3();
-    for (const m of this.world.colliders) {
+    for (const m of [...this.world.colliders, ...also]) {
       if (!m.isMesh) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
       if (!found.has(m.material)) found.set(m.material, m);
@@ -169,5 +189,5 @@ export class ThirdPersonCamera {
   }
 
   // Back to the player's own view at once (a new run)
-  endFight() { this.fight = null; this.fightK = 0; }
+  endFight() { this.fight = null; this.fightK = 0; this.dropKeep(); }
 }
