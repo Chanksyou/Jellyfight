@@ -17,7 +17,7 @@
 //   shed      it shakes off hair tangles that join the fight
 //   spray     (angry) it spins, spraying globs of drain gunk all round in three streams: Shots
 //             alternating floor level and jump height
-//   acid      at 75% and again at 25%: the spout pours brown, toxic acid until the tub is half full (it
+//   acid      at 75% and again at 25%: the spout pours toxic violet acid until the tub is half full (it
 //             hurts to float in), and the four rubber ducks on the tub floor bob up on it. From the
 //             head of the tub, where it can't be hurt, it lobs a hair chunk at three of the ducks
 //             every 1.5 s (each duck's circle and half sphere fill till it lands): get on the fourth.
@@ -212,13 +212,13 @@ function murkTexture() {
   g.fillStyle = '#b8b8b8'; g.fillRect(0, 0, 256, 256);
   for (let k = 0; k < 140; k++) {
     const x = R() * 256, y = R() * 256, r = 6 + R() * 26, v = R();
-    g.fillStyle = v < 0.55 ? `rgba(40,30,20,${0.15 + R() * 0.3})` : v < 0.9 ? `rgba(230,220,170,${0.1 + R() * 0.2})` : `rgba(255,250,210,${0.25 + R() * 0.3})`;
+    g.fillStyle = v < 0.55 ? `rgba(30,30,30,${0.15 + R() * 0.3})` : v < 0.9 ? `rgba(225,225,225,${0.1 + R() * 0.2})` : `rgba(255,255,255,${0.25 + R() * 0.3})`;
     g.beginPath(); g.ellipse(x, y, r, r * (0.4 + R() * 0.6), R() * 3, 0, Math.PI * 2); g.fill();
   }
   g.lineCap = 'round';
   for (let k = 0; k < 40; k++) {                                      // oily sheen streaks
     const x = R() * 256, y = R() * 256;
-    g.strokeStyle = `rgba(255,245,200,${0.12 + R() * 0.18})`; g.lineWidth = 1 + R() * 2;
+    g.strokeStyle = `rgba(255,255,255,${0.12 + R() * 0.18})`; g.lineWidth = 1 + R() * 2;
     g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 20 - R() * 40, y + 20 - R() * 40, x + 40 - R() * 80, y + 30 - R() * 60); g.stroke();
   }
   const t = new THREE.CanvasTexture(c);
@@ -341,7 +341,7 @@ export class Clog {
     this.grate = new THREE.Mesh(new THREE.CircleGeometry(0.035, 24).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.4 }));
     this.grate.position.copy(this.drain).setY(this.floor + 0.0015);
     scene.add(this.grate);
-    // the acid (acid phases): a sheet of murky brown goo across the tub that rises and drains, the
+    // the acid (acid phases): a sheet of murky violet goo across the tub that rises and drains, the
     // stream from the spout, toxic bubbles swelling and popping on it, and a whirlpool over the middle
     // while it swirls. Under the sheet, an unseen floor you float on, a little below its top so the
     // jelly wades in it (added to the world on the first tick, so the shader warm-up's copy of the
@@ -350,7 +350,7 @@ export class Clog {
     this.mid = V((a.arenaMin[0] + a.arenaMax[0]) / 2, this.floor, (a.arenaMin[2] + a.arenaMax[2]) / 2);
     this.acidY = this.floor;
     const sheet = () => new THREE.PlaneGeometry(a.arenaMax[0] - a.arenaMin[0], a.arenaMax[2] - a.arenaMin[2]).rotateX(-Math.PI / 2);
-    const ACID = new THREE.Color(LOOK.color('clog-acid', '#5c4520')), GLOW = new THREE.Color(LOOK.color('clog-acid-glow', '#3a2a06')), SCUM = new THREE.Color(LOOK.color('clog-acid-scum', '#a89048'));
+    const ACID = new THREE.Color(LOOK.color('clog-acid', '#4b1d6b')), GLOW = new THREE.Color(LOOK.color('clog-acid-glow', '#2a0b40')), SCUM = new THREE.Color(LOOK.color('clog-acid-scum', '#a070d0'));
     this.murk = murkTexture();
     this.water = new THREE.Mesh(sheet(), new THREE.MeshStandardMaterial({ color: ACID, map: this.murk, transparent: true, opacity: 0.9, roughness: 0.18, metalness: 0.1, emissive: GLOW, emissiveMap: this.murk, emissiveIntensity: 0.9, depthWrite: false }));
     this.water.position.copy(this.mid);
@@ -376,7 +376,7 @@ export class Clog {
     scene.add(this.whirl);
     // toxic bubbles: one instanced draw; each swells on the surface, then pops
     this.bubbleN = 36;
-    this.bubbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ color: SCUM, emissive: LOOK.color('clog-acid-fume', '#c8b860'), emissiveIntensity: 0.35, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85 }), this.bubbleN);
+    this.bubbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ color: SCUM, emissive: LOOK.color('clog-acid-fume', '#d8a8ff'), emissiveIntensity: 0.35, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85 }), this.bubbleN);
     this.bubbles.name = 'Acid bubbles'; this.bubbles.userData.noCollide = true; this.bubbles.frustumCulled = false; this.bubbles.renderOrder = 3;
     this.bubbles.visible = false;
     this.bubbleList = Array.from({ length: this.bubbleN }, () => ({ x: this.mid.x, z: this.mid.z, t: 1, life: 1, size: 0 }));
@@ -972,7 +972,7 @@ export class Clog {
     this.squash = Math.max(this.squash, 0.6); this.chomp = 0.6; juice.feel('impact');
     for (const e of [...this.enemies.list]) {
       if (e.dead || e.proxy || e.elite || e.pos.x < a.arenaMin[0] || e.pos.x > a.arenaMax[0] || e.pos.z < a.arenaMin[2] || e.pos.z > a.arenaMax[2]) continue;
-      this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid-fume', '#c8b860'), 0.03, 0.5);
+      this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.03, 0.5);
       this.enemies.kill(e, true);
     }
   }
@@ -1001,7 +1001,7 @@ export class Clog {
       A.spin = A.whirl * u;
       this.stream.scale.y = Math.max(0.01, 0.633 - this.acidY);
       this.stream.position.y = this.acidY;
-      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid-fume', '#c8b860'), 0.012, 0.35);
+      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.012, 0.35);
       this.drive(dt, this.head, Math.min(0.35, this.holder.position.distanceTo(this._at.copy(this.head).setY(this.holder.position.y)) * 4), 6);
       mouth = 0.8;
       if (u >= 1) { A.phase = 'volley'; A.t = 0; this.stream.visible = false; }
@@ -1052,7 +1052,7 @@ export class Clog {
       // it eats at you: fumes fizz off the jelly every so often, a hiss
       if ((A.fizzT -= dt) <= 0) {
         A.fizzT = 0.35;
-        this.fx.puff(this._puff.copy(P).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#c8b860'), 0.02, 0.4);
+        this.fx.puff(this._puff.copy(P).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.02, 0.4);
         this.fx.impact(this._puff.setY(P.y + cfg.height * 0.5), hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * 0.4, 4);
         sfx.acidSizzle();
       }
@@ -1068,7 +1068,7 @@ export class Clog {
       const b = this.bubbleList[i];
       if ((b.t += dt) >= b.life) {
         if (b.size && Math.random() < 0.35) {
-          this.fx.puff(this._puff.set(b.x, this.acidY + b.size, b.z), LOOK.color('clog-acid-fume', '#c8b860'), b.size * 1.6, 0.4);
+          this.fx.puff(this._puff.set(b.x, this.acidY + b.size, b.z), LOOK.color('clog-acid-fume', '#d8a8ff'), b.size * 1.6, 0.4);
           if (Math.random() < 0.3) sfx.acidSizzle();
         }
         b.t = 0; b.life = 0.8 + Math.random() * 1.8; b.size = 0.004 + Math.random() * 0.01;
@@ -1133,7 +1133,7 @@ export class Clog {
     d.dip = 1;
     this.fx.impact(c.to, hostile('clog'), 0.04, 14);
     this.fx.burst(c.to, [...HAIR.slice(0, 6), '#8a9a5a'], 10, 0.0045, 0.45, this.acidY);
-    this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#c8b860'), 0.04, 0.5);
+    this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.04, 0.5);
     sfx.clogSplat(); sfx.duckSqueak();
     juice.feel('impact');
     if (blastHits(c.to, R, P, player.cfg)) { out.hit = Math.max(out.hit, AC.hit); this.knockBack(_rel.copy(P).sub(c.to), 0.7); this.contact(P, player.cfg); }

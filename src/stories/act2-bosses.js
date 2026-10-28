@@ -303,7 +303,7 @@ function acidUp(B, second = false) {
   return B.acid;
 }
 act2('clog-acid-floats-the-ducks', {
-  about: 'At 75% the Clog fills the tub half full of brown, toxic acid with bubbles swelling and popping on it: the four rubber ducks on the tub floor bob up on it, it moves to the head of the tub where it can\'t be hurt, and floating in the acid costs the jelly 4 Health a second.',
+  about: 'At 75% the Clog fills the tub half full of toxic violet acid with bubbles swelling and popping on it: the four rubber ducks on the tub floor bob up on it, it moves to the head of the tub where it can\'t be hurt, and floating in the acid costs the jelly 4 Health a second.',
   setup() {},
   play() {
     const B = clogFight(), { run } = G();

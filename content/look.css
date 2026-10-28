@@ -429,10 +429,10 @@
   --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
   --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */
   --clog-scum: #8a9a7a;          /* the scum rings the drained acid leaves on the tub floor */
-  --clog-acid: #5c4520;          /* the Clog's acid filling the tub (acid phases): swampy brown goo */
-  --clog-acid-glow: #3a2a06;     /* its murky glow, and the whirlpool's dark eye */
-  --clog-acid-scum: #a89048;     /* scum streaks in its whirlpool, and its toxic bubbles */
-  --clog-acid-fume: #c8b860;     /* the fumes off it: popping bubbles, the jelly fizzing in it */
+  --clog-acid: #4b1d6b;          /* the Clog's acid filling the tub (acid phases): toxic violet goo, the ducks' yellow's complement */
+  --clog-acid-glow: #2a0b40;     /* its murky glow, and the whirlpool's dark eye */
+  --clog-acid-scum: #a070d0;     /* scum streaks in its whirlpool, and its toxic bubbles */
+  --clog-acid-fume: #d8a8ff;     /* the fumes off it: popping bubbles, the jelly fizzing in it */
   --clog-duck: #ffd21a;          /* the four rubber ducks in the tub */
   --clog-duck-bill: #ff7a1a;
   --clog-trail-every: 0.1;       /* seconds between the gunk smears its roll leaves */
