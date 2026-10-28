@@ -331,7 +331,7 @@ story('words/charge-beam-sound', {
 });
 const S2 = new THREE.Vector3();
 story('words/charge-beam', {
-  about: 'Within reach the dragonfly faces you and holds dead still for 1 s with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
+  about: 'Within reach the dragonfly faces you and holds dead still for half a second with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -349,7 +349,7 @@ story('words/charge-beam', {
     });
     delete enemies.beamCharge;
     const hit = log.find((d) => d.source === 'dragonfly'), secs = frames / 60;
-    return ok(whined === 1 && hit?.amount === 3 && held < 0.001 && !shown && secs > 0.9 && secs < 1.1, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
+    return ok(whined === 0.5 && hit?.amount === 3 && held < 0.001 && !shown && secs > 0.4 && secs < 0.6, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/dragonfly-beam-dodge', {
@@ -359,9 +359,9 @@ story('enemies/dragonfly-beam-dodge', {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
     step(60 * 3, () => e.state === 'charge');
     const charged = e.state === 'charge';
-    step(30);
+    step(15);
     const side = V(-e.beamDir.z, 0, e.beamDir.x).normalize(), P = player.position;
-    tp(P.x + side.x * 0.1, P.y, P.z + side.z * 0.1);
+    tp(P.x + side.x * 0.2, P.y, P.z + side.z * 0.2);
     let fired = false;
     step(60 * 1.5, () => { if (e.state === 'rest') fired = true; return fired; });
     const hit = log.some((d) => d.source === 'dragonfly');
@@ -396,7 +396,7 @@ story('enemies/dragonfly-dodge-breaks-charge', {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     step(60 * 3, () => e.state === 'charge');
     const charged = e.state === 'charge';
-    step(30);
+    step(15);
     bus.emit('damage_taken', { targetId: e.id, amount: 1 });
     step(5);
     const broke = e.state === 'approach';
@@ -703,7 +703,7 @@ story('enemies/nest-brood-limit', {
   },
 });
 story('words/dive', {
-  about: 'A wasp rears with a rising buzz, then nosedives at you: the sting does 6, and the wasp dies doing it (no XP for you).',
+  about: 'A wasp rears with a rising buzz, then nosedives at you: the sting does 4, and the wasp dies doing it (no XP for you).',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('wasp', near(0.22, 0, 0.1)); e.diveCd = 0; },
   play() {
     const { enemies, xpDrops } = G(), e = enemies.list[0], log = record('damage_taken'), deaths = record('enemy_killed');
@@ -712,9 +712,9 @@ story('words/dive', {
     step(60 * 4, () => {
       if (e.state === 'windup') reared = true;
       if (e.state === 'dive') dived = true;
-      return log.some((d) => d.source === 'wasp' && d.amount === 6);
+      return log.some((d) => d.source === 'wasp' && d.amount === 4);
     });
-    const hit = log.find((d) => d.source === 'wasp' && d.amount === 6);
+    const hit = log.find((d) => d.source === 'wasp' && d.amount === 4);
     step(5);
     return ok(reared && dived && hit && e.dead && deaths[0]?.silent && xpDrops.list.length === drops, { reared, dived, hit: hit?.amount, dead: e.dead, drops: xpDrops.list.length - drops });
   },
@@ -729,7 +729,7 @@ story('enemies/wasp-dive-dodge', {
     const side = V(-e.diveDir.z, 0, e.diveDir.x).normalize(), P = player.position;
     tp(P.x + side.x * 0.15, P.y, P.z + side.z * 0.15);
     step(60 * 1.5);
-    const stung = log.some((d) => d.source === 'wasp' && d.amount === 6);
+    const stung = log.some((d) => d.source === 'wasp' && d.amount === 4);
     return ok(dived && !stung && !e.dead && e.state !== 'dive', { dived, stung, dead: e.dead, state: e.state });
   },
 });
@@ -974,7 +974,7 @@ feelStory('whip', 'The worm\'s whip leaves with a whoosh and cracks down on the 
 feelStory('dive', 'A wasp sets off on its dive with a buzzing rip and stings the jelly: a flash, the sting and a wet slap, the wasp breaking up, the jelly\'s drops splatting.',
   () => { spawn('wasp', near(0.22, 0, 0.1)).diveCd = 0; },
   () => {
-    const r = feelOfHit('wasp', 4, 6);
+    const r = feelOfHit('wasp', 4, 4);
     return ok(r.near && r.e.dead && hitFelt(r, 'diveGo', 'waspSting').ok, { ...r, dead: r.e.dead, e: undefined });
   });
 feelStory('sortie', 'A ladybug\'s missile goes off on the jelly with a varied boom and leaves a scorch on the floor that fades.',

@@ -303,7 +303,7 @@ function acidUp(B, second = false) {
   return B.acid;
 }
 act2('clog-acid-floats-the-ducks', {
-  about: 'At 75% the Clog fills the tub half full of green acid: the four rubber ducks on the tub floor bob up on it, it moves to the head of the tub where it can\'t be hurt, and floating in the acid costs the jelly 2 Health a second.',
+  about: 'At 75% the Clog fills the tub half full of toxic violet acid with bubbles swelling and popping on it: the four rubber ducks on the tub floor bob up on it, it moves to the head of the tub where it can\'t be hurt, and floating in the acid costs the jelly 4 Health a second.',
   setup() {},
   play() {
     const B = clogFight(), { run } = G();
@@ -315,7 +315,8 @@ act2('clog-acid-floats-the-ducks', {
     B.chunks.forEach((c) => { c.on = false; }); A.next = 99;                 // no chunks: just the acid
     byDuck(B, 0, false);
     const h0 = run.health; step(60 * 2); const perSecond = +((h0 - run.health) / 2).toFixed(2);
-    return ok(onFloor && A && deep >= 0.19 && floated && head && shielded && Math.abs(perSecond - 2) < 0.15, { onFloor, deep, floated, at: r3(B.position), shielded, perSecond });
+    const m = new THREE.Matrix4(), bubbling = B.bubbles.visible && Array.from({ length: B.bubbleN }, (_, i) => (B.bubbles.getMatrixAt(i, m), m.elements[0])).filter((k) => k > 0.002).length >= 10;
+    return ok(onFloor && A && deep >= 0.19 && floated && head && shielded && bubbling && Math.abs(perSecond - 4) < 0.25, { onFloor, deep, floated, at: r3(B.position), shielded, bubbling, perSecond });
   },
 });
 act2('clog-acid-spares-one-duck', {
@@ -353,7 +354,7 @@ act2('clog-acid-spares-one-duck', {
   },
 });
 act2('clog-acid-whirlpool-leads-the-ducks', {
-  about: 'The second acid phase, at 25%, swirls: the ducks circle the middle of the tub evenly (a jelly on one is carried round with it), and each hair chunk lands right where its duck has got to.',
+  about: 'The second acid phase, at 25%, swirls: a whirlpool turns in the middle, its bubbles swept round with it, and the ducks circle the middle of the tub evenly, about a turn every 6 s (a jelly on one is carried round with it); each hair chunk lands right where its duck has got to.',
   setup() {},
   play() {
     const B = clogFight(), A = acidUp(B, true);
@@ -368,6 +369,7 @@ act2('clog-acid-whirlpool-leads-the-ducks', {
         else if (watch[k]) { const d = B.ducks[watch[k].duck].g.position; miss = Math.max(miss, Math.hypot(c.to.x - d.x, c.to.z - d.z)); landed++; watch[k] = null; }
       });
     });
+    const spun = +B.whirl.material.uniforms.uTime.value.toFixed(2), swirling = B.whirl.visible && spun > 2;
     const turned = B.duckAng - a0, even = Math.max(...gaps()) - Math.min(...gaps());
     // carried: real movement for a jelly on duck 0's back, its push
     B.chunks.forEach((c) => { c.on = false; }); A.next = 99;
@@ -375,8 +377,8 @@ act2('clog-acid-whirlpool-leads-the-ducks', {
     const startAt = P.position.clone(); step(60);
     carried = +P.position.distanceTo(startAt).toFixed(3);
     const stillOn = Math.hypot(P.position.x - B.ducks[0].g.position.x, P.position.z - B.ducks[0].g.position.z) < B.duckL * 0.34 + P.cfg.radius;
-    return ok(A.whirl > 0 && turned > 0.5 && even < 0.005 && landed >= 3 && miss < 0.01 && carried > 0.02 && stillOn,
-      { turned: +turned.toFixed(2), even: +even.toFixed(4), landed, miss: +miss.toFixed(4), carried, stillOn, moved: +p0[0].distanceTo(B.ducks[0].g.position).toFixed(3) });
+    return ok(A.whirl > 0 && swirling && turned > 3 && even < 0.005 && landed >= 3 && miss < 0.01 && carried > 0.02 && stillOn,
+      { spun, turned: +turned.toFixed(2), even: +even.toFixed(4), landed, miss: +miss.toFixed(4), carried, stillOn, moved: +p0[0].distanceTo(B.ducks[0].g.position).toFixed(3) });
   },
 });
 act2('clog-angry-spray', {
