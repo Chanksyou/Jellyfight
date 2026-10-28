@@ -18,7 +18,7 @@ import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { STAGES, currentStage, currentAct, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
-import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
+import { prepareApartment, addStageWalls, Traversal, seeThrough as seeThroughBoss } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { dressSet } from './set-dressing.js';
@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v302';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v304';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -763,6 +763,7 @@ async function warmUp() {
   // furniture the camera sees through, as the see-through copies it will swap in (camera.js)
   const seeThrough = tpc.seeThroughWarmers();
   seeThrough.forEach((m) => scene.add(m));
+  seeThroughBoss(scene, stage.boss.seeThrough, true);   // and what the boss fight sees through (the Clog's shower curtain)
   try {
     await renderer.compileAsync(scene, camera);
     uploadAll(true);
@@ -770,6 +771,7 @@ async function warmUp() {
     reportError(e, 'preparing graphics');
   }
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
+  seeThroughBoss(scene, stage.boss.seeThrough, false);
   run.gadgets.warm(false);
   run.energyShield.update(0);
   run.mirage.group.visible = false;

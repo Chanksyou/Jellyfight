@@ -109,5 +109,6 @@ export const STAGE2 = {
     arenaMax: [1.5, 0.6, 7.84],
     playerStart: [1.2, 0.15, 7.53],
     drain: [0.3, 0.15, 7.53],
+    seeThrough: ['Shower curtain'],   // it hangs over the tub: faint during the fight so it never blocks the camera
   },
 };

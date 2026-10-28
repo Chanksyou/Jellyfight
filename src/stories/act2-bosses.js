@@ -248,6 +248,27 @@ act2('clog-rises-and-chases', {
     return ok(B.constructor.name === 'Clog' && B.rise === 1 && d1 < d0 - 0.1, { boss: B.constructor.name, d0: +d0.toFixed(2), d1: +d1.toFixed(2) });
   },
 });
+// the shower curtain's cloth and rod as they're drawn now: how solid each looks
+const curtain = () => {
+  const out = [];
+  G().run.scene.traverse((o) => { if (o.name === 'Shower_curtain' && o.visible) o.traverse((m) => { if (m.isMesh) out.push(+[].concat(m.material)[0].opacity.toFixed(2)); }); });
+  return out;
+};
+act2('clog-curtain-is-see-through-in-the-fight', {
+  about: 'The shower curtain hangs over the tub, and the camera can\'t see round it, so during the Clog fight it goes faint (15% solid): still there, never blocking the view. A new run hangs it back up solid.',
+  setup() {},
+  play() {
+    fresh();
+    const before = curtain();
+    clogFight();
+    const during = curtain();
+    fresh();
+    const after = curtain();
+    const solid = (a) => a.length > 0 && a.every((o) => o === 1);
+    const faint = during.length > 0 && during.every((o) => o > 0 && o <= 0.2);
+    return ok(solid(before) && faint && solid(after), { before, during, after });
+  },
+});
 act2('clog-lash', {
   about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor (a low lane over it), then whips down along it: 3, and you\'re tangled (slowed).',
   setup() {},
