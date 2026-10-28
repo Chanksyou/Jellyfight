@@ -7,7 +7,7 @@
 // Rough layout (x runs west to east, z from the living room toward the bedroom):
 //   hallway x 1.76-3.59, z 4.85-9.0 (its west wall steps in to x 2.52 by the coat closet, z < 6.03)
 //   bathroom x 0.06-1.6, z 5.08-7.9: vanity and sink at the north end (z 5.3-5.7), the toilet
-//     by the west wall (x 0.5, z 5.6), the tub along the south wall (inside z 6.81-7.8: 1.6 times
+//     by the west wall (x 0.5, z 5.6), the tub along the south wall (inside z 6.81-7.78: 1.6 times
 //     the real one's width, to give the Clog fight room; the laundry shelf, the bath mat and the
 //     curtain moved out of its way in layout-baked.js, and the door taken off its hinges)
 //   laundry closet x 3.59-4.48, z 4.89-5.81 (off the hall's east wall), coat closet x 1.6-2.52,
@@ -113,8 +113,8 @@ export const STAGE2 = {
     kind: 'hair',
     intro: 'The Clog rises from the drain!',
     arenaMin: [0.14, 0.15, 6.81],
-    arenaMax: [1.5, 0.6, 7.8],
-    playerStart: [1.2, 0.15, 7.31],
-    drain: [0.3, 0.15, 7.31],          // in the middle of the tub's end, under the spout (bathroom.js)
+    arenaMax: [1.5, 0.6, 7.78],
+    playerStart: [1.2, 0.15, 7.3],
+    drain: [0.3, 0.15, 7.3],           // in the middle of the tub's end, under the spout (bathroom.js)
   },
 };
