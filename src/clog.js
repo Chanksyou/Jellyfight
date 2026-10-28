@@ -17,7 +17,7 @@
 //   shed      it shakes off hair tangles that join the fight
 //   spray     (angry) it spins, spraying globs of drain gunk all round in three streams: Shots
 //             alternating floor level and jump height
-//   acid      at 75% and again at 25%: the spout pours green acid until the tub is half full (it
+//   acid      at 75% and again at 25%: the spout pours brown, toxic acid until the tub is half full (it
 //             hurts to float in), and the four rubber ducks on the tub floor bob up on it. From the
 //             head of the tub, where it can't be hurt, it lobs a hair chunk at three of the ducks
 //             every 1.5 s (each duck's circle and half sphere fill till it lands): get on the fourth.
@@ -204,6 +204,51 @@ function buildClog(r) {
   return { root, roll, face, maw, teeth, drips, ropes, eyes };
 }
 
+// the acid's murk: mottled blotches and oily streaks, light on dark, tinted by the material's colour
+function murkTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d'), R = rng(77);
+  g.fillStyle = '#b8b8b8'; g.fillRect(0, 0, 256, 256);
+  for (let k = 0; k < 140; k++) {
+    const x = R() * 256, y = R() * 256, r = 6 + R() * 26, v = R();
+    g.fillStyle = v < 0.55 ? `rgba(40,30,20,${0.15 + R() * 0.3})` : v < 0.9 ? `rgba(230,220,170,${0.1 + R() * 0.2})` : `rgba(255,250,210,${0.25 + R() * 0.3})`;
+    g.beginPath(); g.ellipse(x, y, r, r * (0.4 + R() * 0.6), R() * 3, 0, Math.PI * 2); g.fill();
+  }
+  g.lineCap = 'round';
+  for (let k = 0; k < 40; k++) {                                      // oily sheen streaks
+    const x = R() * 256, y = R() * 256;
+    g.strokeStyle = `rgba(255,245,200,${0.12 + R() * 0.18})`; g.lineWidth = 1 + R() * 2;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 20 - R() * 40, y + 20 - R() * 40, x + 40 - R() * 80, y + 30 - R() * 60); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(4, 2);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// the whirlpool's funnel: a disc of radius 1 sunk toward its middle
+function funnel() {
+  const geo = new THREE.RingGeometry(0.02, 1, 64, 10).rotateX(-Math.PI / 2), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const r = Math.hypot(p.getX(i), p.getZ(i)); p.setY(i, -0.09 * (1 - r) * (1 - r)); }
+  geo.computeVertexNormals();
+  return geo;
+}
+const WHIRL_VERT = `varying vec2 vP; void main() { vP = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// spiral arms of scum wound into the eye, turning faster the nearer the middle; fades out at its rim
+const WHIRL_FRAG = `uniform float uTime, uOpacity; uniform vec3 uDeep, uGoo, uScum; varying vec2 vP;
+void main() {
+  float r = length(vP), a = atan(vP.y, vP.x);
+  float sw = a - uTime * (0.7 + 0.5 / (r + 0.12)) + log(r + 0.04) * 2.6;
+  float arms = smoothstep(0.35, 1.0, sin(sw * 4.0) * 0.5 + 0.5);
+  float streaks = smoothstep(0.75, 1.0, sin(sw * 13.0 + r * 9.0) * 0.5 + 0.5);
+  vec3 c = mix(uGoo, uScum, arms * 0.55 + streaks * 0.35);
+  c = mix(c, uDeep, smoothstep(0.45, 0.0, r));
+  gl_FragColor = vec4(c, uOpacity * smoothstep(1.0, 0.7, r));
+  #include <colorspace_fragment>
+}`;
+
 // a rubber duck `L` m long (bill to tail), sat on y 0 facing +z: one merged mesh, coloured per vertex
 function buildDuck(L) {
   const Y = LOOK.color('clog-duck', '#ffd21a'), B = LOOK.color('clog-duck-bill', '#ff7a1a');
@@ -296,15 +341,18 @@ export class Clog {
     this.grate = new THREE.Mesh(new THREE.CircleGeometry(0.035, 24).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.7, roughness: 0.4 }));
     this.grate.position.copy(this.drain).setY(this.floor + 0.0015);
     scene.add(this.grate);
-    // the acid (acid phases): a green sheet across the tub that rises and drains, the stream from the
-    // spout, and a whirlpool spiral over the middle while it swirls. Under the sheet, an unseen floor
-    // you float on, a little below its top so the jelly wades in it (added to the world on the first
-    // tick, so the shader warm-up's copy of the Clog never leaves one behind)
+    // the acid (acid phases): a sheet of murky brown goo across the tub that rises and drains, the
+    // stream from the spout, toxic bubbles swelling and popping on it, and a whirlpool over the middle
+    // while it swirls. Under the sheet, an unseen floor you float on, a little below its top so the
+    // jelly wades in it (added to the world on the first tick, so the shader warm-up's copy of the
+    // Clog never leaves one behind)
     const a = arena;
     this.mid = V((a.arenaMin[0] + a.arenaMax[0]) / 2, this.floor, (a.arenaMin[2] + a.arenaMax[2]) / 2);
     this.acidY = this.floor;
     const sheet = () => new THREE.PlaneGeometry(a.arenaMax[0] - a.arenaMin[0], a.arenaMax[2] - a.arenaMin[2]).rotateX(-Math.PI / 2);
-    this.water = new THREE.Mesh(sheet(), new THREE.MeshPhysicalMaterial({ color: LOOK.color('clog-acid', '#9be01a'), transparent: true, opacity: 0.72, roughness: 0.08, metalness: 0.05, clearcoat: 1, emissive: LOOK.color('clog-acid-glow', '#3f8a00'), emissiveIntensity: 0.6, depthWrite: false }));
+    const ACID = new THREE.Color(LOOK.color('clog-acid', '#5c4520')), GLOW = new THREE.Color(LOOK.color('clog-acid-glow', '#3a2a06')), SCUM = new THREE.Color(LOOK.color('clog-acid-scum', '#a89048'));
+    this.murk = murkTexture();
+    this.water = new THREE.Mesh(sheet(), new THREE.MeshStandardMaterial({ color: ACID, map: this.murk, transparent: true, opacity: 0.9, roughness: 0.18, metalness: 0.1, emissive: GLOW, emissiveMap: this.murk, emissiveIntensity: 0.9, depthWrite: false }));
     this.water.position.copy(this.mid);
     this.water.renderOrder = 2;
     this.water.visible = false;
@@ -314,26 +362,25 @@ export class Clog {
     this.acidFloor.position.copy(this.mid);
     this.acidFloor.visible = false;
     scene.add(this.acidFloor);
-    this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshPhysicalMaterial({ color: LOOK.color('clog-acid', '#9be01a'), transparent: true, opacity: 0.75, roughness: 0, emissive: LOOK.color('clog-acid-glow', '#3f8a00'), emissiveIntensity: 0.6, depthWrite: false }));
+    this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: ACID, transparent: true, opacity: 0.9, roughness: 0.15, emissive: GLOW, emissiveIntensity: 0.9, depthWrite: false }));
     this.stream.position.set(0.226, this.floor, 7.48);
     this.stream.visible = false;
     scene.add(this.stream);
-    const spiral = document.createElement('canvas');
-    spiral.width = spiral.height = 256;
-    const sg = spiral.getContext('2d');
-    sg.translate(128, 128);
-    for (let k = 0; k < 4; k++) {
-      sg.rotate(Math.PI / 2);
-      sg.strokeStyle = 'rgba(230,255,190,.75)'; sg.lineWidth = 7;
-      sg.beginPath();
-      for (let t = 0; t < 1; t += 0.02) { const r = 10 + t * 115, th = t * 4.2; sg[t ? 'lineTo' : 'moveTo'](Math.cos(th) * r, Math.sin(th) * r); }
-      sg.stroke();
-    }
-    const st = new THREE.CanvasTexture(spiral);
-    this.whirl = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: st, transparent: true, depthWrite: false, opacity: 0.5 }));
+    // the whirlpool: a shallow funnel of goo whose scum streaks spiral in, faster toward its dark eye
+    this.whirl = new THREE.Mesh(funnel(), new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uDeep: { value: GLOW.clone().multiplyScalar(0.6) }, uGoo: { value: ACID.clone() }, uScum: { value: SCUM.clone() }, uOpacity: { value: 0.95 } },
+      vertexShader: WHIRL_VERT, fragmentShader: WHIRL_FRAG, transparent: true, depthWrite: false,
+    }));
     this.whirl.renderOrder = 3;
     this.whirl.visible = false;
     scene.add(this.whirl);
+    // toxic bubbles: one instanced draw; each swells on the surface, then pops
+    this.bubbleN = 36;
+    this.bubbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ color: SCUM, emissive: LOOK.color('clog-acid-fume', '#c8b860'), emissiveIntensity: 0.35, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85 }), this.bubbleN);
+    this.bubbles.name = 'Acid bubbles'; this.bubbles.userData.noCollide = true; this.bubbles.frustumCulled = false; this.bubbles.renderOrder = 3;
+    this.bubbles.visible = false;
+    this.bubbleList = Array.from({ length: this.bubbleN }, () => ({ x: this.mid.x, z: this.mid.z, t: 1, life: 1, size: 0 }));
+    scene.add(this.bubbles);
     // the four rubber ducks, evenly round the middle of the tub floor; each has an unseen round
     // top you can stand on (its back)
     const D = this.def.skills.ducks;
@@ -367,7 +414,7 @@ export class Clog {
   }
 
   // the shader warm-up (main.js): show what only an acid phase shows, so it's built up front
-  warm(on) { for (const m of [this.water, this.stream, this.whirl, ...this.chunks.map((c) => c.m)]) m.visible = on; }
+  warm(on) { for (const m of [this.water, this.stream, this.whirl, this.bubbles, ...this.chunks.map((c) => c.m)]) m.visible = on; }
 
   // where duck i sits on the ring (its middle on the water, or the floor), turned by duckAng
   duckAt(i, out, ang = this.duckAng) {
@@ -919,12 +966,13 @@ export class Clog {
     this.acidDone++;
     this.state = 'acid'; this.stateT = 99; this.locked = false;
     this.head = V(a.arenaMin[0] + this.r + 0.04, this.floor, this.mid.z);
-    this.water.visible = this.acidFloor.visible = this.stream.visible = true;
+    this.water.visible = this.acidFloor.visible = this.stream.visible = this.bubbles.visible = true;
+    for (const b of this.bubbleList) { b.size = 0; b.t = b.life = Math.random() * 1.5; }   // (each comes up after a moment of its own)
     sfx.clogRoar(); sfx.clogPour(AC.rise);
     this.squash = Math.max(this.squash, 0.6); this.chomp = 0.6; juice.feel('impact');
     for (const e of [...this.enemies.list]) {
       if (e.dead || e.proxy || e.elite || e.pos.x < a.arenaMin[0] || e.pos.x > a.arenaMax[0] || e.pos.z < a.arenaMin[2] || e.pos.z > a.arenaMax[2]) continue;
-      this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid', '#9be01a'), 0.03, 0.5);
+      this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid-fume', '#c8b860'), 0.03, 0.5);
       this.enemies.kill(e, true);
     }
   }
@@ -932,7 +980,7 @@ export class Clog {
   // the acid gone (drained, or the phase cut short): everything it showed hidden, the ducks back down
   endAcid() {
     if (!this.acid) return;
-    for (const m of [this.water, this.stream, this.whirl, this.acidFloor]) m.visible = false;
+    for (const m of [this.water, this.stream, this.whirl, this.bubbles, this.acidFloor]) m.visible = false;
     for (const c of this.chunks) { c.on = false; c.m.visible = c.tele.visible = c.vol.visible = false; }
     this.acid = null; this.acidY = this.floor; this.lift = 0;
     this.placeDucks(0);
@@ -953,7 +1001,7 @@ export class Clog {
       A.spin = A.whirl * u;
       this.stream.scale.y = Math.max(0.01, 0.633 - this.acidY);
       this.stream.position.y = this.acidY;
-      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid', '#9be01a'), 0.012, 0.35);
+      if (Math.random() < dt * 40) this.fx.puff(this._puff.set(0.226, this.acidY + 0.005, 7.48 + (Math.random() - 0.5) * 0.02), LOOK.color('clog-acid-fume', '#c8b860'), 0.012, 0.35);
       this.drive(dt, this.head, Math.min(0.35, this.holder.position.distanceTo(this._at.copy(this.head).setY(this.holder.position.y)) * 4), 6);
       mouth = 0.8;
       if (u >= 1) { A.phase = 'volley'; A.t = 0; this.stream.visible = false; }
@@ -980,8 +1028,16 @@ export class Clog {
     this.water.position.y = this.acidY;
     this.acidFloor.position.y = Math.max(this.floor - 0.01, this.acidY - 0.03);   // you wade in it, 3 cm deep
     this.acidFloor.updateMatrixWorld(true);
+    this.murk.offset.x += dt * 0.006;                                     // the goo creeps
     this.whirl.visible = A.whirl > 0;
-    if (this.whirl.visible) { this.whirl.position.copy(this.mid).setY(this.acidY + 0.002); this.whirl.scale.setScalar(this.duckR * 1.7); this.whirl.rotation.y -= A.spin * dt * 1.5; }
+    if (this.whirl.visible) {
+      const R = Math.min(this.duckR * 1.6, (this.arena.arenaMax[2] - this.arena.arenaMin[2]) / 2);
+      this.whirl.position.copy(this.mid).setY(this.acidY + 0.002);
+      this.whirl.scale.set(R, R, R);
+      this.whirl.material.uniforms.uTime.value += A.spin * dt;            // its spin: winding up, full, winding down
+      this.whirl.material.uniforms.uOpacity.value = 0.95 * Math.min(1, A.spin / (A.whirl * 0.3));
+    }
+    this.bubbling(dt, A);
 
     // the chunks in flight, and their Warnings riding on the ducks they're coming down on
     for (const c of this.chunks) if (c.on) this.chunkStep(c, dt, AC, P, player, out);
@@ -993,15 +1049,41 @@ export class Clog {
     else if (!back && this.acidY > this.floor + 0.01 && P.y < this.acidY) {
       out.hurt = AC.dmg * dt;
       if (A.spin) out.push = tan.multiplyScalar(A.spin * 0.5).clone();   // (tan is toMid turned: its length is the distance out)
-      // it eats at you: green fizz off the jelly every so often, a hiss
+      // it eats at you: fumes fizz off the jelly every so often, a hiss
       if ((A.fizzT -= dt) <= 0) {
         A.fizzT = 0.35;
-        this.fx.puff(this._puff.copy(P).setY(this.acidY + 0.01), LOOK.color('clog-acid', '#9be01a'), 0.02, 0.4);
+        this.fx.puff(this._puff.copy(P).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#c8b860'), 0.02, 0.4);
         this.fx.impact(this._puff.setY(P.y + cfg.height * 0.5), hostile('clog'), LOOK.num('act2-contact-flash', 0.03) * 0.4, 4);
         sfx.acidSizzle();
       }
     }
     return mouth;
+  }
+
+  // the toxic bubbles: each swells on the goo for its life, then pops (a puff of fumes, now and then a
+  // hiss); in the whirlpool they're swept round with it, faster nearer the middle
+  bubbling(dt, A) {
+    const a = this.arena, hx = (a.arenaMax[0] - a.arenaMin[0]) / 2 - 0.03, hz = (a.arenaMax[2] - a.arenaMin[2]) / 2 - 0.03, m = this._m4 ||= new THREE.Matrix4();
+    for (let i = 0; i < this.bubbleN; i++) {
+      const b = this.bubbleList[i];
+      if ((b.t += dt) >= b.life) {
+        if (b.size && Math.random() < 0.35) {
+          this.fx.puff(this._puff.set(b.x, this.acidY + b.size, b.z), LOOK.color('clog-acid-fume', '#c8b860'), b.size * 1.6, 0.4);
+          if (Math.random() < 0.3) sfx.acidSizzle();
+        }
+        b.t = 0; b.life = 0.8 + Math.random() * 1.8; b.size = 0.004 + Math.random() * 0.01;
+        b.x = this.mid.x + (Math.random() * 2 - 1) * hx; b.z = this.mid.z + (Math.random() * 2 - 1) * hz;
+      }
+      if (A.spin) {                                                       // swept round the whirlpool
+        const dx = b.x - this.mid.x, dz = b.z - this.mid.z, r = Math.hypot(dx, dz), w = A.spin * dt * (0.6 + 0.08 / (r + 0.05));
+        const c = Math.cos(w), s = Math.sin(w);
+        b.x = this.mid.x + dx * c - dz * s; b.z = this.mid.z + dx * s + dz * c;
+      }
+      const u = b.t / b.life, k = b.size * (u < 0.85 ? Math.sqrt(u / 0.85) : 1 + (u - 0.85) * 4);   // swells, then bulges as it pops
+      m.makeScale(k, k * 0.75, k).setPosition(b.x, this.acidY + k * 0.2, b.z);
+      this.bubbles.setMatrixAt(i, m);
+    }
+    this.bubbles.instanceMatrix.needsUpdate = true;
   }
 
   // a round: a hair chunk lobbed at each duck but one (never the same one spared twice running),
@@ -1051,7 +1133,7 @@ export class Clog {
     d.dip = 1;
     this.fx.impact(c.to, hostile('clog'), 0.04, 14);
     this.fx.burst(c.to, [...HAIR.slice(0, 6), '#8a9a5a'], 10, 0.0045, 0.45, this.acidY);
-    this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid', '#9be01a'), 0.04, 0.5);
+    this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#c8b860'), 0.04, 0.5);
     sfx.clogSplat(); sfx.duckSqueak();
     juice.feel('impact');
     if (blastHits(c.to, R, P, player.cfg)) { out.hit = Math.max(out.hit, AC.hit); this.knockBack(_rel.copy(P).sub(c.to), 0.7); this.contact(P, player.cfg); }
@@ -1091,7 +1173,7 @@ export class Clog {
 
   dispose() {
     this.scene.remove(this.holder);
-    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.grate, this.water, this.stream, this.whirl, this.acidFloor, ...this.ducks.map((d) => d.g), ...this.chunks.flatMap((c) => [c.m, c.tele, c.vol])]) this.scene.remove(m);
+    for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh, this.grate, this.water, this.stream, this.whirl, this.bubbles, this.acidFloor, ...this.ducks.map((d) => d.g), ...this.chunks.flatMap((c) => [c.m, c.tele, c.vol])]) this.scene.remove(m);
     // its stand-on surfaces stay in the world's list: hidden, they're never hit again
     this.acidFloor.visible = false; for (const d of this.ducks) d.back.visible = false;
     this.tufts.forEach((f) => this.scene.remove(f.m));
