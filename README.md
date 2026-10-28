@@ -4,6 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v303 applies a second Dev mode tuning pass to the act 2 and 3 bugs (`content/enemies.kdl`, 11 numbers), mostly easing them. Wasps dive slower (2) from closer (50 cm) and sting for 4 instead of 6. The stag beetle's ball flies much slower (0.6). The dragonfly zips slower (1.25) and shorter (20 cm), charges for half a second instead of 1 s, fires a wider beam (8 cm) and darts away from hits at most every 5 s. The mantis swats 20 cm instead of 30. The ladybug flies round you slower (0.45).
 v302 gives the Clog its acid duck phases and drops its flood and ladybug swarm. Four rubber ducks sit round the middle of the tub floor. At 75% and again at 25% of its Health, the Clog fills the tub half full of green acid (floating in it costs 2 Health a second) and the ducks bob up on it. From the head of the tub, where it can't be hurt, it lobs a hair chunk at three of the four ducks every 1.5 s, eight times: get on the spared duck. Then the acid drains and the fight goes on. The second time, the acid swirls: the ducks circle the middle, carrying you, and each chunk lands where its duck will be. Tune it with `acid` and `ducks` in content/bosses.kdl.
 
 v300 softens the lanternfly's landing warning: opacity now pulses gently between 24% and 28%, down from 85–100%. Its landing radius, fill timing and damage are unchanged. Tune it with --leap-warning-opacity and --leap-warning-pulse in content/look.css.
