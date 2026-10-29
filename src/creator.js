@@ -88,11 +88,12 @@ export class Creator {
   close() { this.untry(true); this.panel.hidden = this.hint.hidden = true; }
 
   // try a locked option on: the jelly wears it, the look doesn't change
-  tryOn(b) {
+  // (the line over the jelly says what it takes: the row's note can be scrolled out of sight)
+  tryOn(b, says) {
     this.body.querySelectorAll('.chips button.try').forEach((x) => x.classList.remove('try'));
     b.classList.add('try');
     this.trying = true;
-    this.hint.textContent = 'Trying it on: not yours yet';
+    this.hint.textContent = 'Trying it on · ' + says;
     this.onPreview?.({ ...this.look, [b.dataset.k]: b.dataset.v });
   }
   // stop trying on; show = put the jelly back now (otherwise the caller's onChange rebuilds it)
@@ -147,11 +148,11 @@ export class Creator {
     if (b.dataset.need) {                   // locked: try it on and say what it takes
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`);
       if (note) note.textContent = '🔒 ' + b.dataset.need;
-      this.tryOn(b);
+      this.tryOn(b, b.dataset.need);
       return;
     }
     if (b.dataset.cost) {                   // in the shop: try it on, its price, and Buy when you have enough
-      this.tryOn(b);
+      this.tryOn(b, `${b.dataset.name} · ${b.dataset.cost} Pearls`);
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`), cost = +b.dataset.cost, have = bank().pearls;
       if (note) note.innerHTML = `🦪 ${esc(b.dataset.name)} · ${cost} Pearls` + (have >= cost
         ? `<button data-buy="${b.dataset.k}" data-v="${b.dataset.v}">Buy</button>`

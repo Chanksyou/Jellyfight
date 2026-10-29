@@ -363,12 +363,12 @@ story('modes/try-on-locked-cosmetics', {
       // an award: worn on the jelly, said what it takes, not the look
       chip('top', 'goldcrown').click(); step(1);
       const award = gold() > base && run.playerLook().top === 'none' && /Earned: win a run/.test(note())
-        && chip('top', 'goldcrown').classList.contains('try') && /Trying it on/.test(hint());
+        && chip('top', 'goldcrown').classList.contains('try') && /Trying it on · Golden crown · Earned: win a run/.test(hint());
       // a shop look: a new jelly, its price, still not the look
       const before = player.avatar;
       chip('top', 'lampshade').click(); step(1);
       const shop = player.avatar !== before && gold() === base && run.playerLook().top === 'none' && /300 Pearls/.test(note())
-        && !chip('top', 'goldcrown').classList.contains('try');
+        && !chip('top', 'goldcrown').classList.contains('try') && /Lampshade · 300 Pearls/.test(hint());
       // an owned pick ends it
       chip('top', 'bow').click(); step(1);
       const owned = run.playerLook().top === 'bow' && /Drag to spin/.test(hint());
