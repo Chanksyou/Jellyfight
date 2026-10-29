@@ -219,8 +219,7 @@ function makeMaterials(look) {
     enamel: std('#fffdf4', { roughness: 0.2, side: THREE.DoubleSide, emissive: new THREE.Color('#fff4d0'), emissiveIntensity: 0.3 }),
     coral: std('#ff6f7d', { roughness: 0.75 }),
     coralTip: std('#ffd3c4', { roughness: 0.7, emissive: new THREE.Color('#ff9a8a'), emissiveIntensity: 0.25 }),
-    shell: new THREE.MeshStandardMaterial({ map: shellBands(), roughness: 0.4 }),
-    shellBand: std('#c9805a', { roughness: 0.45 }),
+    shell: look.top === 'shell' && new THREE.MeshStandardMaterial({ map: shellBands(), roughness: 0.4 }),
     shellLip: std('#ffb8a8', { roughness: 0.3 }),
     heart: std('#ff3f78', { roughness: 0.25, emissive: new THREE.Color('#ff2a6a'), emissiveIntensity: 0.55 }),
     star: std('#ffe14a', { roughness: 0.25, emissive: new THREE.Color('#ffc21a'), emissiveIntensity: 0.8 }),
@@ -233,11 +232,12 @@ function makeMaterials(look) {
     snorkelTip: std('#ff5a2a', { roughness: 0.4 }),
     pebble: std('#8a7f9a', { roughness: 0.7 }),
     steam: new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff'), transparent: true, opacity: 0.55, depthWrite: false }),
-    thimble: std('#d4d9e0', { roughness: 0.3, metalness: 0.7, emissive: new THREE.Color('#5a606a'), emissiveIntensity: 0.5, bumpMap: dimples(), bumpScale: 2 }),
+    // (the printed ones only for the hat that wears them: each draws a canvas)
+    thimble: look.top === 'thimble' && std('#d4d9e0', { roughness: 0.3, metalness: 0.7, emissive: new THREE.Color('#5a606a'), emissiveIntensity: 0.5, bumpMap: dimples(), bumpScale: 2 }),
     origami: std(look.topColor, { roughness: 0.85, side: THREE.DoubleSide, flatShading: true }),
-    note: new THREE.MeshStandardMaterial({ map: stickyNote(look.topColor), roughness: 0.85, side: THREE.DoubleSide }),
-    showercap: new THREE.MeshStandardMaterial({ map: dotted(look.topColor), roughness: 0.25, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
-    sock: new THREE.MeshStandardMaterial({ map: striped(look.topColor), roughness: 0.95 }),
+    note: look.top === 'stickynote' && new THREE.MeshStandardMaterial({ map: stickyNote(look.topColor), roughness: 0.85, side: THREE.DoubleSide }),
+    showercap: look.top === 'showercap' && new THREE.MeshStandardMaterial({ map: dotted(look.topColor), roughness: 0.25, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
+    sock: look.top === 'sock' && new THREE.MeshStandardMaterial({ map: striped(look.topColor), roughness: 0.95 }),
     sockCuff: std('#f4efe6', { roughness: 0.95 }),
     sockToe: std('#' + new THREE.Color(look.topColor).lerp(new THREE.Color('#000000'), 0.35).getHexString(), { roughness: 0.95 }),
     fabric: std(look.topColor, { roughness: 0.9, side: THREE.DoubleSide, emissive: new THREE.Color(look.topColor), emissiveIntensity: 0.25 }),
@@ -1560,7 +1560,7 @@ export function buildCharacter(look, heightMeters) {
   function dispose() {
     rig?.dispose();
     root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.bumpMap?.dispose(); o.material.dispose(); } });
-    Object.values(M).forEach((m) => m.dispose());
+    Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
   return { root, update, land, takeoff, pulse, dispose, look, tentacles: rig, squash, hatTop };
