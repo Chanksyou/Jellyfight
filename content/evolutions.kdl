@@ -8,8 +8,8 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
-evolution "cinder" name="Cinder Jelly" icon="🔥" text="Flaming feet burn the ground you walk over for 2 seconds, dealing half your power per second to bugs touching the trail. No trail in the air. Range is 20% lower." {
-    fire-trail time=2 radius=0.025 height=0.035 dps=0.5 tick=0.25
+evolution "cinder" name="Cinder Jelly" icon="🔥" text="Flaming feet burn the ground you walk over for 3 seconds, dealing half your power per second to bugs touching the trail. No trail in the air. Range is 20% lower." {
+    fire-trail time=3 radius=0.03 height=0.05 dps=0.5 tick=0.25
     stat range -20 percent=#true
     adorn "flaming-feet"
 }
@@ -20,45 +20,45 @@ evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles retu
     adorn "rebound-bands"
 }
 
-evolution "mirage" name="Mirage Jelly" icon="🫧" text="Every 8 seconds of movement, leave a ghost of your jelly for 3 seconds. Bugs within 45 cm aim at it; locked attacks and Elites still threaten you. Maximum Health is 15% lower." {
-    decoy every=8 time=3 range=0.45
-    stat health -15 percent=#true
+evolution "mirage" name="Mirage Jelly" icon="🫧" text="Every 8 seconds of movement, leave a ghost of your jelly for 4 seconds. Bugs within 45 cm aim at it; locked attacks and Elites still threaten you. Maximum Health is 10% lower." {
+    decoy every=8 time=4 range=0.45
+    stat health -10 percent=#true
     adorn "mirage-rim"
 }
 
-evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 10 damage. When depleted, it explodes for 10 damage within 20 cm, then returns after 8 seconds. Excess damage passes through to Health." {
-    energy-shield 10 dmg=10 radius=0.2 recharge=8
+evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 10 damage. When depleted, it explodes for 10 damage within 20 cm, then returns after 6 seconds. Excess damage passes through to Health." {
+    energy-shield 10 dmg=10 radius=0.2 recharge=6
 }
 
-evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 40% slower." {
+evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach three times as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 35% slower." {
     stat tentacles 3
-    stat tentacle-reach 100 percent=#true
+    stat tentacle-reach 200 percent=#true
     venom dps=0.5 time=3 stacks=5
-    stat fire-rate -40 percent=#true
+    stat fire-rate -35 percent=#true
     adorn "venom-tips"
 }
-evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you and shoot with you: every bubble and element shot, each fires one more at half damage. -20% max Health." {
-    polyps 2 dmg=0.5
-    stat health -20 percent=#true
+evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you and shoot with you: every bubble and element shot, each fires one more at 30% damage. -15% max Health." {
+    polyps 2 dmg=0.3
+    stat health -15 percent=#true
     adorn "sail"
 }
-evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, survive a killing blow: become a polyp, invulnerable and unable to attack for 5 s, then recover full Health. -25% max Health. No Health regen." {
+evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, survive a killing blow: become a polyp, invulnerable and unable to attack for 5 s, then recover full Health. -10% max Health. No Health regen." {
     rebirth time=5
-    stat health -25 percent=#true
+    stat health -10 percent=#true
     no-regen
     adorn "halo"
 }
-evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2.5 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Bubbles reach 30% less far." {
-    every 2.5 {
-        ring 0.13 dmg=1 push=0.05 color="#dff4ff" show=0.4
+evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Bubbles reach 30% less far." {
+    every 2 {
+        ring 0.24 dmg=2 push=0.08 color="#dff4ff" show=0.4
         dash 0.8 time=0.35
     }
     stat range -30 percent=#true
     adorn "moon-ring"
 }
-evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung twice a second. -15% Move speed." {
+evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung four times a second. -15% Move speed." {
     stat health 60 percent=#true
-    touch-sting dmg=0.25 every=0.5 reach=0.02
+    touch-sting dmg=0.5 every=0.25 reach=0.08
     stat move-speed -15 percent=#true
     adorn "mane"
 }

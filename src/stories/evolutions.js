@@ -12,17 +12,17 @@ import { G, STORIES, dmgBy, evolve, fresh, give, near, ok, record, restore, roac
 
 // --- evolutions (content/evolutions.kdl): one story per word they brought
 story('treasures/venom', {
-  about: 'venom (Box Jelly): each tentacle sting adds a venom stack (up to 5) that burns half your Tentacle damage a second per stack; Box Jelly lashes with 4 tentacles reaching twice as far.',
+  about: 'venom (Box Jelly): each tentacle sting adds a venom stack (up to 5) that burns half your Tentacle damage a second per stack; Box Jelly lashes with 4 tentacles reaching three times as far.',
   setup() { setupFight({ bubbles: false }); evolve('boxJelly'); roachAt(0.13, 0); },
   play() {
     const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
     step(60 * 6);
     const venom = dmgBy(log, 'venom'), stacks = run.lash.venom.get(e)?.stacks, T = run.tentacleStats;
-    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 2) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
+    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 3) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
   },
 });
 story('treasures/polyps', {
-  about: 'polyps (Man o\' War): two polyps circle the jelly and each blows a bubble with yours, at half damage; max Health is 20% lower.',
+  about: 'polyps (Man o\' War): two polyps circle the jelly and each blows a bubble with yours, at 30% damage; max Health is 15% lower.',
   setup() { setupFight({ lash: false }); evolve('manOWar'); G().run.stats.bubbles = 1; roachAt(0, -0.15); },
   play() {
     const { run } = G(), B = run.bubbles;
@@ -32,7 +32,7 @@ story('treasures/polyps', {
     const log = record('damage_taken');
     step(60 * 3, () => dmgBy(log, 'bubble').length >= 3);
     const hits = dmgBy(log, 'bubble').map((d) => +d.amount.toFixed(2)), full = run.S.bubbleDamage;
-    return ok(blown === 3 && hits.some((h) => Math.abs(h - full * 0.5) < 0.01) && Math.abs(run.S.health - BASE_STATS.health * 0.8) < 1e-9 && run.adorn.pieces.polyps?.group.visible, { blown, hits, health: run.S.health });
+    return ok(blown === 3 && hits.some((h) => Math.abs(h - full * 0.3) < 0.01) && Math.abs(run.S.health - BASE_STATS.health * 0.85) < 1e-9 && run.adorn.pieces.polyps?.group.visible, { blown, hits, health: run.S.health });
   },
 });
 story('treasures/rebirth', {
@@ -56,7 +56,7 @@ story('treasures/no-regen', {
   play() { const { run } = G(); step(120); return ok(run.S.regen === 0 && run.health === 5, { regen: run.S.regen, health: run.health }); },
 });
 story('treasures/dash', {
-  about: 'every + ring + dash (Moon Jelly): every 2.5 s the bell pulses, stinging and pushing back bugs close by, and the jelly surges (+80% Move speed for 0.35 s).',
+  about: 'every + ring + dash (Moon Jelly): every 2 s the bell pulses, stinging and pushing back bugs close by, and the jelly surges (+80% Move speed for 0.35 s).',
   setup() { setupFight({ bubbles: false, lash: false }); evolve('moonJelly'); roachAt(0.08, 0); },
   play() {
     const { run } = G(), log = record('damage_taken');
@@ -66,13 +66,13 @@ story('treasures/dash', {
   },
 });
 story('treasures/touch-sting', {
-  about: 'touch-sting (Lion\'s Mane): bugs touching the jelly are stung twice a second; ones a little farther off aren\'t. +60% max Health.',
+  about: 'touch-sting (Lion\'s Mane): bugs touching the jelly are stung four times a second; ones a little farther off aren\'t. +60% max Health.',
   setup() { setupFight({ bubbles: false, lash: false }); evolve('lionsMane'); roachAt(0.035, 0); roachAt(0.15, 0); },
   play() {
     const { run, enemies } = G(), [close, far] = enemies.list, log = record('damage_taken');
     step(61);
     const stings = dmgBy(log, 'touch');
-    return ok(stings.length === 2 && stings.every((d) => d.targetId === close.id) && Math.abs(run.S.health - BASE_STATS.health * 1.6) < 1e-9, { stings: stings.map((d) => (d.targetId === far.id ? 'far' : 'close')), health: run.S.health });
+    return ok(stings.length === 4 && stings.every((d) => d.targetId === close.id) && Math.abs(run.S.health - BASE_STATS.health * 1.6) < 1e-9, { stings: stings.map((d) => (d.targetId === far.id ? 'far' : 'close')), health: run.S.health });
   },
 });
 story('treasures/while-rooted', {
