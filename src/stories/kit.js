@@ -132,7 +132,7 @@ export function cameraTour(spots) {
     for (let k = 0; k < 16; k++) {
       // build the shaders this view needs (see-through copies included) without drawing it: in a
       // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
-      tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); views++;
+      tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); G().GAME.compile(); views++;
       if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;   // (a fight view: eased in)
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();
@@ -443,8 +443,8 @@ export const EVERY_ATTACK = {
     // the Encore (encore.js): every attack on its song's beat, each proven by its own encore/* story.
     // Floor waves have no Warning by decision (you watch the wave come: docs/adr/0001); a laser's
     // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
-    // stage edge is a hazard; the beetles are bugs it calls
-    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' }, beetles: { is: 'none' } },
+    // stage edge is a hazard
+    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -487,7 +487,7 @@ function checkAttack(who, name, a) {
   const during = a.during || (boss ? () => boss.state === name : () => e.state === 'windup' && ELITE_ATTACKS[who][e.attack] === name);
   // (an Elite's Shots fly as its attack ends: those count once it has started)
   const now = a.is === 'shot' ? () => started && shows() : () => during() && shows();
-  const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+  const compile = () => { batcher.sync(); G().GAME.compile(); };
   let started = false, warned = false;
   step(60 * 8, () => {
     if (during()) started = true;

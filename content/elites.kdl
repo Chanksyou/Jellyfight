@@ -1,5 +1,6 @@
 // The elites: the things on the furniture that came alive (src/elites.js). Health, how close
-// you have to get to wake one (aggro, m), and each attack's damage and headline counts.
+// you have to get to wake one (aggro, m), and each attack's damage and headline counts. icon= is
+// its picture in the Treasure book: every book entry has its own.
 // Under half health the Soap Dispenser, the Wall Clock and the Cream Whipper are angry
 // (angry= is that fraction of Health). Radii, telegraph shapes and phase timings stay in
 // the code: they are the attacks' choreography, drawn by the telegraphs themselves (the
@@ -9,33 +10,33 @@
 
 pace recover=1 tempo=1.4
 
-elite "controller" name="The Controller" hp=250 aggro=1.1 {
+elite "controller" name="The Controller" icon="🎮" hp=250 aggro=1.1 {
     barrage dmg=3 windup=1.4 radius=0.075 height=0.06 spread=0.19 rest=1.6
     rumble dmg=3
 }
 
-elite "mug" name="The Mug" hp=250 aggro=0.9 {
+elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
     coffee dmg=3 lobs=5 drain=3
     spill puddles=7
 }
 
-elite "kettle" name="The Kettle" hp=275 aggro=1.4 {
+elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
     steam dmg=3
     boil dmg=3 drops=6
 }
 
-elite "soap" name="The Soap Dispenser" hp=500 aggro=1.2 angry=0.75 {
+elite "soap" name="The Soap Dispenser" icon="🧼" hp=500 aggro=1.2 angry=0.75 {
     squirt dmg=4 count=9 angryCount=10
     ring dmg=3 rings=3 angryRings=5
 }
 
-elite "clock" name="The Wall Clock" hp=450 aggro=0.75 angry=0.65 {
+elite "clock" name="The Wall Clock" icon="🕰️" hp=450 aggro=0.75 angry=0.65 {
     sweep dmg=4
     wreath dmg=4
     hour dmg=4 chimes=6
 }
 
-elite "whipper" name="The Cream Whipper" hp=450 aggro=1.25 angry=0.65 {
+elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.65 {
     balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
     cream dmg=3 slow=2
 }
@@ -51,7 +52,7 @@ elite "whipper" name="The Cream Whipper" hp=450 aggro=1.25 angry=0.65 {
 //           thick, out at speed= m/s to reach= m: jump it, or it hits and shoves you on (knock=)
 //   pounce: it crouches for windup= s while a Warning of radius= fills under it, leaps leap= m
 //           up for air= s and lands as a Blast of radius= round itself (knock= knocks you back)
-elite "croc" name="The Alligator" hp=800 aggro=1.8 angry=0.65 {
+elite "croc" name="The Alligator" icon="🐊" hp=800 aggro=1.8 angry=0.65 {
     volley dmg=3 count=3 angryCount=5 spread=0.16 radius=0.09 size=0.016 windup=0.8 angryWindup=0.6 flight=0.45 arc=0.25 slow=0.5 slowTime=1.5 rest=1.0 angryRest=0.7
     tail dmg=3 slams=3 maxSlams=5 angrySlams=4 angryMaxSlams=6 gapMin=0.35 gapMax=0.9 turn=0.5 height=0.03 band=0.07 speed=0.5 reach=0.9 knock=0.45 rest=1.0 angryRest=0.7
     pounce dmg=4 radius=0.32 windup=1.0 angryWindup=0.75 leap=0.2 air=0.55 knock=0.9 rest=1.1 angryRest=0.8
@@ -70,7 +71,7 @@ elite "croc" name="The Alligator" hp=800 aggro=1.8 angry=0.65 {
 //           through where you are (width= wide, height= tall, reach= long) filling for warn= s;
 //           then they charge along it at speed= m/s and burst on you (knock=), on each other, or
 //           at the lane's end or the table's edge
-elite "bull" name="The Bull" hp=800 aggro=1.0 angry=0.65 {
+elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
     rush dmg=4 radius=0.4 windup=1.2 angryWindup=0.9 horns=2 angryHorns=2.5 knock=1.6 rest=1.0 angryRest=0.7
     spiral dmg=2 arms=2 angryArms=3 warn=0.6 warnRadius=0.16 time=2.5 every=0.08 turn=200 angryTurn=260 speed=0.35 reach=0.7 size=0.009 rest=1.0 angryRest=0.7
     minis dmg=3 side=0.15 warn=0.7 speed=0.6 angrySpeed=0.8 reach=0.4 width=0.07 height=0.09 knock=1.0 rest=1.0 angryRest=0.7
@@ -91,7 +92,7 @@ elite "bull" name="The Bull" hp=800 aggro=1.0 angry=0.65 {
 //              fill on random spots of the desk top (spread= m apart at least) for rain= s; then the
 //              jewels fall from up= m onto them in drop= s and burst as Blasts
 // (its times were authored for tempo=1.2; the shared pace above scales these attacks too)
-elite "coffer" name="The Latticework Coffer" hp=800 aggro=1.2 angry=0.65 {
+elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=0.65 {
     accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
     tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7
     jewels dmg=3 count=10 angryCount=14 radius=0.1 spread=0.17 rain=2.4 drop=0.25 up=0.9 rest=1.0 angryRest=0.7

@@ -84,11 +84,10 @@ story('deaths/cleanup-floor-and-reduced-effects', {
 });
 
 story('deaths/crowd-cap-and-prepared-shaders', {
-  about: 'On phone-default Low graphics, crowded kills retain at most twelve bodies, reuse prepared model materials, and release every body and shell after their short lifetime.',
+  about: 'Crowded kills retain at most twelve bodies, reuse prepared model materials, and release every body and shell after their short lifetime.',
   setup,
   play() {
-    const { fx, GAME, APT, batcher, gfx } = G();
-    gfx.setTier('low');
+    const { fx, GAME, APT, batcher } = G();
     GAME.render(); const programs = APT.renderer.info.programs.length;
     for (let i = 0; i < 30; i++) kill(['roach', 'ants', 'ladybug', 'beetle'][i % 4], 0.24 + i % 4 * 0.08);
     const capped = fx.deaths.list.length === 12;
@@ -124,13 +123,12 @@ story('deaths/proxy-removal-keeps-position-getter', {
 });
 
 phone('enemy-death-personalities', {
-  about: 'Roach, ant, flyer and shell death motions remain visible on phone Low graphics with bounded bodies and unchanged reward timing.',
+  about: 'Roach, ant, flyer and shell death motions remain visible on a phone with bounded bodies and unchanged reward timing.',
   setup,
   play() {
     const { fx, gfx, GAME, run } = G(), kills = run.kills;
-    gfx.setTier('low');
     ['roach', 'ants', 'mosquito', 'ladybug'].forEach((type, i) => kill(type, 0.22 + i * 0.07));
     step(12); GAME.render();
-    return ok(fx.deaths.list.length === 4 && run.kills === kills + 4, { bodies: fx.deaths.list.length, kills: run.kills - kills, tier: gfx.tier });
+    return ok(fx.deaths.list.length === 4 && run.kills === kills + 4, { bodies: fx.deaths.list.length, kills: run.kills - kills, tier: gfx.quality });
   },
 });

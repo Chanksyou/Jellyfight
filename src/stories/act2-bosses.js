@@ -130,7 +130,7 @@ for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
       const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
       let shown = {};
       if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); } else { step(400, () => creamWarning().floor); step(5); shown = creamWarning(); }
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown.floor && !!shown.volume === !!atk && newShaders === 0, { newShaders, volume: !!shown.volume });
     },
@@ -590,7 +590,7 @@ for (const attack of ['lash', 'snare', 'roll', 'spray']) {
       const showing = () => (attack === 'spray' ? B.shots.length > 3 : clogWarnings().volume.length > 0 && clogWarnings().floor.length > 0);
       step(60, showing);
       const shown = !!showing();
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown && newShaders === 0, { shown, newShaders });
     },
