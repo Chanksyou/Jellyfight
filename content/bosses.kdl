@@ -4,13 +4,14 @@
 // uses a skill's new numbers from its next attack, and a new Health the next time
 // it powers on.
 //
+//   icon     its Treasure book picture (every book entry has its own)
 //   hp       Health              contact  damage when it bumps into you
 //   windup   warning time (s)    time     how long the attack runs (s)
 //   dmg      Health per hit (suction and acid pour it on: per second)
 //   speed    m/s                 slow     seconds you stay tangled/slowed
 //   at       the Health fraction that trips it (enrage, the Clog's acid)
 
-boss "vacuum" name="The Vacuum" hp=1400 contact=2 {
+boss "vacuum" name="The Vacuum" icon="🤖" hp=1400 contact=2 {
     chase   time=2.6 speed=0.3
     charge  windup=1.0 time=1.3 speed=1.05 dmg=4
     suction time=5 pull=0.36 dmg=2
@@ -22,7 +23,7 @@ boss "vacuum" name="The Vacuum" hp=1400 contact=2 {
     enrage  at=0.5 pace=2
 }
 
-boss "clog" name="The Clog" hp=1500 contact=3 {
+boss "clog" name="The Clog" icon="🪠" hp=1500 contact=3 {
     // between attacks it hops at you: `hop` m a hop (less if you're closer), `air` s in the air,
     // `height` m up, a hop every `every` s (`angryEvery` angry); bumping into it tangles you `tangle` s
     chase   time=2.4 angryTime=1.5 speed=0.2 angrySpeed=0.3 hop=0.16 air=0.32 height=0.05 every=0.6 angryEvery=0.4 tangle=0.8
@@ -53,7 +54,7 @@ boss "clog" name="The Clog" hp=1500 contact=3 {
 // Act 3 replacement: finite-height melee can be jumped, landing circles can be dodged.
 // Pools are capped and expire, keeping a route open on the small bed arena.
 // (v273: it moves and its attacks travel 50% faster than v268; windups and warning times are unchanged)
-boss "shark" name="The Great White One" hp=6000 contact=0 {
+boss "shark" name="The Great White One" icon="🦈" hp=6000 contact=0 {
     arrival barrier=1.1 breach=1.1 flood=1.3 depth=0.01 slow=0.15
     motion speed=0.24 rise=0.7 rest=1.15 punish=2.4 knock=0.55
     bite windup=0.75 active=0.13 radius=0.16 height=0.14 reach=0.24 dmg=4
@@ -76,7 +77,7 @@ boss "shark" name="The Great White One" hp=6000 contact=0 {
 // numbers in content/look.css --encore-*). Beetles: at beat `at` (bar 8) and every `every` beats
 // after (16 bars), it calls stag beetles (content/enemies.kdl "beetle") up to `count` on the floor at once;
 // its force field holds while any live, or for `timeout` s at most
-boss "encore" name="The Encore" hp=18000 contact=0 {
+boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // the fight opens with its force field up: it can't be hurt for `guard` s while its set warms up
     start guard=15
     beetles at=32 every=64 count=2 timeout=90
