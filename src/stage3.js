@@ -25,6 +25,7 @@ export const STAGE3 = {
   start: [1.0, 0, 8.85],             // open floor between the foot of the bed and the dresser
   duration: 260,                      // seconds until the boss comes (4:20)
   clock: [240, 360],                  // in-game minutes after midnight: 4:00 AM -> 6:00 AM
+  music: 'bloom',                     // the song while you explore (music.js SONGS): "Medusa Bloom"
   // tougher again than act 2 (stage2.js says what each one is): 3x the bugs' health, 2x every hit
   // you take, 1.4x the XP
   toughness: 3,

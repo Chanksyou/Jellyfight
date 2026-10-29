@@ -23,6 +23,7 @@ export const STAGE1 = {
   start: [3.2, 0, 3.0],               // open floor between the coffee table and the kitchen
   duration: 260,                      // seconds until the boss comes (4:20)
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
+  music: 'drift',                     // the song while you explore (music.js SONGS): "Puddle Drift"
 
   noCollide: [],
   hide: ['Ornate wall clock'],         // replaced by the detailed clock (HALL_CLOCK, drawn as decor here)

@@ -6,6 +6,10 @@
 //               100 BPM, dark and low. Layers come in with intensity: string pads, then the
 //               sequenced analog bass, a slow arpeggio, deep drums, toms and booms, and a low
 //               brass lead on top.
+//   tide        "Ephyra Tide", exploring act 2: the same band in D minor at 108 BPM, a galloping
+//               bass, hats and 16th arpeggios with the fuller layer, the brass a fourth higher.
+//   bloom       "Medusa Bloom", exploring act 3: E minor (Phrygian) at 116 BPM, a chord a bar,
+//               full-time drums, driving 16ths and risers; the brass highest of the three.
 //   machinery   "Domestic Machinery", the Vacuum, after deadmau5's "HR 8938 Cephei" with a dubby
 //               twist: F minor, 4/4 at 128 BPM, pumping supersaw chords, a wobbling reese bass,
 //               risers, and a supersaw lead once the fight gets desperate.
@@ -59,6 +63,93 @@ const DRIFT = {
     }
     if (L.full && s === 4) m.kick(t, 0.3 * L.full);
     if (L.full && s === 0 && bar % 8 === 0) m.drop(t, 0.1 * L.full);       // a deep boom at the top of each phrase
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.08 * L.lead);
+  },
+};
+
+// Act 2, the hallway and bathroom (2 to 4 am): "Puddle Drift" carried on, the same dark Tron
+// band (string pads, the sequenced analog bass, the low brass), a step brighter and less settled.
+// D minor, 4/4 at 108 BPM, through Dm, Bb, Gm and an A major that won't resolve. The bass
+// gallops (its 16ths skip a beat), the kick lands off the bar, closed hats tick in with the
+// fuller layer and the arpeggio doubles to 16ths; the brass climbs a fourth higher than act 1's.
+const TIDE = {
+  name: 'Ephyra Tide', bpm: 108, steps: 16, per: 2, brass: true, sub: 1, air: 6500, arpWave: 'triangle',
+  layers: { pad: -1, bass: 0.06, arp: 0.25, drums: 0.38, full: 0.58, lead: 0.7 },
+  chords: [
+    { pad: [50, 57, 62, 65], arp: [62, 65, 69, 74], root: 38 },   // Dm
+    { pad: [46, 53, 58, 62], arp: [58, 62, 65, 70], root: 34 },   // Bb
+    { pad: [43, 50, 55, 58], arp: [55, 58, 62, 67], root: 31 },   // Gm
+    { pad: [45, 52, 57, 61], arp: [57, 61, 64, 69], root: 33 },   // A
+  ],
+  seq: [0, 0, 12, 0, 0, 12, 0, 7, 0, 0, 12, 0, 7, 12, 7, 12],      // the bass gallop, 16ths
+  arp: [0, 2, 1, 3, 2, 0, 3, 1],
+  lead: [
+    [0, 0, 69, 8], [0, 8, 74, 8],
+    [1, 0, 72, 6], [1, 6, 70, 2], [1, 8, 69, 8],
+    [2, 0, 70, 8], [2, 8, 74, 4], [2, 12, 77, 4],
+    [3, 0, 74, 12], [3, 12, 72, 4],
+    [4, 0, 70, 6], [4, 6, 74, 2], [4, 8, 79, 8],
+    [5, 0, 77, 6], [5, 6, 74, 2], [5, 8, 70, 8],
+    [6, 0, 69, 4], [6, 4, 73, 4], [6, 8, 76, 8],
+    [7, 0, 73, 12], [7, 12, 69, 4],
+  ],
+  tick(m, s, bar, t, L) {
+    const C = this.chords[Math.floor(bar / this.per) % this.chords.length], dur = m.stepDur;
+    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.04, 480 + 750 * m.I);
+    if (L.bass) m.bass(C.root + this.seq[s], t, dur * 0.8, (s % 4 === 0 ? 0.15 : 0.1) * L.bass, 0.1 + 0.32 * m.I);
+    // 8ths, then 16ths once the fuller layer is in
+    if (L.arp && (s % 2 === 0 || L.full)) m.pluck(C.arp[this.arp[Math.floor(s / 2) % 8]] + (s % 2 ? 12 : 0), t, 0.045 * L.arp, 0.08 + 0.15 * m.I, s % 4 < 2 ? -0.35 : 0.35);
+    if (L.drums) {
+      if (s === 0 || s === 10 || (L.full && s === 7)) m.kick(t, 0.58 * L.drums);
+      if (s === 8) m.snare(t, 0.15 * L.drums, true);
+      if (bar % 4 === 3 && s >= 12 && s < 15) m.tom(t, [110, 92, 73][s - 12], 0.28 * L.drums);
+    }
+    if (L.full && s % 4 === 2) m.hat(t, 0.022 * L.full, false);
+    if (L.full && s === 0 && bar % 8 === 0) { m.drop(t, 0.1 * L.full); m.crash(t, 0.06 * L.full); }
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.08 * L.lead);
+  },
+};
+
+// Act 3, the bedroom (4 to 6 am, the last act before the Encore): the same band at full stretch.
+// E minor with a Phrygian turn, 4/4 at 116 BPM, a chord every bar through Em, C, F and B. The
+// drums leave half time (snare on 2 and 4, toms every other bar, 16th hats with the fuller
+// layer), the bass drives straight 16ths, the arpeggio runs 16ths from the start, a riser pulls
+// into every eighth bar, and the brass sits highest of the three, falling back to B at the end of
+// its phrase so it loops on a question.
+const BLOOM = {
+  name: 'Medusa Bloom', bpm: 116, steps: 16, per: 1, brass: true, sub: 1, air: 8000, arpWave: 'triangle',
+  layers: { pad: -1, bass: 0.04, arp: 0.2, drums: 0.32, full: 0.52, lead: 0.64 },
+  chords: [
+    { pad: [52, 59, 64, 67], arp: [64, 67, 71, 76], root: 40 },   // Em
+    { pad: [48, 55, 60, 64], arp: [60, 64, 67, 72], root: 36 },   // C
+    { pad: [48, 53, 57, 60], arp: [60, 65, 69, 72], root: 41 },   // F
+    { pad: [47, 54, 59, 63], arp: [59, 63, 66, 71], root: 35 },   // B
+  ],
+  seq: [0, 12, 0, 12, 7, 12, 0, 12, 0, 12, 0, 12, 7, 12, 7, 12],     // driving 16ths
+  arp: [0, 1, 2, 3, 2, 3, 1, 2, 0, 2, 3, 1, 3, 2, 1, 0],
+  lead: [
+    [0, 0, 76, 6], [0, 6, 74, 2], [0, 8, 71, 8],
+    [1, 0, 72, 4], [1, 4, 71, 4], [1, 8, 67, 8],
+    [2, 0, 69, 6], [2, 6, 72, 2], [2, 8, 77, 8],
+    [3, 0, 75, 8], [3, 8, 78, 4], [3, 12, 75, 4],
+    [4, 0, 79, 6], [4, 6, 78, 2], [4, 8, 76, 8],
+    [5, 0, 79, 4], [5, 4, 76, 4], [5, 8, 72, 8],
+    [6, 0, 77, 4], [6, 4, 76, 4], [6, 8, 72, 4], [6, 12, 69, 4],
+    [7, 0, 71, 16],
+  ],
+  tick(m, s, bar, t, L) {
+    const C = this.chords[bar % this.chords.length], dur = m.stepDur;
+    if (s === 0) m.pad(C.pad, t, dur * this.steps + 0.4, 0.036, 560 + 900 * m.I);
+    if (L.bass) m.bass(C.root + this.seq[s], t, dur * 0.75, (s % 4 === 0 ? 0.15 : 0.11) * L.bass, 0.14 + 0.36 * m.I);
+    if (L.arp) m.pluck(C.arp[this.arp[s]] + (bar % 2 && s > 11 ? 12 : 0), t, 0.04 * L.arp, 0.1 + 0.2 * m.I, s % 2 ? 0.4 : -0.4);
+    if (L.drums) {
+      if (s === 0 || s === 8 || (L.full && (s === 6 || s === 11))) m.kick(t, 0.58 * L.drums);
+      if (s === 4 || s === 12) m.snare(t, 0.14 * L.drums, true);
+      if (bar % 2 === 1 && (s === 13 || s === 14 || s === 15)) m.tom(t, [123, 98, 73][s - 13], 0.26 * L.drums);
+    }
+    if (L.full) m.hat(t, (s % 4 === 2 ? 0.03 : 0.014) * L.full, false);
+    if (L.full && s === 0 && bar % 8 === 0) { m.drop(t, 0.11 * L.full); m.crash(t, 0.08 * L.full); }
+    if (L.full && s === 0 && bar % 8 === 7) m.riser(t, dur * 16, 0.05 * L.full);
     if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.08 * L.lead);
   },
 };
@@ -148,7 +239,7 @@ const ENCORE = {
   },
 };
 
-export const SONGS = { drift: DRIFT, machinery: MACHINERY, encore: ENCORE };
+export const SONGS = { drift: DRIFT, tide: TIDE, bloom: BLOOM, machinery: MACHINERY, encore: ENCORE };
 
 // --------------------------------------------------------------------------- the engine
 export class Music {
