@@ -767,7 +767,7 @@ story('engine/tentacles-swim-smoothly', {
 });
 
 story('engine/music-renders-and-builds', {
-  about: 'The soundtrack (music.js) plays both songs, and more intensity brings in more layers (louder, busier).',
+  about: 'The soundtrack (music.js) plays every act\'s exploring song and the boss song, and more intensity brings in more layers (louder, busier).',
   setup() { fresh({ elites: false }); },
   async play() {
     const { Music } = await import('../music.js');
@@ -781,8 +781,23 @@ story('engine/music-renders-and-builds', {
       for (let i = 16000; i < d.length; i++) sum += d[i] * d[i];
       return Math.sqrt(sum / (d.length - 16000));
     };
-    const quiet = await rms('drift', 0), loud = await rms('drift', 1), boss = await rms('machinery', 0.9);
+    const songs = {};
+    for (const song of ['drift', 'tide', 'bloom']) songs[song] = { quiet: +(await rms(song, 0)).toFixed(4), loud: +(await rms(song, 1)).toFixed(4) };
+    const boss = await rms('machinery', 0.9);
+    const builds = Object.values(songs).every((r) => r.quiet > 0.002 && r.loud > r.quiet * 1.5);
     const st = G().run.musicState();
-    return ok(quiet > 0.002 && loud > quiet * 1.5 && boss > 0.01 && st.song === 'drift', { quiet: +quiet.toFixed(4), loud: +loud.toFixed(4), boss: +boss.toFixed(4), song: st.song });
+    return ok(builds && boss > 0.01 && st.song === 'drift', { ...songs, boss: +boss.toFixed(4), song: st.song });
+  },
+});
+
+story('engine/each-act-has-its-own-music', {
+  about: 'Exploring acts 1, 2 and 3 plays each act\'s own song (its stage\'s `music`): "Puddle Drift", "Ephyra Tide", "Medusa Bloom", three different songs that all exist.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { SONGS } = await import('../music.js');
+    const { run } = G(), real = run.stage, played = [];
+    try { for (const S of STAGES.slice(0, 3)) { run.stage = S; played.push(run.musicState().song); } } finally { run.stage = real; }
+    const distinct = new Set(played).size === 3 && played.every((n) => SONGS[n]);
+    return ok(distinct && played[0] === 'drift' && run.musicState().song === 'drift', { played, names: played.map((n) => SONGS[n]?.name) });
   },
 });

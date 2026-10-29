@@ -1421,14 +1421,14 @@ export class Run {
   }
 
   // ------------------------------------------------------------ music
-  // What the soundtrack (music.js) should play: "Puddle Drift" while you explore, building with
-  // the bugs close by and the hour; "Domestic Machinery" for the Vacuum, wilder as it weakens
+  // What the soundtrack (music.js) should play: the act's own song while you explore (its stage's
+  // `music`: "Puddle Drift", "Ephyra Tide", "Medusa Bloom"), building with the bugs close by and the hour; "Domestic Machinery" for the Vacuum, wilder as it weakens
   musicState() {
     if (this.phase === 'explore') {
       const P = this.player.position;
       let near = 0;
       for (const e of this.enemies.list) if (!e.dead && e.pos.distanceTo(P) < 0.7) near += e.proxy ? 4 : 1;   // elites count for more
-      return { song: 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * this.night) };
+      return { song: this.stage.music || 'drift', intensity: Math.min(1, 0.12 + 0.6 * Math.min(1, near / 10) + 0.3 * this.night) };
     }
     if (this.phase === 'boss' && this.boss && !this.boss.dead && !this.boss.falling) return { song: this.boss.music || 'machinery', intensity: 0.62 + 0.45 * (1 - this.boss.hp / this.boss.maxHp), suck: this.boss.state === 'suction' };
     return { song: null, intensity: 0 };

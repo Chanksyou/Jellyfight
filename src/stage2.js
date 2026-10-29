@@ -24,6 +24,7 @@ export const STAGE2 = {
   start: [2.75, 0, 6.6],             // the middle of the hall
   duration: 260,                      // seconds until the boss comes (4:20)
   clock: [120, 240],                  // in-game minutes after midnight: 2:00 AM -> 4:00 AM
+  music: 'tide',                      // the song while you explore (music.js SONGS): "Ephyra Tide"
   details: 'bathroom',                // the tub dressed after the real one (bathroom.js)
   // you arrive levelled up with act 1's treasures, so everything here is tougher and hits harder:
   // `toughness` the regular bugs' health (they toughen further with the hour), `eliteHp` and
