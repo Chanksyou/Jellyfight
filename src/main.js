@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v318';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v320';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -127,8 +127,14 @@ ui.innerHTML = `
     #g-over .play { margin: 10px auto 10px; padding: 10px 30px; }
     #g-over .keys { margin-top: 6px; font-size: 12.5px; line-height: 1.7; }
   }
-  @media (orientation: portrait) { body.touch #g-over .rotate { display: block; } }
-  #g-over .rotate { display: none; margin-top: 8px; color: #ffd23a; font-size: 13px; }
+  /* phones play sideways only: held upright, the game is covered until it's turned (iOS can't lock orientation) */
+  #g-turn { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: #041329; color: #fff; font: 600 19px system-ui, -apple-system, sans-serif; text-align: center; padding: 24px; }
+  #g-turn .ph { width: 44px; height: 76px; border: 4px solid #fff; border-radius: 10px; animation: g-turn 2.4s ease-in-out infinite; }
+  #g-turn p { margin: 0; opacity: .85; font-weight: 500; font-size: 15px; }
+  @keyframes g-turn { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+  @media (prefers-reduced-motion: reduce) { #g-turn .ph { animation: none; transform: rotate(-90deg); } }
+  @media (orientation: portrait) and (max-width: 600px) { body.touch #g-turn { display: flex; } }
   /* straight on from the act before: no menu, just the act's name while it loads */
   #g-over .cont-note { display: none; margin: 0; opacity: .85; }
   #g-over.cont .cont-note { display: block; }
@@ -147,12 +153,12 @@ ui.innerHTML = `
   <div class="g-bag"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
-    <div class="rotate">Tip: turn your phone sideways.</div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause
   </div>
-</div></div>`;
+</div></div>
+<div id="g-turn" role="alert"><div class="ph"></div>Turn your phone sideways<p>Jelly Fight plays in landscape</p></div>`;
 document.body.appendChild(ui);
 const overlay = ui.querySelector('#g-over');
 const qualityRow = ui.querySelector('#g-quality');
@@ -316,6 +322,10 @@ function pause() {
 }
 const touch = new TouchControls(input, { onPause: pause });
 touch.mount(ui);
+// held upright mid-run: pause under the turn-sideways cover, so nothing hits the jelly unseen
+const upright = matchMedia('(orientation: portrait) and (max-width: 600px)');
+if (IS_TOUCH) upright.addEventListener('change', () => { if (upright.matches) pause(); });
+window.upright = upright;   // stories turn the phone (phone/held-upright-pauses-under-the-cover)
 run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------

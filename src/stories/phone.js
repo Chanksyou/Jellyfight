@@ -12,6 +12,22 @@ phone('camera-starts-at-0-7-metres', {
   },
 });
 
+phone('held-upright-pauses-under-the-cover', {
+  about: 'Phones play sideways only: held sideways nothing covers the game; turned upright mid-run, the game pauses and the turn-your-phone cover sits over everything.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { upright } = G(), over = document.getElementById('g-over'), cover = document.getElementById('g-turn');
+    step(5);
+    const sideways = !upright.matches && getComputedStyle(cover).display === 'none' && over.hidden;
+    Object.defineProperty(upright, 'matches', { value: true, configurable: true });   // the phone turned upright
+    upright.dispatchEvent(new Event('change'));
+    delete upright.matches;
+    const paused = !over.hidden;
+    const z = +getComputedStyle(cover).zIndex, onTop = [...document.querySelectorAll('body *')].every((el) => el === cover || !(+getComputedStyle(el).zIndex > z));
+    return ok(sideways && paused && onTop, { sideways, paused, onTop, z });
+  },
+});
+
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 phone('shark-fight-keeps-the-boss-below-the-bar', {
   act: 3,
