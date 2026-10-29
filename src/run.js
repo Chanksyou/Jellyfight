@@ -19,7 +19,7 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
-import { addFeats, unlockedAwards, nextAward, needText, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
+import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
@@ -1291,7 +1291,7 @@ export class Run {
     const pull = [
       ...(near ? [['So close', near]] : []),
       ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
-      ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needText(next.need, feats())}</small>`]] : []),
+      ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit)
@@ -1302,9 +1302,9 @@ export class Run {
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
       const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
-        ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} to spend in Change your look</small>`]]),
+        ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} in all</small>`]]),
         ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...this.summary(), ...finds];
-      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b> <small>· wear it from Change your look</small>`]);
+      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b>`]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
