@@ -1,11 +1,11 @@
 // Getting around a world built for giants: floor vents that launch you onto furniture, and fabric you can climb.
-// Also sets the apartment up for a stage (doors, see-through curtain, invisible walls).
+// Also sets the apartment up for a stage (doors, see-through pieces, invisible walls).
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
 
 // Apartment objects are named after what they are ("Shower curtain"); three.js's loader
 // swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
-function meshesNamed(scene, name) {
+export function meshesNamed(scene, name) {
   const want = THREE.PropertyBinding.sanitizeNodeName(name);
   const out = new Set();
   scene.traverse((o) => {

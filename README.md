@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v308 makes the shower curtain and the open bathroom door see-through during the Clog fight. Both stand round the tub and could hide the fight: the camera only fades what's between it and the jelly, and you can pass through the curtain, so it never faded at all. Now both go faint (15% solid) when the Clog rises and come back solid on a new run. Tune it with --boss-see-through in content/look.css; a stage's boss `seeThrough` lists what goes faint (the camera keeps them faint: camera.js `keepFaint`).
+
 v306 softens the dragonfly's charge sound. The whine that climbed to a shrill 1.9–2.9 kHz is now a low hum, two soft tones an octave apart rising from 75–150 Hz to 240–480 Hz under a muffling filter, with a slower flutter. A swarm no longer stacks into noise: at most three hums play at once, the second and third quieter, and any more dragonflies charge silently (their beam still fires). Tune it in `beamCharge` in src/sfx.js.
 
 v305 makes the Clog's acid deadlier and better looking. Floating in it now costs 4 Health a second (was 2). The acid is a toxic violet goo, mottled and oily, no longer green: violet is the yellow ducks' complement on the painter's colour wheel (and sits opposite the Clog's yellow-green Warnings), so the ducks pop off it. Toxic bubbles keep swelling and popping on it, letting off fumes and the odd hiss. In the 25% phase the whirlpool is a real swirl now, spiral arms turning down into a dark eye and sweeping the bubbles round, and the ducks circle twice as fast (`whirl=1`). Tune it with `acid` in content/bosses.kdl and `--clog-acid*` in content/look.css.

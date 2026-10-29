@@ -18,7 +18,7 @@ import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
 import { STAGES, currentStage, currentAct, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
-import { prepareApartment, addStageWalls, Traversal } from './traversal.js';
+import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { dressSet } from './set-dressing.js';
@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v306';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v308';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -761,7 +761,8 @@ async function warmUp() {
   scene.add(spit);
   batcher.sync();                                // build the instanced batches so they compile too
   // furniture the camera sees through, as the see-through copies it will swap in (camera.js)
-  const seeThrough = tpc.seeThroughWarmers();
+  // (and what the boss fight keeps faint though it doesn't collide: the Clog's shower curtain)
+  const seeThrough = tpc.seeThroughWarmers(null, (stage.boss.seeThrough || []).flatMap((n) => meshesNamed(scene, n)));
   seeThrough.forEach((m) => scene.add(m));
   try {
     await renderer.compileAsync(scene, camera);

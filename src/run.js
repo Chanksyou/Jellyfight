@@ -23,6 +23,7 @@ import { addFeats, unlockedAwards, nextAward, needText, feats } from './cosmetic
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
+import { meshesNamed } from './traversal.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -1110,6 +1111,8 @@ export class Run {
       const B = this.stage.boss;
       this.enemies.clear();
       this.traversal.bossMode = true;
+      // what stands round the arena and would hide the fight (the Clog's shower curtain and door) goes faint
+      this.tpc.keepFaint((B.seeThrough || []).flatMap((n) => meshesNamed(this.scene, n)), LOOK.num('boss-see-through', 0.15));
       this.elites.clear();
       this.roomTreasures.forEach((t) => t.hide());
       this.bossWalls.forEach((m) => { m.visible = true; if (m.userData.field) showForceField(m.userData.field, true, CONTENT.bosses[B.kind]?.skills.arrival?.barrier||0); });

@@ -248,6 +248,29 @@ act2('clog-rises-and-chases', {
     return ok(B.constructor.name === 'Clog' && B.rise === 1 && d1 < d0 - 0.1, { boss: B.constructor.name, d0: +d0.toFixed(2), d1: +d1.toFixed(2) });
   },
 });
+// how solid each visible mesh of a piece (the shower curtain, the bathroom door) is drawn now
+const solidity = (name) => {
+  const out = [];
+  G().run.scene.traverse((o) => { if (o.name === name && o.visible) o.traverse((m) => { if (m.isMesh && m.visible) out.push(+[].concat(m.material)[0].opacity.toFixed(2)); }); });
+  return out;
+};
+act2('clog-curtain-and-door-are-see-through-in-the-fight', {
+  about: 'The shower curtain over the tub and the open bathroom door beside it could hide the Clog fight from the camera, so during the fight both go faint (15% solid): still there, never blocking the view. A new run puts them back solid.',
+  setup() {},
+  play() {
+    const look = () => ({ curtain: solidity('Shower_curtain'), door: solidity('door-bath') });
+    fresh();
+    const before = look();
+    clogFight();
+    step(60);
+    const during = look();
+    fresh();
+    const after = look();
+    const solid = (a) => a.length > 0 && a.every((o) => o === 1);
+    const faint = (a) => a.length > 0 && a.every((o) => o > 0 && o <= 0.2);
+    return ok(solid(before.curtain) && solid(before.door) && faint(during.curtain) && faint(during.door) && solid(after.curtain) && solid(after.door), { before, during, after });
+  },
+});
 act2('clog-lash', {
   about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor (a low lane over it), then whips down along it: 3, and you\'re tangled (slowed).',
   setup() {},
