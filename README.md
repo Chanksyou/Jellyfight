@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v329 smooths the knit blanket on Act 3's bed to a shallow fold, so the jelly can walk across its edge in either direction without jumping. The visible blanket and its collision use the same flattened geometry.
+
 v328 adjusts the bedroom bed and four vents, and removes the sleeping baby and shelf decorations.
 
 v327 loads faster by building only the shaders the chosen graphics draw with. Low draws straight to the screen and Medium/High through the bloom and ambient occlusion passes, and each needs its own version of every shader; the game used to build both (about 290) and use one, and it built the second set all at once at the end of loading. Now it builds about 170, a few at a time, then the bloom and ambient occlusion passes behind the loading screen too. Switching between Low and Medium or High in the pause menu builds the other set then: Play shows "Preparing graphics…" for a moment (warmUp keeps a stand-in for everything it showed, so bugs, bosses and evolutions are ready afterwards too). Phones now start on Medium instead of Low; Low is still in the pause menu. Story: `engine/graphics-switch-prepares-shaders`.

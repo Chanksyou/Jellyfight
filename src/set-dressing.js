@@ -159,6 +159,26 @@ const BUILDERS = [
 // Returns nothing; safe to call again (already-dressed pieces are skipped).
 export function dressSet(scene, root) {
   const app = root.getObjectByName('Apartment') || root;
+  // The knit throw's 6 cm fold catches the jelly; keep its texture and hanging sides,
+  // but compress the fold above the sheet before the same geometry becomes collision.
+  app.traverse((m) => {
+    if (!m.isMesh || !/^Bed(?:_\d+)?$/.test(m.parent.name) || !m.material.map || m.userData.smoothedThrow) return;
+    m.geometry = m.geometry.clone();
+    m.updateMatrix();
+    const inverse = m.matrix.clone().invert(), p = new THREE.Vector3();
+    const positions = m.geometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      p.fromBufferAttribute(positions, i).applyMatrix4(m.matrix);
+      if (p.y > 0.58) p.y = 0.58 + (p.y - 0.58) * 0.3;
+      p.applyMatrix4(inverse);
+      positions.setXYZ(i, p.x, p.y, p.z);
+    }
+    positions.needsUpdate = true;
+    m.geometry.computeVertexNormals();
+    m.geometry.computeBoundingBox();
+    m.geometry.computeBoundingSphere();
+    m.userData.smoothedThrow = true;
+  });
   for (const [name, build] of BUILDERS) {
     const want = THREE.PropertyBinding.sanitizeNodeName(name);
     const baked = [...app.children].find((o) => o.name === want);
