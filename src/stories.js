@@ -42,6 +42,7 @@ import './stories/events-boss.js';
 import './stories/main-screen-modes-engine.js';
 import './stories/main-menu.js';
 import './stories/come-back.js';
+import './stories/payoff.js';
 import './stories/act2.js';
 import './stories/act2-bosses.js';
 import './stories/every-attack.js';

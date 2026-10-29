@@ -140,6 +140,13 @@ export function nextAward(f = feats()) {
   return best;
 }
 
+// How far along a count is, in a few words for the death screen ("3 of 10 Elites"); other needs in full
+const COUNTED = { kills: 'bugs', elites: 'Elites', runs: 'runs', wins: 'wins' };
+export function needShort(need, f) {
+  const [k, v] = Object.entries(need || {})[0] || [], noun = COUNTED[k] || (k?.startsWith('elite_') && `${CONTENT.elites[k.slice(6)]?.name || k.slice(6)} wins`);
+  return Object.keys(need || {}).length === 1 && noun && v > 1 && f ? `${Number(f[k] || 0).toLocaleString()} of ${Number(v).toLocaleString()} ${noun}` : needText(need, f);
+}
+
 // What a locked option asks for, in words, for the creator (with how far along you are, given f)
 export const requirementText = (need, f = null) => (need ? 'Earned: ' + needText(need, f) : '');
 const theName = (n) => n.replace(/^The /, 'the ');
