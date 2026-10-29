@@ -1,5 +1,8 @@
 // Character creator panel. Edits a look object and reports every change so the
 // game can rebuild the model live; main.js handles the camera and saving.
+// A locked option (an award not earned, a shop look not bought) can be tried on: tapping it shows it
+// on the jelly through onPreview only, never in this.look, so it can't be saved or carried into a run.
+// Picking anything else, Surprise me, Done or closing puts the jelly back to this.look.
 import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, OWN_COLOR_TOPS, randomLook, normalizeLook } from './character.js';
 import { esc } from './leaderboard.js';
 import { requirement, unlocked, requirementText, feats, price, bank, buy } from './cosmetics.js';
@@ -22,6 +25,7 @@ const CSS = `
 #creator .chips button:hover { background: #ffffff1f; }
 #creator .chips button.on { background: #ffd23a; color: #1d1a12; border-color: transparent; font-weight: 600; }
 #creator .chips button.locked { opacity: .5; cursor: help; border-style: dashed; border-color: #ffd23a88; }
+#creator .chips button.locked.try { opacity: 1; border-style: solid; border-color: #ffd23a; box-shadow: 0 0 0 1px #ffd23a; }
 #creator .need { margin-top: 6px; font-size: 12.5px; color: #ffd98a; }
 #creator .need:empty { display: none; }
 #creator .need button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 12px; font: inherit; font-weight: 700; background: #ffd23a; color: #1d1a12; cursor: pointer; }
@@ -49,8 +53,10 @@ const CSS = `
 const COLOR_ROWS = [['color', 'Bell and tentacle color'], ['accent', 'Arm color'], ['eyeColor', 'Eye color'], ['topColor', 'Hat color']];
 
 export class Creator {
-  constructor({ onChange, onDone }) {
+  constructor({ onChange, onDone, onPreview }) {
     this.onChange = onChange;
+    this.onPreview = onPreview;
+    this.trying = false;
     this.onDone = onDone;
     this.look = { ...DEFAULT_LOOK };
     this.el = document.createElement('div');
@@ -80,7 +86,24 @@ export class Creator {
     this.panel.hidden = this.hint.hidden = false;
   }
 
-  close() { this.panel.hidden = this.hint.hidden = true; }
+  close() { this.untry(true); this.panel.hidden = this.hint.hidden = true; }
+
+  // try a locked option on: the jelly wears it, the look doesn't change
+  // (the line over the jelly says what it takes: the row's note can be scrolled out of sight)
+  tryOn(b, says) {
+    this.body.querySelectorAll('.chips button.try').forEach((x) => x.classList.remove('try'));
+    b.classList.add('try');
+    this.trying = true;
+    this.hint.textContent = 'Trying it on · ' + says;
+    this.onPreview?.({ ...this.look, [b.dataset.k]: b.dataset.v });
+  }
+  // stop trying on; show = put the jelly back now (otherwise the caller's onChange rebuilds it)
+  untry(show = false) {
+    if (!this.trying) return;
+    this.trying = false;
+    this.hint.textContent = 'Drag to spin your jellyfish';
+    if (show) this.onPreview?.(this.look);
+  }
 
   render() {
     const L = this.look;
@@ -114,6 +137,7 @@ export class Creator {
   }
 
   set(key, value, rerender = true) {
+    this.untry();
     this.look = normalizeLook({ ...this.look, [key]: value });
     if (rerender) this.render();
     this.onChange(this.look);
@@ -123,12 +147,14 @@ export class Creator {
     const b = e.target.closest('button');
     if (!b) return;
     if (!b.dataset.buy) sfx.tap();
-    if (b.dataset.need) {                   // locked: say what it takes
+    if (b.dataset.need) {                   // locked: try it on and say what it takes
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`);
       if (note) note.textContent = '🔒 ' + b.dataset.need;
+      this.tryOn(b, b.dataset.need);
       return;
     }
-    if (b.dataset.cost) {                   // in the shop: its price, and Buy when you have enough
+    if (b.dataset.cost) {                   // in the shop: try it on, its price, and Buy when you have enough
+      this.tryOn(b, `${b.dataset.name} · ${b.dataset.cost} Pearls`);
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`), cost = +b.dataset.cost, have = bank().pearls;
       if (note) note.innerHTML = `🦪 ${esc(b.dataset.name)} · ${cost} Pearls` + (have >= cost
         ? `<button data-buy="${b.dataset.k}" data-v="${b.dataset.v}">Buy</button>`
@@ -140,10 +166,12 @@ export class Creator {
       return;
     }
     if (b.dataset.act === 'random') {
+      this.untry();
       this.look = randomLook((key, id) => unlocked(key, id));
       this.render();
       this.onChange(this.look);
     } else if (b.dataset.act === 'done') {
+      this.untry(true);
       this.onDone(this.look);
     } else if (b.dataset.k) {
       const k = b.dataset.k;
