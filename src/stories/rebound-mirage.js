@@ -69,20 +69,20 @@ function leaveGhost() {
 }
 
 story('treasures/decoy', {
-  about: 'Moving for eight seconds leaves one copy for three seconds. Nearby ordinary bugs chase it, then resume chasing the real jelly; Elites ignore it.',
+  about: 'Moving for eight seconds leaves one copy for four seconds. Nearby ordinary bugs chase it, then resume chasing the real jelly; Elites ignore it.',
   setup() { setupFight({ bubbles: false, lash: false }); evolve('mirage'); },
   play() {
     const { run, player, enemies } = G(), M = leaveGhost();
-    const shown = M.group.visible && M.left > 2.9;
+    const shown = M.group.visible && M.left > 3.9;
     player.position.x += 0.3;
     const bug = spawn('roach', M.position.clone().add(V(0.1, 0, 0)), { hp: 100 });
     const elite = spawn('roach', M.position.clone().add(V(0.1, 0, 0.12)), { hp: 100 }); elite.elite = true;
     const P = { position: player.position, height: run.cfg.height, radius: run.cfg.radius };
     enemies.update(1 / 60, P, run.t, M.target);
     const lured = bug.vel.x < 0, ignored = elite.vel.x > 0;
-    M.update(3.1); enemies.update(0.3, P, run.t, M.target);
+    M.update(4.1); enemies.update(0.3, P, run.t, M.target);
     const resumed = bug.vel.x > 0 && !M.group.visible;
-    return ok(shown && lured && ignored && resumed && Math.abs(run.S.health - BASE_STATS.health * 0.85) < 1e-8,
+    return ok(shown && lured && ignored && resumed && Math.abs(run.S.health - BASE_STATS.health * 0.9) < 1e-8,
       { shown, lured, ignored, resumed, health: run.S.health });
   },
 });
