@@ -157,7 +157,7 @@ export class Adornments {
     ring.position.y = h * 1.12;
     group.add(ring);
     return { group, tick: (dt, run) => {
-      ring.position.y = h * (1.12 + Math.sin(this.t * 2) * 0.03);
+      ring.position.y = h * (Math.max(1.12, (this.player.avatar?.hatTop || 0) + 0.07) + Math.sin(this.t * 2) * 0.03);   // over the hat, if it's a tall one
       mat.emissiveIntensity = run.rebornThisAct ? 0.25 : 2;
       mat.opacity = run.rebornThisAct ? 0.4 : 1;
       mat.transparent = run.rebornThisAct;

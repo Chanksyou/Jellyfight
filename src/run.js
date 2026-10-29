@@ -19,7 +19,7 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
-import { addFeats, unlockedAwards, nextAward, needText, feats } from './cosmetics.js';
+import { addFeats, unlockedAwards, nextAward, needText, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
@@ -271,6 +271,9 @@ export class Run {
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
     this.newFinds = [];               // first-ever finds this run, for the end screen (collection.js)
+    this.pearls = 0;                  // Pearls this run has earned (cosmetics.js), already in the bank
+    this.awardsBefore = this.dev ? [] : unlockedAwards();   // golden awards held when the run began: the end screen names the new ones
+    this.bossHurt = false;            // lost Health in this act's boss fight (the Diamond tiara asks for a fight without)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
     if (C) {
@@ -281,6 +284,8 @@ export class Run {
       this.chestsOpened = C.chestsOpened || 0;
       this.evolved = [...(C.evolved || [])];
       this.newFinds = [...(C.newFinds || [])];
+      this.pearls = C.pearls || 0;
+      if (C.awardsBefore) this.awardsBefore = C.awardsBefore;
       this.saved = !!C.saved;
       this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
@@ -724,6 +729,7 @@ export class Run {
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
+    if (this.phase === 'boss') this.bossHurt = true;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
     if (!silent && amount > 0) {
@@ -844,7 +850,7 @@ export class Run {
   eliteDefeated(e) {
     this.kills++;
     this.elitesBeaten++;
-    if (!this.dev) addFeats({ elites: 1 });
+    if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
@@ -956,7 +962,8 @@ export class Run {
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
   markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
-  found(kind, id, label = id) { if (!this.dev && discover(kind, id)) this.newFinds.push(label); }
+  // (true when it's a first)
+  found(kind, id, label = id) { if (!this.dev && discover(kind, id)) { this.newFinds.push(label); return true; } return false; }
 
   offer(title, sub, choices, then = () => this.resume()) {
     if (document.pointerLockElement) document.exitPointerLock();
@@ -1144,6 +1151,7 @@ export class Run {
       this.phase = 'boss';
       this.bossStartT = this.t;
       this.bossStarted = false;
+      this.bossHurt = false;
       this.hud.toast(B.intro || `${B.name} rises!`, 2400);
     }
   }
@@ -1152,7 +1160,11 @@ export class Run {
     this.bossDeadT = true;
     this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
-    this.found('bosses', this.stage.boss.kind, this.stage.boss.name);
+    const first = this.found('bosses', this.stage.boss.kind, this.stage.boss.name);
+    if (!this.dev) {
+      this.earn(pearlsFor({ bosses: 1, firstBosses: first ? 1 : 0 }));
+      if (!this.bossHurt) addFeats({ flawless: 1 });
+    }
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
     if (impact) { juice.feel('boss-kill'); sfx.boom(); }
@@ -1259,9 +1271,10 @@ export class Run {
     const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
-    // the run counts toward earned cosmetics; anything it just unlocked is shown here
-    const had = new Set(unlockedAwards());
-    this.flushFeats({ runs: 1, wins: this.phase === 'won' ? 1 : 0 });
+    // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
+    // can unlock one mid-run), with the Pearls it earned
+    const had = new Set(this.awardsBefore), won = this.phase === 'won';
+    this.flushFeats({ runs: 1, wins: won ? 1 : 0, ...(won ? { [`won_${entry.body}`]: 1 } : {}) });
     const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return OPTIONS[key].find(([v]) => v === id)?.[1] || id; });
     let typed = savedName();
     // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
@@ -1280,6 +1293,7 @@ export class Run {
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
+        ...(this.dev ? [] : [['🦪 Pearls', `+${this.pearls} <small>· ${bank().pearls.toLocaleString()} to spend in Change your look</small>`]]),
         ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary(), ...finds];
       if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map(esc).join(', ')}</b> <small>· wear it from Change your look</small>`]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
@@ -1321,6 +1335,7 @@ export class Run {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved, newFinds: this.newFinds,
+      pearls: this.pearls, awardsBefore: this.awardsBefore,
     };
   }
 
@@ -1349,7 +1364,15 @@ export class Run {
   flushFeats(extra = {}) {
     if (this.dev) return;
     addFeats({ kills: this.kills - this.featKills, ...extra });
+    // and its Pearls: the bugs since last time, and a run ended or won
+    this.earn(pearlsFor({ kills: this.kills }) - pearlsFor({ kills: this.featKills }) + pearlsFor({ ended: extra.runs > 0, won: extra.wins > 0 }));
     this.featKills = this.kills;
+  }
+  // Pearls into the bank as they're earned (cosmetics.js), so a closed tab keeps them; a dev run earns none
+  earn(n) {
+    if (this.dev || !(n > 0)) return;
+    this.pearls += n;
+    addPearls(n);
   }
 
   // An act beaten with another to come: the run moves on with everything it has (level, stats,

@@ -2,7 +2,7 @@
 // game can rebuild the model live; main.js handles the camera and saving.
 import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, OWN_COLOR_TOPS, randomLook, normalizeLook } from './character.js';
 import { esc } from './leaderboard.js';
-import { requirement, unlocked, requirementText, feats } from './cosmetics.js';
+import { requirement, unlocked, requirementText, feats, price, bank, buy } from './cosmetics.js';
 
 const CSS = `
 #creator { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100vw); display: flex; flex-direction: column;
@@ -23,6 +23,9 @@ const CSS = `
 #creator .chips button.locked { opacity: .5; cursor: help; border-style: dashed; border-color: #ffd23a88; }
 #creator .need { margin-top: 6px; font-size: 12.5px; color: #ffd98a; }
 #creator .need:empty { display: none; }
+#creator .need button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 12px; font: inherit; font-weight: 700; background: #ffd23a; color: #1d1a12; cursor: pointer; }
+#creator .chips button.shop { border-color: #9fe3ff88; }
+#creator .pearls { margin-top: 4px; font-size: 13.5px; color: #e9f6ff; font-variant-numeric: tabular-nums; }
 #creator .blurb { margin-top: 6px; font-size: 13px; color: #c9c3d6; }
 #creator .sw { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #creator .sw button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffffff30; cursor: pointer; padding: 0; }
@@ -51,7 +54,7 @@ export class Creator {
     this.look = { ...DEFAULT_LOOK };
     this.el = document.createElement('div');
     this.el.innerHTML = `<style>${CSS}</style><div id="creator" hidden>
-      <header><h2>Make your jellyfish</h2></header>
+      <header><h2>Make your jellyfish</h2><p class="pearls"></p></header>
       <div class="scroll"></div>
       <footer><button class="ghost" data-act="random" title="Randomize">🎲 Surprise me</button><button class="go" data-act="done">Let's go!</button></footer>
       </div><div class="cr-hint" hidden>Drag to spin your jellyfish</div>`;
@@ -82,11 +85,14 @@ export class Creator {
     const L = this.look;
     // an earned option not yet earned shows locked, with what it asks for and how far along you are
     // (tap it to read that here: a phone has no hover)
-    const F = feats();
+    // a shop look not yet bought shows its price in Pearls (tap it to buy it here)
+    const F = feats(), B = bank();
+    this.el.querySelector('.pearls').textContent = `🦪 ${B.pearls.toLocaleString()} Pearls · every run you finish earns more`;
     const chips = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="chips">${
       OPTIONS[key].map(([id, name]) => {
-        const need = requirement(key, id), open = !need || unlocked(key, id, F);
-        return `<button data-k="${key}" data-v="${id}"${open ? '' : ` data-need="${esc(name + ' · ' + requirementText(need, F))}"`} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}"${open ? '' : ` title="${esc(requirementText(need, F))}"`}>${need ? '✨ ' : ''}${name}${open ? '' : ' 🔒'}</button>`;
+        const need = requirement(key, id), cost = price(key, id), open = unlocked(key, id, F, B.bought);
+        const lock = open ? '' : need ? ` data-need="${esc(name + ' · ' + requirementText(need, F))}" title="${esc(requirementText(need, F))}"` : ` data-cost="${cost}" data-name="${esc(name)}" title="${cost} Pearls"`;
+        return `<button data-k="${key}" data-v="${id}"${lock} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}${cost ? ' shop' : ''}">${need ? '✨ ' : ''}${name}${open ? '' : need ? ' 🔒' : ` · 🦪 ${cost}`}</button>`;
       }).join('')}</div><div class="need" data-for="${key}"></div></div>`;
     const colors = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="sw">${
       SWATCHES.map((c) => `<button data-k="${key}" data-v="${c}" style="background:${c}" class="${L[key].toLowerCase() === c ? 'on' : ''}" aria-label="${c}"></button>`).join('')
@@ -97,6 +103,8 @@ export class Creator {
       <div class="blurb">${SPECIES[L.body].blurb}</div>
       ${colors('color', COLOR_ROWS[0][1])}
       ${colors('accent', COLOR_ROWS[1][1])}
+      ${chips('pattern', 'Bell pattern')}
+      ${chips('finish', 'Finish')}
       ${chips('eyes', 'Eyes')}
       ${colors('eyeColor', COLOR_ROWS[2][1])}
       ${chips('mouth', 'Mouth')}
@@ -116,6 +124,17 @@ export class Creator {
     if (b.dataset.need) {                   // locked: say what it takes
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`);
       if (note) note.textContent = '🔒 ' + b.dataset.need;
+      return;
+    }
+    if (b.dataset.cost) {                   // in the shop: its price, and Buy when you have enough
+      const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`), cost = +b.dataset.cost, have = bank().pearls;
+      if (note) note.innerHTML = `🦪 ${esc(b.dataset.name)} · ${cost} Pearls` + (have >= cost
+        ? `<button data-buy="${b.dataset.k}" data-v="${b.dataset.v}">Buy</button>`
+        : ` <small>(you have ${have}: finish more runs to earn them)</small>`);
+      return;
+    }
+    if (b.dataset.buy) {
+      if (buy(b.dataset.buy, b.dataset.v)) this.set(b.dataset.buy, b.dataset.v);   // bought: wear it straight away
       return;
     }
     if (b.dataset.act === 'random') {
