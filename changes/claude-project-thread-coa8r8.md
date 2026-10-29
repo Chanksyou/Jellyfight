@@ -1,0 +1,1 @@
+makes a new player's first run quicker to get going: XP counts double until the first Level-up, so the Element pick comes about twice as soon (~12 s in instead of ~20 s), which usually brings the first Treasure back to 0:15 instead of 1:15 (one skipped before the pick now turns up 4 s after it). The Element pick now closes with a tip: hold jump to jump higher.
