@@ -351,6 +351,8 @@
   --hostile-vacuum: #b04aff;     /* the Vacuum's charge, suction and dust */
   --hostile-mantis: #ffcc00;     /* the mantis's swat: the flash where its forelegs snap shut */
   --hostile-worm: #ff3c00;       /* the worm in the mantis: its burst out of the body and its whip line */
+  --burst-warning-opacity: 0.42; /* the circle round the mantis's carcass before the worm bursts out: dimmed so it doesn't glare (was 0.8) */
+  --burst-warning-pulse: 0.08;   /* its flicker above that (was 0.2) */
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */

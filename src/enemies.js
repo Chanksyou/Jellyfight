@@ -947,7 +947,7 @@ export class Enemies {
         M.position.set(from.x, e.pos.y + 0.003, from.z);
         M.scale.setScalar(r);
         M.material.progress = 1 - Math.max(0, e.stateT) / (e.emergeMax || 0.9);
-        M.material.opacity = 0.8 + 0.2 * Math.abs(Math.sin(t * 18));
+        M.material.opacity = LOOK.num('burst-warning-opacity', 0.42) + LOOK.num('burst-warning-pulse', 0.08) * Math.abs(Math.sin(t * 18));
       }
     }
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;

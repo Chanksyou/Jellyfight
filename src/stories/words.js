@@ -527,21 +527,23 @@ story('words/hatch', {
   },
 });
 story('words/burst', {
-  about: 'The mantis\'s carcass twitches while a circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 5 damage if you\'re inside the circle.',
+  about: 'The mantis\'s carcass twitches while a dimmed circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 5 damage if you\'re inside the circle.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.3, 0)); },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
     step(1);
     const out = e.emergeAt, round = Math.hypot(out.x - e.pos.x, out.z - e.pos.z) > e.r;   // it comes out away from the middle (the rear end)
     tp(out.x, player.position.y, out.z);                                                   // stand right where it comes out
-    let warned = false, frames = 1;
+    let warned = false, glow = 0, frames = 1;
     step(60 * 3, () => {
       frames++;
       if (e.state === 'emerge' && enemies.burstMarks.some((m) => m.visible)) warned = true;
+      for (const m of enemies.burstMarks) if (m.visible) glow = Math.max(glow, m.material.opacity);
       return log.some((d) => d.source === 'worm' && d.amount === 5);
     });
     const hit = log.find((d) => d.source === 'worm' && d.amount === 5), secs = frames / 60;
-    return ok(round && warned && hit?.amount === 5 && secs > 1.45 && secs < 1.6, { round, warned, hit: hit?.amount, secs: +secs.toFixed(2) });
+    const dim = glow > 0.2 && glow <= LOOK.num('burst-warning-opacity', 0.42) + LOOK.num('burst-warning-pulse', 0.08) + 1e-6;   // readable, but no glare (look.css)
+    return ok(round && warned && dim && hit?.amount === 5 && secs > 1.45 && secs < 1.6, { round, warned, glow: +glow.toFixed(2), hit: hit?.amount, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/worm-burst-clear', {
