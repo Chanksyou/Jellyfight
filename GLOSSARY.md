@@ -48,6 +48,10 @@ _Avoid_: Lash speed
 A new player's first run of act 1, which introduces the game's systems one at a time; it ends for good once one of their runs ends.
 _Avoid_: Tutorial, onboarding run
 
+**Pearl**:
+What every run that ends earns, banked between runs and spent on shop looks in Change your look. The golden awards can't be bought; they're earned by what you do.
+_Avoid_: Tokens, coins
+
 ### Things the jelly meets
 
 **Treasure**:

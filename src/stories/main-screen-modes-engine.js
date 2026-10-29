@@ -9,8 +9,9 @@ import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
-import { NEEDS, FEATS_KEY, lifetime, requirement, requirementText, unlocked } from '../cosmetics.js';
-import { normalizeLook, buildCharacter, DEFAULT_LOOK } from '../character.js';
+import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requirementText, unlocked, bank, pearlsFor, feats } from '../cosmetics.js';
+import { FOUND_KEY } from '../collection.js';
+import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
 import { G, V, fresh, near, ok, spawn, step, story, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
@@ -335,6 +336,82 @@ story('modes/cosmetics-framework', {
       endOk = f.runs === 1 && f.wins === 1 && f.kills === 7 && /Unlocked/.test(end) && /Golden crown/.test(end) && unlocked('top', 'goldcrown');
     } finally { saved === null ? localStorage.removeItem(FEATS_KEY) : localStorage.setItem(FEATS_KEY, saved); }
     return ok(carried && rules && allBuilt && creatorOk && flushOk && endOk, { carried, rules, built: built.filter(([, b]) => !b), creatorOk, flushOk, endOk, ...info });
+  },
+});
+
+story('modes/pearls-and-the-shop', {
+  about: 'Pearls: every run that ends pays (5, a Pearl per 10 bugs, 3 an Elite, 10 a boss, 25 more the first time ever, 20 for a win), banked as they come, never in a dev run, and the end screen says how many. The creator shows a shop look with its price; tapping it offers Buy only when you have enough; buying spends them and puts it on. New golden awards read the Treasure book, per-Elite and per-species counts and a boss beaten without losing Health; the Gilded finish needs every other one.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    const keep = [FEATS_KEY, PEARLS_KEY, FOUND_KEY].map((k) => [k, localStorage.getItem(k)]);
+    const info = {};
+    try {
+      [FEATS_KEY, PEARLS_KEY, FOUND_KEY].forEach((k) => localStorage.removeItem(k));
+      // the earn rate, as the proposal priced it
+      const rates = pearlsFor({ kills: 35, ended: true }) === 8 && pearlsFor({ kills: 60, elites: 2, ended: true }) === 17
+        && pearlsFor({ kills: 350, elites: 9, bosses: 4, ended: true, won: true }) === 127;
+      // a run as it goes: bugs flushed (twice, counted once), an Elite, a boss (a first, untouched), then the end
+      run.kills = 23; run.flushFeats(); run.flushFeats();
+      const afterBugs = bank().pearls;
+      stub(run, 'dropTreasure', () => {});
+      run.eliteDefeated({ kind: 'kettle', name: 'The Kettle', base: run.player.position.clone(), r: 0.1, spec: { area: 'stovetop' } });
+      const afterElite = bank().pearls, f1 = lifetime();
+      run.bossHurt = false;
+      stub(run, 'boss', { center: () => V(0, 0, 0) }); stub(run, 'fx', { puff() {} });
+      run.onBossDead({ impact: false });
+      const afterBoss = bank().pearls, f2 = lifetime();
+      run.phase = 'dead';
+      stub(run, 'board', null);
+      run.endRun('You were popped', 'dead', 'Try again');
+      const end = document.querySelector('.jf-modal')?.innerText || '';
+      menus.close();
+      const earnOk = rates && afterBugs === 2 && afterElite === 5 && f1.elite_kettle === 1 && afterBoss === 5 + 10 + 25 && f2.flawless === 1
+        && bank().pearls === 45 && run.pearls === 45 && /Pearls\s*\+45/.test(end);
+      Object.assign(info, { earnOk, rates, afterBugs, afterElite, afterBoss, bank: bank().pearls, end: end.slice(0, 200) });
+      // a dev run earns nothing
+      run.dev = true; run.kills = 500; run.flushFeats({ runs: 1 }); run.earn(50); run.dev = false;
+      const devOk = bank().pearls === 45;
+      // the creator: a shop look shows its price, says what you have, offers Buy only when you can, and buying wears it
+      const over = document.querySelector('#g-over');
+      over.hidden = false;
+      document.querySelector('#g-over [data-act="creator"]').click(); step(30);
+      const chip = (k, v) => document.querySelector(`#creator [data-k="${k}"][data-v="${v}"]`);
+      const lamp = chip('top', 'lampshade'), cap = chip('top', 'bottlecap');
+      lamp.click();
+      const tooDear = !document.querySelector('#creator [data-buy]') && /300 Pearls/.test(document.querySelector('#creator .need[data-for="top"]').textContent);
+      localStorage.setItem(PEARLS_KEY, JSON.stringify({ pearls: 70, bought: [] }));
+      cap.click();
+      const buyBtn = document.querySelector('#creator [data-buy="top"][data-v="bottlecap"]');
+      buyBtn?.click(); step(2);
+      const bought = bank().pearls === 10 && bank().bought.includes('top:bottlecap') && run.playerLook().top === 'bottlecap'
+        && !chip('top', 'bottlecap').classList.contains('locked') && /🦪 10 Pearls/.test(document.querySelector('#creator .pearls').textContent);
+      const shopOk = !!lamp && lamp.classList.contains('locked') && /🦪 300/.test(lamp.textContent) && tooDear && !!buyBtn && bought;
+      Object.assign(info, { tooDear, bought, lampText: lamp?.textContent });
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      over.hidden = true;
+      // the new awards' rules
+      const F = feats();
+      const rules = unlocked('top', 'duck', { ...F, boss: ['hair'] }) && !unlocked('top', 'duck', { ...F, boss: ['vacuum'] })
+        && unlocked('top', 'crown_moon', { ...F, winAs: ['moon'] }) && !unlocked('top', 'crown_moon', { ...F, winAs: ['box'] })
+        && unlocked('eyes', 'goldspecs', { ...F, book: 0.5 }) && !unlocked('eyes', 'goldspecs', { ...F, book: 0.49 })
+        && unlocked('top', 'goldkettle', { ...F, elite_kettle: 10 }) && !unlocked('top', 'goldkettle', { ...F, elite_kettle: 9 })
+        && unlocked('top', 'tiara', { ...F, flawless: 1 }) && !unlocked('finish', 'gilded', F) && unlocked('finish', 'gilded', { ...F, allGold: true })
+        && requirementText(requirement('top', 'duck')) === 'Earned: beat the Clog' && requirementText(requirement('top', 'goldkettle'), { elite_kettle: 3 }) === 'Earned: beat the Kettle 10 times (3 so far)'
+        && requirementText(requirement('top', 'crown_lion')) === "Earned: win a run as a Lion's Mane";
+      // every shop look and award is a real option, priced or earned, never both, and builds on every species
+      const all = Object.entries(PRICES).flatMap(([k, ids]) => Object.keys(ids).map((id) => [k, id])).concat(Object.entries(NEEDS).flatMap(([k, ids]) => Object.keys(ids).map((id) => [k, id])));
+      const listed = all.every(([k, id]) => OPTIONS[k].some(([v]) => v === id)) && all.every(([k, id]) => !(PRICES[k]?.[id] && NEEDS[k]?.[id]));
+      // (what a look builds: its meshes and their vertices)
+      const meshes = (l) => { let n = 0; const c = buildCharacter(normalizeLook({ ...DEFAULT_LOOK, ...l }), 0.03); c.root.traverse((o) => { if (o.isMesh) n += 100000 + o.geometry.attributes.position.count; }); c.update(0.5, { speed: 0, vy: 0, grounded: true }); c.dispose(); return n; };
+      const broken = [];
+      for (const body of Object.keys(SPECIES)) {
+        const plain = { body, top: 'none', eyes: 'big', mouth: 'smile', pattern: 'none', finish: 'glow' }, base = meshes(plain);
+        for (const [k, id] of all) if (k !== 'pattern' && k !== 'finish' && meshes({ ...plain, [k]: id }) === base) broken.push(`${body}:${k}:${id}`);
+      }
+      Object.assign(info, { rules, listed, broken: broken.slice(0, 6) });
+      return ok(earnOk && devOk && shopOk && rules && listed && !broken.length, info);
+    } finally { keep.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v))); }
   },
 });
 
