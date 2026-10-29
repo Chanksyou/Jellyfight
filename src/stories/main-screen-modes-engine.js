@@ -339,6 +339,54 @@ story('modes/cosmetics-framework', {
   },
 });
 
+story('modes/try-on-locked-cosmetics', {
+  about: 'Trying on: tapping a locked golden award or shop look in the creator shows it on the jelly with what it takes or its price, but the look the game keeps (and saves, and runs with) never changes; picking an owned option, Done or Escape puts the jelly back.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, player } = G();
+    const keep = [FEATS_KEY, PEARLS_KEY, 'jellyfight.look.v2'].map((k) => [k, localStorage.getItem(k)]);
+    const GOLD = new THREE.Color('#ffc93a').convertSRGBToLinear().getHexString();   // character.js M.award
+    const gold = () => { let n = 0; player.avatar.root.traverse((o) => { if (o.isMesh && o.material.color?.getHexString() === GOLD) n++; }); return n; };
+    const saved = () => JSON.parse(localStorage.getItem('jellyfight.look.v2') || 'null')?.top;
+    const info = {};
+    try {
+      localStorage.setItem(FEATS_KEY, JSON.stringify({ runs: 0, wins: 0, kills: 0, elites: 0 }));
+      localStorage.setItem(PEARLS_KEY, JSON.stringify({ pearls: 0, bought: [] }));
+      const over = document.querySelector('#g-over');
+      const open = () => { over.hidden = false; document.querySelector('#g-over [data-act="creator"]').click(); step(2); };
+      const chip = (k, v) => document.querySelector(`#creator [data-k="${k}"][data-v="${v}"]`);
+      const note = () => document.querySelector('#creator .need[data-for="top"]').textContent;
+      const hint = () => document.querySelector('.cr-hint').textContent;
+      open();
+      chip('top', 'none').click(); step(1);
+      const base = gold();
+      // an award: worn on the jelly, said what it takes, not the look
+      chip('top', 'goldcrown').click(); step(1);
+      const award = gold() > base && run.playerLook().top === 'none' && /Earned: win a run/.test(note())
+        && chip('top', 'goldcrown').classList.contains('try') && /Trying it on/.test(hint());
+      // a shop look: a new jelly, its price, still not the look
+      const before = player.avatar;
+      chip('top', 'lampshade').click(); step(1);
+      const shop = player.avatar !== before && gold() === base && run.playerLook().top === 'none' && /300 Pearls/.test(note())
+        && !chip('top', 'goldcrown').classList.contains('try');
+      // an owned pick ends it
+      chip('top', 'bow').click(); step(1);
+      const owned = run.playerLook().top === 'bow' && /Drag to spin/.test(hint());
+      // Done while trying on: saves the real look, puts the jelly back
+      chip('top', 'goldcrown').click(); step(1);
+      document.querySelector('#creator [data-act="done"]').click(); step(1);
+      const done = saved() === 'bow' && run.playerLook().top === 'bow' && gold() === base;
+      // Escape while trying on: the same
+      open(); chip('top', 'goldcrown').click(); step(1);
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' })); step(1);
+      const escaped = saved() === 'bow' && run.playerLook().top === 'bow' && gold() === base && document.querySelector('#creator').hidden;
+      over.hidden = true;
+      Object.assign(info, { award, shop, owned, done, escaped, base, note: note() });
+      return ok(award && shop && owned && done && escaped, info);
+    } finally { keep.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v))); }
+  },
+});
+
 story('modes/pearls-and-the-shop', {
   about: 'Pearls: every run that ends pays (5, a Pearl per 10 bugs, 3 an Elite, 10 a boss, 25 more the first time ever, 20 for a win), banked as they come, never in a dev run, and the end screen says how many. The creator shows a shop look with its price; tapping it offers Buy only when you have enough; buying spends them and puts it on. New golden awards read the Treasure book, per-Elite and per-species counts and a boss beaten without losing Health; the Gilded finish needs every other one.',
   setup() { fresh({ elites: false }); },
