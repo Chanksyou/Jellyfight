@@ -250,13 +250,13 @@ story('treasures/crit', {
   },
 });
 story('treasures/echo-bubble', {
-  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 65% of its damage.',
+  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 60% of its damage.',
   setup() { setupFight({ lash: false }); give('discoBall'); roachAt(0, -0.15); roachAt(0.06, -0.24); },
   play() {
     const { enemies, run } = G(), [first, second] = enemies.list, log = record('damage_taken');
     step(60 * 3, () => dmgBy(log, 'bubble').some((d) => d.targetId === second.id));
     const echoes = dmgBy(log, 'bubble').filter((d) => d.targetId === second.id), full = run.S.bubbleDamage;
-    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.65) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
+    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.6) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
   },
 });
 story('treasures/bubble-ring', {
@@ -273,7 +273,7 @@ story('treasures/bubble-ring', {
   },
 });
 story('treasures/toy-mouse', {
-  about: 'toy-mouse (Cat Toy Mouse): a big wind-up mouse trundles to the nearest bug and slams into it for 8x your power, hitting a bug beside it too (splash) but not one far off; it never trips over the jelly.',
+  about: 'toy-mouse (Cat Toy Mouse): a big wind-up mouse trundles to the nearest bug and slams into it for 9x your power, hitting a bug beside it too (splash) but not one far off; it never trips over the jelly.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('toyMouse'); roachAt(0.25, 0.1); roachAt(0.25, 0.16); roachAt(-0.6, 0.6); },
   play() {
     const { run } = G(), [e, side, far] = G().enemies.list, log = record('damage_taken'), hard = run.power * run.mods.mouse.dmg;
@@ -349,28 +349,28 @@ story('treasures/squeak-when-hit', {
   },
 });
 story('treasures/when-hit', {
-  about: 'when-hit (Windowsill Cactus): getting hit sprays needles at the bugs around you, once a second at most.',
+  about: 'when-hit (Windowsill Cactus): getting hit sprays needles at the bugs around you, at most 5 times a second.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('cactus'); roachAt(0.1, 0); roachAt(-0.12, 0.05); },
   play() {
     const { run, enemies } = G(), log = record('damage_taken');
     const hitMe = (amount, from) => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount, source: 'story', from }); };
     hitMe(1);
     const sprayed = new Set(dmgBy(log, 'ring').map((d) => d.targetId)).size;
-    hitMe(1);                                                   // within its 1 s cooldown: nothing
+    hitMe(1);                                                   // within its 0.2 s cooldown: nothing
     const again = dmgBy(log, 'ring').length;
-    step(70); hitMe(1);                                         // a second later: again
+    step(70); hitMe(1);                                         // later: again
     const later = dmgBy(log, 'ring').length;
     return ok(sprayed === 2 && again === 2 && later === 4, { sprayed, again, later });
   },
 });
 story('treasures/lash', {
-  about: 'lash (Toaster Cord, when hit): a tentacle lashes back at the bug that hit you, for twice your Tentacle damage, and not at the other bug closer to you; once a second at most.',
+  about: 'lash (Toaster Cord, when hit): a tentacle lashes back at the bug that hit you, for twice your Tentacle damage, and not at the other bug closer to you; at most 5 times a second.',
   setup() { setupFight({ hurt: true, bubbles: false }); give('kettleCord'); roachAt(0.12, 0); roachAt(0.16, 0.05); },   // both out of the tentacles' own reach
   play() {
     const { run, enemies } = G(), [other, biter] = enemies.list, log = record('damage_taken');
     const hitMe = () => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'story', from: biter.id }); };
-    hitMe(); step(30);
-    hitMe(); step(30);                                          // within the second: no second lash
+    hitMe(); step(6);
+    hitMe(); step(30);                                          // within its 0.2 s: no second lash
     const lashes = dmgBy(log, 'tentacle');
     return ok(lashes.length === 1 && lashes[0].targetId === biter.id && Math.abs(lashes[0].amount - run.S.tentacleDamage * 2) < 1e-6,
       { lashes: lashes.map((d) => [d.targetId === biter.id ? 'biter' : d.targetId === other.id ? 'other' : d.targetId, d.amount]), want: run.S.tentacleDamage * 2 });
@@ -389,14 +389,14 @@ story('treasures/ring-slow', {
   },
 });
 story('treasures/reflect', {
-  about: 'reflect (Hand Mirror): the first hit bounces back at the bug that dealt it for 8x your power, you take none of it and can\'t be hurt for 1 s; another hit within 15 s lands as usual.',
+  about: 'reflect (Hand Mirror): the first hit bounces back at the bug that dealt it for 8x your power, you take none of it and can\'t be hurt for 1 s; another hit within 8 s lands as usual.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('handMirror'); roachAt(0.1, 0); },
   play() {
     const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     run.health = 20;
     bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
     const back = dmgBy(log, 'reflect'), h1 = run.health, inv = run.iFrames;
-    step(70);                                                   // past the 1 s, well inside the 20 s
+    step(70);                                                   // past the 1 s, well inside the 8 s
     bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story', from: e.id });
     const p = run.stage.power || 1, h2 = run.health;
     return ok(back.length === 1 && back[0].targetId === e.id && back[0].amount === run.power * run.mods.reflect.dmg && h1 === 20 && inv === 1 && Math.abs(h2 - (20 - 3 * p)) < 1e-6 && dmgBy(log, 'reflect').length === 1,
@@ -590,8 +590,8 @@ story('treasures/stat-size-jump-tentacles', {
   setup() { setupFight({ bubbles: false }); give('bikePump', 'insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
-    const stats = near(S.bubbleSize, b.bubbleSize * 1.25) && near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 1
-      && near(T.reach, b.reach * 1.65) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
+    const stats = near(S.bubbleSize, b.bubbleSize * 1.25) && near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 2
+      && near(T.reach, b.reach * 1.75) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
     const log = record('damage_taken');
     step(60 * 2);
     const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;

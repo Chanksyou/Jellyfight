@@ -471,14 +471,14 @@ treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="10
 }
 
 // --- when hit (when-hit): getting hurt hits back
-treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When you're hit, needles spray at every bug within 25 cm (once a second)." stack=3 {
-    when-hit cooldown=1 {
-        ring 0.25 dmg=0.35 color="#8fffc8" look="needles" show=0.35
+treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When you're hit, needles spray at every bug within 45 cm (up to 5 times a second)." stack=3 {
+    when-hit cooldown=0.2 {
+        ring 0.45 dmg=0.5 color="#8fffc8" look="needles" show=0.35
     }
 }
-treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When a bug hits you, a tentacle lashes back at it for twice your Tentacle damage (once a second)." stack=3 {
-    when-hit cooldown=1 {
-        lash dmg=2 range=0.2
+treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When a bug hits you, a tentacle lashes back at it for twice your Tentacle damage (up to 5 times a second)." stack=3 {
+    when-hit cooldown=0.2 {
+        lash dmg=2 range=0.4
     }
 }
 
@@ -492,14 +492,14 @@ treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true tex
 }
 
 // --- Legendary: rule-changers, one of a kind (the Boss reward offers these)
-treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 15 s, the first hit you take shatters back: whatever dealt it takes a heavy hit, a shockwave hits and throws back everything close, and you can't be hurt for 1 s." {
-    reflect every=15 invuln=1 dmg=8 burst=0.15 burstDmg=3 push=0.05
+treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 8 s, the first hit you take shatters back: whatever dealt it takes a heavy hit, a shockwave hits and throws back everything close, and you can't be hurt for 1 s." {
+    reflect every=8 invuln=1 dmg=8 burst=0.15 burstDmg=3 push=0.05
 }
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 65% of its damage." {
-    echo-bubble dmg=0.65
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 60% of its damage." {
+    echo-bubble dmg=0.6
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 bubbles bursts out from you in every direction." {
     every 5 {
@@ -519,8 +519,8 @@ treasure "powerBank" name="Power Bank" icon="🔆" rarity="legendary" attack=#tr
     element-up "wind" rate=1.5
     element-up "glitter" rate=1.5
 }
-treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 7 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
-    toy-mouse every=7 dmg=8 speed=0.25 size=3 splash=0.12 push=0.025
+treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 6 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
+    toy-mouse every=6 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
 }
 
 // --- more combinations of the words above (no new code)
@@ -542,11 +542,11 @@ treasure "bikePump" name="Bike Pump" icon="🚲" rarity="common" attack=#true te
 treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+25% Jump height." stack=3 {
     stat jump-height 25 percent=#true
 }
-treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="common" attack=#true text="+1 Tentacle lashes out at once." stack=5 {
-    stat tentacles 1
+treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="common" attack=#true text="+2 Tentacles lash out at once." stack=5 {
+    stat tentacles 2
 }
-treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+65% Tentacle reach." stack=3 {
-    stat tentacle-reach 65 percent=#true
+treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+75% Tentacle reach." stack=3 {
+    stat tentacle-reach 75 percent=#true
 }
 treasure "chopsticks" name="Chopsticks" icon="🥢" rarity="common" attack=#true text="+40% Tentacle speed." stack=3 {
     stat tentacle-speed 40 percent=#true

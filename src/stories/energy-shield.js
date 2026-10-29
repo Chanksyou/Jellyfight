@@ -19,7 +19,7 @@ story('treasures/energy-shield', {
     const noPartialRefill = run.energyShield.hp === 6;
     hit(8);
     const burst = log.filter((d) => d.source === 'energy-shield');
-    const broken = run.energyShield.hp === 0 && run.energyShield.cooldown === 8 && !run.energyShield.group.visible;
+    const broken = run.energyShield.hp === 0 && run.energyShield.cooldown === 6 && !run.energyShield.group.visible;
     hit(1);
     return ok(partial && noPartialRefill && broken && run.health === hp - 3 && close.hp === 90 && far.hp === 100 && burst.length === 1 && burst[0].amount === 10,
       { partial, noPartialRefill, broken, health: run.health, close: close.hp, far: far.hp, burst: burst.map((d) => d.amount) });
@@ -27,7 +27,7 @@ story('treasures/energy-shield', {
 });
 
 story('evolutions/energy-shield-recharge', {
-  about: 'The shield returns exactly eight gameplay seconds after breaking; pauses and unrelated treasure changes cannot refill it early, and its HUD icon shows the wait.',
+  about: 'The shield returns exactly six gameplay seconds after breaking; pauses and unrelated treasure changes cannot refill it early, and its HUD icon shows the wait.',
   setup,
   play() {
     const { run } = G(); hit(10);
@@ -38,7 +38,7 @@ story('evolutions/energy-shield-recharge', {
     const wait = run.energyShield.cooldown; step(120);
     const paused = run.energyShield.cooldown === wait;
     document.getElementById('g-over').hidden = true;
-    step(478);
+    step(358);
     const waiting = run.energyShield.hp === 0 && run.energyShield.cooldown > 0;
     step(2);
     const ready = run.energyShield.hp === 10 && run.energyShield.cooldown === 0 && run.energyShield.group.visible && run.cooldowns().aegis?.left === 0;
