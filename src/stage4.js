@@ -16,7 +16,7 @@ export const STAGE4 = {
   start: [0, 0.01, 0.48],
   duration: 0,                        // straight into the fight
   clock: [360, 360],
-  // tougher again than act 3: the beetles' Health, the Encore's, every hit you take, the XP
+  // tougher again than act 3: the Encore's Health, every hit you take, the XP
   toughness: 3.5,
   bossHp: 1,
   power: 2,
