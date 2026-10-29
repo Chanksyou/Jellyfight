@@ -1171,13 +1171,15 @@ export class Run {
     }
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
-    if (impact) { juice.feel('boss-kill'); juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); sfx.boom(); }
+    const still = juice.calm || this.fx.reducedMotion?.matches;   // the device asks for reduced motion: no slow motion or shake
+    if (impact) { juice.feel('boss-kill'); if (!still) juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); sfx.boom(); }
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
-    juice.shake(LOOK.num('cleared-shake', 0.35)); sfx.stamp();
+    if (!still) juice.shake(LOOK.num('cleared-shake', 0.35));
+    sfx.stamp();
     // the last act's boss: straight on to the ending (nothing after it to grow into); otherwise the metamorphosis
     this.later(() => (STAGES[this.stage.id] ? this.metamorph() : this.won()), 2200);
   }

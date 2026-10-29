@@ -37,7 +37,7 @@ story('payoff/end-screen-counts-up', {
   play() {
     const { run, menus } = G();
     return withEmpty([FEATS_KEY, PEARLS_KEY], () => {
-      stub(run, 'board', null);
+      stub(run, 'board', null); stub(run, 'jellyFace', null);   // (no portraits: they're slow to draw here)
       run.kills = 40; run.t = 200; run.phase = 'dead';
       run.endRun('You dried out', 'dead', 'Try again');
       const score = modal().querySelector('.jf-score .jf-count');
@@ -78,7 +78,7 @@ story('payoff/golden-award-is-revealed', {
       step(30);
       const held = !!modal().querySelector('.jf-count.run');                // the tally waits for it
       el.querySelector('[data-wear]').click();
-      el.querySelector('[data-next]').click();
+      for (let i = 0; i < 20 && document.querySelector('.jf-award'); i++) document.querySelector('.jf-award [data-next]').click();   // (other awards may come too)
       const gone = !document.querySelector('.jf-award');
       step(90);
       const tallied = !modal().querySelector('.jf-count.run');
