@@ -143,15 +143,16 @@ story('enemies/spider-keeps-its-distance', {
   },
 });
 story('words/ball-charge', {
-  about: 'The millipede curls into a ball (hits on it do 75% less while curled), revs up spinning while its lane lights up on the floor, then rolls into you for 5. Once it uncurls it can be hurt again.',
+  about: 'The millipede curls into a ball (hits on it do 75% less while curled), revs up spinning while its lane lights up (dimmed, no glare) on the floor, then rolls into you for 5. Once it uncurls it can be hurt again.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('millipede', near(0, -0.32)); e.ballCd = 0.3; },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
     const seen = new Set();
-    let warned = false, armored = null, spun = 0, hit = null;
+    let warned = false, armored = null, spun = 0, hit = null, glow = 0;
     step(60 * 6, () => {
       seen.add(e.state);
       if (e.state === 'spin' && enemies.chargeMarks.some((m) => m.visible)) warned = true;
+      for (const m of enemies.chargeMarks) if (m.visible) glow = Math.max(glow, m.material.opacity);
       if (e.state === 'spin' && armored === null) { const hp = e.hp; enemies.applyDamage(e, 20); armored = Math.abs(hp - e.hp - 5) < 1e-6; }   // 20 hits for 5
       spun = Math.max(spun, e.spinA || 0);
       hit = hit || log.find((d) => d.source === 'millipede' && d.amount === 5);   // ball-charge damage 5 since v144
@@ -160,8 +161,9 @@ story('words/ball-charge', {
     const hp = e.hp;
     enemies.applyDamage(e, 10);
     const hurtAfter = e.hp === hp - 10;
-    return ok(['curl', 'spin', 'dash'].every((s) => seen.has(s)) && warned && armored && spun > 5 && hit && hurtAfter,
-      { states: [...seen], warned, armored, spun: +spun.toFixed(1), hit: hit?.amount, hurtAfter });
+    const dim = glow > 0.2 && glow <= LOOK.num('charge-warning-opacity', 0.3) + LOOK.num('charge-warning-pulse', 0.06) + 1e-6;   // readable, but no glare (look.css)
+    return ok(['curl', 'spin', 'dash'].every((s) => seen.has(s)) && warned && dim && armored && spun > 5 && hit && hurtAfter,
+      { states: [...seen], warned, glow: +glow.toFixed(2), armored, spun: +spun.toFixed(1), hit: hit?.amount, hurtAfter });
   },
 });
 story('enemies/millipede-dodge', {
@@ -527,21 +529,23 @@ story('words/hatch', {
   },
 });
 story('words/burst', {
-  about: 'The mantis\'s carcass twitches while a circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 5 damage if you\'re inside the circle.',
+  about: 'The mantis\'s carcass twitches while a dimmed circle fills round its rear end, then the worm bursts out of the tip of its abdomen: 5 damage if you\'re inside the circle.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('worm', near(0.3, 0)); },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
     step(1);
     const out = e.emergeAt, round = Math.hypot(out.x - e.pos.x, out.z - e.pos.z) > e.r;   // it comes out away from the middle (the rear end)
     tp(out.x, player.position.y, out.z);                                                   // stand right where it comes out
-    let warned = false, frames = 1;
+    let warned = false, glow = 0, frames = 1;
     step(60 * 3, () => {
       frames++;
       if (e.state === 'emerge' && enemies.burstMarks.some((m) => m.visible)) warned = true;
+      for (const m of enemies.burstMarks) if (m.visible) glow = Math.max(glow, m.material.opacity);
       return log.some((d) => d.source === 'worm' && d.amount === 5);
     });
     const hit = log.find((d) => d.source === 'worm' && d.amount === 5), secs = frames / 60;
-    return ok(round && warned && hit?.amount === 5 && secs > 1.45 && secs < 1.6, { round, warned, hit: hit?.amount, secs: +secs.toFixed(2) });
+    const dim = glow > 0.2 && glow <= LOOK.num('burst-warning-opacity', 0.3) + LOOK.num('burst-warning-pulse', 0.06) + 1e-6;   // readable, but no glare (look.css)
+    return ok(round && warned && dim && hit?.amount === 5 && secs > 1.45 && secs < 1.6, { round, warned, glow: +glow.toFixed(2), hit: hit?.amount, secs: +secs.toFixed(2) });
   },
 });
 story('enemies/worm-burst-clear', {

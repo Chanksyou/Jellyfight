@@ -707,7 +707,8 @@ export class Enemies {
       M.rotation.y = Math.atan2(e.dashDir.x, e.dashDir.z);
       M.scale.set(e.r * 2.6, 1, len);
       M.material.progress = e.state === 'dash' ? 1 : 1 - Math.max(0, e.stateT) / (e.spinMax || 0.9);
-      M.material.opacity = e.state === 'dash' ? 0.9 : 0.8 + 0.2 * Math.abs(Math.sin(t * 14));
+      const base = LOOK.num('charge-warning-opacity', 0.3), pulse = LOOK.num('charge-warning-pulse', 0.06);
+      M.material.opacity = e.state === 'dash' ? base + pulse : base + pulse * Math.abs(Math.sin(t * 14));
       M.visible = true;
       n++;
     }
@@ -947,7 +948,7 @@ export class Enemies {
         M.position.set(from.x, e.pos.y + 0.003, from.z);
         M.scale.setScalar(r);
         M.material.progress = 1 - Math.max(0, e.stateT) / (e.emergeMax || 0.9);
-        M.material.opacity = 0.8 + 0.2 * Math.abs(Math.sin(t * 18));
+        M.material.opacity = LOOK.num('burst-warning-opacity', 0.3) + LOOK.num('burst-warning-pulse', 0.06) * Math.abs(Math.sin(t * 18));
       }
     }
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
