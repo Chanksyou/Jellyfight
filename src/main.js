@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v319';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v320';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -260,6 +260,7 @@ function trackFor(name) {
 const song = {
   playing: null,
   beat() { const t = this.playing; if (!t) return undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
+  bpm() { const t = this.playing; return t?.state === 'ready' ? t.track.bpm : music?.song?.bpm; },
   quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };

@@ -466,6 +466,7 @@ export class Run {
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.eliteDamage = this.mods.eliteDamage;
+      this.enemies.tempo = this.phase === 'boss' ? this.boss?.tempo ?? null : null;   // a boss's song beat (the Encore's), for words that keep it
       this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t, this.mirage.target);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);

@@ -429,25 +429,26 @@ export const ENEMY_WORDS = {
   },
 
   'charge-shot': {
-    doc: 'Within `range` m every `every` s or so, stops, turns to you and charges a ball between its jaws for `charge` s (it grows, crackling; the aim locks `lock` of the way through, so stepping aside after that dodges), then fires it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. It explodes on whatever it meets (you, furniture, the floor, or the end of its flight): a Blast `blast` m round, `dmg` and a `knock` shove to anything of you inside it. It rests `rest` s. Freezing or stunning it breaks the charge off. List it after the walking word.',
-    props: { range: 0.6, charge: 1, lock: 0.6, speed: 1.2, dmg: 3, size: 0.011, blast: 0.05, knock: 0.5, life: 1.2, rest: 0.7, every: 3.5 },
+    doc: 'Within `range` m every `every` s or so, stops, turns to you and charges a ball between its jaws for `charge` s (it grows, crackling; the aim locks `lock` of the way through, so stepping aside after that dodges), then fires it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. It explodes on whatever it meets (you, furniture, the floor, or the end of its flight): a Blast `blast` m round, `dmg` and a `knock` shove to anything of you inside it. It rests `rest` s. Freezing or stunning it breaks the charge off. In a boss fight with a song (the Encore), it fires on the song\'s beat: the charge is stretched or cut to the nearest `beat` beats (1 a whole beat, 0.5 a half; 0 off), at most half of that either way. List it after the walking word.',
+    props: { range: 0.6, charge: 1, lock: 0.6, speed: 1.2, dmg: 3, size: 0.011, blast: 0.05, knock: 0.5, life: 1.2, rest: 0.7, every: 3.5, beat: 1 },
     make: (_, p) => ({
-      init(e) { e.shotCd = 1 + Math.random() * 1.5; e.shotDir = new THREE.Vector3(0, 0, 1); e.shotAt = new THREE.Vector3(); e.ballK = 0; },
+      init(e) { e.shotCd = 1 + Math.random() * 1.5; e.shotDir = new THREE.Vector3(0, 0, 1); e.shotAt = new THREE.Vector3(); e.ballK = 0; e.chargeT = p.charge; e.fireBeat = null; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
         e.shotCd -= c.dt;
         if (e.state === 'charge' && !live) { en.breakSpark(e); e.state = 'approach'; e.faceLock = false; e.ballK = 0; e.shotCd = 1.5; }
         if (e.state === 'approach') {
           if (c.dist < p.range && e.shotCd <= 0 && live) {
-            e.state = 'charge'; e.stateT = p.charge; e.aimLocked = false; e.ballK = 0; e.faceLock = true;
+            e.chargeT = e.stateT = onBeat(e, c, p.charge, p.beat);
+            e.state = 'charge'; e.aimLocked = false; e.ballK = 0; e.faceLock = true;
             e.vel.set(0, 0, 0);
-            en.sparkCharge(e, p.charge);
+            en.sparkCharge(e, e.chargeT);
           }
         } else if (e.state === 'charge') {
           c.speed = 0;
           e.vel.set(0, 0, 0);
           e.stateT -= c.dt;
-          e.ballK = Math.min(1, 1 - e.stateT / p.charge);
+          e.ballK = Math.min(1, 1 - e.stateT / e.chargeT);
           if (!e.aimLocked) {                                        // it turns after you until its aim locks
             e.shotDir.copy(c.flatDir);
             e.shotAt.copy(c.pc);
@@ -456,7 +457,8 @@ export const ENEMY_WORDS = {
             e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-12 * c.dt)), -5 * c.dt, 5 * c.dt);
             if (e.ballK >= p.lock) e.aimLocked = true;
           }
-          if (e.stateT <= 0) { en.sparkShot(e, e.shotAt, p); e.state = 'rest'; e.stateT = p.rest; e.ballK = 0; e.firedT = 0.3; }
+          // on the song's beat it fires on the beat it was due, whatever the frame clock says (hit-stop, hitches)
+          if (e.fireBeat !== null && c.beat !== null ? c.beat >= e.fireBeat || e.stateT <= -e.chargeT : e.stateT <= 0) { en.sparkShot(e, e.shotAt, p); e.state = 'rest'; e.stateT = p.rest; e.ballK = 0; e.firedT = 0.3; }
         } else if (e.state === 'rest') {
           c.speed = 0;
           e.stateT -= c.dt * live;
@@ -649,6 +651,19 @@ export const ENEMY_WORDS = {
 
 // Check one word use from a content file and build it. Throws a message that names the file
 // and line, so a typo in a .kdl file says exactly what's wrong.
+// A timed attack on a boss's song beat (c.beat, c.bpm: enemies.js): `secs` stretched or cut so it ends
+// on the nearest `grid`-beat mark, at most half a mark either way. Notes that beat in e.fireBeat (null
+// with no song, or grid 0) and returns the new length in s
+function onBeat(e, c, secs, grid) {
+  e.fireBeat = null;
+  if (!(grid > 0) || c.beat === null || !(c.bpm > 0)) return secs;
+  const per = 60 / c.bpm;
+  let at = Math.round((c.beat + secs / per) / grid) * grid;
+  if (at <= c.beat) at += grid;
+  e.fireBeat = at;
+  return (at - c.beat) * per;
+}
+
 export function makeWord(registry, node, where) {
   const def = registry[node.name];
   if (!def) throw new Error(`${where}: unknown word "${node.name}". Known words: ${Object.keys(registry).join(', ')}`);
