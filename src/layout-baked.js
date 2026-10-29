@@ -15,5 +15,14 @@ export const BAKED_LAYOUT = {
     'Dish_cloth#1': { p: [-0.0211, 0, 0.1532], q: [0, 0, 0, 1] },
   },
   2: {},
-  3: {},
+  3: {
+    'Sleeping_baby#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Bed#1': { p: [-0.0382, 0, -0.0585], q: [0, 0, 0, 1] },
+    'Glass-case_shrine#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Ganesha#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Cat_mask#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Laughing_Buddha#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Floating_shelf#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+    'Bronze_figurine#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
+  },
 };

@@ -70,11 +70,11 @@ export const STAGE3 = {
 
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Bedroom vent by the bed', at: [1.1, 0.002, 9.4], radius: 0.045, land: [0.45, 0.641, 9.45], to: 'the bed' },
-    { name: 'Bedroom vent by the dresser', at: [-0.6, 0.002, 8.85], radius: 0.045, land: [-0.55, 1.146, 8.3], to: 'the dresser' },
+    { name: 'Bedroom vent by the bed', at: [0.848, 0.002, 9.002], radius: 0.045, land: [0.536, 0.641, 9.203], to: 'the bed' },
+    { name: 'Bedroom vent by the dresser', at: [-0.161, 0.002, 8.489], radius: 0.045, land: [-0.354, 1.146, 8.364], to: 'the dresser' },
     // round the bassinet to the back of the nightstand, behind the humidifier
-    { name: 'Bedroom vent by the vanity', at: [-1.3, 0.002, 9.6], radius: 0.04, land: [-1.52, 0.78, 9.2], to: 'the vanity desk' },
-    { name: 'Bedroom vent by the air purifier', at: [-1.65, 0.002, 10.4], radius: 0.04, land: [-1.28, 0.66, 11.17], to: 'the nightstand' },
+    { name: 'Bedroom vent by the vanity', at: [-1.641, 0.002, 9.44], radius: 0.04, land: [-1.476, 0.78, 9.275], to: 'the vanity desk' },
+    { name: 'Bedroom vent by the air purifier', at: [-1.311, 0.002, 9.874], radius: 0.04, land: [-1.055, 0.571, 10.048], to: 'the bassinet' },
   ],
   // Fabric you can climb (none here yet)
   climbs: [],
