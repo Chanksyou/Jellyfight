@@ -358,22 +358,22 @@ like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading ap
 - **No night.** `duration: 0`: the run goes straight into the boss intro (no "Time's up!"), then
   the fight, facing the booth (`faceBoss`).
 - **The boss** is `src/encore.js`, registered in `run.js` `BOSSES` as `encore`. Its Health and
-  beetle numbers are in `content/bosses.kdl`. It owns the floor waves, lasers, speaker waves, disco
+  force field numbers are in `content/bosses.kdl`. It owns the floor waves, lasers, speaker waves, disco
   ball and stage-edge shock, all on its song's beat. Its hit sphere sits in front of the booth, so a
   bubble reaches it before the stage's collider.
 - **The song.** `musicState` asks for the boss's `music` (`encore`). `main.js` plays the recording
   (`song-track.js` `TRACKS`), loaded as soon as audio starts in this act, and hands the boss a beat
   source. While the file loads the fight waits; with music off or no audio the boss keeps its own
   128 BPM clock; if the file won't load, the synthesized song plays.
-- **Beetles and the force field.** At beat 32 (bar 8), and every 64 beats (16 bars) after, it tops
-  the floor up to 2 stag beetles at a time (v245; it was 4). While either lives, a bright blue hex
-  shell (`vfx.js` `VolumeMaterial`, `--encore-shield-*`) covers the whole booth, sized from the booth's
-  collider with room to spare, and hits bounce off ("SHIELDED"). It drops after 90 s at most.
-- **Winning.** At 0 Health the set stops and its beetles go. There is no cat finish here. After one
+- **The force field.** As the fight opens (bosses.kdl `start guard`) and while it reboots after the
+  meltdown (`meltdown guard`), a bright blue hex shell (`vfx.js` `VolumeMaterial`, `--encore-shield-*`)
+  covers the whole booth, sized from the booth's collider with room to spare, and hits bounce off
+  ("SHIELDED"). It calls no bugs: the stag beetle phases (bar 8, every 16 bars) were removed in v323.
+- **Winning.** At 0 Health the set stops. There is no cat finish here. After one
   more metamorphosis the run ends as a win with the stage's `won` line.
 
 Its attacks are on the attack list (`EVERY_ATTACK[4]`) and the scoreboard, unscored until a feel
-pass. Stories `act4/*`: the fight starts straight away, the beetles and force field, winning, and
+pass. Stories `act4/*`: the fight starts straight away, the force field, no bugs called, winning, and
 the attack list. The act 3 story `act3/beating-the-shark-goes-on-to-act-4` covers the way in.
 
 ## Juice and the meltdown (v248)
@@ -382,8 +382,8 @@ the attack list. The act 3 story `act3/beating-the-shark-goes-on-to-act-4` cover
   edge stay at 4). Each Encore hit on the jelly flashes at it (`fx.impact`) in that attack's colour.
 - **The booth reacts.** A hit flashes its panels white and squashes it a touch. On every beat the
   DJs nod and the booth pumps.
-- **The force field** grows in over the booth as the beetles land, and shatters in cyan shards (a
-  ring and `juice.feel('impact')`) when the last beetle dies.
+- **The force field** grows in over the booth, and shatters in cyan shards (a
+  ring and `juice.feel('impact')`) when it drops.
 - **The meltdown** (`encore.js` `meltdown`, at `boss "encore" meltdown at=` or half Health). The set
   stops and the boss sets `cut` ({ t, length, from, to, look }). `main.js` holds gameplay, hides the HUD
   and eases the camera from `from` to `to` looking at the booth, after the follow camera's update.

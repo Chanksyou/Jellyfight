@@ -2,10 +2,10 @@
 // nearest, Try again first), the Treasure book (collection.js: what you've found across runs) and a
 // run kept across a closed tab (stages.js: Continue act N).
 import { FEATS_KEY } from '../cosmetics.js';
-import { FOUND_KEY, isFound } from '../collection.js';
+import { FOUND_KEY, KINDS, isFound } from '../collection.js';
 import { TREASURES } from '../stats.js';
 import { SAVE_KEY, STAGES, keptRun, nav } from '../stages.js';
-import { G, fresh, ok, step, story, stub } from './kit.js';
+import { G, fresh, ok, spy, step, story, stub } from './kit.js';
 
 // run fn with these localStorage keys emptied, then put back what was there
 function withEmpty(keys, fn) {
@@ -34,7 +34,7 @@ story('end/death-pulls-you-back', {
       const btns = [...modal().querySelectorAll('.btns button')];
       const away = text.includes(`${run.stage.boss.name} was 0:42 away`);
       const best = /Your best\s*9,999/.test(text);
-      const unlock = /Next unlock\s*Golden laurel · clear 1,000 bugs \(812 so far\)/.test(text);
+      const unlock = /Next unlock\s*Golden laurel · 812 of 1,000 bugs/.test(text);
       const pictured = /^data:image/.test(modal().querySelector('.jf-stats .jf-unlock')?.src || '');   // your jelly wearing it
       const order = /Try again/.test(btns[0]?.textContent) && btns[0].classList.contains('go') && btns.some((b) => /Submit score/.test(b.textContent) && !b.classList.contains('go'));
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' }));
@@ -91,6 +91,28 @@ story('book/finds-are-recorded', {
       const devSkipped = !isFound('treasures', 'bobbyPin');
       return ok(newBadge && recorded && notNewAgain && once && count && reads && unfound && closed && listed && !devBadge && devSkipped,
         { newBadge, recorded, notNewAgain, once, count, reads, unfound, closed, listed, devBadge, devSkipped });
+    });
+  },
+});
+
+story('book/every-entry-has-its-own-icon', {
+  about: 'With everything found, every Treasure book entry (Treasures, evolutions, Elites, bosses) shows an icon of its own: none blank, none shared.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    return withEmpty([FOUND_KEY], () => {
+      const calls = spy(run.ui, 'book');
+      run.showBook(() => {});
+      // find everything, then open it again
+      localStorage.setItem(FOUND_KEY, JSON.stringify(Object.fromEntries(calls[0][1].map((s, i) => [KINDS[i], s.items.map((it) => it.id)]))));
+      run.showBook(() => {});
+      const cells = [...modal().querySelectorAll('.jf-book-grid button')];
+      const icons = cells.map((b) => b.querySelector('.ic').textContent.replace(/\uFE0F/g, '').trim());
+      menus.close();
+      const allFound = cells.length > 100 && cells.every((b) => !b.disabled);
+      const blank = cells.filter((b, i) => !icons[i] || icons[i] === 'undefined').map((b) => b.textContent);
+      const shared = cells.filter((b, i) => icons.indexOf(icons[i]) !== i).map((b) => b.textContent);
+      return ok(allFound && !blank.length && !shared.length, { entries: cells.length, allFound, blank, shared });
     });
   },
 });

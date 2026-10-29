@@ -443,8 +443,8 @@ export const EVERY_ATTACK = {
     // the Encore (encore.js): every attack on its song's beat, each proven by its own encore/* story.
     // Floor waves have no Warning by decision (you watch the wave come: docs/adr/0001); a laser's
     // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
-    // stage edge is a hazard; the beetles are bugs it calls
-    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' }, beetles: { is: 'none' } },
+    // stage edge is a hazard
+    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')

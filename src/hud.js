@@ -83,6 +83,18 @@ body.calm #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(
 #hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
 #hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: 20px; font-weight: 800; text-shadow: 0 1px 3px #000c; opacity: 0; transition: opacity .3s; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; padding: 6px 16px; border-radius: 999px; background: #0a0f1ab8; box-shadow: 0 4px 16px #0006; }
 #hud .toast.on { opacity: 1; }
+/* a boss cleared: the toast stamps in, big and gold (toast(text, ms, 'stamp')) */
+#hud .toast.stamp { font: 900 40px/1.1 system-ui, sans-serif; top: 28%; color: #ffd23a; background: none; box-shadow: none; text-shadow: 0 3px 0 #7a4a00, 0 6px 22px #000c; letter-spacing: -.01em; }
+#hud .toast.stamp.on { animation: jf-stamp .42s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes jf-stamp { 0% { transform: translateX(-50%) scale(2.2) rotate(-4deg); opacity: 0; } 55% { opacity: 1; } 100% { transform: translateX(-50%) scale(1) rotate(0); } }
+/* a level-up: the badge pops and a gold ring leaves the jelly (levelDing) before the cards deal */
+#hud .lvl.ding { animation: jf-ding .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes jf-ding { 0% { transform: scale(1.9); box-shadow: inset 0 0 0 3px #ffd25a, 0 0 30px #ffd25a; } 100% { transform: scale(1); } }
+.jf-ding-ring { position: fixed; z-index: 31; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 4px solid #ffd25a; box-shadow: 0 0 24px #ffd25a99, inset 0 0 18px #ffd25a66;
+  pointer-events: none; animation: jf-ring .5s ease-out forwards; }
+@keyframes jf-ring { from { transform: scale(.25); opacity: 1; } to { transform: scale(3.2); opacity: 0; } }
+body.calm #hud .toast.stamp.on, body.calm #hud .lvl.ding { animation: none; }
+@media (prefers-reduced-motion: reduce) { #hud .toast.stamp.on, #hud .lvl.ding { animation: none; } }
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity .5s; }
 #hud .hurt.on { opacity: .5; transition: none; }
 body.calm #hud .hurt.on { opacity: .25; }
@@ -102,6 +114,7 @@ body.calm #hud .hurt.on { opacity: .25; }
   #hud .stage { font-size: 9.5px; margin-top: 2px; }
   #hud .boss { top: 70px; }
   #hud .toast { font-size: 15px; top: 30%; padding: 5px 12px; }
+  #hud .toast.stamp { font-size: 26px; }
   #hud .hint { font-size: 12.5px; bottom: 16px; }
 }
 body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 135px; height: 135px; }
@@ -352,12 +365,29 @@ export class Hud {
     h.classList.toggle('on', !!html);
   }
 
-  toast(text, ms = 1800) {
+  // kind 'stamp': big and gold, stamped in (a boss cleared)
+  toast(text, ms = 1800, kind = '') {
     const t = this.$('.toast');
     t.textContent = text;
+    t.classList.remove('on');
+    t.classList.toggle('stamp', kind === 'stamp');
+    void t.offsetWidth;   // restart the stamp's animation
     t.classList.add('on');
     clearTimeout(this._toastT);
     this._toastT = setTimeout(() => t.classList.remove('on'), ms);
+  }
+
+  // A level-up lands (run.levelUp): the badge pops, and a gold ring leaves the jelly at (x, y) on screen
+  levelDing(x, y) {
+    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const lvl = this.$('.lvl');
+    lvl.classList.remove('ding'); void lvl.offsetWidth; lvl.classList.add('ding');
+    const ring = document.createElement('div');
+    ring.className = 'jf-ding-ring';
+    ring.style.left = `${x}px`; ring.style.top = `${y}px`;
+    document.body.appendChild(ring);
+    ring.addEventListener('animationend', () => ring.remove());
+    setTimeout(() => ring.remove(), 900);   // (animationend never fires on a hidden tab)
   }
 
   setDebug(text) {

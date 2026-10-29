@@ -531,6 +531,27 @@ export const sfx = {
   // level up / treasure: a bright arpeggio
   levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
+  // the menus and reward screens (ui.js, creator.js, main.js): small and soft
+  tap() { if (!ready() || !gap('tap', 40)) return; tone('sine', 900 * jitter(0.04), 640, 0.05, 0.05); },
+  deal(delay = 0) { if (!ready()) return; noise(2600 * jitter(0.1), 1.2, 0.09, 0.035, 'bandpass', delay, 900); },
+  // a pick card landing, grander the rarer: tier 0 Common … 3 Legendary
+  reveal(tier = 0, delay = 0) {
+    if (!ready()) return;
+    [[0], [0, 7], [0, 4, 7, 12], [0, 4, 7, 12, 16, 19]][tier].forEach((s, i) => { const f = 784 * Math.pow(2, s / 12); tone('triangle', f, f, 0.25 + tier * 0.1, 0.04 + tier * 0.012, delay + i * 0.045); });
+    if (tier === 3) noise(7000, 1, 0.6, 0.03, 'highpass', delay + 0.1);
+  },
+  pick() { if (!ready()) return; tone('sine', 320, 140, 0.12, 0.16); noise(900, 1, 0.05, 0.06, 'lowpass'); },
+  burn() { if (!ready()) return; noise(3200, 0.7, 0.38, 0.03, 'highpass', 0.06, 1200); },
+  // a number counting up (k 0..1: how far along), then where it lands
+  count(k = 0) { if (!ready() || !gap('count', 45)) return; const f = 520 * (1 + k); tone('square', f, f, 0.025, 0.02); },
+  counted() { if (!ready()) return; tone('sine', 523, 523, 0.3, 0.09); tone('sine', 1046, 1046, 0.22, 0.07, 0.02); },
+  buy() { if (!ready()) return; [0, 7, 12].forEach((s, i) => tone('sine', 1320 * Math.pow(2, s / 12), 1320 * Math.pow(2, s / 12), 0.16, 0.06, i * 0.06)); noise(6000, 1, 0.2, 0.03, 'highpass', 0.14); },
+  award() {
+    if (!ready()) return;
+    [0, 4, 7, 12, 16].forEach((s, i) => { const f = 392 * Math.pow(2, s / 12); tone('triangle', f, f, 0.9, 0.06, i * 0.08); });
+    noise(7000, 1, 1.1, 0.035, 'highpass', 0.3);
+  },
+  stamp() { if (!ready()) return; tone('sine', 140, 50, 0.3, 0.3); noise(500, 1, 0.12, 0.12, 'lowpass'); },
   // a treasure chest, in two beats (pickups.js): it strains with a wooden creak while it
   // shakes, then the lid pops with a thump and a little jingle. kind 1 (an Elite's chest)
   // creaks for longer and rings higher; every jingle note is jittered so repeats differ

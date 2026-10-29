@@ -6,6 +6,7 @@
 import { OPTIONS, SPECIES, SWATCHES, DEFAULT_LOOK, OWN_COLOR_TOPS, randomLook, normalizeLook } from './character.js';
 import { esc } from './leaderboard.js';
 import { requirement, unlocked, requirementText, feats, price, bank, buy } from './cosmetics.js';
+import { sfx } from './sfx.js';
 
 const CSS = `
 #creator { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100vw); display: flex; flex-direction: column;
@@ -145,6 +146,7 @@ export class Creator {
   click(e) {
     const b = e.target.closest('button');
     if (!b) return;
+    if (!b.dataset.buy) sfx.tap();
     if (b.dataset.need) {                   // locked: try it on and say what it takes
       const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`);
       if (note) note.textContent = '🔒 ' + b.dataset.need;
@@ -160,7 +162,7 @@ export class Creator {
       return;
     }
     if (b.dataset.buy) {
-      if (buy(b.dataset.buy, b.dataset.v)) this.set(b.dataset.buy, b.dataset.v);   // bought: wear it straight away
+      if (buy(b.dataset.buy, b.dataset.v)) { sfx.buy(); this.set(b.dataset.buy, b.dataset.v); }   // bought: wear it straight away
       return;
     }
     if (b.dataset.act === 'random') {
