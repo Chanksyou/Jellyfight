@@ -1,8 +1,8 @@
 // Renders the soundtrack (src/music.js) to WAV files to listen to outside the game, each with
 // the intensity rising through the take so every layer comes in:
-//   node tools/music.mjs [out-folder] [seconds] [--hits]   (--only=drift|machinery; --hits: bubble hits over the music; --boss: the Vacuum's attack sounds over the boss song)
-// writes drift.wav ("Puddle Drift", exploring: intensity 0 -> 1) and machinery.wav ("Domestic
-// Machinery", the Vacuum: 0.6 -> 1).
+//   node tools/music.mjs [out-folder] [seconds] [--hits]   (--only=drift|tide|bloom|machinery; --hits: bubble hits over the music; --boss: the Vacuum's attack sounds over the boss song)
+// writes drift.wav, tide.wav and bloom.wav ("Puddle Drift", "Ephyra Tide", "Medusa Bloom":
+// exploring acts 1, 2 and 3, intensity 0 -> 1) and machinery.wav ("Domestic Machinery", the Vacuum: 0.6 -> 1).
 import fs from 'node:fs';
 import path from 'node:path';
 import { start } from '../tests/lib.mjs';
@@ -17,7 +17,7 @@ await page.goto(env.url);   // any page on the server, so modules load from it
 // hits: also play bubble hits over it (a stream, every so often a big one), to hear they stand apart
 const hits = process.argv.includes('--hits'), boss = process.argv.includes('--boss');
 const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);   // --only=drift: just that song
-for (const [name, from, to] of [['drift', 0, 1], ['machinery', 0.6, 1]].filter(([n]) => !only || n === only)) {
+for (const [name, from, to] of [['drift', 0, 1], ['tide', 0, 1], ['bloom', 0, 1], ['machinery', 0.6, 1]].filter(([n]) => !only || n === only)) {
   const b64 = await page.evaluate(async ({ name, from, to, secs, hits, boss }) => {
     const { Music } = await import('/src/music.js');
     const S = await import('/src/sfx.js');
