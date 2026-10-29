@@ -28,6 +28,18 @@ phone('held-upright-pauses-under-the-cover', {
   },
 });
 
+phone('iphone-home-screen-tip-hides-for-good', {
+  about: 'The Add to Home Screen tip is for iPhones only (this page is not one), and its × hides it and remembers that.',
+  setup() {},
+  play() {
+    const tip = document.querySelector('#g-over .home-tip'), notIphone = tip.hidden;
+    tip.hidden = false;                                   // as an iPhone would show it
+    tip.querySelector('button').click();
+    let kept = null; try { kept = localStorage.getItem('jellyfight.homeTip'); localStorage.removeItem('jellyfight.homeTip'); } catch {}
+    return ok(notIphone && tip.hidden && kept === 'off', { notIphone, hidden: tip.hidden, kept });
+  },
+});
+
 // --- on a phone (tests/run.mjs plays these in a page that looks like a phone)
 phone('shark-fight-keeps-the-boss-below-the-bar', {
   act: 3,

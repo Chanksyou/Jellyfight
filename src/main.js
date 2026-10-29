@@ -127,6 +127,11 @@ ui.innerHTML = `
     #g-over .play { margin: 10px auto 10px; padding: 10px 30px; }
     #g-over .keys { margin-top: 6px; font-size: 12.5px; line-height: 1.7; }
   }
+  /* iPhones can't go full screen from the page: point them at Add to Home Screen (manifest.webmanifest) */
+  #g-over .home-tip { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 6px 6px 12px; border-radius: 10px; background: #000a; border: 1px solid #ffffff2a; color: #fff; opacity: 1; font-size: 13px; line-height: 1.3; }
+  #g-over .home-tip[hidden] { display: none; }
+  #g-over .home-tip svg { width: 15px; height: 18px; vertical-align: -3px; }
+  #g-over .home-tip button { background: none !important; border: 0 !important; color: #fff; opacity: .6; font-size: 18px !important; padding: 0 6px !important; margin: 0 !important; line-height: 1; }
   /* phones play sideways only: held upright, the game is covered until it's turned (iOS can't lock orientation) */
   #g-turn { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
     background: #041329; color: #fff; font: 600 19px system-ui, -apple-system, sans-serif; text-align: center; padding: 24px; }
@@ -153,6 +158,7 @@ ui.innerHTML = `
   <div class="g-bag"></div>
   <div class="keys touch-only">
     Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
+    <div><div class="home-tip" hidden><span>Full screen: tap Share <svg viewBox="0 0 15 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1v11M3.5 5l4-4 4 4M5 8H1.5v9h12V8H10"/></svg> then <b>Add to Home Screen</b></span><button data-act="home-tip" aria-label="Hide this tip">×</button></div></div>
   </div>
   <div class="keys desk-only">
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause
@@ -322,6 +328,10 @@ function pause() {
 }
 const touch = new TouchControls(input, { onPause: pause });
 touch.mount(ui);
+// on an iPhone in the browser (not already opened from the home screen), say how to play full screen
+const homeTip = overlay.querySelector('.home-tip'), HOME_TIP_KEY = 'jellyfight.homeTip';
+let homeTipOff = false; try { homeTipOff = localStorage.getItem(HOME_TIP_KEY) === 'off'; } catch {}
+homeTip.hidden = !/iPhone|iPod/.test(navigator.userAgent) || navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || homeTipOff;
 // held upright mid-run: pause under the turn-sideways cover, so nothing hits the jelly unseen
 const upright = matchMedia('(orientation: portrait) and (max-width: 600px)');
 if (IS_TOUCH) upright.addEventListener('change', () => { if (upright.matches) pause(); });
@@ -661,6 +671,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
+  else if (b.dataset.act === 'home-tip') { homeTip.hidden = true; try { localStorage.setItem(HOME_TIP_KEY, 'off'); } catch {} }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();
   else if (b.dataset.act === 'arena4') location.href='?arena=act4';
