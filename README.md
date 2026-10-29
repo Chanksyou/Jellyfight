@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v330 tones down two glaring Warnings. First, the one before the worm bursts out of a dead praying mantis. The orange circle filling round the carcass is about a third as bright and flickers less, so it no longer glares, but still shows clearly where the burst will hit. The giant millipede's lane while it revs up to roll is dimmed the same way. Their brightness and flicker are `--burst-warning-*` and `--charge-warning-*` in content/look.css.
+v331 tones down two glaring Warnings. First, the one before the worm bursts out of a dead praying mantis. The orange circle filling round the carcass is about a third as bright and flickers less, so it no longer glares, but still shows clearly where the burst will hit. The giant millipede's lane while it revs up to roll is dimmed the same way. Their brightness and flicker are `--burst-warning-*` and `--charge-warning-*` in content/look.css.
 
 v329 smooths the knit blanket on Act 3's bed to a shallow fold, so the jelly can walk across its edge in either direction without jumping. The visible blanket and its collision use the same flattened geometry.
 
