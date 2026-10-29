@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v314 lets you try on looks you haven't unlocked. In Change your look, tap a locked shop look or golden award and your jelly wears it right away, with its price or what it takes shown over the jelly ("Trying it on · Lampshade · 300 Pearls"). Pick anything you own, tap Surprise me, or leave the creator and it comes off; a look you're only trying on is never saved and never goes into a run.
+v315 lets you try on looks you haven't unlocked. In Change your look, tap a locked shop look or golden award and your jelly wears it right away, with its price or what it takes shown over the jelly ("Trying it on · Lampshade · 300 Pearls"). Pick anything you own, tap Surprise me, or leave the creator and it comes off; a look you're only trying on is never saved and never goes into a run.
 
 v313 gives acts 2 and 3 their own music while you explore, from the same dark synth band as act 1's "Puddle Drift" (string pads, a sequenced analog bass, low brass) but each a step more urgent. Act 2 plays "Ephyra Tide": D minor at 108 BPM, a galloping bass, a kick off the bar, ticking hats and a faster arpeggio as the bugs close in, and the brass a fourth higher. Act 3 plays "Medusa Bloom": E minor with a Phrygian turn at 116 BPM, a new chord every bar, the drums out of half time (snare on 2 and 4, toms every other bar), driving 16th bass, a riser into every eighth bar and the highest brass of the three. Boss songs are unchanged. Each act's song is its stage's `music` (src/stage1.js to stage3.js); the songs live in src/music.js, and `node tools/music.mjs` renders all three to listen to.
 
