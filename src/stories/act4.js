@@ -21,27 +21,15 @@ act4('the-encore-fight-starts-straight-away', {
   },
 });
 
-act4('its-beetles-hold-up-a-force-field-until-they-die', {
-  about: 'At bar 8 (beat 32) the Encore calls 2 stag beetles onto the floor (2 at a time, bosses.kdl `count`) and a bright blue force field rises over its whole booth: while either beetle lives your hits bounce off. Kill them and it takes damage again. 16 bars later (beat 96) it calls 2 more.',
+act4('it-calls-no-bugs', {
+  about: 'The Encore fights alone: well past bar 8 (beat 32), where it used to call stag beetles, nothing joins the fight and its force field stays down, so hits keep landing.',
   setup() {},
   play() {
-    const B = encoreFight({ beat: 31.5 }), { enemies } = G(), cues = record('toast'), count = CONTENT.bosses.encore.skills.beetles.count;
-    step(60);
-    const called = B.guards.length, beetles = B.guards.every((g) => g.type === 'beetle'), up = B.shielded && B.field.visible;
-    // the dome stands out round the booth: past its sides, its front and its top (not hidden inside it)
-    const box = new THREE.Box3().setFromObject(B.arenaView.boss.root), f = B.field, inside = (x, y, z) => ((x - f.position.x) / f.scale.x) ** 2 + ((y - f.position.y) / f.scale.y) ** 2 + ((z - f.position.z) / f.scale.z) ** 2 <= 1;
-    const mx = (box.min.x + box.max.x) / 2, mz = (box.min.z + box.max.z) / 2, low = box.min.y + 0.01;
-    const covers = inside(box.min.x, low, mz) && inside(box.max.x, low, mz) && inside(mx, low, box.max.z) && inside(mx, box.max.y, mz);   // its sides, its front and its top
-    const hp0 = B.hp; B.damage(50);
-    const bounced = B.hp === hp0;
-    for (const g of [...B.guards]) enemies.kill(g);
-    step(2);
-    const down = !B.shielded && !B.field.visible;
-    B.damage(50);
-    const hurt = B.hp === hp0 - 50;
-    B.clock = 95.5; step(60);
-    const again = B.guards.length;
-    return ok(count === 2 && called === count && beetles && up && covers && bounced && down && hurt && again === count && cues.filter((c) => /break its shield/.test(c.text)).length === 1, { cues, count, called, beetles, up, covers, bounced, down, hurt, again });
+    const B = encoreFight({ beat: 28 }), { enemies } = G();
+    let most = 0, shielded = false;
+    step(60 * 8, () => { most = Math.max(most, enemies.alive); shielded ||= B.shielded; });
+    const hp = B.hp; B.damage(50);
+    return ok(B.beat > 36 && most === 0 && !shielded && B.hp === hp - 50, { beat: B.beat, most, shielded, hp: B.hp });
   },
 });
 
@@ -93,7 +81,6 @@ act4('after-shorting-out-it-reboots-behind-its-force-field', {
     step(60 * 5);
     const playing = B.beat > beat0 + 4 && B.shielded;           // its set plays on while it's shielded
     step(60 * 5.5);
-    for (const g of [...B.guards]) G().enemies.kill(g, true);   // (its beetles come at bar 8: their shield is another story)
     step(2);
     B.damage(100);
     const lands = B.hp === hp - 100 && !B.shielded && B.guardT === 0;
@@ -103,7 +90,7 @@ act4('after-shorting-out-it-reboots-behind-its-force-field', {
 });
 
 act4('the-fight-opens-behind-its-force-field', {
-  about: 'The Encore\'s fight opens with its force field up for 15 s (bosses.kdl start `guard`): hits bounce off, its Health bar reads "warming up" and counts down, and its set plays all the while; then the field shatters and hits land.',
+  about: 'The Encore\'s fight opens with its force field up for 15 s (bosses.kdl start `guard`): a bright blue dome over its whole booth, hits bounce off it, its Health bar reads "warming up" and counts down, and its set plays all the while; then the field shatters and hits land.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true }), bars = record('boss_health');
@@ -111,12 +98,15 @@ act4('the-fight-opens-behind-its-force-field', {
     step(30);
     B.damage(100);
     const blocked = B.hp === hp && B.shielded && B.field.visible, text = bars.at(-1)?.shieldText || '';
+    // the dome stands out round the booth: past its sides, its front and its top (not hidden inside it)
+    const box = new THREE.Box3().setFromObject(B.arenaView.boss.root), f = B.field, inside = (x, y, z) => ((x - f.position.x) / f.scale.x) ** 2 + ((y - f.position.y) / f.scale.y) ** 2 + ((z - f.position.z) / f.scale.z) ** 2 <= 1;
+    const mx = (box.min.x + box.max.x) / 2, mz = (box.min.z + box.max.z) / 2, low = box.min.y + 0.01;
+    const covers = inside(box.min.x, low, mz) && inside(box.max.x, low, mz) && inside(mx, low, box.max.z) && inside(mx, box.max.y, mz);
     step(60 * (CONTENT.bosses.encore.skills.start.guard + 0.5));
-    for (const g of [...B.guards]) G().enemies.kill(g, true);   // (no beetles before bar 8 anyway)
     step(2);
     B.damage(100);
     const lands = B.hp === hp - 100 && !B.shielded;
-    return ok(Math.abs(guard - 15) < 0.1 && blocked && /warming up/.test(text) && B.beat > 20 && lands, { guard, blocked, text, beat: B.beat, lands });
+    return ok(Math.abs(guard - 15) < 0.1 && blocked && covers && /warming up/.test(text) && B.beat > 20 && lands, { guard, blocked, covers, text, beat: B.beat, lands });
   },
 });
 
