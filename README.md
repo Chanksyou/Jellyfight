@@ -4,7 +4,7 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
-v325 tones down two glaring Warnings. First, the one before the worm bursts out of a dead praying mantis. The orange circle filling round the carcass is about a third as bright and flickers less, so it no longer glares, but still shows clearly where the burst will hit. The giant millipede's lane while it revs up to roll is dimmed the same way. Their brightness and flicker are `--burst-warning-*` and `--charge-warning-*` in content/look.css.
+v326 tones down two glaring Warnings. First, the one before the worm bursts out of a dead praying mantis. The orange circle filling round the carcass is about a third as bright and flickers less, so it no longer glares, but still shows clearly where the burst will hit. The giant millipede's lane while it revs up to roll is dimmed the same way. Their brightness and flicker are `--burst-warning-*` and `--charge-warning-*` in content/look.css.
 
 v323 takes the stag beetles out of the Encore's fight. It no longer calls 2 beetles onto the floor at bar 8 and every 16 bars after, and its force field no longer goes up while they live. The fight is now the Encore and its set on its own: the force field still covers the booth while it warms up at the start and while it reboots after shorting out at half Health, and nothing else holds your hits off. Beetles still appear in act 3.
 
