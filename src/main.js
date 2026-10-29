@@ -413,7 +413,7 @@ async function loadRooms(parts, onProgress) {
   added.forEach((o) => box.expandByObject(o));
   const seeThrough = tpc.seeThroughWarmers(box);
   seeThrough.forEach((m) => scene.add(m));
-  try { await renderer.compileAsync(scene, camera); uploadAll(); } catch (e) { reportError(e, 'preparing graphics'); }
+  try { await prepareGraphics(() => new Promise((r) => setTimeout(r))); uploadAll(); } catch (e) { reportError(e, 'preparing graphics'); }
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   return added;
 }
@@ -806,12 +806,26 @@ async function warmUp() {
 // so the loading screen moves and says how far along it is. Where the browser lacks
 // KHR_parallel_shader_compile that wait is the build itself, which compileAsync would leave to the
 // first frame, all at once.
+// Each material gets two programs: one drawing to the screen (Low) and one drawing into a render
+// target (the Medium/High composer: linear, no tone mapping), so switching graphics builds nothing.
+// Both are started here; uploadAll's render into `tiny` would otherwise build the second set all at once.
 async function prepareGraphics(progress) {
-  const waiting = [...renderer.compile(scene, camera)], total = waiting.length || 1;
+  const programs = new Set(), was = renderer.getRenderTarget(), layers = camera.layers.mask;
+  try {
+    camera.layers.enable(0);   // as uploadAll draws it: the home portrait may have isolated its own layer
+    for (const target of [null, tiny]) {
+      renderer.setRenderTarget(target);
+      for (const m of renderer.compile(scene, camera)) programs.add(renderer.properties.get(m).currentProgram);
+    }
+  } finally {
+    renderer.setRenderTarget(was);
+    camera.layers.mask = layers;
+  }
+  const waiting = [...programs], total = waiting.length || 1;
   while (waiting.length) {
     const until = performance.now() + 40;
     while (waiting.length && performance.now() < until) {
-      const program = renderer.properties.get(waiting[0]).currentProgram;
+      const program = waiting[0];
       if (program && !program.isReady()) break;   // still building: look again next time
       program?.getUniforms();
       waiting.shift();
