@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f9fb0"/><stop offset="1" stop-color="#0d2f52"/></linearGradient>
+    <radialGradient id="bell" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#5fe0b0"/><stop offset="1" stop-color="#16795e"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sea)"/>
+  <g stroke="#dff8ff" stroke-width="16" stroke-linecap="round" fill="none" opacity=".9">
+    <path d="M176 300 q-14 60 6 130"/><path d="M220 306 q14 60 -4 120"/><path d="M256 306 q-12 70 4 132"/><path d="M292 306 q14 60 -4 120"/><path d="M336 300 q-14 60 6 130"/>
+  </g>
+  <path d="M130 300 C130 150 382 150 382 300 Z" fill="url(#bell)"/>
+  <rect x="124" y="290" width="264" height="24" rx="12" fill="#eafffb"/>
+  <circle cx="212" cy="232" r="34" fill="#fff"/><circle cx="300" cy="232" r="34" fill="#fff"/>
+  <circle cx="218" cy="236" r="17" fill="#13202b"/><circle cx="294" cy="236" r="17" fill="#13202b"/>
+  <path d="M236 270 q20 18 40 0" stroke="#13202b" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>
