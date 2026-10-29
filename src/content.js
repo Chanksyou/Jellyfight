@@ -124,7 +124,7 @@ export function compileEvolutions(nodes, file = 'content/evolutions.kdl') {
   return compileTreasures(asTreasures, file).map((t) => ({ ...t, evolution: true }));
 }
 
-// boss "id" name="…" hp= contact= { skill key=number … }: the boss fights' numbers. A skill
+// boss "id" name="…" icon="…" hp= contact= { skill key=number … }: the boss fights' numbers. A skill
 // block is just named numbers (no words, no args); the boss classes read the ones they know,
 // fresh from the compiled object each attack, so the balance editor's edits land mid-fight.
 export function compileBosses(nodes, file = 'content/bosses.kdl') {
@@ -136,6 +136,7 @@ export function compileBosses(nodes, file = 'content/bosses.kdl') {
     if (typeof id !== 'string') throw new Error(`${where}: boss needs an id, like boss "vacuum"`);
     if (out[id]) throw new Error(`${where}: there are two bosses called "${id}"`);
     need(n, ['hp', 'contact'], where);
+    if (typeof n.props.icon !== 'string') throw new Error(`${where}: "${id}" needs icon="…" (its Treasure book picture)`);
     const skills = {};
     for (const s of n.children) {
       if (skills[s.name]) throw new Error(`${file}:${s.line}: "${id}" has two "${s.name}" blocks`);
@@ -143,14 +144,14 @@ export function compileBosses(nodes, file = 'content/bosses.kdl') {
       for (const [k, v] of Object.entries(s.props)) if (typeof v !== 'number') throw new Error(`${file}:${s.line}: "${id}" ${s.name} ${k}= must be a number`);
       skills[s.name] = { ...s.props };
     }
-    out[id] = { id, name: n.props.name || id, hp: n.props.hp, contact: n.props.contact, skills };
+    out[id] = { id, name: n.props.name || id, icon: n.props.icon, hp: n.props.hp, contact: n.props.contact, skills };
   }
   return out;
 }
 
 const needProps = (node, keys, where, label) => { for (const k of keys) if (typeof node.props[k] !== 'number') throw new Error(`${where}: ${label} needs a number for ${k}=`); };
 
-// pace recover= tempo=  and  elite "id" name="…" hp= aggro= angry= { skill key=number … }:
+// pace recover= tempo=  and  elite "id" name="…" icon="…" hp= aggro= angry= { skill key=number … }:
 // the elites' numbers, in the bosses' shape. The models, radii and phase timings stay in
 // elites.js (KINDS there keeps name/build/scale); a fighting elite holds its compiled
 // object (this.def) and the update loop reads it fresh, so editor edits land mid-fight.
@@ -170,6 +171,7 @@ export function compileElites(nodes, file = 'content/elites.kdl') {
     if (!ELITE_KINDS.includes(id)) throw new Error(`${where}: no elite called "${id}" (the kinds are ${ELITE_KINDS.join(', ')})`);
     if (out[id]) throw new Error(`${where}: there are two elites called "${id}"`);
     need(n, ['hp', 'aggro'], where);
+    if (typeof n.props.icon !== 'string') throw new Error(`${where}: "${id}" needs icon="…" (its Treasure book picture)`);
     if (n.props.angry !== undefined && typeof n.props.angry !== 'number') throw new Error(`${where}: "${id}" angry= must be a number`);
     const skills = {};
     for (const s of n.children) {
@@ -178,7 +180,7 @@ export function compileElites(nodes, file = 'content/elites.kdl') {
       for (const [k, v] of Object.entries(s.props)) if (typeof v !== 'number') throw new Error(`${file}:${s.line}: "${id}" ${s.name} ${k}= must be a number`);
       skills[s.name] = { ...s.props };
     }
-    out[id] = { id, name: n.props.name || id, hp: n.props.hp, aggro: n.props.aggro, angry: n.props.angry ?? null, skills };
+    out[id] = { id, name: n.props.name || id, icon: n.props.icon, hp: n.props.hp, aggro: n.props.aggro, angry: n.props.angry ?? null, skills };
   }
   if (!out.pace) throw new Error(`${file}: no pace block (recover= and tempo= for every elite)`);
   for (const k of ELITE_KINDS) if (!out[k]) throw new Error(`${file}: no elite called "${k}"`);

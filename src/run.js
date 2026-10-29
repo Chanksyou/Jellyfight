@@ -1404,8 +1404,8 @@ export class Run {
     this.ui.book('📖 Treasure book', [
       sec('Treasures', 'treasures', [...TREASURES].sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color }))),
       sec('Evolutions', 'evolutions', EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text }))),
-      sec('Elites', 'elites', Object.values(CONTENT.elites).filter((e) => e.id).map((e) => ({ id: e.id, icon: '👾', name: e.name, text: 'beaten.' }))),
-      sec('Bosses', 'bosses', STAGES.map((st) => ({ id: st.boss.kind, icon: '👑', name: st.boss.name, text: 'beaten.' }))),
+      sec('Elites', 'elites', Object.values(CONTENT.elites).filter((e) => e.id).map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: 'beaten.' }))),
+      sec('Bosses', 'bosses', STAGES.map((st) => ({ id: st.boss.kind, icon: Object.values(CONTENT.bosses).find((b) => b.name === st.boss.name)?.icon, name: st.boss.name, text: 'beaten.' }))),   // by name: the Clog's kind is 'hair'
     ], back);
   }
 

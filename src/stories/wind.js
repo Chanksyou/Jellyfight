@@ -136,7 +136,7 @@ story('attack/wind-gust-feel', {
       const flying = blows === 1 && W.blown.length === 1 && root.parent && root.position.z < at.z - 0.05 && root.scale.y < h && !root.quaternion.equals(q) && fx.deaths.list.length === bodies;
       step(40);
       const gone = W.blown.length === 0 && !root.parent && root.position.equals(at) && root.quaternion.equals(q) && root.scale.y === h;
-      APT.renderer.compile(APT.scene, APT.camera);
+      G().GAME.compile();
       const shaders = APT.renderer.info.programs.length - programs;
       return ok(released >= 8 && flecks >= 5 && swirls >= 1 && streaks >= 5 && flying && gone && shaders === 0, { released, flecks, swirls, streaks, flying, blows, gone, shaders });
     } finally { sfx.windBlowAway = ba; }
@@ -170,7 +170,7 @@ story('attack/ice-shatter-feel', {
       const shattered = other.dead && shatters === 1 && fx.ice.live > 10 && fx.deaths.list.length === bodies;
       step(60 * 2.5);
       const gone = fx.ice.live === 0;
-      APT.renderer.compile(APT.scene, APT.camera);
+      G().GAME.compile();
       const shaders = APT.renderer.info.programs.length - programs;
       return ok(hit >= 6 && crowned && thawed && melted && shattered && gone && shaders === 0, { hit, crowned, thawed, melted, shattered, shatters, gone, shaders });
     } finally { sfx.iceShatter = ice; }
@@ -199,7 +199,7 @@ story('attack/glitter-bomb-feel', {
       const burst = bursts === 1 && fx.glitter.live > 20 && fx.deaths.list.length === bodies;
       step(60 * 3.5);
       const gone = fx.glitter.live === 0;
-      APT.renderer.compile(APT.scene, APT.camera);
+      G().GAME.compile();
       const shaders = APT.renderer.info.programs.length - programs;
       return ok(flakes >= 30 && landed && reach > 0.02 && reach < 0.2 && faded && sparkled >= 1 && burst && gone && shaders === 0, { flakes, landed, reach: +reach.toFixed(3), faded, sparkled, burst, bursts, gone, shaders });
     } finally { sfx.glitterBurst = gb; }
@@ -228,7 +228,7 @@ story('attack/acid-melt-feel', {
       step(60);
       let restored = true; root.traverse((o) => { if (o.isMesh && o.material === fx.acid.gooMat) restored = false; });
       const gone = fx.acid.melts.length === 0 && !root.parent && restored && root.scale.y === h;
-      APT.renderer.compile(APT.scene, APT.camera);
+      G().GAME.compile();
       const shaders = APT.renderer.info.programs.length - programs;
       return ok(drops >= 10 && landed && melting && gone && shaders === 0, { drops, landed, melting, melts, gone, restored, shaders });
     } finally { sfx.acidMelt = am; }

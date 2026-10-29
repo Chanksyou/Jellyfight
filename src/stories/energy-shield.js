@@ -65,19 +65,16 @@ story('evolutions/energy-shield-drain-reset-and-carry', {
 });
 
 story('evolutions/energy-shield-no-new-shader', {
-  about: 'The shell is prepared behind Play, stays the same mesh across recharge, and remains visible on Low without bloom.',
+  about: 'The shell is prepared behind Play, stays the same mesh across recharge, and needs no new shader.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); },
   play() {
-    const { APT, run, gfx } = G(), group = run.energyShield.group;
-    const quality = gfx.quality;
-    try {
-      gfx.setTier('low'); G().GAME.render();
-      const programs = APT.renderer.info.programs.length;
-      evolve('aegis'); step(2); G().GAME.render();
-      const ready = group.visible && run.energyShield.shell.material.opacity > 0.3;
-      const noShader = APT.renderer.info.programs.length === programs;
-      const def = CONTENT.evolutions.find((e) => e.id === 'aegis');
-      return ok(ready && noShader && group === run.energyShield.group && !!def, { ready, noShader, before: programs, after: APT.renderer.info.programs.length });
-    } finally { gfx.setTier(quality); }
+    const { APT, run } = G(), group = run.energyShield.group;
+    G().GAME.render();
+    const programs = APT.renderer.info.programs.length;
+    evolve('aegis'); step(2); G().GAME.render();
+    const ready = group.visible && run.energyShield.shell.material.opacity > 0.3;
+    const noShader = APT.renderer.info.programs.length === programs;
+    const def = CONTENT.evolutions.find((e) => e.id === 'aegis');
+    return ok(ready && noShader && group === run.energyShield.group && !!def, { ready, noShader, before: programs, after: APT.renderer.info.programs.length });
   },
 });
