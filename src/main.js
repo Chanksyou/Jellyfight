@@ -166,6 +166,7 @@ const menus = new UI(ui);
 const creator = new Creator({
   onChange: (l) => applyLook(l, true),
   onDone: (l) => { saveLook(l); closeCreator(); },
+  onPreview: (l) => showLook(l, true),   // a locked option tried on: drawn, never state.look
 });
 creator.mount(ui);
 
@@ -232,10 +233,13 @@ const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
 const xpDrops = new XpDrops(scene, world);
 
+function showLook(l, hop) {
+  player.setAvatar(buildCharacter(normalizeLook(l), CONFIG.player.height));
+  if (hop) player.avatar.land(1.2);
+}
 function applyLook(l, hop) {
   state.look = normalizeLook(l);
-  player.setAvatar(buildCharacter(state.look, CONFIG.player.height));
-  if (hop) player.avatar.land(1.2);
+  showLook(state.look, hop);
 }
 function saveLook(l) {
   try { localStorage.setItem(LOOK_KEY, JSON.stringify(l)); } catch {}
