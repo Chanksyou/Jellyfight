@@ -107,6 +107,21 @@ act3('treasure-spots', {
       { kept: run.spots.length, rejects: run.spotRejects });
   },
 });
+act3('walk-across-the-blanket', {
+  about: 'The knit throw lies nearly flush with the sheet: the jelly walks over its edge in both directions without jumping, across the width of the bed.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const crossings = [];
+    for (const x of [-0.65, -0.1, 0.5]) {
+      for (const forward of [true, false]) {
+        tp(x, 0.68, forward ? 10.3 : 9.8, 0);
+        const r = sim(1.2, [forward ? 'KeyW' : 'KeyS']);
+        crossings.push({ x, forward, ...r });
+      }
+    }
+    return ok(crossings.every(r => r.grounded && Math.abs(r.pos[0] - r.x) < 0.04 && r.pos[1] > 0.58 && r.pos[1] < 0.61 && (r.forward ? r.pos[2] < 9.95 : r.pos[2] > 10.2)), { crossings });
+  },
+});
 for (const v of STAGE3.vents) {
   act3(`vent-to-${v.to.replace('the ', '').replace(/ /g, '-')}`, {
     about: `Stepping on the ${v.name.toLowerCase()} flings you onto ${v.to}.`,
@@ -126,7 +141,7 @@ act3('shark-wakes-when-time-runs-out', {
     return ok(B?.kind==='shark'&&B.model.rig.jaw&&run.bossWalls.every(m=>m.visible)&&player.position.y>.55&&B.position.x>A.arenaMin[0]&&B.position.z<A.arenaMax[2]&&/GREAT WHITE ONE/i.test(document.querySelector('#hud .boss')?.textContent),{kind:B?.kind,hp:B?.hp});},
 });
 act3('shark-arena-stops-at-the-pillows',{
-  about:'The force field closes right along the front of the pillows: the two pillows and the bolster behind them are outside the fight, and nothing inside it stands more than the folded quilt\'s 4-5 cm edge above the sheet, so the shark can reach every part of it.',
+  about:'The force field closes right along the front of the pillows: the two pillows and the bolster behind them are outside the fight, and the smoothed quilt lies nearly flush with the sheet, so the shark can reach every part of it.',
   setup(){sharkFight();},
   play(){const {run,APT}=G(),B=run.boss,A=run.stage.boss,box=new THREE.Box3();
     let pillowFront=Infinity;APT.scene.traverse(o=>{if(o.isMesh&&/pillow/i.test(o.name)&&o.position){box.setFromObject(o);if(box.max.x>A.arenaMin[0]&&box.min.x<A.arenaMax[0]&&box.min.z>9&&box.min.z<11.3)pillowFront=Math.min(pillowFront,box.min.z);}});
