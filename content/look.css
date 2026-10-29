@@ -523,6 +523,8 @@
   --feel-hurt: 0.55 0;         /* the jelly takes a hit */
   --feel-elite-kill: 0.7 0.15;
   --feel-boss-kill: 1 0.25;
+  --boss-kill-slow: 0.7 0.25;  /* after its hit-stop the boss's last blow plays on in slow motion: real seconds, speed */
+  --cleared-shake: 0.35;       /* the "… is cleared!" stamp landing */
 
   /* wet marks a plain bubble leaves on the floor where it pops (src/fx.js splat) */
   --splat: #9fd8ff;

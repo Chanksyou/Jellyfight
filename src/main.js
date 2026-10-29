@@ -303,6 +303,7 @@ run.onMainMenu = () => {
 run.playerBody = () => state.look.body;
 addEventListener('pagehide', () => run.flushFeats());   // a run left mid-way still counts the bugs it cleared (cosmetics.js)
 run.playerLook = () => state.look;
+run.onWear = (key, id) => { applyLook({ ...state.look, [key]: id }); saveLook(state.look); };   // an award's reveal: Wear it now
 run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
 
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
@@ -355,7 +356,7 @@ const systems = {
   traversal,
   fx,
   layout: new LayoutSystem({ state }),
-  touch: new TouchSystem({ state, touch, run, menuOpen, isTouch: IS_TOUCH }),
+  touch: new TouchSystem({ state, touch, run, menuOpen: () => menuOpen() || run.victory.active, isTouch: IS_TOUCH }),   // no thumb controls over the ending
   gameplay: new GameplaySystem({ state, run, menuOpen }),
   avatar: new AvatarSystem({ state, player, menuOpen }),
   input: new InputSystem({ state, input, menuOpen }),
@@ -577,7 +578,7 @@ function stepBossScene(dt) {
   } else if (S.phase === 'smack') {
     if (!S.smacked && S.t >= S.strike) {
       B.die(); S.smacked = true;
-      if (!S.short) juice.feel('boss-kill');
+      if (!S.short) { juice.feel('boss-kill'); juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); }
       sfx.catImpact();
       const c = dendi.bones.legFR2.getWorldPosition(new THREE.Vector3()), color = LOOK.color('cat-scene-impact-color', '#fff0c9');
       fx.impact(c,color,LOOK.num('cat-scene-impact-size',.045),S.short ? 3 : 12);
@@ -666,6 +667,7 @@ renderQuality();
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
+  sfx.tap();
   if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }); }
   else if (b.classList.contains('play')) { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); }
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }

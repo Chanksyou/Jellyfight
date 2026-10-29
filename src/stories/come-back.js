@@ -34,7 +34,7 @@ story('end/death-pulls-you-back', {
       const btns = [...modal().querySelectorAll('.btns button')];
       const away = text.includes(`${run.stage.boss.name} was 0:42 away`);
       const best = /Your best\s*9,999/.test(text);
-      const unlock = /Next unlock\s*Golden laurel · clear 1,000 bugs \(812 so far\)/.test(text);
+      const unlock = /Next unlock\s*Golden laurel · 812 of 1,000 bugs/.test(text);
       const pictured = /^data:image/.test(modal().querySelector('.jf-stats .jf-unlock')?.src || '');   // your jelly wearing it
       const order = /Try again/.test(btns[0]?.textContent) && btns[0].classList.contains('go') && btns.some((b) => /Submit score/.test(b.textContent) && !b.classList.contains('go'));
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' }));

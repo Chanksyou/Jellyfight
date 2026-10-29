@@ -13,7 +13,7 @@ import { LOOK } from './look.js';
 
 const IDLE = { speed: 0, walkSpeed: 1, vy: 0 };
 
-// Frame time: clamps long frames, and slows the world to a crawl during hit-stop
+// Frame time: clamps long frames, and slows the world to a crawl during hit-stop (and to juice.slow's speed)
 export class Clock {
   constructor({ maxDt = 0.05, hitStopScale = 0.05 } = {}) {
     this.maxDt = maxDt;
@@ -23,8 +23,9 @@ export class Clock {
   tick(now) {
     const dt = Math.min(this.maxDt, (now - this.last) / 1000);
     this.last = now;
-    const slow = juice.stop > 0 ? this.hitStopScale : 1;
+    const slow = juice.stop > 0 ? this.hitStopScale : juice.slowT > 0 ? juice.slowK : 1;
     juice.stop = Math.max(0, juice.stop - dt);
+    juice.slowT = Math.max(0, juice.slowT - dt);
     return dt * slow;
   }
 }
