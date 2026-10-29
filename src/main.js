@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v317';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v320';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -221,7 +221,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'low' : 'high');
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high');   // phones start on Medium so Low is a choice, not a default
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
 const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
@@ -413,7 +413,7 @@ async function loadRooms(parts, onProgress) {
   added.forEach((o) => box.expandByObject(o));
   const seeThrough = tpc.seeThroughWarmers(box);
   seeThrough.forEach((m) => scene.add(m));
-  try { await prepareGraphics(() => new Promise((r) => setTimeout(r))); uploadAll(); } catch (e) { reportError(e, 'preparing graphics'); }
+  try { await prepareGraphics(nextTask); uploadAll(); } catch (e) { reportError(e, 'preparing graphics'); }
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   return added;
 }
@@ -630,6 +630,8 @@ const GAME = {
     systems.debug.update(dt);
   },
   render() { systems.render.update(); },
+  // build what the scene needs for the graphics in use (stories count new shaders with it)
+  compile() { const was = renderer.getRenderTarget(); renderer.setRenderTarget(drawnInto()); try { return renderer.compile(scene, camera, scene); } finally { renderer.setRenderTarget(was); } },
 };
 window.GAME = GAME;
 window.mainMenu = mainMenu;
@@ -722,7 +724,7 @@ async function warmUp() {
   playBtn.disabled = true;
   playBtn.textContent = 'Loading…';
   const P = player.position;
-  const temp = Object.keys(TYPES).map((t, i) => {
+  const kinds = Object.keys(TYPES), temp = [...kinds, kinds[0], kinds[0]].map((t, i) => {   // every bug, and two more to wear the hit flash and the acid melt
     const e = enemies.spawn(t, P.clone().add(new THREE.Vector3(0.03 * i, 0.01, 0.06)));
     e.mesh.scale.setScalar(e.baseScale);
     e.face.scale.setScalar(e.baseScale);
@@ -757,8 +759,8 @@ async function warmUp() {
   enemies.markLook(temp[0], 0);
   temp[2].slowT = temp[2].chillT = 1;           // the slow ring and a chilled bug's ice crown
   enemies.markLook(temp[2], 0);
-  temp[1].mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
-  temp[3].mesh.traverse((o) => { if (o.isMesh) o.material = fx.acid.gooMat; });   // an acid-finished bug melting (acid-looks.js)
+  temp.at(-2).mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
+  temp.at(-1).mesh.traverse((o) => { if (o.isMesh) o.material = fx.acid.gooMat; });   // an acid-finished bug melting (acid-looks.js)
   const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });   // this act's boss
   warmBoss.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
@@ -769,6 +771,7 @@ async function warmUp() {
   // (and what the boss fight keeps faint though it doesn't collide: the Clog's shower curtain)
   const seeThrough = tpc.seeThroughWarmers(null, (stage.boss.seeThrough || []).flatMap((n) => meshesNamed(scene, n)));
   seeThrough.forEach((m) => scene.add(m));
+  shelve();
   try {
     await prepareGraphics((f) => JF_LOAD.step(0.65 + 0.3 * f, 'Preparing the graphics…'));
     await JF_LOAD.step(0.97, 'Almost ready…');
@@ -806,17 +809,16 @@ async function warmUp() {
 // so the loading screen moves and says how far along it is. Where the browser lacks
 // KHR_parallel_shader_compile that wait is the build itself, which compileAsync would leave to the
 // first frame, all at once.
-// Each material gets two programs: one drawing to the screen (Low) and one drawing into a render
-// target (the Medium/High composer: linear, no tone mapping), so switching graphics builds nothing.
-// Both are started here; uploadAll's render into `tiny` would otherwise build the second set all at once.
+// Only for what is drawn: Low draws to the screen (tone mapped), Medium/High into the composer's
+// render target (linear, no tone mapping), and each needs its own program for every material.
+// Switching between them in the pause menu prepares the other set then (retier), from the scene
+// and the shelf of what warmUp showed.
 async function prepareGraphics(progress) {
   const programs = new Set(), was = renderer.getRenderTarget(), layers = camera.layers.mask;
   try {
     camera.layers.enable(0);   // as uploadAll draws it: the home portrait may have isolated its own layer
-    for (const target of [null, tiny]) {
-      renderer.setRenderTarget(target);
-      for (const m of renderer.compile(scene, camera)) programs.add(renderer.properties.get(m).currentProgram);
-    }
+    renderer.setRenderTarget(drawnInto());
+    for (const root of [scene, shelf]) for (const m of renderer.compile(root, camera, scene)) programs.add(renderer.properties.get(m).currentProgram);
   } finally {
     renderer.setRenderTarget(was);
     camera.layers.mask = layers;
@@ -834,9 +836,60 @@ async function prepareGraphics(progress) {
   }
 }
 
+const nextTask = () => new Promise((r) => setTimeout(r));
+const tiny = new THREE.WebGLRenderTarget(4, 4);   // stands in for the composer's: the same shaders
+const drawnInto = () => (gfx.composer ? tiny : null);
+
+// One stand-in per material and kind of mesh warmUp showed, kept so the other graphics set can be
+// prepared after those things have left the scene (a bug type, the boss, an evolution's look).
+const shelf = new THREE.Group();
+function shelve() {
+  const seen = new Set();
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || o.isBatchedMesh) return;
+    const g = o.geometry, shape = g ? [Object.keys(g.attributes), Object.keys(g.morphAttributes), g.attributes.color?.itemSize] : '';
+    for (const m of [].concat(o.material || [])) {
+      const key = `${m.uuid}|${o.type}|${!!o.instanceColor}|${!!o.morphTexture}|${shape}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      let p;
+      if (o.isInstancedMesh) {
+        p = new THREE.InstancedMesh(g, m, 1);
+        if (o.instanceColor) p.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3), 3);
+        p.morphTexture = o.morphTexture;
+      } else if (o.isSkinnedMesh) { p = new THREE.SkinnedMesh(g, m); p.bind(o.skeleton, o.bindMatrix); }
+      else if (o.isSprite) p = new THREE.Sprite(m);
+      else p = new (o.isPoints ? THREE.Points : o.isLineSegments ? THREE.LineSegments : o.isLineLoop ? THREE.LineLoop : o.isLine ? THREE.Line : THREE.Mesh)(g, m);
+      shelf.add(p);
+    }
+  });
+}
+
+// Graphics switched between Low and Medium/High: build the other set behind the menu before play goes on
+let playLabel = null, retiers = 0;
+gfx.onRetarget = () => {
+  if (!retiers++) playLabel = playBtn.textContent;
+  warming = true;
+  playBtn.disabled = true;
+  playBtn.textContent = 'Preparing graphics…';
+  gfx.ready = (gfx.ready || Promise.resolve()).then(retier);
+};
+async function retier() {
+  warming = true;
+  try {
+    await prepareGraphics(nextTask);
+    uploadAll(true);
+  } catch (e) {
+    reportError(e, 'preparing graphics');
+  }
+  if (--retiers) return;   // another switch is queued behind this one
+  playBtn.disabled = false;
+  playBtn.textContent = playLabel;
+  warming = false;
+}
+
 // Put every texture and mesh on the GPU now. Otherwise each goes up the first time it comes into
 // view, and a turn of the camera that brings in a corner of the room stalls a phone for a frame.
-const tiny = new THREE.WebGLRenderTarget(4, 4);
 function uploadAll(gamePasses = false) {
   const cameraMask = camera.layers.mask;
   scene.traverse((o) => {
@@ -844,18 +897,13 @@ function uploadAll(gamePasses = false) {
   });
   const culled = [];
   scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
-  const was = renderer.getRenderTarget(), tone = renderer.toneMapping, color = tiny.texture.colorSpace;
+  const was = renderer.getRenderTarget();
   try {
     if (gamePasses) camera.layers.enable(0);   // the home portrait may already have isolated its own layer
-    renderer.setRenderTarget(tiny);
+    renderer.setRenderTarget(drawnInto());   // Low: the screen, under the loading screen or menu
     renderer.render(scene, camera);
-    if (gamePasses && gfx.composer) {
-      tiny.texture.colorSpace = THREE.LinearSRGBColorSpace;
-      renderer.toneMapping = THREE.NoToneMapping;
-      renderer.render(scene, camera);   // the composer's beauty pass uses linear output without tone mapping
-    }
+    if (gamePasses && gfx.composer) { renderer.setRenderTarget(was); gfx.render(); }   // and the composer's own passes (AO, bloom), not at the first frame
   } finally {
-    renderer.toneMapping = tone; tiny.texture.colorSpace = color;
     renderer.setRenderTarget(was);
     culled.forEach((o) => { o.frustumCulled = true; });
     camera.layers.mask = cameraMask;
@@ -928,7 +976,7 @@ function pacingReadout() {
 window.pacing = { pacer, governor, lightSlots };
 
 // The graphics chip resetting (iOS backgrounding, out of GPU memory): pause, rebuild, resume
-const gpu = recoverGpu({ renderer, scene, camera, gfx, pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
+const gpu = recoverGpu({ renderer, scene, camera, gfx, prepare: () => prepareGraphics(nextTask), pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
 // iOS can lose the context while the page is hidden without telling the page: check on return
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) run.bubbles.silenceAttacks();

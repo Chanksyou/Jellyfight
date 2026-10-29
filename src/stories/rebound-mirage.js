@@ -111,18 +111,16 @@ story('evolutions/mirage-real-collisions', {
   },
 });
 
-story('evolutions/rebound-mirage-ready-on-low', {
-  about: 'Both adornments and the reusable ghost are prepared before Play and need no new shader when chosen on Low.',
+story('evolutions/rebound-mirage-ready', {
+  about: 'Both adornments and the reusable ghost are prepared before Play and need no new shader when chosen.',
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
-    const { APT, run, gfx, GAME } = G(), quality = gfx.quality;
-    try {
-      gfx.setTier('low'); GAME.render();
-      const before = APT.renderer.info.programs.length;
-      evolve('rebound'); evolve('mirage'); step(2); leaveGhost(); GAME.render();
-      return ok(APT.renderer.info.programs.length === before && run.mirage.group.visible && run.adorn.pieces['rebound-bands'].group.visible && run.adorn.pieces['mirage-rim'].group.visible,
-        { before, after: APT.renderer.info.programs.length });
-    } finally { gfx.setTier(quality); }
+    const { APT, run, GAME } = G();
+    GAME.render();
+    const before = APT.renderer.info.programs.length;
+    evolve('rebound'); evolve('mirage'); step(2); leaveGhost(); GAME.render();
+    return ok(APT.renderer.info.programs.length === before && run.mirage.group.visible && run.adorn.pieces['rebound-bands'].group.visible && run.adorn.pieces['mirage-rim'].group.visible,
+      { before, after: APT.renderer.info.programs.length });
   },
 });
 

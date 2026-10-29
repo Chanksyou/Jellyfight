@@ -107,19 +107,17 @@ story('evolutions/reveal-cancel-and-reduced-effects', {
   },
 });
 
-story('evolutions/reveal-ready-on-low', {
-  about: 'The portrait and cocoon compile behind Play. Starting and ending a reveal on Low adds no shader and leaves no portrait objects.',
+story('evolutions/reveal-ready', {
+  about: 'The portrait and cocoon compile behind Play. Starting and ending a reveal adds no shader and leaves no portrait objects.',
   setup,
   play() {
-    const { run, APT, GAME, gfx } = G(), quality = gfx.quality;
-    try {
-      gfx.setTier('low'); GAME.render(); const before = APT.renderer.info.programs.length;
-      const R = begin('manOWar'); step(60); GAME.render();
-      const prepared = APT.renderer.info.programs.length === before;
-      R.finish(); GAME.render();
-      return ok(prepared && !R.portrait && !R.shell.visible && !R.water.mesh.visible,
-        { prepared, before, after: APT.renderer.info.programs.length });
-    } finally { gfx.setTier(quality); }
+    const { APT, GAME } = G();
+    GAME.render(); const before = APT.renderer.info.programs.length;
+    const R = begin('manOWar'); step(60); GAME.render();
+    const prepared = APT.renderer.info.programs.length === before;
+    R.finish(); GAME.render();
+    return ok(prepared && !R.portrait && !R.shell.visible && !R.water.mesh.visible,
+      { prepared, before, after: APT.renderer.info.programs.length });
   },
 });
 

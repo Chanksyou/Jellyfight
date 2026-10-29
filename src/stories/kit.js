@@ -132,7 +132,7 @@ export function cameraTour(spots) {
     for (let k = 0; k < 16; k++) {
       // build the shaders this view needs (see-through copies included) without drawing it: in a
       // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
-      tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); views++;
+      tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); G().GAME.compile(); views++;
       if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;   // (a fight view: eased in)
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();
@@ -487,7 +487,7 @@ function checkAttack(who, name, a) {
   const during = a.during || (boss ? () => boss.state === name : () => e.state === 'windup' && ELITE_ATTACKS[who][e.attack] === name);
   // (an Elite's Shots fly as its attack ends: those count once it has started)
   const now = a.is === 'shot' ? () => started && shows() : () => during() && shows();
-  const compile = () => { batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); };
+  const compile = () => { batcher.sync(); G().GAME.compile(); };
   let started = false, warned = false;
   step(60 * 8, () => {
     if (during()) started = true;

@@ -12,7 +12,8 @@ import { LOOK } from '../look.js';
 import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requirementText, unlocked, bank, pearlsFor, feats } from '../cosmetics.js';
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
-import { G, V, fresh, near, ok, spawn, step, story, stub, tp } from './kit.js';
+import { TYPES } from '../enemies.js';
+import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
 function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
@@ -469,6 +470,28 @@ story('engine/governor-learns-a-frame-cap', {
     feed(g, 16.7, 3);
     const back = Math.round(1000 / g.target);
     return ok(capped && keptSharp && aim === 30 && settled && back === 60, { capped, keptSharp, aim, settled, back, log: g.log });
+  },
+});
+story('engine/graphics-switch-prepares-shaders', {
+  about: 'Only the shaders for the graphics in use are built behind Play. Switching to Low builds the other set behind the menu (Play waits), after which every bug and the evolutions draw without a new shader.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  async play() {
+    const { gfx, APT, GAME, batcher } = G(), was = gfx.choice, btn = document.querySelector('#g-over .play');
+    try {
+      gfx.setQuality('low');
+      const waited = btn.disabled;
+      await gfx.ready;
+      GAME.render(); const before = APT.renderer.info.programs.length;
+      Object.keys(TYPES).forEach((t, i) => spawn(t, near(0.2 + 0.03 * i, 0.1)));
+      evolve('aegis'); evolve('cinder'); evolve('rebound'); evolve('mirage');
+      step(30); batcher.sync(); GAME.render();
+      const added = APT.renderer.info.programs.length - before;
+      const progs = APT.renderer.info.programs, built = progs.slice(progs.length - Math.max(0, added)).map((p) => p.cacheKey.slice(-40));
+      return ok(waited && !btn.disabled && gfx.quality === 'low' && added <= 0, { waited, added, before, tier: gfx.quality, built });
+    } finally {
+      gfx.setQuality(was);
+      await gfx.ready;
+    }
   },
 });
 story('engine/reversed-depth', {

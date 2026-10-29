@@ -6,7 +6,7 @@
 // offers a button to reload.
 import { LOOK } from './look.js';
 
-export function recoverGpu({ renderer, scene, camera, gfx, pause, onRestored = () => {} }) {
+export function recoverGpu({ renderer, scene, camera, gfx, pause, prepare = () => renderer.compileAsync(scene, camera), onRestored = () => {} }) {
   const canvas = renderer.domElement;
   const note = document.createElement('div');
   note.className = 'jf-keep gpu-note';
@@ -39,7 +39,7 @@ export function recoverGpu({ renderer, scene, camera, gfx, pause, onRestored = (
   canvas.addEventListener('webglcontextrestored', async () => {
     clearTimeout(timer);
     gfx.build();                   // new render targets and passes for the new context
-    try { await renderer.compileAsync(scene, camera); } catch {}
+    try { await prepare(); } catch {}
     state.lost = false;
     state.restores++;
     note.hidden = true;
