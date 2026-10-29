@@ -1,0 +1,44 @@
+name: Number the build
+
+# After a merge, gives each note in changes/ the next BUILD and its README line (tools/number-build.mjs)
+# and commits that to main. A push made with the workflow's own token starts no other workflow, so
+# Game checks doesn't re-run for it; Cloudflare deploys it like any push to main.
+on:
+  push:
+    branches: [main]
+    paths: ['changes/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: number-build
+  cancel-in-progress: false
+
+jobs:
+  number:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Number the notes and commit
+        # if another merge lands first, start again from the new main (at most three tries)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for try in 1 2 3; do
+            build="$(node tools/number-build.mjs)"
+            if [ -z "$build" ]; then echo "No notes in changes/"; exit 0; fi
+            git add -A changes README.md src/main.js
+            git commit -qm "Number the build: $build"
+            if git push origin HEAD:main; then echo "Numbered $build"; exit 0; fi
+            git fetch -q origin main && git reset -q --hard origin/main
+          done
+          exit 1

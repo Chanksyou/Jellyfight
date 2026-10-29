@@ -147,9 +147,12 @@ verification across all player attack families.
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
-9. **Ship through a reviewed pull request:** for game changes, bump `BUILD` in
-   `src/main.js` and update `README.md`; documentation-only changes need no build
-   bump. Run the stories (rule 2), commit to a feature branch, push the branch,
+9. **Ship through a reviewed pull request:** for game changes, add a note
+   `changes/<branch>.md` with the README entry, without a version number
+   (`changes/README.md`). Never edit `BUILD` in `src/main.js` or README's `vN …` lines:
+   after the merge, the "Number the build" workflow gives each note the next BUILD,
+   moves it into README and commits that to main, so parallel pull requests never
+   collide on a number. Documentation-only changes need no note. Run the stories (rule 2), commit to a feature branch, push the branch,
    and open a pull request. Follow the release approval and final verification
    steps above before merging into `main`. Republish the artifact only as part of
    an explicitly requested release (`docs/agents/publishing.md`).
