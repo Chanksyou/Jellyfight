@@ -21,7 +21,7 @@ elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
 }
 
 elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
-    steam dmg=3
+    ball dmg=3 gusts=4 gap=0.15 charge=1.4 flight=0.6 radius=0.06   // charge is in tempo time: 1.4 is 1 s at tempo 1.4; flight and gap are real s
     boil dmg=3 drops=6
 }
 
