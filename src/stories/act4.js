@@ -198,7 +198,7 @@ act4('every-attack-is-listed', {
 });
 
 act4('every-attack-lands-on-the-beat', {
-  about: 'Every timed attack in the Encore fight goes off on its song\'s beat: each floor step on its third-of-a-beat (triplet) mark, each laser, disco strike, speaker wave and beetle shot on a whole beat, within a frame. The beetles\' shots get there by stretching or cutting their charge to the nearest beat (charge-shot `beat`). The stage edge only shocks a jelly that touches it, so it has no beat.',
+  about: 'Every timed attack in the Encore fight goes off on its song\'s beat: each floor step on its third-of-a-beat (triplet) mark, each laser, disco strike, speaker wave and beetle shot (if it calls beetles) on a whole beat, within a frame. The beetles\' shots get there by stretching or cutting their charge to the nearest beat (charge-shot `beat`). The stage edge only shocks a jelly that touches it, so it has no beat.',
   setup() {},
   play() {
     const B = encoreFight({ beat: 28, hurt: false }), { enemies } = G(), seen = { floor: [], laser: [], disco: [], pulse: [], beetle: [] };
@@ -216,7 +216,7 @@ act4('every-attack-lands-on-the-beat', {
     for (const [k, beats] of Object.entries(seen)) {
       const g = grid[k] || 1, off = beats.map((b) => b - Math.round(b / g) * g), worst = Math.max(0, ...off.map(Math.abs));
       report[k] = { count: beats.length, worstMs: Math.round(worst * 60000 / B.bpm) };
-      if (!beats.length || worst > frame * 1.05) bad.push(k);
+      if ((!beats.length && (k !== 'beetle' || CONTENT.bosses.encore.skills.beetles)) || worst > frame * 1.05) bad.push(k);   // (no beetles to shoot if it calls none)
     }
     return ok(!bad.length, { bad, bpm: B.bpm, report });
   },
