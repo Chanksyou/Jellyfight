@@ -16,12 +16,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Guards and story shards run side by side. Shards are balanced by cost in tests/run.mjs
+  # (act 1's stories are split across several), so they finish at about the same time.
   stories:
-    name: Stories (${{ matrix.shard }}/4)
+    name: ${{ matrix.shard == 0 && 'Guards' || format('Stories ({0}/8)', matrix.shard) }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     runs-on: ubuntu-latest
     container:
       # Keep in sync with tests/package.json; the install step checks this pin.
@@ -43,14 +45,15 @@ jobs:
           npm ci --prefix tests
           node -e "const { version } = require('./tests/node_modules/playwright/package.json'); if (version !== '1.63.0') throw new Error('Update the Playwright container image and version check to match ' + version);"
       - name: Parse modules and run guards
-        if: matrix.shard == 1
+        if: matrix.shard == 0
         run: |
           mkdir -p .wrangler
           node tests/check.mjs | tee .wrangler/ci-guards.log
       - name: Run story shard
+        if: matrix.shard != 0
         run: |
           mkdir -p .wrangler
-          node tests/run.mjs --shard=${{ matrix.shard }}/4 --jobs=1 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
+          node tests/run.mjs --shard=${{ matrix.shard }}/8 --jobs=1 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
       - name: Save logs and failure screenshots
         if: always()
         uses: actions/upload-artifact@v5
@@ -60,6 +63,7 @@ jobs:
             .wrangler/ci-*.log
             .wrangler/story-failures/
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 14
 
   game-checks:
@@ -69,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require every story shard to pass
+      - name: Require the guards and every story shard to pass
         env:
           STORIES_RESULT: ${{ needs.stories.result }}
         run: test "$STORIES_RESULT" = success
