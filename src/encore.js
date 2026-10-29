@@ -3,8 +3,7 @@
 //   the floor waves and a laser every 4 beats (encore-floor.js EncoreSet, encore-laser.js),
 //   from bar 16 the speaker waves (encore-pulse.js), from bar 32 the disco ball (encore-disco.js),
 //   and its stage edge shocks a jelly that touches it (encore-contact.js).
-// At bar 8, and every 16 bars after, it calls 2 stag beetles (content/enemies.kdl "beetle") onto the
-// floor and raises a force field: while any of them lives it takes no damage. Otherwise your attacks
+// It opens behind a force field (bosses.kdl start `guard`) that hits bounce off. Otherwise your attacks
 // hurt it like any boss (its hit sphere is in front of the booth, clear of the stage's collider), and
 // at 0 Health the set stops and it is beaten.
 //
@@ -31,7 +30,7 @@ import { EncorePulses } from './encore-pulse.js';
 import { EncoreContact } from './encore-contact.js';
 
 // what it does, for the attack audit (src/stories/kit.js EVERY_ATTACK)
-export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact', 'beetles'], angry: [] };
+export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact'], angry: [] };
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17];
 const _hit = new THREE.Vector3();
@@ -48,10 +47,9 @@ export class Encore {
     this.dead = false; this.dying = false; this.rise = 1;
     this.state = 'set';
     this.t = 0; this.clock = 0; this.beat = null;
-    this.guards = []; this.summoned = -1; this.shieldT = 0; this.flash = 0;
+    this.flash = 0;
     this.guardT = this.def.skills.start?.guard ?? 0; this.opening = this.guardT > 0;   // its force field is up as the fight opens (bosses.kdl start `guard`)
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
-    this.toughness = ctx.toughness ?? 1;
     const A = this.arenaView;
     // each hit lands with a flash and sparks at the jelly in that attack's colour
     this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`)) });
@@ -73,8 +71,8 @@ export class Encore {
 
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position); }
-  // up while any of the beetles it called is alive, and while it reboots after shorting out (guardT)
-  get shielded() { return this.guards.length > 0 || this.guardT > 0; }
+  // up while it warms up as the fight opens, and while it reboots after shorting out (guardT)
+  get shielded() { return this.guardT > 0; }
 
   quiet(b) { return !!this.song?.quiet?.(b); }
   hurtPlayer(dmg, color = null) {
@@ -116,15 +114,13 @@ export class Encore {
     return p;
   }
   // No cat to finish it: it goes down in its own cut scene (`falling`, main.js frames `cut`), the music
-  // cut dead (run.js musicState). Its set stops and its beetles drop; explosions climb over the booth,
+  // cut dead (run.js musicState). Its set stops; explosions climb over the booth,
   // its panels die section by section, the DJs slump over their decks and the disco ball crashes down
   // and shatters; one last blow-out, then the smoke settles and it's beaten (`dead`: run.js onBossDead)
   beaten() {
     if (this.falling || this.dead) return;
     this.hp = 0; this.state = 'falling';
     this.floor.reset(); this.lasers.reset(); this.pulses.reset(); this.contact.reset(); this.set = null;
-    for (const g of this.guards) if (!g.dead) this.enemies.kill(g, true);
-    this.guards = [];
     this.field.visible = false;
     const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
     const length = LOOK.num(short ? 'encore-defeat-calm-time' : 'encore-defeat-time', short ? 1.5 : 4.6);
@@ -184,27 +180,10 @@ export class Encore {
     return (this.clock += dt * TRACKS.encore.bpm / 60);
   }
 
-  // At bar 8 and every 16 bars after: beetles on the open floor (bosses.kdl `count`, 2), and the force field while they live
-  summon(beat) {
-    const S = this.def.skills.beetles || {}, at = S.at ?? 32, every = S.every ?? 64, count = S.count ?? 4;
-    const n = Math.floor((beat - at) / every);
-    if (beat < at || n <= this.summoned) return;
-    this.summoned = n;
-    const spots = [[-0.45, 0.05], [0.45, 0.05], [-0.42, 0.5], [0.42, 0.5]];
-    for (let k = this.guards.length; k < count; k++) {
-      const [x, z] = spots[k % spots.length], p = new THREE.Vector3(x, 0.02, z);
-      const e = this.enemies.spawn('beetle', p, this.toughness);
-      if (e) { this.guards.push(e); this.fx.puff?.(p, 0x6fd2ff, 0.08, 0.5); }
-    }
-    this.shieldT = 0;
-    if (n === 0) bus.emit('toast', { text: 'Beat the beetles to break its shield.' });
-  }
-
   update(dt, player) {
     this.player = player;
     this.t += dt;
     this.shove.x = this.shove.z = 0;
-    this.guards = this.guards.filter((g) => !g.dead);
     const A = this.arenaView, beat = this.dead ? null : this.beatNow(dt), M = A.boss;
     if (this.falling) { /* its fall: fallDown, after the model's update */ }
     else if (this.cut) this.shortOut(dt, beat);
@@ -217,12 +196,9 @@ export class Encore {
       if (this.broken && this.disco.stayFrom == null) this.disco.stay(Math.ceil(beat / 4) * 4);   // down from the next bar, for good
       this.disco.update(beat, player);
       this.pulses.update(beat, player, dt);
-      this.summon(beat);
       if (this.guardT > 0) { this.guardT = Math.max(0, this.guardT - dt); if (!this.guardT) this.opening = false; }   // warming up or rebooting: counts down while its set plays
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }
-      // never stuck behind a shield for ever (a beetle that can't reach you)
-      if (this.guards.length && (this.shieldT += dt) > (this.def.skills.beetles?.timeout ?? 90)) { for (const g of this.guards) this.enemies.kill(g, true); this.guards = []; }
     }
     this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
     A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat));
@@ -240,8 +216,8 @@ export class Encore {
     const on = !this.cut && !this.dead && beat !== null && !this.quiet(beat), kick = on ? Math.exp(-((beat % 1 + 1) % 1) * 6) : 0;
     if (!this.cut) { M.root.position.copy(this.home); for (const h of M.heads) h.rotation.x += kick * 0.22; }
     M.root.scale.set(1 + kick * 0.008, 1 - this.hurtT * 0.015 - kick * 0.012, 1 + kick * 0.008);
-    // the force field: grows in over its booth as the beetles land, flares when hit, and shatters in a
-    // spray of cyan shards when the last of them dies
+    // the force field: grows in over its booth, flares when hit, and shatters in a
+    // spray of cyan shards when it drops
     if (this.wasShielded && !this.shielded && !this.dead) {
       const c = this.booth.getCenter(new THREE.Vector3()), blue = LOOK.color('encore-shield', '#3fd0ff');
       this.fx.burst(c.setY(this.booth.max.y * 0.6), [blue, '#ffffff', blue], 24, 0.006, 0.7, 0);
@@ -253,7 +229,7 @@ export class Encore {
     this.field.scale.copy(this.fieldScale).multiplyScalar(0.6 + 0.4 * (1 - (1 - this.fieldUp) ** 3));
     this.flash = Math.max(0, this.flash - dt * 4);
     this.field.material.opacity = LOOK.num('encore-shield-opacity', 0.55) * (0.85 + 0.15 * Math.sin(this.t * 3)) + this.flash;
-    bus.emit('boss_health', { name: this.B.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: this.guards.length ? `Shielded: beat the beetles (${this.guards.length} left)` : this.guardT > 0 ? `Shielded: ${this.opening ? 'warming up' : 'rebooting'} (${Math.ceil(this.guardT)} s)` : undefined });
+    bus.emit('boss_health', { name: this.B.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: this.guardT > 0 ? `Shielded: ${this.opening ? 'warming up' : 'rebooting'} (${Math.ceil(this.guardT)} s)` : undefined });
     return { push: dt > 0 && (this.shove.x || this.shove.z) ? { x: this.shove.x / dt, z: this.shove.z / dt } : null };
   }
 
