@@ -108,3 +108,27 @@ story('engine/story-randomness-is-scoped', {
     } finally {delete STORIES[name];}
   },
 });
+
+story('engine/loading-screen-says-each-step', {
+  about: 'The loading screen stays up until Play works, steps through what it is doing with its bar only moving forward and the graphics step reaching the end, and its jelly swims on its own (a compositor animation).',
+  setup() {},
+  play() {
+    const steps = window.JF_LOAD.steps, el = document.getElementById('loading'), fs = steps.map(([, f]) => f);
+    const forward = fs.every((f, i) => !i || f >= fs[i - 1]);
+    const graphics = steps.find(([t]) => t === 'Preparing the graphics…')?.[1] ?? 0;
+    const swims = document.querySelector('#loading .jelly').getAnimations().length > 0;
+    const play = document.querySelector('#g-over .play');
+    return ok(el.classList.contains('gone') && !play.disabled && forward && graphics > 0.94 && steps.length >= 4 && swims, { steps, swims });
+  },
+});
+
+story('engine/game-downloads-in-parallel', {
+  about: 'The apartment comes down as its gzipped copy, and the game\'s modules (preloaded by index.html) are already on their way before that download finishes.',
+  setup() {},
+  play() {
+    const res = performance.getEntriesByType('resource'), find = (re) => res.find((r) => re.test(r.name));
+    const gz = find(/apartment-act1\.glb\.gz$/), plain = find(/apartment-act1\.glb$/), main = find(/\/src\/main\.js$/);
+    const preloaded = document.querySelectorAll('link[rel=modulepreload]').length;
+    return ok(gz && !plain && main && main.startTime < gz.responseEnd && preloaded > 50, { gz: !!gz, plain: !!plain, mainAt: main?.startTime, gzEnd: gz?.responseEnd, preloaded });
+  },
+});

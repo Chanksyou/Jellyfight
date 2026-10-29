@@ -8,7 +8,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import zlib from 'node:zlib';
 import { ROOT } from './lib.mjs';
+import { withPreload } from '../tools/preload.mjs';
 
 let bad = 0;
 const files = ['src', 'src/stories', 'tests', 'tools', 'worker'].flatMap((d) => {
@@ -33,6 +35,13 @@ for (const f of files.filter(f => f.startsWith(path.join(ROOT, 'src') + path.sep
       bad++; console.log(`✗ ${path.relative(ROOT, f)} imports excluded deployment asset ${relative}`);
     }
   }
+}
+// index.html preloads what the game imports (tools/preload.mjs), and the apartment's gzipped copies,
+// which the game downloads first, are the same files as the .glb (tools/split.mjs makes both)
+if (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8') !== withPreload()) { bad++; console.log('✗ index.html\'s preload list is out of date: run node tools/preload.mjs'); }
+for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^apartment-act\d+\.glb$/.test(f))) {
+  const glb = path.join(ROOT, 'assets', f);
+  if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs`); }
 }
 if (bad) process.exit(1);
 
