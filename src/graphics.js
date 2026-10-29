@@ -120,8 +120,10 @@ export class Graphics {
 
   // the tier actually drawn
   setTier(q) {
+    const had = !!this.composer;
     this.quality = q;
     this.build();
+    if (had !== !!this.composer) this.onRetarget?.();   // Low draws to the screen, Medium/High into the composer: other shaders
   }
 
   build() {

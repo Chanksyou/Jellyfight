@@ -139,20 +139,18 @@ story('evolutions/cinder-feet-every-species', {
   },
 });
 
-story('evolutions/cinder-prepared-on-low', {
+story('evolutions/cinder-prepared', {
   about: 'The ribbon and instanced flames are prepared behind Play, add no lights or shaders on activation, and retain a bounded history.',
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
-    const { run, APT, GAME, gfx } = G(), quality = gfx.quality;
-    try {
-      gfx.setTier('low'); GAME.render(); const before = APT.renderer.info.programs.length;
-      evolve('cinder'); step(2); walk(0.1, 0); GAME.render();
-      const ready = run.fireTrail.mesh.visible && APT.renderer.info.programs.length === before;
-      for (let i = 0; i < 1100; i++) run.fireTrail.record(G().player.position, V(1, 0, 0), 0.001);
-      run.fireTrail.draw();
-      return ok(ready && run.fireTrail.segments.length <= 1024 && run.fireTrail.mesh.geometry.drawRange.count <= 1024 * 18,
-        { ready, before, after: APT.renderer.info.programs.length, segments: run.fireTrail.segments.length });
-    } finally { gfx.setTier(quality); }
+    const { run, APT, GAME } = G();
+    GAME.render(); const before = APT.renderer.info.programs.length;
+    evolve('cinder'); step(2); walk(0.1, 0); GAME.render();
+    const ready = run.fireTrail.mesh.visible && APT.renderer.info.programs.length === before;
+    for (let i = 0; i < 1100; i++) run.fireTrail.record(G().player.position, V(1, 0, 0), 0.001);
+    run.fireTrail.draw();
+    return ok(ready && run.fireTrail.segments.length <= 1024 && run.fireTrail.mesh.geometry.drawRange.count <= 1024 * 18,
+      { ready, before, after: APT.renderer.info.programs.length, segments: run.fireTrail.segments.length });
   },
 });
 
