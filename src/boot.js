@@ -41,7 +41,23 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const bar = document.querySelector('#loading .bar i');
+// The loading screen stays up until the game is ready to play, saying what it's doing. Loading
+// blocks the page for seconds at a time (building the rooms, the graphics), so each step waits for
+// the screen to show it first; the swimming jelly (index.html) moves on its own meanwhile.
+const bar = document.querySelector('#loading .bar i'), said = document.querySelector('#loading p');
+const shown = () => new Promise((r) => { requestAnimationFrame(() => setTimeout(r)); setTimeout(r, 100); });   // (a hidden tab draws no frames)
+window.JF_LOAD = {
+  steps: [],
+  // f: how far along the whole load is, 0 to 1
+  at(f, text) {
+    bar.style.transform = `scaleX(${f})`;
+    if (text && said.textContent !== text) { said.textContent = text; this.steps.push([text, f]); }
+    else if (this.steps.length) this.steps.at(-1)[1] = f;
+  },
+  step(f, text) { this.at(f, text); return shown(); },
+};
+const loading = window.JF_LOAD;
+loading.steps.push([said.textContent, 0]);
 try {
   if(new URLSearchParams(location.search).get('arena')==='act4'){
     await loadLook();
@@ -53,20 +69,21 @@ try {
   await loadLook();
   const {buildAct4}=await import('./act4-arena.js'), stage=currentStage(), arena=buildAct4(scene);
   window.APT = { root: arena.root, plan: stage.plan, arena, doors: {}, scene, renderer, camera, lights: { rescan() {} }, load: async () => [] };
-  bar.style.width = '100%';
   await loadContent();
-  await import('./main.js');
+  await loading.step(0.55, 'Building the stage…');
+  await (await import('./main.js')).ready;
   }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
-  const apt = await loadApartment(scene, renderer, (f) => { bar.style.width = `${Math.round(f * 100)}%`; }, currentStage().parts);
+  const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts);
   const lights = scaleLightsOnRender(renderer, scene);
   window.APT = Object.assign(apt, { scene, renderer, camera, lights });
   await loadLook();                 // content/look.css: colours and render numbers
   await loadContent();              // content/*.kdl: the bugs and the waves
-  await import('./main.js');
+  await loading.step(0.55, 'Building the rooms…');
+  await (await import('./main.js')).ready;   // main.js: the game, then its graphics prepared (warmUp)
   }
   document.getElementById('loading').classList.add('gone');
 } catch (e) {
   reportError(e, 'loading');
-  document.querySelector('#loading p').textContent = 'Something went wrong while loading. Details below.';
+  said.textContent = 'Something went wrong while loading. Details below.';
 }

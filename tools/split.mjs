@@ -7,7 +7,7 @@
 //   assets/apartment-act2.glb   what's in the bathroom and the hall closets
 //   assets/apartment-act3.glb   what's in the bedroom
 //
-// Each also gets a -q twin (no meshopt compression) for browsers without WebAssembly, like
+// Each also gets a gzipped copy (.glb.gz), which the game downloads, and a -q twin (no meshopt compression) for browsers without WebAssembly, like
 // apartment.glb / apartment-q.glb. An object goes to the act of the room its middle is in (so a
 // washer poking out of its closet stays with the closet); one whose middle is in no room goes to
 // the earliest act it overlaps, and so does one that spans rooms (floor plan: assets/apartment.json). The furniture keeps its node names, which is what the
@@ -17,6 +17,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { prune, meshopt, cloneDocument } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 import fs from 'fs';
+import zlib from 'zlib';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -81,6 +82,7 @@ export async function split(assets) {
     await io.write(q, doc);
     await doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
     await io.write(small, doc);
+    fs.writeFileSync(small + '.gz', zlib.gzipSync(fs.readFileSync(small), { level: 9 }));   // what the game downloads (apartment.js)
     report[`act${act}`] = { objects: kept.length, mb: +(fs.statSync(small).size / 1e6).toFixed(2), fallbackMb: +(fs.statSync(q).size / 1e6).toFixed(2), sample: kept.filter((k) => !ALWAYS_ACT1.test(k)).slice(0, 8) };
   }
   report.lights = Object.fromEntries(['act1', 'act2', 'act3'].map((a) => [a, meta.lights.filter((L) => L.act === a).length]));

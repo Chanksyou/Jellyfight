@@ -12,8 +12,24 @@
   #loading.gone { opacity: 0; pointer-events: none; }
   #loading h1 { margin: 0 0 12px; font-size: 38px; }
   #loading .bar { width: min(260px, 70vw); height: 8px; border-radius: 4px; background: #ffffff22; overflow: hidden; margin: 0 auto; }
-  #loading .bar i { display: block; height: 100%; width: 0; background: #ff8ad0; transition: width .2s; }
+  #loading .bar { position: relative; }
+  #loading .bar i { display: block; height: 100%; width: 100%; background: #ff8ad0; transform-origin: left; transform: scaleX(0); transition: transform .3s; }
+  #loading .bar::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, #ffffff66, transparent); animation: jf-shine 1.4s linear infinite; }
   #loading p { opacity: .7; font-size: 13px; margin-top: 10px; }
+  /* A jelly that keeps swimming while the page is busy building the game: transform and opacity
+     animations run on the browser's compositor, so they move even when the main thread can't */
+  #loading .jelly { width: 54px; height: 64px; margin: 0 auto 14px; position: relative; animation: jf-swim 1.6s ease-in-out infinite; }
+  #loading .jelly::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 34px; border-radius: 27px 27px 10px 10px; background: radial-gradient(circle at 50% 30%, #ffc2e6, #ff8ad0 70%); box-shadow: 0 0 18px #ff8ad088; }
+  #loading .jelly i { position: absolute; top: 30px; width: 4px; height: 30px; border-radius: 2px; background: #ff8ad0aa; transform-origin: top; animation: jf-wave 1.6s ease-in-out infinite; }
+  #loading .jelly i:nth-child(1) { left: 12px; } #loading .jelly i:nth-child(2) { left: 25px; animation-delay: -.5s; } #loading .jelly i:nth-child(3) { left: 38px; animation-delay: -1s; }
+  @keyframes jf-swim { 0%, 100% { transform: translateY(6px) scale(1, .94); } 50% { transform: translateY(-6px) scale(.96, 1.04); } }
+  @keyframes jf-wave { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(-8deg); } }
+  @keyframes jf-shine { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  @media (prefers-reduced-motion: reduce) {
+    #loading .jelly, #loading .jelly i { animation: jf-glow 2s ease-in-out infinite; }
+    #loading .bar::after { display: none; }
+    @keyframes jf-glow { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  }
 </style>
 <script type="importmap">{"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
@@ -23,10 +39,122 @@
   "n8ao":"./vendor/n8ao.module.js",
   "postprocessing":"./vendor/postprocessing-stub.js"
 }}</script>
+<!-- preload: the game's modules, fetched while the apartment downloads (node tools/preload.mjs writes this list) -->
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.core.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/libs/meshopt_decoder.module.js">
+<link rel="modulepreload" href="./src/errors.js">
+<link rel="modulepreload" href="./src/legacy-lighting.js">
+<link rel="modulepreload" href="./src/apartment.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/loaders/GLTFLoader.js">
+<link rel="modulepreload" href="./src/touch.js">
+<link rel="modulepreload" href="./src/look.js">
+<link rel="modulepreload" href="./src/content.js">
+<link rel="modulepreload" href="./src/kdl.js">
+<link rel="modulepreload" href="./src/words.js">
+<link rel="modulepreload" href="./src/stages.js">
+<link rel="modulepreload" href="./src/stage1.js">
+<link rel="modulepreload" href="./src/stage2.js">
+<link rel="modulepreload" href="./src/stage3.js">
+<link rel="modulepreload" href="./src/stage4.js">
+<link rel="modulepreload" href="./src/main.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/config.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/collision.js" fetchpriority="low">
+<link rel="modulepreload" href="./vendor/three-mesh-bvh.module.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/player.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/swim.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/camera.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/input.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/graphics.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/EffectComposer.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/ShaderPass.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/UnrealBloomPass.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/OutputPass.js" fetchpriority="low">
+<link rel="modulepreload" href="./vendor/n8ao.module.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/Pass.js" fetchpriority="low">
+<link rel="modulepreload" href="./vendor/postprocessing-stub.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/pacing.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/light-slots.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/gpu-recovery.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/character.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/geometries/RoundedBoxGeometry.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/tentacles.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/utils/BufferGeometryUtils.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/test-kit.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/stats.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/balance-editor.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/creator.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/leaderboard.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/cosmetics.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/collection.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/main-menu.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/first-run.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/hud.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/events.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/juice.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/detail.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/traversal.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/forcefield.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/bathroom.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/set-dressing.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/cat.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/enemies.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/critters.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/sfx.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/batch.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/vfx.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/layout.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/layout-baked.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/music.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/song-track.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/jelly-portrait.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/feedback.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/systems.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/combat.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/pickups.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/fx.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/ice-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/glitter-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/acid-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/wind-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/death-remains.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/ui.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/run.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/vacuum.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/clog.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/shark.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/shark-model.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/utils/SkeletonUtils.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/shark-water.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore-floor.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore-laser.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore-disco.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore-pulse.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/encore-contact.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/gadgets.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/gadget-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/adornments.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/energy-shield.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/mirage.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/fire-trail.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/evolution-reveal.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/victory.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/boss-set.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/elites.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/clock-model.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/whipper-model.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/croc-model.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/bull-model.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/coffer-model.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/bubbles.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/bubble-looks.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/treasure-bag.js" fetchpriority="low">
+<!-- /preload -->
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="loading"><div><h1>Jelly Fight</h1><div class="bar"><i></i></div><p>Loading the apartment…</p></div></div>
+<div id="loading"><div><div class="jelly" aria-hidden="true"><i></i><i></i><i></i></div><h1>Jelly Fight</h1><div class="bar"><i></i></div><p role="status">Downloading the apartment…</p></div></div>
 <script type="module" src="./src/boot.js"></script>
 </body>
 </html>
