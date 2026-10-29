@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v308';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v309';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -288,7 +288,7 @@ run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jell
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = LOOK.num('camera-distance-phone', 0.9);
+  tpc.distance = LOOK.num('camera-distance-phone', 0.7);
 }
 input.touchOnly = IS_TOUCH;
 function play() {
