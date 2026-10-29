@@ -19,7 +19,7 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
-import { addFeats, unlockedAwards, nextAward, needText, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
+import { addFeats, unlockedAwards, nextAward, needText, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
@@ -893,13 +893,17 @@ export class Run {
     this.pendingLevels--;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
+    // the ding: a gold ring leaves the jelly and the badge pops while the cards wait a beat (ui.js),
+    // and the picked card's icon flies into the badge
+    const at = this.player.position.clone().setY(this.player.position.y + this.cfg.height * 0.5).project(this.tpc.camera);
+    this.hud.levelDing((at.x + 1) / 2 * innerWidth, (1 - at.y) / 2 * innerHeight);
     this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, 1, (card) => {
       const before = this.stats.health;
       applyCard(this.stats, card);
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck));
+    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {
@@ -1167,12 +1171,13 @@ export class Run {
     }
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
-    if (impact) { juice.feel('boss-kill'); sfx.boom(); }
+    if (impact) { juice.feel('boss-kill'); juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); sfx.boom(); }
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
-    this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200);
+    this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
+    juice.shake(LOOK.num('cleared-shake', 0.35)); sfx.stamp();
     // the last act's boss: straight on to the ending (nothing after it to grow into); otherwise the metamorphosis
     this.later(() => (STAGES[this.stage.id] ? this.metamorph() : this.won()), 2200);
   }
@@ -1180,7 +1185,7 @@ export class Run {
   // The run is won (the last act's boss is beaten): the jelly swims home to the sea (victory.js), then
   // the score, to post if it makes the top 10
   won() {
-    if (this.ui.open || this.pendingLevels > 0) { this.later(() => this.won(), 250); return; }   // (a pick still open finishes first)
+    if ((this.ui.open && !this.ui.closing) || this.pendingLevels > 0) { this.later(() => this.won(), 250); return; }   // (a pick still open finishes first)
     this.phase = 'won';
     if (!this.dev) markPlayed();
     this.bossDeadT = false;
@@ -1196,7 +1201,7 @@ export class Run {
   metamorph() {
     // a pick still open (a level-up from the boss's XP) or still to come: it's finished first, never
     // replaced by the metamorphosis
-    if (this.ui.open || this.pendingLevels > 0) { this.later(() => this.metamorph(), 250); return; }
+    if ((this.ui.open && !this.ui.closing) || this.pendingLevels > 0) { this.later(() => this.metamorph(), 250); return; }
     this.phase = 'metamorph';
     if (!this.dev) markPlayed();      // a run ended: the player isn't new any more (first-run.js)
     this.bossDeadT = false;
@@ -1275,7 +1280,7 @@ export class Run {
     // can unlock one mid-run), with the Pearls it earned
     const had = new Set(this.awardsBefore), won = this.phase === 'won';
     this.flushFeats({ runs: 1, wins: won ? 1 : 0, ...(won ? { [`won_${entry.body}`]: 1 } : {}) });
-    const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return OPTIONS[key].find(([v]) => v === id)?.[1] || id; });
+    const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return { key, id, name: OPTIONS[key].find(([v]) => v === id)?.[1] || id }; });
     let typed = savedName();
     // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
     const dead = this.phase === 'dead', near = dead ? this.howClose() : null, next = dead ? nextAward() : null;
@@ -1292,10 +1297,12 @@ export class Run {
       this.endView = 'summary';
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
-      const rows = [['Score', `<span class="jf-score">${score.toLocaleString()}</span>${best ? ' <small>new best!</small>' : ''}${said}`],
-        ...(this.dev ? [] : [['🦪 Pearls', `+${this.pearls} <small>· ${bank().pearls.toLocaleString()} to spend in Change your look</small>`]]),
-        ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, `+${v.toLocaleString()}`]) : []), ...this.summary(), ...finds];
-      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map(esc).join(', ')}</b> <small>· wear it from Change your look</small>`]);
+      // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
+      const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
+      const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
+        ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} to spend in Change your look</small>`]]),
+        ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...this.summary(), ...finds];
+      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b> <small>· wear it from Change your look</small>`]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
@@ -1319,6 +1326,10 @@ export class Run {
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons);
     };
     show(null);
+    // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)
+    const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    this.ui.award(earned.map((a) => ({ name: a.name, need: say(needText(requirement(a.key, a.id))), wear: () => this.onWear?.(a.key, a.id),
+      face: this.jellyFace?.({ ...(this.playerLook?.() || {}), [a.key]: a.id }) })));
   }
 
   // How near a death came to beating the act: the boss's time still to come, or its Health left
@@ -1380,7 +1391,7 @@ export class Run {
   actComplete(next) {
     const carry = this.carryOver(), score = carry.score;
     this.ui.message(`Act ${this.stage.id} complete`, `Next: ${next.subtitle}. Your progress carries over.`,
-      [['Score so far', `<span class="jf-score">${score.toLocaleString()}</span>`], ...this.summary()],
+      [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
 
@@ -1490,5 +1501,7 @@ export class Run {
 
 // The name you put on the leaderboard, kept in this browser for next time ('' = Guest)
 const NAME_KEY = 'jellyfight.name';
+// A number an end screen counts up (ui.js tally): from `from`, written with `pre` in front
+const counter = (n, pre = '', from = 0) => `<span class="jf-count" data-n="${n}" data-pre="${pre}" data-from="${from}">${pre}${n.toLocaleString()}</span>`;
 function savedName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }
 function saveName(n) { try { localStorage.setItem(NAME_KEY, n); } catch {} }

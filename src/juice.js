@@ -3,6 +3,7 @@
 //   feel(step)  how hard a moment lands: a step on content/look.css's --feel-* ladder (shake + hit-stop)
 //   shake(k)    k ~0.2 for a pop, 1 for a big hit; stacks up to a cap and decays fast
 //   hitstop(s)  freeze the game (not the rendering) for s seconds: a kill "lands"
+//   slow(s, k)  play the game at k speed for s real seconds (a boss's last blow); not when calm
 //   calm        Reduce effects is on (the device asks for reduced motion): no shake; hit-stop stays, it isn't motion
 //   combo       kills within 2.5 s of each other chain; more XP as it grows
 import { LOOK } from './look.js';
@@ -11,6 +12,8 @@ export const juice = {
   calm: false,
   trauma: 0,
   stop: 0,
+  slowT: 0,
+  slowK: 1,
   combo: 0,
   comboT: 0,
   best: 0,
@@ -22,6 +25,7 @@ export const juice = {
   },
   shake(k) { if (!this.calm) this.trauma = Math.min(1, this.trauma + k); },
   hitstop(s) { this.stop = Math.max(this.stop, s); },
+  slow(s, k) { if (!this.calm) { this.slowT = s; this.slowK = k; } },
 
   // a kill: returns the new combo count
   kill() {
@@ -38,7 +42,7 @@ export const juice = {
     this.comboT = Math.max(0, this.comboT - dt);
     if (this.comboT === 0) this.combo = 0;
   },
-  reset() { this.trauma = this.stop = this.combo = this.comboT = 0; this.best = 0; },
+  reset() { this.trauma = this.stop = this.combo = this.comboT = this.slowT = 0; this.best = 0; },
 
   // camera offset for this frame (meters): shake grows with the square of trauma
   offset(out, scale = 0.012) {
