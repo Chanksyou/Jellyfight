@@ -45,7 +45,7 @@ Codex here. Keep project rules in this file so the agents follow the same workfl
    committed checkout and a full passing run on that exact commit, including any
    merge commit. GitHub merges do not run local hooks: record the required checks
    in the pull request and complete them before merging. Then update local `main`.
-   The required GitHub `Game checks` result requires guards and all four story
+   The required GitHub `Game checks` result requires guards and all eight story
    shards to pass on the PR integration. Wait for it to pass; do not bypass it.
    Shards never record a local full-suite pass. Stories reset to a fixed
    seed per name; use `node tests/run.mjs --seed=N` to replay other rolls and keep
@@ -147,9 +147,12 @@ verification across all player attack families.
    hot loops reuse vectors instead of allocating (`world.cast` allocates nothing on a miss).
 8. **Systems talk through the event bus** (`src/events.js`): `damage_taken`, `status_applied`,
    `knockback`, `enemy_killed`… Don't write another system's data directly.
-9. **Ship through a reviewed pull request:** for game changes, bump `BUILD` in
-   `src/main.js` and update `README.md`; documentation-only changes need no build
-   bump. Run the stories (rule 2), commit to a feature branch, push the branch,
+9. **Ship through a reviewed pull request:** for game changes, add a note
+   `changes/<branch>.md` with the README entry, without a version number
+   (`changes/README.md`). Never edit `BUILD` in `src/main.js` or README's `vN …` lines:
+   after the merge, the "Number the build" workflow gives each note the next BUILD,
+   moves it into README and commits that to main, so parallel pull requests never
+   collide on a number. Documentation-only changes need no note. Run the stories (rule 2), commit to a feature branch, push the branch,
    and open a pull request. Follow the release approval and final verification
    steps above before merging into `main`. Republish the artifact only as part of
    an explicitly requested release (`docs/agents/publishing.md`).

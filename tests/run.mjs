@@ -5,7 +5,7 @@
 //   node tests/run.mjs elites          only stories whose name contains "elites" (a,b: either)
 //   node tests/run.mjs --no-mobile     skip the phone check
 //   node tests/run.mjs --jobs=N        how many pages play side by side (default 3)
-//   node tests/run.mjs --shard=1/4     one of four disjoint groups of page tasks (CI)
+//   node tests/run.mjs --shard=1/8     one of eight disjoint groups of stories, balanced by cost (CI)
 //   node tests/run.mjs --force         play a full run even if this commit already passed one
 //   node tests/run.mjs --seed=42       reproduce a different deterministic set of story rolls
 //
@@ -88,21 +88,39 @@ const first = shardArg ? PAGES[shardIndex % PAGES.length] : PAGES.find((P) => !f
 let listing = await boot(env, first.opts);
 const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
 // one task per page (the page that listed the stories plays its own act's), then the two checks that need a page of their own
-let tasks = PAGES.map((P) => [P, all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n)]).filter(([, names]) => names.length)
-  .map(([P, names]) => async (e) => {
-    let got = listing && P === first ? listing : await boot(e, P.opts);
-    if (got === listing) listing = null;
-    const out = await playAll(got.page, got.errors, names);
-    await got.page.close();
-    return out;
+const pageTask = (P, names) => async (e) => {
+  let got = listing && P === first ? listing : await boot(e, P.opts);
+  if (got === listing) listing = null;
+  const out = await playAll(got.page, got.errors, names);
+  await got.page.close();
+  return out;
+};
+// Under --shard, a page with many stories is split into chunks of about CHUNK that each boot a page of
+// their own, and the tasks are dealt to the shards by cost (a boot costs about as long as BOOT_COST
+// stories), so act 1's ~500 stories don't keep one runner going long after the rest are done.
+const CHUNK = 75, BOOT_COST = 70;
+let jobs = PAGES.flatMap((P) => {
+  const names = all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n);
+  const parts = !names.length ? 0 : shardArg ? Math.ceil(names.length / CHUNK) : 1;
+  return Array.from({ length: parts }, (_, i) => {
+    const mine = names.slice(Math.floor(i * names.length / parts), Math.floor((i + 1) * names.length / parts));
+    return { P, label: `${P.key} (${mine.length} stories)`, cost: BOOT_COST + mine.length, run: pageTask(P, mine) };
   });
-if (listing && !tasks.length) await listing.page.close();
-if (wants('first-run/survives-a-reload')) tasks.push(firstRunReload);
-if (MOBILE && wants('mobile/touch-controls')) tasks.push(touchControls);
-// Partition after adding standalone checks so they run exactly once across the shards.
-tasks = tasks.filter((_, i) => i % shardCount === shardIndex);
+});
+if (wants('first-run/survives-a-reload')) jobs.push({ label: 'first-run/survives-a-reload', cost: 3 * BOOT_COST, run: firstRunReload });
+if (MOBILE && wants('mobile/touch-controls')) jobs.push({ label: 'mobile/touch-controls', cost: BOOT_COST, run: touchControls });
+if (shardArg) {
+  // every shard starts with a task on the page it booted to list the stories, then the rest go, dearest
+  // first, to whichever shard has the least so far: the same deal on every runner
+  const load = Array(shardCount).fill(0), take = (j, s) => { j.shard = s; load[s] += j.cost; };
+  const dearest = [...jobs].sort((a, b) => b.cost - a.cost);
+  for (let s = 0; s < shardCount; s++) { const j = dearest.find((j) => j.shard == null && j.P === PAGES[s % PAGES.length]); if (j) take(j, s); }
+  for (const j of dearest) if (j.shard == null) take(j, load.indexOf(Math.min(...load)));
+  jobs = jobs.filter((j) => j.shard === shardIndex);
+}
+const tasks = jobs.map((j) => j.run);
 if (!tasks.length) throw new Error('No story tasks selected; check the filter and --shard');
-if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${tasks.length} page tasks`);
+if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${jobs.map((j) => j.label).join(', ')}`);
 const envs = [env];
 await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, async (_, w) => {
   for (let t; (t = tasks.shift());) console.log((await t(envs[w] ||= await start())).join('\n'));

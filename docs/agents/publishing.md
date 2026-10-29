@@ -16,7 +16,7 @@ binding is deliberately not copied into previews.
    `git diff --name-only <last published commit> HEAD | grep -E '^(src|content)/|^index.html$'`
    Files left out stay as they are; a removed file needs `null`.
 3. **Publish** with `file_path: index.html`, the artifact's `url`, and `files` mapping each path to itself. `.kdl` content files need `{ "from": "content/x.kdl", "contentType": "text/plain" }`: the tool refuses an unknown extension.
-4. Add a short `label` (`vN: what changed`). The artifact's "Version N" counts publishes, not `BUILD`.
+4. Add a short `label` (`vN: what changed`). Publish from main after the "Number the build" workflow has committed the merge's number (`git pull`: the latest commit is "Number the build: vN"), so the artifact shows it. The artifact's "Version N" counts publishes, not `BUILD`.
 
 ## Leaderboard
 

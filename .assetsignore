@@ -7,6 +7,7 @@ wrangler.jsonc
 worker
 tests
 tools
+changes
 node_modules
 CLAUDE.md
 README.md
