@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { CONTENT } from '../content.js';
 import { sfx } from '../sfx.js';
 import { FLOOR_STEP } from '../encore-floor.js';
+import { TRACKS } from '../song-track.js';
 import { G, act4, encoreFight, everyAttack, fresh, ok, record, step, stub } from './kit.js';
 
 act4('the-encore-fight-starts-straight-away', {
@@ -198,26 +199,26 @@ act4('every-attack-is-listed', {
 });
 
 act4('every-attack-lands-on-the-beat', {
-  about: 'Every timed attack in the Encore fight goes off on its song\'s beat: each floor step on its third-of-a-beat (triplet) mark, each laser, disco strike, speaker wave and beetle shot (if it calls beetles) on a whole beat, within a frame. The beetles\' shots get there by stretching or cutting their charge to the nearest beat (charge-shot `beat`). The stage edge only shocks a jelly that touches it, so it has no beat.',
+  about: 'Every timed attack in the Encore fight goes off on its song\'s beat, within a frame: each floor step on its third-of-a-beat (triplet) mark, each laser, disco strike and speaker wave on a whole beat. The stage edge only shocks a jelly that touches it, so it has no beat.',
   setup() {},
   play() {
-    const B = encoreFight({ beat: 28, hurt: false }), { enemies } = G(), seen = { floor: [], laser: [], disco: [], pulse: [], beetle: [] };
-    const on = (list, obj, key) => { const real = obj[key]; stub(obj, key, function (...a) { list.push(B.beat); return real?.apply(this, a); }); };
-    on(seen.laser, sfx, 'encoreLaser'); on(seen.disco, sfx, 'encoreDisco'); on(seen.beetle, enemies, 'sparkShot');
+    const B = encoreFight({ beat: 28, hurt: false }), bpm = TRACKS.encore.bpm, seen = { floor: [], laser: [], disco: [], pulse: [] };
+    const on = (list, key) => { const real = sfx[key]; stub(sfx, key, function (...a) { list.push(B.beat); return real?.apply(this, a); }); };
+    on(seen.laser, 'encoreLaser'); on(seen.disco, 'encoreDisco');
     const fired = new WeakMap(), waves = new WeakSet();
     const watch = () => {
       for (const c of B.floor.casts) { if (c.fired > (fired.get(c) ?? -1)) seen.floor.push(B.beat); fired.set(c, c.fired); }
       for (const p of B.pulses.live) if (!waves.has(p)) { waves.add(p); seen.pulse.push(B.beat); }
     };
-    step(Math.round(26 * 60 * 60 / B.bpm), watch);                    // bars 7 to 13: the floor, lasers and the first beetles
-    B.clock = 124; step(Math.round(18 * 60 * 60 / B.bpm), watch);     // bars 31 to 35: the speakers and the disco ball too
+    step(Math.round(26 * 60 * 60 / bpm), watch);                    // bars 7 to 13: the floor waves and lasers
+    B.clock = 124; step(Math.round(18 * 60 * 60 / bpm), watch);     // bars 31 to 35: the speakers and the disco ball too
     // how far each went off from its mark, in beats (a frame is about 0.036 beats at 128 BPM)
-    const grid = { floor: FLOOR_STEP }, frame = B.bpm / 60 / 60, report = {}, bad = [];
+    const grid = { floor: FLOOR_STEP }, frame = bpm / 60 / 60, report = {}, bad = [];
     for (const [k, beats] of Object.entries(seen)) {
-      const g = grid[k] || 1, off = beats.map((b) => b - Math.round(b / g) * g), worst = Math.max(0, ...off.map(Math.abs));
-      report[k] = { count: beats.length, worstMs: Math.round(worst * 60000 / B.bpm) };
-      if ((!beats.length && (k !== 'beetle' || CONTENT.bosses.encore.skills.beetles)) || worst > frame * 1.05) bad.push(k);   // (no beetles to shoot if it calls none)
+      const g = grid[k] || 1, worst = Math.max(0, ...beats.map((b) => Math.abs(b - Math.round(b / g) * g)));
+      report[k] = { count: beats.length, worstMs: Math.round(worst * 60000 / bpm) };
+      if (!beats.length || worst > frame * 1.05) bad.push(k);
     }
-    return ok(!bad.length, { bad, bpm: B.bpm, report });
+    return ok(!bad.length, { bad, bpm, report });
   },
 });

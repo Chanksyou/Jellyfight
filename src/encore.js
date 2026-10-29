@@ -47,7 +47,7 @@ export class Encore {
     this.r = 0.14;
     this.dead = false; this.dying = false; this.rise = 1;
     this.state = 'set';
-    this.t = 0; this.clock = 0; this.beat = null; this.bpm = TRACKS.encore.bpm; this.tempoNow = { beat: 0, bpm: 0 };
+    this.t = 0; this.clock = 0; this.beat = null;
     this.guards = []; this.summoned = -1; this.shieldT = 0; this.flash = 0;
     this.guardT = this.def.skills.start?.guard ?? 0; this.opening = this.guardT > 0;   // its force field is up as the fight opens (bosses.kdl start `guard`)
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
@@ -180,16 +180,8 @@ export class Encore {
   beatNow(dt) {
     const b = this.song?.beat?.(dt);
     if (b === null) return null;                                    // the song is loading: hold
-    if (b !== undefined) { this.bpm = this.song.bpm?.() || this.bpm; return b; }
-    this.bpm = TRACKS.encore.bpm;
-    return (this.clock += dt * this.bpm / 60);
-  }
-  // the beat its bugs keep while its set plays (run.js hands it to enemies.js: a word with `beat`
-  // lands its attack on it), else null
-  get tempo() {
-    if (!this.set || this.cut || this.dead || this.beat === null) return null;
-    this.tempoNow.beat = this.beat; this.tempoNow.bpm = this.bpm;
-    return this.tempoNow;
+    if (b !== undefined) return b;
+    return (this.clock += dt * TRACKS.encore.bpm / 60);
   }
 
   // At bar 8 and every 16 bars after: beetles on the open floor (bosses.kdl `count`, 2), and the force field while they live

@@ -1107,7 +1107,6 @@ export class Enemies {
       const c = this._c;
       c.dt = dt; c.t = t; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
-      c.beat = this.tempo?.beat ?? null; c.bpm = this.tempo?.bpm ?? 0;   // the boss's song (run.js), or null
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
       c.flatDir.normalize();
