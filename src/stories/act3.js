@@ -25,7 +25,8 @@ act3('carries-the-run', {
 });
 act3('night-dragonflies-mantises-then-nests', {
   about: 'The act 3 night: dragonflies from the start, praying mantises from 0:45, and from 1:30 two wasp nests at two of the spots the act lists (none before). Only act 3\'s Bugs come.',
-  setup() { fresh({ waves: true, elites: false }); },
+  // on the open floor at the act's start: a mantis walks, so it only spawns on floor level with the jelly
+  setup() { fresh({ waves: true, elites: false }); tp(1.0, 0.05, 8.85, 0); },
   play() {
     const { run, enemies } = G();
     const pool = new Set(CONTENT.waves.bugs.filter((b) => b.act === 3).map((b) => b.id));
