@@ -4,6 +4,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+v310 makes the bathtub 1.6 times as wide for the Clog fight, so the fight has room to move: inside it runs about 1 m front to back instead of 62 cm (the length is unchanged). Only for the fight: exploring act 2 the bathroom is as it was. Under the fade into the fight the tub grows out into the room from the back wall and what stood in front of it moves out of its way (the laundry shelf and everything on it, its drawstring bag, the bath mat, the shower curtain, the step stool a little), and the bathroom door goes (it would stand in the wider tub); a new run puts it all back. The drain, the spout and the fittings on the end wall sit in the middle of the wider tub; the Clog's attacks keep their sizes, and its comb lanes, the acid and the ducks spread across the whole tub. A stage's boss can now rearrange its room for the fight (`boss.set` in its stage file, src/boss-set.js).
+
 v309 brings the default phone camera closer: 0.7 metres from the jelly, down from 0.9. Desktop still starts at 0.9 metres, and the shark fight keeps its separate phone view at 0.85 metres.
 
 v308 makes the shower curtain and the open bathroom door see-through during the Clog fight. Both stand round the tub and could hide the fight: the camera only fades what's between it and the jelly, and you can pass through the curtain, so it never faded at all. Now both go faint (15% solid) when the Clog rises and come back solid on a new run. Tune it with --boss-see-through in content/look.css; a stage's boss `seeThrough` lists what goes faint (the camera keeps them faint: camera.js `keepFaint`).

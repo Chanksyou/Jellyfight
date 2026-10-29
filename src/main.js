@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v309';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v310';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -185,7 +185,11 @@ const world = new World(scene, { staticScene: true });
 // the arena's invisible solids (its continuous floor, the jump-safe rails, the Encore's stage) collide
 if (ARENA) for (const m of ARENA.solids) if (m.userData.noCollide) world.addCollider(m, false);
 addStageWalls(world, stage, scene);
-if (stage.details === 'bathroom') addBathroomDetails(scene);   // after the collision world: decoration only
+if (stage.details === 'bathroom') {   // after the collision world: decoration only
+  addBathroomDetails(scene);
+  const wide = stage.boss.set?.stretch?.[0]?.z[1];
+  if (wide) addBathroomDetails(scene, wide).visible = false;   // the widened tub's, shown for the fight (boss-set.js)
+}
 // Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
 // purely to show up for the boss finish (see the scene below), then he's
 // gone again. Both boss stages get one; a stage with no boss needs none.
