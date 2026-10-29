@@ -37,7 +37,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v311';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v314';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -717,6 +717,7 @@ addEventListener('keydown', (e) => {
 // thing first appears. With the apartment's many lights these programs are big, and building
 // several mid-game stalled phones for long enough that the browser reset the GPU.
 const playBtn = overlay.querySelector('.play');
+let warming = true;   // no frames drawn meanwhile: a frame would build every program it sees at once
 async function warmUp() {
   playBtn.disabled = true;
   playBtn.textContent = 'Loading…';
@@ -769,7 +770,8 @@ async function warmUp() {
   const seeThrough = tpc.seeThroughWarmers(null, (stage.boss.seeThrough || []).flatMap((n) => meshesNamed(scene, n)));
   seeThrough.forEach((m) => scene.add(m));
   try {
-    await renderer.compileAsync(scene, camera);
+    await prepareGraphics((f) => JF_LOAD.step(0.65 + 0.3 * f, 'Preparing the graphics…'));
+    await JF_LOAD.step(0.97, 'Almost ready…');
     uploadAll(true);
   } catch (e) {
     reportError(e, 'preparing graphics');
@@ -796,6 +798,26 @@ async function warmUp() {
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
   playBtn.disabled = false;
   playBtn.textContent = 'Play';
+  warming = false;
+}
+
+// renderer.compileAsync, a few programs at a time: the GPU builds them all in the background, and
+// each is waited for in turn (getUniforms waits for its build), handing the page back every 40 ms
+// so the loading screen moves and says how far along it is. Where the browser lacks
+// KHR_parallel_shader_compile that wait is the build itself, which compileAsync would leave to the
+// first frame, all at once.
+async function prepareGraphics(progress) {
+  const waiting = [...renderer.compile(scene, camera)], total = waiting.length || 1;
+  while (waiting.length) {
+    const until = performance.now() + 40;
+    while (waiting.length && performance.now() < until) {
+      const program = renderer.properties.get(waiting[0]).currentProgram;
+      if (program && !program.isReady()) break;   // still building: look again next time
+      program?.getUniforms();
+      waiting.shift();
+    }
+    await progress(1 - waiting.length / total);
+  }
 }
 
 // Put every texture and mesh on the GPU now. Otherwise each goes up the first time it comes into
@@ -851,7 +873,7 @@ function endContinue() {
 }
 // Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
-warmUp().then(() => {
+export const ready = warmUp().then(() => {
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
   const then = pendingAction();
   if (then?.continue && continuing) {
@@ -906,6 +928,7 @@ let lastFrame = 0;
 // One animation frame. The governor's pixel-ratio change goes in before the frame is drawn:
 // resizing the canvas clears it, so a change made after drawing showed as a whole black frame.
 GAME.frame = (now) => {
+  if (warming) return;
   const covered = !overlay.hidden || menus.open || kit.open;
   if (!pacer.due(now, covered)) return;
   const ms = now - lastFrame;

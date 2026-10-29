@@ -32,7 +32,7 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
   const todo = parts.filter((p) => !apt.loaded.has(p)), added = [], meta = apt.meta;
   for (let n = 0; n < todo.length; n++) {
     const part = todo[n];
-    const buffer = await fetchModel(`assets/apartment-${part}${decoder ? '' : '-q'}.glb`, (f) => onProgress?.((n + f) / todo.length));
+    const buffer = await fetchModel(`assets/apartment-${part}${decoder ? '' : '-q'}.glb`, (f) => onProgress?.((n + f) / todo.length), !!decoder);
     const loader = new GLTFLoader();
     if (decoder) loader.setMeshoptDecoder(decoder);
     // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
@@ -158,9 +158,22 @@ function findDoors(apt, objects) {
   });
 }
 
-// Downloads the model with progress. Some hosts (claude.ai artifacts) don't serve .glb files,
-// so a base64 text copy next to it (<name>.b64.txt) is used when the .glb isn't there.
-async function fetchModel(file, onProgress) {
+// Downloads the model with progress. Its gzipped copy (<name>.gz, tools/split.mjs) comes first:
+// about half the size, and hosts don't compress .glb themselves (Cloudflare doesn't). Some hosts
+// (claude.ai artifacts) don't serve .glb files, so a base64 text copy next to it (<name>.b64.txt)
+// is used when the .glb isn't there.
+async function fetchModel(file, onProgress, gz) {
+  if (gz && typeof DecompressionStream === 'function') {
+    try {
+      const res = await fetch(file + '.gz');
+      if (res.ok) {
+        const bytes = await readAll(res, onProgress);
+        // a host that sends it with Content-Encoding: gzip has already unpacked it
+        if (String.fromCharCode(...bytes.subarray(0, 4)) === 'glTF') return bytes.buffer;
+        return await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+      }
+    } catch {}   // not there, or not readable: the plain file
+  }
   const res = await fetch(file);
   if (res.ok) return new Uint8Array(await readAll(res, onProgress)).buffer;
   const alt = await fetch(file + '.b64.txt');
