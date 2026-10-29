@@ -2,12 +2,13 @@
 
 import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
-phone('camera-starts-fully-zoomed-out', {
-  about: 'Phones start at the same fully zoomed-out 0.9 m camera distance as desktop.',
+phone('camera-starts-at-0-7-metres', {
+  about: 'Phones start at 0.7 m; desktop still starts at 0.9 m and the outer zoom limit stays 0.9 m.',
   setup() { fresh({ elites: false }); },
   play() {
     const { tpc } = G();
-    return ok(tpc.distance === 0.9 && tpc.distance === tpc.cfg.maxDistance, { distance: tpc.distance });
+    step(1);
+    return ok(tpc.distance === 0.7 && tpc.currentDistance === 0.7 && tpc.cfg.distance === 0.9 && tpc.cfg.maxDistance === 0.9, { distance: tpc.distance, rendered: tpc.currentDistance, desktop: tpc.cfg.distance, max: tpc.cfg.maxDistance });
   },
 });
 
