@@ -254,8 +254,8 @@ const solidity = (name) => {
   G().run.scene.traverse((o) => { if (o.name === name && o.visible) o.traverse((m) => { if (m.isMesh && m.visible) out.push(+[].concat(m.material)[0].opacity.toFixed(2)); }); });
   return out;
 };
-act2('clog-curtain-and-door-are-see-through-in-the-fight', {
-  about: 'The shower curtain over the tub and the open bathroom door beside it could hide the Clog fight from the camera, so during the fight both go faint (15% solid): still there, never blocking the view. A new run puts them back solid.',
+act2('clog-curtain-is-see-through-and-door-gone-in-the-fight', {
+  about: 'The shower curtain in front of the tub could hide the Clog fight from the camera, so during the fight it goes faint (15% solid): still there, never blocking the view. The bathroom door, which would stand in the widened tub, is gone for the fight. A new run puts both back solid.',
   setup() {},
   play() {
     const look = () => ({ curtain: solidity('Shower_curtain'), door: solidity('door-bath') });
@@ -268,7 +268,36 @@ act2('clog-curtain-and-door-are-see-through-in-the-fight', {
     const after = look();
     const solid = (a) => a.length > 0 && a.every((o) => o === 1);
     const faint = (a) => a.length > 0 && a.every((o) => o > 0 && o <= 0.2);
-    return ok(solid(before.curtain) && solid(before.door) && faint(during.curtain) && faint(during.door) && solid(after.curtain) && solid(after.door), { before, during, after });
+    return ok(solid(before.curtain) && solid(before.door) && faint(during.curtain) && during.door.length === 0 && solid(after.curtain) && solid(after.door), { before, during, after });
+  },
+});
+// the tub as the jelly finds it: how deep the arena is, and the floor heights at x across the tub's
+// front (z0 its front edge inside): inside it, on its front rim, and (`clear`) just in front of it,
+// the room's floor (the real tub has the open door and the laundry shelf there)
+function tubShape(z0, z1, mid, clear = true) {
+  const { world } = G();
+  const floorAt = (x, z) => +(world.cast(V(x, 1.2, z), V(0, -1, 0), 2)?.point.y ?? -1).toFixed(3);
+  const out = { depth: +(z1 - z0).toFixed(2), inside: [], rim: [], before: [] };
+  for (const x of [0.6, 0.9, 1.2, 1.45]) {
+    out.inside.push(floorAt(x, z0 + 0.03), floorAt(x, mid), floorAt(x, z1 - 0.03));
+    out.rim.push(floorAt(x, z0 - 0.06));
+    out.before.push(floorAt(x, z0 - 0.15));
+  }
+  for (const x of [0.2, 0.4]) out.before.push(floorAt(x, z0 - 0.15));   // where the laundry shelf and its bag stand
+  out.ok = out.inside.every((y) => y > 0.13 && y < 0.16) && out.rim.every((y) => y > 0.5 && y < 0.6) && (!clear || out.before.every((y) => y >= 0 && y < 0.03));
+  return out;
+}
+act2('tub-widens-for-the-fight', {
+  about: 'Exploring act 2 the bathtub is the real one (62 cm across inside). For the Clog fight it is 1.6 times as wide, so the fight has room to move: its floor runs right out to the arena\'s front, behind a rim, with nothing (the door, the laundry shelf) standing in front of it. A new run puts the real tub back.',
+  setup() {},
+  play() {
+    fresh();
+    const real = tubShape(7.22, 7.82, 7.53, false);
+    const B = clogFight(), A = G().run.stage.boss;
+    const fight = tubShape(A.arenaMin[2], A.arenaMax[2], B.drain.z);
+    fresh();
+    const after = tubShape(7.22, 7.82, 7.53, false);
+    return ok(real.ok && fight.ok && fight.depth >= 0.95 && after.ok, { real, fight, after });
   },
 });
 act2('clog-lash', {

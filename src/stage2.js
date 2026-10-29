@@ -7,7 +7,8 @@
 // Rough layout (x runs west to east, z from the living room toward the bedroom):
 //   hallway x 1.76-3.59, z 4.85-9.0 (its west wall steps in to x 2.52 by the coat closet, z < 6.03)
 //   bathroom x 0.06-1.6, z 5.08-7.9: vanity and sink at the north end (z 5.3-5.7), the toilet
-//     by the west wall (x 0.5, z 5.6), the tub along the south wall (z 7.22-7.84)
+//     by the west wall (x 0.5, z 5.6), the tub along the south wall (z 7.22-7.84; 6.81-7.78 for the
+//     Clog fight, when it's 1.6 times as wide: boss.set below)
 //   laundry closet x 3.59-4.48, z 4.89-5.81 (off the hall's east wall), coat closet x 1.6-2.52,
 //     z 4.85-6.03 (off its west wall): both doors left ajar to peek in, but walled off
 //   sideboard on the hall's east wall (x 3.27, z 6.3-7.1, top 0.8), bench on its west (x 2.08, z 7.4)
@@ -64,7 +65,7 @@ export const STAGE2 = {
 
   // Fabric you can climb: hold jump inside the box
   climbs: [
-    { name: 'Drawstring bag', min: [0.2, 0, 7.0], max: [0.42, 0.83, 7.2] },
+    { name: 'Drawstring bag', min: [0.2, 0, 7.0], max: [0.42, 0.83, 7.2], boss: false },   // it moves out of the widened tub
     { name: 'Shower curtain', min: [0.12, 0, 6.99], max: [0.8, 0.62, 7.27], boss: false },   // the open bathroom door covers the rest of the tub
   ],
 
@@ -105,10 +106,24 @@ export const STAGE2 = {
     name: 'The Clog',
     kind: 'hair',
     intro: 'The Clog rises from the drain!',
-    arenaMin: [0.14, 0.15, 7.22],
-    arenaMax: [1.5, 0.6, 7.84],
-    playerStart: [1.2, 0.15, 7.53],
-    drain: [0.3, 0.15, 7.53],
-    seeThrough: ['Shower curtain', 'door-bath'],   // the curtain over the tub and the open door beside it: faint during the fight so they never block the camera
+    arenaMin: [0.14, 0.15, 6.81],
+    arenaMax: [1.5, 0.6, 7.78],
+    playerStart: [1.2, 0.15, 7.3],
+    drain: [0.3, 0.15, 7.3],           // in the middle of the widened tub's end, under the spout (bathroom.js)
+    seeThrough: ['Shower curtain'],    // the curtain in front of the tub: faint during the fight so it never blocks the camera
+    // for the fight only (boss-set.js: under the fade in, put back for the next run): the tub 1.6 times
+    // as wide, out from the back wall (and the tile over its end), so the fight has room; what stood
+    // in front of it moves out of its way, the door (it would stand in the wider tub) and the old
+    // curtain rod (the dressed curtain has its own) go, and the tub's dressing swaps for the wide one
+    set: {
+      stretch: [{ name: 'Bathtub', z: [7.901, 1.6] }, { name: 'Shell_110', z: [7.901, 1.6] }],
+      move: {
+        'Laundry shelf': [0, 0, -0.43], 'Bottle sterilizer': [0, 0, -0.43], 'Washcloths': [0, 0, -0.43], 'Leaf dish': [0, 0, -0.43],
+        'Mouthwash': [0, 0, -0.43], 'Jar in a bowl': [0, 0, -0.43], 'Gold ring': [0, 0, -0.43], 'Drawstring bag': [0, 0, -0.48],
+        'Bath mat': [0, 0, -0.405], 'Shower curtain': [0, 0, -0.453], 'Step stool': [0.12, 0, 0],
+      },
+      hide: ['door-bath', 'Shell_113', 'Bathroom details'],
+      show: ['Bathroom details, widened'],
+    },
   },
 };

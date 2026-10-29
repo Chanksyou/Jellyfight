@@ -24,6 +24,7 @@ import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
 import { meshesNamed } from './traversal.js';
+import { BossSet } from './boss-set.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
@@ -102,6 +103,8 @@ export class Run {
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
     this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)
+    // the room rearranged for the fight (boss-set.js: act 2's widened tub)
+    this.bossSet = new BossSet(ctx.scene, ctx.world, ctx.stage.boss.set);
     // low invisible walls around the boss arena, solid only during the fight
     this.bossWalls = (ctx.stage.boss.walls || []).map((w) => {
       const size = w.max.map((v, i) => v - w.min[i]);
@@ -218,6 +221,7 @@ export class Run {
     this.boss = null;
     this.traversal.bossMode = false;
     this.bossWalls.forEach((m) => { m.visible = false; if (m.userData.field) showForceField(m.userData.field, false); });
+    this.bossSet.apply(false);
     this.hud.setBoss(null);
     this.hud.setElite(null);
     this.hud.resetHealth(); this.healthPulse = false;
@@ -1111,6 +1115,7 @@ export class Run {
       const B = this.stage.boss;
       this.enemies.clear();
       this.traversal.bossMode = true;
+      this.bossSet.apply(true);
       // what stands round the arena and would hide the fight (the Clog's shower curtain and door) goes faint
       this.tpc.keepFaint((B.seeThrough || []).flatMap((n) => meshesNamed(this.scene, n)), LOOK.num('boss-see-through', 0.15));
       this.elites.clear();

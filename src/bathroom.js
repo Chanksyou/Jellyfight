@@ -7,7 +7,9 @@
 // Decoration only: none of it collides. Added by main.js when the stage asks for it.
 //
 // Tub (world meters): inside floor y 0.15, rim y 0.55; the end wall (with the drain below it) at
-// x 0.057, the back wall at z 7.901; the tub runs x 0.06-1.62, z 7.15-7.89.
+// x 0.057, the back wall at z 7.901; the tub runs x 0.06-1.62, out from the back wall to its front
+// rim at z 7.145. For the Clog fight it's `stretch` times as deep (stage2.js boss.set), so a second
+// dressing is built for that (hidden till the fight); the end-wall fittings centre on its drain.
 import * as THREE from 'three';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -35,9 +37,12 @@ const tileTex = (rx, ry) => tex(256, 256, (g, w, h) => {
   }
 }, rx, ry);
 
-export function addBathroomDetails(scene) {
+export function addBathroomDetails(scene, stretch = 1) {
+  // the tub's front rim and its middle (the drain's line), out from the back wall, and how far the
+  // fittings sit from where they were placed on the real tub
+  const front = 7.901 - 0.756 * stretch, mid = 7.901 - 0.371 * stretch, dz = mid - 7.53, df = front - 7.145, W = 7.901 - front;
   const g = new THREE.Group();
-  g.name = 'Bathroom details';
+  g.name = stretch === 1 ? 'Bathroom details' : 'Bathroom details, widened';
   const add = (geo, mat, at, rot) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); if (rot) m.rotation.set(...rot); g.add(m); return m; };
   const steel = new THREE.MeshStandardMaterial({ color: 0xe4e6ea, metalness: 0.45, roughness: 0.3, emissive: 0x3a3c40, emissiveIntensity: 0.4 });   // brushed steel: kept bright in the dark room
   const black = new THREE.MeshStandardMaterial({ color: 0x141416, metalness: 0.4, roughness: 0.4 });
@@ -46,7 +51,7 @@ export function addBathroomDetails(scene) {
   // --- tile on the walls round the tub (just off the wall so it doesn't flicker)
   const tile = (w, h) => new THREE.MeshStandardMaterial({ map: tileTex(w / 0.3, h / 0.075 / 8), roughness: 0.25, emissive: 0xfff4e6, emissiveIntensity: 0.16 });   // glazed white tile still reads white at night
   add(new THREE.PlaneGeometry(1.56, 1.9), tile(1.56, 1.9), V(0.84, 0.55 + 0.95, 7.899), [0, Math.PI, 0]);             // back wall
-  add(new THREE.PlaneGeometry(0.74, 1.9), tile(0.74, 1.9), V(0.059, 0.55 + 0.95, 7.525), [0, Math.PI / 2, 0]);        // end wall
+  add(new THREE.PlaneGeometry(W, 1.9), tile(W, 1.9), V(0.059, 0.55 + 0.95, (front + 7.901) / 2), [0, Math.PI / 2, 0]);   // end wall
 
   // --- the non-slip mat: pink and white stripes, with the drain cut-out circle near its end
   const mat = tex(512, 256, (c, w, h) => {
@@ -54,35 +59,35 @@ export function addBathroomDetails(scene) {
     for (let k = 0; k < 40; k++) { c.fillStyle = k % 2 ? 'rgba(255,255,255,.95)' : `rgba(${226 + Math.random() * 14},${180 + Math.random() * 20},${200 + Math.random() * 16},.92)`; c.fillRect(k * w / 40, 0, w / 40, h); }
     c.fillStyle = 'rgba(255,255,255,.95)'; for (const y of [0.33, 0.66]) c.fillRect(0, y * h, w, 3);
   });
-  add(new THREE.PlaneGeometry(0.8, 0.42).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: mat, transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }), V(0.86, 0.1515, 7.53));
+  add(new THREE.PlaneGeometry(0.8, 0.42 * (7.901 - front) / 0.756).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: mat, transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }), V(0.86, 0.1515, mid));
   // the drain stopper: a domed brushed-steel cap
-  add(new THREE.SphereGeometry(0.03, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.3, 1), steel, V(0.3, 0.1505, 7.53));
-  add(new THREE.RingGeometry(0.03, 0.045, 32).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.4 }), V(0.3, 0.1508, 7.53));
+  add(new THREE.SphereGeometry(0.03, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.3, 1), steel, V(0.3, 0.1505, mid));
+  add(new THREE.RingGeometry(0.03, 0.045, 32).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.4 }), V(0.3, 0.1508, mid));
 
   // --- fittings on the end wall (x 0.057), facing +x
   const onWall = (m) => { m.rotation.z = -Math.PI / 2; return m; };                                 // cylinders out of the wall
   // the spout, sticking out over the drain
-  add(new THREE.CylinderGeometry(0.03, 0.03, 0.008, 24), steel, V(0.061, 0.64, 7.48), [0, 0, -Math.PI / 2]);
-  const spout = add(new THREE.CylinderGeometry(0.013, 0.013, 0.17, 20), steel, V(0.14, 0.64, 7.48));
+  add(new THREE.CylinderGeometry(0.03, 0.03, 0.008, 24), steel, V(0.061, 0.64, 7.48 + dz), [0, 0, -Math.PI / 2]);
+  const spout = add(new THREE.CylinderGeometry(0.013, 0.013, 0.17, 20), steel, V(0.14, 0.64, 7.48 + dz));
   onWall(spout);
-  add(new THREE.CircleGeometry(0.012, 16), new THREE.MeshBasicMaterial({ color: 0x202020 }), V(0.226, 0.633, 7.48), [Math.PI / 2, 0, 0]);   // its mouth
+  add(new THREE.CircleGeometry(0.012, 16), new THREE.MeshBasicMaterial({ color: 0x202020 }), V(0.226, 0.633, 7.48 + dz), [Math.PI / 2, 0, 0]);   // its mouth
   // the thermostat: a round plate with two knobs
-  add(new THREE.CylinderGeometry(0.085, 0.085, 0.006, 40), steel, V(0.06, 0.7, 7.72), [0, 0, -Math.PI / 2]);
-  for (const [y, z] of [[0.735, 7.715], [0.66, 7.73]]) {
+  add(new THREE.CylinderGeometry(0.085, 0.085, 0.006, 40), steel, V(0.06, 0.7, 7.72 + dz), [0, 0, -Math.PI / 2]);
+  for (const [y, z] of [[0.735, 7.715 + dz], [0.66, 7.73 + dz]]) {
     add(new THREE.CylinderGeometry(0.018, 0.018, 0.05, 20), steel, V(0.088, y, z), [0, 0, -Math.PI / 2]);
     add(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 20), steel, V(0.115, y, z), [0, 0, -Math.PI / 2]);
   }
   // the slide rail with its two wall brackets, the hand shower parked in it, the outlet and hose
-  add(new THREE.CylinderGeometry(0.0085, 0.0085, 0.7, 16), steel, V(0.1, 1.38, 7.56));
+  add(new THREE.CylinderGeometry(0.0085, 0.0085, 0.7, 16), steel, V(0.1, 1.38, 7.56 + dz));
   for (const y of [1.08, 1.68]) { add(new THREE.CylinderGeometry(0.028, 0.028, 0.006, 24), steel, V(0.06, y, 7.56), [0, 0, -Math.PI / 2]); add(new THREE.CylinderGeometry(0.006, 0.006, 0.04, 8), steel, V(0.08, y, 7.56), [0, 0, -Math.PI / 2]); }
-  add(new THREE.CylinderGeometry(0.016, 0.016, 0.03, 16), steel, V(0.1, 1.52, 7.56));               // the slider
-  add(new THREE.CylinderGeometry(0.012, 0.011, 0.24, 16), steel, V(0.1, 1.64, 7.505));              // the hand shower
-  add(new THREE.CylinderGeometry(0.022, 0.022, 0.006, 24), steel, V(0.06, 1.3, 7.4), [0, 0, -Math.PI / 2]);   // the hose outlet
-  const hose = new THREE.CatmullRomCurve3([V(0.08, 1.3, 7.4), V(0.12, 1.1, 7.38), V(0.16, 0.88, 7.46), V(0.14, 0.9, 7.52), V(0.11, 1.2, 7.52), V(0.1, 1.52, 7.505)]);
+  add(new THREE.CylinderGeometry(0.016, 0.016, 0.03, 16), steel, V(0.1, 1.52, 7.56 + dz));               // the slider
+  add(new THREE.CylinderGeometry(0.012, 0.011, 0.24, 16), steel, V(0.1, 1.64, 7.505 + dz));              // the hand shower
+  add(new THREE.CylinderGeometry(0.022, 0.022, 0.006, 24), steel, V(0.06, 1.3, 7.4 + dz), [0, 0, -Math.PI / 2]);   // the hose outlet
+  const hose = new THREE.CatmullRomCurve3([V(0.08, 1.3, 7.4 + dz), V(0.12, 1.1, 7.38 + dz), V(0.16, 0.88, 7.46 + dz), V(0.14, 0.9, 7.52 + dz), V(0.11, 1.2, 7.52 + dz), V(0.1, 1.52, 7.505 + dz)]);
   add(new THREE.TubeGeometry(hose, 60, 0.0055, 6), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, metalness: 0.85, roughness: 0.35 }));
   // the overflow plate on the tub's inside end, and the grey hose from it over the front rim
-  add(new THREE.CylinderGeometry(0.032, 0.032, 0.006, 32), steel, V(0.13, 0.43, 7.5), [0, 0, -Math.PI / 2 + 0.35]);
-  const grey = new THREE.CatmullRomCurve3([V(0.14, 0.43, 7.5), V(0.2, 0.47, 7.35), V(0.32, 0.555, 7.2), V(0.6, 0.57, 7.17), V(0.9, 0.53, 7.1), V(1.0, 0.3, 7.05)]);
+  add(new THREE.CylinderGeometry(0.032, 0.032, 0.006, 32), steel, V(0.13, 0.43, 7.5 + dz), [0, 0, -Math.PI / 2 + 0.35]);
+  const grey = new THREE.CatmullRomCurve3([V(0.14, 0.43, 7.5 + dz), V(0.2, 0.47, 7.35 + df), V(0.32, 0.555, 7.2 + df), V(0.6, 0.57, 7.17 + df), V(0.9, 0.53, 7.1 + df), V(1.0, 0.3, 7.05 + df)]);
   add(new THREE.TubeGeometry(grey, 50, 0.007, 6), new THREE.MeshStandardMaterial({ color: 0xc8cacc, roughness: 0.6 }));
 
   // --- on the rim: the smiley scrub sponge, and the two Pantene bottles
@@ -113,7 +118,7 @@ export function addBathroomDetails(scene) {
     c.fillStyle = '#5a4020'; c.font = 'bold 18px Georgia'; c.textAlign = 'center'; c.fillText('PANTENE', w / 2, h * 0.42);
     c.font = 'bold 40px Georgia'; c.fillStyle = '#c8962a'; c.fillText('10', w / 2, h * 0.58);
   }).rotation.y = -2.3;
-  bottle(V(1.55, 0.55, 7.2), 0xf8f0ea, 0xffffff, (c, w, h) => {                                         // Pantene: pink roses
+  bottle(V(1.55, 0.55, 7.2 + df), 0xf8f0ea, 0xffffff, (c, w, h) => {                                         // Pantene: pink roses
     c.fillStyle = '#fbf3ec'; c.fillRect(0, 0, w, h);
     for (let k = 0; k < 26; k++) { c.fillStyle = ['#f06a7a', '#f8a07a', '#ffd08a', '#e84a5a'][k % 4]; c.beginPath(); c.arc(Math.random() * w, h * 0.35 + Math.random() * h * 0.6, 8 + Math.random() * 12, 0, 7); c.fill(); }
     c.fillStyle = '#7a3a2a'; c.font = 'bold 18px Georgia'; c.textAlign = 'center'; c.fillText('PANTENE', w / 2, h * 0.3);

@@ -363,7 +363,7 @@ export class Clog {
     this.acidFloor.visible = false;
     scene.add(this.acidFloor);
     this.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 1, 12, 1, true).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: ACID, transparent: true, opacity: 0.9, roughness: 0.15, emissive: GLOW, emissiveIntensity: 0.9, depthWrite: false }));
-    this.stream.position.set(0.226, this.floor, 7.48);
+    this.stream.position.set(0.226, this.floor, this.drain.z - 0.05);   // from the spout, just behind the drain (bathroom.js)
     this.stream.visible = false;
     scene.add(this.stream);
     // the whirlpool: a shallow funnel of goo whose scum streaks spiral in, faster toward its dark eye
