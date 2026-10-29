@@ -368,7 +368,7 @@ like any act. `boot.js` builds the arena (`act4-arena.js`) instead of loading ap
 - **The force field.** As the fight opens (bosses.kdl `start guard`) and while it reboots after the
   meltdown (`meltdown guard`), a bright blue hex shell (`vfx.js` `VolumeMaterial`, `--encore-shield-*`)
   covers the whole booth, sized from the booth's collider with room to spare, and hits bounce off
-  ("SHIELDED"). It calls no bugs: the stag beetle phases (bar 8, every 16 bars) were removed in v320.
+  ("SHIELDED"). It calls no bugs: the stag beetle phases (bar 8, every 16 bars) were removed in v323.
 - **Winning.** At 0 Health the set stops. There is no cat finish here. After one
   more metamorphosis the run ends as a win with the stage's `won` line.
 
