@@ -94,14 +94,14 @@ act2('camera-sees-through-the-sideboard', {
     const { tpc, APT } = G();
     // compile() builds hidden objects too (the layout editor's selection box, once it's been opened),
     // so build what's already in the scene first and count only what seeing through the sideboard needs
-    APT.renderer.compile(APT.scene, APT.camera);
+    G().GAME.compile();
     const programs = APT.renderer.info.programs.length;
     const parts = new Set(), flutes = [];
     APT.scene.getObjectByName('Fluted_sideboard').traverse((o) => { if (!o.isMesh) return; parts.add(o); if (o.isInstancedMesh) flutes.push(o); });
     let through = 0, missed = 0;
     for (const [x, y, z] of [[2.95, 0.05, 6.4], [2.95, 0.05, 6.75], [2.95, 0.05, 7.05], [3.27, 0.85, 6.8]]) {
       for (let k = 0; k < 16; k++) {
-        tp(x, y, z, (k * Math.PI) / 8); step(20); G().batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+        tp(x, y, z, (k * Math.PI) / 8); step(20); G().batcher.sync(); G().GAME.compile();
         if (![...tpc.over].some((m) => parts.has(m))) continue;
         through++;
         if (!flutes.every((m) => tpc.over.has(m))) missed++;
@@ -258,13 +258,13 @@ act2('soap-attacks-build-no-shader', {
     const b = firstGlob(), to = b.to.clone();
     step(5);
     const w = warningsAt(to);
-    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    batcher.sync(); G().GAME.compile();
     step(200, () => e.state === 'idle');
     e.next = 1; e.cool = 0;
     step(400, () => e.state === 'windup' && e.tele.length > 0);   // the ring's Warning shown
-    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    batcher.sync(); G().GAME.compile();
     step(400, () => run.elites.soapBubbles.length > 0);            // and its bubbles
-    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    batcher.sync(); G().GAME.compile();
     const newShaders = APT.renderer.info.programs.length - programs;
     return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
   },
@@ -501,7 +501,7 @@ for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
       step(200, () => clockWarning(e).floor.length);
       step(5);
       const w = clockWarning(e);
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       const shown = atk === 1 ? w.floor.length >= 2 : w.floor.length && w.volume.length;
       return ok(!!shown && newShaders === 0, { newShaders, floor: w.floor.length, volume: w.volume.length });

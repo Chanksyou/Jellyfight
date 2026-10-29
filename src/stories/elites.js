@@ -117,7 +117,7 @@ story('elites/mug-coffee-builds-no-shader', {
     const b = firstCoffee(), to = b.to.clone();
     step(10);
     const w = warningsAt(to);
-    batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+    batcher.sync(); G().GAME.compile();
     const newShaders = APT.renderer.info.programs.length - programs;
     return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
   },
@@ -257,8 +257,8 @@ for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
       const { run, APT, batcher } = G(), e = run.elites.list.find((x) => x.kind === 'controller'), programs = APT.renderer.info.programs.length;
       step(400, () => e.state === 'windup' && e.stateT > 0.5);
       const shown = e.tele.length;
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
-      if (atk === 0) { step(120, () => run.elites.controllerPulses.length > 0); batcher.sync(); APT.renderer.compile(APT.scene, APT.camera); }
+      batcher.sync(); G().GAME.compile();
+      if (atk === 0) { step(120, () => run.elites.controllerPulses.length > 0); batcher.sync(); G().GAME.compile(); }
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown > 0 && newShaders === 0, { shown, newShaders });
     },
@@ -446,7 +446,7 @@ for (const [atk, name] of [[0, 'steam'], [1, 'boil-over']]) {
       const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
       let shown;
       if (atk === 0) { steamStarted(); step(5); shown = steamWarning(); } else { const b = firstDrop(); step(5); shown = warningsAt(b.to); }
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown.floor && shown.volume && newShaders === 0, { newShaders, volume: !!shown.volume });
     },
@@ -466,7 +466,7 @@ story('elites/controller-overlapping-shapes-hit-once', {
 });
 story('phone/controller-shapes-on-low', {
   phone: true,
-  about: 'Low graphics and Reduce Effects keep all four floor symbols and matching prisms readable, without new shaders during charging or detonation.',
+  about: 'On a phone, Reduce Effects keeps all four floor symbols and matching prisms readable, without new shaders during charging or detonation.',
   setup() { startController(0); },
   play() {
     const {run,APT,batcher}=G(), e=run.elites.list.find(e=>e.kind==='controller'); holdJelly();
@@ -474,9 +474,9 @@ story('phone/controller-shapes-on-low', {
     try {
       juice.calm=true; step(400,()=>e.tele.length===8 && e.stateT>.5);
       const visible=e.tele.length===8 && e.tele.every(m=>m.visible && m.material.progress>0 && m.material.opacity>.5);
-      batcher.sync(); APT.renderer.compile(APT.scene,APT.camera);
+      batcher.sync(); G().GAME.compile();
       step(120,()=>run.elites.controllerPulses.length===4); e.cool=99;
-      batcher.sync(); APT.renderer.compile(APT.scene,APT.camera);
+      batcher.sync(); G().GAME.compile();
       return ok(visible && APT.renderer.info.programs.length===programs,{visible,newShaders:APT.renderer.info.programs.length-programs});
     } finally {juice.calm=calm;}
   },

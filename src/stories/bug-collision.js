@@ -168,11 +168,11 @@ story('collision/moving-collider-bounds-refresh', {
 });
 
 phone('spider-wall-retreat', {
-  about: 'On phone Low graphics, a retreating spider stays visible on the room side of its wall.',
+  about: 'On a phone, a retreating spider stays visible on the room side of its wall.',
   setup,
   play() {
-    const { limit } = room(), { gfx, GAME } = G(), e = spawn('spider', near(0.25, 0)); e.shootT = 99;
-    gfx.setTier('low'); step(180); GAME.render();
+    const { limit } = room(), { GAME } = G(), e = spawn('spider', near(0.25, 0)); e.shootT = 99;
+    step(180); GAME.render();
     return ok(e.pos.x <= limit - e.r + 0.0001, { x: e.pos.x, limit: limit - e.r });
   },
 });

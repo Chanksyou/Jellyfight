@@ -87,7 +87,7 @@ let groups = null;
 export function balanceGroups() {
   if (groups) return groups;
   const build = (nodes, compiled, kind, file, registry) => nodes.map((n, i) => ({
-    kind, id: n.args[0], file, icon: compiled?.[i]?.icon || (kind === 'boss' ? '👹' : kind === 'elite' ? '👺' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
+    kind, id: n.args[0], file, icon: compiled?.[i]?.icon || n.props.icon || (kind === 'boss' ? '👹' : kind === 'elite' ? '👺' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
     fields: entryFields(`${file} · ${n.props.name || n.args[0]}`, n, registry),
   }));
   const lu = CONTENT.nodes.levelups;

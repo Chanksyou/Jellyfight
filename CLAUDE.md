@@ -140,7 +140,7 @@ verification across all player attack families.
    numbers to make a test pass.
 6. **Look at it.** `index.html?story=<name>` opens a story live (phone or desktop);
    `index.html?stories` lists them. Screenshots of real play beat reasoning about shaders.
-7. **Phones first.** Phones start on graphics `low` (no bloom, no AO; the player can pick Medium or High),
+7. **Phones first.** Phones start on graphics `medium` (bloom and half-res AO; the player can pick Low, with no bloom or AO, or High), only the chosen tier's shaders are built at startup (`prepareGraphics` in `src/main.js`; switching tier rebuilds behind the menu),
    and the frame governor trades sharpness for smoothness (`src/pacing.js`). Never add or remove a light during play (a new light count rebuilds
    every shader and stalls a phone); a new lamp is a `userData.lamp` point light that `src/light-slots.js` shares. Keep draw
    calls low: small moving things are instanced through `src/batch.js` (`batcher.track(mesh)`);

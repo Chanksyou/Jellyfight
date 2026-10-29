@@ -423,7 +423,7 @@ for (const attack of ['charge', 'brushes', 'spin']) {
       const showing = () => (attack === 'spin' ? B.shots.length > 1 : shownWarnings().volume.length > 0);
       step(120, showing);
       const shown = showing();
-      batcher.sync(); APT.renderer.compile(APT.scene, APT.camera);
+      batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown && newShaders === 0, { shown, newShaders });
     },
