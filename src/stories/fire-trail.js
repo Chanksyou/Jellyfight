@@ -27,15 +27,15 @@ story('treasures/fire-trail', {
 });
 
 story('evolutions/cinder-exact-two-seconds', {
-  about: 'The oldest ground burns out exactly two seconds after it was walked, even while airborne. Newer sections remain; standing still never refreshes them.',
+  about: 'The oldest ground burns out exactly three seconds after it was walked, even while airborne. Newer sections remain; standing still never refreshes them.',
   setup,
   play() {
     const { run } = G(), F = run.fireTrail;
     walk(0.05, 0); const first = F.clock;
-    F.update(1); walk(0.05, 0); const second = F.clock;
+    F.update(2); walk(0.05, 0); const second = F.clock;
     F.update(0.999); F.draw(); const before = F.segments.some(s => s.time === first);
     F.update(0.001); F.draw(); const clipped = F.segments.length > 0 && F.segments.every(s => s.time === second);
-    F.update(1); F.draw(); const gone = !F.segments.length && !F.mesh.visible;
+    F.update(2); F.draw(); const gone = !F.segments.length && !F.mesh.visible;
     return ok(before && clipped && gone, { before, clipped, gone });
   },
 });
@@ -92,7 +92,7 @@ story('evolutions/cinder-overlap-and-damage', {
     F.update(0.25);
     const hits = log.filter(d => d.source === 'fire-trail' && d.targetId === e.id);
     const one = hits.length === 1 && Math.abs(hits[0].amount - expected) < 1e-9;
-    F.update(2.1); const after = log.filter(d => d.source === 'fire-trail').length;
+    F.update(3.1); const after = log.filter(d => d.source === 'fire-trail').length;
     return ok(one && after === 1 && !F.segments.length, { one, amount: hits[0]?.amount, expected, after });
   },
 });
