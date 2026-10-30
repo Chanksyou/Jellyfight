@@ -3,7 +3,7 @@
 // next to the others (1 = as likely as any; 0 = won't be offered). How an amount applies (a percent of the base
 // stat, per second, percentage points) stays with the stat's definition in stats.js.
 
-xp base=4 growth=1.4
+xp base=4 growth=1.35
 
 rarities common=65 rare=25 epic=10
 
@@ -13,7 +13,7 @@ card "bubbleDamage" common=1 rare=2 epic=3
 card "fireRate" common=12 rare=18 epic=24
 card "health" common=3 rare=5 epic=7
 card "moveSpeed" common=10 rare=15 epic=20 weight=1.2
-card "regen" common=0.2 rare=0.3 epic=0.4
+card "regen" common=0.1 rare=0.2 epic=0.3
 card "dodge" common=10 rare=13 epic=16
 card "luck" common=10 rare=18 epic=30
-card "bubbleSize" common=15 rare=20 epic=25 weight=0.8
+card "bubbleSize" common=15 rare=20 epic=25 weight=0

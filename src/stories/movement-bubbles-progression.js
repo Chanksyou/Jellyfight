@@ -283,26 +283,26 @@ story('content/levelup-and-elite-tuning', {
     const actual = {
       xp: L.xp, rarities: L.rarities,
       cards: Object.fromEntries(['health', 'fireRate', 'regen', 'dodge', 'bubbleSize'].map((id) => [id, L.cards[id].amounts])),
-      bubbles: L.cards.bubbles.weight, pace: E.pace,
+      bubbles: L.cards.bubbles.weight, bubbleSize: L.cards.bubbleSize.weight, pace: E.pace,
       aggro: ['controller', 'mug', 'kettle', 'soap', 'whipper'].map((id) => E[id].aggro),
       mug: [E.mug.skills.spill.puddles, E.mug.skills.coffee.lobs, E.mug.skills.coffee.drain],
       soap: [E.soap.skills.squirt.count, E.soap.skills.squirt.angryCount, E.soap.skills.ring.rings, E.soap.skills.ring.angryRings],
     };
     const expected = {
-      xp: { base: 4, growth: 1.4 }, rarities: { common: 65, rare: 25, epic: 10 },
-      cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.2, 0.3, 0.4], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
-      bubbles: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [9, 10, 3, 5],
+      xp: { base: 4, growth: 1.35 }, rarities: { common: 65, rare: 25, epic: 10 },
+      cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.1, 0.2, 0.3], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
+      bubbles: 0, bubbleSize: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [9, 10, 3, 5],
     };
     return ok(JSON.stringify(actual) === JSON.stringify(expected), { actual });
   },
 });
 story('progression/card-tiers', {
-  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 13 / 16%); Bubbles is no longer offered.',
+  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 13 / 16%); Bubbles and Bubble size are no longer offered.',
   setup() {},
   play() {
     const seen = {};
     for (let i = 0; i < 3000; i++) for (const c of rollCards({ bubbles: 1 }, 3)) (seen[c.stat] ||= new Set()).add(`${c.rarity.id}:${c.amount}`);
-    const bubbles = [...(seen.bubbles || [])], dodge = [...(seen.dodge || [])].sort();
+    const bubbles = [...(seen.bubbles || []), ...(seen.bubbleSize || [])], dodge = [...(seen.dodge || [])].sort();
     return ok(bubbles.length === 0 && dodge.join() === 'common:10,epic:16,rare:13', { bubbles, dodge });
   },
 });
@@ -337,7 +337,7 @@ story('progression/disabled-cards-never-offered', {
     stub(CONTENT.levelups.cards.range, 'weight', 0);
     try {
       const cards = rollCards({ bubbles: 1 }, 99, 0, 0).map((c) => c.stat);
-      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 8 && !cards.includes('bubbles') && !cards.includes('range'), { cards });
+      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 7 && !cards.includes('bubbles') && !cards.includes('bubbleSize') && !cards.includes('range'), { cards });
     } finally { restore(); }
   },
 });
@@ -368,13 +368,13 @@ story('content/every-treasure-has-a-rarity', {
   },
 });
 story('progression/regen-card-reads-every-5-seconds', {
-  about: 'The Health regen level-up card gives 0.2 / 0.3 / 0.4 Health a second (common / rare / epic) and reads as Health every 5 seconds: +1, +1.5, +2.',
+  about: 'The Health regen level-up card gives 0.1 / 0.2 / 0.3 Health a second (common / rare / epic) and reads as Health every 5 seconds: +0.5, +1, +1.5.',
   setup() {},
   play() {
     const amounts = CONTENT.levelups.cards.regen.amounts;
     const texts = amounts.map((amount) => cardText({ stat: 'regen', amount }));
-    const want = ['+1 Health every 5 seconds', '+1.5 Health every 5 seconds', '+2 Health every 5 seconds'];
-    return ok(amounts.join() === '0.2,0.3,0.4' && texts.every((t, i) => t === want[i]), { amounts, texts });
+    const want = ['+0.5 Health every 5 seconds', '+1 Health every 5 seconds', '+1.5 Health every 5 seconds'];
+    return ok(amounts.join() === '0.1,0.2,0.3' && texts.every((t, i) => t === want[i]), { amounts, texts });
   },
 });
 story('progression/regen', {
@@ -394,7 +394,7 @@ story('progression/dodge', {
   },
 });
 story('progression/level-curve', {
-  about: 'Each level needs 1.4x the XP of the last, starting at 4: four cockroaches (1 XP each) is level 2.',
+  about: 'Each level needs 1.35x the XP of the last, starting at 4: four cockroaches (1 XP each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
@@ -406,7 +406,7 @@ story('progression/level-curve', {
       tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the XP
       step(120);
     }
-    const ok1 = curve.join() === '4,6,8,11,15,22' && killed === 4 && run.level === 2 && xpToNext(run.level) === 6;
+    const ok1 = curve.join() === '4,5,7,10,13,18' && killed === 4 && run.level === 2 && xpToNext(run.level) === 5;
     return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });
