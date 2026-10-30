@@ -2,6 +2,8 @@
 
 Release notes for Jelly Fight, newest first. For setup and gameplay, see the [README](README.md).
 
+v336 shows a small red arc on the jelly's edge the moment a hit lands, on the side it came from: toward a biting bug, or where a Shot or Blast struck (bugs, Elites and bosses).
+
 v335 plays every lightning sound (the shot leaving, its hit, each chain jump and the heavy strike) 30% quieter.
 
 v334 turns sound back on with the first tap after a phone moves on to the next act. The reload into act 2, 3 or 4 loses the tap that allowed sound, and the game listened for the finger going down, which browsers don't count, so acts 2 and 3 (and their new music) stayed silent on phones. Now the next tap, click or key turns sound and the act's music on, and it keeps listening until it's on (`unlockOnGesture` in src/sfx.js).
