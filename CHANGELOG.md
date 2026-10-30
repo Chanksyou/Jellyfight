@@ -2,6 +2,8 @@
 
 Release notes for Jelly Fight, newest first. For setup and gameplay, see the [README](README.md).
 
+v338 gives level-up cards one free reroll per act instead of one every level-up.
+
 v337 makes every boss immune to stun: lightning arcs, the Static Balloon's zaps and pin-on-crit no longer hold them still (the shark used to stop and lose its frenzy). An IMMUNE pop-up shows when one lands. A freeze still holds the shark.
 
 v336 shows a small red arc on the jelly's edge the moment a hit lands, on the side it came from: toward a biting bug, or where a Shot or Blast struck (bugs, Elites and bosses).
