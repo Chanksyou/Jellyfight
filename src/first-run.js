@@ -4,6 +4,7 @@
 //
 //   - the Element pick waits until right after the first Level-up's card (not the first frame);
 //     XP counts double until then, so that first Level-up comes about twice as soon
+//   - the run opens with one tip about how it's played: attacks are automatic, XP, the boss
 //   - the first hit shows one plain line about the Health bar, once
 //   - the Element pick closes with one tip: hold jump to jump higher
 //   - no Treasure turns up in the room before the Element pick is done (scheduled times before it
@@ -50,6 +51,11 @@ export class FirstRun {
 
   // the starting Element pick opens on the first frame?
   get startElementPick() { return !this.active; }
+
+  // the run just began: the tip to show (a first run's opening line), or null
+  get startHint() {
+    return this.active ? 'Attack automatically when bugs are nearby. Collect XP to grow stronger and survive until the boss arrives.' : null;
+  }
 
   // the jelly was just hurt: the hint to show (once, on the first hit), or null
   hintOnHit() {

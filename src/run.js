@@ -391,6 +391,8 @@ export class Run {
     // run it waits for the first Level-up instead: first-run.js)
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
+      const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
+      if (hint) { this.hint = hint; this.hintT = 7; }
       if (this.firstRun.startElementPick) { this.pickStartElement(); return; }
     }
     this.t += dt;
