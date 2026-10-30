@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v347 moves the game to jellyrun.org: the old address sends players there and brings their saves (best score, Pearls, Treasure book, looks, settings) with them.
+
 v346 renames the game to Jelly Run: the title, loading screen, main menu, tab and home-screen name. Saves from Jelly Fight (best score, Pearls, Treasure book, looks, settings) carry over.
 
 v345 swaps the bathtub's dressing for the widened tub's in the Clog fight: the real tub's mat, drain, end tile, sponge and rim bottles no longer sit inside the acid, and the wide tub's own mat, spout and tile show (the swap matched names the way the model loader spells them, so the game's own dressing was never found). Story: `act2/tub-dressing-widens-with-the-tub`.
