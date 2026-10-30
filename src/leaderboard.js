@@ -7,9 +7,9 @@
 // score and keeps your personal best in this browser.
 //
 // The score itself is Run.score() (run.js). A run only replaces your entry when it beats it.
-export const BEST_KEY = 'jellyfight.best';   // also read by first-run.js: a saved best means a returning player
+export const BEST_KEY = 'jellyrun.best';   // also read by first-run.js: a saved best means a returning player
 const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
-const PLAYER_KEY = 'jellyfight.player';
+const PLAYER_KEY = 'jellyrun.player';
 const API = 'api/scores';  // relative: works wherever the game is served from
 
 export class Leaderboard {

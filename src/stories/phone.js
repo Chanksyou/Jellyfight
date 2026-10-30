@@ -35,7 +35,7 @@ phone('iphone-home-screen-tip-hides-for-good', {
     const tip = document.querySelector('#g-over .home-tip'), notIphone = tip.hidden;
     tip.hidden = false;                                   // as an iPhone would show it
     tip.querySelector('button').click();
-    let kept = null; try { kept = localStorage.getItem('jellyfight.homeTip'); localStorage.removeItem('jellyfight.homeTip'); } catch {}
+    let kept = null; try { kept = localStorage.getItem('jellyrun.homeTip'); localStorage.removeItem('jellyrun.homeTip'); } catch {}
     return ok(notIphone && tip.hidden && kept === 'off', { notIphone, hidden: tip.hidden, kept });
   },
 });

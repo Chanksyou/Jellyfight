@@ -138,7 +138,7 @@ story('menu/continue-a-kept-run', {
   play() {
     const { run, menus, GAME } = G();
     const over = document.querySelector('#g-over'), btn = over.querySelector('.resume');
-    const was = sessionStorage.getItem('jellyfight.act');
+    const was = sessionStorage.getItem('jellyrun.act');
     let reloads = 0;
     stub(nav, 'reload', () => { reloads++; });
     try {
@@ -151,9 +151,9 @@ story('menu/continue-a-kept-run', {
         const k = keptRun(), kept = k?.act === 2 && k.carry.level === 7;
         GAME.showKept();
         const shown = !btn.hidden && /Continue act 2/.test(btn.textContent) && /Level 7/.test(btn.textContent) && btn.nextElementSibling === over.querySelector('.play');
-        sessionStorage.removeItem('jellyfight.act');
+        sessionStorage.removeItem('jellyrun.act');
         btn.click();
-        const went = JSON.parse(sessionStorage.getItem('jellyfight.act') || 'null');
+        const went = JSON.parse(sessionStorage.getItem('jellyrun.act') || 'null');
         const continues = reloads === 2 && went?.act === 2 && went.carry?.level === 7 && went.then?.continue;
         stub(run, 'board', null);
         run.phase = 'dead';
@@ -171,7 +171,7 @@ story('menu/continue-a-kept-run', {
         return ok(none && kept && shown && continues && forgotten && hidden && devKeepsNothing, { none, kept, shown, continues, forgotten, hidden, devKeepsNothing, label: btn.textContent, went });
       });
     } finally {
-      if (was === null) sessionStorage.removeItem('jellyfight.act'); else sessionStorage.setItem('jellyfight.act', was);
+      if (was === null) sessionStorage.removeItem('jellyrun.act'); else sessionStorage.setItem('jellyrun.act', was);
     }
   },
 });

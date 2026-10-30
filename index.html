@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Jelly Fight</title>
+<title>Jelly Run</title>
 <!-- added to the home screen it opens full screen and sideways (iPhone ignores the orientation; src/main.js covers an upright phone) -->
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./assets/icon/icon-180.png">
@@ -49,6 +49,7 @@
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.core.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/libs/meshopt_decoder.module.js">
+<link rel="modulepreload" href="./src/rename.js">
 <link rel="modulepreload" href="./src/errors.js">
 <link rel="modulepreload" href="./src/legacy-lighting.js">
 <link rel="modulepreload" href="./src/apartment.js">
@@ -160,7 +161,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="loading"><div><div class="jelly" aria-hidden="true"><i></i><i></i><i></i></div><h1>Jelly Fight</h1><div class="bar"><i></i></div><p role="status">Downloading the apartment…</p></div></div>
+<div id="loading"><div><div class="jelly" aria-hidden="true"><i></i><i></i><i></i></div><h1>Jelly Run</h1><div class="bar"><i></i></div><p role="status">Downloading the apartment…</p></div></div>
 <script type="module" src="./src/boot.js"></script>
 </body>
 </html>

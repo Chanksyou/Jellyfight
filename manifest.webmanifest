@@ -1,6 +1,6 @@
 {
-  "name": "Jelly Fight",
-  "short_name": "Jelly Fight",
+  "name": "Jelly Run",
+  "short_name": "Jelly Run",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

@@ -1,5 +1,5 @@
 {
-  "name": "jellyfight-tools",
+  "name": "jellyrun-tools",
   "private": true,
   "type": "module",
   "description": "Bakes the apartment into assets/apartment.glb",

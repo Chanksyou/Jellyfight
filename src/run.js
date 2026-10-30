@@ -1511,7 +1511,7 @@ export class Run {
 }
 
 // The name you put on the leaderboard, kept in this browser for next time ('' = Guest)
-const NAME_KEY = 'jellyfight.name';
+const NAME_KEY = 'jellyrun.name';
 // A number an end screen counts up (ui.js tally): from `from`, written with `pre` in front
 const counter = (n, pre = '', from = 0) => `<span class="jf-count" data-n="${n}" data-pre="${pre}" data-from="${from}">${pre}${n.toLocaleString()}</span>`;
 function savedName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }

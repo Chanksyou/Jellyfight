@@ -67,10 +67,10 @@ export async function start() {
 export async function openGame({ url, browser }, { act, seed, newPlayer = false, ...opts } = {}) {
   const page = await browser.newPage(opts);
   if (seed !== undefined) await page.addInitScript({ content: `Math.random = (${seededRandom.toString()})(${seed >>> 0});` });
-  if (act) await page.addInitScript((a) => sessionStorage.setItem('jellyfight.act', JSON.stringify(a)), act);
+  if (act) await page.addInitScript((a) => sessionStorage.setItem('jellyrun.act', JSON.stringify(a)), act);
   // a fresh browser is a brand-new player to the game (first-run.js); pages play as a returning one
   // unless a test asks for a first run
-  if (!newPlayer) await page.addInitScript(() => { try { localStorage.setItem('jellyfight.played', '1'); } catch {} });
+  if (!newPlayer) await page.addInitScript(() => { try { localStorage.setItem('jellyrun.played', '1'); } catch {} });
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|KHR_parallel/.test(m.text())) errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push('page error: ' + e.message));

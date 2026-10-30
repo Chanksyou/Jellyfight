@@ -1,4 +1,4 @@
-// Jelly Fight: wires the game together on top of the baked apartment (src/boot.js loads it).
+// Jelly Run: wires the game together on top of the baked apartment (src/boot.js loads it).
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { World } from './collision.js';
@@ -51,7 +51,7 @@ const APT = window.APT;
 const { scene, renderer, camera } = APT;
 batcher.scene = scene;
 const stage = currentStage();          // act 1, or a later act the run moved on to (stages.js)
-const LOOK_KEY = 'jellyfight.look.v2';   // v2: the fluorescent jelly is the new default
+const LOOK_KEY = 'jellyrun.look.v2';   // v2: the fluorescent jelly is the new default
 
 // --- Saved character (the creator is optional, under C) ----------------------------
 let savedLook = null;
@@ -146,7 +146,7 @@ ui.innerHTML = `
   #g-over.cont .tag, #g-over.cont .row, #g-over.cont .keys { display: none !important; }
 </style>
 <div id="g-over"><div>
-  <h1>Jelly Fight</h1>
+  <h1>Jelly Run</h1>
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <button class="resume" hidden></button>
@@ -164,7 +164,7 @@ ui.innerHTML = `
     <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause
   </div>
 </div></div>
-<div id="g-turn" role="alert"><div class="ph"></div>Turn your phone sideways<p>Jelly Fight plays in landscape</p></div>`;
+<div id="g-turn" role="alert"><div class="ph"></div>Turn your phone sideways<p>Jelly Run plays in landscape</p></div>`;
 document.body.appendChild(ui);
 const overlay = ui.querySelector('#g-over');
 const qualityRow = ui.querySelector('#g-quality');
@@ -332,7 +332,7 @@ function pause() {
 const touch = new TouchControls(input, { onPause: pause });
 touch.mount(ui);
 // on an iPhone in the browser (not already opened from the home screen), say how to play full screen
-const homeTip = overlay.querySelector('.home-tip'), HOME_TIP_KEY = 'jellyfight.homeTip';
+const homeTip = overlay.querySelector('.home-tip'), HOME_TIP_KEY = 'jellyrun.homeTip';
 let homeTipOff = false; try { homeTipOff = localStorage.getItem(HOME_TIP_KEY) === 'off'; } catch {}
 homeTip.hidden = !/iPhone|iPod/.test(navigator.userAgent) || navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || homeTipOff;
 // held upright mid-run: pause under the turn-sideways cover, so nothing hits the jelly unseen
@@ -447,7 +447,7 @@ async function loadRooms(parts, onProgress) {
 
 // The soundtrack (music.js): which song and how intense comes from the run; muffled behind menus.
 // It starts once audio is unlocked (the Play button), and the 🎵 button turns it off.
-const MUSIC_KEY = 'jellyfight.music';
+const MUSIC_KEY = 'jellyrun.music';
 let music = null, musicOn = true;
 try { musicOn = localStorage.getItem(MUSIC_KEY) !== 'off'; } catch {}
 // Reduce effects: no screen shake, a softer hurt glow (juice.calm). Follows the device's own
@@ -460,7 +460,7 @@ function setCalm(on) {
 }
 setCalm(reducedMotion.matches);
 reducedMotion.addEventListener?.('change', (e) => setCalm(e.matches));
-try { localStorage.removeItem('jellyfight.effects'); } catch {}   // the old button's pick
+try { localStorage.removeItem('jellyrun.effects'); } catch {}   // the old button's pick
 function updateMusic(dt) {
   if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
   const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
@@ -719,7 +719,7 @@ window.tuner = tuner;
 window.dendi = dendi;   // stories check on the cat (models/dendi-*)
 // Dev tools (layout editor, boss and 1-on-1 fights, test kit, the other act, diagnostics) wait behind one
 // 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
-const DEV_PASS = 'chan', DEV_KEY = 'jellyfight.dev';
+const DEV_PASS = 'chan', DEV_KEY = 'jellyrun.dev';
 function unlockDev() {
   const box = overlay.querySelector('[name="dev-pass"]');
   if (box.value.trim().toLowerCase() !== DEV_PASS) { box.value = ''; box.classList.add('wrong'); box.placeholder = 'Wrong password'; box.focus(); return; }
@@ -960,7 +960,7 @@ GAME.showKept = showKept;
 function endContinue() {
   if (!overlay.classList.contains('cont')) return;
   overlay.classList.remove('cont');
-  titleEl.textContent = 'Jelly Fight';
+  titleEl.textContent = 'Jelly Run';
 }
 // Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);

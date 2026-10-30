@@ -13,7 +13,7 @@ export const QUALITY = ['low', 'medium', 'high'];
 // what the player can pick in the pause menu (a phone starts on low, a desktop on high); a stored
 // pick that's no longer offered (the old 'auto') falls back to the default
 export const CHOICES = QUALITY;
-const STORE = 'jellyfight.graphics';
+const STORE = 'jellyrun.graphics';
 
 // Depth of field that reads the logarithmic depth buffer. Blur grows with how far a pixel's
 // depth is from the focus distance (the player), with a golden-angle disk of samples.

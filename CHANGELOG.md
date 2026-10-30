@@ -1,6 +1,6 @@
 # Changelog
 
-Release notes for Jelly Fight, newest first. For setup and gameplay, see the [README](README.md).
+Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
 v345 swaps the bathtub's dressing for the widened tub's in the Clog fight: the real tub's mat, drain, end tile, sponge and rim bottles no longer sit inside the acid, and the wide tub's own mat, spout and tile show (the swap matched names the way the model loader spells them, so the game's own dressing was never found). Story: `act2/tub-dressing-widens-with-the-tub`.
 

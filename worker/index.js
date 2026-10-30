@@ -1,4 +1,4 @@
-// Jelly Fight's Cloudflare Worker: the public leaderboard. Everything that isn't /api/* is the
+// Jelly Run's Cloudflare Worker: the public leaderboard. Everything that isn't /api/* is the
 // game's own files, served from the CDN by the assets binding (wrangler.jsonc) before this
 // code runs at all.
 //

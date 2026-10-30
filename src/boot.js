@@ -1,4 +1,5 @@
 // Sets up three.js, loads the baked apartment, then starts the game.
+import './rename.js';   // first: moves old saves to their new names before anything reads them
 import { reportError, watchCanvas } from './errors.js';
 import * as THREE from 'three';
 import { patchLegacyFalloff, scaleLightsOnRender } from './legacy-lighting.js';

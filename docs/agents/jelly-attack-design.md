@@ -25,7 +25,7 @@ and [lightning demonstration](https://www.instagram.com/p/DeaiBSlodi2/), plus th
 gunfire and spell reels unified in the foundation.
 Use their principles: build feedback in deliberate layers; give electricity
 expressive bends, varying width, tapered accents, and a bright core within a
-colored halo. The application to Jelly Fight below is our design direction,
+colored halo. The application to Jelly Run below is our design direction,
 not a transcription of either reel. Their audio has not been evaluated.
 
 Follow Ponytail: read the existing attack flow, reuse what works, improve one

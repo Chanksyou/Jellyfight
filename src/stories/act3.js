@@ -388,15 +388,15 @@ act3('dying-starts-over-in-act-1', {
   setup() { fresh({ elites: false }); },
   async play() {
     const { run, menus } = G();
-    const was = sessionStorage.getItem('jellyfight.act');
+    const was = sessionStorage.getItem('jellyrun.act');
     let reloaded = false;
     stub(nav, 'reload', () => { reloaded = true; });
     run.die();
     await new Promise((r) => setTimeout(r, 800));
     const modal = document.querySelector('.jf-modal'), text = modal?.innerText || '';
     [...(modal?.querySelectorAll('button') || [])].find((b) => /Try again/.test(b.textContent))?.click();
-    const went = JSON.parse(sessionStorage.getItem('jellyfight.act') || 'null');
-    sessionStorage.setItem('jellyfight.act', was);           // this page stays on act 3
+    const went = JSON.parse(sessionStorage.getItem('jellyrun.act') || 'null');
+    sessionStorage.setItem('jellyrun.act', was);           // this page stays on act 3
     menus.close();
     return ok(/You dried out/.test(text) && reloaded && went?.act === 1 && !went.carry, { text: text.slice(0, 60), reloaded, went });
   },

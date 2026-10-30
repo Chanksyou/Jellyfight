@@ -1,4 +1,4 @@
-# Jelly Fight
+# Jelly Run
 
 A third-person game where you play a ~9 cm jellyfish of your own design inside a real-scale 3D model of the apartment.
 
@@ -186,7 +186,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Box Jelly makes the existing tentacles thicker and brighter.
   Other evolutions add a sail crest and polyps, a gold halo, a moon ring, a mane, or fronds on the floor (`src/adornments.js`); the player's body, face and colours stay the same.
   Dry out and you shrink back to a polyp and start over.
-- **Treasure book:** the main menu's 📖 Treasure book keeps every Treasure and evolution you've picked and every Elite and boss you've beaten, across your runs in this browser (`src/collection.js`, localStorage `jellyfight.found`); unfound ones show as ?, and tapping a found one says what it does.
+- **Treasure book:** the main menu's 📖 Treasure book keeps every Treasure and evolution you've picked and every Elite and boss you've beaten, across your runs in this browser (`src/collection.js`, localStorage `jellyrun.found`); unfound ones show as ?, and tapping a found one says what it does.
   A pick card for something you've never picked says **New!**, and the end screen lists the run's first finds.
   Dying also shows how close you came to the boss, your best, and your nearest golden unlock (`nextAward` in `src/cosmetics.js`), with Try again as the big button.
 - **Score and leaderboard:** every run ends with one combined score: 10 per bug cleared, +50 per golden elite bug, +300 per high-ground elite, 100 per level above 1, 150 per treasure, 2 per second survived before the boss (up to 520), up to 1,500 for damage dealt to the Vacuum, and +3,000 for beating it plus 20 for every second under 3 minutes (`Run.scoreParts` in `src/run.js`).
