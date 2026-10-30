@@ -265,7 +265,7 @@ const solidity = (name) => {
   return out;
 };
 act2('clog-curtain-is-see-through-and-door-gone-in-the-fight', {
-  about: 'The shower curtain in front of the tub could hide the Clog fight from the camera, so during the fight it goes faint (15% solid): still there, never blocking the view. The bathroom door, which would stand in the widened tub, is gone for the fight. A new run puts both back solid.',
+  about: 'The shower curtain in front of the tub could hide the Clog fight from the camera, so during the fight it fades further (to 15% of its usual opacity): still there, never blocking the view. The bathroom door, which would stand in the widened tub, is gone for the fight. A new run restores the see-through cloth (25% solid), solid chrome hardware and solid door.',
   setup() {},
   play() {
     const look = () => ({ curtain: solidity('Shower_curtain'), door: solidity('door-bath') });
@@ -278,7 +278,8 @@ act2('clog-curtain-is-see-through-and-door-gone-in-the-fight', {
     const after = look();
     const solid = (a) => a.length > 0 && a.every((o) => o === 1);
     const faint = (a) => a.length > 0 && a.every((o) => o > 0 && o <= 0.2);
-    return ok(solid(before.curtain) && solid(before.door) && faint(during.curtain) && during.door.length === 0 && solid(after.curtain) && solid(after.door), { before, during, after });
+    const sheer = (a) => a.length === 2 && a[0] === 0.25 && a[1] === 1;
+    return ok(sheer(before.curtain) && solid(before.door) && faint(during.curtain) && during.door.length === 0 && sheer(after.curtain) && solid(after.door), { before, during, after });
   },
 });
 // the tub as the jelly finds it: how deep the arena is, and the floor heights at x across the tub's

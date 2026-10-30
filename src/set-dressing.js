@@ -7,6 +7,7 @@
 // by the same name. Geometry only, merged per material: triangles are cheap at this
 // scale, draw calls are not (see the v147 Mug for the same treatment on an elite).
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -87,8 +88,7 @@ function weaveNormalMap() {
 // The shower curtain, after the real one: a cream woven sheet gathered on rings,
 // deep folds at the top relaxing downward, shading baked into the fold valleys and
 // a fringe along the bottom hem. A chrome rod with rings and clips above it.
-// Opaque, like the real fabric: stage2.js used to keep it half see-through, which
-// read as a ghost sheet over the tub.
+// The cloth stays see-through so the tub is visible; the chrome hardware stays solid.
 function buildCurtain(box) {
   const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
   const W = s.x, H = s.y, FOLDS = 9, RINGS = 12;
@@ -126,7 +126,8 @@ function buildCurtain(box) {
   const weave = weaveNormalMap();
   weave.repeat.set(W / 0.15, H / 0.15);   // one weave tile ≈ 15 cm of cloth
   const clothMesh = new THREE.Mesh(merge(parts),
-    std({ roughness: 0.95, metalness: 0, side: THREE.DoubleSide, normalMap: weave, normalScale: new THREE.Vector2(0.55, 0.55) }));
+    std({ roughness: 0.95, metalness: 0, side: THREE.DoubleSide, normalMap: weave, normalScale: new THREE.Vector2(0.55, 0.55),
+      transparent: true, opacity: LOOK.num('shower-curtain-opacity', 0.25), depthWrite: false }));
   clothMesh.position.set(c.x, c.y, c.z);
 
   // rod, finials, rings and clips in one chrome mesh
