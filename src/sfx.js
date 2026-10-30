@@ -496,7 +496,21 @@ export const sfx = {
   },
   // standing in something scalding: a short sizzle
   scald() { if (!ready() || !gap('scald', 220)) return; const j = jitter(0.15); noise(6000*j, 1, 0.12, 0.05, 'highpass'); noise(2400*j, 3, 0.05, 0.03, 'bandpass', 0.03); },
-  // the Kettle's steam blast: a crack as it vents, a roaring hiss that falls away, spits of water
+  // the Kettle charging its steam ball: a whistle climbing over the second, a hiss swelling under it, a boiling rattle
+  kettleCharge() {
+    if (!ready() || !gap('kettleCharge', 400)) return; const j = jitter(0.08);
+    tone('sine', 900*j, 2600*j, 1.0, 0.035); tone('sine', 1800*j, 5200*j, 1.0, 0.012);
+    noise(3000*j, 0.8, 1.0, 0.05, 'bandpass', 0, 7000*j);
+    for (let i = 0; i < 8; i++) noise((1500 + Math.random()*1500)*j, 3, 0.03, 0.02 + i*0.006, 'bandpass', i*0.12);
+  },
+  // a gust of the steam ball bursting: a whump of steam and a hiss (the first, as it lands, heavier); a sizzle on you
+  kettleGust(hit = false, first = false) {
+    if (!ready()) return; const j = jitter(0.15), k = first ? 1 : 0.6;
+    tone('sine', (first ? 110 : 160)*j, 50, 0.16, 0.12*k); noise(900*j, 1, 0.12, 0.12*k, 'bandpass', 0, 2600*j);
+    noise(5200*j, 0.8, 0.3, 0.06*k, 'highpass', 0.02);
+    if (hit) noise(6500*j, 1, 0.2, 0.06, 'highpass', 0.03);
+  },
+  // the Kettle firing its steam ball: a crack as it vents, a roaring hiss that falls away, spits of water
   kettleBlast() {
     if (!ready() || !gap('kettleBlast', 300)) return; const j = jitter(0.1);
     noise(5200*j, 0.8, 0.04, 0.2, 'highpass'); tone('sine', 140*j, 55, 0.18, 0.14);

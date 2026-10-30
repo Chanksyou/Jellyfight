@@ -252,7 +252,7 @@ export function startController(atk, { hurt = false } = {}) {
   e.next = atk; e.cool = 0;
   return e;
 }
-// doesn't clear it, stepping out does); its boiling drops land as small floor Blasts (jump them)
+// Kettle stories: its steam ball is fired at where you are once it has charged and bursts there in gusts (floor Blasts: step out); its boiling drops land as small floor Blasts (jump them)
 const KETTLE_AT = [4.5, 0.91, 3.45];
 export const theKettle = () => G().run.elites.list.find((x) => x.kind === 'kettle');
 export function startKettle(atk) {
@@ -406,7 +406,7 @@ export const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
     mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'hazard' } },
-    kettle: { steam: { is: 'volume', start: held(() => startKettle(0)) }, 'boil-over': { is: 'volume', start: held(() => startKettle(1)) } },
+    kettle: { 'steam-ball': { is: 'volume', start: held(() => startKettle(0)) }, 'boil-over': { is: 'volume', start: held(() => startKettle(1)) } },
     vacuum: {
       charge: { is: 'volume', start: atVacuum('charge') }, brushes: { is: 'sweep', start: atVacuum('brushes') }, spin: { is: 'shot', start: atVacuum('spin') },
       suction: { is: 'hazard' }, flies: { is: 'none' }, dump: { is: 'none' },
@@ -507,7 +507,7 @@ function checkAttack(who, name, a) {
   // after the hit: keep it from starting another, let what's in flight land, then nothing shows
   if (boss && a.end) a.end(); else if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
   const els = run.elites;
-  step(60 * 6, () => !els.blobs.length && !els.balloons.length && !els.rings.length && !shotsFlying());
+  step(60 * 6, () => !els.blobs.length && !els.steams.length && !els.balloons.length && !els.rings.length && !shotsFlying());
   step(20);
   const w = shownWarnings();
   r.gone = !w.floor.length && !w.volume.length;

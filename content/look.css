@@ -171,6 +171,7 @@
   --mug-coffee-light: #6a4a2a;
   --kettle-wet: #b8c8d8;         /* the harmless wet marks steam and boiling drops leave (fx.splat) */
   --kettle-wet-size: 0.03;
+  --kettle-ball-size: 0.016;     /* the steam ball the Kettle charges at its spout and fires (orb core radius, m) */
   /* the Vacuum's own body answering its attacks: it rears (radians) and squashes, and shudders (m) while it sucks or rattles its bin */
   --vacuum-recoil: 0.18;
   --vacuum-recoil-squash: 0.1;
@@ -325,7 +326,7 @@
      in it that fills until the hit. One colour per source, so you know what's coming. */
   --hostile-controller: #ff3ad0; /* the Controller's button barrage and rumble */
   --hostile-mug: #ff8a1a;        /* the Mug's coffee lobs, spill and scalding puddles */
-  --hostile-kettle: #ffd23a;     /* the Kettle's steam blast and boiling drops */
+  --hostile-kettle: #ffd23a;     /* the Kettle's steam ball and boiling drops */
   --leap-warning-opacity: 0.24; /* restrained lanternfly landing circle */
   --leap-warning-pulse: 0.04;   /* small pulse above its base opacity */
   --hostile-leap: #ff3a2a;       /* the lanternfly's landing */
