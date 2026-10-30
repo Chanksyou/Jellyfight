@@ -124,11 +124,11 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-      else this.hit(amount, from, contact, knock); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
+      else this.hit(amount, from, contact, knock, at); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength }) => {
@@ -646,7 +646,7 @@ export class Run {
   }
 
   // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
-  hit(amount, from = null, contact = false, knock = false) {
+  hit(amount, from = null, contact = false, knock = false, at = null) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
     this.iFrames = 1.0;
     const M = this.mods;
@@ -706,7 +706,7 @@ export class Run {
       const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
-    this.hurt(amount, false, from, contact, knock);
+    this.hurt(amount, false, from, contact, knock, at);
   }
 
   // bleeding: Health lost each second (no i-frames, no flinch), and drops of it dripping off the
@@ -722,7 +722,8 @@ export class Run {
     this.fx.burst(_drop.set(P.x, P.y + this.cfg.height * 0.35, P.z), [c, c, '#ffffff'], 3, this.cfg.radius * LOOK.num('bleed-drop', 0.16), 0.12, P.y);
   }
 
-  hurt(amount, silent = false, from = null, contact = false, knock = false) {
+  // at: where the hit landed or came from (a Shot, a Blast's middle), when the attack knows; else its attacker
+  hurt(amount, silent = false, from = null, contact = false, knock = false, at = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
     amount = this.energyShield.absorb(amount, silent);
@@ -736,8 +737,10 @@ export class Run {
       juice.feel('hurt-minor'); sfx.hurt();
       // pushback away from what hit you (a bug, or the boss), harder the more it hurt; backwards if nothing says where from
       const attacker = from != null && this.enemies.list.find(e => e.id === from);
-      const at = attacker ? this.enemies.center(attacker) : this.phase === 'boss' ? this.boss?.center?.() : null;
-      const away = at ? this.player.position.clone().sub(at).setY(0) : new THREE.Vector3();
+      const by = attacker ? this.enemies.center(attacker) : this.phase === 'boss' ? this.boss?.center?.() : null;
+      const away = by ? this.player.position.clone().sub(by).setY(0) : new THREE.Vector3();
+      const P = this.player.position, mid = _drop.set(P.x, P.y + this.cfg.height * 0.5, P.z);
+      if (at || by) this.gadgets.looks.hurt(mid, at || by, this.cfg.radius);   // a red arc on the side it hit
       if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
       const H = this.cfg.hitPush;
       if (!knock && this.shovedAt !== this.frame) this.hitPush = { dir: away.normalize(), force: Math.min(H.max, H.base + H.perDamage * amount) };
