@@ -311,6 +311,21 @@ act2('tub-widens-for-the-fight', {
     return ok(real.ok && fight.ok && fight.depth >= 0.95 && after.ok, { real, fight, after });
   },
 });
+// which of the tub's two dressings (bathroom.js: the real tub's, and the widened one) is showing
+const dressing = () => { const out = {}; G().APT.scene.traverse((o) => { if (/^Bathroom details/.test(o.name)) out[o.name.endsWith('widened') ? 'wide' : 'real'] = o.visible; }); return out; };
+act2('tub-dressing-widens-with-the-tub', {
+  about: 'The tub\'s dressing (its mat, drain, tile, fittings, sponge and bottles) swaps for the widened one with the tub: exploring shows the real tub\'s, the Clog fight only the wide one (none of the real tub\'s mat or rim bottles left standing in the acid), and a new run puts the real one back.',
+  setup() {},
+  play() {
+    fresh();
+    const before = dressing();
+    clogFight();
+    const during = dressing();
+    fresh();
+    const after = dressing();
+    return ok(before.real && !before.wide && !during.real && during.wide && after.real && !after.wide, { before, during, after });
+  },
+});
 act2('clog-lash', {
   about: 'Hair lash: a rope of hair rears up while a line fills on the tub floor (a low lane over it), then whips down along it: 3, and you\'re tangled (slowed).',
   setup() {},
