@@ -696,7 +696,7 @@ export function newMods() {
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     energyShield: null,              // energy-shield: a damage pool that bursts on depletion, then recharges
     rebound: false, decoy: null, fireTrail: null,
-    noRegen: false,                  // no-regen: Health regen does nothing
+    noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
@@ -865,7 +865,7 @@ export const TREASURE_WORDS = {
       return (m) => { m.energyShield = { capacity, ...p }; };
     },
   },
-  'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else).', make: () => (m) => { m.noRegen = true; } },
+  'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else). `revived=#true`: only once rebirth has saved you this run.', props: { revived: false }, make: (_, p) => (m) => { m.noRegen = m.noRegen === true || !p.revived ? true : 'revived'; } },
   'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
   adorn: { doc: 'Adds an evolution look (src/adornments.js): venom-tips thickens and brightens existing tentacles; sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
   'death-save': { doc: 'Once per run, a hit that would take your last Health leaves you at `health` (a share of your max Health) instead.', props: { health: 0.5 }, make: (_, p) => (m) => { m.deathSave = { ...p }; } },

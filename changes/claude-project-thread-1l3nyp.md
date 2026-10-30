@@ -1,1 +1,1 @@
-makes Immortal Jelly's card say its costs (-10% max Health, no Health regen) start the moment you pick it, not after a revive.
+makes Immortal Jelly keep Health regen until its first polyp revive; regen stops for the rest of the run after that.
