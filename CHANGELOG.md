@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v350 opens a new player's first run with a tip for 7 s: "Attack automatically when bugs are nearby. Collect XP to grow stronger and survive until the boss arrives."
+
+v349 pauses the game when you leave it mid-run (another tab or app, or the phone locked), so you come back to the pause menu instead of a fight already underway.
+
 v348 makes holding a phone upright always pause the run. The "Turn your phone sideways" screen now goes by the phone's own screen, not the page's width (iPhones can keep the page at its landscape width after turning back upright, which let play go on in portrait), and nothing in the run moves while it's up, even when a level-up or treasure pick was open as the phone turned. Turn it back sideways and the screen goes away; tap Play to carry on.
 
 v347 moves the game to jellyrun.org: the old address sends players there and brings their saves (best score, Pearls, Treasure book, looks, settings) with them.
