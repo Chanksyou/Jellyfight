@@ -1,1 +1,0 @@
-takes the grey hose that arched from the bathtub's overflow plate over the front rim out of Act 2's bathroom; the overflow plate stays. Decoration only, so nothing plays differently, the Clog fight included. Story: `act2/no-hose-over-the-tub-rim`.
