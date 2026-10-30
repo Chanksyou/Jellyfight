@@ -790,6 +790,25 @@ story('engine/music-renders-and-builds', {
   },
 });
 
+story('engine/sound-comes-back-on-the-first-tap-after-an-act-change', {
+  about: 'A phone reloading into the next act has lost the tap that allowed sound: the first tap after (a touchend, not the finger going down) turns sound and the act\'s music back on.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const S = await import('../sfx.js');
+    unlockAudio();
+    const ctx = S.audio().ctx, wait = () => new Promise((r) => setTimeout(r, 100));
+    await ctx.suspend();
+    S.unlockOnGesture();
+    dispatchEvent(new Event('pointerdown'));      // the finger going down: browsers don't let sound start here
+    await wait();
+    const down = ctx.state;
+    if (down === 'suspended') dispatchEvent(new Event('touchend'));   // the finger lifting does
+    await wait();
+    const up = ctx.state;
+    return ok(up === 'running', { down, up });
+  },
+});
+
 story('engine/each-act-has-its-own-music', {
   about: 'Exploring acts 1, 2 and 3 plays each act\'s own song (its stage\'s `music`): "Puddle Drift", "Ephyra Tide", "Medusa Bloom", three different songs that all exist.',
   setup() { fresh({ elites: false }); },

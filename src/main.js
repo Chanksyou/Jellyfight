@@ -26,7 +26,7 @@ import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
-import { unlock as unlockAudio, setMuted, isMuted, audio, sfx } from './sfx.js';
+import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
 import { SongTrack, TRACKS } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
@@ -969,8 +969,7 @@ export const ready = warmUp().then(() => {
     if (IS_TOUCH) {
       play();
       endContinue();
-      // the reload lost the tap that allowed sound: the next touch turns it back on
-      addEventListener('pointerdown', () => unlockAudio(), { once: true, capture: true });
+      unlockOnGesture();   // the reload lost the tap that allowed sound: the next touch turns it back on
     } else playBtn.textContent = 'Click to dive in';
   }
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }

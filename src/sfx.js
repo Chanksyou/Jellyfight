@@ -153,6 +153,16 @@ export function unlock() {
   } catch { /* no audio: the game still works */ }
 }
 
+// Turn sound on at the next tap, click or key, and keep listening until it's on. For a page the
+// game reloaded into (the next act): the reload lost the tap that allowed sound. Browsers only let
+// sound start on a pointerup, touchend, click or keydown, not on a finger's pointerdown.
+const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'];
+export function unlockOnGesture() {
+  const done = () => { if (ctx?.state === 'running') for (const g of GESTURES) removeEventListener(g, on, true); };
+  const on = () => { unlock(); ctx?.resume().then(done, () => {}); };
+  for (const g of GESTURES) addEventListener(g, on, true);
+}
+
 // the audio context and master volume, for the music (music.js); null until unlocked
 export const audio = () => (ctx ? { ctx, master } : null);
 
