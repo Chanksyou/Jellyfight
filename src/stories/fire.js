@@ -159,7 +159,7 @@ story('attack/lightning-sounds-quieter', {
 });
 
 story('attack/acid-puddle-feel', {
-  about: 'Acid lands as a living puddle: it splats in (spreading past its size, then settling), bubbles and fumes while it lasts, bites a bug standing in it with a sizzle (still +50% damage taken and its ticks), dries up over its last moments (shrinking and darkening) and is gone at the end of its life; its mesh is reused by the next puddle.',
+  about: 'Acid lands as a living puddle: it splats in (spreading past its size, then settling), bubbles and fumes while it lasts, bites a bug standing in it with a sizzle (still +30% damage taken and its ticks), dries up over its last moments (shrinking and darkening) and is gone at the end of its life; its mesh is reused by the next puddle.',
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];
