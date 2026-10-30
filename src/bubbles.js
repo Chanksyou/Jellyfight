@@ -434,7 +434,7 @@ export class Bubbles {
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff';
       crit = true;
-      this.fx.crit(this.enemies.center(e), e.r);
+      this.fx.crit(this.enemies.center(e), e.r); sfx.crit();
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });

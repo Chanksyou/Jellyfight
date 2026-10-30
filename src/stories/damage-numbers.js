@@ -1,6 +1,7 @@
 import { bus } from '../events.js';
 import { juice } from '../juice.js';
-import { G, V, offs, ok, record, roachAt, setupFight, step, story } from './kit.js';
+import { sfx } from '../sfx.js';
+import { G, V, offs, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 function setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); G().run.fx.clear(); }
 const active = fx => fx.nums.filter(n => n.alive);
@@ -23,6 +24,28 @@ story('feedback/elemental-crits', {
     const correct = receipts.every(n => n && n.text.includes('✦') && n.color !== '' && Math.abs(n.amount - expected) < 1e-6);
     const colors = new Set(receipts.map(n => n?.color));
     return ok(correct && colors.size === 6 && hits.slice(0, 6).every(h => h.feedback.crit && h.feedback.element && Math.abs(h.amount - expected) < 1e-6), { correct, colors: colors.size, receipts });
+  },
+});
+
+story('feedback/crit-lands-harder', {
+  about: 'A real crit lands harder than a hit without changing damage: a shing, a --feel-crit shake with no hit-stop, a number that slams in at about twice its size inside a star burst, then settles; Reduce Effects keeps the star mark but drops the burst and the slam.',
+  setup,
+  play() {
+    const { run, enemies, player } = G(), fx = run.fx, e = enemies.list[0], B = run.bubbles, mods = run.mods;
+    const shings = spy(sfx, 'crit'), feels = spy(juice, 'feel');
+    stub(juice, 'calm', false); stub(fx, 'reducedMotion', { matches: false });
+    const strike = (chance) => { mods.hits.bubbles.crit = { chance, mult: 3 }; B.strike(B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 2 }), e, mods); };
+    juice.stop = 0; strike(0); fx.update(0.01);
+    const plain = active(fx)[0], hit = plain.amount, quiet = !shings.length && !feels.some(f => f[0] === 'crit') && plain.flare.style.display === 'none';
+    fx.clear(); strike(1); fx.update(0.01);
+    const n = active(fx).find(x => x.crit), slam = +/scale\(([\d.]+)/.exec(n.el.style.transform)[1];
+    const burst = n.flare.style.display === '' && n.glyph.textContent.startsWith('✦') && n.el.style.fontStyle === 'italic';
+    const felt = shings.length === 1 && feels.some(f => f[0] === 'crit') && juice.stop === 0 && Math.abs(n.amount - hit * 3) < 1e-6;
+    fx.update(0.3);
+    const settled = n.flare.style.display === 'none' && /scale\(1, 1\)/.test(n.el.style.transform);
+    fx.clear(); stub(fx, 'reducedMotion', { matches: true }); strike(1); fx.update(0.01);
+    const m = active(fx).find(x => x.crit), calm = m.flare.style.display === 'none' && m.glyph.textContent.startsWith('✦') && m.el.style.transform.includes('scale(1, 1)');
+    return ok(quiet && burst && slam > 1.7 && felt && settled && calm, { quiet, burst, slam, felt, settled, calm });
   },
 });
 

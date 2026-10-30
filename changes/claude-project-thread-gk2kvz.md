@@ -1,0 +1,1 @@
+makes critical hits land harder: the number slams in at twice its size in italics inside a star burst, hangs a beat, then rises; the hit gets a white-hot core, a second wide ring, a small screen kick and a bright metallic shing. Damage is unchanged.
