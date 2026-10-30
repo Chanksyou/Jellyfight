@@ -312,9 +312,11 @@ if (IS_TOUCH) {
   tpc.distance = LOOK.num('camera-distance-phone', 0.7);
 }
 input.touchOnly = IS_TOUCH;
+// Chrome refuses a lock asked for too soon after the last one (a rejected promise); the next click asks again
+const lockPointer = () => renderer.domElement.requestPointerLock?.()?.catch?.(() => {});
 function play() {
   unlockAudio();
-  if (!IS_TOUCH) { renderer.domElement.requestPointerLock(); return; }
+  if (!IS_TOUCH) { lockPointer(); return; }
   overlay.hidden = true;
   mainMenu.launch();
   const d = document.documentElement;
@@ -337,7 +339,7 @@ homeTip.hidden = !/iPhone|iPod/.test(navigator.userAgent) || navigator.standalon
 const upright = matchMedia('(orientation: portrait) and (max-width: 600px)');
 if (IS_TOUCH) upright.addEventListener('change', () => { if (upright.matches) pause(); });
 window.upright = upright;   // stories turn the phone (phone/held-upright-pauses-under-the-cover)
-run.onResume = () => { if (!IS_TOUCH) renderer.domElement.requestPointerLock(); };
+run.onResume = () => { if (!IS_TOUCH) lockPointer(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
 const mainMenu = new MainMenu({ overlay, player, camera, gfx, scene, height: CONFIG.player.height, calm: () => juice.calm, board,

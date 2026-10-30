@@ -20,7 +20,7 @@ export class Input {
     addEventListener('blur', () => this.keys.clear());
 
     this.enabled = true; // main.js turns pointer lock off while menus are open
-    element.addEventListener('click', () => { if (this.enabled && !this.touchOnly) element.requestPointerLock?.(); });
+    element.addEventListener('click', () => { if (this.enabled && !this.touchOnly) element.requestPointerLock?.()?.catch?.(() => {}); });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === element;
     });
