@@ -49,8 +49,8 @@ and damage are unchanged. Body and eye shadows use the same floor cut.
 Confirmed melee damage applies Prey and a short bleed. Prey makes fin tracking
 faster and tighter. A confirmed bite triggers Feeding Frenzy: 25% faster timing and
 movement, 15% stronger direct hits, hot glow and wider/faster poses. Blocked or
-dodged hits do not grant these states. A stun interrupts the attack, stops movement
-and ends frenzy. Old pools/projectiles may continue during a stun.
+dodged hits do not grant these states. Bosses can't be stunned (stuns and pins show IMMUNE). A freeze interrupts the attack, stops movement
+and ends frenzy. Old pools/projectiles may continue during a freeze.
 
 ## Adaptation and limits
 
