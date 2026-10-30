@@ -13,18 +13,22 @@ phone('camera-starts-at-0-7-metres', {
 });
 
 phone('held-upright-pauses-under-the-cover', {
-  about: 'Phones play sideways only: held sideways nothing covers the game; turned upright mid-run, the game pauses and the turn-your-phone cover sits over everything.',
+  about: 'Phones play sideways only: held sideways nothing covers the game; turned upright mid-run, the game pauses and the turn-your-phone cover sits over everything. Under the cover the run holds still even with the pause menu gone (a level-up was up when it turned), and turning back takes the cover away.',
   setup() { fresh({ elites: false }); },
   play() {
-    const { upright } = G(), over = document.getElementById('g-over'), cover = document.getElementById('g-turn');
+    const { upright, run } = G(), over = document.getElementById('g-over'), cover = document.getElementById('g-turn');
     step(5);
-    const sideways = !upright.matches && getComputedStyle(cover).display === 'none' && over.hidden;
-    Object.defineProperty(upright, 'matches', { value: true, configurable: true });   // the phone turned upright
-    upright.dispatchEvent(new Event('change'));
-    delete upright.matches;
-    const paused = !over.hidden;
+    const sideways = !upright.on && getComputedStyle(cover).display === 'none' && over.hidden;
+    upright.test = true; upright.update();                // the phone turned upright
+    const paused = !over.hidden, shown = getComputedStyle(cover).display === 'flex';
     const z = +getComputedStyle(cover).zIndex, onTop = [...document.querySelectorAll('body *')].every((el) => el === cover || !(+getComputedStyle(el).zIndex > z));
-    return ok(sideways && paused && onTop, { sideways, paused, onTop, z });
+    over.hidden = true;                                   // no pause menu over it
+    const t = run.t; step(30);
+    const still = run.t === t;
+    upright.test = false; upright.update();               // turned back sideways
+    const cleared = getComputedStyle(cover).display === 'none';
+    upright.test = null; upright.update();
+    return ok(sideways && paused && shown && onTop && still && cleared, { sideways, paused, shown, onTop, z, still, cleared });
   },
 });
 

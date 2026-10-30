@@ -139,7 +139,7 @@ ui.innerHTML = `
   #g-turn p { margin: 0; opacity: .85; font-weight: 500; font-size: 15px; }
   @keyframes g-turn { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
   @media (prefers-reduced-motion: reduce) { #g-turn .ph { animation: none; transform: rotate(-90deg); } }
-  @media (orientation: portrait) and (max-width: 600px) { body.touch #g-turn { display: flex; } }
+  body.upright #g-turn { display: flex; }
   /* straight on from the act before: no menu, just the act's name while it loads */
   #g-over .cont-note { display: none; margin: 0; opacity: .85; }
   #g-over.cont .cont-note { display: block; }
@@ -335,10 +335,30 @@ touch.mount(ui);
 const homeTip = overlay.querySelector('.home-tip'), HOME_TIP_KEY = 'jellyrun.homeTip';
 let homeTipOff = false; try { homeTipOff = localStorage.getItem(HOME_TIP_KEY) === 'off'; } catch {}
 homeTip.hidden = !/iPhone|iPod/.test(navigator.userAgent) || navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || homeTipOff;
-// held upright mid-run: pause under the turn-sideways cover, so nothing hits the jelly unseen
-const upright = matchMedia('(orientation: portrait) and (max-width: 600px)');
-if (IS_TOUCH) upright.addEventListener('change', () => { if (upright.matches) pause(); });
-window.upright = upright;   // stories turn the phone (phone/held-upright-pauses-under-the-cover)
+// held upright: the turn-sideways cover goes over everything and the run holds still under it, so nothing
+// hits the jelly unseen. A phone is a touch screen whose short side is under 600 px, read from the screen,
+// not the page: iOS can keep the page at its landscape width after the phone turns back upright.
+const portrait = matchMedia('(orientation: portrait)');
+const upright = {
+  test: null,   // stories hold the phone one way or the other (phone/held-upright-...)
+  get matches() {
+    if (this.test !== null) return this.test;
+    const type = screen.orientation?.type;
+    return IS_TOUCH && Math.min(screen.width, screen.height) < 600 && (type ? type.startsWith('portrait') : portrait.matches);
+  },
+  on: false,     // as last read: the frame loop asks every frame
+  update() {
+    if (this.matches === this.on) return;
+    document.body.classList.toggle('upright', this.on = !this.on);
+    if (this.on) pause();
+  },
+};
+document.body.classList.toggle('upright', upright.on = upright.matches);   // the title is already up
+const turned = () => upright.update();
+screen.orientation?.addEventListener?.('change', turned);
+portrait.addEventListener('change', turned);
+addEventListener('resize', turned);
+window.upright = upright;
 run.onResume = () => { if (!IS_TOUCH) lockPointer(); };
 
 // --- Modes: 'play' (paused while a menu is up), 'creator' and 'layout' --------------
@@ -350,7 +370,7 @@ if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }
 let bossScene = null;
-const menuOpen = () => !!bossScene || mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+const menuOpen = () => upright.on || !!bossScene || mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
