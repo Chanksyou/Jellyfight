@@ -1,97 +1,83 @@
-// The balance bot: an autopilot plays whole nights headlessly and reports how far it gets and
-// what hurt it. Use it before and after a change that could make the game harder or easier,
-// and report the numbers instead of guessing.
-//
-//   node tests/balance.mjs          5 nights
-//   node tests/balance.mjs 10       10 nights
-//   node tests/balance.mjs 5 --act=3   start in act 3 with a level-10 run carried in (what the act 3 test page carries)
-//
-// The bot is simple on purpose: it keeps away from bugs, elites and spit, goes for treasures (golden chests) when it's
-// safe, takes the first card or treasure it's offered, and hops when it gets stuck. A real
-// player does better; compare runs of the bot with each other, not with people.
-import { start, openGame } from './lib.mjs';
+// Seeded campaigns through the real four-act game. JSONL stdout; progress on stderr.
+import { execFileSync } from 'node:child_process';
+import { start, openGame, ROOT } from './lib.mjs';
+import { options, estimate, winInterval, paired } from './balance-core.mjs';
 
-const RUNS = Number(process.argv.slice(2).find((a) => !a.startsWith('--'))) || 5;
-const ACT = Number((process.argv.find((a) => a.startsWith('--act=')) || '').slice(6)) || 1;
-// a later act starts as if the act before was just beaten (the same carries as tests/run.mjs's act pages)
-const CARRY = { 2: { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 },
-  3: { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] } };
-const env = await start();
-const { page, errors } = await openGame(env, { viewport: { width: 800, height: 500 }, ...(ACT > 1 && { act: { act: ACT, carry: CARRY[ACT] } }) });
-
-const results = [];
-for (let n = 0; n < RUNS; n++) {
-  await page.evaluate(async () => {
-    const { bus, PLAYER } = await import('/src/events.js');
-    document.getElementById('g-over').hidden = true;
-    menus.close();
-    run.start();
-    // what hurt the jelly: health actually lost each frame, credited to whatever hit it that
-    // frame (the bus tags every hit with its source; touching bugs report every frame, and the
-    // invincibility window ignores most of those, so counting reports would overcount)
-    window.__bot?.off?.();
-    const B = window.__bot = { hurt: {}, src: null, last: null, prev: null };
-    B.off = bus.on('damage_taken', (d) => { if (d.targetId === PLAYER) B.src = d.source; });
-  });
-  // play in chunks so the page stays responsive; stop at the end of the night or 10 minutes in
-  for (let chunk = 0; chunk < 60; chunk++) {
-    const phase = await page.evaluate(() => {
-      const B = window.__bot, P = player.position;
-      for (let i = 0; i < 600; i++) {
-        if (['dead', 'won', 'metamorph'].includes(run.phase)) return run.phase;
-        // take the first card, or a dialog's main button
-        if (menus.open) document.querySelector('.jf-modal .jf-card, .jf-modal button.go, .jf-modal button')?.click();
-        document.getElementById('g-over').hidden = true;   // desktop pauses when the mouse isn't locked after a pick: a player would click Play
-        // steer: away from everything close (closer = stronger), else toward the nearest treasure or the middle
-        let fx = 0, fz = 0;
-        const push = (x, z, w) => { const dx = P.x - x, dz = P.z - z, d = Math.max(0.03, Math.hypot(dx, dz)); if (d < 0.45) { fx += dx / d * w / (d * d); fz += dz / d * w / (d * d); } };
-        for (const e of enemies.list) if (!e.dead) { const c = enemies.center(e); push(c.x, c.z, e.proxy ? 3 : 1); }   // elites count for more
-        for (const s of enemies.shots) push(s.m.position.x, s.m.position.z, 0.5);
-        if (run.boss && !run.boss.dead) { const c = run.boss.center(); push(c.x, c.z, 4); }
-        let tx, tz;
-        if (Math.hypot(fx, fz) > 1e-6) { tx = fx; tz = fz; const k = 0.02 / (Math.hypot(fx, fz)); tx += (3.2 - P.x) * k * 40; tz += (3.0 - P.z) * k * 40; }
-        else if (run.roomTreasures.some((t) => t.active)) {
-          const t = run.roomTreasures.filter((x) => x.active).sort((a, b) => a.pos.distanceTo(P) - b.pos.distanceTo(P))[0];
-          tx = t.pos.x - P.x; tz = t.pos.z - P.z;
-        }
-        else { tx = 3.2 - P.x + Math.sin(run.t * 0.3) * 0.3; tz = 3.0 - P.z + Math.cos(run.t * 0.23) * 0.3; }
-        if (Math.hypot(tx, tz) > 0.01) { tpc.yaw = Math.atan2(-tx, -tz); input.keys = new Set(['KeyW']); } else input.keys = new Set();
-        // hop when stuck against furniture
-        if (i % 30 === 0) { if (B.prev && P.distanceTo(B.prev) < 0.01 && input.keys.size) input.jumpQueued = true; B.prev = P.clone(); }
-        const m0 = run.health;
-        B.src = null;
-        GAME.step(1 / 60);
-        if (run.health < m0 && B.src) { B.hurt[B.src] = (B.hurt[B.src] || 0) + (m0 - run.health); B.last = B.src; }
-      }
-      if (run.t > 600) return 'timeout';
-      // nothing moved for a whole chunk: something is holding the game (report it, don't hang)
-      if (B.lastT === run.t) return 'stalled: ' + JSON.stringify({ menu: menus.open, overlay: !document.getElementById('g-over').hidden, picked: run.startPicked, text: document.body.innerText.slice(0, 200) });
-      B.lastT = run.t;
-      return run.phase;
-    });
-    if (phase.startsWith('stalled')) { console.log('    ' + phase); break; }
-    if (['dead', 'won', 'metamorph', 'timeout'].includes(phase)) break;
-  }
-  const r = await page.evaluate(() => {
-    input.keys = new Set();
-    const B = window.__bot;
-    return {
-      outcome: run.phase === 'dead' ? 'died' : run.phase === 'won' || run.phase === 'metamorph' ? 'beat the boss' : run.phase === 'boss' ? 'still fighting the boss at 10:00' : run.phase,
-      at: +run.t.toFixed(0), level: run.level, kills: run.kills, treasures: run.owned.size,
-      killedBy: run.phase === 'dead' ? B.last : null,
-      hurt: Object.fromEntries(Object.entries(B.hurt).map(([k, v]) => [k, +v.toFixed(1)]).sort((a, b) => b[1] - a[1])),
-    };
-  });
-  results.push(r);
-  console.log(`night ${n + 1}: ${r.outcome} at ${Math.floor(r.at / 60)}:${String(r.at % 60).padStart(2, '0')}, level ${r.level}, ${r.kills} kills, ${r.treasures} treasures${r.killedBy ? `, finished by ${r.killedBy}` : ''}\n    hurt by ${JSON.stringify(r.hurt)}`);
+const opts = options(process.argv.slice(2));
+if (opts.help) {
+  console.log('balance.mjs [runs=5] [--seed=N | --seeds=N,N] [--styles=ranged,close,rooting] [--build=id,id@3,evo:id] [--add=id | --synergy=id+id] [--prefer=id,stat] [--act=1..4] [--seconds=600] [--act-only]\nJSONL output. --seconds limits each act, including menus/cutscenes. Later-act starts use a synthetic preset; act 1 campaigns carry earned progress.');
+  process.exit(0);
 }
-
-const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
-const hurt = {};
-for (const r of results) for (const [k, v] of Object.entries(r.hurt)) hurt[k] = (hurt[k] || 0) + v;
-const total = Object.values(hurt).reduce((a, b) => a + b, 0) || 1;
-console.log(`\n${RUNS} nights: ${results.filter((r) => r.outcome === 'beat the boss').length} beat the boss, ${results.filter((r) => r.outcome === 'died').length} died`);
-console.log(`median: survived to ${med(results.map((r) => r.at))} s, level ${med(results.map((r) => r.level))}, ${med(results.map((r) => r.kills))} kills`);
-console.log('health lost, by source: ' + Object.entries(hurt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round(100 * v / total)}%`).join(', '));
-if (errors.length) console.log('page errors: ' + errors.slice(0, 3).join(' | '));
-await env.close();
+// Explicit later-act fixtures matching tests/run.mjs, NOT earned campaign progress.
+const CARRY = {
+  2: { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 },
+  3: { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] },
+  4: { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] },
+};
+const emit = value => console.log(JSON.stringify(value));
+const env = await start(), rows = [];
+let page;
+try {
+  let opened = await openGame(env, { viewport: { width: 800, height: 500 }, seed: opts.seed,
+    ...(opts.act > 1 && { act: { act: opts.act, carry: CARRY[opts.act] } }) });
+  page = opened.page;
+  const arms = await page.evaluate(async o => (await import('/tests/balance-browser.mjs')).comparisons(o.build, o.add, o.synergy), opts);
+  const validPrefer = await page.evaluate(async () => {
+    const { CONTENT } = await import('/src/content.js');
+    return [...CONTENT.treasures.map(t => t.id), ...CONTENT.evolutions.map(e => e.id), ...Object.keys(CONTENT.levelups.cards)];
+  });
+  for (const id of opts.prefer) if (!validPrefer.includes(id)) throw Error(`Unknown preferred choice: ${id}`);
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT }).toString().trim();
+  const dirty = !!execFileSync('git', ['status', '--porcelain'], { cwd: ROOT }).toString().trim();
+  emit({ type: 'metadata', tool: 'balance', revision, dirty, ...opts, arms, syntheticStart: opts.act > 1,
+    limits: 'Scripted bots, no pathfinding or human reaction model; one RNG stream per act. A changed version can consume randomness differently.' });
+  let first = true;
+  for (const style of opts.styles) for (const seed of opts.seeds) for (const arm of arms) {
+    let carry = opts.act > 1 ? CARRY[opts.act] : null, act = opts.act;
+    const acts = [];
+    while (true) {
+      if (!first) {
+        await page.close();
+        opened = await openGame(env, { viewport: { width: 800, height: 500 }, seed,
+          ...(act > 1 && { act: { act, carry } }) });
+        page = opened.page;
+      }
+      first = false;
+      await page.evaluate(async config => (await import('/tests/balance-browser.mjs')).startAct(config),
+        { ...opts, seed, style, build: arm.build, initial: acts.length === 0 });
+      let result;
+      do { result = await page.evaluate(async () => (await import('/tests/balance-browser.mjs')).chunk()); }
+      while (result.outcome === 'running');
+      if (opened.errors.length) throw Error(opened.errors.join('\n'));
+      acts.push(result);
+      console.error(`seed ${seed} ${style} ${arm.arm}: act ${act} ${result.outcome}, level ${result.level}, Health ${result.health.toFixed(1)}`);
+      if (result.outcome !== 'next-act') break;
+      if (result.transition?.act !== act + 1 || !result.transition.carry) throw Error('Invalid act transition');
+      carry = result.transition.carry; act++;
+    }
+    const last = acts.at(-1), total = key => acts.reduce((s, a) => s + a[key], 0);
+    const row = { type: 'run', style, seed, arm: arm.arm, build: arm.build, outcome: last.outcome,
+      actsBeaten: acts.filter(a => a.bossBeaten).length, elapsed: total('elapsed'), level: last.level, killedBy: last.killedBy,
+      kills: total('kills'), damage: total('damage'), healthLost: total('healthLost'), shieldAbsorbed: total('shieldAbsorbed'),
+      healed: total('healed'), revivalHealing: total('revivalHealing'), revivals: total('revivals'), deathSaves: total('deathSaves'), acts };
+    rows.push(row); emit(row);
+  }
+  for (const style of opts.styles) {
+    const group = rows.filter(r => r.style === style);
+    for (const arm of arms) {
+      const rs = group.filter(r => r.arm === arm.arm);
+      emit({ type: 'summary', style, arm: arm.arm, completion: winInterval(rs.filter(r => ['won', 'beat-boss'].includes(r.outcome)).length, rs.length),
+        elapsed: estimate(rs.map(r => r.elapsed)), actsBeaten: estimate(rs.map(r => r.actsBeaten)), healthLost: estimate(rs.map(r => r.healthLost)) });
+      if (arm.arm !== 'base') emit({ type: 'paired', style, arm: arm.arm, control: 'base',
+        actsBeatenDifference: paired(group, r => r.actsBeaten, arm.arm), healthLostDifference: paired(group, r => r.healthLost, arm.arm),
+        warning: 'Health loss is exposure-dependent; compare act outcomes and durations too.' });
+    }
+    if (opts.synergy.length) {
+      const differences = opts.seeds.map(seed => {
+        const get = arm => group.find(r => r.seed === seed && r.arm === arm).actsBeaten;
+        return get('AB') - get('A') - get('B') + get('base');
+      });
+      emit({ type: 'interaction', style, metric: 'actsBeaten', additiveInteraction: estimate(differences), warning: 'Screening signal, not proof of causal synergy or human viability.' });
+    }
+  }
+} finally { await page?.close(); await env.close(); }

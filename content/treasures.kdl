@@ -54,22 +54,22 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 // your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
 // Legendary pick) always offers at least one you don't have; never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire attack: you also shoot fireballs that set enemies burning for 3 s." {
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire: hits for 60% of Bubble damage, then burns for 77% per second for 3 s. Burning kills spread fire." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning attack: you also shoot ball lightning; every pop arcs to 3 more enemies nearby, stunning each." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning: hits for 60% of Bubble damage, then arcs to 3 nearby enemies for 41% each, stunning them for 0.5 s." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice attack: you also shoot ice shards that slow enemies for 2 s. Repeated hits refresh the slow." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice: slow-flying shards hit for 2x Bubble damage and slow enemies by 45% for 2 s. Hits refresh the slow." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid attack: you also lob acid globs that leave a puddle eating at anything standing in it." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid: hits for 60% of Bubble damage. Leaves a 3.5 s puddle that eats at enemies and makes them take 30% more damage." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind attack: wind up and throw piercing gusts half as often as bubbles. Pushes enemies back; hitting walls or scenery deals the wind hit's damage again. Other enemies do not trigger collision damage." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind: fast gusts hit for 1.5x Bubble damage and pierce 2 enemies. Pushes them back; a wall or scenery collision deals the hit again." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter attack: you also lob glitter bombs that burst in a wide, hard-hitting splash." {
+treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter: slow bombs hit for 60% of Bubble damage, then splash other enemies within 8 cm for 40% each." {
     element "glitter"
 }
 

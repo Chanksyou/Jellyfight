@@ -833,7 +833,7 @@ story('treasures/tuned-element-upgrades', {
   play() {
     const E = G().run.mods.element;
     const got = [E.fire.burnTime, E.fire.burn, E.lightning.chainRange, E.lightning.bolt, E.ice.pierce, E.wind.pierce, E.wind.rate, E.glitter.width, E.glitter.slow, E.glitter.rate];
-    const want = [6, 2, 0.32, 2, 5, 6, 0.88 * 1.4, 2.2 * 1.4, 2, 1.05 * 1.4];
+    const want = [6, 2, 0.32, 2, 5, 6, 0.88 * 1.4, (0.08 / 0.026) * 1.4, 2, 1.05 * 1.4];
     return ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-9), { got, want });
   },
 });
@@ -852,5 +852,52 @@ story('treasures/tuned-level-effects', {
       got.push([M.landingShockwave.dmg, duck.radius, duck.push, duck.cooldown, M.spout.heal, chord.radius, chord.dmg, chord.push, bomb.radius, bomb.dmg, M.hits.bubbles.markMore]);
     }
     return ok(got.every((row, i) => row.every((v, j) => Math.abs(v - want[i][j]) < 1e-9)), { got, want });
+  },
+});
+
+
+story('treasures/element-damage-and-speed', {
+  about: 'Base Ice hits for 2x at 0.285 m/s, Wind for 1.5x at 1.6 m/s, and Glitter splashes for 0.4x within 8 cm at 0.4 m/s; damage scales with Bubble damage.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'paperFan', 'glitter'); roachAt(0, -0.18); step(2); },
+  play() {
+    const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];
+    e.hp = e.maxHp = 10000;
+    const near = roachAt(0.079, -0.18), far = roachAt(0.12, -0.18);
+    const log = record('damage_taken'), results = [], close = (a, b) => Math.abs(a - b) < 1e-8;
+    for (const D of [6, 12]) for (const [id, mult, speed] of [['ice', 2, 0.285], ['wind', 1.5, 1.6], ['glitter', 0.6, 0.4]]) {
+      const stats = { ...run.S, bubbles: 1, bubbleSize: 1, bubbleDamage: D };
+      B.elementVolley(id, run.mods.element[id], player.position.clone().add(V(0, 0.06, 0)), stats, run.mods);
+      const b = B.list[B.list.length - 1];
+      B.strike(b, e, run.mods);
+      const hit = log.filter(d => d.targetId === e.id && d.source === 'bubble').at(-1);
+      let splash = true;
+      if (id === 'glitter') {
+        b.hit.add(e); b.m.position.copy(enemies.center(e));
+        near.pos.copy(e.pos).add(V(0.079, 0, 0)); far.pos.copy(e.pos).add(V(0.12, 0, 0));
+        const start = log.length; B.splash(b); const hits = log.slice(start).filter(d => d.source === 'splash');
+        splash = hits.some(d => d.targetId === near.id && close(d.amount, D * 0.4)) && !hits.some(d => d.targetId === far.id);
+      }
+      results.push({ id, D, damage: hit.amount, speed: b.speed, splash, pass: close(hit.amount, D * mult) && close(b.speed, speed) && splash });
+      B.release(b, true); B.list.pop();
+    }
+    return ok(results.every(r => r.pass), { results });
+  },
+});
+
+story('treasures/acid-vulnerability', {
+  about: 'Acid puddles apply 30% vulnerability to their own ticks and other hits, expire normally, and do not weaken a stronger Sticky Note mark.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('nailPolish'); roachAt(0, -0.18); step(2); },
+  play() {
+    const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0]; e.hp = e.maxHp = 10000;
+    B.elementVolley('acid', run.mods.element.acid, player.position.clone().add(V(0, 0.06, 0)), run.S, run.mods);
+    const b = B.list[B.list.length - 1]; b.m.position.copy(enemies.center(e)); b.hit.add(e); B.pop(b, e, run.S, run.mods);
+    const p = B.puddles[0]; p.m.position.copy(e.pos); p.tick = 0;
+    const before = e.hp; B.effects(1 / 60, run.S);
+    const more = e.markMore, tick = before - e.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'bubble' }); const hit = before - tick - e.hp;
+    bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 3, more: 0.5 });
+    p.tick = 0; B.effects(1 / 60, run.S); const stronger = e.markMore;
+    B.reset(); step(181);
+    return ok(more === 0.3 && Math.abs(tick - 6 * 4.5 * 0.012 * 0.5 * 1.3) < 1e-8 && Math.abs(hit - 13) < 1e-8 && stronger === 0.5 && e.markT === 0, { more, tick, hit, stronger, expired: e.markT === 0 });
   },
 });

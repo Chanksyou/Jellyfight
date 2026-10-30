@@ -1,3 +1,4 @@
+# HISTORICAL: old measurement schema; do not compare with current seeded reports. See docs/agents/balance-tools.md.
    (no treasure)        range: clear  28.9 s, dmg    102   swarm: clear  16.3 s, dmg    234
 🧷 Bobby Pin            range: clear  19.4 s, dmg    190   swarm: clear  20.7 s, dmg    150
 ➰ Hair Tie             range: clear  18.7 s, dmg    178   swarm: clear  11.1 s, dmg    286

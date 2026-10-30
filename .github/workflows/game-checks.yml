@@ -49,6 +49,7 @@ jobs:
         run: |
           mkdir -p .wrangler
           node tests/check.mjs | tee .wrangler/ci-guards.log
+          node tests/balance-smoke.mjs | tee -a .wrangler/ci-guards.log
       - name: Run story shard
         if: matrix.shard != 0
         run: |

@@ -558,6 +558,7 @@
   /* --- the camera ------------------------------------------------------------ */
   --camera-distance: 0.9;      /* meters behind the jelly: start fully zoomed out on desktop */
   --camera-distance-phone: 0.7;
+  --shower-curtain-opacity: 0.25; /* see-through fabric; the rod and rings stay solid */
   --boss-see-through: 0.15;     /* how solid what a boss arena sees through looks during its fight (a stage's boss `seeThrough`: the Clog's shower curtain) */
   --boss-force-field: 0;        /* 1: draw every boss arena's force field (0: invisible, still solid, so the camera can stand behind it; a stage's boss `forceField: true` draws its own: the Vacuum's) */
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */

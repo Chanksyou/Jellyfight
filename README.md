@@ -225,7 +225,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Its **cream spray**: it tips toward you while its Warning, a wedge on the floor with the see-through cone of cream rising over it as it spreads, fills, then sprays whipped cream along it (2, and it slows you): jumping doesn't clear it, stepping out of it does.
   Under half health it blows two balloons at a time and sprays longer.
   The tub is dressed after the real one (`src/bathroom.js`, decoration only): white stacked-subway tile, a pink-and-white striped non-slip mat and a domed steel drain stopper, brushed-steel spout, thermostat plate and shower slide rail with its hand shower and hose, the overflow plate and grey hose over the rim, a smiley scrub sponge and two Pantene bottles on the rim, and a black wire caddy on the back wall with its bottles and a loofah.
-  The shower curtain is the real one too: opaque cream woven fabric, folded, with a fringe along its bottom hem, hanging from a chrome rod on rings — climb it and slip behind it into the tub.
+  The shower curtain is the real one too: see-through cream woven fabric (25% opacity), folded, with a fringe along its bottom hem, hanging from a chrome rod on rings — climb it and slip behind it into the tub.
   When time runs out **the Clog** rises from the bathtub drain and you fight it in the tub: a huge wet matted hairball (hundreds of fine strands in mixed browns with a grey and a blonde one, a pink hair tie, a bobby pin, soap scum, a cotton bud and a bead caught in it, slime dripping off it, glowing eyes and a toothy maw peering through a parting in the hair, four thick hair ropes).
   Between attacks it bounds after you in squashing hops, juking to one side as it crouches; bumping into it is a heavy wet slam (3, thrown back and tangled for a moment, the screen shaking).
   It cycles through attacks, each with a Warning: **pinball** (three leaps at you: each landing spot is a circle with a see-through half sphere over it, 13 cm round, that follows you until just before it lands, then it slams down there as a Blast: 3 and thrown back, so get out of each circle; the third slam also rolls a low ring wave out across the tub, 2.5 cm high: jump it), **comb** (hair curtains slam down across the tub in five lanes side by side, each a strip with a see-through lane 12 cm tall over it, too tall to jump: every other lane, then the ones between, then every other again: 3 and tangled, so step into the lane that just struck), **hair lash** (a rope rears up while its Warning, a line on the tub floor with a see-through lane 3 cm high over it, fills, the aim locking halfway, then whips down along it: 3 and tangled, slowed, unless you jump it), **snare** (three circles fill round you, each a Warning with a see-through half sphere 5 cm high over it, then tufts of hair spring up in them as small Blasts: 2 and slowed if any of you is inside, so a well-timed jump clears it), **roll** (it spins up while its Warning lights up, a lane on the floor with a see-through lane as tall as the hairball over it, 20 cm: a jump doesn't clear it, so get out of it; then it rolls down it: 4), **shed** (it shakes off hair tangles).
@@ -275,12 +275,14 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error.
 Setup: `cd tests && npm install && npx playwright install chromium`.
 
-**The balance bot** (`node tests/balance.mjs 5`) plays whole nights on autopilot and reports how long it lasted, its level and kills, whether it beat the boss, and which sources took its Health.
-Run it before and after anything that could make the game harder or easier.
-
-**The matchup test** (`BUGS=roach node tests/matchup.mjs`) puts every treasure (at level 1 and its top level), every Epic level-up card and every evolution against one big bug and a chasing clump of ten, and reports how much faster each clears them than nothing does.
-Leave out `BUGS=` to try every bug.
-Use it to spot outliers; rate a single treasure with `tests/clear.mjs`.
+**Balance tools** use repeatable seeds and real combat measurements: Health lost after shields, effective enemy damage after defenses, healing, revivals, and separate deaths/timeouts.
+The campaign bot supports ranged, close-range and rooting styles, chooses offered rewards with seeded priorities, and carries earned builds through all four acts.
+Use `node tests/balance.mjs --seeds=10,11 --styles=ranged --act-only` for a small single-act check.
+Use `node tests/clear.mjs lighterFluid --build=candle --seeds=10,11` to measure an upgrade against its prerequisite, or `node tests/matchup.mjs` for treasures, live Epic cards and evolutions against different enemies.
+Both encounter tools support the same styles and base/max treasure copies; stationary remains their default.
+Add `--add=id` for a paired build comparison or `--synergy=itemA+itemB` for base/A/B/A+B tests.
+Reports are JSON Lines, with progress on stderr; save them and compare revisions with `node tests/compare-balance.mjs before.jsonl after.jsonl`.
+[Commands, measurements and limitations](docs/agents/balance-tools.md).
 
 ## Dev: layout editor
 
