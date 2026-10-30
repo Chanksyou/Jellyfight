@@ -1,7 +1,7 @@
 // Menu presentation must never move the actual player or replay when resuming a run.
 import { story, phone, G, fresh, ok, step, stub } from './kit.js';
 import { SPECIES } from '../character.js';
-import { moveSaves } from '../rename.js';
+import { moveSaves, forwardFor, takeSaves, HOME } from '../rename.js';
 
 story('menu/portrait-controls-centered', {
   about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
@@ -200,5 +200,23 @@ story('menu/old-saves-move-to-the-new-name', {
     } finally {
       for (const [k, v] of saved) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
     }
+  },
+});
+
+story('menu/old-address-hands-saves-to-jellyrun-org', {
+  about: 'The game lives at jellyrun.org. The old Cloudflare address sends a player there with their saves in the link, and jellyrun.org keeps each save it does not already have; any other address (previews, claude.ai) stays put.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const mem = (o = {}) => ({ ...o, getItem(k) { return k in this ? this[k] : null; }, setItem(k, v) { this[k] = String(v); } });
+    const old = mem({ 'jellyrun.best': '{"score":4321}', 'jellyrun.pearls': '7', other: 'x' });
+    Object.defineProperties(old, { getItem: { enumerable: false }, setItem: { enumerable: false } });
+    const link = forwardFor('jelly-fight.nycjfc.workers.dev', old);
+    const stays = forwardFor('claude-project-thread-x-jelly-fight.nycjfc.workers.dev', old) === null && forwardFor('jellyrun.org', old) === null;
+    const fresh2 = mem({ 'jellyrun.pearls': '9' });
+    Object.defineProperties(fresh2, { getItem: { enumerable: false }, setItem: { enumerable: false } });
+    const took = takeSaves(link.slice(HOME.length), fresh2);
+    const kept = fresh2['jellyrun.best'] === '{"score":4321}' && fresh2['jellyrun.pearls'] === '9' && !('other' in fresh2);
+    const ignores = !takeSaves('', fresh2) && !takeSaves('#saves=%7Bbroken', fresh2);
+    return ok(link.startsWith(HOME + '#saves=') && stays && took && kept && ignores, { link: link.slice(0, 60), stays, took, kept, ignores });
   },
 });

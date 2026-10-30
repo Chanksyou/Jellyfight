@@ -326,6 +326,8 @@ On phones: left thumb moves (full speed anywhere past 70% of the ring, however f
 ## Hosting on Cloudflare (public leaderboard)
 
 The game also runs as a Cloudflare Worker named `jelly-fight` (`wrangler.jsonc`).
+Its address is <https://jellyrun.org> (a custom domain on that Worker).
+The Worker's old address, `jelly-fight.nycjfc.workers.dev`, sends players to jellyrun.org with their saves in the link (`src/rename.js`), since a browser keeps saves per address.
 The Worker serves the game's files from Cloudflare's CDN and answers `api/scores` (`worker/index.js`) from a D1 database called `jelly-fight-scores`, so anyone can post a score: signed in or not, any organization.
 On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
 
