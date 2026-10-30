@@ -720,10 +720,10 @@ export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
   fire: { burn: 1, burnTime: 3, spread: 0.06 },                       // burn dps x, seconds, how far a death spreads it
   lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
-  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 1.35 },         // chill s, frost: chills the whole splash, slowed enemies take x
+  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5 },         // chill s, frost: chills the whole splash, slowed enemies take x
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
-  wind: { push: 0.6, pierce: 1, speed: 1.4, rate: 0.88, dmg: 1.1, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
-  glitter: { width: 2.2, splash: 1, slow: 0, rate: 1.05 },            // splash width x, splash damage x, slow s
+  wind: { push: 0.6, pierce: 1, speed: 1.6 / 0.57, rate: 0.88, dmg: 1.5, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
+  glitter: { width: 0.08 / 0.026, splash: 1, slow: 0, rate: 1.05, speed: 0.4 / 0.57 },            // splash width x, splash damage x, slow s
 };
 // element-up numbers that add (the rest multiply)
 export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);

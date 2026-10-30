@@ -12,7 +12,7 @@
 //   lightning (AA Battery)   ball lightning: each pop chains a bolt to 3 more enemies, stunning them.
 //   ice (Freezer Pack)       an ice shard: chills and slows; repeated hits refresh the slow.
 //   acid (Nail Polish)       an acid glob: leaves a bubbling puddle that eats at enemies and softens
-//                            them (they take 50% more damage while in it).
+//                            them (they take 30% more damage while in it).
 //   wind (Paper Fan)         a fast crescent wind blade that hits across its whole width, pierces
 //                            once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
@@ -53,7 +53,7 @@ export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
   bolt: 0.09,       // lightning: each arc
   puddle: 0.012,    // acid: each tick of the puddle (every 0.5 s, halved)
-  glitter: 0.08,    // glitter: the wide splash
+  glitter: 0.4 / 4.5,    // glitter: the wide splash
 };
 
 // where in an element's timer its energy starts gathering at the bell (the last fifth)
@@ -514,7 +514,7 @@ export class Bubbles {
           if (e.dead) continue;
           E.center(e, c);
           if (Math.hypot(c.x - p.m.position.x, c.z - p.m.position.z) < p.r + e.r && Math.abs(c.y - e.r - p.m.position.y) < e.r + 0.03) {
-            bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 0.6 });   // softened: +50% damage from everything
+            bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 0.6, more: 0.3 });   // softened: +30% damage from everything
             bus.emit('damage_taken', { targetId: e.id, amount: p.dmg * 0.5, color: '#a8ff7a', source: 'acid' });
             this.looks.acidBite(this._t.copy(c).setY(c.y - e.r * 0.6), e.r); sfx.acidSizzle();
           }
