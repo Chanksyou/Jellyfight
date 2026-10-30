@@ -30,6 +30,7 @@ export class Fx {
       life: LOOK.num('number-life', 0.7), critLife: LOOK.num('number-crit-life', 0.95),
       tickLife: LOOK.num('number-tick-life', 0.85), size: LOOK.num('number-size', 14),
       maxSize: LOOK.num('number-max-size', 22), critSize: LOOK.num('number-crit-size', 7),
+      critColor: LOOK.color('crit', '#e6fbff'), flare: LOOK.num('number-crit-flare', 0.24),
       lane: LOOK.num('number-lane-space', 22), accents: LOOK.num('number-accent-limit', 20),
     };
     this.numberColors = Object.fromEntries(Object.entries({ fire: '#ffae62', ice: '#bdeeff', lightning: '#fff27a', acid: '#adff79', wind: '#eef8ff', glitter: '#ffb1ec', mixed: '#d6f1ff' }).map(([k, c]) => [k, LOOK.color('number-' + k, c)]));
@@ -90,7 +91,8 @@ export class Fx {
       const group = this.nums.find(x => x.alive && x.numeric && x.tick === tick && x.targetId === info.targetId && (!tick || (x.element === element && this.numberClock - x.born <= groupWindow)));
       if (group && this.numberClock - group.born <= groupWindow) {
         group.amount += text; group.pos.copy(pos);
-        group.crit ||= crit; group.slam ||= !!info.slam;
+        if (crit && !group.crit) { group.crit = true; group.critT = 0; }   // a crit joining the receipt slams it in again
+        group.slam ||= !!info.slam;
         if (group.element !== element) group.element = 'mixed';
         this.numberText(group);
         return group;
@@ -110,18 +112,24 @@ export class Fx {
     if (!n) {
       const el = document.createElement('div');
       el.style.cssText = 'position:absolute;left:0;top:0;white-space:nowrap;text-shadow:0 1px 2px #000,0 0 4px #0008;will-change:transform';
-      const glyph = document.createElement('span'), accent = document.createElement('span');
+      const glyph = document.createElement('span'), accent = document.createElement('span'), flare = document.createElement('span'), tag = document.createElement('span');
       accent.style.cssText = 'position:absolute;left:50%;top:100%;font-size:10px;pointer-events:none';
-      accent.setAttribute('aria-hidden', 'true'); el.append(glyph, accent);
+      // a crit's star burst behind its number: one glyph, so it costs a phone nothing
+      flare.style.cssText = 'position:absolute;left:50%;top:50%;z-index:-1;pointer-events:none;display:none;font-style:normal;-webkit-text-stroke:1px #17212d';
+      flare.textContent = '✦';
+      // a crit says so: a small CRIT over its number
+      tag.style.cssText = 'position:absolute;left:50%;bottom:82%;transform:translateX(-50%);font-size:0.5em;letter-spacing:0.08em;display:none';
+      tag.textContent = 'CRIT';
+      accent.setAttribute('aria-hidden', 'true'); flare.setAttribute('aria-hidden', 'true'); el.append(flare, tag, glyph, accent);
       this.layer.appendChild(el);
-      n = { el, glyph, accent, pos: new THREE.Vector3() };
+      n = { el, glyph, accent, flare, tag, pos: new THREE.Vector3() };
       this.nums.push(n);
     }
     n.alive = false;   // don't count the reused slot when choosing a free trajectory
     n.lane = 0;
     const nearby = x => x.alive && (info.targetId != null ? x.targetId === info.targetId : x.pos.distanceToSquared(pos) < 0.0064);
     while (this.nums.some(x => nearby(x) && x.lane === n.lane)) n.lane++;
-    Object.assign(n, { alive: true, t: 0, born: this.numberClock, serial: this.numberSerial++, numeric, tick, crit, element, slam: !!info.slam, targetId: info.targetId, amount: text, color, baseSize: size });
+    Object.assign(n, { alive: true, t: 0, critT: 0, born: this.numberClock, serial: this.numberSerial++, numeric, tick, crit, element, slam: !!info.slam, targetId: info.targetId, amount: text, color, baseSize: size });
     n.pos.copy(pos);
     n.dx = (n.lane % 2 ? 1 : -1) * Math.ceil(n.lane / 2) * this.numberLook.lane;
     const projected = this._v.copy(pos).project(this.camera), px = projected.x * innerWidth / 2 + n.dx, py = projected.y * innerHeight / 2;
@@ -137,13 +145,16 @@ export class Fx {
 
   numberText(n) {
     const value = n.numeric ? n.amount > 0 && n.amount < 1 ? (n.amount < 0.1 ? '<0.1' : n.amount.toFixed(1)) : Math.round(n.amount) : n.amount;
-    n.glyph.textContent = `${n.crit ? '✦ ' : n.slam ? '◆ ' : ''}${value}`;
+    n.glyph.textContent = `${n.slam && !n.crit ? '◆ ' : ''}${value}`;
+    n.tag.style.display = n.crit ? '' : 'none';
     n.accent.textContent = n.numeric ? NUMBER_ACCENTS[n.element] || '' : '';
     n.el.style.color = this.numberColors[n.element] || n.color;
     n.el.style.fontWeight = n.crit ? '900' : n.tick ? '650' : '800';
+    n.el.style.fontStyle = n.crit ? 'italic' : '';
     n.size = n.numeric ? n.tick ? this.numberLook.size - 2 : Math.min(this.numberLook.maxSize, this.numberLook.size + Math.sqrt(Math.max(0, n.amount))) + (n.crit ? this.numberLook.critSize : 0) : n.baseSize;
     n.el.style.fontSize = n.size + 'px';
-    n.el.style.webkitTextStroke = n.crit ? '0.7px #17212d' : '';
+    n.el.style.webkitTextStroke = n.crit ? '1px #17212d' : '';
+    n.flare.style.color = this.numberLook.critColor;
     n.life = n.tick ? this.numberLook.tickLife : n.crit ? this.numberLook.critLife : this.numberLook.life;
   }
 
@@ -288,10 +299,16 @@ export class Fx {
 
   // A critical hit (crit): a bright star-flash bigger than the bug, a burst of sparks and a fast ring,
   // so a crit reads at a glance even in a crowd
+  // so a crit reads at a glance even in a crowd: a white-hot core inside the star-flash, a burst of
+  // fast sparks and two rings, one quick and tight, one slower and wide. It kicks the screen a step
+  // harder than a hit (--feel-crit) but never stops the game: crits come too often for hit-stop
   crit(pos, r = 0.01) {
-    const c = (this._crit ||= CRIT());
-    this.glow.emit(pos, c, r * 6, r * 9, 0.14, 1.6);
-    this.impact(pos, c, Math.max(0.012, r * 1.4), 14);
+    const c = (this._crit ||= CRIT()), s = Math.max(0.012, r * 1.4);
+    this.glow.emit(pos, WHITE, r * 3, r * 5, 0.08, 2);
+    this.glow.emit(pos, c, r * 7, r * 11, 0.16, 1.6);
+    this.impact(pos, c, s, 20);
+    this.ring(pos.clone().setY(pos.y - s * 0.3), c, s * 4.5, 0.22);
+    juice.feel('crit');
   }
 
   // a floor warning (vfx.js TeleMaterial) of the given shape, ready to place
@@ -375,7 +392,7 @@ export class Fx {
     const calm = juice.calm || this.reducedMotion.matches, crowded = activeNumbers > this.numberLook.accents;
     for (const n of this.nums) {
       if (!n.alive) continue;
-      n.t += dt;
+      n.t += dt; n.critT += dt;
       if (n.t > n.life) { n.alive = false; n.el.style.display = 'none'; continue; }
       const v = this._v.copy(n.pos).project(this.camera);
       if (v.z > 1) { n.el.style.display = 'none'; continue; }
@@ -400,13 +417,29 @@ export class Fx {
           if (n.element === 'wind') { dx += n.windSign * t * (n.slam ? 25 : 55); if (n.slam) { sx += punch * 0.2; sy *= 1 - punch * 0.25; } }
         }
         rotate = n.crit ? Math.sin(Math.min(1, t / 0.16) * Math.PI) * (n.serial % 2 ? 4 : -4) : 0;
+        if (n.crit) {
+          // it slams in at twice its size, bounces once, hangs a beat, then rises
+          const c = n.critT;
+          if (c < 0.2) sx = sy = Math.max(sx, 1 + 1.1 * Math.exp(-c * 28) * Math.cos(c * 38));
+          dy = Math.min(dy, 0) * Math.min(1, Math.max(0, c - 0.08) / 0.12);
+          rotate = Math.sin(Math.min(1, c / 0.2) * Math.PI) * (n.serial % 2 ? 7 : -7);
+        }
       }
       let x = (v.x * 0.5 + 0.5) * w + n.dx + n.aimDx + dx, y = (-v.y * 0.5 + 0.5) * h + dy - Math.floor(n.lane / 5) * 22;
       const margin = Math.min(w * 0.45, Math.max(28, n.size * n.glyph.textContent.length * 0.36 * sx));
       x = Math.max(margin, Math.min(w - margin, x)); y = Math.max(24, Math.min(h - 24, y));
       n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotate}deg) scale(${sx}, ${sy})`;
       n.el.style.opacity = String(Math.max(0, Math.min(n.tick ? 0.8 : 1, (1 - k) / 0.3)));
-      n.el.style.textShadow = n.crit && !calm && t < 0.1 ? '0 0 2px #fff,0 0 7px currentColor,0 2px 3px #000' : '0 1px 2px #000,0 0 4px #000';
+      const hot = n.crit && !calm && n.critT < 0.25;
+      n.el.style.textShadow = hot ? '0 0 3px #fff,0 0 10px currentColor,0 2px 3px #000' : '0 1px 2px #000,0 0 4px #000';
+      if (n.crit) n.el.style.color = hot && n.critT < 0.05 ? '#fff' : this.numberColors[n.element] || n.color;   // a white-hot frame, then its colour
+      const f = n.critT / this.numberLook.flare;
+      if (n.crit && !calm && f < 1) {
+        n.flare.style.display = '';
+        n.flare.style.fontSize = (n.size * 2.6).toFixed(1) + 'px';
+        n.flare.style.transform = `translate(-50%, -50%) rotate(${(f * 70).toFixed(1)}deg) scale(${(0.35 + f * 1.25).toFixed(3)})`;
+        n.flare.style.opacity = ((1 - f) * 0.9).toFixed(3);
+      } else n.flare.style.display = 'none';
       n.accent.style.display = calm || crowded || n.tick || t > 0.35 ? 'none' : '';
       n.accent.style.transform = `translate(${t * 12}px, ${t * (n.element === 'fire' ? 25 : -10)}px) rotate(${t * 35}deg)`;
       n.accent.style.opacity = String(Math.max(0, 1 - t / 0.35));

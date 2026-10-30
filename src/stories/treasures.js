@@ -250,13 +250,13 @@ story('treasures/crit', {
   },
 });
 story('treasures/echo-bubble', {
-  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 60% of its damage.',
+  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 40% of its damage.',
   setup() { setupFight({ lash: false }); give('discoBall'); roachAt(0, -0.15); roachAt(0.06, -0.24); },
   play() {
     const { enemies, run } = G(), [first, second] = enemies.list, log = record('damage_taken');
     step(60 * 3, () => dmgBy(log, 'bubble').some((d) => d.targetId === second.id));
     const echoes = dmgBy(log, 'bubble').filter((d) => d.targetId === second.id), full = run.S.bubbleDamage;
-    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.6) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
+    return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.4) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
   },
 });
 story('treasures/bubble-ring', {
@@ -446,7 +446,7 @@ story('treasures/spout', {
 story('treasures/heal-on-kill', {
   about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of health.',
   setup() { setupFight({ lash: false }); give('babyBottle'); G().run.health = 10; roachAt(0, -0.15, { still: true }); },
-  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.health === 10.25, { health: G().run.health }); },
+  play() { const e = G().enemies.list[0]; step(300, () => e.dead); return ok(e.dead && G().run.health === 10.2, { health: G().run.health }); },
 });
 story('treasures/burst-on-kill', {
   about: 'burst-on-kill (Bath Salt): bugs you finish off burst and hurt their neighbours.',
@@ -590,8 +590,8 @@ story('treasures/stat-jump-tentacles', {
   setup() { setupFight({ bubbles: false }); give('insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
-    const stats = near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 2
-      && near(T.reach, b.reach * 1.75) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
+    const stats = near(S.jumpHeight, b.jumpHeight * 1.5) && T.tentacles === b.tentacles + 2
+      && near(T.reach, b.reach * 1.6) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
     const log = record('damage_taken');
     step(60 * 2);
     const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
@@ -631,14 +631,14 @@ story('treasures/elite-damage', {
   },
 });
 story('treasures/grow-on-kills', {
-  about: 'grow-on-kills (Bandage, Dustpan): every 5 bugs you clear, +1 max health for good (and it refills); with a cap (Dustpan) a copy stops growing at +100% and a second copy grows on.',
+  about: 'grow-on-kills (Bandage, Dustpan): every 30 bugs you clear, +1 max health for good (and it refills); with a cap (Dustpan) a copy stops growing at +100% and a second copy grows on.',
   setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
   play() {
     const { run } = G(), max0 = run.S.health;
     const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, xp: 1 });
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
-    for (let i = 0; i < 6; i++) kill();
+    for (let i = 0; i < 56; i++) kill();
     // with a cap (Dustpan: +0.2% Bubble damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
     give('dustpan');
     const pct = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
@@ -842,7 +842,7 @@ story('treasures/tuned-level-effects', {
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const got = [], want = [
-      [3, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .3],
+      [2.5, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .3],
       [5, .21, .15, 4, 1.75, .22, 3, .07, .15, 3, .35],
       [7, .21, .2, 3, 2, .26, 4, .09, .18, 4, .4],
     ];

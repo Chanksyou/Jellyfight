@@ -1,6 +1,7 @@
 import { bus } from '../events.js';
 import { juice } from '../juice.js';
-import { G, V, offs, ok, record, roachAt, setupFight, step, story } from './kit.js';
+import { sfx } from '../sfx.js';
+import { G, V, offs, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 function setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); G().run.fx.clear(); }
 const active = fx => fx.nums.filter(n => n.alive);
@@ -17,12 +18,34 @@ story('feedback/elemental-crits', {
       const b = B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 2, tint: element, elems: [element], ep: mods.element[element] });
       B.strike(b, e, mods);
       const n = active(fx).find(n => n.crit);
-      receipts.push(n && { element: n.element, amount: n.amount, text: n.glyph.textContent, color: n.el.style.color });
+      receipts.push(n && { element: n.element, amount: n.amount, tag: n.tag.style.display === '' && n.tag.textContent === 'CRIT', color: n.el.style.color });
     }
     const expected = 2 * 3 * 0.75 * 1.5;
-    const correct = receipts.every(n => n && n.text.includes('✦') && n.color !== '' && Math.abs(n.amount - expected) < 1e-6);
+    const correct = receipts.every(n => n && n.tag && n.color !== '' && Math.abs(n.amount - expected) < 1e-6);
     const colors = new Set(receipts.map(n => n?.color));
     return ok(correct && colors.size === 6 && hits.slice(0, 6).every(h => h.feedback.crit && h.feedback.element && Math.abs(h.amount - expected) < 1e-6), { correct, colors: colors.size, receipts });
+  },
+});
+
+story('feedback/crit-lands-harder', {
+  about: 'A real crit lands harder than a hit without changing damage: a shing, a --feel-crit shake with no hit-stop, a number tagged CRIT that slams in at about twice its size inside a star burst, then settles; Reduce Effects keeps the CRIT tag but drops the burst and the slam.',
+  setup,
+  play() {
+    const { run, enemies, player } = G(), fx = run.fx, e = enemies.list[0], B = run.bubbles, mods = run.mods;
+    const shings = spy(sfx, 'crit'), feels = spy(juice, 'feel');
+    stub(juice, 'calm', false); stub(fx, 'reducedMotion', { matches: false });
+    const strike = (chance) => { mods.hits.bubbles.crit = { chance, mult: 3 }; B.strike(B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 2 }), e, mods); };
+    juice.stop = 0; strike(0); fx.update(0.01);
+    const plain = active(fx)[0], hit = plain.amount, quiet = !shings.length && !feels.some(f => f[0] === 'crit') && plain.flare.style.display === 'none';
+    fx.clear(); strike(1); fx.update(0.01);
+    const n = active(fx).find(x => x.crit), slam = +/scale\(([\d.]+)/.exec(n.el.style.transform)[1];
+    const burst = n.flare.style.display === '' && n.tag.style.display === '' && n.tag.textContent === 'CRIT' && n.el.style.fontStyle === 'italic';
+    const felt = shings.length === 1 && feels.some(f => f[0] === 'crit') && juice.stop === 0 && Math.abs(n.amount - hit * 3) < 1e-6;
+    fx.update(0.3);
+    const settled = n.flare.style.display === 'none' && /scale\(1, 1\)/.test(n.el.style.transform);
+    fx.clear(); stub(fx, 'reducedMotion', { matches: true }); strike(1); fx.update(0.01);
+    const m = active(fx).find(x => x.crit), calm = m.flare.style.display === 'none' && m.tag.style.display === '' && m.el.style.transform.includes('scale(1, 1)');
+    return ok(quiet && burst && slam > 1.7 && felt && settled && calm, { quiet, burst, slam, felt, settled, calm });
   },
 });
 
@@ -35,7 +58,7 @@ story('feedback/multiattack-one-receipt', {
     for (let i = 0; i < 12; i++) hit(2, { element: i % 2 ? 'lightning' : 'ice', crit: i === 5 });
     const receipt = active(fx).find(n => !n.tick);
     const born = receipt.born;
-    const combined = active(fx).length === 1 && receipt.amount === 24 && receipt.element === 'mixed' && receipt.crit && receipt.glyph.textContent === '✦ 24' && hp - e.hp === 24;
+    const combined = active(fx).length === 1 && receipt.amount === 24 && receipt.element === 'mixed' && receipt.crit && receipt.glyph.textContent === '24' && receipt.tag.style.display === '' && hp - e.hp === 24;
     fx.update(0.1); hit(3);
     const stable = receipt.amount === 27 && receipt.t === 0.1 && receipt.born === born;
     fx.update(fx.numberLook.hitWindow); hit(4);
@@ -94,7 +117,7 @@ story('feedback/number-budget-and-reduce-effects', {
     const bounded = fx.nums.length <= fx.numberLook.cap && crit.alive;
     const before = juice.calm; offs.push(() => { juice.calm = before; }); juice.calm = true;
     fx.update(0.05);
-    const reduced = crit.accent.style.display === 'none' && crit.glyph.textContent.includes('✦') && crit.el.style.transform.includes('scale(1, 1)');
+    const reduced = crit.accent.style.display === 'none' && crit.tag.style.display === '' && crit.el.style.transform.includes('scale(1, 1)');
     fx.clear(); const cleared = active(fx).length === 0;
     const label = fx.number(at, 'SHIELDED', '#fff', 12);
     return ok(bounded && reduced && cleared && !label.numeric && !label.crit && label.accent.textContent === '', { bounded, reduced, cleared, slots: fx.nums.length });

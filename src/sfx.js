@@ -457,6 +457,14 @@ export const sfx = {
   encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
+  // a critical hit: a bright metallic shing over the thud, a falling glint after it
+  crit() {
+    if (!ready() || !gap('crit', 60)) return;
+    const j = jitter(0.06);
+    tone('triangle', 2400 * j, 1900 * j, 0.16, 0.05); tone('sine', 3600 * j, 3300 * j, 0.22, 0.03, 0.01);
+    noise(7000 * j, 1.5, 0.07, 0.07, 'highpass');
+    tone('sine', 1500 * j, 900 * j, 0.12, 0.04, 0.05);
+  },
   // an enemy dies: a crunchy squish; bigger for bigger things
   kill(size = 1) {
     if (!ready() || !gap('kill', 35)) return;

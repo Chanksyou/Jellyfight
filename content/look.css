@@ -229,11 +229,12 @@
   --number-tick-window: 0.6;
   --number-hit-window: 0.3;
   --number-life: 0.7;
-  --number-crit-life: 0.95;
+  --number-crit-life: 1.1;
   --number-tick-life: 0.85;
   --number-size: 14;
   --number-max-size: 22;
-  --number-crit-size: 7;
+  --number-crit-size: 9;
+  --number-crit-flare: 0.24;    /* how long a crit number's star burst lasts, seconds */
   --number-lane-space: 40;
   --number-accent-limit: 20;
   --number-fire: #ffae62;
@@ -523,6 +524,7 @@
      (docs/agents/attack-feel.md, L2). An attack picks a step; it never invents its own numbers. */
   --feel-hit: 0.03 0;          /* a bubble popping on a bug */
   --feel-hit-big: 0.12 0;      /* a giant bubble popping */
+  --feel-crit: 0.1 0;          /* a critical hit: a step past a pop, no hit-stop (crits come too often) */
   --feel-kill: 0.18 0.035;     /* a bug finished off */
   --feel-hurt-minor: 0.22 0;  /* light global player hit feedback; no hit-stop */
   --feel-impact: 0.25 0;       /* a shatter; a lighter Elite attack landing */
