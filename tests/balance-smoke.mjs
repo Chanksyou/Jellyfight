@@ -12,7 +12,7 @@ try {
     const { bus, PLAYER } = await import('/src/events.js'), { CONTENT } = await import('/src/content.js');
     K.setupFight({ hurt: true, bubbles: false, lash: false }); run.devRun();
     B.installBuild(['evo:aegis']); const m = B.observe();
-    bus.emit('damage_taken', { targetId: PLAYER, amount: 13, drain: true, source: 'probe' });
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 8, drain: true, source: 'probe' });
     const afterShield = run.health; run.heal(100);
     const e = K.roachAt(0, -0.15, { still: true, hp: 20 }); e.armor = 0.5;
     bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 2, more: 0.3 });
@@ -36,7 +36,7 @@ try {
     let invalid = false; try { B.resolveBuild(['not-a-treasure']); } catch { invalid = true; }
     return { measured, afterShield, first, revive, card, regen: CONTENT.levelups.cards.regen.amounts[2], replay, campaigns, baselines, rooted, invalid };
   });
-  assert.equal(result.measured.shieldAbsorbed, 10); assert.equal(result.measured.healthLost, 3);
+  assert.equal(result.measured.shieldAbsorbed, 5); assert.equal(result.measured.healthLost, 3);
   assert.equal(result.measured.healthBySource.probe, 3); assert.equal(result.measured.healed, 3);
   assert.equal(result.first, 6.5); assert.equal(result.measured.damage, 20);
   assert.equal(result.revive.revivals, 1); assert.equal(result.revive.healthLost, result.revive.initial);
