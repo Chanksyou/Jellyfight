@@ -9,10 +9,11 @@
 import * as THREE from 'three';
 import { meshesNamed } from './traversal.js';
 
-// the outermost objects with that name (a group and not also its children)
+// the outermost objects with that name (a group and not also its children): as the model's loader
+// spells it ("Laundry_shelf") or as the game named a piece it built ("Bathroom details, widened")
 function named(scene, name) {
   const want = THREE.PropertyBinding.sanitizeNodeName(name), out = [];
-  scene.traverse((o) => { if (o.name === want && !out.some((p) => isUnder(o, p))) out.push(o); });
+  scene.traverse((o) => { if ((o.name === want || o.name === name) && !out.some((p) => isUnder(o, p))) out.push(o); });
   return out;
 }
 const isUnder = (o, p) => { for (o = o.parent; o; o = o.parent) if (o === p) return true; return false; };
