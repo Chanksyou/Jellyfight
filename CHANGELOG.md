@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v352 makes Immortal Jelly keep Health regen until its first polyp revive; regen stops for the rest of the run after that.
+
 v351 enlarges the jelly in customization and leaderboard portraits on desktop and phones, keeping all ten scores reachable in a scrolling board.
 
 v350 opens a new player's first run with a tip for 7 s: "Attack automatically when bugs are nearby. Collect XP to grow stronger and survive until the boss arrives."
