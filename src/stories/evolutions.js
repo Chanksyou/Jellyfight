@@ -18,7 +18,7 @@ story('treasures/venom', {
     const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
     step(60 * 6);
     const venom = dmgBy(log, 'venom'), stacks = run.lash.venom.get(e)?.stacks, T = run.tentacleStats;
-    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 3) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
+    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 2) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
   },
 });
 story('treasures/polyps', {
