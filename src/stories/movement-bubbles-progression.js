@@ -306,6 +306,29 @@ story('progression/card-tiers', {
     return ok(bubbles.length === 0 && dodge.join() === 'common:10,epic:16,rare:13', { bubbles, dodge });
   },
 });
+story('progression/one-reroll-per-act', {
+  about: 'Level-up cards can be rerolled once an act: after the reroll is spent, the next level-up\'s Reroll button is greyed out; a later act (a fresh start, carrying the run) gives one back.',
+  setup() { fresh({ elites: false, levels: true }); },
+  play() {
+    const { run, menus } = G();
+    const button = () => document.querySelector('.jf-modal [data-act="reroll"]');
+    run.pendingLevels = 2;
+    run.levelUp();
+    const first = !button().disabled;
+    button().click();
+    const spent = run.rerolls === 0 && button().disabled;
+    document.querySelector('.jf-modal .jf-card').click();
+    step(50);
+    run.levelUp();
+    const second = button().disabled && /\(0\)/.test(button().textContent);
+    document.querySelector('.jf-modal .jf-card').click();
+    step(50);
+    run.start();                          // what a later act does on load (with the run's carry)
+    const back = run.rerolls === 1;
+    menus.close();
+    return ok(first && spent && second && back, { first, spent, second, back });
+  },
+});
 story('progression/disabled-cards-never-offered', {
   about: 'A zero-weight card is excluded even when every available card is requested and randomness picks the first entry.',
   setup() {},

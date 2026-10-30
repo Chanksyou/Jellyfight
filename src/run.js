@@ -261,6 +261,7 @@ export class Run {
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
     this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
+    this.rerolls = 1;                 // level-up card rerolls: one an act, a later act starts fresh
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
     this.player.avatar?.root.scale.setScalar(1);
     this.squeakCd = []; this.hurtCd = {};
@@ -900,13 +901,13 @@ export class Run {
     // and the picked card's icon flies into the badge
     const at = this.player.position.clone().setY(this.player.position.y + this.cfg.height * 0.5).project(this.tpc.camera);
     this.hud.levelDing((at.x + 1) / 2 * innerWidth, (1 - at.y) / 2 * innerHeight);
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, 1, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, this.rerolls, (card) => {
       const before = this.stats.health;
       applyCard(this.stats, card);
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {
