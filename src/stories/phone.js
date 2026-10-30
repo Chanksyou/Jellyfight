@@ -28,6 +28,21 @@ phone('held-upright-pauses-under-the-cover', {
   },
 });
 
+phone('leaving-the-game-pauses-it', {
+  about: 'Switching to another app or locking the phone mid-run pauses the game, so coming back shows the pause menu instead of a fight already underway.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.getElementById('g-over');
+    step(5);
+    const playing = over.hidden;
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });   // the player left
+    document.dispatchEvent(new Event('visibilitychange'));
+    delete document.hidden;
+    const paused = !over.hidden;
+    return ok(playing && paused, { playing, paused });
+  },
+});
+
 phone('iphone-home-screen-tip-hides-for-good', {
   about: 'The Add to Home Screen tip is for iPhones only (this page is not one), and its × hides it and remembers that.',
   setup() {},
