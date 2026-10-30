@@ -261,6 +261,7 @@ export class Run {
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
     this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
+    this.reborn = false;              // rebirth has saved you at least once this run (no-regen revived=#true)
     this.rerolls = 1;                 // level-up card rerolls: one an act, a later act starts fresh
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
     this.player.avatar?.root.scale.setScalar(1);
@@ -288,6 +289,7 @@ export class Run {
       this.pearls = C.pearls || 0;
       if (C.awardsBefore) this.awardsBefore = C.awardsBefore;
       this.saved = !!C.saved;
+      this.reborn = !!C.reborn;
       this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
     }
@@ -344,7 +346,7 @@ export class Run {
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
-    if (this.mods.noRegen) S.regen = 0;                           // no-regen (Immortal Jelly)
+    if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
   }
@@ -767,7 +769,7 @@ export class Run {
     // rebirth (Immortal Jelly): once an act, back to a polyp instead, then bloom with full Health
     const R = this.mods.rebirth;
     if (this.health <= 0 && R && !this.rebornThisAct && this.phase !== 'dead') {
-      this.rebornThisAct = true;
+      this.rebornThisAct = this.reborn = true;
       this.health = 1;
       this.polypT = R.time;
       this.iFrames = R.time + 0.5;
@@ -1358,7 +1360,7 @@ export class Run {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
-      chestsOpened: this.chestsOpened, saved: this.saved, evolved: this.evolved, newFinds: this.newFinds,
+      chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, newFinds: this.newFinds,
       pearls: this.pearls, awardsBefore: this.awardsBefore,
     };
   }

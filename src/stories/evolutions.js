@@ -51,9 +51,17 @@ story('treasures/rebirth', {
   },
 });
 story('treasures/no-regen', {
-  about: 'no-regen (Immortal Jelly): Health regen does nothing, even from a card.',
+  about: 'no-regen revived=#true (Immortal Jelly): Health regen works as usual until rebirth first saves you; from then on it does nothing, even from a card.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); evolve('immortal'); G().run.stats.regen = 1; G().run.health = 5; },
-  play() { const { run } = G(); step(120); return ok(run.S.regen === 0 && run.health === 5, { regen: run.S.regen, health: run.health }); },
+  play() {
+    const { run } = G();
+    step(120);
+    const before = run.health;                                   // still regenerating before any revive
+    run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 999, source: 'story' });
+    step(60 * 5 + 10);                                           // a polyp, then bloom
+    run.health = 5; step(120);
+    return ok(before > 5 && run.reborn && run.S.regen === 0 && run.health === 5, { before, reborn: run.reborn, regen: run.S.regen, health: run.health });
+  },
 });
 story('treasures/dash', {
   about: 'every + ring + dash (Moon Jelly): every 2 s the bell pulses, stinging and pushing back bugs close by, and the jelly surges (+80% Move speed for 0.35 s).',
