@@ -152,7 +152,9 @@ verification across all player attack families.
    (`changes/README.md`). Never edit `BUILD` in `src/main.js` or the changelog's `vN …` lines:
    after the merge, the "Number the build" workflow gives each note the next BUILD,
    moves it into `CHANGELOG.md` and commits that to main, so parallel pull requests never
-   collide on a number. Documentation-only changes need no note. Run the stories (rule 2), commit to a feature branch, push the branch,
+   collide on a number. Documentation-only changes need no note. `README.md` keeps one sentence per line
+   (renders the same; edits to different sentences then never conflict): `node tools/one-sentence.mjs`
+   rewraps it, and `node tests/check.mjs` fails until it's wrapped. Run the stories (rule 2), commit to a feature branch, push the branch,
    and open a pull request. Follow the release approval and final verification
    steps above before merging into `main`. Republish the artifact only as part of
    an explicitly requested release (`docs/agents/publishing.md`).

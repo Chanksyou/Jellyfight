@@ -226,6 +226,16 @@ act2('bathroom-details', {
     return ok(g && meshes > 45 && !solid, { found: !!g, meshes, solid });
   },
 });
+act2('no-hose-over-the-tub-rim', {
+  about: 'No grey hose arches from the overflow plate over the tub\'s front rim: everything dressing the tub stays behind the rim (z 7.145).',
+  setup() { fresh(); },
+  play() {
+    const box = new THREE.Box3();
+    let out = 0, g = null; G().APT.scene.traverse((o) => { if (o.name === 'Bathroom details' && o.visible) g = o; });
+    g?.traverse((o) => { if (o.isMesh && box.setFromObject(o).min.z < 7.14) out++; });
+    return ok(g && !out, { found: !!g, out });
+  },
+});
 act2('tub-is-clear', {
   about: 'The bathtub (the Clog\'s arena) is empty: the green see-through blob that sat in it is gone.',
   setup() { fresh(); },

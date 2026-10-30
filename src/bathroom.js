@@ -1,9 +1,8 @@
 // Act 2's bathtub, dressed after the real one: white stacked-subway tile on the two walls round
 // the tub, a pink-and-white striped non-slip mat on the tub floor and a domed chrome drain stopper,
 // brushed-steel fittings on the end wall (the spout, the round thermostat plate with two knobs,
-// the slide rail with its hand shower and coiled hose, the hose outlet), the overflow plate and the
-// grey hose running over the rim, a smiley scrub sponge and two Pantene bottles on the rim
-// corners, and a black wire caddy on the back wall with its bottles and a loofah hanging off it.
+// the slide rail with its hand shower and coiled hose, the hose outlet), the overflow plate, a
+// smiley scrub sponge and two Pantene bottles on the rim corners, and a black wire caddy on the back wall with its bottles and a loofah hanging off it.
 // Decoration only: none of it collides. Added by main.js when the stage asks for it.
 //
 // Tub (world meters): inside floor y 0.15, rim y 0.55; the end wall (with the drain below it) at
@@ -85,10 +84,8 @@ export function addBathroomDetails(scene, stretch = 1) {
   add(new THREE.CylinderGeometry(0.022, 0.022, 0.006, 24), steel, V(0.06, 1.3, 7.4 + dz), [0, 0, -Math.PI / 2]);   // the hose outlet
   const hose = new THREE.CatmullRomCurve3([V(0.08, 1.3, 7.4 + dz), V(0.12, 1.1, 7.38 + dz), V(0.16, 0.88, 7.46 + dz), V(0.14, 0.9, 7.52 + dz), V(0.11, 1.2, 7.52 + dz), V(0.1, 1.52, 7.505 + dz)]);
   add(new THREE.TubeGeometry(hose, 60, 0.0055, 6), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, metalness: 0.85, roughness: 0.35 }));
-  // the overflow plate on the tub's inside end, and the grey hose from it over the front rim
+  // the overflow plate on the tub's inside end
   add(new THREE.CylinderGeometry(0.032, 0.032, 0.006, 32), steel, V(0.13, 0.43, 7.5 + dz), [0, 0, -Math.PI / 2 + 0.35]);
-  const grey = new THREE.CatmullRomCurve3([V(0.14, 0.43, 7.5 + dz), V(0.2, 0.47, 7.35 + df), V(0.32, 0.555, 7.2 + df), V(0.6, 0.57, 7.17 + df), V(0.9, 0.53, 7.1 + df), V(1.0, 0.3, 7.05 + df)]);
-  add(new THREE.TubeGeometry(grey, 50, 0.007, 6), new THREE.MeshStandardMaterial({ color: 0xc8cacc, roughness: 0.6 }));
 
   // --- on the rim: the smiley scrub sponge, and the two Pantene bottles
   const sponge = new THREE.Group();
