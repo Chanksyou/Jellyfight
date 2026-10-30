@@ -112,14 +112,17 @@ export class Fx {
     if (!n) {
       const el = document.createElement('div');
       el.style.cssText = 'position:absolute;left:0;top:0;white-space:nowrap;text-shadow:0 1px 2px #000,0 0 4px #0008;will-change:transform';
-      const glyph = document.createElement('span'), accent = document.createElement('span'), flare = document.createElement('span');
+      const glyph = document.createElement('span'), accent = document.createElement('span'), flare = document.createElement('span'), tag = document.createElement('span');
       accent.style.cssText = 'position:absolute;left:50%;top:100%;font-size:10px;pointer-events:none';
       // a crit's star burst behind its number: one glyph, so it costs a phone nothing
       flare.style.cssText = 'position:absolute;left:50%;top:50%;z-index:-1;pointer-events:none;display:none;font-style:normal;-webkit-text-stroke:1px #17212d';
       flare.textContent = '✦';
-      accent.setAttribute('aria-hidden', 'true'); flare.setAttribute('aria-hidden', 'true'); el.append(flare, glyph, accent);
+      // a crit says so: a small CRIT over its number
+      tag.style.cssText = 'position:absolute;left:50%;bottom:82%;transform:translateX(-50%);font-size:0.5em;letter-spacing:0.08em;display:none';
+      tag.textContent = 'CRIT';
+      accent.setAttribute('aria-hidden', 'true'); flare.setAttribute('aria-hidden', 'true'); el.append(flare, tag, glyph, accent);
       this.layer.appendChild(el);
-      n = { el, glyph, accent, flare, pos: new THREE.Vector3() };
+      n = { el, glyph, accent, flare, tag, pos: new THREE.Vector3() };
       this.nums.push(n);
     }
     n.alive = false;   // don't count the reused slot when choosing a free trajectory
@@ -142,7 +145,8 @@ export class Fx {
 
   numberText(n) {
     const value = n.numeric ? n.amount > 0 && n.amount < 1 ? (n.amount < 0.1 ? '<0.1' : n.amount.toFixed(1)) : Math.round(n.amount) : n.amount;
-    n.glyph.textContent = `${n.crit ? '✦ ' : n.slam ? '◆ ' : ''}${value}`;
+    n.glyph.textContent = `${n.slam && !n.crit ? '◆ ' : ''}${value}`;
+    n.tag.style.display = n.crit ? '' : 'none';
     n.accent.textContent = n.numeric ? NUMBER_ACCENTS[n.element] || '' : '';
     n.el.style.color = this.numberColors[n.element] || n.color;
     n.el.style.fontWeight = n.crit ? '900' : n.tick ? '650' : '800';
