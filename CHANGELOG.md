@@ -2,6 +2,14 @@
 
 Release notes for Jelly Fight, newest first. For setup and gameplay, see the [README](README.md).
 
+v338 gives level-up cards one free reroll per act instead of one every level-up.
+
+v337 makes every boss immune to stun: lightning arcs, the Static Balloon's zaps and pin-on-crit no longer hold them still (the shark used to stop and lose its frenzy). An IMMUNE pop-up shows when one lands. A freeze still holds the shark.
+
+v336 shows a small red arc on the jelly's edge the moment a hit lands, on the side it came from: toward a biting bug, or where a Shot or Blast struck (bugs, Elites and bosses).
+
+v335 plays every lightning sound (the shot leaving, its hit, each chain jump and the heavy strike) 30% quieter.
+
 v334 turns sound back on with the first tap after a phone moves on to the next act. The reload into act 2, 3 or 4 loses the tap that allowed sound, and the game listened for the finger going down, which browsers don't count, so acts 2 and 3 (and their new music) stayed silent on phones. Now the next tap, click or key turns sound and the act's music on, and it keeps listening until it's on (`unlockOnGesture` in src/sfx.js).
 
 v333 replaces the Kettle's steam cone with a steam ball. For 1 s the Kettle shakes harder, swells, rattles its lid and whistles while a glowing ball of steam boils up at its spout, with nothing on the counter. Then it fires three balls in a row, 0.4 s apart, each at where the jelly is as it leaves (a flash, a kick back, the lid jumping, a crack and hiss for each; a smaller ball swells back between them); only as each is fired does its Warning show: a yellow circle with a half dome over it (6 cm), filling while the ball arcs over trailing steam (0.6 s). Each bursts there in three gusts of steam 0.15 s apart (3 Health and a shove to anything of the jelly inside the dome); the circle and dome stay up exactly while gusts are coming, then the counter is left wet for a moment. Keep moving and step out of each circle while its ball flies. Numbers in `content/elites.kdl` (`ball dmg= shots= every= gusts= gap= charge= flight= radius=`), the ball's size in `content/look.css` (`--kettle-ball-size`). Stories: `elites/kettle-steam-ball-warns-only-once-fired`, `elites/kettle-steam-ball-volley-hits-standing-jelly`, `elites/kettle-steam-ball-volley-aims-at-each-new-spot`, `elites/kettle-steam-ball-feel`.

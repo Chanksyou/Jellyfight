@@ -76,7 +76,7 @@ function sample(role, { rate = 1, vol = 1 } = {}) {
   const buf = list[(turn[role] = ((turn[role] ?? Math.floor(Math.random() * list.length)) + 1) % list.length)];
   const src = ctx.createBufferSource(), g = ctx.createGain(), t = now();
   src.buffer = buf; src.playbackRate.value = rate * jitter(0.04);
-  g.gain.value = vol;
+  g.gain.value = vol * loud;
   src.connect(g).connect(master);
   voices++;
   src.onended = () => { voices--; src.disconnect(); g.disconnect(); };
@@ -211,6 +211,11 @@ function gap(name, ms) {
   return true;
 }
 
+// every sound made inside quieter(k, play) is k times as loud (a whole family turned down at once)
+let loud = 1;
+function quieter(k, play) { loud = k; try { return play(); } finally { loud = 1; } }
+const LIGHTNING = 0.7;   // all of lightning's sounds, recorded and synthesized
+
 // one tone: type, start/end frequency, duration, volume
 function tone(type, f0, f1, dur, vol, delay = 0) {
   const t = now() + delay;
@@ -220,7 +225,7 @@ function tone(type, f0, f1, dur, vol, delay = 0) {
   o.frequency.setValueAtTime(f0 * k, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 * k), t + dur);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(vol * loud, t + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(master);
   o.start(t);
@@ -239,7 +244,7 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
   s.playbackRate.value = k;                          // slowed noise sounds lower too
   f.Q.value = q;
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(vol * loud, t + 0.004);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   s.connect(f).connect(g).connect(master);
   s.start(t, Math.random() * 0.3);
@@ -638,14 +643,14 @@ export const sfx = {
   elementLaunch(el) {
     if (!ready() || !gap('elLaunch' + el, 80)) return;
     const j = jitter(0.12);
-    if (el === 'lightning' && sample('lightning-launch', { vol: 0.12 })) return;
-    if (el === 'lightning') {   // a snap, a buzzing zip rising away, crackles trailing it
+    if (el === 'lightning') return quieter(LIGHTNING, () => {   // a snap, a buzzing zip rising away, crackles trailing it
+      if (sample('lightning-launch', { vol: 0.12 })) return;
       noise(6500 * j, 1, 0.03, 0.16, 'highpass');
       tone('sawtooth', 110 * j, 180 * j, 0.12, 0.05); tone('square', 113 * j, 184 * j, 0.12, 0.025);
       tone('sine', 500 * j, 2600 * j, 0.09, 0.035, 0.01);
       for (let k = 0; k < 4; k++) noise(3500 + Math.random() * 3500, 4, 0.012, 0.05, 'bandpass', 0.03 + k * 0.035 + Math.random() * 0.02);
-    }
-    else if (el === 'ice') {   // a cold crystalline ring with an airy rush behind it: a glassy chord, a breath of frost
+    });
+    if (el === 'ice') {   // a cold crystalline ring with an airy rush behind it: a glassy chord, a breath of frost
       tone('sine', 2600 * j, 2450 * j, 0.09, 0.045); tone('sine', 3900 * j, 3650 * j, 0.08, 0.03, 0.01); tone('triangle', 5200 * j, 5000 * j, 0.06, 0.012, 0.02);
       noise(5200 * j, 2.5, 0.02, 0.06, 'highpass');                                   // the crisp snap of it leaving
       noise(3000 * j, 1.2, 0.2, 0.05, 'bandpass', 0.02, 1100);                         // the cold whoosh
@@ -665,16 +670,16 @@ export const sfx = {
   elementHit(el) {
     if (!ready() || !gap('elHit' + el, 50)) return;
     const j = jitter(0.12);
-    if (el === 'lightning' && sample('lightning-hit', { vol: 0.22 })) return;
-    if (el === 'lightning') {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
+    if (el === 'lightning') return quieter(LIGHTNING, () => {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
+      if (sample('lightning-hit', { vol: 0.22 })) return;
       noise(7000 * j, 0.7, 0.025, 0.34, 'highpass');
       noise(2600 * j, 1.2, 0.06, 0.2, 'bandpass', 0.005);
       tone('sawtooth', 2400 * j, 220, 0.12, 0.07);
       tone('sine', 95 * j, 34, 0.32, 0.22);
       noise(320 * j, 0.8, 0.55, 0.13, 'lowpass', 0.02, 70);
       for (let k = 0; k < 7; k++) noise(3000 + Math.random() * 4500, 4, 0.012 + Math.random() * 0.01, 0.06 * (1 - k * 0.1), 'bandpass', 0.05 + Math.random() * 0.35);
-    }
-    else if (el === 'ice') {   // it shatters: a sharp crystal crack, a crunch, a low thud under it, then shards tinkling down
+    });
+    if (el === 'ice') {   // it shatters: a sharp crystal crack, a crunch, a low thud under it, then shards tinkling down
       noise(7500 * j, 1, 0.018, 0.3, 'highpass');                                      // the crack
       noise(3200 * j, 1.5, 0.07, 0.17, 'bandpass', 0.004, 1800);                       // the crunch
       tone('sine', 130 * j, 55, 0.1, 0.14);                                             // the thud
@@ -698,14 +703,16 @@ export const sfx = {
   // a chain bolt jumping to the k-th bug: a tzzt that climbs with each jump
   chainZap(k = 0) {
     if (!ready() || !gap('chainZap' + k, 40)) return;
-    if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.12 })) return;
-    const j = jitter(0.08) * Math.pow(1.19, k);
-    noise(6000 * j, 1, 0.025, 0.14, 'highpass');
-    tone('sawtooth', 900 * j, 2600 * j, 0.06, 0.06); tone('square', 450 * j, 1300 * j, 0.06, 0.025);
-    noise(3800 * j, 3, 0.04, 0.05, 'bandpass', 0.03);
+    quieter(LIGHTNING, () => {
+      if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.12 })) return;
+      const j = jitter(0.08) * Math.pow(1.19, k);
+      noise(6000 * j, 1, 0.025, 0.14, 'highpass');
+      tone('sawtooth', 900 * j, 2600 * j, 0.06, 0.06); tone('square', 450 * j, 1300 * j, 0.06, 0.025);
+      noise(3800 * j, 3, 0.04, 0.05, 'bandpass', 0.03);
+    });
   },
   // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder in it (recorded only)
-  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; sample('lightning-big', { vol: 0.2 }); },
+  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; quieter(LIGHTNING, () => sample('lightning-big', { vol: 0.2 })); },
   // the acid puddle eating at a bug: a quiet hiss with a pop or two
   acidSizzle() {
     if (!ready() || !gap('acidSizzle', 160)) return;
