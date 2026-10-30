@@ -360,6 +360,9 @@
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
   --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant, hair tangle): a small flash where they meet */
+  --hurt-arc: #ff2626;           /* the jelly is hit: a short red arc on its edge facing where the hit came from (not an attack colour: it marks the jelly, never a hazard) */
+  --hurt-arc-life: 0.32;         /* seconds it shows; it pops out a little and fades */
+  --hurt-arc-size: 1.35;         /* how far out from the jelly's middle, x its radius */
   --hurt-goo: #8fd8ff #dff8ff;   /* drops of jelly a bug's hit knocks off; they splat on the floor and fade (harmless) */
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */

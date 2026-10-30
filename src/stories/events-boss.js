@@ -7,6 +7,7 @@ import { hostile } from '../vfx.js';
 import { ATTACKS } from '../vacuum.js';
 import { juice } from '../juice.js';
 import { CONFIG } from '../config.js';
+import { LOOK } from '../look.js';
 import { sfx, unlock as unlockAudio } from '../sfx.js';
 import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, feelVoices, fresh, holdJelly, ok, r3, record, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
@@ -34,6 +35,31 @@ story('events/player-hit-feedback', {
     step(1);
     const f = mine()[1], fallback = mine().length === 2 && Math.abs(f.dir.z + 1) < 1e-8;
     return ok(directed && shake && noRepeat && fallback && juice.trauma === 0, { directed, shake, noRepeat, fallback, calmShake: juice.trauma });
+  },
+});
+story('events/hurt-arc', {
+  about: 'A hit that lands on the jelly shows a small red arc on its edge, on the side the hit came from: toward a biting bug, or toward where a Shot or Blast struck (damage_taken at). Drains, dodged and invulnerable hits show none; it fades in a third of a second.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3, 0); spawn('roach', G().player.position.clone().add(V(0.2, 0, 0)), { still: true }); },
+  play() {
+    const { run, player, enemies } = G(), L = run.gadgets.looks, e = enemies.list[0];
+    run.S.dodge = 0; run.iFrames = 0;
+    const arcs = () => L.pools.hurt.filter((p) => p.alive);
+    const mid = () => player.position.clone().setY(player.position.y + run.cfg.height * 0.5);
+    const tip = (p) => p.m.position.clone().add(V(1, 0, 0).applyQuaternion(p.m.quaternion).multiplyScalar(p.size.x));   // the middle of the arc
+    const faces = (p, from) => tip(p).distanceTo(from) < mid().distanceTo(from);
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story', from: e.id, contact: true });
+    const bite = arcs()[0], red = bite && bite.m.userData.color.getHexString() === new THREE.Color(LOOK.color('hurt-arc', '#ff2626')).getHexString();
+    const towardBug = !!bite && faces(bite, enemies.center(e));
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story', from: e.id });   // still invulnerable
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story', drain: true });
+    const once = arcs().length === 1;
+    step(Math.ceil(LOOK.num('hurt-arc-life', 0.32) * 60) + 2);
+    const faded = arcs().length === 0;
+    run.iFrames = 0;
+    const shot = mid().add(V(-0.03, 0, 0.01));
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story', from: e.id, at: shot });   // a Shot from the other side: its point wins
+    const towardShot = arcs().length === 1 && faces(arcs()[0], shot);
+    return ok(red && towardBug && once && faded && towardShot, { red, towardBug, once, faded, towardShot });
   },
 });
 story('events/kill-drops-xp', {
