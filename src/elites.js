@@ -12,10 +12,10 @@
 //     Spill:          it tips toward you and a brown arrow shows the line; then it pours a
 //                     wave of scalding puddles along it.
 //   kettle      on the stove.
-//     Steam ball:     it shakes, whistles and swells while a ball of steam boils up at its
-//                     spout (nothing on the counter yet), then fires it at where you are; only
-//                     then does the orange circle and half dome show, filling while it flies, and
-//                     it bursts there in several gusts of steam: step out of the circle.
+//     Steam balls:    it shakes, whistles and swells while a ball of steam boils up at its
+//                     spout (nothing on the counter yet), then fires three in a row, each at where
+//                     you are as it leaves; only then does each one's orange circle and half dome
+//                     show, filling while it flies, and it bursts there in gusts of steam: keep moving.
 //     Boil over:      the lid pops and orange circles fill around you; boiling drops land in
 //                     each one.
 //   soap        on the bathroom vanity (act 2): the glass soap dispenser by the tap. The pink soap
@@ -551,7 +551,7 @@ class Elite {
     if (this.model.whip) this.model.whip.rotation.x = 0;
     if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
     if (this.kind === 'clock') this.spin = 0;
-    if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = this.flying = this.steam = null; }
+    if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
     if (this.kind === 'soap') {
       const M = this.model;
       M.head.position.y = M.headY; M.stem.scale.y = 1; M.stem.position.y = M.headY - 0.012;
@@ -1217,20 +1217,25 @@ export class Elites {
       if (e.kind === 'kettle') {
         const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
-          // Steam ball: it boils up a ball of steam at the spout for `charge` s with nothing on the
+          // Steam balls: it boils up a ball of steam at the spout for `charge` s with nothing on the
           // counter (only the Kettle shaking, whistling, its lid rattling and the ball swelling), then
-          // fires it at where you are that moment. Only then does its Warning show: an orange circle
-          // and half dome filling while the ball flies, and it bursts into several gusts of steam
-          // there (steamBurst), each a floor Blast: step out of the circle while it flies
+          // fires `shots` of them in a row, `every` s apart, each at where you are as it leaves (a
+          // smaller ball swells back between them). Each one's Warning shows only as it's fired: an
+          // orange circle and half dome filling while it flies, and it bursts into several gusts of
+          // steam there (steamBurst), each a floor Blast: keep moving, out of each circle
           const B = SK.ball, charge = B.charge, R = B.radius, big = LOOK.num('kettle-ball-size', 0.012);
-          if (s < charge) {
-            const k = s / charge, kk = k * k;
-            if (!e.ball) { e.ball = this.fx.orb(hostile('kettle'), 0.002); sfx.kettleCharge(); }
+          const swell = (k, glow) => {   // the ball at the spout, k 0..1 of its full size
+            if (!e.ball) e.ball = this.fx.orb(hostile('kettle'), 0.002);
             const O = e.ball.userData.orb, wob = 1 + Math.sin(e.t * 45) * 0.08 * k;
             O.size = (0.002 + (big - 0.002) * k) * wob;
             e.ball.scale.setScalar(O.size);
             e.ball.position.copy(muzzle).addScaledVector(fwd, O.size);
-            this.fx.orbTick(e.ball, dt, 0.8 + 1.2 * k);
+            this.fx.orbTick(e.ball, dt, glow);
+          };
+          if (s < charge) {
+            const k = s / charge, kk = k * k;
+            if (!e.ball) sfx.kettleCharge();
+            swell(k, 0.8 + 1.2 * k);
             g.rotation.z = Math.sin(e.t * 50) * (0.02 + 0.06 * kk);                           // shaking harder as it builds
             g.scale.y *= 1 + 0.08 * kk; g.scale.x *= 1 - 0.04 * kk; g.scale.z *= 1 - 0.04 * kk;   // swelling up with the pressure
             M.lid.position.y = 0.112 + Math.abs(Math.sin(e.t * (30 + 30 * k))) * (0.003 + 0.006 * k);
@@ -1239,21 +1244,29 @@ export class Elites {
               const a = Math.random() * Math.PI * 2, d = 0.02 + Math.random() * 0.02;
               this.fx.puff(this._mid.copy(e.ball.position).add(new THREE.Vector3(Math.cos(a) * d, (Math.random() - 0.3) * d, Math.sin(a) * d)), 0xffffff, 0.006 + 0.006 * k, 0.25);
             }
-          } else if (!e.launched) {
-            // the release: the ball leaves on this frame, locked on where you are now
-            e.launched = true;
-            if (e.ball) { this.fx.free(e.ball); e.ball = null; }
-            const at = this.platformTarget(e, P.clone(), R * 0.5);
-            e.kick = 1; M.lid.position.y = 0.13; M.led.material.emissiveIntensity = 2;
-            this.fx.impact(muzzle, hostile('kettle'), 0.025, 12); this.fx.puff(muzzle, 0xffffff, 0.03, 0.35);
-            juice.feel('hit'); sfx.kettleBlast();
-            const flight = this.lob(muzzle, at, B.flight, hostile('kettle'), this.T.orange, R, (p) => { e.steam = this.steamBurst(p, R, B); }, { dome: true, arc: 0.1, size: big });
-            e.flying = flight;
           } else {
+            e.fired ||= 0; e.flights ||= []; e.bursts ||= [];
+            e.sinceShot = (e.sinceShot ?? 1e9) + dt;
+            if (e.fired < B.shots && e.sinceShot >= B.every) {
+              // the release: a ball leaves on this frame, locked on where you are now
+              e.fired++; e.sinceShot = 0; e.launched = true;
+              this.fx.free(e.ball); e.ball = null;
+              const at = this.platformTarget(e, P.clone(), R * 0.5);
+              e.kick = 1; M.lid.position.y = 0.13; M.led.material.emissiveIntensity = 2 + 2 * (B.shots - e.fired);
+              this.fx.impact(muzzle, hostile('kettle'), 0.025, 12); this.fx.puff(muzzle, 0xffffff, 0.03, 0.35);
+              juice.feel('hit'); sfx.kettleBlast();
+              e.flights.push(this.lob(muzzle, at, B.flight, hostile('kettle'), this.T.orange, R, (p) => { e.bursts.push(this.steamBurst(p, R, B)); }, { dome: true, arc: 0.1, size: big }));
+            } else if (e.fired < B.shots) {
+              const k = e.sinceShot / B.every;
+              swell(0.4 + 0.6 * k, 1 + k);                                                        // the next one swelling back
+              g.rotation.z = Math.sin(e.t * 50) * 0.05;
+            }
             M.lid.position.y += (0.112 - M.lid.position.y) * (1 - Math.exp(-10 * dt));
-            const f = e.flying;
-            if (f && !f.done && Math.random() < dt * 30) this.fx.puff(f.m.position, 0xf2f6ff, 0.012, 0.35);   // a steam trail behind it
-            if (!f || (f.done && (!e.steam || e.steam.done))) { e.launched = false; e.flying = e.steam = null; e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; }   // once its gusts are over
+            for (const f of e.flights) if (!f.done && Math.random() < dt * 30) this.fx.puff(f.m.position, 0xf2f6ff, 0.012, 0.35);   // a steam trail behind each
+            if (e.fired >= B.shots && e.flights.every((f) => f.done) && e.bursts.length >= e.flights.length && e.bursts.every((b) => b.done)) {   // once every gust is over
+              e.launched = false; e.fired = 0; e.sinceShot = null; e.flights = []; e.bursts = [];
+              e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; M.led.material.emissiveIntensity = 2;
+            }
           }
         } else {
           // Boil over: the lid pops, four boiling drops fall on filling orange circles around you, each

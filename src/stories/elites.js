@@ -348,25 +348,32 @@ story('elites/kettle-steam-ball-warns-only-once-fired', {
     return ok(quiet && charged > 0.9 && charged < 1.1 && grew && onYou && filling && gone, { quiet, charged, grew, onYou, p1, p2, gone, ms: Math.round(performance.now() - t0) });
   },
 });
-story('elites/kettle-steam-ball-gusts-hit-standing-jelly', {
-  about: 'A jelly standing where the steam ball lands is hit by its gusts (3 Health, source kettle) and shoved out; its four gusts land one after another.',
+story('elites/kettle-steam-ball-volley-hits-standing-jelly', {
+  about: 'Once charged, the Kettle fires its steam balls in a row (shots, every s apart), each at where the jelly is; a jelly standing still is hit by their gusts (3 Health, source kettle) and shoved, and every ball bursts in its gusts.',
   setup() { startKettle(0); },
   play() {
-    const hits = kettleHits(), shoves = record('knockback'), { n } = feelVoices('kettleGust');
+    const hits = kettleHits(), shoves = record('knockback'), { n } = feelVoices('kettleGust'), B = theKettle().def.skills.ball;
     holdJelly();
-    const b = firstBall();
-    step(200, () => theKettle().state === 'idle');
-    return ok(!G().run.elites.blobs.includes(b) && hits.length >= 1 && hits[0].amount === 3 && shoves.length >= 1 && n.kettleGust.length === 4, { hits: hits.map((h) => h.amount), shoves: shoves.length, gusts: n.kettleGust });
+    const E = G().run.elites, launches = [];
+    let seen = 0;
+    step(400, () => { const k = theKettle().fired || 0; if (k > seen) { seen = k; launches.push(k); } return theKettle().state === 'idle' && seen > 0; });
+    const { player } = G(), allOnYou = E.blobs.length === 0;
+    return ok(seen === B.shots && B.shots >= 3 && hits.length >= 1 && hits[0].amount === 3 && shoves.length >= 1 && n.kettleGust.length === B.shots * B.gusts && allOnYou,
+      { shots: seen, hits: hits.map((h) => h.amount), shoves: shoves.length, gusts: n.kettleGust.length, at: [player.position.x, player.position.z].map((v) => +v.toFixed(2)) });
   },
 });
-story('elites/kettle-steam-ball-dodged-by-stepping-out', {
-  about: 'The steam ball locks on where the jelly was when it fired: a jelly that swims 15 cm away while it flies is not hit by any gust.',
+story('elites/kettle-steam-ball-volley-aims-at-each-new-spot', {
+  about: 'Each steam ball in the volley locks on where the jelly is as it leaves: a jelly that moves 15 cm after every shot is never hit, and each ball lands where the jelly was when it fired.',
   setup() { startKettle(0); },
   play() {
-    const hits = kettleHits(), player = holdJelly(), b = firstBall();
-    player.position.x += 0.15;
-    step(200, () => theKettle().state === 'idle');
-    return ok(!G().run.elites.blobs.includes(b) && hits.length === 0, { hits: hits.length });
+    const hits = kettleHits(), player = holdJelly(), E = G().run.elites, aims = [];
+    let seen = 0;
+    step(400, () => {
+      const k = theKettle().fired || 0;
+      if (k > seen) { seen = k; const b = E.blobs.at(-1); aims.push(+Math.hypot(b.to.x - player.position.x, b.to.z - player.position.z).toFixed(3)); if (seen === 2) player.position.z += 0.15; else player.position.x += seen === 1 ? 0.15 : -0.15; }   // round three corners of a 15 cm square
+      return theKettle().state === 'idle' && seen > 0;
+    });
+    return ok(seen >= 3 && aims.every((d) => d < 0.01) && hits.length === 0, { shots: seen, aims, hits: hits.length });
   },
 });
 const firstDrop =() => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
@@ -495,7 +502,7 @@ story('elites/mug-spill-feel', {
   },
 });
 story('elites/kettle-steam-ball-feel', {
-  about: 'The Kettle charges with a rising whistle, shaking harder and its lid rattling; it fires on one frame (a flash at the spout, the Kettle kicking back with its lid jumping, a crack and hiss, a light shake); the ball trails steam; it lands with a flash and the impact shake on the jelly, bursts in four gusts, and leaves the counter wet for a moment.',
+  about: 'The Kettle charges with a rising whistle, shaking harder and its lid rattling; it fires each ball of its volley on one frame (a flash at the spout, the Kettle kicking back with its lid jumping, a crack and hiss, a light shake); the balls trail steam; they land with a flash and the impact shake on the jelly and burst in gusts, and leaves the counter wet for a moment.',
   setup() { startKettle(0); },
   play() {
     const { fx } = G(), e = theKettle(), hits = kettleHits();
@@ -503,11 +510,11 @@ story('elites/kettle-steam-ball-feel', {
     holdJelly();
     step(400, () => e.state === 'windup' && e.stateT > 1.0 && !e.launched);
     const shaking = Math.abs(e.model.group.rotation.z) > 0 || e.model.lid.position.y > 0.112;
-    step(60, () => e.launched);
-    const released = e.kick > 0.8 && n.kettleBlast.length === 1 && e.model.lid.position.y > 0.12 && feels.includes('hit');
+    step(60, () => e.fired >= 1);
+    const released = e.kick > 0.8 && n.kettleBlast.length === 1 && e.fired === 1 && e.model.lid.position.y > 0.12 && feels.includes('hit');
     step(200, () => e.state === 'idle');
     const wet = fx.splats.filter((s) => s.alive).length;
-    return ok(n.kettleCharge.length === 1 && shaking && released && hits.length >= 1 && feels.includes('impact') && n.kettleGust.length === 4 && wet >= 3,
+    return ok(n.kettleCharge.length === 1 && shaking && released && hits.length >= 1 && feels.includes('impact') && n.kettleGust.length === e.def.skills.ball.shots * e.def.skills.ball.gusts && wet >= 3,
       { charge: n.kettleCharge.length, shaking, released, hits: hits.length, feels: [...new Set(feels)], gusts: n.kettleGust.length, wet });
   },
 });
