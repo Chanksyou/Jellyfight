@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process';
 import zlib from 'node:zlib';
 import { ROOT } from './lib.mjs';
 import { withPreload } from '../tools/preload.mjs';
+import { README, oneSentencePerLine } from '../tools/one-sentence.mjs';
 
 let bad = 0;
 const files = ['src', 'src/stories', 'tests', 'tools', 'worker'].flatMap((d) => {
@@ -39,6 +40,8 @@ for (const f of files.filter(f => f.startsWith(path.join(ROOT, 'src') + path.sep
 // index.html preloads what the game imports (tools/preload.mjs), and the apartment's gzipped copies,
 // which the game downloads first, are the same files as the .glb (tools/split.mjs makes both)
 if (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8') !== withPreload()) { bad++; console.log('✗ index.html\'s preload list is out of date: run node tools/preload.mjs'); }
+// README keeps one sentence per line, so pull requests editing different sentences don't conflict
+if (fs.readFileSync(README, 'utf8') !== oneSentencePerLine(fs.readFileSync(README, 'utf8'))) { bad++; console.log('✗ README.md has a line with more than one sentence: run node tools/one-sentence.mjs'); }
 for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^apartment-act\d+\.glb$/.test(f))) {
   const glb = path.join(ROOT, 'assets', f);
   if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs`); }
