@@ -189,7 +189,7 @@ treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="+1 mid-ai
     extra-jumps 1
 }
 treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
-    landing-shockwave 0.2 dmg=3 drop=0.04
+    landing-shockwave 0.2 dmg=2.5 drop=0.04
     level 2 text="Landing sends out a wider shockwave that stings harder." {
         landing-shockwave 0.4 dmg=5 drop=0.04
     }
@@ -216,12 +216,12 @@ treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand sti
     }
 }
 treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
-    heal-on-kill 0.25
-    level 2 text="Restore 0.5 Health per enemy cleared." {
-        heal-on-kill 0.5
+    heal-on-kill 0.2
+    level 2 text="Restore 0.3 Health per enemy cleared." {
+        heal-on-kill 0.3
     }
-    level 3 text="Restore 1 Health per enemy cleared." {
-        heal-on-kill 1
+    level 3 text="Restore 0.4 Health per enemy cleared." {
+        heal-on-kill 0.4
     }
 }
 treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Enemies you finish off burst and hurt their neighbors." {
@@ -362,14 +362,14 @@ treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up ca
 }
 
 // --- found later: more treasures
-treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Restore 0.25 Health per second." stack=5 {
-    stat health-regen 0.25
+treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Restore 0.2 Health per second." stack=5 {
+    stat health-regen 0.2
 }
 treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely." stack=5 {
     stat dodge 15
 }
-treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 15 enemies cleared, gain +1 max Health this run." stack=2 {
-    grow-on-kills health 1 kills=15
+treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 enemies cleared, gain +1 max Health this run." stack=2 {
+    grow-on-kills health 1 kills=30
 }
 treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Bubbles blow 25% faster." stack=5 {
     stat fire-rate 25 percent=#true
@@ -403,8 +403,8 @@ treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true te
     stat fire-rate 15 percent=#true
     stat range -30 percent=#true
 }
-treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 30% faster." stack=2 {
-    stat move-speed 30 percent=#true
+treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster." stack=2 {
+    stat move-speed 20 percent=#true
 }
 treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 bubble or tentacle hits gives back 1 health. -5 max health." stack=2 {
     heal-on-hit chance=0.1 health=1
@@ -498,8 +498,8 @@ treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Ev
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 60% of its damage." {
-    echo-bubble dmg=0.6
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
+    echo-bubble dmg=0.4
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 bubbles bursts out from you in every direction." {
     every 5 {
@@ -519,31 +519,31 @@ treasure "powerBank" name="Power Bank" icon="🔆" rarity="legendary" attack=#tr
     element-up "wind" rate=1.5
     element-up "glitter" rate=1.5
 }
-treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 6 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
-    toy-mouse every=6 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
+treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 5 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
+    toy-mouse every=5 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
 }
 
 // --- more combinations of the words above (no new code)
 treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 Luck for every treasure found this run." stack=3 {
     per "luck" 3 every=1 of="chests"
 }
-treasure "teaBag" name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every Level gained this run." stack=3 {
-    per "health-regen" 0.05 every=1 of="levels"
+treasure "teaBag" name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every 2 Levels gained this run." stack=3 {
+    per "health-regen" 0.05 every=2 of="levels"
 }
-treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (3x damage) and pin the bug for 0.4 s." stack=2 {
-    crit chance=0.1 mult=3
-    pin-on-crit 0.4
+treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (2.5x damage) and pin the bug for 0.2 s." stack=2 {
+    crit chance=0.1 mult=2.5
+    pin-on-crit 0.2
 }
 
 // --- jumps and tentacles (stat): stats that nothing raised before
-treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+25% Jump height." stack=3 {
-    stat jump-height 25 percent=#true
+treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+50% Jump height." stack=3 {
+    stat jump-height 50 percent=#true
 }
 treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="common" attack=#true text="+2 Tentacles lash out at once." stack=5 {
     stat tentacles 2
 }
-treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+75% Tentacle reach." stack=3 {
-    stat tentacle-reach 75 percent=#true
+treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+60% Tentacle reach." stack=3 {
+    stat tentacle-reach 60 percent=#true
 }
 treasure "chopsticks" name="Chopsticks" icon="🥢" rarity="common" attack=#true text="+40% Tentacle speed." stack=3 {
     stat tentacle-speed 40 percent=#true

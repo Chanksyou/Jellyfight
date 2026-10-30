@@ -16,7 +16,7 @@ story('treasure-feel-more/bath-prepares-without-delaying-eight-bubbles',{
 story('treasure-feel-more/disco-one-echo-and-no-miss-contact',{
   setup(){ready('discoBall');roachAt(.08,0);roachAt(.15,0);},
   play(){const {run,enemies}=G(),B=run.bubbles,L=run.gadgets.looks,[a,b]=enemies.list;const source=B.blow(center(),a,{size:1,dmg:10,pierce:1});source.hit.add(a);source.m.position.copy(enemies.center(a));B.pop(source,a,run.S,run.mods);
-    const child=B.list.find(b=>b.child),spawn=!!child&&child.dmg===6&&child.target===b&&alive(L).some(p=>p.kind==='crystal');
+    const child=B.list.find(b=>b.child),spawn=!!child&&child.dmg===4&&child.target===b&&alive(L).some(p=>p.kind==='crystal');
     L.reset();if(child){child.m.position.copy(enemies.center(b));child.hit.add(b);B.pop(child,b,run.S,run.mods);}
     const hit=alive(L).some(p=>p.kind==='crystal'),count=B.list.filter(b=>b.child).length;L.reset();const miss=B.blow(center(),a,{size:1,dmg:10,pierce:1,child:true});B.pop(miss,null,run.S,run.mods);
     return ok(spawn&&hit&&count===1&&!alive(L).length,{spawn,hit,count,missQuiet:!alive(L).length});},

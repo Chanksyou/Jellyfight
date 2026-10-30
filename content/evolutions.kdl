@@ -20,19 +20,19 @@ evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles retu
     adorn "rebound-bands"
 }
 
-evolution "mirage" name="Mirage Jelly" icon="👻" text="Every 8 seconds of movement, leave a ghost of your jelly for 4 seconds. Bugs within 45 cm aim at it; locked attacks and Elites still threaten you. Maximum Health is 10% lower." {
+evolution "mirage" name="Mirage Jelly" icon="👻" text="Every 8 seconds of movement, leave a ghost of your jelly for 4 seconds. Bugs within 45 cm aim at it; locked attacks and Elites still threaten you. Maximum Health is 15% lower." {
     decoy every=8 time=4 range=0.45
-    stat health -10 percent=#true
+    stat health -15 percent=#true
     adorn "mirage-rim"
 }
 
-evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 10 damage. When depleted, it explodes for 10 damage within 20 cm, then returns after 6 seconds. Excess damage passes through to Health." {
-    energy-shield 10 dmg=10 radius=0.2 recharge=6
+evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 5 damage. When depleted, it explodes for 15 damage within 20 cm, then returns after 5 seconds. Excess damage passes through to Health." {
+    energy-shield 5 dmg=15 radius=0.2 recharge=5
 }
 
-evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach three times as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 35% slower." {
+evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 35% slower." {
     stat tentacles 3
-    stat tentacle-reach 200 percent=#true
+    stat tentacle-reach 100 percent=#true
     venom dps=0.5 time=3 stacks=5
     stat fire-rate -35 percent=#true
     adorn "venom-tips"
@@ -56,10 +56,10 @@ evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s your bell pu
     stat range -30 percent=#true
     adorn "moon-ring"
 }
-evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung four times a second. -15% Move speed." {
+evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and bugs touching you get stung four times a second. -20% Move speed." {
     stat health 60 percent=#true
     touch-sting dmg=0.5 every=0.25 reach=0.08
-    stat move-speed -15 percent=#true
+    stat move-speed -20 percent=#true
     adorn "mane"
 }
 evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="Stand still for a second to root: +80% Fire rate, +1 Health a second, and bubbles pierce one more bug. Move and it's gone." {

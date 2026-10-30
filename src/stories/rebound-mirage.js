@@ -82,7 +82,7 @@ story('treasures/decoy', {
     const lured = bug.vel.x < 0, ignored = elite.vel.x > 0;
     M.update(4.1); enemies.update(0.3, P, run.t, M.target);
     const resumed = bug.vel.x > 0 && !M.group.visible;
-    return ok(shown && lured && ignored && resumed && Math.abs(run.S.health - BASE_STATS.health * 0.9) < 1e-8,
+    return ok(shown && lured && ignored && resumed && Math.abs(run.S.health - BASE_STATS.health * 0.85) < 1e-8,
       { shown, lured, ignored, resumed, health: run.S.health });
   },
 });
