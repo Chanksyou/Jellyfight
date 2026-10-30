@@ -42,7 +42,7 @@ evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you an
     stat health -15 percent=#true
     adorn "sail"
 }
-evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, survive a killing blow: become a polyp, invulnerable and unable to attack for 5 s, then recover full Health. -10% max Health. No Health regen." {
+evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, survive a killing blow: become a polyp, invulnerable and unable to attack for 5 s, then recover full Health. Costs, from the moment you pick it: -10% max Health and no Health regen." {
     rebirth time=5
     stat health -10 percent=#true
     no-regen

@@ -51,7 +51,7 @@ story('treasures/rebirth', {
   },
 });
 story('treasures/no-regen', {
-  about: 'no-regen (Immortal Jelly): Health regen does nothing, even from a card.',
+  about: 'no-regen (Immortal Jelly): from the moment it is picked (no revive needed), Health regen does nothing, even from a card.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); evolve('immortal'); G().run.stats.regen = 1; G().run.health = 5; },
   play() { const { run } = G(); step(120); return ok(run.S.regen === 0 && run.health === 5, { regen: run.S.regen, health: run.health }); },
 });
