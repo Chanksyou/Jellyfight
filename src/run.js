@@ -881,7 +881,7 @@ export class Run {
   // ------------------------------------------------------------ growth
   gainXp(n) {
     this.purse += n;
-    this.xp += n;
+    this.xp += n * this.firstRun.xpMul;   // a first run's first Level-up comes sooner (first-run.js)
     while (this.xp >= xpToNext(this.level)) {
       this.xp -= xpToNext(this.level);
       this.level++;
@@ -915,7 +915,12 @@ export class Run {
 
   pickStartElement() {
     this.pickElement('🔥 Pick your element', 'Adds an attack alongside your bubbles. Upgrades appear every third treasure pick.',
-      () => { this.firstRun.elementChosen = true; this.resume(); });
+      () => {
+        const { hint, treasureAt } = this.firstRun.elementChose(this.t);   // a first run: a tip, and the skipped Treasure soon (first-run.js)
+        if (hint) { this.hint = hint; this.hintT = 4.5; }
+        if (treasureAt != null) this.treasureTimesLeft = [treasureAt, ...this.treasureTimesLeft.filter((x) => x > treasureAt)];
+        this.resume();
+      });
   }
 
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below

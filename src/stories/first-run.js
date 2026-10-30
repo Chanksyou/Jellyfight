@@ -60,7 +60,7 @@ story('first-run/health-hint-on-first-hit', {
   },
 });
 story('first-run/treasures-wait-for-the-element-pick', {
-  about: 'On a player\'s first run no Treasure turns up before the Element pick is done; the first comes at the next scheduled time after it. An Elite still leaves its Treasure, and other runs get theirs at 0:15.',
+  about: 'On a player\'s first run no Treasure turns up before the Element pick is done; one skipped before it turns up 4 s after the pick, not at the next scheduled time. An Elite still leaves its Treasure, and other runs get theirs at 0:15.',
   setup() { fresh({ elites: false, firstRun: true, treasures: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run } = G(), toasts = [];
@@ -71,18 +71,51 @@ story('first-run/treasures-wait-for-the-element-pick', {
     run.gainXp(xpToNext(run.level)); step(3); pickFirstCard(); step(3);      // the first card, then the Element pick
     const elementOpen = /element/i.test(modalTitle());
     pickFirstCard(); step(3);
-    const t0 = run.t;
-    const next = run.stage.treasures.at.find((x) => x > t0);   // the next scheduled time (1:15)
-    step(60 * (next - t0 + 2), () => sched());
-    const at = Math.round(run.t), first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
+    const t0 = run.t, next = t0 + 4;
+    step(60 * 8, () => sched());
+    const at = run.t, first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
+    const later = run.treasureTimesLeft[0];                // the night's other times are still to come
     run.dropTreasure(near(0.2, 0));                        // an Elite's Treasure still drops on a first run
     const eliteChest = run.roomTreasures.some((t) => t.active && !t.timed);
     // another run: the first one at 0:15
     fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0);
     step(60 * 17, () => sched());
     const otherAt = Math.round(G().run.t);
-    return ok(!before && elementOpen && first && Math.abs(at - next) <= 1 && told && eliteChest && Math.abs(otherAt - 15) <= 1,
-      { before, elementOpen, t0: Math.round(t0), at, next, first, told, eliteChest, otherAt });
+    return ok(!before && elementOpen && first && Math.abs(at - next) <= 0.5 && told && later === run.stage.treasures.at[1] && eliteChest && Math.abs(otherAt - 15) <= 1,
+      { before, elementOpen, t0: +t0.toFixed(1), at: +at.toFixed(1), next: +next.toFixed(1), first, told, later, eliteChest, otherAt });
+  },
+});
+story('first-run/first-level-up-comes-sooner', {
+  about: 'On a player\'s first run XP counts double until the first Level-up\'s card, so that Level-up (and the Element pick after it) comes about twice as soon; other runs count it as before.',
+  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G();
+    step(2);
+    const need = xpToNext(run.level);
+    run.gainXp(need / 2); step(2);
+    const levelled = /level/i.test(modalTitle());
+    pickFirstCard(); step(3); pickFirstCard(); step(50);   // the card, then the Element
+    const xp0 = run.xp; run.gainXp(1); const after = run.xp - xp0;
+    fresh({ elites: false, levels: true }); G().menus.close();
+    const r = G().run, x1 = r.xp; r.gainXp(1); const other = r.xp - x1;
+    return ok(levelled && after === 1 && other === 1, { need, levelled, after, other });
+  },
+});
+story('first-run/hold-jump-tip', {
+  about: 'On a player\'s first run, the Element pick closes with one tip for a few seconds: hold jump to jump higher. Other runs never show it.',
+  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G();
+    step(2);
+    const before = /Hold jump/.test(hintShown());
+    run.gainXp(xpToNext(run.level)); step(3); pickFirstCard(); step(3); pickFirstCard(); step(50);
+    const shown = hintShown();
+    step(60 * 6);
+    const gone = !/Hold jump/.test(hintShown());
+    fresh({ elites: false }); G().run.startPicked = false; step(2);
+    const title = modalTitle(); pickFirstCard(); step(50);
+    const other = /Hold jump/.test(hintShown());
+    return ok(!before && /Hold jump to jump higher\./.test(shown) && gone && /element/i.test(title) && !other, { before, shown, gone, title, other });
   },
 });
 story('first-run/minimap-with-the-first-treasure', {
@@ -111,7 +144,7 @@ story('first-run/minimap-with-the-first-treasure', {
   },
 });
 story('first-run/the-first-minute', {
-  about: 'A player\'s first minute, in order: swimming among roaches with bubbles firing on their own (no menu, no minimap), the Health hint on the first hit, the first card, the Element pick, then the first Treasure at 1:00 with the minimap.',
+  about: 'A player\'s first minute, in order: swimming among roaches with bubbles firing on their own (no menu, no minimap), the Health hint on the first hit, the first card, the Element pick, then the first Treasure with the minimap (at 0:15, or 4 s after the Element pick if that came later).',
   setup() {},
   play: firstMinute,
 });
