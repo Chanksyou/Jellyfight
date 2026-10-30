@@ -131,6 +131,33 @@ story('attack/lightning-recorded-sounds', {
   },
 });
 
+story('attack/lightning-sounds-quieter', {
+  about: 'Every lightning sound (launch, hit, chain zap, heavy strike) plays at 0.7 of its mixed loudness, recorded or synthesized, and the sound after it is back to full.',
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },
+  async play() {
+    unlockAudio();
+    const loaded = await loadSamples(), { ctx } = audio();
+    await new Promise((r) => setTimeout(r, 400));   // past each sound's repeat gap and any voices still ringing
+    let peak = 0;
+    const make = ctx.createGain.bind(ctx);
+    stub(ctx, 'createGain', () => {
+      const g = make(), ramp = g.gain.exponentialRampToValueAtTime.bind(g.gain);
+      let ramped = false;   // a synthesized sound ramps to its loudness; a recorded one sets it
+      g.gain.exponentialRampToValueAtTime = (v, t) => { ramped = true; peak = Math.max(peak, v); return ramp(v, t); };
+      queueMicrotask(() => { if (!ramped) peak = Math.max(peak, g.gain.value); });
+      return g;
+    });
+    const loudest = async (play) => { peak = 0; play(); await Promise.resolve(); return +peak.toFixed(4); };
+    const got = {
+      launch: await loudest(() => sfx.elementLaunch('lightning')), hit: await loudest(() => sfx.elementHit('lightning')),
+      chain: await loudest(() => sfx.chainZap(0)), big: await loudest(() => sfx.lightningBig()),
+      after: await loudest(() => sfx.elementHit('ice')),
+    };
+    const want = { launch: 0.084, hit: 0.154, chain: 0.084, big: 0.14, after: 0.3 };
+    return ok(loaded && Object.keys(want).every((k) => Math.abs(got[k] - want[k]) < 1e-3), { loaded, got, want });
+  },
+});
+
 story('attack/acid-puddle-feel', {
   about: 'Acid lands as a living puddle: it splats in (spreading past its size, then settling), bubbles and fumes while it lasts, bites a bug standing in it with a sizzle (still +50% damage taken and its ticks), dries up over its last moments (shrinking and darkening) and is gone at the end of its life; its mesh is reused by the next puddle.',
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); },
