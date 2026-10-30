@@ -113,7 +113,7 @@ export class CameraSystem {
   orbit(dt) {
     if (!this.drag) this.spin += dt * 0.35;
     const p = this.player.position, size = this.state.look.size;
-    const d = 0.3 * size, fy = this.playerHeight * 0.55 * size;
+    const d = LOOK.num(innerWidth > 640 ? 'creator-camera-distance' : 'creator-camera-distance-narrow', innerWidth > 640 ? 0.22 : 0.26) * size, fy = this.playerHeight * 0.55 * size;
     const yaw = this.player.facing + this.spin;
     this.camera.position.set(p.x + Math.sin(yaw) * d, p.y + fy + 0.02, p.z + Math.cos(yaw) * d);
     this.camera.lookAt(p.x, p.y + fy, p.z);
