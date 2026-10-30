@@ -2,7 +2,7 @@ name: Number the build
 
 # After a merge, gives each note in changes/ the next BUILD and its README line (tools/number-build.mjs)
 # and commits that to main. It pushes with BUILD_BOT_TOKEN (a repo admin's fine-grained token,
-# Contents: read and write), since main's ruleset lets only admins past its required "Game checks";
+# Contents: read and write), since main's ruleset lets only admins past its required "Game checks".
 # Its push starts Game checks (and this workflow again, which finds no notes and stops); Cloudflare
 # deploys it like any other push.
 on:
