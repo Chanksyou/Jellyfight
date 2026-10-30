@@ -275,12 +275,14 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error.
 Setup: `cd tests && npm install && npx playwright install chromium`.
 
-**The balance bot** (`node tests/balance.mjs 5`) plays whole nights on autopilot and reports how long it lasted, its level and kills, whether it beat the boss, and which sources took its Health.
-Run it before and after anything that could make the game harder or easier.
-
-**The matchup test** (`BUGS=roach node tests/matchup.mjs`) puts every treasure (at level 1 and its top level), every Epic level-up card and every evolution against one big bug and a chasing clump of ten, and reports how much faster each clears them than nothing does.
-Leave out `BUGS=` to try every bug.
-Use it to spot outliers; rate a single treasure with `tests/clear.mjs`.
+**Balance tools** use repeatable seeds and real combat measurements: Health lost after shields, effective enemy damage after defenses, healing, revivals, and separate deaths/timeouts.
+The campaign bot supports ranged, close-range and rooting styles, chooses offered rewards with seeded priorities, and carries earned builds through all four acts.
+Use `node tests/balance.mjs --seeds=10,11 --styles=ranged --act-only` for a small single-act check.
+Use `node tests/clear.mjs lighterFluid --build=candle --seeds=10,11` to measure an upgrade against its prerequisite, or `node tests/matchup.mjs` for treasures, live Epic cards and evolutions against different enemies.
+Both encounter tools support the same styles and base/max treasure copies; stationary remains their default.
+Add `--add=id` for a paired build comparison or `--synergy=itemA+itemB` for base/A/B/A+B tests.
+Reports are JSON Lines, with progress on stderr; save them and compare revisions with `node tests/compare-balance.mjs before.jsonl after.jsonl`.
+[Commands, measurements and limitations](docs/agents/balance-tools.md).
 
 ## Dev: layout editor
 
