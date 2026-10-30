@@ -261,7 +261,14 @@ export class Enemies {
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
-      if (!e || e.dead || e.proxy) return;
+      if (!e || e.dead) return;
+      if (e.proxy) {   // Elites and bosses can't be stunned: say so, at most every 1.5 s each
+        if ((status === 'stun' || status === 'pin') && !(this.frame < e.immuneAt)) {
+          e.immuneAt = this.frame + 90;
+          this.fx.number(this.center(e), 'IMMUNE', LOOK.color('stunned', '#fff27a'), 12);
+        }
+        return;
+      }
       if(status==='mark'){this.treasureLooks?.stamp(this.center(e).add(new THREE.Vector3(0,e.r,0)),e.r);sfx.gadgetPaper();}
       if(status==='pin'){this.treasureLooks?.stamp(this.center(e),e.r,true,e,duration);sfx.gadgetPin();}
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);

@@ -153,6 +153,25 @@ story('boss/vacuum-lanternfly-shield', {
   },
 });
 
+story('boss/bosses-cant-be-stunned', {
+  about: 'A stun or pin from lightning, the Static Balloon or pin-on-crit does nothing to the boss: it shows IMMUNE over it, at most once every 1.5 s.',
+  setup() { fresh({ bubbles: false, lash: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, enemies } = G();
+    step(180);
+    const shown = [];
+    stub(enemies.fx, 'number', (pos, text) => { shown.push(text); });
+    const id = enemies.list.find((e) => e.proxy === run.boss).id, entry = enemies.byId.get(id);
+    bus.emit('status_applied', { targetId: id, status: 'stun', duration: 1 });
+    bus.emit('status_applied', { targetId: id, status: 'pin', duration: 1 });
+    const once = shown.filter((t) => t === 'IMMUNE').length;
+    step(100);
+    bus.emit('status_applied', { targetId: id, status: 'stun', duration: 1 });
+    const again = shown.filter((t) => t === 'IMMUNE').length;
+    return ok(once === 1 && again === 2 && !(entry.stunT > 0) && !(run.boss.stunT > 0), { once, again, stun: entry.stunT, bossStun: run.boss.stunT });
+  },
+});
+
 story('boss/vacuum-force-field-shows-and-holds-its-bugs', {
   about: "The Vacuum's arena force field is drawn while the fight is on (the shark's stays hidden), and the cockroaches it dumps with its back to a wall land inside the field, not in or behind it, then come out for the jelly.",
   setup() { startVacuum('charge'); },

@@ -137,7 +137,7 @@ These aren't attacks, but they change how the attacks play — include them or t
 1. **Opening:** The shark bursts out of the surf/sand at the shoreline as the player approaches — full-body breach, sand and water spray, then it plants on the beach.
 2. **Baseline loop (100–85% HP):** Lunging Bite, Leap, Melee Combo, Tail Spin, and Sand Dive (×4 eruptions) rotate, with Prey applied by any melee hit making the burrowed phases track harder.
 3. **85% HP:** Tornado Dive joins the rotation. From here on, piranha pools from dives and tornadoes accumulate, and the arena gets progressively more hazardous.
-4. **Throughout:** Frenzy windows after landed bites make everything faster and more dangerous; stuns interrupt it and open punish windows.
+4. **Throughout:** Frenzy windows after landed bites make everything faster and more dangerous; a freeze interrupts it and opens a punish window (bosses can't be stunned).
 
 ## Paste-ready summary (for an AI animation prompt)
 
