@@ -1026,8 +1026,12 @@ window.pacing = { pacer, governor, lightSlots };
 // The graphics chip resetting (iOS backgrounding, out of GPU memory): pause, rebuild, resume
 const gpu = recoverGpu({ renderer, scene, camera, gfx, prepare: () => prepareGraphics(nextTask), pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });
 // iOS can lose the context while the page is hidden without telling the page: check on return
+// and leaving the game (another tab or app, the phone locked) pauses it, so nothing hits the jelly unseen
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) run.bubbles.silenceAttacks();
+  if (document.hidden) {
+    run.bubbles.silenceAttacks();
+    if (run.phase !== 'dead' && run.phase !== 'won') pause();   // a finished run keeps its end screen
+  }
   if (!document.hidden && renderer.getContext().isContextLost() && !gpu.lost) {
     renderer.domElement.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   }
