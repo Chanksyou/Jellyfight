@@ -1,1 +1,0 @@
-makes every boss immune to stun: lightning arcs, the Static Balloon's zaps and pin-on-crit no longer hold them still (the shark used to stop and lose its frenzy). An IMMUNE pop-up shows when one lands. A freeze still holds the shark.
