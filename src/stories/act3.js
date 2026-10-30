@@ -286,10 +286,12 @@ act3('shark-prey-tightens-fin-pursuit',{
     for(let i=0;i<12;i++)B.update(1/60,P);const calm=B.position.distanceTo(at);B.position.copy(at);B.heading=heading;B.elapsed=0;B.prey=6;
     for(let i=0;i<12;i++)B.update(1/60,P);const marked=B.position.distanceTo(at);return ok(marked>calm*1.2&&B.shielded&&!B.model.visible,{calm,marked});},
 });
-act3('shark-stun-stops-movement-and-frenzy',{
-  about:'A stun interrupts the current attack, holds the shark still and ends its frenzy.',setup(){},
-  play(){const B=sharkFight({hurt:false}),P=holdJelly(),{enemies}=G();B.frenzy=3;B.begin('leap');const proxy=enemies.list.find(e=>e.proxy===B);bus.emit('status_applied',{targetId:proxy.id,status:'stun',duration:1});const at=B.position.clone();
-    for(let i=0;i<30;i++)B.update(1/60,P);return ok(B.position.distanceTo(at)<1e-6&&!B.frenzy&&B.phase==='rest'&&B.stunT>0,{moved:B.position.distanceTo(at),frenzy:B.frenzy,stun:B.stunT});},
+act3('shark-ignores-stun-but-not-freeze',{
+  about:'Bosses can\'t be stunned: a stun mid-leap leaves the shark\'s leap going and its frenzy on. A freeze still interrupts the attack, holds it still and ends its frenzy.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly(),{enemies}=G(),id=enemies.list.find(e=>e.proxy===B).id;B.frenzy=3;B.begin('leap');bus.emit('status_applied',{targetId:id,status:'stun',duration:1});
+    for(let i=0;i<30;i++)B.update(1/60,P);const free=B.stunT===0&&B.frenzy>0&&B.state==='leap'&&B.phase!=='rest';
+    bus.emit('status_applied',{targetId:id,status:'freeze',duration:1});const at=B.position.clone();
+    for(let i=0;i<30;i++)B.update(1/60,P);return ok(free&&B.position.distanceTo(at)<1e-6&&!B.frenzy&&B.phase==='rest'&&B.stunT>0,{free,held:B.position.distanceTo(at),frenzy:B.frenzy,stun:B.stunT});},
 });
 act3('shark-bounds-and-disposal',{
   about:'Moving states stay inside the bed with room for the whole model, and clearing the boss removes all hazards.',setup(){},
@@ -297,7 +299,7 @@ act3('shark-bounds-and-disposal',{
     step(600,()=>{const A=B.arena;outside ||= B.position.x<A.arenaMin[0]+B.bound-.001||B.position.x>A.arenaMax[0]-B.bound+.001||B.position.z<A.arenaMin[2]+B.bound-.001||B.position.z>A.arenaMax[2]-B.bound+.001;});
     B.pool(B.position);B.launchTornadoes();B.recover();B.damage(B.hp+1);return ok(!outside&&B.dying&&!B.pools.length&&!B.tornadoes.length&&!B.warning,{outside,dying:B.dying});},
 });
-for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(const response of ['kill','stun'])act3(`shark-retaliation-${source}-${response}`,{
+for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(const response of ['kill','freeze'])act3(`shark-retaliation-${source}-${response}`,{
   about:`Synchronous ${response} retaliation during ${source} stops the attack safely; lethal retaliation clears every hazard.`,setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly(),{enemies}=G();B.elapsed=-1e6;
     if(source==='bite'){B.begin('bite');P.position.copy(B.warning.at);B.release(P);B.elapsed=B.skill().active*.4;}
@@ -307,7 +309,7 @@ for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(cons
     if(source==='fish')for(let i=0;i<3;i++){B.fishShot(P.position,0);const s=B.shots.at(-1);s.to.copy(P.position);s.t=B.def.skills.tornado.flight;}
     if(source==='bleed')B.bleed=1;
     let answered=false;offs.push(bus.on('damage_taken',e=>{if(answered||e.targetId!==PLAYER||e.source!=='boss')return;answered=true;
-      if(response==='kill')B.damage(B.hp+1);else bus.emit('status_applied',{targetId:enemies.list.find(e=>e.proxy===B).id,status:'stun',duration:1});
+      if(response==='kill')B.damage(B.hp+1);else bus.emit('status_applied',{targetId:enemies.list.find(e=>e.proxy===B).id,status:'freeze',duration:1});
     }));
     B.update(.01,P);
     const stopped=response==='kill'?B.dying&&!B.pools.length&&!B.tornadoes.length&&!B.shots.length&&!B.warning:B.stunT>0&&B.phase==='rest'&&!B.warning;
