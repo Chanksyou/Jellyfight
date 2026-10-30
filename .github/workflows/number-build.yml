@@ -1,8 +1,10 @@
 name: Number the build
 
 # After a merge, gives each note in changes/ the next BUILD and its changelog line (tools/number-build.mjs)
-# and commits that to main. A push made with the workflow's own token starts no other workflow, so
-# Game checks doesn't re-run for it; Cloudflare deploys it like any push to main.
+# and commits that to main. It pushes with BUILD_BOT_TOKEN (a repo admin's fine-grained token,
+# Contents: read and write), since main's ruleset lets only admins past its required "Game checks".
+# Its push starts Game checks (and this workflow again, which finds no notes and stops); Cloudflare
+# deploys it like any other push.
 on:
   push:
     branches: [main]
@@ -25,6 +27,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.BUILD_BOT_TOKEN || github.token }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
