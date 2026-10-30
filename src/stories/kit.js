@@ -201,7 +201,7 @@ export function firstMinute() {
   }
   run.bubbles.onBlow = was;
   menus.close();
-  const due = (run.stage.treasures.at || []).find((x) => x >= T.element);
+  const first = run.stage.treasures.at[0], due = first >= T.element ? first : T.element + 4;   // a skipped one comes 4 s after the pick
   const good = T.busyEarly === undefined && blown > 0 && T.hint !== undefined && T.card !== undefined && T.element >= T.card && T.element - T.card < 0.5
     && T.treasureBeforeElement === undefined && Math.abs(T.treasure - due) <= 0.1 && Math.abs(T.map - T.treasure) <= 0.1;
   return ok(good, { ...T, due, blown });

@@ -2,10 +2,13 @@
 // (spec: GitHub issue #1). The run asks a FirstRun a few yes/no questions at the moments that
 // change; nothing else knows the first-run rules. Every other run behaves as before.
 //
-//   - the Element pick waits until right after the first Level-up's card (not the first frame)
+//   - the Element pick waits until right after the first Level-up's card (not the first frame);
+//     XP counts double until then, so that first Level-up comes about twice as soon
 //   - the first hit shows one plain line about the Health bar, once
+//   - the Element pick closes with one tip: hold jump to jump higher
 //   - no Treasure turns up in the room before the Element pick is done (scheduled times before it
-//     are skipped; an Elite's Treasure still drops)
+//     are skipped; an Elite's Treasure still drops); a skipped one turns up a few seconds after the
+//     pick instead of waiting for the next scheduled time
 //   - the minimap stays hidden until the first Treasure appears in the room, then stays
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
@@ -16,6 +19,7 @@
 import { BEST_KEY } from './leaderboard.js';
 
 export const PLAYED_KEY = 'jellyfight.played';
+const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
 export function isNewPlayer() {
   try { return !localStorage.getItem(PLAYED_KEY) && !localStorage.getItem(BEST_KEY); } catch { return false; }
@@ -32,7 +36,11 @@ export class FirstRun {
     this.hitHintShown = !this.active;
     this.elementChosen = false;          // the run sets it when the start Element pick is made
     this.mapShown = !this.active;
+    this.skipped = false;                // a scheduled Treasure was skipped before the Element pick
   }
+
+  // how much each XP drop counts: double on a first run until its Element pick
+  get xpMul() { return this.elementPicked ? 1 : 2; }
 
   // a Treasure just appeared in the room (scheduled, or left by an Elite): the minimap comes with it
   treasureAppeared() { this.mapShown = true; }
@@ -51,7 +59,18 @@ export class FirstRun {
   }
 
   // a scheduled Treasure's time has come: place it, or (before the Element pick) skip it?
-  get treasuresDue() { return !this.active || this.elementChosen; }
+  get treasuresDue() {
+    if (!this.active || this.elementChosen) return true;
+    this.skipped = true;
+    return false;
+  }
+
+  // the start Element was just picked at time t: the hint to show, and when a skipped Treasure comes (or null)
+  elementChose(t) {
+    this.elementChosen = true;
+    if (!this.active) return { hint: null, treasureAt: null };
+    return { hint: 'Hold jump to jump higher.', treasureAt: this.skipped ? t + TREASURE_AFTER_PICK : null };
+  }
 
   // a Level-up's card was just picked: open the Element pick now? (once, after the first card)
   elementPickAfterCard() {
