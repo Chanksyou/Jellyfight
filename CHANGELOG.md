@@ -2,6 +2,8 @@
 
 Release notes for Jelly Fight, newest first. For setup and gameplay, see the [README](README.md).
 
+v341 makes the bathroom shower curtain see-through while keeping its chrome rod and rings solid.
+
 v340 retunes treasures and level-ups: Sticky Note marks add 30% / 35% / 40% damage (was 50 / 60 / 70%); Popsicle Stick and Hair Dryer pierce 5 more (was 3); Frozen Peas +50% (was 40%); Box Fan pushes 80% farther (was 60%); Ice Cube snaps every 6 / 5 / 4 s (was 8 / 7 / 6); Houseplant drips 3 / 4 / 5 XP every 10 / 8 / 6 s (was 2 / 3 / 5 XP, Lv 3 every 7 s); Medicine Ball gives +1 Bubble damage per 10 max Health (was 8); each Level needs 1.35x the XP of the last (was 1.4x); the Health regen card gives 0.1 / 0.2 / 0.3 a second (was 0.2 / 0.3 / 0.4); the Bubble size card is no longer offered and Bike Pump (+25% Bubble size) is gone.
 
 v339 takes the grey hose that arched from the bathtub's overflow plate over the front rim out of Act 2's bathroom; the overflow plate stays. Decoration only, so nothing plays differently, the Clog fight included. Story: `act2/no-hose-over-the-tub-rim`.
