@@ -13,7 +13,7 @@ import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requiremen
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
 import { TYPES } from '../enemies.js';
-import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, stub, tp } from './kit.js';
+import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
 function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
@@ -146,7 +146,7 @@ story('engine/leaderboard', {
 });
 
 // --- the main screen
-story('engine/leaderboard-shows-each-players-jelly', {
+const leaderboardJellies = {
   about: 'The leaderboard is big and easy to read, and every score has that player\'s own customized jelly by their name (drawn from the look they posted with it): different jellies look different, the same jelly is drawn once, and an old score with no look still gets a jelly.',
   setup() { fresh({ elites: false }); },
   async play() {
@@ -156,21 +156,27 @@ story('engine/leaderboard-shows-each-players-jelly', {
     fake.docs.set('scores/u_pink', { score: 30000, name: 'Pinky', look: { body: 'moon', color: '#ff5fa2', accent: '#ffd23a', top: 'crown' } });
     fake.docs.set('scores/u_green', { score: 20000, name: 'Greeny', look: { body: 'lion', color: '#4dff7a', accent: '#1f6b3a' } });
     fake.docs.set('scores/u_old', { score: 10000, name: 'Oldie', body: 'box' });
+    for (let i = 0; i < 7; i++) fake.docs.set('scores/u_extra' + i, { ...fake.docs.get('scores/u_pink'), score: 9000 - i, name: 'A long jelly name' });
     window.claude = fake;
     run.board = new Leaderboard();
     run.showBoard(() => menus.close());
     await new Promise((r) => setTimeout(r, 300));
     const board = document.querySelector('.jf-modal .jf-board');
     const imgs = [...(board?.querySelectorAll('img.jf-jelly') || [])], srcs = imgs.map((i) => i.getAttribute('src'));
-    const pictures = imgs.length === 3 && srcs.every((s) => s.startsWith('data:image/png')) && new Set(srcs).size === 3;
-    const big = parseFloat(getComputedStyle(board.querySelector('.jf-stats')).fontSize) >= 20 && imgs[0]?.getBoundingClientRect().width >= 48;
+    const pictures = imgs.length === 10 && srcs.every((s) => s.startsWith('data:image/png')) && new Set(srcs).size === 3;
+    const compact = innerHeight <= 520 || innerWidth <= 700;
+    const big = imgs[0]?.getBoundingClientRect().width >= (compact ? 56 : 80);
+    board.scrollTop = board.scrollHeight;
+    const fits = board.scrollWidth <= board.clientWidth && board.querySelector('button').getBoundingClientRect().bottom <= innerHeight;
     const t0 = performance.now(); run.jellyFace(fake.docs.get('scores/u_pink').look); const cached = performance.now() - t0 < 5;
     menus.close();
     delete window.claude;
     run.board = realBoard;
-    return ok(pictures && big && cached, { rows: imgs.length, unique: new Set(srcs).size, big, cached, size: board && getComputedStyle(board.querySelector('.jf-stats')).fontSize });
+    return ok(pictures && big && fits && cached, { rows: imgs.length, unique: new Set(srcs).size, big, fits, cached });
   },
-});
+};
+story('engine/leaderboard-shows-each-players-jelly', leaderboardJellies);
+phone('leaderboard-shows-each-players-jelly', leaderboardJellies);
 
 story('menu/reduce-effects', {
   about: 'There is no ✨ Effects button (the Graphics row is the one visual setting): Reduce effects follows the device\'s reduced-motion setting. On, a kill still lands its hit-stop but shakes nothing; off, the kill shakes by its step on look.css\'s --feel-* ladder.',

@@ -98,11 +98,12 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-stats small { font-weight: 600; opacity: .75; }
 .jf-stats .jf-unlock { width: 56px; height: 56px; border-radius: 50%; vertical-align: middle; margin-right: 10px; box-shadow: 0 0 0 2px #ffc93a99, 0 4px 14px #0008; }
 /* the leaderboard: big rows, each player's own jelly by their name */
-.jf-board .jf-stats { font-size: 22px; gap: 10px 36px; min-width: min(560px, 90vw); }
-.jf-board .jf-stats > span { display: flex; align-items: center; gap: 12px; }
+.jf-board { width: min(760px, 94vw); max-height: 100dvh; overflow-y: auto; padding: 16px 0; box-sizing: border-box; }
+.jf-board .jf-stats { font-size: 22px; gap: 10px 36px; width: 100%; grid-template-columns: minmax(0, 1fr) auto; }
+.jf-board .jf-stats > span { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .jf-board .jf-stats > b { align-self: center; font-size: 24px; }
 .jf-board .jf-rank { font-style: normal; min-width: 1.6em; }
-.jf-board .jf-jelly { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 0 0 2px #ffffff30, 0 4px 14px #0008; flex: none; }
+.jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px #ffffff30, 0 4px 14px #0008; flex: none; }
 .jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .jf-score { font-size: 1.5em; color: #ffd23a; }
 .jf-name { font: 600 15px system-ui, sans-serif; width: 11em; max-width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; text-align: right; }
@@ -135,7 +136,7 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
   .jf-stats .jf-unlock { width: 40px; height: 40px; }
   .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
   .jf-board .jf-stats > b { font-size: 17px; }
-  .jf-board .jf-jelly { width: 40px; height: 40px; }
+  .jf-board .jf-jelly { width: var(--board-jelly-size-phone, 56px); height: var(--board-jelly-size-phone, 56px); }
   .jf-pop { top: 12%; padding: 8px 12px; }
   .jf-award h2 { font-size: 24px; }
   .jf-award .face { width: 120px; height: 120px; margin: 2px 0 4px; }

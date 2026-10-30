@@ -207,6 +207,11 @@
   --mirage-opacity: 0.38;
   --mirage-glow: 1.1;
   /* Main menu: presentation only. Distances are multiples of the jelly's height. */
+  --creator-camera-distance: 0.22;
+  --creator-camera-distance-narrow: 0.26;
+  --board-jelly-size: 80px;
+  --board-jelly-size-phone: 56px;
+  /* Main menu: presentation only. Distances are multiples of the jelly's height. */
   --menu-camera-distance: 2.35;
   --menu-camera-distance-portrait: 4;
   --menu-camera-offset-portrait: 0.32;

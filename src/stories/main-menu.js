@@ -71,7 +71,8 @@ const customizeWater = {
   setup() { fresh({ elites: false }); },
   play() {
     const { mainMenu: menu, player, APT } = G(), over = menu.overlay;
-    const oldBody = player.avatar.look.body, checked = [];
+    const oldBody = player.avatar.look.body, checked = [], distances = [];
+    const position = player.position.clone();
     let calm = false;
     stub(menu, 'calm', () => calm);
     menu.restore(); const mask = menu.camera.layers.mask;
@@ -84,6 +85,7 @@ const customizeWater = {
       for (const body of Object.keys(SPECIES)) {
         document.querySelector(`#creator [data-k="body"][data-v="${body}"]`).click(); step(1);
         checked.push(menu.camera.layers.test(player.avatar.root.layers) && !menu.camera.layers.test(APT.root.layers));
+        distances.push(Math.hypot(menu.camera.position.x - player.position.x, menu.camera.position.z - player.position.z) / player.avatar.look.size);
       }
       calm = true; const held = water.material.uniforms.time.value; step(30);
       const frozen = water.material.uniforms.time.value === held;
@@ -91,7 +93,8 @@ const customizeWater = {
       const done = !water.mesh.visible && menu.camera.layers.mask === mask && player.avatar.root.layers.mask === 1;
       open(); dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
       const escaped = !water.mesh.visible && menu.camera.layers.mask === mask && document.querySelector('#creator').hidden;
-      return ok(shared && checked.every(Boolean) && frozen && done && escaped, { shared, checked, frozen, done, escaped });
+      const enlarged = distances.every(d => d < 0.27) && player.position.equals(position);
+      return ok(shared && checked.every(Boolean) && enlarged && frozen && done && escaped, { shared, checked, distances, enlarged, frozen, done, escaped });
     } finally {
       if (document.querySelector('#creator').hidden) open();
       document.querySelector(`#creator button[data-k="body"][data-v="${oldBody}"]`).click();
