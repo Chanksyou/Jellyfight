@@ -43,7 +43,7 @@ story('attack/wind-scenery-collision', {
 });
 
 story('attack/wind-doubled-base-push', {
-  about: 'Wind uses a 0.6 base push multiplier (4.2 cm), adds its original damage-based shove, and Box Fan multiplies only the base by 1.6.',
+  about: 'Wind uses a 0.6 base push multiplier (4.2 cm), adds its original damage-based shove, and Box Fan multiplies only the base by 1.8.',
   setup,
   play() {
     const { run, enemies } = G(), e = enemies.list[0], knocks = record('knockback');
@@ -52,7 +52,7 @@ story('attack/wind-doubled-base-push', {
     run.bubbles.strike(base, e, run.mods);
     give('boxFan'); const upgraded = blade(); run.bubbles.strike(upgraded, e, run.mods);
     const forces = knocks.filter(k => k.targetId === e.id).map(k => k.force);
-    const expected = [0.042 + knockFor(base.dmg), 0.042 * 1.6 + knockFor(upgraded.dmg)];
+    const expected = [0.042 + knockFor(base.dmg), 0.042 * 1.8 + knockFor(upgraded.dmg)];
     return ok(push === 0.6 && forces.length === 2 && forces.every((f, i) => Math.abs(f - expected[i]) < 1e-9), { push, forces, expected });
   },
 });

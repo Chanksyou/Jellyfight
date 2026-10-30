@@ -110,7 +110,7 @@ story('treasures/rarity-by-source', {
     for (src of ['room', 'elite']) for (let i = 0; i < 1600; i++) { run.chestsOpened = 0; run.pickTreasure('', '', src); }
     const rates = { room: { ...seen.room }, elite: { ...seen.elite } }, expected = { room: { common: .6, rare: .3, epic: .08, legendary: .02 }, elite: { common: .4, rare: .4, epic: .15, legendary: .05 } };
     const matches = Object.entries(expected).every(([source, tiers]) => Object.entries(tiers).every(([tier, share]) => rates[source][tier] > 0 && Math.abs(rates[source][tier] / 4800 - share) < .025));
-    const rareShare = (luck) => { stub(Math, 'random', seededRandom(41023)); run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 300; i++) { run.chestsOpened = 0; run.pickTreasure('', '', 'room'); } return seen.room.rare / (seen.room.rare + seen.room.common); };
+    const rareShare = (luck) => { stub(Math, 'random', seededRandom(41023)); run.stats.luck = luck; src = 'room'; seen.room = {}; for (let i = 0; i < 1600; i++) { run.chestsOpened = 0; run.pickTreasure('', '', 'room'); } return seen.room.rare / (seen.room.rare + seen.room.common); };
     const plain = rareShare(0), lucky = rareShare(100);run.stats.luck = 0;restore();
     return ok(matches && lucky > plain * 1.2, { rates, matches, plain, lucky });
   },
@@ -223,12 +223,12 @@ story('pickups/big-xp-drops', {
   },
 });
 story('treasures/mark-on-hit', {
-  about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 50% more damage.',
+  about: 'mark-on-hit (Sticky Note): bugs you hit are marked and take 30% more damage.',
   setup() { setupFight({ lash: false }); give('stickyNote'); roachAt(0, -0.15); },
   play() { const e = G().enemies.list[0]; step(120, () => e.markT > 0); return ok(e.markT > 0 && !!e.note, { markT: +e.markT.toFixed(2) }); },
 });
 story('treasures/mark-on-hit-levels', {
-  about: 'mark-on-hit more= (Sticky Note level 3): marked bugs take 70% more damage, and a hit on one lands 1.7x.',
+  about: 'mark-on-hit more= (Sticky Note level 3): marked bugs take 40% more damage, and a hit on one lands 1.4x.',
   setup() { setupFight({ lash: false }); give('stickyNote', 'stickyNote', 'stickyNote'); roachAt(0, -0.15); },
   play() {
     const e = G().enemies.list[0];
@@ -236,7 +236,7 @@ story('treasures/mark-on-hit-levels', {
     const hp = e.hp;
     bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'test' });
     const landed = +(hp - e.hp).toFixed(3);
-    return ok(e.markT > 0 && landed === 17, { markT: +e.markT.toFixed(2), landed });
+    return ok(e.markT > 0 && landed === 14, { markT: +e.markT.toFixed(2), landed });
   },
 });
 story('treasures/crit', {
@@ -492,15 +492,15 @@ story('treasures/stacking', {
   },
 });
 story('treasures/per', {
-  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 8), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
+  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 10), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G(), S = () => run.S;
     const bd0 = S().bubbleDamage, hp = S().health;
     give('medicineBall');
-    const ball = S().bubbleDamage - bd0;                       // 25 max Health: +3.125
+    const ball = S().bubbleDamage - bd0;                       // 25 max Health: +2.5
     run.stats.health += 10;                                    // a Health card
-    const ballAfterCard = S().bubbleDamage - bd0;              // 35: +4.375
+    const ballAfterCard = S().bubbleDamage - bd0;              // 35: +3.5
     const td0 = run.tentacleStats.tentacleDamage;
     give('paperclipChain');
     const clip0 = run.tentacleStats.tentacleDamage - td0;
@@ -516,7 +516,7 @@ story('treasures/per', {
     run.chestsOpened = 5;                                      // five treasures found: +15%
     const piggy = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(near(ball, hp / 8) && near(ballAfterCard, (hp + 10) / 8) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 6) && near(piggy, 15),
+    return ok(near(ball, hp / 10) && near(ballAfterCard, (hp + 10) / 10) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 6) && near(piggy, 15),
       { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
   },
 });
@@ -585,17 +585,17 @@ story('treasures/stat', {
     return ok(run.S.bubbleDamage === b.bubbleDamage + 2 && Math.abs(run.S.fireRate - b.fireRate * 1.25) < 1e-9, { pop: [b.bubbleDamage, run.S.bubbleDamage], blowRate: [b.fireRate, +run.S.fireRate.toFixed(3)] });
   },
 });
-story('treasures/stat-size-jump-tentacles', {
-  about: 'stat reaches the stats nothing raised before: Bubble size, Jump height and the tentacles (Bike Pump, Spring Insole, Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle), and the lash uses them: two tentacles sting two bugs at once.',
-  setup() { setupFight({ bubbles: false }); give('bikePump', 'insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
+story('treasures/stat-jump-tentacles', {
+  about: 'stat reaches the stats nothing raised before: Jump height and the tentacles (Spring Insole, Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle), and the lash uses them: two tentacles sting two bugs at once.',
+  setup() { setupFight({ bubbles: false }); give('insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
-    const stats = near(S.bubbleSize, b.bubbleSize * 1.25) && near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 2
+    const stats = near(S.jumpHeight, b.jumpHeight * 1.25) && T.tentacles === b.tentacles + 2
       && near(T.reach, b.reach * 1.75) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
     const log = record('damage_taken');
     step(60 * 2);
     const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
-    return ok(stats && stung === 2, { size: S.bubbleSize, jump: S.jumpHeight, T: { ...T }, stung });
+    return ok(stats && stung === 2, { jump: S.jumpHeight, T: { ...T }, stung });
   },
 });
 story('treasures/more-treasures', {
@@ -740,9 +740,9 @@ story('treasures/more-bugs', {
   },
 });
 story('treasures/xp', {
-  about: 'xp inside every (Houseplant): every 12 s, 2 XP drips at your feet.',
+  about: 'xp inside every (Houseplant): every 10 s, 3 XP drips at your feet.',
   setup() { setupFight({ bubbles: false, lash: false }); give('houseplant'); },
-  play() { const { run } = G(), p0 = run.purse; step(60 * 9); return ok(run.purse - p0 === 2, { gained: run.purse - p0 }); },
+  play() { const { run } = G(), p0 = run.purse; step(60 * 9); return ok(run.purse - p0 === 3, { gained: run.purse - p0 }); },
 });
 story('treasures/every', {
   about: 'every + ring (Guitar Pick): every 5 s a chord stings and pushes back everything close.',
@@ -833,7 +833,7 @@ story('treasures/tuned-element-upgrades', {
   play() {
     const E = G().run.mods.element;
     const got = [E.fire.burnTime, E.fire.burn, E.lightning.chainRange, E.lightning.bolt, E.ice.pierce, E.wind.pierce, E.wind.rate, E.glitter.width, E.glitter.slow, E.glitter.rate];
-    const want = [6, 2, 0.32, 2, 3, 4, 0.88 * 1.4, 2.2 * 1.4, 2, 1.05 * 1.4];
+    const want = [6, 2, 0.32, 2, 5, 6, 0.88 * 1.4, 2.2 * 1.4, 2, 1.05 * 1.4];
     return ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-9), { got, want });
   },
 });
@@ -842,9 +842,9 @@ story('treasures/tuned-level-effects', {
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const got = [], want = [
-      [3, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .5],
-      [5, .21, .15, 4, 1.75, .22, 3, .07, .15, 3, .6],
-      [7, .21, .2, 3, 2, .26, 4, .09, .18, 4, .7],
+      [3, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .3],
+      [5, .21, .15, 4, 1.75, .22, 3, .07, .15, 3, .35],
+      [7, .21, .2, 3, 2, .26, 4, .09, .18, 4, .4],
     ];
     for (let i = 0; i < 3; i++) {
       give('cottonBall', 'rubberDuck', 'whale', 'guitarPick', 'bathBomb', 'stickyNote');

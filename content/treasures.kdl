@@ -111,14 +111,14 @@ treasure "phoneCharger" name="Phone Charger" icon="📱" rarity="epic" needs="ba
 treasure "iceTray" name="Ice Tray" icon="🍧" rarity="common" needs="freezerPack" attack=#true text="Ice: slows last 50% longer." {
     element-up "ice" chill=1.5
 }
-treasure "frozenPeas" name="Frozen Peas" icon="🫛" rarity="common" needs="freezerPack" attack=#true text="Ice: shards hit 40% harder." {
-    element-up "ice" dmg=1.4
+treasure "frozenPeas" name="Frozen Peas" icon="🫛" rarity="common" needs="freezerPack" attack=#true text="Ice: shards hit 50% harder." {
+    element-up "ice" dmg=1.5
 }
 treasure "snowGlobe" name="Snow Globe" icon="🌨️" rarity="rare" needs="freezerPack" attack=#true text="Ice: each shard's burst slows everything around where it hits." {
     element-up "ice" frost=1
 }
-treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 3 more enemies." {
-    element-up "ice" pierce=3
+treasure "popsicleStick" name="Popsicle Stick" icon="🍡" rarity="rare" needs="freezerPack" attack=#true text="Ice: shards pierce 5 more enemies." {
+    element-up "ice" pierce=5
 }
 treasure "freezerBurn" name="Freezer Burn" icon="🥶" rarity="epic" needs="freezerPack" attack=#true text="Ice: shards do double damage to slowed enemies." {
     element-up "ice" slowedMul=1
@@ -140,11 +140,11 @@ treasure "quickDry" name="Quick-Dry Spray" icon="💨" rarity="epic" needs="nail
     element-up "acid" rate=1.4
 }
 // wind
-treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts push enemies 60% farther, helping slam them into scenery." {
-    element-up "wind" push=1.6
+treasure "boxFan" name="Box Fan" icon="📦" rarity="common" needs="paperFan" attack=#true text="Wind: gusts push enemies 80% farther, helping slam them into scenery." {
+    element-up "wind" push=1.8
 }
-treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 3 more enemies." {
-    element-up "wind" pierce=3
+treasure "hairDryer" name="Hair Dryer" icon="💇" rarity="rare" needs="paperFan" attack=#true text="Wind: gusts pierce 5 more enemies." {
+    element-up "wind" pierce=5
 }
 treasure "deskFan" name="Desk Fan" icon="🌪️" rarity="common" needs="paperFan" attack=#true text="Wind: gusts fire 40% faster." {
     element-up "wind" rate=1.4
@@ -176,13 +176,13 @@ treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" atta
 treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (bubbles and tentacles) does Critical (3x) damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
-treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 50% more damage from everything." {
-    mark-on-hit 3 by="all"
-    level 2 text="Enemies you hit are marked for 4 s and take 60% more damage from everything." {
-        mark-on-hit 4 by="all" more=0.6
+treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 30% more damage from everything." {
+    mark-on-hit 3 by="all" more=0.3
+    level 2 text="Enemies you hit are marked for 4 s and take 35% more damage from everything." {
+        mark-on-hit 4 by="all" more=0.35
     }
-    level 3 text="Enemies you hit are marked for 5 s and take 70% more damage from everything." {
-        mark-on-hit 5 by="all" more=0.7
+    level 3 text="Enemies you hit are marked for 5 s and take 40% more damage from everything." {
+        mark-on-hit 5 by="all" more=0.4
     }
 }
 treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="+1 mid-air jump." stack=3 {
@@ -265,17 +265,17 @@ treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text
         }
     }
 }
-treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 8 s a cold snap slows everything close for 2 s." {
-    every 8 {
+treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s a cold snap slows everything close for 2 s." {
+    every 6 {
         ring 0.16 dmg=0.5 slow=2 color="#bff4ff" show=0.6
     }
-    level 2 text="Every 7 s, a cold snap slows nearby enemies for 2.5 s." {
-        every 7 {
+    level 2 text="Every 5 s, a cold snap slows nearby enemies for 2.5 s." {
+        every 5 {
             ring 0.17 dmg=0.6 slow=2.5 color="#bff4ff" show=0.6
         }
     }
-    level 3 text="Every 6 s, a cold snap slows nearby enemies for 3 s." {
-        every 6 {
+    level 3 text="Every 4 s, a cold snap slows nearby enemies for 3 s." {
+        every 4 {
             ring 0.18 dmg=0.7 slow=3 color="#bff4ff" show=0.6
         }
     }
@@ -416,17 +416,17 @@ treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true te
 treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 enemies cleared, gain +0.03 Fire rate this run." stack=2 {
     grow-on-kills fire-rate 0.03 kills=12
 }
-treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 10 s it drips 2 XP at your feet." {
+treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 10 s it drips 3 XP at your feet." {
     every 10 {
-        xp 2
+        xp 3
     }
-    level 2 text="Drips 3 XP at your feet every 8 s." {
+    level 2 text="Drips 4 XP at your feet every 8 s." {
         every 8 {
-            xp 3
+            xp 4
         }
     }
-    level 3 text="Drips 5 XP at your feet every 7 s." {
-        every 7 {
+    level 3 text="Drips 5 XP at your feet every 6 s." {
+        every 6 {
             xp 5
         }
     }
@@ -444,8 +444,8 @@ treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 25% 
 }
 
 // --- converters (per): one stat grows with another, live
-treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Bubble damage for every 8 max Health." stack=3 {
-    per "bubble-damage" 1 every=8 of="max-health"
+treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Bubble damage for every 10 max Health." stack=3 {
+    per "bubble-damage" 1 every=10 of="max-health"
 }
 treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% Fire rate for every 10% Move speed above your start." stack=3 {
     per "fire-rate" 3 every=10 of="move-speed-bonus" percent=#true
@@ -535,10 +535,7 @@ treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true 
     pin-on-crit 0.4
 }
 
-// --- size, jumps and tentacles (stat): stats that nothing raised before
-treasure "bikePump" name="Bike Pump" icon="🚲" rarity="common" attack=#true text="Pumped-up bubbles: +25% Bubble size, so they land easier and splash wider." stack=3 {
-    stat bubble-size 25 percent=#true
-}
+// --- jumps and tentacles (stat): stats that nothing raised before
 treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+25% Jump height." stack=3 {
     stat jump-height 25 percent=#true
 }

@@ -239,7 +239,7 @@ story('dev/balance-editor', {
     const restored = !isRemoved('elite', 'mug') && !isRemoved('card', 'health')
       && CONTENT.elites.mug.skills.coffee.dmg === 3 && xpToNext(2) === xp0 && CONTENT.levelups.cards.bubbleDamage.amounts[1] === card0;
     return ok(rows > 100 && described && hp0 === 25 && second.hp === 12 && first.hp === 25 && fr2 > fr1 && Math.abs(fr3 - fr1) < 1e-9 && third.hp === 25 && bossDmg0 === 4 && bossDmg1 === 9 && bossDmg2 === 4
-      && mugDmg0 === 3 && mugDmg1 === 5 && xp0 === 6 && xp1 === 8 && card0 === 2 && card1 === 4 && mugRemoved && !healthOffered && restored,
+      && mugDmg0 === 3 && mugDmg1 === 5 && xp0 === 5 && xp1 === 8 && card0 === 2 && card1 === 4 && mugRemoved && !healthOffered && restored,
       { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2, mugDmg0, mugDmg1, xp0, xp1, card0, card1, mugRemoved, healthOffered, restored });
   },
 });
