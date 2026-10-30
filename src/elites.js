@@ -937,7 +937,7 @@ export class Elites {
     const P = player.position, pc = P.clone().setY(P.y + cfg.height * 0.5);
     const camQ = this.camera.quaternion;
     const sameLevel = (y) => Math.abs(P.y - y) < 0.1;
-    const hit = (amount, source) => bus.emit('damage_taken', { targetId: PLAYER, amount, source });
+    const hit = (amount, source, at) => bus.emit('damage_taken', { targetId: PLAYER, amount, source, at });   // at: where it struck from (the red arc on the jelly)
     const knock = (from, force) => bus.emit('knockback', { targetId: PLAYER, dir: P.clone().sub(from).setY(0).normalize(), force, launch: 0.25 });
     this.pull = null;
 
@@ -1115,17 +1115,17 @@ export class Elites {
             if (charge > .75 && !e.locked) { e.locked = true; sfx.controllerLock(); }
             e.tele.forEach(m => { m.material.progress = charge; });
           } else {
-            let struck = false;
+            let struck = null;   // the symbol that caught you
             for (const m of e.tele) if (m.material instanceof VolumeMaterial) {
               const at = m.position, kind = m.userData.symbol;
-              struck ||= floorShapeHits(kind, at, D.radius, D.height, P, cfg);
+              if (!struck && floorShapeHits(kind, at, D.radius, D.height, P, cfg)) struck = at;
               this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', .03), LOOK.num('controller-symbol-sparks', 8));
               this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', .002), .1, at.y);
               const pulse = this.volume(hostile('controller'), 'symbol-'+kind, at, m.scale);
               pulse.material.progress = 1;
               this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             }
-            if (struck) hit(D.dmg, 'controller'); // overlapping symbols are one attack receipt
+            if (struck) hit(D.dmg, 'controller', struck); // overlapping symbols are one attack receipt
             sfx.controllerFire(); sfx.controllerContact(struck); juice.feel('impact-big');
             e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', .2);
             g.scale.y *= 1 - LOOK.num('controller-recoil-squash', .15);
@@ -1160,7 +1160,7 @@ export class Elites {
             this.fx.splat(surf, LOOK.color('controller-scuff', '#514949'), LOOK.num('controller-scuff-size', 0.018));
             e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2); g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15);
             juice.feel('impact-big'); sfx.controllerRumble();
-            if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller'); knock(e.base, 0.9); }
+            if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller', e.base); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
           }
         }
@@ -1175,7 +1175,7 @@ export class Elites {
           const R = 0.045;
           const land = (at) => {
             const struck = blastHits(at, R, P, cfg);
-            if (struck) hit(SK.coffee.dmg, 'mug');
+            if (struck) hit(SK.coffee.dmg, 'mug', at);
             this.puddle(at); this.fx.impact(at.clone().setY(at.y + 0.008), hostile('mug'), 0.025, 10);
             this.fx.burst(at.clone().setY(at.y + 0.01), [LOOK.color('mug-coffee', '#3a2214'), LOOK.color('mug-coffee-light', '#6a4a2a')], 6, 0.003, 0.3, at.y);
             juice.feel(struck ? 'impact' : 'hit'); sfx.mugSplash(struck);
@@ -1285,7 +1285,7 @@ export class Elites {
                 this.fx.puff(p, 0xffffff, 0.03, 0.4);
                 this.fx.splat(p, LOOK.color('kettle-wet', '#b8c8d8'), LOOK.num('kettle-wet-size', 0.03));   // a harmless wet mark, fading
                 const struck = blastHits(p, R, P, cfg);
-                if (struck) hit(SK.boil.dmg, 'kettle');
+                if (struck) hit(SK.boil.dmg, 'kettle', p);
                 juice.feel(struck ? 'impact' : 'hit'); sfx.kettleDrop(struck);
               }, { dome: true });
             }
@@ -1313,7 +1313,7 @@ export class Elites {
               this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
               sfx.soapSplat();
               juice.feel('hit');
-              if (blastHits(at, R, P, cfg)) hit(SK.squirt.dmg, 'soap');
+              if (blastHits(at, R, P, cfg)) hit(SK.squirt.dmg, 'soap', at);
               this.slick(at);
             }, { dome: true });
             this.fx.puff(muzzle, 0xffd0e4, 0.008, 0.3);
@@ -1391,7 +1391,7 @@ export class Elites {
             this.fx.glow.emit(tip, hostile('clock'), 0.05, 0.01, 0.25, 0.9);
             // did the hand pass you (anything of you inside its low volume, within its reach, as it went by)?
             const between = (x, a0, a1) => { const w = (v) => Math.atan2(Math.sin(v - a0), Math.cos(v - a0)); const t = w(x), span = w(a1); return span >= 0 ? t >= 0 && t <= span : t <= 0 && t >= span; };
-            if (!e.swept && ringHits(e.base, 0, R - cfg.radius * 0.5, CLOCK_HITS.sweepH, P, cfg) && between(flat(P), e.prevB, b)) { e.swept = true; hit(SK.sweep.dmg, 'clock'); knock(e.base, 0.7); this.clockStruck(P, cfg); }
+            if (!e.swept && ringHits(e.base, 0, R - cfg.radius * 0.5, CLOCK_HITS.sweepH, P, cfg) && between(flat(P), e.prevB, b)) { e.swept = true; hit(SK.sweep.dmg, 'clock', e.base); knock(e.base, 0.7); this.clockStruck(P, cfg); }
             e.prevB = b;
             e.spin = 0;
             M.minuteHand.rotation.z = -e.dirSweep * (u - 0.5) * Math.PI;                 // the dial's minute hand sweeps with it
@@ -1535,7 +1535,7 @@ export class Elites {
             }
             if (!e.creamed && e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) {
               e.creamed = true;
-              hit(SK.cream.dmg, 'cream');
+              hit(SK.cream.dmg, 'cream', e.base);
               bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: SK.cream.slow });
               this.fx.puff(pc.clone(), 0xfffaf0, 0.05, 0.6);
               this.fx.impact(pc, hostile('whipper'), LOOK.num('act2-contact-flash', 0.03), 10);
@@ -1578,7 +1578,7 @@ export class Elites {
                 if (!e.frostFelt) { e.frostFelt = true; juice.feel('impact'); }       // once a volley: they land together
                 sfx.frostLand();
                 if (blastHits(p, V.radius, P, cfg)) {
-                  hit(V.dmg, 'croc-frost');
+                  hit(V.dmg, 'croc-frost', p);
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
               }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size, owner: e, onLaunch: k ? null : launch });
@@ -1660,7 +1660,7 @@ export class Elites {
             this.fx.splat(surf, LOOK.color('croc-frost-splat', '#dfe8ff'), Q.radius * LOOK.num('croc-dent-size', 0.6) * 0.5);
             e.squash = 1;                                                        // it lands flat, then springs back
             juice.feel('impact-big'); sfx.crocThump(1.4);
-            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce'); knock(e.base, Q.knock); this.fx.impact(pc, hostile('croc'), 0.02, 8); }
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce', surf); knock(e.base, Q.knock); this.fx.impact(pc, hostile('croc'), 0.02, 8); }
           } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
       }
@@ -1696,7 +1696,7 @@ export class Elites {
             this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), Q.radius * LOOK.num('bull-scuff-size', 0.2));   // a scuff where it stamped, fading
             e.squash = 1;                                                        // it slams down into the table and springs back
             juice.feel('impact-big'); sfx.bullRush();
-            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush'); knock(e.base, Q.knock); this.fx.impact(pc, col, 0.02, 8); }
+            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush', surf); knock(e.base, Q.knock); this.fx.impact(pc, col, 0.02, 8); }
           } else {
             const k = Math.max(0, 1 - (s - wind) / 0.4);                        // the horns shrink back
             for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
@@ -1798,7 +1798,7 @@ export class Elites {
             this.fx.splat(e.aim, LOOK.color('coffer-scuff', '#5a4632'), A.radius * LOOK.num('coffer-scuff-size', 0.45));      // a dusty mark where it landed, fading
             e.hitPop = Math.max(e.hitPop, 0.4);                                  // the box jolts with the slam
             juice.feel('impact'); sfx.cofferSlam();
-            if (blastHits(e.aim, A.radius, P, cfg)) { hit(A.dmg, 'coffer-accordion'); this.fx.impact(pc, col, 0.015, 6); }
+            if (blastHits(e.aim, A.radius, P, cfg)) { hit(A.dmg, 'coffer-accordion', e.aim); this.fx.impact(pc, col, 0.015, 6); }
             e.lidFrom.copy(e.lidAt);
           }
           if (k < n && k !== e.strike) {
@@ -1852,7 +1852,7 @@ export class Elites {
             if (d < T.bite) {
               // the chomp: its jaws slam shut on you on this frame (the impact: flash, spray of drool and
               // tooth glints, the crunch, a heavy shake); it holds you and chews, then spits you out
-              hit(T.dmg, 'coffer-tongue');
+              hit(T.dmg, 'coffer-tongue', e.base);
               this.fx.impact(mouth, col, 0.035, 16);
               this.fx.burst(mouth, LOOK.list('coffer-chomp-bits', ['#fff3c4', '#e9dca0', '#ffffff']), 12, 0.004, 0.4, e.base.y);
               juice.feel('impact-big'); sfx.cofferChomp();
@@ -1952,7 +1952,7 @@ export class Elites {
               this.fx.impact(this._mid.copy(at).setY(at.y + 0.01), col, 0.03, 10);
               this.fx.burst(this._mid, ['#ffb22a', '#ff7a00', '#ffe0a0'], 5, 0.003, 0.3, at.y);
               this.fx.splat(at, LOOK.color('coffer-shards', '#b89a6a'), J.radius * LOOK.num('coffer-shards-size', 0.25));   // glittering grit, fading
-              if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel'); this.fx.impact(pc, col, 0.015, 6); }
+              if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel', at); this.fx.impact(pc, col, 0.015, 6); }
             }
             e.hitPop = Math.max(e.hitPop, 0.4);
             juice.feel('impact'); sfx.jewelCrack();
@@ -1983,7 +1983,7 @@ export class Elites {
         const c = this._mid.copy(m.position).setY(b.y + N.height / 2);
         let burst = b.along >= N.reach;
         let struckYou = false;
-        if (!b.pair.struck && blastHits(c, N.width / 2, P, cfg)) { b.pair.struck = true; burst = struckYou = true; hit(N.dmg, 'bull-mini'); knock(m.position, N.knock); }
+        if (!b.pair.struck && blastHits(c, N.width / 2, P, cfg)) { b.pair.struck = true; burst = struckYou = true; hit(N.dmg, 'bull-mini', c); knock(m.position, N.knock); }
         for (const o of this.minis) if (o !== b && o.pair === b.pair && o.state === 'charge' && o.m.position.distanceTo(m.position) < N.width) { o.state = 'burst'; o.t = 0; burst = true; }
         if (!burst && b.along > N.side && this.surfaceBelow(m.position) < b.y - 0.03) burst = true;   // off the table's edge
         if (burst) {
@@ -2037,7 +2037,7 @@ export class Elites {
         sfx.balloonPop();
         // caught: anything of the jelly inside the sphere round it (beside, below or level with it)
         this.fx.splat(this._probe.set(at.x, b.floor ?? at.y - 0.1, at.z), col, LOOK.num('balloon-scrap-size', 0.016));   // its limp scrap, left on the floor
-        if (blastHits(at, b.R, P, cfg)) { hit(CONTENT.elites.whipper.skills.balloon.dmg, 'balloon'); deepen(CONTENT.elites.whipper.skills.balloon.muffle, 3); sfx.daze(); this.fx.impact(pc, hostile('whipper'), LOOK.num('act2-contact-flash', 0.03), 10); }
+        if (blastHits(at, b.R, P, cfg)) { hit(CONTENT.elites.whipper.skills.balloon.dmg, 'balloon', at); deepen(CONTENT.elites.whipper.skills.balloon.muffle, 3); sfx.daze(); this.fx.impact(pc, hostile('whipper'), LOOK.num('act2-contact-flash', 0.03), 10); }
       }
     }
     this.balloons = this.balloons.filter((b) => !b.done);
@@ -2048,7 +2048,7 @@ export class Elites {
     for (const w of this.thrown) {
       const way = w.out ? 'hitOut' : 'hitBack';
       const struck = this.fx.shotStep(w.shot, dt, this.world, w[way] ? NOWHERE : P, cfg);
-      if (struck) { w[way] = true; hit(CONTENT.elites.clock.skills.wreath.dmg, 'clock-wreath'); this.clockStruck(P, cfg); }
+      if (struck) { w[way] = true; hit(CONTENT.elites.clock.skills.wreath.dmg, 'clock-wreath', w.shot.m.position); this.clockStruck(P, cfg); }
       w.m.position.copy(w.shot.m.position);
       w.m.rotation.z += dt * 18;
       if (w.shot.done) {
@@ -2087,7 +2087,7 @@ export class Elites {
         r.m.position.y = r.y + 0.006;
         r.vol.position.y = r.y;
       }
-      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; this.fx.impact(this._scuff.set(P.x, r.y + 0.01, P.z), r.color, 0.02, 8); hit(r.skill.dmg, r.source); if (r.skill.knock) knock(r.at, r.skill.knock); r.onHit?.(); }   // (a wave with knock= shoves you on, away from where it started)
+      if (!r.hit && at && ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg)) { r.hit = true; this.fx.impact(this._scuff.set(P.x, r.y + 0.01, P.z), r.color, 0.02, 8); hit(r.skill.dmg, r.source, r.at); if (r.skill.knock) knock(r.at, r.skill.knock); r.onHit?.(); }   // (a wave with knock= shoves you on, away from where it started)
       if (r.r >= r.max) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     }
     this.rings = this.rings.filter((r) => !r.done);
@@ -2100,7 +2100,7 @@ export class Elites {
       b.m.scale.setScalar(0.011 * (1 + Math.sin(b.t * 9 + b.wob) * 0.06));
       this.fx.glow.hold(b.m.position, hostile('soap'), 0.05, 0.55);
       if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + 0.011)) b.t = 0;
-      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(CONTENT.elites.soap.skills.ring.dmg, 'soap-bubble'); b.t = 0; b.hitYou = true; }
+      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(CONTENT.elites.soap.skills.ring.dmg, 'soap-bubble', b.m.position); b.t = 0; b.hitYou = true; }
       if (b.t <= 0) {
         this.scene.remove(b.m);
         const floor = this.surfaceBelow(b.m.position);                 // where its suds land (once, as it pops)
@@ -2128,7 +2128,7 @@ export class Elites {
     // Shots in flight: each hits the jelly's whole body
     for (const b of this.bullets) {
       const struck = this.fx.shotStep(b, dt, this.world, P, cfg);
-      if (struck) hit(b.damage, b.source);
+      if (struck) hit(b.damage, b.source, b.m.position);
       if (b.done) b.onEnd?.(b, struck);
     }
     this.bullets = this.bullets.filter((b) => !b.done);
@@ -2180,7 +2180,7 @@ export class Elites {
         this.fx.ring(b.at.clone().setY(b.at.y + 0.004), kettle, b.r * (first ? 1.5 : 1.15), 0.35);   // its reach
         if (first) { this.fx.impact(b.at.clone().setY(b.at.y + 0.01), kettle, 0.035, 16); this.fx.burst(b.at.clone().setY(b.at.y + 0.01), [0xffffff, 0xd8ecff, kettle.getHex()], 10, 0.004, 0.4, b.at.y); }
         const struck = blastHits(b.at, b.r, P, cfg);
-        if (struck) { hit(S.dmg, 'kettle'); knock(b.at, 0.8); }
+        if (struck) { hit(S.dmg, 'kettle', b.at); knock(b.at, 0.8); }
         if (struck && !b.struck) { b.struck = true; this.fx.impact(pc, kettle, 0.025, 10); this.fx.puff(pc, 0xffffff, 0.025, 0.4); juice.feel('impact'); }   // scalded where it reaches you
         else if (first) juice.feel('hit');
         sfx.kettleGust(struck, first);

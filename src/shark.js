@@ -80,7 +80,7 @@ export class Shark {
     });
     this.stunT=0;
     this.offStatus=bus.on('status_applied',e=>{
-      if(enemies.byId.get(e.targetId)?.proxy!==this||!['stun','pin','freeze'].includes(e.status))return;
+      if(enemies.byId.get(e.targetId)?.proxy!==this||e.status!=='freeze')return;   // a freeze holds it; stuns don't (bosses can't be stunned)
       this.stunT=Math.max(this.stunT,e.duration||.5);this.frenzy=0;this.recover();
     });
     this.tornadoVisuals=Array.from({length:3},()=>{const m=new THREE.Mesh(this.tornadoGeo,this.tornadoMat);m.position.copy(this.position);m.scale.setScalar(.001);m.userData.noCollide=true;scene.add(m);return m;});

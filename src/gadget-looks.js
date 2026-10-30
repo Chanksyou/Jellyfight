@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 
-const UP = new THREE.Vector3(0,1,0), delta = new THREE.Vector3();
+const UP = new THREE.Vector3(0,1,0), delta = new THREE.Vector3(), Z = new THREE.Vector3(0,0,1), toCam = new THREE.Vector3(), spin = new THREE.Quaternion();
 export class GadgetLooks {
   constructor(fx) {
     this.fx=fx;
@@ -12,11 +12,12 @@ export class GadgetLooks {
     this.geo={arc:new THREE.RingGeometry(.96,1,48,1,0,Math.PI*1.8).rotateX(-Math.PI/2),
       rod:new THREE.CylinderGeometry(1,1,1,6), needle:new THREE.ConeGeometry(1,1,5), stud:new THREE.CylinderGeometry(1,1,1,8),
       crystal:new THREE.OctahedronGeometry(1), foam:new THREE.SphereGeometry(1,10,6), tag:new THREE.BoxGeometry(1,1,.06),
-      spring:new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil),72,.12,5,false)};
+      spring:new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil),72,.12,5,false),
+      hurt:new THREE.RingGeometry(.78,1,20,1,-.9,1.8)};
     this.mat=new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
     this.mat.userData.perInstance=true;
     this.pools=Object.fromEntries(Object.keys(this.geo).map(k=>[k,[]]));
-    this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2,crystal:LOOK.num('gadget-crystals',32),foam:LOOK.num('gadget-foam',16),tag:LOOK.num('gadget-tags',24)};
+    this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2,hurt:4,crystal:LOOK.num('gadget-crystals',32),foam:LOOK.num('gadget-foam',16),tag:LOOK.num('gadget-tags',24)};
     this.color=new THREE.Color(LOOK.color('gadget-friendly','#a6f6ed'));
     for(const [k,v] of Object.entries({mist:'#eef6ff',silver:'#d3eaff',cotton:'#e8e5ff',duck:'#a8e9ce',disco:'#d8beff',gold:'#f5e7a7',signalColor:'#a5e5ff',fizz:'#b7ffe4'}))this[k]=new THREE.Color(LOOK.color('gadget-'+(k==='signalColor'?'signal':k),v));
   }
@@ -44,6 +45,8 @@ export class GadgetLooks {
       if(p.kind==='arc'){
         const wave=this.quiet?1:1+Math.sin(p.t*55)*.025*(1-u);
         m.scale.set(p.size.x*wave,1,p.size.z/wave);m.rotation.y+=dt*(this.quiet?0:1.5);
+      }else if(p.kind==='hurt'){
+        m.scale.copy(p.size).multiplyScalar(this.quiet?1:1+.25*Math.sqrt(u));m.userData.opacity=(1-u)*(1-u);   // full strength even when calm: it's information
       }else if(p.kind==='stud'||p.kind==='crystal'){
         m.position.addScaledVector(p.v,dt);p.v.y-=dt*LOOK.num('gadget-debris-gravity',1.2);
         if(m.position.y<p.floor){m.position.y=p.floor;p.v.y=Math.abs(p.v.y)*.25;p.v.x*=.7;p.v.z*=.7;}
@@ -61,6 +64,16 @@ export class GadgetLooks {
   arc(at,radius,color=this.color,life=LOOK.num('gadget-pulse-life',.4)){
     const p=this.take('arc',at,color,life);if(!p)return;
     p.size.set(radius,1,radius);p.m.scale.copy(p.size);return p.m;
+  }
+  // The jelly is hit: a red arc round its middle `at` (radius r), on the side facing `from`, drawn
+  // facing the camera just in front of the jelly so its body never hides it.
+  hurt(at,from,r){
+    delta.copy(from).sub(at);if(delta.lengthSq()<1e-10)return;
+    const cam=this.fx.camera,p=this.take('hurt',at,LOOK.color('hurt-arc','#ff2626'),LOOK.num('hurt-arc-life',.32));if(!p)return;
+    const local=delta.applyQuaternion(spin.copy(cam.quaternion).invert());
+    p.m.quaternion.copy(cam.quaternion).multiply(spin.setFromAxisAngle(Z,Math.atan2(local.y,local.x)));
+    p.m.position.addScaledVector(toCam.copy(Z).applyQuaternion(cam.quaternion),r);
+    p.size.setScalar(r*LOOK.num('hurt-arc-size',1.35));p.m.scale.copy(p.size);return p.m;
   }
   streak(from,to,color=this.color,width=LOOK.num('gadget-streak-width',.0012),life=.16,kind='rod'){
     delta.copy(to).sub(from);const n=delta.length();if(n<1e-6)return;

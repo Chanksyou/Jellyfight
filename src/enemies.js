@@ -261,7 +261,14 @@ export class Enemies {
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
-      if (!e || e.dead || e.proxy) return;
+      if (!e || e.dead) return;
+      if (e.proxy) {   // Elites and bosses can't be stunned: say so, at most every 1.5 s each
+        if ((status === 'stun' || status === 'pin') && !(this.frame < e.immuneAt)) {
+          e.immuneAt = this.frame + 90;
+          this.fx.number(this.center(e), 'IMMUNE', LOOK.color('stunned', '#fff27a'), 12);
+        }
+        return;
+      }
       if(status==='mark'){this.treasureLooks?.stamp(this.center(e).add(new THREE.Vector3(0,e.r,0)),e.r);sfx.gadgetPaper();}
       if(status==='pin'){this.treasureLooks?.stamp(this.center(e),e.r,true,e,duration);sfx.gadgetPin();}
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
@@ -528,7 +535,7 @@ export class Enemies {
     sfx.leapSlam();
     e.landT = 1;
     const dx = (c.realFoot || c.foot).x - at.x, dz = (c.realFoot || c.foot).z - at.z;
-    if (Math.hypot(dx, dz) < radius && Math.abs((c.realFoot || c.foot).y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+    if (Math.hypot(dx, dz) < radius && Math.abs((c.realFoot || c.foot).y - at.y) < 0.06) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
   }
 
   // springing off (the leap word): a kick of dust where it crouched, a flick of wings
@@ -673,7 +680,7 @@ export class Enemies {
     if (P.y - floor < 0.12) this.fx.splat(S.spot.set(P.x, floor, P.z), SCORCH, 0.04);   // a scorch on the floor (fades)
     if (P.distanceTo(pc) < 0.4) juice.feel('impact-big');   // only on you or a near miss: bugs stay quieter than Elites (L2)
     sfx.missileBoom();
-    if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile' });
+    if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile', at: P });
   }
 
   // A millipede's ball (the ball-charge word): a clicking rattle as it coils, a rising whirr and
@@ -852,7 +859,7 @@ export class Enemies {
     sfx.sparkBoom();
     const P = this.player, d = P ? P.position.distanceTo(at) : 9;
     if (hurt) {
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg, source: s.source, from: s.from });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg, source: s.source, from: s.from, at });
       bus.emit('knockback', { targetId: PLAYER, dir: P.position.clone().sub(at).setY(0).normalize(), force: s.knock, launch: 0.15 });
       sfx.sparkHit();
     } else if (d < 0.4) juice.feel('impact');                                                   // a near miss still rocks the screen
@@ -904,7 +911,7 @@ export class Enemies {
     this.fx.puff(at, 0x8ab840, radius * 0.7, 0.45);
     this.fx.burst(at, [0x6aa826, 0x94c440, 0x2a1a10], 14, 0.004, 0.4, e.pos.y);
     this.fx.splat(S.spot.set(at.x, e.pos.y, at.z), LOOK.color('worm-gore', '#4a6a1a'), radius * 0.4);   // what it burst out of, spattered (fades)
-    if (this.player && blastHits(at, radius, this.player.position, this.player)) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+    if (this.player && blastHits(at, radius, this.player.position, this.player)) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
   }
   // The worm cracks down along its line: you're hit if you're on it and not jumping over it
   whip(e, c, { reach, width, dmg }) {
@@ -1043,7 +1050,7 @@ export class Enemies {
       if (s.done || s.stuckT > 0 || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from, at: s.m.position });
       if (s.slow) {                                                      // webbed: stuck for a moment
         bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: s.slow });
         this.fx.puff(s.m.position, 0xf4f2ee, 0.035, 0.6);
