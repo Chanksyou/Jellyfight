@@ -1,6 +1,6 @@
 name: Number the build
 
-# After a merge, gives each note in changes/ the next BUILD and its README line (tools/number-build.mjs)
+# After a merge, gives each note in changes/ the next BUILD and its changelog line (tools/number-build.mjs)
 # and commits that to main. A push made with the workflow's own token starts no other workflow, so
 # Game checks doesn't re-run for it; Cloudflare deploys it like any push to main.
 on:
@@ -36,7 +36,7 @@ jobs:
           for try in 1 2 3; do
             build="$(node tools/number-build.mjs)"
             if [ -z "$build" ]; then echo "No notes in changes/"; exit 0; fi
-            git add -A changes README.md src/main.js
+            git add -A changes CHANGELOG.md src/main.js
             git commit -qm "Number the build: $build"
             if git push origin HEAD:main; then echo "Numbered $build"; exit 0; fi
             git fetch -q origin main && git reset -q --hard origin/main
