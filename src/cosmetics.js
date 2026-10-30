@@ -64,7 +64,7 @@ export const PEARLS = { run: 5, bugs: 10, elite: 3, boss: 10, firstBoss: 25, win
 export const pearlsFor = ({ kills = 0, elites = 0, bosses = 0, firstBosses = 0, ended = false, won = false }) =>
   Math.floor(kills / PEARLS.bugs) + elites * PEARLS.elite + bosses * PEARLS.boss + firstBosses * PEARLS.firstBoss + (ended ? PEARLS.run : 0) + (won ? PEARLS.win : 0);
 
-export const FEATS_KEY = 'jellyfight.feats';
+export const FEATS_KEY = 'jellyrun.feats';
 const ZERO = { runs: 0, wins: 0, kills: 0, elites: 0, flawless: 0 };
 
 // lifetime totals in this browser
@@ -101,7 +101,7 @@ export const requirement = (key, id) => NEEDS[key]?.[id] || null;
 export const price = (key, id) => PRICES[key]?.[id] || 0;
 
 // The Pearl bank: how many a player has and which shop looks they've bought ('key:id')
-export const PEARLS_KEY = 'jellyfight.pearls';
+export const PEARLS_KEY = 'jellyrun.pearls';
 export function bank() {
   try { const b = JSON.parse(localStorage.getItem(PEARLS_KEY)); if (b && typeof b === 'object') return { pearls: Math.max(0, b.pearls | 0), bought: Array.isArray(b.bought) ? b.bought : [] }; } catch {}
   return { pearls: 0, bought: [] };

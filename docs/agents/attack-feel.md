@@ -86,7 +86,7 @@ these nine questions and report the score with any zeros named:
 A basic attack on a minor enemy may legitimately score 6–7. A boss attack, a
 player's signature ability, or anything meant to feel powerful must score 9.
 
-## In Jelly Fight
+## In Jelly Run
 
 This file and the foundation are the theory under
 [Designing the jelly's attacks](jelly-attack-design.md), which applies them to

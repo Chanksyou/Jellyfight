@@ -1,4 +1,4 @@
-/* How Jelly Fight looks: every colour and render number you might want to tune, in one place.
+/* How Jelly Run looks: every colour and render number you might want to tune, in one place.
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
 :root {

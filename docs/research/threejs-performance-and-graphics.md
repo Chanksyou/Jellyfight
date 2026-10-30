@@ -1,4 +1,4 @@
-# three.js performance and graphics for Jelly Fight (phones first)
+# three.js performance and graphics for Jelly Run (phones first)
 
 Research note, 2026-10-07. The question: which three.js techniques, rendering strategies and
 recent changes (r170 to r186.1, the current release) would most improve performance and looks,

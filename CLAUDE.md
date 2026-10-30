@@ -1,4 +1,4 @@
-# Jelly Fight: how to change this game
+# Jelly Run: how to change this game
 
 A jellyfish roguelike in a real-scale 3D apartment. Three.js, plain ES modules, no build step.
 Players are on phones (iPhone 13+ in Safari, Pixel 8+ in Chrome) as much as desktops.

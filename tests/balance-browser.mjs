@@ -220,7 +220,7 @@ export function startAct(config) {
   patch(undo, run.evolutionReveal, 'begin', () => (evo, before, done) => done());
   // Replace wall-clock delays only in this test adapter. Progression still uses the real callbacks.
   patch(undo, run, 'later', () => (fn, ms) => state.scheduled.push({ at: state.elapsed + ms / 1000, fn, runId: run.runId }));
-  patch(undo, nav, 'reload', () => () => { state.transition = JSON.parse(sessionStorage.getItem('jellyfight.act')); });
+  patch(undo, nav, 'reload', () => () => { state.transition = JSON.parse(sessionStorage.getItem('jellyrun.act')); });
   const stop = () => { meter.stop(); while (undo.length) undo.pop()(); Math.random = random; G().input.keys = new Set(); };
   active = { stop, state };
   const snapshot = outcome => ({ outcome, act: run.stage.id, elapsed: state.elapsed, time: run.t, level: run.level, xp: run.xp,

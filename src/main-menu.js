@@ -110,7 +110,7 @@ export class MainMenu {
     css.rel = 'stylesheet';
     css.href = new URL('../content/look.css', import.meta.url).href;
     document.head.appendChild(css);
-    overlay.querySelector('h1').innerHTML = 'Jelly <span>Fight</span>';
+    overlay.querySelector('h1').innerHTML = 'Jelly <span>Run</span>';
     this.hero = document.createElement('button');
     this.hero.type = 'button';
     this.hero.className = 'menu-jelly';
@@ -149,7 +149,7 @@ export class MainMenu {
     this.overlay.classList.remove('menu-launching');
     this.overlay.classList.add('menu-home');
     this.hero.disabled = false;
-    this.overlay.querySelector('h1').innerHTML = 'Jelly <span>Fight</span>';
+    this.overlay.querySelector('h1').innerHTML = 'Jelly <span>Run</span>';
     this.refreshGreeting();
   }
 
@@ -159,7 +159,7 @@ export class MainMenu {
   // this browser's storage). 'Guest' and no name at all get no greeting.
   refreshGreeting() {
     let name = '';
-    try { name = localStorage.getItem('jellyfight.name') || ''; } catch {}
+    try { name = localStorage.getItem('jellyrun.name') || ''; } catch {}
     if ((!name || name === 'Guest') && this.board?.mine?.name) name = this.board.mine.name;
     if (name === 'Guest') name = '';
     const returning = !isNewPlayer() || !!this.board?.mine;

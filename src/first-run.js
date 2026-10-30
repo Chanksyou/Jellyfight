@@ -18,7 +18,7 @@
 // The dev modes (1 on 1, fight the boss) never are either, and never count as a played run.
 import { BEST_KEY } from './leaderboard.js';
 
-export const PLAYED_KEY = 'jellyfight.played';
+export const PLAYED_KEY = 'jellyrun.played';
 const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
 export function isNewPlayer() {

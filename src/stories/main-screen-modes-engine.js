@@ -55,7 +55,7 @@ story('engine/leaderboard', {
   async play() {
     const { Leaderboard } = await import('../leaderboard.js');
     const tick = () => new Promise((r) => setTimeout(r, 0));
-    try { localStorage.removeItem('jellyfight.best'); } catch {}
+    try { localStorage.removeItem('jellyrun.best'); } catch {}
     // signed in with write access
     const fake = fakeClaude();
     window.claude = fake;
@@ -96,7 +96,7 @@ story('engine/leaderboard', {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const modal = () => document.querySelector('.jf-modal');
     const press = (re) => [...modal().querySelectorAll('button')].find((b) => re.test(b.textContent))?.click();
-    try { localStorage.removeItem('jellyfight.name'); } catch {}
+    try { localStorage.removeItem('jellyrun.name'); } catch {}
     window.claude = fakeClaude({ id: 'u_game' });
     run.board = new Leaderboard();
     await run.board.ready;
@@ -127,7 +127,7 @@ story('engine/leaderboard', {
     await wait(300);
     const guest = window.claude.docs.get('scores/u_guest')?.name === 'Guest';
     menus.close();
-    try { localStorage.removeItem('jellyfight.name'); } catch {}
+    try { localStorage.removeItem('jellyrun.name'); } catch {}
     // the board opened with no live feed at all still shows what's in the table (it read it)
     const quiet = fakeClaude({ id: 'u_quiet', silent: true });
     quiet.docs.set('scores/u_someone', { score: 24718, name: 'Jelly' });
@@ -190,7 +190,7 @@ story('menu/reduce-effects', {
 });
 story('menu/dev-tools-locked', {
   about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics).',
-  setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyfight.dev'); } catch {} },
+  setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },
   play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
     over.classList.remove('dev-ask', 'dev-open');
@@ -205,7 +205,7 @@ story('menu/dev-tools-locked', {
     box.value = 'chan'; over.querySelector('[data-act="dev-unlock"]').click();
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
-    try { sessionStorage.removeItem('jellyfight.dev'); } catch {}
+    try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag',   // Act 4 environment preview joins the locked Dev row in v233.
       { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
   },
@@ -345,10 +345,10 @@ story('modes/try-on-locked-cosmetics', {
   setup() { fresh({ elites: false }); },
   play() {
     const { run, player } = G();
-    const keep = [FEATS_KEY, PEARLS_KEY, 'jellyfight.look.v2'].map((k) => [k, localStorage.getItem(k)]);
+    const keep = [FEATS_KEY, PEARLS_KEY, 'jellyrun.look.v2'].map((k) => [k, localStorage.getItem(k)]);
     const GOLD = new THREE.Color('#ffc93a').convertSRGBToLinear().getHexString();   // character.js M.award
     const gold = () => { let n = 0; player.avatar.root.traverse((o) => { if (o.isMesh && o.material.color?.getHexString() === GOLD) n++; }); return n; };
-    const saved = () => JSON.parse(localStorage.getItem('jellyfight.look.v2') || 'null')?.top;
+    const saved = () => JSON.parse(localStorage.getItem('jellyrun.look.v2') || 'null')?.top;
     const info = {};
     try {
       localStorage.setItem(FEATS_KEY, JSON.stringify({ runs: 0, wins: 0, kills: 0, elites: 0 }));

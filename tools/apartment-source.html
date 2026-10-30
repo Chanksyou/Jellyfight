@@ -3046,7 +3046,7 @@ requestAnimationFrame(loop);
  $('#dcBtn').addEventListener('click',()=>setTimeout(()=>{if(window._dcOn)done('cam');},0));
  $('#clubBtn').addEventListener('click',()=>setTimeout(()=>{if(window._club&&window._club.on)done('party');},0));}
 
-// ---------- JELLY FIGHT hook: hands the scene to the game (src/main.js) ----------
+// ---------- JELLY RUN hook: hands the scene to the game (src/main.js) ----------
 const _k=P=>P.map(p=>[p[0]*K,p[1]*K]);
 window.APT={scene,renderer,camera,controls,OUT,doors:DOORMAP,
  plan:[['Living room',PMs],['Hallway',PHs],['Bathroom',PBs],['Bedroom',PRs],['Laundry closet',_k(PLc)],['Coat closet',_k(PCc)]],
@@ -3057,5 +3057,5 @@ window.APT={scene,renderer,camera,controls,OUT,doors:DOORMAP,
 </body>
 </html>
 
-<style>/* JELLY FIGHT */body.game>*:not(#c):not(#game-ui):not(.jf-keep){display:none!important}</style>
+<style>/* JELLY RUN */body.game>*:not(#c):not(#game-ui):not(.jf-keep){display:none!important}</style>
 </body></html>

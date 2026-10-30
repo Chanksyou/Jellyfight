@@ -55,7 +55,7 @@ and ends frenzy. Old pools/projectiles may continue during a freeze.
 ## Adaptation and limits
 
 - Health retains Act 3's existing 1500 × 1.6 = 2400 scaling.
-- Attack damage and timings are Jelly Fight tuning values, not claims about PoE2 frame data.
+- Attack damage and timings are Jelly Run tuning values, not claims about PoE2 frame data.
 - Pools expire after 20 seconds, cap at six, and replace the oldest. Quicksand lasts five seconds.
   This deliberately preserves safe space on a small bed instead of indefinitely filling it.
 - At most three tornadoes, twelve airborne fish and 72 instanced fish silhouettes.

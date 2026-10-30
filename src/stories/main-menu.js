@@ -1,6 +1,7 @@
 // Menu presentation must never move the actual player or replay when resuming a run.
 import { story, phone, G, fresh, ok, step, stub } from './kit.js';
 import { SPECIES } from '../character.js';
+import { moveSaves } from '../rename.js';
 
 story('menu/portrait-controls-centered', {
   about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
@@ -140,11 +141,11 @@ story('menu/welcomes-a-returning-player-by-name', {
   setup() { fresh({ elites: false }); },
   play() {
     const { mainMenu: menu } = G(), over = menu.overlay;
-    const keys = ['jellyfight.name', 'jellyfight.best', 'jellyfight.played'];
+    const keys = ['jellyrun.name', 'jellyrun.best', 'jellyrun.played'];
     const saved = keys.map((k) => [k, localStorage.getItem(k)]);
     try {
-      localStorage.setItem('jellyfight.name', 'Marlin');
-      localStorage.setItem('jellyfight.best', JSON.stringify({ score: 1234 }));
+      localStorage.setItem('jellyrun.name', 'Marlin');
+      localStorage.setItem('jellyrun.best', JSON.stringify({ score: 1234 }));
       menu.show(); over.hidden = false; step(1);
       const el = over.querySelector('.menu-greet');
       const greeted = !!el && !el.hidden && el.textContent === 'Welcome back, Marlin';
@@ -175,3 +176,29 @@ story('main-menu/no-pause-menu-behind-the-end-screen', {
   },
 });
 
+
+story('menu/old-saves-move-to-the-new-name', {
+  about: 'The game is called Jelly Run. Saves kept under its old name (jellyfight.*) move to jellyrun.* at startup, so a returning player keeps their best score and Pearls; a key already saved under the new name is kept.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const keys = ['jellyfight.best', 'jellyfight.pearls', 'jellyrun.best', 'jellyrun.pearls'];
+    const saved = keys.map((k) => [k, localStorage.getItem(k)]);
+    try {
+      localStorage.removeItem('jellyrun.best');
+      localStorage.setItem('jellyfight.best', '{"score":4321}');
+      localStorage.setItem('jellyfight.pearls', '7');
+      localStorage.setItem('jellyrun.pearls', '9');
+      moveSaves(localStorage);
+      const best = localStorage.getItem('jellyrun.best'), pearls = localStorage.getItem('jellyrun.pearls');
+      const gone = localStorage.getItem('jellyfight.best') === null && localStorage.getItem('jellyfight.pearls') === null;
+      const { mainMenu: menu } = G(), over = menu.overlay;
+      menu.show(); over.hidden = false; step(1);
+      const heading = over.querySelector('h1').textContent;
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+      const named = document.title === 'Jelly Run' && heading === 'Jelly Run';
+      return ok(best === '{"score":4321}' && pearls === '9' && gone && named, { best, pearls, gone, title: document.title, heading });
+    } finally {
+      for (const [k, v] of saved) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
+    }
+  },
+});
