@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v351 enlarges the jelly in customization and leaderboard portraits on desktop and phones, keeping all ten scores reachable in a scrolling board.
+
 v350 opens a new player's first run with a tip for 7 s: "Attack automatically when bugs are nearby. Collect XP to grow stronger and survive until the boss arrives."
 
 v349 pauses the game when you leave it mid-run (another tab or app, or the phone locked), so you come back to the pause menu instead of a fight already underway.
