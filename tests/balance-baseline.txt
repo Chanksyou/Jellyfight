@@ -1,3 +1,4 @@
+# HISTORICAL: old measurement schema; do not compare with current seeded reports. See docs/agents/balance-tools.md.
 # Balance baseline: v135 (2026-10-09), node tests/balance.mjs 5 — after the wave cap stopped counting elites
 # Before it (v134): median 359 s, level 7, 26 kills, 1 of 5 beat the boss; health lost: boss 33%, roach 28%, kettle 14%, lanternfly 14%, ants 9%.
 # Compare a change's run against this; the bot is crude, so look at medians and sources, not single nights.
