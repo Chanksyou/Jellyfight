@@ -1,0 +1,1 @@
+gives Dodge level-ups diminishing returns: each pick closes the same share of the gap to the 60% cap (Common +10% at 0 Dodge, about +5% at 30%), so a Dodge pick always adds something, and the card stops being offered once treasures alone reach 60%.

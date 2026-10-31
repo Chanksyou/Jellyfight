@@ -13,7 +13,7 @@ export const BASE_STATS = {
   moveSpeed: 1.0,     // move speed multiplier
   jumpHeight: 1.0,    // jump height multiplier
   regen: 0,           // health refilled per second
-  dodge: 0,           // % chance a hit misses you entirely (60% at most)
+  dodge: 0,           // % chance a hit misses you entirely (60% at most; cards near it with diminishing returns)
   luck: 0,            // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
   pierce: 0,          // more enemies each bubble pops on, on top of Bobby Pin (Upside-down Jelly, rooted)
   // Tentacles: an automatic lash at close range. Only treasures improve these.
@@ -79,13 +79,16 @@ export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * M
 // The cards' numbers — [common, rare, epic] amounts and how likely each is offered — live in
 // content/levelups.kdl (CONTENT.levelups.cards, read fresh on every roll, so the balance
 // editor's edits land at the next level-up). What's here is how an amount applies:
-// `pct` = percent of the base value, added; `suffix` = how the amount reads on the card.
+// `pct` = percent of the base value, added; `suffix` = how the amount reads on the card;
+// `toward` = a cap the stat nears with diminishing returns: the card's amount is what it gives
+// at 0, shrunk by how much of the gap to the cap is already filled, so it never reaches it.
+export const MAX_DODGE = 60;   // % chance a hit misses, at most
 const CARD_FLAGS = {
   range:      { pct: true },
   fireRate:   { pct: true },
   moveSpeed:  { pct: true },
   regen:      { per: 5 },         // Health a second, read as Health every `per` seconds
-  dodge:      { suffix: '%' },    // percentage points
+  dodge:      { suffix: '%', toward: MAX_DODGE },   // percentage points
   bubbleSize: { pct: true },
 };
 const cardDef = (stat) => CONTENT.levelups.cards[stat];
@@ -117,13 +120,23 @@ function pickWeighted(list, w) {
   return list[list.length - 1];
 }
 
+// What a card's tier amount gives you now: a `toward` stat closes the same share of the gap
+// left to its cap (10 of 60 at 0 Dodge, about 5 at 30), rounded to 0.1, never less than 0.1.
+export function cardAmount(stat, amount, now = 0) {
+  const cap = CARD_FLAGS[stat]?.toward;
+  if (!cap) return amount;
+  return Math.max(0.1, Math.round(amount * (1 - Math.min(cap, now) / cap) * 10) / 10);
+}
+
 // Three different stats, each with a rolled rarity
-// bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights)
+// bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights);
+// now: the stats you have with treasures (what a `toward` card's gain is measured from)
 // A card the dev editor has removed isn't offered (content.js REMOVED).
-export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
+export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
-  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !isRemoved('card', k));
+  const capped = (k) => CARD_FLAGS[k]?.toward <= (now[k] || 0);   // treasures alone filled it (five Odd Socks)
+  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !capped(k) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);
@@ -131,7 +144,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0) {
     const rarity = pickWeighted(tiers, (r) => w[tiers.indexOf(r)]);
     let ri = Math.min(RARITY.length - 1, tiers.indexOf(rarity) + bonus);
     while (cardDef(stat).amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
-    cards.push({ stat, rarity: RARITY[ri], amount: cardDef(stat).amounts[ri] });
+    cards.push({ stat, rarity: RARITY[ri], amount: cardAmount(stat, cardDef(stat).amounts[ri], now[stat] || 0) });
   }
   return cards;
 }
@@ -171,7 +184,6 @@ export const ELEMENT_UPGRADES = CONTENT.treasures.filter((t) => t.vocabulary.inc
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;
-export const MAX_DODGE = 60;   // % chance a hit misses, at most
 
 // What the jelly can become after an act's boss (content/evolutions.kdl): pick 1 of 3, one per act
 export const EVOLUTIONS = CONTENT.evolutions;
