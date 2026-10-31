@@ -791,6 +791,7 @@ export const sfx = {
   // a big moment: boss or elite down
   shieldHit() { if (!ready() || !gap('shieldHit', 80)) return; const j = jitter(0.08); tone('sine', 1200 * j, 600 * j, 0.12, 0.08); noise(3200 * j, 2, 0.05, 0.04); },
   shieldBreak() { if (!ready() || !gap('shieldBreak', 80)) return; const j = jitter(0.08); tone('sine', 170 * j, 45 * j, 0.3, 0.18); noise(2400 * j, 0.8, 0.25, 0.14, 'lowpass', 0, 300); [1400, 2100, 3200].forEach((f, i) => tone('triangle', f * j, f * j * 0.3, 0.2, 0.04, i * 0.025)); },
+  shieldCharge() { if (!ready() || !gap('shieldCharge', 300)) return; const j = jitter(0.04); tone('sine', 420 * j, 840 * j, 0.5, 0.025); noise(2600 * j, 3, 0.4, 0.015, 'bandpass', 0, 5200 * j); },   // the Shield starting to refill: a soft rising hum
   shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
   // ---------------------------------------------------------- the Vacuum (vacuum.js)

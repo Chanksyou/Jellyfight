@@ -12,6 +12,7 @@
 //                  epic 2x+, rare 1.4x+); rate the rest by how unique the effect is. Legendary is
 //                  for unique rule-changers and the Elements: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure (an element's upgrades need its base)
+//   needs-stat="…" offered only once that stat (names as in the `stat` word) is above 0
 //   stack=N        you can own up to N copies and their effects add up. A treasure without levels
 //                  stacks by default (3 copies; at most 5); stack=1 makes a rule-changer one of a
 //                  kind. Legendary treasures, the elements and their upgrades are always unique.
@@ -558,4 +559,21 @@ treasure "windUpKey" name="Wind-Up Key" icon="🔑" rarity="rare" text="20% more
 }
 treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="Everything you do hurts Elites and the Boss 15% more." stack=3 {
     elite-damage 15
+}
+
+// --- the Shield (shield.js): offered only once you have a Shield bar (needs-stat)
+treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Your Shield refills 50% faster." stack=4 {
+    shield-recharge faster=0.5
+}
+treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shield" text="Your Shield starts refilling 1 s sooner." stack=3 {
+    shield-recharge sooner=1
+}
+treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full, you deal 30% more damage." stack=2 {
+    shield-full-damage 30
+}
+treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, it bursts for 200% of your Bubble damage all around you." stack=3 {
+    shield-burst dmg=2 radius=0.3
+}
+treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 of your max Health becomes Shield. You can no longer gain Health." {
+    health-to-shield
 }

@@ -307,9 +307,11 @@
   --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */
   --jelly-glow: 1;             /* how brightly the bell, rim and tentacles fluoresce */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
-  --energy-shield: #85eaff;     /* friendly energy shell and its depletion burst */
-  --energy-shield-opacity: 0.45; /* hex shell fades as damage is absorbed; visible without bloom */
-  --energy-shield-hex: 65;     /* hex cells per metre, shared force-field shader */
+  --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */
+  --shield-opacity: 0.22;       /* how faint the shell is; it flashes brighter when it's full again */
+  --shield-hex: 80;             /* its hex cells per metre */
+  --shield-bar-base: 14;        /* the Shield bar's length in px with 1 Shield is base + per */
+  --shield-bar-per: 3;          /* px more for every point of Shield (it stops at 45% of the row) */
   --jelly-face-height: 0.82;   /* fraction of the head available to the whole expression */
   --jelly-face-width: 1.45;    /* maximum expression width, in bell radii */
   --jelly-face-offset: 0.004;  /* lift the face just above the curved bell */

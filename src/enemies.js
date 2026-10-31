@@ -426,6 +426,7 @@ export class Enemies {
   // (the damage_taken listener) elites and bosses keep their own HP
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
+    amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
     if (e.proxy) {
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }

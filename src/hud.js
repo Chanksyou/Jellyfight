@@ -44,6 +44,18 @@ body.calm #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(
   #hud .player-health .moist { box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008 !important; }
   #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(--hp-critical-color) !important; }
 }
+/* the Shield: its own bar right after Health's, a little longer for every point of Shield (setShield) */
+#hud .vit { position: relative; display: flex; gap: 3px; min-width: 0; }
+#hud .vit .player-health { flex: 1; }
+#hud .shield-bar { flex: none; max-width: 45%; box-shadow: 0 0 0 2px #dff4ff66, 0 2px 8px #0008; }
+#hud .shield-bar[hidden] { display: none; }
+#hud .shield-bar i { background: linear-gradient(90deg, var(--shield-color), #ffffff); transition: transform .12s linear; }
+#hud .shield-bar.charging i { background: linear-gradient(90deg, var(--shield-color) 30%, #ffffff 50%, var(--shield-color) 70%) 0 0 / 200% 100%; animation: jf-shield-charge .7s linear infinite; }
+@keyframes jf-shield-charge { to { background-position: -200% 0; } }
+#hud .shn { position: absolute; inset: 0; display: grid; place-items: center; font: 800 11px system-ui, sans-serif; color: #0d1a2a; text-shadow: 0 0 2px #fff8; }
+#hud .shield-bar.empty .shn { color: #dff4ff; text-shadow: 0 1px 2px #000; }
+@media (prefers-reduced-motion: reduce) { #hud .shield-bar.charging i { animation: none; } }
+body.calm #hud .shield-bar.charging i { animation: none; }
 #hud .hpn { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 800 13px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
 #hud .xp { height: 10px; margin-top: 6px; background: #0d1220b3; box-shadow: 0 0 0 1.5px #ffd25a55, 0 2px 6px #0008; }
 #hud .xp i { background: linear-gradient(90deg, #f0b12a, #ffe27a); }
@@ -131,7 +143,7 @@ export class Hud {
     this.el.innerHTML = `<style>${CSS}</style>
       <div class="tl">
         <div class="lvl"></div>
-        <div class="player-health" role="progressbar" aria-label="Health"><div class="bar moist"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
+        <div class="vit"><div class="player-health" role="progressbar" aria-label="Health"><div class="bar moist"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div></div><div class="bar shield-bar" role="progressbar" aria-label="Shield" hidden><i></i><span class="shn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
         <div class="bar xp" role="progressbar" aria-label="XP"><i></i></div>
         <div class="items"></div>
       </div>
@@ -155,7 +167,7 @@ export class Hud {
     for (const [key, value] of Object.entries({
       'hp-trail-color': LOOK.color('hp-trail', '#ffc0a0'), 'hp-heal-color': LOOK.color('hp-heal', '#9dffd9'),
       'hp-critical-color': LOOK.color('hp-critical', '#ff7068'), 'hp-drain': this.hpLook.drain + 'ms',
-      'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms',
+      'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms', 'shield-color': LOOK.color('shield', '#b8e6ff'),
     })) this.el.style.setProperty('--' + key, value);
     this.resetHealth();
     const pts = plan.flatMap(([, poly]) => poly);
@@ -290,6 +302,27 @@ export class Hud {
     N['player-health'].setAttribute('aria-valuemin', '0'); N['player-health'].setAttribute('aria-valuemax', String(max));
     this.cache.hp = v; this.cache.hpMax = max;
     this.set('hpText', '.hpn', () => `${Math.ceil(v)}`);
+  }
+
+  // The Shield bar (shield.js): hidden until the jelly has any Shield, then as long as
+  // --shield-bar-base px plus --shield-bar-per px for every point of it. state is what just
+  // happened: 'broken' (a shake and a red flash), 'charging' (a shimmer while it refills), 'full' (a glow)
+  setShield({ hp, max, state, charging }) {
+    const bar = this.shieldBar ||= this.$('.shield-bar');
+    bar.hidden = !(max > 0);
+    if (bar.hidden) return;
+    if (this.cache.shMax !== max) {
+      this.cache.shMax = max;
+      bar.style.width = LOOK.num('shield-bar-base', 14) + LOOK.num('shield-bar-per', 3) * max + 'px';
+      bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(Math.round(max)));
+    }
+    bar.querySelector('i').style.transform = `scaleX(${hp / max})`;
+    bar.classList.toggle('charging', charging);
+    bar.classList.toggle('empty', hp <= 0);
+    bar.setAttribute('aria-valuenow', String(Math.ceil(hp)));
+    this.set('shText', '.shn', () => `${Math.ceil(hp)}`);
+    if (state === 'broken') this.healthAnimate('shield', bar, [{ transform: 'translateX(-3px)', boxShadow: '0 0 0 2px #ff9a8a, 0 0 12px #ff9a8a' }, { transform: 'translateX(3px)', offset: 0.3 }, { transform: 'translateX(0)', boxShadow: '0 0 0 2px #dff4ff66, 0 2px 8px #0008' }], 320);
+    if (state === 'full') this.healthAnimate('shield', bar, [{ boxShadow: '0 0 0 2px #fff, 0 0 16px var(--shield-color)' }, { boxShadow: '0 0 0 2px #dff4ff66, 0 2px 8px #0008' }], 450);
   }
 
   setXp(level, xp, need, purse) {

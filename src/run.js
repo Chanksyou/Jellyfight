@@ -14,7 +14,7 @@ import { CONTENT, compileMods, isRemoved } from './content.js';
 import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
-import { EnergyShield } from './energy-shield.js';
+import { Shield } from './shield.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
@@ -91,7 +91,7 @@ export class Run {
     this.crowdRing = new THREE.Mesh(new THREE.RingGeometry(0.72, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: this.friendly, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     this.crowdRing.renderOrder = 3; this.crowdRing.visible = false;
     ctx.scene.add(this.crowdRing);
-    this.energyShield = new EnergyShield(this);
+    this.shield = new Shield(this);   // the Shield stat's pool and shell (shield.js)
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
     this.evolutionReveal = new EvolutionReveal(this);
@@ -214,7 +214,7 @@ export class Run {
     this.crumbs?.clear();
     this.fx.clear();
     this.lash.reset();
-    this.energyShield.reset();
+    this.shield.reset();
     this.mirage.reset();
     this.fireTrail.reset();
     juice.reset();
@@ -327,7 +327,7 @@ export class Run {
     }
     this.setNight(s.clock[0]);
     this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
-    this.energyShield.update(0);
+    this.shield.update(0);            // a later act starts with its Shield full
     this.refreshHud();
   }
 
@@ -355,6 +355,7 @@ export class Run {
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
+    if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
   }
@@ -395,7 +396,8 @@ export class Run {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
     this.fireTrail.update(dt);
-    this.energyShield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
+    this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
+    this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
     // run it waits for the first Level-up instead: first-run.js)
@@ -739,7 +741,7 @@ export class Run {
   hurt(amount, silent = false, from = null, contact = false, knock = false, at = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
-    amount = this.energyShield.absorb(amount, silent);
+    amount = this.shield.absorb(amount, silent);
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
@@ -920,14 +922,14 @@ export class Run {
     // and the picked card's icon flies into the badge
     const at = this.player.position.clone().setY(this.player.position.y + this.cfg.height * 0.5).project(this.tpc.camera);
     this.hud.levelDing((at.x + 1) / 2 * innerWidth, (1 - at.y) / 2 * innerHeight);
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S), this.S, this.rerolls, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []), this.S, this.rerolls, (card) => {
       const before = this.stats.health;
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S); }, this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {
@@ -959,7 +961,7 @@ export class Run {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
-    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs));
+    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t);
     const can = (t) => weights[t.rarity] > 0 && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
     // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
     const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
@@ -991,12 +993,15 @@ export class Run {
   // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
   // (while any are left); the rest from the other Legendary treasures and elements you can take
   pickLegendary(title, sub, then = () => this.resume()) {
-    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs));
+    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t);
     const pool = shuffle(TREASURES.filter(can)), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
     const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
     if (!left.length) { then(); return; }
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
+
+  // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
+  hasStat(t) { return !t.needsStat || this.S[t.needsStat] > 0; }
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
   markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
@@ -1014,6 +1019,7 @@ export class Run {
       else this.challenges.seen.push(t.id);
       this.found('treasures', t.id, `${t.icon} ${t.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
+      this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();
     });
@@ -1561,7 +1567,6 @@ export class Run {
     if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
-    if (M.energyShield) put(O.energyShield, this.energyShield.cooldown / M.energyShield.recharge);
     if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
     return out;
   }
@@ -1570,6 +1575,7 @@ export class Run {
     this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
     h.setHealth(this.health, this.S.health, { heal: !!this.healthPulse });
+    h.setShield(this.shield); this.shield.state = null;
     this.healthPulse = false;
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
     h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);

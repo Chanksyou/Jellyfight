@@ -10,6 +10,7 @@ export const BASE_STATS = {
   fireRate: 1.76,     // blows per second (each blow is `bubbles` bubbles at once)
   bubbleSize: 1.0,    // size multiplier: bigger bubbles are easier to land and splash wider
   health: 25,         // max health
+  shield: 0,          // Shield on top of Health: refills after a few seconds without damage (src/shield.js)
   moveSpeed: 1.0,     // move speed multiplier
   jumpHeight: 1.0,    // jump height multiplier
   regen: 0,           // health refilled per second
@@ -35,6 +36,7 @@ export const STAT_INFO = {
   fireRate:        { name: 'Fire rate',       icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
   bubbleSize:      { name: 'Bubble size',     icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
   health:          { name: 'Health',          icon: '💧', fmt: (v) => `${Math.round(v)}` },
+  shield:          { name: 'Shield',          icon: '🛡️', fmt: (v) => `${Math.round(v)}` },
   moveSpeed:       { name: 'Move speed',      icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
   jumpHeight:      { name: 'Jump height',     icon: '⤴️', fmt: (v) => `${Math.round(v * 100)}%` },
   regen:           { name: 'Health regen',    icon: '💦', fmt: (v) => `${+(v * 5).toFixed(2)} every 5 s` },
@@ -83,6 +85,8 @@ export const luckWeights = (tiers, luck = 0) => tiers.map((r, i) => r.weight * M
 // `toward` = a cap the stat nears with diminishing returns: the card's amount is what it gives
 // at 0, shrunk by how much of the gap to the cap is already filled, so it never reaches it.
 export const MAX_DODGE = 60;   // % chance a hit misses, at most
+// The Shield (src/shield.js): after SHIELD_WAIT s without damage it refills, empty to full in SHIELD_FILL s
+export const SHIELD_WAIT = 5, SHIELD_FILL = 2;
 const CARD_FLAGS = {
   range:      { pct: true },
   fireRate:   { pct: true },
@@ -131,12 +135,13 @@ export function cardAmount(stat, amount, now = 0) {
 // Three different stats, each with a rolled rarity
 // bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights);
 // now: the stats you have with treasures (what a `toward` card's gain is measured from)
+// skip: stats whose cards would do nothing now (health-to-shield: Health and Health regen)
 // A card the dev editor has removed isn't offered (content.js REMOVED).
-export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats) {
+export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip = []) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
   const capped = (k) => CARD_FLAGS[k]?.toward <= (now[k] || 0);   // treasures alone filled it (five Odd Socks)
-  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !capped(k) && !isRemoved('card', k));
+  const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !capped(k) && !skip.includes(k) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
     const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);

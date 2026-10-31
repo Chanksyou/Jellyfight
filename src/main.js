@@ -792,8 +792,8 @@ async function warmUp() {
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
-  run.energyShield.group.visible = true;                 // prepare the shell before any evolution is chosen
-  run.energyShield.group.scale.setScalar(0.001);
+  run.shield.group.visible = true;                       // prepare the Shield's shell before anything gives one
+  run.shield.group.scale.setScalar(0.001);
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
@@ -832,7 +832,7 @@ async function warmUp() {
   }
   seeThrough.forEach((m) => scene.remove(m));   // not disposed: that would throw the built shaders away
   run.gadgets.warm(false);
-  run.energyShield.update(0);
+  run.shield.update(0);
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
   run.evolutionReveal.warm(false);

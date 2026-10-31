@@ -32,7 +32,7 @@ import './stories/death-remains.js';
 import './stories/hud-health.js';
 import './stories/wind.js';
 import './stories/evolutions.js';
-import './stories/energy-shield.js';
+import './stories/shield.js';
 import './stories/rebound-mirage.js';
 import './stories/fire-trail.js';
 import './stories/feel-reveal.js';
