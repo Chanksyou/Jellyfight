@@ -1,1 +1,0 @@
-adds the Shield: a bar after the Health bar that takes damage first and refills to full in 2 s after 5 s without damage, a Shield level-up card (+3/+4/+5), and five shield treasures offered once you have some (Crank Flashlight, Egg Timer, Oven Mitt, Bubble Wrap, Pot Lid). Aegis Jelly now gives +5 Shield and keeps its 15-damage burst.
