@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v353 gives Dodge level-ups diminishing returns: each pick closes the same share of the gap to the 60% cap (Common +10% at 0 Dodge, about +5% at 30%), so a Dodge pick always adds something, and the card stops being offered once treasures alone reach 60%.
+
 v352 makes Immortal Jelly keep Health regen until its first polyp revive; regen stops for the rest of the run after that.
 
 v351 enlarges the jelly in customization and leaderboard portraits on desktop and phones, keeping all ten scores reachable in a scrolling board.

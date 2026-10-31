@@ -920,14 +920,14 @@ export class Run {
     // and the picked card's icon flies into the badge
     const at = this.player.position.clone().setY(this.player.position.y + this.cfg.height * 0.5).project(this.tpc.camera);
     this.hud.levelDing((at.x + 1) / 2 * innerWidth, (1 - at.y) / 2 * innerHeight);
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, this.rerolls, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S), this.S, this.rerolls, (card) => {
       const before = this.stats.health;
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck); }, this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {
