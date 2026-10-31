@@ -151,7 +151,7 @@ ui.innerHTML = `
   <p class="cont-note"></p>
   <button class="resume" hidden></button>
   <button class="play">Play</button>
-  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
+  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
   <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
   <div class="row" id="g-quality"></div>
@@ -335,6 +335,12 @@ touch.mount(ui);
 const homeTip = overlay.querySelector('.home-tip'), HOME_TIP_KEY = 'jellyrun.homeTip';
 let homeTipOff = false; try { homeTipOff = localStorage.getItem(HOME_TIP_KEY) === 'off'; } catch {}
 homeTip.hidden = !/iPhone|iPod/.test(navigator.userAgent) || navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || homeTipOff;
+// where the browser can install the game as an app (Chrome, Edge: manifest.webmanifest), offer it on the title screen too;
+// Chrome's own install bar still shows, and the button goes once the game is installed or the offer is used
+const installBtn = overlay.querySelector('[data-act="install"]');
+let installOffer = null;
+addEventListener('beforeinstallprompt', (e) => { installOffer = e; installBtn.hidden = false; });
+addEventListener('appinstalled', () => { installOffer = null; installBtn.hidden = true; });
 // held upright: the turn-sideways cover goes over everything and the run holds still under it, so nothing
 // hits the jelly unseen. A phone is a touch screen whose short side is under 600 px, read from the screen,
 // not the page: iOS can keep the page at its landscape width after the phone turns back upright.
@@ -698,6 +704,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
+  else if (b.dataset.act === 'install') { installOffer?.prompt(); installOffer = null; installBtn.hidden = true; }
   else if (b.dataset.act === 'home-tip') { homeTip.hidden = true; try { localStorage.setItem(HOME_TIP_KEY, 'off'); } catch {} }
   else if (b.dataset.act === 'creator') openCreator();
   else if (b.dataset.act === 'layout') openLayout();

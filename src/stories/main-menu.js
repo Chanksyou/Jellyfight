@@ -223,3 +223,19 @@ story('menu/old-address-hands-saves-to-jellyrun-org', {
     return ok(link.startsWith(HOME + '#saves=') && stays && took && kept && ignores, { link: link.slice(0, 60), stays, took, kept, ignores });
   },
 });
+
+story('menu/install-app-button', {
+  about: 'The title screen shows "Install app" only once the browser offers to install the game; tapping it opens the browser\'s install prompt and the button goes, as it does when the game gets installed.',
+  setup() {},
+  play() {
+    const btn = document.querySelector('#g-over [data-act="install"]'), before = btn.hidden;
+    let asked = 0;
+    const offer = new Event('beforeinstallprompt'); offer.prompt = () => asked++;
+    dispatchEvent(offer);                                 // what Chrome sends when the game can be installed
+    const offered = !btn.hidden;
+    btn.click();
+    const used = asked === 1 && btn.hidden;
+    dispatchEvent(offer); dispatchEvent(new Event('appinstalled'));
+    return ok(before && offered && used && btn.hidden, { before, offered, asked, hidden: btn.hidden });
+  },
+});
