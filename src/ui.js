@@ -366,7 +366,7 @@ export class UI {
       <p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
       <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
         <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
-        <small>${a.earned ? 'Earned · ' + esc(new Date(a.earned).toLocaleDateString()) : esc(a.progress)}</small></article>`).join('')}</div>
+        ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div>
       <div class="btns">${onTop ? '<button data-top>🏆 Top 5 players</button>' : ''}<button class="go">Back</button></div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
