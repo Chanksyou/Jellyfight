@@ -1,1 +1,0 @@
-makes the tentacle sting easier to see: the striking tentacle swells and burns white-hot, a cyan glow follows it out and streaks behind its tip, it lands on top of the bug instead of inside it, and a cyan crescent cracks across the bug where it hits. Damage, reach and timing are unchanged.
