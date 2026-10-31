@@ -1,6 +1,7 @@
 {
   "name": "Jelly Run",
   "short_name": "Jelly Run",
+  "description": "A jellyfish roguelike in a giant apartment: fight bugs, grab Treasures and survive until the boss arrives.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
@@ -12,5 +13,11 @@
     { "src": "assets/icon/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "assets/icon/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "assets/icon/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "assets/screens/phone-title.jpg", "sizes": "1688x780", "type": "image/jpeg", "label": "Title screen" },
+    { "src": "assets/screens/phone-pick.jpg", "sizes": "1688x780", "type": "image/jpeg", "label": "Picking an Element mid-run" },
+    { "src": "assets/screens/title.jpg", "sizes": "1280x720", "type": "image/jpeg", "form_factor": "wide", "label": "Title screen" },
+    { "src": "assets/screens/pick.jpg", "sizes": "1280x720", "type": "image/jpeg", "form_factor": "wide", "label": "Picking an Element mid-run" }
   ]
 }
