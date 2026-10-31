@@ -6,7 +6,7 @@ import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
 import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
-import { ELEMENTS_IDS, G, V, fresh, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
+import { ELEMENTS_IDS, G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- movement
 story('movement/jelly-steady-speed', {
@@ -297,7 +297,7 @@ story('content/levelup-and-elite-tuning', {
   },
 });
 story('progression/card-tiers', {
-  about: 'Level-up cards give their tier\'s amount (Dodge: 10 / 13 / 16%); Bubbles and Bubble size are no longer offered.',
+  about: 'Level-up cards give their tier\'s amount (Dodge at 0%: 10 / 13 / 16%); Bubbles and Bubble size are no longer offered.',
   setup() {},
   play() {
     const seen = {};
@@ -391,6 +391,34 @@ story('progression/dodge', {
     for (let i = 0; i < 200; i++) { run.health = 50; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' }); if (run.health === 50) missed++; }
     run.stats.dodge = 500;
     return ok(missed > 70 && missed < 130 && run.S.dodge === 60, { missed, of: 200, capped: run.S.dodge });
+  },
+});
+story('progression/dodge-diminishes', {
+  about: 'Dodge level-ups have diminishing returns: each pick closes the same share of the gap to the 60% cap (Common +10% at 0 Dodge, +5% at 30), so twelve picks in a row each still add some Dodge and never reach 60. Dodge from treasures (Odd Sock) counts toward the gap, and once treasures alone reach 60 the card is no longer offered.',
+  setup() { fresh({ elites: false, lash: false, levels: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run, menus } = G();
+    for (const [k, c] of Object.entries(CONTENT.levelups.cards)) if (k !== 'dodge') stub(c, 'weight', 0);   // only Dodge is offered
+    stub(CONTENT.levelups.rarities, 'rare', 0); stub(CONTENT.levelups.rarities, 'epic', 0);   // always Common
+    const pick = () => {
+      run.pendingLevels = 1;
+      run.levelUp();
+      const card = document.querySelector('.jf-modal .jf-card'), text = card.querySelector('.big').textContent;
+      const was = run.S.dodge;
+      card.click();
+      step(50);
+      return { text, gain: +(run.S.dodge - was).toFixed(2) };
+    };
+    const picks = [];
+    for (let i = 0; i < 12; i++) picks.push(pick());
+    const gains = picks.map((p) => p.gain), top = run.S.dodge;
+    const shrinking = gains.every((g, i) => g > 0 && (i === 0 || g < gains[i - 1]));
+    const reads = picks.every((p) => p.text === `+${p.gain}% Dodge`);
+    run.stats.dodge = 0; give('sock');   // 15% from the Odd Sock: the first card gives 10 x 45/60
+    const sock = pick();
+    menus.close();
+    const atCap = rollCards(run.stats, 3, 0, 0, { ...run.S, dodge: 60 }).length;   // treasures alone at the cap: no Dodge card at all
+    return ok(gains[0] === 10 && picks[0].text === '+10% Dodge' && shrinking && reads && top < 60 && sock.gain === 7.5 && atCap === 0, { gains, top: +top.toFixed(1), sock, atCap });
   },
 });
 story('progression/level-curve', {
