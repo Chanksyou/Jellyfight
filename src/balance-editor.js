@@ -130,6 +130,7 @@ export function toggleRemoved(g) {
 // and line, if a number the compiler won't take got in: then nothing has changed.
 export function applyBalance(run) {
   recompileContent();
+  run?.disqualifyChallenges?.();
   if (run) run.owned.version = (run.owned.version || 0) + 1;
 }
 

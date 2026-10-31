@@ -34,6 +34,9 @@ import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
+import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements, challengeProgress } from './achievements.js';
+import { balanceChanges } from './balance-editor.js';
+import { loadLayout } from './layout.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
@@ -278,6 +281,11 @@ export class Run {
     this.bossHurt = false;            // lost Health in this act's boss fight (the Diamond tiara asks for a fight without)
     // a later act: the run carries on from the act before (main.js gives it: stages.js)
     const C = this.carry;
+    this.challenges = newChallenges(s.id, C?.challenges);
+    if (balanceChanges().length || Object.keys(loadLayout(s.id)).length) this.disqualifyChallenges();
+    this.newAchievements = [];
+    this.scheduledTreasureSlots = Object.fromEntries((s.treasures?.at || []).map((at, i) => [at, i]));
+    this.skippedTreasureSlot = null;
     if (C) {
       this.stats = { ...BASE_STATS, ...C.stats };
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
@@ -735,7 +743,8 @@ export class Run {
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
-    if (this.phase === 'boss') this.bossHurt = true;
+    if (amount > 0) this.challenges.hurt = true;
+    if (amount > 0 && this.phase === 'boss') this.bossHurt = true;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
     if (hint) { this.hint = hint; this.hintT = 4.5; }
     if (!silent && amount > 0) {
@@ -856,6 +865,12 @@ export class Run {
 
   // One of the high-ground elites (elites.js) is beaten
   eliteDefeated(e) {
+    this.challenges.eliteKills++;
+    const list = this.challenges.elites[this.stage.id] ||= [];
+    if (this.phase === 'explore' && this.t < this.duration && !list.includes(e.spec.kind)) {
+      list.push(e.spec.kind);
+      if (this.stage.id === 1 && list.length === 3 && this.t < 180) this.challenges.early = true;
+    }
     this.kills++;
     this.elitesBeaten++;
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
@@ -908,10 +923,11 @@ export class Run {
     this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck), this.S, this.rerolls, (card) => {
       const before = this.stats.health;
       applyCard(this.stats, card);
+      this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => { this.rerolls--; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck); }, this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {
@@ -919,14 +935,19 @@ export class Run {
   }
 
   // a dev mode's run (1 on 1, fight the boss): played as a normal run, and not counted as one
-  devRun() { this.dev = true; this.firstRun = new FirstRun(false); }
+  disqualifyChallenges() { this.challenges.eligible = false; }
+
+  devRun() { this.dev = true; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
     this.pickElement('🔥 Pick your element', 'Adds an attack alongside your bubbles. Upgrades appear every third treasure pick.',
       () => {
         const { hint, treasureAt } = this.firstRun.elementChose(this.t);   // a first run: a tip, and the skipped Treasure soon (first-run.js)
         if (hint) { this.hint = hint; this.hintT = 4.5; }
-        if (treasureAt != null) this.treasureTimesLeft = [treasureAt, ...this.treasureTimesLeft.filter((x) => x > treasureAt)];
+        if (treasureAt != null) {
+          this.treasureTimesLeft = [treasureAt, ...this.treasureTimesLeft.filter((x) => x > treasureAt)];
+          this.scheduledTreasureSlots[treasureAt] = this.skippedTreasureSlot;
+        }
         this.resume();
       });
   }
@@ -988,6 +1009,9 @@ export class Run {
     this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
       const before = this.S.health;
       this.owned.add(t.id);
+      this.challenges.treasures++;
+      if (this.challenges.seen.includes(t.id)) this.challenges.duplicate = true;
+      else this.challenges.seen.push(t.id);
       this.found('treasures', t.id, `${t.icon} ${t.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
       this.ui.treasure(t, this.owned.count(t.id));
@@ -1003,10 +1027,11 @@ export class Run {
     if (!T || !this.treasureTimesLeft.length || this.t < this.treasureTimesLeft[0]) return;
     if (this.roomTreasures.some((t) => t.active && t.timed)) return;   // one scheduled at a time: the next waits
     const at = this.treasureTimesLeft.shift(), bonus = this.bonusTreasureAt.delete(at);
-    if (!this.firstRun.treasuresDue) return;           // a first run, before its Element pick: this one's skipped (first-run.js)
+    if (!this.firstRun.treasuresDue) { this.skippedTreasureSlot = this.scheduledTreasureSlots[at]; return; }
     const spot = this.nextTreasureSpot();
     if (!spot) return;
-    this.placeTreasure(spot, T.stay);
+    const chest = this.placeTreasure(spot, T.stay);
+    chest.scheduledSlot = bonus ? null : this.scheduledTreasureSlots[at] ?? null;
     // more-treasures (Wind-Up Key): a scheduled one may bring another, a little after it goes
     if (!bonus && Math.random() < this.mods.moreTreasures) {
       const next = this.t + T.stay + 5;
@@ -1049,6 +1074,7 @@ export class Run {
     let t = this.roomTreasures.find((x) => !x.active);
     if (!t) this.roomTreasures.push(t = new RoomTreasure(this.scene, this.fx));
     t.show(at, stay, facing);
+    t.scheduledSlot = null;   // pooled chests must never inherit an earlier scheduled reward
     this.firstRun.treasureAppeared();
     return t;
   }
@@ -1056,7 +1082,13 @@ export class Run {
   updateRoomTreasures(dt) {
     for (const t of this.roomTreasures) {
       const r = t.update(dt, this.t, this.player.position);
-      if (r === 'taken') this.pickTreasure('✨ A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
+      if (r === 'taken') {
+        if (t.scheduledSlot != null) {
+          const slots = this.challenges.scheduled[this.stage.id] ||= [];
+          if (!slots.includes(t.scheduledSlot)) slots.push(t.scheduledSlot);
+        }
+        this.pickTreasure('✨ A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
+      }
       else if (r === 'gone') this.hud.toast('✨ The treasure faded away…', 1800);
     }
   }
@@ -1200,8 +1232,11 @@ export class Run {
   // The run is won (the last act's boss is beaten): the jelly swims home to the sea (victory.js), then
   // the score, to post if it makes the top 10
   won() {
+    if (this.phase === 'dead') return;   // lingering damage can end the run before the delayed victory callback
     if ((this.ui.open && !this.ui.closing) || this.pendingLevels > 0) { this.later(() => this.won(), 250); return; }   // (a pick still open finishes first)
+    this.finishChallengeBoss();
     this.phase = 'won';
+    if (this.stage.id === STAGES.length && this.bossWon && !this.challenges.awarded) this.newAchievements = awardAchievements(this.challenges, true, this.dev);
     if (!this.dev) markPlayed();
     this.bossDeadT = false;
     const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);   // whatever XP hadn't reached you still counts
@@ -1214,9 +1249,11 @@ export class Run {
   }
 
   metamorph() {
+    if (this.phase === 'dead') return;
     // a pick still open (a level-up from the boss's XP) or still to come: it's finished first, never
     // replaced by the metamorphosis
     if ((this.ui.open && !this.ui.closing) || this.pendingLevels > 0) { this.later(() => this.metamorph(), 250); return; }
+    this.finishChallengeBoss();
     this.phase = 'metamorph';
     if (!this.dev) markPlayed();      // a run ended: the player isn't new any more (first-run.js)
     this.bossDeadT = false;
@@ -1318,6 +1355,7 @@ export class Run {
         ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} in all</small>`]]),
         ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...this.summary(), ...finds];
       if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b>`]);
+      if (this.newAchievements.length) rows.unshift(['🏅 Achievements earned', this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
@@ -1337,6 +1375,7 @@ export class Run {
       }
       if (!dead) buttons.push(tryAgain);
       if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
+      buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons);
     };
@@ -1356,12 +1395,18 @@ export class Run {
   }
 
   // What the run takes into the next act (stages.js; Run.start reads it back as this.carry)
+  finishChallengeBoss() {
+    if (!this.bossWon || this.challenges.bosses.includes(this.stage.id)) return;
+    this.challenges.bosses.push(this.stage.id);
+    if (!this.bossHurt) this.challenges.perfect.push(this.stage.id);
+  }
+
   carryOver() {
     return {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, newFinds: this.newFinds,
-      pearls: this.pearls, awardsBefore: this.awardsBefore,
+      pearls: this.pearls, awardsBefore: this.awardsBefore, challenges: JSON.parse(JSON.stringify(this.challenges)),
     };
   }
 
@@ -1423,6 +1468,12 @@ export class Run {
   }
 
   // The leaderboard as a dialog; back() returns to where it was opened from
+  showAchievements(back) {
+    this.endView = 'achievements';
+    const earned = earnedAchievements();
+    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id], progress: challengeProgress(this.challenges, a.id) })), back);
+  }
+
   showBoard(back) {
     const B = this.board;
     this.endView = 'board';
