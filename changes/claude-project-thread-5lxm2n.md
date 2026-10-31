@@ -1,1 +1,0 @@
-adds an "Install app" button to the title screen where the browser can install Jelly Run (Chrome, Edge); it opens the install prompt and goes away once installed. Android's install popup now shows a description and screenshots.
