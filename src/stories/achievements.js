@@ -180,16 +180,17 @@ story('achievements/tuner-invalidates-current-run', {
 });
 
 const panel = {
-  about: 'The Achievements section shows all 13 requirements, earned count and win gate, fits the viewport and returns to its menu.',
+  about: 'The Achievements section shows all 13 requirements, earned count and win gate, no in-run progress on unearned ones, fits the viewport and returns to its menu.',
   setup() { fresh({ elites: false }); },
   play() {
     const { run, menus } = G(); let back = false;
     run.showAchievements(() => { back = true; });
     const box = menus.modal.querySelector('.jf-achievements'), rect = box.getBoundingClientRect();
     const shown = box.querySelectorAll('article').length === 13 && /four-boss win/.test(box.textContent);
+    const noProgress = [...box.querySelectorAll('article:not(.earned)')].every(a => !a.querySelector('small'));
     const fits = rect.left >= 0 && rect.right <= innerWidth + 1 && rect.height <= innerHeight;
     box.querySelector('button.go').click();
-    return ok(shown && fits && back && !menus.open, { shown, fits, back, width: rect.width, height: rect.height });
+    return ok(shown && noProgress && fits && back && !menus.open, { shown, noProgress, fits, back, width: rect.width, height: rect.height });
   },
 };
 story('achievements/section', panel);
