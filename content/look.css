@@ -191,9 +191,24 @@
   --xp-bar-pulse: 1.35;
   --xp-bar-time: 180;
   --lash-coil: 0.18;
-  --lash-trace-size: 0.003;
-  --lash-trace: #d8faff;
-  --lash-trace-life: 0.11;
+  --lash-trace: #2ee9ff;          /* the glow along a striking tentacle and the streak behind its tip */
+  --lash-glow-dots: 6;            /* glow points along the arc while a tentacle is out */
+  --lash-glow-size: 0.03;         /* m */
+  --lash-arc: 0.3;                /* how high that glow arcs over, as a share of the strike's length */
+  --lash-streak-dots: 4;          /* glow dots per frame along the tip's path */
+  --lash-streak-size: 0.018;      /* m */
+  --lash-streak-life: 0.2;        /* s */
+  --lash-strike: #e9fdff;         /* a striking tentacle burns this white-hot colour, */
+  --lash-strike-thickness: 2.4;   /* swells to this many times its width, */
+  --lash-strike-glow: 2.6;        /* and glows this bright at full reach */
+  --lash-contact-in: 0.3;         /* where the tip lands: this share of the bug's radius in from its centre toward the jelly, */
+  --lash-contact-up: 1;           /* and this share up its back (stays in sight from above) */
+  --lash-impact: #5ff0ff;         /* the flash, sparks and ring where a sting lands */
+  --lash-impact-size: 0.016;
+  --lash-slash-width: 2;          /* the crescent swept across a stung bug: half its width, in bug radii, */
+  --lash-slash-dots: 15;
+  --lash-slash-size: 0.035;       /* m, its middle dot (the ends are smaller) */
+  --lash-slash-life: 0.18;        /* s */
   --lash-splat-size: 0.006;
   --evolution-reveal-time: 1.6;
   --evolution-reveal-calm-time: 0.2;

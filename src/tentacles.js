@@ -51,6 +51,10 @@ export class TentacleRig {
     this.venom = false;
     this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
     this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
+    // a striking tentacle swells and burns white-hot so the lash reads at play distance
+    this.strikeThick = LOOK.num('lash-strike-thickness', 2.4);
+    this.strikeGlow = LOOK.num('lash-strike-glow', 2.6);
+    this.strikeColor = new THREE.Color(LOOK.color('lash-strike', '#e9fdff'));
     this.flare = opts.flare ?? 0.3;
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
@@ -198,8 +202,8 @@ export class TentacleRig {
           T.pts[j].lerp(_v.set(bx, by, bz), w);
           T.sim[j].copy(T.pts[j]).applyMatrix4(M).divideScalar(unit);
         }
-        T.mat.emissive.setHex(T.golden ? 0xffc23a : 0xfff6b0);
-        const strikeGlow = 0.6 + T.k * 1.4;
+        if (T.golden) T.mat.emissive.setHex(0xffc23a); else T.mat.emissive.copy(this.strikeColor);
+        const strikeGlow = 0.6 + T.k * (this.strikeGlow - 0.6);
         T.mat.emissiveIntensity = this.venom ? Math.max(glow, strikeGlow) : strikeGlow;
       } else {
         T.mat.emissive.copy(T.baseEmissive);
@@ -215,7 +219,7 @@ export class TentacleRig {
 
   // Skin the tube around the points
   build(T, floorY) {
-    const thick = this.thick * (this.venom ? this.venomThickness : 1);
+    const thick = this.thick * (this.venom ? this.venomThickness : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
     const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
     const P = T.pts;

@@ -6,7 +6,7 @@ import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
 import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
-import { ELEMENTS_IDS, G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, startVacuum, step, story, stub, tp } from './kit.js';
+import { ELEMENTS_IDS, G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- movement
 story('movement/jelly-steady-speed', {
@@ -97,20 +97,40 @@ story('attack/bubble-feel', {
   },
 });
 story('attack/sting-feel', {
-  about: 'The tentacle sting completes its Attack Feel chain (7/7, docs/agents/attack-feel.md): the bell twitches on the frame the tentacles whip out; where one lands, a flash; the bug flashes white and is shoved by knockFor(damage), so a 4-damage sting shoves 4 mm.',
+  about: 'The tentacle sting completes its Attack Feel chain (docs/agents/attack-feel.md) and reads from the play camera: the bell twitches on the frame the tentacles whip out; the striking tentacle swells and a glow streak trails its tip; it lands on the near side of the bug, up its back (in sight from above), with a flash and a crescent swept across the bug on the same frame; the bug flashes white and is shoved by knockFor(damage), so a 4-damage sting shoves 4 mm.',
   setup() { fresh({ elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
   play() {
     const { run, enemies, fx, player } = G(), L = run.lash, e = enemies.list[0];
     let f = 0;
-    const at = { pulse: [], strike: [], impact: [] }, spy = (o, k, log) => { const fn = o[k].bind(o); stub(o, k, (...a) => { log.push(f); return fn(...a); }); };
-    spy(player.avatar, 'pulse', at.pulse); spy(L, 'strike', at.strike); spy(fx, 'impact', at.impact);
+    const at = { pulse: [], strike: [], impact: [], slash: [] }, spy = (o, k, log) => { const fn = o[k].bind(o); stub(o, k, (...a) => { log.push(f); return fn(...a); }); };
+    spy(player.avatar, 'pulse', at.pulse); spy(L, 'strike', at.strike); spy(fx, 'impact', at.impact); spy(L, 'slash', at.slash);
     const shoves = record('knockback'), hits = record('damage_taken');
-    let flashed = false;
-    for (f = 0; f < 180 && !at.impact.length; f++) { G().GAME.step(1 / 60); flashed ||= e.flashT > 0; }
-    step(2); flashed ||= e.flashT > 0;
+    let flashed = false, streak = 0, swell = 0, glows = 0;
+    for (f = 0; f < 180 && !at.impact.length; f++) {
+      glows = fx.glow.parts.length;
+      G().GAME.step(1 / 60); flashed ||= e.flashT > 0;
+      if (at.strike.length && !at.impact.length) streak = Math.max(streak, fx.glow.parts.length - glows);
+    }
+    const S = L.strikes[0], T = S?.rig?.list[S.tent], c = enemies.center(e, V(0, 0, 0)), b = L.contact(e, player.position, V(0, 0, 0));
+    step(1); swell = T ? T.k : 0; flashed ||= e.flashT > 0;
+    step(1); flashed ||= e.flashT > 0;
     const hit = hits.find((h) => h.source === 'tentacle'), shove = shoves.find((k) => k.targetId === e.id);
-    return ok(at.strike.length && at.pulse[0] === at.strike[0] && at.impact.length && flashed && hit && shove && Math.abs(shove.force - knockFor(hit.amount)) < 1e-9,
-      { at: Object.fromEntries(Object.entries(at).map(([k, v]) => [k, v[0]])), flashed, dmg: hit?.amount, force: shove?.force });
+    const flat = (v) => Math.hypot(v.x - player.position.x, v.z - player.position.z), inSight = b.y > c.y && flat(b) < flat(c);
+    return ok(at.strike.length && at.pulse[0] === at.strike[0] && at.impact.length && at.slash[0] === at.impact[0] && streak > 0 && swell === 1 && S.rig.strikeThick > 1 && inSight
+      && flashed && hit && shove && Math.abs(shove.force - knockFor(hit.amount)) < 1e-9,
+      { at: Object.fromEntries(Object.entries(at).map(([k, v]) => [k, v[0]])), streak, swell, inSight, flashed, dmg: hit?.amount, force: shove?.force });
+  },
+});
+story('attack/sting-miss-no-crack', {
+  about: 'A tentacle that reaches a bug already dead when it lands gives no false hit: no flash, no crescent, no damage.',
+  setup() { fresh({ elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
+  play() {
+    const { run, enemies, fx } = G(), L = run.lash, e = enemies.list[0];
+    const slashes = spy(L, 'slash'), impacts = spy(fx, 'impact'), hits = record('damage_taken');
+    step(120, () => L.strikes.length > 0);
+    e.dead = true;
+    step(20);
+    return ok(L.count > 0 && !slashes.length && !impacts.length && !hits.some((h) => h.source === 'tentacle'), { lashes: L.count, slashes: slashes.length, impacts: impacts.length });
   },
 });
 story('attack/armor-is-a-last-resort', {

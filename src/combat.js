@@ -32,7 +32,11 @@ export class Lash {
     this.onLash = null;           // () => void: the jelly's body answers as its tentacles whip out (run.js)
     this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
     this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
-    this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#d8faff'));
+    this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#2ee9ff'));
+    this.impactColor = new THREE.Color(LOOK.color('lash-impact', '#5ff0ff'));
+    this.strikeColor = new THREE.Color(LOOK.color('lash-strike', '#e9fdff'));
+    this._c = new THREE.Vector3();
+    this._tip = new THREE.Vector3();
   }
 
   reset() {
@@ -109,7 +113,7 @@ export class Lash {
       m = this.mesh();
       m.material = this.mat;
     }
-    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits });
+    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, tip: from.clone() });
     sfx.lashDraw();
   }
 
@@ -125,12 +129,56 @@ export class Lash {
     }
   }
 
+  // Where a tentacle meets its target: the side of the bug facing the jelly, a little up its back,
+  // so the tip stays in sight from above instead of vanishing into the body's middle
+  contact(target, a, out) {
+    const c = this.enemies.center(target, out), r = target.r || 0;
+    const dx = a.x - c.x, dz = a.z - c.z, d = Math.hypot(dx, dz) || 1, k = r * LOOK.num('lash-contact-in', 0.3) / d;
+    return out.set(c.x + dx * k, c.y + r * LOOK.num('lash-contact-up', 1), c.z + dz * k);
+  }
+
+  // Travel: the tentacle is only millimetres wide from the play camera, so a glow follows its arc
+  // at full brightness from the release (the snap is too quick to fade in) and dims as it pulls back;
+  // a streak of dots trails the tip as it snaps out and stays a moment after
+  glowLash(s, a, b, k, bright, snapping) {
+    if (k <= 0) { s.tip.copy(a); return; }
+    const tip = this._tip.copy(a).lerp(b, k), P = this._c, glow = this.fx.glow, lift = a.distanceTo(tip) * LOOK.num('lash-arc', 0.3);
+    const n = LOOK.num('lash-glow-dots', 6), size = LOOK.num('lash-glow-size', 0.03);
+    for (let i = 1; i <= n; i++) {
+      const u = i / n;
+      P.copy(a).lerp(tip, u); P.y += Math.sin(u * Math.PI) * lift;
+      glow.hold(P, this.traceColor, size * (0.5 + 0.5 * u), 0.7 * bright);
+    }
+    glow.hold(tip, this.strikeColor, size * 2 * bright, bright);   // the tip: the bright point the eye follows
+    if (snapping) {
+      const m = LOOK.num('lash-streak-dots', 4), ss = LOOK.num('lash-streak-size', 0.018);
+      for (let i = 1; i <= m; i++) glow.emit(P.copy(s.tip).lerp(tip, i / m), this.traceColor, ss, ss * 0.3, LOOK.num('lash-streak-life', 0.2), 0.8);
+    }
+    s.tip.copy(tip);
+  }
+
+  // Impact: a crescent of glow swept across the bug, wider than its body, so the sting reads as a
+  // whip crack even while the bug itself flashes white
+  slash(target, a, b) {
+    const c = this.enemies.center(target, this._c), R = Math.max(0.012, target.r * LOOK.num('lash-slash-width', 2));
+    const dx = c.x - a.x, dz = c.z - a.z, d = Math.hypot(dx, dz) || 1, fx = dx / d, fz = dz / d;
+    const n = LOOK.num('lash-slash-dots', 15), size = LOOK.num('lash-slash-size', 0.035), life = LOOK.num('lash-slash-life', 0.18);
+    const P = this._tip, v = this._a;
+    for (let i = 0; i < n; i++) {
+      const th = (i / (n - 1) - 0.5) * 2.2, side = Math.sin(th), ahead = (Math.cos(th) - 0.7) * 0.6;
+      P.set(b.x + (-fz * side + fx * ahead) * R, b.y, b.z + (fx * side + fz * ahead) * R);
+      v.set(fx, 0, fz).multiplyScalar(0.12);
+      const mid = 1 - Math.abs(i / (n - 1) - 0.5);
+      this.fx.glow.emit(P, this.traceColor, size * (0.5 + mid), size * 0.2, life, 0.9, v);
+    }
+  }
+
   animate(dt, origin) {
     this.tickVenom(dt);
     for (const s of this.strikes) {
       s.t += dt;
       const a = s.fixedFrom || origin;
-      const b = this.enemies.center(s.target, this._b);
+      const b = this.contact(s.target, a, this._b);
       if (!s.released && s.t >= DRAW) { s.released = true; sfx.lashRelease(); }
       if (!s.hit && s.t >= EXTEND) { s.hit = true; s.landed = this.land(s, a, b); }
       const out = THREE.MathUtils.clamp((s.t - DRAW) / (EXTEND - DRAW), 0, 1);
@@ -138,6 +186,7 @@ export class Lash {
       const k = s.t < DRAW ? -LOOK.num('lash-coil', 0.18) * Math.sin(s.t / DRAW * Math.PI / 2)
         : s.t < EXTEND ? out * out : s.t < EXTEND + HOLD ? 1 : (1 - back) ** 2;
       const impact = s.landed ? Math.max(0, 1 - (s.t - EXTEND) / HOLD) : 0;
+      this.glowLash(s, a, b, k, s.t <= EXTEND + HOLD ? 1 : k, s.t <= EXTEND);
       if (s.rig) { s.rig.aim(s.tent, b, k, s.golden, impact); continue; }
       const dir = this._a.copy(b).sub(a);
       const full = dir.length();
@@ -156,8 +205,8 @@ export class Lash {
   land(s, a, b) {
     if (s.target.dead || s.target.proxy?.shielded) return false;
     const H = s.hits;
-    this.fx.puff(b, 0xffc2e6, 0.006, 0.18);   // nematocyst sparkle
-    this.fx.impact(b, 0xffc2e6, 0.01, 4);     // the flash where it lands
+    this.fx.puff(b, this.impactColor, 0.008, 0.18);   // nematocyst sparkle
+    this.fx.impact(b, this.impactColor, LOOK.num('lash-impact-size', 0.016), 6);   // the flash, sparks and ring where it lands
     sfx.sting();
     juice.feel('hit');
     const id = s.target.id;
@@ -169,15 +218,10 @@ export class Lash {
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     // a shove away from the jelly: the harder the sting, the further
-    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: b.clone().sub(a).setY(0).normalize(), force: knockFor(dmg) });
+    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: this.enemies.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
-    // A short curved wet trace and floor droplets show the strike without another damage label.
-    const trail = this._a;
-    for (let i = 1; i <= 6; i++) {
-      const u = i / 6;
-      trail.copy(a).lerp(b, u); trail.y += Math.sin(u * Math.PI) * a.distanceTo(b) * 0.16;
-      this.fx.glow.emit(trail, this.traceColor, LOOK.num('lash-trace-size', 0.003), 0, LOOK.num('lash-trace-life', 0.11), 0.45);
-    }
+    this.slash(s.target, a, b);
+    // the streak (glowLash) fades behind it; floor droplets stay a moment longer
     this.fx.splat(b.clone().setY(this.enemies.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));
     // venom (Box Jelly): another stack, and they all last a while longer
     const Vn = H.venom;
