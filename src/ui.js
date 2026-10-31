@@ -89,6 +89,14 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
   padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
 .jf-book-grid button .ic { font-size: 26px; line-height: 1.1; }
 .jf-book-grid button:disabled { cursor: default; opacity: .4; }
+.jf-achievements > p { font-size: 13px; line-height: 1.5; }
+.jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 10px; text-align: left; }
+.jf-achievements article { border: 1px solid #ffffff33; border-radius: 12px; padding: 12px; background: #ffffff08; }
+.jf-achievements article.earned { border-color: #7ff6ee; background: #7ff6ee12; }
+.jf-achievements article h3 { margin: 0 0 6px; }
+.jf-achievements article p { font-size: 13px; line-height: 1.45; margin: 0 0 10px; }
+.jf-achievements article small { display: block; font-size: 12px; opacity: .8; line-height: 1.4; }
+.jf-achievements .btns { position: sticky; bottom: 0; padding: 8px; background: #12142af0; }
 .jf-modal .btns { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
 .jf-modal .btns button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
 .jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
@@ -350,6 +358,27 @@ export class UI {
   // rows: [[label, value]], buttons: [{ label, go, enter?, onClick }] (Enter presses the `enter` one, else the `go` one)
   // cls: a class for this dialog (the leaderboard's 'jf-board' lays its rows out big)
   // A value with a <span class="jf-count" data-n> in it counts up (tally)
+  achievements(items, onBack, onTop = null) {
+    this._gen++;
+    const count = items.filter(a => a.earned).length;
+    this.modal.innerHTML = `<section class="jf-book jf-achievements" aria-label="Achievements">
+      <h2>🏅 Achievements</h2><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p>
+      <p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
+      <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
+        <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
+        <small>${a.earned ? 'Earned · ' + esc(new Date(a.earned).toLocaleDateString()) : esc(a.progress)}</small></article>`).join('')}</div>
+      <div class="btns">${onTop ? '<button data-top>🏆 Top 5 players</button>' : ''}<button class="go">Back</button></div></section>`;
+    this.modal.hidden = false;
+    const back = () => { this.close(); onBack(); };
+    this.modal.onclick = e => {
+      const button = e.target.closest('button');
+      if (button?.hasAttribute('data-top')) { this.close(); onTop(); }
+      else if (button) back();
+    };
+    this.keyHandler = e => { if (e.code === 'Escape') { e.preventDefault(); back(); } };   // Enter activates the focused button natively
+    this.modal.querySelector('button').focus({ preventScroll: true });
+  }
+
   message(title, sub, rows, buttons, cls = '') {
     this._gen++;
     this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}

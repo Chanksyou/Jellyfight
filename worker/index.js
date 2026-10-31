@@ -12,6 +12,8 @@
 // signed in anywhere or not. Scores come from the player's browser, so they can be faked: this
 // caps what's believable and how often one browser or one address can post, which stops casual
 // cheating, not a determined one.
+import { ACHIEVEMENTS } from '../src/achievements.js';
+
 const MAX_SCORE = 60000;      // the game's own cap (leaderboard.js)
 const ID = /^[a-z0-9-]{8,48}$/;
 const PER_ID_MS = 15000;      // one post per player every 15 s (a run takes minutes)
@@ -23,6 +25,8 @@ const SCHEMA = [
     kills INTEGER, time INTEGER, won INTEGER, build TEXT, at INTEGER NOT NULL, ip TEXT)`,
   'CREATE INDEX IF NOT EXISTS scores_by_score ON scores (score DESC)',
   'CREATE TABLE IF NOT EXISTS posts (key TEXT PRIMARY KEY, at INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS achievement_players (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS achievement_unlocks (player_id TEXT NOT NULL, achievement_id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (player_id, achievement_id))',
 ];
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
@@ -108,12 +112,46 @@ async function post(request, env) {
   return json({ posted: true });
 }
 
+async function achievementTop(db, me) {
+  const ranked = `SELECT p.id, p.name, COUNT(*) AS count, MAX(u.at) AS at
+    FROM achievement_players p JOIN achievement_unlocks u ON u.player_id = p.id GROUP BY p.id, p.name`;
+  const [list, mine] = await db.batch([
+    db.prepare(`${ranked} ORDER BY count DESC, at ASC, p.id ASC LIMIT 5`),
+    db.prepare(`SELECT * FROM (${ranked}) WHERE id = ?`).bind(ID.test(me || '') ? me : ''),
+  ]);
+  return { top: list.results.map(r => ({ ...r, id: r.id === me ? r.id : undefined })), mine: mine.results[0] || null };
+}
+
+async function postAchievements(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ posted: false, why: 'bad' }, 400); }
+  const allowed = new Set(ACHIEVEMENTS.map(a => a.id));
+  if (!ID.test(b?.id || '') || !Array.isArray(b.achievements) || !b.achievements.length || b.achievements.length > allowed.size
+    || b.achievements.some(id => typeof id !== 'string' || !allowed.has(id))) return json({ posted: false, why: 'bad' }, 400);
+  const ids = [...new Set(b.achievements)], now = Date.now(), db = env.DB;
+  const ip = await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
+  const keys = ['achievements:id:' + b.id, 'achievements:ip:' + ip];
+  const recent = await db.prepare('SELECT key, at FROM posts WHERE key IN (?, ?)').bind(...keys).all();
+  if (recent.results.some(r => now - r.at < (r.key === keys[0] ? PER_ID_MS : PER_IP_MS))) return json({ posted: false, why: 'slow' }, 429);
+  await db.batch([
+    db.prepare('INSERT INTO achievement_players (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name').bind(b.id, cleanName(b.name)),
+    ...ids.map(id => db.prepare('INSERT OR IGNORE INTO achievement_unlocks (player_id, achievement_id, at) VALUES (?, ?, ?)').bind(b.id, id, now)),
+    db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
+  ]);
+  return json({ posted: true, ...(await achievementTop(db, b.id)) });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname !== '/api/scores') return env.ASSETS.fetch(request);
+    if (!['/api/scores', '/api/achievements'].includes(url.pathname)) return env.ASSETS.fetch(request);
     try {
       await setUp(env.DB);
+      if (url.pathname === '/api/achievements') {
+        if (request.method === 'GET') return json(await achievementTop(env.DB, url.searchParams.get('me')));
+        if (request.method === 'POST') return await postAchievements(request, env);
+        return json({ error: 'method' }, 405);
+      }
       if (request.method === 'GET') return json(await top(env.DB, url.searchParams.get('me')));
       if (request.method === 'POST') return await post(request, env);
       return json({ error: 'method' }, 405);
