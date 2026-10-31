@@ -34,7 +34,7 @@ import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
-import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements, challengeProgress } from './achievements.js';
+import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements } from './achievements.js';
 import { balanceChanges } from './balance-editor.js';
 import { loadLayout } from './layout.js';
 
@@ -1477,7 +1477,7 @@ export class Run {
   showAchievements(back) {
     this.endView = 'achievements';
     const earned = earnedAchievements();
-    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id], progress: challengeProgress(this.challenges, a.id) })), back,
+    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id] })), back,
       () => this.showAchievementBoard(() => this.showAchievements(back)));
   }
 

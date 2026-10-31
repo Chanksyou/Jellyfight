@@ -2,7 +2,6 @@
 export const ACHIEVEMENTS_KEY = 'jellyrun.achievements';
 const defense = s => (s.cards.health || 0) + (s.cards.regen || 0) + (s.cards.dodge || 0);
 const offense = s => (s.cards.bubbleDamage || 0) + (s.cards.fireRate || 0);
-const elites = s => Object.values(s.elites).reduce((n, list) => n + list.length, 0);
 const allRooms = (s, key, count) => [1, 2, 3].every(act => (s[key][act] || []).length === count);
 
 export const ACHIEVEMENTS = [
@@ -44,22 +43,4 @@ export function awardAchievements(state, won, dev) {
   try { localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(earned)); } catch {}
   state.awarded = true;
   return fresh;
-}
-
-export function challengeProgress(s, id) {
-  const label = ACHIEVEMENTS.find(a => a.id === id);
-  if (!s.eligible) return 'Start a new run to track this challenge';
-  if (id === 'make-your-own-luck') return `${Math.min(8, s.cards.luck || 0)}/8 Luck cards`;
-  if (id === 'built-to-last') return `${Math.min(11, defense(s))}/11 defensive cards`;
-  if (id === 'glass-cannon') return defense(s) ? 'Not eligible this run: defensive card chosen' : `${Math.min(10, offense(s))}/10 offensive cards`;
-  if (id === 'perfect-boss' || id === 'perfect-pair') { const n = id === 'perfect-boss' ? 1 : 2; return `${Math.min(n, s.perfect.length)}/${n} flawless bosses`; }
-  if (id === 'full-clearance') return `${elites(s)}/9 household Elites`;
-  if (id === 'everything-must-go') return [1, 2, 3].map(act => `Act ${act}: ${(s.scheduled[act] || []).length}/4`).join(' · ');
-  if (id === 'pack-light') return s.treasures > 6 ? 'Not eligible this run: more than six treasures' : `${s.treasures}/6 treasures`;
-  if (id === 'floor-dweller' && s.eliteKills) return 'Not eligible this run: household Elite defeated';
-  if (id === 'perfect-run' && s.hurt) return 'Not eligible this run: Health lost';
-  if (id === 'one-of-everything' && s.duplicate) return 'Not eligible this run: duplicate treasure';
-  if (id === 'trust-the-hand' && s.rerolls) return 'Not eligible this run: reroll used';
-  if (id === 'early-retirement' && !s.early && s.bosses.includes(1)) return 'Not eligible this run: Act 1 deadline missed';
-  return label.test(s) ? 'Requirement met so far · finish the run to earn it' : 'In progress · finish the run to earn it';
 }
