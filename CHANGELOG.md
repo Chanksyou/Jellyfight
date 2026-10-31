@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v354 adds an Achievements section to the main menu, pause menu and run summary with 13 challenges earned only by winning all four acts. Tracks selected cards, original scheduled treasures, treasure repeats, Elite defeats, rerolls and Health loss across acts; earned achievements stay in this browser. Its Top 5 players submenu lets players share their earned achievements under their leaderboard name, ranks unique achievements across winning runs, and shows their own shared total. Repeat submissions cannot add duplicate points or erase earlier achievements. Dev-assisted runs and older saves without challenge history cannot unlock achievements.
+
 v353 gives Dodge level-ups diminishing returns: each pick closes the same share of the gap to the 60% cap (Common +10% at 0 Dodge, about +5% at 30%), so a Dodge pick always adds something, and the card stops being offered once treasures alone reach 60%.
 
 v352 makes Immortal Jelly keep Health regen until its first polyp revive; regen stops for the rest of the run after that.
