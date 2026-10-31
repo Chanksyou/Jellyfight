@@ -357,7 +357,7 @@ story('progression/disabled-cards-never-offered', {
     stub(CONTENT.levelups.cards.range, 'weight', 0);
     try {
       const cards = rollCards({ bubbles: 1 }, 99, 0, 0).map((c) => c.stat);
-      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 7 && !cards.includes('bubbles') && !cards.includes('bubbleSize') && !cards.includes('range'), { cards });
+      return ok(CONTENT.levelups.cards.bubbles.weight === 0 && cards.length === 8 && !cards.includes('bubbles') && !cards.includes('bubbleSize') && !cards.includes('range'), { cards });
     } finally { restore(); }
   },
 });

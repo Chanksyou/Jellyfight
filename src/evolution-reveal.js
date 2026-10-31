@@ -41,11 +41,12 @@ export class EvolutionReveal {
     this.saved = { position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone(), view: this.camera.view ? { ...this.camera.view } : null, focus: R.gfx.focus };
     R.adorn.update(0, R);
     this.newPieces = R.mods.adorn.filter(k => !before.adorn.includes(k)).map(k => R.adorn.piece(k));
-    if (R.mods.energyShield && !before.energyShield) R.energyShield.update(0);
+    const shieldNew = !R.shield.group.visible;
+    R.shield.update(0);
     this.capture();
     this.growing = this.newPieces.map(p => this.pairs.find(([source]) => source === p.group)?.[1]).filter(Boolean);
     if (R.mods.polyps && !before.polyps) this.growing.push(this.pairs.find(([source]) => source === R.adorn.piece('polyps').group)[1]);
-    if (R.mods.energyShield && !before.energyShield) this.growing.push(this.pairs.find(([source]) => source === R.energyShield.group)[1]);
+    if (shieldNew && R.shield.group.visible) this.growing.push(this.pairs.find(([source]) => source === R.shield.group)[1]);
     if (R.mods.decoy && !before.decoy) {
       R.mirage.prepare();
       this.ghost = new THREE.Group(); this.ghost.add(this.copy(R.mirage.avatar.root)); this.portrait.add(this.ghost);

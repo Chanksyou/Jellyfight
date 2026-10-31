@@ -51,7 +51,7 @@ export function observe() {
     }
     return result;
   });
-  patch(undo, run.energyShield, 'absorb', old => (amount, ...args) => {
+  patch(undo, run.shield, 'absorb', old => (amount, ...args) => {
     const left = old(amount, ...args), blocked = amount - left;
     data.shieldAbsorbed += Math.max(0, blocked);
     // absorb is reached only after dodge/i-frames/polyp checks. Count damage before a revival restores Health.
@@ -107,7 +107,7 @@ export function installBuild(tokens) {
     else while (run.owned.count(id) < +n) run.owned.add(id);
   }
   run.health = run.S.health;
-  run.energyShield.update(0);
+  run.shield.update(0);
 }
 
 export function comparisons(base, add = [], synergy = []) {

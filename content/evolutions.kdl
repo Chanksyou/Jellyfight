@@ -26,8 +26,9 @@ evolution "mirage" name="Mirage Jelly" icon="👻" text="Every 8 seconds of move
     adorn "mirage-rim"
 }
 
-evolution "aegis" name="Aegis Jelly" icon="🛡️" text="An energy shield absorbs 5 damage. When depleted, it explodes for 15 damage within 20 cm, then returns after 5 seconds. Excess damage passes through to Health." {
-    energy-shield 5 dmg=15 radius=0.2 recharge=5
+evolution "aegis" name="Aegis Jelly" icon="🛡️" text="+5 Shield. When your Shield breaks, it bursts for 15 damage within 20 cm." {
+    stat shield 5
+    shield-burst dmg=15 radius=0.2 flat=#true
 }
 
 evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 35% slower." {

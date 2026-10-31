@@ -18,6 +18,9 @@ _Avoid_: Dew, experience points
 Health the jelly gets back each second on its own.
 _Avoid_: Moisture regen
 
+**Shield**:
+A pool on top of Health that takes damage first, shown as its own bar at the end of the Health bar. After 5 s without damage it refills to full in 2 s.
+
 **Level**:
 The jelly's rank within a run; each new Level offers a choice of cards that raise its stats.
 

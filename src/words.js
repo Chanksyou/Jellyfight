@@ -694,7 +694,7 @@ export function newMods() {
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
-    energyShield: null,              // energy-shield: a damage pool that bursts on depletion, then recharges
+    shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false },   // the Shield stat's treasures (src/shield.js)
     rebound: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
@@ -798,7 +798,7 @@ export const WHILE_WHEN = ['airborne', 'low-health', 'rooted'];
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', shield: 'shield', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -857,14 +857,17 @@ export const TREASURE_WORDS = {
       return m => { m.fireTrail = { ...p }; };
     },
   },
-  'energy-shield': {
-    doc: 'Absorbs `capacity` damage before Health (overflow passes through). On depletion, explodes within `radius` m for a flat `dmg`, then fully recharges after `recharge` seconds. Partial shields do not refill.',
-    args: ['capacity'], props: { dmg: 10, recharge: 8, radius: 0.2 },
-    make: ([capacity], p) => {
-      if (!(capacity > 0 && p.dmg >= 0 && p.recharge > 0 && p.radius > 0)) throw new Error('energy-shield: capacity, recharge and radius must be positive; dmg must be nonnegative');
-      return (m) => { m.energyShield = { capacity, ...p }; };
+  'shield-recharge': { doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. Copies add.', props: { faster: 0, sooner: 0 }, make: (_, p) => (m) => { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } },
+  'shield-full-damage': { doc: 'While your Shield is full, everything you do hurts `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.shield.fullDamage += n / 100; } },
+  'shield-burst': {
+    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Bubble damage (a flat `dmg` with flat=#true). Copies add their damage into one blast; different blasts each go off.',
+    props: { dmg: 2, radius: 0.3, flat: false },
+    make: (_, p) => {
+      if (!(p.dmg > 0 && p.radius > 0)) throw new Error('shield-burst: dmg and radius must be positive');
+      return (m) => { const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat); if (same) same.dmg += p.dmg; else m.shield.bursts.push({ ...p }); };
     },
   },
+  'health-to-shield': { doc: 'Your max Health stays at 1: the rest of it, now and whatever you gain later, is Shield instead. Health and Health regen cards are no longer offered.', make: () => (m) => { m.shield.fromHealth = true; } },
   'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else). `revived=#true`: only once rebirth has saved you this run.', props: { revived: false }, make: (_, p) => (m) => { m.noRegen = m.noRegen === true || !p.revived ? true : 'revived'; } },
   'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
   adorn: { doc: 'Adds an evolution look (src/adornments.js): venom-tips thickens and brightens existing tentacles; sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
@@ -876,7 +879,7 @@ export const TREASURE_WORDS = {
   'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed or tentacle-damage. `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed or tentacle-damage. `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {

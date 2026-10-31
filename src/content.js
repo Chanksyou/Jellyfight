@@ -11,7 +11,7 @@
 //   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
-import { ENEMY_WORDS, TREASURE_WORDS, makeWord, newMods } from './words.js';
+import { ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
 export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, nodes: null };
 
@@ -73,6 +73,11 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 //   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
 const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
 const STACK_DEFAULT = 3, STACK_MAX = 5;
+const needsStat = (name, where, id) => {
+  if (name === undefined) return null;
+  if (!STAT_NAMES[name]) throw new Error(`${where}: "${id}" needs-stat= must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+  return STAT_NAMES[name];
+};
 export function compileTreasures(nodes, file = 'content/treasures.kdl') {
   const out = [], seen = new Set();
   for (const n of nodes) {
@@ -107,6 +112,7 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     if (vocabulary.includes('element') && rarity !== 'legendary') throw new Error(`${where}: "${id}" is an element, so it's rarity="legendary"`);
     out.push({
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
+      needsStat: needsStat(n.props['needs-stat'], where, id),   // offered only once that stat is above 0 (shield treasures: you have a Shield bar)
       id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : unique ? 1 : n.props.stack ?? STACK_DEFAULT, rarity,
       effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
       vocabulary,
@@ -190,7 +196,7 @@ export function compileElites(nodes, file = 'content/elites.kdl') {
 // xp base= growth=, rarities common= rare= epic=, card "stat" common= rare= epic= weight=:
 // what a level-up offers. How an amount applies (percent of base, per second, points) stays
 // with the stat in stats.js; this file is only the numbers.
-const CARD_STATS = ['bubbles', 'range', 'bubbleDamage', 'fireRate', 'health', 'moveSpeed', 'regen', 'dodge', 'luck', 'bubbleSize'];
+const CARD_STATS = ['bubbles', 'range', 'bubbleDamage', 'fireRate', 'health', 'shield', 'moveSpeed', 'regen', 'dodge', 'luck', 'bubbleSize'];
 export function compileLevelups(nodes, file = 'content/levelups.kdl') {
   const out = { xp: null, rarities: null, cards: {} };
   for (const n of nodes) {
@@ -237,7 +243,7 @@ export function compileMods(ids, evolved = []) {
 // Notes which treasure (or evolution) each timer it adds belongs to, so the HUD can show that
 // treasure's countdown (Run.cooldowns) and the pause menu its growth (treasure-bag.js): what it adds
 // to the timed, when-hit, squeak, growth and per lists, and the one-off effects it sets. Only for showing: the systems still read the combined effects.
-const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth', 'energyShield', 'decoy'];
+const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth', 'decoy'];
 function owned(m, id, apply) {
   const lists = [m.timed, m.onHurt, m.squeaks, m.growth, m.per], at = lists.map((l) => l.length), had = SINGLES.map((k) => m[k]);
   apply();

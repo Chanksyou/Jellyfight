@@ -79,9 +79,9 @@ story('achievements/health-loss-includes-drain-but-not-shields', {
   setup() { fresh({ elites: false, hurt: true }); },
   play() {
     const { run } = G(); run.phase = 'boss';
-    stub(run.energyShield, 'absorb', () => 0); run.hurt(5, true);
+    stub(run.shield, 'absorb', () => 0); run.hurt(5, true);
     const shielded = !run.challenges.hurt && !run.bossHurt;
-    stub(run.energyShield, 'absorb', n => n); run.hurt(0.1, true); run.heal(5);
+    stub(run.shield, 'absorb', n => n); run.hurt(0.1, true); run.heal(5);
     run.bossWon = true; run.finishChallengeBoss(); run.finishChallengeBoss();
     return ok(shielded && run.challenges.hurt && run.bossHurt && run.challenges.perfect.length === 0 && run.challenges.bosses.length === 1, { shielded, state: run.challenges });
   },
