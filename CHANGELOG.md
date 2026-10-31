@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v357 drops the progress lines (counts like 3/8 and "In progress" notes) under unearned achievements, since each one is earned within a single run.
+
 v356 adds the Shield: a bar after the Health bar that takes damage first and refills to full in 2 s after 5 s without damage, a Shield level-up card (+3/+4/+5), and five shield treasures offered once you have some (Crank Flashlight, Egg Timer, Oven Mitt, Bubble Wrap, Pot Lid). Aegis Jelly now gives +5 Shield and keeps its 15-damage burst.
 
 v355 makes the tentacle sting easier to see: the striking tentacle swells and burns white-hot, a cyan glow follows it out and streaks behind its tip, it lands on top of the bug instead of inside it, and a cyan crescent cracks across the bug where it hits. Damage, reach and timing are unchanged.
