@@ -358,7 +358,7 @@ export class UI {
   // rows: [[label, value]], buttons: [{ label, go, enter?, onClick }] (Enter presses the `enter` one, else the `go` one)
   // cls: a class for this dialog (the leaderboard's 'jf-board' lays its rows out big)
   // A value with a <span class="jf-count" data-n> in it counts up (tally)
-  achievements(items, onBack) {
+  achievements(items, onBack, onTop = null) {
     this._gen++;
     const count = items.filter(a => a.earned).length;
     this.modal.innerHTML = `<section class="jf-book jf-achievements" aria-label="Achievements">
@@ -367,11 +367,15 @@ export class UI {
       <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
         <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
         <small>${a.earned ? 'Earned · ' + esc(new Date(a.earned).toLocaleDateString()) : esc(a.progress)}</small></article>`).join('')}</div>
-      <div class="btns"><button class="go">Back</button></div></section>`;
+      <div class="btns">${onTop ? '<button data-top>🏆 Top 5 players</button>' : ''}<button class="go">Back</button></div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
-    this.modal.onclick = e => { if (e.target.closest('button')) back(); };
-    this.keyHandler = e => { if (['Escape', 'Enter'].includes(e.code)) { e.preventDefault(); back(); } };
+    this.modal.onclick = e => {
+      const button = e.target.closest('button');
+      if (button?.hasAttribute('data-top')) { this.close(); onTop(); }
+      else if (button) back();
+    };
+    this.keyHandler = e => { if (e.code === 'Escape') { e.preventDefault(); back(); } };   // Enter activates the focused button natively
     this.modal.querySelector('button').focus({ preventScroll: true });
   }
 

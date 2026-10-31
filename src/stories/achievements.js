@@ -1,6 +1,7 @@
 import { ACHIEVEMENTS, ACHIEVEMENTS_KEY, newChallenges, awardAchievements, earnedAchievements } from '../achievements.js';
 import { TREASURES } from '../stats.js';
 import { applyBalance } from '../balance-editor.js';
+import { Leaderboard } from '../leaderboard.js';
 import { G, fresh, ok, story, phone, act4, stub, V } from './kit.js';
 
 const passes = (id, s) => ACHIEVEMENTS.find(a => a.id === id).test(s);
@@ -187,12 +188,82 @@ const panel = {
     const box = menus.modal.querySelector('.jf-achievements'), rect = box.getBoundingClientRect();
     const shown = box.querySelectorAll('article').length === 13 && /four-boss win/.test(box.textContent);
     const fits = rect.left >= 0 && rect.right <= innerWidth + 1 && rect.height <= innerHeight;
-    box.querySelector('button').click();
+    box.querySelector('button.go').click();
     return ok(shown && fits && back && !menus.open, { shown, fits, back, width: rect.width, height: rect.height });
   },
 };
 story('achievements/section', panel);
 phone('achievements-section', panel);
+
+story('achievements/top-five-submenu-and-shared-ranks', {
+  about: 'The submenu shows five players with shared ranks for equal achievement totals, the own total, and returns to achievements.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, menus } = G();
+    stub(run, 'board', { id: 'player-one', achievementBoard: async () => ({ top: [
+      { name: '<First>', count: 9 }, { name: 'Second', count: 9 }, { name: 'Third', count: 7 }, { name: 'Fourth', count: 5 }, { id: 'player-one', name: 'Me', count: 4 },
+    ], mine: { count: 4 } }) });
+    run.showAchievements(() => {});
+    const key = new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }); menus.keyHandler(key);
+    const keyboard = !key.defaultPrevented && !!menus.modal.querySelector('[data-top]');
+    menus.modal.querySelector('[data-top]').click();
+    await Promise.resolve(); await Promise.resolve();
+    const text = menus.modal.textContent, ranks = [...menus.modal.querySelectorAll('.jf-rank')].map(n => n.textContent);
+    const good = /Achievement Top 5/.test(text) && /Your shared total/.test(text) && /<First>/.test(text) && !menus.modal.querySelector('First') && ranks.join() === '1.,1.,3.,4.,5.';
+    menus.modal.querySelector('button.go').click();
+    return ok(good && keyboard && !!menus.modal.querySelector('.jf-achievements'), { ranks, text, keyboard });
+  },
+});
+
+story('achievements/late-ranking-response-never-reopens-submenu', {
+  about: 'A pending response cannot replace the achievements section after the player goes Back.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, menus } = G(); let resolve;
+    stub(run, 'board', { achievementBoard: () => new Promise(r => { resolve = r; }) });
+    run.showAchievements(() => {}); menus.modal.querySelector('[data-top]').click();
+    menus.modal.querySelector('button.go').click();
+    resolve({ top: [], mine: null }); await Promise.resolve(); await Promise.resolve();
+    return ok(!!menus.modal.querySelector('.jf-achievements'));
+  },
+});
+
+story('achievements/sharing-is-independent-of-score', {
+  about: 'Players with earned achievements can share without a qualifying score, using their existing identity and unique earned IDs.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const before = localStorage.getItem(ACHIEVEMENTS_KEY), name = localStorage.getItem('jellyrun.name');
+    try {
+      localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify({ 'perfect-boss': '2026-10-30', 'pack-light': '2026-10-30', fake: true }));
+      const { run, menus } = G(); let sent;
+      stub(run, 'board', { achievementBoard: async entry => { sent = entry; return { top: [], mine: null }; } });
+      await run.showAchievementBoard(() => {});
+      menus.modal.querySelector('input').value = 'Beta Jelly';
+      menus.keyHandler(new KeyboardEvent('keydown', { code: 'Enter' }));
+      await Promise.resolve(); await Promise.resolve();
+      return ok(sent?.name === 'Beta Jelly' && sent.achievements.join() === 'perfect-boss,pack-light', { sent });
+    } finally {
+      before == null ? localStorage.removeItem(ACHIEVEMENTS_KEY) : localStorage.setItem(ACHIEVEMENTS_KEY, before);
+      name == null ? localStorage.removeItem('jellyrun.name') : localStorage.setItem('jellyrun.name', name);
+    }
+  },
+});
+
+story('achievements/shared-client-handles-offline-and-rate-limit', {
+  about: 'The achievement API uses the existing player ID, remains independent of score eligibility, and reports rate limits or offline hosts.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const B = Object.create(Leaderboard.prototype); B.id = 'player-one'; B.ready = Promise.resolve();
+    let payload;
+    stub(window, 'fetch', async (_url, options) => { payload = JSON.parse(options.body); return new Response(JSON.stringify({ top: [], posted: true }), { headers: { 'content-type': 'application/json' } }); });
+    const result = await B.achievementBoard({ name: 'Jelly', achievements: ['perfect-boss'] });
+    stub(window, 'fetch', async () => new Response(JSON.stringify({ why: 'slow' }), { status: 429 }));
+    const slow = await B.achievementBoard({ achievements: ['perfect-boss'] });
+    stub(window, 'fetch', async () => { throw new Error('offline'); });
+    const offline = await B.achievementBoard();
+    return ok(result.posted && payload.id === B.id && slow.error === 'slow' && offline.error === 'offline');
+  },
+});
 
 act4('achievements/final-win-awards-and-remembers', {
   about: 'The real final-victory path awards challenges only after all four bosses and does not award them twice.',

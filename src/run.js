@@ -1471,7 +1471,37 @@ export class Run {
   showAchievements(back) {
     this.endView = 'achievements';
     const earned = earnedAchievements();
-    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id], progress: challengeProgress(this.challenges, a.id) })), back);
+    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id], progress: challengeProgress(this.challenges, a.id) })), back,
+      () => this.showAchievementBoard(() => this.showAchievements(back)));
+  }
+
+  async showAchievementBoard(back, entry = null) {
+    this.endView = 'achievement-board';
+    const request = this.achievementRequest = (this.achievementRequest || 0) + 1;
+    const backButton = { label: 'Back to achievements', go: true, onClick: () => { this.endView = 'achievements'; back(); } };
+    this.ui.message('🏆 Achievement Top 5', entry ? 'Sharing your achievements…' : 'Loading players…', [], [backButton], 'jf-book jf-board');
+    const data = await this.board?.achievementBoard?.(entry) || { error: 'offline' };
+    if (this.endView !== 'achievement-board' || this.achievementRequest !== request) return;
+    const earned = earnedAchievements(), ids = ACHIEVEMENTS.filter(a => earned[a.id]).map(a => a.id), rows = [];
+    let rank = 0;
+    for (const [i, player] of (data.top || []).slice(0, 5).entries()) {
+      if (!i || player.count !== data.top[i - 1].count) rank = i + 1;
+      rows.push([`<i class="jf-rank">${rank}.</i><span class="jf-who">${esc(player.name || 'Guest')}${player.id === this.board?.id ? ' <small>(you)</small>' : ''}</span>`, `${player.count}/${ACHIEVEMENTS.length}`]);
+    }
+    const buttons = [];
+    if (data.error) buttons.push({ label: 'Retry', onClick: () => this.showAchievementBoard(back) });
+    if (data.mine) rows.push(['Your shared total', `${data.mine.count}/${ACHIEVEMENTS.length}`]);
+    if (!data.error && ids.length) {
+      rows.push(['Player name', `<input name="achievementPlayer" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(savedName())}">`]);
+      buttons.push({ label: 'Share my achievements', enter: true, onClick: values => {
+        const name = (values.achievementPlayer || '').trim().slice(0, 20) || 'Guest';
+        saveName(name); this.showAchievementBoard(back, { name, achievements: ids });
+      } });
+    }
+    buttons.push(backButton);
+    const note = data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
+      : `${entry ? 'Achievements shared. ' : ''}${data.top.length ? 'Most unique achievements earned across winning runs. Equal totals share a rank.' : 'No players yet. Earn an achievement and share it to enter.'}`;
+    this.ui.message('🏆 Achievement Top 5', note, rows, buttons, 'jf-book jf-board');
   }
 
   showBoard(back) {

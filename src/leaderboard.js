@@ -138,6 +138,20 @@ export class Leaderboard {
   }
 
   // Would `score` make the top 10 (and beat your own best on it)? The end screen only offers to post it then
+  async achievementBoard(entry = null) {
+    await this.ready;
+    // The artifact's database only has the score board; the shared achievement board is on the game's own site.
+    if (this.db || !this.id) return { error: 'offline' };
+    try {
+      const r = await fetch(entry ? 'api/achievements' : `api/achievements?me=${encodeURIComponent(this.id)}`, entry
+        ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) }
+        : { cache: 'no-store' });
+      const data = await r.json();
+      if (!r.ok || !Array.isArray(data.top)) return { error: data.why === 'slow' ? 'slow' : 'offline' };
+      return data;
+    } catch { return { error: 'offline' }; }
+  }
+
   qualifies(score) {
     if (this.mine && this.mine.score >= score) return false;
     const rows = this.shown().filter((r) => r.id !== this.id);
