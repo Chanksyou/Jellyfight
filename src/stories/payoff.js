@@ -145,7 +145,7 @@ story('payoff/death-hint-acts-1-and-2', {
 });
 
 story('payoff/death-screen-dried-jelly', {
-  about: 'Behind the death screen your own jelly lies dried out on cracked land, alone: it keels over onto its side, sags flat and fades to a dull husk with its glow gone, the hud steps aside, and a new run puts the world, the camera and the hud back.',
+  about: 'Behind the death screen your own jelly lies dried out on cracked land, alone: it slumps into a flat puddle with its tentacles splayed out across the mud, and fades to a dull husk with its glow gone, the hud steps aside, and a new run puts the world, the camera and the hud back.',
   setup() { fresh({ elites: false }); },
   play() {
     const { run } = G(), camera = run.tpc.camera, scene = run.scene;
@@ -154,7 +154,8 @@ story('payoff/death-screen-dried-jelly', {
     D.begin();
     step(120);
     const J = D.jelly, alone = camera.layers.mask === 1 << 30 && J.parent === scene;
-    const flat = J.scale.x < 0.6 && Math.abs(J.rotation.z) > 1.2, veiled = document.body.classList.contains('dried-out') && run.hud.el.hidden;
+    const rig = run.player.avatar.tentacles, splayed = D.splat.children.length === rig.list.length && rig.list.every((T) => !D.body.getObjectByProperty('geometry', T.mesh.geometry)?.visible);
+    const flat = D.body.scale.y < 0.5 && splayed, veiled = document.body.classList.contains('dried-out') && run.hud.el.hidden;
     const glowing = D.mats.filter((m) => m.userData.from.emissive?.getHex());
     const dull = glowing.every((m) => m.emissive.getHex() !== m.userData.from.emissive.getHex());
     const own = D.mats.every((m) => !run.player.mesh.getObjectByProperty('material', m));   // the real jelly keeps its look

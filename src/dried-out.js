@@ -1,6 +1,7 @@
 // Behind the death screen: the player's own jelly (a copy of it and what it wears, like the win
 // screen's) lying dried out on cracked dry land under a dusty sun, the title screen's look gone dry.
-// It sags flat and fades to a dull husk over its first moment, then holds still until a new run starts.
+// It slumps into a flat puddle with its tentacles splayed out across the mud, and fades to a dull
+// husk over its first moment, then holds still until a new run starts.
 import * as THREE from 'three';
 import { UnderwaterBackdrop } from './main-menu.js';
 import { LOOK } from './look.js';
@@ -20,6 +21,10 @@ export class DriedOut {
   // the jelly (and what it wears) copied onto the land, alone, with materials of its own to dry out
   copy(source) {
     const clone = source.clone(true);
+    // the tentacles move by rewriting geometry shared with the real ones: hide them, the splat draws its own
+    const live = [], copied = [], hide = new Set((this.run.player.avatar?.tentacles?.list || []).flatMap((T) => [T.mesh, T.tip]));
+    source.traverse((o) => live.push(o)); clone.traverse((o) => copied.push(o));
+    live.forEach((o, i) => { if (hide.has(o)) copied[i].visible = false; });
     clone.traverse((o) => {
       o.layers.set(30);
       if (o.isSprite) o.visible = false;   // its halo: the glow is gone
@@ -46,11 +51,34 @@ export class DriedOut {
     this.husk.set(LOOK.color('death-husk', '#d8b98c'));
     this.jelly = new THREE.Group();
     this.body = this.copy(R.player.mesh);
-    this.body.rotation.set(0, 0, 0);
+    this.body.position.set(0, 0, 0); this.body.rotation.set(0, 0, 0);   // (the real one stands where the jelly is)
     this.jelly.add(this.body);
+    this.jelly.add(this.splat = this.splayed());
     R.scene.add(this.jelly);
     document.body.classList.add('dried-out');   // a lighter veil over the land (look.css)
     this.frame(0);
+  }
+
+  // the hunting tentacles laid out flat on the mud from under the rim, each in its own lazy wave
+  splayed() {
+    const A = this.run.player.avatar, rig = A?.tentacles, group = new THREE.Group();
+    if (!rig) return group;
+    const unit = this.h * (A.look?.size || 1), spread = 1 + LOOK.num('death-jelly-spread', 0.35);
+    rig.list.forEach((T, i) => {
+      const mat = T.mat.clone(); mat.emissiveIntensity = T.baseGlow;   // (as it rests, not mid-strike)
+      mat.userData.from = { color: T.mat.color.clone(), emissive: T.baseEmissive.clone(), opacity: T.mat.opacity };
+      this.mats.push(mat);
+      const a = T.angle, r0 = Math.hypot(T.anchor.x, T.anchor.z) * unit * spread * 0.9, L = rig.length * unit * 0.8, w = rig.thick * unit * 1.2;
+      const pts = Array.from({ length: 9 }, (_, k) => {
+        const s = k / 8, b = a + Math.sin(s * 5 + i * 2.3) * 0.28 * s + (i % 2 ? 0.2 : -0.2) * s * s;   // curling as it goes
+        const r = r0 + s * L;
+        return new THREE.Vector3(Math.sin(b) * r, w, Math.cos(b) * r);
+      });
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, w, 5), mat);
+      tube.layers.set(30);
+      group.add(tube);
+    });
+    return group;
   }
 
   update(dt) {
@@ -63,12 +91,12 @@ export class DriedOut {
   frame(dt) {
     const h = this.h, P = this.at, J = this.jelly;
     const u = this.reduced ? 1 : ease(Math.min(1, this.t / LOOK.num('death-dry-time', 1.6)));
-    // it keels over onto its side, still facing you, and sags flat (its middle is the pivot, on the ground)
-    const flat = LOOK.num('death-jelly-flat', 0.45);
-    this.body.position.set(0, -h * 0.5, 0);
-    J.scale.set(1 - (1 - flat) * u, 1 - 0.1 * u, 1);
-    J.rotation.set(0, LOOK.num('death-jelly-yaw', 0.3) * u, 1.45 * u);
-    J.position.copy(P); J.position.y += h * (0.5 - 0.36 * u);
+    // it slumps into a flat puddle, and its tentacles spread out across the mud around it
+    const flat = LOOK.num('death-jelly-flat', 0.35), spread = LOOK.num('death-jelly-spread', 0.35);
+    this.body.scale.set(1 + spread * u, 1 - (1 - flat) * u, 1 + spread * u);
+    this.splat.scale.set(0.3 + 0.7 * u, 1, 0.3 + 0.7 * u);
+    J.rotation.y = LOOK.num('death-jelly-yaw', 0.3);
+    J.position.copy(P);
     // and dries: its colours fade to a dull husk, its glow goes out
     const fade = LOOK.num('death-husk-mix', 0.75) * u, dim = 1 - 0.9 * u;
     for (const m of this.mats) {
@@ -77,10 +105,10 @@ export class DriedOut {
       if (f.emissive) m.emissive.copy(f.emissive).multiplyScalar(dim);
       m.opacity = f.opacity * (1 - 0.15 * u);
     }
-    // the camera looks down on it from a step away; it lies low on the screen, off to the side on a wide one
+    // the camera looks down on it from above, a step away; it lies low on the screen, off to the side on a wide one
     const w = innerWidth, ht = innerHeight, wide = w > ht, d = h * LOOK.num('death-camera-distance', 2.6);
-    this.camera.position.set(P.x, P.y + h * 1.1, P.z + d);
-    this.camera.lookAt(P.x, P.y + h * 0.1, P.z);
+    this.camera.position.set(P.x, P.y + d * 0.7, P.z + d);
+    this.camera.lookAt(P.x, P.y, P.z);
     // (a phone on its side: the end screen fills its height, so it lies in the margin past the words)
     const short = ht < 500 ? '-short' : '';
     const x = wide ? LOOK.num(`death-jelly-x${short}`, 0.8) : 0.5, y = LOOK.num(`death-jelly-y${short}`, 0.9);
@@ -99,8 +127,9 @@ export class DriedOut {
       document.body.classList.remove('dried-out');
     }
     if (this.jelly) this.run.scene.remove(this.jelly);
+    this.splat?.children.forEach((m) => m.geometry.dispose());
     for (const m of this.mats || []) m.dispose();
-    this.jelly = this.body = null; this.mats = null;
+    this.jelly = this.body = this.splat = null; this.mats = null;
     this.active = false;
   }
 }

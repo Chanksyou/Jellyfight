@@ -413,14 +413,15 @@
   --death-land-horizon: 0.5;      /* where the land meets the sky (0 bottom, 1 top) */
   --death-husk: #d8b98c;          /* what the jelly's colours fade to as it dries */
   --death-husk-mix: 0.75;
-  --death-dry-time: 1.6;          /* s it takes to keel over and dry */
-  --death-jelly-flat: 0.45;       /* its thickness once dried, of what it was */
-  --death-jelly-yaw: 0.3;         /* turned a little away as it lies */
-  --death-jelly-x: 0.8;           /* where it lies on a wide screen (0-1 across, 0-1 down); centred on a tall one */
-  --death-jelly-y: 0.9;
+  --death-dry-time: 1.6;          /* s it takes to slump, splay out and dry */
+  --death-jelly-flat: 0.35;       /* its height once dried, of what it was */
+  --death-jelly-spread: 0.35;     /* how much wider its bell spreads as it slumps */
+  --death-jelly-yaw: 0.3;         /* turned a little as it lies */
+  --death-jelly-x: 0.85;          /* where it lies on a wide screen (0-1 across, 0-1 down); centred on a tall one */
+  --death-jelly-y: 0.83;
   --death-jelly-x-short: 0.92;    /* the same on a screen under 500 px tall (a phone on its side) */
-  --death-jelly-y-short: 0.76;
-  --death-camera-distance: 2.3;   /* jelly heights */
+  --death-jelly-y-short: 0.7;
+  --death-camera-distance: 3.2;   /* jelly heights */
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
   --encore-shield-opacity: 0.9;
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */
