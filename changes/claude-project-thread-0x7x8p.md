@@ -1,1 +1,0 @@
-adds a beta bubble to the corner of the death and win screens: "Jelly Run is still in beta! Tap to bloop us your thoughts" opens a box to type feedback, which the game site keeps with the run's build, act, score and device. The game site also keeps a private log of every act played (outcome, score, level, treasures, what took your Health), never shown in the game.

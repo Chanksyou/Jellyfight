@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v361 adds a beta bubble to the corner of the death and win screens: "Jelly Run is still in beta! Tap to bloop us your thoughts" opens a box to type feedback, which the game site keeps with the run's build, act, score and device. The game site also keeps a private log of every act played (outcome, score, level, treasures, what took your Health), never shown in the game.
+
 v360 gives the death screen its own backdrop: your jelly lies dried out on cracked mud under a dusty sun, slumped flat with its tentacles splayed across the ground, faded to a dull husk, the title screen's look gone dry.
 
 v359 shows one random hint for new players in its own bubble on the death screen of acts 1 and 2.
