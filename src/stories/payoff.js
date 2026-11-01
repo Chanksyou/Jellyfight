@@ -3,6 +3,7 @@
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { DEATH_HINTS } from '../first-run.js';
 import { juice } from '../juice.js';
+import { bus, PLAYER } from '../events.js';
 import { G, V, fresh, ok, phone, step, story, stub } from './kit.js';
 
 const modal = () => document.querySelector('.jf-modal');
@@ -156,7 +157,7 @@ story('payoff/beta-feedback-bubble', {
     const tick = () => new Promise((r) => setTimeout(r, 0));
     const end = (phase) => { run.phase = phase; run.endRun(phase === 'dead' ? 'You dried out' : 'You won', '', 'Try again'); };
     end('won');
-    const onWin = bubble()?.textContent.includes('The game is still in beta - please submit feedback');
+    const onWin = bubble()?.textContent.includes('Jelly Run is still in beta');
     menus.close();
     end('dead');
     const onDeath = !!bubble(), corner = bubble() && getComputedStyle(bubble()).position === 'fixed';
@@ -165,7 +166,7 @@ story('payoff/beta-feedback-bubble', {
     box.value = 'The Mug fight felt great';
     [...modal().querySelectorAll('button')].find((b) => b.textContent.includes('Send')).click();
     await tick(); await tick();
-    const thanks = modal().querySelector('h2').textContent.includes('Thank you');
+    const thanks = modal().querySelector('h2').textContent.includes('Message received');
     [...modal().querySelectorAll('button')].find((b) => b.textContent === 'Back').click();
     const backToEnd = modal().querySelector('h2').textContent === 'You dried out' && !!bubble();
     menus.close();
@@ -176,6 +177,30 @@ story('payoff/beta-feedback-bubble', {
     const note = sent[0] || {};
     return ok(onWin && onDeath && corner && thanks && backToEnd && offSite && sent.length === 1 && note.text === 'The Mug fight felt great' && note.act === run.stage.id && ['phone', 'desktop'].includes(note.device),
       { onWin, onDeath, corner, thanks, backToEnd, offSite, sent });
+  },
+});
+
+story('payoff/run-log-saves-each-act', {
+  about: 'Each act that ends (a death, a win, or moving on to the next act) sends one row to the owner\'s run log on the game site, with the Health each source took, the treasures held and the same run id across acts; nothing is shown in the game and a dev run sends nothing.',
+  setup() { fresh({ elites: false, hurt: true }); },
+  play() {
+    const { run, menus } = G(), rows = [];
+    stub(run, 'jellyFace', null);
+    stub(run.board, 'web', true);
+    stub(run.board, 'saveRun', (row) => rows.push(row));
+    stub(run.board, 'post', async () => ({ posted: false, why: 'error' }));
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'story', drain: true });   // a drain: no dodge, no i-frames
+    run.phase = 'dead';
+    run.endRun('You dried out', '', 'Try again');
+    menus.close();
+    const [r] = rows;
+    const died = rows.length === 1 && r.outcome === 'died' && r.act === run.stage.id && r.run === run.logId && r.lost.story > 0 && Array.isArray(r.treasures) && 'bossLeft' in r;
+    const carried = run.carryOver().logId === run.logId;
+    stub(run, 'dev', true);
+    run.endRun('You dried out', '', 'Try again');
+    menus.close();
+    const devSilent = rows.length === 1;
+    return ok(died && carried && devSilent, { rows, carried, devSilent });
   },
 });
 
