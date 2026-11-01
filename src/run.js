@@ -28,7 +28,7 @@ import { BossSet } from './boss-set.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
-import { FirstRun, markPlayed } from './first-run.js';
+import { FirstRun, markPlayed, deathHint } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
@@ -1349,6 +1349,8 @@ export class Run {
       ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
       ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
+    // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
+    const hint = dead && this.stage.id <= 2 ? deathHint() : '';
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit)
     const show = (result) => {
@@ -1383,7 +1385,7 @@ export class Run {
       if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
-      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons);
+      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, '', hint);
     };
     show(null);
     // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)

@@ -22,6 +22,21 @@ import { BEST_KEY } from './leaderboard.js';
 export const PLAYED_KEY = 'jellyrun.played';
 const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
+// Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
+export const DEATH_HINTS = [
+  'You attack on your own. Keep swimming and let bugs come into range instead of standing still.',
+  'Grab XP droplets as you go. An early Level makes the rest of the act easier.',
+  'Your first Element is your second attack for the whole run. Pick treasures that fit it.',
+  'Every 3rd treasure pick offers an Element upgrade. It is usually worth taking.',
+  'Every beaten Elite drops a treasure, and those are rarer than the ones in the room.',
+  'You get one reroll per act. Save it for a Level-up where no card helps.',
+  'Watch the Warnings. Step out of the shape before it fills, or jump over a low Blast.',
+  'Shield refills after 5 s without damage, Health does not. Back off for a moment instead of trading hits.',
+  'Each Dodge card gives less the more Dodge you have, up to 60%. After a few, take Health or Shield.',
+  'Mosquito bites Bleed 1 Health a second for 3 s, and each bite stacks. Kill them first.',
+];
+export const deathHint = () => DEATH_HINTS[Math.floor(Math.random() * DEATH_HINTS.length)];
+
 export function isNewPlayer() {
   try { return !localStorage.getItem(PLAYED_KEY) && !localStorage.getItem(BEST_KEY); } catch { return false; }
 }
