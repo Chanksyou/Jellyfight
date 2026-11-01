@@ -38,7 +38,7 @@ const request = async (path, body) => {
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
-beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores'));
+beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs'));
 after(() => sqlite.close());
 
 test('achievement board unions unique earned IDs without shrinking earlier totals', async () => {
@@ -99,4 +99,40 @@ test('counts come from grants rather than a supplied count, and ties have stable
   const { data } = await request('/api/achievements');
   assert.deepEqual(data.top.map(r => r.count), [1, 1]);
   assert.deepEqual(data.top.map(r => r.name), ['player-one', 'A jelly']);
+});
+
+test('beta feedback is kept as plain text with its run, rate limited, and never readable over the API', async () => {
+  const send = (body) => request('/api/feedback', { id: 'player-one', build: 'v361', act: 2, won: false, score: 1234, device: 'phone', ...body });
+  assert.equal((await send({ text: '  The Mug is too hard\nloved the jelly \u0007 ' })).data.sent, true);
+  const row = sqlite.prepare('SELECT * FROM feedback').get();
+  assert.equal(row.text, 'The Mug is too hard\nloved the jelly');
+  assert.deepEqual([row.player_id, row.build, row.act, row.won, row.score, row.device], ['player-one', 'v361', 2, 0, 1234, 'phone']);
+  assert.equal((await send({ text: 'again' })).status, 429);
+  clearRates();
+  assert.equal((await send({ text: 'x'.repeat(5000) })).data.sent, true);
+  assert.equal(sqlite.prepare('SELECT MAX(LENGTH(text)) AS n FROM feedback').get().n, 1000);
+  clearRates();
+  assert.equal((await send({ text: '   ' })).status, 400);
+  assert.equal((await request('/api/feedback', { id: 'bad', text: 'hi' })).status, 400);
+  assert.equal((await request('/api/feedback')).status, 405);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM feedback').get().n, 2);
+});
+
+test('the run log keeps one row per act with its lists as clean JSON, rate limited, and never readable over the API', async () => {
+  const save = (body) => request('/api/runs', { id: 'player-one', run: 'run-abcdefgh', build: 'v361', act: 1, outcome: 'next-act', score: 4200, time: 540,
+    level: 12, kills: 300, body: 'nettle', treasures: [['candle', 2], ['<x>', 1], 'junk'], evolutions: ['siphon'], lost: { roach: 12.345, boss: 'x', '': 3 }, bossLeft: null, device: 'phone', ...body });
+  assert.equal((await save({})).data.saved, true);
+  const row = sqlite.prepare('SELECT * FROM runs').get();
+  assert.deepEqual([row.player_id, row.run_id, row.act, row.outcome, row.score, row.level, row.kills, row.boss_left, row.device], ['player-one', 'run-abcdefgh', 1, 'next-act', 4200, 12, 300, null, 'phone']);
+  assert.deepEqual(JSON.parse(row.treasures), [['candle', 2], ['x', 1]]);
+  assert.deepEqual(JSON.parse(row.evolutions), ['siphon']);
+  assert.deepEqual(JSON.parse(row.health_lost), { roach: 12.3 });
+  assert.equal((await save({ act: 2, outcome: 'died' })).status, 429);
+  clearRates();
+  assert.equal((await save({ act: 2, outcome: 'died', bossLeft: 37 })).data.saved, true);
+  clearRates();
+  assert.equal((await save({ outcome: 'cheated' })).status, 400);
+  assert.equal((await save({ run: 'x' })).status, 400);
+  assert.equal((await request('/api/runs')).status, 405);
+  assert.deepEqual(sqlite.prepare('SELECT act, outcome, boss_left FROM runs ORDER BY at, act').all().map(r => ({ ...r })), [{ act: 1, outcome: 'next-act', boss_left: null }, { act: 2, outcome: 'died', boss_left: 37 }]);
 });

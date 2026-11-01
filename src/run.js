@@ -129,11 +129,13 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
+      this.hurtBy = source || 'other';       // hurt() notes the Health it takes against this (the run log)
       if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
       else this.hit(amount, from, contact, knock, at); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
+      this.hurtBy = null;
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength }) => {
@@ -278,6 +280,8 @@ export class Run {
     this.grown = {}; this.growCount = {}; this.growTotal = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
+    this.lost = {};                   // Health lost this act, by what took it (recordRun)
+    this.logId = this.carry?.logId || (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).toLowerCase();   // one run across its acts, in the run log
     this.newFinds = [];               // first-ever finds this run, for the end screen (collection.js)
     this.pearls = 0;                  // Pearls this run has earned (cosmetics.js), already in the bank
     this.awardsBefore = this.dev ? [] : unlockedAwards();   // golden awards held when the run began: the end screen names the new ones
@@ -748,6 +752,8 @@ export class Run {
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
     this.health -= amount;
+    const by = this.hurtBy || 'other';
+    this.lost[by] = (this.lost[by] || 0) + amount;   // Health taken by each source this act (recordRun)
     if (amount > 0) this.challenges.hurt = true;
     if (amount > 0 && this.phase === 'boss') this.bossHurt = true;
     const hint = amount > 0 && this.firstRun.hintOnHit();   // a first run's one line about Health (first-run.js)
@@ -1333,6 +1339,7 @@ export class Run {
   // (parts: also list what the score is made of, as the winning end does)
   endRun(title, sub, again, { parts = false } = {}) {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
+    this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
     const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
@@ -1355,9 +1362,11 @@ export class Run {
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
     const hint = dead && this.stage.id <= 2 ? deathHint() : '';
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
-    // result: what came of a Submit (null until you submit)
+    // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
+    let last = null;
     const show = (result) => {
       this.endView = 'summary';
+      last = result;
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
@@ -1381,13 +1390,15 @@ export class Run {
           typed = (v.player || '').trim().slice(0, 20);
           saveName(typed);
           show({ posted: false, why: 'sending' });
-          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = r; if (this.endView === 'summary') show(r); });
+          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = last = r; if (this.endView === 'summary') show(r); });
         } });
       }
       if (!dead) buttons.push(tryAgain);
       if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
+      // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
+      if (B?.web) buttons.push({ label: '🪼 Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, '', hint);
     };
     show(null);
@@ -1395,6 +1406,42 @@ export class Run {
     const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);
     this.ui.award(earned.map((a) => ({ name: a.name, need: say(needText(requirement(a.key, a.id))), wear: () => this.onWear?.(a.key, a.id),
       face: this.jellyFace?.({ ...(this.playerLook?.() || {}), [a.key]: a.id }) })));
+  }
+
+  // The beta feedback box (the end screens' bubble): what the player types goes to the Worker's
+  // feedback table with this run's build, act, score and device; back() returns to the end screen
+  showFeedback(back, entry, note = '', text = '') {
+    this.endView = 'feedback';
+    const title = '🪼 Bloop us a message';
+    const send = { label: '📨 Send', go: true, onClick: (v) => {
+      const typed = (v.feedback || '').trim();
+      if (!typed) { this.showFeedback(back, entry, 'Type something first.'); return; }
+      this.ui.message(title, 'Sending…', [], [{ label: 'Back', onClick: back }]);
+      const device = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop';
+      this.board.feedback({ text: typed, build: entry.build, act: this.stage.id, won: entry.won, score: entry.score, device }).then((r) => {
+        if (this.endView !== 'feedback') return;
+        if (r.sent) this.ui.message('🫧 Message received!', 'Your note just floated up to us. Thanks for helping the jelly grow!', [], [{ label: 'Back', go: true, onClick: back }]);
+        else this.showFeedback(back, entry, r.why === 'slow' ? 'Please wait a moment before sending more.' : 'Couldn\'t send it. Check your connection and try again.', typed);
+      });
+    } };
+    this.ui.message(title, `${note ? `<b>${note}</b><br>` : ''}Loved a fight? Got stung by a bug? Tell the jelly everything.
+      <textarea name="feedback" class="jf-feedback" maxlength="1000" rows="5" placeholder="Type your thoughts here…">${esc(text)}</textarea>`, [], [send, { label: 'Back', onClick: back }]);
+  }
+
+  // Each act's end goes to the owner's run log (the Worker's runs table, read in Cloudflare's D1
+  // console; leaderboard.js saveRun), never shown in the game. outcome: died, won, ended or next-act.
+  // A dev run sends nothing.
+  recordRun(outcome) {
+    if (this.dev || !this.board?.web) return;
+    const B = this.boss, round = (n) => Math.round(n * 10) / 10;
+    this.board.saveRun({
+      run: this.logId, build: (typeof window !== 'undefined' && window.JF_BUILD) || '', act: this.stage.id, outcome,
+      score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
+      treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
+      lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
+      bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
+      device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
+    });
   }
 
   // How near a death came to beating the act: the boss's time still to come, or its Health left
@@ -1417,7 +1464,7 @@ export class Run {
       score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, newFinds: this.newFinds,
-      pearls: this.pearls, awardsBefore: this.awardsBefore, challenges: JSON.parse(JSON.stringify(this.challenges)),
+      pearls: this.pearls, awardsBefore: this.awardsBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),
     };
   }
 
@@ -1463,7 +1510,7 @@ export class Run {
     const carry = this.carryOver(), score = carry.score;
     this.ui.message(`Act ${this.stage.id} complete`, `Next: ${next.subtitle}. Your progress carries over.`,
       [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.summary()],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
 
   // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not

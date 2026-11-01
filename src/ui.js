@@ -119,6 +119,16 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-score { font-size: 1.5em; color: #ffd23a; }
 .jf-name { font: 600 15px system-ui, sans-serif; width: 11em; max-width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; text-align: right; }
 .jf-name::placeholder { color: #ffffff80; }
+/* the end screens' beta bubble (a corner button), and the feedback box it opens (run.showFeedback) */
+.jf-modal .jf-beta { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 1; max-width: min(250px, 44vw);
+  font: 600 13px/1.3 system-ui, sans-serif; text-align: left; color: #fff; cursor: pointer; padding: 9px 13px; border-radius: 16px 16px 16px 4px;
+  background: #3a2a5ce6; border: 2px solid #c7a6ff99; box-shadow: 0 6px 18px #0007; }
+@media (max-height: 500px) { .jf-modal .jf-beta { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); max-width: 160px; font-size: 11.5px; padding: 7px 10px; } }
+.jf-modal .jf-beta:hover, .jf-modal .jf-beta:focus-visible { border-color: #e2d0ff; outline: none; }
+.jf-feedback { display: block; box-sizing: border-box; width: min(460px, calc(100vw - 32px)); margin: 12px auto 0; padding: 10px 12px; resize: vertical;
+  font: 15px/1.4 system-ui, sans-serif; border-radius: 10px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; }
+.jf-feedback::placeholder { color: #ffffff80; }
+.jf-feedback:focus { outline: 2px solid #ffd23a; outline-offset: 1px; }
 .jf-name:focus { outline: 2px solid #ffd23a; outline-offset: 1px; }
 .jf-pop { position: fixed; left: 50%; top: 16%; transform: translateX(-50%); z-index: 25; background: #1d2034ee; border: 2px solid #ffd23a; border-radius: 16px;
   padding: 12px 18px; display: flex; gap: 12px; align-items: center; color: #fff; font-family: system-ui, sans-serif; box-shadow: 0 8px 28px #0009;
@@ -382,12 +392,14 @@ export class UI {
     this.modal.querySelector('button').focus({ preventScroll: true });
   }
 
+  // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)
   message(title, sub, rows, buttons, cls = '', hint = '') {
     this._gen++;
     this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}
       ${hint ? `<p class="jf-hint"><span aria-hidden="true">💡</span> ${esc(hint)}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
-      <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`).join('')}</div></div>`;
+      <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`)).join('')}</div>
+      ${buttons.map((b, i) => (b.corner ? `<button data-i="${i}" class="jf-beta">${b.label}</button>` : '')).join('')}</div>`;
     this.modal.hidden = false;
     this.tally(this.modal.firstElementChild);
     this.modal.onclick = (e) => {
@@ -398,8 +410,8 @@ export class UI {
       this.close();
       btn.onClick(vals);
     };
-    this.keyHandler = (e) => { if (e.code === 'Enter') { const btn = buttons.find((b) => b.enter) || buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
-    if (!matchMedia('(pointer: coarse)').matches) this.modal.querySelector('input')?.focus({ preventScroll: true });   // not on phones: it would pop the keyboard up
+    this.keyHandler = (e) => { if (e.code === 'Enter' && e.target?.tagName !== 'TEXTAREA') { const btn = buttons.find((b) => b.enter) || buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
+    if (!matchMedia('(pointer: coarse)').matches) this.modal.querySelector('input, textarea')?.focus({ preventScroll: true });   // not on phones: it would pop the keyboard up
   }
 
   // Golden awards earned (run.endRun), each revealed in turn over the end screen before its tally:
@@ -448,7 +460,7 @@ export class UI {
   }
 
   // what's typed into the dialog's named inputs: { name: value }
-  values() { return Object.fromEntries([...this.modal.querySelectorAll('input[name]')].map((i) => [i.name, i.value])); }
+  values() { return Object.fromEntries([...this.modal.querySelectorAll('input[name], textarea[name]')].map((i) => [i.name, i.value])); }
 
   treasure(t, count = 1) {
     const amount = t.levels?.length > 1 ? `Level ${count}` : t.stack > 1 ? `×${count}` : '';

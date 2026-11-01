@@ -336,6 +336,9 @@ Its address is <https://jellyrun.org> (a custom domain on that Worker).
 The Worker's old address, `jelly-fight.nycjfc.workers.dev`, sends players to jellyrun.org with their saves in the link (`src/rename.js`), since a browser keeps saves per address.
 The Worker serves the game's files from Cloudflare's CDN and answers `api/scores` (`worker/index.js`) from a D1 database called `jelly-fight-scores`, so anyone can post a score: signed in or not, any organization.
 On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
+The death and win screens' beta bubble posts what a player types to `api/feedback`, kept in the same database's `feedback` table (only on the game's own site; there is no way to read it over the API).
+To read it, open Cloudflare's dashboard, Storage & Databases, D1, `jelly-fight-scores`, Console, and run `SELECT datetime(at / 1000, 'unixepoch') AS sent, text, build, act, won, score, device FROM feedback ORDER BY at DESC LIMIT 100;` (or the same query with `npx wrangler d1 execute jelly-fight-scores --remote --command "…"`).
+Every act played on the game's own site also goes to a private run log, the `runs` table (one row per act: `run_id` ties a run's acts together, `outcome` is died, won, ended or next-act, with score, time, level, kills, treasures, evolutions, the Health each source took, the boss's Health left and the device; `src/run.js` `recordRun`, dev runs excluded), never shown in the game and read the same way, e.g. `SELECT datetime(at / 1000, 'unixepoch') AS played, act, outcome, score, level, treasures, health_lost FROM runs ORDER BY at DESC LIMIT 100;`.
 
 - **Deploys:** Cloudflare Workers Builds, connected to this GitHub repo (`Chanksyou/Jellyfight`; the Cloudflare GitHub app needs access to it).
   Don't use the dashboard's "Import a repository": it makes a separate copy that never gets updates.
