@@ -21,6 +21,9 @@ const CSS = `
 @keyframes jfIn { from { opacity: 0; } }
 .jf-modal h2 { margin: 0; font-size: 34px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0009; }
 .jf-modal .sub { margin: 6px 0 22px; opacity: .85; font-size: 15px; }
+.jf-hint { position: relative; max-width: min(420px, calc(100vw - 32px)); margin: -8px auto 18px; padding: 10px 14px; border-radius: 16px; text-align: left; font-size: 14px; line-height: 1.35;
+  background: #1b3a52e6; border: 2px solid #7fd8ff88; box-shadow: 0 6px 18px #0007; }
+.jf-hint::before { content: ''; position: absolute; top: -9px; left: 26px; border: 8px solid transparent; border-top: 0; border-bottom-color: #7fd8ff88; }
 .jf-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
 .jf-card { width: 200px; min-height: 190px; border-radius: 18px; background: color-mix(in srgb, var(--c) var(--wash, 0%), #1d2034); border: 3px solid var(--c); cursor: pointer; font: inherit; color: inherit;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 14px; position: relative;
@@ -379,9 +382,10 @@ export class UI {
     this.modal.querySelector('button').focus({ preventScroll: true });
   }
 
-  message(title, sub, rows, buttons, cls = '') {
+  message(title, sub, rows, buttons, cls = '', hint = '') {
     this._gen++;
     this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}
+      ${hint ? `<p class="jf-hint"><span aria-hidden="true">💡</span> ${esc(hint)}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`).join('')}</div></div>`;
     this.modal.hidden = false;

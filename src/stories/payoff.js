@@ -1,6 +1,7 @@
 // The moments the game hands you something: a level-up's ding and cards, an end screen's tally,
 // a golden award's reveal, a boss cleared (ui.js, hud.js, run.js).
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
+import { DEATH_HINTS } from '../first-run.js';
 import { juice } from '../juice.js';
 import { G, V, fresh, ok, phone, step, story, stub } from './kit.js';
 
@@ -120,5 +121,25 @@ phone('no-thumb-controls-over-the-ending', {
     step(2);
     const back = !touch().hidden;
     return ok(before && hidden && back, { before, hidden, back });
+  },
+});
+
+story('payoff/death-hint-acts-1-and-2', {
+  about: 'Dying in act 1 or 2 shows one hint for new players in its own bubble, picked from the list; a win or a death in act 3 shows none.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    stub(run, 'board', null); stub(run, 'jellyFace', null);
+    const end = (act, phase) => {
+      stub(run, 'stage', { ...run.stage, id: act });
+      run.phase = phase;
+      run.endRun('You dried out', 'dead', 'Try again');
+      const hints = [...modal().querySelectorAll('.jf-hint')].map((h) => h.textContent.replace('💡', '').trim());
+      menus.close();
+      return hints;
+    };
+    const act1 = end(1, 'dead'), act2 = end(2, 'dead'), act3 = end(3, 'dead'), won = end(1, 'won');
+    const known = [...act1, ...act2].every((h) => DEATH_HINTS.includes(h));
+    return ok(act1.length === 1 && act2.length === 1 && known && !act3.length && !won.length, { act1, act2, act3, won });
   },
 });
