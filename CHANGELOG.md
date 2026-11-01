@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v360 gives the death screen its own backdrop: your jelly lies dried out on cracked mud under a dusty sun, slumped flat with its tentacles splayed across the ground, faded to a dull husk, the title screen's look gone dry.
+
 v359 shows one random hint for new players in its own bubble on the death screen of acts 1 and 2.
 
 v358 adds an "Install app" button to the title screen where the browser can install Jelly Run (Chrome, Edge); it opens the install prompt and goes away once installed. Android's install popup now shows a description and screenshots.
