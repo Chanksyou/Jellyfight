@@ -1355,9 +1355,11 @@ export class Run {
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
     const hint = dead && this.stage.id <= 2 ? deathHint() : '';
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
-    // result: what came of a Submit (null until you submit)
+    // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
+    let last = null;
     const show = (result) => {
       this.endView = 'summary';
+      last = result;
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
         : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
@@ -1381,13 +1383,15 @@ export class Run {
           typed = (v.player || '').trim().slice(0, 20);
           saveName(typed);
           show({ posted: false, why: 'sending' });
-          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = r; if (this.endView === 'summary') show(r); });
+          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = last = r; if (this.endView === 'summary') show(r); });
         } });
       }
       if (!dead) buttons.push(tryAgain);
       if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
       buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => show(result)) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
+      // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
+      if (B?.web) buttons.push({ label: '🧪 The game is still in beta - please submit feedback', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, '', hint);
     };
     show(null);
@@ -1395,6 +1399,26 @@ export class Run {
     const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);
     this.ui.award(earned.map((a) => ({ name: a.name, need: say(needText(requirement(a.key, a.id))), wear: () => this.onWear?.(a.key, a.id),
       face: this.jellyFace?.({ ...(this.playerLook?.() || {}), [a.key]: a.id }) })));
+  }
+
+  // The beta feedback box (the end screens' bubble): what the player types goes to the Worker's
+  // feedback table with this run's build, act, score and device; back() returns to the end screen
+  showFeedback(back, entry, note = '', text = '') {
+    this.endView = 'feedback';
+    const title = '💬 Feedback';
+    const send = { label: '📨 Send', go: true, onClick: (v) => {
+      const typed = (v.feedback || '').trim();
+      if (!typed) { this.showFeedback(back, entry, 'Type something first.'); return; }
+      this.ui.message(title, 'Sending…', [], [{ label: 'Back', onClick: back }]);
+      const device = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop';
+      this.board.feedback({ text: typed, build: entry.build, act: this.stage.id, won: entry.won, score: entry.score, device }).then((r) => {
+        if (this.endView !== 'feedback') return;
+        if (r.sent) this.ui.message('💬 Thank you!', 'Your feedback was sent. It really helps while the game is in beta.', [], [{ label: 'Back', go: true, onClick: back }]);
+        else this.showFeedback(back, entry, r.why === 'slow' ? 'Please wait a moment before sending more.' : 'Couldn\'t send it. Check your connection and try again.', typed);
+      });
+    } };
+    this.ui.message(title, `${note ? `<b>${note}</b><br>` : ''}What did you enjoy, what broke, what would you change?
+      <textarea name="feedback" class="jf-feedback" maxlength="1000" rows="5" placeholder="Your feedback">${esc(text)}</textarea>`, [], [send, { label: 'Back', onClick: back }]);
   }
 
   // How near a death came to beating the act: the boss's time still to come, or its Health left

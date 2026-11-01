@@ -144,6 +144,41 @@ story('payoff/death-hint-acts-1-and-2', {
   },
 });
 
+story('payoff/beta-feedback-bubble', {
+  about: 'The death and win screens carry a beta bubble in the corner; it opens a box where the player types feedback, Send hands the text with the run (build, act, score, device) to the game site, a thank-you follows, and Back returns to the end screen. Without the game site there is no bubble.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, menus } = G(), sent = [];
+    stub(run, 'jellyFace', null);
+    stub(run.board, 'web', true);
+    stub(run.board, 'feedback', async (note) => { sent.push(note); return { sent: true }; });
+    const bubble = () => modal().querySelector('.jf-beta');
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    const end = (phase) => { run.phase = phase; run.endRun(phase === 'dead' ? 'You dried out' : 'You won', '', 'Try again'); };
+    end('won');
+    const onWin = bubble()?.textContent.includes('The game is still in beta - please submit feedback');
+    menus.close();
+    end('dead');
+    const onDeath = !!bubble(), corner = bubble() && getComputedStyle(bubble()).position === 'fixed';
+    bubble().click();
+    const box = modal().querySelector('textarea.jf-feedback');
+    box.value = 'The Mug fight felt great';
+    [...modal().querySelectorAll('button')].find((b) => b.textContent.includes('Send')).click();
+    await tick(); await tick();
+    const thanks = modal().querySelector('h2').textContent.includes('Thank you');
+    [...modal().querySelectorAll('button')].find((b) => b.textContent === 'Back').click();
+    const backToEnd = modal().querySelector('h2').textContent === 'You dried out' && !!bubble();
+    menus.close();
+    stub(run.board, 'web', false);
+    end('dead');
+    const offSite = !bubble();
+    menus.close();
+    const note = sent[0] || {};
+    return ok(onWin && onDeath && corner && thanks && backToEnd && offSite && sent.length === 1 && note.text === 'The Mug fight felt great' && note.act === run.stage.id && ['phone', 'desktop'].includes(note.device),
+      { onWin, onDeath, corner, thanks, backToEnd, offSite, sent });
+  },
+});
+
 story('payoff/death-screen-dried-jelly', {
   about: 'Behind the death screen your own jelly lies dried out on cracked land, alone: it slumps into a flat puddle with its tentacles splayed out across the mud, and fades to a dull husk with its glow gone, the hud steps aside, and a new run puts the world, the camera and the hud back.',
   setup() { fresh({ elites: false }); },

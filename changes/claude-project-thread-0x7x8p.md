@@ -1,0 +1,1 @@
+adds a beta bubble to the corner of the death and win screens: "The game is still in beta - please submit feedback" opens a box to type feedback, which the game site keeps with the run's build, act, score and device.
