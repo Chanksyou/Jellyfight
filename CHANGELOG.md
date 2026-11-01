@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v359 shows one random hint for new players in its own bubble on the death screen of acts 1 and 2.
+
 v358 adds an "Install app" button to the title screen where the browser can install Jelly Run (Chrome, Edge); it opens the install prompt and goes away once installed. Android's install popup now shows a description and screenshots.
 
 v357 drops the progress lines (counts like 3/8 and "In progress" notes) under unearned achievements, since each one is earned within a single run.
