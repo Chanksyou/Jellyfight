@@ -4,8 +4,10 @@ import { LOOK } from './look.js';
 import { isNewPlayer } from './first-run.js';
 
 // One unlit screen quad: drifting light and caustics, with no textures or new lights.
+// (look: the look.css prefix of its colours; one with a --<look>-cracks above 0 is dry land instead,
+// a cracked floor under the light: the death screen's, dried-out.js)
 export class UnderwaterBackdrop {
-  constructor(scene, camera) {
+  constructor(scene, camera, look = 'menu-water') {
     this.scene = scene;
     this.camera = camera;
     this.layers = new Map();
@@ -14,17 +16,20 @@ export class UnderwaterBackdrop {
       depthTest: false, depthWrite: false,
       uniforms: {
         time: { value: 0 }, aspect: { value: 1 },
-        deep: { value: new THREE.Color(LOOK.color('menu-water-deep', '#06162e')) },
-        shallow: { value: new THREE.Color(LOOK.color('menu-water-shallow', '#175c70')) },
-        glow: { value: new THREE.Color(LOOK.color('menu-water-glow', '#70ddc7')) },
-        rayStrength: { value: LOOK.num('menu-water-rays', 0.12) },
-        shimmer: { value: LOOK.num('menu-water-shimmer', 0.16) },
+        deep: { value: new THREE.Color(LOOK.color(`${look}-deep`, '#06162e')) },
+        shallow: { value: new THREE.Color(LOOK.color(`${look}-shallow`, '#175c70')) },
+        glow: { value: new THREE.Color(LOOK.color(`${look}-glow`, '#70ddc7')) },
+        ground: { value: new THREE.Color(LOOK.color(`${look}-ground`, '#000000')) },
+        rayStrength: { value: LOOK.num(`${look}-rays`, 0.12) },
+        shimmer: { value: LOOK.num(`${look}-shimmer`, 0.16) },
+        cracks: { value: LOOK.num(`${look}-cracks`, 0) },
+        horizon: { value: LOOK.num(`${look}-horizon`, 0.45) },
       },
       vertexShader: `varying vec2 uvWater;
         void main() { uvWater = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
       fragmentShader: `varying vec2 uvWater;
-        uniform float time, aspect, rayStrength, shimmer;
-        uniform vec3 deep, shallow, glow;
+        uniform float time, aspect, rayStrength, shimmer, cracks, horizon;
+        uniform vec3 deep, shallow, glow, ground;
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         void main() {
           vec2 uv = uvWater;
@@ -47,6 +52,25 @@ export class UnderwaterBackdrop {
           vec2 center = vec2(0.2 + seed * 0.6, 0.2 + hash(cell + 4.0) * 0.6);
           float mote = (1.0 - smoothstep(0.0, 0.032, length(local - center))) * step(0.92, seed);
           color += glow * mote * 0.3;
+          float below = horizon - uv.y;
+          if (cracks > 0.0 && below > 0.0) {
+            // dry land: a floor of cracked mud in perspective, darker and coarser nearer the camera
+            float depth = 1.0 / (below + 0.08);
+            vec2 g = vec2((uv.x - 0.5) * aspect * depth, depth) * 1.3;
+            vec2 c = floor(g), f = fract(g);
+            float d1 = 8.0, d2 = 8.0;
+            for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+              vec2 o = vec2(float(i), float(j));
+              vec2 r = o + vec2(hash(c + o), hash(c + o + 7.3)) * 0.8 + 0.1 - f;
+              float d = dot(r, r);
+              if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+            }
+            float crack = 1.0 - smoothstep(0.0, 0.05 + 0.02 / depth, sqrt(d2) - sqrt(d1));
+            vec3 land = mix(shallow, ground, smoothstep(0.0, horizon, below));
+            land += glow * light * 0.12;
+            land *= 1.0 - crack * cracks * smoothstep(0.0, 0.06, below);
+            color = mix(color, land, smoothstep(0.0, 0.012, below));
+          }
           color *= 0.76 + 0.24 * pow(max(0.0, 1.0 - length(uv - 0.5)), 0.5);
           gl_FragColor = vec4(color, 1.0);
           #include <tonemapping_fragment>

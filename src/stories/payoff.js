@@ -143,3 +143,23 @@ story('payoff/death-hint-acts-1-and-2', {
     return ok(act1.length === 1 && act2.length === 1 && known && !act3.length && !won.length, { act1, act2, act3, won });
   },
 });
+
+story('payoff/death-screen-dried-jelly', {
+  about: 'Behind the death screen your own jelly lies dried out on cracked land, alone: it keels over onto its side, sags flat and fades to a dull husk with its glow gone, the hud steps aside, and a new run puts the world, the camera and the hud back.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(), camera = run.tpc.camera, scene = run.scene;
+    const D = run.driedOut, mask = camera.layers.mask, hud = run.hud.el.hidden;
+    stub(juice, 'calm', false);
+    D.begin();
+    step(120);
+    const J = D.jelly, alone = camera.layers.mask === 1 << 30 && J.parent === scene;
+    const flat = J.scale.x < 0.6 && Math.abs(J.rotation.z) > 1.2, veiled = document.body.classList.contains('dried-out') && run.hud.el.hidden;
+    const glowing = D.mats.filter((m) => m.userData.from.emissive?.getHex());
+    const dull = glowing.every((m) => m.emissive.getHex() !== m.userData.from.emissive.getHex());
+    const own = D.mats.every((m) => !run.player.mesh.getObjectByProperty('material', m));   // the real jelly keeps its look
+    run.start();
+    const back = !D.active && !J.parent && camera.layers.mask === mask && run.hud.el.hidden === hud && !document.body.classList.contains('dried-out');
+    return ok(alone && flat && veiled && dull && own && back, { alone, flat, veiled, dull, glowing: glowing.length, own, back });
+  },
+});

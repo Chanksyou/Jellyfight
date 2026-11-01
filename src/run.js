@@ -19,6 +19,7 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
+import { DriedOut } from './dried-out.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
@@ -96,6 +97,7 @@ export class Run {
     this.fireTrail = new FireTrail(this);
     this.evolutionReveal = new EvolutionReveal(this);
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
+    this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
@@ -195,6 +197,7 @@ export class Run {
   start() {
     this.evolutionReveal.cancel();
     this.victory.cancel();
+    this.driedOut.cancel();
     const s = this.stage;
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
@@ -1301,7 +1304,7 @@ export class Run {
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
-    this.later(() => this.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'), 700);
+    this.later(() => { this.driedOut.begin(); this.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); }, 700);
   }
 
   // ------------------------------------------------------------ score
