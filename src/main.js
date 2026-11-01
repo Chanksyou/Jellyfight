@@ -678,6 +678,7 @@ const GAME = {
     mainMenu.update(dt, !overlay.hidden && state.mode === 'play', state.mode === 'creator');
     run.evolutionReveal.update(dt);   // the portrait animates while gameplay and menus hold the run still
     run.victory.update(dt);           // the ending: the jelly swimming home to the sea
+    run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
     systems.hud.update(dt);

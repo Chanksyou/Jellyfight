@@ -1,0 +1,1 @@
+gives the death screen its own backdrop: your jelly lies dried out on cracked mud under a dusty sun, slumped flat with its tentacles splayed across the ground, faded to a dull husk, the title screen's look gone dry.

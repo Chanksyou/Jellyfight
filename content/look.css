@@ -403,6 +403,25 @@
   --encore-defeat-calm-time: 1.5;
   --victory-bubble: #bff4ff;     /* the bubbles rising past the jelly as it swims home (victory.js) */
   --victory-continue-after: 1.6; /* s before Continue shows on the win screen */
+  --death-land-deep: #0e0909;     /* behind the death screen (dried-out.js): the dusty sky up top... */
+  --death-land-shallow: #553522;  /* ...the haze at the horizon, which is also the far land... */
+  --death-land-glow: #e9a25c;     /* ...the low sun, its beams and the dust in the air... */
+  --death-land-ground: #1f140e;   /* ...the cracked mud nearest the camera */
+  --death-land-rays: 0.1;
+  --death-land-shimmer: 0.05;     /* heat haze where the title screen has caustics */
+  --death-land-cracks: 0.75;      /* how dark the cracks in the mud are */
+  --death-land-horizon: 0.5;      /* where the land meets the sky (0 bottom, 1 top) */
+  --death-husk: #d8b98c;          /* what the jelly's colours fade to as it dries */
+  --death-husk-mix: 0.75;
+  --death-dry-time: 1.6;          /* s it takes to slump, splay out and dry */
+  --death-jelly-flat: 0.35;       /* its height once dried, of what it was */
+  --death-jelly-spread: 0.35;     /* how much wider its bell spreads as it slumps */
+  --death-jelly-yaw: 0.3;         /* turned a little as it lies */
+  --death-jelly-x: 0.85;          /* where it lies on a wide screen (0-1 across, 0-1 down); centred on a tall one */
+  --death-jelly-y: 0.83;
+  --death-jelly-x-short: 0.92;    /* the same on a screen under 500 px tall (a phone on its side) */
+  --death-jelly-y-short: 0.7;
+  --death-camera-distance: 3.2;   /* jelly heights */
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
   --encore-shield-opacity: 0.9;
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */
@@ -700,6 +719,8 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
 }
 
 /* Evolution portrait: the selected jelly stays clear between the heading and skip control. */
+/* the death screen: a lighter veil, darker behind the words, so the dried land shows round them */
+.dried-out .jf-modal { background: radial-gradient(ellipse 70% 75% at 50% 45%, rgba(18, 10, 6, .6), rgba(18, 10, 6, .15)); }
 .jf-modal.jf-evolution { background: transparent; display: flex; flex-direction: column; justify-content: space-between; padding: max(18px, env(safe-area-inset-top)) 20px max(18px, env(safe-area-inset-bottom)); box-sizing: border-box; }
 .jf-evolution-heading p { margin: 0 0 5px; text-transform: uppercase; letter-spacing: .2em; color: #a3f5d5; font-size: 12px; }
 .jf-evolution-footer { max-width: 620px; }
