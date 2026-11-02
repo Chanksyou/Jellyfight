@@ -168,7 +168,7 @@ async function firstRunReload(e) {
 async function touchControls(e) {
   const { page, errors } = await boot(e, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
   const cdp = await page.context().newCDPSession(page);
-  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i })) });
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id], i) => ({ x, y, id: id ?? i })) });
   const ev = (f, a) => page.evaluate(f, a);
   const step = (n) => ev((n) => { for (let i = 0; i < n; i++) GAME.step(1 / 60); return [player.position.x, player.position.z, player.velocity.y]; }, n);
   const out = {};
@@ -194,7 +194,40 @@ async function touchControls(e) {
   const c = await step(4);
   await touch('touchEnd', []);
   out.jumpVy = +c[2].toFixed(3);
-  const good = out.touchUi && out.startPick && out.picked && out.swam > 0.2 && out.jumpVy > 0.1 && !errors.length;
+  // Browser gestures must leave both the page scale and the follow distance alone, including
+  // beneath furniture (the reported trigger) and when both thumbs are on the screen.
+  await ev(async () => {
+    const { fresh, tp, step } = await import('/src/stories/kit.js');
+    fresh({ elites: false });
+    const cabinet = APT.root.getObjectByName('Media_console_6');
+    const box = new THREE.Box3().setFromObject(cabinet);
+    tp((box.min.x + box.max.x) / 2, 0.05, (box.min.z + box.max.z) / 2, 0);
+    step(30);
+  });
+  const view = () => ev(() => ({ scale: visualViewport.scale, width: visualViewport.width, distance: tpc.distance }));
+  const before = await view();
+  await cdp.send('Input.synthesizeTapGesture', { x: 600, y: 230, tapCount: 2, gestureSourceType: 'touch' });
+  // Keep the left thumb held while the right alternates Jump and misses beside it,
+  // in the gap below the map, and by the viewport edge. Pointer 0 stays down throughout.
+  await touch('touchStart', [[150, 280]]);
+  await touch('touchMove', [[150, 220]]);
+  for (const [x, y] of [[jb.x + jb.width / 2, jb.y + jb.height / 2], [jb.x - 8, jb.y + 20], [780, jb.y - 12], [838, 230]]) {
+    for (let i = 0; i < 2; i++) {
+      await touch('touchStart', [[150, 220], [x, y]]);
+      await step(2);
+      await touch('touchEnd', [[x, y, 1]]);   // release only the right thumb, not pointer 0
+    }
+  }
+  await touch('touchStart', [[150, 220], [600, 230]]);
+  await touch('touchMove', [[100, 220], [650, 230]]);
+  await step(5);
+  out.keptMoving = await ev(() => input.touchMove?.y > 0);
+  await touch('touchEnd', []);
+  await page.waitForTimeout(400);   // let any browser zoom animation finish before measuring
+  out.released = await ev(() => !input.touchMove && !input.touchJump);
+  const after = await view();
+  out.stableView = before.scale === 1 && after.scale === before.scale && after.width === before.width && after.distance === before.distance;
+  const good = out.touchUi && out.startPick && out.picked && out.swam > 0.2 && out.jumpVy > 0.1 && out.stableView && out.keptMoving && out.released && !errors.length;
   await page.close();
   return [result(good, 'mobile/touch-controls', null, { ...out, errors })];
 }
