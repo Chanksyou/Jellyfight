@@ -1,1 +1,0 @@
-records compact balancing summaries when an act starts, ends, or the player leaves the tab. Failed uploads retry from a bounded local queue; batched reports update one record per run and act without duplicating results or replacing a completed act with an older checkpoint. Historical run records remain available.
