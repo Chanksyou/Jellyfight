@@ -289,6 +289,8 @@ wireFeedback(fx, targetId => {
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
 const board = new Leaderboard();
 run.board = board;
+run.telemetryDisabled = new URLSearchParams(location.search).has('story') || new URLSearchParams(location.search).has('stories');
+addEventListener('online', () => { void board.runLog?.flush(); });
 // whenever the pause menu opens, it lists what you carry as it stands (treasure-bag.js)
 const bag = overlay.querySelector('.g-bag');
 new MutationObserver(() => { if (!overlay.hidden) bag.innerHTML = bagHtml(run); }).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
@@ -301,7 +303,7 @@ run.onMainMenu = () => {
   overlay.hidden = false;
 };
 run.playerBody = () => state.look.body;
-addEventListener('pagehide', () => run.flushFeats());   // a run left mid-way still counts the bugs it cleared (cosmetics.js)
+addEventListener('pagehide', () => { run.flushFeats(); run.recordRun('in-progress'); });
 run.playerLook = () => state.look;
 run.onWear = (key, id) => { applyLook({ ...state.look, [key]: id }); saveLook(state.look); };   // an award's reveal: Wear it now
 run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
@@ -1039,12 +1041,14 @@ const gpu = recoverGpu({ renderer, scene, camera, gfx, prepare: () => prepareGra
 // and leaving the game (another tab or app, the phone locked) pauses it, so nothing hits the jelly unseen
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    run.recordRun('in-progress');
     run.bubbles.silenceAttacks();
     if (run.phase !== 'dead' && run.phase !== 'won') pause();   // a finished run keeps its end screen
   }
   if (!document.hidden && renderer.getContext().isContextLost() && !gpu.lost) {
     renderer.domElement.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   }
+  if (!document.hidden) void board.runLog?.flush();
 });
 
 const clock = new Clock();

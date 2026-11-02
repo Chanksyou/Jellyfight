@@ -15,6 +15,36 @@ import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '.
 import { TYPES } from '../enemies.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
+story('engine/run-log', {
+  about: 'Actual play starts one act report, Health loss is summarized by source, hiding checkpoints without counting a death, completed outcomes survive hiding, and dev runs send nothing.',
+  setup: () => fresh({ hurt: true }),
+  play() {
+    const { run } = G(), rows = [];
+    stub(run, 'telemetryDisabled', false);
+    stub(run, 'board', { runLog: {}, saveRun: row => rows.push(row) });
+    run.recordRun('in-progress');
+    const noMenuRun = rows.length === 0;
+    step(0.02);
+    const startedOnce = rows.length === 1 && rows[0].outcome === 'started';
+    const id = run.logId;
+    run.hurtBy = 'roach'; run.hurt(2, true); run.hurtBy = null;
+    run.recordRun('in-progress');
+    const checkpoint = rows.at(-1).outcome === 'in-progress' && rows.at(-1).lost.roach === 2 && rows.at(-1).run === id;
+    const before = rows.length;
+    run.recordRun('in-progress');
+    const dedup = rows.length === before;
+    run.phase = 'dead'; run.recordRun('in-progress');
+    const died = rows.at(-1).outcome === 'died';
+    run.phase = 'explore'; run.recordRun('in-progress');
+    const stillFinal = rows.at(-1).outcome === 'died';
+    const count = rows.length;
+    run.devRun(); run.recordRun('ended');
+    const devSkipped = rows.length === count;
+    return ok(noMenuRun && startedOnce && checkpoint && dedup && died && stillFinal && devSkipped,
+      { noMenuRun, startedOnce, checkpoint, dedup, died, stillFinal, devSkipped });
+  },
+});
+
 // a stand-in for claude.ai's db and user capabilities, in memory (leaderboard stories)
 function fakeClaude({ id = 'u_me', canWrite = true, silent = false, told = true } = {}) {
   const docs = new Map(), subs = new Set();

@@ -281,6 +281,10 @@ export class Run {
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
+    this.logStarted = false;
+    this.logFinal = null;
+    this.logRevision = 0;
+    this.logSnapshot = null;
     this.logId = this.carry?.logId || (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).toLowerCase();   // one run across its acts, in the run log
     this.newFinds = [];               // first-ever finds this run, for the end screen (collection.js)
     this.pearls = 0;                  // Pearls this run has earned (cosmetics.js), already in the bank
@@ -397,6 +401,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
+    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun('started'); }
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
     this.frame++;
@@ -1428,20 +1433,31 @@ export class Run {
       <textarea name="feedback" class="jf-feedback" maxlength="1000" rows="5" placeholder="Type your thoughts here…">${esc(text)}</textarea>`, [], [send, { label: 'Back', onClick: back }]);
   }
 
-  // Each act's end goes to the owner's run log (the Worker's runs table, read in Cloudflare's D1
-  // console; leaderboard.js saveRun), never shown in the game. outcome: died, won, ended or next-act.
-  // A dev run sends nothing.
+  // Compact act snapshots for balancing; transport retries without blocking the game.
+  // Only actual play counts, never menus, dev modes or story URLs.
   recordRun(outcome) {
-    if (this.dev || !this.board?.web) return;
+    if (this.dev || !this.logStarted || !this.board?.runLog || this.telemetryDisabled) return;
+    if (outcome === 'in-progress') {
+      if (this.phase === 'dead') outcome = 'died';
+      else if (this.phase === 'won') outcome = this.stage.id < STAGES.length ? 'next-act' : 'won';
+      else if (this.bossWon) outcome = this.stage.id < STAGES.length ? 'next-act' : 'won';
+    }
+    if (['died', 'won', 'ended', 'next-act'].includes(outcome)) this.logFinal = outcome;
+    outcome = this.logFinal || outcome;
     const B = this.boss, round = (n) => Math.round(n * 10) / 10;
-    this.board.saveRun({
+    const row = {
       run: this.logId, build: (typeof window !== 'undefined' && window.JF_BUILD) || '', act: this.stage.id, outcome,
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
-    });
+    };
+    const snapshot = JSON.stringify(row);
+    if (snapshot === this.logSnapshot) return;
+    this.logSnapshot = snapshot;
+    this.logRevision = Math.max(Date.now(), this.logRevision + 1);
+    this.board.saveRun({ ...row, revision: this.logRevision });
   }
 
   // How near a death came to beating the act: the boss's time still to come, or its Health left
@@ -1508,6 +1524,7 @@ export class Run {
   // treasures, score so far); you submit the score at the end of the run
   actComplete(next) {
     const carry = this.carryOver(), score = carry.score;
+    this.recordRun('next-act');
     this.ui.message(`Act ${this.stage.id} complete`, `Next: ${next.subtitle}. Your progress carries over.`,
       [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.summary()],
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu

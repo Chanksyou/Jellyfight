@@ -8,6 +8,7 @@
 //
 // The score itself is Run.score() (run.js). A run only replaces your entry when it beats it.
 export const BEST_KEY = 'jellyrun.best';   // also read by first-run.js: a saved best means a returning player
+import { RunLog } from './run-log.js';
 const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
 const PLAYER_KEY = 'jellyrun.player';
 const API = 'api/scores';  // relative: works wherever the game is served from
@@ -53,6 +54,8 @@ export class Leaderboard {
       try { localStorage.setItem(PLAYER_KEY, id); } catch {}
     }
     this.id = id;
+    this.runLog = new RunLog(id);
+    void this.runLog.flush();
     if (!(await this.fetchWeb())) { this.status = 'offline'; return false; }
     this.web = true;
     this.canWrite = true;
@@ -149,12 +152,9 @@ export class Leaderboard {
     } catch { return { sent: false, why: 'error' }; }
   }
 
-  // The owner's run log (run.recordRun): one row per act played, kept in the Worker's runs table and
-  // read only in Cloudflare's D1 console. Only the game's own site has it; fire and forget, and
-  // keepalive so it still goes when the page reloads into the next act
+  // Independent of score submission: offline reports remain queued until acknowledged.
   saveRun(row) {
-    if (!this.web) return;
-    try { fetch('api/runs', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...row, id: this.id }) }).catch(() => {}); } catch {}
+    this.runLog?.save(row);
   }
 
   // Would `score` make the top 10 (and beat your own best on it)? The end screen only offers to post it then

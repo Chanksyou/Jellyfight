@@ -38,8 +38,41 @@ const request = async (path, body) => {
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
-beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs'));
+beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries'));
 after(() => sqlite.close());
+
+test('act summaries are idempotent, ordered, and final results survive late checkpoints', async () => {
+  const save = async (rows) => {
+    clearRates();
+    return request('/api/runs', { id: 'player-one', rows });
+  };
+  const row = { run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'started', build: 'v361', device: 'phone', lost: { roach: 4.35 } };
+  assert.equal((await save([row])).data.saved, true);
+  await save([{ ...row, outcome: 'in-progress', revision: 3, time: 90 }]);
+  await save([{ ...row, revision: 2, time: 10 }]);
+  assert.equal(sqlite.prepare('SELECT time FROM run_summaries').get().time, 90);
+  await save([{ ...row, outcome: 'died', revision: 4, time: 100 }]);
+  await save([{ ...row, outcome: 'in-progress', revision: 5, time: 95 }]);
+  await save([{ ...row, outcome: 'died', revision: 4, time: 100 }]);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM run_summaries').get().n, 1);
+  const saved = sqlite.prepare('SELECT * FROM run_summaries').get();
+  assert.deepEqual([saved.outcome, saved.time, saved.finalized], ['died', 100, 1]);
+  assert.deepEqual(JSON.parse(saved.health_lost), { roach: 4.4 });
+  await save([{ ...row, act: 2 }, { ...row, run: 'another-run-id' }]);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM run_summaries').get().n, 3);
+  assert.equal((await request('/api/runs', { id: 'player-one', rows: [row] })).status, 429);
+});
+
+test('summary batches reject invalid and oversized input atomically and keep historical runs', async () => {
+  const row = { run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'started' };
+  for (const rows of [[], Array(9).fill(row), [row, { ...row, act: 5 }], [{ ...row, revision: NaN }], [{ ...row, outcome: 'invented' }], [null]]) {
+    assert.equal((await request('/api/runs', { id: 'player-one', rows })).status, 400);
+  }
+  assert.equal((await request('/api/runs', { id: 'player-one', rows: [row], extra: 'x'.repeat(48000) })).status, 413);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM run_summaries').get().n, 0);
+  assert.equal((await request('/api/runs', { id: 'player-one', run: 'old-run-abcdefgh', act: 1, outcome: 'died' })).data.saved, true);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM runs').get().n, 1);
+});
 
 test('achievement board unions unique earned IDs without shrinking earlier totals', async () => {
   let result = await submit('player-one', ['perfect-boss', 'perfect-boss'], '<Jelly>');
