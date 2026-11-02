@@ -51,6 +51,48 @@ Treasure ownership correlates with skill and time survived, so it does not by it
 Damage values are the existing post-shield damage amounts, which can include overkill on lethal hits.
 Browser-supplied data is advisory, not cheat-proof.
 
+## Elite defeats, Treasure choices, and deaths
+
+The nullable `details` JSON column is added automatically without changing old rows.
+Older reports have no detail; null means unknown, not zero.
+These measurements are per act: `elitesBeaten` counts high-ground Elites, `elites` lists `[kind, seconds]`, `treasuresObtained` counts chosen items (including starting/boss Elements and their upgrades), and `pickups` lists `[treasure_id, seconds, stack_after_pick]` in choice order.
+The existing `treasures` column is the full inventory, including items carried from previous acts; it is not the number of pickups in this act.
+Times are active gameplay seconds from the beginning of the act, rounded to tenths, excluding pauses and choices.
+Join the act rows by player/run ID to follow a campaign; do not sum pickup times as wall-clock timestamps.
+The first 128 choices and 32 Elite defeats per act are retained; counters keep counting beyond these bounds.
+`killedBy` contains `{unit, source}` only for a fatal hit after shields, death-save, and rebirth; a win or unfinished attempt has null.
+The stable unit kind identifies the attacker (e.g. `mug`, `ladybug`, `vacuum`, `hair` for the Clog), while source identifies the existing damage label (e.g. `coffee`, `missile`, `boss`).
+Projectiles retain their firing unit after it disappears; bleeding retains its applying unit, or unknown when combined bleeds have different units.
+
+Read one release's recent attempts:
+
+```sql
+SELECT player_id, run_id, act, outcome, treasures,
+       json_extract(details, '$.elitesBeaten') AS elites_beaten,
+       json_extract(details, '$.treasuresObtained') AS treasures_obtained,
+       json_extract(details, '$.killedBy.unit') AS died_to_unit,
+       json_extract(details, '$.killedBy.source') AS fatal_attack
+FROM run_summaries
+WHERE build = 'vNNN'
+ORDER BY at DESC
+LIMIT 100;
+```
+
+For a selected player/run, list the complete available choice timeline (replace both IDs):
+
+```sql
+SELECT r.act,
+       json_extract(p.value, '$[0]') AS treasure,
+       json_extract(p.value, '$[1]') AS seconds_into_act,
+       json_extract(p.value, '$[2]') AS stack_after_pick
+FROM run_summaries r, json_each(r.details, '$.pickups') p
+WHERE r.player_id = 'PLAYER_ID' AND r.run_id = 'RUN_ID'
+ORDER BY r.act, CAST(p.key AS INTEGER);
+```
+
+Use `json_each(r.details, '$.elites')` with the first two fields of the same query for the Elite defeat timeline.
+These reads use the existing build or player/run indexes; no extra index or upload per pickup is needed.
+
 ## Capacity and history
 
 Check D1 Metrics → Row Metrics for actual reads/writes and storage; indexes and rate limiting add writes beyond the summary rows.

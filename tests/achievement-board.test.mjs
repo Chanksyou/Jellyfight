@@ -41,6 +41,36 @@ await request('/api/achievements');
 beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries'));
 after(() => sqlite.close());
 
+test('an existing summary database gains details without changing historical records', async () => {
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'started' }] });
+  sqlite.exec('ALTER TABLE run_summaries DROP COLUMN details');
+  const { default: coldWorker } = await import('../worker/index.js?details-migration');
+  const response = await coldWorker.fetch(new Request('https://game.test/api/runs'), env);
+  assert.equal(response.status, 405);
+  const row = sqlite.prepare('SELECT run_id, outcome, details FROM run_summaries').get();
+  assert.deepEqual({ ...row }, { run_id: 'run-abcdefgh', outcome: 'started', details: null });
+});
+
+test('run details retain Elite defeats, pickup order and fatal attribution with bounded sanitized input', async () => {
+  const row = { run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'died', details: {
+    elitesBeaten: 2, elites: [['mug', 75.35], ['<clock>', -5]], treasuresObtained: 3,
+    pickups: [['candle', 10.25, 1], ['candle', 40, 2], ['bad', 'invalid', 1]],
+    killedBy: { unit: '<ladybug>', source: 'missile', extra: 'discard' }, extra: 'discard',
+  } };
+  const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
+  assert.equal((await save(row)).data.saved, true);
+  const read = () => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries').get().details);
+  assert.deepEqual(read(), { elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
+    pickups: [['candle', 10.3, 1], ['candle', 40, 2]], killedBy: { unit: 'ladybug', source: 'missile' } });
+  await save({ ...row, revision: 2, details: undefined });
+  assert.equal(read().elitesBeaten, 2);   // an older client cannot erase recorded detail
+  await save({ ...row, revision: 3, details: { ...row.details, elites: Array(40).fill(['mug', 1]), pickups: Array(140).fill(['candle', 1, 2]) } });
+  assert.equal(read().elites.length, 32);
+  assert.equal(read().pickups.length, 128);
+  await save({ ...row, run: 'another-run-id', outcome: 'next-act' });
+  assert.equal(JSON.parse(sqlite.prepare('SELECT details FROM run_summaries WHERE run_id = ?').get('another-run-id').details).killedBy, null);
+});
+
 test('act summaries are idempotent, ordered, and final results survive late checkpoints', async () => {
   const save = async (rows) => {
     clearRates();

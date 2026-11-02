@@ -8,6 +8,7 @@
 //                   drain: ongoing damage that skips i-frames and the flinch (puddles, suction)
 //                   feedback?: { crit, element, tick, slam, dir } presentation only; forwarded through confirmed damage, never changes hit rules
 //                   contact: a bug touching the jelly (run.js contactDamage), presentation only
+//                   unit?: the attacking kind, retained by projectiles and bleeds for run-log death attribution
 //                   knock: the attack shoves the jelly itself, so the hit adds no pushback of its own (a boss's push)
 //                   at: where a hit on the jelly landed or came from (a Shot, a Blast's middle), presentation only: its red arc
 //   player_hurt     { amount, from?, contact? }   a hit on the jelly that really landed (past i-frames, dodge,

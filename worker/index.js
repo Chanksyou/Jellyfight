@@ -41,13 +41,18 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS run_summaries (
     player_id TEXT NOT NULL, run_id TEXT NOT NULL, act INTEGER NOT NULL, at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
     revision INTEGER NOT NULL, finalized INTEGER NOT NULL, build TEXT, outcome TEXT, score INTEGER, time INTEGER,
-    level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT, health_lost TEXT, boss_left INTEGER, device TEXT,
+    level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT, health_lost TEXT, boss_left INTEGER, device TEXT, details TEXT,
     PRIMARY KEY (player_id, run_id, act))`,
   'CREATE INDEX IF NOT EXISTS run_summaries_by_build ON run_summaries (build, act, device, at)',
 ];
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
+  const columns = await db.prepare('PRAGMA table_info(run_summaries)').all();
+  if (!columns.results.some(c => c.name === 'details')) {
+    try { await db.prepare('ALTER TABLE run_summaries ADD COLUMN details TEXT').run(); }
+    catch (e) { if (!/duplicate column/i.test(String(e))) throw e; }   // another cold Worker may have added it first
+  }
   // databases made before looks rode along have no look column; the ALTER errors once it exists
   try { await db.prepare('ALTER TABLE scores ADD COLUMN look TEXT').run(); } catch {}
 })().catch((e) => { ready = null; throw e; }));
@@ -190,6 +195,15 @@ const pairs = (list) => JSON.stringify((Array.isArray(list) ? list : []).slice(0
 const words = (list) => JSON.stringify((Array.isArray(list) ? list : []).slice(0, 10).map(word).filter(Boolean));
 const amounts = (o) => JSON.stringify(Object.fromEntries(Object.entries(o && typeof o === 'object' ? o : {}).slice(0, 40)
   .filter(([k, v]) => word(k) && Number.isFinite(+v)).map(([k, v]) => [word(k), Math.round(Math.max(0, Math.min(1e6, +v)) * 10) / 10])));
+const events = (list, max, counts = false) => (Array.isArray(list) ? list : []).slice(0, max)
+  .filter(p => Array.isArray(p) && word(p[0]) && Number.isFinite(p[1]) && (!counts || Number.isFinite(p[2])))
+  .map(p => [word(p[0]), Math.round(Math.max(0, Math.min(100000, p[1])) * 10) / 10, ...(counts ? [int(p[2], 1, 99)] : [])]);
+const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
+  elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
+  treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
+  killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
+    ? { unit: word(d.killedBy.unit) || 'unknown', source: word(d.killedBy.source) || 'other' } : null,
+});
 async function postRun(request, env) {
   let b;
   try {
@@ -229,19 +243,19 @@ async function postSummaries(b, request, env) {
   if (recent.results.some(r => now - r.at < (r.key === keys[0] ? RUNS_ID_MS : RUNS_IP_MS))) return json({ saved: false, why: 'slow' }, 429);
   await db.batch([
     ...b.rows.map(r => db.prepare(`INSERT INTO run_summaries
-      (player_id, run_id, act, at, updated_at, revision, finalized, build, outcome, score, time, level, kills, body, treasures, evolutions, health_lost, boss_left, device)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (player_id, run_id, act, at, updated_at, revision, finalized, build, outcome, score, time, level, kills, body, treasures, evolutions, health_lost, boss_left, device, details)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(player_id, run_id, act) DO UPDATE SET
         updated_at = excluded.updated_at, revision = excluded.revision, finalized = excluded.finalized, build = excluded.build,
         outcome = excluded.outcome, score = excluded.score, time = excluded.time, level = excluded.level, kills = excluded.kills,
         body = excluded.body, treasures = excluded.treasures, evolutions = excluded.evolutions, health_lost = excluded.health_lost,
-        boss_left = excluded.boss_left, device = excluded.device
+        boss_left = excluded.boss_left, device = excluded.device, details = COALESCE(excluded.details, run_summaries.details)
       WHERE excluded.finalized > run_summaries.finalized
          OR (excluded.finalized = run_summaries.finalized AND excluded.revision > run_summaries.revision)`)
       .bind(b.id, r.run, r.act, now, now, r.revision, OUTCOMES.includes(r.outcome) ? 1 : 0, String(r.build || '').slice(0, 12),
         r.outcome, int(r.score, 0, MAX_SCORE), int(r.time, 0, 100000), int(r.level, 1, 999), int(r.kills, 0, 100000),
         word(r.body).slice(0, 16), pairs(r.treasures), words(r.evolutions), amounts(r.lost), r.bossLeft == null ? null : int(r.bossLeft, 0, 100),
-        r.device === 'phone' ? 'phone' : 'desktop')),
+        r.device === 'phone' ? 'phone' : 'desktop', details(r.details, r.outcome))),
     db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
   ]);
   return json({ saved: true });
