@@ -338,7 +338,10 @@ The Worker serves the game's files from Cloudflare's CDN and answers `api/scores
 On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
 The death and win screens' beta bubble posts what a player types to `api/feedback`, kept in the same database's `feedback` table (only on the game's own site; there is no way to read it over the API).
 To read it, open Cloudflare's dashboard, Storage & Databases, D1, `jelly-fight-scores`, Console, and run `SELECT datetime(at / 1000, 'unixepoch') AS sent, text, build, act, won, score, device FROM feedback ORDER BY at DESC LIMIT 100;` (or the same query with `npx wrangler d1 execute jelly-fight-scores --remote --command "…"`).
-Every act played on the game's own site also goes to a private run log, the `runs` table (one row per act: `run_id` ties a run's acts together, `outcome` is died, won, ended or next-act, with score, time, level, kills, treasures, evolutions, the Health each source took, the boss's Health left and the device; `src/run.js` `recordRun`, dev runs excluded), never shown in the game and read the same way, e.g. `SELECT datetime(at / 1000, 'unixepoch') AS played, act, outcome, score, level, treasures, health_lost FROM runs ORDER BY at DESC LIMIT 100;`.
+Actual play on the game's own site records compact balancing data in the private `run_summaries` table: one row per player/run/act, updated at the start, at the ending, and when leaving the tab, with no recurring gameplay uploads.
+Failed reports retry from a local queue bounded to 32 acts and seven days; batches and revisions prevent duplicate records and older checkpoints replacing completed results.
+The data includes build, act, outcome, time, level, kills, treasures, evolutions, Health lost by source, boss Health remaining, and device; dev modes and story URLs are excluded.
+Historical records remain in `runs`; [Run data](docs/agents/run-data.md) explains coverage, capacity, and the D1 queries for balancing.
 
 - **Deploys:** Cloudflare Workers Builds, connected to this GitHub repo (`Chanksyou/Jellyfight`; the Cloudflare GitHub app needs access to it).
   Don't use the dashboard's "Import a repository": it makes a separate copy that never gets updates.

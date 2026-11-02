@@ -189,6 +189,9 @@ story('payoff/run-log-saves-each-act', {
     stub(run.board, 'web', true);
     stub(run.board, 'saveRun', (row) => rows.push(row));
     stub(run.board, 'post', async () => ({ posted: false, why: 'error' }));
+    stub(run, 'telemetryDisabled', false);   // exercise collection explicitly; ordinary story URLs never upload
+    step(1 / 60);                           // a real attempt begins with gameplay, not the loading/menu state
+    rows.length = 0;                        // the assertions below concern its final act summary
     bus.emit('damage_taken', { targetId: PLAYER, amount: 2, source: 'story', drain: true });   // a drain: no dodge, no i-frames
     run.phase = 'dead';
     run.endRun('You dried out', '', 'Try again');

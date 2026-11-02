@@ -37,6 +37,13 @@ const SCHEMA = [
     outcome TEXT, score INTEGER, time INTEGER, level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT,
     health_lost TEXT, boss_left INTEGER, device TEXT, agent TEXT, ip TEXT)`,
   'CREATE TABLE IF NOT EXISTS feedback (at INTEGER NOT NULL, player_id TEXT NOT NULL, text TEXT NOT NULL, build TEXT, act INTEGER, won INTEGER, score INTEGER, device TEXT, agent TEXT, ip TEXT)',
+  // Keep legacy runs untouched: older open tabs can continue to post their original format.
+  `CREATE TABLE IF NOT EXISTS run_summaries (
+    player_id TEXT NOT NULL, run_id TEXT NOT NULL, act INTEGER NOT NULL, at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+    revision INTEGER NOT NULL, finalized INTEGER NOT NULL, build TEXT, outcome TEXT, score INTEGER, time INTEGER,
+    level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT, health_lost TEXT, boss_left INTEGER, device TEXT,
+    PRIMARY KEY (player_id, run_id, act))`,
+  'CREATE INDEX IF NOT EXISTS run_summaries_by_build ON run_summaries (build, act, device, at)',
 ];
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
@@ -185,7 +192,12 @@ const amounts = (o) => JSON.stringify(Object.fromEntries(Object.entries(o && typ
   .filter(([k, v]) => word(k) && Number.isFinite(+v)).map(([k, v]) => [word(k), Math.round(Math.max(0, Math.min(1e6, +v)) * 10) / 10])));
 async function postRun(request, env) {
   let b;
-  try { b = await request.json(); } catch { return json({ saved: false, why: 'bad' }, 400); }
+  try {
+    const text = await request.text();
+    if (new TextEncoder().encode(text).length > 48000) return json({ saved: false, why: 'large' }, 413);
+    b = JSON.parse(text);
+  } catch { return json({ saved: false, why: 'bad' }, 400); }
+  if (b?.rows !== undefined) return postSummaries(b, request, env);
   if (!ID.test(b?.id || '') || !ID.test(b?.run || '') || !OUTCOMES.includes(b.outcome)) return json({ saved: false, why: 'bad' }, 400);
   const now = Date.now(), db = env.DB;
   const ip = await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
@@ -198,6 +210,38 @@ async function postRun(request, env) {
       .bind(now, b.id, b.run, String(b.build || '').slice(0, 12), int(b.act, 0, 9), b.outcome, int(b.score, 0, MAX_SCORE), int(b.time, 0, 100000),
         int(b.level, 1, 999), int(b.kills, 0, 100000), word(b.body).slice(0, 16), pairs(b.treasures), words(b.evolutions), amounts(b.lost),
         b.bossLeft == null ? null : int(b.bossLeft, 0, 100), b.device === 'phone' ? 'phone' : 'desktop', (request.headers.get('user-agent') || '').slice(0, 200), ip),
+    db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
+  ]);
+  return json({ saved: true });
+}
+
+// A bounded batch amortizes the existing two rate-limit writes over up to eight pending acts.
+// Checkpoints update one row; an acknowledged final result is never replaced by an unfinished one.
+async function postSummaries(b, request, env) {
+  if (!ID.test(b.id || '') || !Array.isArray(b.rows) || !b.rows.length || b.rows.length > 8 || b.rows.some(r =>
+    !r || !ID.test(r.run || '') || !Number.isInteger(r.act) || r.act < 1 || r.act > 4
+    || ![...OUTCOMES, 'started', 'in-progress'].includes(r.outcome)
+    || !Number.isSafeInteger(r.revision) || r.revision < 1)) return json({ saved: false, why: 'bad' }, 400);
+  const now = Date.now(), db = env.DB;
+  const ip = await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
+  const keys = ['runs:id:' + b.id, 'runs:ip:' + ip];
+  const recent = await db.prepare('SELECT key, at FROM posts WHERE key IN (?, ?)').bind(...keys).all();
+  if (recent.results.some(r => now - r.at < (r.key === keys[0] ? RUNS_ID_MS : RUNS_IP_MS))) return json({ saved: false, why: 'slow' }, 429);
+  await db.batch([
+    ...b.rows.map(r => db.prepare(`INSERT INTO run_summaries
+      (player_id, run_id, act, at, updated_at, revision, finalized, build, outcome, score, time, level, kills, body, treasures, evolutions, health_lost, boss_left, device)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(player_id, run_id, act) DO UPDATE SET
+        updated_at = excluded.updated_at, revision = excluded.revision, finalized = excluded.finalized, build = excluded.build,
+        outcome = excluded.outcome, score = excluded.score, time = excluded.time, level = excluded.level, kills = excluded.kills,
+        body = excluded.body, treasures = excluded.treasures, evolutions = excluded.evolutions, health_lost = excluded.health_lost,
+        boss_left = excluded.boss_left, device = excluded.device
+      WHERE excluded.finalized > run_summaries.finalized
+         OR (excluded.finalized = run_summaries.finalized AND excluded.revision > run_summaries.revision)`)
+      .bind(b.id, r.run, r.act, now, now, r.revision, OUTCOMES.includes(r.outcome) ? 1 : 0, String(r.build || '').slice(0, 12),
+        r.outcome, int(r.score, 0, MAX_SCORE), int(r.time, 0, 100000), int(r.level, 1, 999), int(r.kills, 0, 100000),
+        word(r.body).slice(0, 16), pairs(r.treasures), words(r.evolutions), amounts(r.lost), r.bossLeft == null ? null : int(r.bossLeft, 0, 100),
+        r.device === 'phone' ? 'phone' : 'desktop')),
     db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
   ]);
   return json({ saved: true });
