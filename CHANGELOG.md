@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v364 adds Elite defeats, chosen Treasure counts and pickup timelines, and the unit and attack responsible for a death to the private balancing reports. Records use active-play seconds within each act and the existing batched uploads; historical records remain available.
+
 v363 prevents accidental browser zoom during two-thumb play, including missed presses between Jump and the map, by protecting the whole page while the touch controls are visible and explicitly cancelling native touch gestures for iPhone browsers that ignore CSS on positioned controls. Menus retain deliberate pinch zoom and scrolling, without double-tap zoom.
 
 v362 records compact balancing summaries when an act starts, ends, or the player leaves the tab. Failed uploads retry from a bounded local queue; batched reports update one record per run and act without duplicating results or replacing a completed act with an older checkpoint. Historical run records remain available.

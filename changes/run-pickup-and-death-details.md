@@ -1,1 +1,0 @@
-adds Elite defeats, chosen Treasure counts and pickup timelines, and the unit and attack responsible for a death to the private balancing reports. Records use active-play seconds within each act and the existing batched uploads; historical records remain available.
