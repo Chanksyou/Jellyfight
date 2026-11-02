@@ -11,6 +11,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
+  /* Keep rapid taps from zooming the page, including taps that start over a menu. */
+  html { touch-action: manipulation; }
+  /* A missed thumb press must not turn two-finger play into browser pinch zoom. */
+  html.touch-playing { touch-action: none; }
   html, body { height: 100%; margin: 0; background: #0d1020; overflow: hidden; }
   body { color: #fff; font: 15px system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }

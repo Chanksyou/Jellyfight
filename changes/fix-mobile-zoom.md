@@ -1,0 +1,1 @@
+prevents accidental browser zoom during two-thumb play, including missed presses between Jump and the map, by protecting the whole page while the touch controls are visible and explicitly cancelling native touch gestures for iPhone browsers that ignore CSS on positioned controls. Menus retain deliberate pinch zoom and scrolling, without double-tap zoom.

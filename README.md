@@ -328,6 +328,8 @@ The main screen shows the version in its bottom-right corner ("Version 126": `BU
 "Look" in the pause menu opens the jellyfish creator: pick a species (Sea Nettle, Moon Jelly, Lion's Mane, Box Jelly, Crystal Jelly, Fried Egg), then its colours, eyes (dots, big, sleepy, fierce or cyclops: flat on the bell, sized to fit each species), mouth and something on top (16 hats and toppers: antennae, sprout, party hat, bow, crown, horns, top hat, beanie, witch hat, cowboy hat, a spinning halo, flower, propeller cap with a spinning propeller, chef hat, cat ears, unicorn horn).
 Every jelly glows and is the same size.
 On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
+The whole page blocks browser zoom during two-thumb play, including missed presses beside Jump or the map.
+Menus allow deliberate pinch zoom and scrolling, while blocking double-tap zoom.
 
 ## Hosting on Cloudflare (public leaderboard)
 

@@ -2,6 +2,25 @@
 
 import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
+phone('double-taps-cannot-zoom-the-page', {
+  about: 'The whole page blocks browser zoom during two-thumb play, even on a missed button press; hiding the controls restores menu scrolling and deliberate pinch zoom, without double-tap zoom.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    step(1);
+    const action = (el) => getComputedStyle(el).touchAction;
+    const root = document.documentElement, overlay = document.getElementById('g-over');
+    const nativeTouchBlocked = (el) => !el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, cancelable: true }));
+    const surface = document.getElementById('touch');
+    const playing = action(root), canvas = action(document.getElementById('c')), controls = action(surface), blocked = nativeTouchBlocked(surface);
+    overlay.hidden = false; step(1);
+    const menu = action(root), menuBlocked = nativeTouchBlocked(overlay);
+    overlay.hidden = true; step(1);
+    const resumed = action(root), resumedBlocked = nativeTouchBlocked(surface);
+    return ok(playing === 'none' && menu === 'manipulation' && resumed === 'none' && canvas === 'none' && controls === 'none' && blocked && !menuBlocked && resumedBlocked,
+      { playing, menu, resumed, canvas, controls, blocked, menuBlocked, resumedBlocked });
+  },
+});
+
 phone('camera-starts-at-0-7-metres', {
   about: 'Phones start at 0.7 m; desktop still starts at 0.9 m and the outer zoom limit stays 0.9 m.',
   setup() { fresh({ elites: false }); },

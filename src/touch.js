@@ -103,6 +103,8 @@ export class TouchControls {
     press(this.jumpBtn, () => { input.jumpQueued = true; input.touchJump = true; }, () => { input.touchJump = false; });
     press(this.actBtn, () => { input.interactQueued = true; });
     press(this.el.querySelector('.pause'), () => onPause?.());
+    // iOS can zoom positioned controls despite touch-action; cancel native gestures only in play.
+    el.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
     // no long-press menus or double-tap zoom on the controls
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -110,6 +112,7 @@ export class TouchControls {
   mount(parent) { parent.appendChild(this.el); }
 
   show(on) {
+    document.documentElement.classList.toggle('touch-playing', on);
     this.el.hidden = !on;
     if (!on) {
       this.move = this.look = null;
