@@ -13,6 +13,8 @@ import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requiremen
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
 import { TYPES } from '../enemies.js';
+import { TREASURES } from '../stats.js';
+import { bus, PLAYER } from '../events.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
 story('engine/run-log', {
@@ -42,6 +44,70 @@ story('engine/run-log', {
     const devSkipped = rows.length === count;
     return ok(noMenuRun && startedOnce && checkpoint && dedup && died && stillFinal && devSkipped,
       { noMenuRun, startedOnce, checkpoint, dedup, died, stillFinal, devSkipped });
+  },
+});
+
+story('engine/run-details', {
+  about: 'The act report records defeated Elites and chosen Treasures with active-play timestamps and stack counts, retains its earlier snapshots, and names the unit and attack that dealt the fatal hit.',
+  setup: () => fresh({ hurt: true }),
+  play() {
+    const { run } = G(), rows = [];
+    stub(run, 'telemetryDisabled', false);
+    stub(run, 'board', { runLog: {}, saveRun: row => rows.push(row) });
+    step(1 / 60);
+    stub(run.ui, 'choose', (_title, _sub, choices, pick) => pick(choices[0]));
+    stub(run.ui, 'treasure', () => {});
+    const treasure = TREASURES.find(t => t.id === 'candle');
+    run.t = 12.3; run.offer('', '', [treasure], () => {});
+    const elite = run.elites.list[0];
+    run.t = 25; bus.emit('elite_defeated', { elite });
+    run.recordRun('in-progress');
+    const earlier = rows.at(-1).details;
+    run.t = 55.4; run.offer('', '', [treasure], () => {});
+    run.health = 1;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'coffee', drain: true });
+    run.recordRun('in-progress');
+    const d = rows.at(-1).details;
+    const elites = d.elitesBeaten === 1 && d.elites[0][0] === elite.kind && d.elites[0][1] === 25;
+    const pickups = d.treasuresObtained === 2 && JSON.stringify(d.pickups) === JSON.stringify([['candle', 12.3, 1], ['candle', 55.4, 2]]);
+    const immutable = earlier.pickups.length === 1 && earlier.killedBy === null;
+    const fatal = rows.at(-1).outcome === 'died' && d.killedBy.unit === 'mug' && d.killedBy.source === 'coffee';
+    const carried = run.carryOver().logId === run.logId;
+    return ok(elites && pickups && immutable && fatal && carried, { elites, pickups, immutable, fatal, carried, details: d });
+  },
+});
+
+story('engine/run-death-attribution', {
+  about: 'Fatal attribution follows a projectile after its owner is gone, labels the act boss, and only records a death after death-save or rebirth has failed.',
+  setup: () => fresh({ hurt: true }),
+  play() {
+    const { run, enemies } = G();
+    stub(run, 'die', () => { run.phase = 'dead'; });
+    const shooter = spawn('ants', near(0.3, 0));
+    enemies.spit(shooter, run.player.position, { speed: 0.8, life: 1, dmg: 10, shot: 'pin', height: 0 });
+    const shot = enemies.shots.at(-1);
+    stub(enemies, 'list', []);   // the retained projectile can land after its owner has despawned
+    enemies.byId.delete(shooter.id);
+    run.health = 1; run.iFrames = 0;
+    enemies.shotHits(shot.m.position.clone(), 0.05);
+    const retainedShot = run.killedBy?.unit === shooter.type && run.killedBy?.source === 'pin';
+    run.phase = 'explore'; run.killedBy = null;
+    run.health = 1;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'missile', unit: 'ladybug', drain: true });
+    const projectile = run.killedBy?.unit === 'ladybug';
+    run.phase = 'boss'; run.health = 1; run.killedBy = null;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'boss', drain: true });
+    const boss = run.killedBy?.unit === run.stage.boss.kind;
+    run.phase = 'explore'; run.health = 1; run.killedBy = null;
+    bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: 2, strength: 10, unit: 'mosquito' });
+    run.bleed(0.2);
+    const bleed = run.killedBy?.unit === 'mosquito' && run.killedBy?.source === 'bleed';
+    run.phase = 'explore'; run.health = 1; run.killedBy = null; run.saved = false;
+    const mods = run.mods;
+    stub(mods, 'deathSave', { health: 0.5 });
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'roach', drain: true });
+    const saved = run.phase !== 'dead' && run.health > 0 && run.killedBy === null;
+    return ok(retainedShot && projectile && boss && bleed && saved, { retainedShot, projectile, boss, bleed, saved });
   },
 });
 

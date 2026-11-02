@@ -129,16 +129,19 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
-      this.hurtBy = source || 'other';       // hurt() notes the Health it takes against this (the run log)
-      if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-      else this.hit(amount, from, contact, knock, at); // i-frames, dodge, the on-hurt treasures (Rubber Duck, when-hit)
-      this.hurtBy = null;
+      const beforeBy = this.hurtBy, beforeUnit = this.hurtUnit;
+      this.hurtBy = source || 'other';
+      this.hurtUnit = unit || (from != null ? this.enemies.byId.get(from)?.type : null);
+      try {
+        if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
+        else this.hit(amount, from, contact, knock, at);
+      } finally { this.hurtBy = beforeBy; this.hurtUnit = beforeUnit; }
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
-    bus.on('status_applied', ({ targetId, status, duration, strength }) => {
+    bus.on('status_applied', ({ targetId, status, duration, strength, unit }) => {
       if (targetId === PLAYER && status === 'slow' && strength == null) this.slowT = Math.max(this.slowT, duration);
       else if (targetId === PLAYER && status === 'slow') {
         this.slowK = this.slowHardT > 0 ? Math.max(this.slowK, strength) : strength;
@@ -147,7 +150,7 @@ export class Run {
       if (targetId === PLAYER && status === 'slip') this.slipT = Math.max(this.slipT, duration);   // soap underfoot: you slide
       // bleed (a mosquito's bite): `strength` Health a second for `duration` s; every bleed runs on its own, so they stack
       if (targetId === PLAYER && status === 'bleed' && this.phase !== 'dead') {
-        this.bleeds.push({ t: duration, dps: strength ?? 1 });
+        this.bleeds.push({ t: duration, dps: strength ?? 1, unit });
         const P = this.player.position;
         this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.1), 'BLEED', LOOK.color('bleed', '#ff2a4a'), 13);
       }
@@ -281,6 +284,10 @@ export class Run {
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
+    this.eliteLog = [];
+    this.pickupLog = [];
+    this.treasuresObtained = 0;
+    this.killedBy = null;
     this.logStarted = false;
     this.logFinal = null;
     this.logRevision = 0;
@@ -740,9 +747,10 @@ export class Run {
   // jelly to the floor, faster the more bleeds are running, for exactly as long as it lasts
   bleed(dt) {
     let dps = 0;
-    for (const b of this.bleeds) { const run = Math.min(dt, b.t); dps += b.dps * run / dt; b.t -= dt; }
+    let unit;
+    for (const b of this.bleeds) { const run = Math.min(dt, b.t); dps += b.dps * run / dt; b.t -= dt; if (run > 0) unit = unit === undefined ? b.unit : unit === b.unit ? unit : 'unknown'; }
     this.bleeds = this.bleeds.filter((b) => b.t > 0);
-    if (dps > 0) bus.emit('damage_taken', { targetId: PLAYER, amount: dps * dt, source: 'bleed', drain: true });
+    if (dps > 0) bus.emit('damage_taken', { targetId: PLAYER, amount: dps * dt, source: 'bleed', unit, drain: true });
     if ((this.bleedDripT -= dt) > 0) return;
     this.bleedDripT = LOOK.num('bleed-drip', 0.22) / Math.min(3, this.bleeds.length + 1);
     const P = this.player.position, c = LOOK.color('bleed', '#ff2a4a');
@@ -804,7 +812,13 @@ export class Run {
       this.hud.toast(`♾️ Back to a polyp… you bloom again in ${R.time} s.`, 2400);
       return;
     }
-    if (this.health <= 0) this.die();
+    if (this.health <= 0) {
+      // Resolve attack aliases only for a fatal hit, never for every contact/i-frame attempt.
+      const unit = this.hurtUnit || (by === 'boss' ? this.stage.boss.kind
+        : ({ coffee: 'mug', cream: 'whipper', balloon: 'whipper' }[by]) || by.split('-')[0]);
+      this.killedBy = { unit, source: by };
+      this.die();
+    }
   }
 
   // rebirth's end: the polyp blooms back into a jelly with full Health
@@ -889,6 +903,7 @@ export class Run {
     }
     this.kills++;
     this.elitesBeaten++;
+    if (this.eliteLog.length < 32) this.eliteLog.push([e.kind, Math.round(this.t * 10) / 10]);
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); sfx.boom();
@@ -1028,6 +1043,9 @@ export class Run {
     this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
       const before = this.S.health;
       this.owned.add(t.id);
+      this.treasuresObtained++;
+      // shortcut: retain the first 128 choices per act (normal acts offer far fewer); totals keep counting.
+      if (this.pickupLog.length < 128) this.pickupLog.push([t.id, Math.round(this.t * 10) / 10, this.owned.count(t.id)]);
       this.challenges.treasures++;
       if (this.challenges.seen.includes(t.id)) this.challenges.duplicate = true;
       else this.challenges.seen.push(t.id);
@@ -1450,6 +1468,8 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
+      details: { elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
     };

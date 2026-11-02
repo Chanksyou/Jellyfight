@@ -44,7 +44,7 @@ export class RunLog {
       void this.flush();
       return;
     }
-    if (new TextEncoder().encode(JSON.stringify(row)).length > 12000) return;
+    if (new TextEncoder().encode(JSON.stringify(row)).length > 40000) return;
     this.pending.set(key, row);
     try { localStorage.setItem(key, JSON.stringify(row)); } catch {}
     this.trim();

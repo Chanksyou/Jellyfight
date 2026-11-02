@@ -485,7 +485,7 @@ export class Enemies {
   // drawn in update), a few drops of jelly fly off and splat on the floor under it (harmless, fading),
   // and a wet slap. A touch (contact: a bite, a rolling ball) also flashes where the two met.
   landed(e, contact) {
-    if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps });   // the bleeds word
+    if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps, unit: e.type });   // the bleeds word
     const P = this.player;
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
@@ -519,7 +519,7 @@ export class Enemies {
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, from: e.id, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push({ m, v, t: life, dmg, from: e.id, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
@@ -562,7 +562,7 @@ export class Enemies {
     M.group.lookAt(at.clone().add(vel));
     batcher.track(M.group);
     this.scene.add(M.group);
-    this.missiles.push({ m: M.group, flame: M.flame, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 });
+    this.missiles.push({ m: M.group, flame: M.flame, unit: e.type, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 });
     const red = hostile('missile');
     this.fx.impact(at, 0xffd28a, 0.03, 12);
     this.fx.puff(at.clone().setY(at.y - 0.01), 0xd0d0d0, 0.05, 0.7);
@@ -681,7 +681,7 @@ export class Enemies {
     if (P.y - floor < 0.12) this.fx.splat(S.spot.set(P.x, floor, P.z), SCORCH, 0.04);   // a scorch on the floor (fades)
     if (P.distanceTo(pc) < 0.4) juice.feel('impact-big');   // only on you or a near miss: bugs stay quieter than Elites (L2)
     sfx.missileBoom();
-    if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile', at: P });
+    if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile', unit: m.unit, at: P });
   }
 
   // A millipede's ball (the ball-charge word): a clicking rattle as it coils, a rising whirr and
@@ -1051,7 +1051,7 @@ export class Enemies {
       if (s.done || s.stuckT > 0 || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from, at: s.m.position });
+      bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from, unit: s.unit, at: s.m.position });
       if (s.slow) {                                                      // webbed: stuck for a moment
         bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: s.slow });
         this.fx.puff(s.m.position, 0xf4f2ee, 0.035, 0.6);

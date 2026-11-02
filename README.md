@@ -343,6 +343,7 @@ To read it, open Cloudflare's dashboard, Storage & Databases, D1, `jelly-fight-s
 Actual play on the game's own site records compact balancing data in the private `run_summaries` table: one row per player/run/act, updated at the start, at the ending, and when leaving the tab, with no recurring gameplay uploads.
 Failed reports retry from a local queue bounded to 32 acts and seven days; batches and revisions prevent duplicate records and older checkpoints replacing completed results.
 The data includes build, act, outcome, time, level, kills, treasures, evolutions, Health lost by source, boss Health remaining, and device; dev modes and story URLs are excluded.
+New reports also include Elites beaten, chosen Treasure counts, Treasure pickups with active-play timestamps and stack counts, and the unit and attack responsible for death.
 Historical records remain in `runs`; [Run data](docs/agents/run-data.md) explains coverage, capacity, and the D1 queries for balancing.
 
 - **Deploys:** Cloudflare Workers Builds, connected to this GitHub repo (`Chanksyou/Jellyfight`; the Cloudflare GitHub app needs access to it).

@@ -100,3 +100,14 @@ test('batches stay below keepalive size and unavailable storage does not interru
   await tick();
   assert.equal(memoryOnly.pending.size, 0);
 });
+
+test('larger choice histories remain deliverable within the batch byte limit', async t => {
+  const { fetch } = setup(t);
+  const log = new RunLog('player-one');
+  log.save(summary({ details: { pickups: Array.from({ length: 128 }, (_, n) => ['treasure-with-a-long-identifier', n * 15, 3]) },
+    extra: 'x'.repeat(12000) }));
+  await tick();
+  assert.equal(fetch.mock.calls.length, 1);
+  assert.ok(new TextEncoder().encode(fetch.mock.calls[0].arguments[1].body).length < 48000);
+  assert.equal(log.pending.size, 0);
+});
