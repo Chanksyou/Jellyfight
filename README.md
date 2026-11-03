@@ -329,7 +329,7 @@ The main screen shows the version in its bottom-right corner ("Version 126": `BU
 Every jelly glows and is the same size.
 On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
 The whole page blocks browser zoom during two-thumb play, including missed presses beside Jump or the map.
-Menus allow deliberate pinch zoom and scrolling, while blocking double-tap zoom.
+The pause menu also blocks pinch and double-tap zoom, while its buttons and vertical scrolling stay usable; the home menu retains deliberate pinch zoom.
 
 ## Hosting on Cloudflare (public leaderboard)
 

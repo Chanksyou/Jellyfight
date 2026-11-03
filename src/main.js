@@ -70,6 +70,8 @@ ui.innerHTML = `
   #g-over { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(10,12,20,.55); color: #fff;
     text-align: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; z-index: 10; }
   #g-over[hidden] { display: none; }
+  /* Pausing keeps browser zoom blocked, while the Treasure bag can still scroll. */
+  #g-over:not(.menu-home) { touch-action: pan-y; }
   /* the main screen (and the pause menu) shows just itself: the HUD waits behind it */
   #g-over:not([hidden]) ~ #hud { visibility: hidden; }
   #g-over h1 { margin: 0 0 4px; font-size: 46px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0008; }
@@ -331,6 +333,11 @@ function pause() {
   mainMenu.cancelLaunch();
   overlay.hidden = false;
 }
+// As on the gameplay controls, cancel native two-thumb gestures on iOS.
+// Keep single touches native so menu buttons and scrolling continue to work.
+overlay.addEventListener('touchstart', (e) => {
+  if (!overlay.classList.contains('menu-home') && e.touches.length > 1 && e.cancelable) e.preventDefault();
+}, { passive: false });
 const touch = new TouchControls(input, { onPause: pause });
 touch.mount(ui);
 // on an iPhone in the browser (not already opened from the home screen), say how to play full screen
