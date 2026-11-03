@@ -317,3 +317,28 @@ act4('achievements/final-win-awards-and-remembers', {
     return ok(first.includes('perfect-pair') && first.includes('perfect-run') && run.newAchievements.length === first.length && earnedAchievements()['perfect-pair'], { first });
   }); },
 });
+
+
+story('achievements/taken-name-can-be-corrected', {
+  about: 'A taken name keeps the achievement sharing form available so the player can choose another and retry.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const before = localStorage.getItem(ACHIEVEMENTS_KEY);
+    try {
+      localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify({ 'perfect-boss': '2026-10-30' }));
+      const { run, menus } = G(); let sent;
+      stub(run, 'board', { achievementBoard: async entry => {
+        sent = entry;
+        return entry?.name === 'Taken' ? { error: 'taken' } : { top: [], mine: null };
+      } });
+      await run.showAchievementBoard(() => {}, { name: 'Taken', achievements: ['perfect-boss'] });
+      const box = menus.modal.querySelector('input');
+      const retry = !!box && box.value === 'Taken' && /already in use/.test(menus.modal.textContent);
+      if (box) { box.value = 'Available'; menus.keyHandler(new KeyboardEvent('keydown', { code: 'Enter' })); }
+      await Promise.resolve(); await Promise.resolve();
+      return ok(retry && sent?.name === 'Available' && /Achievements shared/.test(menus.modal.textContent), { retry, sent });
+    } finally {
+      if (before === null) localStorage.removeItem(ACHIEVEMENTS_KEY); else localStorage.setItem(ACHIEVEMENTS_KEY, before);
+    }
+  },
+});

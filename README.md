@@ -1,5 +1,10 @@
 # Jelly Run
 
+v373 lets players change their leaderboard name without changing their score or place.
+Names are unique across the public score and achievement boards, ignoring capitalization and repeated spaces.
+For existing duplicates, the earliest saved score keeps the name; later entries get an available numbered name.
+Name changes require the same browser identity used to post.
+
 A third-person game where you play a ~9 cm jellyfish of your own design inside a real-scale 3D model of the apartment.
 
 ## Quick links

@@ -184,7 +184,7 @@ export class MainMenu {
   refreshGreeting() {
     let name = '';
     try { name = localStorage.getItem('jellyrun.name') || ''; } catch {}
-    if ((!name || name === 'Guest') && this.board?.mine?.name) name = this.board.mine.name;
+    if (this.board?.mine?.name) name = this.board.mine.name;
     if (name === 'Guest') name = '';
     const returning = !isNewPlayer() || !!this.board?.mine;
     this.greet.textContent = returning && name ? `Welcome back, ${name}` : '';

@@ -31,6 +31,8 @@ const SCHEMA = [
     kills INTEGER, time INTEGER, won INTEGER, build TEXT, at INTEGER NOT NULL, ip TEXT)`,
   'CREATE INDEX IF NOT EXISTS scores_by_score ON scores (score DESC)',
   'CREATE TABLE IF NOT EXISTS posts (key TEXT PRIMARY KEY, at INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS player_names (id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE, at INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)',
   'CREATE TABLE IF NOT EXISTS achievement_players (id TEXT PRIMARY KEY, name TEXT NOT NULL, look TEXT)',
   'CREATE TABLE IF NOT EXISTS achievement_unlocks (player_id TEXT NOT NULL, achievement_id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (player_id, achievement_id))',
   `CREATE TABLE IF NOT EXISTS runs (at INTEGER NOT NULL, player_id TEXT NOT NULL, run_id TEXT NOT NULL, build TEXT, act INTEGER,
@@ -58,6 +60,7 @@ const setUp = (db) => (ready ||= (async () => {
     try { await db.prepare('ALTER TABLE run_summaries ADD COLUMN details TEXT').run(); }
     catch (e) { if (!/duplicate column/i.test(String(e))) throw e; }   // another cold Worker may have added it first
   }
+  await migrateNames(db);
   // databases made before looks rode along have no look column; the ALTER errors once it exists
   try { await db.prepare('ALTER TABLE scores ADD COLUMN look TEXT').run(); } catch {}
 })().catch((e) => { ready = null; throw e; }));
@@ -67,7 +70,45 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 });
 
 // a name as the board shows it: printable, trimmed, at most 20 characters
-const cleanName = (s) => String(s ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 20) || 'A jelly';
+const cleanName = (s) => String(s ?? '').normalize('NFKC').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20).trim() || 'Guest';
+
+const nameKey = name => cleanName(name).toLowerCase();
+const claimName = (db, id, name, at) => db.prepare(`INSERT INTO player_names (id, name, name_key, at) VALUES (?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET name = excluded.name, name_key = excluded.name_key,
+    at = CASE WHEN player_names.name_key = excluded.name_key THEN player_names.at ELSE excluded.at END`)
+  .bind(id, cleanName(name), nameKey(name), at);
+const nameConflict = e => /UNIQUE constraint failed: player_names.name_key/i.test(String(e));
+const syncName = (db, id, name) => [
+  db.prepare('UPDATE scores SET name = ? WHERE id = ?').bind(cleanName(name), id),
+  db.prepare('UPDATE achievement_players SET name = ? WHERE id = ?').bind(cleanName(name), id),
+];
+
+// Historical first-use dates were not retained: the earliest saved score wins.
+async function migrateNames(db) {
+  if (await db.prepare("SELECT name FROM migrations WHERE name = 'player-names'").first()) return;
+  const rows = await db.prepare(`SELECT id, name, at FROM scores UNION ALL
+    SELECT p.id, p.name, MIN(u.at) AS at FROM achievement_players p
+    JOIN achievement_unlocks u ON u.player_id = p.id WHERE p.id NOT IN (SELECT id FROM scores)
+    GROUP BY p.id ORDER BY at, id`).all();
+  const used = new Set(), reserved = new Set(rows.results.map(r => nameKey(r.name)));
+  const updates = [];
+  for (const row of rows.results) {
+    let name = cleanName(row.name), n = 2;
+    if (used.has(nameKey(name))) {
+      const base = name;
+      do { const suffix = ' ' + n++; name = base.slice(0, 20 - suffix.length).trim() + suffix; }
+      while (used.has(nameKey(name)) || reserved.has(nameKey(name)));
+    }
+    used.add(nameKey(name));
+    // Guard simultaneous cold starts against overwriting a completed migration.
+    updates.push(db.prepare(`INSERT OR IGNORE INTO player_names (id, name, name_key, at)
+      SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM migrations WHERE name = 'player-names')`).bind(row.id, name, nameKey(name), row.at));
+    for (const table of ['scores', 'achievement_players']) updates.push(db.prepare(`UPDATE ${table} SET name = (SELECT name FROM player_names WHERE id = ?)
+      WHERE id = ? AND NOT EXISTS (SELECT 1 FROM migrations WHERE name = 'player-names')`).bind(row.id, row.id));
+  }
+  updates.push(db.prepare("INSERT OR IGNORE INTO migrations (name) VALUES ('player-names')"));
+  await db.batch(updates);
+}
 
 // a look as the board carries it: only the descriptor's own keys (character.js
 // DEFAULT_LOOK), short string values and finite numbers, stored as JSON text
@@ -126,7 +167,8 @@ async function post(request, env) {
   const stamp = db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at')
     .bind('id:' + b.id, now, 'ip:' + ip, now);
   if (was && was.score >= score) { await stamp.run(); return json({ posted: false, why: 'lower' }); }
-  await db.batch([
+  try { await db.batch([
+    claimName(db, b.id, b.name, now),
     db.prepare(`INSERT INTO scores (id, name, body, look, score, level, kills, time, won, build, at, ip)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET name = excluded.name, body = excluded.body, look = excluded.look, score = excluded.score,
@@ -135,9 +177,27 @@ async function post(request, env) {
                 WHERE excluded.score > scores.score`)
       .bind(b.id, cleanName(b.name), String(b.body || 'nettle').slice(0, 16), cleanLook(b.look), score, int(b.level, 1, 999),
         int(b.kills, 0, 100000), int(b.time, 0, 100000), b.won ? 1 : 0, String(b.build || '').slice(0, 12), now, ip),
+    ...syncName(db, b.id, b.name),
     stamp,
-  ]);
+  ]); } catch (e) { if (nameConflict(e)) return json({ posted: false, why: 'taken' }, 409); throw e; }
   return json({ posted: true });
+}
+
+// Only identity changes: score, look and ranking timestamps remain intact.
+async function rename(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ renamed: false, why: 'bad' }, 400); }
+  if (!ID.test(b?.id || '') || typeof b.name !== 'string' || !b.name.trim()) return json({ renamed: false, why: 'bad' }, 400);
+  const db = env.DB, now = Date.now(), name = cleanName(b.name);
+  if (!(await db.prepare('SELECT id FROM player_names WHERE id = ?').bind(b.id).first())) return json({ renamed: false, why: 'missing' }, 404);
+  const key = 'rename:' + b.id;
+  const recent = await db.prepare('SELECT at FROM posts WHERE key = ?').bind(key).first();
+  if (recent && now - recent.at < PER_ID_MS) return json({ renamed: false, why: 'slow' }, 429);
+  try { await db.batch([
+    claimName(db, b.id, name, now), ...syncName(db, b.id, name),
+    db.prepare('INSERT INTO posts (key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(key, now),
+  ]); } catch (e) { if (nameConflict(e)) return json({ renamed: false, why: 'taken' }, 409); throw e; }
+  return json({ renamed: true, name });
 }
 
 async function achievementTop(db, me) {
@@ -162,12 +222,14 @@ async function postAchievements(request, env) {
   const keys = ['achievements:id:' + b.id, 'achievements:ip:' + ip];
   const recent = await db.prepare('SELECT key, at FROM posts WHERE key IN (?, ?)').bind(...keys).all();
   if (recent.results.some(r => now - r.at < (r.key === keys[0] ? PER_ID_MS : PER_IP_MS))) return json({ posted: false, why: 'slow' }, 429);
-  await db.batch([
-    db.prepare(`INSERT INTO achievement_players (id, name, look) VALUES (?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET name = excluded.name, look = COALESCE(excluded.look, achievement_players.look)`).bind(b.id, cleanName(b.name), cleanLook(b.look)),
+  try { await db.batch([
+    claimName(db, b.id, b.name, now),
+    db.prepare(`INSERT INTO achievement_players (id, name, look) VALUES (?, (SELECT name FROM player_names WHERE id = ?), ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, look = COALESCE(excluded.look, achievement_players.look)`).bind(b.id, b.id, cleanLook(b.look)),
+    ...syncName(db, b.id, b.name),
     ...ids.map(id => db.prepare('INSERT OR IGNORE INTO achievement_unlocks (player_id, achievement_id, at) VALUES (?, ?, ?)').bind(b.id, id, now)),
     db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
-  ]);
+  ]); } catch (e) { if (nameConflict(e)) return json({ posted: false, why: 'taken' }, 409); throw e; }
   return json({ posted: true, ...(await achievementTop(db, b.id)) });
 }
 
@@ -272,9 +334,10 @@ async function postSummaries(b, request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!['/api/scores', '/api/achievements', '/api/feedback', '/api/runs'].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (!['/api/scores', '/api/name', '/api/achievements', '/api/feedback', '/api/runs'].includes(url.pathname)) return env.ASSETS.fetch(request);
     try {
       await setUp(env.DB);
+      if (url.pathname === '/api/name') return request.method === 'POST' ? await rename(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/runs') return request.method === 'POST' ? await postRun(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/feedback') return request.method === 'POST' ? await postFeedback(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/achievements') {

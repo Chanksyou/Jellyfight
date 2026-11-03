@@ -136,8 +136,27 @@ export class Leaderboard {
       const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) });
       const d = await r.json().catch(() => ({}));
       if (d.posted) { this.mine = entry; this.fetchWeb(); return { posted: true }; }
-      return { posted: false, why: d.why === 'lower' ? 'lower' : 'error' };
+      return { posted: false, why: ['lower', 'taken', 'slow'].includes(d.why) ? d.why : 'error' };
     } catch { return { posted: false, why: 'error' }; }
+  }
+
+  async rename(name) {
+    await this.ready;
+    if (!this.web) return { renamed: false, why: 'offline' };
+    try {
+      const response = await fetch('api/name', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: this.id, name }) });
+      const result = await response.json();
+      if (result.renamed) {
+        if (this.mine) this.mine.name = result.name;
+        if (this.localBest) {
+          this.localBest.name = result.name;
+          try { localStorage.setItem(BEST_KEY, JSON.stringify(this.localBest)); } catch {}
+        }
+        try { localStorage.setItem('jellyrun.name', result.name); } catch {}
+        await this.refresh();
+      }
+      return result;
+    } catch { return { renamed: false, why: 'error' }; }
   }
 
   // Beta feedback from an end screen (run.showFeedback): only the game's own site keeps it (the
@@ -167,7 +186,11 @@ export class Leaderboard {
         ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) }
         : { cache: 'no-store' });
       const data = await r.json();
-      if (!r.ok || !Array.isArray(data.top)) return { error: data.why === 'slow' ? 'slow' : 'offline' };
+      if (!r.ok || !Array.isArray(data.top)) return { error: ['slow', 'taken'].includes(data.why) ? data.why : 'offline' };
+      if (entry && data.mine?.name) {
+        if (this.mine) this.mine.name = data.mine.name;
+        try { localStorage.setItem('jellyrun.name', data.mine.name); } catch {}
+      }
       return data;
     } catch { return { error: 'offline' }; }
   }
