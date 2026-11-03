@@ -1,3 +1,4 @@
+import { ModelPool } from './model-pool.js';
 // Enemies. The bugs (critters.js) are the waves: cockroaches, ants that throw pushpins,
 // mosquitoes that dart in to bite, and the act 2 bugs. The hair
 // tangle is the one dust type: the Clog sheds them.
@@ -221,6 +222,8 @@ export class Enemies {
     this.world = world;
     this.fx = fx;
     this.list = [];
+    this.models = new ModelPool();
+    this.projectiles = new ModelPool();
     this.looks = makeLooks();
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
@@ -310,29 +313,36 @@ export class Enemies {
   // elite: 35% bigger, 2.2x health, 4x XP, gold, with a spinning halo and glowing eyes
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
-    const { body: mesh, face, anim, ballRadius, deathParts } = this.looks[T.model || type]();
-    const root = new THREE.Group();
+    const model = this.models.take(`${type}:${elite}`, () => {
+      const { body: mesh, face, anim, ballRadius, deathParts } = this.looks[T.model || type]();
+      const root = new THREE.Group();
+      if (elite && !anim) {
+        const m = mesh.children[0];
+        this.eliteMats[type] ||= Object.assign(m.material.clone(), { emissive: new THREE.Color(0xffb020), emissiveIntensity: 0.35 });
+        m.material = this.eliteMats[type];
+        face.traverse((o) => { if (o.isMesh && o.material === EYE.white) o.material = EYE.glow; });
+        const halo = new THREE.Mesh(this.haloGeo, EYE.halo);
+        halo.name = 'halo';
+        halo.rotation.x = Math.PI / 2;
+        halo.position.y = T.r * 1.35 * 1.35;
+        halo.scale.setScalar(T.r * 1.35);
+        root.add(halo);
+      }
+      mesh.scale.multiplyScalar(T.r * (elite && !anim ? 1.35 : 1));
+      root.add(mesh, face);
+      return { root, mesh, face, anim, ballRadius, deathParts };
+    });
+    const { root, mesh, face, anim, ballRadius, deathParts } = model.value;
     if (elite && !anim) {
       T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
-      const m = mesh.children[0];
-      this.eliteMats[type] ||= Object.assign(m.material.clone(), { emissive: new THREE.Color(0xffb020), emissiveIntensity: 0.35 });
-      m.material = this.eliteMats[type];
-      face.traverse((o) => { if (o.isMesh && o.material === EYE.white) o.material = EYE.glow; });
-      const halo = new THREE.Mesh(this.haloGeo, EYE.halo);
-      halo.name = 'halo';
-      halo.rotation.x = Math.PI / 2;
-      halo.position.y = T.r * 1.35;
-      halo.scale.setScalar(T.r);
-      root.add(halo);
     }
-    mesh.scale.multiplyScalar(T.r);
-    root.add(mesh, face);
+    anim?.reset?.();
     root.position.copy(pos);
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      id: nextId(), type, T, root, mesh, face, anim, deathParts, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
+      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -466,18 +476,24 @@ export class Enemies {
     bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, body: e.proxy ? null : e.root,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
+    this.models.release(e.model);
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
   }
 
   clear() {
-    for (const e of this.list) { e.dead = true; if (e.root) this.scene.remove(e.root); }
+    for (const e of this.list) {
+      if (e.dead) continue; // Death effects own dead models until their own cleanup.
+      e.dead = true; if (e.root) this.scene.remove(e.root);
+      if (!e.proxy) e.pos = e.pos.clone();
+      this.models.release(e.model);
+    }
     this.list = [];
     this.byId.clear();
-    this.shots.forEach((s) => this.scene.remove(s.m));
+    this.shots.forEach((s) => { this.scene.remove(s.m); this.projectiles.release(s.pooled); });
     this.shots = [];
     this.sparkShots.forEach((s) => this.fx.free(s.m));
     this.sparkShots = [];
-    this.missiles.forEach((m) => this.scene.remove(m.m));
+    this.missiles.forEach((m) => { this.scene.remove(m.m); this.projectiles.release(m.pooled); });
     this.missiles = [];
   }
 
@@ -514,12 +530,13 @@ export class Enemies {
       const turn = count > 1 ? THREE.MathUtils.degToRad(spread) * (i / (count - 1) - 0.5) : 0;
       const v = aim.clone().applyAxisAngle(UP_AXIS, turn).multiplyScalar(speed);
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
-      const m = batcher.track(kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(this.webGeo, this.webMat));
+      const pooled = this.projectiles.take(`${kind}:${kind === 'pin' ? e.mesh.userData.pin : ''}`, () => ({ root: kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(this.webGeo, this.webMat) }));
+      const m = batcher.track(pooled.root);
       if (kind === 'pin') m.scale.setScalar(e.r);
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push({ m, v, t: life, dmg, from: e.id, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' });
+      this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, pooled, m, v, t: life, dmg, from: e.id, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
@@ -555,14 +572,15 @@ export class Enemies {
   // the missile leaves the rail on its back: a flash, a cloud of smoke, the ignition roar. It
   // climbs for a moment, then turns to hunt you.
   launchMissile(e, p) {
-    const M = buildMissile(0.04), yaw = e.root.rotation.y, fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const pooled = this.projectiles.take('missile', () => { const M = buildMissile(0.04); return { root: M.group, ...M }; });
+    const M = pooled.value, yaw = e.root.rotation.y, fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const at = e.pos.clone().addScaledVector(fwd, -e.r * 0.2).setY(e.pos.y + e.r * 0.9);
     M.group.position.copy(at);
     const vel = fwd.clone().multiplyScalar(0.12).setY(0.5);
     M.group.lookAt(at.clone().add(vel));
     batcher.track(M.group);
     this.scene.add(M.group);
-    this.missiles.push({ m: M.group, flame: M.flame, unit: e.type, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 });
+    this.missiles.push(Object.assign(pooled.value.state ||= {}, { done: false, downT: 0, coughT: 0, pooled, m: M.group, flame: M.flame, unit: e.type, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 }));
     const red = hostile('missile');
     this.fx.impact(at, 0xffd28a, 0.03, 12);
     this.fx.puff(at.clone().setY(at.y - 0.01), 0xd0d0d0, 0.05, 0.7);
@@ -662,7 +680,7 @@ export class Enemies {
         if (m.downT < 0.3) m.m.scale.setScalar(Math.max(0.001, m.downT / 0.3));
         if (m.downT <= 0) m.done = true;
       }
-      if (m.done) this.scene.remove(m.m);
+      if (m.done) { this.scene.remove(m.m); this.projectiles.release(m.pooled); }
     }
     this.missiles = this.missiles.filter((m) => !m.done);
   }
@@ -672,6 +690,7 @@ export class Enemies {
     const P = m.m.position.clone(), red = hostile('missile');
     m.done = true;
     this.scene.remove(m.m);
+    this.projectiles.release(m.pooled);
     this.fx.impact(P, 0xffb040, 0.055, 22);
     this.fx.impact(P, red, 0.035, 10);
     this.fx.burst(P, ['#fff0b0', '#ffb040', '#ff4a20', '#3a3a3a'], 16, 0.003, 0.35, this.floorBelow(P, P.y - 0.1));
@@ -1082,7 +1101,7 @@ export class Enemies {
       this.fx.glow.hold(s.m.position, s.c, small ? 0.04 : 0.05, 0.9);
       if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, small ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
-      if (s.done) this.scene.remove(s.m);
+      if (s.done) { this.scene.remove(s.m); this.projectiles.release(s.pooled); }
     }
     this.shots = this.shots.filter((s) => !s.done);
   }

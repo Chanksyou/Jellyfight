@@ -20,7 +20,7 @@ function resetTrial(seed, undo) {
   run.bubbles.clock = 0; enemies.frame = 0;
   const cosmetic = seededRandom(seedFor('cosmetics', seed));
   // Blinks, pooled visuals and wall-clock sound throttles must not advance combat randomness.
-  for (const obj of [sfx, player.avatar, fx, fx.glow, fx.ice, fx.glitter, fx.acid, fx.wind, fx.deaths, run.bubbles.looks, run.gadgets.looks]) {
+  for (const obj of [enemies.models, enemies.projectiles, sfx, player.avatar, fx, fx.glow, fx.ice, fx.glitter, fx.acid, fx.wind, fx.deaths, run.bubbles.looks, run.gadgets.looks]) {
     if (!obj) continue;
     const keys = new Set([...Object.keys(obj), ...Object.getOwnPropertyNames(Object.getPrototypeOf(obj))]);
     for (const key of keys) if (key !== 'constructor' && typeof obj[key] === 'function') patch(undo, obj, key, old => (...args) => {

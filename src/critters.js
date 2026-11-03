@@ -102,6 +102,7 @@ export function buildRoach() {
     body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
     body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
   };
+  anim.reset = () => { t = 0; k = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
 }
 
@@ -214,6 +215,7 @@ export function buildAnts() {
     pin.scale.setScalar(since < 0.25 ? 0 : 1 + 2.7 * (grow - 1) ** 3 + 1.7 * (grow - 1) ** 2);   // with a little overshoot
     pin.rotation.x = coil * 0.12;
   };
+  anim.reset = () => { t = 0; k = 0; fired = 0; since = 9; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.pivot) };
 }
 
@@ -319,6 +321,7 @@ export function buildMosquito() {
     body.rotation.x = -0.15 + THREE.MathUtils.clamp(fwd * 0.5, -0.2, 0.35) * (1 - dart) - wind * 0.35 - dart * 0.25 + Math.sin(t * 47) * 0.04 * wind;
     body.rotation.z = THREE.MathUtils.clamp(side * 0.9, -0.45, 0.45) + Math.sin(t * 53) * 0.03 * wind;
   };
+  anim.reset = () => { t = 0; fwd = 0; side = 0; wind = 0; dart = 0; legs.forEach(L => { L.swing = 0; L.sway = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -492,6 +495,7 @@ export function buildLanternfly() {
     for (const W of foreW) { W.pivot.rotation.z = W.s * (-0.62 + crouch * 0.2 + open * 1.5 + flap); W.pivot.rotation.y = W.s * (0.04 + open * 0.5); }
     for (const W of hindW) { W.pivot.rotation.z = W.s * (-0.72 + crouch * 0.15 + open * 1.45 - flap); W.pivot.rotation.y = W.s * (0.02 + open * 0.9); }
   };
+  anim.reset = () => { t = 0; k = 0; crouch = 0; open = 0; squash = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -654,6 +658,7 @@ export function buildSpider() {
     rear.rotation.x = -rearUp * 0.35 - recoil * 0.15;                        // abdomen tipped up toward its target
     for (const p of palps) p.rotation.x = Math.sin(t * 6 + e.phase) * 0.15 + rearUp * -0.4;   // palps twitch, lift when it rears
   };
+  anim.reset = () => { t = 0; k = 0; rearUp = 0; recoil = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -830,6 +835,7 @@ export function buildHouseFly() {
     body.position.z = -rub * 0.12 + lunge * 0.18;
     body.rotation.x = 0.08 - rub * 0.2 + lunge * 0.12;
   };
+  anim.reset = () => { t = 0; rub = 0; lunge = 0; aim = 1.15; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -989,6 +995,7 @@ export function buildMillipede() {
       }
     }
   };
+  anim.reset = () => { t = 0; move = 0; W.length = 0; };
   return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
 }
 
@@ -998,7 +1005,7 @@ export function buildMillipede() {
 // additive cones, flickered by whoever flies it). Used in flight (meters, enemies.js) and loaded
 // on the ladybug's back (radius units).
 const MISSILE_MAT = {};
-export function buildMissile(L = 0.04) {
+function missileModel(L) {
   const M = MISSILE_MAT;
   M.body ||= new THREE.MeshStandardMaterial({ color: 0xf2f3f5, metalness: 0.35, roughness: 0.3 });
   M.nose ||= new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.5, roughness: 0.25 });
@@ -1029,11 +1036,20 @@ export function buildMissile(L = 0.04) {
     add(fin(0.07 * L, 0.07 * L, 0.02 * L, 0.13 * L).rotateZ(a), M.fin);                                                // canards
   }
   const flame = new THREE.Group();
+  flame.name = 'flame';
   flame.position.z = -0.44 * L;
   flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.85, 0.36 * L, 12, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.18 * L), M.flame));
   flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.45, 0.2 * L, 10, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.1 * L), M.core));
   g.add(flame);
   return { group: g, flame, length: L };
+}
+
+// Only the two model sizes used by the game are retained; meshes animate independently.
+const MISSILE_MODELS = new Map();
+export function buildMissile(L = 0.04) {
+  if (!MISSILE_MODELS.has(L)) MISSILE_MODELS.set(L, missileModel(L).group);
+  const group = MISSILE_MODELS.get(L).clone();
+  return { group, flame: group.getObjectByName('flame'), length: L };
 }
 
 // ------------------------------------------------------------------ ladybug
@@ -1084,25 +1100,28 @@ export function buildLadybug() {
   const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(body, G.under, M.lbLeg);
   // a disc lying on an ellipsoid (centre C, radii E) in direction d: the spots and patches
+  G.spot ||= new THREE.SphereGeometry(1, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   const onShell = (parent, C, E, d, r, mat, lift = 0.012) => {
     const u = d.clone().normalize(), p = V(C.x + E.x * u.x, C.y + E.y * u.y, C.z + E.z * u.z);
     const n = V(u.x / E.x, u.y / E.y, u.z / E.z).normalize();
-    const m = add(parent, new THREE.SphereGeometry(1, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(r, 0.035, r * 0.92), mat);
+    const m = add(parent, G.spot, mat);
+    m.scale.set(r, 0.035, r * 0.92);
     m.position.copy(p).addScaledVector(n, lift);
     m.quaternion.setFromUnitVectors(V(0, 1, 0), n);
     return m;
   };
   // pronotum and head
   const PC = V(0, -0.02, 0.74), PE = V(0.6, 0.4, 0.34);
-  add(body, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(PE.x, PE.y, PE.z).translate(PC.x, PC.y, PC.z), M.lbBlack);
+  add(body, G.pronotum ||= new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(PE.x, PE.y, PE.z).translate(PC.x, PC.y, PC.z), M.lbBlack);
   for (const s of [-1, 1]) { onShell(body, PC, PE, V(s * 0.75, 0.42, 0.5), 0.16, M.lbCream); onShell(body, PC, PE, V(s * 0.25, 0.4, 0.88), 0.07, M.lbCream); }
   const HC = V(0, -0.1, 1.04), HE = V(0.32, 0.22, 0.2);
-  add(body, new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
+  add(body, G.head ||= new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
   for (const s of [-1, 1]) onShell(body, HC, HE, V(s * 0.6, 0.35, 0.7), 0.07, M.lbCream);
   const antennae = [-1, 1].map((s) => { const a = add(body, G.antenna, M.lbLeg, V(s * 0.12, -0.04, 1.2)); a.scale.x = s; return a; });
   body.add(angryEyes({ y: -0.06, z: 1.22, size: 0.1, gap: 0.12 }));
   // the elytra: each a half dome on a hinge at its front inner corner, its spots riding on it
   const EC = V(0, -0.02, -0.16), EE = V(0.92, 0.78, 1.0);
+  G.halves ||= {};
   const elytra = [-1, 1].map((s) => {
     const pivot = new THREE.Group(), hinge = V(s * 0.04, EC.y + 0.66, EC.z + 0.58);
     pivot.position.copy(hinge);
@@ -1110,7 +1129,7 @@ export function buildLadybug() {
     const shell = new THREE.Group();
     shell.position.copy(hinge).negate();
     pivot.add(shell);
-    const half = (k) => new THREE.SphereGeometry(1, 40, 24, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.58).scale(EE.x * k, EE.y * k, EE.z * k).translate(EC.x, EC.y, EC.z);
+    const half = (k) => G.halves[`${s}:${k}`] ||= new THREE.SphereGeometry(1, 40, 24, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.58).scale(EE.x * k, EE.y * k, EE.z * k).translate(EC.x, EC.y, EC.z);
     add(shell, half(1), M.lbRed);
     add(shell, half(0.97), M.lbInside);
     for (const [d, r] of [[V(s * 0.08, 0.82, 0.58), 0.13], [V(s * 0.72, 0.5, 0.38), 0.13], [V(s * 0.46, 0.86, -0.05), 0.19], [V(s * 0.62, 0.42, -0.62), 0.14]]) onShell(shell, EC, EE, d, r, M.lbBlack);
@@ -1139,7 +1158,7 @@ export function buildLadybug() {
   const pod = new THREE.Group();
   pod.position.set(0, 0.3, -0.2);
   body.add(pod);
-  add(pod, new THREE.BoxGeometry(0.12, 0.05, 0.9), M.lbBlack).position.set(0, -0.03, 0);
+  add(pod, G.rail ||= new THREE.BoxGeometry(0.12, 0.05, 0.9), M.lbBlack).position.set(0, -0.03, 0);
   const loaded = buildMissile(1.25);
   loaded.group.rotation.x = -0.35;                                       // nose up over its head
   loaded.group.position.set(0, 0.08, 0.05);
@@ -1170,6 +1189,7 @@ export function buildLadybug() {
     pod.visible = shell > 0.55 && e.loaded !== false;
     pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
   };
+  anim.reset = () => { t = 0; shell = 0; fly = 0; flap = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: [elytra[1].pivot] };
 }
 
@@ -1389,6 +1409,7 @@ export function buildDragonfly() {
     tail.rotation.x += kick * 0.8;
     body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
   };
+  anim.reset = () => { t = 0; dart = 0; glide = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1580,6 +1601,7 @@ export function buildMantis({ dead = false } = {}) {
     body.position.y = raise * 0.06;
     body.rotation.z = Math.sin(step * 0.5) * 0.03 * k;
   };
+  anim.reset = () => { t = 0; k = 0; raise = 0; strike = 0; P.fill(0); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1725,6 +1747,7 @@ export function buildBeetle() {
     body.position.y = Math.abs(Math.sin(t)) * 0.012 * k;
     body.rotation.z = Math.sin(t) * 0.02 * k;
   };
+  anim.reset = () => { t = 0; k = 0; open = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
 }
 
@@ -1793,6 +1816,7 @@ export function buildWorm() {
     // where the worm comes out, in the world: the burst and whip words read it
     (e.emergeAt ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
+  anim.reset = () => { t = 0; wind = 0; out = 0; grow = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1972,6 +1996,7 @@ export function buildWasp() {
     body.position.y = Math.sin(t * 5 + ph) * 0.08 * (1 - wind);
     body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.3 : 0.05 + Math.min(1, speed * 4) * 0.15 - wind * 0.5;
   };
+  anim.reset = () => { t = 0; wind = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -2049,5 +2074,6 @@ export function buildNest() {
     // where wasps come out, in the world: the brood word reads it
     (e.emergeAt ||= new THREE.Vector3()).copy(door).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
+  anim.reset = () => { t = 0; shake = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }

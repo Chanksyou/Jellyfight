@@ -655,10 +655,19 @@ export class Run {
       const x = P.x + Math.cos(a) * d, z = P.z + Math.sin(a) * d;
       if (!this.inStage(x, z)) continue;
       const dir = new THREE.Vector3(x - P.x, 0, z - P.z).normalize();
-      if (this.world.cast(pc, dir, d)) continue;               // behind a wall or furniture
-      if (TYPES[type].fly) return new THREE.Vector3(x, pc.y + 0.05 + Math.random() * 0.06, z);
-      const hit = this.world.cast(new THREE.Vector3(x, P.y + 0.12, z), DOWN, 0.3);
-      if (hit && Math.abs(hit.point.y - P.y) < 0.1) return hit.point.clone();
+      if (this.world.castAll(pc, dir, d)) continue;
+      let at;
+      if (TYPES[type].fly) at = new THREE.Vector3(x, pc.y + 0.05 + Math.random() * 0.06, z);
+      else {
+        const hit = this.world.cast(new THREE.Vector3(x, P.y + 0.12, z), DOWN, 0.3);
+        if (!hit || Math.abs(hit.point.y - P.y) >= 0.1) continue;
+        at = hit.point.clone();
+      }
+      const center = at.clone();
+      if (!TYPES[type].fly) center.y += TYPES[type].r;
+      const body = { point: new THREE.Vector3(), normal: new THREE.Vector3() };
+      if (this.world.sweepSphere(pc, center.sub(pc), TYPES[type].r, body)) continue;
+      return at;
     }
     return null;
   }

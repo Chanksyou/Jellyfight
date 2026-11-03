@@ -671,3 +671,35 @@ act2('feel-whipper-cream', {
     return ok(out.hit === 1 && out.onJelly && out.splats >= 4 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['creamSpray', 'creamSplat'].every((k) => out.sounds.includes(k)), out);
   },
 });
+
+act2('bugs-stay-outside-sideboard', {
+  about: 'Ground bugs cannot move through the hollow hallway cabinet body.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { enemies } = G(), results = [];
+    for (const [at, delta, axis, limit, sign] of [
+      [[2.95, 0.02, 6.6], [0.5, 0, 0], 'x', 3.131, 1],
+      [[3.3, 0.02, 6.15], [0, 0, 0.6], 'z', 6.354, 1],
+      [[3.3, 0.02, 7.6], [0, 0, -0.6], 'z', 7.399, -1],
+    ]) {
+      const e = enemies.spawn('roach', V(...at));
+      enemies.move(e, V(...delta));
+      results.push(sign * (e.pos[axis] - limit) <= -e.r + 0.001);
+    }
+    return ok(results.every(Boolean), { results });
+  },
+});
+
+act2('spawns-check-body-clearance', {
+  about: 'A spawn with a clear center ray is still rejected when its body clips scenery.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, world } = G(); let checks = 0;
+    stub(world, 'castAll', () => null);
+    stub(world, 'cast', () => ({ point: V(2.75, G().player.position.y, 6.6) }));
+    stub(world, 'sweepSphere', () => { checks++; return true; });
+    const point = run.spawnPoint('roach');
+    restore();
+    return ok(point === null && checks > 0, { point, checks });
+  },
+});

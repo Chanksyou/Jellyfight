@@ -105,7 +105,7 @@ export class Gadgets {
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
     for (const b of this.bricks || []) this.group.remove(b.m);
-    for (const m of this.marbles || []) this.group.remove(m.m);
+    for (const m of this.marbles || []) { this.group.remove(m.m); m.hit.clear(); }
     this.bricks = [];
     this.marbles = [];
     this.orbit = 0;
@@ -413,7 +413,7 @@ export class Gadgets {
         const at=E.center(e);this.looks.contact(at,this.looks.color,R*.6);
         this.looks.streak(previous,at,this.looks.color,.002,.15);sfx.gadgetMarble('hit');ctx.pulse?.(.15);
       }
-      if (mb.t <= 0) this.group.remove(mb.m);
+      if (mb.t <= 0) { this.group.remove(mb.m); mb.hit.clear(); }
     }
     this.marbles = this.marbles.filter((mb) => mb.t > 0);
   }
@@ -457,7 +457,7 @@ export class Gadgets {
       g.scale.setScalar(ef.size);
       g.userData.body.position.set(0,0,0);g.userData.body.rotation.set(0,0,0);g.userData.body.scale.setScalar(1);
       this.group.add(g);
-      this.bricks.push({ m: g, t: ef.last, age:0, dmg: ef.dmg, size: ef.size, burst: ef.burst });
+      this.bricks.push(Object.assign(g.userData.state ||= {}, { m: g, t: ef.last, age:0, dmg: ef.dmg, size: ef.size, burst: ef.burst }));
       sfx.gadgetBrick();ctx.pulse?.(.15);
       while (this.bricks.length > ef.most) this.group.remove(this.bricks.shift().m);
     } else if (ef.kind === 'marble') {
@@ -465,7 +465,9 @@ export class Gadgets {
       m.scale.setScalar(ef.size);
       m.position.copy(feet).setY(feet.y + 0.007 * ef.size);
       this.group.add(m);
-      this.marbles.push({ m, dir: new THREE.Vector3(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)), t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, hit: new Set(),trailT:0,trailAt:m.position.clone() });
+      const state = m.userData.state ||= { dir: new THREE.Vector3(), hit: new Set(), trailAt: new THREE.Vector3() };
+      state.dir.set(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)); state.hit.clear(); state.trailAt.copy(m.position);
+      this.marbles.push(Object.assign(state, { m, t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, trailT:0 }));
       sfx.gadgetMarble('launch');ctx.pulse?.(.2);
     } else if (ef.kind === 'lash') {
       const e = ctx.from != null && this.near(center, ef.range).find((x) => x.id === ctx.from);
