@@ -110,7 +110,7 @@ export class ThirdPersonCamera {
   }
 
   startFade(m) {
-    if (m.userData.noCameraFade || this._fades.has(m)) return;
+    if ((m.userData.noCameraFade && !this.keep.has(m)) || this._fades.has(m)) return;
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
     this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
     m.material = see;
@@ -166,11 +166,11 @@ export class ThirdPersonCamera {
   // jelly), one per material, standing where the original is, so main.js can build their shaders
   // behind the Play button: building one the first time the camera sees through it stalled a
   // phone for a frame or more. `within`: only colliders inside this box (a newly loaded act's rooms);
-  // `also`: pieces it doesn't collide with that it keeps faint (keepFaint: the Clog's curtain)
+  // `also`: pieces the fight keeps faint, including fixtures that normally never fade
   seeThroughWarmers(within = null, also = []) {
-    const found = new Map(), box = new THREE.Box3();
+    const found = new Map(), box = new THREE.Box3(), kept = new Set(also);
     for (const m of [...this.world.colliders, ...also]) {
-      if (!m.isMesh || m.userData.noCameraFade) continue;
+      if (!m.isMesh || (m.userData.noCameraFade && !kept.has(m))) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
       if (!found.has(m.material)) found.set(m.material, m);
       // and the instanced parts that fade along with it (look)

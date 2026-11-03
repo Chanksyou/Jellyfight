@@ -72,7 +72,7 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
   return added;
 }
 
-// Counter fixtures and clutter stay opaque, even when they block the camera.
+// Counter fixtures and clutter normally stay opaque, even when they block the camera.
 const OPAQUE_COUNTER = new Set([
   'Kitchen', 'Gas_range', 'Range_controls', 'Saute_pan', 'Saucepan',
   'Water_filter_pitcher', 'Oils_and_grinders', 'Blender', 'Kettle',

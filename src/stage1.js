@@ -87,6 +87,10 @@ export const STAGE1 = {
     name: 'The Vacuum',
     kind: 'vacuum',
     intro: 'The Vacuum powers on!',
+    // Only during this fight, the kitchen stops hiding the arena from the camera.
+    seeThrough: ['Kitchen', 'Gas_range', 'Range_controls', 'Saute_pan', 'Saucepan',
+      'Water_filter_pitcher', 'Oils_and_grinders', 'Blender', 'Kettle',
+      'Spice_carousel', 'Cutting_board', 'Glass_dish', 'Dish_cloth'],
     arenaMin: [2.9, 0, 2.0],
     arenaMax: [4.3, 0.6, 4.3],
     playerStart: [3.1, 0, 3.9],
