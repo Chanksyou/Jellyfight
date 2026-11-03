@@ -15,6 +15,8 @@ The kitchen counter, stove, cookware, and countertop items stay opaque at every 
 
 ## Run it
 
+The opening screen's How to play button reveals a short gameplay summary: dodge while attacking automatically, collect XP, choose upgrades and treasures, and survive to beat each act's boss.
+
 Combat reuses enemy models after death effects finish, hostile projectile models, and player projectile state.
 Enemy identities remain separate so lingering attacks cannot target a reused enemy.
 

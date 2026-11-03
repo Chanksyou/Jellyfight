@@ -3,6 +3,36 @@ import { story, phone, G, fresh, ok, step, stub } from './kit.js';
 import { SPECIES } from '../character.js';
 import { moveSaves, forwardFor, takeSaves, HOME } from '../rename.js';
 
+const gameplaySummary = {
+  about: 'How to play starts closed, toggles the gameplay summary before Play, fits its text column, and hides when paused.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu } = G(), over = menu.overlay;
+    try {
+      menu.show(); over.hidden = false; step(1);
+      const summary = over.querySelector('.menu-loop'), play = over.querySelector('.play');
+      const help = summary.closest('details'), toggle = help.querySelector('summary');
+      const icon = toggle.querySelector('.menu-help-icon');
+      const closed = !help.open && !summary.checkVisibility() && toggle.textContent.trim() === '? How to play' && icon?.getAttribute('aria-hidden') === 'true';
+      toggle.click();
+      const text = summary.textContent;
+      const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'treasures', 'countdown', 'boss', 'next act'].every(word => text.includes(word));
+      const r = summary.getBoundingClientRect(), button = play.getBoundingClientRect();
+      const fits = r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= button.top && summary.scrollWidth <= summary.clientWidth;
+      toggle.click();
+      const toggles = !help.open && !summary.checkVisibility();
+      over.classList.remove('menu-home');
+      const paused = getComputedStyle(help).display === 'none';
+      return ok(closed && loop && fits && toggles && paused, { closed, loop, fits, toggles, paused });
+    } finally {
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+};
+story('menu/gameplay-summary', gameplaySummary);
+story('menu/portrait-gameplay-summary', { ...gameplaySummary, portrait: true });
+phone('gameplay-summary', gameplaySummary);
+
 story('menu/portrait-controls-centered', {
   about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
   portrait: true,
