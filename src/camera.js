@@ -3,7 +3,7 @@ import * as THREE from 'three';
 // Orbit camera that follows the player from a fixed angle and distance (look.css --camera-tilt,
 // --camera-distance): it never tilts, pulls in or snaps on its own, because a view that moves
 // under you throws your aim off. Instead, whatever would block the view fades out: furniture
-// over the jelly (the coffee table, the media console, the counter's overhang) and anything
+// over the jelly (the coffee table, the media console) and anything
 // between the camera and the jelly (a wall behind you, a sofa back), solid again once it's
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
 // ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
@@ -110,7 +110,7 @@ export class ThirdPersonCamera {
   }
 
   startFade(m) {
-    if (this._fades.has(m)) return;
+    if (m.userData.noCameraFade || this._fades.has(m)) return;
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
     this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
     m.material = see;
@@ -170,7 +170,7 @@ export class ThirdPersonCamera {
   seeThroughWarmers(within = null, also = []) {
     const found = new Map(), box = new THREE.Box3();
     for (const m of [...this.world.colliders, ...also]) {
-      if (!m.isMesh) continue;
+      if (!m.isMesh || m.userData.noCameraFade) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
       if (!found.has(m.material)) found.set(m.material, m);
       // and the instanced parts that fade along with it (look)

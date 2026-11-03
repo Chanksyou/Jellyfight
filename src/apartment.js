@@ -72,13 +72,36 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
   return added;
 }
 
+// Counter fixtures and clutter stay opaque, even when they block the camera.
+const OPAQUE_COUNTER = new Set([
+  'Kitchen', 'Gas_range', 'Range_controls', 'Saute_pan', 'Saucepan',
+  'Water_filter_pitcher', 'Oils_and_grinders', 'Blender', 'Kettle',
+  'Spice_carousel', 'Cutting_board', 'Glass_dish', 'Dish_cloth',
+]);
+
 function prepareMeshes(root, meta, renderer) {
-  const unpacked = new Set();
+  const unpacked = new Set(), opaque = new Map();
   const coarse = matchMedia('(pointer: coarse)').matches;
   const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), coarse ? 4 : 8);
   softenGlass(root, coarse);
   root.traverse((o) => {
+    if (OPAQUE_COUNTER.has(o.name) || o.parent?.userData.noCameraFade) o.userData.noCameraFade = true;
     if (!o.isMesh) return;
+    if (o.userData.noCameraFade) {
+      // Baked soft-shadow cards use alpha textures; making them solid draws black rectangles.
+      if ([].concat(o.material).every((m) => m.isMeshBasicMaterial && m.transparent && m.map)) o.visible = false;
+      const solid = (m) => {
+        if (!m.transparent && !(m.transmission > 0)) return m;
+        if (!opaque.has(m)) {
+          const copy = m.clone();
+          copy.transparent = false; copy.opacity = 1; copy.depthWrite = true;
+          if ('transmission' in copy) copy.transmission = 0;
+          opaque.set(m, copy);
+        }
+        return opaque.get(m);
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(solid) : solid(o.material);
+    }
     // The file stores positions as packed integers (smaller download). The collision BVH
     // needs plain floats, so unpack them once here (shared geometry only once).
     const pos = o.geometry.attributes.position;

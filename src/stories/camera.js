@@ -59,3 +59,26 @@ story('camera/see-through-holds-and-clears-clutter', {
     } finally { scene.remove(cup, cabinet); cup.geometry.dispose(); cabinet.geometry.dispose(); }
   },
 });
+
+story('camera/kitchen-counter-stays-opaque', {
+  about: 'The counter, stove, cookware and countertop clutter have no transparent materials and never fade when blocking the camera; other furniture still fades.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, APT } = G(), parts = [], groups = ['Kitchen', 'Gas_range', 'Range_controls', 'Saute_pan', 'Saucepan', 'Water_filter_pitcher', 'Oils_and_grinders', 'Blender', 'Kettle', 'Spice_carousel', 'Cutting_board', 'Glass_dish', 'Dish_cloth'];
+    const missing = [];
+    for (const name of groups) {
+      const group = APT.scene.getObjectByName(name);
+      if (!group) { missing.push(name); continue; }
+      group.traverse((o) => { if (o.isMesh) parts.push(o); });
+    }
+    const mats = parts.map((m) => m.material);
+    tpc.over.clear();
+    for (const m of parts) tpc.over.add(m);
+    for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
+    const faded = parts.filter((m, i) => tpc._fades.has(m) || m.material !== mats[i]).length;
+    const transparent = parts.filter((m) => [].concat(m.material).some((mat) => mat.transparent || mat.opacity !== 1 || mat.transmission > 0)).length;
+    tpc.over.clear();
+    return ok(missing.length === 0 && parts.length > 0 && faded === 0 && transparent === 0,
+      { missing, parts: parts.length, faded, transparent });
+  },
+});
