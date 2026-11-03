@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v376 keeps the selected cosmetic’s price and Buy button visible above the creator’s footer while you scroll. Golden award requirements appear there too, and choosing another look clears the purchase offer.
+
 v375 lets players change their public leaderboard name without changing their score or place, reserves unique names across score and achievement boards regardless of capitalization or repeated spaces, and resolves existing duplicates by keeping the earliest saved score’s name and giving later entries an available numbered name.
 
 v374 adds a How to play button above Play that reveals a short gameplay summary: move and dodge, attack automatically, collect XP, choose upgrades and treasures, then survive to beat the boss and reach the next act. The summary starts collapsed.

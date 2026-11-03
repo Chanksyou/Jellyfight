@@ -1,1 +1,0 @@
-keeps the selected cosmetic’s price and Buy button visible above the creator’s footer while you scroll. Golden award requirements appear there too, and choosing another look clears the purchase offer.
