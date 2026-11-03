@@ -2,6 +2,34 @@
 
 import { G, firstMinute, fresh, bossFrame, ok, phone, sharkFight, step, tp } from './kit.js';
 
+phone('held-stick-survives-treasure-pick', {
+  about: 'A thumb held on the joystick keeps its gesture through a treasure pick. Gameplay pauses for the cards, then movement resumes without lifting; releasing during the pick stops movement. Pause still clears controls.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { run, input } = G(), el = document.querySelector('#touch');
+    const capture = el.setPointerCapture;
+    el.setPointerCapture = () => {};
+    const at = (type) => el.dispatchEvent(new PointerEvent(type, { pointerId: 71, clientX: 40, clientY: type === 'pointerdown' ? 300 : 240, bubbles: true }));
+    step(1); at('pointerdown'); at('pointermove');
+    run.pickTreasure();
+    const before = run.t;
+    step(2);
+    const held = !el.hidden && input.moveAxes().y > .9 && run.t === before;
+    run.ui.modal.querySelector('.jf-card').dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch', isPrimary: false, bubbles: true }));
+    step(50);
+    const resumed = !run.ui.open && input.moveAxes().y > .9 && run.t > before;
+    run.pickTreasure(); step(1); at('pointerup');
+    run.ui.modal.querySelector('.jf-card').click(); step(50);
+    const released = input.moveAxes().y === 0;
+    at('pointerdown'); at('pointermove');
+    document.querySelector('#g-over').hidden = false; step(1);
+    const paused = el.hidden && input.moveAxes().y === 0;
+    document.querySelector('#g-over').hidden = true;
+    el.setPointerCapture = capture;
+    return ok(held && resumed && released && paused, { held, resumed, released, paused });
+  },
+});
+
 phone('double-taps-cannot-zoom-the-page', {
   about: 'The whole page blocks browser zoom during two-thumb play, even on a missed button press; hiding the controls restores menu scrolling and deliberate pinch zoom, without double-tap zoom.',
   setup() { fresh({ elites: false }); },

@@ -378,7 +378,8 @@ if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }
 let bossScene = null;
-const menuOpen = () => upright.on || !!bossScene || mainMenu.launching || !overlay.hidden || menus.open || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+const controlsCovered = () => upright.on || !!bossScene || mainMenu.launching || !overlay.hidden || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+const menuOpen = () => controlsCovered() || menus.open;
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
 const camSys = new CameraSystem({ state, camera, tpc, input, player, gfx, playerHeight: CONFIG.player.height, dom: renderer.domElement });
@@ -386,7 +387,8 @@ const systems = {
   traversal,
   fx,
   layout: new LayoutSystem({ state }),
-  touch: new TouchSystem({ state, touch, run, menuOpen: () => menuOpen() || run.victory.active, isTouch: IS_TOUCH }),   // no thumb controls over the ending
+  // Keep captured thumbs alive beneath pick cards; gameplay still pauses until the cards close.
+  touch: new TouchSystem({ state, touch, run, menuOpen: () => controlsCovered() || (menus.open && !menus.picking) || run.victory.active, isTouch: IS_TOUCH }),
   gameplay: new GameplaySystem({ state, run, menuOpen }),
   avatar: new AvatarSystem({ state, player, menuOpen }),
   input: new InputSystem({ state, input, menuOpen }),

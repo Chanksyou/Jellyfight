@@ -189,6 +189,27 @@ story('treasures/choices-resume-mouse-during-selection', {
       { resumes, blockedBeforePick, noEarlyResume, treasure, closed, element, nextMenu });
   },
 });
+story('treasures/held-key-recovers-after-focus-loss', {
+  about: 'A movement key still held after a treasure focus interruption resumes on its next repeat, without another press; repeating jump never queues another jump.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run, input } = G();
+    const key = (code, repeat = false) => dispatchEvent(new KeyboardEvent('keydown', { code, repeat }));
+    key('KeyW');
+    run.pickTreasure();
+    dispatchEvent(new Event('blur'));
+    const cleared = input.moveAxes().y === 0;
+    run.ui.modal.querySelector('.jf-card').click();
+    run.ui.tick(1);
+    key('KeyW', true);
+    const resumed = input.moveAxes().y === 1;
+    key('Space', true);
+    const noJump = !input.consumeJump();
+    input.keys.clear();
+    return ok(cleared && resumed && noJump, { cleared, resumed, noJump });
+  },
+});
+
 story('treasures/levels', {
   about: 'Treasures with level blocks (Fairy Lights) level up when taken again: 3 bulbs, then 4, then 5; the pick offers only the next level ("Lv 2" with what it adds), and nothing past level 3.',
   setup() { setupFight({ lash: false }); },

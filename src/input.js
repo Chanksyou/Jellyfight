@@ -10,8 +10,9 @@ export class Input {
     this.locked = false;
 
     addEventListener('keydown', (e) => {
-      if (e.repeat || e.target.closest?.('input, textarea, select')) return;
+      if (e.target.closest?.('input, textarea, select')) return;
       this.keys.add(e.code);
+      if (e.repeat) return; // recover held keys after blur without repeating button actions
       if (e.code === 'Space') this.jumpQueued = true;
       if (e.code === 'KeyR') this.resetQueued = true;
       if (e.code === 'KeyE') this.interactQueued = true;
