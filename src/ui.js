@@ -382,19 +382,21 @@ export class UI {
     this.modal.innerHTML = `<section class="jf-book jf-achievements" aria-label="Achievements">
       <h2>🏅 Achievements</h2><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p>
       <p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
+      ${onTop ? `<p>${count ? 'Share your earned total with the achievement leaderboard.' : 'Earn an achievement to share your total with the leaderboard.'}</p>` : ''}
       <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
         <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
         ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div>
-      <div class="btns">${onTop ? '<button data-top>🏆 Top 5 players</button>' : ''}<button class="go">Back</button></div></section>`;
+      <div class="btns">${onTop ? `<button data-share ${count ? '' : 'disabled'}>Share achievements</button><button data-top>🏆 Top 5 players</button>` : ''}<button class="go">Back</button></div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
     this.modal.onclick = e => {
       const button = e.target.closest('button');
-      if (button?.hasAttribute('data-top')) { this.close(); onTop(); }
+      if (button?.disabled) return;
+      if (button?.matches('[data-top], [data-share]')) { this.close(); onTop(); }
       else if (button) back();
     };
     this.keyHandler = e => { if (e.code === 'Escape') { e.preventDefault(); back(); } };   // Enter activates the focused button natively
-    this.modal.querySelector('button').focus({ preventScroll: true });
+    this.modal.querySelector('button:not(:disabled)').focus({ preventScroll: true });
   }
 
   // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)

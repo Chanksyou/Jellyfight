@@ -188,9 +188,11 @@ const panel = {
     const box = menus.modal.querySelector('.jf-achievements'), rect = box.getBoundingClientRect();
     const shown = box.querySelectorAll('article').length === 13 && /four-boss win/.test(box.textContent);
     const noProgress = [...box.querySelectorAll('article:not(.earned)')].every(a => !a.querySelector('small'));
+    const share = box.querySelector('[data-share]'), shareRect = share?.getBoundingClientRect();
+    const shareVisible = share?.textContent === 'Share achievements' && shareRect.top >= 0 && shareRect.bottom <= innerHeight;
     const fits = rect.left >= 0 && rect.right <= innerWidth + 1 && rect.height <= innerHeight;
     box.querySelector('button.go').click();
-    return ok(shown && noProgress && fits && back && !menus.open, { shown, noProgress, fits, back, width: rect.width, height: rect.height });
+    return ok(shown && noProgress && shareVisible && fits && back && !menus.open, { shown, noProgress, shareVisible, fits, back, width: rect.width, height: rect.height });
   },
 };
 story('achievements/section', panel);
@@ -238,16 +240,34 @@ story('achievements/sharing-is-independent-of-score', {
       localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify({ 'perfect-boss': '2026-10-30', 'pack-light': '2026-10-30', fake: true }));
       const { run, menus } = G(); let sent;
       stub(run, 'board', { achievementBoard: async entry => { sent = entry; return { top: [], mine: null }; } });
-      await run.showAchievementBoard(() => {});
+      run.showAchievements(() => {});
+      const share = menus.modal.querySelector('[data-share]');
+      const available = share && !share.disabled;
+      share?.click();
+      await Promise.resolve(); await Promise.resolve();
+      const confirmsTotal = sent === null && /Your earned total/.test(menus.modal.textContent) && /2\/13/.test(menus.modal.textContent);
       menus.modal.querySelector('input').value = 'Beta Jelly';
       menus.keyHandler(new KeyboardEvent('keydown', { code: 'Enter' }));
       await Promise.resolve(); await Promise.resolve();
-      return ok(sent?.name === 'Beta Jelly' && sent.achievements.join() === 'perfect-boss,pack-light', { sent });
+      return ok(available && confirmsTotal && sent?.name === 'Beta Jelly' && sent.achievements.join() === 'perfect-boss,pack-light', { available, confirmsTotal, sent });
     } finally {
       before == null ? localStorage.removeItem(ACHIEVEMENTS_KEY) : localStorage.setItem(ACHIEVEMENTS_KEY, before);
       name == null ? localStorage.removeItem('jellyrun.name') : localStorage.setItem('jellyrun.name', name);
     }
   },
+});
+
+story('achievements/sharing-needs-an-earned-achievement', {
+  about: 'With no achievements, Share achievements is visible but disabled, explains how to unlock sharing, and leaves Top 5 players focused and usable.',
+  setup() { fresh({ elites: false }); },
+  play() { return protectEarned(() => {
+    localStorage.setItem(ACHIEVEMENTS_KEY, '{}');
+    const { run, menus } = G();
+    run.showAchievements(() => {});
+    const share = menus.modal.querySelector('[data-share]');
+    share?.click();
+    return ok(share?.disabled && !!menus.modal.querySelector('.jf-achievements') && /Earn an achievement to share/.test(menus.modal.textContent) && document.activeElement.hasAttribute('data-top'));
+  }); },
 });
 
 story('achievements/shared-client-handles-offline-and-rate-limit', {

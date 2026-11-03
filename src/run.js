@@ -1587,6 +1587,7 @@ export class Run {
     if (data.error) buttons.push({ label: 'Retry', onClick: () => this.showAchievementBoard(back) });
     if (data.mine) rows.push(['Your shared total', `${data.mine.count}/${ACHIEVEMENTS.length}`]);
     if (!data.error && ids.length) {
+      rows.push(['Your earned total', `${ids.length}/${ACHIEVEMENTS.length}`]);
       rows.push(['Player name', `<input name="achievementPlayer" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(savedName())}">`]);
       buttons.push({ label: 'Share my achievements', enter: true, onClick: values => {
         const name = (values.achievementPlayer || '').trim().slice(0, 20) || 'Guest';
