@@ -134,7 +134,9 @@ export class Shark {
     const sk=this.skill();this.start.copy(this.position);
     if(['leap','dive','burrowBite','maelstrom','tornado'].includes(this.state)){
       this.target.copy(player.position);this.clampIn(this.target);this.target.y=this.floorAt(this.target);
-      this.warn(this.target,sk.radius,sk.height);
+      // The landing keeps body clearance; its locked splash must still reach the aimed spot.
+      const radius=this.state==='leap'?Math.max(sk.radius,Math.hypot(player.position.x-this.target.x,player.position.z-this.target.z)):sk.radius;
+      this.warn(this.target,radius,sk.height);
     }else{
       const forward=['bite','rear'].includes(this.state)||(this.state==='combo'&&this.beat===0);
       this.target.copy(this.position).addScaledVector(V(Math.sin(this.aimHeading),0,Math.cos(this.aimHeading)),forward?sk.reach:0);
@@ -360,7 +362,7 @@ export class Shark {
       if(this.state==='leap'){
         this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);this.lift=Math.sin(p*Math.PI)*sk.apex;tilt=-.4+Math.sin(p*Math.PI)*.8;
         left=right=-Math.sin(p*Math.PI)*.8;tailSwing*=.45;coil=Math.sin(p*Math.PI)*1.2;stretch=Math.sin(p*Math.PI);
-        if(p>=1){this.burst(this.target,sk.radius,true);this.hit(player,this.target,sk.radius,sk.height,sk.dmg,false,false);if(this.dead||this.dying||this.phase!=='active')return{push:null};this.clearWarning();}
+        if(p>=1){const r=this.warning.r;this.burst(this.target,r,true);this.hit(player,this.target,r,sk.height,sk.dmg,false,false);if(this.dead||this.dying||this.phase!=='active')return{push:null};this.clearWarning();}
       }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
         if(this.state==='maelstrom'){this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);}
         if(this.warning)this.warning.floor.material.progress=this.warning.volume.material.progress=p;
