@@ -175,8 +175,7 @@ export class Encore {
   // the beat now: the song's, or its own tempo clock (no song, music off, or the song still loading)
   beatNow(dt) {
     const b = this.song?.beat?.(dt);
-    if (b === null) return null;                                    // the song is loading: hold
-    if (b !== undefined) return b;
+    if (Number.isFinite(b)) return (this.clock = b);
     return (this.clock += dt * TRACKS.encore.bpm / 60);
   }
 
@@ -188,6 +187,10 @@ export class Encore {
     if (this.falling) { /* its fall: fallDown, after the model's update */ }
     else if (this.cut) this.shortOut(dt, beat);
     else if (!this.dead && beat !== null) {
+      // A restarted track needs a new set, with fresh warnings rather than old scheduled beats.
+      if (this.beat !== null && beat < this.beat) {
+        this.floor.reset(); this.lasers.reset(); this.pulses.reset(beat); this.disco.reset(beat); this.set = null;
+      }
       this.beat = beat;
       this.set ||= new EncoreSet(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z], lasers: this.lasers });
       this.set.update(beat);

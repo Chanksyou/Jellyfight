@@ -21,6 +21,75 @@ act4('the-encore-fight-starts-straight-away', {
   },
 });
 
+act4('loading-music-cannot-disable-its-attacks', {
+  about: 'A recording that never finishes loading cannot stop the Encore: its opening shield expires, floor waves and lasers fire, then speakers and disco strikes join in at their usual beats.',
+  setup() {},
+  play() {
+    const B = encoreFight({ guard: true, hurt: false });
+    stub(B, 'song', { beat: () => null });
+    let floor = 0, laser = 0, disco = 0, pulse = false;
+    for (const [system, method, count] of [[B.floor, 'cast', () => floor++], [B.lasers, 'cast', () => laser++], [B.disco, 'strike', () => disco++]]) {
+      const real = system[method];
+      stub(system, method, function (...args) { count(); return real.apply(this, args); });
+    }
+    step(60 * 70, () => { pulse ||= B.pulses.live.length > 0; });
+    return ok(!B.shielded && floor > 10 && laser > 10 && pulse && disco > 0,
+      { shielded: B.shielded, beat: B.beat, floor, laser, pulse, disco });
+  },
+});
+
+act4('missing-music-continues-from-the-last-audible-beat', {
+  about: 'When the audio clock becomes unavailable, the boss keeps time from its last audible beat rather than rewinding and waiting for old attacks to catch up.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false });
+    let beat = 180;
+    stub(B, 'song', { beat: () => beat });
+    step(1);
+    const before = B.beat;
+    beat = undefined;
+    step(60 * 5);
+    return ok(B.beat > before + 10 && B.beat < before + 11, { before, after: B.beat });
+  },
+});
+
+act4('restarting-music-reschedules-the-set', {
+  about: 'If a music track restarts behind the fight clock, fresh floor waves and lasers get their full wind-up and fire within the next few bars, without waiting for the old song position.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false });
+    let beat = 180;
+    stub(B, 'song', { beat: () => beat });
+    step(1);
+    let floor = 0, laser = 0;
+    const cast = B.floor.cast, fire = B.lasers.cast;
+    stub(B.floor, 'cast', function (...a) { floor++; return cast.apply(this, a); });
+    stub(B.lasers, 'cast', function (...a) { laser++; return fire.apply(this, a); });
+    beat = 0;
+    step(60 * 8, () => { beat += 128 / 60 / 60; });
+    return ok(floor >= 3 && laser >= 3, { floor, laser, beat: B.beat });
+  },
+});
+
+act4('music-recovery-never-releases-an-unwarned-attack', {
+  about: 'Recovering music in the last instant of a disco cycle skips that stale strike and any in-flight speaker pulse; later attacks resume with their full warning/travel.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false });
+    let beat = 180, strikes = 0;
+    stub(B, 'song', { beat: () => beat });
+    step(1);
+    const strike = B.disco.strike;
+    stub(B.disco, 'strike', function (c, player, skip) { if (!skip) strikes++; return strike.call(this, c, player, skip); });
+    beat = 167.9; step(1);
+    const noOldPulse = B.pulses.live.length === 0;
+    step(20, () => { beat += 128 / 60 / 60; });
+    const noStaleStrike = strikes === 0;
+    step(60 * 16, () => { beat += 128 / 60 / 60; });
+    return ok(noOldPulse && noStaleStrike && strikes > 0, { noOldPulse, noStaleStrike, strikes });
+  },
+});
+
 act4('it-calls-no-bugs', {
   about: 'The Encore fights alone: well past bar 8 (beat 32), where it used to call stag beetles, nothing joins the fight and its force field stays down, so hits keep landing.',
   setup() {},

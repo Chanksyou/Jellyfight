@@ -11,6 +11,8 @@
 // v229: elite eligibility and fixed ground targets respect platforms. Departure cancels local
 // anticipation and restores the source pose; released travel/impact/aftermath retain their chain.
 // Phase scores stay unchanged; no new play-speed audio claim.
+// Encore audio-clock recovery re-arms the existing warning/release chains after a rewind.
+// Damage and phase effects are unchanged; its five unaudited phase scores remain null.
 // Bug feel pass: every bug word scored (seen: 'code'); a confirmed bug hit answers through player_hurt (enemies.js landed).
 // v297: owner tuning changes fire/lightning/ice/wind/glitter upgrades, Cotton Ball, Rubber Duck,
 // Guitar Pick and Bath Bomb numbers only. Existing phase implementations and scores are retained:

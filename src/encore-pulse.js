@@ -91,6 +91,6 @@ export class EncorePulses {
     this.shoves = this.shoves.filter((s) => s.left > 1e-6);
   }
 
-  reset() { this.beat = null; this.fired = PULSE.first - 1; this.live.length = 0; this.shoves.length = 0; for (let i = 0; i < POOL * ARCS; i++) this.arcs.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.arcs.instanceMatrix.needsUpdate = true; }
+  reset(beat = null) { this.beat = beat; this.fired = beat ?? PULSE.first - 1; this.live.length = 0; this.shoves.length = 0; for (let i = 0; i < POOL * ARCS; i++) this.arcs.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.arcs.instanceMatrix.needsUpdate = true; }
   dispose() { this.arcs.removeFromParent(); this.arcs.geometry.dispose(); this.arcs.material.dispose(); this.arcs.dispose(); }
 }
