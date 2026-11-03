@@ -45,6 +45,8 @@ export const STAGE2 = {
   // the closets are left ajar (a fraction of fully open) so you can peek in; a wall keeps you out
   doors: { bath: 'open', laundry: 0.3, coat: 0.3, bedroom: 'closed', front: 'closed' },
   walls: [
+    // Fill the hollow cabinet body beneath its top; the flutes are instanced.
+    { min: [3.131, 0, 6.354], max: [3.519, 0.767, 7.399] },
     // where the hallway opens into the living room: you can look back, not go back
     { min: [2.45, 0, 4.83], max: [3.65, 2.7, 4.87] },
     // the closets: an invisible wall across each doorway (like act 1's wall into the hall)
