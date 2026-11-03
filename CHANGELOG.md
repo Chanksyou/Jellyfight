@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v373 keeps the kitchen counter, stove, cookware, and countertop items opaque at every camera angle.
+
 v372 Show large, sharp portraits of each player's customized jellyfish beside their achievement rank, name and total; sharing updates the saved look, with saved score appearances available for older entries.
 
 v371 Keeps bugs outside the hallway cabinet and checks their full body clearance before spawning beside walls or furniture.
