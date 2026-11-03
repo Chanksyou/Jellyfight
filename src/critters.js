@@ -1005,7 +1005,7 @@ export function buildMillipede() {
 // additive cones, flickered by whoever flies it). Used in flight (meters, enemies.js) and loaded
 // on the ladybug's back (radius units).
 const MISSILE_MAT = {};
-export function buildMissile(L = 0.04) {
+function missileModel(L) {
   const M = MISSILE_MAT;
   M.body ||= new THREE.MeshStandardMaterial({ color: 0xf2f3f5, metalness: 0.35, roughness: 0.3 });
   M.nose ||= new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.5, roughness: 0.25 });
@@ -1036,11 +1036,20 @@ export function buildMissile(L = 0.04) {
     add(fin(0.07 * L, 0.07 * L, 0.02 * L, 0.13 * L).rotateZ(a), M.fin);                                                // canards
   }
   const flame = new THREE.Group();
+  flame.name = 'flame';
   flame.position.z = -0.44 * L;
   flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.85, 0.36 * L, 12, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.18 * L), M.flame));
   flame.add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.45, 0.2 * L, 10, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.1 * L), M.core));
   g.add(flame);
   return { group: g, flame, length: L };
+}
+
+// Only the two model sizes used by the game are retained; meshes animate independently.
+const MISSILE_MODELS = new Map();
+export function buildMissile(L = 0.04) {
+  if (!MISSILE_MODELS.has(L)) MISSILE_MODELS.set(L, missileModel(L).group);
+  const group = MISSILE_MODELS.get(L).clone();
+  return { group, flame: group.getObjectByName('flame'), length: L };
 }
 
 // ------------------------------------------------------------------ ladybug
@@ -1091,25 +1100,28 @@ export function buildLadybug() {
   const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(body, G.under, M.lbLeg);
   // a disc lying on an ellipsoid (centre C, radii E) in direction d: the spots and patches
+  G.spot ||= new THREE.SphereGeometry(1, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   const onShell = (parent, C, E, d, r, mat, lift = 0.012) => {
     const u = d.clone().normalize(), p = V(C.x + E.x * u.x, C.y + E.y * u.y, C.z + E.z * u.z);
     const n = V(u.x / E.x, u.y / E.y, u.z / E.z).normalize();
-    const m = add(parent, new THREE.SphereGeometry(1, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(r, 0.035, r * 0.92), mat);
+    const m = add(parent, G.spot, mat);
+    m.scale.set(r, 0.035, r * 0.92);
     m.position.copy(p).addScaledVector(n, lift);
     m.quaternion.setFromUnitVectors(V(0, 1, 0), n);
     return m;
   };
   // pronotum and head
   const PC = V(0, -0.02, 0.74), PE = V(0.6, 0.4, 0.34);
-  add(body, new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(PE.x, PE.y, PE.z).translate(PC.x, PC.y, PC.z), M.lbBlack);
+  add(body, G.pronotum ||= new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62).scale(PE.x, PE.y, PE.z).translate(PC.x, PC.y, PC.z), M.lbBlack);
   for (const s of [-1, 1]) { onShell(body, PC, PE, V(s * 0.75, 0.42, 0.5), 0.16, M.lbCream); onShell(body, PC, PE, V(s * 0.25, 0.4, 0.88), 0.07, M.lbCream); }
   const HC = V(0, -0.1, 1.04), HE = V(0.32, 0.22, 0.2);
-  add(body, new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
+  add(body, G.head ||= new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
   for (const s of [-1, 1]) onShell(body, HC, HE, V(s * 0.6, 0.35, 0.7), 0.07, M.lbCream);
   const antennae = [-1, 1].map((s) => { const a = add(body, G.antenna, M.lbLeg, V(s * 0.12, -0.04, 1.2)); a.scale.x = s; return a; });
   body.add(angryEyes({ y: -0.06, z: 1.22, size: 0.1, gap: 0.12 }));
   // the elytra: each a half dome on a hinge at its front inner corner, its spots riding on it
   const EC = V(0, -0.02, -0.16), EE = V(0.92, 0.78, 1.0);
+  G.halves ||= {};
   const elytra = [-1, 1].map((s) => {
     const pivot = new THREE.Group(), hinge = V(s * 0.04, EC.y + 0.66, EC.z + 0.58);
     pivot.position.copy(hinge);
@@ -1117,7 +1129,7 @@ export function buildLadybug() {
     const shell = new THREE.Group();
     shell.position.copy(hinge).negate();
     pivot.add(shell);
-    const half = (k) => new THREE.SphereGeometry(1, 40, 24, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.58).scale(EE.x * k, EE.y * k, EE.z * k).translate(EC.x, EC.y, EC.z);
+    const half = (k) => G.halves[`${s}:${k}`] ||= new THREE.SphereGeometry(1, 40, 24, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.58).scale(EE.x * k, EE.y * k, EE.z * k).translate(EC.x, EC.y, EC.z);
     add(shell, half(1), M.lbRed);
     add(shell, half(0.97), M.lbInside);
     for (const [d, r] of [[V(s * 0.08, 0.82, 0.58), 0.13], [V(s * 0.72, 0.5, 0.38), 0.13], [V(s * 0.46, 0.86, -0.05), 0.19], [V(s * 0.62, 0.42, -0.62), 0.14]]) onShell(shell, EC, EE, d, r, M.lbBlack);
@@ -1146,7 +1158,7 @@ export function buildLadybug() {
   const pod = new THREE.Group();
   pod.position.set(0, 0.3, -0.2);
   body.add(pod);
-  add(pod, new THREE.BoxGeometry(0.12, 0.05, 0.9), M.lbBlack).position.set(0, -0.03, 0);
+  add(pod, G.rail ||= new THREE.BoxGeometry(0.12, 0.05, 0.9), M.lbBlack).position.set(0, -0.03, 0);
   const loaded = buildMissile(1.25);
   loaded.group.rotation.x = -0.35;                                       // nose up over its head
   loaded.group.position.set(0, 0.08, 0.05);

@@ -1,3 +1,4 @@
+import { buildLadybug, buildMissile } from '../critters.js';
 import { ModelPool } from '../model-pool.js';
 import * as THREE from 'three';
 import { World } from '../collision.js';
@@ -228,5 +229,38 @@ story('engine/combat-pools-bound-retained-models', {
     const distinct=new Set(records.map(p=>p.root)).size===130;
     records.forEach(p=>pool.release(p));const reused=pool.take('test',()=>{throw new Error('expected reuse');});
     return ok(distinct && pool.entries.length===128 && reused===records[0],{distinct,retained:pool.entries.length});
+  },
+});
+
+story('engine/ladybug-and-missile-batches-plateau', {
+  about: 'Repeated ladybug spawns and missile launches reuse geometry and batches while their animated parts remain independent.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), b = new Batcher(scene), counts = [];
+    let independent = true, shared = true;
+    const meshes = root => { const out = []; root.traverse(o => { if (o.isMesh) out.push(o); }); return out; };
+    try {
+      for (let i = 0; i < 6; i++) {
+        const a = buildLadybug(), other = buildLadybug(), shot = buildMissile(), loaded = buildMissile(1.25);
+        const roots = [a.body, other.body, shot.group, loaded.group];
+        const parts = meshes(a.body), peers = meshes(other.body);
+        shared &&= parts.every((m, k) => m.geometry === peers[k].geometry && m !== peers[k]);
+        other.body.updateMatrixWorld(true);
+        const before = peers.map(m => m.matrixWorld.toArray());
+        a.anim(0.1, { shellK: 1, flyK: 1, wingK: 1, phase: 0, state: 'aim' });
+        other.body.updateMatrixWorld(true);
+        independent &&= peers.every((m, k) => m.matrixWorld.toArray().every((n, j) => n === before[k][j]));
+        shot.flame.visible = false;
+        independent &&= loaded.flame.visible && shot.flame !== loaded.flame;
+        roots.forEach(root => { root.traverse(o => { o.visible = true; }); scene.add(root); b.track(root); });
+        b.sync();
+        roots.forEach(root => root.removeFromParent()); b.sync();
+        counts.push([...b.groups.values()].reduce((n, mats) => n + mats.size, 0));
+        independent &&= b.roots.size === 0 && [...b.groups.values()].every(mats => [...mats.values()].every(g => g.list.length === 0 && g.mesh.count === 0));
+      }
+      return ok(shared && independent && counts.every(n => n === counts[0]), { shared, independent, counts });
+    } finally {
+      for (const mats of b.groups.values()) for (const g of mats.values()) g.mesh?.dispose();
+    }
   },
 });
