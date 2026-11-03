@@ -811,3 +811,39 @@ const changeNameStory = {
 };
 story('engine/leaderboard-change-name', changeNameStory);
 story('phone/leaderboard-change-name', { ...changeNameStory, phone: true });
+
+for (const phone of [false, true]) story((phone ? 'phone/' : 'modes/') + 'cosmetic-purchase-visible', {
+  phone,
+  about: 'A selected cosmetic keeps its price and Buy button above the footer at every scroll position; changing the preview replaces the offer and choosing an owned look clears it.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const saved = localStorage.getItem(PEARLS_KEY);
+    const over = document.querySelector('#g-over');
+    try {
+      localStorage.setItem(PEARLS_KEY, JSON.stringify({ pearls: 70, bought: [] }));
+      over.hidden = false;
+      document.querySelector('#g-over [data-act="creator"]').click(); step(2);
+      const panel = document.querySelector('#creator'), scroll = panel.querySelector('.scroll');
+      const chip = (v) => panel.querySelector('[data-k="top"][data-v="' + v + '"]');
+      chip('bottlecap').click();
+      const note = panel.querySelector('.need'), button = note.querySelector('[data-buy]');
+      const visible = () => {
+        const r = button.getBoundingClientRect(), p = panel.getBoundingClientRect(), f = panel.querySelector('footer').getBoundingClientRect();
+        return r.top >= p.top && r.bottom <= f.top && r.left >= p.left && r.right <= p.right && r.bottom <= innerHeight;
+      };
+      scroll.scrollTop = 0;
+      const atTop = visible(), top = button.getBoundingClientRect().top;
+      scroll.scrollTop = scroll.scrollHeight;
+      const atBottom = visible() && button.getBoundingClientRect().top === top && !scroll.contains(button);
+      chip('lampshade').click();
+      const replaced = !note.querySelector('[data-buy]') && /Lampshade.*300 Pearls/.test(note.textContent);
+      chip('none').click();
+      const cleared = note.textContent === '';
+      return ok(atTop && atBottom && replaced && cleared, { atTop, atBottom, replaced, cleared });
+    } finally {
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      over.hidden = true;
+      saved === null ? localStorage.removeItem(PEARLS_KEY) : localStorage.setItem(PEARLS_KEY, saved);
+    }
+  },
+});

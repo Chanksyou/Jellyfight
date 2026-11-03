@@ -16,7 +16,7 @@ const CSS = `
 #creator header { padding: 18px 20px 6px; }
 #creator h2 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
 #creator header p { margin: 2px 0 0; color: #c9c3d6; font-size: 13px; }
-#creator .scroll { flex: 1; overflow-y: auto; padding: 4px 20px 16px; }
+#creator .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 16px; }
 #creator .sec { margin-top: 14px; }
 #creator .lbl { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #b9b2c8; margin-bottom: 6px; }
 #creator .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -26,9 +26,9 @@ const CSS = `
 #creator .chips button.on { background: #ffd23a; color: #1d1a12; border-color: transparent; font-weight: 600; }
 #creator .chips button.locked { opacity: .5; cursor: help; border-style: dashed; border-color: #ffd23a88; }
 #creator .chips button.locked.try { opacity: 1; border-style: solid; border-color: #ffd23a; box-shadow: 0 0 0 1px #ffd23a; }
-#creator .need { margin-top: 6px; font-size: 12.5px; color: #ffd98a; }
+#creator .need { flex-shrink: 0; padding: 12px 20px; border-top: 1px solid #ffffff14; font-size: 12.5px; color: #ffd98a; }
 #creator .need:empty { display: none; }
-#creator .need button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 12px; font: inherit; font-weight: 700; background: #ffd23a; color: #1d1a12; cursor: pointer; }
+#creator .need button { margin-left: 8px; border: 0; border-radius: 999px; min-height: 44px; padding: 8px 14px; font: inherit; font-weight: 700; background: #ffd23a; color: #1d1a12; cursor: pointer; }
 #creator .chips button.shop { border-color: #9fe3ff88; }
 #creator .pearls { margin-top: 4px; font-size: 13.5px; color: #e9f6ff; font-variant-numeric: tabular-nums; }
 #creator .blurb { margin-top: 6px; font-size: 13px; color: #c9c3d6; }
@@ -40,6 +40,7 @@ const CSS = `
   font: inherit; font-size: 16px; font-weight: 600; padding: 8px 10px; border-radius: 10px; outline: none; }
 #creator input[type=text]:focus { border-color: #ffd23a; }
 #creator input[type=range] { width: 100%; accent-color: #ffd23a; }
+#creator header, #creator footer { flex-shrink: 0; }
 #creator footer { display: flex; gap: 8px; padding: 12px 20px 18px; border-top: 1px solid #ffffff14; }
 #creator footer button { border: 0; font: inherit; font-weight: 600; border-radius: 12px; padding: 11px 14px; cursor: pointer; }
 #creator .ghost { background: #ffffff14; color: inherit; }
@@ -63,11 +64,13 @@ export class Creator {
     this.el.innerHTML = `<style>${CSS}</style><div id="creator" hidden>
       <header><h2>Make your jellyfish</h2><p class="pearls"></p></header>
       <div class="scroll"></div>
+      <div class="need" aria-live="polite"></div>
       <footer><button class="ghost" data-act="random" title="Randomize">🎲 Surprise me</button><button class="go" data-act="done">Let's go!</button></footer>
       </div><div class="cr-hint" hidden>Drag to spin your jellyfish</div>`;
     this.panel = this.el.querySelector('#creator');
     this.hint = this.el.querySelector(".cr-hint");
     this.body = this.el.querySelector('.scroll');
+    this.note = this.panel.querySelector('.need');
     this.panel.addEventListener('click', (e) => this.click(e));
     this.panel.addEventListener('input', (e) => this.input(e));
     // keep keys typed here away from the game
@@ -99,6 +102,7 @@ export class Creator {
   }
   // stop trying on; show = put the jelly back now (otherwise the caller's onChange rebuilds it)
   untry(show = false) {
+    this.note.textContent = '';
     if (!this.trying) return;
     this.trying = false;
     this.hint.textContent = 'Drag to spin your jellyfish';
@@ -106,6 +110,7 @@ export class Creator {
   }
 
   render() {
+    this.note.textContent = '';
     const L = this.look;
     // an earned option not yet earned shows locked, with what it asks for and how far along you are
     // (tap it to read that here: a phone has no hover)
@@ -117,7 +122,7 @@ export class Creator {
         const need = requirement(key, id), cost = price(key, id), open = unlocked(key, id, F, B.bought);
         const lock = open ? '' : need ? ` data-need="${esc(name + ' · ' + requirementText(need, F))}" title="${esc(requirementText(need, F))}"` : ` data-cost="${cost}" data-name="${esc(name)}" title="${cost} Pearls"`;
         return `<button data-k="${key}" data-v="${id}"${lock} class="${L[key] === id ? 'on' : ''}${open ? '' : ' locked'}${cost ? ' shop' : ''}">${need ? '✨ ' : ''}${name}${open ? '' : need ? ' 🔒' : ` · 🦪 ${cost}`}</button>`;
-      }).join('')}</div><div class="need" data-for="${key}"></div></div>`;
+      }).join('')}</div></div>`;
     const colors = (key, label) => `<div class="sec"><div class="lbl">${label}</div><div class="sw">${
       SWATCHES.map((c) => `<button data-k="${key}" data-v="${c}" style="background:${c}" class="${L[key].toLowerCase() === c ? 'on' : ''}" aria-label="${c}"></button>`).join('')
     }<input type="color" data-k="${key}" value="${L[key]}" title="Any color"></div></div>`;
@@ -148,14 +153,16 @@ export class Creator {
     if (!b) return;
     if (!b.dataset.buy) sfx.tap();
     if (b.dataset.need) {                   // locked: try it on and say what it takes
-      const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`);
+      const note = this.note;
+      note.dataset.for = b.dataset.k;
       if (note) note.textContent = '🔒 ' + b.dataset.need;
       this.tryOn(b, b.dataset.need);
       return;
     }
     if (b.dataset.cost) {                   // in the shop: try it on, its price, and Buy when you have enough
       this.tryOn(b, `${b.dataset.name} · ${b.dataset.cost} Pearls`);
-      const note = this.body.querySelector(`.need[data-for="${b.dataset.k}"]`), cost = +b.dataset.cost, have = bank().pearls;
+      const note = this.note, cost = +b.dataset.cost, have = bank().pearls;
+      note.dataset.for = b.dataset.k;
       if (note) note.innerHTML = `🦪 ${esc(b.dataset.name)} · ${cost} Pearls` + (have >= cost
         ? `<button data-buy="${b.dataset.k}" data-v="${b.dataset.v}">Buy</button>`
         : ` <small>(you have ${have}: finish more runs to earn them)</small>`);
