@@ -153,11 +153,17 @@ export class EncoreDisco {
   }
 
   update(beat, player) {
+    if (this.resumeAt != null && beat < this.resumeAt) return;
     if (this.beat !== null && beat < this.beat) this.struck = -1;
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
     const at = this.showAt(beat), u = at === null ? null : beat - at;
     if (at !== this.show) { this.show = at; this.struck = -1; if (at !== null) this.scatter(); }
+    // Recovery enters on a full cycle, skipping strikes whose warnings were never shown.
+    if (this.resumeAt != null) {
+      if (u !== null) this.struck = Math.max(-1, Math.floor(u / DISCO.cycle) - 1);
+      this.resumeAt = null;
+    }
     // each 4 beats strike as they end (beats 4 and 8 of the show), where the spots stopped
     const len = this.stayFrom != null ? Infinity : DISCO.length;
     if (u !== null) for (let c = this.struck + 1; c < Math.min(len / DISCO.cycle, Math.floor(u / DISCO.cycle)); c++) this.strike(c, player, skip || this.quiet(at + c * DISCO.cycle));
@@ -205,6 +211,6 @@ export class EncoreDisco {
   // (the Encore after half Health); null: back to its every-8-bars shows
   stay(at) { this.stayFrom = at; this.dealt = -1; }
 
-  reset() { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
+  reset(beat = null) { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.resumeAt = beat === null ? null : Math.ceil(beat / DISCO.cycle) * DISCO.cycle; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
   dispose() { this.root.removeFromParent(); this.spots.dispose(); this.beams.dispose(); for (const o of this.owned) o.dispose(); }
 }

@@ -269,11 +269,11 @@ function trackFor(name) {
   if (!tracks[name]) { const t = tracks[name] = { track: new SongTrack(A.ctx, A.master, T), state: 'loading' }; t.track.load().then((ok) => { t.state = ok ? 'ready' : 'failed'; }); }
   return tracks[name];
 }
-// the run's song as a beat source (encore.js): its beat, null while it loads (the fight waits), or
-// undefined with no music (the boss keeps its own time); only a recording knows its breakdown and drop
+// The run's beat source: loading or unavailable audio lets the boss keep its own time.
+// Only a recording knows its breakdown and drop.
 const song = {
   playing: null,
-  beat() { const t = this.playing; if (!t) return undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
+  beat() { if (audio()?.ctx.state !== 'running') return undefined; const t = this.playing; if (!t) return undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
   quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };
