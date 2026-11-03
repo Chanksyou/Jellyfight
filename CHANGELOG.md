@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v372 Show large, sharp portraits of each player's customized jellyfish beside their achievement rank, name and total; sharing updates the saved look, with saved score appearances available for older entries.
+
 v371 Keeps bugs outside the hallway cabinet and checks their full body clearance before spawning beside walls or furniture.
 
 v370 reuses enemy models, hostile projectile models and state, and bubble, tentacle, acid puddle, brick and marble state, resetting combat history and poses while preserving enemy identity and death effects.
