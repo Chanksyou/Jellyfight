@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v378 closes the shark fight’s safe corners: the leap’s warned splash reaches its aimed spot across the playable bed, while the shark stays inside the arena and the locked splash remains dodgeable.
+
 v377 clears Continue immediately on death or final victory, including the tab’s carried run, so closing or reloading during the ending cannot restore a finished playthrough.
 
 v376 keeps the selected cosmetic’s price and Buy button visible above the creator’s footer while you scroll. Golden award requirements appear there too, and choosing another look clears the purchase offer.
