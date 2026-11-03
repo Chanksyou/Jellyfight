@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v374 adds a How to play button above Play that reveals a short gameplay summary: move and dodge, attack automatically, collect XP, choose upgrades and treasures, then survive to beat the boss and reach the next act. The summary starts collapsed.
+
 v373 keeps the kitchen counter, stove, cookware, and countertop items opaque at every camera angle.
 
 v372 Show large, sharp portraits of each player's customized jellyfish beside their achievement rank, name and total; sharing updates the saved look, with saved score appearances available for older entries.
