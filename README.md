@@ -9,6 +9,8 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 - [Changing the game](#changing-the-game) and [developer tools](#dev-layout-editor)
 - [Version history](CHANGELOG.md)
 
+Act II bugs stay outside the hallway cabinet, and wave spawns check body clearance against walls and furniture.
+
 ## Run it
 
 Combat reuses enemy models after death effects finish, hostile projectile models, and player projectile state.
