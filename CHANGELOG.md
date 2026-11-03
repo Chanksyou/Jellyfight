@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v370 reuses enemy models, hostile projectile models and state, and bubble, tentacle, acid puddle, brick and marble state, resetting combat history and poses while preserving enemy identity and death effects.
+
 v368 Put a Share achievements button directly in the Achievements section, opening the existing name-and-confirmation flow for the achievement leaderboard.
 
 v367 Keep the Encore attacking when music is loading or suspended, continue silent timing from its last audible beat, and reschedule its set with fresh warnings if the song restarts.
