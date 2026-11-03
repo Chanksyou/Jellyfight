@@ -239,6 +239,7 @@ story('achievements/sharing-is-independent-of-score', {
     try {
       localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify({ 'perfect-boss': '2026-10-30', 'pack-light': '2026-10-30', fake: true }));
       const { run, menus } = G(); let sent;
+      stub(run, 'playerLook', () => ({ body: 'moon', color: '#12abcd' }));
       stub(run, 'board', { achievementBoard: async entry => { sent = entry; return { top: [], mine: null }; } });
       run.showAchievements(() => {});
       const share = menus.modal.querySelector('[data-share]');
@@ -249,7 +250,7 @@ story('achievements/sharing-is-independent-of-score', {
       menus.modal.querySelector('input').value = 'Beta Jelly';
       menus.keyHandler(new KeyboardEvent('keydown', { code: 'Enter' }));
       await Promise.resolve(); await Promise.resolve();
-      return ok(available && confirmsTotal && sent?.name === 'Beta Jelly' && sent.achievements.join() === 'perfect-boss,pack-light', { available, confirmsTotal, sent });
+      return ok(available && confirmsTotal && sent?.name === 'Beta Jelly' && sent.look?.body === 'moon' && sent.look.color === '#12abcd' && sent.achievements.join() === 'perfect-boss,pack-light', { available, confirmsTotal, sent });
     } finally {
       before == null ? localStorage.removeItem(ACHIEVEMENTS_KEY) : localStorage.setItem(ACHIEVEMENTS_KEY, before);
       name == null ? localStorage.removeItem('jellyrun.name') : localStorage.setItem('jellyrun.name', name);
@@ -269,6 +270,24 @@ story('achievements/sharing-needs-an-earned-achievement', {
     return ok(share?.disabled && !!menus.modal.querySelector('.jf-achievements') && /Earn an achievement to share/.test(menus.modal.textContent) && document.activeElement.hasAttribute('data-top'));
   }); },
 });
+
+const portraits = {
+  about: 'The achievement Top 5 renders each saved jelly look as a large portrait alongside rank, name and total, remains scrollable and fits phone and desktop widths.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, menus } = G(), seen = [], top = Array.from({ length: 5 }, (_, i) => ({ name: 'A very long player name ' + i, count: 13 - i, look: { body: i % 2 ? 'moon' : 'nettle', color: ['#12abcd', '#abcdef'][i % 2] } }));
+    stub(run, 'board', { achievementBoard: async () => ({ top }) });
+    stub(run, 'jellyFace', look => { seen.push(look); return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; });
+    await run.showAchievementBoard(() => {});
+    const box = menus.modal.querySelector('.jf-achievement-board'), images = [...box.querySelectorAll('.jf-jelly')];
+    const matches = JSON.stringify(seen) === JSON.stringify(top.map(p => p.look));
+    const large = images.every(img => img.getBoundingClientRect().width >= 100);
+    const fits = box.scrollWidth <= box.clientWidth + 1 && box.getBoundingClientRect().height <= innerHeight;
+    return ok(images.length === 5 && matches && large && fits, { count: images.length, matches, large, fits });
+  },
+};
+story('achievements/large-jelly-portraits', portraits);
+phone('achievement-leaderboard-portraits', portraits);
 
 story('achievements/shared-client-handles-offline-and-rate-limit', {
   about: 'The achievement API uses the existing player ID, remains independent of score eligibility, and reports rate limits or offline hosts.',

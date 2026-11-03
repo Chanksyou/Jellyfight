@@ -1,0 +1,1 @@
+Show large, sharp portraits of each player's customized jellyfish beside their achievement rank, name and total; sharing updates the saved look, with saved score appearances available for older entries.

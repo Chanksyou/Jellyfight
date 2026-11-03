@@ -31,7 +31,7 @@ const SCHEMA = [
     kills INTEGER, time INTEGER, won INTEGER, build TEXT, at INTEGER NOT NULL, ip TEXT)`,
   'CREATE INDEX IF NOT EXISTS scores_by_score ON scores (score DESC)',
   'CREATE TABLE IF NOT EXISTS posts (key TEXT PRIMARY KEY, at INTEGER NOT NULL)',
-  'CREATE TABLE IF NOT EXISTS achievement_players (id TEXT PRIMARY KEY, name TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS achievement_players (id TEXT PRIMARY KEY, name TEXT NOT NULL, look TEXT)',
   'CREATE TABLE IF NOT EXISTS achievement_unlocks (player_id TEXT NOT NULL, achievement_id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (player_id, achievement_id))',
   `CREATE TABLE IF NOT EXISTS runs (at INTEGER NOT NULL, player_id TEXT NOT NULL, run_id TEXT NOT NULL, build TEXT, act INTEGER,
     outcome TEXT, score INTEGER, time INTEGER, level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT,
@@ -48,6 +48,11 @@ const SCHEMA = [
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
+  const players = await db.prepare('PRAGMA table_info(achievement_players)').all();
+  if (!players.results.some(c => c.name === 'look')) {
+    try { await db.prepare('ALTER TABLE achievement_players ADD COLUMN look TEXT').run(); }
+    catch (e) { if (!/duplicate column/i.test(String(e))) throw e; }
+  }
   const columns = await db.prepare('PRAGMA table_info(run_summaries)').all();
   if (!columns.results.some(c => c.name === 'details')) {
     try { await db.prepare('ALTER TABLE run_summaries ADD COLUMN details TEXT').run(); }
@@ -86,12 +91,13 @@ async function hashIp(ip, salt) {
 }
 
 const ROW = 'id, name, body, look, score, level, kills, time, won, at';
-const shape = (r) => {
+const withLook = (r) => {
   if (!r) return r;
   let look = null;
   try { look = r.look ? JSON.parse(r.look) : null; } catch {}
-  return { ...r, won: !!r.won, look };
+  return { ...r, look };
 };
+const shape = r => r ? { ...withLook(r), won: !!r.won } : r;
 
 async function top(db, me) {
   const [list, mine] = await db.batch([
@@ -135,13 +141,14 @@ async function post(request, env) {
 }
 
 async function achievementTop(db, me) {
-  const ranked = `SELECT p.id, p.name, COUNT(*) AS count, MAX(u.at) AS at
-    FROM achievement_players p JOIN achievement_unlocks u ON u.player_id = p.id GROUP BY p.id, p.name`;
+  const ranked = `SELECT p.id, p.name, COALESCE(p.look, s.look) AS look, s.body, COUNT(*) AS count, MAX(u.at) AS at
+    FROM achievement_players p JOIN achievement_unlocks u ON u.player_id = p.id
+    LEFT JOIN scores s ON s.id = p.id GROUP BY p.id, p.name`;
   const [list, mine] = await db.batch([
     db.prepare(`${ranked} ORDER BY count DESC, at ASC, p.id ASC LIMIT 5`),
     db.prepare(`SELECT * FROM (${ranked}) WHERE id = ?`).bind(ID.test(me || '') ? me : ''),
   ]);
-  return { top: list.results.map(r => ({ ...r, id: r.id === me ? r.id : undefined })), mine: mine.results[0] || null };
+  return { top: list.results.map(r => withLook({ ...r, id: r.id === me ? r.id : undefined })), mine: withLook(mine.results[0]) || null };
 }
 
 async function postAchievements(request, env) {
@@ -156,7 +163,8 @@ async function postAchievements(request, env) {
   const recent = await db.prepare('SELECT key, at FROM posts WHERE key IN (?, ?)').bind(...keys).all();
   if (recent.results.some(r => now - r.at < (r.key === keys[0] ? PER_ID_MS : PER_IP_MS))) return json({ posted: false, why: 'slow' }, 429);
   await db.batch([
-    db.prepare('INSERT INTO achievement_players (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name').bind(b.id, cleanName(b.name)),
+    db.prepare(`INSERT INTO achievement_players (id, name, look) VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, look = COALESCE(excluded.look, achievement_players.look)`).bind(b.id, cleanName(b.name), cleanLook(b.look)),
     ...ids.map(id => db.prepare('INSERT OR IGNORE INTO achievement_unlocks (player_id, achievement_id, at) VALUES (?, ?, ?)').bind(b.id, id, now)),
     db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(keys[0], now, keys[1], now),
   ]);

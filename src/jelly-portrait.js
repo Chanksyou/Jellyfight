@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { buildCharacter, normalizeLook } from './character.js';
 import { LOOK } from './look.js';
 
-const SIZE = 128;
+const SIZE = LOOK.num('portrait-resolution', 256);
 const cache = new Map();
 let kit = null;
 
