@@ -632,9 +632,15 @@
   animation: menu-arrive .55s cubic-bezier(.16,1,.3,1) both;
 }
 #g-over:is(.menu-home, .menu-launching) h1 span, #g-over.menu-launching h1 span { display: block; color: var(--menu-mint); }
-#g-over .menu-loop { display: none; }
+#g-over .menu-help { display: none; }
+#g-over:is(.menu-home, .menu-launching) .menu-help { display: block; }
+#g-over .menu-help summary {
+  width: fit-content; padding: 8px 14px; border: 1px solid #ffffff30; border-radius: 13px;
+  background: #ffffff0b; font-size: 14px; cursor: pointer;
+}
+#g-over .menu-help summary:focus-visible { outline: 2px solid var(--menu-mint); outline-offset: 5px; }
 #g-over:is(.menu-home, .menu-launching) .menu-loop {
-  display: block; max-width: 42ch; margin: 0 auto 0 0;
+  max-width: 42ch; margin: 10px auto 0 0;
   font-size: 15px; line-height: 1.45; color: var(--menu-paper);
 }
 #g-over:is(.menu-home, .menu-launching) .play, #g-over.menu-launching .play {
@@ -712,6 +718,7 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
 }
 @media (max-aspect-ratio: 1/1), (max-width: 680px) and (orientation: portrait) {
   #g-over:is(.menu-home, .menu-launching) .menu-loop { margin-inline: auto; }
+  #g-over .menu-help summary { margin-inline: auto; }
   #g-over:is(.menu-home, .menu-launching) { display: block; overflow-y: auto; background: linear-gradient(0deg,#04132980 0%,#04132938 45%,transparent 100%); }
   #g-over:is(.menu-home, .menu-launching) > div { position: relative; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; text-align: center; }
   #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); margin-bottom: 14px; transform-origin: center; }
