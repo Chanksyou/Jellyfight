@@ -1253,6 +1253,7 @@ export class Run {
   }
 
   onBossDead({ impact = true } = {}) {
+    if (!this.dev && !STAGES[this.stage.id]) forgetRun();
     this.bossDeadT = true;
     this.collectAll = true;           // the boss's XP and its summons' all come to you
     this.bossWon = true;
@@ -1283,6 +1284,7 @@ export class Run {
     if ((this.ui.open && !this.ui.closing) || this.pendingLevels > 0) { this.later(() => this.won(), 250); return; }   // (a pick still open finishes first)
     this.finishChallengeBoss();
     this.phase = 'won';
+    if (!this.dev) forgetRun();
     if (this.stage.id === STAGES.length && this.bossWon && !this.challenges.awarded) this.newAchievements = awardAchievements(this.challenges, true, this.dev);
     if (!this.dev) markPlayed();
     this.bossDeadT = false;
@@ -1338,6 +1340,7 @@ export class Run {
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
+    if (!this.dev) forgetRun();
     if (!this.dev) markPlayed();
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();

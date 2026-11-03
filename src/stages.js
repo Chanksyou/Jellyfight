@@ -43,7 +43,14 @@ export function keepRun(act, carry) { try { localStorage.setItem(SAVE_KEY, JSON.
 export function keptRun() {
   try { const v = JSON.parse(localStorage.getItem(SAVE_KEY)); return v && v.carry && STAGES[v.act - 1] ? v : null; } catch { return null; }
 }
-export function forgetRun() { try { localStorage.removeItem(SAVE_KEY); } catch {} }
+export function forgetRun() {
+  try { localStorage.removeItem(SAVE_KEY); } catch {}
+  try {
+    const v = JSON.parse(window.name || '{}');
+    if (v?.[KEY]) { delete v[KEY]; window.name = JSON.stringify(v); }
+  } catch {}
+  save({ act: 1, carry: null, then: null });   // reloading must not resurrect the finished run either
+}
 // the same, without using it up (main.js shows a different loading screen for { continue: true })
 export const peekAction = () => load()?.then || null;
 export function pendingAction() {

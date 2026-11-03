@@ -17,7 +17,7 @@ import { MainMenu } from './main-menu.js';
 import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { STAGES, currentStage, currentAct, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
+import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
@@ -190,7 +190,7 @@ creator.mount(ui);
 
 // --- World --------------------------------------------------------------------------
 const ARENA = APT.arena || null;       // an act in a built arena (act 4's concert: boot.js), not the apartment
-if (!ARENA) applyLayout(APT.root, currentAct());   // your saved furniture edits for this act (dev layout editor)
+if (!ARENA) applyLayout(APT.root, stage.id);   // your saved furniture edits for this act (dev layout editor)
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
@@ -218,7 +218,7 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 
-applyVentLayout(stage.vents, currentAct());   // vents moved in the layout editor (baked, then your own)
+applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
 // furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
 function mapFurniture() {
@@ -299,10 +299,10 @@ run.telemetryDisabled = new URLSearchParams(location.search).has('story') || new
 addEventListener('online', () => { void board.runLog?.flush(); });
 // whenever the pause menu opens, it lists what you carry as it stands (treasure-bag.js)
 const bag = overlay.querySelector('.g-bag');
-new MutationObserver(() => { if (!overlay.hidden) bag.innerHTML = bagHtml(run); }).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
+new MutationObserver(() => { if (!overlay.hidden) { bag.innerHTML = bagHtml(run); showKept(); } }).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
 // the end-of-run screen's 🏠 Main menu: back to act 1's menu (a later act reloads into act 1)
 run.onMainMenu = () => {
-  if (currentAct() > 1) { goToAct(1); return; }
+  if (stage.id > 1) { goToAct(1); return; }
   run.start();
   mainMenu.show();
   if (document.pointerLockElement) document.exitPointerLock();
@@ -414,7 +414,7 @@ const systems = {
 let layoutChanged = false;
 function openLayout() {
   run.disqualifyChallenges();
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: currentAct(), acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (a built arena, act 4, has no furniture to lay out)
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: stage.id, acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (a built arena, act 4, has no furniture to lay out)
     onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
@@ -474,7 +474,7 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
-  applyLayout(APT.root, currentAct());
+  applyLayout(APT.root, stage.id);
   world.addObjects(added);
   mapFurniture();
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
