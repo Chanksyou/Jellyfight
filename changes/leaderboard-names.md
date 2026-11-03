@@ -1,0 +1,1 @@
+lets players change their public leaderboard name without changing their score or place, reserves unique names across score and achievement boards regardless of capitalization or repeated spaces, and resolves existing duplicates by keeping the earliest saved score’s name and giving later entries an available numbered name.
