@@ -31,21 +31,25 @@ phone('held-stick-survives-treasure-pick', {
 });
 
 phone('double-taps-cannot-zoom-the-page', {
-  about: 'The whole page blocks browser zoom during two-thumb play, even on a missed button press; hiding the controls restores menu scrolling and deliberate pinch zoom, without double-tap zoom.',
+  about: 'Browser zoom stays blocked during two-thumb play and in the pause menu; single-touch buttons and menu scrolling stay native, and the home menu retains deliberate pinch zoom.',
   setup() { fresh({ elites: false }); },
   play() {
     step(1);
     const action = (el) => getComputedStyle(el).touchAction;
     const root = document.documentElement, overlay = document.getElementById('g-over');
-    const nativeTouchBlocked = (el) => !el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, cancelable: true }));
+    const nativeTouchBlocked = (el, count = 1) => !el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, cancelable: true,
+      touches: Array.from({ length: count }, (_, i) => new Touch({ identifier: i, target: el, clientX: 20 + i * 30, clientY: 20 })) }));
     const surface = document.getElementById('touch');
     const playing = action(root), canvas = action(document.getElementById('c')), controls = action(surface), blocked = nativeTouchBlocked(surface);
     overlay.hidden = false; step(1);
-    const menu = action(root), menuBlocked = nativeTouchBlocked(overlay);
+    const menu = action(overlay), menuBlocked = nativeTouchBlocked(overlay), pinchBlocked = nativeTouchBlocked(overlay, 2);
+    overlay.classList.add('menu-home');
+    const home = action(overlay), homeBlocked = nativeTouchBlocked(overlay, 2);
+    overlay.classList.remove('menu-home');
     overlay.hidden = true; step(1);
     const resumed = action(root), resumedBlocked = nativeTouchBlocked(surface);
-    return ok(playing === 'none' && menu === 'manipulation' && resumed === 'none' && canvas === 'none' && controls === 'none' && blocked && !menuBlocked && resumedBlocked,
-      { playing, menu, resumed, canvas, controls, blocked, menuBlocked, resumedBlocked });
+    return ok(playing === 'none' && menu === 'pan-y' && home === 'auto' && resumed === 'none' && canvas === 'none' && controls === 'none' && blocked && !menuBlocked && pinchBlocked && !homeBlocked && resumedBlocked,
+      { playing, menu, home, resumed, canvas, controls, blocked, menuBlocked, pinchBlocked, homeBlocked, resumedBlocked });
   },
 });
 

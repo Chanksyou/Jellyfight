@@ -227,7 +227,48 @@ async function touchControls(e) {
   out.released = await ev(() => !input.touchMove && !input.touchJump);
   const after = await view();
   out.stableView = before.scale === 1 && after.scale === before.scale && after.width === before.width && after.distance === before.distance;
-  const good = out.touchUi && out.startPick && out.picked && out.swam > 0.2 && out.jumpVy > 0.1 && out.stableView && out.keptMoving && out.released && !errors.length;
+  await page.tap('#touch .pause');
+  await step(2);
+  out.paused = await ev(() => !document.getElementById('g-over').hidden && document.getElementById('touch').hidden);
+  const pausedBefore = await view();
+  await cdp.send('Input.synthesizeTapGesture', { x: 40, y: 120, tapCount: 2, gestureSourceType: 'touch' });
+  await touch('touchStart', [[100, 180]]);
+  await touch('touchStart', [[100, 180], [200, 180]]);
+  for (let i = 1; i <= 8; i++) {
+    await touch('touchMove', [[100 - i * 6, 180], [200 + i * 6, 180]]);
+    await page.waitForTimeout(30);
+  }
+  await touch('touchEnd', []);
+  await page.waitForTimeout(400);
+  const pausedAfter = await view();
+  out.stablePause = pausedAfter.scale === pausedBefore.scale && pausedAfter.width === pausedBefore.width && pausedAfter.distance === pausedBefore.distance;
+  // Exercise the existing scroll container with enough content to overflow this phone viewport.
+  const panelAt = await ev(() => {
+    const panel = document.querySelector('#g-over > div'), spacer = document.createElement('div');
+    spacer.id = 'scroll-probe'; spacer.style.height = '600px'; panel.appendChild(spacer); panel.scrollTop = 0;
+    const r = panel.getBoundingClientRect(); return { x: r.x + r.width / 2, y: Math.min(r.bottom - 30, innerHeight - 30) };
+  });
+  out.scrollContext = await ev(({ x, y }) => {
+    const panel = document.querySelector('#g-over > div');
+    return { height: panel.clientHeight, content: panel.scrollHeight, top: panel.scrollTop,
+      target: document.elementFromPoint(x, y)?.tagName, root: getComputedStyle(document.documentElement).touchAction,
+      menu: getComputedStyle(document.getElementById('g-over')).touchAction };
+  }, panelAt);
+  await touch('touchStart', [[panelAt.x, panelAt.y]]);
+  for (let i = 1; i <= 8; i++) {
+    await touch('touchMove', [[panelAt.x, panelAt.y - i * 15]]);
+    await page.waitForTimeout(30);
+  }
+  await touch('touchEnd', []);
+  await page.waitForTimeout(200);
+  out.menuScroll = await ev(() => {
+    const panel = document.querySelector('#g-over > div'), scrolled = panel.scrollTop > 0;
+    document.getElementById('scroll-probe').remove(); panel.scrollTop = 0; return scrolled;
+  });
+  await page.tap('#g-over .play');
+  await step(2);
+  out.resumed = await ev(() => document.getElementById('g-over').hidden && !document.getElementById('touch').hidden);
+  const good = out.touchUi && out.startPick && out.picked && out.swam > 0.2 && out.jumpVy > 0.1 && out.stableView && out.keptMoving && out.released && out.paused && out.stablePause && out.menuScroll && out.resumed && !errors.length;
   await page.close();
   return [result(good, 'mobile/touch-controls', null, { ...out, errors })];
 }
