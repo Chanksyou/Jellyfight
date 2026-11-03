@@ -151,6 +151,7 @@ ui.innerHTML = `
   <h1>Jelly Run</h1>
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
+  <p class="menu-loop">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find treasures. Survive the countdown, beat the boss, and grow into the next act.</p>
   <button class="resume" hidden></button>
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>

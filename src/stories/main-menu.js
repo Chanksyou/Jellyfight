@@ -3,6 +3,30 @@ import { story, phone, G, fresh, ok, step, stub } from './kit.js';
 import { SPECIES } from '../character.js';
 import { moveSaves, forwardFor, takeSaves, HOME } from '../rename.js';
 
+const gameplaySummary = {
+  about: 'The opening screen explains the loop before Play, fits its text column, and hides the summary when paused.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu } = G(), over = menu.overlay;
+    try {
+      menu.show(); over.hidden = false; step(1);
+      const summary = over.querySelector('.menu-loop'), play = over.querySelector('.play');
+      const text = summary.textContent;
+      const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'treasures', 'countdown', 'boss', 'next act'].every(word => text.includes(word));
+      const r = summary.getBoundingClientRect(), button = play.getBoundingClientRect();
+      const fits = r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= button.top && summary.scrollWidth <= summary.clientWidth;
+      over.classList.remove('menu-home');
+      const paused = getComputedStyle(summary).display === 'none';
+      return ok(loop && fits && paused, { loop, fits, paused });
+    } finally {
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+};
+story('menu/gameplay-summary', gameplaySummary);
+story('menu/portrait-gameplay-summary', { ...gameplaySummary, portrait: true });
+phone('gameplay-summary', gameplaySummary);
+
 story('menu/portrait-controls-centered', {
   about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
   portrait: true,
