@@ -222,6 +222,31 @@ act3('shark-bite-hits-on-jaw-closure',{
     step(120,()=>{lunge=Math.max(lunge,B.position.distanceTo(B.start));if(hits.some(h=>h.from==='shark-bite')){gape=B.model.rig.jaw.rotation.x;return true;}});
     return ok(gape!==null&&gape<.15&&lunge>.02&&B.prey>0&&B.frenzy>0&&B.bleed>0,{gape,lunge,prey:B.prey,frenzy:B.frenzy});},
 });
+act3('shark-leap-reaches-every-standing-spot',{
+  about:'A stationary jelly is inside the locked leap splash everywhere on the playable bed, including all edges and corners; the shark itself stays inside its body clearance.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly(),A=B.arena,hits=record('damage_taken'),misses=[];let tested=0,outside=false;
+    for(let ix=0;ix<=16;ix++)for(let iz=0;iz<=14;iz++){
+      const margin=P.cfg.radius+.002;
+      P.position.set(THREE.MathUtils.lerp(A.arenaMin[0]+margin,A.arenaMax[0]-margin,ix/16),0,THREE.MathUtils.lerp(A.arenaMin[2]+margin,A.arenaMax[2]-margin,iz/14));P.position.y=B.floorAt(P.position);
+      B.position.fromArray(A.spawn);B.floor=B.floorAt(B.position);B.position.y=B.floor;B.clearHazards();B.begin('leap');const warning=B.warning,was=hits.length;
+      for(let i=0;i<150&&B.phase!=='rest';i++){B.update(1/60,P);outside ||= B.position.x<A.arenaMin[0]+B.bound-.001||B.position.x>A.arenaMax[0]-B.bound+.001||B.position.z<A.arenaMin[2]+B.bound-.001||B.position.z>A.arenaMax[2]-B.bound+.001;}
+      if(!hits.slice(was).some(e=>e.from==='shark-impact'))misses.push(r3(P.position));tested++;
+      if(warning.at.distanceTo(B.target)>1e-6)misses.push('target moved');
+    }
+    return ok(!misses.length&&!outside,{tested,misses:misses.slice(0,8),outside});},
+});
+act3('shark-corner-leap-stays-dodgeable',{
+  about:'The corner splash is warned at its full size and stays locked: swimming out or jumping above its height avoids the landing.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly(),A=B.arena,hits=record('damage_taken'),results=[];
+    for(const dodge of ['swim','jump']){
+      B.clearHazards();B.position.fromArray(A.spawn);B.floor=B.floorAt(B.position);P.position.set(A.arenaMin[0]+P.cfg.radius+.002,0,A.arenaMax[2]-P.cfg.radius-.002);P.position.y=B.floorAt(P.position);B.begin('leap');
+      const w=B.warning,at=w.at.clone(),r=w.r;const warned=Math.hypot(P.position.x-at.x,P.position.z-at.z)<=r+P.cfg.radius&&w.floor.scale.x===r&&w.volume.scale.x===r&&w.volume.scale.y===w.height&&w.volume.material.progress===w.floor.material.progress;
+      if(dodge==='swim')P.position.set(A.arenaMax[0]-.1,B.floorAt(V(A.arenaMax[0]-.1,0,A.arenaMin[2]+.1)),A.arenaMin[2]+.1);else P.position.y=at.y+w.height+.01;
+      const was=hits.length;for(let i=0;i<150&&B.phase!=='rest';i++)B.update(1/60,P);
+      results.push({dodge,warned,locked:B.target.distanceTo(at)<1e-6,hits:hits.length-was});
+    }
+    return ok(results.every(r=>r.warned&&r.locked&&!r.hits),{results});},
+});
 act3('shark-blocked-bite-does-not-mark-prey',{
   about:'Invulnerability and dodged damage do not grant the shark Prey, bleed, or a frenzy.',setup(){},
   play(){const B=sharkFight(),P=holdJelly(),{run}=G();run.iFrames=99;const at=P.position.clone(),hit=B.hit(P,at,.2,.2,3,true);
