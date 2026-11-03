@@ -1,7 +1,7 @@
 // Stories: the camera. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
-import { G, cameraSpots, cameraStory, fresh, ok, step, story, stub, tp } from './kit.js';
+import { G, cameraSpots, cameraStory, fresh, ok, startVacuum, step, story, stub, tp } from './kit.js';
 
 story('camera/desktop-starts-fully-zoomed-out', {
   about: 'Desktop gameplay starts at the furthest allowed camera distance; the wheel still zooms in and stops at the same outer limit.',
@@ -81,4 +81,17 @@ story('camera/kitchen-counter-stays-opaque', {
     return ok(missing.length === 0 && parts.length > 0 && faded === 0 && transparent === 0,
       { missing, parts: parts.length, faded, transparent });
   },
+});
+
+for(const [ending,onPhone] of [['victory',false],['death',false],['restart',false],['victory',true]])story((onPhone?'phone/':'camera/')+'vacuum-kitchen-transparent-only-during-fight-'+ending,{
+  phone:onPhone,
+  about:'Cabinets, stove and every kitchen fixture stay faint throughout the Vacuum fight, even off the camera rays; their original opaque materials and collision return after '+ending+'.',
+  setup(){fresh({elites:false});},
+  play(){const {APT,tpc,run,world}=G(),parts=[];APT.scene.traverse(m=>{if(m.isMesh&&m.userData.noCameraFade)parts.push(m);});
+    const before=parts.map(m=>({material:m.material,visible:m.visible,collides:world.colliders.includes(m)})),programs=APT.renderer.info.programs.length;
+    startVacuum('charge');step(60);const missed=parts.filter(m=>!tpc.keep.has(m)||![].concat(m.material).every(mat=>mat.transparent&&mat.opacity<=.16));
+    G().batcher.sync();G().GAME.compile();const newShaders=APT.renderer.info.programs.length-programs;
+    if(ending==='victory')run.onBossDead({impact:false});else if(ending==='death')run.die();else fresh({elites:false});
+    const restored=parts.every((m,i)=>m.material===before[i].material&&m.visible===before[i].visible&&world.colliders.includes(m)===before[i].collides&&!tpc.keep.has(m));
+    return ok(parts.length>0&&!missed.length&&restored&&newShaders===0,{parts:parts.length,missed:missed.slice(0,6).map(m=>m.name),restored,newShaders});},
 });

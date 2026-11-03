@@ -1264,6 +1264,7 @@ export class Run {
     }
     this.bossTime = this.t - (this.bossStartT ?? this.t);
     this.tpc.fight = null;            // back to the player's own view
+    this.tpc.dropKeep();
     const still = juice.calm || this.fx.reducedMotion?.matches;   // the device asks for reduced motion: no slow motion or shake
     if (impact) { juice.feel('boss-kill'); if (!still) juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); sfx.boom(); }
     const c = this.boss.center();
@@ -1340,6 +1341,7 @@ export class Run {
   die() {
     if (this.phase === 'dead') return;
     this.phase = 'dead';
+    this.tpc.dropKeep();
     if (!this.dev) forgetRun();
     if (!this.dev) markPlayed();
     this.health = 0;
