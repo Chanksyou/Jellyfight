@@ -249,7 +249,7 @@ story('words/sortie', {
     step(60 * 8, () => {
       seen.add(e.state);
       if (e.state === 'approach' && e.pos.y > player.position.y + 0.07) flewHigh = true;
-      if (e.state === 'aim') { if (Math.abs(e.pos.y - 0.76 * e.r - player.position.y) < 0.02) landedLow = true; if (e.shellK === 1) raised = true; if (enemies.lockMarks.some((m) => m.visible)) reticle = true; }
+      if (e.state === 'aim') { if (Math.abs(e.pos.y - 0.76 * e.r - enemies.floorBelow(e.pos, NaN)) < 0.02) landedLow = true; if (e.shellK === 1) raised = true; if (enemies.lockMarks.some((m) => m.visible)) reticle = true; }
       if (enemies.missiles.length) launched = true;
       hit = log.find((d) => d.source === 'missile');
       return !!hit;

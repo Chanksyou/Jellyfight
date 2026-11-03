@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { World } from '../collision.js';
 import { hostile } from '../vfx.js';
 import { Batcher } from '../batch.js';
+import { buildLadybug, buildMissile } from '../critters.js';
 import { G, V, act2, fresh, ok, story } from './kit.js';
 
 story('collision/scenery-grid-refreshes-before-focus-early-return', {
@@ -130,5 +131,38 @@ story('engine/game-downloads-in-parallel', {
     const gz = find(/apartment-act1\.glb\.gz$/), plain = find(/apartment-act1\.glb$/), main = find(/\/src\/main\.js$/);
     const preloaded = document.querySelectorAll('link[rel=modulepreload]').length;
     return ok(gz && !plain && main && main.startTime < gz.responseEnd && preloaded > 50, { gz: !!gz, plain: !!plain, mainAt: main?.startTime, gzEnd: gz?.responseEnd, preloaded });
+  },
+});
+
+story('engine/ladybug-and-missile-batches-plateau', {
+  about: 'Repeated ladybug spawns and missile launches reuse geometry and batches while their animated parts remain independent.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), b = new Batcher(scene), counts = [];
+    let independent = true, shared = true;
+    const meshes = root => { const out = []; root.traverse(o => { if (o.isMesh) out.push(o); }); return out; };
+    try {
+      for (let i = 0; i < 6; i++) {
+        const a = buildLadybug(), other = buildLadybug(), shot = buildMissile(), loaded = buildMissile(1.25);
+        const roots = [a.body, other.body, shot.group, loaded.group];
+        const parts = meshes(a.body), peers = meshes(other.body);
+        shared &&= parts.every((m, k) => m.geometry === peers[k].geometry && m !== peers[k]);
+        other.body.updateMatrixWorld(true);
+        const before = peers.map(m => m.matrixWorld.toArray());
+        a.anim(0.1, { shellK: 1, flyK: 1, wingK: 1, phase: 0, state: 'aim' });
+        other.body.updateMatrixWorld(true);
+        independent &&= peers.every((m, k) => m.matrixWorld.toArray().every((n, j) => n === before[k][j]));
+        shot.flame.visible = false;
+        independent &&= loaded.flame.visible && shot.flame !== loaded.flame;
+        roots.forEach(root => { root.traverse(o => { o.visible = true; }); scene.add(root); b.track(root); });
+        b.sync();
+        roots.forEach(root => root.removeFromParent()); b.sync();
+        counts.push([...b.groups.values()].reduce((n, mats) => n + mats.size, 0));
+        independent &&= b.roots.size === 0 && [...b.groups.values()].every(mats => [...mats.values()].every(g => g.list.length === 0 && g.mesh.count === 0));
+      }
+      return ok(shared && independent && counts.every(n => n === counts[0]), { shared, independent, counts });
+    } finally {
+      for (const mats of b.groups.values()) for (const g of mats.values()) g.mesh?.dispose();
+    }
   },
 });
