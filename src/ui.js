@@ -176,6 +176,10 @@ export class UI {
     this.modal = document.createElement('div');
     this.modal.className = 'jf-modal';
     this.modal.hidden = true;
+    // A second thumb gets pointer events but no click while the joystick thumb stays down.
+    this.modal.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch' && !e.isPrimary && this.picking) this.modal.onclick?.(e);
+    });
     parent.appendChild(this.modal);
     this.pop = document.createElement('div');
     this.pop.className = 'jf-pop';
@@ -194,6 +198,7 @@ export class UI {
   }
 
   get open() { return !this.modal.hidden; }
+  get picking() { return this.open && !!this.modal.querySelector('.jf-pick'); }
   get closing() { return this._outro > 0 && this._outroGen === this._gen; }
 
   close() {

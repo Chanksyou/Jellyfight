@@ -11,6 +11,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Treasure and level-up picks preserve a held phone joystick, so movement resumes when the cards close without another tap.
+Held keyboard controls recover after a focus interruption without repeating jump or interact actions.
+
 The main and pause menus include Achievements: 13 challenges awarded only after a full four-boss win, each completed within a single run, with earned achievements saved in this browser.
 Perfect Boss and Perfect Pair count Health loss after shields and Dodge, including continuous damage; healing never erases a hit.
 Challenge history carries between acts, while older saved runs without that history and dev-assisted runs cannot unlock achievements.
