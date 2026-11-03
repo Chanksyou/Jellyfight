@@ -1,5 +1,7 @@
 # Jelly Run
 
+Continue is cleared as soon as a run ends, including when the game closes during the ending.
+
 Players can change their leaderboard name without changing their score or place.
 Names are unique across the public score and achievement boards, ignoring capitalization and repeated spaces.
 For existing duplicates, the earliest saved score keeps the name; later entries get an available numbered name.

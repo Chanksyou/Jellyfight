@@ -4,7 +4,7 @@
 import { FEATS_KEY } from '../cosmetics.js';
 import { FOUND_KEY, KINDS, isFound } from '../collection.js';
 import { TREASURES } from '../stats.js';
-import { SAVE_KEY, STAGES, keptRun, nav } from '../stages.js';
+import { SAVE_KEY, STAGES, carried, currentAct, keepRun, keptRun, nav, peekAction } from '../stages.js';
 import { G, fresh, ok, spy, step, story, stub } from './kit.js';
 
 // run fn with these localStorage keys emptied, then put back what was there
@@ -169,6 +169,76 @@ story('menu/continue-a-kept-run', {
         run.dev = false;
         const devKeepsNothing = !keptRun();
         return ok(none && kept && shown && continues && forgotten && hidden && devKeepsNothing, { none, kept, shown, continues, forgotten, hidden, devKeepsNothing, label: btn.textContent, went });
+      });
+    } finally {
+      if (was === null) sessionStorage.removeItem('jellyrun.act'); else sessionStorage.setItem('jellyrun.act', was);
+    }
+  },
+});
+
+
+story('menu/finished-runs-cannot-continue', {
+  about: 'Death and victory erase the saved checkpoint and the tab carry before delayed end screens; returning to the menu cannot offer the finished run again. Unfinished runs remain resumable.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, GAME } = G(), over = document.querySelector('#g-over'), btn = over.querySelector('.resume');
+    const was = sessionStorage.getItem('jellyrun.act');
+    const saved = localStorage.getItem(SAVE_KEY), oldName = window.name;
+    const seed = () => {
+      keepRun(2, { level: 7 });
+      sessionStorage.setItem('jellyrun.act', JSON.stringify({ act: 2, carry: { level: 7 }, then: { continue: true } }));
+      window.name = JSON.stringify({ 'jellyrun.act': { act: 2, carry: { level: 7 } } });
+      GAME.showKept();
+    };
+    const cleared = () => !keptRun() && !carried() && currentAct() === 1 && !peekAction() && !JSON.parse(window.name || '{}')['jellyrun.act']?.carry;
+    stub(run, 'later', () => {});   // check before any delayed score screen can clear the save
+    try {
+      seed();
+      const unfinished = !!keptRun() && !btn.hidden;
+      run.die();
+      const death = cleared();
+      over.hidden = true;
+      run.onMainMenu();
+      await Promise.resolve();   // the menu's visibility observer refreshes Continue
+      const menu = btn.hidden;
+      seed();
+      run.pendingLevels = 0;
+      run.won();
+      const victory = cleared() && run.victory.active;
+      run.victory.cancel();
+      seed();
+      stub(run, 'stage', STAGES.at(-1));
+      stub(run, 'boss', { center: () => run.player.position.clone() });
+      run.onBossDead({ impact: false });
+      const finalBoss = cleared();
+      return ok(unfinished && death && menu && victory && finalBoss, { unfinished, death, menu, victory, finalBoss });
+    } finally {
+      run.victory.cancel();
+      window.name = oldName;
+      if (saved === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, saved);
+      if (was === null) sessionStorage.removeItem('jellyrun.act'); else sessionStorage.setItem('jellyrun.act', was);
+      GAME.showKept();
+      over.hidden = true;
+    }
+  },
+});
+
+
+story('act2/finished-run-main-menu-reloads-act-one', {
+  act: 2,
+  about: 'Ending a later act clears its checkpoint immediately; Main menu reloads Act 1 instead of restarting the old carried run in the current scene.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(), was = sessionStorage.getItem('jellyrun.act');
+    let reloads = 0;
+    stub(nav, 'reload', () => { reloads++; });
+    stub(run, 'later', () => {});
+    try {
+      return withEmpty([SAVE_KEY], () => {
+        keepRun(2, { level: 7 });
+        run.die();
+        run.onMainMenu();
+        return ok(reloads === 1 && !keptRun() && !carried() && currentAct() === 1, { reloads, checkpoint: keptRun(), carry: carried(), act: currentAct() });
       });
     } finally {
       if (was === null) sessionStorage.removeItem('jellyrun.act'); else sessionStorage.setItem('jellyrun.act', was);
