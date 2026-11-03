@@ -1581,7 +1581,8 @@ export class Run {
     let rank = 0;
     for (const [i, player] of (data.top || []).slice(0, 5).entries()) {
       if (!i || player.count !== data.top[i - 1].count) rank = i + 1;
-      rows.push([`<i class="jf-rank">${rank}.</i><span class="jf-who">${esc(player.name || 'Guest')}${player.id === this.board?.id ? ' <small>(you)</small>' : ''}</span>`, `${player.count}/${ACHIEVEMENTS.length}`]);
+      const portrait = this.jellyFace?.(player.look || { body: player.body });
+      rows.push([`<i class="jf-rank">${rank}.</i>${portrait ? `<img class="jf-jelly" src="${portrait}" alt="">` : ''}<span class="jf-who">${esc(player.name || 'Guest')}${player.id === this.board?.id ? ' <small>(you)</small>' : ''}</span>`, `${player.count}/${ACHIEVEMENTS.length}`]);
     }
     const buttons = [];
     if (data.error) buttons.push({ label: 'Retry', onClick: () => this.showAchievementBoard(back) });
@@ -1591,13 +1592,13 @@ export class Run {
       rows.push(['Player name', `<input name="achievementPlayer" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(savedName())}">`]);
       buttons.push({ label: 'Share my achievements', enter: true, onClick: values => {
         const name = (values.achievementPlayer || '').trim().slice(0, 20) || 'Guest';
-        saveName(name); this.showAchievementBoard(back, { name, achievements: ids });
+        saveName(name); this.showAchievementBoard(back, { name, achievements: ids, look: this.playerLook?.() });
       } });
     }
     buttons.push(backButton);
     const note = data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
       : `${entry ? 'Achievements shared. ' : ''}${data.top.length ? 'Most unique achievements earned across winning runs. Equal totals share a rank.' : 'No players yet. Earn an achievement and share it to enter.'}`;
-    this.ui.message('🏆 Achievement Top 5', note, rows, buttons, 'jf-book jf-board');
+    this.ui.message('🏆 Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
 
   showBoard(back) {

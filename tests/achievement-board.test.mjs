@@ -136,6 +136,34 @@ test('invalid achievement IDs, empty submissions, oversized lists and invalid pl
   assert.equal(response.status, 400);
 });
 
+test('achievement portraits persist a sanitized look without needing a score and survive older clients', async () => {
+  const look = { body: 'moon', color: '#12abcd', top: 'crown', unknown: 'discard', name: 'x'.repeat(50) };
+  const send = extra => request('/api/achievements', { id: 'player-one', name: 'Portrait Jelly', achievements: ['perfect-boss'], ...extra });
+  const first = await send({ look });
+  const expected = { body: 'moon', color: '#12abcd', top: 'crown', name: 'x'.repeat(24) };
+  assert.deepEqual(first.data.mine.look, expected);
+  assert.deepEqual(first.data.top[0].look, expected);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 0);
+  clearRates(); await send({});
+  assert.deepEqual((await request('/api/achievements?me=player-one')).data.mine.look, expected);
+  clearRates(); await send({ look: { body: 'nettle', color: '#abcdef' } });
+  assert.equal((await request('/api/achievements')).data.top[0].look.body, 'nettle');
+});
+
+test('legacy achievement rows gain portrait storage without losing totals and use an existing score look', async () => {
+  await submit('player-one', ['perfect-boss'], 'Legacy Jelly');
+  const look = { body: 'moon', color: '#123456' };
+  await request('/api/scores', { id: 'player-one', name: 'Legacy Jelly', score: 100, look });
+  sqlite.exec('ALTER TABLE achievement_players DROP COLUMN look');
+  const { default: cold } = await import('../worker/index.js?achievement-look-migration');
+  const response = await cold.fetch(new Request('https://game.test/api/achievements?me=player-one'), env);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.mine.name, 'Legacy Jelly'); assert.equal(data.mine.count, 1);
+  assert.deepEqual(data.mine.look, look); assert.deepEqual(data.top[0].look, look);
+  assert.ok(sqlite.prepare('PRAGMA table_info(achievement_players)').all().some(c => c.name === 'look'));
+});
+
 test('sharing achievements is rate limited separately from posting game scores', async () => {
   assert.equal((await submit('player-one', ['perfect-boss'])).status, 200);
   assert.equal((await submit('player-one', ['pack-light'])).status, 429);

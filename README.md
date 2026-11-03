@@ -21,6 +21,7 @@ Perfect Boss and Perfect Pair count Health loss after shields and Dodge, includi
 Challenge history carries between acts, while older saved runs without that history and dev-assisted runs cannot unlock achievements.
 Achievements includes a Share achievements button and a Top 5 players submenu: share earned achievements under your leaderboard name to enter the shared ranking on the game's own site.
 Each unique achievement counts once across winning runs, equal totals share a rank, and your own shared total is shown even outside the top five.
+The achievement leaderboard shows large portraits of each player's shared jellyfish look, with older entries using their saved score appearance when available.
 
 ES modules won't load over `file://`, so serve the folder:
 
