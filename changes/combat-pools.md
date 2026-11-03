@@ -1,0 +1,1 @@
+reuses enemy models, hostile projectile models and state, and bubble, tentacle, acid puddle, brick and marble state, resetting combat history and poses while preserving enemy identity and death effects.

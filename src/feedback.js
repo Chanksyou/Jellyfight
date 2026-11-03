@@ -25,6 +25,7 @@ export function wireFeedback(fx, isBurning = () => false) {
     const own = fire || ice || sparkle || melt || blown;   // dies its element's own way, with its own sound
     if (!own) fx.puff(pos, 0xe6ded0, r * 1.6);
     if (silent) return;
+    if (fire && body) fx.fireCorpse(body);
     const big = r > 0.03;            // ant squads and mosquitoes land heavier than roaches
     if (ice) {
       // it died chilled: it shatters into ice, no body left. A cold flash, a burst of crystal shards

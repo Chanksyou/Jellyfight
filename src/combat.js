@@ -23,6 +23,7 @@ export class Lash {
     this.count = 0;               // lashes so far (Gold Ring)
     this.strikes = [];            // tentacles currently out
     this.pool = [];
+    this.statePool = [];
     this.geo = new THREE.CylinderGeometry(1, 0.55, 1, 6, 1).translate(0, 0.5, 0); // base at 0, tip at 1
     this.mat = new THREE.MeshStandardMaterial({ color: 0xffb8e0, emissive: 0xff6fb5, emissiveIntensity: 0.6, roughness: 0.3 });
     this.goldMat = new THREE.MeshStandardMaterial({ color: 0xffe07a, emissive: 0xffc23a, emissiveIntensity: 1.2, roughness: 0.3 });
@@ -50,6 +51,8 @@ export class Lash {
   release(s) {
     if (s.mesh) { s.mesh.visible = false; this.pool.push(s.mesh); }
     if (s.rig) s.rig.aim(s.tent, null);
+    s.target = s.rig = s.hits = null;
+    if (this.statePool.length < 128) this.statePool.push(s);
   }
 
   // The free tentacle whose root points most toward the target
@@ -113,7 +116,10 @@ export class Lash {
       m = this.mesh();
       m.material = this.mat;
     }
-    this.strikes.push({ mesh: m, rig: tent < 0 ? null : rig, tent, target, from: from.clone(), fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, tip: from.clone() });
+    const s = this.statePool.pop() || { from: new THREE.Vector3(), tip: new THREE.Vector3() };
+    s.from.copy(from); s.tip.copy(from);
+    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false });
+    this.strikes.push(s);
     sfx.lashDraw();
   }
 

@@ -66,6 +66,7 @@ export class Bubbles {
     Object.assign(this, { scene, enemies, fx, world });
     this.list = [];
     this.pool = [];
+    this.statePool = [];
     this._dir = new THREE.Vector3();   // scratch for fly(): no garbage per bubble per frame
     this.grace = 0.03;                 // run.js: the jelly's radius
     this._c = new THREE.Vector3();
@@ -122,9 +123,10 @@ export class Bubbles {
 
   release(b, immediate = false) {
     b.stopFireAudio?.(immediate); b.stopFireAudio = null;
-    if (b.m.userData.look) { this.looks.release(b.m); return; }
-    b.m.visible = false;
-    this.pool.push(b.m);
+    if (b.m.userData.look) this.looks.release(b.m);
+    else { b.m.visible = false; this.pool.push(b.m); }
+    b.target = null; b.hit.clear(); b.elems.clear();
+    if (this.statePool.length < 256) this.statePool.push(b);
   }
 
   mesh(mat) {
@@ -295,12 +297,16 @@ export class Bubbles {
     m.position.copy(origin);
     const dir = o.dir ? o.dir.clone().normalize() : this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
-    const b = {
+    const b = this.statePool.pop() || {};
+    const hit = b.hit || new Set(), elems = b.elems || new Set();
+    for (const key of Object.keys(b)) delete b[key];
+    for (const el of o.elems || []) elems.add(el);
+    Object.assign(b, {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
-      pierce: o.pierce, hit: new Set(), splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
-      elems: new Set(o.elems || []), tint: o.tint, trailT: 0,
+      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
+      elems, tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
-    };
+    });
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
     b.speed = SPEED * (o.speed || 1);
@@ -480,7 +486,6 @@ export class Bubbles {
         // burning things that die set their neighbors alight
         this.burning.delete(e);
         if (f.t > 0 && !e.fireDeathSilent) {
-          if (e.root && !e.proxy) this.fx.fireCorpse(e.root);
           this.looks.fireDeath(E.center(e, c), e.r);
           sfx.fireDeath();
         }
@@ -615,7 +620,7 @@ export class Bubbles {
       m.renderOrder = 2;
       this.scene.add(m);
       const life = b.ep?.puddleTime ?? 3.5, r = 0.05 * (b.r / RADIUS) * (b.ep?.puddleSize ?? 1);
-      this.puddles.push({ m, t: life, life, r, dmg: b.pw * ELEMENT.puddle * (b.ep?.puddleDmg ?? 1), tick: 0.25 });
+      this.puddles.push(Object.assign(m.userData.puddleState ||= {}, { m, t: life, life, r, dmg: b.pw * ELEMENT.puddle * (b.ep?.puddleDmg ?? 1), tick: 0.25 }));
       this.looks.puddleSplat(m.position, r);
       this.fx.puff(p, 0x7aff4a, b.r * 2.5, 0.3);
     }
