@@ -11,6 +11,9 @@ A third-person game where you play a ~9 cm jellyfish of your own design inside a
 
 ## Run it
 
+Combat reuses enemy models after death effects finish, hostile projectile models, and player projectile state.
+Enemy identities remain separate so lingering attacks cannot target a reused enemy.
+
 The Encore keeps attacking while music loads or audio is suspended, and restarts its attack schedule safely when the song restarts.
 
 Treasure and level-up picks preserve a held phone joystick, so movement resumes when the cards close without another tap.

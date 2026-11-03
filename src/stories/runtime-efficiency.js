@@ -1,8 +1,9 @@
+import { ModelPool } from '../model-pool.js';
 import * as THREE from 'three';
 import { World } from '../collision.js';
 import { hostile } from '../vfx.js';
 import { Batcher } from '../batch.js';
-import { G, V, act2, fresh, ok, story } from './kit.js';
+import { G, V, act2, fresh, give, ok, story, stub } from './kit.js';
 
 story('collision/scenery-grid-refreshes-before-focus-early-return', {
   about: 'A static apartment prop crossing cells is reindexed on the next focus tick even while the jelly stands still; newly loaded scenery joins immediately.',
@@ -130,5 +131,102 @@ story('engine/game-downloads-in-parallel', {
     const gz = find(/apartment-act1\.glb\.gz$/), plain = find(/apartment-act1\.glb$/), main = find(/\/src\/main\.js$/);
     const preloaded = document.querySelectorAll('link[rel=modulepreload]').length;
     return ok(gz && !plain && main && main.startTime < gz.responseEnd && preloaded > 50, { gz: !!gz, plain: !!plain, mainAt: main?.startTime, gzEnd: gz?.responseEnd, preloaded });
+  },
+});
+
+
+story('engine/combat-pools-reset-and-preserve-identities', {
+  about: 'Reused enemies retain fresh identities and clean model poses; bubbles reuse state without old targets, hit history, or rebound flags.',
+  setup() { fresh({bubbles:false,lash:false,elites:false}); },
+  play() {
+    const {enemies:E,run}=G(), B=run.bubbles, at=V(0,.1,0);
+    stub(E,'models',new ModelPool());
+    const a=E.spawn('roach',at), root=a.root;let part;
+    a.mesh.traverse(o=>{if(o.isMesh && !part)part=o;});const material=part.material;
+    a.anim(1,a); root.rotation.z=2; part.material=E.fx.fireAshMat;
+    E.kill(a,true);
+    const b=E.spawn('roach',at);
+    const identity=a!==b && a.dead && a.id!==b.id && b.root===root && b.root.rotation.z===0 && part.material===material && b.hp===b.maxHp;
+    const shot=B.blow(at,b,{size:1,dmg:1,pierce:1});shot.hit.add(b);shot.returning=true;shot.done=true;
+    B.reset();
+    const next=B.blow(at,b,{size:1,dmg:1,pierce:1});
+    const reset=next===shot && next.hit.size===0 && !next.returning && !next.done && next.target===b;
+    return ok(identity && reset,{identity,reset});
+  },
+});
+
+story('engine/combat-pools-wait-for-detached-fragments', {
+  about: 'A death body or detached shell still in the scene cannot be reused; detached fragments return to their original parent and pose.',
+  setup() {fresh({bubbles:false,lash:false,elites:false});},
+  play() {
+    const {enemies:E}=G(), at=V(0,.1,0), a=E.spawn('ladybug',at), part=a.deathParts[0], parent=part.parent;
+    E.kill(a,true);E.scene.attach(part);
+    const b=E.spawn('ladybug',at), held=b.root!==a.root;
+    part.removeFromParent();part.scale.setScalar(.001);
+    const c=E.spawn('ladybug',at), restored=c.root===a.root && part.parent===parent && part.scale.x===1;
+    return ok(held && restored,{held,restored});
+  },
+});
+
+story('engine/hostile-projectile-pools-reuse-after-clear', {
+  about: 'Pins, webs and missiles reuse models across clears and restore scale, visibility and rotation.',
+  setup(){fresh({bubbles:false,lash:false,elites:false});},
+  play(){
+    const E=G().enemies, at=V(0,.1,0), e=E.spawn('roach',at), p={speed:1,life:1,dmg:1,shot:'web'};
+    E.spit(e,V(0,.1,1),p);const web=E.shots[0].m;web.scale.setScalar(5);E.clear();
+    const next=E.spawn('roach',at);E.spit(next,V(0,.1,1),p);
+    const reused=E.shots[0].m===web && web.scale.x===1;
+    const lady=E.spawn('ladybug',at), config={fuel:1,rocket:1,turn:1,dmg:1};E.launchMissile(lady,config);
+    const missile=E.missiles[0].m;missile.scale.setScalar(.001);E.clear();
+    E.launchMissile(E.spawn('ladybug',at),config);
+    const same=E.missiles[0].m===missile && missile.scale.x===1;
+    E.boom(E.missiles[0],V(10,10,10),.01);E.missiles=[];
+    E.launchMissile(E.spawn('ladybug',at),config);
+    return ok(reused && same && E.missiles[0].m===missile,{web:reused,missile:same,explosion:E.missiles[0].m===missile});
+  },
+});
+
+
+story('engine/combat-pools-retain-burning-death-ownership', {
+  about: 'Burning corpses are claimed before another same-type spawn and remain owned across enemy clears.',
+  setup(){fresh({bubbles:false,lash:false,elites:false});},
+  play(){
+    const {enemies:E,run,fx}=G(), B=run.bubbles, at=V(0,.1,0), a=E.spawn('roach',at);
+    B.ignite(a,1);E.kill(a);
+    const b=E.spawn('roach',at), held=b.root!==a.root;
+    E.clear();const c=E.spawn('roach',at);fx.clear();
+    const alive=c.root.parent===E.scene;
+    B.effects(0,run.S);
+    return ok(held && alive && c.root.parent===E.scene,{held,alive});
+  },
+});
+
+
+story('engine/combat-pools-reuse-lash-and-trap-state', {
+  about: 'Tentacles and traps reuse state without released flags or old hit history.',
+  setup(){fresh({bubbles:false,lash:false,elites:false});},
+  play(){
+    const {enemies:E,run}=G(), at=V(0,.1,0), e=E.spawn('roach',at), L=run.lash;
+    L.strike(at,e,1,{});const strike=L.strikes[0];strike.released=true;strike.landed=true;L.reset();L.strike(at,e,1,{});
+    const lash=L.strikes[0]===strike && !strike.released && !strike.landed && strike.target===e;
+    L.reset();give('marble','legoBrick');const g=run.gadgets, c={center:at,feet:at,facing:0,power:run.power,mods:run.mods};
+    const effects=run.mods.timed.flatMap(t=>t.effects), marble=effects.find(e=>e.kind==='marble'), brick=effects.find(e=>e.kind==='brick');
+    g.fire(marble,c);g.fire(brick,c);const mb=g.marbles[0], br=g.bricks[0];mb.hit.add(e);g.reset();
+    const released=mb.hit.size===0;g.fire(marble,c);g.fire(brick,c);
+    const traps=released && g.marbles[0]===mb && mb.hit.size===0 && mb.trailT===0 && g.bricks[0]===br && br.age===0;
+    return ok(lash && traps,{lash,traps});
+  },
+});
+
+
+story('engine/combat-pools-bound-retained-models', {
+  about: 'An oversized wave still spawns every model but retains at most 128 per kind for reuse.',
+  setup(){},
+  play(){
+    const pool=new ModelPool(), records=[];
+    for(let i=0;i<130;i++)records.push(pool.take('test',()=>({root:new THREE.Group()})));
+    const distinct=new Set(records.map(p=>p.root)).size===130;
+    records.forEach(p=>pool.release(p));const reused=pool.take('test',()=>{throw new Error('expected reuse');});
+    return ok(distinct && pool.entries.length===128 && reused===records[0],{distinct,retained:pool.entries.length});
   },
 });

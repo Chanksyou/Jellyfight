@@ -102,6 +102,7 @@ export function buildRoach() {
     body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
     body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
   };
+  anim.reset = () => { t = 0; k = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
 }
 
@@ -214,6 +215,7 @@ export function buildAnts() {
     pin.scale.setScalar(since < 0.25 ? 0 : 1 + 2.7 * (grow - 1) ** 3 + 1.7 * (grow - 1) ** 2);   // with a little overshoot
     pin.rotation.x = coil * 0.12;
   };
+  anim.reset = () => { t = 0; k = 0; fired = 0; since = 9; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.pivot) };
 }
 
@@ -319,6 +321,7 @@ export function buildMosquito() {
     body.rotation.x = -0.15 + THREE.MathUtils.clamp(fwd * 0.5, -0.2, 0.35) * (1 - dart) - wind * 0.35 - dart * 0.25 + Math.sin(t * 47) * 0.04 * wind;
     body.rotation.z = THREE.MathUtils.clamp(side * 0.9, -0.45, 0.45) + Math.sin(t * 53) * 0.03 * wind;
   };
+  anim.reset = () => { t = 0; fwd = 0; side = 0; wind = 0; dart = 0; legs.forEach(L => { L.swing = 0; L.sway = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -492,6 +495,7 @@ export function buildLanternfly() {
     for (const W of foreW) { W.pivot.rotation.z = W.s * (-0.62 + crouch * 0.2 + open * 1.5 + flap); W.pivot.rotation.y = W.s * (0.04 + open * 0.5); }
     for (const W of hindW) { W.pivot.rotation.z = W.s * (-0.72 + crouch * 0.15 + open * 1.45 - flap); W.pivot.rotation.y = W.s * (0.02 + open * 0.9); }
   };
+  anim.reset = () => { t = 0; k = 0; crouch = 0; open = 0; squash = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -654,6 +658,7 @@ export function buildSpider() {
     rear.rotation.x = -rearUp * 0.35 - recoil * 0.15;                        // abdomen tipped up toward its target
     for (const p of palps) p.rotation.x = Math.sin(t * 6 + e.phase) * 0.15 + rearUp * -0.4;   // palps twitch, lift when it rears
   };
+  anim.reset = () => { t = 0; k = 0; rearUp = 0; recoil = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -830,6 +835,7 @@ export function buildHouseFly() {
     body.position.z = -rub * 0.12 + lunge * 0.18;
     body.rotation.x = 0.08 - rub * 0.2 + lunge * 0.12;
   };
+  anim.reset = () => { t = 0; rub = 0; lunge = 0; aim = 1.15; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -989,6 +995,7 @@ export function buildMillipede() {
       }
     }
   };
+  anim.reset = () => { t = 0; move = 0; W.length = 0; };
   return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
 }
 
@@ -1170,6 +1177,7 @@ export function buildLadybug() {
     pod.visible = shell > 0.55 && e.loaded !== false;
     pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
   };
+  anim.reset = () => { t = 0; shell = 0; fly = 0; flap = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: [elytra[1].pivot] };
 }
 
@@ -1389,6 +1397,7 @@ export function buildDragonfly() {
     tail.rotation.x += kick * 0.8;
     body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
   };
+  anim.reset = () => { t = 0; dart = 0; glide = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1580,6 +1589,7 @@ export function buildMantis({ dead = false } = {}) {
     body.position.y = raise * 0.06;
     body.rotation.z = Math.sin(step * 0.5) * 0.03 * k;
   };
+  anim.reset = () => { t = 0; k = 0; raise = 0; strike = 0; P.fill(0); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1725,6 +1735,7 @@ export function buildBeetle() {
     body.position.y = Math.abs(Math.sin(t)) * 0.012 * k;
     body.rotation.z = Math.sin(t) * 0.02 * k;
   };
+  anim.reset = () => { t = 0; k = 0; open = 0; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
 }
 
@@ -1793,6 +1804,7 @@ export function buildWorm() {
     // where the worm comes out, in the world: the burst and whip words read it
     (e.emergeAt ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
+  anim.reset = () => { t = 0; wind = 0; out = 0; grow = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1972,6 +1984,7 @@ export function buildWasp() {
     body.position.y = Math.sin(t * 5 + ph) * 0.08 * (1 - wind);
     body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.3 : 0.05 + Math.min(1, speed * 4) * 0.15 - wind * 0.5;
   };
+  anim.reset = () => { t = 0; wind = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -2049,5 +2062,6 @@ export function buildNest() {
     // where wasps come out, in the world: the brood word reads it
     (e.emergeAt ||= new THREE.Vector3()).copy(door).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
+  anim.reset = () => { t = 0; shake = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
