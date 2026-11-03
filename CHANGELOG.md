@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v366 Keep held phone joystick gestures through Treasure and level-up picks, resuming movement when the cards close without another tap. Recover held keyboard controls after a focus interruption without repeating jump, reset or interact actions.
+
 v365 extends browser zoom protection to the pause menu, blocking pinch and double-tap zoom while keeping its buttons and vertical scrolling usable.
 
 v364 adds Elite defeats, chosen Treasure counts and pickup timelines, and the unit and attack responsible for a death to the private balancing reports. Records use active-play seconds within each act and the existing batched uploads; historical records remain available.
