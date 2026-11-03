@@ -764,3 +764,50 @@ story('engine/act2-rooms-load-when-needed', {
     return ok(good, { before, after });
   },
 });
+
+
+const changeNameStory = {
+  about: 'A player can rename an existing leaderboard entry without a new run; taken names show an error, successful changes keep the score and are remembered.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Leaderboard } = await import('../leaderboard.js');
+    const { run } = G(), realBoard = run.board, realFetch = window.fetch, realClaude = window.claude;
+    const oldName = localStorage.getItem('jellyrun.name');
+    let mine = { name: 'Old Jelly', score: 1200, at: 10, body: 'moon' };
+    const modal = () => document.querySelector('.jf-modal');
+    const press = text => [...modal().querySelectorAll('button')].find(b => b.textContent.includes(text))?.click();
+    const tick = () => new Promise(resolve => setTimeout(resolve, 30));
+    try {
+      delete window.claude;
+      window.fetch = async (url, options) => {
+        if (String(url) === 'api/name') {
+          const { name } = JSON.parse(options.body);
+          if (name === 'Taken') return Response.json({ renamed: false, why: 'taken' }, { status: 409 });
+          mine = { ...mine, name };
+          return Response.json({ renamed: true, name });
+        }
+        return Response.json({ top: [{ ...mine, id: run.board?.id }], mine });
+      };
+      const board = run.board = new Leaderboard(); await board.ready;
+      run.kills = 500; run.endRun('Finished', '', 'Again');
+      press('Leaderboard'); await tick();
+      press('Change name');
+      modal().querySelector('input[name="player"]').value = 'Taken'; press('Save name'); await tick();
+      const refused = /already in use/.test(modal().textContent) && board.mine.name === 'Old Jelly';
+      modal().querySelector('input[name="player"]').value = 'New Jelly'; press('Save name'); await tick();
+      const renamed = board.mine.name === 'New Jelly' && board.mine.score === 1200 && board.mine.at === 10
+        && localStorage.getItem('jellyrun.name') === 'New Jelly' && /New Jelly/.test(modal().textContent);
+      press('Back'); await tick();
+      const remembered = modal().querySelector('input[name="player"]')?.value === 'New Jelly';
+      press('Leaderboard'); await tick(); press('Change name'); press('Cancel'); await tick();
+      return ok(refused && renamed && remembered && /Leaderboard/.test(modal().textContent), { refused, renamed, remembered });
+    } finally {
+      run.board.onChange = null; run.endView = null; run.board = realBoard;
+      window.fetch = realFetch;
+      if (realClaude === undefined) delete window.claude; else window.claude = realClaude;
+      if (oldName === null) localStorage.removeItem('jellyrun.name'); else localStorage.setItem('jellyrun.name', oldName);
+    }
+  },
+};
+story('engine/leaderboard-change-name', changeNameStory);
+story('phone/leaderboard-change-name', { ...changeNameStory, phone: true });

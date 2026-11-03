@@ -1381,7 +1381,7 @@ export class Run {
     const had = new Set(this.awardsBefore), won = this.phase === 'won';
     this.flushFeats({ runs: 1, wins: won ? 1 : 0, ...(won ? { [`won_${entry.body}`]: 1 } : {}) });
     const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return { key, id, name: OPTIONS[key].find(([v]) => v === id)?.[1] || id }; });
-    let typed = savedName();
+    let typed = B?.mine?.name || savedName();
     // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
     const dead = this.phase === 'dead', near = dead ? this.howClose() : null, next = dead ? nextAward() : null;
     // your own jelly wearing it (jelly-portrait.js, as the leaderboard draws players)
@@ -1400,7 +1400,7 @@ export class Run {
       this.endView = 'summary';
       last = result;
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
-        : { lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
+        : { taken: ' <small>· that name is already in use; choose another</small>', slow: ' <small>· please wait 15 seconds and try again</small>', lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
       const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
@@ -1420,14 +1420,13 @@ export class Run {
       if (canPost) {
         buttons.push({ label: '📤 Submit score', go: !dead, enter: true, onClick: (v) => {
           typed = (v.player || '').trim().slice(0, 20);
-          saveName(typed);
           show({ posted: false, why: 'sending' });
-          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { this.lastPost = last = r; if (this.endView === 'summary') show(r); });
+          B.post({ ...entry, name: typed || 'Guest' }).then((r) => { if (r.posted) saveName(typed); this.lastPost = last = r; if (this.endView === 'summary') show(r); });
         } });
       }
       if (!dead) buttons.push(tryAgain);
-      if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => show(result)) });
-      buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => show(result)) });
+      if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }) });
+      buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
       if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
       if (B?.web) buttons.push({ label: '🪼 Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
@@ -1596,16 +1595,16 @@ export class Run {
     const buttons = [];
     if (data.error) buttons.push({ label: 'Retry', onClick: () => this.showAchievementBoard(back) });
     if (data.mine) rows.push(['Your shared total', `${data.mine.count}/${ACHIEVEMENTS.length}`]);
-    if (!data.error && ids.length) {
+    if ((!data.error || data.error === 'taken') && ids.length) {
       rows.push(['Your earned total', `${ids.length}/${ACHIEVEMENTS.length}`]);
-      rows.push(['Player name', `<input name="achievementPlayer" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(savedName())}">`]);
+      rows.push(['Player name', `<input name="achievementPlayer" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(data.mine?.name || entry?.name || this.board?.mine?.name || savedName())}">`]);
       buttons.push({ label: 'Share my achievements', enter: true, onClick: values => {
         const name = (values.achievementPlayer || '').trim().slice(0, 20) || 'Guest';
-        saveName(name); this.showAchievementBoard(back, { name, achievements: ids, look: this.playerLook?.() });
+        this.showAchievementBoard(back, { name, achievements: ids, look: this.playerLook?.() });
       } });
     }
     buttons.push(backButton);
-    const note = data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
+    const note = data.error === 'taken' ? 'That name is already in use. Choose another.' : data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
       : `${entry ? 'Achievements shared. ' : ''}${data.top.length ? 'Most unique achievements earned across winning runs. Equal totals share a rank.' : 'No players yet. Earn an achievement and share it to enter.'}`;
     this.ui.message('🏆 Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
@@ -1615,11 +1614,32 @@ export class Run {
     this.endView = 'board';
     const draw = () => {
       if (this.endView !== 'board') return;
-      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace), [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }], 'jf-board');
+      const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
+      if (B.web && B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back)); } });
+      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace), buttons, 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)
     B.ready.then(() => B.refresh());
+  }
+
+  changeBoardName(back) {
+    this.endView = 'rename';
+    let typed = this.board.mine?.name || savedName();
+    const draw = (note = 'Your score and place stay the same.', sending = false) => {
+      const buttons = [{ label: 'Cancel', onClick: back }];
+      if (!sending) buttons.unshift({ label: 'Save name', go: true, onClick: async values => {
+        typed = (values.player || '').trim();
+        if (!typed) { draw('Enter a name.'); return; }
+        draw('Saving your name…', true);
+        const result = await this.board.rename(typed);
+        if (this.endView !== 'rename') return;
+        if (result.renamed) { back(); return; }
+        draw({ taken: 'That name is already in use. Choose another.', slow: 'Please wait 15 seconds and try again.' }[result.why] || 'Couldn’t save your name. Please try again.');
+      } });
+      this.ui.message('Change name', note, [['Name', `<input name="player" class="jf-name" maxlength="20" autocomplete="nickname" aria-label="Leaderboard name" value="${esc(typed)}">`]], buttons);
+    };
+    draw();
   }
 
   summary() {

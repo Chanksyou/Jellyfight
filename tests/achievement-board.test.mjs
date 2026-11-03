@@ -38,7 +38,7 @@ const request = async (path, body) => {
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
-beforeEach(() => sqlite.exec('DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries'));
+beforeEach(() => sqlite.exec('DELETE FROM player_names; DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries'));
 after(() => sqlite.close());
 
 test('an existing summary database gains details without changing historical records', async () => {
@@ -189,7 +189,7 @@ test('counts come from grants rather than a supplied count, and ties have stable
   sqlite.exec('UPDATE achievement_unlocks SET at = 1');
   const { data } = await request('/api/achievements');
   assert.deepEqual(data.top.map(r => r.count), [1, 1]);
-  assert.deepEqual(data.top.map(r => r.name), ['player-one', 'A jelly']);
+  assert.deepEqual(data.top.map(r => r.name), ['player-one', 'Guest']);
 });
 
 test('beta feedback is kept as plain text with its run, rate limited, and never readable over the API', async () => {
@@ -226,4 +226,67 @@ test('the run log keeps one row per act with its lists as clean JSON, rate limit
   assert.equal((await save({ run: 'x' })).status, 400);
   assert.equal((await request('/api/runs')).status, 405);
   assert.deepEqual(sqlite.prepare('SELECT act, outcome, boss_left FROM runs ORDER BY at, act').all().map(r => ({ ...r })), [{ act: 1, outcome: 'next-act', boss_left: null }, { act: 2, outcome: 'died', boss_left: 37 }]);
+});
+
+
+test('names are unique across scores and achievements, including case and spaces', async () => {
+  assert.equal((await request('/api/scores', { id: 'player-one', name: ' Sea   Jelly ', score: 500 })).data.posted, true);
+  const clash = await request('/api/scores', { id: 'player-two', name: 'sea jelly', score: 700 });
+  assert.equal(clash.status, 409); assert.equal(clash.data.why, 'taken');
+  assert.equal((await submit('player-three', ['perfect-boss'], 'SEA JELLY')).data.why, 'taken');
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM achievement_unlocks').get().n, 0);
+});
+
+test('renaming preserves the run and achievement dates and frees the old name', async () => {
+  await request('/api/scores', { id: 'player-one', name: 'Original', score: 500, look: { body: 'moon' } });
+  await submit('player-one', ['perfect-boss'], 'Original');
+  const before = { ...sqlite.prepare('SELECT * FROM scores').get() };
+  const earned = sqlite.prepare('SELECT at FROM achievement_unlocks').get().at;
+  const result = await request('/api/name', { id: 'player-one', name: ' New   Name ' });
+  assert.equal(result.data.renamed, true); assert.equal(result.data.name, 'New Name');
+  assert.deepEqual({ ...sqlite.prepare('SELECT * FROM scores').get() }, { ...before, name: 'New Name' });
+  assert.equal(sqlite.prepare('SELECT name FROM achievement_players').get().name, 'New Name');
+  assert.equal(sqlite.prepare('SELECT at FROM achievement_unlocks').get().at, earned);
+  clearRates();
+  await submit('player-one', ['pack-light'], 'New Name');
+  assert.equal(sqlite.prepare('SELECT name FROM achievement_players').get().name, 'New Name');
+  assert.equal((await request('/api/scores', { id: 'player-two', name: 'Original', score: 200 })).data.posted, true);
+  clearRates();
+  assert.equal((await request('/api/name', { id: 'player-one', name: 'original' })).data.why, 'taken');
+  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-one').name, 'New Name');
+});
+
+test('rename rejects unknown players, blank names, malformed requests and rapid repeat changes', async () => {
+  assert.equal((await request('/api/name', { id: 'player-one', name: 'Unknown' })).status, 404);
+  await request('/api/scores', { id: 'player-one', name: 'Jelly', score: 500 });
+  assert.equal((await request('/api/name', { id: 'player-one', name: ' ' })).status, 400);
+  assert.equal((await request('/api/name', { id: 'player-one', name: 'Squid' })).data.renamed, true);
+  assert.equal((await request('/api/name', { id: 'player-one', name: 'Octopus' })).status, 429);
+});
+
+test('simultaneous name claims have one winner and do not partially save the loser', async () => {
+  const results = await Promise.all(['player-one', 'player-two'].map(id => request('/api/scores', { id, name: 'Same Jelly', score: 500 })));
+  assert.equal(results.filter(r => r.data.posted).length, 1);
+  assert.equal(results.filter(r => r.data.why === 'taken').length, 1);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
+});
+
+test('migration keeps earliest saved name, reserves existing numbered names, and is idempotent', async () => {
+  sqlite.exec("DELETE FROM migrations WHERE name = 'player-names'");
+  const insert = sqlite.prepare('INSERT INTO scores (id, name, score, at) VALUES (?, ?, ?, ?)');
+  insert.run('player-first', 'Jelly', 500, 10);
+  insert.run('player-later', ' jelly ', 900, 20);
+  insert.run('player-number', 'Jelly 2', 400, 30);
+  const { default: cold } = await import('../worker/index.js?names-migration');
+  const result = await cold.fetch(new Request('https://game.test/api/scores'), env);
+  assert.equal(result.status, 200);
+  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-first').name, 'Jelly');
+  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-later').name, 'jelly 3');
+  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-number').name, 'Jelly 2');
+  assert.equal(sqlite.prepare('SELECT score FROM scores WHERE id = ?').get('player-later').score, 900);
+  await request('/api/name', { id: 'player-first', name: 'Squid' });
+  const { default: another } = await import('../worker/index.js?names-again');
+  await another.fetch(new Request('https://game.test/api/scores'), env);
+  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-first').name, 'Squid');
 });
