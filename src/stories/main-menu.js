@@ -12,7 +12,8 @@ const gameplaySummary = {
       menu.show(); over.hidden = false; step(1);
       const summary = over.querySelector('.menu-loop'), play = over.querySelector('.play');
       const help = summary.closest('details'), toggle = help.querySelector('summary');
-      const closed = !help.open && !summary.checkVisibility() && toggle.textContent === 'How to play';
+      const icon = toggle.querySelector('.menu-help-icon');
+      const closed = !help.open && !summary.checkVisibility() && toggle.textContent.trim() === '? How to play' && icon?.getAttribute('aria-hidden') === 'true';
       toggle.click();
       const text = summary.textContent;
       const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'treasures', 'countdown', 'boss', 'next act'].every(word => text.includes(word));

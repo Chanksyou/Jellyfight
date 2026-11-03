@@ -152,7 +152,7 @@ ui.innerHTML = `
   <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
   <p class="cont-note"></p>
   <details class="menu-help">
-    <summary>How to play</summary>
+    <summary><span class="menu-help-icon" aria-hidden="true">?</span> How to play</summary>
     <p class="menu-loop">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find treasures. Survive the countdown, beat the boss, and grow into the next act.</p>
   </details>
   <button class="resume" hidden></button>
