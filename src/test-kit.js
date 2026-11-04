@@ -61,6 +61,7 @@ export class TestKit {
     this.onPlay = onPlay;
     this.onBack = onBack;
     if (run.phase === 'dead' || run.phase === 'won' || run.phase === 'metamorph') this.newRun();
+    else run.devRun();   // a run you've changed here no longer counts (no leaderboard, no run log)
     this.el.innerHTML = `<div class="box">
       <header><h2>🧪 Test kit</h2><button data-k="back">✕</button></header>
       <div class="tools">

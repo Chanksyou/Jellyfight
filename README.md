@@ -316,7 +316,8 @@ Reports are JSON Lines, with progress on stderr; save them and compare revisions
 
 ## Dev: layout editor
 
-**Dev tools** sit behind one **🔒 Dev** button on the main screen: the password (`chan`, in `src/main.js`; it keeps the tools out of players' way, it isn't security) shows 🛠 Layout, 👹 Fight boss, 🐞 1 on 1, 🧪 Test kit, ⚖️ Tuner and 🩺 Diagnostics.
+**Dev tools** sit behind one **🔒 Dev** button on the main screen: the Worker checks the password against its `DEV_PASSWORD` secret (set it with `npx wrangler secret put DEV_PASSWORD`; it isn't in the game's files, and a plain local file server opens them with any password), and it shows 🛠 Layout, 👹 Fight boss, 🐞 1 on 1, 🧪 Test kit, ⚖️ Tuner and 🩺 Diagnostics.
+Unlocking them, or opening the test kit or tuner on a run, makes that run and every later one in the tab a dev run, which never reaches the leaderboard or the run log.
 They stay open for the tab (sessionStorage).
 
 **👹 Fight boss** lists every act's boss; pick one and a fresh run goes straight to its intro (level 1, no treasures), for testing the fight.
@@ -362,6 +363,7 @@ Its address is <https://jellyrun.org> (a custom domain on that Worker).
 The Worker's old address, `jelly-fight.nycjfc.workers.dev`, sends players to jellyrun.org with their saves in the link (`src/rename.js`), since a browser keeps saves per address.
 The Worker serves the game's files from Cloudflare's CDN and answers `api/scores` (`worker/index.js`) from a D1 database called `jelly-fight-scores`, so anyone can post a score: signed in or not, any organization.
 On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
+A score is only accepted when it is the last act of a run its player logged in `run_summaries` and that run looks playable (`checkRun` in `worker/index.js`: acts follow on and finished, believable levels, acts 1-3 lasting 250 s or more, no treasure past 5 copies), so a score typed into the browser's console no longer lands on its own.
 The death and win screens' beta bubble posts what a player types to `api/feedback`, kept in the same database's `feedback` table (only on the game's own site; there is no way to read it over the API).
 To read it, open Cloudflare's dashboard, Storage & Databases, D1, `jelly-fight-scores`, Console, and run `SELECT datetime(at / 1000, 'unixepoch') AS sent, text, build, act, won, score, device FROM feedback ORDER BY at DESC LIMIT 100;` (or the same query with `npx wrangler d1 execute jelly-fight-scores --remote --command "…"`).
 Actual play on the game's own site records compact balancing data in the private `run_summaries` table: one row per player/run/act, updated at the start, at the ending, and when leaving the tab, with no recurring gameplay uploads.

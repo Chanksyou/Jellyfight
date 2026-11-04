@@ -3,7 +3,9 @@
 // code runs at all.
 //
 //   GET  /api/scores?me=<id>   the top 10, plus your own entry: { top: [...], mine: {...} | null }
-//   POST /api/scores           { id, name, body, look, score, level, kills, time, won, build }
+//   POST /api/scores           { id, run, name, body, look, score, level, kills, time, won, build }
+//                              (run: the run log's id; the score must match that run's last logged act
+//                              and the run must pass checkRun, else why: 'pending' | 'unverified')
 //                              (look: the player's jelly descriptor, carried whole so a
 //                              board row can draw the jelly it belongs to)
 //                              keeps your entry only when it beats it: { posted, best, why? }
@@ -13,6 +15,9 @@
 //   POST /api/runs             { id, run, build, act, outcome, score, time, level, kills, body, treasures,
 //                              evolutions, lost, bossLeft, device }: one act played, for the owner's run
 //                              log (the runs table, read only in the D1 console): { saved, why? }
+//
+//   POST /api/dev              { pass }: { open } — the dev tools' password, checked against the
+//                              DEV_PASSWORD secret (set it with `npx wrangler secret put DEV_PASSWORD`)
 //
 // A player is a random id the game keeps in localStorage (leaderboard.js), so anyone can post,
 // signed in anywhere or not. Scores come from the player's browser, so they can be faked: this
@@ -149,10 +154,54 @@ async function top(db, me) {
   return { top: list.results.map((r) => shape({ ...r, id: r.id === me ? r.id : undefined })), mine: shape(mine.results[0]) || null };
 }
 
+// What a real run can't do, from the run log (run_summaries). Generous: the best real runs so far
+// (Nov 2026) reached levels 14 / 17 / 20 / 20 by the end of acts 1-4 and took 260 s+ to clear acts 1-3.
+const LEVEL_CAP = [0, 18, 24, 28, 30];   // highest believable level at the end of each act
+const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back for 260 s
+const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
+// null when the run backs the score; 'pending' while its last act hasn't been logged yet; else 'unverified'
+export function checkRun(acts, score) {
+  const last = acts.at(-1);
+  if (!last || !last.finalized || last.outcome === 'next-act') return 'pending';
+  // logged acts follow on from each other (an older build's or a lost upload's first acts may be missing)
+  if (acts.some((a, i) => a.act !== acts[0].act + i || !a.finalized || (a !== last && a.outcome !== 'next-act'))) return 'unverified';
+  if (last.score !== score) return 'unverified';
+  for (const a of acts) {
+    if (a.level > (LEVEL_CAP[a.act] ?? 0)) return 'unverified';
+    if (a !== last && a.act < 4 && a.time < MIN_ACT_TIME) return 'unverified';
+    let held = [];
+    try { held = JSON.parse(a.treasures || '[]'); } catch {}
+    if (held.some((t) => !(t?.[1] <= MAX_COPIES))) return 'unverified';
+  }
+  if (acts.some((a, i) => i && a.score < acts[i - 1].score)) return 'unverified';
+  return null;
+}
+
+// The dev tools' password lives in the Worker's DEV_PASSWORD secret, never in the game's files
+async function devUnlock(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ open: false }, 400); }
+  const now = Date.now(), db = env.DB;
+  const ip = await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
+  const key = 'dev:ip:' + ip;
+  const recent = await db.prepare('SELECT at FROM posts WHERE key = ?').bind(key).first();
+  if (recent && now - recent.at < DEV_TRY_MS) return json({ open: false, why: 'slow' }, 429);
+  await db.prepare('INSERT INTO posts (key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(key, now).run();
+  const want = env.DEV_PASSWORD, pass = typeof b?.pass === 'string' ? b.pass.trim() : '';
+  return json({ open: !!want && await same(pass, want) });
+}
+const DEV_TRY_MS = 3000;   // one password try per address every 3 s
+async function same(a, b) {   // compares digests, so the time taken says nothing about the password
+  const h = async (v) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)));
+  const [x, y] = await Promise.all([h(a), h(b)]);
+  return x.every((v, i) => v === y[i]);
+}
+
 async function post(request, env) {
   let b;
   try { b = await request.json(); } catch { return json({ posted: false, why: 'bad' }, 400); }
   if (!ID.test(b?.id || '')) return json({ posted: false, why: 'bad' }, 400);
+  if (!ID.test(b.run || '')) return json({ posted: false, why: 'unverified' }, 422);
   const score = int(b.score, 0, MAX_SCORE);
   const now = Date.now();
   const ip = await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
@@ -163,6 +212,11 @@ async function post(request, env) {
     if (r.key.startsWith('id:') && now - r.at < PER_ID_MS) return json({ posted: false, why: 'slow' }, 429);
     if (r.key.startsWith('ip:') && now - r.at < PER_IP_MS) return json({ posted: false, why: 'slow' }, 429);
   }
+  // the score must be the end of a run this player logged act by act, and that run must look playable
+  const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
+    .bind(b.id, b.run).all()).results;
+  const check = checkRun(acts, score);
+  if (check) return json({ posted: false, why: check }, check === 'pending' ? 409 : 422);
   const was = await db.prepare('SELECT score FROM scores WHERE id = ?').bind(b.id).first();
   const stamp = db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at')
     .bind('id:' + b.id, now, 'ip:' + ip, now);
@@ -334,9 +388,10 @@ async function postSummaries(b, request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!['/api/scores', '/api/name', '/api/achievements', '/api/feedback', '/api/runs'].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (!['/api/scores', '/api/name', '/api/achievements', '/api/feedback', '/api/runs', '/api/dev'].includes(url.pathname)) return env.ASSETS.fetch(request);
     try {
       await setUp(env.DB);
+      if (url.pathname === '/api/dev') return request.method === 'POST' ? await devUnlock(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/name') return request.method === 'POST' ? await rename(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/runs') return request.method === 'POST' ? await postRun(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/feedback') return request.method === 'POST' ? await postFeedback(request, env) : json({ error: 'method' }, 405);

@@ -1,0 +1,1 @@
+keeps dev-tool runs off the leaderboard: the 🔒 Dev password is checked by the server instead of sitting in the game's files, any run that uses the test kit or tuner (or any run after unlocking them) is a dev run that can't be submitted, and the leaderboard only takes a score backed by a logged run with believable levels, act times and treasure counts.
