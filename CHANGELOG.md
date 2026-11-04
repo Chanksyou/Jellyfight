@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v381 fixes Firefox throwing a sound error over and over when a fireball or wind charge was cut short (Firefox has no `cancelAndHoldAtTime`).
+
 v380 keeps dev-tool runs off the leaderboard: the 🔒 Dev password is checked by the server instead of sitting in the game's files, any run that uses the test kit or tuner (or any run after unlocking them) is a dev run that can't be submitted, and the leaderboard only takes a score backed by a logged run with believable levels, act times and treasure counts.
 
 v379 makes the kitchen cabinets, stove, cookware and countertop objects transparent only during the Vacuum fight, restoring their original materials after victory, death or restarting.
