@@ -1,4 +1,4 @@
-import { sfx, unlock as unlockAudio, loadSamples, audio } from '../sfx.js';
+import { sfx, unlock as unlockAudio, loadSamples, loadFireFlight, audio } from '../sfx.js';
 import { G, V, dmgBy, give, ok, record, roachAt, setupFight, step, story, stub } from './kit.js';
 
 story('attack/fire-feedback', {
@@ -183,5 +183,25 @@ story('attack/acid-puddle-feel', {
     for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
     const reused = B.puddles[0]?.m === mesh;
     return ok(peak > 1.05 && n.live > 0 && n.bite > 0 && ticks > 0 && dried > 0.9 && gone && reused, { peak: +peak.toFixed(2), ...n, ticks, dried: +dried.toFixed(2), gone, reused, softened: e.markT > 0 });
+  },
+});
+
+story('attack/sound-stops-without-hold', {
+  about: 'Browsers without AudioParam.cancelAndHoldAtTime (Firefox) can still cut a fireball\'s flight sound and the wind charge short: stopping them throws nothing and fades to silence.',
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },
+  async play() {
+    unlockAudio();
+    const loaded = await loadFireFlight();
+    await new Promise((r) => setTimeout(r, 100));   // past the repeat gaps
+    const proto = AudioParam.prototype, hold = Object.getOwnPropertyDescriptor(proto, 'cancelAndHoldAtTime');
+    delete proto.cancelAndHoldAtTime;
+    const errors = [];
+    try {
+      const fire = sfx.fireLaunch(1), wind = sfx.windCharge(0.5);
+      for (const [name, stop] of [['fire', fire], ['fireNow', fire], ['wind', wind]]) {
+        try { if (typeof stop !== 'function') throw new Error('no stop'); stop(name === 'fireNow'); } catch (e) { errors.push(`${name}: ${e.message}`); }
+      }
+    } finally { if (hold) Object.defineProperty(proto, 'cancelAndHoldAtTime', hold); }
+    return ok(loaded && !errors.length && !!audio(), { loaded, errors });
   },
 });

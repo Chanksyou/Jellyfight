@@ -113,7 +113,7 @@ function recordedFireFlight(weight) {
     // A point-blank hit still gets a short ignition; pause/reset can cut it immediately.
     const end = Math.max(t + (immediate ? 0 : Math.min(0.1, duration)), now());
     const until = Math.min(voice.until, end + fade + 0.005);
-    gain.gain.cancelAndHoldAtTime(Math.max(t, until - fade - 0.005));
+    holdAt(gain.gain, Math.max(t, until - fade - 0.005));
     gain.gain.linearRampToValueAtTime(0, until - 0.005);
     source.stop(until); voice.until = until;
   };
@@ -132,6 +132,13 @@ export function preview(c, dest) {
   return { when: (t) => { at = t; for (const k in last) delete last[k]; } };
 }
 const now = () => (at ?? ctx.currentTime);
+// Freeze a param's automation at `time` so a fade can start there. Firefox has no
+// cancelAndHoldAtTime: drop the later events and, if `time` has already come, pin the current value.
+export function holdAt(param, time) {
+  if (param.cancelAndHoldAtTime) return param.cancelAndHoldAtTime(time);
+  param.cancelScheduledValues(time);
+  if (time <= ctx.currentTime) param.setValueAtTime(param.value, time);
+}
 
 export function unlock() {
   try {
@@ -356,7 +363,7 @@ export const sfx = {
     source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     return () => {
       const end = Math.min(t + duration, now());
-      gain.gain.cancelAndHoldAtTime(end); gain.gain.linearRampToValueAtTime(0, end + 0.015);
+      holdAt(gain.gain, end); gain.gain.linearRampToValueAtTime(0, end + 0.015);
       source.stop(end + 0.02);
     };
   },
