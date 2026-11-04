@@ -215,6 +215,7 @@ export class BalanceEditor {
   // run: the Run the new numbers apply to. onPlay(): close and play on; onBack(): back to the pause menu
   show(run, { onPlay, onBack } = {}) {
     this.run = run;
+    run.devRun();   // a run played with tuned numbers doesn't count (no leaderboard, no run log)
     this.onPlay = onPlay;
     this.onBack = onBack;
     this.groups = balanceGroups();

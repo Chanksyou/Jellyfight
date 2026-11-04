@@ -43,7 +43,7 @@ import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
-import { Run, makeBoss } from './run.js';
+import { Run, makeBoss, DEV_KEY } from './run.js';
 import { bagHtml } from './treasure-bag.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
@@ -763,14 +763,23 @@ window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;
 window.dendi = dendi;   // stories check on the cat (models/dendi-*)
 // Dev tools (layout editor, boss and 1-on-1 fights, test kit, the other act, diagnostics) wait behind one
-// 🔒 Dev button and a password. It only keeps them out of players' way: it's in the page's source.
-const DEV_PASS = 'chan', DEV_KEY = 'jellyrun.dev';
-function unlockDev() {
-  const box = overlay.querySelector('[name="dev-pass"]');
-  if (box.value.trim().toLowerCase() !== DEV_PASS) { box.value = ''; box.classList.add('wrong'); box.placeholder = 'Wrong password'; box.focus(); return; }
+// 🔒 Dev button. The Worker checks the password (its DEV_PASSWORD secret), so it isn't in the page's source.
+// On a plain local file server (no Worker) any password opens them.
+// Unlocking makes every run in this tab a dev run (run.js devSession): it never reaches the leaderboard or run log.
+async function unlockDev() {
+  const box = overlay.querySelector('[name="dev-pass"]'), pass = box.value.trim();
+  let open = false;
+  try {
+    const r = await fetch('api/dev', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pass }) });
+    open = !!(await r.json()).open;
+  } catch {   // no Worker answering: only your own computer's file server opens without one
+    open = ['localhost', '127.0.0.1'].includes(location.hostname);
+  }
+  if (!open) { box.value = ''; box.classList.add('wrong'); box.placeholder = 'Wrong password'; box.focus(); return; }
   overlay.classList.remove('dev-ask');
   overlay.classList.add('dev-open');
   try { sessionStorage.setItem(DEV_KEY, '1'); } catch {}
+  run.devRun();   // the run in progress stops counting too
 }
 overlay.querySelector('[name="dev-pass"]').addEventListener('keydown', (e) => { if (e.key === 'Enter') unlockDev(); });
 try { if (sessionStorage.getItem(DEV_KEY)) overlay.classList.add('dev-open'); } catch {}   // still open after a reload into the other act

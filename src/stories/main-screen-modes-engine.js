@@ -291,10 +291,12 @@ story('menu/reduce-effects', {
   },
 });
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button: a wrong password keeps them hidden, "chan" shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics).',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button. The Worker checks the password (it is not in the page): a wrong one keeps them hidden, the right one shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics) and makes the run a dev run, which never reaches the leaderboard.',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },
-  play() {
+  async play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
+    const asked = [];
+    stub(window, 'fetch', async (url, init) => { asked.push(String(url)); const { pass } = JSON.parse(init.body); return new Response(JSON.stringify({ open: pass === 'sea-secret' })); });
     over.classList.remove('dev-ask', 'dev-open');
     over.hidden = false;
     const restart = !!over.querySelector('[data-act="restart"]'), graphics = [...over.querySelectorAll('[data-q]')].map((b) => b.dataset.q);
@@ -302,14 +304,22 @@ story('menu/dev-tools-locked', {
     over.querySelector('[data-act="dev"]').click();
     const asks = shown('.dev-lock');
     const box = over.querySelector('[name="dev-pass"]');
-    box.value = 'nope'; over.querySelector('[data-act="dev-unlock"]').click();
-    const stillHidden = !shown('.dev-tools');
-    box.value = 'chan'; over.querySelector('[data-act="dev-unlock"]').click();
+    const devBefore = G().run.dev;
+    const settle = () => new Promise((ok) => setTimeout(ok, 50));
+    box.value = 'chan'; over.querySelector('[data-act="dev-unlock"]').click(); await settle();
+    const oldPassFails = !shown('.dev-tools');
+    box.value = 'sea-secret'; over.querySelector('[data-act="dev-unlock"]').click(); await settle();
     const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
+    const devRun = G().run.dev, notInPage = !document.documentElement.outerHTML.includes('sea-secret');
+    G().run.start();
+    const nextRunDev = G().run.dev;
     over.classList.remove('dev-ask', 'dev-open'); over.hidden = true;
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && stillHidden && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag',   // Act 4 environment preview joins the locked Dev row in v233.
-      { restart, graphics, hiddenAtFirst, asks, stillHidden, tools });
+    G().run.start();
+    const afterLock = G().run.dev;
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag'
+      && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
+      { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, asked, devBefore, devRun, nextRunDev, afterLock });
   },
 });
 

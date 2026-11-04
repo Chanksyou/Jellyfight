@@ -12,6 +12,7 @@ import { RunLog } from './run-log.js';
 const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
 const PLAYER_KEY = 'jellyrun.player';
 const API = 'api/scores';  // relative: works wherever the game is served from
+const PENDING_WAIT = 4000;  // ms between tries while the run log's last act is still on its way
 
 export class Leaderboard {
   constructor() {
@@ -133,10 +134,15 @@ export class Leaderboard {
   async postWeb(entry) {
     if (this.mine && this.mine.score >= entry.score) return { posted: false, why: 'lower' };
     try {
-      const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) });
-      const d = await r.json().catch(() => ({}));
-      if (d.posted) { this.mine = entry; this.fetchWeb(); return { posted: true }; }
-      return { posted: false, why: ['lower', 'taken', 'slow'].includes(d.why) ? d.why : 'error' };
+      // the Worker checks the score against this run's log, so the log's last act has to land first
+      for (let tries = 0; ; tries++) {
+        await this.runLog?.flush();
+        const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) });
+        const d = await r.json().catch(() => ({}));
+        if (d.posted) { this.mine = entry; this.fetchWeb(); return { posted: true }; }
+        if (d.why === 'pending' && tries < 5) { await new Promise((ok) => setTimeout(ok, PENDING_WAIT)); continue; }
+        return { posted: false, why: ['lower', 'taken', 'slow', 'unverified'].includes(d.why) ? d.why : 'error' };
+      }
     } catch { return { posted: false, why: 'error' }; }
   }
 

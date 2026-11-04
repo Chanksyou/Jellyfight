@@ -60,6 +60,10 @@ class Owned extends Set {
 // Where a wasp nest hanging at `spot` (stage.nests) has its middle: out from the surface by its
 // widest radius, so its side rests against it, and half its height below where its top meets it
 // (`r`: the nest's size, content/enemies.kdl)
+// The dev tools are unlocked in this tab (main.js keeps the flag through a reload into another act)
+export const DEV_KEY = 'jellyrun.dev';
+export function devSession() { try { return !!sessionStorage.getItem(DEV_KEY); } catch { return false; } }
+
 export function nestMiddle(spot, r) {
   const [x, y, z] = spot.at, [ox, oz] = spot.out, k = NEST.width * r * 0.98;
   return new THREE.Vector3(x + ox * k, y - NEST.height / 2 * r, z + oz * k);
@@ -346,6 +350,7 @@ export class Run {
     this.setNight(s.clock[0]);
     this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
     this.shield.update(0);            // a later act starts with its Shield full
+    if (devSession()) this.devRun();  // a tab with the dev tools unlocked never plays a run that counts
     this.refreshHud();
   }
 
@@ -977,6 +982,7 @@ export class Run {
   // a dev mode's run (1 on 1, fight the boss): played as a normal run, and not counted as one
   disqualifyChallenges() { this.challenges.eligible = false; }
 
+  // a dev run: no Pearls, finds, achievements, run log or leaderboard
   devRun() { this.dev = true; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
@@ -1378,7 +1384,7 @@ export class Run {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
-    const entry = { score, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, run: this.logId, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
@@ -1405,7 +1411,7 @@ export class Run {
       this.endView = 'summary';
       last = result;
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
-        : { taken: ' <small>· that name is already in use; choose another</small>', slow: ' <small>· please wait 15 seconds and try again</small>', lower: ' <small>· not posted: your best on the board is higher</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
+        : { taken: ' <small>· that name is already in use; choose another</small>', slow: ' <small>· please wait 15 seconds and try again</small>', lower: ' <small>· not posted: your best on the board is higher</small>', unverified: ' <small>· not posted: this run couldn\'t be checked</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
       const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
@@ -1414,7 +1420,7 @@ export class Run {
       if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b>`]);
       if (this.newAchievements.length) rows.unshift(['🏅 Achievements earned', this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
-      const high = !B || B.qualifies(score), canPost = B && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'sending'].includes(result?.why);
+      const high = !B || B.qualifies(score), canPost = B && !this.dev && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);

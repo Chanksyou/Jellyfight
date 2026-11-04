@@ -35,6 +35,12 @@ const request = async (path, body) => {
   }), env);
   return { status: response.status, data: await response.json() };
 };
+// a score backed by a logged run: one act, finished with that score (the Worker checks it: checkRun)
+const logAct = (id, run, act, outcome, extra = {}) => sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
+  (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures)
+  VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
+  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]));
+const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { score: body.score }); return request('/api/scores', { run: 'run-' + body.id, ...body }); };
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
@@ -153,7 +159,7 @@ test('achievement portraits persist a sanitized look without needing a score and
 test('legacy achievement rows gain portrait storage without losing totals and use an existing score look', async () => {
   await submit('player-one', ['perfect-boss'], 'Legacy Jelly');
   const look = { body: 'moon', color: '#123456' };
-  await request('/api/scores', { id: 'player-one', name: 'Legacy Jelly', score: 100, look });
+  await postScore({ id: 'player-one', name: 'Legacy Jelly', score: 100, look });
   sqlite.exec('ALTER TABLE achievement_players DROP COLUMN look');
   const { default: cold } = await import('../worker/index.js?achievement-look-migration');
   const response = await cold.fetch(new Request('https://game.test/api/achievements?me=player-one'), env);
@@ -167,7 +173,7 @@ test('legacy achievement rows gain portrait storage without losing totals and us
 test('sharing achievements is rate limited separately from posting game scores', async () => {
   assert.equal((await submit('player-one', ['perfect-boss'])).status, 200);
   assert.equal((await submit('player-one', ['pack-light'])).status, 429);
-  assert.equal((await request('/api/scores', { id: 'player-one', name: 'Jelly', score: 100, won: true })).status, 200);
+  assert.equal((await postScore({ id: 'player-one', name: 'Jelly', score: 100, won: true })).status, 200);
   clearRates();
   assert.equal((await submit('player-one', ['pack-light'])).data.mine.count, 2);
 });
@@ -230,8 +236,8 @@ test('the run log keeps one row per act with its lists as clean JSON, rate limit
 
 
 test('names are unique across scores and achievements, including case and spaces', async () => {
-  assert.equal((await request('/api/scores', { id: 'player-one', name: ' Sea   Jelly ', score: 500 })).data.posted, true);
-  const clash = await request('/api/scores', { id: 'player-two', name: 'sea jelly', score: 700 });
+  assert.equal((await postScore({ id: 'player-one', name: ' Sea   Jelly ', score: 500 })).data.posted, true);
+  const clash = await postScore({ id: 'player-two', name: 'sea jelly', score: 700 });
   assert.equal(clash.status, 409); assert.equal(clash.data.why, 'taken');
   assert.equal((await submit('player-three', ['perfect-boss'], 'SEA JELLY')).data.why, 'taken');
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
@@ -239,7 +245,7 @@ test('names are unique across scores and achievements, including case and spaces
 });
 
 test('renaming preserves the run and achievement dates and frees the old name', async () => {
-  await request('/api/scores', { id: 'player-one', name: 'Original', score: 500, look: { body: 'moon' } });
+  await postScore({ id: 'player-one', name: 'Original', score: 500, look: { body: 'moon' } });
   await submit('player-one', ['perfect-boss'], 'Original');
   const before = { ...sqlite.prepare('SELECT * FROM scores').get() };
   const earned = sqlite.prepare('SELECT at FROM achievement_unlocks').get().at;
@@ -251,7 +257,7 @@ test('renaming preserves the run and achievement dates and frees the old name', 
   clearRates();
   await submit('player-one', ['pack-light'], 'New Name');
   assert.equal(sqlite.prepare('SELECT name FROM achievement_players').get().name, 'New Name');
-  assert.equal((await request('/api/scores', { id: 'player-two', name: 'Original', score: 200 })).data.posted, true);
+  assert.equal((await postScore({ id: 'player-two', name: 'Original', score: 200 })).data.posted, true);
   clearRates();
   assert.equal((await request('/api/name', { id: 'player-one', name: 'original' })).data.why, 'taken');
   assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-one').name, 'New Name');
@@ -259,14 +265,14 @@ test('renaming preserves the run and achievement dates and frees the old name', 
 
 test('rename rejects unknown players, blank names, malformed requests and rapid repeat changes', async () => {
   assert.equal((await request('/api/name', { id: 'player-one', name: 'Unknown' })).status, 404);
-  await request('/api/scores', { id: 'player-one', name: 'Jelly', score: 500 });
+  await postScore({ id: 'player-one', name: 'Jelly', score: 500 });
   assert.equal((await request('/api/name', { id: 'player-one', name: ' ' })).status, 400);
   assert.equal((await request('/api/name', { id: 'player-one', name: 'Squid' })).data.renamed, true);
   assert.equal((await request('/api/name', { id: 'player-one', name: 'Octopus' })).status, 429);
 });
 
 test('simultaneous name claims have one winner and do not partially save the loser', async () => {
-  const results = await Promise.all(['player-one', 'player-two'].map(id => request('/api/scores', { id, name: 'Same Jelly', score: 500 })));
+  const results = await Promise.all(['player-one', 'player-two'].map(id => postScore({ id, name: 'Same Jelly', score: 500 })));
   assert.equal(results.filter(r => r.data.posted).length, 1);
   assert.equal(results.filter(r => r.data.why === 'taken').length, 1);
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
@@ -289,4 +295,39 @@ test('migration keeps earliest saved name, reserves existing numbered names, and
   const { default: another } = await import('../worker/index.js?names-again');
   await another.fetch(new Request('https://game.test/api/scores'), env);
   assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-first').name, 'Squid');
+});
+
+test('a score must be the last act of a run its player logged, and the run must look playable', async () => {
+  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score }); };
+  assert.equal((await post(undefined, 500)).data.why, 'unverified');            // no run named
+  assert.equal((await post('run-missing', 500)).data.why, 'pending');           // its log hasn't arrived
+  logAct('player-one', 'run-good', 1, 'next-act', { score: 12000, level: 13 });
+  assert.equal((await post('run-good', 12000)).data.why, 'pending');            // still going
+  logAct('player-one', 'run-good', 2, 'died', { score: 20000, level: 16, time: 90 });
+  assert.equal((await post('run-good', 60000)).data.why, 'unverified');         // not the score it logged
+  assert.equal((await post('run-good', 20000)).data.posted, true);
+  logAct('player-one', 'run-skip', 1, 'next-act', { score: 10000 });             // act 2 missing
+  logAct('player-one', 'run-skip', 3, 'died', { score: 30000 });
+  assert.equal((await post('run-skip', 30000)).data.why, 'unverified');
+  logAct('player-one', 'run-open', 1, 'in-progress', { score: 10000 });          // act 1 never finished
+  logAct('player-one', 'run-open', 2, 'died', { score: 30000 });
+  assert.equal((await post('run-open', 30000)).data.why, 'unverified');
+  logAct('player-one', 'run-level', 1, 'died', { score: 30000, level: 30 });     // level 30 in act 1
+  assert.equal((await post('run-level', 30000)).data.why, 'unverified');
+  logAct('player-one', 'run-stack', 1, 'died', { score: 30000, treasures: [['penSpring', 10]] });
+  assert.equal((await post('run-stack', 30000)).data.why, 'unverified');
+  logAct('player-one', 'run-rush', 1, 'next-act', { score: 10000, time: 40 });   // cleared act 1 in 40 s
+  logAct('player-one', 'run-rush', 2, 'died', { score: 30000 });
+  assert.equal((await post('run-rush', 30000)).data.why, 'unverified');
+  assert.equal(sqlite.prepare('SELECT score FROM scores').get().score, 20000);
+});
+
+test('the dev password is checked against the secret, slowly, and never opens without one', async () => {
+  const unlock = async (pass, secret) => { clearRates(); env.DEV_PASSWORD = secret; return (await request('/api/dev', { pass })).data.open; };
+  assert.equal(await unlock('anything', undefined), false);
+  assert.equal(await unlock('', ''), false);
+  assert.equal(await unlock('nope', 'sea-secret'), false);
+  assert.equal(await unlock(' sea-secret ', 'sea-secret'), true);
+  assert.equal((await request('/api/dev', { pass: 'sea-secret' })).status, 429);
+  delete env.DEV_PASSWORD;
 });

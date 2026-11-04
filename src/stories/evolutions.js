@@ -205,6 +205,22 @@ story('dev/test-kit', {
     return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'boxJelly' && got.tentacles === 4 && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
   },
 });
+story('dev/tools-mid-run-stop-it-counting', {
+  about: 'Opening the test kit or the tuner on a run in progress makes it a dev run: it no longer goes to the run log, earns Pearls or can be submitted to the leaderboard.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    const before = run.dev;
+    window.kit.show(run, {}); window.kit.hide();
+    const afterKit = run.dev;
+    run.start();
+    const fresh2 = run.dev;
+    window.tuner.show(run, {}); window.tuner.hide();
+    const afterTuner = run.dev;
+    run.start();
+    return ok(!before && afterKit && !fresh2 && afterTuner, { before, afterKit, fresh2, afterTuner });
+  },
+});
 story('dev/balance-editor', {
   about: 'The dev balance editor: a new number for a bug, a treasure or a boss recompiles the content at once: the next bug spawns with the new Health (one already alive keeps its own), a treasure you hold applies its new numbers, a boss skill the boss is fighting with takes its new number, an elite skill takes its new number, the XP curve and a card amount change what the next level-up offers, removing an elite or a card takes it out of the run and the offers, the panel lists every bug, treasure, boss, elite and level-up with its numbers, and Reset puts the file values back and restores everything removed.',
   setup() { fresh(); },
