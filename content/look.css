@@ -228,8 +228,8 @@
   --board-jelly-size: 80px;
   --board-jelly-size-phone: 56px;
   /* Main menu: presentation only. Distances are multiples of the jelly's height. */
-  --menu-camera-distance: 2.35;
-  --menu-camera-distance-portrait: 4;
+  --menu-camera-distance: 1.74;          /* was 2.35: shrinking distance by 1.35 draws the jelly 35% bigger */
+  --menu-camera-distance-portrait: 2.96; /* was 4 */
   --menu-camera-offset-portrait: 0.32;
   --menu-camera-yaw: 0.22;
   --menu-bob: 0.045;

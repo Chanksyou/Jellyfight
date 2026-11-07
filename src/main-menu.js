@@ -282,7 +282,7 @@ export class MainMenu {
     const w = innerWidth, ht = innerHeight, wide = w > ht;
     const p = this.player.position;
     const yaw = this.player.facing + LOOK.num('menu-camera-yaw', 0.22);
-    const d = h * LOOK.num(wide ? 'menu-camera-distance' : 'menu-camera-distance-portrait', wide ? 2.35 : 4);
+    const d = h * LOOK.num(wide ? 'menu-camera-distance' : 'menu-camera-distance-portrait', wide ? 1.74 : 2.96);
     this.camera.position.set(p.x + Math.sin(yaw) * d, p.y + h * 0.75, p.z + Math.cos(yaw) * d);
     this.target.copy(p); this.target.y += h * 0.53;
     this.camera.lookAt(this.target);
