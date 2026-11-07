@@ -245,3 +245,52 @@ story('act2/finished-run-main-menu-reloads-act-one', {
     }
   },
 });
+
+story('act2/reload-picks-up-the-act', {
+  act: 2,
+  about: 'Reloading a later act part way through comes back to the act as it stood (its clock, Health, kills, level, Treasures, a beaten Elite staying beaten, its chest still waiting, the same level-up cards still owed), never a fresh act with full Health; the run ending, or a dev run, keeps nothing to come back to.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G(), was = sessionStorage.getItem('jellyrun.act'), wasCarry = run.carry;
+    stub(run, 'later', () => {});
+    try {
+      return withEmpty([SAVE_KEY], () => {
+        // the act as it began: carried from act 1
+        const start = { ...run.carryOver(), level: 4, score: 5000, logId: 'reload-story' };
+        sessionStorage.setItem('jellyrun.act', JSON.stringify({ act: 2, carry: start, then: null }));
+        keepRun(2, start);
+        run.carry = start;
+        // part way through: hurt, stronger, an Elite beaten and its chest left on the floor, cards open
+        const t = TREASURES.find((x) => x.id === 'lemon').id, beat = run.stage.elites[0].kind;
+        Object.assign(run, { t: 150, kills: 40, level: 6 });
+        run.owned.add(t);
+        run.health = 7;
+        run.eliteLog.push([beat, 120]);
+        run.placeTreasure(run.player.position.clone(), Infinity, 0);
+        run.choosingCard = true;
+        run.cardsOnOffer = [{ stat: 'regen', rarity: { id: 'rare' }, amount: 1 }];
+        run.keepProgress();
+        const kept = keptRun()?.carry?.mid?.t === 150 && carried()?.mid?.health === 7;
+        // the reload: the page builds the run again from what the tab kept
+        run.carry = carried();
+        run.resumed = false;
+        run.start();
+        const back = run.t === 150 && run.health === 7 && run.kills === 40 && run.level === 6 && run.owned.has(t);
+        const earlier = run.carry.score === 5000 && run.score() > 5000;
+        const eliteStaysBeaten = !run.elites.list.some((e) => e.kind === beat);
+        const chest = run.roomTreasures.filter((c) => c.active).length === 1;
+        const cards = run.pendingLevels === 1 && run.owedCards[0]?.[0]?.stat === 'regen' && run.owedCards[0][0].rarity.id === 'rare';
+        // a dev run writes nothing; dying forgets the act
+        run.dev = true; run.t = 10; run.keepProgress(); run.dev = false;
+        const devNothing = carried()?.mid?.t === 150;
+        run.die();
+        const gone = !keptRun() && !carried();
+        return ok(kept && back && earlier && eliteStaysBeaten && chest && cards && devNothing && gone,
+          { kept, back, earlier, eliteStaysBeaten, chest, cards, devNothing, gone, t: run.t, health: run.health, kills: run.kills });
+      });
+    } finally {
+      run.carry = wasCarry; run.resumed = false;
+      if (was === null) sessionStorage.removeItem('jellyrun.act'); else sessionStorage.setItem('jellyrun.act', was);
+    }
+  },
+});
