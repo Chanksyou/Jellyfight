@@ -2,9 +2,9 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
-import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS } from './stats.js';
+import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
-import { STAGES, forgetRun, goToAct, keepRun } from './stages.js';
+import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
 import { Vacuum } from './vacuum.js';
 import { Clog } from './clog.js';
 import { Shark } from './shark.js';
@@ -208,10 +208,14 @@ export class Run {
     this.victory.cancel();
     this.driedOut.cancel();
     const s = this.stage;
+    // a later act reloaded part way through (keepProgress): it picks up where it was, once
+    const M = (!this.resumed && this.carry?.mid) || null;
+    if (M) this.resumed = true;
+    const beaten = new Set((M?.eliteLog || []).map(([kind]) => kind));
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
     calm();                           // a balloon's deep sound doesn't outlast the run
     this.enemies.clear();
-    this.elites?.start((this.stage.elites || []).filter((s) => !isRemoved('elite', s.kind)));   // an elite the dev editor removed doesn't spawn (duels, which pick one on purpose, still can)
+    this.elites?.start((this.stage.elites || []).filter((s) => !isRemoved('elite', s.kind) && !beaten.has(s.kind)));   // an elite the dev editor removed doesn't spawn (duels, which pick one on purpose, still can)
     // the act's wasp nests hang from the start, or from `nests.from` seconds in (spawnWaves)
     this.nestsAt = this.stage.nests?.from > 0 ? this.stage.nests.from : null;
     if (this.nestsAt == null) this.spawnNests();
@@ -266,6 +270,8 @@ export class Run {
     this.collectAll = false;
     this.runId = (this.runId || 0) + 1;    // delayed steps (later()) belong to this run only
     this.pendingLevels = 0;
+    this.choosingCard = false;        // a level-up's cards are open (keepProgress)
+    this.owedCards = [];              // cards a reload owes, offered before any new roll
     this.iFrames = 0;
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
@@ -301,8 +307,9 @@ export class Run {
     this.pearls = 0;                  // Pearls this run has earned (cosmetics.js), already in the bank
     this.awardsBefore = this.dev ? [] : unlockedAwards();   // golden awards held when the run began: the end screen names the new ones
     this.bossHurt = false;            // lost Health in this act's boss fight (the Diamond tiara asks for a fight without)
-    // a later act: the run carries on from the act before (main.js gives it: stages.js)
-    const C = this.carry;
+    // a later act: the run carries on from the act before (main.js gives it: stages.js), or from
+    // where this act stood when the page went (its level, Treasures, stats as they were then)
+    const C = M ? { ...this.carry, ...M.now } : this.carry;
     this.challenges = newChallenges(s.id, C?.challenges);
     if (balanceChanges().length || Object.keys(loadLayout(s.id)).length) this.disqualifyChallenges();
     this.newAchievements = [];
@@ -350,8 +357,49 @@ export class Run {
     this.setNight(s.clock[0]);
     this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
     this.shield.update(0);            // a later act starts with its Shield full
+    if (M) this.resumeAct(M);
+    this.keepT = 1;
     if (devSession()) this.devRun();  // a tab with the dev tools unlocked never plays a run that counts
     this.refreshHud();
+  }
+
+  // Where a later act stands, kept every second and as the page goes (main.js), so a reload or a
+  // phone dropping the page comes back to the same act clock, Health, kills, Treasures and chests
+  // waiting: refreshing can't buy a fresh act. What's kept is only the run's own numbers; the bugs
+  // around you, an Elite or boss fight under way and XP on the floor start over. Act 1 has
+  // nothing carried to keep (a reload there is a new run), and a dev run or a beaten boss keeps nothing.
+  keepProgress() {
+    if (this.dev || !this.carry || this.duel || this.bossWon || !['explore', 'intro', 'boss'].includes(this.phase)) return;
+    const { mid, ...C } = this.carry;
+    keepAct({ ...C, mid: {
+      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct,
+      levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
+      kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
+      lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
+      treasureTimesLeft: this.treasureTimesLeft, bonusTreasureAt: [...this.bonusTreasureAt], recentTreasureSpots: this.recentTreasureSpots,
+      chests: this.roomTreasures.filter((c) => c.active && c.opening === null)
+        .map((c) => ({ at: c.pos.toArray(), facing: c.chest.rotation.y, stay: c.timed ? c.stay : null, left: c.timed ? c.left : null, slot: c.scheduledSlot })),
+    } });
+  }
+
+  resumeAct(M) {
+    this.t = M.t;
+    Object.assign(this, {
+      kills: M.kills, featKills: M.kills, eliteBugs: M.eliteBugs, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt,
+      lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct,
+      treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
+    });
+    if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
+    this.health = Math.min(this.S.health, M.health);
+    this.shield.max = this.S.shield;
+    this.shield.hp = Math.min(this.shield.max, M.shield || 0);
+    for (const c of M.chests || []) {
+      const t = this.placeTreasure(new THREE.Vector3(...c.at), c.stay ?? Infinity, c.facing);
+      if (c.stay != null) t.left = c.left;
+      t.scheduledSlot = c.slot ?? null;
+    }
+    this.setNight(this.stage.clock[0] + (this.stage.clock[1] - this.stage.clock[0]) * this.night);
   }
 
   get paused() { return this.ui.open; }
@@ -414,6 +462,7 @@ export class Run {
   // ------------------------------------------------------------ main update
   update(dt) {
     if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun('started'); }
+    if ((this.keepT -= dt) <= 0) { this.keepT = 1; this.keepProgress(); }
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
     this.frame++;
@@ -959,20 +1008,26 @@ export class Run {
 
   levelUp() {
     this.pendingLevels--;
+    // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
+    // same ones come back, so a reload isn't a free reroll
+    const roll = () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []);
+    this.cardsOnOffer = this.owedCards.shift() || roll();
+    this.choosingCard = true;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
     // the ding: a gold ring leaves the jelly and the badge pops while the cards wait a beat (ui.js),
     // and the picked card's icon flies into the badge
     const at = this.player.position.clone().setY(this.player.position.y + this.cfg.height * 0.5).project(this.tpc.camera);
     this.hud.levelDing((at.x + 1) / 2 * innerWidth, (1 - at.y) / 2 * innerHeight);
-    this.ui.levelUp(this.level - this.pendingLevels, rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []), this.S, this.rerolls, (card) => {
+    this.ui.levelUp(this.level - this.pendingLevels, this.cardsOnOffer, this.S, this.rerolls, (card) => {
       const before = this.stats.health;
+      this.choosingCard = false;
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
       if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
-    }, () => { this.rerolls--; this.challenges.rerolls++; return rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []); }, this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
   resume() {

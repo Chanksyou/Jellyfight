@@ -1,0 +1,1 @@
+keeps a later act's progress as it's played, so refreshing the page in act 2, 3 or 4 picks the act up where it was (its clock, Health, kills, level, Treasures, beaten Elites and waiting chests, and the same level-up cards) instead of a fresh act with full Health.

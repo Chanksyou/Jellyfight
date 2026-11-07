@@ -37,7 +37,8 @@ export function goToAct(act, carry = null, then = null) {
 }
 // A run kept on the device (localStorage) from the start of the act it reached, so a closed tab or a
 // phone dropping the page can pick it up again: the act 1 menu offers "Continue act N". Written as
-// the run moves on to the next act, gone when the run ends or a new one starts. Mid-act progress isn't kept.
+// the run moves on to the next act, gone when the run ends or a new one starts; kept up to date with
+// the act's progress as it's played (keepAct).
 export const SAVE_KEY = 'jellyrun.run';
 export function keepRun(act, carry) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ act, carry })); } catch {} }
 export function keptRun() {
@@ -50,6 +51,16 @@ export function forgetRun() {
     if (v?.[KEY]) { delete v[KEY]; window.name = JSON.stringify(v); }
   } catch {}
   save({ act: 1, carry: null, then: null });   // reloading must not resurrect the finished run either
+}
+// A later act's progress so far (Run.keepProgress: the act-start carry plus `mid`, where the act
+// stands now), over the tab's copy and the kept run, so a reload or a dropped page picks the act up
+// where it was instead of handing out a fresh one. A dev run's act never gets here.
+export function keepAct(carry) {
+  const v = load();
+  if (!v?.carry) return;
+  save({ ...v, carry });
+  const k = keptRun();
+  if (k && k.act === v.act && k.carry.logId === carry.logId) keepRun(k.act, carry);
 }
 // the same, without using it up (main.js shows a different loading screen for { continue: true })
 export const peekAction = () => load()?.then || null;

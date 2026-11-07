@@ -309,7 +309,7 @@ run.onMainMenu = () => {
   overlay.hidden = false;
 };
 run.playerBody = () => state.look.body;
-addEventListener('pagehide', () => { run.flushFeats(); run.recordRun('in-progress'); });
+addEventListener('pagehide', () => { run.flushFeats(); run.recordRun('in-progress'); run.keepProgress(); });   // a reload comes back to this act as it stands
 run.playerLook = () => state.look;
 run.onWear = (key, id) => { applyLook({ ...state.look, [key]: id }); saveLook(state.look); };   // an award's reveal: Wear it now
 run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jelly by their score (leaderboard, jelly-portrait.js)
@@ -1007,7 +1007,7 @@ if (continuing) {
 function showKept() {
   const k = stage.id === 1 && !continuing ? keptRun() : null, btn = overlay.querySelector('.resume');
   btn.hidden = !k;
-  if (k) btn.innerHTML = `Continue act ${k.act}<small>${STAGES[k.act - 1].subtitle} · Level ${k.carry.level} · Score ${(+k.carry.score || 0).toLocaleString()}</small>`;
+  if (k) btn.innerHTML = `Continue act ${k.act}<small>${STAGES[k.act - 1].subtitle} · Level ${k.carry.mid?.now.level ?? k.carry.level} · Score ${(+(k.carry.mid?.now.score ?? k.carry.score) || 0).toLocaleString()}</small>`;
 }
 showKept();
 GAME.showKept = showKept;
@@ -1064,6 +1064,7 @@ const gpu = recoverGpu({ renderer, scene, camera, gfx, prepare: () => prepareGra
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     run.recordRun('in-progress');
+    run.keepProgress();   // a phone may drop the page while it's away
     run.bubbles.silenceAttacks();
     if (run.phase !== 'dead' && run.phase !== 'won') pause();   // a finished run keeps its end screen
   }
