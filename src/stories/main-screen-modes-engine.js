@@ -857,3 +857,40 @@ for (const phone of [false, true]) story((phone ? 'phone/' : 'modes/') + 'cosmet
     }
   },
 });
+story('engine/bloom-glows-without-black-squares', {
+  about: 'On Medium a bright light glows past its edge (the half-resolution bloom), and a broken pixel the scene draws (NaN) stays where it is instead of smearing black squares over the glow. The dev switches turn AO and bloom off and back on.',
+  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
+  async play() {
+    const { gfx, APT } = G(), { scene, camera } = APT, gl = APT.renderer.getContext(), was = gfx.choice;
+    const quad = (color, x) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.001, 0.001), new THREE.MeshBasicMaterial({ color }));
+      camera.updateMatrixWorld();
+      m.position.set(x, 0, -0.1).applyMatrix4(camera.matrixWorld);
+      m.quaternion.copy(camera.quaternion);
+      scene.add(m);
+      return m;
+    };
+    const px = new Uint8Array(4);
+    const at = (m, dx) => {   // the screen's brightness dx pixels right of a quad's centre
+      const p = m.position.clone().project(camera);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(Math.round((p.x + 1) / 2 * gl.drawingBufferWidth) + dx, Math.round((p.y + 1) / 2 * gl.drawingBufferHeight), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      return px[0] + px[1] + px[2];
+    };
+    gfx.setQuality('medium'); await gfx.ready;
+    const bright = quad(new THREE.Color(40, 40, 40), -0.012), broken = quad(new THREE.Color(NaN, NaN, NaN), 0.012);
+    const draw = () => { G().batcher.sync(); gfx.render(); };
+    try {
+      draw();
+      const glow = at(bright, 14), nearBroken = at(broken, 12);
+      const aoOff = !gfx.toggle('ao') && gfx.composer.passes[0].isRenderPass;
+      const bloomOff = !gfx.toggle('bloom'); draw();
+      const dark = at(bright, 14);
+      const back = gfx.toggle('ao') && gfx.toggle('bloom') && !gfx.composer.passes[0].isRenderPass && gfx.bloom.enabled;
+      return ok(glow > dark + 6 && nearBroken > 30 && aoOff && bloomOff && back, { glow, dark, nearBroken, aoOff, bloomOff, back });
+    } finally {
+      scene.remove(bright, broken);
+      gfx.setQuality(was); await gfx.ready;
+    }
+  },
+});

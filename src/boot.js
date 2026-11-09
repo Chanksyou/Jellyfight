@@ -22,8 +22,12 @@ const canvas = document.getElementById('c');
 const clipControl = (() => {
   try { return !!document.createElement('canvas').getContext('webgl2')?.getExtension('EXT_clip_control'); } catch { return false; }
 })();
+// Only Low draws straight to the screen; Medium and High draw into the composer (graphics.js) and
+// put one finished picture on it, so multisampling the screen there is memory and bandwidth for
+// nothing. The renderer can't change that later: a switch to Low draws without it until the next load.
+const startTier = (() => { try { return localStorage.getItem('jellyrun.graphics'); } catch { return null; } })();   // graphics.js's STORE
 const renderer = new THREE.WebGLRenderer({
-  canvas, antialias: true, powerPreference: 'high-performance',
+  canvas, antialias: startTier === 'low', powerPreference: 'high-performance',
   reversedDepthBuffer: clipControl, logarithmicDepthBuffer: !clipControl && !IS_TOUCH,
 });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));

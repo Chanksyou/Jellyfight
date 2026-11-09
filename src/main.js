@@ -161,7 +161,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button><button data-act="pass-ao">AO on</button><button data-act="pass-bloom">Bloom on</button><button data-act="pass-lamps">Lamps on</button></div>
   <div class="row" id="g-quality"></div>
   <div class="g-bag"></div>
   <div class="keys touch-only">
@@ -764,7 +764,19 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'achievements') { overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
+  else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
+    const pass = b.dataset.act.slice(5), on = pass === 'lamps' ? toggleLamps() : gfx.toggle(pass);
+    b.textContent = b.textContent.replace(/ on$| off$/, on ? ' on' : ' off');
+  }
 });
+// dev: every lamp (a phone's shared light slots) dark or lit again. The light count changes, so
+// every lit shader rebuilds once: a stall a player never sees, since it's only here.
+let lampsOn = true;
+function toggleLamps() {
+  lampsOn = !lampsOn;
+  scene.traverse((o) => { if (o.isPointLight && (lightSlots ? o.userData.slot : o.userData.lamp)) o.visible = lampsOn; });
+  return lampsOn;
+}
 const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
