@@ -198,3 +198,40 @@ phone('graphics-reset-recovers', {
     return ok(lost && noteShown && paused && back && note.hidden && drew && !panel, { lost, noteShown, paused, back, noteHidden: note.hidden, drew, calls: gfx.frameInfo.calls, panel });
   },
 });
+
+phone('text-cannot-be-selected', {
+  about: 'A held or double tap on a phone never selects text or pops the copy bubble: the menus, the HUD and the page turn selection and the touch callout off, and only boxes you type in (the feedback box, a name) keep them.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    step(1);
+    const css = (el) => { const s = getComputedStyle(el); return [s.userSelect || s.webkitUserSelect, s.webkitTouchCallout]; };
+    const box = document.createElement('textarea'), field = document.createElement('input');
+    document.querySelector('#g-over').append(box, field);
+    const page = [document.body, document.querySelector('#g-over h1'), document.querySelector('#g-over .menu-loop'), document.querySelector('#hud') || document.body].map(css);
+    const typing = [box, field].map(css);
+    box.remove(); field.remove();
+    const locked = page.every(([sel, callout]) => sel === 'none' && (callout === undefined || callout === 'none'));
+    const typable = typing.every(([sel]) => sel !== 'none');
+    return ok(locked && typable, { page, typing });
+  },
+});
+
+phone('frame-rate-cool-by-default', {
+  about: 'Phones draw at most 30 frames a second unless the player picks 60 under Frame rate in the menu (a phone that keeps up at 60 runs hot, then throttles); the pick is remembered and the sharpness governor aims for it.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { pacer, governor } = window.pacing;
+    let stored = null; try { stored = localStorage.getItem('jellyrun.fps'); localStorage.removeItem('jellyrun.fps'); } catch {}
+    const cool = pacer.fps === 30 || stored === '60';
+    const btn = (f) => document.querySelector(`#g-quality [data-fps="${f}"]`);
+    const offered = !!btn(30) && !!btn(60);
+    btn(60)?.click();
+    let kept = null; try { kept = localStorage.getItem('jellyrun.fps'); } catch {}
+    const smooth = pacer.fps === 60 && Math.round(governor.target) === 17 && kept === '60' && btn(60)?.classList.contains('on');
+    btn(30)?.click();
+    const back = pacer.fps === 30 && Math.round(governor.target) === 33 && btn(30)?.classList.contains('on');
+    try { if (stored) localStorage.setItem('jellyrun.fps', stored); else localStorage.removeItem('jellyrun.fps'); } catch {}
+    if (stored) { pacer.fps = +stored; governor.base = governor.target = 1000 / +stored; }
+    return ok(cool && offered && smooth && back, { cool, fps: pacer.fps, offered, smooth, back, kept });
+  },
+});

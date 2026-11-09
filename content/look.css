@@ -585,7 +585,7 @@
   --splat-most: 24;            /* at once; past that the oldest goes */
 
   /* --- how often and how sharp (src/pacing.js, src/light-slots.js) ------------- */
-  --phone-fps: 60;             /* frame-rate cap on phones (0 = none): a 120 Hz screen gains nothing but heat */
+  --phone-fps: 30;             /* frame-rate cap on phones by default (the pause menu offers 30 or 60): at 60 a phone runs hot, then throttles */
   --desktop-fps: 0;
   --menu-fps: 20;              /* how often the game behind a menu redraws */
   --phone-pixel-ratio: 1.5;    /* the sharpest a phone draws (an iPhone's screen is 3) */

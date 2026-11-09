@@ -1,7 +1,7 @@
 // How often the game draws, and how sharp. Two small pieces the frame loop in main.js uses:
 //
-//  - FramePacer: skips animation frames to hold a frame-rate cap (phones: 60, so a 120 Hz Pixel
-//    doesn't do twice the GPU work for no gameplay gain) and draws slowly behind a menu.
+//  - FramePacer: skips animation frames to hold a frame-rate cap (phones: 30 by default, 60 if the
+//    player picks it, so a phone doesn't run hot and throttle) and draws slowly behind a menu.
 //  - FrameGovernor: watches how long frames really take and trades sharpness for smoothness:
 //    lowers the pixel ratio when frames run long and raises it back with headroom. (The graphics
 //    tier is the player's pick in the pause menu; the governor never changes it.)
