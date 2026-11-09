@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v384 makes phones run cooler: they draw at 30 frames a second by default (pick 60 under Frame rate in the menu), and a held or double tap no longer selects the page's text or pops the copy bubble.
+
 v383 keeps a later act's progress as it's played, so refreshing the page in act 2, 3 or 4 picks the act up where it was (its clock, Health, kills, level, Treasures, beaten Elites and waiting chests, and the same level-up cards) instead of a fresh act with full Health.
 
 v382 draws the jelly on the title screen 35% bigger (the menu camera sits closer), on phones, desktops and tall windows.
