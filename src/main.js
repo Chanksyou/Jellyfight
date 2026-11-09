@@ -91,6 +91,8 @@ ui.innerHTML = `
   /* graphics: a small segmented switch, quieter than the main buttons */
   #g-quality { gap: 0 !important; margin-top: 10px !important; font: 12px system-ui, sans-serif; opacity: .85; }
   #g-quality span { margin-right: 8px; }
+  #g-quality .seg { display: flex; font-weight: normal; }
+  #g-quality .seg + span { margin-left: 16px; }
   #g-quality button { border-radius: 0 !important; padding: 5px 12px !important; font-size: 12px !important; margin: 0 -1px 0 0; }
   #g-quality button:first-of-type { border-radius: 8px 0 0 8px !important; }
   #g-quality button:last-of-type { border-radius: 0 8px 8px 0 !important; }
@@ -174,6 +176,10 @@ ui.innerHTML = `
 document.body.appendChild(ui);
 const overlay = ui.querySelector('#g-over');
 const qualityRow = ui.querySelector('#g-quality');
+// a phone's frame-rate cap: look.css's default (30, cool) unless the player picked the other in the menu
+const FPS_STORE = 'jellyrun.fps', FPS_CHOICES = [30, 60];
+let phoneFps = LOOK.num('phone-fps', 30);
+try { const f = +localStorage.getItem(FPS_STORE); if (FPS_CHOICES.includes(f)) phoneFps = f; } catch {}
 
 const plan = APT.plan.filter(([name]) => stage.rooms.includes(name));
 const hud = new Hud(plan);
@@ -708,7 +714,8 @@ window.mainMenu = mainMenu;
 
 // --- Menus + keys ---------------------------------------------------------------
 function renderQuality() {
-  qualityRow.innerHTML = '<span>Graphics</span>' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('');
+  qualityRow.innerHTML = '<span>Graphics</span><b class="seg">' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('') + '</b>'
+    + (IS_TOUCH ? '<span>Frame rate</span><b class="seg">' + FPS_CHOICES.map((f) => `<button data-fps="${f}" class="${phoneFps === f ? 'on' : ''}">${f}</button>`).join('') + '</b>' : '');
 }
 renderQuality();
 overlay.addEventListener('click', (e) => {
@@ -718,6 +725,7 @@ overlay.addEventListener('click', (e) => {
   if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }); }
   else if (b.classList.contains('play')) { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); }
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
+  else if (b.dataset.fps) { setFps(+b.dataset.fps); renderQuality(); }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'install') { installOffer?.prompt(); installOffer = null; installBtn.hidden = true; }
@@ -1035,16 +1043,23 @@ export const ready = warmUp().then(() => {
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
 });
 
-// How often and how sharp (pacing.js): phones cap at 60 fps (a 120 Hz Pixel would otherwise do
-// twice the GPU work), everything draws slowly behind a menu, and the governor lowers the pixel
-// ratio when frames run long and raises it back with headroom.
-const pacer = new FramePacer({ fps: IS_TOUCH ? LOOK.num('phone-fps', 60) : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
+// How often and how sharp (pacing.js): phones cap at 30 fps by default (a phone that keeps up at 60
+// runs its graphics chip flat out, heats up, then throttles itself; the pause menu offers 60),
+// everything draws slowly behind a menu, and the governor lowers the pixel ratio when frames run
+// long and raises it back with headroom.
+const pacer = new FramePacer({ fps: IS_TOUCH ? phoneFps : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
 const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2));
 const governor = new FrameGovernor({
   fps: pacer.fps || 60, scale: maxRatio, max: maxRatio, min: Math.min(maxRatio, LOOK.num('min-pixel-ratio', 1)),
 });
 renderer.setPixelRatio(maxRatio);
 gfx.resize();
+// the player's frame-rate pick (phones only): the governor now aims for it
+function setFps(f) {
+  phoneFps = pacer.fps = f;
+  governor.base = governor.target = 1000 / f;
+  try { localStorage.setItem(FPS_STORE, String(f)); } catch {}
+}
 function adapt(ms) {
   const c = governor.sample(ms);
   if (c?.scale) { renderer.setPixelRatio(c.scale); gfx.resize(); }

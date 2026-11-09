@@ -17,6 +17,9 @@
   html.touch-playing { touch-action: none; }
   html, body { height: 100%; margin: 0; background: #0d1020; overflow: hidden; }
   body { color: #fff; font: 15px system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+  /* A game, not a page: a held or double tap mustn't select text or pop the copy/look-up bubble (only boxes you type in can) */
+  body { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  input, textarea { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
   #loading { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; background: #0d1020; z-index: 50; transition: opacity .4s; }
   #loading.gone { opacity: 0; pointer-events: none; }
