@@ -234,6 +234,7 @@ export class Enemies {
     this.statuses = {
       frozen: (e) => (e.freezeT > 0 ? 1 : 0), chilled: (e) => (e.chillT > 0 ? 1 : 0), slowed: (e) => (e.slowT > 0 ? 1 : 0),
       stunned: (e) => (e.stunT > 0 ? 1 : 0), marked: (e) => (e.markT > 0 ? 1 : 0),
+      burning: () => 0, bleeding: () => 0,   // until bubbles.js / combat.js replace them with their own
     };
     this.mods = null;         // the run's combined treasure effects (run.js sets them each frame): status-damage
     this.shots = [];          // web balls and pushpins in flight (the spit word)
