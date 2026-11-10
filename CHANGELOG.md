@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v395 drops an unused lightning line material that was only built to warm up a shader the game never draws (lightning bolts use their own pooled lines), so startup builds one shader fewer.
+
 v394 gives the Tentacle jelly its 12 Attack upgrades after each boss (jelly types are still behind the dev switch): Stinging Nettle, Tape Measure, Spaghetti Strand, Toaster Cord, Chopsticks and Paperclip Chain reworked, plus Whip Crack, Anchor, Ink Cloud, Venom Sac, Coil and Bell Pulse.
 
 v393 jelly types (behind the switch): no separate evolution pick; the boss's Legendary pick draws from one pool of 19 (the 9 Legendary treasures and the 10 former evolutions), evolutions stack, Box Jelly's tentacles lash for any jelly type, and Rebound, Man o' War and Disco Ball are offered only to types they work for.
