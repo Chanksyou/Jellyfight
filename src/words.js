@@ -695,7 +695,7 @@ export function newMods() {
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false },   // the Shield stat's treasures (src/shield.js)
-    rebound: false, decoy: null, fireTrail: null,
+    rebound: false, tentacleWeapon: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
@@ -947,6 +947,7 @@ export const TREASURE_WORDS = {
   },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
+  'tentacle-weapon': { doc: 'Your tentacles lash whatever your jelly type (with jelly types only the Tentacle jelly lashes otherwise); for the Tentacle jelly, more `tentacles` (stat) add to its Attacks.', make: () => (m) => { m.tentacleWeapon = true; } },
   rebound: { doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight.', make: () => (m) => { m.rebound = true; } },
   decoy: {
     doc: 'Every `every` seconds spent moving, leaves a harmless copy for `time` seconds that attracts ordinary bugs within `range` m. Existing projectiles and locked aims stay unchanged.',

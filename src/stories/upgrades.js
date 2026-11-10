@@ -36,7 +36,7 @@ const FIRE_POOL = ['flashpoint', 'slowBurn', 'fireBreath', 'wildfire', 'hotHead'
 
 // ------------------------------------------------------------------ the pick, chests, saves
 story('types/end-of-act-offers-attack-upgrades', {
-  about: 'A Fire run with jelly types on: after act 1\'s boss, the evolution and the Legendary pick as before, then a pick of 3 Fire Attack upgrades, then the act ends. With the switch off there is no third pick.',
+  about: 'A Fire run with jelly types on: after act 1\'s boss, the Legendary pick (evolutions are in it since P9), then a pick of 3 Fire Attack upgrades, then the act ends. With the switch off it is the evolution and the Legendary pick, and no upgrade pick.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = () => {
@@ -52,8 +52,8 @@ story('types/end-of-act-offers-attack-upgrades', {
     fresh();
     const off = once();
     fresh();
-    const up = on.picks[2], pool = new Set(FIRE_POOL);
-    const pass = on.picks.length === 3 && /Attack upgrade/.test(up.title) && up.ids.length === 3 && up.ids.every((id) => pool.has(id))
+    const up = on.picks[1], pool = new Set(FIRE_POOL);
+    const pass = on.picks.length === 2 && /Attack upgrade/.test(up.title) && up.ids.length === 3 && up.ids.every((id) => pool.has(id))
       && on.upgrades.length === 1 && on.upgrades[0] === up.ids[0] && on.ended[0] === 2
       && off.picks.length === 2 && !off.upgrades.length && off.ended[0] === 2;
     return ok(pass, { on, off });
@@ -71,7 +71,7 @@ story('types/attack-upgrade-is-never-in-a-chest', {
       for (let i = 0; i < 400; i++) { run.pickTreasure('x', 'x', i % 2 ? 'room' : 'elite'); if (i % 4 === 0) run.pickLegendary('x', 'x'); }
       return ids;
     };
-    const on = seen(), byId = Object.fromEntries(CONTENT.treasures.map((t) => [t.id, t]));
+    const on = seen(), byId = Object.fromEntries([...CONTENT.treasures, ...CONTENT.evolutions].map((t) => [t.id, t]));   // (the Legendary pick offers evolutions too, P9)
     const upgradeIds = new Set(CONTENT.upgrades.map((u) => u.id));
     const bad = [...on].filter((id) => upgradeIds.has(id) || byId[id].retired || byId[id].vocabulary.includes('element') || byId[id].vocabulary.includes('element-up'));
     // the upgrade pick itself: never one already taken, Inferno only after Slow Burn

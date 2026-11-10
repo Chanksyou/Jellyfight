@@ -11,7 +11,7 @@ export async function runEncounters(tool) {
     opts.seeds = Array.from({ length: n }, (_, i) => (opts.seed + i) >>> 0);
   }
   if (opts.help) {
-    console.log(`${tool}.mjs [id-filter[,id-filter]] [${tool === 'matchup' ? '0/N] [' : ''}--seed=N | --seeds=N,N] [--runs=N] [--styles=stationary,ranged,close,rooting] [--build=id,id@3,evo:id] [--add=id | --synergy=id+id]\nBUGS=roach,ants selects enemies. Outputs paired clear (30 s limit) and mortal damage/survival probes (10 s limit).`);
+    console.log(`${tool}.mjs [id-filter[,id-filter]] [${tool === 'matchup' ? '0/N] [' : ''}--seed=N | --seeds=N,N] [--runs=N] [--styles=stationary,ranged,close,rooting] [--build=id,id@3,evo:id] [--add=id | --synergy=id+id] [--type=fire (a jelly type, switch on)]\nBUGS=roach,ants selects enemies. Outputs paired clear (30 s limit) and mortal damage/survival probes (10 s limit).`);
     return;
   }
   const env = await start();
@@ -47,7 +47,7 @@ export async function runEncounters(tool) {
       for (const style of opts.styles) for (const enemy of bugs) for (const mode of tool === 'clear' ? ['range', 'swarm'] : ['big', 'clump']) for (const probe of [false, true]) {
         const rows = [];
         for (const seed of opts.seeds) for (const arm of arms) {
-          const config = { seed, style, build: arm.build, item: arm.card, type: enemy, mode, probe };
+          const config = { seed, style, build: arm.build, item: arm.card, type: enemy, mode, probe, jelly: opts.type };
           const key = JSON.stringify(config);
           let result = cache.get(key);
           if (!result) {

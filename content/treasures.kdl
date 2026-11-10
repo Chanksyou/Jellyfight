@@ -501,7 +501,7 @@ treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Ev
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true not-for="tentacle" text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
     echo-bubble dmg=0.4
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 attacks bursts out from you in every direction." {

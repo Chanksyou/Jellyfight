@@ -19,7 +19,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P8d Wind | not started | | |
 | P8e Glitter | not started | | |
 | P8n Normal pool | not started | | |
-| P9 | not started | | |
+| P9 | in review | | Evolutions join the Legendary pick with types on (still in content/evolutions.kdl until P11); not-for= on Rebound, Man o' War, Disco Ball; tentacle-weapon word |
 | P10 | not started | | |
 | G2 | waiting | | Owner's balance runs and go |
 | P11 | not started | | |
