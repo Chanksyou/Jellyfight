@@ -106,6 +106,7 @@ _Avoid_: Miniboss
 
 **Bleed**:
 Health the jelly loses each second for a few seconds after a bite that bleeds (the mosquito's): 1 a second for 3 s. Every bite adds its own Bleed, so they stack.
+Bugs can Bleed too: the Tentacle jelly's stings (Stinging Nettle, Venom Sac) add Bleed stacks that each take a share of the sting's damage every second for 3 s.
 
 **Warning**:
 What shows where an Elite's or the Boss's attack will land before it does: a shape on the floor, with the space it will fill above it, both filling up to the moment of the hit.

@@ -472,8 +472,24 @@ export class Gadgets {
       this.marbles.push(Object.assign(state, { m, t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, trailT:0 }));
       sfx.gadgetMarble('launch');ctx.pulse?.(.2);
     } else if (ef.kind === 'lash') {
-      const e = ctx.from != null && this.near(center, ef.range).find((x) => x.id === ctx.from);
-      if (e) ctx.lash?.(e, ef.dmg);
+      if (ef.all) ctx.lashAll?.(ef.dmg);
+      else {
+        const e = ctx.from != null && this.near(center, ef.range).find((x) => x.id === ctx.from);
+        if (e) ctx.lash?.(e, ef.dmg);
+      }
+    } else if (ef.kind === 'grab') {
+      if (ctx.grab?.(ef)) ctx.pulse?.(0.3);
+    } else if (ef.kind === 'reach-flare') {
+      // the tentacles flare out: a ring on the floor out to the new reach, the bell swelling
+      const r = ctx.flare?.(ef.mult);
+      if (r) { fx.ring(feet.clone().setY(feet.y + 0.004), new THREE.Color(LOOK.color('lash-trace', '#2ee9ff')).getHex(), r, 0.4); sfx.lashDraw(); ctx.pulse?.(0.3); }
+    } else if (ef.kind === 'ink') {
+      ctx.ink?.(ef);
+      // the squirt: dark puffs thrown out round the bell, and a ring to the cloud's edge
+      const c = new THREE.Color(LOOK.color('ink-cloud', '#3b2a66')).getHex();
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; fx.puff(_to.set(center.x + Math.cos(a) * ef.radius * 0.5, center.y, center.z + Math.sin(a) * ef.radius * 0.5), c, 0.014, 0.6); }
+      fx.ring(feet.clone().setY(feet.y + 0.004), c, ef.radius, 0.5);
+      ctx.pulse?.(0.25);
     } else if (ef.kind === 'dash') {
       ctx.dash?.(ef.speed, ef.time);
     } else if (ef.kind === 'bubble-ring') {

@@ -269,6 +269,7 @@ export class Bubbles {
     for (const N of mods.nth) {
       if (N.random ? Math.random() >= 1 / N.every : n % N.every !== 0) continue;
       for (const ef of N.effects) {
+        if (ef.kind !== 'big') continue;   // sweep is a lash's
         out ||= { dmg: 1, size: 1, speed: 1, pierce: 0 };
         out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed; out.pierce += ef.pierce;
       }

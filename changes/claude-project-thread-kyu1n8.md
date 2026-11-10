@@ -1,0 +1,1 @@
+gives the Tentacle jelly its 12 Attack upgrades after each boss (jelly types are still behind the dev switch): Stinging Nettle, Tape Measure, Spaghetti Strand, Toaster Cord, Chopsticks and Paperclip Chain reworked, plus Whip Crack, Anchor, Ink Cloud, Venom Sac, Coil and Bell Pulse.

@@ -305,7 +305,7 @@ story('hud/treasure-timers', {
 });
 // the jelly types' shared words (docs/jelly-types, phase P3): built and proven ahead of the Attack
 // upgrades that will use them; take each off this list once something does
-const WAITING = new Set(['status-taken', 'nth-attack', 'stack-buff']);   // status-damage and on-kill-of: Fire's Attack upgrades (P6)
+const WAITING = new Set(['status-taken']);   // status-damage and on-kill-of: Fire's Attack upgrades (P6); nth-attack and stack-buff: Tentacle's (P7)
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
   about: 'Every treasure word has a description, is used by some treasure (or is one of the jelly types\' shared words still waiting for its Attack upgrades), and has a treasures/ story.',
   setup() {},

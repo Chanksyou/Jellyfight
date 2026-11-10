@@ -677,7 +677,7 @@ export function newMods() {
     bubbles: { pierce: 1, echo: null, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
-    hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null } },
+    hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null, echo: null, edge: null, coil: null } },
     popZap: null,
     mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
     reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
@@ -704,7 +704,8 @@ export function newMods() {
     statusDamage: [SHATTER],         // status-damage: { status, more, by, elites, perStack, thaw } (enemies.js)
     statusTaken: [],                 // status-taken: { status, less } (run.js)
     killsOf: [],                     // on-kill-of: { status, by, effects } (run.js onKill)
-    nth: [],                         // nth-attack: { every, random, effects } (bubbles.js volley)
+    nth: [],                         // nth-attack: { every, random, effects } (bubbles.js volley, combat.js fire)
+    stingCount: [],                  // sting-count: { every, effects } (combat.js fire)
     buffs: [],                       // stack-buff: { event, stat, amount, percent, time, stacks, key } (run.js)
     burnRamp: null,                  // burn-ramp: { step, most } Burn grows the longer a bug burns (bubbles.js)
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
@@ -785,9 +786,33 @@ export const TIMED_WORDS = {
     make: (_, p) => ({ kind: 'marble', ...p }),
   },
   lash: {
-    doc: 'In a when-hit block: one of your tentacles lashes the enemy that hit you (if it\'s within `range` m) for `dmg` times your Tentacle damage.',
-    props: { dmg: 2, range: 0.2 },
+    doc: 'In a when-hit block: one of your tentacles lashes the enemy that hit you (if it\'s within `range` m) for `dmg` times your Tentacle damage. `all=#true`: every enemy within your Tentacle reach is lashed instead (`range` is ignored).',
+    props: { dmg: 2, range: 0.2, all: false },
     make: (_, p) => ({ kind: 'lash', ...p }),
+  },
+  grab: {
+    doc: 'A tentacle shoots out up to `range` m, grabs the toughest enemy there (most Health left; never the boss) and reels it in to you, slamming it for `dmg` times your Tentacle damage; every other enemy it is dragged through takes the same.',
+    props: { range: 0.3, dmg: 3 },
+    make: (_, p) => {
+      if (!(p.range > 0 && p.dmg > 0)) throw new Error('grab: range and dmg must be above 0');
+      return { kind: 'grab', ...p };
+    },
+  },
+  ink: {
+    doc: 'In a when-hit block: you squirt an ink cloud; for `time` s, a hit from an enemy within `radius` m of you misses `miss` (0.5 = half) of the time.',
+    props: { radius: 0.15, time: 2, miss: 0.5 },
+    make: (_, p) => {
+      if (!(p.radius > 0 && p.time > 0 && p.miss > 0 && p.miss <= 1)) throw new Error('ink: radius and time must be above 0, miss between 0 and 1');
+      return { kind: 'ink', ...p };
+    },
+  },
+  'reach-flare': {
+    doc: 'Your tentacles flare out: the next lash reaches `mult` times as far (then it is back to normal until this goes off again).',
+    args: ['mult'],
+    make: ([mult]) => {
+      if (!(mult > 1)) throw new Error('reach-flare: mult must be above 1');
+      return { kind: 'reach-flare', mult };
+    },
   },
   'bubble-ring': {
     doc: 'Blows `count` bubbles at once, spread evenly in every direction around you, each doing `dmg` times your Attack damage.',
@@ -823,6 +848,14 @@ export const ATTACK_WORDS = {
     props: { dmg: 2, size: 1.5, speed: 1, pierce: 0 },
     make: (_, p) => ({ kind: 'big', ...p }),
   },
+  sweep: {
+    doc: 'This lash is a sweep (tentacles only; bubbles ignore it): every enemy within reach is stung at once, `dmg` times the damage, and each gets `bleed` Bleed stacks (as venom\'s, or 25% of the sting a second for 3 s, up to 5).',
+    props: { dmg: 1, bleed: 0 },
+    make: (_, p) => {
+      if (!(p.dmg > 0 && Number.isInteger(p.bleed) && p.bleed >= 0)) throw new Error('sweep: dmg must be above 0 and bleed a whole number, 0 or more');
+      return { kind: 'sweep', ...p };
+    },
+  },
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
@@ -842,7 +875,14 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
-  'echo-bubble': { doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage.', props: { dmg: 1 }, make: (_, p) => (m) => { m.bubbles.echo = { dmg: p.dmg }; } },
+  'echo-bubble': {
+    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting.',
+    props: { dmg: 1, by: 'bubbles' },
+    make: (_, p, where) => {
+      if (p.by !== 'bubbles' && p.by !== 'tentacles') throw new Error(`${where}: by= must be bubbles or tentacles`);
+      return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg }; };
+    },
+  },
   'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
@@ -877,7 +917,33 @@ export const TREASURE_WORDS = {
     make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
   },
   reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did) for at least `dmg` times your power, and you take none of it, then can\'t be hurt for `invuln` s. A shockwave hits every enemy within `burst` m for `burstDmg` times your power and shoves it `push` m.', props: { every: 20, invuln: 1, dmg: 0, burst: 0, burstDmg: 0, push: 0 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
-  venom: { doc: 'Every tentacle sting adds a venom stack to the enemy (at most `stacks`), each burning `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
+  venom: { doc: 'Every tentacle sting adds a Bleed stack to the enemy (at most `stacks`), each bleeding `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
+  'reach-sweetspot': {
+    doc: 'A tentacle sting on an enemy at the very edge of your reach (its nearest side `from` or more of the way out, 0.75 = the outer quarter) does `mult` times the damage. Copies take the biggest.',
+    props: { from: 0.75, mult: 2 },
+    make: (_, p) => {
+      if (!(p.from > 0 && p.from < 1 && p.mult > 1)) throw new Error('reach-sweetspot: from must be between 0 and 1, mult above 1');
+      return (m) => { const e = m.hits.tentacles.edge; m.hits.tentacles.edge = e ? { from: Math.min(e.from, p.from), mult: Math.max(e.mult, p.mult) } : { ...p }; };
+    },
+  },
+  'pin-on-stings': {
+    doc: 'An enemy stung by your tentacles `hits` times within `within` s is pinned in place (it can\'t move or attack) for `seconds`, then counts again from none.',
+    args: ['hits'],
+    props: { within: 2, seconds: 1 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 2 && p.within > 0 && p.seconds > 0)) throw new Error('pin-on-stings: hits must be a whole number, 2 or more, and within= and seconds= above 0');
+      return (m) => { m.hits.tentacles.coil = { hits: n, within: p.within, seconds: p.seconds }; };
+    },
+  },
+  'sting-count': {
+    doc: 'Every `every`th tentacle sting (stings from sweeps don\'t count) makes your next lash the one in its { block }: sweep.',
+    args: ['every'],
+    block: ATTACK_WORDS,
+    make: ([n], p, where, effects) => {
+      if (!(Number.isInteger(n) && n >= 2)) throw new Error('sting-count: every must be a whole number, 2 or more');
+      return (m) => { m.stingCount.push({ every: n, effects }); };
+    },
+  },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
   rebound: { doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight.', make: () => (m) => { m.rebound = true; } },
@@ -983,7 +1049,7 @@ export const TREASURE_WORDS = {
     },
   },
   'nth-attack': {
-    doc: 'Every `every`th attack (or, with random=#true, a random 1 in `every`) is the one in its { block } instead: big.',
+    doc: 'Every `every`th attack (or, with random=#true, a random 1 in `every`) is the one in its { block } instead: big (bubbles) or sweep (tentacle lashes).',
     args: ['every'],
     props: { random: false },
     block: ATTACK_WORDS,
@@ -1048,7 +1114,7 @@ export const TREASURE_WORDS = {
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, xp.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, cone, grab, reach-flare, xp.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,
