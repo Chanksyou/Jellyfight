@@ -142,7 +142,7 @@ story('treasures/shield-full-damage', {
 });
 
 story('treasures/shield-burst', {
-  about: 'Bubble Wrap: when the Shield breaks it blasts every enemy within 30 cm for 2x Bubble damage a copy (one blast; up to 3 copies); enemies outside are untouched.',
+  about: 'Bubble Wrap: when the Shield breaks it blasts every enemy within 30 cm for 2x Attack damage a copy (one blast; up to 3 copies); enemies outside are untouched.',
   setup,
   play() {
     const { run } = G(); withShield(4); give('bubbleWrap'); step(1);
@@ -188,7 +188,7 @@ story('evolutions/aegis-gives-shield', {
     const log = record('damage_taken');
     const close = spawn('roach', near(0.1, 0), { still: true, hp: 100 });
     const far = spawn('roach', near(0.5, 0), { still: true, hp: 100 });
-    run.stats.bubbleDamage = 100;   // flat: Bubble damage doesn't change it
+    run.stats.bubbleDamage = 100;   // flat: Attack damage doesn't change it
     const given = run.S.shield === 5 && S().hp === 5;
     hit(8);
     const burst = log.filter((d) => d.source === 'shield-burst');

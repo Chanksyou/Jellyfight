@@ -2,7 +2,7 @@
 // chest that turns up in the room, or one an elite leaves)
 // and beaten elites. Each is a name, an icon, the line the pick screen shows, and effect words;
 // every word is defined once in src/words.js (TREASURE_WORDS) with what its numbers mean.
-// Damage numbers are multiples of your power (bubble damage x 1.8) unless a word says otherwise.
+// Damage numbers are multiples of your power (attack damage x 1.8) unless a word says otherwise.
 // Tentacles grow with the Stinging Frills evolution and their own treasures (Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle, Paperclip Chain).
 //
 //   attack=#true   it changes how you attack
@@ -23,12 +23,12 @@
 // A new treasure that combines existing words needs no code: add it here and a story.
 
 // --- your bubbles (bubbles.js)
-treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true text="Bubbles pierce, popping on up to 3 enemies in a line." {
+treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true text="Attacks pierce, popping on up to 3 enemies in a line." {
     pierce 3
-    level 2 text="Bubbles pierce up to 5 enemies in a line." {
+    level 2 text="Attacks pierce up to 5 enemies in a line." {
         pierce 5
     }
-    level 3 text="Bubbles pierce up to 7 enemies in a line." {
+    level 3 text="Attacks pierce up to 7 enemies in a line." {
         pierce 7
     }
 }
@@ -53,24 +53,24 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true te
 
 // --- element attacks (bubbles.js): each fires its own projectile on its own timer, separate from
 // your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
-// Legendary pick) always offers at least one you don't have; never from treasures in the room. Bubble damage, Fire rate, Range, Bubble size and extra Bubbles all
+// Legendary pick) always offers at least one you don't have; never from treasures in the room. Attack damage, Fire rate, Range, Attack size and extra Attacks all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire: hits for 60% of Bubble damage, then burns for 77% per second for 3 s. Burning kills spread fire." {
+treasure "candle" name="Birthday Candle" icon="🕯️" rarity="legendary" attack=#true text="Fire: hits for 60% of Attack damage, then burns for 77% per second for 3 s. Burning kills spread fire." {
     element "fire"
 }
-treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning: hits for 60% of Bubble damage, then arcs to 3 nearby enemies for 41% each, stunning them for 0.5 s." {
+treasure "battery" name="AA Battery" icon="🔋" rarity="legendary" attack=#true text="Lightning: hits for 60% of Attack damage, then arcs to 3 nearby enemies for 41% each, stunning them for 0.5 s." {
     element "lightning"
 }
-treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice: slow-flying shards hit for 2x Bubble damage and slow enemies by 45% for 2 s. Hits refresh the slow." {
+treasure "freezerPack" name="Freezer Pack" icon="❄️" rarity="legendary" attack=#true text="Ice: slow-flying shards hit for 2x Attack damage and slow enemies by 45% for 2 s. Hits refresh the slow." {
     element "ice"
 }
-treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid: hits for 60% of Bubble damage. Leaves a 3.5 s puddle that eats at enemies and makes them take 30% more damage." {
+treasure "nailPolish" name="Nail Polish" icon="💅" rarity="legendary" attack=#true text="Acid: hits for 60% of Attack damage. Leaves a 3.5 s puddle that eats at enemies and makes them take 30% more damage." {
     element "acid"
 }
-treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind: fast gusts hit for 1.5x Bubble damage and pierce 2 enemies. Pushes them back; a wall or scenery collision deals the hit again." {
+treasure "paperFan" name="Paper Fan" icon="🌬️" rarity="legendary" attack=#true text="Wind: fast gusts hit for 1.5x Attack damage and pierce 2 enemies. Pushes them back; a wall or scenery collision deals the hit again." {
     element "wind"
 }
-treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter: slow bombs hit for 60% of Bubble damage, then splash other enemies within 8 cm for 40% each." {
+treasure "glitter" name="Glitter" icon="✨" rarity="legendary" attack=#true text="Glitter: slow bombs hit for 60% of Attack damage, then splash other enemies within 8 cm for 40% each." {
     element "glitter"
 }
 
@@ -174,7 +174,7 @@ treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" atta
 }
 
 // --- hits, jumps and your body
-treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (bubbles and tentacles) does Critical (3x) damage." stack=3 {
+treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (attacks) does Critical (3x) damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 30% more damage from everything." {
@@ -372,16 +372,16 @@ treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% 
 treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 enemies cleared, gain +1 max Health this run." stack=2 {
     grow-on-kills health 1 kills=30
 }
-treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Bubbles blow 25% faster." stack=5 {
+treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Attacks fire 25% faster." stack=5 {
     stat fire-rate 25 percent=#true
 }
-treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow through a straw: bubbles reach 40% farther." stack=3 {
+treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow through a straw: attacks reach 40% farther." stack=3 {
     stat range 40 percent=#true
 }
-treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour bubbles: +2 bubble damage." stack=5 {
+treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour attacks: +2 attack damage." stack=5 {
     stat bubble-damage 2
 }
-treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="Blow an extra bubble (every bubble does 25% less damage)." stack=2 {
+treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true text="Get an extra attack (every attack does 25% less damage)." stack=2 {
     stat bubbles 1
 }
 treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flies to you from three times as far." {
@@ -395,11 +395,11 @@ treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flie
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
-treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true text="Glass cannon: +50% bubble damage, but hits take 25% more health." stack=3 {
+treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true text="Glass cannon: +50% attack damage, but hits take 25% more health." stack=3 {
     stat bubble-damage 50 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% bubble damage and +15% fire rate, but bubbles reach 30% less far." stack=3 {
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% attack damage and +15% fire rate, but attacks reach 30% less far." stack=3 {
     stat bubble-damage 40 percent=#true
     stat fire-rate 15 percent=#true
     stat range -30 percent=#true
@@ -407,11 +407,11 @@ treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true te
 treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster." stack=2 {
     stat move-speed 20 percent=#true
 }
-treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 bubble or tentacle hits gives back 1 health. -5 max health." stack=2 {
+treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 attack hits gives back 1 health. -5 max health." stack=2 {
     heal-on-hit chance=0.1 health=1
     stat health -5
 }
-treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 enemies cleared, gain +0.25 Bubble damage this run." stack=2 {
+treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 enemies cleared, gain +0.25 Attack damage this run." stack=2 {
     grow-on-kills bubble-damage 0.25 kills=10
 }
 treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 enemies cleared, gain +0.03 Fire rate this run." stack=2 {
@@ -445,7 +445,7 @@ treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 25% 
 }
 
 // --- converters (per): one stat grows with another, live
-treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Bubble damage for every 10 max Health." stack=3 {
+treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Attack damage for every 10 max Health." stack=3 {
     per "bubble-damage" 1 every=10 of="max-health"
 }
 treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% Fire rate for every 10% Move speed above your start." stack=3 {
@@ -454,17 +454,17 @@ treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% F
 treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage for every Level gained this run." stack=3 {
     per "tentacle-damage" 1 every=1 of="levels"
 }
-treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Bubble damage for every treasure found this run." stack=5 {
+treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Attack damage for every treasure found this run." stack=5 {
     per "bubble-damage" 3 every=1 of="chests" percent=#true
 }
 
 // --- conditionals (while): a bonus only while something holds
-treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Bubble damage while you're in the air." stack=3 {
+treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Attack damage while you're in the air." stack=3 {
     while "airborne" "bubble-damage" 40 percent=#true
 }
 
 // --- on-kill: grows with every bug cleared, up to a cap per copy; or leaves something behind
-treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="Each bug cleared adds 0.2% Bubble damage this run, up to +100%." stack=3 {
+treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="Each bug cleared adds 0.2% Attack damage this run, up to +100%." stack=3 {
     grow-on-kills "bubble-damage" 0.2 kills=1 percent=#true cap=100
 }
 treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="10% of the bugs you clear leave a crumb: +1 Health." stack=5 {
@@ -484,7 +484,7 @@ treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true
 }
 
 // --- procs: now and then a hit does something more
-treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true text="20% chance per copy for bubble pops to zap a bug within 30 cm, stunning it for 0.5 s." stack=2 {
+treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true text="20% chance per copy for attack hits to zap a bug within 30 cm, stunning it for 0.5 s." stack=2 {
     zap-on-pop chance=0.2 count=1 range=0.3 stun=0.5
 }
 treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="+5% crit chance, and critical hits pin the bug in place for 0.8 s." stack=1 {
@@ -502,12 +502,12 @@ treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once 
 treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
     echo-bubble dmg=0.4
 }
-treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 bubbles bursts out from you in every direction." {
+treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 attacks bursts out from you in every direction." {
     every 5 {
         bubble-ring 8
     }
 }
-treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health you steam: +50% Fire rate, +40% Bubble damage and +20% Move speed." {
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health you steam: +50% Fire rate, +40% Attack damage and +20% Move speed." {
     while "low-health" "fire-rate" 50 percent=#true under=0.5
     while "low-health" "bubble-damage" 40 percent=#true under=0.5
     while "low-health" "move-speed" 20 percent=#true under=0.5
@@ -571,7 +571,7 @@ treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shiel
 treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full, you deal 30% more damage." stack=2 {
     shield-full-damage 30
 }
-treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, it bursts for 200% of your Bubble damage all around you." stack=3 {
+treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, it bursts for 200% of your Attack damage all around you." stack=3 {
     shield-burst dmg=2 radius=0.3
 }
 treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 of your max Health becomes Shield. You can no longer gain Health." {

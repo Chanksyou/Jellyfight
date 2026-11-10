@@ -24,13 +24,21 @@ A pool on top of Health that takes damage first, shown as its own bar at the end
 **Level**:
 The jelly's rank within a run; each new Level offers a choice of cards that raise its stats.
 
-**Bubble damage**:
-How hard each of the jelly's bubbles hits when it pops.
-_Avoid_: Pop damage
+**Attack damage**:
+How hard each of the jelly's attacks hits.
+_Avoid_: Pop damage, Bubble damage
 
 **Fire rate**:
-How many bubbles the jelly blows each second.
+How many times the jelly attacks each second.
 _Avoid_: Blow rate
+
+**Attack size**:
+How big each of the jelly's attacks is; bigger ones are easier to land and splash wider.
+_Avoid_: Bubble size
+
+**Attacks**:
+How many attacks the jelly fires side by side in each blow (the stat; the thing a run's attack does is its _attack_).
+_Avoid_: Bubbles (as a stat)
 
 **Move speed**:
 How fast the jelly swims.
@@ -82,7 +90,7 @@ _Avoid_: Mob, critter
 The one big enemy that ends each act, arriving when the countdown runs out (the Vacuum, the Clog, the Great White One, the Encore).
 
 **Element**:
-A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the bubbles. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
+A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the main attack. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
 
 **Jelly type**:
 What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). Not offered to players yet; every run is Normal until release.
