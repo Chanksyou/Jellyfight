@@ -10,7 +10,7 @@ export const MARKS = ['splash', 'scorch', 'ink', 'dust'];   // cell order: top l
 export function paintFloorMarks() {
   const S = 256, H = S / 2, C = H / 2, c = document.createElement('canvas');
   c.width = c.height = S;
-  const g = c.getContext('2d', { willReadFrequently: true });   // a CPU canvas: the dust pass reads it back, which stalls a GPU one
+  const g = c.getContext('2d');
   let seed = 7;   // the same marks every load
   const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const blob = (x, y, rad, wob, n) => {
@@ -45,7 +45,7 @@ export function paintFloorMarks() {
     }
     for (let i = 0; i < 30; i++) { const a = r() * 6.28, d = 44 + r() * 16; blob(C + Math.cos(a) * d, C + Math.sin(a) * d, 1 + r() * 3.5, 0.3, 8); }
   });
-  const img = g.getImageData(H, H, H, H), d = img.data;   // dust: one pass over the cell's pixels
+  const img = g.createImageData(H, H), d = img.data;   // dust: one pass over the cell's pixels, never read back (a read-back stalls a GPU canvas)
   for (let y = 0; y < H; y++) for (let x = 0; x < H; x++) {
     const q = Math.hypot(x - C, y - C) / (C - 2), a = Math.max(0, 1 - q * q) * (r() < 0.6 ? 0.6 + r() * 0.4 : 0.25), i = (y * H + x) * 4;
     d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = a * 255;
