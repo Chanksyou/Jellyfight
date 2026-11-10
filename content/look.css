@@ -576,7 +576,8 @@
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */
   --barb-size: 3;                 /* a barb's length, in tentacle widths */
-  --ink-cloud: #3b2a66;           /* the Ink Cloud upgrade's squirt and the puffs it leaves round you */
+  --ink-cloud: #0b0a22;           /* the Ink Cloud upgrade: near-black blue ink, the body of the cloud, its floor stains and drops */
+  --ink-edge: #26205a;            /* the lighter blue where the cloud is thin, so it reads as ink and not a shadow */
   --venom: #8dff5a;              /* the puffs of a venomed bug */
   /* the pieces evolutions add to the jelly (src/adornments.js), on top of the player's own look */
   --sail: #9fb6ff;               /* Man o' War: the crest and the polyps */

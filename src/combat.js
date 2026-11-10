@@ -25,7 +25,8 @@ export class Lash {
     this.count = 0;               // lashes so far (Gold Ring, nth-attack)
     this.stings = 0;              // stings landed since the last sting-count sweep
     this.flare = 0;               // reach-flare: the next lash reaches this many times as far (0 = no)
-    this.reach = 0.1;             // m, your Tentacle reach as it stood on the last lash (reach-sweetspot)
+    this.reach = 0.1;             // m, your Tentacle reach as it stood on the last update (echo)
+    this.reachNow = 0.1;          // m, the reach the lash being thrown has (a flare doubles it): reach-sweetspot's edge
     this.clock = 0;               // s, for pin-on-stings
     this.coil = new WeakMap();    // pin-on-stings: enemy -> when it was stung lately
     this.strikes = [];            // tentacles currently out
@@ -113,7 +114,8 @@ export class Lash {
 
   // opts.nth, opts.stingCount: the run's nth-attack and sting-count words (words.js), which can make this lash a sweep
   fire(origin, stats, hits, opts = {}) {
-    const all = this.inReach(origin, stats.reach * (this.flare || 1));
+    const reach = this.reachNow = stats.reach * (this.flare || 1);
+    const all = this.inReach(origin, reach);
     const sweep = this.sweepFor(this.count + 1, opts);
     const targets = sweep ? all : all.slice(0, stats.tentacles);
     if (!targets.length) return false;
@@ -137,13 +139,14 @@ export class Lash {
 
   // Toaster Cord's lash back: every bug within reach is stung at k times the damage
   sweepNow(origin, stats, hits, k) {
+    this.reachNow = stats.reach;
     for (const e of this.inReach(origin, stats.reach)) this.strike(origin, e, stats.tentacleDamage * k, hits, { sweep: true });
   }
 
   // Tape Measure's grab (words.js): the toughest bug in range is stung, then reeled in to the jelly and slammed
   grab(origin, stats, hits, ef) {
     let best = null;
-    for (const e of this.inReach(origin, ef.range)) if (!e.proxy && (!best || e.hp > best.hp)) best = e;
+    for (const e of this.inReach(origin, ef.range)) if (!e.proxy && !e.T.rooted && (!best || e.hp > best.hp)) best = e;   // a rooted bug can't be reeled in
     if (!best) return false;
     this.strike(origin, best, stats.tentacleDamage * ef.dmg, hits, { grab: true });
     this.onLash?.();
@@ -161,7 +164,7 @@ export class Lash {
     }
     const s = this.statePool.pop() || { from: new THREE.Vector3(), tip: new THREE.Vector3() };
     s.from.copy(from); s.tip.copy(from);
-    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false, extra, reel: null });
+    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false, extra, reel: null, reach: this.reachNow });
     this.strikes.push(s);
     sfx.lashDraw();
   }
@@ -266,7 +269,8 @@ export class Lash {
     if (s.target.dead || s.target.proxy?.shielded) return false;
     const H = s.hits, X = s.extra, E = this.enemies;
     // Whip Crack (reach-sweetspot): a bug right at the edge of reach takes more
-    const edge = H.edge && E.center(s.target, this._c).distanceTo(a) - s.target.r >= H.edge.from * this.reach;
+    // (against the reach this lash had: a Bell Pulse flare moves the edge out; a grab has no edge)
+    const edge = H.edge && !X?.grab && E.center(s.target, this._c).distanceTo(a) - s.target.r >= H.edge.from * s.reach;
     this.fx.puff(b, this.impactColor, 0.008, 0.18);   // nematocyst sparkle
     this.fx.impact(b, this.impactColor, LOOK.num('lash-impact-size', 0.016) * (edge ? 1.6 : 1), edge ? 10 : 6);   // the flash, sparks and ring where it lands
     sfx.sting();

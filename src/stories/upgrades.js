@@ -400,15 +400,29 @@ story('treasures/grab', {
 });
 
 story('treasures/ink', {
-  about: 'when-hit { ink }: after a hit, for 2 s a hit from a bug within 15 cm misses (miss=1: every time), one from a bug farther off still lands, and after 2 s hits land again.',
-  setup() { tent('when-hit cooldown=2 {\n  ink radius=0.15 time=2 miss=1\n}', { lash: false, hurt: true }); },
+  about: 'when-hit { ink }: after a hit, for 2 s a hit from a bug within 15 cm misses half the time, one from a bug farther off doesn\'t, and after 2 s hits land as usual; it is a second chance beside Dodge, so with 60 Dodge the two together miss 80% of the time, never every time. miss=1 is a mistake. It squirts dark ink, not a glow.',
+  setup() { tent('when-hit cooldown=2 {\n  ink radius=0.15 time=2 miss=0.5\n}', { lash: false, hurt: true }); },
   play() {
-    const { run } = G(), near = roachReach(0.05), far = roachReach(0.4, 0.2), lands = [];
-    const hitMe = (from) => { const was = run.health; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'story', from: from.id }); lands.push(run.health < was); };
-    hitMe(near); hitMe(near); hitMe(far);
+    // a hit while Math.random rolls `roll`: did it land?
+    const hitMe = (from, roll) => {
+      const { run } = G(), was = run.health, real = Math.random;
+      run.iFrames = 0; Math.random = () => roll;
+      try { bus.emit('damage_taken', { targetId: PLAYER, amount: 10, source: 'story', from: from.id }); } finally { Math.random = real; }
+      return run.health < was;
+    };
+    const near = roachReach(0.05), far = roachReach(0.4, 0.2), lands = [];
+    lands.push(hitMe(near, 0.99));                                  // before the squirt: lands (and squirts)
+    lands.push(hitMe(near, 0.49), hitMe(near, 0.51));               // inked: a roll under half misses, over lands
+    lands.push(hitMe(far, 0.49));                                   // far bug: not covered
     step(60 * 2.1);
-    hitMe(near);
-    return ok(lands.join() === 'true,false,true,true' && !!mistake('when-hit {\n  ink miss=0\n}'), { lands });
+    lands.push(hitMe(near, 0.49));                                  // the cloud is gone
+    const puffs = G().run.fx.puffs.filter((p) => p.alive).length;
+    // with 60 Dodge: 1 - 0.4 x 0.5 = 80% to miss, so a roll of 0.79 misses and 0.81 lands
+    tent('when-hit cooldown=2 {\n  ink radius=0.15 time=2 miss=0.5\n}\nstat dodge 60', { lash: false, hurt: true });
+    const n2 = roachReach(0.05);
+    hitMe(n2, 0.99);                                                // lands only if no Dodge roll (0.99 is over 60%)
+    const dodged = [hitMe(n2, 0.79), hitMe(n2, 0.81)];
+    return ok(lands.join() === 'true,false,true,true,true' && dodged.join() === 'false,true' && puffs > 0 && !!mistake('when-hit {\n  ink miss=1\n}'), { lands, dodged, puffs });
   },
 });
 
@@ -425,6 +439,24 @@ story('treasures/reach-flare', {
     };
     const with_ = stung('every 1 first=0.1 {\n  reach-flare 2\n}'), without = stung('');
     return ok(with_.n === 1 && with_.inReach === 0 && without.n === 0 && !!mistake('every 1 {\n  reach-flare 1\n}'), { with: with_.n, without: without.n, outsideReach: with_.inReach === 0 });
+  },
+});
+
+story('treasures/stat-percent-own-base', {
+  about: 'stat percent=#true is a percent of the jelly\'s own starting value: +50% Attack damage is +3 on Normal (6) and +4.5 on the Tentacle jelly (9); the same for while, per and stack-buff.',
+  setup() { fresh(); },
+  play() {
+    const got = (types) => {
+      fresh({ types }); withWords('stat bubble-damage 50 percent=#true');
+      const { run } = G();
+      return run.S.bubbleDamage;
+    };
+    const normal = got(null), tentacle = got('tentacle');
+    fresh({ types: 'tentacle' }); withWords('while "rooted" "bubble-damage" 50 percent=#true');
+    const run = G().run; run.stillT = 5;
+    const rooted = run.S.bubbleDamage;
+    fresh();
+    return ok(Math.abs(normal - 9) < 1e-9 && Math.abs(tentacle - 13.5) < 1e-9 && Math.abs(rooted - 13.5) < 1e-9, { normal, tentacle, rooted });
   },
 });
 
@@ -448,7 +480,7 @@ story('treasures/sting-count', {
     const first = stings(log).length, bled1 = bugs.filter((e) => lash.venom.get(e)).length, counted = lash.stings;
     step(200, () => lash.count === 2); step(15);
     const second = stings(log).length - first, stacks = bugs.map((e) => lash.venom.get(e)?.stacks);
-    return ok(first === 3 && bled1 === 0 && counted === 3 && second === 4 && stacks.every((n) => n === 3) && lash.stings === 0 && !!mistake('sting-count 1 {\n  sweep\n}'), { first, bled1, counted, second, stacks, now: lash.stings });
+    return ok(first === 3 && bled1 === 0 && counted === 3 && second === 4 && stacks.every((n) => n === 3) && lash.stings === 0 && !!mistake('sting-count 1 {\n  sweep\n}') && !!mistake('sting-count 20 {\n  big\n}'), { first, bled1, counted, second, stacks, now: lash.stings });
   },
 });
 
@@ -459,7 +491,16 @@ story('treasures/reach-sweetspot', {
     const { run } = G(), near = roachReach(0.03), edge = roachReach(0.1, 0.04), log = record('damage_taken');
     step(200, () => stings(log).length >= 2); step(10);
     const hit = stings(log), base = run.tentacleStats.tentacleDamage, by = (e) => hit.find((d) => d.targetId === e.id)?.amount;
-    return ok(Math.abs(by(near) - base) < 1e-6 && Math.abs(by(edge) - base * 2) < 1e-6 && !!mistake('reach-sweetspot mult=1'), { near: by(near), edge: by(edge), base });
+    // a grab reaches far past the lash, and a flared lash is judged by its own reach: neither is an edge hit
+    const once = (words, d, z = 0) => {
+      tent(words);
+      const e = roachReach(d, z), l = record('damage_taken');
+      step(80, () => stings(l).length >= 1); step(5);
+      return stings(l).find((x) => x.targetId === e.id)?.amount;
+    };
+    const grabbed = once('reach-sweetspot\nevery 1 first=0.1 {\n  grab range=0.3 dmg=3\n}', 0.2);
+    const flared = once('reach-sweetspot\nevery 1 first=0.1 {\n  reach-flare 2\n}', 0.16);
+    return ok(Math.abs(by(near) - base) < 1e-6 && Math.abs(by(edge) - base * 2) < 1e-6 && Math.abs(grabbed - base * 3) < 1e-6 && Math.abs(flared - base) < 1e-6 && !!mistake('reach-sweetspot mult=1'), { near: by(near), edge: by(edge), base, grabbed, flared });
   },
 });
 

@@ -310,6 +310,12 @@ export const sfx = {
     if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14);
     noise(4200*j,3,.035,.055,'highpass');tone('triangle',2600*j,900*j,.07,.025);noise(6500*j,2,.1,.02,'highpass',.025);
   },
+  // Ink Cloud: a wet squirt, a low gloop under it, a few drops pattering
+  inkSquirt() {
+    if (!ready() || !gap('inkSquirt', 150)) return; const j = jitter(0.12);
+    noise(1100 * j, 1.2, 0.12, 0.09, 'bandpass', 0, 350); tone('sine', 220 * j, 90, 0.16, 0.08);
+    for (let i = 0; i < 3; i++) noise((2600 + Math.random() * 1200) * j, 3, 0.02, 0.03, 'bandpass', 0.08 + i * 0.04 + Math.random() * 0.02);
+  },
   gadgetSqueak(){
     if(!ready()||!gap('gadgetSqueak',150))return;const j=jitter(.12);
     tone('triangle',480*j,1300*j,.07,.055);tone('sine',1300*j,360*j,.12,.045,.065);noise(1800*j,2,.08,.025,'bandpass',.03);

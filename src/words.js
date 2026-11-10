@@ -799,10 +799,10 @@ export const TIMED_WORDS = {
     },
   },
   ink: {
-    doc: 'In a when-hit block: you squirt an ink cloud; for `time` s, a hit from an enemy within `radius` m of you misses `miss` (0.5 = half) of the time.',
+    doc: 'In a when-hit block: you squirt an ink cloud; for `time` s, a hit from an enemy within `radius` m of you misses `miss` (0.5 = half) of the time, as a second chance beside your Dodge (so together they stay under 100%).',
     props: { radius: 0.15, time: 2, miss: 0.5 },
     make: (_, p) => {
-      if (!(p.radius > 0 && p.time > 0 && p.miss > 0 && p.miss <= 1)) throw new Error('ink: radius and time must be above 0, miss between 0 and 1');
+      if (!(p.radius > 0 && p.time > 0 && p.miss > 0 && p.miss < 1)) throw new Error('ink: radius and time must be above 0, miss between 0 and 1 (not 1)');
       return { kind: 'ink', ...p };
     },
   },
@@ -941,6 +941,7 @@ export const TREASURE_WORDS = {
     block: ATTACK_WORDS,
     make: ([n], p, where, effects) => {
       if (!(Number.isInteger(n) && n >= 2)) throw new Error('sting-count: every must be a whole number, 2 or more');
+      if (effects.some((ef) => ef.kind !== 'sweep')) throw new Error('sting-count: only sweep goes in its block');
       return (m) => { m.stingCount.push({ every: n, effects }); };
     },
   },

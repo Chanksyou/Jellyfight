@@ -485,11 +485,9 @@ export class Gadgets {
       if (r) { fx.ring(feet.clone().setY(feet.y + 0.004), new THREE.Color(LOOK.color('lash-trace', '#2ee9ff')).getHex(), r, 0.4); sfx.lashDraw(); ctx.pulse?.(0.3); }
     } else if (ef.kind === 'ink') {
       ctx.ink?.(ef);
-      // the squirt: dark puffs thrown out round the bell, and a ring to the cloud's edge
-      const c = new THREE.Color(LOOK.color('ink-cloud', '#3b2a66')).getHex();
-      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; fx.puff(_to.set(center.x + Math.cos(a) * ef.radius * 0.5, center.y, center.z + Math.sin(a) * ef.radius * 0.5), c, 0.014, 0.6); }
-      fx.ring(feet.clone().setY(feet.y + 0.004), c, ef.radius, 0.5);
-      ctx.pulse?.(0.25);
+      this.inkSquirt(feet, center, ef.radius);
+      sfx.inkSquirt();
+      ctx.pulse?.(0.3);
     } else if (ef.kind === 'dash') {
       ctx.dash?.(ef.speed, ef.time);
     } else if (ef.kind === 'bubble-ring') {
@@ -497,6 +495,21 @@ export class Gadgets {
     } else if (ef.kind === 'xp') {
       ctx.dropXp?.(ef.xp);
     } else if (ef.kind === 'cone') this.cone(ef, ctx);
+  }
+
+  // The Ink Cloud's squirt (Ink Cloud): a billow of near-black blue blobs bursting out round the bell and
+  // hanging in the water, drops flung out, and stains on the floor under it. Opaque, not glowing: ink
+  inkSquirt(feet, center, radius) {
+    const fx = this.fx, ink = new THREE.Color(LOOK.color('ink-cloud', '#0b0a22')), edge = new THREE.Color(LOOK.color('ink-edge', '#26205a'));
+    for (let i = 0; i < 22; i++) {   // overlapping blobs, so they run together into one cloud
+      const a = Math.random() * Math.PI * 2, d = radius * 0.6 * Math.sqrt(Math.random());
+      fx.puff(_to.set(center.x + Math.cos(a) * d, center.y + (Math.random() - 0.4) * 0.03, center.z + Math.sin(a) * d), (i % 7 ? ink : edge).getHex(), 0.026 + Math.random() * 0.02, 1 + Math.random() * 0.8, 0.92);
+    }
+    fx.burst(center, [ink.getHex(), edge.getHex()], 10, 0.004, 0.3, feet.y);
+    for (let i = 0; i < 5; i++) {
+      const a = Math.random() * Math.PI * 2, d = radius * 0.8 * Math.random();
+      fx.splat(_to.set(feet.x + Math.cos(a) * d, feet.y, feet.z + Math.sin(a) * d), ink.getHex(), 0.012 + Math.random() * 0.02);
+    }
   }
 
   // cone (Fire Breath): a flame cone toward the nearest bug in reach, or the way you face; everything

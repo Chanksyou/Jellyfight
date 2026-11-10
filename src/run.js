@@ -421,22 +421,22 @@ export class Run {
   // Your stats as they stand: the starting values plus level-up cards (this.stats) plus what
   // your treasures add (stat words). One object, refilled on each read: no garbage per frame.
   get S() {
-    const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
+    const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct, base = this.baseStats;
     const grown = this.grown || {};
-    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
+    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + base[k] * (pct[k] || 0) / 100;
     // while: conditionals, true right now or not (the jelly in the air, or low on Health)
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
     }
     // stack-buff: what each one's live stacks add
-    for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? BASE_STATS[b.stat] * b.amount / 100 : b.amount); }
+    for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? base[b.stat] * b.amount / 100 : b.amount); }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
     if (per.length) {
       const was = (this._perAt ||= {}); was.health = S.health; was.moveSpeed = S.moveSpeed;
-      for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
+      for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? base[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
@@ -446,6 +446,9 @@ export class Run {
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
   }
+
+  // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's, with jelly types off)
+  get baseStats() { return this._baseOf === this.jelly ? this._base : (this._baseOf = this.jelly, this._base = jellyStats(this.jelly)); }
 
   // what a per converter counts (`of`), read from stats S
   perSource(of, S) {
@@ -544,7 +547,7 @@ export class Run {
     if (this.ink && this.t < this.ink.until && (this.inkT = (this.inkT || 0) - dt) <= 0) {   // the Ink Cloud drifting round you while it lasts
       this.inkT = 0.12;
       const a = Math.random() * Math.PI * 2, r = this.ink.radius * Math.random();
-      this.fx.puff(_drop.set(P.position.x + Math.cos(a) * r, P.position.y + this.cfg.height * 0.4, P.position.z + Math.sin(a) * r), new THREE.Color(LOOK.color('ink-cloud', '#3b2a66')).getHex(), 0.012, 0.5);
+      this.fx.puff(_drop.set(P.position.x + Math.cos(a) * r, P.position.y + this.cfg.height * 0.4, P.position.z + Math.sin(a) * r), (this.inkHex ||= new THREE.Color(LOOK.color('ink-cloud', '#0b0a22')).getHex()), 0.024, 0.9, 0.8);
     }
     // --- the night: waves, treasures, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
@@ -786,7 +789,8 @@ export class Run {
     // dodge: the hit misses (and a moment of grace, so touching a bug doesn't re-roll every frame)
     // ink (Ink Cloud): while the cloud lasts, a hit from a bug close to you misses more often
     const I = this.ink, inked = I && this.t < I.until && from != null && this.enemies.list.some((e) => e.id === from && !e.dead && e.pos.distanceTo(this.player.position) <= I.radius);
-    if (Math.random() * 100 < this.S.dodge + (inked ? I.miss * 100 : 0)) {
+    // (two independent chances to be missed, so Dodge and the ink together never reach 100%)
+    if (Math.random() < 1 - (1 - this.S.dodge / 100) * (1 - (inked ? I.miss : 0))) {
       this.iFrames = 0.4;
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height), 'DODGE', '#bfffd0', 15);

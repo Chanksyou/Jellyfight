@@ -158,7 +158,7 @@ export class Fx {
     n.life = n.tick ? this.numberLook.tickLife : n.crit ? this.numberLook.critLife : this.numberLook.life;
   }
 
-  puff(pos, color = 0xd8d2c6, radius = 0.012, life = 0.35) {
+  puff(pos, color = 0xd8d2c6, radius = 0.012, life = 0.35, opacity = 0.55) {
     let p = this.puffs.find((x) => !x.alive);
     if (!p) {
       if (this.puffs.length > 90) return;
@@ -173,7 +173,8 @@ export class Fx {
     p.m.visible = true;
     p.m.position.copy(pos);
     p.m.scale.setScalar(radius * 0.4);   // its size at t 0 (update grows it), so it never shows at its old or a new piece's size
-    p.m.userData.opacity = 0.55;
+    p.op = opacity;
+    p.m.userData.opacity = opacity;
     p.m.userData.color.set(color);
   }
 
@@ -460,7 +461,7 @@ export class Fx {
       const k = p.t / p.life;
       if (k >= 1) { p.alive = false; p.m.visible = false; continue; }
       p.m.scale.setScalar(p.r * (0.4 + k * 1.2));
-      p.m.userData.opacity = 0.55 * (1 - k);
+      p.m.userData.opacity = p.op * (1 - k);
     }
   }
 
