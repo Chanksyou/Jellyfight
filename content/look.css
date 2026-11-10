@@ -316,6 +316,7 @@
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
+  --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */
   --jelly-scale: 1;            /* 1 = 8.9 cm tall; collision grows with it */

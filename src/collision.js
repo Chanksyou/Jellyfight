@@ -1,4 +1,5 @@
 import { MeshBVH, ExtendedTriangle, acceleratedRaycast } from 'three-mesh-bvh';
+import { HIDDEN } from './batch.js';
 
 import * as THREE from 'three';
 
@@ -31,6 +32,7 @@ export class World {
       m.raycast = acceleratedRaycast;
     }
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.layers.enable(HIDDEN);   // the apartment's batched pieces (static-batch.js)
     this.raycaster.firstHitOnly = true;
     this._normal = new THREE.Vector3();
     this._sphere = new THREE.Sphere();
@@ -359,6 +361,7 @@ export function checkBvhLayout(world, force = false) {
   const fail = (why) => { throw new Error(`three-mesh-bvh's internals aren't what src/collision.js reads (${why}): port castMesh to the vendored version, or put back 0.8.3`); };
   if (!Array.isArray(bvh._roots) || !(bvh._roots[0] instanceof ArrayBuffer)) fail('no _roots node buffers');
   const rc = new THREE.Raycaster(), o = new THREE.Vector3(), d = new THREE.Vector3();
+  rc.layers.enable(HIDDEN);
   for (let i = 0; i < 6; i++) {
     o.set(Math.sin(i * 1.7) * 3, Math.cos(i * 2.3) * 3, 3 - i);
     d.set(0.3 - o.x, -0.2 - o.y, 0.1 - o.z).add(new THREE.Vector3(Math.sin(i), Math.cos(i * 3), 0).multiplyScalar(0.3)).normalize();

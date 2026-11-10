@@ -61,8 +61,9 @@
 <link rel="modulepreload" href="./src/legacy-lighting.js">
 <link rel="modulepreload" href="./src/apartment.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/loaders/GLTFLoader.js">
-<link rel="modulepreload" href="./src/touch.js">
+<link rel="modulepreload" href="./src/baked-ao.js">
 <link rel="modulepreload" href="./src/look.js">
+<link rel="modulepreload" href="./src/touch.js">
 <link rel="modulepreload" href="./src/content.js">
 <link rel="modulepreload" href="./src/kdl.js">
 <link rel="modulepreload" href="./src/words.js">
@@ -75,6 +76,7 @@
 <link rel="modulepreload" href="./src/config.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/collision.js" fetchpriority="low">
 <link rel="modulepreload" href="./vendor/three-mesh-bvh.module.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/batch.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/player.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/swim.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/camera.js" fetchpriority="low">
@@ -82,10 +84,9 @@
 <link rel="modulepreload" href="./src/graphics.js" fetchpriority="low">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/EffectComposer.js" fetchpriority="low">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/ShaderPass.js" fetchpriority="low">
-<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/UnrealBloomPass.js" fetchpriority="low">
-<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/OutputPass.js" fetchpriority="low">
-<link rel="modulepreload" href="./vendor/n8ao.module.js" fetchpriority="low">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/RenderPass.js" fetchpriority="low">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/postprocessing/Pass.js" fetchpriority="low">
+<link rel="modulepreload" href="./vendor/n8ao.module.js" fetchpriority="low">
 <link rel="modulepreload" href="./vendor/postprocessing-stub.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/pacing.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/light-slots.js" fetchpriority="low">
@@ -117,7 +118,6 @@
 <link rel="modulepreload" href="./src/enemies.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/model-pool.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/critters.js" fetchpriority="low">
-<link rel="modulepreload" href="./src/batch.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/vfx.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/layout.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/layout-baked.js" fetchpriority="low">
@@ -125,6 +125,7 @@
 <link rel="modulepreload" href="./src/song-track.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/jelly-portrait.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/feedback.js" fetchpriority="low">
+<link rel="modulepreload" href="./src/static-batch.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/systems.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/combat.js" fetchpriority="low">
 <link rel="modulepreload" href="./src/pickups.js" fetchpriority="low">

@@ -421,6 +421,7 @@ A material whose bump map is its own color map keeps its bump through the bake.
 The exporter (`tools/exporter.js`) keeps the meshes inside the rooms.
 It drops everything else: the neighborhood, the corridor, the sky, Dendi (the game's cat is built at runtime instead — see Characters above), particles and helpers.
 Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
+After a re-export, or after moving furniture in `src/layout-baked.js`, bake the corner shadows again: `node tools/bake-ao.mjs` (about 4 minutes an act; it uses the tests' setup).
 
 | File | What it does |
 | --- | --- |
@@ -441,7 +442,9 @@ Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshop
 | `src/tentacles.js` | The jellyfish's 6 live tentacles: each a simulated chain (sprung toward a hanging pose, firm at the root and loose at the tip, slowed by the water, kept at its length), so bell pulses and turns travel down them as waves and the tips trail and swing; they stream when falling and whip out when the Lash strikes. |
 | `src/creator.js` | The jellyfish creator panel (species, colours, finish, face, hat). |
 | `src/hud.js` | Health, XP, boss countdown and night clock, treasures, minimap with markers, boss bar, hints, toasts. |
-| `src/graphics.js` | Post-processing: ambient occlusion (N8AO), depth of field, bloom, vignette. Low / Medium / High in the pause menu (phones default to Medium, desktops to High). |
+| `src/graphics.js` | Post-processing: ambient occlusion (N8AO, High only), depth of field, a half-resolution bloom added in by the output pass, vignette. Low / Medium / High in the pause menu (phones default to Medium, desktops to High). The dev tools' AO, Bloom and Lamps switches turn each off to feel what it costs. |
+| `src/baked-ao.js`, `tools/bake-ao.mjs` | Corner shadows baked once per act into a small 3D texture of how open the space is (`assets/ao-<act>.*`); Low and Medium read it in the apartment's shaders instead of running N8AO. |
+| `src/static-batch.js` | Furniture that shares a material is drawn as one BatchedMesh; each piece stays its own mesh for collisions, doors, the layout editor and camera fades. |
 | `src/pacing.js` | How often and how sharp: a frame-rate cap (phones 30 by default, so they don't run hot and then throttle, with 60 in the menu's Frame rate pick; 20 behind menus) and a governor that lowers the pixel ratio when frames run long and raises it back with headroom. A steady 30 fps that fewer pixels don't speed up (iPhone Low Power Mode) is treated as a cap, not slowness. |
 | `src/light-slots.js` | Phones light the room with 6 shared lights (`--phone-lights`) instead of all 15+ lamps: the lamps lighting the jelly most fade into them as it swims. The light count never changes, so no shader rebuilds mid-game. |
 | `src/gpu-recovery.js` | When the graphics chip resets (iOS backgrounding, out of GPU memory): pauses with a note, rebuilds once the browser gives the GPU back, and only offers a reload if it never does. |

@@ -4,6 +4,7 @@ import { reportError, watchCanvas } from './errors.js';
 import * as THREE from 'three';
 import { patchLegacyFalloff, scaleLightsOnRender } from './legacy-lighting.js';
 import { loadApartment } from './apartment.js';
+import { loadBakedAO } from './baked-ao.js';
 import { IS_TOUCH } from './touch.js';
 import { loadLook } from './look.js';
 import { loadContent } from './content.js';
@@ -22,8 +23,12 @@ const canvas = document.getElementById('c');
 const clipControl = (() => {
   try { return !!document.createElement('canvas').getContext('webgl2')?.getExtension('EXT_clip_control'); } catch { return false; }
 })();
+// Only Low draws straight to the screen; Medium and High draw into the composer (graphics.js) and
+// put one finished picture on it, so multisampling the screen there is memory and bandwidth for
+// nothing. The renderer can't change that later: a switch to Low draws without it until the next load.
+const startTier = (() => { try { return localStorage.getItem('jellyrun.graphics'); } catch { return null; } })();   // graphics.js's STORE
 const renderer = new THREE.WebGLRenderer({
-  canvas, antialias: true, powerPreference: 'high-performance',
+  canvas, antialias: startTier === 'low', powerPreference: 'high-performance',
   reversedDepthBuffer: clipControl, logarithmicDepthBuffer: !clipControl && !IS_TOUCH,
 });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
@@ -75,7 +80,9 @@ try {
   await (await import('./main.js')).ready;
   }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
+  const bakedAO = loadBakedAO(currentStage().id);   // its corner shadows (baked-ao.js), alongside
   const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts);
+  apt.bakedAO = await bakedAO;
   const lights = scaleLightsOnRender(renderer, scene);
   window.APT = Object.assign(apt, { scene, renderer, camera, lights });
   await loadLook();                 // content/look.css: colours and render numbers

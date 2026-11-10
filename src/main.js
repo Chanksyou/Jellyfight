@@ -32,8 +32,10 @@ import { SongTrack, TRACKS } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
+import { shadeWithBakedAO } from './baked-ao.js';
 import { wireFeedback } from './feedback.js';
-import { batcher } from './batch.js';
+import { batcher, HIDDEN } from './batch.js';
+import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
@@ -161,7 +163,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button><button data-act="pass-ao">AO on</button><button data-act="pass-bloom">Bloom on</button><button data-act="pass-lamps">Lamps on</button></div>
   <div class="row" id="g-quality"></div>
   <div class="g-bag"></div>
   <div class="keys touch-only">
@@ -223,6 +225,9 @@ const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hi
 if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
+if (APT.bakedAO) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO
+const statics = new StaticBatches(scene);   // the furniture drawn a material at a time (static-batch.js)
+if (!ARENA) statics.add(APT.root);
 
 applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
@@ -246,7 +251,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high');   // phones start on Medium so Low is a choice, not a default
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO);   // phones start on Medium so Low is a choice, not a default
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
 const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
@@ -413,7 +418,7 @@ const systems = {
   shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player }),
   hud: new HudSystem({ state, hud, player, tpc, run }),
   debug: new DebugSystem({ state, hud, player, run, enemies, xpDrops, gfx, extra: () => pacingReadout() }),
-  render: new RenderSystem({ gfx }),
+  render: new RenderSystem({ gfx, statics }),
 };
 
 // Dev layout editor: move the furniture around (layout.js)
@@ -482,6 +487,7 @@ async function loadRooms(parts, onProgress) {
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
   applyLayout(APT.root, stage.id);
   world.addObjects(added);
+  added.forEach((o) => statics.add(o));
   mapFurniture();
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
@@ -532,6 +538,7 @@ blackout.className = 'boss-fade';
 blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60;';
 document.body.appendChild(blackout);
 const sceneRay = new THREE.Raycaster();
+sceneRay.layers.enable(HIDDEN);   // the apartment's batched pieces (static-batch.js)
 function startBossScene(boss) {
   const short = juice.calm || fx.reducedMotion.matches, scale = short ? .35 : 1;
   bossScene = {
@@ -764,7 +771,19 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'achievements') { overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
+  else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
+    const pass = b.dataset.act.slice(5), on = pass === 'lamps' ? toggleLamps() : gfx.toggle(pass);
+    b.textContent = b.textContent.replace(/ on$| off$/, on ? ' on' : ' off');
+  }
 });
+// dev: every lamp (a phone's shared light slots) dark or lit again. The light count changes, so
+// every lit shader rebuilds once: a stall a player never sees, since it's only here.
+let lampsOn = true;
+function toggleLamps() {
+  lampsOn = !lampsOn;
+  scene.traverse((o) => { if (o.isPointLight && (lightSlots ? o.userData.slot : o.userData.lamp)) o.visible = lampsOn; });
+  return lampsOn;
+}
 const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
@@ -991,6 +1010,7 @@ function uploadAll(gamePasses = false) {
   const was = renderer.getRenderTarget();
   try {
     if (gamePasses) camera.layers.enable(0);   // the home portrait may already have isolated its own layer
+    camera.layers.enable(HIDDEN);   // and the batched pieces' own meshes, drawn by themselves when the camera fades one (static-batch.js)
     renderer.setRenderTarget(drawnInto());   // Low: the screen, under the loading screen or menu
     renderer.render(scene, camera);
     if (gamePasses && gfx.composer) { renderer.setRenderTarget(was); gfx.render(); }   // and the composer's own passes (AO, bloom), not at the first frame
@@ -1111,4 +1131,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });

@@ -10,7 +10,7 @@
 // effects can share one material while every puff has its own tint and fade.
 import * as THREE from 'three';
 
-const HIDDEN = 31;          // the layer tracked meshes move to; the camera never enables it
+export const HIDDEN = 31;          // the layer tracked meshes move to; the camera never enables it
 const WHITE = new THREE.Color(1, 1, 1);
 
 // instanced copy of a per-instance material: multiplies the output alpha by an instance attribute

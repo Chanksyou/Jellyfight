@@ -28,6 +28,7 @@ const sizeOf = (m) => {
 
 const faded = (mat) => {
   const c = mat.clone();
+  c.onBeforeCompile = mat.onBeforeCompile;   // clone() leaves it out: the baked corner shadows (baked-ao.js) stay on
   c.transparent = true;
   c.depthWrite = false;
   c.userData.solid = mat.opacity;
