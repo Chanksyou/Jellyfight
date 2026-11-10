@@ -53,3 +53,56 @@ upgrade "flareUp" jelly="fire" name="Flare Up" icon="🎇" text="Hitting a Burni
 upgrade "melt" jelly="fire" name="Melt" icon="🫠" text="Burning Elites and the boss take 20% more damage from hits." {
     status-damage "burning" more=0.2 elites=#true bugs=#false
 }
+
+// --- Tentacle: close range (docs/jelly-types/types/tentacle.md). The first six rework the old tentacle
+// Treasures (content/treasures.kdl, retired with jelly types on) and keep their names and icons.
+// Numbers are starting values. Tentacle damage is Attack damage here, so "Attack damage" in the text.
+upgrade "stingingNettle" jelly="tentacle" name="Stinging Nettle" icon="🌿" text="Stings make bugs Bleed: 25% of your Attack damage a second for 3 s, up to 5 stacks." {
+    venom dps=0.25 time=3 stacks=5
+}
+upgrade "tapeMeasureReel" jelly="tentacle" name="Tape Measure" icon="📏" text="+60% Tentacle reach. Every 2 s a tentacle shoots out up to 30 cm, grabs the toughest bug and reels it in, slamming it for 3x damage and hitting every bug it drags through." {
+    stat tentacle-reach 60 percent=#true
+    every 2 {
+        grab range=0.3 dmg=3
+    }
+}
+upgrade "spaghettiSweep" jelly="tentacle" name="Spaghetti Strand" icon="🍝" text="Every 4th lash stings every bug in reach at once." {
+    nth-attack 4 {
+        sweep
+    }
+}
+upgrade "toasterCord" jelly="tentacle" name="Toaster Cord" icon="🍞" text="When a bug hits you, every tentacle lashes back at everything in reach for twice the damage (up to 5 times a second)." {
+    when-hit cooldown=0.2 {
+        lash all=#true dmg=2
+    }
+}
+upgrade "chopstickRush" jelly="tentacle" name="Chopsticks" icon="🥢" text="Each kill gives +10% Fire rate for 3 s, up to 5 stacks." {
+    stack-buff "kill" "fire-rate" 10 percent=#true time=3 stacks=5
+}
+upgrade "paperclipHop" jelly="tentacle" name="Paperclip Chain" icon="📎" text="Each sting jumps on to a second bug in reach for 60% of its damage." {
+    echo-bubble by="tentacles" dmg=0.6
+}
+upgrade "whipCrack" jelly="tentacle" name="Whip Crack" icon="💢" text="Stings at the very edge of your reach do double damage." {
+    reach-sweetspot from=0.75 mult=2
+}
+upgrade "anchor" jelly="tentacle" name="Anchor" icon="⚓" text="After 1 s standing still, +50% Attack damage." {
+    while "rooted" "bubble-damage" 50 percent=#true
+}
+upgrade "inkCloud" jelly="tentacle" name="Ink Cloud" icon="🦑" text="When a bug hits you, you squirt ink: for 2 s, bugs near you miss half the time." {
+    when-hit cooldown=2 {
+        ink radius=0.15 time=2 miss=0.5
+    }
+}
+upgrade "venomSac" jelly="tentacle" name="Venom Sac" icon="🧪" text="Every 20 stings, your next lash stings every bug in reach and gives each 3 Bleed stacks." {
+    sting-count 20 {
+        sweep bleed=3
+    }
+}
+upgrade "coil" jelly="tentacle" name="Coil" icon="🪢" text="A bug stung 5 times within 2 s is held in place for 1 s." {
+    pin-on-stings 5 within=2 seconds=1
+}
+upgrade "bellPulse" jelly="tentacle" name="Bell Pulse" icon="🔔" text="Every 3 s your tentacles flare out to twice their reach for one lash." {
+    every 3 {
+        reach-flare 2
+    }
+}

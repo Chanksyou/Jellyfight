@@ -12,6 +12,8 @@ import { juice } from './juice.js';
 import { knockFor } from './stats.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
+const BLEED = { dps: 0.25, time: 3, stacks: 5 };   // a sweep's Bleed when the run has no venom word to set its own
+const STOP = 0.04;   // m from the jelly's middle (plus the bug's own size) where a grabbed bug is reeled to
 const DRAW = 0.025;   // the pullback fits inside the existing 70 ms strike; no extra attack delay
 
 export class Lash {
@@ -20,7 +22,13 @@ export class Lash {
     this.enemies = enemies;
     this.fx = fx;
     this.timer = 0;
-    this.count = 0;               // lashes so far (Gold Ring)
+    this.count = 0;               // lashes so far (Gold Ring, nth-attack)
+    this.stings = 0;              // stings landed since the last sting-count sweep
+    this.flare = 0;               // reach-flare: the next lash reaches this many times as far (0 = no)
+    this.reach = 0.1;             // m, your Tentacle reach as it stood on the last update (echo)
+    this.reachNow = 0.1;          // m, the reach the lash being thrown has (a flare doubles it): reach-sweetspot's edge
+    this.clock = 0;               // s, for pin-on-stings
+    this.coil = new WeakMap();    // pin-on-stings: enemy -> when it was stung lately
     this.strikes = [];            // tentacles currently out
     this.pool = [];
     this.statePool = [];
@@ -38,12 +46,15 @@ export class Lash {
     this.impactColor = new THREE.Color(LOOK.color('lash-impact', '#5ff0ff'));
     this.strikeColor = new THREE.Color(LOOK.color('lash-strike', '#e9fdff'));
     this._c = new THREE.Vector3();
+    this._d = new THREE.Vector3();
+    this._e = new THREE.Vector3();
     this._tip = new THREE.Vector3();
   }
 
   reset() {
     this.timer = 0;
-    this.count = 0;
+    this.count = this.stings = this.flare = 0;
+    this.coil = new WeakMap();
     this.strikes.forEach((s) => this.release(s));
     this.strikes = [];
     this.venom.clear();
@@ -81,8 +92,9 @@ export class Lash {
   update(dt, origin, stats, hits, opts) {
     const speed = stats.tentacleSpeed * (opts.lashSpeedMul || 1);
     this.timer += dt * speed;
+    this.reach = stats.reach;
     if (this.timer >= 1) {
-      if (this.fire(origin, stats, hits)) this.timer = 0;
+      if (this.fire(origin, stats, hits, opts)) this.timer = 0;
       else this.timer = 1; // ready, waiting for something in reach
     }
     this.animate(dt, origin);
@@ -100,16 +112,49 @@ export class Lash {
     return out.sort((a, b) => (a[1].armor ? 1 : 0) - (b[1].armor ? 1 : 0) || a[0] - b[0]).map((x) => x[1]);
   }
 
-  fire(origin, stats, hits) {
-    const targets = this.inReach(origin, stats.reach).slice(0, stats.tentacles);
+  // opts.nth, opts.stingCount: the run's nth-attack and sting-count words (words.js), which can make this lash a sweep
+  fire(origin, stats, hits, opts = {}) {
+    const reach = this.reachNow = stats.reach * (this.flare || 1);
+    const all = this.inReach(origin, reach);
+    const sweep = this.sweepFor(this.count + 1, opts);
+    const targets = sweep ? all : all.slice(0, stats.tentacles);
     if (!targets.length) return false;
     this.count++;
-    for (const e of targets) this.strike(origin, e, stats.tentacleDamage, hits);
+    this.flare = 0;
+    if (sweep?.sting) this.stings = 0;
+    const X = sweep && { sweep: true, bleed: sweep.bleed };
+    for (const e of targets) this.strike(origin, e, stats.tentacleDamage * (sweep?.dmg ?? 1), hits, X);
     this.onLash?.();
     return true;
   }
 
-  strike(from, target, dmg, hits) {
+  // sweep words (words.js ATTACK_WORDS) that make lash number n one: an nth-attack it falls on, a sting-count that's full
+  sweepFor(n, { nth = [], stingCount = [] }) {
+    let out = null;
+    const add = (ef, sting) => { out ||= { dmg: 1, bleed: 0, sting: false }; out.dmg *= ef.dmg; out.bleed = Math.max(out.bleed, ef.bleed); out.sting ||= sting; };
+    for (const N of nth) if (N.random ? Math.random() < 1 / N.every : n % N.every === 0) for (const ef of N.effects) if (ef.kind === 'sweep') add(ef, false);
+    for (const S of stingCount) if (this.stings >= S.every) for (const ef of S.effects) if (ef.kind === 'sweep') add(ef, true);
+    return out;
+  }
+
+  // Toaster Cord's lash back: every bug within reach is stung at k times the damage
+  sweepNow(origin, stats, hits, k) {
+    this.reachNow = stats.reach;
+    for (const e of this.inReach(origin, stats.reach)) this.strike(origin, e, stats.tentacleDamage * k, hits, { sweep: true });
+  }
+
+  // Tape Measure's grab (words.js): the toughest bug in range is stung, then reeled in to the jelly and slammed
+  grab(origin, stats, hits, ef) {
+    let best = null;
+    for (const e of this.inReach(origin, ef.range)) if (!e.proxy && !e.T.rooted && (!best || e.hp > best.hp)) best = e;   // a rooted bug can't be reeled in
+    if (!best) return false;
+    this.strike(origin, best, stats.tentacleDamage * ef.dmg, hits, { grab: true });
+    this.onLash?.();
+    return true;
+  }
+
+  // extra: what makes this sting special: { sweep, bleed } (a sweep's), { grab } (reeled in)
+  strike(from, target, dmg, hits, extra = null) {
     const rig = this.getRig();
     const tent = rig ? this.pickTentacle(rig, from, target) : -1;
     let m = null;
@@ -119,12 +164,21 @@ export class Lash {
     }
     const s = this.statePool.pop() || { from: new THREE.Vector3(), tip: new THREE.Vector3() };
     s.from.copy(from); s.tip.copy(from);
-    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false });
+    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false, extra, reel: null, reach: this.reachNow });
     this.strikes.push(s);
     sfx.lashDraw();
   }
 
   // venom: each stack burns its share every 0.25 s until the stacks run out
+  // Bleed (the venom word's): n more stacks on e, each bleeding V.dps of the sting's damage a second
+  bleed(e, n, V, dmg) {
+    const B = this.venom.get(e) || { stacks: 0, tick: 0.25 };
+    B.stacks = Math.min(V.stacks, B.stacks + n);
+    B.perStack = V.dps * dmg;
+    B.t = V.time;
+    this.venom.set(e, B);
+  }
+
   tickVenom(dt) {
     for (const [e, V] of this.venom) {
       if (e.dead || (V.t -= dt) <= 0) { this.venom.delete(e); continue; }
@@ -181,7 +235,9 @@ export class Lash {
   }
 
   animate(dt, origin) {
+    this.clock += dt;
     this.tickVenom(dt);
+    for (const s of this.strikes) if (s.reel) this.reelIn(s, dt, s.fixedFrom || origin);
     for (const s of this.strikes) {
       s.t += dt;
       const a = s.fixedFrom || origin;
@@ -205,41 +261,88 @@ export class Lash {
       s.mesh.scale.set(0.0015, full * k, 0.0015);
     }
     const done = this.strikes.filter((s) => s.t >= EXTEND + HOLD + RETRACT);
-    for (const s of done) this.release(s);
+    for (const s of done) { if (s.reel) this.reelIn(s, 1, s.fixedFrom || origin); this.release(s); }
     if (done.length) this.strikes = this.strikes.filter((s) => s.t < EXTEND + HOLD + RETRACT);
   }
 
   land(s, a, b) {
     if (s.target.dead || s.target.proxy?.shielded) return false;
-    const H = s.hits;
+    const H = s.hits, X = s.extra, E = this.enemies;
+    // Whip Crack (reach-sweetspot): a bug right at the edge of reach takes more
+    // (against the reach this lash had: a Bell Pulse flare moves the edge out; a grab has no edge)
+    const edge = H.edge && !X?.grab && E.center(s.target, this._c).distanceTo(a) - s.target.r >= H.edge.from * s.reach;
     this.fx.puff(b, this.impactColor, 0.008, 0.18);   // nematocyst sparkle
-    this.fx.impact(b, this.impactColor, LOOK.num('lash-impact-size', 0.016), 6);   // the flash, sparks and ring where it lands
+    this.fx.impact(b, this.impactColor, LOOK.num('lash-impact-size', 0.016) * (edge ? 1.6 : 1), edge ? 10 : 6);   // the flash, sparks and ring where it lands
     sfx.sting();
     juice.feel('hit');
     const id = s.target.id;
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
     let dmg = s.dmg, color = '#fff', crit = false;
+    if (edge) { dmg *= H.edge.mult; color = '#ffe9a8'; }
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r); sfx.crit();
       crit = true;
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
-    // a shove away from the jelly: the harder the sting, the further
-    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: this.enemies.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * this.enemies.statusMore(s.target, 'tentacle')) });
+    // a shove away from the jelly: the harder the sting, the further (a grabbed bug is reeled in instead)
+    if (!s.target.T.fly && !X?.grab) bus.emit('knockback', { targetId: id, dir: E.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * E.statusMore(s.target, 'tentacle')) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
     this.slash(s.target, a, b);
     // the streak (glowLash) fades behind it; floor droplets stay a moment longer
-    this.fx.splat(b.clone().setY(this.enemies.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));
-    // venom (Box Jelly): another stack, and they all last a while longer
-    const Vn = H.venom;
-    if (Vn && !s.target.dead) {
-      const V = this.venom.get(s.target) || { stacks: 0, tick: 0.25 };
-      V.stacks = Math.min(Vn.stacks, V.stacks + 1);
-      V.perStack = Vn.dps * s.dmg;
-      V.t = Vn.time;
-      this.venom.set(s.target, V);
+    this.fx.splat(b.clone().setY(E.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));
+    // Bleed (venom, or a sweep's): another stack, and they all last a while longer
+    const Vn = H.venom, bleeds = (Vn ? 1 : 0) + (X?.bleed || 0);
+    if (bleeds && !s.target.dead) this.bleed(s.target, bleeds, Vn || BLEED, s.dmg);
+    if (!X) this.stings++;   // sting-count counts the ordinary ones
+    // pin-on-stings: enough stings close together hold the bug in place
+    if (H.coil && !s.target.dead) {
+      const C = H.coil, t = (this.coil.get(s.target) || []).filter((x) => this.clock - x <= C.within);
+      t.push(this.clock);
+      if (t.length >= C.hits) { bus.emit('status_applied', { targetId: id, status: 'pin', duration: C.seconds }); t.length = 0; }
+      this.coil.set(s.target, t);
     }
+    if (H.echo && !X) this.echo(s, a, b, H.echo);
+    if (X?.grab) this.drag(s, a);
     return true;
+  }
+
+  // echo-bubble by="tentacles": the sting jumps to the nearest other bug in reach for a share of the damage
+  echo(s, a, b, Ec) {
+    const other = this.inReach(a, this.reach, new Set([s.target]))[0];
+    if (!other) return;
+    const to = this.contact(other, b, this._c), size = LOOK.num('lash-glow-size', 0.03) * 0.5;
+    for (let i = 1; i <= 5; i++) this.fx.glow.emit(this._tip.copy(b).lerp(to, i / 5), this.traceColor, size, size * 0.3, 0.2, 0.8);
+    this.fx.impact(to, this.impactColor, LOOK.num('lash-impact-size', 0.016) * 0.7, 5);
+    bus.emit('damage_taken', { targetId: other.id, amount: s.dmg * Ec.dmg, color: '#fff', source: 'tentacle', feedback: { crit: false } });
+  }
+
+  // the grab (Tape Measure) has landed: every other bug on the way to the jelly takes the sting too,
+  // and the bug starts being reeled in (reelIn)
+  drag(s, a) {
+    const E = this.enemies, e = s.target, c = E.center(e, this._c), seg = this._d.copy(a).sub(c), len2 = seg.lengthSq();
+    s.reel = { total: Math.max(0, Math.sqrt(len2) - e.r - STOP) };
+    for (const o of E.list) {
+      if (o === e || o.dead || o.proxy) continue;
+      const p = E.center(o, this._tip), t = len2 > 0 ? THREE.MathUtils.clamp(this._e.copy(p).sub(c).dot(seg) / len2, 0, 1) : 0;
+      if (this._e.copy(c).addScaledVector(seg, t).distanceTo(p) > o.r + e.r) continue;
+      this.fx.impact(p, this.impactColor, LOOK.num('lash-impact-size', 0.016) * 0.8, 6);
+      bus.emit('damage_taken', { targetId: o.id, amount: s.dmg, color: '#fff', source: 'tentacle', feedback: { crit: false } });
+    }
+  }
+
+  // hauls the grabbed bug toward the jelly over the hold and retract (dt >= 1: all the way, now); where it
+  // arrives, the slam: a flash, a thump and a shake
+  reelIn(s, dt, a) {
+    const R = s.reel, e = s.target;
+    if (e.dead) { s.reel = null; return; }
+    const c = this.enemies.center(e, this._c), left = Math.max(0, c.distanceTo(a) - e.r - STOP);
+    const step = dt >= 1 ? left : Math.min(left, R.total * dt / (HOLD + RETRACT));
+    if (step > 0) bus.emit('knockback', { targetId: e.id, dir: this._d.copy(a).sub(c).setY(0).normalize().clone(), force: step });
+    if (step < left) return;
+    s.reel = null;
+    this.fx.impact(this.enemies.center(e, this._c), this.impactColor, LOOK.num('lash-impact-size', 0.016) * 1.6, 10);
+    sfx.sting();
+    juice.feel('hit-big');
   }
 }
 

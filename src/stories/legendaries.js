@@ -103,7 +103,7 @@ story('types/legendary-not-offered-to-wrong-type', {
 });
 
 story('treasures/tentacle-weapon', {
-  about: 'tentacle-weapon (Box Jelly): with jelly types on, a Fire jelly\'s tentacles lash too, a second close-range attack beside its Fire shot (4 tentacles at twice the reach, stacking venom); for the Tentacle jelly the 3 extra tentacles add to its Attacks (3 + 3 = 6) with +100% Tentacle reach (a percent of Normal\'s 8.3 cm, so 11 + 8.3 cm). Without it, a Fire jelly never lashes.',
+  about: 'tentacle-weapon (Box Jelly): with jelly types on, a Fire jelly\'s tentacles lash too, a second close-range attack beside its Fire shot (4 tentacles at twice the reach, stacking venom); for the Tentacle jelly the 3 extra tentacles add to its Attacks (3 + 3 = 6) with +100% Tentacle reach (a percent of the jelly\'s own 11 cm, so 22 cm). Without it, a Fire jelly never lashes.',
   setup() { setupFight({ types: 'fire' }); },
   play() {
     const { run } = G();
@@ -118,7 +118,7 @@ story('treasures/tentacle-weapon', {
     setupFight({ types: 'tentacle' });
     const base = run.tentacleStats.tentacles;
     evolveAll('boxJelly');
-    const U = run.tentacleStats, tentacle = base === 3 && U.tentacles === 6 && Math.abs(U.reach - (0.11 + BASE_STATS.reach)) < 1e-9;
+    const U = run.tentacleStats, tentacle = base === 3 && U.tentacles === 6 && Math.abs(U.reach - 0.22) < 1e-9;
     fresh();
     return ok(noLash && fireLash && tentacle, { noLash, strikes: strikes.length, venom, T, base, U });
   },

@@ -297,7 +297,7 @@ export class Run {
     this.rerolls = 1;                 // level-up card rerolls: one an act, a later act starts fresh
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
     this.player.avatar?.root.scale.setScalar(1);
-    this.squeakCd = []; this.hurtCd = {};
+    this.squeakCd = []; this.hurtCd = {}; this.ink = null;
     this.mirrorUntil = 0;
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
     this.saved = false;               // the run's one death-save is spent
@@ -421,22 +421,22 @@ export class Run {
   // Your stats as they stand: the starting values plus level-up cards (this.stats) plus what
   // your treasures add (stat words). One object, refilled on each read: no garbage per frame.
   get S() {
-    const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct;
+    const S = (this._S ||= {}), add = this.mods.stats.add, pct = this.mods.stats.pct, base = this.baseStats;
     const grown = this.grown || {};
-    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + BASE_STATS[k] * (pct[k] || 0) / 100;
+    for (const k in this.stats) S[k] = this.stats[k] + (add[k] || 0) + (grown[k] || 0) + base[k] * (pct[k] || 0) / 100;
     // while: conditionals, true right now or not (the jelly in the air, or low on Health)
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
     }
     // stack-buff: what each one's live stacks add
-    for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? BASE_STATS[b.stat] * b.amount / 100 : b.amount); }
+    for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? base[b.stat] * b.amount / 100 : b.amount); }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
     if (per.length) {
       const was = (this._perAt ||= {}); was.health = S.health; was.moveSpeed = S.moveSpeed;
-      for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
+      for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? base[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
@@ -446,6 +446,9 @@ export class Run {
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
   }
+
+  // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's, with jelly types off)
+  get baseStats() { return this._baseOf === this.jelly ? this._base : (this._baseOf = this.jelly, this._base = jellyStats(this.jelly)); }
 
   // what a per converter counts (`of`), read from stats S
   perSource(of, S) {
@@ -542,6 +545,11 @@ export class Run {
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
     if (this.bleeds.length) this.bleed(dt);
+    if (this.ink && this.t < this.ink.until && (this.inkT = (this.inkT || 0) - dt) <= 0) {   // the Ink Cloud drifting round you while it lasts
+      this.inkT = 0.12;
+      const a = Math.random() * Math.PI * 2, r = this.ink.radius * Math.random();
+      this.fx.puff(_drop.set(P.position.x + Math.cos(a) * r, P.position.y + this.cfg.height * 0.4, P.position.z + Math.sin(a) * r), (this.inkHex ||= new THREE.Color(LOOK.color('ink-cloud', '#0b0a22')).getHex()), 0.024, 0.9, 0.8);
+    }
     // --- the night: waves, treasures, and the boss when time runs out
     if (this.phase === 'explore' && this.duel) this.updateDuel(dt);
     else if (this.phase === 'explore') {
@@ -566,10 +574,12 @@ export class Run {
       const A = this.attack;
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
       // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes, or tentacle-weapon)
-      if (!polyp && (!A || A.kind === 'tentacle' || this.mods.tentacleWeapon)) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
+      if (!polyp && (!A || A.kind === 'tentacle' || this.mods.tentacleWeapon)) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
+        grab: (ef) => this.lash.grab(origin, this.tentacleStats, this.mods.hits.tentacles, ef),
+        flare: (mult) => { this.lash.flare = Math.max(this.lash.flare, mult); return this.tentacleStats.reach * mult; },
         mirrorReady: this.t>=this.reflectAt, mirrorActive: this.t<this.mirrorUntil&&this.iFrames>0,
         steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
@@ -778,7 +788,10 @@ export class Run {
     const M = this.mods;
     amount *= M.damageTaken;
     // dodge: the hit misses (and a moment of grace, so touching a bug doesn't re-roll every frame)
-    if (Math.random() * 100 < this.S.dodge) {
+    // ink (Ink Cloud): while the cloud lasts, a hit from a bug close to you misses more often
+    const I = this.ink, inked = I && this.t < I.until && from != null && this.enemies.list.some((e) => e.id === from && !e.dead && e.pos.distanceTo(this.player.position) <= I.radius);
+    // (two independent chances to be missed, so Dodge and the ink together never reach 100%)
+    if (Math.random() < 1 - (1 - this.S.dodge / 100) * (1 - (inked ? I.miss : 0))) {
       this.iFrames = 0.4;
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height), 'DODGE', '#bfffd0', 15);
@@ -829,7 +842,9 @@ export class Run {
       this.hurtCd[H.key] = this.t + H.cooldown;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
       const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
-      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
+      const lashAll = (k) => this.lash.sweepNow(center, this.tentacleStats, this.mods.hits.tentacles, k);   // the lash word with all=#true
+      const ink = (ef) => { this.ink = { until: this.t + ef.time, miss: ef.miss, radius: ef.radius }; };   // the ink word
+      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, lashAll, ink, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from, contact, knock, at);
