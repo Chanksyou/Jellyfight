@@ -103,7 +103,7 @@ export class Lash {
   inReach(origin, reach, exclude) {
     const out = [];
     for (const e of this.enemies.list) {
-      if (e.dead || exclude?.has(e) || e.proxy?.shielded) continue;   // a shielded boss can't be hurt (its guards up / it is in the drain): don't spend a tentacle on it
+      if (e.dead || exclude?.has(e) || e.proxy?.immune) continue;   // a boss that can't be hurt right now (shielded, rising, doomed): don't spend a tentacle on it
       const d = this.enemies.center(e, this._a).distanceTo(origin) - e.r;
       if (d <= reach) out.push([d, e]);
     }
@@ -266,7 +266,7 @@ export class Lash {
   }
 
   land(s, a, b) {
-    if (s.target.dead || s.target.proxy?.shielded) return false;
+    if (s.target.dead || s.target.proxy?.immune) return false;
     const H = s.hits, X = s.extra, E = this.enemies;
     // Whip Crack (reach-sweetspot): a bug right at the edge of reach takes more
     // (against the reach this lash had: a Bell Pulse flare moves the edge out; a grab has no edge)

@@ -441,6 +441,7 @@ export class Clog {
   get position() { return this.holder.position; }
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position).setY(this.holder.position.y + this.r * (1 - this.sink * 0.9)); }
   get shielded() { return this.state === 'acid'; }
+  get immune() { return this.dying || this.rise < 1 || this.shielded; }   // damage() does nothing now: attacks shouldn't pick it
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
 
   damage(amount, color = '#fff', feedback = {}) {

@@ -37,7 +37,7 @@ story('attack/tentacle-coil-snap-and-contact', {
 });
 
 story('attack/tentacle-miss-has-no-hit-feedback', {
-  about: 'A target killed or shielded before the 70 ms contact produces no slap, impact, residue or damage.',
+  about: 'A target killed or made immune (a shielded boss) before the 70 ms contact produces no slap, impact, residue or damage.',
   setup,
   play() {
     const { run, fx } = G(), L = run.lash, log = record('damage_taken');
@@ -47,7 +47,7 @@ story('attack/tentacle-miss-has-no-hit-feedback', {
     const from = near(0, 0, 0.04);
     L.strike(from, e, 4, run.mods.hits.tentacles); e.dead = true; L.animate(0.08, from);
     const shield = spawn('roach', near(0.03, -0.07), { still: true, hp: 100 });
-    L.strike(from, shield, 4, run.mods.hits.tentacles); shield.proxy = { shielded: true }; L.animate(0.08, from);
+    L.strike(from, shield, 4, run.mods.hits.tentacles); shield.proxy = { immune: true }; L.animate(0.08, from);
     return ok(!log.length && !impacts && !contacts && !fx.splats.some(s => s.alive), { damage: log.length, impacts, contacts });
   },
 });

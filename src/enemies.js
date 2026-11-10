@@ -504,7 +504,7 @@ export class Enemies {
     this.fx.ring(c.clone().setY(c.y - e.r * 0.8), BLAST.getHex(), r, 0.3);
     sfx.fireDeath();
     for (const n of this.list) {
-      if (n === e || n.dead || n.proxy?.shielded) continue;
+      if (n === e || n.dead || n.proxy?.immune) continue;
       if (this.center(n, o).distanceTo(c) - n.r > r) continue;   // a sphere of r round its middle, touching n's body
       bus.emit('damage_taken', { targetId: n.id, amount, color: '#ffa65a', source: 'fire', feedback: { tick: true, element: 'fire' } });
     }

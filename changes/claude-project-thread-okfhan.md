@@ -1,0 +1,1 @@
+stops tentacles, bubbles and treasure attacks aiming at a boss that can't be hurt right now (rising, doomed at 0 Health waiting for the cat, or in Encore's cut scenes), not only a shielded one, so they hit a bug instead.
