@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v389 gives the Normal, Fire and Tentacle jelly types their one attack each, behind the types switch: Normal blows bubbles with no tentacle lash, Fire fires its Fire shot at its full Fire rate, and Tentacle stings with Attacks tentacles for Attack damage and is never offered Range, Attack size or Pierce; Fire glows with an ember and coal-tipped tentacles, Tentacle's tentacles are longer, thicker and barbed.
+
 v388 adds six shared words for the jelly types' coming Attack upgrades (status-damage, status-taken, on-kill-of, nth-attack, stack-buff, while moving); Shatter now runs on status-damage and plays the same.
 
 v387 renames the Bubble stats to Attack in player text: Attack damage, Attack size and Attacks, and treasures, cards, evolutions and achievements now say "attack" where they mean your attack. No numbers or behaviour changed.
