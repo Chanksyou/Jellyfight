@@ -609,7 +609,7 @@ export class Enemies {
     this.fx.impact(at.clone().setY(at.y + 0.01), hostile('leap'), radius * 0.45, 16);
     this.fx.ring(at.clone().setY(at.y + 0.003), hostile('leap'), radius * 1.05, 0.4);
     this.fx.puff(at.clone().setY(at.y + 0.01), 0xd8c8b4, radius * 0.8, 0.35);
-    this.fx.splat(at, SCUFF, radius * 0.55);              // a scuff in the dust where it came down (fades)
+    this.fx.splat(at, SCUFF, radius * 0.55, 'dust');              // a scuff in the dust where it came down (fades)
     sfx.leapSlam();
     e.landT = 1;
     const dx = (c.realFoot || c.foot).x - at.x, dz = (c.realFoot || c.foot).z - at.z;
@@ -757,7 +757,7 @@ export class Enemies {
     this.fx.puff(P, 0x5a5550, 0.06, 0.9);
     const floor = this.floorBelow(P, P.y - 0.05);
     this.fx.ring(new THREE.Vector3(P.x, floor + 0.004, P.z), red, 0.09, 0.4);
-    if (P.y - floor < 0.12) this.fx.splat(S.spot.set(P.x, floor, P.z), SCORCH, 0.04);   // a scorch on the floor (fades)
+    if (P.y - floor < 0.12) this.fx.splat(S.spot.set(P.x, floor, P.z), SCORCH, 0.04, 'scorch');   // a scorch on the floor (fades)
     if (P.distanceTo(pc) < 0.4) juice.feel('impact-big');   // only on you or a near miss: bugs stay quieter than Elites (L2)
     sfx.missileBoom();
     if (P.distanceTo(pc) < radius + 0.04) bus.emit('damage_taken', { targetId: PLAYER, amount: m.dmg, source: 'missile', unit: m.unit, at: P });
@@ -847,7 +847,7 @@ export class Enemies {
     this.fx.impact(near ? (c.realPc || c.pc).clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
     if (!near && wall) {                                   // where it struck: an ember dying out, and a scorch on a floor
       this.fx.glow.emit(to, color, 0.008, 0.002, 0.6, 0.9);
-      if (wall.normal?.y > 0.5) this.fx.splat(to, SCORCH, 0.008);
+      if (wall.normal?.y > 0.5) this.fx.splat(to, SCORCH, 0.008, 'scorch');
     }
     if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
@@ -929,7 +929,7 @@ export class Enemies {
     }
     if (low) {
       this.fx.burst(at, [0x3a2a1e, 0x1e140c, 0x5a4636], 8, 0.004, 0.45, floor);                // bits of floor kicked up
-      this.fx.splat(S.spot.set(at.x, floor, at.z), SCORCH, R * 0.8);                             // the scorch (harmless, fades)
+      this.fx.splat(S.spot.set(at.x, floor, at.z), SCORCH, R * 0.8, 'scorch');                             // the scorch (harmless, fades)
       for (let k = 0; k < 4; k++) {                                                            // embers on it, dying out
         const e = S.spot.set(at.x + (Math.random() - 0.5) * R, floor + 0.002, at.z + (Math.random() - 0.5) * R);
         glow.emit(e, s.color, R * 0.12, R * 0.04, 0.8 + Math.random() * 0.6, 0.8, S.want.set(0, 0.01, 0), 0);
@@ -1003,7 +1003,7 @@ export class Enemies {
     const tip = S.spot.set(a.x + d.x * reach, (e.whipFloor ?? e.pos.y) + 0.005, a.z + d.z * reach);
     this.fx.impact(hit ? (c.realPc || c.pc).clone() : tip.clone(), hostile('worm'), hit ? 0.02 : 0.012, hit ? 10 : 6);
     this.fx.puff(tip, 0xc8b8a0, 0.02, 0.35);
-    this.fx.splat(tip.lerp(S.o.set(a.x, tip.y, a.z), 0.3), SCUFF, 0.014);   // a scuff along where it cracked down (fades)
+    this.fx.splat(tip.lerp(S.o.set(a.x, tip.y, a.z), 0.3), SCUFF, 0.014, 'dust');   // a scuff along where it cracked down (fades)
     if (hit) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
   }
   whipLash(e) { sfx.whipLash(); }
@@ -1293,7 +1293,7 @@ export class Enemies {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
       this.fx.wind.debris(S.windContact, S.windBack.copy(dir).negate(), 8, 0.35, e.pos.y);       // dust knocked off the wall, back out at you
-      this.fx.splat(S.windFrom.copy(e.pos), SCUFF, e.r * 1.2);                                    // a scuff where it hit
+      this.fx.splat(S.windFrom.copy(e.pos), SCUFF, e.r * 1.2, 'dust');                                    // a scuff where it hit
       sfx.windSlam(); juice.feel('impact');
       bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision', feedback: { element: 'wind', slam: true, dir } });
     }

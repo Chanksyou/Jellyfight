@@ -306,7 +306,7 @@ export class Vacuum {
           sfx.vacImpact(wall); this.locked = false; this.fx.impact(p.clone().setY(0.02), hostile('vacuum'), this.r * 0.6, 18);
           // it crunches to a stop: rears back, shakes the room if it hit a wall, and scuffs the floor
           const front = _rel.copy(p).addScaledVector(this.laneDir, this.r).setY(p.y);
-          this.fx.splat(front, LOOK.color('vacuum-dust', '#8a8278'), LOOK.num('vacuum-scuff-size', 0.05));
+          this.fx.splat(front, LOOK.color('vacuum-dust', '#8a8278'), LOOK.num('vacuum-scuff-size', 0.05), 'dust');
           this.fx.burst(front.setY(p.y + 0.02), [LOOK.color('vacuum-dust', '#8a8278'), '#3b3f47'], wall ? 10 : 5, 0.004, 0.35, p.y);
           this.kick = wall ? 1 : 0.5;
           if (wall) juice.feel('impact-big');
@@ -338,7 +338,7 @@ export class Vacuum {
       }
       if (this.stateT <= 0) {
         this.swirl.material.opacity = 0; this.sucking = false;
-        this.fx.splat(p, LOOK.color('vacuum-dust', '#8a8278'), this.r + 0.12);   // the swept floor round it: a fading ring of dust
+        this.fx.splat(p, LOOK.color('vacuum-dust', '#8a8278'), this.r + 0.12, 'dust');   // the swept floor round it: a fading ring of dust
         this.fx.puff(_rel.set(-Math.sin(this.heading), 0, -Math.cos(this.heading)).multiplyScalar(this.r + 0.02).add(p).setY(p.y + 0.04), 0x9c958b, 0.05, 0.6);
         this.toChase();
       }
@@ -359,7 +359,7 @@ export class Vacuum {
           // grit flicked out to its reach, left as dust round it
           for (let k = 0; k < 4; k++) {
             const a = this.heading + (k + 0.5) * Math.PI / 2 + at * 2;
-            this.fx.splat(_rel.set(p.x + Math.sin(a) * reach * 0.85, p.y, p.z + Math.cos(a) * reach * 0.85), LOOK.color('vacuum-dust', '#8a8278'), 0.018);
+            this.fx.splat(_rel.set(p.x + Math.sin(a) * reach * 0.85, p.y, p.z + Math.cos(a) * reach * 0.85), LOOK.color('vacuum-dust', '#8a8278'), 0.018, 'dust');
             this.fx.burst(_rel.setY(p.y + 0.01), [LOOK.color('vacuum-dust', '#8a8278')], 2, 0.002, 0.15, p.y);
           }
           if (ringHits(p, 0, reach, this.sweepH, P, player.cfg)) {
@@ -382,7 +382,7 @@ export class Vacuum {
         this.fx.puff(p.clone().addScaledVector(back, this.r + 0.02).setY(0.03), 0x9c958b, 0.06, 0.5);
         sfx.vacDump();
         this.kick = 0.7; juice.feel('hit');
-        this.fx.splat(_rel.copy(p).addScaledVector(back, this.r + 0.05), LOOK.color('vacuum-dust', '#8a8278'), 0.05);   // a dust pile where the bin emptied
+        this.fx.splat(_rel.copy(p).addScaledVector(back, this.r + 0.05), LOOK.color('vacuum-dust', '#8a8278'), 0.05, 'dust');   // a dust pile where the bin emptied
         this.fx.burst(_rel.setY(p.y + 0.02), [LOOK.color('vacuum-dust', '#8a8278')], 6, 0.003, 0.3, p.y);
       }
       if (this.stateT <= 0) this.toChase();
@@ -438,7 +438,7 @@ export class Vacuum {
       if (s.done) {   // it bursts (fx.shotStep's impact): grit falls and leaves a speck of dust on the floor
         sfx.vacClump(struck);
         this.fx.burst(s.m.position, [LOOK.color('vacuum-dust', '#8a8278')], 2, 0.002, 0.15, p.y);
-        this.fx.splat(_rel.set(s.m.position.x, p.y, s.m.position.z), LOOK.color('vacuum-dust', '#8a8278'), 0.008);
+        this.fx.splat(_rel.set(s.m.position.x, p.y, s.m.position.z), LOOK.color('vacuum-dust', '#8a8278'), 0.008, 'dust');
       }
     }
     this.shots = this.shots.filter((s) => !s.done);

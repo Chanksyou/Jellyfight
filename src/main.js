@@ -885,6 +885,7 @@ async function warmUp() {
   fx.puff(P.clone(), 0xffffff, 0.01, 1);
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
+  fx.splat(P.clone(), 0xffffff, 0.01, 'ink');   // the floor marks' painted sheet (every shape shares its shader)
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);

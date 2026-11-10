@@ -62,3 +62,19 @@ story('readability/new-effect-pieces-start-small', {
     return ok(newSize === 0 && puffSize !== null && puffSize <= 0.02 && splatSize !== null && splatSize <= 0.02, { newSize, puffSize, splatSize });
   },
 });
+
+story('readability/floor-marks-have-shapes', {
+  about: 'The harmless marks left on the floor are painted shapes, not flat discs: a splash, a scorch, an ink blot and dust each show their own cell of one sheet painted at startup (one image for all, never read back: that stalls a page on a GPU canvas), an unknown shape falls back to the splash, and a reused mark takes its new shape.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { fx, player } = G(), at = player.position.clone(), seen = {};
+    for (const k of ['splash', 'scorch', 'ink', 'dust', 'nonsense']) { fx.splat(at, 0xffffff, 0.02, k); seen[k] = fx.splats.find((s) => s.alive && s.t === 0 && !Object.values(seen).includes(s)); }
+    const mats = Object.values(fx.splatMats), image = mats[0].map.image;
+    const shapes = ['splash', 'scorch', 'ink', 'dust'].map((k) => seen[k].m.material === fx.splatMats[k]);
+    fx.splats.forEach((s) => { s.alive = false; });   // the next mark reuses the first free piece: the splash
+    fx.splat(at, 0xffffff, 0.02, 'ink');
+    const reused = fx.splats.find((s) => s.alive) === fx.splats.find((s) => s.m.material === fx.splatMats.ink && s.alive) && fx.splats.find((s) => s.alive).m.material === fx.splatMats.ink;
+    return ok(shapes.every(Boolean) && mats.every((m) => m.map.image === image) && new Set(mats.map((m) => m.map.offset.x + ',' + m.map.offset.y)).size === 4
+      && seen.nonsense.m.material === fx.splatMats.splash && reused, { shapes });
+  },
+});
