@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v390 jelly types (behind the switch): after each of the first three bosses a second pick of 3 Attack upgrades from the type's pool, with Fire's 12 (content/upgrades.kdl); with types on, chests never offer Elements, Element upgrades, Power Bank or the old tentacle Treasures.
+
 v389 gives the Normal, Fire and Tentacle jelly types their one attack each, behind the types switch: Normal blows bubbles with no tentacle lash, Fire fires its Fire shot at its full Fire rate, and Tentacle stings with Attacks tentacles for Attack damage and is never offered Range, Attack size or Pierce; Fire glows with an ember and coal-tipped tentacles, Tentacle's tentacles are longer, thicker and barbed.
 
 v388 adds six shared words for the jelly types' coming Attack upgrades (status-damage, status-taken, on-kill-of, nth-attack, stack-buff, while moving); Shatter now runs on status-damage and plays the same.

@@ -1,1 +1,0 @@
-jelly types (behind the switch): after each of the first three bosses a second pick of 3 Attack upgrades from the type's pool, with Fire's 12 (content/upgrades.kdl); with types on, chests never offer Elements, Element upgrades, Power Bank or the old tentacle Treasures.
