@@ -4,13 +4,17 @@
 // Normal is BASE_STATS (src/stats.js). Every other type lists only where it differs, as
 // `stat <name> <value>` lines: the value replaces Normal's (stat names as the `stat` effect word
 // in src/words.js). `attack` is the type's one attack: bubble, an Element id, or tentacle.
-// `hit` multiplies that attack's damage (the damage budget's one knob).
+// `hit` multiplies that attack's damage (the damage budget's one knob). `adorn` is the type's
+// look, a piece drawn on top of the player's own jelly (src/adornments.js).
 //
-//   jelly "id" name="…" attack="…" hit=1 { stat <name> <value> … }
+//   jelly "id" name="…" attack="…" hit=1 adorn="…" { stat <name> <value> … }
 
 jelly "normal" name="Normal Jelly" attack="bubble" hit=1
 
-jelly "fire" name="Fire Jelly" attack="fire" hit=1 {
+// Fire: the Fire shot at full Fire rate. hit=0.5 lands it at 11.4 damage a second on one bug
+// (7.5 x 0.5 x 1.5/s = 5.6 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
+// the top of the 9-12 budget, for a glass cannon (docs/jelly-types/spec-core.md)
+jelly "fire" name="Fire Jelly" attack="fire" hit=0.5 adorn="ember" {
     stat bubble-damage 7.5
     stat move-speed 1.05
     stat health 19
@@ -59,7 +63,9 @@ jelly "glitter" name="Glitter Jelly" attack="glitter" hit=1 {
     stat fire-rate 1.5
 }
 
-jelly "tentacle" name="Tentacle Jelly" attack="tentacle" hit=1 {
+// Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a
+// second: 9 x 1.76 = 15.8 a second on one bug, up to 47.5 on three in reach
+jelly "tentacle" name="Tentacle Jelly" attack="tentacle" hit=1 adorn="barbs" {
     stat bubble-damage 9
     stat bubbles 3
     stat tentacle-reach 0.11

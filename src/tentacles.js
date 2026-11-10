@@ -49,6 +49,10 @@ export class TentacleRig {
     this.length = opts.length;
     this.thick = opts.thickness;
     this.venom = false;
+    // the Tentacle jelly type (adornments.js barbs): its tentacles drawn longer and thicker
+    this.barbed = false;
+    this.barbThick = LOOK.num('barbed-tentacle-thickness', 1.8);
+    this.barbLength = LOOK.num('barbed-tentacle-length', 1.35);
     this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
     this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
     // a striking tentacle swells and burns white-hot so the lash reads at play distance
@@ -108,7 +112,7 @@ export class TentacleRig {
   update(dt, state) {
     this.t += dt;
     this.trail.lerp(state.localVel, 1 - Math.exp(-6 * dt));
-    const L = this.length, contract = state.contract;
+    const L = this.length * (this.barbed ? this.barbLength : 1), contract = state.contract;
     const fall = THREE.MathUtils.clamp(-state.vy * 3, 0, 1);          // falling: stream upward
     const rise = THREE.MathUtils.clamp(state.vy * 3, 0, 1);           // jumping: trail straight down
     const moving = Math.min(1, this.trail.length() / 6);
@@ -219,7 +223,7 @@ export class TentacleRig {
 
   // Skin the tube around the points
   build(T, floorY) {
-    const thick = this.thick * (this.venom ? this.venomThickness : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
+    const thick = this.thick * (this.venom ? this.venomThickness : 1) * (this.barbed ? this.barbThick : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
     const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
     const P = T.pts;

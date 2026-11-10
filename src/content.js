@@ -12,7 +12,7 @@
 //   content/jellies.kdl   the jelly types a run can start as (behind GAME.types: src/jelly-types.js)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
-import { ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
+import { ADORNMENTS, ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
 export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, jellies: {}, nodes: null };
 
@@ -74,6 +74,15 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
 //   or with levels instead of stack=:  { words…  level 2 text="…" { words… }  level 3 text="…" { words… } }
 const TIERS = ['common', 'rare', 'epic', 'legendary'];   // the ids of TREASURE_RARITY (stats.js)
 const STACK_DEFAULT = 3, STACK_MAX = 5;
+// not-for="tentacle …": the attacks (a jelly's attack=, content/jellies.kdl) a card or treasure does
+// nothing for, so it isn't offered to a run with one of them (with the types switch on)
+const notFor = (v, where, id) => {
+  if (v === undefined) return [];
+  const list = typeof v === 'string' ? v.split(/\s+/).filter(Boolean) : [];
+  const bad = list.find((a) => !JELLY_ATTACKS.includes(a));
+  if (!list.length || bad) throw new Error(`${where}: "${id}" not-for= takes attacks from ${JELLY_ATTACKS.join(', ')}, not "${bad ?? v}"`);
+  return list;
+};
 const needsStat = (name, where, id) => {
   if (name === undefined) return null;
   if (!STAT_NAMES[name]) throw new Error(`${where}: "${id}" needs-stat= must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
@@ -114,6 +123,7 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     out.push({
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
       needsStat: needsStat(n.props['needs-stat'], where, id),   // offered only once that stat is above 0 (shield treasures: you have a Shield bar)
+      notFor: notFor(n.props['not-for'], where, id),            // never offered to a run with one of these attacks
       id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : unique ? 1 : n.props.stack ?? STACK_DEFAULT, rarity,
       effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
       vocabulary,
@@ -194,7 +204,7 @@ export function compileElites(nodes, file = 'content/elites.kdl') {
   return out;
 }
 
-// xp base= growth=, rarities common= rare= epic=, card "stat" common= rare= epic= weight=:
+// xp base= growth=, rarities common= rare= epic=, card "stat" common= rare= epic= weight= not-for="…":
 // what a level-up offers. How an amount applies (percent of base, per second, points) stays
 // with the stat in stats.js; this file is only the numbers.
 const CARD_STATS = ['bubbles', 'range', 'bubbleDamage', 'fireRate', 'health', 'shield', 'moveSpeed', 'regen', 'dodge', 'luck', 'bubbleSize'];
@@ -216,7 +226,7 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
       if (out.cards[id]) throw new Error(`${where}: there are two cards called "${id}"`);
       need(n, ['common', 'rare', 'epic'], where);
       if (n.props.weight !== undefined && typeof n.props.weight !== 'number') throw new Error(`${where}: "${id}" weight= must be a number`);
-      out.cards[id] = { amounts: [n.props.common, n.props.rare, n.props.epic], weight: n.props.weight ?? 1 };
+      out.cards[id] = { amounts: [n.props.common, n.props.rare, n.props.epic], weight: n.props.weight ?? 1, notFor: notFor(n.props['not-for'], where, id) };
     } else throw new Error(`${where}: expected "xp", "rarities" or "card", got "${n.name}"`);
   }
   if (!out.xp) throw new Error(`${file}: no xp block (base= and growth=)`);
@@ -225,8 +235,9 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
   return out;
 }
 
-// jelly "id" name="…" attack="…" hit=N { stat <name> <value> … }: the jelly types. Each stat line
-// replaces Normal's value (BASE_STATS); Normal itself lists none.
+// jelly "id" name="…" attack="…" hit=N adorn="…" { stat <name> <value> … }: the jelly types. Each
+// stat line replaces Normal's value (BASE_STATS); Normal itself lists none. adorn= is the type's
+// look, a piece drawn on top of the player's own jelly (src/adornments.js)
 const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
 export function compileJellies(nodes, file = 'content/jellies.kdl') {
   const out = {};
@@ -239,6 +250,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (typeof n.props.name !== 'string') throw new Error(`${where}: "${id}" needs name="…"`);
     if (!JELLY_ATTACKS.includes(n.props.attack)) throw new Error(`${where}: "${id}" attack= must be one of ${JELLY_ATTACKS.join(', ')}, not "${n.props.attack}"`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
+    if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
     const stats = {};
     for (const s of n.children) {
       const at = `${file}:${s.line}`, [name, value] = s.args, key = STAT_NAMES[name];
@@ -248,7 +260,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
       stats[key] = value;
     }
-    out[id] = { id, name: n.props.name, attack: n.props.attack, hit: n.props.hit, stats };
+    out[id] = { id, name: n.props.name, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, stats };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);

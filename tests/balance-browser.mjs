@@ -204,7 +204,7 @@ export function startAct(config) {
   const { run, player, APT, menus } = G(), undo = [], random = Math.random;
   APT.renderer.setAnimationLoop(null);
   Math.random = seededRandom(seedFor(`balance/act${run.stage.id}`, config.seed));
-  fresh({ waves: true, treasures: true, hurt: true, levels: true });
+  fresh({ waves: true, treasures: true, hurt: true, levels: true, types: config.type });   // --type: a jelly type, switch on (src/jelly-types.js)
   resetTrial(config.seed, undo);
   run.devRun();
   if (config.initial) installBuild(config.build);

@@ -544,6 +544,23 @@
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
+  /* Jelly types' looks (src/adornments.js ember and barbs; content/jellies.kdl adorn=) */
+  --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
+  --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
+  --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
+  --ember-core-y: 0.86;           /* its height in the bell, up under the crown so it shows from behind (model units: the rim is at 0.56) */
+  --ember-coal: #ff5a14;          /* the coal on each tentacle tip */
+  --ember-coal-size: 1;           /* its radius, in tentacle widths */
+  --ember-spark: #ffc26a;         /* sparks drifting up off the tips */
+  --ember-sparks: 10;             /* at most this many at once */
+  --ember-spark-every: 0.09;      /* seconds between sparks */
+  --ember-spark-life: 0.8;        /* seconds a spark lasts */
+  --ember-spark-rise: 0.05;       /* meters it rises in that time */
+  --ember-spark-size: 0.0022;     /* its radius at the start, meters */
+  --barbed-tentacle-thickness: 1.8; /* Tentacle jelly: its tentacles this many times as thick */
+  --barbed-tentacle-length: 1.35; /* and this many times as long */
+  --barb: #f4e9ff;                /* the barbs along them */
+  --barb-size: 3;                 /* a barb's length, in tentacle widths */
   --venom: #8dff5a;              /* the puffs of a venomed bug */
   /* the pieces evolutions add to the jelly (src/adornments.js), on top of the player's own look */
   --sail: #9fb6ff;               /* Man o' War: the crest and the polyps */

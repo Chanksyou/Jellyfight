@@ -29,6 +29,7 @@ import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
+import { elementParams } from './words.js';
 import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
@@ -77,6 +78,7 @@ export class Bubbles {
     this.timer = 0;
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
+    this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
     this.geo = new THREE.SphereGeometry(1, 20, 14);
     const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
       color: tint, transparent: true, opacity: 0.6, roughness: 0.02, metalness: 0, clearcoat: 1,
@@ -161,20 +163,26 @@ export class Bubbles {
 
   // origin: where bubbles leave the bell. mods: the combined effects of your treasures (words.js)
   // paused: a polyp (rebirth) doesn't shoot; what's already flying carries on
-  update(dt, origin, stats, mods, paused = false) {
+  // attack: a jelly type's one attack (jelly-types.js jellyAttack: { kind, hit }), or null for
+  // today's run (bubbles and every Element owned). Bubbles blow only for kind 'bubble'; an Element
+  // kind fires only that Element, as the main attack (mainParams); 'tentacle' fires nothing here.
+  update(dt, origin, stats, mods, paused = false, attack = null) {
     this.origin = origin;              // where the polyps (adornments.js) circle
-    if (this.windCharge && !mods.elements.has('wind')) this.cancelWind();
+    const main = attack && EL[attack.kind] ? attack.kind : null;
+    this.hit = attack?.hit ?? 1;
+    const ids = attack ? (main ? [main] : []) : this.elements(mods);
+    if (this.windCharge && !ids.includes('wind')) this.cancelWind();
     if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats); return; }
     // one blow at a time: a faster fire rate = a faster stream
-    this.timer += dt * stats.fireRate;
+    if (!attack || attack.kind === 'bubble') this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
       if (this.volley(origin, stats, mods)) this.timer -= 1;
       else this.timer = 1;            // ready, waiting for something in range
       this.timer = Math.min(this.timer, 1);
     }
     // each element you own fires on its own timer, at its own rate (scaled by your Fire rate)
-    for (const id of this.elements(mods)) {
-      const P = mods.element[id];
+    for (const id of ids) {
+      const P = main ? this.mainParams(id, mods) : mods.element[id];
       if (!P) continue;
       let t = (this.elTimers[id] ??= Math.random() * 0.5) + dt * P.rate * stats.fireRate / BASE_FIRE_RATE;
       if (id === 'wind') {
@@ -212,6 +220,17 @@ export class Bubbles {
   // the elements you own, in the order of ELEMENTS
   elements(mods) { return ELEMENTS.filter((e) => mods.elements.has(e.id)).map((e) => e.id); }
 
+  // An Element as a jelly type's main attack: its numbers (with any upgrades), but fired at your
+  // full Fire rate (rate = BASE_FIRE_RATE, so the timer runs at stats.fireRate) and hitting for
+  // the type's hit= share of Attack damage in place of its own dmg. Kept until the mods change.
+  mainParams(id, mods) {
+    const M = this._main;
+    if (M?.id === id && M.mods === mods && M.hit === this.hit) return M.P;
+    const P = { ...(mods.element[id] || elementParams(id)), rate: BASE_FIRE_RATE, dmg: this.hit };
+    this._main = { id, mods, hit: this.hit, P };
+    return P;
+  }
+
   volley(origin, stats, mods) {
     const near = this.inRange(origin, stats.range);
     if (!near.length) return false;
@@ -222,7 +241,7 @@ export class Bubbles {
     const golden = B.golden && n % B.golden.every === 0 ? B.golden.mult : 0;   // golden: its damage multiplier
     const size = stats.bubbleSize, elems = [], tint = null;   // bubbles are plain: elements fire their own shots
     // `bubbles` of them side by side, across the line to the target, all leaving now
-    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.bubbleDamage * bubbleShare(count);
+    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.bubbleDamage * bubbleShare(count) * this.hit;   // hit: a jelly type's (Normal's 1)
     const spread = (Math.random() - 0.5) * 0.12, gap = Math.max(0.014, RADIUS * size * 2.6);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);

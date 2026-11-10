@@ -6,8 +6,8 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | --- | --- | --- | --- |
 | Plan | written | | Spec and phases as of Nov 10 2026, against main at v385 |
 | P1 | merged | #223 | Type switch, content/jellies.kdl, run.jelly (v386) |
-| P2 | not started | | |
-| P3 | not started | | |
+| P2 | merged | #224 | v387 · Bubble stats read Attack damage, Attack size, Attacks; keys unchanged |
+| P3 | merged | #225 | v388 · Six shared words; Shatter on status-damage |
 | P4 | not started | | |
 | P5 | not started | | |
 | P6 | not started | | |

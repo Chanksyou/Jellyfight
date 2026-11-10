@@ -819,7 +819,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet'];
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs'];   // ember, barbs: the Fire and Tentacle jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 

@@ -132,6 +132,9 @@ export function cardAmount(stat, amount, now = 0) {
   return Math.max(0.1, Math.round(amount * (1 - Math.min(cap, now) / cap) * 10) / 10);
 }
 
+// The cards that do nothing for an attack (not-for= in content/levelups.kdl): rollCards' skip
+export const cardsNotFor = (attack) => (attack ? Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).notFor?.includes(attack)) : []);
+
 // Three different stats, each with a rolled rarity
 // bonus: rarity steps added to every card (Game Die); luck: your Luck stat (luckWeights);
 // now: the stats you have with treasures (what a `toward` card's gain is measured from)
