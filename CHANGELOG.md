@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v397 brings the jelly type pick screen's centre card to life: your jelly fires its real attack (bubbles, Fire shots, the Tentacle lash) at three roaches that die and come back, so you can see how the attack works and how long a kill takes.
+
 v396 stops tentacles, bubbles and treasure attacks aiming at a boss that can't be hurt right now (rising, doomed at 0 Health waiting for the cat, or in Encore's cut scenes), not only a shielded one, so they hit a bug instead.
 
 v395 drops an unused lightning line material that was only built to warm up a shader the game never draws (lightning bolts use their own pooled lines), so startup builds one shader fewer.
