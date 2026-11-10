@@ -15,6 +15,12 @@ Built in P5. The owner's sketch is `pick-screen-sketch.png` in this folder.
 - **Phones in landscape.** The centre card must fit the screen height. If it doesn't, put the bars beside the portrait instead of under it.
 - **First run.** A first-time player never sees this screen (`src/first-run.js`); the run starts as Normal.
 
+## The live centre card
+
+Once the row is still, the centre card's portrait comes alive (`src/attack-preview.js`, added after P5 at the owner's request): the jelly, in the player's look and the type's look, fires its real main attack at three roaches with a roach's Health, which die the game's way (`showKill` in `src/feedback.js`) and come back.
+It runs the game's own `Bubbles` and `Lash` with the type's level-1 stats and `attack=`/`hit=`, so a P8 type whose attack works in play shows here with nothing added; a new attack kind outside those two systems needs one line in `AttackPreview.simulate`.
+Only the centre card animates; side cards and Reduce motion keep the still portrait. Framing and frame rate are `--preview-*` in `content/look.css`.
+
 ## The 6 bars
 
 Each bar is a number from 0 to 1, worked out from the type's level-1 stats so it can never drift from the real values. Normal sits at 0.5 on every bar.

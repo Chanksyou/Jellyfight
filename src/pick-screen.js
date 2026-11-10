@@ -8,6 +8,9 @@
 // Swipe or drag; arrow keys or the mouse wheel; tap a neighbour to bring it to the centre. The row
 // settles on a card by itself. Reduce motion (juice.calm) turns off the turning and the settling: the
 // row jumps. Nothing here starts a run: Play calls onPlay(id) and main.js does that.
+//
+// Once the row is still, the centre card's portrait comes alive (attack-preview.js): the jelly fires
+// its real main attack at a bug. Reduce motion keeps the still portrait.
 import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
@@ -38,7 +41,9 @@ const CSS = `
   border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); background: var(--menu-water-deep, #06162e); }
 #type-pick .tp-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
 #type-pick .tp-art img[hidden] { display: none; }
-#type-pick .tp-art .tp-lock { position: absolute; right: 8px; top: 6px; font-size: 22px; }
+#type-pick .tp-art .tp-lock { position: absolute; right: 8px; top: 6px; font-size: 22px; z-index: 1; }
+#type-pick .tp-art canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#type-pick .tp-art canvas[hidden] { display: none; }
 #type-pick .tp-bars { display: grid; gap: 5px; }
 #type-pick .tp-bar { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: #dcd6c4; }
 #type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 10px; }
@@ -83,8 +88,10 @@ const CSS = `
 export class TypePicker {
   // calm: Reduce effects is on. look(): the player's jelly look, so the portraits are redrawn when it changes.
   // portrait(id, turn): a data URL of the player's jelly as that type, turned `turn` radians (jelly-portrait.js), or null.
-  constructor({ calm = () => false, look = () => null, portrait = () => null } = {}) {
-    Object.assign(this, { calm, look, portrait });
+  // live: the centre card's moving picture (attack-preview.js AttackPreview), or null for still portraits only.
+  constructor({ calm = () => false, look = () => null, portrait = () => null, live = null } = {}) {
+    Object.assign(this, { calm, look, portrait, live });
+    this.liveFor = null;   // the type the live picture is showing
     this.lookKey = null;
     this.ids = Object.keys(CONTENT.jellies);
     this.frames = Object.fromEntries(this.ids.map((id) => [id, Array(VIEWS).fill(null)]));
@@ -138,6 +145,9 @@ export class TypePicker {
 
   get isOpen() { return !!this.root && !this.root.hidden; }
   get centre() { return this.ids[this.index]; }
+  get animated() { return !!this.live && !this.calm(); }
+
+  stopLive() { this.live?.hide(); this.liveFor = null; }
 
   // Show the row with `start` in the centre. onPlay(id) when a type is chosen; onBack() if there is somewhere to go back to.
   open({ start = 'normal', onPlay, onBack = null }) {
@@ -173,6 +183,7 @@ export class TypePicker {
 
   close() {
     this.root.hidden = true;
+    this.stopLive();
     this.drag = null;
     this.stage.classList.remove('drag');
   }
@@ -208,7 +219,7 @@ export class TypePicker {
   // --- the centre card and its panel ---------------------------------------------------------
   setCentre(i, quiet = false) {
     if (i === this.index && !quiet) return;
-    if (i !== this.index) { this.showView(this.index, 0, 0); this.spin = 0; sfx.tap(); }
+    if (i !== this.index) { this.showView(this.index, 0, 0); this.spin = 0; sfx.tap(); this.stopLive(); }
     this.index = i;
     const id = this.ids[i], J = CONTENT.jellies[id], lock = typeLock(id), P = this.panel;
     this.cards.forEach((c, k) => c.classList.toggle('centre', k === i));
@@ -239,7 +250,7 @@ export class TypePicker {
   // --- portraits: eight views of each jelly, drawn one a frame when the row is still -------------
   want(i, first) {
     const id = this.ids[i], at = first ? 0 : this.queue.length;
-    const views = first ? [...Array(VIEWS).keys()] : [0];
+    const views = first && !this.animated ? [...Array(VIEWS).keys()] : [0];   // the turning views: only for a still centre card
     const add = views.filter((v) => !this.frames[id][v] && !this.queue.some(([a, b]) => a === id && b === v)).map((v) => [id, v]);
     this.queue.splice(at, 0, ...add);
     if (this.isOpen) this.raf ||= requestAnimationFrame((t) => this.tick(t));
@@ -280,13 +291,20 @@ export class TypePicker {
     if (this.pos !== this.placed) this.place();
     // pictures are drawn only while the row is still: a draw can take a few milliseconds
     if (!moving && this.queue.length) this.draw();
-    // the centre jelly turns slowly, once all eight views are drawn
-    const f = this.frames[this.ids[this.index]], turning = !this.calm() && f.every(Boolean);
+    // the row has settled: the centre card comes alive (its still portrait stays under it, and stays
+    // if the live picture can't be drawn)
+    if (!moving && this.animated && this.liveFor !== this.centre) {
+      this.liveFor = this.centre;
+      this.live.show(this.centre, this.look(), this.cards[this.index].querySelector('.tp-art'));
+    }
+    const live = !!this.liveFor && this.live.step(dt);
+    // a still centre jelly turns slowly, once all eight views are drawn
+    const f = this.frames[this.ids[this.index]], turning = !live && !this.calm() && f.every(Boolean);
     if (turning) {
       this.spin += dt / LOOK.num('pick-spin-step', 1.4);
       this.showView(this.index, Math.floor(this.spin) % VIEWS, this.spin % 1);
     }
-    if (moving || turning || this.queue.length) this.kick();
+    if (moving || turning || live || this.queue.length) this.kick();
   }
 
   // --- moving the row --------------------------------------------------------------------------
