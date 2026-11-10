@@ -115,7 +115,7 @@ story('types/normal-has-no-lash', {
 });
 
 story('types/fire-shot-is-the-only-attack', {
-  about: 'A Fire jelly hurts a bug only with its Fire shot and the Burn it sets: no plain bubbles, no tentacle stings, and no start-of-run Element pick. Each shot hits for hit= x Attack damage (7.5 x 0.5).',
+  about: 'A Fire jelly hurts a bug only with its Fire shot and the Burn it sets: no plain bubbles, no tentacle stings, and no Element pick at the start of a run or, on a new player\'s first run, after the first card. Each shot hits for hit= x Attack damage (7.5 x 0.5).',
   setup() { setupFight({ types: 'fire' }); },
   play() {
     const { run, menus } = G();
@@ -126,7 +126,16 @@ story('types/fire-shot-is-the-only-attack', {
     const by = hurtBy(60 * 4);
     const only = Object.keys(by).every((k) => k === 'fire') && by.fire?.length > 0;
     const shots = (by.fire || []).filter((a) => Math.abs(a - 7.5 * 0.5) < 1e-9).length, burns = (by.fire || []).length - shots;
-    return ok(noPick && only && shots > 0 && burns > 0, { noPick, sources: Object.keys(by), shots, burns });
+    // a new player's first run opens the Element pick after the first card instead: not for a jelly type
+    fresh({ types: 'fire', firstRun: true, levels: true });
+        const offers = [];
+    stub(run, 'offer', (title) => offers.push(title));   // the Element pick is an offer of Treasures
+    run.pendingLevels = 1; run.levelUp();
+    step(90, () => document.querySelector('.jf-card'));
+    document.querySelector('.jf-card')?.click();
+    step(60);
+    const noFirstRunPick = !offers.length && run.owned.size === 0 && !run.choosingCard;
+    return ok(noPick && noFirstRunPick && only && shots > 0 && burns > 0, { noPick, noFirstRunPick, offers, choosing: run.choosingCard, sources: Object.keys(by), shots, burns });
   },
 });
 

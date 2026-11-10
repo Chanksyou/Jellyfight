@@ -14,6 +14,8 @@ jelly "normal" name="Normal Jelly" attack="bubble" hit=1
 // Fire: the Fire shot at full Fire rate. hit=0.5 lands it at 11.4 damage a second on one bug
 // (7.5 x 0.5 x 1.5/s = 5.6 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
 // the top of the 9-12 budget, for a glass cannon (docs/jelly-types/spec-core.md)
+// hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
+// about half of Fire's damage
 jelly "fire" name="Fire Jelly" attack="fire" hit=0.5 adorn="ember" {
     stat bubble-damage 7.5
     stat move-speed 1.05

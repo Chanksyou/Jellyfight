@@ -116,16 +116,16 @@ export class Adornments {
       // the core: in the middle of the bell, which the rig hangs from (model units: the bell's rim at 0.56)
       core.visible = on;
       if (on) {
-        rig.parent.localToWorld(core.position.set(0, LOOK.num('ember-core-y', 0.66), 0));
+        rig.parent.localToWorld(core.position.set(0, LOOK.num('ember-core-y', 0.86), 0));
         core.scale.setScalar(h * LOOK.num('ember-core-size', 0.1) * (0.92 + flick * 0.1));
         coreMat.emissiveIntensity = 2.2 * flick;
-        G?.hold(core.position, glowCol, h * LOOK.num('ember-glow-size', 0.45) * flick, 0.55 * flick);
+        G?.hold(core.position, glowCol, h * LOOK.num('ember-glow-size', 0.6) * flick, 0.55 * flick);
       }
       coals.forEach((m, i) => {
         m.visible = on && !!rig.list[i];
         if (!m.visible) return;
         rig.list[i].tip.getWorldPosition(m.position);
-        m.scale.setScalar(rig.thick * unit * LOOK.num('ember-coal-size', 0.7) * (0.9 + Math.sin(this.t * 17 + i * 2.1) * 0.1));
+        m.scale.setScalar(rig.thick * unit * LOOK.num('ember-coal-size', 1) * (0.9 + Math.sin(this.t * 17 + i * 2.1) * 0.1));
         G?.hold(m.position, coalCol, m.scale.x * 5, 0.6);
       });
       // a spark leaves a tip now and then, drifts up and dies out
@@ -134,7 +134,7 @@ export class Adornments {
         const m = sparks.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
         if (m && T) { T.tip.getWorldPosition(m.position); Object.assign(m.userData, { t: 0, dx: (Math.random() - 0.5) * 0.02, dz: (Math.random() - 0.5) * 0.02 }); m.visible = true; }
       }
-      const life = LOOK.num('ember-spark-life', 0.8), rise = LOOK.num('ember-spark-rise', 0.05), size = LOOK.num('ember-spark-size', 0.0018);
+      const life = LOOK.num('ember-spark-life', 0.8), rise = LOOK.num('ember-spark-rise', 0.05), size = LOOK.num('ember-spark-size', 0.0022);
       for (const m of sparks) {
         if (!m.visible) continue;
         const u = (m.userData.t += dt) / life;
@@ -154,11 +154,11 @@ export class Adornments {
     const geo = new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
     const barbs = Array.from({ length: 8 * per }, () => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
     batcher.track(group);
-    const p = this._v, d = new THREE.Vector3(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
+    const d = new THREE.Vector3(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
     return { group, free: true, tick: (dt, run) => {
       const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
       if (on) rig.parent.getWorldQuaternion(q);
-      const unit = rig?.unit || 1, size = LOOK.num('barb-size', 2.2);
+      const unit = rig?.unit || 1, size = LOOK.num('barb-size', 3);
       barbs.forEach((m, k) => {
         const T = on && rig.list[Math.floor(k / per)];
         m.visible = !!T;
