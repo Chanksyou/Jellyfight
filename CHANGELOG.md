@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v388 adds six shared words for the jelly types' coming Attack upgrades (status-damage, status-taken, on-kill-of, nth-attack, stack-buff, while moving); Shatter now runs on status-damage and plays the same.
+
 v387 renames the Bubble stats to Attack in player text: Attack damage, Attack size and Attacks, and treasures, cards, evolutions and achievements now say "attack" where they mean your attack. No numbers or behaviour changed.
 
 v386 lays the groundwork for jelly types (dev only): content/jellies.kdl lists the eight types, and the dev switch (`?types`, a Types button in the dev tools) starts a run as one with its own stats. Players see no change.
