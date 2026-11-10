@@ -80,7 +80,10 @@ _Avoid_: Duplicates
 A Treasure that improves an Element the jelly already has. Every 3rd treasure pick, one of the three is an Element upgrade, while the jelly has any left to take; other treasure picks never offer one.
 
 **Boss reward**:
-What beating a Boss gives: the metamorphosis, then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
+What beating a Boss gives: one Legendary pick of three from the Legendary treasures, the evolutions included, then an Attack upgrade. Until jelly types are released, it is still the metamorphosis (an evolution pick), then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
+
+**Evolution**:
+A Legendary treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis. Until jelly types are released, it is still a separate pick of three after each act's boss, one per boss.
 
 **Bug**:
 An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.

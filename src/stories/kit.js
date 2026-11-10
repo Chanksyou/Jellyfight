@@ -477,9 +477,12 @@ export function volumePairs() {
 // start one attack; check its Warning as it shows and fills, the shaders, and that it's gone after
 function checkAttack(who, name, a) {
   const { APT, batcher, run } = G(), r = {};
+  // what the scene already shows is built first, so only what the attack adds counts (a story
+  // before this one can leave something not yet drawn, like a jelly rebuilt in the creator)
+  batcher.sync(); G().GAME.compile();
+  const programs = APT.renderer.info.programs.length;
   a.start();
   const boss = who === bossKind() ? run.boss : null, e = boss || a.during ? null : eliteOf(who);
-  const programs = APT.renderer.info.programs.length;
   const shows = {
     volume: () => volumePairs().some(([, f]) => f && f.material.progress > 0.05),
     floor: () => { const w = shownWarnings(); return w.floor.some((f) => f.material.progress > 0.05) && !w.volume.length; },
