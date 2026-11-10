@@ -28,7 +28,7 @@ export function options(args, tool = 'balance') {
     }
     const at = arg.indexOf('='), key = arg.slice(2, at), value = arg.slice(at + 1);
     if (at < 0) throw Error(`Expected --option=value: ${arg}`);
-    if (tool !== 'balance' && ['act', 'seconds', 'prefer', 'type'].includes(key)) throw Error(`--${key} belongs to balance.mjs`);
+    if (tool !== 'balance' && ['act', 'seconds', 'prefer'].includes(key)) throw Error(`--${key} belongs to balance.mjs`);
     if (key === 'seed') out.seed = integer(value, 0, 0xffffffff, key);
     else if (key === 'seeds') out.seeds = list(value).map(s => integer(s, 0, 0xffffffff, key));
     else if (key === 'runs') out.runs = integer(value, 1, 10000, key);

@@ -168,13 +168,13 @@ function controller(config, meter) {
   } };
 }
 
-export function encounter({ seed, style, build, item, type = 'roach', mode = 'clump', probe = false }) {
+export function encounter({ seed, style, build, item, type = 'roach', mode = 'clump', probe = false, jelly = null }) {
   dispose();
   const random = Math.random;
   Math.random = seededRandom(seed);
   let meter; const undo = [];
   try {
-    setupFight({ hurt: true, levels: false });
+    setupFight({ hurt: true, levels: false, types: jelly });   // jelly: --type, a jelly type with the switch on
     const { run, player, enemies } = G();
     resetTrial(seed, undo);
     run.devRun();

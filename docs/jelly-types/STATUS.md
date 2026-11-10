@@ -10,7 +10,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P3 | merged | #225 | v388 · Six shared words; Shatter on status-damage |
 | P4 | merged | #226 | v389 · Normal, Fire, Tentacle attacks; not-for= on cards and Treasures; ember and barbs looks |
 | P5 | not started | | |
-| P6 | not started | | |
+| P6 | merged | #228 | v390 · Attack upgrade pick after acts 1-3, Fire's 12 in content/upgrades.kdl |
 | P7 | not started | | |
 | G1 | waiting | | Owner plays Normal, Fire, Tentacle |
 | P8a Ice | not started | | |
@@ -19,7 +19,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P8d Wind | not started | | |
 | P8e Glitter | not started | | |
 | P8n Normal pool | not started | | |
-| P9 | not started | | |
+| P9 | in review | | Evolutions join the Legendary pick with types on (still in content/evolutions.kdl until P11); not-for= on Rebound, Man o' War, Disco Ball; tentacle-weapon word |
 | P10 | not started | | |
 | G2 | waiting | | Owner's balance runs and go |
 | P11 | not started | | |

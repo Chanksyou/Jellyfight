@@ -471,7 +471,8 @@ export class Run {
   // (the Tentacle jelly's lash is its attack: Attacks tentacles, each for Attack damage, Fire rate lashes a second)
   get tentacleStats() {
     const s = this.S, A = this.attack;   // treasures can raise all four (stat, per)
-    if (A?.kind === 'tentacle') return { tentacles: Math.min(MAX_TENTACLES, s.bubbles), reach: s.reach, tentacleDamage: s.bubbleDamage * A.hit, tentacleSpeed: s.fireRate };
+    // (tentacle-weapon, Box Jelly: its extra tentacles add to the Tentacle jelly's Attacks)
+    if (A?.kind === 'tentacle') return { tentacles: Math.min(MAX_TENTACLES, s.bubbles + (this.mods.tentacleWeapon ? s.tentacles - BASE_STATS.tentacles : 0)), reach: s.reach, tentacleDamage: s.bubbleDamage * A.hit, tentacleSpeed: s.fireRate };
     return { tentacles: s.tentacles, reach: s.reach, tentacleDamage: s.tentacleDamage, tentacleSpeed: s.tentacleSpeed };
   }
   // seconds until the boss comes (treasures can make the night longer)
@@ -564,8 +565,8 @@ export class Run {
       // main attack: bubbles, blown from the top of the bell (a jelly type: only its own attack)
       const A = this.attack;
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
-      // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes)
-      if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
+      // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes, or tentacle-weapon)
+      if (!polyp && (!A || A.kind === 'tentacle' || this.mods.tentacleWeapon)) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
@@ -1152,9 +1153,11 @@ export class Run {
 
   // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
   // (while any are left); the rest from the other Legendary treasures and elements you can take
+  // With jelly types the evolutions not taken yet are in the same pool (docs/jelly-types/spec-legendaries.md)
   pickLegendary(title, sub, then = () => this.resume()) {
     const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
-    const pool = shuffle(TREASURES.filter(can)), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
+    const evos = this.attack ? EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e)) : [];
+    const pool = shuffle([...TREASURES.filter(can), ...evos]), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
     const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
     if (!left.length) { then(); return; }
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
@@ -1185,7 +1188,7 @@ export class Run {
   }
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
-  markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
+  markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(c.evolution ? 'evolutions' : kind, c.id) })); }
   // (true when it's a first)
   found(kind, id, label = id) { if (!this.dev && discover(kind, id)) { this.newFinds.push(label); return true; } return false; }
 
@@ -1193,6 +1196,7 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
+      if (t.evolution) { this.evolve(t, then); return; }   // (jelly types: an evolution in the Legendary pick)
       const before = this.S.health;
       this.owned.add(t.id);
       this.treasuresObtained++;
@@ -1457,21 +1461,31 @@ export class Run {
     if (left) this.gainXp(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
-    const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
+    // jelly types: no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
+    if (this.attack && next) {
+      this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+      return;
+    }
+    const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
     const pick = next ? 'Choose an evolution for the rest of the run.' : 'Choose an evolution.';   // (the last act: nothing after it to promise)
     this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, this.markNew('evolutions', choices), (evo) => {
-      const before = this.mods;
-      this.evolved.push(evo.id);
-      this.found('evolutions', evo.id, `${evo.icon} ${evo.name}`);
-      this.health = this.S.health;
-      this.evolutionReveal.begin(evo, before, () => {
+      this.evolve(evo, () => {
         this.phase = 'won';
         // The transformation finishes before the next reward replaces its portrait.
-        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => (this.attack ? this.pickUpgrade(next, () => this.actComplete(next)) : this.actComplete(next)));
+        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => this.actComplete(next));
         else this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
       });
     });
+  }
+
+  // Take an evolution: its effects join the run's, Health refills, and the metamorphosis plays; then: after it
+  evolve(evo, then) {
+    const before = this.mods;
+    this.evolved.push(evo.id);
+    this.found('evolutions', evo.id, `${evo.icon} ${evo.name}`);
+    this.health = this.S.health;
+    this.evolutionReveal.begin(evo, before, then);
   }
 
   // A delayed step (real time, ms) that only happens if this run is still the one being played:
