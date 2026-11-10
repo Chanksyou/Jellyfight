@@ -964,7 +964,7 @@ export class Run {
     for (const K of this.mods.killsOf) {
       if ((K.status && !(statuses[K.status] >= K.stacks)) || (K.by && K.by !== by)) continue;
       const feet = new THREE.Vector3(c.x, floor, c.z);
-      const ctx = { feet, center: c, facing: this.player.facing, power: this.power,
+      const ctx = { feet, center: c, facing: this.player.facing, power: this.power, mods: this.mods,
         dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of K.effects) this.gadgets.fire(ef, ctx);

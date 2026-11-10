@@ -235,18 +235,18 @@ story('treasures/status-blast', {
     log.length = 0;
     bus.emit('damage_taken', { targetId: a.id, amount: 4, source: 'fire', feedback: { tick: true } });
     const tickQuiet = !log.some((d) => d.targetId === near.id);
-    B.freshBurn = a; const fresh = enemies.statuses.burning(a); B.freshBurn = null;
+    enemies.freshBurn = a; const fresh = enemies.statusMore(a, 'bubble'), stillBurning = enemies.statuses.burning(a); enemies.freshBurn = null;
     const boss = { proxy: {} }; B.ignite(boss, 1);
     const eliteK = enemies.statusMore(boss, 'bubble');
     B.burning.delete(boss);
-    const pass = landed === 4 && toNear.length === 1 && Math.abs(toNear[0] - 2) < 1e-9 && !toFar && tickQuiet && fresh === 0 && Math.abs(eliteK - 1.2) < 1e-9
+    const pass = landed === 4 && toNear.length === 1 && Math.abs(toNear[0] - 2) < 1e-9 && !toFar && tickQuiet && fresh === 1 && stillBurning === 1 && Math.abs(eliteK - 1.2) < 1e-9
       && !!mistake('status-damage "burning" bugs=#false');
-    return ok(pass, { landed, toNear, toFar, tickQuiet, fresh, eliteK });
+    return ok(pass, { landed, toNear, toFar, tickQuiet, fresh, stillBurning, eliteK });
   },
 });
 
 story('treasures/on-kill-of-stacks', {
-  about: 'on-kill-of status="burning" stacks=3: a bug that dies with 3 Burns sets off its ring; one with a single Burn doesn\'t. stacks= without status= is a mistake.',
+  about: 'on-kill-of status="burning" stacks=3: a bug that dies with 3 Burns sets off its ring, even when the killing hit is the one that lit it; one with a single Burn doesn\'t. stacks= without status= is a mistake.',
   setup() { setupFight({ lash: false, bubbles: false }); },
   play() {
     const { run } = G(), B = run.bubbles;
@@ -257,7 +257,9 @@ story('treasures/on-kill-of-stacks', {
     const quiet = !log.some((d) => d.source === 'ring');
     const three = roachAt(0, -0.3), beside = roachAt(0.04, -0.3);
     for (let i = 0; i < 3; i++) B.ignite(three, 1, fire({ burnStacks: 3 }));
+    G().enemies.freshBurn = three;   // as if the killing hit had just lit it: it still dies burning
     kill(three);
+    G().enemies.freshBurn = null;
     const rang = log.some((d) => d.source === 'ring' && d.targetId === beside.id);
     return ok(quiet && rang && !!mistake('on-kill-of stacks=2 {\n  xp 1\n}'), { quiet, rang });
   },

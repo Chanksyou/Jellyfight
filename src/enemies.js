@@ -29,8 +29,8 @@ const EXHAUST = new THREE.Color('#ffa040');
 const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the stag beetle's ball: its white-hot core and the arcs crackling round it
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
-const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));
-const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting      // the sparks crackling over a stunned bug (lightning's colour)
+const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
+const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
 // a chilled bug's crown: seven ice spikes in a ring round its feet, leaning out, uneven (one shared geometry)
 function iceCrown() {
@@ -488,7 +488,7 @@ export class Enemies {
     this._thaw = false; this._blast = 0; this._blastDmg = 0;
     for (const D of this.mods?.statusDamage || []) {
       if ((e.proxy ? !D.elites : D.bugs === false) || (D.by !== 'all' && D.by !== by)) continue;
-      const n = this.statuses[D.status](e);
+      const n = D.status === 'burning' && e === this.freshBurn ? 0 : this.statuses[D.status](e);   // freshBurn: the Fire hit landing now lit it (bubbles.js strike)
       if (!n) continue;
       more += D.more + D.perStack * n;
       this._thaw ||= D.thaw;

@@ -491,10 +491,9 @@ export class Gadgets {
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     dir.normalize();
     const half = ef.angle * Math.PI / 360, cos = Math.cos(half);
-    // release: a flash at the bell, the bell squeezes, a whoosh; the flame licks out along the cone
+    // release: a flash at the bell and the flame licking out along the cone (the whoosh, squeeze and shake only on a hit, below)
     F?.fireLaunch(center, 0.012);
     for (let i = 1; i <= 4; i++) for (let j = -1; j <= 1; j++) F?.fireBurn(_to.copy(dir).applyAxisAngle(UP, j * half * 0.75).multiplyScalar(ef.range * i / 4).add(center), 0.008 + 0.005 * i);
-    sfx.fireLaunch(1.4); pulse?.(0.3); juice.feel('hit');
     let hit = 0;
     for (const e of near) {
       const at = E.center(e), to = at.clone().sub(center).setY(0), l = to.length();
@@ -505,6 +504,6 @@ export class Gadgets {
       if (!e.T?.fly && !e.dead) bus.emit('knockback', { targetId: e.id, dir: dir.clone(), force: knockFor(power * ef.dmg) });
       if (!e.dead) B?.ignite(e, power * 2.5, mods?.element?.fire);   // power is Attack damage x 1.8; Burn's is x 4.5
     }
-    if (hit) sfx.fire(1.2);
+    if (hit) { sfx.fireLaunch(1.4); sfx.fire(1.2); pulse?.(0.3); juice.feel('hit'); }   // feedback follows a hit: an empty cone only flickers
   }
 }

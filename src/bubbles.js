@@ -66,7 +66,7 @@ const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
     Object.assign(this, { scene, enemies, fx, world });
-    enemies.statuses.burning = (e) => { const f = e !== this.freshBurn && this.burning.get(e); return f?.t > 0 ? f.n : 0; };   // its Burn stacks   // status-damage & co. (words.js STATUSES)
+    enemies.statuses.burning = (e) => { const f = this.burning.get(e); return f?.t > 0 ? f.n : 0; };   // its Burn stacks (status-damage & co.: words.js STATUSES)
     this.list = [];
     this.pool = [];
     this.statePool = [];
@@ -486,7 +486,7 @@ export class Bubbles {
       const was = this.burning.get(e)?.t > 0;
       this.ignite(e, b.pw, b.ep);
       if (was && mods.refreshAll.includes('burning')) this.refreshBurns(e);   // refresh-all (Flare Up)
-      if (!was) this.freshBurn = e;   // this hit lit it, so it isn't a hit on a Burning bug (status-damage) until it lands
+      if (!was) this.enemies.freshBurn = e;   // this hit lit it: status-damage doesn't count it as a hit on a Burning bug
       b.stopFireAudio?.();
       this.looks.fireHit(c, b.r, b.vel);
       sfx.fire(b.fireWeight);
@@ -510,7 +510,7 @@ export class Bubbles {
     // a shove in the direction the bubble was going: the harder the hit, the further
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
-    this.freshBurn = null;
+    this.enemies.freshBurn = null;
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
       collisionDamage: dmg * (b.ep?.collision ?? 1),
