@@ -8,8 +8,8 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P1 | merged | #223 | Type switch, content/jellies.kdl, run.jelly (v386) |
 | P2 | merged | #224 | v387 · Bubble stats read Attack damage, Attack size, Attacks; keys unchanged |
 | P3 | merged | #225 | v388 · Six shared words; Shatter on status-damage |
-| P4 | not started | | |
-| P5 | not started | | |
+| P4 | merged | #226 | v389 · Normal/Fire/Tentacle main attacks; Fire hit=0.5; not-for= filter |
+| P5 | in review | | Pick screen behind the switch; owner approves the look before merge |
 | P6 | not started | | |
 | P7 | not started | | |
 | G1 | waiting | | Owner plays Normal, Fire, Tentacle |

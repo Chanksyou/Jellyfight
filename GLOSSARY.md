@@ -95,6 +95,9 @@ A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongsi
 **Jelly type**:
 What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). Not offered to players yet; every run is Normal until release.
 
+**Type bars**:
+The six bars on a jelly type's card on the pick screen: Damage, Attack speed, Range, Area, Toughness and Mobility, each worked out from the type's level-1 stats with Normal at the middle of every bar.
+
 **Elite**:
 A mini-boss: a household object that fights back, tougher than a bug and weaker than the boss.
 _Avoid_: Miniboss

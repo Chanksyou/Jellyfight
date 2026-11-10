@@ -47,6 +47,8 @@ import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run, makeBoss, DEV_KEY } from './run.js';
 import { TYPE_SWITCH } from './jelly-types.js';
+import { TypePicker } from './pick-screen.js';
+import { picksType } from './first-run.js';
 import { CONTENT } from './content.js';
 import { bagHtml } from './treasure-bag.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
@@ -197,6 +199,9 @@ const creator = new Creator({
   onPreview: (l) => showLook(l, true),   // a locked option tried on: drawn, never state.look
 });
 creator.mount(ui);
+// the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
+const picker = new TypePicker({ calm: () => juice.calm, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, barbed: CONTENT.jellies[id].adorn === 'barbs' }) });
+picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------
 const ARENA = APT.arena || null;       // an act in a built arena (act 4's concert: boot.js), not the apartment
@@ -347,6 +352,21 @@ function play() {
     d.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
   }
 }
+// The title's Play. With jelly types switched on a returning player picks one first (pick-screen.js); a
+// first-time player never does (first-run.js): their run is Normal. Pausing mid-run and Play resumes as before.
+function startRun() {
+  const begin = () => { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); };
+  if (!TYPE_SWITCH.on || stage.id !== 1 || !mainMenu.home) return begin();
+  const choose = (id) => { TYPE_SWITCH.start = id; if (run.jelly !== id) { forgetRun(); showKept(); run.start(); } begin(); };
+  if (!picksType()) choose('normal');
+  else picker.open({ start: TYPE_SWITCH.start, onPlay: choose, onBack: () => {} });
+}
+// the end screen's Try again: a returning player picks a type again (true: the screen took it over)
+run.pickType = () => {
+  if (!TYPE_SWITCH.on || !picksType()) return false;
+  picker.open({ start: TYPE_SWITCH.start, onPlay: (id) => { TYPE_SWITCH.start = id; run.start(); run.resume(); } });
+  return true;
+};
 function pause() {
   if (menus.open || state.mode !== 'play') return;
   mainMenu.cancelLaunch();
@@ -404,7 +424,7 @@ if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }
 let bossScene = null;
-const controlsCovered = () => upright.on || !!bossScene || mainMenu.launching || !overlay.hidden || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
+const controlsCovered = () => upright.on || picker.isOpen || !!bossScene || mainMenu.launching || !overlay.hidden || kit.open || tuner.open || state.mode === 'creator' || state.mode === 'layout';
 const menuOpen = () => controlsCovered() || menus.open;
 
 // --- Frame systems, in the order they run (systems.js) ---------------------------------
@@ -724,6 +744,8 @@ const GAME = {
 Object.defineProperty(GAME, 'types', { get: () => TYPE_SWITCH.on, set: (v) => { TYPE_SWITCH.on = !!v; } });
 window.GAME = GAME;
 window.mainMenu = mainMenu;
+window.picker = picker;
+GAME.startRun = startRun;
 
 // --- Menus + keys ---------------------------------------------------------------
 function renderQuality() {
@@ -736,7 +758,7 @@ overlay.addEventListener('click', (e) => {
   if (!b) return;
   sfx.tap();
   if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }); }
-  else if (b.classList.contains('play')) { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); }
+  else if (b.classList.contains('play')) startRun();
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.fps) { setFps(+b.dataset.fps); renderQuality(); }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }

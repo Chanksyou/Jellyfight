@@ -11,6 +11,7 @@
 //     are skipped; an Elite's Treasure still drops); a skipped one turns up a few seconds after the
 //     pick instead of waiting for the next scheduled time
 //   - the minimap stays hidden until the first Treasure appears in the room, then stays
+//   - with jelly types on, the type pick screen is skipped: the run starts as Normal (picksType)
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so
@@ -40,6 +41,9 @@ export const deathHint = () => DEATH_HINTS[Math.floor(Math.random() * DEATH_HINT
 export function isNewPlayer() {
   try { return !localStorage.getItem(PLAYED_KEY) && !localStorage.getItem(BEST_KEY); } catch { return false; }
 }
+
+// A first-time player never sees the jelly type pick screen (pick-screen.js): their run is Normal
+export const picksType = () => !isNewPlayer();
 
 export function markPlayed() {
   try { localStorage.setItem(PLAYED_KEY, '1'); } catch {}

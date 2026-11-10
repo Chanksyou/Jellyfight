@@ -37,17 +37,20 @@ function toScreen(r, g, b, exposure, out, i) {
 }
 
 // A data URL of `look`'s jelly, three-quarter on, in a disc of the menu's deep water (the board shows
-// it round); null if it can't be drawn
-export function jellyPortrait(renderer, look) {
-  const id = JSON.stringify(normalizeLook(look));
+// it round); null if it can't be drawn. `turn` is how far round it is (radians; the pick screen draws
+// a few turns of the same jelly and fades between them), `barbed` draws its tentacles as the Tentacle
+// jelly's (tentacles.js; the type's other adornments belong to the live jelly and are not drawn here)
+export function jellyPortrait(renderer, look, { turn = 0, barbed = false } = {}) {
+  const id = JSON.stringify([normalizeLook(look), turn, barbed]);
   if (cache.has(id)) return cache.get(id);
   let url = null;
   try {
     kit ||= setup();
     const { scene, camera, target, canvas, ctx, pixels, image } = kit;
     const avatar = buildCharacter(look, 0.09);
+    if (avatar.tentacles) avatar.tentacles.barbed = barbed;
     avatar.update?.(0, { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 });
-    avatar.root.rotation.y = -0.5;
+    avatar.root.rotation.y = -0.5 + turn;
     scene.add(avatar.root);
     const box = new THREE.Box3().setFromObject(avatar.root), mid = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
     camera.position.set(mid.x, mid.y + r * 0.35, mid.z + r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.62);   // close: the bell and the tops of its arms fill the disc
