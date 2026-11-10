@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v392 makes the dev password check ignore stray spaces or a line break in the stored password, and says "Wait 3 seconds" instead of "Wrong password" when you try again too fast.
+
 v391 adds the jelly type pick screen behind the jelly types switch: a row of cards with a slowly turning portrait, six stat bars and a details panel, opened by Play.
 
 v390 jelly types (behind the switch): after each of the first three bosses a second pick of 3 Attack upgrades from the type's pool, with Fire's 12 (content/upgrades.kdl); with types on, chests never offer Elements, Element upgrades, Power Bank or the old tentacle Treasures.
