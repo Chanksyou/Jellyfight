@@ -90,7 +90,6 @@ export class Bubbles {
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
     this.puddles = [];
-    this.zapMat = new THREE.LineBasicMaterial({ color: 0xfff27a, transparent: true });
     this.puddlePool = [];
     this.acidMat = new AcidMaterial();   // each puddle a copy (its own uniforms, the same program: no shader to build in a fight)
     this.puddleGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
