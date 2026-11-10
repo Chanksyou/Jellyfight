@@ -176,7 +176,11 @@ export const audio = () => (ctx ? { ctx, master } : null);
 export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
 export const isMuted = () => muted;
 
-const ready = () => ctx && (at !== null || ctx.state === 'running') && !muted;
+let hush = 0;
+// fn's sounds don't play (the pick screen's attack preview runs the real attacks, quietly)
+export function hushed(fn) { hush++; try { return fn(); } finally { hush--; } }
+
+const ready = () => ctx && (at !== null || ctx.state === 'running') && !muted && !hush;
 
 // Deepened sound (the Cream Whipper's balloon): for `hold` s everything (music and sound effects)
 // plays low and muffled, then eases back to normal over `ease` s. pitch() is the factor every

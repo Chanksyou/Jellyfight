@@ -121,3 +121,12 @@ export class Batcher {
 
 // The game's one batcher; main.js gives it the scene, anything can track meshes with it
 export const batcher = new Batcher();
+
+// Run fn with what it tracks going to `other` instead (a menu's own little scene: the pick screen's
+// attack preview, attack-preview.js), so the game's systems can be run there unchanged. other.sync()
+// draws them.
+export function batchingInto(other, fn) {
+  const { scene, roots, groups } = batcher;
+  Object.assign(batcher, { scene: other.scene, roots: other.roots, groups: other.groups });
+  try { return fn(); } finally { Object.assign(batcher, { scene, roots, groups }); }
+}

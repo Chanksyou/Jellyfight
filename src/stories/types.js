@@ -2,6 +2,7 @@
 // switch until release. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 import { CONTENT, compileJellies, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
+import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
@@ -324,6 +325,48 @@ story('types/pick-screen-fits-phone', {
       const beside = art.right <= bars.left + 1;
       const still = document.documentElement.scrollWidth <= W;
       return ok(fits && cut && beside && still, { fits, cut, beside, still, size: [W, H], centre: [centre.top, centre.bottom], panel: [panel.top, panel.bottom, panel.height] });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-screen-centre-card-attacks', {
+  about: 'Once the row is still, only the centre card comes alive (attack-preview.js): Fire\'s jelly fires real Fire shots at three roaches that burn, die and come back; the Tentacle jelly\'s lash takes all three at once; nothing reaches the game (no damage event, no shake); moving to another card stops it; Reduce motion keeps the still portrait.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    const hurt = record('damage_taken'), trauma = juice.trauma;
+    // watch it for `secs`: the most shots in the air at once and how many roaches died
+    const watch = (secs, kind) => {
+      let shots = 0, kills = 0, dead = 0, list = live.P.enemies.list;
+      for (let i = 0; i < secs * 30; i++) {
+        live.simulate(1 / 30);
+        const now = live.P.enemies.list, n = now.filter((b) => b.dead).length;
+        if (now !== list) { kills += 3 - dead; list = now; dead = 0; } else { kills += n - dead; dead = n; }
+        shots = Math.max(shots, kind === 'tentacle' ? live.P.lash.strikes.length : live.P.bubbles.list.filter((b) => b.tint === kind).length);
+      }
+      return { shots, kills };
+    };
+    try {
+      pressPlay('fire');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});   // the picture itself: screenshots (a software renderer takes ~40 s to build its shaders)
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');   // and the still portraits (the same ~40 s)
+      settle();
+      const arts = picker.cards.map((c) => c.querySelector('.tp-art canvas'));
+      const centreOnly = live.on && picker.liveFor === 'fire' && arts.filter(Boolean).length === 1 && !!arts[picker.index];
+      const fire = watch(10, 'fire');
+      const burned = fire.shots >= 1 && fire.kills >= 3;
+      key('ArrowRight');
+      const stopped = !live.on && picker.liveFor === null;
+      picker.go(picker.ids.indexOf('tentacle')); picker.pos = picker.target; settle();
+      const lash = watch(4, 'tentacle');
+      const lashed = picker.liveFor === 'tentacle' && lash.shots === 3 && lash.kills >= 3;
+      const quiet = hurt.length === 0 && juice.trauma === trauma;
+      stub(picker, 'calm', () => true);
+      key('ArrowLeft'); settle();
+      const calm = !live.on && picker.liveFor === null;
+      return ok(centreOnly && burned && stopped && lashed && quiet && calm, { centreOnly, fire, stopped, lash, quiet, hurt: hurt.length, calm });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

@@ -258,6 +258,14 @@
   --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
   --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
+  /* the centre card's live picture (src/attack-preview.js): the jelly firing its attack at a bug */
+  --preview-fps: 30;           /* frames a second it draws at most */
+  --preview-supersample: 1.5;  /* drawn this many times sharper than the card shows it, then scaled down (smooth edges) */
+  --preview-respawn: 1.2;      /* seconds after the last roach dies before all three are back */
+  --preview-camera-distance: 0.6;   /* m, for roaches 21 cm off (closer in for the Tentacle jelly) */
+  --preview-camera-angle: 0.4; /* radians round from side-on toward the jelly's face */
+  --preview-camera-up: 0.45;   /* radians it looks down */
+  --preview-floor: #2b6f8a;    /* the pool of light they stand in */
 
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;

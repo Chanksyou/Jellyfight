@@ -48,6 +48,7 @@ import { UI } from './ui.js';
 import { Run, makeBoss, DEV_KEY } from './run.js';
 import { TYPE_SWITCH } from './jelly-types.js';
 import { TypePicker } from './pick-screen.js';
+import { AttackPreview } from './attack-preview.js';
 import { picksType } from './first-run.js';
 import { CONTENT } from './content.js';
 import { bagHtml } from './treasure-bag.js';
@@ -200,7 +201,7 @@ const creator = new Creator({
 });
 creator.mount(ui);
 // the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
-const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, adorn: CONTENT.jellies[id].adorn }) });
+const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, adorn: CONTENT.jellies[id].adorn }), live: new AttackPreview(renderer) });
 picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------

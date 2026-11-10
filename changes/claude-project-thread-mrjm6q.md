@@ -1,0 +1,1 @@
+brings the jelly type pick screen's centre card to life: your jelly fires its real attack (bubbles, Fire shots, the Tentacle lash) at three roaches that die and come back, so you can see how the attack works and how long a kill takes.
