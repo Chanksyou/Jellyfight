@@ -305,12 +305,12 @@ story('hud/treasure-timers', {
 });
 // the jelly types' shared words (docs/jelly-types, phase P3): built and proven ahead of the Attack
 // upgrades that will use them; take each off this list once something does
-const WAITING = new Set(['status-damage', 'status-taken', 'on-kill-of', 'nth-attack', 'stack-buff']);
+const WAITING = new Set(['status-taken', 'nth-attack', 'stack-buff']);   // status-damage and on-kill-of: Fire's Attack upgrades (P6)
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
   about: 'Every treasure word has a description, is used by some treasure (or is one of the jelly types\' shared words still waiting for its Attack upgrades), and has a treasures/ story.',
   setup() {},
   play() {
-    const users = [...CONTENT.treasures, ...CONTENT.evolutions];   // evolutions use the same words
+    const users = [...CONTENT.treasures, ...CONTENT.evolutions, ...CONTENT.upgrades];   // evolutions and Attack upgrades use the same words
     const used = new Set(users.flatMap((t) => t.vocabulary));
     const usedTimed = new Set();
     for (const t of users) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt]) for (const ef of T.effects) usedTimed.add(ef.kind); }

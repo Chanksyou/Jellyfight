@@ -66,7 +66,7 @@ const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
     Object.assign(this, { scene, enemies, fx, world });
-    enemies.statuses.burning = (e) => (this.burning.get(e)?.t > 0 ? 1 : 0);   // status-damage & co. (words.js STATUSES)
+    enemies.statuses.burning = (e) => { const f = this.burning.get(e); return f?.t > 0 ? f.n : 0; };   // its Burn stacks (status-damage & co.: words.js STATUSES)
     this.list = [];
     this.pool = [];
     this.statePool = [];
@@ -172,7 +172,7 @@ export class Bubbles {
     this.hit = attack?.hit ?? 1;
     const ids = attack ? (main ? [main] : []) : this.elements(mods);
     if (this.windCharge && !ids.includes('wind')) this.cancelWind();
-    if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats); return; }
+    if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats, mods); return; }
     // one blow at a time: a faster fire rate = a faster stream
     if (!attack || attack.kind === 'bubble') this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
@@ -214,7 +214,7 @@ export class Bubbles {
       this.elTimers[id] = Math.min(t, 1);
     }
     this.fly(dt, stats, mods);
-    this.effects(dt, stats);
+    this.effects(dt, stats, mods);
   }
 
   // the elements you own, in the order of ELEMENTS
@@ -483,7 +483,10 @@ export class Bubbles {
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
+      const was = this.burning.get(e)?.t > 0;
       this.ignite(e, b.pw, b.ep);
+      if (was && mods.refreshAll.includes('burning')) this.refreshBurns(e);   // refresh-all (Flare Up)
+      if (!was) this.enemies.freshBurn = e;   // this hit lit it: status-damage doesn't count it as a hit on a Burning bug
       b.stopFireAudio?.();
       this.looks.fireHit(c, b.r, b.vel);
       sfx.fire(b.fireWeight);
@@ -507,14 +510,25 @@ export class Bubbles {
     // a shove in the direction the bubble was going: the harder the hit, the further
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
+    this.enemies.freshBurn = null;
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
       collisionDamage: dmg * (b.ep?.collision ?? 1),
     });
   }
 
+  // refresh-all: every Burn back to its full time, a flare on each one but the bug just hit
+  refreshBurns(hit) {
+    const c = this._t;
+    for (const [e, f] of this.burning) {
+      if (e.dead || f.t <= 0) continue;
+      f.t = Math.max(f.t, f.ep?.burnTime ?? 3);
+      if (e !== hit) this.looks.fireLaunch(this.enemies.center(e, c), e.r * 0.5);
+    }
+  }
+
   // Burning enemies, lightning arcs and acid puddles
-  effects(dt, stats) {
+  effects(dt, stats, mods) {
     const E = this.enemies, c = this._c;
     for (const [e, f] of this.burning) {
       if (e.dead) {
@@ -528,6 +542,7 @@ export class Bubbles {
         continue;
       }
       f.t -= dt;
+      f.age += dt;
       f.tick = (f.tick || 0) - dt;
       f.flame = (f.flame || 0) - dt;
       if (f.flame <= 0) {                 // licking flames
@@ -535,7 +550,12 @@ export class Bubbles {
         E.center(e, c);
         this.looks.fireBurn(c.add(this._t.set(0, e.r * 0.4, 0)), e.r);
       }
-      if (f.tick <= 0) { f.tick = 0.5; sfx.fireBurn(); bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#ffa65a', source: 'fire' }); }
+      if (f.tick <= 0) {
+        // each stack burns; Burn damage (stat) and burn-ramp (how long it has burned) on top
+        const R = mods?.burnRamp, ramp = R ? 1 + Math.min(R.most, R.step * f.age) : 1;
+        f.tick = 0.5; sfx.fireBurn();
+        bus.emit('damage_taken', { targetId: e.id, amount: f.dps * f.n * (stats?.burnDamage ?? 1) * ramp * 0.5, color: '#ffa65a', source: 'fire' });
+      }
       if (f.t <= 0) this.burning.delete(e);
     }
     for (const p of this.puddles) {
@@ -565,10 +585,13 @@ export class Bubbles {
     this.puddles = this.puddles.filter((p) => p.t > 0);
   }
 
-  // set an enemy burning: pw the power it was lit with, ep the fire attack's numbers
+  // set an enemy burning: pw the power it was lit with, ep the fire attack's numbers. A re-hit
+  // restarts the time and, up to ep.burnStacks, adds a stack (each burns as hard); age is how
+  // long it has kept burning (burn-ramp), from when it was first lit
   ignite(e, pw, ep = null) {
-    const had = this.burning.get(e);
-    this.burning.set(e, { t: ep?.burnTime ?? 3, dps: pw * ELEMENT.burn * (ep?.burn ?? 1), pw, ep, tick: had?.tick ?? 0.25, flame: 0 });
+    const had = this.burning.get(e), lit = had?.t > 0;
+    const n = Math.min(Math.max(1, Math.round(ep?.burnStacks ?? 1)), lit ? had.n + 1 : 1);
+    this.burning.set(e, { t: ep?.burnTime ?? 3, dps: pw * ELEMENT.burn * (ep?.burn ?? 1), pw, ep, tick: had?.tick ?? 0.25, flame: 0, n, age: lit ? had.age : 0 });
   }
 
   // a bolt jumping from one thing to the next (a chain's k-th jump: each one higher-pitched)

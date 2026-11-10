@@ -1,0 +1,55 @@
+// Attack upgrades: each jelly type's own pool (docs/jelly-types/types/<type>.md). After each of the
+// first three bosses a run is offered 1 of 3 from its jelly's pool, without ones already taken
+// (Run.pickUpgrade). They use the treasures' effect words (src/words.js) and feed the run's combined
+// effects like treasures, but are never in a chest, and each is one of a kind.
+// needs="…": another upgrade of the same jelly that must be taken first.
+//
+//   upgrade "id" jelly="…" name="…" icon="…" text="…" needs="…" { effect words… }
+
+// --- Fire: escalation and risk (docs/jelly-types/types/fire.md). Numbers are starting values.
+upgrade "flashpoint" jelly="fire" name="Flashpoint" icon="💥" text="A hit on a Burning bug bursts in a small Blast: 50% of the hit to every bug within 4 cm." {
+    status-damage "burning" more=0 elites=#true blast=0.04 blast-dmg=0.5
+}
+upgrade "slowBurn" jelly="fire" name="Slow Burn" icon="🕯️" text="Burn stacks up to 3 times on one bug, and lasts 6 s." {
+    element-up "fire" burnStacks=3 burnTime=3
+}
+upgrade "fireBreath" jelly="fire" name="Fire Breath" icon="🐉" text="Every 4 s a short flame cone roars out at the nearest bug, hitting everything in it and setting it alight." {
+    every 4 {
+        cone range=0.12 angle=70 dmg=0.5
+    }
+}
+// spread fire already spreads again when its bug dies burning (bubbles.js effects)
+upgrade "wildfire" jelly="fire" name="Wildfire" icon="🌋" text="Burning bugs that die set everything twice as far away alight, and that fire spreads again." {
+    element-up "fire" spread=2
+}
+upgrade "hotHead" jelly="fire" name="Hot Head" icon="🥵" text="Below half Health, Burn does double damage." {
+    while "low-health" "burn-damage" 1 under=0.5
+}
+// most=1: the spec's +20% a second, capped at double (uncapped it grows without end on a boss)
+upgrade "stoke" jelly="fire" name="Stoke" icon="🪵" text="Burn grows 20% for each second a bug keeps burning, up to double." {
+    burn-ramp 0.2 most=1
+}
+// only Slow Burn lets a bug hold 3 Burns, so Inferno is offered after it
+upgrade "inferno" jelly="fire" name="Inferno" icon="☄️" needs="slowBurn" text="A bug that dies with 3 Burns erupts in a ring of fire." {
+    on-kill-of status="burning" stacks=3 {
+        ring 0.07 dmg=1.5 color="#ff8a3a"
+    }
+}
+upgrade "backdraft" jelly="fire" name="Backdraft" icon="🌬️" text="5 Burning bugs dying within 3 s release a fire Blast around you." {
+    streak 5 within=3 status="burning" {
+        ring 0.12 dmg=2 color="#ff8a3a"
+    }
+}
+upgrade "fuel" jelly="fire" name="Fuel" icon="⛽" text="+5% Fire rate for each Burning bug within 30 cm, up to +25%." {
+    per "fire-rate" 5 percent=#true of="burning-nearby" most=5
+}
+upgrade "blueFlame" jelly="fire" name="Blue Flame" icon="🔵" text="Burn does 50% more damage, but you take 10% more." {
+    element-up "fire" burn=1.5
+    damage-taken 1.1
+}
+upgrade "flareUp" jelly="fire" name="Flare Up" icon="🎇" text="Hitting a Burning bug refreshes the Burn on every Burning bug." {
+    refresh-all "burning"
+}
+upgrade "melt" jelly="fire" name="Melt" icon="🫠" text="Burning Elites and the boss take 20% more damage from hits." {
+    status-damage "burning" more=0.2 elites=#true bugs=#false
+}
