@@ -21,6 +21,7 @@ import './stories/words.js';
 import './stories/bug-collision.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
+import './stories/type-words.js';
 import './stories/treasure-feel.js';
 import './stories/treasure-feel-more.js';
 import './stories/treasure-feel-twelve.js';

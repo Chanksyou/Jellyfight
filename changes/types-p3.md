@@ -1,0 +1,1 @@
+adds six shared words for the jelly types' coming Attack upgrades (status-damage, status-taken, on-kill-of, nth-attack, stack-buff, while moving); Shatter now runs on status-damage and plays the same.

@@ -32,6 +32,7 @@ export class Lash {
     this.getRig = () => null;     // main.js: () => player.avatar.tentacles
     this.onLash = null;           // () => void: the jelly's body answers as its tentacles whip out (run.js)
     this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
+    enemies.statuses.bleeding = (e) => this.venom.get(e)?.stacks || 0;   // status-damage & co. (words.js STATUSES)
     this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
     this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#2ee9ff'));
     this.impactColor = new THREE.Color(LOOK.color('lash-impact', '#5ff0ff'));
@@ -224,7 +225,7 @@ export class Lash {
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
     // a shove away from the jelly: the harder the sting, the further
-    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: this.enemies.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg) });
+    if (!s.target.T.fly) bus.emit('knockback', { targetId: id, dir: this.enemies.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * this.enemies.statusMore(s.target, 'tentacle')) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
     this.slash(s.target, a, b);
     // the streak (glowLash) fades behind it; floor droplets stay a moment longer

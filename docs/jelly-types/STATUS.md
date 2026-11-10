@@ -5,7 +5,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | Phase | State | PR | Note |
 | --- | --- | --- | --- |
 | Plan | written | | Spec and phases as of Nov 10 2026, against main at v385 |
-| P1 | not started | | |
+| P1 | merged | #223 | Type switch, content/jellies.kdl, run.jelly (v386) |
 | P2 | not started | | |
 | P3 | not started | | |
 | P4 | not started | | |
