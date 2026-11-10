@@ -12,7 +12,7 @@ import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 import { esc } from './leaderboard.js';
-import { BAR_NAMES, typeBars, typeDetails, typeLock } from './jelly-types.js';
+import { BAR_NAMES, BAR_SEGMENTS, barSegments, typeBars, typeDetails, typeLock } from './jelly-types.js';
 
 const VIEWS = 8;   // views of the jelly that make one full turn: the portrait fades from one to the next
 
@@ -41,8 +41,9 @@ const CSS = `
 #type-pick .tp-art .tp-lock { position: absolute; right: 8px; top: 6px; font-size: 22px; }
 #type-pick .tp-bars { display: grid; gap: 5px; }
 #type-pick .tp-bar { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: #dcd6c4; }
-#type-pick .tp-track { height: 9px; border-radius: 6px; background: #ffffff18; overflow: hidden; }
-#type-pick .tp-fill { display: block; height: 100%; border-radius: 6px; background: var(--accent); }
+#type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 10px; }
+#type-pick .tp-seg { border-radius: 2px; background: #ffffff18; }
+#type-pick .tp-seg.on { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent); }
 #type-pick .tp-panel { flex: none; width: var(--cw); min-width: 260px; margin: 0 auto 14px; box-sizing: border-box; padding: 12px 14px; border-radius: 20px;
   background: #0a2036ee; border: 1px solid #ffffff22; text-align: center; }
 #type-pick .tp-diff { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
@@ -69,7 +70,7 @@ const CSS = `
   #type-pick .tp-art { margin: 0; flex: none; border-radius: 16px; }
   #type-pick .tp-bars { flex: 1; gap: 4px; }
   #type-pick .tp-bar { grid-template-columns: 82px 1fr; gap: 6px; font-size: 11.5px; white-space: nowrap; }
-  #type-pick .tp-track { height: 8px; }
+  #type-pick .tp-track { height: 8px; gap: 1.5px; }
   #type-pick .tp-panel { width: min(600px, calc(100vw - 32px)); margin-bottom: 8px; padding: 8px 12px; display: grid; grid-template-columns: 1fr 150px; align-items: center; gap: 4px 14px; text-align: left; }
   #type-pick .tp-diff { justify-content: flex-start; margin: 0; grid-column: 1; }
   #type-pick .tp-about { margin: 0; font-size: 12.5px; grid-column: 1; }
@@ -80,10 +81,11 @@ const CSS = `
 `;
 
 export class TypePicker {
-  // calm: Reduce effects is on. portrait(id, turn): a data URL of the player's jelly as that type, turned `turn`
-  // radians (jelly-portrait.js), or null.
-  constructor({ calm = () => false, portrait = () => null } = {}) {
-    Object.assign(this, { calm, portrait });
+  // calm: Reduce effects is on. look(): the player's jelly look, so the portraits are redrawn when it changes.
+  // portrait(id, turn): a data URL of the player's jelly as that type, turned `turn` radians (jelly-portrait.js), or null.
+  constructor({ calm = () => false, look = () => null, portrait = () => null } = {}) {
+    Object.assign(this, { calm, look, portrait });
+    this.lookKey = null;
     this.ids = Object.keys(CONTENT.jellies);
     this.frames = Object.fromEntries(this.ids.map((id) => [id, Array(VIEWS).fill(null)]));
     this.pos = 0; this.target = 0; this.index = 0;
@@ -129,7 +131,7 @@ export class TypePicker {
       <h3>${esc(J.name)}</h3>
       <div class="tp-body">
         <div class="tp-art"><img alt="" hidden><img alt="" hidden></div>
-        <div class="tp-bars">${BAR_NAMES.map((n, i) => `<div class="tp-bar" role="meter" aria-label="${n}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bars[i] * 100)}">${n}<span class="tp-track"><span class="tp-fill" style="width:${Math.round(bars[i] * 100)}%"></span></span></div>`).join('')}</div>
+        <div class="tp-bars">${BAR_NAMES.map((n, i) => `<div class="tp-bar" role="meter" aria-label="${n}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bars[i] * 100)}">${n}<span class="tp-track">${Array.from({ length: BAR_SEGMENTS }, (_, k) => `<i class="tp-seg${k < barSegments(bars[i]) ? ' on' : ''}"></i>`).join('')}</span></div>`).join('')}</div>
       </div>
     </div>`;
   }
@@ -146,6 +148,13 @@ export class TypePicker {
       c.classList.toggle('locked', !!typeLock(this.ids[i]));
       if (typeLock(this.ids[i])) c.querySelector('.tp-art').insertAdjacentHTML('beforeend', '<span class="tp-lock" aria-label="Locked">🔒</span>');
     });
+    // the player may have changed their look since the last time: draw every portrait again
+    const lookKey = JSON.stringify(this.look());
+    if (lookKey !== this.lookKey) {
+      this.lookKey = lookKey;
+      for (const id of this.ids) this.frames[id].fill(null);
+      this.root.querySelectorAll('.tp-art img').forEach((img) => { img.hidden = true; delete img.dataset.v; });
+    }
     this.root.hidden = false;
     this.back.hidden = !onBack;
     this.index = Math.max(0, this.ids.indexOf(start));
@@ -172,6 +181,7 @@ export class TypePicker {
   play() {
     const id = this.centre;
     if (!this.isOpen || typeLock(id)) return false;
+    sfx.tap();
     if (!this.calm()) { this.panel.play.classList.remove('menu-pop'); void this.panel.play.offsetWidth; this.panel.play.classList.add('menu-pop'); }
     this.close();
     this.onPlay?.(id);

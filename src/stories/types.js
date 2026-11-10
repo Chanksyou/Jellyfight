@@ -4,7 +4,7 @@ import { CONTENT, compileJellies, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { jellyStats, typeBars, typeDetails, TYPE_SWITCH } from '../jelly-types.js';
+import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
 import { PLAYED_KEY, picksType } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
 import { SAVE_KEY, carried, keepRun } from '../stages.js';
@@ -287,7 +287,7 @@ story('types/pick-screen-locked-card-cannot-play', {
 });
 
 story('types/pick-screen-bars-normal-is-half', {
-  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives.',
+  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives, as 10 segments (Normal: 5 lit).',
   setup() {},
   play() {
     const { picker } = G();
@@ -299,8 +299,10 @@ story('types/pick-screen-bars-normal-is-half', {
     const same = (id) => JSON.stringify(typeDetails(id));
     const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
       && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
-    const drawn = picker.cards.every((c, i) => [...c.querySelectorAll('.tp-bar')].every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(picker.ids[i])[k] * 100)));
-    return ok(half && inRange && tentacle && area && details && drawn, { half, inRange, tentacle, area, details: ['normal', 'ice', 'wind', 'glitter', 'poison', 'tentacle'].map(same), drawn });
+    const drawn = picker.cards.every((c, i) => [...c.querySelectorAll('.tp-bar')].every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(picker.ids[i])[k] * 100)
+      && bar.querySelectorAll('.tp-seg').length === 10 && bar.querySelectorAll('.tp-seg.on').length === barSegments(typeBars(picker.ids[i])[k])));
+    const segments = barSegments(0.5) === 5 && barSegments(0.01) === 1 && barSegments(1) === 10;   // Normal's bars are half lit
+    return ok(half && inRange && tentacle && area && details && drawn && segments, { half, inRange, tentacle, area, segments, details: ['normal', 'ice', 'wind', 'glitter', 'poison', 'tentacle'].map(same), drawn });
   },
 });
 
@@ -345,5 +347,40 @@ story('types/first-run-is-normal', {
       again = { returning: picksType(), open: picker.isOpen, fire: picker.centre === 'fire' };
     } finally { back(); picker.close(); G().mainMenu.home = false; }
     return ok(first.newPlayer && first.closed && first.normal && first.start === 'normal' && again.returning && again.open && again.fire, { first, again });
+  },
+});
+
+story('types/pick-screen-opens-on-try-again', {
+  about: 'After a death in act 1 with jelly types on, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
+  setup() {},
+  play() {
+    const { run, picker } = G();
+    const die = () => { stub(run, 'board', null); stub(run, 'jellyFace', () => null); run.phase = 'dead'; run.endRun('You dried out', 'dead', 'Try again'); };
+    const tryAgain = () => [...run.ui.modal.querySelectorAll('.btns button')].find((b) => /Try again/.test(b.textContent))?.click();
+    let back = asPlayer(true), returning, first, off;
+    try {
+      fresh({ types: 'fire' });
+      die(); tryAgain();
+      const opened = picker.isOpen && picker.centre === 'fire' && picker.back.hidden && run.phase === 'dead';
+      // a changed look is drawn again: the cards' portraits are cleared when the screen opens with a different look
+      picker.frames.fire[0] = 'stale';
+      picker.close(); picker.lookKey = '"another look"'; picker.open({ start: 'fire', onPlay: () => {} });
+      const redrawn = picker.frames.fire[0] === null && picker.lookKey !== '"another look"';
+      picker.close();
+      fresh({ types: 'fire' });
+      die(); tryAgain(); key('ArrowRight'); picker.play();
+      returning = { opened, redrawn, started: !picker.isOpen && run.phase === 'explore' && run.jelly === 'lightning' };
+    } finally { back(); picker.close(); }
+    back = asPlayer(false);
+    try {
+      fresh({ types: 'fire' });
+      die(); tryAgain();
+      first = { closed: !picker.isOpen, normal: run.jelly === 'normal' && run.phase === 'explore' };
+      fresh();
+      die(); tryAgain();
+      off = { closed: !picker.isOpen, restarted: run.phase === 'explore' && run.jelly === 'normal' };
+    } finally { back(); picker.close(); }
+    const pass = returning.opened && returning.redrawn && returning.started && first.closed && first.normal && off.closed && off.restarted;
+    return ok(pass, { returning, first, off });
   },
 });

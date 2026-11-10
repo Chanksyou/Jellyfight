@@ -200,7 +200,7 @@ const creator = new Creator({
 });
 creator.mount(ui);
 // the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
-const picker = new TypePicker({ calm: () => juice.calm, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, barbed: CONTENT.jellies[id].adorn === 'barbs' }) });
+const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, adorn: CONTENT.jellies[id].adorn }) });
 picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------
@@ -363,7 +363,8 @@ function startRun() {
 }
 // the end screen's Try again: a returning player picks a type again (true: the screen took it over)
 run.pickType = () => {
-  if (!TYPE_SWITCH.on || !picksType()) return false;
+  if (!TYPE_SWITCH.on) return false;
+  if (!picksType()) { TYPE_SWITCH.start = 'normal'; return false; }   // a first-time player's run is Normal
   picker.open({ start: TYPE_SWITCH.start, onPlay: (id) => { TYPE_SWITCH.start = id; run.start(); run.resume(); } });
   return true;
 };

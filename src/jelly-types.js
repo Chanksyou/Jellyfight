@@ -41,6 +41,10 @@ export const typeBars = (id) => {
   return v.map((x, i) => Math.min(1, x / (2 * normal[i])));
 };
 
+// A bar drawn as 10 segments: how many are lit (at least one, so a short bar still shows)
+export const BAR_SEGMENTS = 10;
+export const barSegments = (bar) => Math.max(1, Math.round(bar * BAR_SEGMENTS));
+
 // What a type changes that the bars fold together or leave out, as a difference from Normal (only what
 // differs): "+5 Shield", "Pierce +1", "+10 Luck", "Dodge 5%", "Jump height 120%"
 const DETAIL_STATS = ['shield', 'regen', 'dodge', 'jumpHeight', 'luck', 'pierce'];
