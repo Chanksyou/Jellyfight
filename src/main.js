@@ -295,7 +295,7 @@ const song = {
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };
 // Jelly types, before release (src/jelly-types.js): ?types starts runs as Normal with the switch on, ?types=fire as Fire
-{ const t = new URLSearchParams(location.search).get('types'); if (t !== null) { TYPE_SWITCH.on = true; TYPE_SWITCH.start = t || 'normal'; } }
+{ const t = new URLSearchParams(location.search).get('types'); if (t !== null) { TYPE_SWITCH.on = true; TYPE_SWITCH.start = t || 'normal'; if (!CONTENT.jellies[TYPE_SWITCH.start]) console.warn(`?types=${t}: no jelly type called that in content/jellies.kdl, so this run is Normal`); } }
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops, gfx,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
@@ -780,7 +780,7 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'types') {   // dev: jelly types before release; each tap starts act 1 over as the next type, then off
     const ids = Object.keys(CONTENT.jellies), i = TYPE_SWITCH.on ? ids.indexOf(TYPE_SWITCH.start) + 1 : 0;
     TYPE_SWITCH.on = i < ids.length; TYPE_SWITCH.start = ids[i] || 'normal';
-    b.textContent = TYPE_SWITCH.on ? `Types: ${CONTENT.jellies[TYPE_SWITCH.start].name}` : 'Types off';
+    b.textContent = TYPE_SWITCH.on ? `Types: ${CONTENT.jellies[TYPE_SWITCH.start].name}${stage.id === 1 ? '' : ' (next act 1)'}` : 'Types off';
     if (stage.id === 1) { forgetRun(); showKept(); run.start(); }
   }
   else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
