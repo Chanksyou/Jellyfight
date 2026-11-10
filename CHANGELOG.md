@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v386 lays the groundwork for jelly types (dev only): content/jellies.kdl lists the eight types, and the dev switch (`?types`, a Types button in the dev tools) starts a run as one with its own stats. Players see no change.
+
 v385 makes Low and Medium graphics lighter on phones: corners and the floor under furniture get baked shadows instead of live ambient occlusion (Low gets them for the first time), bloom runs at half resolution and is added in while the picture is finished, and furniture that shares a material is drawn in one batch (a phone's Medium frame drops from about 530 draws to 200). Dev tools get AO, Bloom and Lamps switches for measuring on a phone.
 
 v384 makes phones run cooler: they draw at 30 frames a second by default (pick 60 under Frame rate in the menu), and a held or double tap no longer selects the page's text or pops the copy bubble.

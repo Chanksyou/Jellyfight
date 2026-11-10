@@ -1,1 +1,0 @@
-lays the groundwork for jelly types (dev only): content/jellies.kdl lists the eight types, and the dev switch (`?types`, a Types button in the dev tools) starts a run as one with its own stats. Players see no change.
