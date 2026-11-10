@@ -1,1 +1,0 @@
-jelly types (behind the switch): no separate evolution pick; the boss's Legendary pick draws from one pool of 19 (the 9 Legendary treasures and the 10 former evolutions), evolutions stack, Box Jelly's tentacles lash for any jelly type, and Rebound, Man o' War and Disco Ball are offered only to types they work for.
