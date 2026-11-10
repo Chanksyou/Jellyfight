@@ -4,7 +4,7 @@
 // on top of the player's own look, which they never change.
 //
 // The same effect words as treasures (src/words.js, TREASURE_WORDS); damage numbers are multiples of
-// your power (bubble damage x 1.8) unless a word says otherwise.
+// your power (attack damage x 1.8) unless a word says otherwise.
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
@@ -14,7 +14,7 @@ evolution "cinder" name="Cinder Jelly" icon="👣" text="Flaming feet burn the g
     adorn "flaming-feet"
 }
 
-evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary bubbles return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
+evolution "rebound" name="Rebound Jelly" icon="🪃" text="Ordinary attacks return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
     rebound
     stat fire-rate -20 percent=#true
     adorn "rebound-bands"
@@ -31,14 +31,14 @@ evolution "aegis" name="Aegis Jelly" icon="🛡️" text="+5 Shield. When your S
     shield-burst dmg=15 radius=0.2 flat=#true
 }
 
-evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Bubbles blow 35% slower." {
+evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become your weapon: 4 tentacles reach twice as far, and every sting stacks venom that burns (up to 5 stacks). Attacks fire 35% slower." {
     stat tentacles 3
     stat tentacle-reach 100 percent=#true
     venom dps=0.5 time=3 stacks=5
     stat fire-rate -35 percent=#true
     adorn "venom-tips"
 }
-evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you and shoot with you: every bubble and element shot, each fires one more at 30% damage. -15% max Health." {
+evolution "manOWar" name="Man o' War" icon="🫧" text="Two polyps circle you and shoot with you: every attack, each fires one more at 30% damage. -15% max Health." {
     polyps 2 dmg=0.3
     stat health -15 percent=#true
     adorn "sail"
@@ -49,7 +49,7 @@ evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act, sur
     no-regen revived=#true
     adorn "halo"
 }
-evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Bubbles reach 30% less far." {
+evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s your bell pulses: a shockwave stings and knocks back everything close, and you surge forward. Attacks reach 30% less far." {
     every 2 {
         ring 0.24 dmg=2 push=0.08 color="#dff4ff" show=0.4
         dash 0.8 time=0.35
@@ -63,7 +63,7 @@ evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health, and 
     stat move-speed -20 percent=#true
     adorn "mane"
 }
-evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="Stand still for a second to root: +80% Fire rate, +1 Health a second, and bubbles pierce one more bug. Move and it's gone." {
+evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="Stand still for a second to root: +80% Fire rate, +1 Health a second, and attacks pierce one more bug. Move and it's gone." {
     while "rooted" "fire-rate" 80 percent=#true
     while "rooted" "health-regen" 1
     while "rooted" "pierce" 1

@@ -1071,7 +1071,7 @@ export class Run {
   devRun() { this.dev = true; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
 
   pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'Adds an attack alongside your bubbles. Upgrades appear every third treasure pick.',
+    this.pickElement('🔥 Pick your element', 'Adds an attack alongside your main one. Upgrades appear every third treasure pick.',
       () => {
         const { hint, treasureAt } = this.firstRun.elementChose(this.t);   // a first run: a tip, and the skipped Treasure soon (first-run.js)
         if (hint) { this.hint = hint; this.hintT = 4.5; }

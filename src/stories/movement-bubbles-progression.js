@@ -317,7 +317,7 @@ story('content/levelup-and-elite-tuning', {
   },
 });
 story('progression/card-tiers', {
-  about: 'Level-up cards give their tier\'s amount (Dodge at 0%: 10 / 13 / 16%); Bubbles and Bubble size are no longer offered.',
+  about: 'Level-up cards give their tier\'s amount (Dodge at 0%: 10 / 13 / 16%); Attacks and Attack size are no longer offered.',
   setup() {},
   play() {
     const seen = {};

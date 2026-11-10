@@ -229,7 +229,7 @@ story('dev/balance-editor', {
     const field = (kind, id, label) => groups.find((g) => g.kind === kind && g.id === id).fields.find((f) => f.label === label);
     const panel = window.tuner; panel.show(run, {});
     const rows = panel.el.querySelectorAll('.row').length;
-    const described = panel.el.querySelector('.row[data-id="coffeeBean"]').textContent.includes('Bubbles blow 25% faster.');
+    const described = panel.el.querySelector('.row[data-id="coffeeBean"]').textContent.includes('Attacks fire 25% faster.');
     panel.hide();
     const first = spawn('roach', near(0.3, 0), { still: true });
     const hp0 = first.hp;
