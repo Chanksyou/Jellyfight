@@ -4,7 +4,9 @@ import { CONTENT, compileJellies, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { jellyStats } from '../jelly-types.js';
+import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
+import { PLAYED_KEY, picksType } from '../first-run.js';
+import { BEST_KEY } from '../leaderboard.js';
 import { SAVE_KEY, carried, keepRun } from '../stages.js';
 import { G, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
@@ -18,11 +20,11 @@ story('content/jellies-load', {
     const all = TYPE_IDS.every((id) => ids.includes(id)) && ids.length === TYPE_IDS.length;
     const sane = Object.values(CONTENT.jellies).every((j) => j.hit > 0 && j.name && Object.keys(j.stats).every((k) => k in BASE_STATS));
     const tryIt = (src) => { try { compileJellies(parse(src, 'test.kdl'), 'test.kdl'); return null; } catch (e) { return e.message; } };
-    const ok1 = 'jelly "normal" name="N" attack="bubble" hit=1\n';
-    const badStat = tryIt(ok1 + 'jelly "x" name="X" attack="fire" hit=1 {\n    stat speed 2\n}');
-    const badAttack = tryIt(ok1 + 'jelly "x" name="X" attack="laser" hit=1');
-    const noHit = tryIt(ok1 + 'jelly "x" name="X" attack="fire"');
-    const noNormal = tryIt('jelly "x" name="X" attack="fire" hit=1');
+    const ok1 = 'jelly "normal" name="N" about="A" attack="bubble" hit=1\n';
+    const badStat = tryIt(ok1 + 'jelly "x" name="X" about="A" attack="fire" hit=1 {\n    stat speed 2\n}');
+    const badAttack = tryIt(ok1 + 'jelly "x" name="X" about="A" attack="laser" hit=1');
+    const noHit = tryIt(ok1 + 'jelly "x" name="X" about="A" attack="fire"');
+    const noNormal = tryIt('jelly "x" name="X" about="A" attack="fire" hit=1');
     const caught = /test\.kdl:3: "x" stat must be one of/.test(badStat) && /test\.kdl:2: "x" attack= must be one of/.test(badAttack) && /needs hit=/.test(noHit) && /no jelly called "normal"/.test(noNormal);
     return ok(all && sane && caught, { ids, sane, badStat, badAttack, noHit, noNormal });
   },
@@ -209,5 +211,176 @@ story('types/tentacle-is-not-offered-range', {
     const fireGets = f.cards.has('range') && f.treasures.has('straw');
     const caught = (() => { try { compileTreasures(parse('treasure "x" name="X" icon="x" text="x" not-for="laser" {\n    stat range 1\n}', 't.kdl'), 't.kdl'); return null; } catch (e) { return e.message; } })();
     return ok(tentacleNot && fireGets && /not-for= takes attacks from/.test(caught), { tentacle: [...t.cards], fireCards: [...f.cards], straw: f.treasures.has('straw'), caught });
+  },
+});
+
+// --- the pick screen (src/pick-screen.js, docs/jelly-types/spec-pick-screen.md) ---------------------
+// A story plays as a returning player (a played run on record) or a first-time one, and puts it back after
+function asPlayer(returning) {
+  const keys = [PLAYED_KEY, BEST_KEY], was = keys.map((k) => localStorage.getItem(k));
+  keys.forEach((k) => localStorage.removeItem(k));
+  if (returning) localStorage.setItem(PLAYED_KEY, '1');
+  return () => keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
+}
+// the title screen's Play with jelly types on, as `start`
+function pressPlay(start) {
+  const { GAME, mainMenu, picker } = G();
+  fresh({ types: start });
+  mainMenu.home = true;
+  picker.close();
+  GAME.startRun();
+}
+const key = (code) => dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
+const cardName = (picker) => picker.cards[picker.index].querySelector('h3').textContent;
+
+story('types/pick-screen-shows-every-type', {
+  about: 'With the switch on, a returning player\'s Play opens the pick screen on the type the switch names, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
+  setup() {},
+  play() {
+    const { picker, run } = G(), back = asPlayer(true);
+    try {
+      pressPlay('fire');
+      const ids = Object.keys(CONTENT.jellies);
+      const open = picker.isOpen && picker.cards.length === ids.length && cardName(picker) === 'Fire Jelly';
+      const names = picker.cards.every((c, i) => c.querySelector('h3').textContent === CONTENT.jellies[ids[i]].name && c.querySelectorAll('.tp-bar').length === 6);
+      const panel = picker.panel.about.textContent === CONTENT.jellies.fire.about && !picker.panel.play.hidden;
+      key('ArrowRight');
+      const right = cardName(picker) === 'Lightning Jelly' && picker.panel.about.textContent === CONTENT.jellies.lightning.about;
+      key('ArrowLeft'); key('ArrowLeft');
+      const left = cardName(picker) === 'Normal Jelly' && picker.panel.diff.children.length === 0;   // Normal differs from itself in nothing
+      picker.root.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+      const wheel = picker.index === 1;
+      picker.cards[3].dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 10, bubbles: true }));
+      picker.cards[3].dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, clientX: 10, bubbles: true }));
+      const tap = picker.centre === 'ice';
+      const before = run.jelly;
+      picker.play();
+      const played = !picker.isOpen && run.jelly === 'ice' && run.stats.health === 31 && before === 'fire';
+      return ok(open && names && panel && right && left && wheel && tap && played, { open, names, panel, right, left, wheel, tap, played, jelly: run.jelly });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-screen-locked-card-cannot-play', {
+  about: 'A locked type\'s card is greyed out and its panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6") instead of Play; Play and Enter do nothing on it, and the next open type plays.',
+  setup() {},
+  play() {
+    const { picker, run } = G(), back = asPlayer(true);
+    try {
+      fresh({ types: 'normal' });
+      TYPE_SWITCH.locked = { ice: { goal: 'Defeat 6 Elites', have: 4, need: 6 } };
+      G().mainMenu.home = true;
+      G().GAME.startRun();
+      picker.go(picker.ids.indexOf('ice'));
+      const card = picker.cards[picker.ids.indexOf('ice')];
+      const shown = card.classList.contains('locked') && !!card.querySelector('.tp-lock') && !picker.cards[0].classList.contains('locked')
+        && picker.panel.play.hidden && !picker.panel.goal.hidden && picker.panel.goal.textContent === 'Defeat 6 Elites: 4/6';
+      const refused = picker.play() === false && picker.isOpen;
+      key('Enter');
+      const enter = picker.isOpen && run.jelly === 'normal';
+      key('ArrowRight');
+      const next = picker.centre === 'poison' && !picker.panel.play.hidden && picker.panel.goal.hidden;
+      picker.play();
+      return ok(shown && refused && enter && next && run.jelly === 'poison', { shown, refused, enter, next, jelly: run.jelly });
+    } finally { back(); picker.close(); TYPE_SWITCH.locked = {}; G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-screen-bars-normal-is-half', {
+  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives, as 10 segments (Normal: 5 lit).',
+  setup() {},
+  play() {
+    const { picker } = G();
+    const half = typeBars('normal').every((b) => Math.abs(b - 0.5) < 1e-9);
+    const inRange = Object.keys(CONTENT.jellies).every((id) => { const b = typeBars(id); return b.length === 6 && b.every((x) => x >= 0 && x <= 1); });
+    const t = typeBars('tentacle'), l = typeBars('lightning'), f = typeBars('fire');
+    const tentacle = Math.abs(t[2] - 0.11 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
+    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.3125) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.5 halves its Damage
+    const same = (id) => JSON.stringify(typeDetails(id));
+    const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
+      && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
+    const drawn = picker.cards.every((c, i) => [...c.querySelectorAll('.tp-bar')].every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(picker.ids[i])[k] * 100)
+      && bar.querySelectorAll('.tp-seg').length === 10 && bar.querySelectorAll('.tp-seg.on').length === barSegments(typeBars(picker.ids[i])[k])));
+    const segments = barSegments(0.5) === 5 && barSegments(0.01) === 1 && barSegments(1) === 10;   // Normal's bars are half lit
+    return ok(half && inRange && tentacle && area && details && drawn && segments, { half, inRange, tentacle, area, segments, details: ['normal', 'ice', 'wind', 'glitter', 'poison', 'tentacle'].map(same), drawn });
+  },
+});
+
+story('types/pick-screen-fits-phone', {
+  phone: true,
+  about: 'On a phone held sideways the centre card and its panel fit the screen (Play inside it, at least 44 px tall), the page does not scroll sideways, the neighbours are cut off by the screen\'s edge, and the card\'s bars sit beside its portrait.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true);
+    try {
+      pressPlay('lightning');
+      step(3);
+      const W = innerWidth, H = innerHeight, rect = (el) => el.getBoundingClientRect();
+      const centre = rect(picker.cards[picker.index]), panel = rect(picker.panel.play), card = picker.cards[picker.index];
+      const inside = (r) => r.top >= 0 && r.bottom <= H && r.left >= 0 && r.right <= W;
+      const fits = inside(centre) && inside(panel) && panel.height >= 44 && centre.bottom <= rect(picker.root.querySelector('.tp-panel')).top + 1;
+      const cut = picker.cards.some((c) => { const r = rect(c); return r.right > W || r.left < 0; }) && picker.cards.some((c) => { const r = rect(c); return r.right > 0 && r.left < W && c !== card; });
+      const art = rect(card.querySelector('.tp-art')), bars = rect(card.querySelector('.tp-bars'));
+      const beside = art.right <= bars.left + 1;
+      const still = document.documentElement.scrollWidth <= W;
+      return ok(fits && cut && beside && still, { fits, cut, beside, still, size: [W, H], centre: [centre.top, centre.bottom], panel: [panel.top, panel.bottom, panel.height] });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/first-run-is-normal', {
+  about: 'A first-time player never sees the pick screen: with the switch on, their Play starts a Normal run whatever the switch names; a returning player\'s Play opens the screen.',
+  setup() {},
+  play() {
+    const { picker, run } = G();
+    let back = asPlayer(false);
+    let first;
+    try {
+      const newPlayer = !picksType();
+      pressPlay('fire');
+      first = { newPlayer, closed: !picker.isOpen, normal: run.jelly === 'normal' && run.stats.health === BASE_STATS.health, start: TYPE_SWITCH.start };
+    } finally { back(); }
+    back = asPlayer(true);
+    let again;
+    try {
+      pressPlay('fire');
+      again = { returning: picksType(), open: picker.isOpen, fire: picker.centre === 'fire' };
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+    return ok(first.newPlayer && first.closed && first.normal && first.start === 'normal' && again.returning && again.open && again.fire, { first, again });
+  },
+});
+
+story('types/pick-screen-opens-on-try-again', {
+  about: 'After a death in act 1 with jelly types on, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
+  setup() {},
+  play() {
+    const { run, picker } = G();
+    const die = () => { stub(run, 'board', null); stub(run, 'jellyFace', () => null); run.phase = 'dead'; run.endRun('You dried out', 'dead', 'Try again'); };
+    const tryAgain = () => [...run.ui.modal.querySelectorAll('.btns button')].find((b) => /Try again/.test(b.textContent))?.click();
+    let back = asPlayer(true), returning, first, off;
+    try {
+      fresh({ types: 'fire' });
+      die(); tryAgain();
+      const opened = picker.isOpen && picker.centre === 'fire' && picker.back.hidden && run.phase === 'dead';
+      // a changed look is drawn again: the cards' portraits are cleared when the screen opens with a different look
+      picker.frames.fire[0] = 'stale';
+      picker.close(); picker.lookKey = '"another look"'; picker.open({ start: 'fire', onPlay: () => {} });
+      const redrawn = picker.frames.fire[0] === null && picker.lookKey !== '"another look"';
+      picker.close();
+      fresh({ types: 'fire' });
+      die(); tryAgain(); key('ArrowRight'); picker.play();
+      returning = { opened, redrawn, started: !picker.isOpen && run.phase === 'explore' && run.jelly === 'lightning' };
+    } finally { back(); picker.close(); }
+    back = asPlayer(false);
+    try {
+      fresh({ types: 'fire' });
+      die(); tryAgain();
+      first = { closed: !picker.isOpen, normal: run.jelly === 'normal' && run.phase === 'explore' };
+      fresh();
+      die(); tryAgain();
+      off = { closed: !picker.isOpen, restarted: run.phase === 'explore' && run.jelly === 'normal' };
+    } finally { back(); picker.close(); }
+    const pass = returning.opened && returning.redrawn && returning.started && first.closed && first.normal && off.closed && off.restarted;
+    return ok(pass, { returning, first, off });
   },
 });

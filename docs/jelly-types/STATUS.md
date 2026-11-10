@@ -9,8 +9,8 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P2 | merged | #224 | v387 · Bubble stats read Attack damage, Attack size, Attacks; keys unchanged |
 | P3 | merged | #225 | v388 · Six shared words; Shatter on status-damage |
 | P4 | merged | #226 | v389 · Normal, Fire, Tentacle attacks; not-for= on cards and Treasures; ember and barbs looks |
-| P5 | not started | | |
-| P6 | merged | #228 | v390 · Attack upgrade pick after acts 1-3, Fire's 12 in content/upgrades.kdl |
+| P5 | merged | #227 | Pick screen behind the switch: 10-segment bars, ember and barbs on the portraits, Try again opens it |
+| P6 | merged | #228 | v390 · End-of-act Attack upgrade pick and Fire's 12 upgrades (content/upgrades.kdl) |
 | P7 | not started | | |
 | G1 | waiting | | Owner plays Normal, Fire, Tentacle |
 | P8a Ice | not started | | |

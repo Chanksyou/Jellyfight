@@ -23,7 +23,7 @@ function evolveAll(...ids) {
 }
 
 story('types/boss-gives-legendary-then-upgrade', {
-  about: 'With jelly types on, an act\'s boss gives one Legendary pick from the pool of 19 (the 9 Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends. Picking a former evolution plays the metamorphosis. With the switch off it is still the evolution pick, then the Legendary pick.',
+  about: 'With jelly types on, an act\'s boss gives one Legendary pick from the pool of 19 (the 9 Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends; after the last act\'s boss there is no pick, just the win. Picking a former evolution plays the metamorphosis. With the switch off it is still the evolution pick, then the Legendary pick.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = (pickEvolution) => {
@@ -47,13 +47,24 @@ story('types/boss-gives-legendary-then-upgrade', {
     fresh({ types: 'fire' });
     let on;
     for (let tries = 0; tries < 20 && !on?.reveals.length; tries++) { fresh({ types: 'fire' }); on = once(true); }   // (until a former evolution is among the three)
+    // the last act's boss (act 4): no pick at all, straight to the win (never the old evolution pick)
+    fresh({ types: 'tentacle' });
+    const R = G().run, ends = [], lastPicks = [];
+    stub(R, 'endRun', (title) => ends.push(title));
+    stub(R.ui, 'choose', (title) => lastPicks.push(title));
+    const stage = R.stage;
+    R.stage = { ...stage, id: 4 };
+    R.dev = true; R.bossWon = true;
+    R.metamorph();
+    const last = ends.length === 1 && /won/.test(ends[0]) && !lastPicks.length && !R.evolved.length;
+    R.stage = stage;
     fresh();
     const off = once(false);
     fresh();
-    const pass = all19 && on.picks.length === 2 && /Legendary/.test(on.picks[0].title) && /Attack upgrade/.test(on.picks[1].title)
+    const pass = last && all19 && on.picks.length === 2 && /Legendary/.test(on.picks[0].title) && /Attack upgrade/.test(on.picks[1].title)
       && on.reveals.length === 1 && on.evolved.length === 1 && on.evolved[0] === on.reveals[0] && on.upgrades.length === 1 && on.ended[0] === 2
       && off.picks.length === 2 && /Metamorphosis/.test(off.picks[0].title) && /Legendary/.test(off.picks[1].title) && off.evolved.length === 1 && !off.upgrades.length && off.ended[0] === 2;
-    return ok(pass, { all19, pool: [...pool], on, off });
+    return ok(pass, { all19, last, ends, lastPicks, pool: [...pool], on, off });
   },
 });
 

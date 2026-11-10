@@ -303,7 +303,7 @@ export class Run {
     this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {}; this.buffs = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
-    this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
+    this.evolved = [];                // evolutions taken (content/evolutions.kdl): one per act's boss, or with jelly types any number from the Legendary pick
     this.upgrades = [];               // Attack upgrades taken (content/upgrades.kdl), one after each of the first three bosses
     this.streaks = {};                // streak: when each one's recent kills died
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
@@ -1463,8 +1463,9 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     // jelly types: no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
-    if (this.attack && next) {
-      this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+    if (this.attack) {
+      if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+      else { this.phase = 'won'; this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
       return;
     }
     const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
@@ -1577,7 +1578,7 @@ export class Run {
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
       // a run always starts over from act 1; after a death, starting again is the big button (Enter still submits)
-      const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } };
+      const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else if (!this.pickType?.()) { this.start(); this.resume(); } } };
       if (dead) buttons.push(tryAgain);
       if (canPost) {
         buttons.push({ label: '📤 Submit score', go: !dead, enter: true, onClick: (v) => {
