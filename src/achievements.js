@@ -15,7 +15,7 @@ export const ACHIEVEMENTS = [
   { id: 'everything-must-go', name: 'Everything Must Go', text: 'Collect all four original scheduled room treasures in each apartment act. Elite drops and bonus treasures do not substitute.', test: s => allRooms(s, 'scheduled', 4) },
   { id: 'make-your-own-luck', name: 'Make Your Own Luck', text: 'Choose at least eight Luck level-up cards.', test: s => (s.cards.luck || 0) >= 8 },
   { id: 'built-to-last', name: 'Built to Last', text: 'Choose at least eleven Health, Health regen, or Dodge level-up cards in total.', test: s => defense(s) >= 11 },
-  { id: 'glass-cannon', name: 'Glass Cannon', text: 'Choose at least ten Bubble damage or Fire rate level-up cards, and no Health, Health regen, or Dodge cards.', test: s => offense(s) >= 10 && defense(s) === 0 },
+  { id: 'glass-cannon', name: 'Glass Cannon', text: 'Choose at least ten Attack damage or Fire rate level-up cards, and no Health, Health regen, or Dodge cards.', test: s => offense(s) >= 10 && defense(s) === 0 },
   { id: 'pack-light', name: 'Pack Light', text: 'Collect no more than six treasures total, counting starting Elements, boss rewards, repeats, and upgrades. Evolutions do not count.', test: s => s.treasures <= 6 },
   { id: 'trust-the-hand', name: 'Trust the Hand', text: 'Never use a level-up reroll.', test: s => s.rerolls === 0 },
 ];

@@ -513,7 +513,7 @@ story('treasures/stacking', {
   },
 });
 story('treasures/per', {
-  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Bubble damage follows max Health (+1 per 10), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Bubble damage follows treasures found.',
+  about: 'per (Medicine Ball, Paperclip Chain, Roller Skate, Piggy Bank): a stat grows with another, live: Attack damage follows max Health (+1 per 10), Tentacle damage follows Levels gained, Fire rate follows Move speed above the start, Attack damage follows treasures found.',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G(), S = () => run.S;
@@ -542,7 +542,7 @@ story('treasures/per', {
   },
 });
 story('treasures/while', {
-  about: 'while (Dry Sock): Dry Sock adds 40% Bubble damage in the air and none once landed.',
+  about: 'while (Dry Sock): Dry Sock adds 40% Attack damage in the air and none once landed.',
   setup() { setupFight({ lash: false }); give('drySock'); },
   play() {
     const { run, player } = G(), bd = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
@@ -555,7 +555,7 @@ story('treasures/while', {
   },
 });
 story('treasures/while-low-health', {
-  about: 'while low-health under=0.5 (Hot Water Bottle): +50% Fire rate, +40% Bubble damage and +20% Move speed only while under half your max Health; steam pours off you while it holds.',
+  about: 'while low-health under=0.5 (Hot Water Bottle): +50% Fire rate, +40% Attack damage and +20% Move speed only while under half your max Health; steam pours off you while it holds.',
   setup() { setupFight({ lash: false }); give('hotWaterBottle'); },
   play() {
     const { run } = G(), g = run.gadgets, pct = (k) => (run.S[k] - run.stats[k]) / BASE_STATS[k] * 100;
@@ -660,7 +660,7 @@ story('treasures/grow-on-kills', {
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
     for (let i = 0; i < 56; i++) kill();
-    // with a cap (Dustpan: +0.2% Bubble damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
+    // with a cap (Dustpan: +0.2% Attack damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
     give('dustpan');
     const pct = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
     for (let i = 0; i < 1100; i++) kill();
@@ -687,11 +687,11 @@ story('treasures/pause-lists-what-you-carry', {
     const trophy = card('trophy'), lemon = card('lemon'), pin = card('bobbyPin'), clip = card('paperclipChain'), pan = card('dustpan');
     overlay.hidden = true;
     return ok(shown && run.level === 1
-      && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Bubble damage') && trophy.includes('Next +0.25 Bubble damage in 7 bugs')
-      && lemon.includes('×2') && lemon.includes('+2 bubble damage')
-      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce, popping on up to 3') && pin.includes('Next level: Bubbles pierce up to 7')
+      && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Attack damage') && trophy.includes('Next +0.25 Attack damage in 7 bugs')
+      && lemon.includes('×2') && lemon.includes('+2 attack damage')
+      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce, popping on up to 3') && pin.includes('Next level: Attacks pierce up to 7')
       && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2')
-      && pan.includes('+2.6 / +100% Bubble damage') && !pan.includes('So far:'),
+      && pan.includes('+2.6 / +100% Attack damage') && !pan.includes('So far:'),
     { shown, trophy, lemon, pin, clip, pan });
   },
 });
@@ -841,7 +841,7 @@ story('treasures/upgrades-show-current-effect-once', {
     const name = card?.querySelector('.big').textContent, text = card?.querySelector('.txt').textContent, delta = card?.querySelector('.delta').textContent;
     card?.click();
     const toast = ui.pop.textContent;
-    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Bubbles pierce up to 5 enemies in a line.' && delta === 'Lv 1 → Lv 2'
+    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 5 enemies in a line.' && delta === 'Lv 1 → Lv 2'
       && toast.includes('Bobby Pin') && toast.includes('Level 2') && !toast.includes('pierce');
     step(45);
     return ok(good, { name, text, delta, toast });
@@ -878,7 +878,7 @@ story('treasures/tuned-level-effects', {
 
 
 story('treasures/element-damage-and-speed', {
-  about: 'Base Ice hits for 2x at 0.285 m/s, Wind for 1.5x at 1.6 m/s, and Glitter splashes for 0.4x within 8 cm at 0.4 m/s; damage scales with Bubble damage.',
+  about: 'Base Ice hits for 2x at 0.285 m/s, Wind for 1.5x at 1.6 m/s, and Glitter splashes for 0.4x within 8 cm at 0.4 m/s; damage scales with Attack damage.',
   setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'paperFan', 'glitter'); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];

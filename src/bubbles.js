@@ -17,9 +17,9 @@
 //                            once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
 // Each element's numbers (rate, damage, burn, chain…) come from mods.element (ELEMENT_BASE in
-// words.js, raised by its upgrade treasures), and scale with your stats: Bubble damage, Fire rate,
-// Range, Bubble size and extra Bubbles all apply to them as they do to bubbles.
-// Effect damage scales with "power" (bubble damage x 4.5); ELEMENT says each element's share of it.
+// words.js, raised by its upgrade treasures), and scale with your stats: Attack damage, Fire rate,
+// Range, Attack size and extra Attacks all apply to them as they do to bubbles.
+// Effect damage scales with "power" (attack damage x 4.5); ELEMENT says each element's share of it.
 import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { LOOK } from './look.js';
@@ -31,8 +31,8 @@ import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
 import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
-const RADIUS = 0.0065;       // m, at bubble size 1
-const SPLASH = 0.026;        // m, splash radius at bubble size 1
+const RADIUS = 0.0065;       // m, at attack size 1
+const SPLASH = 0.026;        // m, splash radius at attack size 1
 
 export const ELEMENTS = [
   { id: 'fire', color: 0xff8a3a, text: '#ffa65a' },
@@ -239,7 +239,7 @@ export class Bubbles {
     return true;
   }
 
-  // One shot of an element attack: `count` of its projectiles side by side (your extra Bubbles
+  // One shot of an element attack: `count` of its projectiles side by side (your extra Attacks
   // plus its own), at the nearest enemy in its range
   elementVolley(id, P, origin, stats, mods) {
     const near = this.inRange(origin, stats.range * P.range);

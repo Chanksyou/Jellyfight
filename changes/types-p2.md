@@ -1,0 +1,1 @@
+renames the Bubble stats to Attack in player text: Attack damage, Attack size and Attacks, and treasures, cards, evolutions and achievements now say "attack" where they mean your attack. No numbers or behaviour changed.

@@ -30,11 +30,11 @@ export const knockFor = (dmg) => Math.min(0.03, 0.001 * dmg);
 
 // How each stat is shown on a card and in the stats panel
 export const STAT_INFO = {
-  bubbles:         { name: 'Bubbles',         icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },
+  bubbles:         { name: 'Attacks',         icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },
   range:           { name: 'Range',           icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
-  bubbleDamage:    { name: 'Bubble damage',   icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
+  bubbleDamage:    { name: 'Attack damage',   icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
   fireRate:        { name: 'Fire rate',       icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
-  bubbleSize:      { name: 'Bubble size',     icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
+  bubbleSize:      { name: 'Attack size',     icon: '🔵', fmt: (v) => `${Math.round(v * 100)}%` },
   health:          { name: 'Health',          icon: '💧', fmt: (v) => `${Math.round(v)}` },
   shield:          { name: 'Shield',          icon: '🛡️', fmt: (v) => `${Math.round(v)}` },
   moveSpeed:       { name: 'Move speed',      icon: '⏩', fmt: (v) => `${Math.round(v * 100)}%` },
@@ -107,7 +107,7 @@ export function cardText(card) {
   const v = CARD_FLAGS[card.stat] || {};
   if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} seconds`;
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
-  if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Bubble' : 'Bubbles'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
+  if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Attack' : 'Attacks'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
   return `+${amount} ${info.name}`;
 }
 

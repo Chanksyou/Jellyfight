@@ -669,7 +669,7 @@ export function makeWord(registry, node, where) {
 // ------------------------------------------------------------------ treasure words
 // A treasure (content/treasures.kdl) is a few of these. Each one adds its effect to the run's
 // combined effects, `mods` (see newMods): the systems read mods, never treasure ids. Damage
-// numbers are multiples of the run's power (bubble damage x 1.8) unless the doc says otherwise.
+// numbers are multiples of the run's power (attack damage x 1.8) unless the doc says otherwise.
 
 // What a run has with no treasures
 export function newMods() {
@@ -713,8 +713,8 @@ const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
 
 // Each element is its own attack (bubbles.js): a projectile it fires on its own timer, separate
 // from the bubbles. Its numbers start here; upgrade treasures (element-up) raise them. Every
-// element has the common ones; `rate` shots a second and `dmg` x bubble damage per hit are at your
-// starting Fire rate and Bubble damage, and scale with them (and Range, Bubble size and extra
+// element has the common ones; `rate` shots a second and `dmg` x attack damage per hit are at your
+// starting Fire rate and Attack damage, and scale with them (and Range, Attack size and extra
 // Bubbles count too).
 export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
@@ -729,7 +729,7 @@ export const ELEMENT_BASE = {
 export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
 // What each of those numbers is, for the balance editor
 export const ELEMENT_HINTS = {
-  rate: 'shots a second', dmg: 'damage per hit (× bubble damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
+  rate: 'shots a second', dmg: 'damage per hit (× attack damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
   speed: 'shot speed', range: 'how far it reaches', burn: 'burn damage a second', burnTime: 'seconds a burn lasts',
   spread: 'how far (m) a burning kill spreads the burn', chain: 'enemies a bolt arcs to', bolt: 'arc damage',
   stun: 'stun seconds', chainRange: 'arc reach (m)', chill: 'chill seconds', frost: 'chilling the whole splash (1 = on)',
@@ -770,7 +770,7 @@ export const TIMED_WORDS = {
     make: (_, p) => ({ kind: 'lash', ...p }),
   },
   'bubble-ring': {
-    doc: 'Blows `count` bubbles at once, spread evenly in every direction around you, each doing `dmg` times your Bubble damage.',
+    doc: 'Blows `count` bubbles at once, spread evenly in every direction around you, each doing `dmg` times your Attack damage.',
     args: ['count'],
     props: { dmg: 1 },
     make: ([count], p) => ({ kind: 'bubble-ring', count, ...p }),
@@ -826,7 +826,7 @@ export const TREASURE_WORDS = {
   'mark-on-hit': { doc: 'Enemies you hit are marked for `seconds` and take `more` (0.5 = 50%) more damage from everything. `by` as above.', args: ['seconds'], props: { by: 'all', more: 0.5 }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { m.hits[k].mark = Math.max(m.hits[k].mark, s); m.hits[k].markMore = Math.max(m.hits[k].markMore, p.more); } }; } },
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
   'pin-on-crit': { doc: 'A critical hit pins the enemy in place for `seconds` (it can\'t move or attack). `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].pin = Math.max(m.hits[k].pin, s); }; } },
-  'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your bubble damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },
+  'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your attack damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
@@ -860,7 +860,7 @@ export const TREASURE_WORDS = {
   'shield-recharge': { doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. Copies add.', props: { faster: 0, sooner: 0 }, make: (_, p) => (m) => { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } },
   'shield-full-damage': { doc: 'While your Shield is full, everything you do hurts `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.shield.fullDamage += n / 100; } },
   'shield-burst': {
-    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Bubble damage (a flat `dmg` with flat=#true). Copies add their damage into one blast; different blasts each go off.',
+    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true). Copies add their damage into one blast; different blasts each go off.',
     props: { dmg: 2, radius: 0.3, flat: false },
     make: (_, p) => {
       if (!(p.dmg > 0 && p.radius > 0)) throw new Error('shield-burst: dmg and radius must be positive');
