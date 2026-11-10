@@ -706,6 +706,9 @@ export function newMods() {
     killsOf: [],                     // on-kill-of: { status, by, effects } (run.js onKill)
     nth: [],                         // nth-attack: { every, random, effects } (bubbles.js volley)
     buffs: [],                       // stack-buff: { event, stat, amount, percent, time, stacks, key } (run.js)
+    burnRamp: null,                  // burn-ramp: { step, most } Burn grows the longer a bug burns (bubbles.js)
+    refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
+    streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
   };
 }
 
@@ -726,7 +729,7 @@ export const hitBy = (source, element) => (source === 'bubble' && element) || so
 const status = (name, word) => { if (!STATUSES.includes(name)) throw new Error(`${word}: status must be one of ${STATUSES.join(', ')}, not "${name}"`); return name; };
 const by = (name, word) => { if (!HIT_BY.includes(name)) throw new Error(`${word}: by= must be one of ${HIT_BY.join(', ')}, not "${name}"`); return name; };
 // Shatter: Fire on a frozen bug does 3x and thaws it. Every run has it (a status-damage)
-const SHATTER = Object.freeze({ status: 'frozen', more: 2, by: 'fire', elites: false, perStack: 0, thaw: true });
+const SHATTER = Object.freeze({ status: 'frozen', more: 2, by: 'fire', elites: false, bugs: true, perStack: 0, thaw: true, blast: 0, blastDmg: 0 });
 
 // Each element is its own attack (bubbles.js): a projectile it fires on its own timer, separate
 // from the bubbles. Its numbers start here; upgrade treasures (element-up) raise them. Every
@@ -735,7 +738,7 @@ const SHATTER = Object.freeze({ status: 'frozen', more: 2, by: 'fire', elites: f
 // Bubbles count too).
 export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
-  fire: { burn: 1, burnTime: 3, spread: 0.06 },                       // burn dps x, seconds, how far a death spreads it
+  fire: { burn: 1, burnTime: 3, spread: 0.06, burnStacks: 1 },        // burn dps x, seconds, how far a death spreads it, Burns one bug can hold at once
   lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
   ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5 },         // chill s, frost: chills the whole splash, slowed enemies take x
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
@@ -748,7 +751,7 @@ export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'pud
 export const ELEMENT_HINTS = {
   rate: 'shots a second', dmg: 'damage per hit (× attack damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
   speed: 'shot speed', range: 'how far it reaches', burn: 'burn damage a second', burnTime: 'seconds a burn lasts',
-  spread: 'how far (m) a burning kill spreads the burn', chain: 'enemies a bolt arcs to', bolt: 'arc damage',
+  spread: 'how far (m) a burning kill spreads the burn', burnStacks: 'Burns one bug can hold at once (each re-hit adds one)', chain: 'enemies a bolt arcs to', bolt: 'arc damage',
   stun: 'stun seconds', chainRange: 'arc reach (m)', chill: 'chill seconds', frost: 'chilling the whole splash (1 = on)',
   slowedMul: 'extra damage slowed enemies take', puddleDmg: 'puddle damage', puddleSize: 'puddle size',
   puddleTime: 'seconds a puddle lasts', puddles: 'most puddles at once', push: 'how far it pushes',
@@ -798,6 +801,14 @@ export const TIMED_WORDS = {
     props: { time: 0.35 },
     make: ([speed], p) => ({ kind: 'dash', speed, time: p.time }),
   },
+  cone: {
+    doc: 'A flame cone toward the nearest bug within `range` m (or the way you face): everything within `angle`° of that way takes `dmg` times your power and is set alight (Burn, as your Fire attack\'s).',
+    props: { range: 0.12, angle: 70, dmg: 0.5 },
+    make: (_, p) => {
+      if (!(p.range > 0 && p.angle > 0 && p.angle <= 180)) throw new Error('cone: range must be above 0 and angle between 0 and 180');
+      return { kind: 'cone', ...p };
+    },
+  },
   xp: {
     doc: 'Drops `xp` worth of XP at your feet.',
     args: ['xp'],
@@ -824,10 +835,10 @@ export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'f
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
 // What `per` can count (Run.S works each one out)
-export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
+export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby'];   // burning-nearby: Burning bugs within 30 cm of you
 
 // The stats a treasure can raise with `stat`, by the name content files use
-export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', shield: 'shield', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce' };
+export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', shield: 'shield', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce', 'burn-damage': 'burnDamage' };
 
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
@@ -908,7 +919,7 @@ export const TREASURE_WORDS = {
   'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed or tentacle-damage. `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value.',
     args: ['name', 'amount'],
     props: { percent: false },
     make: ([name, amount], p) => {
@@ -919,15 +930,16 @@ export const TREASURE_WORDS = {
     },
   },
   per: {
-    doc: 'A stat grows by `amount` (a % of its starting value with percent=#true) for every `every` of `of`: max-health, move-speed-bonus (% above your starting Move speed), levels (gained this run) or chests (treasures found this run). Stat names as in `stat`, plus tentacle-damage. Recomputed live, so it follows the stat it reads.',
+    doc: 'A stat grows by `amount` (a % of its starting value with percent=#true) for every `every` of `of`: max-health, move-speed-bonus (% above your starting Move speed), levels (gained this run), chests (treasures found this run) or burning-nearby (Burning bugs within 30 cm), counting at most `most` of them. Stat names as in `stat`, plus tentacle-damage. Recomputed live, so it follows the stat it reads.',
     args: ['name', 'amount'],
-    props: { every: 1, of: null, percent: false },
+    props: { every: 1, of: null, percent: false, most: null },
     make: ([name, amount], p) => {
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`per: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (!PER_SOURCES.includes(p.of)) throw new Error(`per: of= must be one of ${PER_SOURCES.join(', ')}, not "${p.of}"`);
       if (!(p.every > 0)) throw new Error('per: every= must be more than 0');
-      return (m) => { m.per.push({ stat: key, amount, every: p.every, of: p.of, percent: p.percent }); };
+      if (p.most != null && !(p.most > 0)) throw new Error('per: most= must be more than 0');
+      return (m) => { m.per.push({ stat: key, amount, every: p.every, of: p.of, percent: p.percent, most: p.most }); };
     },
   },
   while: {
@@ -942,13 +954,15 @@ export const TREASURE_WORDS = {
     },
   },
   'status-damage': {
-    doc: 'Hits (not damage over time) on a bug that is `status` do `more` (0.5 = 50%) extra damage, plus `per-stack` for each of its stacks. `by` names what must deal the hit (all, bubble, tentacle, splash or an Element); `elites=#true` counts Elites and the boss too; `thaw=#true` (frozen only) shatters the ice: the hit ends the freeze. Copies add.',
+    doc: 'Hits (not damage over time) on a bug that is `status` do `more` (0.5 = 50%) extra damage, plus `per-stack` for each of its stacks. `by` names what must deal the hit (all, bubble, tentacle, splash or an Element); `elites=#true` counts Elites and the boss too, and `bugs=#false` leaves ordinary bugs out; `thaw=#true` (frozen only) shatters the ice: the hit ends the freeze. `blast` (m): the hit also bursts in a Blast that round, hurting every other bug in it for `blast-dmg` of the hit. Copies add.',
     args: ['status'],
-    props: { more: 0.5, by: 'all', elites: false, 'per-stack': 0, thaw: false },
+    props: { more: 0.5, by: 'all', elites: false, bugs: true, 'per-stack': 0, thaw: false, blast: 0, 'blast-dmg': 0.5 },
     make: ([s], p) => {
       const st = status(s, 'status-damage'), b = by(p.by, 'status-damage');
       if (p.thaw && st !== 'frozen') throw new Error('status-damage: thaw=#true only goes with "frozen"');
-      return (m) => { m.statusDamage.push({ status: st, more: p.more, by: b, elites: p.elites, perStack: p['per-stack'], thaw: p.thaw }); };
+      if (!p.bugs && !p.elites) throw new Error('status-damage: bugs=#false needs elites=#true (or it counts nothing)');
+      if (!(p.blast >= 0 && p['blast-dmg'] > 0)) throw new Error('status-damage: blast= must be 0 or more and blast-dmg= above 0');
+      return (m) => { m.statusDamage.push({ status: st, more: p.more, by: b, elites: p.elites, bugs: p.bugs, perStack: p['per-stack'], thaw: p.thaw, blast: p.blast, blastDmg: p['blast-dmg'] }); };
     },
   },
   'status-taken': {
@@ -958,13 +972,14 @@ export const TREASURE_WORDS = {
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
   },
   'on-kill-of': {
-    doc: 'When a bug that is `status` dies (or one killed by `by`: bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp.',
-    props: { status: null, by: null },
+    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp.',
+    props: { status: null, by: null, stacks: 1 },
     block: TIMED_WORDS,
     make: (_, p, where, effects) => {
       if (p.status == null && p.by == null) throw new Error('on-kill-of: needs status= or by=');
       const st = p.status == null ? null : status(p.status, 'on-kill-of'), b = p.by == null ? null : by(p.by, 'on-kill-of');
-      return (m) => { m.killsOf.push({ status: st, by: b, effects }); };
+      if (!(Number.isInteger(p.stacks) && p.stacks >= 1) || (p.stacks > 1 && !st)) throw new Error('on-kill-of: stacks= is a whole number, 1 or more, and goes with status=');
+      return (m) => { m.killsOf.push({ status: st, by: b, stacks: p.stacks, effects }); };
     },
   },
   'nth-attack': {
@@ -987,6 +1002,31 @@ export const TREASURE_WORDS = {
       if (!key) throw new Error(`stack-buff: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('stack-buff: time must be above 0 and stacks a whole number, 1 or more');
       return (m, copy = 0) => { m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` }); };
+    },
+  },
+  'burn-ramp': {
+    doc: 'Burn grows by `step` (0.2 = 20%) for each second a bug keeps burning, up to `most` (1 = +100%). A Burn that runs out starts over. Copies add their steps.',
+    args: ['step'],
+    props: { most: 1 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.most > 0)) throw new Error('burn-ramp: step and most= must be above 0');
+      return (m) => { m.burnRamp = m.burnRamp ? { step: m.burnRamp.step + n, most: Math.max(m.burnRamp.most, p.most) } : { step: n, most: p.most }; };
+    },
+  },
+  'refresh-all': {
+    doc: 'A hit by your attack on a bug that is `status` (burning) refreshes that status on every bug that has it, to its full time.',
+    args: ['status'],
+    make: ([s]) => { if (s !== 'burning') throw new Error(`refresh-all: status must be burning, not "${s}"`); return (m) => { if (!m.refreshAll.includes(s)) m.refreshAll.push(s); }; },
+  },
+  streak: {
+    doc: 'When `kills` bugs die within `within` s of each other (only ones that are `status`, if given), does the effects in its { block } around you, then counts again from none.',
+    args: ['kills'],
+    props: { within: 3, status: null },
+    block: TIMED_WORDS,
+    make: ([n], p, where, effects) => {
+      if (!(Number.isInteger(n) && n >= 2 && p.within > 0)) throw new Error('streak: kills must be a whole number, 2 or more, and within= above 0');
+      const st = p.status == null ? null : status(p.status, 'streak');
+      return (m, copy = 0) => { m.streaks.push({ kills: n, within: p.within, status: st, effects, key: `${where}#${copy}` }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },

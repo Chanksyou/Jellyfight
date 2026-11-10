@@ -95,6 +95,9 @@ A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongsi
 **Jelly type**:
 What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). Not offered to players yet; every run is Normal until release.
 
+**Attack upgrade**:
+A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three bosses (after the Legendary pick). Never in a treasure chest, and each one of a kind (`content/upgrades.kdl`). Not offered to players yet.
+
 **Elite**:
 A mini-boss: a household object that fights back, tougher than a bug and weaker than the boss.
 _Avoid_: Miniboss

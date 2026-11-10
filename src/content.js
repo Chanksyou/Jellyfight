@@ -10,11 +10,12 @@
 //   content/elites.kdl    the elites: Health, aggro and every attack's numbers (src/elites.js)
 //   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
 //   content/jellies.kdl   the jelly types a run can start as (behind GAME.types: src/jelly-types.js)
+//   content/upgrades.kdl  each jelly type's Attack upgrades, picked after an act's boss (the same effect words)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
 import { ADORNMENTS, ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, jellies: {}, nodes: null };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, jellies: {}, upgrades: [], nodes: null };
 
 // Dev-editor removals (src/balance-editor.js): keys like 'elite:mug' and 'card:health'.
 // Session-only, never written to the files: a removed elite doesn't spawn (run.js) and a
@@ -123,6 +124,7 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     out.push({
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
       needsStat: needsStat(n.props['needs-stat'], where, id),   // offered only once that stat is above 0 (shield treasures: you have a Shield bar)
+      retired: !!n.props.retired,     // retired=#true: never offered with jelly types on (a tentacle Treasure that becomes a Tentacle Attack upgrade)
       notFor: notFor(n.props['not-for'], where, id),            // never offered to a run with one of these attacks
       id, name: n.props.name, icon: n.props.icon, text: n.props.text, attack: !!n.props.attack, stack: lv.length ? lv.length + 1 : unique ? 1 : n.props.stack ?? STACK_DEFAULT, rarity,
       effects: levels[0], levels, levelText: [n.props.text, ...lv.map((L) => L.props.text)],
@@ -139,6 +141,23 @@ export function compileEvolutions(nodes, file = 'content/evolutions.kdl') {
   for (const n of nodes) if (n.name !== 'evolution') throw new Error(`${file}:${n.line}: expected "evolution", got "${n.name}"`);
   const asTreasures = nodes.map((n) => ({ ...n, name: 'treasure', props: { ...n.props, rarity: 'legendary' } }));
   return compileTreasures(asTreasures, file).map((t) => ({ ...t, evolution: true }));
+}
+
+// upgrade "id" jelly="…" name="…" icon="…" text="…" needs="…" { effect words… }: a jelly type's Attack
+// upgrades, 1 of 3 offered after each of the first three bosses (Run.pickUpgrade). The same words as
+// treasures, feeding the run's combined effects; never in a chest, and each one of a kind. needs= is
+// another upgrade of the same jelly that must be taken first.
+export function compileUpgrades(nodes, jellies, file = 'content/upgrades.kdl') {
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name !== 'upgrade') throw new Error(`${where}: expected "upgrade", got "${n.name}"`);
+    if (!jellies[n.props.jelly]) throw new Error(`${where}: "${n.args[0]}" jelly= must be one of ${Object.keys(jellies).join(', ')}, not "${n.props.jelly}"`);
+    for (const k of ['rarity', 'stack']) if (n.props[k] !== undefined) throw new Error(`${where}: "${n.args[0]}" takes no ${k}= (an Attack upgrade is one of a kind)`);
+  }
+  const asTreasures = nodes.map((n) => ({ ...n, name: 'treasure', props: { ...n.props, stack: 1 } }));
+  const out = compileTreasures(asTreasures, file).map((t, i) => ({ ...t, jelly: nodes[i].props.jelly, upgrade: true }));
+  for (const u of out) if (u.needs && out.find((x) => x.id === u.needs).jelly !== u.jelly) throw new Error(`${file}: "${u.id}" needs="${u.needs}", an upgrade of another jelly`);
+  return out;
 }
 
 // boss "id" name="…" icon="…" hp= contact= { skill key=number … }: the boss fights' numbers. A skill
@@ -267,11 +286,12 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
   return out;
 }
 
-// The combined effects of the treasures you own (ids) and the evolutions you've taken: what the
-// systems read
-export function compileMods(ids, evolved = []) {
+// The combined effects of the treasures you own (ids), the evolutions and the Attack upgrades
+// you've taken: what the systems read
+export function compileMods(ids, evolved = [], upgrades = []) {
   const m = newMods();
   for (const e of CONTENT.evolutions) if (evolved.includes(e.id)) owned(m, e.id, () => { for (const fx of e.effects) fx(m, 0); });
+  for (const u of CONTENT.upgrades) if (upgrades.includes(u.id)) owned(m, u.id, () => { for (const fx of u.effects) fx(m, 0); });
   for (const t of CONTENT.treasures) {
     const n = ids.count ? ids.count(t.id) : ids.has(t.id) ? 1 : 0;
     if (!n) continue;
@@ -296,7 +316,7 @@ function owned(m, id, apply) {
 
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves, treasures, evolutions, bosses, elites, levelups, jellies] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl'), read('jellies.kdl')]);
+  const [enemies, waves, treasures, evolutions, bosses, elites, levelups, jellies, upgrades] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl'), read('jellies.kdl'), read('upgrades.kdl')]);
   // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
   // recompiles from them, without reloading the page.
   CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl'), elites: parse(elites, 'content/elites.kdl'), levelups: parse(levelups, 'content/levelups.kdl') };
@@ -308,6 +328,7 @@ export async function loadContent(base = './content/') {
   CONTENT.elites = compileElites(CONTENT.nodes.elites);
   CONTENT.levelups = compileLevelups(CONTENT.nodes.levelups);
   CONTENT.jellies = compileJellies(parse(jellies, 'content/jellies.kdl'));
+  CONTENT.upgrades = compileUpgrades(parse(upgrades, 'content/upgrades.kdl'), CONTENT.jellies);
   return CONTENT;
 }
 

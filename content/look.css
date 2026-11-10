@@ -66,6 +66,7 @@
   --gadget-tag-life: 0.25;
   --gadget-pin-height: 0.014;
   --gadget-fizz-prepare: 0.3;
+  --gadget-cone-prepare: 0.35;   /* s of flame gathering at the bell before a flame cone (Fire Breath) */
   --gadget-tags: 24;
   --gadget-gold: #f5e7a7;
   --gadget-signal: #a5e5ff;
@@ -306,6 +307,7 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
+  --fire-blast: #ff8a3a;          /* Fire Attack upgrades: a burning bug's hit bursting (Flashpoint), the flame cone (Fire Breath) */
   --wind-core: #d9f6ff;
   --wind-gather-radius: 0.022;
   --wind-release-size: 0.018;
