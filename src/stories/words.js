@@ -1004,9 +1004,10 @@ story('vocabulary/no-retired-words', {
     for (const t of TREASURES) texts.push([`treasure ${t.id}`, [t.name, t.text, ...(t.levelText || [])].join(' · ')]);
     for (const [id, e] of Object.entries(CONTENT.enemies)) texts.push([`enemy ${id}`, e.name]);
     for (const [k, v] of Object.entries(STAT_INFO)) texts.push([`stat ${k}`, v.name]);
+    for (const j of Object.values(CONTENT.jellies)) texts.push([`jelly ${j.id}`, `${j.name} · ${j.about}`]);
     for (const e of EVOLUTIONS) texts.push([`evolution ${e.id}`, `${e.name} · ${e.text}`]);
     // prose in the code players read: quoted strings with a space in them, comments stripped
-    for (const f of ['run.js', 'hud.js', 'ui.js', 'main.js', 'stats.js', 'first-run.js']) {
+    for (const f of ['run.js', 'hud.js', 'ui.js', 'main.js', 'stats.js', 'first-run.js', 'pick-screen.js', 'jelly-types.js']) {
       const src = (await get(`/src/${f}`)).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
       // one line at a time; a string that reads as prose (words and spaces, no code or CSS in it)
       for (const line of src.split('\n')) for (const m of line.matchAll(/'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) {

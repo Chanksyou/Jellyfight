@@ -1574,7 +1574,7 @@ export class Run {
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
       // a run always starts over from act 1; after a death, starting again is the big button (Enter still submits)
-      const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else { this.start(); this.resume(); } } };
+      const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else if (!this.pickType?.()) { this.start(); this.resume(); } } };
       if (dead) buttons.push(tryAgain);
       if (canPost) {
         buttons.push({ label: '📤 Submit score', go: !dead, enter: true, onClick: (v) => {

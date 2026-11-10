@@ -45,7 +45,7 @@ export function restore() {
 export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null } = {}) {
   const { run, menus, enemies, mainMenu } = G();
   restore();
-  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal';
+  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal'; TYPE_SWITCH.locked = {};
   mainMenu.restore(); mainMenu.cancelLaunch();
   mainMenu.home = false;
   mainMenu.overlay.classList.remove('menu-home');   // stories enter gameplay without the title transition
