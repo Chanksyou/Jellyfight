@@ -29,7 +29,8 @@ const EXHAUST = new THREE.Color('#ffa040');
 const ARC = new THREE.Color(LOOK.color('beetle-arc', '#eef2ff'));      // the stag beetle's ball: its white-hot core and the arcs crackling round it
 const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where its ball burst on the floor
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
-const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
+const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));
+const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting      // the sparks crackling over a stunned bug (lightning's colour)
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
 // a chilled bug's crown: seven ice spikes in a ring round its feet, leaning out, uneven (one shared geometry)
 function iceCrown() {
@@ -447,9 +448,10 @@ export class Enemies {
     if (!e || e.dead) return;
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
     if (!feedback.tick) {                // status-damage: a hit on a bug with a status does more (Shatter thaws it)
-      const k = this.statusMore(e, feedback.by);
+      const k = this.statusMore(e, feedback.by), blast = this._blast, share = this._blastDmg;
       amount *= k;
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
+      if (blast) this.statusBlast(e, blast, amount * share);
     }
     e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (e.proxy) {
@@ -483,15 +485,29 @@ export class Enemies {
   // Pure but for _thaw (a status-damage with thaw=#true counted): the bubbles ask it for their shove too
   statusMore(e, by) {
     let more = 0;
-    this._thaw = false;
+    this._thaw = false; this._blast = 0; this._blastDmg = 0;
     for (const D of this.mods?.statusDamage || []) {
-      if ((e.proxy && !D.elites) || (D.by !== 'all' && D.by !== by)) continue;
+      if ((e.proxy ? !D.elites : D.bugs === false) || (D.by !== 'all' && D.by !== by)) continue;
       const n = this.statuses[D.status](e);
       if (!n) continue;
       more += D.more + D.perStack * n;
       this._thaw ||= D.thaw;
+      if (D.blast) { this._blast = Math.max(this._blast, D.blast); this._blastDmg += D.blastDmg; }   // blast= (Flashpoint)
     }
     return 1 + more;
+  }
+  // status-damage blast=: the hit on e bursts, hurting every other bug within r of its middle for `amount`
+  // (damage over time's path: it can't set off another blast)
+  statusBlast(e, r, amount) {
+    const c = this.center(e), o = S.o;
+    this.fx.impact(c, BLAST, r * 0.6, 6);
+    this.fx.ring(c.clone().setY(c.y - e.r * 0.8), BLAST.getHex(), r, 0.3);
+    sfx.fireDeath();
+    for (const n of this.list) {
+      if (n === e || n.dead || n.proxy?.shielded) continue;
+      if (this.center(n, o).distanceTo(c) - n.r > r) continue;   // a sphere of r round its middle, touching n's body
+      bus.emit('damage_taken', { targetId: n.id, amount, color: '#ffa65a', source: 'fire', feedback: { tick: true, element: 'fire' } });
+    }
   }
   // the ice shatters: a hit ends a bug's freeze
   shatter(e) {

@@ -42,6 +42,8 @@ import { loadLayout } from './layout.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
+const _near = new THREE.Vector3(), NEARBY = 0.3;   // per of="burning-nearby": how close a Burning bug counts (m)
+const UPGRADE_TIER = { name: 'Attack upgrade', color: '#7ff6ee' };   // how an Attack upgrade's pick card reads (no rarity)
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // Standing this far (m) above the act's floor counts as high ground (a `while` treasure): furniture,
@@ -88,6 +90,7 @@ export class Run {
     this.gadgets = new Gadgets(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles = new Bubbles(ctx.scene, ctx.enemies, ctx.fx, ctx.world);
     this.bubbles.treasureLooks=this.gadgets.looks;
+    this.gadgets.bubbles = this.bubbles;   // the flame cone sets Burn and draws with the Fire looks
     this.enemies.treasureLooks=this.gadgets.looks;
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
@@ -301,6 +304,8 @@ export class Run {
     this.grown = {}; this.growCount = {}; this.growTotal = {}; this.buffs = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
+    this.upgrades = [];               // Attack upgrades taken (content/upgrades.kdl), one after each of the first three bosses
+    this.streaks = {};                // streak: when each one's recent kills died
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
     this.eliteLog = [];
     this.pickupLog = [];
@@ -330,6 +335,7 @@ export class Run {
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
       this.evolved = [...(C.evolved || [])];
+      this.upgrades = [...(C.upgrades || [])];
       this.newFinds = [...(C.newFinds || [])];
       this.pearls = C.pearls || 0;
       if (C.awardsBefore) this.awardsBefore = C.awardsBefore;
@@ -430,7 +436,7 @@ export class Run {
     const per = this.mods.per;
     if (per.length) {
       const was = (this._perAt ||= {}); was.health = S.health; was.moveSpeed = S.moveSpeed;
-      for (const c of per) S[c.stat] += (this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
+      for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? BASE_STATS[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
@@ -443,7 +449,8 @@ export class Run {
 
   // what a per converter counts (`of`), read from stats S
   perSource(of, S) {
-    return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1 : this.chestsOpened || 0;
+    return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1
+      : of === 'burning-nearby' ? this.burningNear || 0 : this.chestsOpened || 0;
   }
 
   get power() { return this.S.bubbleDamage * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
@@ -451,11 +458,12 @@ export class Run {
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
   get mods() {
-    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== (this.evolved?.length || 0)) {
-      this._mods = compileMods(this.owned, this.evolved || []);
+    const picks = `${this.evolved?.length || 0}/${this.upgrades?.length || 0}`;   // evolutions and Attack upgrades taken
+    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== picks) {
+      this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || []);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
-      this._modsE = this.evolved?.length || 0;
+      this._modsE = picks;
     }
     return this._mods;
   }
@@ -524,6 +532,11 @@ export class Run {
     this.slowHardT = Math.max(0, this.slowHardT - dt);
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
     for (const k in this.buffs) if ((this.buffs[k].t -= dt) <= 0) delete this.buffs[k];   // stack-buff: its stacks run out together
+    if (this.mods.per.some((c) => c.of === 'burning-nearby')) {   // per of="burning-nearby" (Fuel): counted once a frame
+      let n = 0;
+      for (const [e, f] of this.bubbles.burning) if (!e.dead && f.t > 0 && this.enemies.center(e, _near).distanceTo(P.position) < NEARBY) n++;
+      this.burningNear = n;
+    }
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
@@ -949,11 +962,22 @@ export class Run {
     this.buff('kill');
     // on-kill-of: a bug that died with a status (or to `by`) sets off the block where it fell
     for (const K of this.mods.killsOf) {
-      if ((K.status && !statuses[K.status]) || (K.by && K.by !== by)) continue;
+      if ((K.status && !(statuses[K.status] >= K.stacks)) || (K.by && K.by !== by)) continue;
       const feet = new THREE.Vector3(c.x, floor, c.z);
       const ctx = { feet, center: c, facing: this.player.facing, power: this.power,
         dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
+      for (const ef of K.effects) this.gadgets.fire(ef, ctx);
+    }
+    // streak: enough kills (of bugs with its status) close enough together sets off the block around you
+    for (const K of this.mods.streaks) {
+      if (K.status && !statuses[K.status]) continue;
+      const times = (this.streaks[K.key] ||= []).filter((at) => this.t - at <= K.within);
+      times.push(this.t);
+      this.streaks[K.key] = times;
+      if (times.length < K.kills) continue;
+      this.streaks[K.key] = [];
+      const P = this.player.position, ctx = { feet: P.clone(), center: P.clone().setY(P.y + this.cfg.height * 0.45), facing: this.player.facing, power: this.power, mods: this.mods, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of K.effects) this.gadgets.fire(ef, ctx);
     }
     const combo = juice.kill();
@@ -1099,7 +1123,8 @@ export class Run {
     const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
     const can = (t) => weights[t.rarity] > 0 && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
     // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
-    const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
+    // (a jelly type has no Element upgrades: its every 3rd chest is ordinary)
+    const ups = ++this.chestsOpened % 3 === 0 && !this.attack ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
     const up = ups.length ? rollTreasures(ups, 1, this.S.luck, favor) : [];
     const rolled = rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck, favor);
     let left = shuffle([...up, ...rolled]);
@@ -1128,8 +1153,7 @@ export class Run {
   // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
   // (while any are left); the rest from the other Legendary treasures and elements you can take
   pickLegendary(title, sub, then = () => this.resume()) {
-    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t)
-      && !(this.attack && ELEMENT_TREASURES.includes(t.id));   // a jelly type's attack is its own: no Element to add
+    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
     const pool = shuffle(TREASURES.filter(can)), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
     const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
     if (!left.length) { then(); return; }
@@ -1138,8 +1162,27 @@ export class Run {
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
   hasStat(t) { return !t.needsStat || this.S[t.needsStat] > 0; }
-  // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles)
-  forAttack(t) { return !this.attack || !t.notFor?.includes(this.attack.kind); }
+  // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
+  // A jelly type's attack is its own: no Element, Element upgrade or Power Bank (element, element-up),
+  // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
+  forAttack(t) { return !this.attack || !(t.notFor?.includes(this.attack.kind) || t.retired || t.vocabulary.includes('element') || t.vocabulary.includes('element-up')); }
+
+  // The end of an act (with jelly types): 1 of 3 Attack upgrades from the jelly's pool
+  // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after
+  pickUpgrade(next, then) {
+    const pool = CONTENT.upgrades.filter((u) => u.jelly === this.jelly && !this.upgrades.includes(u.id) && (!u.needs || this.upgrades.includes(u.needs)));
+    const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
+    if (!left.length) { then(); return; }
+    sfx.treasure();
+    this.ui.choose('⚔️ An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
+      const before = this.S.health;
+      this.upgrades.push(u.id);
+      if (this.S.health > before) this.heal(this.S.health - before);
+      this.health = Math.min(this.health, this.S.health);
+      this.ui.treasure(u);
+      then();
+    });
+  }
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
   markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
@@ -1425,7 +1468,7 @@ export class Run {
       this.evolutionReveal.begin(evo, before, () => {
         this.phase = 'won';
         // The transformation finishes before the next reward replaces its portrait.
-        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => this.actComplete(next));
+        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => (this.attack ? this.pickUpgrade(next, () => this.actComplete(next)) : this.actComplete(next)));
         else this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
       });
     });
@@ -1581,7 +1624,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { jelly: this.jelly, elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
@@ -1612,7 +1655,7 @@ export class Run {
     return {
       score: this.score(), stats: this.stats, jelly: this.jelly, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
-      chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, newFinds: this.newFinds,
+      chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, upgrades: this.upgrades, newFinds: this.newFinds,
       pearls: this.pearls, awardsBefore: this.awardsBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),
     };
   }

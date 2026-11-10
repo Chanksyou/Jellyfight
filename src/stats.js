@@ -17,6 +17,7 @@ export const BASE_STATS = {
   dodge: 0,           // % chance a hit misses you entirely (60% at most; cards near it with diminishing returns)
   luck: 0,            // shifts level-up cards and treasures toward the rarer kinds (see luckWeights)
   pierce: 0,          // more enemies each bubble pops on, on top of Bobby Pin (Upside-down Jelly, rooted)
+  burnDamage: 1,      // how hard Burn hurts (1 = as usual): Fire Attack upgrades raise it (content/upgrades.kdl)
   // Tentacles: an automatic lash at close range. Only treasures improve these.
   tentacles: 1,       // tentacles that lash out at once (the jelly has 6 in all)
   reach: 0.083,       // meters a tentacle reaches, from the middle of the bell (~5 cm past its rim)
@@ -43,6 +44,7 @@ export const STAT_INFO = {
   dodge:           { name: 'Dodge',           icon: '🍃', fmt: (v) => `${Math.round(v)}%` },
   luck:            { name: 'Luck',            icon: '🍀', fmt: (v) => `${Math.round(v)}` },
   pierce:          { name: 'Pierce',          icon: '🧷', fmt: (v) => `+${Math.round(v)}` },
+  burnDamage:      { name: 'Burn damage',     icon: '🔥', fmt: (v) => `${Math.round(v * 100)}%` },
   tentacles:       { name: 'Tentacles',       icon: '🪼', fmt: (v) => `${v}` },
   reach:           { name: 'Tentacle reach',  icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
   tentacleDamage:  { name: 'Tentacle damage', icon: '⚡', fmt: (v) => `${Math.round(v)}` },

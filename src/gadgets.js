@@ -9,8 +9,9 @@ import { GadgetLooks } from './gadget-looks.js';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { batcher } from './batch.js';
+import { knockFor } from './stats.js';
 
-const _to = new THREE.Vector3();
+const _to = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 
 export class Gadgets {
   constructor(scene, enemies, fx, world) {
@@ -241,6 +242,7 @@ export class Gadgets {
           const r=.026+.018*this.t[T.key]/LOOK.num('gadget-bath-prepare',.3);
           this.bathReady.children.forEach((m,i)=>{const a=i/8*Math.PI*2;m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);});
         }
+        if(ef.kind==='cone'&&this.t[T.key]<LOOK.num('gadget-cone-prepare',.35))this.bubbles?.looks.gather('fire',center,1-this.t[T.key]/LOOK.num('gadget-cone-prepare',.35),1);   // flame gathering at the bell
         if(ef.look==='puff'&&this.t[T.key]<LOOK.num('gadget-fizz-prepare',.3)){this.chordReady.visible=true;this.chordReady.position.copy(center);this.chordReady.scale.setScalar(.022);}
         if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
           this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
@@ -478,6 +480,31 @@ export class Gadgets {
       ctx.bubbleRing?.(ef.count, ef.dmg);
     } else if (ef.kind === 'xp') {
       ctx.dropXp?.(ef.xp);
+    } else if (ef.kind === 'cone') this.cone(ef, ctx);
+  }
+
+  // cone (Fire Breath): a flame cone toward the nearest bug in reach, or the way you face; everything
+  // inside is hit and set alight with your Fire attack's Burn (bubbles.js ignite)
+  cone(ef, { center, power, facing, mods, pulse }) {
+    const E = this.enemies, B = this.bubbles, F = B?.looks, near = this.near(center, ef.range);
+    const dir = (near[0] ? E.center(near[0], _cone).sub(center) : _cone.set(Math.sin(facing), 0, Math.cos(facing))).setY(0);
+    if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+    dir.normalize();
+    const half = ef.angle * Math.PI / 360, cos = Math.cos(half);
+    // release: a flash at the bell, the bell squeezes, a whoosh; the flame licks out along the cone
+    F?.fireLaunch(center, 0.012);
+    for (let i = 1; i <= 4; i++) for (let j = -1; j <= 1; j++) F?.fireBurn(_to.copy(dir).applyAxisAngle(UP, j * half * 0.75).multiplyScalar(ef.range * i / 4).add(center), 0.008 + 0.005 * i);
+    sfx.fireLaunch(1.4); pulse?.(0.3); juice.feel('hit');
+    let hit = 0;
+    for (const e of near) {
+      const at = E.center(e), to = at.clone().sub(center).setY(0), l = to.length();
+      if (l > 1e-6 && to.dot(dir) / l < cos) continue;
+      hit++;
+      F?.fireHit(at, e.r, dir);
+      bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#ffa65a', source: 'cone', feedback: { element: 'fire', dir: dir.clone() } });
+      if (!e.T?.fly && !e.dead) bus.emit('knockback', { targetId: e.id, dir: dir.clone(), force: knockFor(power * ef.dmg) });
+      if (!e.dead) B?.ignite(e, power * 2.5, mods?.element?.fire);   // power is Attack damage x 1.8; Burn's is x 4.5
     }
+    if (hit) sfx.fire(1.2);
   }
 }
