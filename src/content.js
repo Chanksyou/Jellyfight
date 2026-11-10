@@ -268,6 +268,8 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (out[id]) throw new Error(`${where}: there are two jellies called "${id}"`);
     if (typeof n.props.name !== 'string') throw new Error(`${where}: "${id}" needs name="…"`);
     if (!JELLY_ATTACKS.includes(n.props.attack)) throw new Error(`${where}: "${id}" attack= must be one of ${JELLY_ATTACKS.join(', ')}, not "${n.props.attack}"`);
+    if (typeof n.props.about !== 'string') throw new Error(`${where}: "${id}" needs about="…" (the pick screen's line on its attack)`);
+    if (n.props.area !== undefined && typeof n.props.area !== 'boolean') throw new Error(`${where}: "${id}" area= must be #true or #false`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
     if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
     const stats = {};
@@ -279,7 +281,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
       stats[key] = value;
     }
-    out[id] = { id, name: n.props.name, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, stats };
+    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);

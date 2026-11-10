@@ -245,6 +245,19 @@
   --menu-water-glow: #70ddc7;
   --menu-water-rays: 0.12;
   --menu-water-shimmer: 0.16;
+  /* The jelly type pick screen (src/pick-screen.js): each type's accent on its card, and how it moves */
+  --type-normal: #8fd9ff;
+  --type-fire: #ff8a3d;
+  --type-lightning: #ffe45c;
+  --type-ice: #9fe8ff;
+  --type-poison: #8be36a;
+  --type-wind: #c4f0e0;
+  --type-glitter: #ff9ae8;
+  --type-tentacle: #c79bff;
+  --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre */
+  --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
+  --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
+  --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
 
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;

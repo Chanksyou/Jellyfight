@@ -7,30 +7,33 @@
 // `hit` multiplies that attack's damage (the damage budget's one knob). `adorn` is the type's
 // look, a piece drawn on top of the player's own jelly (src/adornments.js).
 //
-//   jelly "id" name="…" attack="…" hit=1 adorn="…" { stat <name> <value> … }
+//   jelly "id" name="…" about="…" attack="…" hit=1 adorn="…" area=#true { stat <name> <value> … }
+//
+// `about` is the one line on the pick screen about the signature attack (src/pick-screen.js).
+// `area` marks an attack that splashes, arcs or bursts: the screen's Area bar counts it 1.5x.
 
-jelly "normal" name="Normal Jelly" attack="bubble" hit=1
+jelly "normal" name="Normal Jelly" about="Blows a plain, steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1
 
 // Fire: the Fire shot at full Fire rate. hit=0.5 lands it at 11.4 damage a second on one bug
 // (7.5 x 0.5 x 1.5/s = 5.6 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
 // the top of the 9-12 budget, for a glass cannon (docs/jelly-types/spec-core.md)
 // hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
 // about half of Fire's damage
-jelly "fire" name="Fire Jelly" attack="fire" hit=0.5 adorn="ember" {
+jelly "fire" name="Fire Jelly" about="Fire shots set bugs burning, and a burning bug that dies lights the ones next to it." attack="fire" hit=0.5 adorn="ember" {
     stat bubble-damage 7.5
     stat move-speed 1.05
     stat health 19
     stat fire-rate 1.5
 }
 
-jelly "lightning" name="Lightning Jelly" attack="lightning" hit=1 {
+jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nearby and stuns them for a moment." attack="lightning" hit=1 area=#true {
     stat fire-rate 2.2
     stat move-speed 1.15
     stat bubble-damage 4.5
     stat health 22
 }
 
-jelly "ice" name="Ice Jelly" attack="ice" hit=1 {
+jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl while you chip them down." attack="ice" hit=1 {
     stat health 31
     stat shield 5
     stat bubble-damage 9
@@ -40,7 +43,7 @@ jelly "ice" name="Ice Jelly" attack="ice" hit=1 {
 }
 
 // Health regen is per second: 0.5 every 5 s
-jelly "poison" name="Poison Jelly" attack="poison" hit=1 {
+jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs take damage over time and hit weaker." attack="poison" hit=1 area=#true {
     stat health-regen 0.1
     stat bubble-size 1.2
     stat health 28
@@ -48,7 +51,7 @@ jelly "poison" name="Poison Jelly" attack="poison" hit=1 {
     stat range 0.25
 }
 
-jelly "wind" name="Wind Jelly" attack="wind" hit=1 {
+jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1 {
     stat move-speed 1.2
     stat jump-height 1.2
     stat range 0.36
@@ -57,7 +60,7 @@ jelly "wind" name="Wind Jelly" attack="wind" hit=1 {
     stat fire-rate 1.5
 }
 
-jelly "glitter" name="Glitter Jelly" attack="glitter" hit=1 {
+jelly "glitter" name="Glitter Jelly" about="Glitter bombs burst into a sparkling ball that splashes every bug inside." attack="glitter" hit=1 area=#true {
     stat luck 10
     stat bubble-size 1.25
     stat dodge 5
@@ -67,7 +70,7 @@ jelly "glitter" name="Glitter Jelly" attack="glitter" hit=1 {
 
 // Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a
 // second: 9 x 1.76 = 15.8 a second on one bug, up to 47.5 on three in reach
-jelly "tentacle" name="Tentacle Jelly" attack="tentacle" hit=1 adorn="barbs" {
+jelly "tentacle" name="Tentacle Jelly" about="No ranged attack: your tentacles sting up to 3 bugs in close reach." attack="tentacle" hit=1 adorn="barbs" {
     stat bubble-damage 9
     stat bubbles 3
     stat tentacle-reach 0.11

@@ -24,7 +24,9 @@ const glowMat = (name, fallback, opts = {}) => {
 };
 
 export class Adornments {
-  constructor(scene, player, cfg) {
+  // batch: where batched pieces register (the game's batcher; the pick screen's portraits draw in a scene of their own and pass a stand-in)
+  constructor(scene, player, cfg, { batch = batcher } = {}) {
+    this.batch = batch;
     this.scene = scene;
     this.player = player;
     this.h = cfg.height;              // the jelly's height: pieces are placed in shares of it
@@ -106,7 +108,7 @@ export class Adornments {
     group.add(core);
     const coals = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, coalMat); group.add(m); return m; });
     const sparks = Array.from({ length: LOOK.num('ember-sparks', 10) }, () => { const m = new THREE.Mesh(ball, sparkMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
-    batcher.track(group);
+    this.batch.track(group);
     let next = 0;
     const glowCol = coreMat.color.clone(), coalCol = coalMat.color.clone(), sparkCol = sparkMat.color.clone();
     return { group, free: true, tick: (dt, run) => {
@@ -153,7 +155,7 @@ export class Adornments {
     const mat = glowMat('barb', '#f4e9ff', { emissiveIntensity: 0.9 });
     const geo = new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
     const barbs = Array.from({ length: 8 * per }, () => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
-    batcher.track(group);
+    this.batch.track(group);
     const d = new THREE.Vector3(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
     return { group, free: true, tick: (dt, run) => {
       const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
