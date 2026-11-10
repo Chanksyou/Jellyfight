@@ -833,7 +833,9 @@ async function unlockDev() {
   let open = false;
   try {
     const r = await fetch('api/dev', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pass }) });
-    open = !!(await r.json()).open;
+    const a = await r.json();
+    open = !!a.open;
+    if (a.why === 'slow') { box.value = ''; box.placeholder = 'Wait 3 seconds, then try again'; return; }
   } catch {   // no Worker answering: only your own computer's file server opens without one
     open = ['localhost', '127.0.0.1'].includes(location.hostname);
   }

@@ -192,7 +192,7 @@ async function devUnlock(request, env) {
   const recent = await db.prepare('SELECT at FROM posts WHERE key = ?').bind(key).first();
   if (recent && now - recent.at < DEV_TRY_MS) return json({ open: false, why: 'slow' }, 429);
   await db.prepare('INSERT INTO posts (key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(key, now).run();
-  const want = env.DEV_PASSWORD, pass = typeof b?.pass === 'string' ? b.pass.trim() : '';
+  const want = typeof env.DEV_PASSWORD === 'string' ? env.DEV_PASSWORD.trim() : '', pass = typeof b?.pass === 'string' ? b.pass.trim() : '';
   return json({ open: !!want && await same(pass, want) });
 }
 const DEV_TRY_MS = 3000;   // one password try per address every 3 s
