@@ -9,6 +9,7 @@ import { loadLayout, applyLayout } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
+import { BAKED_AO, fingerprint } from '../baked-ao.js';
 import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requirementText, unlocked, bank, pearlsFor, feats } from '../cosmetics.js';
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
@@ -892,5 +893,65 @@ story('engine/bloom-glows-without-black-squares', {
       scene.remove(bright, broken);
       gfx.setQuality(was); await gfx.ready;
     }
+  },
+});
+story('engine/baked-ao-is-current', {
+  about: 'Every act\'s baked corner shadows were baked from the apartment files and furniture layout it plays with now. Moved furniture or a re-exported apartment fails this until node tools/bake-ao.mjs bakes them again.',
+  setup() {},
+  async play() {
+    const stale = [];
+    for (const s of STAGES.filter((s) => s.parts.length)) {
+      const meta = await fetch(`assets/ao-${s.id}.json`).then((r) => (r.ok ? r.json() : null));
+      const now = await fingerprint(s.parts, BAKED_LAYOUT[s.id]);
+      if (!meta || JSON.stringify(meta.made) !== JSON.stringify(now) || meta.parts.join() !== s.parts.join()) stale.push(s.id);
+    }
+    return ok(!stale.length, { stale });
+  },
+});
+story('engine/baked-ao-shades-corners', {
+  about: 'Low and Medium draw the baked corner shadows instead of N8AO (one scene render a frame, not two): where a cabinet meets the floor reads darker than open floor. High keeps N8AO and turns the baked ones off, so corners don\'t darken twice.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { gfx } = G(), u = BAKED_AO.uniforms, tex = u.aoVolume.value, was = gfx.choice;
+    if (!tex) return ok(false, { baked: false });
+    const [W, H] = tex.image.width ? [tex.image.width, tex.image.height] : [0, 0], d = tex.image.data;
+    const open = (x, y, z) => {   // the baked openness nearest a point
+      const g = [x, y, z].map((v, k) => Math.round((v - u.aoMin.value.getComponent(k)) / u.aoSize.value.getComponent(k) * tex.image[['width', 'height', 'depth'][k]] - 0.5));
+      return d[g[0] + W * (g[1] + H * g[2])] / 255;
+    };
+    let corner = 1;   // the darkest floor along a line to the living room's east wall, past the media console
+    for (let x = 4.0; x < 4.98; x += 0.04) corner = Math.min(corner, open(x, 0.02, 1.5));
+    const floor = open(2.6, 0.02, 2.6);   // open floor
+    try {
+      gfx.setQuality('medium'); await gfx.ready;
+      const medium = { ao: !gfx.composer.passes[0].isRenderPass, strength: u.aoStrength.value };   // N8AO, or a plain scene render
+      gfx.setQuality('low'); await gfx.ready;
+      const low = u.aoStrength.value;
+      gfx.setQuality('high'); await gfx.ready;
+      const high = { ao: !gfx.composer.passes[0].isRenderPass, strength: u.aoStrength.value };
+      return ok(corner < floor * 0.8 && !medium.ao && medium.strength > 0 && low > 0 && high.ao && high.strength === 0, { corner, floor, medium, low, high });
+    } finally { gfx.setQuality(was); await gfx.ready; }
+  },
+});
+story('engine/furniture-drawn-in-batches', {
+  about: 'Furniture that shares a material is drawn in one batch (far fewer draws), and each piece still acts on its own: one the camera fades leaves the batch and is drawn see-through by itself, then goes back; one that moves (a door swinging) moves in the batch; a hidden one is hidden there too.',
+  setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
+  play() {
+    const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2), p = b.pieces[0], o = p.mesh, mat = o.material;
+    const visibleAt = () => b.batch.getVisibleAt(p.id);
+    const pieces = statics.count, start = visibleAt() && o.layers.mask !== 1;
+    tpc.startFade(o); statics.sync();
+    const faded = !visibleAt() && o.layers.mask === 1;
+    [].concat(tpc._fades.get(o).see).forEach((c) => c.dispose()); tpc._fades.delete(o);
+    o.material = mat; statics.sync();
+    const back = visibleAt() && o.layers.mask !== 1;
+    const m = new THREE.Matrix4(), was = o.position.clone();
+    o.position.x += 0.1; o.updateMatrixWorld(true); statics.sync(); b.batch.getMatrixAt(p.id, m);
+    const moved = Math.abs(m.elements[12] - o.matrixWorld.elements[12]) < 1e-6;
+    o.position.copy(was); o.updateMatrixWorld(true);
+    o.visible = false; statics.sync();
+    const hidden = !visibleAt();
+    o.visible = true; statics.sync();
+    return ok(pieces > 300 && start && faded && back && moved && hidden && visibleAt(), { pieces, batches: statics.batches.length, start, faded, back, moved, hidden });
   },
 });

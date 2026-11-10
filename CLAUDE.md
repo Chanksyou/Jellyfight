@@ -77,7 +77,7 @@ verification across all player attack families.
 | Frame-rate cap, pixel ratio range, lamps lit at once on phones | `content/look.css` (`--phone-fps`, `--*-pixel-ratio`, `--phone-lights`) | Logic in `src/pacing.js` and `src/light-slots.js`; graphics-reset recovery in `src/gpu-recovery.js` |
 | Vents, treasure times and spots, elite spots, boss arena | `src/stage1.js` (act 1), `src/stage2.js` (act 2); acts listed in `src/stages.js` | Plain data. Vents can also be dragged in the layout editor; bake exported `vent:<name>` positions into the vent list here |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
-| Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | |
+| Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | Then re-bake the corner shadows: `node tools/bake-ao.mjs` (`src/baked-ao.js`; the story `engine/baked-ao-is-current` fails until you do). Same after re-exporting the apartment |
 | The Treasure book (what a player has found across runs) and the death screen's pull | `src/collection.js`, `run.js` (`showBook`, `endRun`), `src/cosmetics.js` (`nextAward`) | Finds are noted in `run.found`, never in a dev run |
 | Shop looks and their prices, Pearls a run earns, golden awards and what earns them | `src/cosmetics.js` (`PRICES`, `PEARLS`, `NEEDS`); the looks themselves in `src/character.js` | A new look is an `OPTIONS` entry plus its model; hats sit with `seat(r)` so they fit every species |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | |

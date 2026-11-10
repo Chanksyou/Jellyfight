@@ -8,6 +8,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { N8AOPass } from 'n8ao';
+import { setBakedAOTier } from './baked-ao.js';
 
 export const QUALITY = ['low', 'medium', 'high'];
 // what the player can pick in the pause menu (a phone starts on low, a desktop on high); a stored
@@ -247,8 +248,10 @@ class BloomOutputPass extends Pass {
 }
 
 export class Graphics {
-  constructor(renderer, scene, camera, defaultQuality = 'high') {
+  // baked: the act has baked corner shadows (baked-ao.js), so Low and Medium don't need N8AO
+  constructor(renderer, scene, camera, defaultQuality = 'high', baked = false) {
     this.renderer = renderer;
+    this.baked = baked;
     this.frameInfo = { calls: 0, triangles: 0, points: 0 };
     this.scene = scene;
     this.camera = camera;
@@ -292,6 +295,7 @@ export class Graphics {
       this.composer.renderTarget2.dispose();
       this.composer = null;
     }
+    setBakedAOTier(this.off.has('ao') ? 'high' : this.quality);   // the dev AO switch turns the baked shadows off too
     if (this.quality === 'low') return;
 
     const r = this.renderer;
@@ -301,7 +305,7 @@ export class Graphics {
 
     // N8AO renders the scene itself (it replaces RenderPass) and keeps the depth buffer we reuse for DOF.
     let ao = null;
-    if (!this.off.has('ao')) {
+    if (!this.off.has('ao') && (high || !this.baked)) {
       ao = new N8AOPass(this.scene, this.camera, size.x, size.y);
       Object.assign(ao.configuration, {
         gammaCorrection: false,   // the output pass does tone mapping + sRGB

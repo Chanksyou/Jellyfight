@@ -23,6 +23,7 @@
 // Other stage markers (treasure spots, elites) don't follow moved furniture yet.
 import * as THREE from 'three';
 import { BAKED_LAYOUT } from './layout-baked.js';
+import { HIDDEN } from './batch.js';
 
 const KEY = 'jf-layout-v1';
 const SKIP = /^(Shell|door-|Hall_lights|LED_cove|Kitchen_lights|Closet$)/;   // walls, doors and lights stay put
@@ -141,6 +142,7 @@ export class LayoutEditor {
     this.pitch = 1.0;
     this.dist = 3.2;
     this.ray = new THREE.Raycaster();
+    this.ray.layers.enable(HIDDEN);   // the apartment's batched pieces (static-batch.js)
     this.keys = new Set();
     this.box = new THREE.Box3Helper(new THREE.Box3(), 0xffd23a);
     this.box.visible = false;

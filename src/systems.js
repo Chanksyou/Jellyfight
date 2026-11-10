@@ -189,9 +189,10 @@ export class DebugSystem {
 
 // Draws the frame: first gathers the small moving things into instanced batches (batch.js)
 export class RenderSystem {
-  constructor({ gfx }) { this.gfx = gfx; }
+  constructor({ gfx, statics }) { this.gfx = gfx; this.statics = statics; }
   update() {
     batcher.sync();
+    this.statics?.sync();
     this.gfx.render();
   }
 }
