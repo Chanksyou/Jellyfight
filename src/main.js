@@ -900,7 +900,7 @@ async function warmUp() {
   const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
   const warmLooks = run.bubbles.looks.warm(P.clone().setY(P.y + 0.03));   // every element projectile
-  const warmFx = [new THREE.Mesh(run.bubbles.puddleGeo, run.bubbles.acidMat), new THREE.Line(new THREE.BufferGeometry().setFromPoints([P, P.clone().setY(P.y + 0.05)]), run.bubbles.zapMat)];
+  const warmFx = [new THREE.Mesh(run.bubbles.puddleGeo, run.bubbles.acidMat)];
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
   temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
   enemies.markLook(temp[0], 0);
