@@ -11,6 +11,7 @@ import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
+import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits } from './vfx.js';
 
 // what each type bursts into when it dies
@@ -228,6 +229,14 @@ export class Enemies {
     this.eliteMats = {};
     this.haloGeo = new THREE.TorusGeometry(0.7, 0.08, 6, 24);
     this.byId = new Map();    // id -> enemy, for events that name their target
+    // each status (words.js STATUSES) and how many stacks a bug has of it, 0 for none; bubbles.js adds
+    // burning and combat.js bleeding, which they keep themselves
+    this.statuses = {
+      frozen: (e) => (e.freezeT > 0 ? 1 : 0), chilled: (e) => (e.chillT > 0 ? 1 : 0), slowed: (e) => (e.slowT > 0 ? 1 : 0),
+      stunned: (e) => (e.stunT > 0 ? 1 : 0), marked: (e) => (e.markT > 0 ? 1 : 0),
+      burning: () => 0, bleeding: () => 0,   // until bubbles.js / combat.js replace them with their own
+    };
+    this.mods = null;         // the run's combined treasure effects (run.js sets them each frame): status-damage
     this.shots = [];          // web balls and pushpins in flight (the spit word)
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
@@ -259,7 +268,7 @@ export class Enemies {
     bus.on('damage_taken', ({ targetId, amount, color, source, sound, feedback }) => {
       if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source, {
         targetId, element: ['fire', 'acid', 'lightning'].includes(source) ? source : undefined,
-        tick: ['fire', 'acid', 'venom'].includes(source), ...feedback,
+        tick: ['fire', 'acid', 'venom'].includes(source), ...feedback, by: hitBy(source, feedback?.element),
       });
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
@@ -437,6 +446,12 @@ export class Enemies {
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
+    if (!feedback.tick) {                // status-damage: a hit on a bug with a status does more (Shatter thaws it)
+      const k = this.statusMore(e, feedback.by);
+      amount *= k;
+      if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
+    }
+    e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (e.proxy) {
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
@@ -464,6 +479,35 @@ export class Enemies {
     if (e.hp <= 0) this.kill(e);
   }
 
+  // status-damage (words.js): how much harder a hit by `by` lands on e for the statuses it has.
+  // Pure but for _thaw (a status-damage with thaw=#true counted): the bubbles ask it for their shove too
+  statusMore(e, by) {
+    let more = 0;
+    this._thaw = false;
+    for (const D of this.mods?.statusDamage || []) {
+      if ((e.proxy && !D.elites) || (D.by !== 'all' && D.by !== by)) continue;
+      const n = this.statuses[D.status](e);
+      if (!n) continue;
+      more += D.more + D.perStack * n;
+      this._thaw ||= D.thaw;
+    }
+    return 1 + more;
+  }
+  // the ice shatters: a hit ends a bug's freeze
+  shatter(e) {
+    const c = this.center(e);
+    sfx.shatter(); juice.feel('impact');
+    bus.emit('status_applied', { targetId: e.id, status: 'thaw' });
+    this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4);
+    this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18);
+  }
+  // what statuses e has right now, by name, with their stacks (on-kill-of reads them as it dies)
+  statusesOf(e) {
+    const out = {};
+    for (const k in this.statuses) { const n = this.statuses[k](e); if (n) out[k] = n; }
+    return out;
+  }
+
   // Bursts, shakes and sounds are feedback.js's; the reward is run.js's
   kill(e, silent = false) {
     if (e.dead) return;
@@ -473,7 +517,7 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, body: e.proxy ? null : e.root,
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, by: e.lastBy, statuses: this.statusesOf(e), body: e.proxy ? null : e.root,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
     this.models.release(e.model);

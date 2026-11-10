@@ -207,6 +207,7 @@ export class Player {
     // --- Face movement direction -----------------------------------------
     const hv = Math.hypot(this.velocity.x, this.velocity.z);
     this.speed = hv;
+    this.fullSpeed = push > 0.9 && hv >= walk * 0.9;   // swimming flat out (while when="moving")
     if (hv > 0.02) {
       const target = Math.atan2(this.velocity.x, this.velocity.z);
       let diff = target - this.facing;

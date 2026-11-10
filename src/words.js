@@ -701,6 +701,11 @@ export function newMods() {
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
     eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
+    statusDamage: [SHATTER],         // status-damage: { status, more, by, elites, perStack, thaw } (enemies.js)
+    statusTaken: [],                 // status-taken: { status, less } (run.js)
+    killsOf: [],                     // on-kill-of: { status, by, effects } (run.js onKill)
+    nth: [],                         // nth-attack: { every, random, effects } (bubbles.js volley)
+    buffs: [],                       // stack-buff: { event, stat, amount, percent, time, stacks, key } (run.js)
   };
 }
 
@@ -710,6 +715,18 @@ const scopes = (by, where) => {
   return by === 'all' ? ['bubbles', 'tentacles'] : [by];
 };
 const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
+
+// The statuses a bug can have, as status-damage, status-taken and on-kill-of name them. Each has a
+// reader in Enemies.statuses (bubbles.js adds burning, combat.js bleeding) giving its stacks, 0 for none.
+export const STATUSES = ['frozen', 'chilled', 'slowed', 'stunned', 'marked', 'burning', 'bleeding'];
+// What dealt a hit, as `by=` names it: a plain bubble, a tentacle, a splash, or an Element's shot
+// (its burn, arcs and puddles go by the Element's name too)
+export const HIT_BY = ['all', 'bubble', 'tentacle', 'splash', ...ELEMENT_IDS];
+export const hitBy = (source, element) => (source === 'bubble' && element) || source;
+const status = (name, word) => { if (!STATUSES.includes(name)) throw new Error(`${word}: status must be one of ${STATUSES.join(', ')}, not "${name}"`); return name; };
+const by = (name, word) => { if (!HIT_BY.includes(name)) throw new Error(`${word}: by= must be one of ${HIT_BY.join(', ')}, not "${name}"`); return name; };
+// Shatter: Fire on a frozen bug does 3x and thaws it. Every run has it (a status-damage)
+const SHATTER = Object.freeze({ status: 'frozen', more: 2, by: 'fire', elites: false, perStack: 0, thaw: true });
 
 // Each element is its own attack (bubbles.js): a projectile it fires on its own timer, separate
 // from the bubbles. Its numbers start here; upgrade treasures (element-up) raise them. Every
@@ -788,11 +805,23 @@ export const TIMED_WORDS = {
   },
 };
 
+// what an nth-attack block can make its attack (bubbles.js volley)
+export const ATTACK_WORDS = {
+  big: {
+    doc: 'This attack is a big one: `dmg` times the damage, `size` times bigger, `speed` times as fast, through `pierce` more bugs.',
+    props: { dmg: 2, size: 1.5, speed: 1, pierce: 0 },
+    make: (_, p) => ({ kind: 'big', ...p }),
+  },
+};
+
+// stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
+export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
+
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
 export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet'];
 
-export const WHILE_WHEN = ['airborne', 'low-health', 'rooted'];
+export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests'];
@@ -902,7 +931,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given) or rooted (standing still on the ground for 1 s or more). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given), rooted (standing still on the ground for 1 s or more) or moving (swimming at full speed). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false, under: 0.3 },
     make: ([when, name, amount], p) => {
@@ -910,6 +939,54 @@ export const TREASURE_WORDS = {
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`while: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       return (m) => { m.whiles.push({ when, stat: key, amount, percent: p.percent, under: p.under }); };
+    },
+  },
+  'status-damage': {
+    doc: 'Hits (not damage over time) on a bug that is `status` do `more` (0.5 = 50%) extra damage, plus `per-stack` for each of its stacks. `by` names what must deal the hit (all, bubble, tentacle, splash or an Element); `elites=#true` counts Elites and the boss too; `thaw=#true` (frozen only) shatters the ice: the hit ends the freeze. Copies add.',
+    args: ['status'],
+    props: { more: 0.5, by: 'all', elites: false, 'per-stack': 0, thaw: false },
+    make: ([s], p) => {
+      const st = status(s, 'status-damage'), b = by(p.by, 'status-damage');
+      if (p.thaw && st !== 'frozen') throw new Error('status-damage: thaw=#true only goes with "frozen"');
+      return (m) => { m.statusDamage.push({ status: st, more: p.more, by: b, elites: p.elites, perStack: p['per-stack'], thaw: p.thaw }); };
+    },
+  },
+  'status-taken': {
+    doc: 'Bugs that are `status` deal `less` (0.2 = 20%) less damage to you. Elites and the boss are exempt. Copies multiply.',
+    args: ['status'],
+    props: { less: 0.2 },
+    make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
+  },
+  'on-kill-of': {
+    doc: 'When a bug that is `status` dies (or one killed by `by`: bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp.',
+    props: { status: null, by: null },
+    block: TIMED_WORDS,
+    make: (_, p, where, effects) => {
+      if (p.status == null && p.by == null) throw new Error('on-kill-of: needs status= or by=');
+      const st = p.status == null ? null : status(p.status, 'on-kill-of'), b = p.by == null ? null : by(p.by, 'on-kill-of');
+      return (m) => { m.killsOf.push({ status: st, by: b, effects }); };
+    },
+  },
+  'nth-attack': {
+    doc: 'Every `every`th attack (or, with random=#true, a random 1 in `every`) is the one in its { block } instead: big.',
+    args: ['every'],
+    props: { random: false },
+    block: ATTACK_WORDS,
+    make: ([n], p, where, effects) => {
+      if (!(Number.isInteger(n) && n >= 2)) throw new Error('nth-attack: every must be a whole number, 2 or more');
+      return (m) => { m.nth.push({ every: n, random: p.random, effects }); };
+    },
+  },
+  'stack-buff': {
+    doc: 'On each `event` (kill, hit, arc or big-splash), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. Stat names as in `stat`.',
+    args: ['event', 'name', 'amount'],
+    props: { time: 3, stacks: 5, percent: false },
+    make: ([event, name, amount], p, where) => {
+      if (!BUFF_EVENTS.includes(event)) throw new Error(`stack-buff: event must be one of ${BUFF_EVENTS.join(', ')}, not "${event}"`);
+      const key = STAT_NAMES[name];
+      if (!key) throw new Error(`stack-buff: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('stack-buff: time must be above 0 and stacks a whole number, 1 or more');
+      return (m, copy = 0) => { m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` }); };
     },
   },
   'xp-mult': { doc: 'Enemies drop `times` as much XP.', args: ['times'], make: ([k]) => (m) => { m.xpMult *= k; } },

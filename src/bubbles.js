@@ -8,7 +8,8 @@
 // Element treasures are attacks of their own (elementVolley): each element you own fires its own
 // projectile on its own timer, at the nearest enemy, separate from the bubbles:
 //   fire (Birthday Candle)   a fireball: sets enemies burning; burning enemies that die set their
-//                            neighbors alight. Fire on a frozen enemy shatters it: 3x.
+//                            neighbors alight. Fire on a frozen enemy shatters it: 3x (a
+//                            status-damage every run has: words.js SHATTER, enemies.js).
 //   lightning (AA Battery)   ball lightning: each pop chains a bolt to 3 more enemies, stunning them.
 //   ice (Freezer Pack)       an ice shard: chills and slows; repeated hits refresh the slow.
 //   acid (Nail Polish)       an acid glob: leaves a bubbling puddle that eats at enemies and softens
@@ -64,6 +65,7 @@ const BASE_FIRE_RATE = BASE_STATS.fireRate;
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
     Object.assign(this, { scene, enemies, fx, world });
+    enemies.statuses.burning = (e) => (this.burning.get(e)?.t > 0 ? 1 : 0);   // status-damage & co. (words.js STATUSES)
     this.list = [];
     this.pool = [];
     this.statePool = [];
@@ -226,9 +228,11 @@ export class Bubbles {
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
     const pierce = B.pierce + Math.round(stats.pierce || 0);
+    const big = this.nth(mods, n);   // nth-attack: this blow is a big one instead
     for (let k = 0; k < count; k++) {
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size, dmg, golden, elems, tint, pierce, spread, off });
+      this.blow(origin.clone().add(off), target, big ? { size: size * big.size, dmg: dmg * big.dmg, golden, elems, tint, pierce: pierce + big.pierce, speed: big.speed, spread, off, big: true }
+        : { size, dmg, golden, elems, tint, pierce, spread, off });
     }
     // polyps (Man o' War): each blows one of the same at the enemy nearest it
     this.forPolyps(mods, origin, stats.range, (from, t, k) => this.blow(from, t, { size: size * 0.75, dmg: dmg * k, golden, elems, tint, pierce }));
@@ -237,6 +241,20 @@ export class Bubbles {
     if (G && n % G.every === 0) this.blow(origin, target, { size: size * G.size, dmg: stats.bubbleDamage * G.dmg, golden, elems, tint, pierce: 1, speed: G.speed, big: true });
     this.onBlow?.();
     return true;
+  }
+
+  // nth-attack (words.js): what the n-th attack becomes, the big words of every nth-attack it falls on
+  // multiplied together; null for an ordinary one
+  nth(mods, n) {
+    let out = null;
+    for (const N of mods.nth) {
+      if (N.random ? Math.random() >= 1 / N.every : n % N.every !== 0) continue;
+      for (const ef of N.effects) {
+        out ||= { dmg: 1, size: 1, speed: 1, pierce: 0 };
+        out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed; out.pierce += ef.pierce;
+      }
+    }
+    return out;
   }
 
   // One shot of an element attack: `count` of its projectiles side by side (your extra Attacks
@@ -446,8 +464,6 @@ export class Bubbles {
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
     if (el.has('fire')) {
-      // Shatter: fire on something frozen does triple damage and thaws it
-      if (e.freezeT > 0) { sfx.shatter(); juice.feel('impact'); dmg *= 3; bus.emit('status_applied', { targetId: e.id, status: 'thaw' }); color = '#ffffff'; this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4); this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18); }
       this.ignite(e, b.pw, b.ep);
       b.stopFireAudio?.();
       this.looks.fireHit(c, b.r, b.vel);
@@ -470,7 +486,7 @@ export class Bubbles {
     }
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
-    if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg) });
+    if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
@@ -549,6 +565,7 @@ export class Bubbles {
     b.splashed = true;
     const p = b.m.position, glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
+    let kills = 0;
     if (glitter) {
       // the bomb goes off: real glitter flakes thrown out to the splash's edge, fluttering down and
       // lying on the floor glinting, a bright pop at its heart and a second, wider ring of sparkle
@@ -565,7 +582,9 @@ export class Bubbles {
       if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
       if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
       bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash', feedback: { element: b.tint } });
+      if (e.dead) kills++;
     }
+    if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash
   }
 
   pop(b, hitEnemy, stats, mods, keep = false) {

@@ -303,8 +303,11 @@ story('hud/treasure-timers', {
     return ok(big && counting && went && snoozeReady && spent && plain, { big, a, b, counting, went, snoozeReady, spent, plain });
   },
 });
+// the jelly types' shared words (docs/jelly-types, phase P3): built and proven ahead of the Attack
+// upgrades that will use them; take each off this list once something does
+const WAITING = new Set(['status-damage', 'status-taken', 'on-kill-of', 'nth-attack', 'stack-buff']);
 story('vocabulary/every-treasure-word-documented-used-and-proven', {
-  about: 'Every treasure word has a description, is used by some treasure, and has a treasures/ story.',
+  about: 'Every treasure word has a description, is used by some treasure (or is one of the jelly types\' shared words still waiting for its Attack upgrades), and has a treasures/ story.',
   setup() {},
   play() {
     const users = [...CONTENT.treasures, ...CONTENT.evolutions];   // evolutions use the same words
@@ -314,7 +317,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
     const problems = [];
     for (const [w, def] of Object.entries(TREASURE_WORDS)) {
       if (!def.doc) problems.push(`${w}: no doc`);
-      if (!used.has(w)) problems.push(`${w}: no treasure uses it`);
+      if (!used.has(w) && !WAITING.has(w)) problems.push(`${w}: no treasure uses it`);
       if (!STORIES['treasures/' + w]) problems.push(`${w}: no treasures/${w} story`);
     }
     for (const [w, def] of Object.entries(TIMED_WORDS)) {

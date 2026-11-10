@@ -137,6 +137,8 @@ export class Run {
     bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
+      const bug = from != null && this.mods.statusTaken.length ? this.enemies.byId.get(from) : null;
+      if (bug && !bug.proxy) for (const T of this.mods.statusTaken) if (this.enemies.statuses[T.status](bug)) amount *= 1 - T.less;   // status-taken
       const beforeBy = this.hurtBy, beforeUnit = this.hurtUnit;
       this.hurtBy = source || 'other';
       this.hurtUnit = unit || (from != null ? this.enemies.byId.get(from)?.type : null);
@@ -170,10 +172,12 @@ export class Run {
     bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
     bus.on('damage_taken', (d) => {
+      if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.health);
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
+    bus.on('big_splash', () => this.buff('big-splash'));
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     // a jump's takeoff: a ring of water pushed out under the bell, a pop of bubbles, a bloop
     this.player.onJump = () => {
@@ -292,7 +296,7 @@ export class Run {
     this.mirrorUntil = 0;
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
     this.saved = false;               // the run's one death-save is spent
-    this.grown = {}; this.growCount = {}; this.growTotal = {};
+    this.grown = {}; this.growCount = {}; this.growTotal = {}; this.buffs = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
     this.evolved = [];                // evolutions taken (content/evolutions.kdl), one per act's boss
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
@@ -416,8 +420,10 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : this.health < S.health * c.under) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? BASE_STATS[c.stat] * c.amount / 100 : c.amount;
     }
+    // stack-buff: what each one's live stacks add
+    for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? BASE_STATS[b.stat] * b.amount / 100 : b.amount); }
     // per: converters read the stats above (not each other's results), so the order doesn't matter
     const per = this.mods.per;
     if (per.length) {
@@ -473,6 +479,7 @@ export class Run {
     this.fireTrail.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
+    this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
     // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
     // run it waits for the first Level-up instead: first-run.js)
@@ -512,6 +519,7 @@ export class Run {
     this.slowT = Math.max(0, this.slowT - dt);
     this.slowHardT = Math.max(0, this.slowHardT - dt);
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
+    for (const k in this.buffs) if ((this.buffs[k].t -= dt) <= 0) delete this.buffs[k];   // stack-buff: its stacks run out together
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
@@ -921,8 +929,28 @@ export class Run {
     });
   }
 
-  onKill({ pos: c, r, xp: baseXp, elite, floor = c.y }) {
+  // stack-buff: an event adds a stack to every buff that answers it (up to its most) and restarts its time
+  buff(event) {
+    if (!event) return;
+    for (const b of this.mods.buffs) {
+      if (b.event !== event) continue;
+      const B = (this.buffs[b.key] ||= { n: 0, t: 0 });
+      B.n = Math.min(b.stacks, B.n + 1); B.t = b.time;
+    }
+  }
+
+  onKill({ pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {} }) {
     this.kills++;
+    this.buff('kill');
+    // on-kill-of: a bug that died with a status (or to `by`) sets off the block where it fell
+    for (const K of this.mods.killsOf) {
+      if ((K.status && !statuses[K.status]) || (K.by && K.by !== by)) continue;
+      const feet = new THREE.Vector3(c.x, floor, c.z);
+      const ctx = { feet, center: c, facing: this.player.facing, power: this.power,
+        dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
+        dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
+      for (const ef of K.effects) this.gadgets.fire(ef, ctx);
+    }
     const combo = juice.kill();
     if (combo % 10 === 0) { sfx.combo(combo); this.fx.number(c.clone().setY(c.y + r * 3), `${combo} COMBO!`, '#ffd23a', 22); }
     const xp = Math.round(baseXp * this.mods.xpMult * (this.stage.xpMult || 1) * juice.bonus);   // the act's own xpMult too
