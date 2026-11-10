@@ -91,6 +91,7 @@ export class Shark {
   get angry(){return this.hp<=this.maxHp*this.def.skills.tornado.at;}
   get ready(){const a=this.def.skills.arrival;return this.arrivalT>=a.barrier+a.breach+a.flood;}
   get shielded(){return !this.model.visible||this.phase==='eruption'||this.rise<1;}
+  get immune(){return this.dying||this.shielded;}   // damage() does nothing now: attacks shouldn't pick it
   get buried(){return ['dive','burrowBite','maelstrom','tornado'].includes(this.state)&&this.phase==='track';}
   center(out=V()){return out.copy(this.position).addScaledVector(this._front.set(Math.sin(this.heading),0,Math.cos(this.heading)),.09*K).setY(this.position.y+.23*K+this.lift-(this.crouch||0));}
   floorAt(p){

@@ -160,6 +160,7 @@ export class Vacuum {
 
   // up while any of the lanternflies it launched is alive
   get shielded() { return this.guards.length > 0; }
+  get immune() { return this.dying || this.rise < 1 || this.shielded; }   // damage() does nothing now: attacks shouldn't pick it
 
   damage(amount, color = '#fff', feedback = {}) {
     if (this.dead || this.dying || this.rise < 1) return;

@@ -165,6 +165,22 @@ story('attack/lash-skips-a-shielded-boss', {
   },
 });
 
+story('attack/aim-skips-a-doomed-boss', {
+  about: "A Vacuum beaten to 0 Health waits for the cat's finishing smack and can't be hurt: tentacles and bubbles stop picking it (it would eat a tentacle) and go for a bug in reach instead.",
+  setup() { startVacuum('charge'); },
+  play() {
+    const { run, enemies } = G(), B = run.boss, player = holdJelly(), P = player.position;
+    const entry = enemies.list.find((e) => e.proxy === B);
+    const roach = spawn('roach', P.clone().add(V(0.1, 0, -0.3)), { still: true, hp: 9999 });
+    const far = 1.5 + enemies.center(entry, new THREE.Vector3()).distanceTo(P);   // the boss is well within this reach
+    const before = run.lash.inReach(P, far).includes(entry) && run.bubbles.inRange(P, far).includes(entry);
+    B.damage(B.hp);   // doomed, not dead: held for the cat
+    const lash = run.lash.inReach(P, far), bubbles = run.bubbles.inRange(P, far);
+    const pass = before && B.dying && B.immune && !entry.dead && !lash.includes(entry) && !bubbles.includes(entry) && lash.includes(roach) && bubbles.includes(roach);
+    return ok(pass, { before, dying: B.dying, immune: B.immune, lash: lash.map((e) => (e.proxy ? 'boss' : e.type)), bubbles: bubbles.map((e) => (e.proxy ? 'boss' : e.type)) });
+  },
+});
+
 story('attack/side-by-side-bubbles', {
   about: 'With 3 bubbles, each blow is 3 bubbles leaving at the same moment side by side, flying parallel, each doing 56% damage (25% less per extra bubble).',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 9999 }); G().run.stats.bubbles = 3; },

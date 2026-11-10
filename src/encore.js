@@ -73,6 +73,7 @@ export class Encore {
   center(out = new THREE.Vector3()) { return out.copy(this.holder.position); }
   // up while it warms up as the fight opens, and while it reboots after shorting out (guardT)
   get shielded() { return this.guardT > 0; }
+  get immune() { return !!(this.cut || this.falling) || this.shielded; }   // damage() does nothing now: attacks shouldn't pick it
 
   quiet(b) { return !!this.song?.quiet?.(b); }
   hurtPlayer(dmg, color = null) {
