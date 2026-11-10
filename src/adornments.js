@@ -9,6 +9,10 @@
 //   moon-ring   Moon Jelly: a pale ring round the bell that flares on every pulse
 //   mane        Lion's Mane: a fringe of fine glowing hair round the rim
 //   fronds      Upside-down Jelly: fronds that grow out on the floor while you're rooted
+//   ember       the Fire jelly type: a flickering ember inside the bell, tentacle tips glowing like
+//               coals, sparks drifting up off them
+//   barbs       the Tentacle jelly type: its tentacles longer and thicker, with barbs along them
+// (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
@@ -46,9 +50,10 @@ export class Adornments {
   update(dt, run) {
     this.t += dt;
     const want = new Set(run.mods.adorn);
+    for (const k of run.typeAdorn || []) want.add(k);
     const venom = want.delete('venom-tips');
     const rig = this.player.avatar?.tentacles;
-    if (rig) rig.venom = venom;
+    if (rig) { rig.venom = venom; rig.barbed = want.has('barbs'); }
     for (const k of want) this.piece(k).group.visible = true;
     for (const [k, P] of Object.entries(this.pieces)) {
       P.group.visible = want.has(k);
@@ -85,6 +90,86 @@ export class Adornments {
         const flicker = 0.85 + Math.sin(this.t * 19 + i * 2.7) * 0.15;
         foot.scale.set(LOOK.num('cinder-foot-width', 0.0045), LOOK.num('cinder-foot-height', 0.018) * flicker, LOOK.num('cinder-foot-width', 0.0045));
         foot.rotation.z = Math.sin(this.t * 11 + i) * 0.16;
+      });
+    } };
+  }
+
+  // Fire jelly: an ember glowing in the bell (an emissive ball, not a light), a coal on every
+  // tentacle tip, and sparks drifting up off them and fading
+  make_ember() {
+    const group = new THREE.Group(), h = this.h;
+    const coreMat = glowMat('ember-core', '#ff7a1a', { emissiveIntensity: 2.2, transparent: true, opacity: 0.85, depthWrite: false });
+    const coalMat = glowMat('ember-coal', '#ff5a14', { emissiveIntensity: 2.4 });
+    const sparkMat = new THREE.MeshBasicMaterial({ color: LOOK.color('ember-spark', '#ffc26a'), toneMapped: false });
+    const ball = new THREE.SphereGeometry(1, 10, 8);
+    const core = new THREE.Mesh(ball, coreMat);
+    group.add(core);
+    const coals = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, coalMat); group.add(m); return m; });
+    const sparks = Array.from({ length: LOOK.num('ember-sparks', 10) }, () => { const m = new THREE.Mesh(ball, sparkMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
+    batcher.track(group);
+    let next = 0;
+    const glowCol = coreMat.color.clone(), coalCol = coalMat.color.clone(), sparkCol = sparkMat.color.clone();
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;   // a soft glow (vfx.js, one batched draw) so the ember reads through the bell and on Low
+      const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      const flick = 0.8 + Math.sin(this.t * 13) * 0.12 + Math.sin(this.t * 31) * 0.08;
+      // the core: in the middle of the bell, which the rig hangs from (model units: the bell's rim at 0.56)
+      core.visible = on;
+      if (on) {
+        rig.parent.localToWorld(core.position.set(0, LOOK.num('ember-core-y', 0.86), 0));
+        core.scale.setScalar(h * LOOK.num('ember-core-size', 0.1) * (0.92 + flick * 0.1));
+        coreMat.emissiveIntensity = 2.2 * flick;
+        G?.hold(core.position, glowCol, h * LOOK.num('ember-glow-size', 0.6) * flick, 0.55 * flick);
+      }
+      coals.forEach((m, i) => {
+        m.visible = on && !!rig.list[i];
+        if (!m.visible) return;
+        rig.list[i].tip.getWorldPosition(m.position);
+        m.scale.setScalar(rig.thick * unit * LOOK.num('ember-coal-size', 1) * (0.9 + Math.sin(this.t * 17 + i * 2.1) * 0.1));
+        G?.hold(m.position, coalCol, m.scale.x * 5, 0.6);
+      });
+      // a spark leaves a tip now and then, drifts up and dies out
+      if (on && (next -= dt) <= 0) {
+        next = LOOK.num('ember-spark-every', 0.09);
+        const m = sparks.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
+        if (m && T) { T.tip.getWorldPosition(m.position); Object.assign(m.userData, { t: 0, dx: (Math.random() - 0.5) * 0.02, dz: (Math.random() - 0.5) * 0.02 }); m.visible = true; }
+      }
+      const life = LOOK.num('ember-spark-life', 0.8), rise = LOOK.num('ember-spark-rise', 0.05), size = LOOK.num('ember-spark-size', 0.0022);
+      for (const m of sparks) {
+        if (!m.visible) continue;
+        const u = (m.userData.t += dt) / life;
+        if (u >= 1 || !on) { m.visible = false; continue; }
+        m.position.x += m.userData.dx * dt; m.position.z += m.userData.dz * dt; m.position.y += rise / life * dt;
+        m.scale.setScalar(size * (1 - u));
+        G?.hold(m.position, sparkCol, size * 4 * (1 - u), 0.7 * (1 - u));
+      }
+    } };
+  }
+
+  // Tentacle jelly: the rig itself is drawn longer and thicker (rig.barbed, set in update), and
+  // backward-hooked barbs sit along every tentacle so the type reads from far away
+  make_barbs() {
+    const group = new THREE.Group(), per = 3;
+    const mat = glowMat('barb', '#f4e9ff', { emissiveIntensity: 0.9 });
+    const geo = new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
+    const barbs = Array.from({ length: 8 * per }, () => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
+    batcher.track(group);
+    const d = new THREE.Vector3(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
+    return { group, free: true, tick: (dt, run) => {
+      const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      if (on) rig.parent.getWorldQuaternion(q);
+      const unit = rig?.unit || 1, size = LOOK.num('barb-size', 3);
+      barbs.forEach((m, k) => {
+        const T = on && rig.list[Math.floor(k / per)];
+        m.visible = !!T;
+        if (!T) return;
+        const n = T.pts.length - 1, j = Math.round((0.35 + 0.22 * (k % per)) * n);
+        rig.parent.localToWorld(m.position.copy(T.pts[j]));
+        // hooked back up the tentacle, out from it
+        d.copy(T.pts[j - 1]).sub(T.pts[j + 1]).normalize().multiplyScalar(0.7).addScaledVector(T.out, 1).normalize().applyQuaternion(q);
+        m.quaternion.setFromUnitVectors(Y, d);
+        const r = rig.thick * rig.barbThick * (1 - 0.72 * j / n) * unit;
+        m.scale.set(r, r * size, r);
       });
     } };
   }

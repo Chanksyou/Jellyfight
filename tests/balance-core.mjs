@@ -4,7 +4,7 @@ export const STYLES = ['ranged', 'close', 'rooting', 'stationary'];
 export function options(args, tool = 'balance') {
   const out = { runs: tool === 'balance' ? 5 : tool === 'clear' ? 3 : 2, seed: 20261020,
     styles: tool === 'balance' ? ['ranged', 'close', 'rooting'] : ['stationary'],
-    build: [], add: [], prefer: [], synergy: [], act: 1, seconds: 600, actOnly: false, filter: '', shard: 0, shards: 1 };
+    build: [], add: [], prefer: [], synergy: [], type: null, act: 1, seconds: 600, actOnly: false, filter: '', shard: 0, shards: 1 };
   let positional = 0;
   const list = s => s ? s.split(',').map(x => x.trim()).filter(Boolean) : [];
   const integer = (s, min, max, name) => {
@@ -28,7 +28,7 @@ export function options(args, tool = 'balance') {
     }
     const at = arg.indexOf('='), key = arg.slice(2, at), value = arg.slice(at + 1);
     if (at < 0) throw Error(`Expected --option=value: ${arg}`);
-    if (tool !== 'balance' && ['act', 'seconds', 'prefer'].includes(key)) throw Error(`--${key} belongs to balance.mjs`);
+    if (tool !== 'balance' && ['act', 'seconds', 'prefer', 'type'].includes(key)) throw Error(`--${key} belongs to balance.mjs`);
     if (key === 'seed') out.seed = integer(value, 0, 0xffffffff, key);
     else if (key === 'seeds') out.seeds = list(value).map(s => integer(s, 0, 0xffffffff, key));
     else if (key === 'runs') out.runs = integer(value, 1, 10000, key);
@@ -36,6 +36,7 @@ export function options(args, tool = 'balance') {
     else if (key === 'act') out.act = integer(value, 1, 4, key);
     else if (key === 'styles' || key === 'style') out.styles = list(value);
     else if (['build', 'add', 'prefer'].includes(key)) out[key] = list(value);
+    else if (key === 'type') { if (!/^[a-z]+$/.test(value)) throw Error(`Invalid type: ${value}`); out.type = value; }
     else if (key === 'synergy') out.synergy = value.split('+').filter(Boolean);
     else throw Error(`Unknown option: ${arg}`);
   }

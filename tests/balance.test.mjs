@@ -7,6 +7,8 @@ test('balance options preserve explicit paired seeds and reject invalid experime
   const o = options(['--seeds=0,17', '--styles=close,rooting', '--build=candle', '--add=lighterFluid']);
   assert.deepEqual(o.seeds, [0, 17]); assert.deepEqual(o.styles, ['close', 'rooting']);
   assert.deepEqual(options(['lemon', '1/3'], 'matchup').shard, 1);
+  assert.equal(options(['--type=tentacle']).type, 'tentacle'); assert.equal(options([]).type, null);
+  assert.throws(() => options(['--type=Fire!'])); assert.throws(() => options(['x', '--type=fire'], 'clear'));
   for (const args of [['--styles=typo'], ['--seeds='], ['--seeds=1,1'], ['--seed=-1'], ['0'], ['--wat=1'], ['--synergy=a'], ['--synergy=a+b', '--add=c']]) assert.throws(() => options(args));
 });
 test('styles seek different engagement distances, and rooting holds until threatened', () => {

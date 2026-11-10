@@ -12,3 +12,10 @@ export const startingJelly = () => (TYPE_SWITCH.on && CONTENT.jellies[TYPE_SWITC
 
 // A run's starting stats: Normal's (BASE_STATS) with the type's stat lines on top
 export const jellyStats = (id) => ({ ...BASE_STATS, ...(CONTENT.jellies[id]?.stats || {}) });
+
+// The run's one attack (spec-core.md): null with the switch off, where a run has today's three at
+// once (bubbles, the Elements it owns, the lash); on, the jelly's attack= and hit= (content/jellies.kdl)
+export const jellyAttack = (id) => {
+  const J = CONTENT.jellies[id];
+  return TYPE_SWITCH.on && J ? { kind: J.attack, hit: J.hit } : null;
+};

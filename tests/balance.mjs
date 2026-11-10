@@ -5,7 +5,7 @@ import { options, estimate, winInterval, paired } from './balance-core.mjs';
 
 const opts = options(process.argv.slice(2));
 if (opts.help) {
-  console.log('balance.mjs [runs=5] [--seed=N | --seeds=N,N] [--styles=ranged,close,rooting] [--build=id,id@3,evo:id] [--add=id | --synergy=id+id] [--prefer=id,stat] [--act=1..4] [--seconds=600] [--act-only]\nJSONL output. --seconds limits each act, including menus/cutscenes. Later-act starts use a synthetic preset; act 1 campaigns carry earned progress.');
+  console.log('balance.mjs [runs=5] [--seed=N | --seeds=N,N] [--styles=ranged,close,rooting] [--build=id,id@3,evo:id] [--add=id | --synergy=id+id] [--prefer=id,stat] [--act=1..4] [--seconds=600] [--act-only] [--type=<jelly type id>]\nJSONL output. --seconds limits each act, including menus/cutscenes. Later-act starts use a synthetic preset; act 1 campaigns carry earned progress.');
   process.exit(0);
 }
 // Explicit later-act fixtures matching tests/run.mjs, NOT earned campaign progress.
@@ -27,6 +27,7 @@ try {
     return [...CONTENT.treasures.map(t => t.id), ...CONTENT.evolutions.map(e => e.id), ...Object.keys(CONTENT.levelups.cards)];
   });
   for (const id of opts.prefer) if (!validPrefer.includes(id)) throw Error(`Unknown preferred choice: ${id}`);
+  if (opts.type && !(await page.evaluate(async t => !!(await import('/src/content.js')).CONTENT.jellies[t], opts.type))) throw Error(`Unknown jelly type: ${opts.type} (content/jellies.kdl)`);
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT }).toString().trim();
   const dirty = !!execFileSync('git', ['status', '--porcelain'], { cwd: ROOT }).toString().trim();
   emit({ type: 'metadata', tool: 'balance', revision, dirty, ...opts, arms, syntheticStart: opts.act > 1,

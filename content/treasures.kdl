@@ -13,6 +13,8 @@
 //                  for unique rule-changers and the Elements: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure (an element's upgrades need its base)
 //   needs-stat="…" offered only once that stat (names as in the `stat` word) is above 0
+//   not-for="…"    never offered to a jelly type with one of these attacks (attack= in
+//                  content/jellies.kdl), because it does nothing for them (Range for tentacles)
 //   stack=N        you can own up to N copies and their effects add up. A treasure without levels
 //                  stacks by default (3 copies; at most 5); stack=1 makes a rule-changer one of a
 //                  kind. Legendary treasures, the elements and their upgrades are always unique.
@@ -23,7 +25,7 @@
 // A new treasure that combines existing words needs no code: add it here and a story.
 
 // --- your bubbles (bubbles.js)
-treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true text="Attacks pierce, popping on up to 3 enemies in a line." {
+treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true not-for="tentacle" text="Attacks pierce, popping on up to 3 enemies in a line." {
     pierce 3
     level 2 text="Attacks pierce up to 5 enemies in a line." {
         pierce 5
@@ -375,7 +377,7 @@ treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 enemi
 treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Attacks fire 25% faster." stack=5 {
     stat fire-rate 25 percent=#true
 }
-treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" text="Blow through a straw: attacks reach 40% farther." stack=3 {
+treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" not-for="tentacle" text="Blow through a straw: attacks reach 40% farther." stack=3 {
     stat range 40 percent=#true
 }
 treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour attacks: +2 attack damage." stack=5 {

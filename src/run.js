@@ -2,8 +2,8 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
-import { TYPE_SWITCH, startingJelly, jellyStats } from './jelly-types.js';
-import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
+import { TYPE_SWITCH, startingJelly, jellyStats, jellyAttack } from './jelly-types.js';
+import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -261,6 +261,8 @@ export class Run {
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
     this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal unless GAME.types is on
     this.stats = jellyStats(this.jelly);
+    this.attack = jellyAttack(this.jelly);   // { kind, hit }: the one attack it fires; null with the switch off (all of today's)
+    this.typeAdorn = this.attack && CONTENT.jellies[this.jelly].adorn ? [CONTENT.jellies[this.jelly].adorn] : [];   // the type's look (adornments.js)
     this.level = 1;
     this.xp = 0;
     this.purse = 0;
@@ -458,8 +460,10 @@ export class Run {
     return this._mods;
   }
 
+  // (the Tentacle jelly's lash is its attack: Attacks tentacles, each for Attack damage, Fire rate lashes a second)
   get tentacleStats() {
-    const s = this.S;   // treasures can raise all four (stat, per)
+    const s = this.S, A = this.attack;   // treasures can raise all four (stat, per)
+    if (A?.kind === 'tentacle') return { tentacles: Math.min(MAX_TENTACLES, s.bubbles), reach: s.reach, tentacleDamage: s.bubbleDamage * A.hit, tentacleSpeed: s.fireRate };
     return { tentacles: s.tentacles, reach: s.reach, tentacleDamage: s.tentacleDamage, tentacleSpeed: s.tentacleSpeed };
   }
   // seconds until the boss comes (treasures can make the night longer)
@@ -487,7 +491,7 @@ export class Run {
       this.startPicked = true;
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
       if (hint) { this.hint = hint; this.hintT = 7; }
-      if (this.firstRun.startElementPick) { this.pickStartElement(); return; }
+      if (this.firstRun.startElementPick && !this.attack) { this.pickStartElement(); return; }   // a jelly type's attack is its own
     }
     this.t += dt;
     const P = this.player, s = this.S;
@@ -544,10 +548,11 @@ export class Run {
     this.mirage.update(dt);
     if (this.phase === 'explore' || this.phase === 'boss') {
       const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
-      // main attack: bubbles, blown from the top of the bell
-      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp);
-      // close-range sting: tentacles, improved only by treasures
-      if (!polyp) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
+      // main attack: bubbles, blown from the top of the bell (a jelly type: only its own attack)
+      const A = this.attack;
+      this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
+      // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes)
+      if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, {});
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
@@ -809,7 +814,7 @@ export class Run {
       if ((this.hurtCd[H.key] || 0) > this.t) continue;
       this.hurtCd[H.key] = this.t + H.cooldown;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
-      const lash = (e, k) => this.lash.strike(center, e, this.S.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
+      const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
       const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
@@ -1040,7 +1045,8 @@ export class Run {
     this.pendingLevels--;
     // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
     // same ones come back, so a reload isn't a free reroll
-    const roll = () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, this.mods.shield.fromHealth ? ['health', 'regen'] : []);
+    const skip = [...(this.mods.shield.fromHealth ? ['health', 'regen'] : []), ...cardsNotFor(this.attack?.kind)];
+    const roll = () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, skip);
     this.cardsOnOffer = this.owedCards.shift() || roll();
     this.choosingCard = true;
     sfx.levelUp();
@@ -1055,7 +1061,7 @@ export class Run {
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
-      if (this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
+      if (!this.attack && this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect());
   }
@@ -1090,7 +1096,7 @@ export class Run {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
-    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t);
+    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
     const can = (t) => weights[t.rarity] > 0 && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
     // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
     const ups = ++this.chestsOpened % 3 === 0 ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
@@ -1122,7 +1128,8 @@ export class Run {
   // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
   // (while any are left); the rest from the other Legendary treasures and elements you can take
   pickLegendary(title, sub, then = () => this.resume()) {
-    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t);
+    const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t)
+      && !(this.attack && ELEMENT_TREASURES.includes(t.id));   // a jelly type's attack is its own: no Element to add
     const pool = shuffle(TREASURES.filter(can)), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
     const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
     if (!left.length) { then(); return; }
@@ -1131,6 +1138,8 @@ export class Run {
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
   hasStat(t) { return !t.needsStat || this.S[t.needsStat] > 0; }
+  // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles)
+  forAttack(t) { return !this.attack || !t.notFor?.includes(this.attack.kind); }
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
   markNew(kind, choices) { return choices.map((c) => ({ ...c, fresh: !this.dev && !isFound(kind, c.id) })); }
