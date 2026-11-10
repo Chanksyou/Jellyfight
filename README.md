@@ -127,7 +127,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Your main attack is **bubbles**: the bell blows a steady stream of bubbles, one after another (about 1.8 a second to start), at the nearest enemy in range; each pops hard (6 damage) with a small splash.
   Fire-rate cards make the stream faster.
   Each extra bubble (Bubble Wand, Ephyra Bell) adds one more bubble to every blow, side by side and flying parallel, but costs damage: every bubble does 25% less per extra one, compounding (2 bubbles do 75% each, 3 do 56%, 6 do 24%), so more bubbles cover a wider lane for less punch each.
-  Level-up cards improve them (range, bubble damage, fire rate; every card's Common/Rare/Epic amounts are `CARD_VALUES` in `src/stats.js`).
+  Level-up cards improve them (range, attack damage, fire rate; every card's Common/Rare/Epic amounts are `CARD_VALUES` in `src/stats.js`).
   Element treasures fire independently alongside bubbles: fire (burns), lightning (arcs to 2 more), ice (slows; repeated hits refresh the slow), acid (puddles), wind (winds up and fires half as often as bubbles; scenery collisions deal its hit damage again) and glitter (bigger splash).
   Each element changes the projectile itself so you can see it coming: a fireball trailing flames, a crackling ball of lightning, a spinning ice shard, a dripping acid glob, a crescent wind blade, a glitter bomb shedding sparks (each owned Element has its own timer).
   Up close, your **tentacles** sting automatically; the Stinging Frills evolution improves them, and so do their own treasures (Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle, Paperclip Chain).
@@ -189,7 +189,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Each element has **5 upgrades** (30 in all, e.g. Lighter Fluid: fire burns 50% hotter; 9V Battery: lightning arcs to 2 more; Snow Globe: ice chills the whole burst; Pinwheel: one more gust a shot), never in an ordinary treasure pick: every 3rd treasure you open offers one of them (for an element you own) among its three.
   Base elements never come from treasures in the room.
   The numbers: `ELEMENT_BASE` in `src/words.js` (raised by the `element-up` word) and `ELEMENT` in `src/bubbles.js`.
-- **Level up** by collecting XP (cockroaches drop 1, ants 2, mosquitoes 5; each level needs 1.35x the XP of the last, starting at 4: 4, 5, 7, 10, 13, 18…): pick 1 of 3 cards, each one stat and one number (range, bubble damage, fire rate, Health, move speed, Health regen, dodge %, luck).
+- **Level up** by collecting XP (cockroaches drop 1, ants 2, mosquitoes 5; each level needs 1.35x the XP of the last, starting at 4: 4, 5, 7, 10, 13, 18…): pick 1 of 3 cards, each one stat and one number (range, attack damage, fire rate, Health, move speed, Health regen, dodge %, luck).
   Regen, dodge and luck start at 0; dodge caps at 60%.
   Luck makes rarer cards and treasures come up more often.
   One free reroll per act.

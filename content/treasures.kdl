@@ -174,7 +174,7 @@ treasure "sequins" name="Sequins" icon="🪡" rarity="rare" needs="glitter" atta
 }
 
 // --- hits, jumps and your body
-treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits (attacks) does Critical (3x) damage." stack=3 {
+treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits does Critical (3x) damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 30% more damage from everything." {
