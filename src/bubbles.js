@@ -657,7 +657,7 @@ export class Bubbles {
     if (b.elems.has('lightning')) {
       let from = p.clone();
       const hit = new Set(b.hit);
-      this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), SCORCH, b.r * 2.2);   // a scorch where it struck (harmless, fades)
+      this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), SCORCH, b.r * 2.2, 'scorch');   // a scorch where it struck (harmless, fades)
       for (let k = 0, n = b.ep?.chain ?? 3; k < n; k++) {
         const e = this.inRange(from, b.ep?.chainRange ?? 0.16, hit)[0];
         if (!e) break;

@@ -122,7 +122,7 @@ export class Shark {
     this.settle=1;
     this.fx.impact(at,this.color,r*.25,heavy?18:10);this.fx.ring(at,this.color,r,.4);
     for(let i=0;i<6;i++){const a=i*Math.PI/3;this.fx.puff(at.clone().add(V(Math.sin(a)*r*.5,.025,Math.cos(a)*r*.5)),this.dust,.028,.5);}
-    this.fx.splat(at,this.dust,r*.7);juice.feel(heavy?'impact-big':'impact');sfx.sharkSlam(heavy);
+    this.fx.splat(at,this.dust,r*.7, 'dust');juice.feel(heavy?'impact-big':'impact');sfx.sharkSlam(heavy);
   }
   begin(name,player=this.player){
     if(!player||this.dead||this.dying)return;

@@ -508,7 +508,7 @@ export class Gadgets {
     fx.burst(center, [ink.getHex(), edge.getHex()], 10, 0.004, 0.3, feet.y);
     for (let i = 0; i < 5; i++) {
       const a = Math.random() * Math.PI * 2, d = radius * 0.8 * Math.random();
-      fx.splat(_to.set(feet.x + Math.cos(a) * d, feet.y, feet.z + Math.sin(a) * d), ink.getHex(), 0.012 + Math.random() * 0.02);
+      fx.splat(_to.set(feet.x + Math.cos(a) * d, feet.y, feet.z + Math.sin(a) * d), ink.getHex(), 0.012 + Math.random() * 0.02, 'ink');
     }
   }
 

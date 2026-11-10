@@ -9,6 +9,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { DeathRemains } from './death-remains.js';
+import { MARKS, paintFloorMarks } from './floor-marks.js';
 import { GlowPoints, TeleMaterial, VolumeMaterial, volumeGeometry, shotHits, CRIT } from './vfx.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
@@ -47,7 +48,7 @@ export class Fx {
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
     this.splats = [];
-    this.splatGeo = new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2);
+    this.splatGeo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);   // 1 m radius, like the other pieces
     this.ringGeo = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
     // one material per pool, drawn instanced (batch.js); each piece's own tint and fade ride
     // along as userData.color / userData.opacity
@@ -56,6 +57,16 @@ export class Fx {
     this.chunkMat = per(new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
     // wet marks on the floor: flat, drawn over it (polygon offset), never hiding what stands on them
     this.splatMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    // one material per mark shape (floor-marks.js), each showing its cell of the one painted sheet
+    // (the clones share its image, so it uploads once)
+    const sheet = new THREE.CanvasTexture(paintFloorMarks());
+    sheet.colorSpace = THREE.SRGBColorSpace;
+    this.splatMats = Object.fromEntries(MARKS.map((k, i) => {
+      const t = sheet.clone(), m = per(this.splatMat.clone());
+      t.repeat.set(0.5, 0.5); t.offset.set((i % 2) * 0.5, i < 2 ? 0.5 : 0);
+      m.map = t;
+      return [k, m];
+    }));
     // shockwave rings glow (additive, unlit): they're how an area attack shows its reach
     this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));
     // the combat visual language (vfx.js): every glow is one point in one draw call, and every
@@ -202,10 +213,10 @@ export class Fx {
     }
   }
 
-  // A wet mark on the floor where something burst: spreads a little, holds, then fades over
+  // A mark on the floor where something burst: spreads a little, holds, then fades over
   // --splat-life s. Harmless leftovers only (never something that still hurts). At the cap
-  // (--splat-most) the oldest one goes.
-  splat(pos, color = null, radius = 0.01) {
+  // (--splat-most) the oldest one goes. `mark` is its shape: splash, scorch, ink or dust (floor-marks.js).
+  splat(pos, color = null, radius = 0.01, mark = 'splash') {
     let s = this.splats.find((x) => !x.alive);
     if (!s) {
       if (this.splats.length < LOOK.num('splat-most', 24)) { s = { m: this.piece(this.splatGeo, this.splatMat) }; this.splats.push(s); }
@@ -213,8 +224,9 @@ export class Fx {
     }
     Object.assign(s, { alive: true, t: 0, life: LOOK.num('splat-life', 2), r: radius, sx: 0.75 + Math.random() * 0.5, sz: 0.75 + Math.random() * 0.5 });
     s.m.visible = true;
+    s.m.material = this.splatMats[mark] ?? this.splatMats.splash;
     s.m.position.set(pos.x, pos.y + 0.0015, pos.z);
-    s.m.rotation.y = Math.random() * Math.PI;
+    s.m.rotation.y = Math.random() * Math.PI * 2;
     s.m.scale.set(0, 1, 0);   // it spreads from nothing (update), never shows at a new piece's 1 m
     s.m.userData.color.set(color ?? LOOK.color('splat', '#9fd8ff'));
   }

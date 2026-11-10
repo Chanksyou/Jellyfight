@@ -626,7 +626,7 @@ export class Elites {
       if (!struck) return;
       const at = b.m.position, y = this.surfaceBelow(at);
       this.fx.burst(at, LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 4, 0.003, 0.2, y);
-      this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-shot-scuff', 0.012));
+      this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-shot-scuff', 0.012), 'dust');
       sfx.bullHit();
     };
     this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3(); this._mid2 = new THREE.Vector3();   // scratch for the Bull
@@ -912,7 +912,7 @@ export class Elites {
     const c = (this._struck ||= new THREE.Vector3()).copy(P).setY(P.y + cfg.height * 0.5);
     this.fx.impact(c, hostile('clock'), LOOK.num('act2-contact-flash', 0.03), 12);
     this.fx.burst(c, LOOK.list('clock-glints', ['#fff0b0', '#ffc23a', '#e0b048']), 6, 0.003, 0.3, P.y);
-    this.fx.splat(this._probe.copy(P).setY(this.surfaceBelow(P)), LOOK.color('clock-scuff', '#6a5426'), 0.014);
+    this.fx.splat(this._probe.copy(P).setY(this.surfaceBelow(P)), LOOK.color('clock-scuff', '#6a5426'), 0.014, 'dust');
     juice.feel('impact'); sfx.clockStrike(true);
   }
 
@@ -1157,7 +1157,7 @@ export class Elites {
             pulse.material.progress = 1;
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
             this.fx.burst(surf, [LOOK.color('controller-debris', '#aaa5a0')], 8, LOOK.num('controller-chip-size', 0.002), 0.18, e.base.y);
-            this.fx.splat(surf, LOOK.color('controller-scuff', '#514949'), LOOK.num('controller-scuff-size', 0.018));
+            this.fx.splat(surf, LOOK.color('controller-scuff', '#514949'), LOOK.num('controller-scuff-size', 0.018), 'dust');
             e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2); g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15);
             juice.feel('impact-big'); sfx.controllerRumble();
             if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller', e.base); knock(e.base, 0.9); }
@@ -1400,7 +1400,7 @@ export class Elites {
               // the hand clacks into its stop at the far side: a flash and a scuff at its tip
               const b = heading + e.dirSweep * Math.PI / 2, tip = surf.clone().add(this._mid.set(Math.sin(b) * R, 0, Math.cos(b) * R));
               this.fx.impact(tip.clone().setY(tip.y + 0.006), hostile('clock'), 0.02, 6);
-              this.fx.splat(tip, LOOK.color('clock-scuff', '#6a5426'), 0.012);
+              this.fx.splat(tip, LOOK.color('clock-scuff', '#6a5426'), 0.012, 'dust');
               sfx.clockStrike(false);
             }
             e.clearTele(); e.beam = null; e.swept = false; e.spin = 0; e.state = 'idle'; e.cool = angry ? 1.2 : 1.7;
@@ -1574,7 +1574,7 @@ export class Elites {
                 this.fx.impact(p.clone().setY(p.y + 0.01), hostile('croc'), 0.03, 12);
                 this.fx.burst(p.clone().setY(p.y + 0.01), ['#ffffff', '#cfe0ff', '#7f94ff'], 8, 0.003, 0.3, p.y);
                 this.fx.ring(p.clone().setY(p.y + 0.003), hostile('croc'), V.radius, 0.35);
-                this.fx.splat(p, LOOK.color('croc-frost-splat', '#dfe8ff'), V.radius * LOOK.num('croc-frost-splat-size', 0.35));   // harmless rime, fading
+                this.fx.splat(p, LOOK.color('croc-frost-splat', '#dfe8ff'), V.radius * LOOK.num('croc-frost-splat-size', 0.35), 'dust');   // harmless rime, fading
                 if (!e.frostFelt) { e.frostFelt = true; juice.feel('impact'); }       // once a volley: they land together
                 sfx.frostLand();
                 if (blastHits(p, V.radius, P, cfg)) {
@@ -1625,7 +1625,7 @@ export class Elites {
               this.fx.puff(at, 0xdfe6ff, 0.04, 0.4);
               this.fx.impact(at, hostile('croc'), 0.025, 10);
               this.fx.burst(at, LOOK.list('croc-fluff', ['#7fa36a', '#a8c690', '#ffffff']), 6, 0.003, 0.25, e.slamAt.y);
-              this.fx.splat(e.slamAt, LOOK.color('croc-frost-splat', '#dfe8ff'), CROC_SLAM_WARN * LOOK.num('croc-dent-size', 0.6));   // a dent in the quilt, fading
+              this.fx.splat(e.slamAt, LOOK.color('croc-frost-splat', '#dfe8ff'), CROC_SLAM_WARN * LOOK.num('croc-dent-size', 0.6), 'dust');   // a dent in the quilt, fading
               this.ring(e.slamAt, hostile('croc'), T, 'croc-tail', { band: T.band, speed: T.speed, max: T.reach, follow: true });
             }
           } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? T.angryRest : T.rest; }
@@ -1657,7 +1657,7 @@ export class Elites {
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('croc'), 0.05, 22);
             this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, Q.radius * 0.8, 0.6);
             this.fx.burst(surf.clone().setY(surf.y + 0.02), LOOK.list('croc-fluff', ['#7fa36a', '#a8c690', '#ffffff']), 10, 0.004, 0.35, surf.y);
-            this.fx.splat(surf, LOOK.color('croc-frost-splat', '#dfe8ff'), Q.radius * LOOK.num('croc-dent-size', 0.6) * 0.5);
+            this.fx.splat(surf, LOOK.color('croc-frost-splat', '#dfe8ff'), Q.radius * LOOK.num('croc-dent-size', 0.6) * 0.5, 'dust');
             e.squash = 1;                                                        // it lands flat, then springs back
             juice.feel('impact-big'); sfx.crocThump(1.4);
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce', surf); knock(e.base, Q.knock); this.fx.impact(pc, hostile('croc'), 0.02, 8); }
@@ -1693,7 +1693,7 @@ export class Elites {
             this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.06, 24);
             this.fx.puff(surf.clone().setY(surf.y + 0.02), 0xf0d0c0, Q.radius * 0.7, 0.55);
             this.fx.burst(surf.clone().setY(surf.y + 0.03), LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 12, 0.004, 0.4, surf.y);   // stuffing and fluff thrown up
-            this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), Q.radius * LOOK.num('bull-scuff-size', 0.2));   // a scuff where it stamped, fading
+            this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), Q.radius * LOOK.num('bull-scuff-size', 0.2), 'dust');   // a scuff where it stamped, fading
             e.squash = 1;                                                        // it slams down into the table and springs back
             juice.feel('impact-big'); sfx.bullRush();
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush', surf); knock(e.base, Q.knock); this.fx.impact(pc, col, 0.02, 8); }
@@ -1795,7 +1795,7 @@ export class Elites {
             this.fx.impact(this._mid.copy(e.aim).setY(e.aim.y + 0.01), col, 0.03, 14);
             this.fx.puff(this._mid, 0x8a6a4a, 0.035, 0.35);
             this.fx.burst(this._mid, LOOK.list('coffer-chips', ['#8a6a4a', '#c8a878', '#e8d8b0']), 6, 0.003, 0.28, e.aim.y);   // splinters off the lid
-            this.fx.splat(e.aim, LOOK.color('coffer-scuff', '#5a4632'), A.radius * LOOK.num('coffer-scuff-size', 0.45));      // a dusty mark where it landed, fading
+            this.fx.splat(e.aim, LOOK.color('coffer-scuff', '#5a4632'), A.radius * LOOK.num('coffer-scuff-size', 0.45), 'dust');      // a dusty mark where it landed, fading
             e.hitPop = Math.max(e.hitPop, 0.4);                                  // the box jolts with the slam
             juice.feel('impact'); sfx.cofferSlam();
             if (blastHits(e.aim, A.radius, P, cfg)) { hit(A.dmg, 'coffer-accordion', e.aim); this.fx.impact(pc, col, 0.015, 6); }
@@ -1951,7 +1951,7 @@ export class Elites {
             for (const at of e.spots) {
               this.fx.impact(this._mid.copy(at).setY(at.y + 0.01), col, 0.03, 10);
               this.fx.burst(this._mid, ['#ffb22a', '#ff7a00', '#ffe0a0'], 5, 0.003, 0.3, at.y);
-              this.fx.splat(at, LOOK.color('coffer-shards', '#b89a6a'), J.radius * LOOK.num('coffer-shards-size', 0.25));   // glittering grit, fading
+              this.fx.splat(at, LOOK.color('coffer-shards', '#b89a6a'), J.radius * LOOK.num('coffer-shards-size', 0.25), 'dust');   // glittering grit, fading
               if (!struck && blastHits(at, J.radius, P, cfg)) { struck = true; hit(J.dmg, 'coffer-jewel', at); this.fx.impact(pc, col, 0.015, 6); }
             }
             e.hitPop = Math.max(e.hitPop, 0.4);
@@ -1991,7 +1991,7 @@ export class Elites {
           this.fx.impact(c, hostile('bull'), 0.03, 12);
           this.fx.puff(c, 0xf0d0c0, 0.04, 0.4);
           this.fx.burst(c, LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 6, 0.003, 0.3, b.y);
-          this.fx.splat(this._scuff.set(c.x, b.y, c.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-mini-scuff', 0.02));
+          this.fx.splat(this._scuff.set(c.x, b.y, c.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-mini-scuff', 0.02), 'dust');
           if (struckYou) juice.feel('impact');
           sfx.bullMini(struckYou);
         }
