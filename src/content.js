@@ -9,11 +9,12 @@
 //   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js, src/shark.js, src/encore.js)
 //   content/elites.kdl    the elites: Health, aggro and every attack's numbers (src/elites.js)
 //   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
+//   content/jellies.kdl   the jelly types a run can start as (behind GAME.types: src/jelly-types.js)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
 import { ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
-export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, nodes: null };
+export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, jellies: {}, nodes: null };
 
 // Dev-editor removals (src/balance-editor.js): keys like 'elite:mug' and 'card:health'.
 // Session-only, never written to the files: a removed elite doesn't spawn (run.js) and a
@@ -224,6 +225,36 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
   return out;
 }
 
+// jelly "id" name="…" attack="…" hit=N { stat <name> <value> … }: the jelly types. Each stat line
+// replaces Normal's value (BASE_STATS); Normal itself lists none.
+const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
+export function compileJellies(nodes, file = 'content/jellies.kdl') {
+  const out = {};
+  for (const n of nodes) {
+    const where = `${file}:${n.line}`;
+    if (n.name !== 'jelly') throw new Error(`${where}: expected "jelly", got "${n.name}"`);
+    const id = n.args[0];
+    if (typeof id !== 'string') throw new Error(`${where}: jelly needs an id, like jelly "fire"`);
+    if (out[id]) throw new Error(`${where}: there are two jellies called "${id}"`);
+    if (typeof n.props.name !== 'string') throw new Error(`${where}: "${id}" needs name="…"`);
+    if (!JELLY_ATTACKS.includes(n.props.attack)) throw new Error(`${where}: "${id}" attack= must be one of ${JELLY_ATTACKS.join(', ')}, not "${n.props.attack}"`);
+    if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
+    const stats = {};
+    for (const s of n.children) {
+      const at = `${file}:${s.line}`, [name, value] = s.args, key = STAT_NAMES[name];
+      if (s.name !== 'stat') throw new Error(`${at}: "${id}" takes only stat lines, not "${s.name}"`);
+      if (!key) throw new Error(`${at}: "${id}" stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      if (typeof value !== 'number') throw new Error(`${at}: "${id}" stat ${name} needs a number`);
+      if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
+      stats[key] = value;
+    }
+    out[id] = { id, name: n.props.name, attack: n.props.attack, hit: n.props.hit, stats };
+  }
+  if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
+  if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);
+  return out;
+}
+
 // The combined effects of the treasures you own (ids) and the evolutions you've taken: what the
 // systems read
 export function compileMods(ids, evolved = []) {
@@ -253,7 +284,7 @@ function owned(m, id, apply) {
 
 export async function loadContent(base = './content/') {
   const read = async (f) => { const r = await fetch(base + f); if (!r.ok) throw new Error(`content/${f}: couldn't load (${r.status})`); return r.text(); };
-  const [enemies, waves, treasures, evolutions, bosses, elites, levelups] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl')]);
+  const [enemies, waves, treasures, evolutions, bosses, elites, levelups, jellies] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl'), read('jellies.kdl')]);
   // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
   // recompiles from them, without reloading the page.
   CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl'), elites: parse(elites, 'content/elites.kdl'), levelups: parse(levelups, 'content/levelups.kdl') };
@@ -264,6 +295,7 @@ export async function loadContent(base = './content/') {
   CONTENT.bosses = compileBosses(CONTENT.nodes.bosses);
   CONTENT.elites = compileElites(CONTENT.nodes.elites);
   CONTENT.levelups = compileLevelups(CONTENT.nodes.levelups);
+  CONTENT.jellies = compileJellies(parse(jellies, 'content/jellies.kdl'));
   return CONTENT;
 }
 

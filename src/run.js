@@ -2,6 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
+import { TYPE_SWITCH, startingJelly, jellyStats } from './jelly-types.js';
 import { BASE_STATS, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
@@ -254,7 +255,8 @@ export class Run {
     this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
-    this.stats = { ...BASE_STATS };
+    this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal unless GAME.types is on
+    this.stats = jellyStats(this.jelly);
     this.level = 1;
     this.xp = 0;
     this.purse = 0;
@@ -359,7 +361,7 @@ export class Run {
     this.shield.update(0);            // a later act starts with its Shield full
     if (M) this.resumeAct(M);
     this.keepT = 1;
-    if (devSession()) this.devRun();  // a tab with the dev tools unlocked never plays a run that counts
+    if (devSession() || TYPE_SWITCH.on) this.devRun();  // a tab with the dev tools unlocked, or jelly types switched on before release, never plays a run that counts
     this.refreshHud();
   }
 
@@ -1439,7 +1441,7 @@ export class Run {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
-    const entry = { score, run: this.logId, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, run: this.logId, jelly: this.jelly, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
@@ -1542,7 +1544,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { jelly: this.jelly, elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
@@ -1571,7 +1573,7 @@ export class Run {
 
   carryOver() {
     return {
-      score: this.score(), stats: this.stats, level: this.level, xp: this.xp, purse: this.purse,
+      score: this.score(), stats: this.stats, jelly: this.jelly, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, newFinds: this.newFinds,
       pearls: this.pearls, awardsBefore: this.awardsBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),

@@ -37,9 +37,9 @@ const request = async (path, body) => {
 };
 // a score backed by a logged run: one act, finished with that score (the Worker checks it: checkRun)
 const logAct = (id, run, act, outcome, extra = {}) => sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
-  (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures)
-  VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
-  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]));
+  (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures, details)
+  VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
+  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]), extra.details ?? null);
 const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { score: body.score }); return request('/api/scores', { run: 'run-' + body.id, ...body }); };
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
@@ -66,7 +66,7 @@ test('run details retain Elite defeats, pickup order and fatal attribution with 
   const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
   assert.equal((await save(row)).data.saved, true);
   const read = () => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries').get().details);
-  assert.deepEqual(read(), { elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
+  assert.deepEqual(read(), { jelly: 'normal', elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
     pickups: [['candle', 10.3, 1], ['candle', 40, 2]], killedBy: { unit: 'ladybug', source: 'missile' } });
   await save({ ...row, revision: 2, details: undefined });
   assert.equal(read().elitesBeaten, 2);   // an older client cannot erase recorded detail
@@ -320,6 +320,20 @@ test('a score must be the last act of a run its player logged, and the run must 
   logAct('player-one', 'run-rush', 2, 'died', { score: 30000 });
   assert.equal((await post('run-rush', 30000)).data.why, 'unverified');
   assert.equal(sqlite.prepare('SELECT score FROM scores').get().score, 20000);
+});
+
+test('a score names the jelly type its run was logged as, and a missing type is Normal', async () => {
+  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly }); };
+  logAct('player-one', 'run-older', 1, 'died', { score: 1000 });                                   // an older client: no details, no type
+  assert.deepEqual((await post('run-older', 1000)).data, { posted: true });
+  logAct('player-one', 'run-fire', 1, 'next-act', { score: 2000, details: JSON.stringify({ jelly: 'fire' }) });
+  logAct('player-one', 'run-fire', 2, 'died', { score: 3000, details: JSON.stringify({ jelly: 'fire' }) });
+  assert.equal((await post('run-fire', 3000)).data.why, 'unverified');                          // posted as Normal
+  assert.equal((await post('run-fire', 3000, 'ice')).data.why, 'unverified');                   // posted as another type
+  assert.equal((await post('run-fire', 3000, 'fire')).data.posted, true);
+  logAct('player-one', 'run-swap', 1, 'next-act', { score: 4000, details: JSON.stringify({ jelly: 'fire' }) });
+  logAct('player-one', 'run-swap', 2, 'died', { score: 5000, details: JSON.stringify({ jelly: 'ice' }) });   // changed type mid-run
+  assert.equal((await post('run-swap', 5000, 'ice')).data.why, 'unverified');
 });
 
 test('the dev password is checked against the secret, slowly, and never opens without one', async () => {

@@ -6,6 +6,7 @@ import { ENEMY_WORDS } from '../words.js';
 import { CONTENT } from '../content.js';
 import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
+import { TYPE_SWITCH } from '../jelly-types.js';
 import { BEST_KEY } from '../leaderboard.js';
 import { hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
 import { juice } from '../juice.js';
@@ -39,10 +40,12 @@ export function restore() {
   }
 }
 // A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
-// (each can be turned back on), and the start pick skipped.
-export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false } = {}) {
+// (each can be turned back on), and the start pick skipped. types: '<id>' turns the jelly types
+// switch on and starts the run as that type (src/jelly-types.js); left out, the switch is off.
+export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null } = {}) {
   const { run, menus, enemies, mainMenu } = G();
   restore();
+  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal';
   mainMenu.restore(); mainMenu.cancelLaunch();
   mainMenu.home = false;
   mainMenu.overlay.classList.remove('menu-home');   // stories enter gameplay without the title transition
