@@ -292,7 +292,7 @@ story('menu/reduce-effects', {
   },
 });
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button. The Worker checks the password (it is not in the page): a wrong one keeps them hidden, the right one shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics, and the AO, Bloom and Lamps switches) and makes the run a dev run, which never reaches the leaderboard.',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button. The Worker checks the password (it is not in the page): a wrong one keeps them hidden, the right one shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics, the AO, Bloom and Lamps switches, and the jelly Types switch) and makes the run a dev run, which never reaches the leaderboard.',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },
   async play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
@@ -318,7 +318,7 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     G().run.start();
     const afterLock = G().run.dev;
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag,pass-ao,pass-bloom,pass-lamps'
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag,pass-ao,pass-bloom,pass-lamps,types'
       && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
       { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, asked, devBefore, devRun, nextRunDev, afterLock });
   },

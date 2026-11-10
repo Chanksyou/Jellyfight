@@ -56,6 +56,7 @@ import './stories/act3-coffer.js';
 import './stories/act4.js';
 import './stories/phone.js';
 import './stories/nests.js';
+import './stories/types.js';
 export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()

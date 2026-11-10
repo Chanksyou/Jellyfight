@@ -3,7 +3,7 @@
 // code runs at all.
 //
 //   GET  /api/scores?me=<id>   the top 10, plus your own entry: { top: [...], mine: {...} | null }
-//   POST /api/scores           { id, run, name, body, look, score, level, kills, time, won, build }
+//   POST /api/scores           { id, run, name, body, look, score, level, kills, time, won, build, jelly }
 //                              (run: the run log's id; the score must match that run's last logged act
 //                              and the run must pass checkRun, else why: 'pending' | 'unverified')
 //                              (look: the player's jelly descriptor, carried whole so a
@@ -157,16 +157,21 @@ async function top(db, me) {
 // What a real run can't do, from the run log (run_summaries). Generous: the best real runs so far
 // (Nov 2026) reached levels 14 / 17 / 20 / 20 by the end of acts 1-4 and took 260 s+ to clear acts 1-3.
 const LEVEL_CAP = [0, 18, 24, 28, 30];   // highest believable level at the end of each act
+// the run's jelly type (content/jellies.kdl); a client from before jelly types sends none: Normal
+export const jellyOf = (v) => String(v ?? '').replace(/[^a-z]/g, '').slice(0, 16) || 'normal';
 const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back for 260 s
 const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
 // null when the run backs the score; 'pending' while its last act hasn't been logged yet; else 'unverified'
-export function checkRun(acts, score) {
+export function checkRun(acts, score, jelly = 'normal') {
   const last = acts.at(-1);
   if (!last || !last.finalized || last.outcome === 'next-act') return 'pending';
   // logged acts follow on from each other (an older build's or a lost upload's first acts may be missing)
   if (acts.some((a, i) => a.act !== acts[0].act + i || !a.finalized || (a !== last && a.outcome !== 'next-act'))) return 'unverified';
   if (last.score !== score) return 'unverified';
   for (const a of acts) {
+    let d = {};
+    try { d = JSON.parse(a.details || '{}') || {}; } catch {}
+    if (jellyOf(d.jelly) !== jellyOf(jelly)) return 'unverified';   // one jelly type the whole run
     if (a.level > (LEVEL_CAP[a.act] ?? 0)) return 'unverified';
     if (a !== last && a.act < 4 && a.time < MIN_ACT_TIME) return 'unverified';
     let held = [];
@@ -213,9 +218,9 @@ async function post(request, env) {
     if (r.key.startsWith('ip:') && now - r.at < PER_IP_MS) return json({ posted: false, why: 'slow' }, 429);
   }
   // the score must be the end of a run this player logged act by act, and that run must look playable
-  const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
+  const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures, details FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
     .bind(b.id, b.run).all()).results;
-  const check = checkRun(acts, score);
+  const check = checkRun(acts, score, b.jelly);
   if (check) return json({ posted: false, why: check }, check === 'pending' ? 409 : 422);
   const was = await db.prepare('SELECT score FROM scores WHERE id = ?').bind(b.id).first();
   const stamp = db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at')
@@ -323,7 +328,7 @@ const events = (list, max, counts = false) => (Array.isArray(list) ? list : []).
   .filter(p => Array.isArray(p) && word(p[0]) && Number.isFinite(p[1]) && (!counts || Number.isFinite(p[2])))
   .map(p => [word(p[0]), Math.round(Math.max(0, Math.min(100000, p[1])) * 10) / 10, ...(counts ? [int(p[2], 1, 99)] : [])]);
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
-  elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
+  jelly: jellyOf(d.jelly), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
   killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
     ? { unit: word(d.killedBy.unit) || 'unknown', source: word(d.killedBy.source) || 'other' } : null,

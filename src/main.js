@@ -46,6 +46,8 @@ import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run, makeBoss, DEV_KEY } from './run.js';
+import { TYPE_SWITCH } from './jelly-types.js';
+import { CONTENT } from './content.js';
 import { bagHtml } from './treasure-bag.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
@@ -163,7 +165,7 @@ ui.innerHTML = `
   <button class="play">Play</button>
   <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button><button data-act="pass-ao">AO on</button><button data-act="pass-bloom">Bloom on</button><button data-act="pass-lamps">Lamps on</button></div>
+  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button><button data-act="pass-ao">AO on</button><button data-act="pass-bloom">Bloom on</button><button data-act="pass-lamps">Lamps on</button><button data-act="types">Types off</button></div>
   <div class="row" id="g-quality"></div>
   <div class="g-bag"></div>
   <div class="keys touch-only">
@@ -292,6 +294,8 @@ const song = {
   quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };
+// Jelly types, before release (src/jelly-types.js): ?types starts runs as Normal with the switch on, ?types=fire as Fire
+{ const t = new URLSearchParams(location.search).get('types'); if (t !== null) { TYPE_SWITCH.on = true; TYPE_SWITCH.start = t || 'normal'; if (!CONTENT.jellies[TYPE_SWITCH.start]) console.warn(`?types=${t}: no jelly type called that in content/jellies.kdl, so this run is Normal`); } }
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops, gfx,
   traversal, hud, ui: menus, fx, tpc, input, setNight: () => {}, touch: IS_TOUCH, apartment: APT.root,
@@ -716,6 +720,8 @@ const GAME = {
   // build what the scene needs for the graphics in use (stories count new shaders with it)
   compile() { const was = renderer.getRenderTarget(); renderer.setRenderTarget(drawnInto()); try { return renderer.compile(scene, camera, scene); } finally { renderer.setRenderTarget(was); } },
 };
+// the jelly types switch (src/jelly-types.js), for stories and the console
+Object.defineProperty(GAME, 'types', { get: () => TYPE_SWITCH.on, set: (v) => { TYPE_SWITCH.on = !!v; } });
 window.GAME = GAME;
 window.mainMenu = mainMenu;
 
@@ -771,6 +777,12 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'achievements') { overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
+  else if (b.dataset.act === 'types') {   // dev: jelly types before release; each tap starts act 1 over as the next type, then off
+    const ids = Object.keys(CONTENT.jellies), i = TYPE_SWITCH.on ? ids.indexOf(TYPE_SWITCH.start) + 1 : 0;
+    TYPE_SWITCH.on = i < ids.length; TYPE_SWITCH.start = ids[i] || 'normal';
+    b.textContent = TYPE_SWITCH.on ? `Types: ${CONTENT.jellies[TYPE_SWITCH.start].name}${stage.id === 1 ? '' : ' (next act 1)'}` : 'Types off';
+    if (stage.id === 1) { forgetRun(); showKept(); run.start(); }
+  }
   else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
     const pass = b.dataset.act.slice(5), on = pass === 'lamps' ? toggleLamps() : gfx.toggle(pass);
     b.textContent = b.textContent.replace(/ on$| off$/, on ? ' on' : ' off');

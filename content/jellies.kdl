@@ -1,0 +1,69 @@
+// Jelly types: what a run starts as (docs/jelly-types/spec-core.md). Behind the GAME.types switch
+// until release; with it off every run is Normal.
+//
+// Normal is BASE_STATS (src/stats.js). Every other type lists only where it differs, as
+// `stat <name> <value>` lines: the value replaces Normal's (stat names as the `stat` effect word
+// in src/words.js). `attack` is the type's one attack: bubble, an Element id, or tentacle.
+// `hit` multiplies that attack's damage (the damage budget's one knob).
+//
+//   jelly "id" name="…" attack="…" hit=1 { stat <name> <value> … }
+
+jelly "normal" name="Normal Jelly" attack="bubble" hit=1
+
+jelly "fire" name="Fire Jelly" attack="fire" hit=1 {
+    stat bubble-damage 7.5
+    stat move-speed 1.05
+    stat health 19
+    stat fire-rate 1.5
+}
+
+jelly "lightning" name="Lightning Jelly" attack="lightning" hit=1 {
+    stat fire-rate 2.2
+    stat move-speed 1.15
+    stat bubble-damage 4.5
+    stat health 22
+}
+
+jelly "ice" name="Ice Jelly" attack="ice" hit=1 {
+    stat health 31
+    stat shield 5
+    stat bubble-damage 9
+    stat fire-rate 1.2
+    stat move-speed 0.88
+    stat jump-height 0.9
+}
+
+// Health regen is per second: 0.5 every 5 s
+jelly "poison" name="Poison Jelly" attack="poison" hit=1 {
+    stat health-regen 0.1
+    stat bubble-size 1.2
+    stat health 28
+    stat bubble-damage 5
+    stat range 0.25
+}
+
+jelly "wind" name="Wind Jelly" attack="wind" hit=1 {
+    stat move-speed 1.2
+    stat jump-height 1.2
+    stat range 0.36
+    stat pierce 1
+    stat health 20
+    stat fire-rate 1.5
+}
+
+jelly "glitter" name="Glitter Jelly" attack="glitter" hit=1 {
+    stat luck 10
+    stat bubble-size 1.25
+    stat dodge 5
+    stat bubble-damage 4.8
+    stat fire-rate 1.5
+}
+
+jelly "tentacle" name="Tentacle Jelly" attack="tentacle" hit=1 {
+    stat bubble-damage 9
+    stat bubbles 3
+    stat tentacle-reach 0.11
+    stat health 32
+    stat shield 3
+    stat move-speed 1.1
+}

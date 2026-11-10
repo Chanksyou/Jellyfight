@@ -84,6 +84,9 @@ The one big enemy that ends each act, arriving when the countdown runs out (the 
 **Element**:
 A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the bubbles. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
 
+**Jelly type**:
+What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). Not offered to players yet; every run is Normal until release.
+
 **Elite**:
 A mini-boss: a household object that fights back, tougher than a bug and weaker than the boss.
 _Avoid_: Miniboss
