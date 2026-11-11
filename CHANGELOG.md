@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v408 lightens crowded fights on phones: bugs far from the jelly or off screen animate on alternate frames, and past 8 hit effects in one frame the rest keep only their flash, without the sparks and ring.
+
 v407 shows each jelly type's element moving round the jelly on the pick screen's cards (flames, frost, crackling arcs, toxic bubbles, gusts, glitter, stings, bubbles), with the jelly itself drawn plain, so every card reads differently.
 
 v406 adds jelly type unlocks (finish acts, defeat Elites), a Jellies page in the Treasure book, type-aware hints and achievement text, and each score's jelly type on the leaderboard, all behind the jelly types switch.
