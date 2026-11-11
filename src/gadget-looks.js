@@ -82,8 +82,7 @@ export class GadgetLooks {
   }
   contact(at,color=this.color,size=.012){
     if(!color.isColor)color=new THREE.Color(color);
-    this.fx.glow.emit(at,color,size*2,size*.3,.14,this.quiet?.35:.7);
-    this.arc(at,size,color,.18);
+    this.fx.glow.emit(at,color,size*2,size*.3,.14,this.quiet?.35:.7);   // a flash only: floor rings are for Warnings and area reach
   }
   studs(at,color,count=6){
     for(let i=0;i<(this.quiet?Math.min(2,count):count);i++){

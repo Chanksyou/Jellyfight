@@ -98,8 +98,8 @@ story('treasures/chest-glow-is-neutral-until-opening', {
     const elite = run.placeTreasure(V(3.4, 0.05, 3.4), Infinity);
     const hex = (c) => '#' + c.getHexString();
     return ok(hex(room.tierColor) === '#ffc93a' && hex(elite.tierColor) === '#ffc93a'
-      && hex(room.ring.material.uniforms.uColor.value) === '#ffc93a',
-      { roomGlow: hex(room.tierColor), eliteGlow: hex(elite.tierColor), ring: hex(room.ring.material.uniforms.uColor.value) });
+      && hex(room.ring.material.color) === '#ffc93a',
+      { roomGlow: hex(room.tierColor), eliteGlow: hex(elite.tierColor), ring: hex(room.ring.material.color) });
   },
 });
 story('treasures/chest-opens-with-a-snap', {

@@ -14,7 +14,6 @@ export function wireFeedback(fx, isBurning = () => false) {
 
   bus.on('enemy_frozen', ({ pos, r }) => {
     sfx.freeze();
-    fx.ring(pos.clone().setY(pos.y - r), 0x9fe8ff, r * 3, 0.5);
     fx.number(pos.clone().setY(pos.y + r * 2), 'FROZEN', '#bff4ff', 14);
   });
 
@@ -61,12 +60,10 @@ export function showKill(fx, isBurning, { targetId, type, pos, floor, r, silent,
     // flakes the size of the bug that flutter down and glint on the floor, and a sparkling pop
     fx.impact(pos, LOOK.color('glitter-pop', '#ff9ae8'), r * 1.4, 10);
     fx.glitter.burst(pos, Math.round(LOOK.num('glitter-death-flakes', 34) * (big ? 1.4 : 1)), Math.max(0.025, r * 2), floor);
-    fx.ring(pos.clone().setY(floor + 0.003), LOOK.color('glitter-pop', '#ff9ae8'), Math.min(r * 3, 0.08), 0.3);
     sfx.glitterBurst(big);
   } else if (!fire) {
     const body = remains && fx.deaths.add(remains);
     fx.burst(pos, GUTS[type] || ['#ffffff'], body ? 4 : 10 + (big ? 6 : 0), r * 0.28, 0.3, floor);
-    fx.ring(pos.clone().setY(floor + 0.003), LOOK.color('kill-ring', '#9fd8ff'), Math.min(r * 3, LOOK.num('kill-ring-max', 0.08)), 0.25);   // capped: a big bug's (3x its size) was a huge white circle round you
   }
   juice.feel(big ? 'kill-big' : 'kill');
   if (!own) sfx.kill(big ? 1.6 : 1);

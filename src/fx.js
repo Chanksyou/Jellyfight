@@ -300,9 +300,10 @@ export class Fx {
     return hit;
   }
 
-  // A hit landing: a flash, a ring of sparks flying out and a shockwave on the ground
+  // A hit landing: a flash and a ring of sparks flying out. No floor ring: a ring on the floor is kept
+  // for Warnings and the real reach of an area hit, so a crowd of single hits doesn't fill the floor with circles
   // Past --fx-hits-per-frame impacts in one frame, the rest keep only their flash (the contact):
-  // a crowd hit at once stays readable without a spike of sparks and rings on a phone.
+  // a crowd hit at once stays readable without a spike of sparks on a phone.
   impact(pos, color, size = 0.025, sparks = 10) {
     const c = new THREE.Color(color);
     this.glow.emit(pos, c, size * 2.2, size * 4, 0.16, 1.3);                     // the flash
@@ -311,20 +312,17 @@ export class Fx {
       const v = this._w.set(Math.random() - 0.5, Math.random() * 0.9 + 0.2, Math.random() - 0.5).normalize().multiplyScalar(0.25 + Math.random() * 0.45);
       this.glow.emit(pos, c, size * 0.45, size * 0.05, 0.3 + Math.random() * 0.25, 1, v, 1.4);
     }
-    this.ring(pos.clone().setY(pos.y - size * 0.3), color, size * 2.4, 0.3);
   }
 
-  // A critical hit (crit): a bright star-flash bigger than the bug, a burst of sparks and a fast ring,
-  // so a crit reads at a glance even in a crowd
-  // so a crit reads at a glance even in a crowd: a white-hot core inside the star-flash, a burst of
-  // fast sparks and two rings, one quick and tight, one slower and wide. It kicks the screen a step
+  // A critical hit (crit): a bright star-flash bigger than the bug and a burst of sparks, so a crit
+  // reads at a glance even in a crowd: a white-hot core inside the star-flash and a burst of fast
+  // sparks (no floor ring, like any single hit). It kicks the screen a step
   // harder than a hit (--feel-crit) but never stops the game: crits come too often for hit-stop
   crit(pos, r = 0.01) {
     const c = (this._crit ||= CRIT()), s = Math.max(0.012, r * 1.4);
     this.glow.emit(pos, WHITE, r * 3, r * 5, 0.08, 2);
     this.glow.emit(pos, c, r * 7, r * 11, 0.16, 1.6);
     this.impact(pos, c, s, 20);
-    this.ring(pos.clone().setY(pos.y - s * 0.3), c, s * 4.5, 0.22);
     juice.feel('crit');
   }
 

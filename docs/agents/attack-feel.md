@@ -103,7 +103,7 @@ usually one call to an existing primitive, not a new system.
 | Anticipation | The bell squeeze (`run.js` `onBlow` → `avatar.pulse`); cooldown cues. Automatic fire gets no added charge delay. | The Warning: floor shape + volume filling to the hit (`fx.tele`, `fx.volume`, ADR 0001). | `src/vfx.js`, `src/fx.js` |
 | Release | Squeeze, `sfx.blow` and the bubble on the same frame (`bubbles.js`). | `fx.impact` at the muzzle, launch sound. | `src/fx.js`, `src/sfx.js` |
 | Travel | The bubble body and Element looks. | A Shot: `fx.orb` + `fx.orbTick`. | `src/bubble-looks.js`, `src/fx.js` |
-| Impact | `fx.impact`, `fx.burst`, `fx.ring` at the contact point. | `fx.impact`; `blastHits` decides the hit. | `src/fx.js` |
+| Impact | `fx.impact` (flash and sparks) and `fx.burst` at the contact point; `fx.ring` only for the real reach of an area hit. | `fx.impact`; `blastHits` decides the hit. | `src/fx.js` |
 | Reaction (target) | White flash (`e.flashT`, `enemies.js`), the `knockback` event, critter squash. | The jelly's hurt: `damage_taken`, shake. | `src/enemies.js`, `src/critters.js`, `src/events.js` |
 | Reaction (attacker) | Bell squeeze, `juice.shake` scaled by size. | The Elite or Vacuum's own animation. | `src/juice.js` |
 | Aftermath | Burning, frozen, acid puddle while the status lasts; fire corpses. | Scorches only while they still hurt. | `src/bubbles.js`, `src/fx.js` |

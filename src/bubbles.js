@@ -417,7 +417,7 @@ export class Bubbles {
     Object.assign(b, {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
       pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6, strike: o.strike || null,
-      elems, tint: o.tint, trailT: 0,
+      elems, tint: o.tint,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     });
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
@@ -429,7 +429,6 @@ export class Bubbles {
     m.scale.setScalar(0.001);
     this.list.push(b);
     if(!o.tint&&(o.golden||o.big)){
-      const L=this.treasureLooks;if(L)L.arc(origin,b.r*(o.big?1.4:1.1),o.golden?L.gold:L.silver,.2);
       sfx.gadgetBubble(o.big?'giant':'gold');
     }
     if (o.tint === 'fire') {
@@ -482,12 +481,7 @@ export class Bubbles {
       b.travel += step;
       if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
         b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
-        this.treasureLooks.arc(b.m.position,b.r*1.1,this.treasureLooks.disco,.12);
         if(!this.treasureLooks.quiet)this.treasureLooks.streak(b.m.position.clone().addScaledVector(b.vel,-.045),b.m.position,this.treasureLooks.disco,.0008,.14);
-      }
-      if (b.rebound && b.returning && (b.trailT -= dt) <= 0) {
-        b.trailT = LOOK.num('rebound-trail-interval', 0.055);
-        this.fx.ring(b.m.position, this.friendly, b.r * 1.4, 0.16);
       }
       if (b.m.userData.look) this.looks.update(b, dt, this.clock);   // an element projectile: its own look and particles
       else {
@@ -495,10 +489,6 @@ export class Bubbles {
         this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.friendly, b.r * (b.big ? 6 : 5), b.golden ? 0.55 : 0.4);
         const grow = Math.min(1, b.t * 8);
         b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
-      }
-      if(!b.tint&&(b.big||b.golden)&&(b.signatureT=(b.signatureT??0)-dt)<=0){
-        b.signatureT=LOOK.num('gadget-special-trail-gap',.1);
-        const L=this.treasureLooks;if(L)L.arc(b.m.position,b.r*1.05,b.golden?L.gold:L.silver,.16);
       }
       // touching an enemy?
       for (const e of E.list) {
@@ -528,8 +518,7 @@ export class Bubbles {
 
   turn(b) {
     b.returning = true; b.homing = false; b.hit.clear();
-    b.vel.negate(); b.trailT = 0;
-    this.fx.ring(b.m.position, this.friendly, b.r * 2, 0.2);
+    b.vel.negate();
     sfx.rebound();
   }
 
@@ -671,7 +660,6 @@ export class Bubbles {
     }
     if (el.has('wind') && !e.proxy) {
       sfx.wind();
-      this.fx.ring(c.clone().setY(c.y - e.r), 0xffffff, e.r * 2.5, 0.25);
       // the gust buffets it: air streaming past, a little whirlwind round it, dust blown off its feet
       const W = this.fx.wind;
       W.streaks(c, dir, 5, 1.1, e.r * 3.5);
@@ -900,7 +888,7 @@ export class Bubbles {
       this.looks.glitterPop(p, splash);
       juice.feel('hit-big');
     }
-    this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.3);
+    this.fx.ring(p.clone().setY(p.y - b.r), glitter ? 0xff9ae8 : b.tint ? EL[b.tint].color : 0xbfe8ff, splash, 0.22);
     for (const e of E.list) {
       if (e.dead || b.hit.has(e)) continue;
       if (E.center(e, c).distanceTo(p) >= splash + e.r) continue;

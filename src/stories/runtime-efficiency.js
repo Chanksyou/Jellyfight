@@ -282,7 +282,7 @@ story('engine/far-bugs-animate-at-half-rate', {
 });
 
 story('engine/crowd-hits-keep-their-flash', {
-  about: 'Past --fx-hits-per-frame hit effects in one frame, the rest keep only their flash (no sparks, no ring); the next frame has the full budget again.',
+  about: 'Past --fx-hits-per-frame hit effects in one frame, the rest keep only their flash (no sparks); the next frame has the full budget again. No hit draws a floor ring.',
   setup() { fresh({ bubbles: false, lash: false }); },
   play() {
     const { fx } = G(), budget = fx.hitBudget, at = G().player.position.clone();
@@ -293,6 +293,6 @@ story('engine/crowd-hits-keep-their-flash', {
     fx.update(0);
     const g1 = fx.glow.parts.length; fx.impact(at, 0x9fe8ff, 0.02, 10);
     const fullAgain = fx.glow.parts.length - g1 === 11;
-    return ok(glow === budget * 11 + 4 && rings === budget && fullAgain, { budget, glow, rings, fullAgain });
+    return ok(glow === budget * 11 + 4 && rings === 0 && fullAgain, { budget, glow, rings, fullAgain });
   },
 });

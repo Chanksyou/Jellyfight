@@ -302,7 +302,7 @@ export class Gadgets {
   mirrorBurst(at,feet,radius){
     this.mirrorPop=.15;
     this.looks.contact(at,this.looks.silver,.04);this.fx.impact(at,this.looks.silver.getHex(),.03,12);
-    if(radius){this.fx.ring(feet.clone().setY(feet.y+.004),this.looks.silver.getHex(),radius,.45);this.looks.arc(feet.clone().setY(feet.y+.006),radius*.7,this.looks.silver,.3);}
+    if(radius){this.fx.ring(feet.clone().setY(feet.y+.004),this.looks.silver.getHex(),radius,.45);}
     this.looks.salt(at,.05);this.looks.salt(at,.03);
     if(!this.looks.quiet)juice.feel('impact');
   }
@@ -443,7 +443,7 @@ export class Gadgets {
     if (A) {
       this.aura.position.copy(feet).setY(feet.y + 0.002);
       this.aura.scale.setScalar(A.radius);
-      if (this.every('aura', dt, A.tick)) {this.looks.arc(feet.clone().setY(feet.y+.003),A.radius,this.looks.color,.18);for (const e of this.near(center, A.radius)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura();bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });}}
+      if (this.every('aura', dt, A.tick)) {for (const e of this.near(center, A.radius)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura();bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });}}
     }
 
     // touch-sting (Lion's Mane): whatever touches you gets stung
@@ -598,7 +598,7 @@ export class Gadgets {
       const col = new THREE.Color(ef.color);
       if (ef.look === 'puff') {this.looks.fizzBurst(feet.clone().setY(feet.y+.004),ef.radius);sfx.gadgetFizz();ctx.pulse?.(.25);}
       else if(ef.look==='chord'){
-        for(let i=0;i<3;i++)this.looks.arc(feet.clone().setY(feet.y+.004+i*.002),ef.radius*(1-i*.035),col,ef.show);
+        this.looks.arc(feet.clone().setY(feet.y+.004),ef.radius,col,ef.show);
         sfx.gadgetChord();ctx.pulse?.(.3);
       }else if(ef.look==='needles'){
         this.looks.arc(feet.clone().setY(feet.y+.004),.025,col,.18);sfx.gadgetNeedles();ctx.pulse?.(.25);
