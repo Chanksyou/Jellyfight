@@ -166,7 +166,7 @@ async function firstRunReload(e) {
 
 // --- on a phone: tap Play, swim with the joystick, jump
 async function touchControls(e) {
-  const { page, errors } = await boot(e, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
+  const { page, errors } = await boot(e, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, newPlayer: true });   // a first run is Normal, with no pick screen
   const cdp = await page.context().newCDPSession(page);
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id], i) => ({ x, y, id: id ?? i })) });
   const ev = (f, a) => page.evaluate(f, a);
