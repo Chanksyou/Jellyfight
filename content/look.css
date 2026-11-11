@@ -270,6 +270,10 @@
   --preview-camera-up: 0.45;   /* radians it looks down */
   --preview-floor: #2b6f8a;    /* the pool of light they stand in */
 
+  /* Crowd limits: what a busy fight sheds first (phones) */
+  --fx-hits-per-frame: 8;        /* hit effects with full sparks and ring in one frame; the rest keep just their flash */
+  --bug-anim-far: 1.5;           /* m from the jelly: farther (or off-screen) bugs animate on alternate frames */
+
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;
   --number-tick-window: 0.6;
