@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v410 adds seven Treasures inspired by roguelike classics: Pizza Cutter (hits finish off bugs under 15% Health, Elites under 8%), Rolling Pin (+40% damage to anything above 90% Health), Thimble (every hit takes 1 less Health, never under 0.5), Fish Food (an act's Boss falling levels up 2 of your Treasures), Night-Light (each Level-up plugs in a night-light; in its glow +40% Fire rate and +0.5 Health regen), Chore List (a far-off bug gets a gold target worth +0.25 Attack damage) and Glow-in-the-Dark Star (1 in 10 cleared bugs rises as a glowing ghost that slams other bugs).
+
 v409 Elites no longer stall when you swim tight circles round them: once an attack is ready, an Elite snaps round to face you and starts it, instead of waiting to finish turning (which a close circling jelly kept it from ever doing).
 
 v408 lightens crowded fights on phones: bugs far from the jelly or off screen animate on alternate frames, and past 8 hit effects in one frame the rest keep only their flash, without the sparks and ring.
