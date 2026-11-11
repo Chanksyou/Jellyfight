@@ -13,7 +13,7 @@
 //                              feedback from an end screen, kept in the feedback table: { sent, why? }
 //                              (read it in the D1 console: SELECT * FROM feedback ORDER BY at DESC)
 //   POST /api/runs             { id, run, build, act, outcome, score, time, level, kills, body, treasures,
-//                              evolutions, lost, bossLeft, device }: one act played, for the owner's run
+//                              evolutions, lost, bossLeft, device, details: { jelly, upgrades, … } }: one act played, for the owner's run
 //                              log (the runs table, read only in the D1 console): { saved, why? }
 //
 //   POST /api/dev              { pass }: { open } — the dev tools' password, checked against the
@@ -68,6 +68,8 @@ const setUp = (db) => (ready ||= (async () => {
   await migrateNames(db);
   // databases made before looks rode along have no look column; the ALTER errors once it exists
   try { await db.prepare('ALTER TABLE scores ADD COLUMN look TEXT').run(); } catch {}
+  // and before jelly types, no jelly column (a row without one is Normal: jellyOf)
+  try { await db.prepare('ALTER TABLE scores ADD COLUMN jelly TEXT').run(); } catch {}
 })().catch((e) => { ready = null; throw e; }));
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
@@ -136,7 +138,7 @@ async function hashIp(ip, salt) {
   return [...new Uint8Array(d)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const ROW = 'id, name, body, look, score, level, kills, time, won, at';
+const ROW = 'id, name, body, look, jelly, score, level, kills, time, won, at';
 const withLook = (r) => {
   if (!r) return r;
   let look = null;
@@ -161,6 +163,7 @@ const LEVEL_CAP = [0, 18, 24, 28, 30];   // highest believable level at the end 
 export const jellyOf = (v) => String(v ?? '').replace(/[^a-z]/g, '').slice(0, 16) || 'normal';
 const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back for 260 s
 const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
+const MAX_UPGRADES = 3;                  // a jelly type's Attack upgrades: one after each of acts 1-3's bosses
 // null when the run backs the score; 'pending' while its last act hasn't been logged yet; else 'unverified'
 export function checkRun(acts, score, jelly = 'normal') {
   const last = acts.at(-1);
@@ -177,6 +180,7 @@ export function checkRun(acts, score, jelly = 'normal') {
     let held = [];
     try { held = JSON.parse(a.treasures || '[]'); } catch {}
     if (held.some((t) => !(t?.[1] <= MAX_COPIES))) return 'unverified';
+    if (Array.isArray(d.upgrades) && d.upgrades.length > MAX_UPGRADES) return 'unverified';
   }
   if (acts.some((a, i) => i && a.score < acts[i - 1].score)) return 'unverified';
   return null;
@@ -228,13 +232,13 @@ async function post(request, env) {
   if (was && was.score >= score) { await stamp.run(); return json({ posted: false, why: 'lower' }); }
   try { await db.batch([
     claimName(db, b.id, b.name, now),
-    db.prepare(`INSERT INTO scores (id, name, body, look, score, level, kills, time, won, build, at, ip)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET name = excluded.name, body = excluded.body, look = excluded.look, score = excluded.score,
+    db.prepare(`INSERT INTO scores (id, name, body, look, jelly, score, level, kills, time, won, build, at, ip)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET name = excluded.name, body = excluded.body, look = excluded.look, jelly = excluded.jelly, score = excluded.score,
                   level = excluded.level, kills = excluded.kills, time = excluded.time, won = excluded.won,
                   build = excluded.build, at = excluded.at, ip = excluded.ip
                 WHERE excluded.score > scores.score`)
-      .bind(b.id, cleanName(b.name), String(b.body || 'nettle').slice(0, 16), cleanLook(b.look), score, int(b.level, 1, 999),
+      .bind(b.id, cleanName(b.name), String(b.body || 'nettle').slice(0, 16), cleanLook(b.look), jellyOf(b.jelly), score, int(b.level, 1, 999),
         int(b.kills, 0, 100000), int(b.time, 0, 100000), b.won ? 1 : 0, String(b.build || '').slice(0, 12), now, ip),
     ...syncName(db, b.id, b.name),
     stamp,
@@ -321,14 +325,15 @@ const RUNS_ID_MS = 5000, RUNS_IP_MS = 2000, OUTCOMES = ['died', 'won', 'ended', 
 const word = (v) => String(v ?? '').replace(/[^a-z0-9_-]/gi, '').slice(0, 32);
 const pairs = (list) => JSON.stringify((Array.isArray(list) ? list : []).slice(0, 80)
   .filter((p) => Array.isArray(p) && word(p[0])).map(([id, n]) => [word(id), int(n, 1, 99)]));
-const words = (list) => JSON.stringify((Array.isArray(list) ? list : []).slice(0, 10).map(word).filter(Boolean));
+const wordList = (list) => (Array.isArray(list) ? list : []).slice(0, 10).map(word).filter(Boolean);
+const words = (list) => JSON.stringify(wordList(list));
 const amounts = (o) => JSON.stringify(Object.fromEntries(Object.entries(o && typeof o === 'object' ? o : {}).slice(0, 40)
   .filter(([k, v]) => word(k) && Number.isFinite(+v)).map(([k, v]) => [word(k), Math.round(Math.max(0, Math.min(1e6, +v)) * 10) / 10])));
 const events = (list, max, counts = false) => (Array.isArray(list) ? list : []).slice(0, max)
   .filter(p => Array.isArray(p) && word(p[0]) && Number.isFinite(p[1]) && (!counts || Number.isFinite(p[2])))
   .map(p => [word(p[0]), Math.round(Math.max(0, Math.min(100000, p[1])) * 10) / 10, ...(counts ? [int(p[2], 1, 99)] : [])]);
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
-  jelly: jellyOf(d.jelly), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
+  jelly: jellyOf(d.jelly), upgrades: wordList(d.upgrades), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
   killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
     ? { unit: word(d.killedBy.unit) || 'unknown', source: word(d.killedBy.source) || 'other' } : null,

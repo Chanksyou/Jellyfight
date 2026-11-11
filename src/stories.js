@@ -66,6 +66,7 @@ import './stories/poison.js';
 import './stories/glitter.js';
 import './stories/normal.js';
 import './stories/wind-type.js';
+import './stories/unlocks.js';
 export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()

@@ -227,7 +227,7 @@ export class TypePicker {
     P.about.textContent = J.about;
     P.play.hidden = !!lock;
     P.goal.hidden = !lock;
-    P.goal.textContent = lock ? `${lock.goal}: ${lock.have}/${lock.need}` : '';
+    P.goal.textContent = !lock ? '' : lock.need > 1 ? `${lock.goal}: ${lock.have}/${lock.need}` : lock.goal;   // "Defeat 6 Elites: 4/6", "Finish act 2"
     this.want(i, true);
   }
 

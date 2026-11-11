@@ -92,6 +92,8 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
   padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
 .jf-book-grid button .ic { font-size: 26px; line-height: 1.1; }
 .jf-book-grid button:disabled { cursor: default; opacity: .4; }
+.jf-book-grid button.locked { opacity: .6; border-style: dashed; }
+.jf-book-grid button.locked .ic { filter: brightness(0); }   /* a locked jelly type: its silhouette */
 .jf-achievements > p { font-size: 13px; line-height: 1.5; }
 .jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 10px; text-align: left; }
 .jf-achievements article { border: 1px solid #ffffff33; border-radius: 12px; padding: 12px; background: #ffffff08; }
@@ -445,13 +447,14 @@ export class UI {
     el.querySelector('[data-next]').focus({ preventScroll: true });
   }
 
-  // The Treasure book (run.showBook): sections [{ title, items: [{ icon, name, text, color?, found }] }].
+  // The Treasure book (run.showBook): sections [{ title, items: [{ icon, name, text, color?, found, locked? }] }].
   // Tap a found one to read what it does; unfound ones stay a ?
   book(title, sections, onBack) {
     this._gen++;
     const cell = (it) => (it.found
       ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || '#7ff6ee'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
-      : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
+      : it.locked ? `<button class="locked" data-say="${esc(`${it.name}: ${it.locked}`)}"><span class="ic">${it.icon}</span><span>${esc(it.locked)}</span></button>`   // locked: a silhouette with its goal
+        : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
     this.modal.innerHTML = `<div class="jf-book"><h2>${title}</h2><p class="say" aria-live="polite">Select a discovery to read more.</p>
       ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
       <div class="btns"><button class="go" data-back>Back</button></div></div>`;
