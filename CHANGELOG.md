@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v416 Removed the old Element Treasures (the 37 Elements and their upgrades, plus Power Bank) and the Element pick code they needed, now that every run is a jelly type.
+
 v415 stops jumps from dodging boss attacks that should hit anything in their space: the Clog's hair chunks now splash a column 25 cm up off a duck's back (hop to the spared duck instead of jumping off), its comb curtains stand 22 cm tall (taller than a full jump), the Encore's disco spots hit at any height (step off them), and its floor tiles keep hurting while they're lit, so landing in a wave's wake is hit.
 
 v414 Fixed the balance smoke check failing after act 3: a boss's Legendary pick is not always an evolution, so the run may carry none.
