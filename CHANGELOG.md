@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v413 Jelly types are here: after your first run you pick a jelly (Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle) before every run, each with its own attack, look and 12 Attack upgrades (one after each of the first three bosses). New types unlock by finishing acts and defeating Elites. The old Element treasures and the separate evolution pick are replaced: evolutions now come in the Legendary pick after a boss.
+
+v412 starts the camera 15% closer to the jelly (0.765 m on desktop, 0.595 m on phones); the mouse wheel still zooms out to the old 0.9 m view.
+
 v411 cuts the floor rings that crowded fights: hits, crits, kills, freezes, gusts, jumps, enemy throws, rebound trails, special bubbles, the Glow Stick's tick, the Chore List target and the Night-Light's rim no longer draw a circle on the floor, slowed bugs show drifting frost instead of a ring, and the room chest's timer is a thin gold arc instead of the danger Warning look, so floor circles now mean a Warning or the real reach of an area hit.
 
 v410 adds seven Treasures inspired by roguelike classics: Pizza Cutter (hits finish off bugs under 15% Health, Elites under 8%), Rolling Pin (+40% damage to anything above 90% Health), Thimble (every hit takes 1 less Health, never under 0.5), Fish Food (an act's Boss falling levels up 2 of your Treasures), Night-Light (each Level-up plugs in a night-light; in its glow +40% Fire rate and +0.5 Health regen), Chore List (a far-off bug gets a gold target worth +0.25 Attack damage) and Glow-in-the-Dark Star (1 in 10 cleared bugs rises as a glowing ghost that slams other bugs).

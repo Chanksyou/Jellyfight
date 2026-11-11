@@ -23,10 +23,10 @@ const hits = () => { const log = []; offs.push(bus.on('enemy_hit', (h) => log.pu
 
 story('treasures/status-damage', {
   about: 'status-damage: hits on a Stunned bug do 50% more, a Bleeding bug takes +10% a stack from tentacles only, damage over time and Elites are left out unless elites=#true. Shatter is one every run has: Fire on a frozen bug does 3x, shoves 3x as hard, shows SHATTER! and thaws it, so the next hit is plain.',
-  setup() { setupFight({ lash: false }); give('candle'); stub(G().run.bubbles, 'volley', () => false); },   // fire shots only
+  setup() { setupFight({ lash: false, types: 'fire' }); },   // the Fire jelly: fire shots only
   play() {
     const { run, enemies } = G();
-    // Shatter, in real play: the candle's fireballs on a frozen roach
+    // Shatter, in real play: the Fire jelly's fireballs on a frozen roach
     const a = roachAt(0, -0.12), b = roachAt(0.25, -0.3);
     bus.emit('status_applied', { targetId: a.id, status: 'freeze', duration: 30 });
     const got = hits(), dealt = [], knocks = record('knockback'), words = spy(run.fx, 'number');

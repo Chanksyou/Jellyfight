@@ -10,9 +10,9 @@ if (opts.help) {
 }
 // Explicit later-act fixtures matching tests/run.mjs, NOT earned campaign progress.
 const CARRY = {
-  2: { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 },
-  3: { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] },
-  4: { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] },
+  2: { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['goldRing', 1]], grown: 0, growCount: 0 },
+  3: { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] },
+  4: { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] },
 };
 const emit = value => console.log(JSON.stringify(value));
 const env = await start(), rows = [];

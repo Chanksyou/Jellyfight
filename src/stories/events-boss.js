@@ -124,7 +124,7 @@ story('boss/vacuum-arena-and-kill', {
     const esc = sim(4, ['KeyD']).pos;
     const A = run.stage.boss;
     const inside = esc[0] > A.arenaMin[0] - 0.1 && esc[0] < A.arenaMax[0] + 0.1 && esc[2] > A.arenaMin[2] - 0.1 && esc[2] < A.arenaMax[2] + 0.1;
-    run.stats.tentacleDamage = 60; run.stats.tentacles = 4;
+    run.stats.bubbleDamage = 60;   // strong enough to finish it in the time
     step(60 * 40, () => { if (menus.open) document.querySelector('.jf-card')?.click(); return run.boss.dead; });
     return ok(phase === 'boss' && inside && run.boss.dead, { phase, esc, dead: run.boss.dead });
   },
@@ -595,46 +595,7 @@ story('boss/a-level-up-after-the-boss-is-never-swept-away', {
     await new Promise((r) => setTimeout(r, 400));
     const after = modal().querySelector('h2')?.textContent;
     G().menus.close();
-    return ok(still === levelUp && run.phase === 'metamorph' && /Metamorphosis/.test(after), { levelUp, still, after, phase: run.phase });
-  },
-});
-
-story('boss/legendary-reward', {
-  about: 'The Boss reward: after the metamorphosis, a Legendary pick of three with at least one element you don\'t have yet, then the act is complete.',
-  setup() { fresh({ bubbles: false, lash: false, hurt: false }); },
-  play() {
-    const { run } = G();
-    run.owned.add('candle');
-    const modal = () => document.querySelector('.jf-modal');
-    run.metamorph();
-    const first = modal().querySelector('h2')?.textContent;
-    modal().querySelector('.jf-card').click();                        // an evolution
-    modal().querySelector('.jf-evolution-footer button').click();      // skip its transformation
-    const second = modal().querySelector('h2')?.textContent;
-    const offered = [...modal().querySelectorAll('.jf-card .big')].map((n) => n.textContent);
-    const tiers = [...modal().querySelectorAll('.jf-card .rar')].map((n) => n.textContent);
-    modal().querySelector('.jf-card').click();                        // a Legendary
-    const third = modal().querySelector('h2')?.textContent;
-    G().menus.close();
-    // the rule over many rolls: Legendary only, never one you own, always an element while any are left
-    const els = ['battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
-    for (const id of els) run.owned.delete(id);                       // back to owning just fire
-    let bad = 0, rolls = 0, lastOnly = 0;
-    stub(run.ui, 'choose', (t, s, list) => {
-      rolls++;
-      if (list.some((c) => c.rarity !== 'legendary' || run.owned.has(c.id)) || !list.some((c) => ELEMENTS_IDS.includes(c.id))) bad++;
-    });
-    for (let i = 0; i < 100; i++) run.pickLegendary('', '', () => {});
-    let treasures = 0;
-    stub(run.ui, 'choose', (t, s, list) => { if (list.some((c) => !ELEMENTS_IDS.includes(c.id))) treasures++; });
-    for (let i = 0; i < 100; i++) run.pickLegendary('', '', () => {});   // Legendary treasures turn up too (Hand Mirror, Snooze Button)
-    for (const id of els.slice(0, 4)) run.owned.add(id);              // one element left
-    stub(run.ui, 'choose', (t, s, list) => { if (list.some((c) => c.id === 'glitter')) lastOnly++; else bad++; });
-    for (let i = 0; i < 50; i++) run.pickLegendary('', '', () => {});
-    restore();
-    return ok(/Metamorphosis/.test(first) && /Legendary/.test(second) && offered.length === 3 && !offered.includes('Birthday Candle')
-      && tiers.every((t) => t === 'Legendary') && /Act 1 complete/.test(third) && !bad && rolls === 100 && lastOnly === 50 && treasures > 30,
-      { first, second, offered, tiers, third, bad, rolls, lastOnly, treasures });
+    return ok(still === levelUp && run.phase === 'metamorph' && /Legendary/.test(after), { levelUp, still, after, phase: run.phase });
   },
 });
 

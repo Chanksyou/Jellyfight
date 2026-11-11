@@ -1,11 +1,10 @@
-// Stories: jelly types (content/jellies.kdl, src/jelly-types.js), built behind the GAME.types
-// switch until release. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
+// Stories: jelly types (content/jellies.kdl, src/jelly-types.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 import { CONTENT, compileJellies, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
+import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
@@ -31,17 +30,12 @@ story('content/jellies-load', {
 });
 
 story('types/normal-is-todays-jelly', {
-  about: 'With the switch off a run is Normal and starts on BASE_STATS, and does count; a Normal run with the switch on has the same stats but is a dev run.',
+  about: 'A plain run is Normal: it starts on BASE_STATS, fires the bubble attack, and counts (not a dev run).',
   setup() { fresh(); },
   play() {
-    const { run, GAME } = G();
+    const { run } = G();
     const same = (s) => Object.keys(BASE_STATS).every((k) => s[k] === BASE_STATS[k]);
-    const off = run.jelly === 'normal' && same(run.stats) && !GAME.types;
-    fresh({ types: 'normal' });
-    const on = run.jelly === 'normal' && same(run.stats) && GAME.types && run.dev;
-    fresh();
-    const back = !GAME.types && run.jelly === 'normal';
-    return ok(off && on && back, { off, on, back, jelly: run.jelly });
+    return ok(run.jelly === 'normal' && same(run.stats) && run.attack.kind === 'bubble' && !run.dev, { jelly: run.jelly, attack: run.attack, dev: run.dev });
   },
 });
 
@@ -103,16 +97,12 @@ function hurtBy(frames) {
 }
 
 story('types/normal-has-no-lash', {
-  about: 'With the switch on a Normal jelly blows bubbles and never lashes, even with a bug right under its tentacles; with the switch off the same bug is stung.',
+  about: 'A Normal jelly blows bubbles and never lashes, even with a bug right under its tentacles.',
   setup() { setupFight({ types: 'normal' }); },
   play() {
     roachAt(0, -0.06);
-    const on = hurtBy(60 * 3);
-    setupFight();
-    roachAt(0, -0.06);
-    const off = hurtBy(60 * 3);
-    const pass = on.bubble?.length > 0 && !on.tentacle && off.tentacle?.length > 0;
-    return ok(pass, { on: Object.keys(on), off: Object.keys(off) });
+    const hit = hurtBy(60 * 3);
+    return ok(hit.bubble?.length > 0 && !hit.tentacle, { hit: Object.keys(hit) });
   },
 });
 
@@ -228,7 +218,7 @@ const key = (code) => dispatchEvent(new KeyboardEvent('keydown', { code, bubbles
 const cardName = (picker) => picker.cards[picker.index].querySelector('h3').textContent;
 
 story('types/pick-screen-shows-every-type', {
-  about: 'With the switch on, a returning player\'s Play opens the pick screen on the type the switch names, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
+  about: 'A returning player\'s Play opens the pick screen on the last type picked, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
   setup() {},
   play() {
     const { picker, run } = G(), back = asPlayer(true);
@@ -394,7 +384,7 @@ story('types/pick-side-cards-show-their-element', {
 });
 
 story('types/first-run-is-normal', {
-  about: 'A first-time player never sees the pick screen: with the switch on, their Play starts a Normal run whatever the switch names; a returning player\'s Play opens the screen.',
+  about: 'A first-time player never sees the pick screen: their Play starts a Normal run whatever was picked before; a returning player\'s Play opens the screen.',
   setup() {},
   play() {
     const { picker, run } = G();
@@ -403,7 +393,7 @@ story('types/first-run-is-normal', {
     try {
       const newPlayer = !picksType();
       pressPlay('fire');
-      first = { newPlayer, closed: !picker.isOpen, normal: run.jelly === 'normal' && run.stats.health === BASE_STATS.health, start: TYPE_SWITCH.start };
+      first = { newPlayer, closed: !picker.isOpen, normal: run.jelly === 'normal' && run.stats.health === BASE_STATS.health, start: TYPE_PICK.start };
     } finally { back(); }
     back = asPlayer(true);
     let again;
@@ -416,7 +406,7 @@ story('types/first-run-is-normal', {
 });
 
 story('types/pick-screen-opens-on-try-again', {
-  about: 'After a death in act 1 with jelly types on, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
+  about: 'After a death in act 1, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
   setup() {},
   play() {
     const { run, picker } = G();

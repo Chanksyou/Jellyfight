@@ -3,8 +3,8 @@
 import * as THREE from 'three';
 import { G, cameraSpots, cameraStory, fresh, ok, startVacuum, step, story, stub, tp } from './kit.js';
 
-story('camera/desktop-starts-fully-zoomed-out', {
-  about: 'Desktop gameplay starts at the furthest allowed camera distance; the wheel still zooms in and stops at the same outer limit.',
+story('camera/desktop-starts-15-percent-closer', {
+  about: 'Desktop gameplay starts at 0.765 m, 15% inside the 0.9 m outer limit; the wheel zooms in, and out only as far as that limit.',
   setup() { fresh({ elites: false }); },
   play() {
     const { tpc, player } = G(), start = tpc.distance;
@@ -14,7 +14,7 @@ story('camera/desktop-starts-fully-zoomed-out', {
       const zoomedIn = tpc.distance < start;
       mouse.wheel = 100;
       tpc.update(1 / 60, mouse, player.position);
-      return ok(start === tpc.cfg.maxDistance && zoomedIn && tpc.distance === start,
+      return ok(start === 0.765 && tpc.cfg.maxDistance === 0.9 && zoomedIn && tpc.distance === tpc.cfg.maxDistance,
         { start, max: tpc.cfg.maxDistance, zoomedIn, end: tpc.distance });
     } finally { tpc.distance = start; }
   },

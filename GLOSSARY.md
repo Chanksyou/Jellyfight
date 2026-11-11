@@ -70,20 +70,17 @@ An item the jelly keeps for the rest of the run, chosen from a pick of three. Tr
 _Avoid_: Gift, golden gift, lost things, item, chest (the chest is just how a treasure looks before it's picked)
 
 **Rarity**:
-How special a Treasure is: Common, Rare, Epic or Legendary. Legendary treasures change a rule of the game and are always one of a kind; the Elements are Legendary.
+How special a Treasure is: Common, Rare, Epic or Legendary. Legendary treasures change a rule of the game and are always one of a kind.
 
 **Stacking**:
 Taking the same Treasure again. A treasure with levels goes up a level; one without adds its effect again, up to 5 copies, unless it changes a rule.
 _Avoid_: Duplicates
 
-**Element upgrade**:
-A Treasure that improves an Element the jelly already has. Every 3rd treasure pick, one of the three is an Element upgrade, while the jelly has any left to take; other treasure picks never offer one.
-
 **Boss reward**:
-What beating a Boss gives: one Legendary pick of three from the Legendary treasures, the evolutions included, then an Attack upgrade. Until jelly types are released, it is still the metamorphosis (an evolution pick), then a Legendary pick of three: Legendary treasures and Elements the jelly doesn't have yet, with at least one Element while any are left.
+What beating a Boss gives: one Legendary pick of three from the Legendary treasures, the evolutions included, then an Attack upgrade.
 
 **Evolution**:
-A Legendary treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis. Until jelly types are released, it is still a separate pick of three after each act's boss, one per boss.
+A Legendary treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis.
 
 **Bug**:
 An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
@@ -93,13 +90,13 @@ _Avoid_: Mob, critter
 The one big enemy that ends each act, arriving when the countdown runs out (the Vacuum, the Clog, the Great White One, the Encore).
 
 **Element**:
-A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the main attack. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
+The kind of shot a Fire, Lightning, Ice, Poison, Wind or Glitter jelly type fires as its one attack. Not a Treasure any more.
 
 **Jelly type**:
-What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). A first-time player has Normal only; each other type unlocks for good by finishing an act or defeating Elites across all runs (`unlock-act=`, `unlock-elites=`). Not offered to players yet; every run is Normal until release.
+What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). A first-time player has Normal only; each other type unlocks for good by finishing an act or defeating Elites across all runs (`unlock-act=`, `unlock-elites=`).
 
 **Attack upgrade**:
-A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three bosses (after the Legendary pick). Never in a treasure chest, and each one of a kind (`content/upgrades.kdl`). Not offered to players yet.
+A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three bosses (after the Legendary pick). Never in a treasure chest, and each one of a kind (`content/upgrades.kdl`).
 
 **Type bars**:
 The six bars on a jelly type's card on the pick screen: Damage, Attack speed, Range, Area, Toughness and Mobility, each worked out from the type's level-1 stats with Normal at the middle of every bar.

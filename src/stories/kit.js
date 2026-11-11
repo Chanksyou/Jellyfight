@@ -6,7 +6,7 @@ import { ENEMY_WORDS } from '../words.js';
 import { CONTENT } from '../content.js';
 import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
-import { TYPE_SWITCH } from '../jelly-types.js';
+import { TYPE_PICK } from '../jelly-types.js';
 import { BEST_KEY } from '../leaderboard.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { FOUND_KEY } from '../collection.js';
@@ -58,19 +58,19 @@ export function restore() {
   }
 }
 // A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
-// (each can be turned back on), and the start pick skipped. types: '<id>' turns the jelly types
-// switch on and starts the run as that type (src/jelly-types.js); left out, the switch is off.
+// (each can be turned back on), and the start pick skipped. types: '<id>'
+// starts the run as that type (src/jelly-types.js); left out, Normal.
 export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null } = {}) {
   const { run, menus, enemies, mainMenu } = G();
   restore();
-  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal';
+  TYPE_PICK.start = types || 'normal';
   mainMenu.restore(); mainMenu.cancelLaunch();
   mainMenu.home = false;
   mainMenu.overlay.classList.remove('menu-home');   // stories enter gameplay without the title transition
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
   run.start();
-  run.firstRun = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
+  run.firstRun = new FirstRun(firstRun, true);   // a player's first run, or (by default) any other run
   G().touch.setTurnHint(firstRun);         // the camera-turn hint (touch.js) as a new player sees it, else gone
   run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
@@ -191,11 +191,10 @@ export const hintShown = () => { const h = document.querySelector('#hud .hint');
 export const hitJelly = (n = 1) => { G().run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: n, source: 'story' }); };
 export const mapShown = () => { const m = document.querySelector('#hud .map'); return !!m && !m.hidden && getComputedStyle(m).display !== 'none'; };
 // The whole first minute of a player's first run, played like a player would (desktop and phone):
-// the real waves run, cards and Element picks are taken as they come, and the story records when
-// each thing first happens, then checks the order: moving only at first (no menu, no minimap), the
-// Health hint on the first hit, the first card, the Element pick straight after it, then the first
-// Treasure at the first scheduled time after that, with the minimap. Plenty of Health, so the
-// minute can't end early; a nudge of XP if no Level-up has come by 0:40.
+// the real waves run, cards are taken as they come, and the story records when each thing first
+// happens, then checks the order: moving only at first (no menu, no minimap), the Health hint on
+// the first hit, then the first Treasure at its first scheduled time, with the minimap. Plenty of
+// Health, so the minute can't end early.
 export function firstMinute() {
   fresh({ elites: false, firstRun: true, waves: true, treasures: true, levels: true, hurt: true });
   tp(3.2, 0.05, 3.0, 0);
@@ -210,22 +209,15 @@ export function firstMinute() {
     if (t < 5) { if (menus.open || mapShown() || enemies.list.some((e) => e.type !== 'roach')) T.busyEarly = t; }
     if (t >= 6 && !T.hint && !run.firstRun.hitHintShown) hitJelly();          // no roach reached us yet: a hit
     if (T.hint === undefined && /That's your Health/.test(hintShown())) T.hint = t;
-    if (menus.open) {
-      const title = modalTitle();
-      if (/element/i.test(title)) T.element ??= t;
-      else if (/level/i.test(title)) T.card ??= t;
-      pickFirstCard();
-    }
-    if (t >= 40 && T.card === undefined && !menus.open) run.gainXp(xpToNext(run.level));
+    if (menus.open) pickFirstCard();
     if (T.map === undefined && mapShown()) T.map = t;
     if (run.roomTreasures.some((x) => x.active && x.timed)) T.treasure = t;
-    if (T.element === undefined && run.roomTreasures.some((x) => x.active)) T.treasureBeforeElement = t;
   }
   run.bubbles.onBlow = was;
   menus.close();
-  const first = run.stage.treasures.at[0], due = first >= T.element ? first : T.element + 4;   // a skipped one comes 4 s after the pick
-  const good = T.busyEarly === undefined && blown > 0 && T.hint !== undefined && T.card !== undefined && T.element >= T.card && T.element - T.card < 0.5
-    && T.treasureBeforeElement === undefined && Math.abs(T.treasure - due) <= 0.1 && Math.abs(T.map - T.treasure) <= 0.1;
+  const due = run.stage.treasures.at[0];
+  const good = T.busyEarly === undefined && blown > 0 && T.hint !== undefined
+    && Math.abs(T.treasure - due) <= 0.1 && Math.abs(T.map - T.treasure) <= 0.1;
   return ok(good, { ...T, due, blown });
 }
 // play as a brand-new player for a moment: no record of a finished run, no saved best (put back after)
