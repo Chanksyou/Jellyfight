@@ -49,12 +49,13 @@ export class XpDrops {
     }
   }
 
-  // one big drop worth `value` (Jackpot), drawn half again as big
+  // one big drop worth `value` (Jackpot), drawn half again as big; false if none could be made
   gem(pos, value) {
     const n = this.list.length;
     this.drop(pos, BIG);
     const d = this.list.length > n ? this.list[n] : null;
     if (d) { d.value = value; d.k = 1.6; }
+    return !!d;   // false: too many on the floor, it folded into another
   }
 
   clear() {

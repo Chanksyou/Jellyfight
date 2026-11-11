@@ -387,7 +387,7 @@ export class Run {
     if (this.dev || !this.carry || this.duel || this.bossWon || !['explore', 'intro', 'boss'].includes(this.phase)) return;
     const { mid, ...C } = this.carry;
     keepAct({ ...C, mid: {
-      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct,
+      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
@@ -402,7 +402,7 @@ export class Run {
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, eliteBugs: M.eliteBugs, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
-      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct,
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, wishedIn: M.wishedIn ?? null,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
     if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
@@ -1040,8 +1040,7 @@ export class Run {
     if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
     // crumb-on-kill drop="level" (Jackpot): now and then a big XP gem worth the rest of the level
     if (this.mods.jackpot && Math.random() < this.mods.jackpot.chance) {
-      this.xpDrops.gem(c, Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)));
-      this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10);
+      if (this.xpDrops.gem(c, Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;

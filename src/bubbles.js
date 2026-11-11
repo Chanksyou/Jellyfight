@@ -730,7 +730,7 @@ export class Bubbles {
       if (b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });
       bus.emit('damage_taken', { targetId: e.id, amount, color: crit ? '#e6fbff' : '#ffb0f0', source: 'splash', feedback: { element: 'glitter', crit } });
       if (e.dead) kills++;
-      else if (M?.gild && !e.proxy && !this.gilded.some((g) => g.e === e) && Math.random() < M.gild.chance) this.gild(e, M.gild, b);
+      else if (M?.gild && !b.small && !e.proxy && !this.gilded.some((g) => g.e === e) && Math.random() < M.gild.chance) this.gild(e, M.gild, b);
     }
     if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash, wish
     // splash-shots (Star Burst: one at each bug inside) and echo-bubble from="splash" (Prism: the nearest)
@@ -779,7 +779,7 @@ export class Bubbles {
       this.fx.impact(at, GOLD, g.e.r * 2.5, 14);
       const from = at.clone(), B = g.b;
       for (const e of this.inRange(from, 0.2, new Set([g.e])).slice(0, g.bombs)) {
-        this.blow(from, e, { size: B.r / RADIUS, dmg: B.dmg, pw: B.pw, elems: ['glitter'], tint: 'glitter', ep: B.ep, pierce: 1, speed: B.ep?.speed, range: 0.2 });
+        this.blow(from, e, { size: B.r / RADIUS, dmg: B.dmg, pw: B.pw, elems: ['glitter'], tint: 'glitter', ep: B.ep, pierce: 1, speed: B.ep?.speed, range: 0.2 }).small = true;   // a gold bomb never gilds again
       }
       sfx.elementLaunch('glitter');
     }
