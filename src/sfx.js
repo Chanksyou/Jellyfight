@@ -667,7 +667,7 @@ export const sfx = {
   // sound of it flying off
   elementLaunch(el) {
     if (!ready() || !gap('elLaunch' + el, 80)) return;
-    const j = jitter(0.12);
+    const j = jitter(0.12) * (el === 'poison' ? 1.25 : 1);   // poison: acid's gloop, a little higher
     if (el === 'lightning') return quieter(LIGHTNING, () => {   // a snap, a buzzing zip rising away, crackles trailing it
       if (sample('lightning-launch', { vol: 0.12 })) return;
       noise(6500 * j, 1, 0.03, 0.16, 'highpass');
@@ -680,7 +680,7 @@ export const sfx = {
       noise(5200 * j, 2.5, 0.02, 0.06, 'highpass');                                   // the crisp snap of it leaving
       noise(3000 * j, 1.2, 0.2, 0.05, 'bandpass', 0.02, 1100);                         // the cold whoosh
     }
-    else if (el === 'acid') {   // a wet gloop out of the bell: a sliding bloop, a slosh, a bubble popping behind it
+    else if (el === 'acid' || el === 'poison') {   // a wet gloop out of the bell: a sliding bloop, a slosh, a bubble popping behind it
       tone('sine', 180 * j, 430 * j, 0.08, 0.08); tone('sine', 140 * j, 300 * j, 0.1, 0.05, 0.02);
       noise(700 * j, 1, 0.12, 0.06, 'lowpass', 0.01, 300);
       tone('sine', 900 * j, 1400 * j, 0.03, 0.03, 0.09);
@@ -694,7 +694,7 @@ export const sfx = {
   // the other Elements landing on a bug (fire's is fire): the contact, a body under it, and its debris
   elementHit(el) {
     if (!ready() || !gap('elHit' + el, 50)) return;
-    const j = jitter(0.12);
+    const j = jitter(0.12) * (el === 'poison' ? 1.2 : 1);
     if (el === 'lightning') return quieter(LIGHTNING, () => {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
       if (sample('lightning-hit', { vol: 0.22 })) return;
       noise(7000 * j, 0.7, 0.025, 0.34, 'highpass');
@@ -709,6 +709,13 @@ export const sfx = {
       noise(3200 * j, 1.5, 0.07, 0.17, 'bandpass', 0.004, 1800);                       // the crunch
       tone('sine', 130 * j, 55, 0.1, 0.14);                                             // the thud
       for (let k = 0; k < 6; k++) tone('triangle', (3000 + Math.random() * 3500) * j, 2800, 0.035 + Math.random() * 0.03, 0.025 * (1 - k * 0.1), 0.04 + k * 0.045 + Math.random() * 0.02);   // tinkling down
+    }
+    else if (el === 'poison') {   // the blob: a wet slap, a bloop, then the burst: a soft gassy whoomph and a long fizz
+      noise(800 * j, 0.9, 0.08, 0.16, 'lowpass', 0, 250);
+      tone('sine', 340 * j, 200, 0.09, 0.06);
+      noise(400 * j, 0.7, 0.3, 0.12, 'lowpass', 0.03, 1400);                           // the gas bursting out
+      for (let k = 0; k < 4; k++) noise((1800 + Math.random() * 1500) * j, 3, 0.02, 0.03, 'bandpass', 0.08 + k * 0.05 + Math.random() * 0.03);
+      noise(5200 * j, 1.2, 0.5, 0.03, 'highpass', 0.1);
     }
     else if (el === 'acid') {   // the splat: a wet slap, two bloops, the drops pattering down, then a long corrosive hiss
       noise(800 * j, 0.9, 0.1, 0.18, 'lowpass', 0, 250);

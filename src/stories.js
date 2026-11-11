@@ -60,6 +60,7 @@ import './stories/nests.js';
 import './stories/types.js';
 import './stories/legendaries.js';
 import './stories/upgrades.js';
+import './stories/poison.js';
 export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()

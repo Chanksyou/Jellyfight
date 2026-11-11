@@ -272,16 +272,16 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (n.props.area !== undefined && typeof n.props.area !== 'boolean') throw new Error(`${where}: "${id}" area= must be #true or #false`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
     if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
-    const stats = {};
+    const stats = {}, effects = [];
     for (const s of n.children) {
       const at = `${file}:${s.line}`, [name, value] = s.args, key = STAT_NAMES[name];
-      if (s.name !== 'stat') throw new Error(`${at}: "${id}" takes only stat lines, not "${s.name}"`);
+      if (s.name !== 'stat') { effects.push(makeWord(TREASURE_WORDS, s, at)); continue; }   // any other effect word: the type's own, always on
       if (!key) throw new Error(`${at}: "${id}" stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof value !== 'number') throw new Error(`${at}: "${id}" stat ${name} needs a number`);
       if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
       stats[key] = value;
     }
-    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats };
+    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats, effects };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);
@@ -290,8 +290,10 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
 
 // The combined effects of the treasures you own (ids), the evolutions and the Attack upgrades
 // you've taken: what the systems read
-export function compileMods(ids, evolved = [], upgrades = []) {
+// jelly: a jelly type whose own effects (content/jellies.kdl) come first, with jelly types on
+export function compileMods(ids, evolved = [], upgrades = [], jelly = null) {
   const m = newMods();
+  for (const fx of CONTENT.jellies[jelly]?.effects || []) fx(m, 0);
   for (const e of CONTENT.evolutions) if (evolved.includes(e.id)) owned(m, e.id, () => { for (const fx of e.effects) fx(m, 0); });
   for (const u of CONTENT.upgrades) if (upgrades.includes(u.id)) owned(m, u.id, () => { for (const fx of u.effects) fx(m, 0); });
   for (const t of CONTENT.treasures) {

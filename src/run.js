@@ -461,9 +461,9 @@ export class Run {
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
   get mods() {
-    const picks = `${this.evolved?.length || 0}/${this.upgrades?.length || 0}`;   // evolutions and Attack upgrades taken
+    const picks = `${this.evolved?.length || 0}/${this.upgrades?.length || 0}/${this.attack ? this.jelly : ''}`;   // evolutions and Attack upgrades taken, and the jelly type's own effects
     if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== picks) {
-      this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || []);
+      this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
       this._modsE = picks;
@@ -583,6 +583,7 @@ export class Run {
         mirrorReady: this.t>=this.reflectAt, mirrorActive: this.t<this.mirrorUntil&&this.iFrames>0,
         steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
+        blob: (ef) => this.bubbles.rain(origin, ef.count, ef.range, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
@@ -980,7 +981,7 @@ export class Run {
     for (const K of this.mods.killsOf) {
       if ((K.status && !(statuses[K.status] >= K.stacks)) || (K.by && K.by !== by)) continue;
       const feet = new THREE.Vector3(c.x, floor, c.z);
-      const ctx = { feet, center: c, facing: this.player.facing, power: this.power, mods: this.mods,
+      const ctx = { feet, center: c, facing: this.player.facing, power: this.power, mods: this.mods, statuses, heal: (n) => this.heal(n),
         dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of K.effects) this.gadgets.fire(ef, ctx);
@@ -1404,7 +1405,7 @@ export class Run {
         P.facing = this.tpc.yaw - Math.PI;
         if (this.boss.camera) this.tpc.fight = this.boss.camera;
       }
-      this.enemies.addProxy(this.boss);
+      this.enemies.addProxy(this.boss).boss = true;   // percent-dot spares the boss
       this.later(() => { this.fade.style.opacity = 0; }, 150);
       this.phase = 'boss';
       this.bossStartT = this.t;

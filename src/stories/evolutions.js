@@ -313,7 +313,7 @@ story('vocabulary/every-treasure-word-documented-used-and-proven', {
     const users = [...CONTENT.treasures, ...CONTENT.evolutions, ...CONTENT.upgrades];   // evolutions and Attack upgrades use the same words
     const used = new Set(users.flatMap((t) => t.vocabulary));
     const usedTimed = new Set();
-    for (const t of users) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt]) for (const ef of T.effects) usedTimed.add(ef.kind); }
+    for (const t of users) for (const fx of t.effects) { const m = newMods(); try { fx(m); } catch {} for (const T of [...m.timed, ...m.onHurt, ...m.killsOf, ...m.streaks]) for (const ef of T.effects) usedTimed.add(ef.kind); }
     const problems = [];
     for (const [w, def] of Object.entries(TREASURE_WORDS)) {
       if (!def.doc) problems.push(`${w}: no doc`);
