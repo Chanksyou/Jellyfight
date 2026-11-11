@@ -23,7 +23,6 @@ import { BEST_KEY } from './leaderboard.js';
 
 export const PLAYED_KEY = 'jellyrun.played';
 const JUMP_TIP_AT = 12;         // seconds into a first run
-const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
 // Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
 // (with jelly types on, the Element hints give way to TYPE_HINTS)
@@ -63,28 +62,18 @@ export function markPlayed() {
 }
 
 export class FirstRun {
-  // typed: the run is a jelly type (jelly-types.js), which has no Element pick: as if it were made
-  constructor(active, typed = false) {
+  constructor(active) {
     this.active = !!active;
-    this.elementPicked = !this.active || typed;   // a normal run's Element pick is the start pick, as before
     this.hitHintShown = !this.active;
-    this.elementChosen = typed;          // the run sets it when the start Element pick is made
     this.mapShown = !this.active;
     this.jumpTipShown = false;
-    this.skipped = false;                // a scheduled Treasure was skipped before the Element pick
   }
-
-  // how much each XP drop counts: double on a first run until its Element pick
-  get xpMul() { return this.elementPicked ? 1 : 2; }
 
   // a Treasure just appeared in the room (scheduled, or left by an Elite): the minimap comes with it
   treasureAppeared() { this.mapShown = true; }
 
   // Run.start: a player's first run is act 1, for a new player
-  static forStage(stage, typed = false) { return new FirstRun(stage.id === 1 && isNewPlayer(), typed); }
-
-  // the starting Element pick opens on the first frame?
-  get startElementPick() { return !this.active; }
+  static forStage(stage) { return new FirstRun(stage.id === 1 && isNewPlayer()); }
 
   // the run just began: the tip to show (a first run's opening line), or null
   get startHint() {
@@ -98,31 +87,10 @@ export class FirstRun {
     return "That's your Health, top left. Run out and the run ends.";
   }
 
-  // a scheduled Treasure's time has come: place it, or (before the Element pick) skip it?
-  get treasuresDue() {
-    if (!this.active || this.elementChosen) return true;
-    this.skipped = true;
-    return false;
-  }
-
-  // the start Element was just picked at time t: the hint to show, and when a skipped Treasure comes (or null)
-  elementChose(t) {
-    this.elementChosen = true;
-    if (!this.active) return { hint: null, treasureAt: null };
-    return { hint: 'Hold jump to jump higher.', treasureAt: this.skipped ? t + TREASURE_AFTER_PICK : null };
-  }
-
   // the run is at time t: the jump tip, once, a few seconds after the opening tip is gone (and not over another line)
   jumpTip(t) {
     if (!this.active || this.jumpTipShown || t < JUMP_TIP_AT) return null;
     this.jumpTipShown = true;
     return 'Hold jump to jump higher.';
-  }
-
-  // a Level-up's card was just picked: open the Element pick now? (once, after the first card)
-  elementPickAfterCard() {
-    if (this.elementPicked) return false;
-    this.elementPicked = true;
-    return true;
   }
 }

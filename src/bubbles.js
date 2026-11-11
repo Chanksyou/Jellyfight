@@ -214,7 +214,7 @@ export class Bubbles {
     this.main = main;
     this.mods = mods;
     if (this.next && main && !paused) this.looks.gather(main, origin, 1, stats.bubbleSize);   // Disco Bomb: the bell glows while the big one waits
-    const ids = attack ? (main ? [main] : []) : this.elements(mods);
+    const ids = attack ? (main ? [main] : []) : [];
     if (this.windCharge && !ids.includes('wind')) this.cancelWind();
     if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats, mods); return; }
     // one blow at a time: a faster fire rate = a faster stream
@@ -226,8 +226,7 @@ export class Bubbles {
     }
     // each element you own fires on its own timer, at its own rate (scaled by your Fire rate)
     for (const id of ids) {
-      const P = main ? this.mainParams(id, mods) : mods.element[id];
-      if (!P) continue;
+      const P = this.mainParams(id, mods);
       let t = (this.elTimers[id] ??= Math.random() * 0.5) + dt * P.rate * stats.fireRate / BASE_FIRE_RATE;
       if (id === 'wind') {
         if (!this.windCharge && t >= 1 && this.inRange(origin, stats.range * P.range).length) {
@@ -261,8 +260,6 @@ export class Bubbles {
     this.effects(dt, stats, mods);
   }
 
-  // the elements you own, in the order of ELEMENTS
-  elements(mods) { return ELEMENTS.filter((e) => mods.elements.has(e.id)).map((e) => e.id); }
 
   // An Element as a jelly type's main attack: its numbers (with any upgrades), but fired at your
   // full Fire rate (rate = BASE_FIRE_RATE, so the timer runs at stats.fireRate) and hitting for

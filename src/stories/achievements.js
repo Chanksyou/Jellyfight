@@ -61,10 +61,10 @@ story('achievements/card-picks-and-rerolls-use-real-callbacks', {
 });
 
 story('achievements/acquisitions-count-repeats-not-carry-restoration', {
-  about: 'Starting Elements, rewards and repeats are counted by acquisition; evolution choices and restoring a carry add no treasures.',
+  about: 'Rewards and repeats are counted by acquisition; evolution choices and restoring a carry add no treasures.',
   setup() { fresh({ elites: false }); },
   play() {
-    const { run } = G(), t = TREASURES.find(t => t.id === 'candle');
+    const { run } = G(), t = TREASURES.find(t => t.id === 'goldRing');
     stub(run.ui, 'choose', (_t, _s, choices, pick) => pick(choices[0]));
     stub(run.ui, 'treasure', () => {}); stub(run, 'onResume', () => {});
     run.offer('test', '', [t]); run.offer('test', '', [t]);
@@ -110,7 +110,7 @@ story('achievements/original-scheduled-chests-only', {
   setup() { fresh({ elites: false, treasures: true }); },
   play() {
     const { run, player } = G(); stub(run, 'pickTreasure', () => {});
-    run.firstRun.elementChosen = true; run.t = 15; run.scheduleTreasures();
+    run.t = 15; run.scheduleTreasures();
     let chest = run.roomTreasures.find(t => t.active); const first = chest.scheduledSlot === 0;
     stub(chest, 'update', () => 'taken'); run.updateRoomTreasures(0); run.updateRoomTreasures(0);
     const once = run.challenges.scheduled[1].length === 1;
@@ -118,18 +118,6 @@ story('achievements/original-scheduled-chests-only', {
     const elite = chest.scheduledSlot == null && run.challenges.scheduled[1].length === 1;
     chest.hide(); run.bonusTreasureAt.add(30); run.treasureTimesLeft = [30]; run.t = 30; run.scheduleTreasures(); run.updateRoomTreasures(0);
     return ok(first && once && elite && chest.scheduledSlot == null && run.challenges.scheduled[1].length === 1, { first, once, elite });
-  },
-});
-
-story('achievements/first-run-rescheduled-treasure-keeps-identity', {
-  about: 'The original first treasure still counts when onboarding postpones it after the starting Element choice.',
-  setup() { fresh({ elites: false, treasures: true, firstRun: true }); },
-  play() {
-    const { run } = G(); run.t = 15; run.scheduleTreasures();
-    stub(run.ui, 'choose', (_t, _s, choices, pick) => pick(choices[0])); stub(run.ui, 'treasure', () => {}); stub(run, 'onResume', () => {});
-    run.t = 20; run.pickStartElement(); run.t = 24; run.scheduleTreasures();
-    const chest = run.roomTreasures.find(t => t.active);
-    return ok(chest?.scheduledSlot === 0, { slot: chest?.scheduledSlot, remaining: run.treasureTimesLeft });
   },
 });
 
@@ -148,7 +136,7 @@ story('achievements/run-start-restores-full-history', {
   play() {
     const { run } = G();
     run.challenges.cards.luck = 5; run.challenges.hurt = true; run.challenges.rerolls = 1;
-    run.challenges.treasures = 4; run.challenges.seen = ['candle']; run.challenges.scheduled[1] = [0, 2];
+    run.challenges.treasures = 4; run.challenges.seen = ['goldRing']; run.challenges.scheduled[1] = [0, 2];
     run.challenges.bosses = [1]; run.challenges.perfect = [1];
     const carry = JSON.parse(JSON.stringify(run.carryOver()));
     stub(run, 'carry', carry); run.start();

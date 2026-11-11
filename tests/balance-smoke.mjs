@@ -26,13 +26,13 @@ try {
     for (let i = 0; i < 305; i++) { GAME.step(1 / 60); immortal.sample(); }
     const revive = { ...immortal.data, health: run.health, max: run.S.health, initial: h }; immortal.stop();
     const card = B.items().find(i => i.id === 'card:regen');
-    const args = { seed: 17, style: 'ranged', build: ['candle'], type: 'roach', mode: 'clump', probe: true };
+    const args = { seed: 17, style: 'ranged', build: ['goldRing'], type: 'roach', mode: 'clump', probe: true };
     const replay = [B.encounter(args), B.encounter(args)];
-    const config = { seed: 17, style: 'rooting', build: ['candle', 'evo:upsideDown'], initial: true, prefer: [], seconds: 3, actOnly: false };
+    const config = { seed: 17, style: 'rooting', build: ['goldRing', 'evo:upsideDown'], initial: true, prefer: [], seconds: 3, actOnly: false };
     const campaigns = [];
     for (let i = 0; i < 2; i++) { B.startAct(config); campaigns.push(B.chunk(180)); B.dispose(); }
-    const baselines = B.comparisons([], ['lighterFluid']);
-    const rooted = B.encounter({ ...args, style: 'rooting', mode: 'range', build: ['candle', 'evo:upsideDown'] });
+    const baselines = B.comparisons([], ['lemon']);
+    const rooted = B.encounter({ ...args, style: 'rooting', mode: 'range', build: ['goldRing', 'evo:upsideDown'] });
     let invalid = false; try { B.resolveBuild(['not-a-treasure']); } catch { invalid = true; }
     return { measured, afterShield, first, revive, card, regen: CONTENT.levelups.cards.regen.amounts[2], replay, campaigns, baselines, rooted, invalid };
   });
@@ -46,7 +46,7 @@ try {
   assert.deepEqual(result.replay[0], result.replay[1]);
   assert.deepEqual(result.campaigns[0], result.campaigns[1]);
   assert.ok(result.rooted.rootedSeconds > 0);
-  assert.deepEqual(result.baselines[0].build, ['candle']); assert.ok(result.invalid);
+  assert.deepEqual(result.baselines[0].build, []); assert.ok(result.invalid);
   console.log('PASS: shield/Health/healing, armor/vulnerability/overkill, mortal revival, live card values, prerequisite control, deterministic encounter/campaign replay, rooting');
   if (opened.errors.length) throw Error(opened.errors.join('\n'));
   let carry = null;

@@ -184,13 +184,6 @@ export const TREASURES = CONTENT.treasures;
 
 // Treasures that change how you attack (attack=#true)
 export const ATTACK_TREASURES = CONTENT.treasures.filter((t) => t.attack).map((t) => t.id);
-// The element attacks' base treasures (the `element` word): Legendary, only from the start-of-run
-// pick and the Boss reward, never from treasures in the room
-export const ELEMENT_TREASURES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element')).map((t) => t.id);
-// Element upgrades (the `element-up` word): never in an ordinary treasure pick; every 3rd treasure
-// chest opened offers one of them among its three (Run.pickTreasure)
-// (a Legendary that raises every element, like the Power Bank, isn't one: it needs no element)
-export const ELEMENT_UPGRADES = CONTENT.treasures.filter((t) => t.vocabulary.includes('element-up') && t.needs).map((t) => t.id);
 
 export const MAX_TENTACLES = 6;
 export const MAX_BUBBLES = 6;

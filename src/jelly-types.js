@@ -73,7 +73,3 @@ export function typeLock(id) {
 // the types open now, in content order
 export const openTypes = () => Object.keys(CONTENT.jellies).filter((id) => !typeLock(id));
 
-// What leaves the game with jelly types on (spec-core.md): the Elements, their upgrades and Power Bank
-// (element, element-up), and the retired=#true Treasures (the old tentacle ones, now Tentacle Attack
-// upgrades). Never offered, not on the book's Treasures page, and dropped from an older save.
-export const leavesWithTypes = (t) => t.retired || t.vocabulary.includes('element') || t.vocabulary.includes('element-up');

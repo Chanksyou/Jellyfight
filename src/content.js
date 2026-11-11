@@ -116,12 +116,11 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     const rarity = n.props.rarity ?? 'common', vocabulary = [...base, ...lv.flatMap((L) => L.children)].map((w) => w.name);
     // Stacking: a treasure without levels stacks (STACK_DEFAULT copies unless stack= says), up to
     // STACK_MAX; Legendary treasures, the elements and their upgrades are one of a kind
-    const unique = rarity === 'legendary' || vocabulary.includes('element') || vocabulary.includes('element-up');
+    const unique = rarity === 'legendary';
     if (n.props.stack > STACK_MAX) throw new Error(`${where}: "${id}" stack=${n.props.stack} is too many (at most ${STACK_MAX})`);
     if (unique && n.props.stack > 1) throw new Error(`${where}: "${id}" is ${rarity === 'legendary' ? 'Legendary' : 'an element or its upgrade'}, so it's one of a kind (no stack=)`);
     const words = (list) => list.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`));
     const levels = [words(base), ...lv.map((L) => words(L.children))];
-    if (vocabulary.includes('element') && rarity !== 'legendary') throw new Error(`${where}: "${id}" is an element, so it's rarity="legendary"`);
     out.push({
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
       needsStat: needsStat(n.props['needs-stat'], where, id),   // offered only once that stat is above 0 (shield treasures: you have a Shield bar)

@@ -85,23 +85,6 @@ story('types/attack-upgrade-is-never-in-a-chest', {
   },
 });
 
-story('types/third-chest-is-ordinary', {
-  about: 'Every 3rd chest is an ordinary pick of three, even owning the Birthday Candle (still counted: Spare Change reads it), and no chest offers an Element upgrade.',
-  setup() { fresh({ types: 'fire' }); },
-  play() {
-    const ups = () => {
-      const { run } = G(), lists = [];
-      give('candle');
-      stub(run, 'offer', (title, sub, list) => lists.push(list));
-      for (let i = 0; i < 30; i++) run.pickTreasure();
-      return { thirds: lists.filter((_, i) => i % 3 === 2).map((l) => l.filter((t) => t.needs === 'candle').length), opened: run.chestsOpened };
-    };
-    const on = ups();
-    fresh();
-    return ok(on.thirds.every((n) => n === 0) && on.opened === 30, { on });
-  },
-});
-
 story('types/upgrades-survive-reload', {
   act: 2,
   about: 'Attack upgrades taken are carried into the next act and through a reload part way through an act, and keep working (Slow Burn: 3 Burns on one bug), a Wish spent in the act stays spent; the run log lists them.',
