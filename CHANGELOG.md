@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v403 jelly types (behind the switch): the Normal jelly gets its 12 Attack upgrades, from Double Bubble to Orbit.
+
 v402 adds the Lightning jelly behind the jelly types switch: its shot arcs to 3 more bugs and stuns them, its jelly crackles with a storm look, and it has 12 Attack upgrades (big bolts, charge-ups, Ball Lightning and more).
 
 v401 jelly types (behind the switch): the Ice jelly gets its look (a pale crystal in the bell, frost on its tentacle tips, cold mist sinking to the floor) and its 12 Attack upgrades, from Permafrost to Avalanche.
