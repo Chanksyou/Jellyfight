@@ -345,7 +345,7 @@ story('types/pick-screen-centre-card-attacks', {
       stub(live.renderer, 'compileAsync', () => Promise.resolve());
       stub(picker, 'portrait', () => '');   // and the still portraits (the same ~40 s)
       settle();
-      const arts = picker.cards.map((c) => c.querySelector('.tp-art canvas'));
+      const arts = picker.cards.map((c) => c.querySelector('.tp-art .tp-live'));
       const centreOnly = live.on && picker.liveFor === 'fire' && arts.filter(Boolean).length === 1 && !!arts[picker.index];
       const fire = watch(10, 'fire');
       const burned = fire.shots >= 1 && fire.kills >= 3;
@@ -359,6 +359,36 @@ story('types/pick-screen-centre-card-attacks', {
       key('ArrowLeft'); settle();
       const calm = !live.on && picker.liveFor === null;
       return ok(centreOnly && burned && stopped && lashed && quiet && calm, { centreOnly, fire, stopped, lash, quiet, hurt: hurt.length, calm });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-cards-show-their-element', {
+  about: 'Every card but the live centre one shows the player\'s own jelly as it is (no type piece drawn on it) with its type\'s element moving round it (pick-aura.js, aura= in content/jellies.kdl): every type a different kind, the neighbours drawn and moving; Reduce motion holds them still.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true);
+    try {
+      pressPlay('ice');
+      stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
+      stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
+      stub(picker, 'calm', () => false);
+      let t = picker.last;
+      const tick = (n) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
+      tick(2);
+      const kinds = picker.ids.map((id) => CONTENT.jellies[id].aura);
+      const distinct = kinds.every(Boolean) && new Set(kinds).size === kinds.length;
+      // a canvas's lit pixels (anything drawn on its transparent field)
+      const lit = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let k = 3; k < d.length; k += 4) n += d[k] > 8; return n / (d.length / 4); };
+      const i = picker.index, side = [i - 1, i + 1].map((k) => picker.auras[k]);
+      const drawn = side.every((c) => c.width > 0 && lit(c) > 0.02);
+      const hash = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let k = 0; k < d.length; k += 97) h = (h * 31 + d[k]) | 0; return h; };
+      const before = hash(side[0]); tick(4);
+      const moves = hash(side[0]) !== before;
+      stub(picker, 'calm', () => true); picker.measure(); tick(1);
+      const held = hash(side[0]); tick(4);
+      const still = hash(side[0]) === held && lit(side[0]) > 0.02;
+      return ok(distinct && drawn && moves && still, { kinds, distinct, drawn, moves, still });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

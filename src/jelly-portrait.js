@@ -5,26 +5,11 @@
 // drawn behind a menu, never during play.
 import * as THREE from 'three';
 import { buildCharacter, normalizeLook } from './character.js';
-import { Adornments } from './adornments.js';
 import { LOOK } from './look.js';
 
 const SIZE = LOOK.num('portrait-resolution', 256);
 const cache = new Map();
 let kit = null;
-let glowTexture = null;
-
-// A soft round glow like the ones vfx.js draws behind the ember in play: one additive sprite
-function glowSprite() {
-  if (!glowTexture) {
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d'), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
-    glowTexture = new THREE.CanvasTexture(c);
-  }
-  return new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-}
-
 // the scene, camera, lights and target, made the first time a portrait is asked for
 function setup() {
   const scene = new THREE.Scene();
@@ -52,10 +37,10 @@ function toScreen(r, g, b, exposure, out, i) {
 
 // A data URL of `look`'s jelly, three-quarter on, in a disc of the menu's deep water (the board shows
 // it round); null if it can't be drawn. `turn` is how far round it is (radians; the pick screen draws
-// a few turns of the same jelly and fades between them), `adorn` the piece a jelly type wears on top
-// (adornments.js: "ember", "barbs"), drawn here by the same code as in play
-export function jellyPortrait(renderer, look, { turn = 0, adorn = null } = {}) {
-  const id = JSON.stringify([normalizeLook(look), turn, adorn]);
+// a few turns of the same jelly and fades between them), `room` how much further back the camera
+// stands (the pick screen leaves room round the jelly for its element: pick-aura.js)
+export function jellyPortrait(renderer, look, { turn = 0, room = 1 } = {}) {
+  const id = JSON.stringify([normalizeLook(look), turn, room]);
   if (cache.has(id)) return cache.get(id);
   let url = null;
   try {
@@ -66,27 +51,8 @@ export function jellyPortrait(renderer, look, { turn = 0, adorn = null } = {}) {
     avatar.update?.(0, pose);
     avatar.root.rotation.y = -0.5 + turn;
     scene.add(avatar.root);
-    let worn = null, halo = null;
-    if (adorn) {
-      // the type's look, run for a moment so its tentacles are built its way and its sparks are in the air
-      halo = new THREE.Group(); scene.add(halo);
-      let used = 0;
-      const glow = { hold(p, color, size, a = 1) {   // what vfx.js's glow does in play
-        const g = halo.children[used] || halo.add(glowSprite()) && halo.children[used];
-        used++;
-        g.visible = true; g.position.copy(p); g.scale.setScalar(size); g.material.color.copy(color); g.material.opacity = a;
-      } };
-      const play = { phase: 'explore', polypT: 0, fx: { glow }, mods: { adorn: [], polyps: null }, typeAdorn: [adorn] };
-      worn = new Adornments(scene, { mesh: avatar.root, avatar, position: avatar.root.position }, { height: 0.09 }, { batch: { track: (g) => g } });
-      worn.update(0, play);
-      for (let i = 0; i < 14; i++) {
-        avatar.update?.(0.05, pose); scene.updateMatrixWorld(true);
-        used = 0; worn.update(0.05, play);
-        halo.children.forEach((g, k) => { g.visible = k < used; });
-      }
-    }
     const box = new THREE.Box3().setFromObject(avatar.root), mid = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
-    camera.position.set(mid.x, mid.y + r * 0.35, mid.z + r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.62);   // close: the bell and the tops of its arms fill the disc
+    camera.position.set(mid.x, mid.y + r * 0.35, mid.z + r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.62 * room);   // close: the bell and the tops of its arms fill the disc
     camera.lookAt(mid);
     const was = renderer.getRenderTarget(), clear = renderer.getClearAlpha(), color = renderer.getClearColor(new THREE.Color());
     // the menu's deep water behind it (linear here: it's encoded back on the way out)
@@ -95,7 +61,6 @@ export function jellyPortrait(renderer, look, { turn = 0, adorn = null } = {}) {
     renderer.readRenderTargetPixels(target, 0, 0, SIZE, SIZE, pixels);
     renderer.setRenderTarget(was); renderer.setClearColor(color, clear);
     scene.remove(avatar.root); avatar.dispose?.();
-    if (worn) { scene.remove(worn.free, halo); [worn.free, halo].forEach((g) => g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); })); }
     const half = THREE.DataUtils.fromHalfFloat, d = image.data, exposure = LOOK.num('portrait-exposure', renderer.toneMappingExposure || 1);
     for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
       const s = ((SIZE - 1 - y) * SIZE + x) * 4, o = (y * SIZE + x) * 4;     // the target reads bottom row first
