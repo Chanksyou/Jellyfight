@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v400 Poison Rain blobs start under low furniture instead of inside it, and Toxic Cloud and Burst Sac stacks are worth the blob's own with more Attacks.
+
 v399 builds the Poison jelly type behind the jelly types switch: a blob that bursts into Poison stacks (no puddles), Poisoned bugs hit 20% softer, its green look, and its 12 Attack upgrades.
 
 v398 paints the marks left on the floor at startup: splashes, scorches, Ink Cloud blots and dust now have real shapes instead of flat discs (one small painted sheet, same size, fade and cost).
