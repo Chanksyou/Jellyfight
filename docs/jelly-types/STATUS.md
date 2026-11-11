@@ -14,7 +14,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P7 | merged | #229 | v394 · Tentacle's 12 Attack upgrades; nine new words; the old Treasures stay for types off |
 | G1 | skipped | | Chan skipped the play-test (Nov 11 2026); treat as passed, to be played with G2 |
 | P8a Ice | merged | #238 | v401 · Frost look (crystal, tip frost, mist); Ice's 12 Attack upgrades; words chill-to-freeze, ground-lock, slide-on-hit, shards, and props on ring, shield-recharge, shield-burst, element-up ice |
-| P8b Lightning | not started | | |
+| P8b Lightning | merged | #241 | v402 |
 | P8c Poison | merged | #236, #237 | v399-v400 · Blob + sphere burst + Poison stacks (no puddles), weakening via status-taken, toxin look, 12 upgrades, seven new words; hit=0.6 (10.3/s) |
 | P8d Wind | not started | | |
 | P8e Glitter | not started | | |
