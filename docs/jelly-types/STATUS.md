@@ -23,7 +23,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P10 | merged | | Unlocks from the save (book's bosses, lifetime Elites) via unlock-act= / unlock-elites= in jellies.kdl; Jellies page in the book; type hints and achievement text; jelly column on scores; checkRun caps Attack upgrades at 3 |
 | G2 | skipped | | Owner said release without the playtests |
 | P11a | merged | #248 | v413 · Jelly types on for everyone: first run Normal, then the pick screen every run |
-| P11b | in review | | Dead Element Treasures, the Element pick and Power Bank removed; Attack upgrades keep the `element-up` word |
+| P11b | in review | | Dead Element Treasures, the Element pick and Power Bank removed; Attack upgrades keep the `element-up` word. Follow-ups not done: P11.md's "unread tentacle stats" (not clearly unread: tentacles/reach/tentacleDamage/tentacleSpeed still feed the lash), and `content/evolutions.kdl` stays (offered in the Legendary pick) |
 
 ## Owner decisions since the plan was written
 
