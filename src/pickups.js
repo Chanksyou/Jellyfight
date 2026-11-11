@@ -104,7 +104,7 @@ export class XpDrops {
 // ---------------------------------------------------------------- treasure
 // A treasure waiting in the room, shown as a small golden chest that glows softly and twinkles.
 // Touch it for a treasure pick. One that turns up on the schedule (stage.treasures) waits `stay`
-// seconds, with a gold ring on the floor that drains as its time runs out (blinking for the last
+// seconds, with a thin gold ring on the floor that drains as its time runs out (blinking for the last
 // few seconds); one an elite drops waits for good (stay = Infinity, no ring).
 // The chest's materials and shapes are shared by every chest, so a second one needs no new shaders.
 // Contents are unknown until opening: both sources use a neutral gold glow, ring and burst.
@@ -124,7 +124,7 @@ function chestParts(fx) {
     lidBand: new THREE.CylinderGeometry(0.0124, 0.0124, 0.004, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2),   // a half-round lid along x, domed up
     seam: new THREE.BoxGeometry(0.0365, 0.0015, 0.0245),
     lock: new THREE.BoxGeometry(0.008, 0.009, 0.003),
-    ring: new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2),
+    ringMat: new THREE.MeshBasicMaterial({ color: gold, transparent: true, depthWrite: false, toneMapped: false }),
   };
   return CHEST;
 }
@@ -149,8 +149,9 @@ export class RoomTreasure {
     for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); addLid(C.lidBand, C.trim, x); }
     add(C.lock, C.trim, 0, 0.016, 0.0125);
     this.chest.scale.setScalar(1.5);
-    this.ring = new THREE.Mesh(C.ring, fx.tele(this.gold, 'circle'));   // each chest's own timer (same shader)
-    this.ring.material.uniforms.uFlow.value = -1;   // its stripes run outward: something good, not an incoming hit
+    // each chest's own timer: a thin gold arc that drains (its own geometry, so its draw range is its own).
+    // Plain on purpose: the filled, flowing circle (vfx.js TeleMaterial) belongs to danger Warnings only
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), C.ringMat.clone());
     this.ring.scale.setScalar(0.055);
     this.ring.position.y = 0.002;
     this.ring.renderOrder = 3;
@@ -174,7 +175,8 @@ export class RoomTreasure {
     this.left = stay;
     this.active = true;
     this.tierColor = this.gold;   // unknown contents: the glow promises no minimum rarity
-    this.ring.material.uniforms.uColor.value.copy(this.tierColor);
+    this.ring.material.color.copy(this.tierColor);
+    this.ring.geometry.setDrawRange(0, Infinity);
     this.opening = null;
     this.lidPivot.rotation.x = 0;
     this.chest.scale.setScalar(1.5);
@@ -204,7 +206,7 @@ export class RoomTreasure {
     this.left -= dt;
     // blink for the last 4 seconds, faster as it goes
     const blink = this.timed && this.left < 4 ? (Math.sin(t * (10 + (4 - this.left) * 6)) > 0 ? 1 : 0.25) : 1;
-    if (this.timed) { this.ring.material.progress = Math.max(0, this.left / this.stay); this.ring.material.opacity = blink; }
+    if (this.timed) { this.ring.geometry.setDrawRange(0, Math.ceil(48 * Math.max(0, this.left / this.stay)) * 6); this.ring.material.opacity = blink; }   // 6 indices per segment
     // a soft glow that breathes, in the chest's tier colour, and a twinkle now and then
     const breathe = 0.75 + 0.25 * Math.sin(t * 2.2);
     this.fx.glow.hold(_v.copy(p).setY(p.y + 0.018), this.tierColor, 0.09 * breathe * (0.6 + 0.4 * blink), 0.9);

@@ -5,7 +5,7 @@ import { CONTENT, compileTreasures } from '../content.js';
 import { rollCards, RARITY, BASE_STATS, ELEMENT_UPGRADES } from '../stats.js';
 import { parse } from '../kdl.js';
 import { seededRandom } from '../story-random.mjs';
-import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, step, story, stub, tp } from './kit.js';
+import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
 
@@ -398,15 +398,17 @@ story('treasures/lash', {
   },
 });
 story('treasures/ring-slow', {
-  about: 'ring slow= (Ice Cube): a cold snap slows the bugs close by for 2 s (not the ones farther out), and a slowed bug shows a frost ring under it.',
+  about: 'ring slow= (Ice Cube): a cold snap slows the bugs close by for 2 s (not the ones farther out), and frost drifts up off a slowed bug (no ring on the floor).',
   setup() { setupFight({ bubbles: false, lash: false }); give('iceCube'); roachAt(0.1, 0); roachAt(0.4, 0); },
   play() {
     const { enemies } = G(), [close, far] = enemies.list, log = record('status_applied');
     step(60 * 6, () => log.some((s) => s.status === 'slow'));
-    step(2);
+    const glows = spy(G().fx.glow, 'emit'), rings = spy(G().fx, 'ring');
+    step(60);
     const slowed = log.filter((s) => s.status === 'slow').map((s) => s.targetId);
-    return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 2 && !(close.freezeT > 0) && close.slowRing?.visible,
-      { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)), ring: !!close.slowRing?.visible });
+    const frost = glows.filter((a) => a[1]?.getHexString?.() === '9fe4ff').length, floorRings = rings.filter((a) => a[1] === 0x9fe4ff).length;
+    return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 2 && !(close.freezeT > 0) && frost > 0 && !floorRings,
+      { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)), frost, floorRings });
   },
 });
 story('treasures/reflect', {

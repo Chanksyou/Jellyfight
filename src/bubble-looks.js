@@ -237,7 +237,6 @@ export class BubbleLooks {
     if (vel) {
       _v.copy(vel).normalize();
       this.fx.wind.streaks(_p.copy(pos).addScaledVector(_v, 0.012 * size), _v, 8, 1.4, 0.05 * size);
-      this.fx.ring(pos, 0xe6f8ff, 0.03 * size, 0.18);
     }
   }
 

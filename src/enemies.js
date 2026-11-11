@@ -33,6 +33,7 @@ const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the spar
 const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting
 const SLICE = new THREE.Color(LOOK.color('slice', '#f4fbff'));   // execute (Pizza Cutter): the slash that finishes a low bug
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
+const SLOWED = new THREE.Color(LOOK.color('slowed', '#9fe4ff'));          // frost drifting up off any slowed bug
 // a chilled bug's crown: seven ice spikes in a ring round its feet, leaning out, uneven (one shared geometry)
 function iceCrown() {
   const parts = [];
@@ -371,7 +372,7 @@ export class Enemies {
 
   // The mark (Sticky Note, acid): a little skull over the enemy while it takes extra damage, always
   // facing the camera and bobbing; frozen: a shell of frost; slowed (Ice Cube, Glitter Glue):
-  // a pale frost ring on the floor under it, turning slowly
+  // pale frost drifting up off it
   markLook(e, dt) {
     e.markT = Math.max(0, (e.markT || 0) - dt);
     if (e.markT > 0 && !e.note) {
@@ -395,20 +396,10 @@ export class Enemies {
     }
     if (e.frost) e.frost.visible = e.freezeT > 0;
     const slowed = e.slowT > 0 && !(e.freezeT > 0);
-    if (slowed && !e.slowRing) {
-      this.slowMat ||= new THREE.MeshBasicMaterial({ color: LOOK.color('slowed', '#9fe4ff'), transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-      this.slowGeo ||= new THREE.RingGeometry(0.75, 1, 24, 1, 0, Math.PI * 1.6).rotateX(-Math.PI / 2);   // an open ring, so its turning shows
-      e.slowRing = new THREE.Mesh(this.slowGeo, this.slowMat);
-      e.slowRing.scale.setScalar(e.r * 1.6);
-      e.slowRing.position.y = (e.T.fly ? -e.r : 0) + 0.002;
-      e.root.add(e.slowRing);
-    }
-    if (e.slowRing) {
-      e.slowRing.visible = slowed;
-      if (slowed) e.slowRing.rotation.y += dt * 2.5;
-    }
-    // chilled (ice): a crown of ice spikes round its feet as well, turning the other way, and frost
-    // drifting up off it, exactly while the chill lasts (a slow, never a frozen shell)
+    // slowed: frost drifts up off it while the slow lasts (no floor ring: those are for Warnings and area reach)
+    if (slowed && !e.dead && Math.random() < dt * 6) this.fx.glow.emit(S.spot.copy(this.center(e, S.o)).add(S.ray.randomDirection().multiplyScalar(e.r)), SLOWED, e.r * 0.35, e.r * 0.2, 0.6, 0.8, S.want.set(0, 0.03, 0), 0.1);
+    // chilled (ice): a crown of ice spikes round its feet as well, turning, and more frost drifting
+    // up off it, exactly while the chill lasts (a slow, never a frozen shell)
     const chilled = slowed && e.chillT > 0 && !e.dead;
     if (chilled && !e.iceCrown) {
       this.crownGeo ||= iceCrown();
@@ -530,7 +521,6 @@ export class Enemies {
     const c = this.center(e);
     sfx.shatter(); juice.feel('impact');
     bus.emit('status_applied', { targetId: e.id, status: 'thaw' });
-    this.fx.ring(c, 0xbff4ff, e.r * 3.5, 0.4);
     this.fx.number(c.clone().setY(c.y + e.r * 2), 'SHATTER!', '#bff4ff', 18);
   }
   // what statuses e has right now, by name, with their stacks (on-kill-of reads them as it dies)
@@ -660,7 +650,6 @@ export class Enemies {
     const red = hostile('missile');
     this.fx.impact(at, 0xffd28a, 0.03, 12);
     this.fx.puff(at.clone().setY(at.y - 0.01), 0xd0d0d0, 0.05, 0.7);
-    this.fx.ring(new THREE.Vector3(at.x, e.pos.y - 0.7 * e.r + 0.003, at.z), red, 0.07, 0.35);
     sfx.missileLaunch();
   }
 
@@ -789,7 +778,7 @@ export class Enemies {
     const back = S.away.set(-Math.sin(e.root.rotation.y), 0, -Math.cos(e.root.rotation.y));
     this.fx.puff(e.pos.clone().addScaledVector(back, e.r * 1.4).setY(e.pos.y + e.r * 0.3), 0xc8b8a0, e.r * 0.9, 0.3);
   }
-  ballGo(e, dur) { sfx.milliRoll(dur); this.fx.ring(e.pos.clone().setY(e.pos.y + 0.003), hostile('millipede'), e.r * 2, 0.3); }
+  ballGo(e, dur) { sfx.milliRoll(dur); }
 
   // the warning in front of every millipede revving up to roll: its lane on the floor, filling as
   // the roll comes, then flashing while it rolls
