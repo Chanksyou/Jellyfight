@@ -16,12 +16,15 @@
 //               tentacle tips, cold mist sinking off them to the floor
 //   toxin       the Poison jelly type: a pale green core in the bell with toxic bubbles rising off it, a
 //               drop swelling on every tentacle tip and falling, green drips running off the rim
+//   gale        the Wind jelly type: a white swirl spinning in the bell, thin air streaks circling it, its
+//               tentacles streaming back as if in a breeze
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 import { batcher } from './batch.js';
 
+const _gale = new THREE.Vector3();
 const glowMat = (name, fallback, opts = {}) => {
   const c = new THREE.Color(LOOK.color(name, fallback));
   return new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.4, roughness: 0.4, ...opts });
@@ -59,7 +62,7 @@ export class Adornments {
     for (const k of run.typeAdorn || []) want.add(k);
     const venom = want.delete('venom-tips');
     const rig = this.player.avatar?.tentacles;
-    if (rig) { rig.venom = venom; rig.barbed = want.has('barbs'); }
+    if (rig) { rig.venom = venom; rig.barbed = want.has('barbs'); rig.breeze = want.has('gale'); }
     for (const k of want) this.piece(k).group.visible = true;
     for (const [k, P] of Object.entries(this.pieces)) {
       P.group.visible = want.has(k);
@@ -231,6 +234,53 @@ export class Adornments {
         m.scale.setScalar(size * (0.6 + u * 0.8));
         G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
       }
+    } };
+  }
+
+  // Wind jelly: a white swirl (three spiral arms, emissive, not a light) spinning in the bell, thin air
+  // streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
+  make_gale() {
+    const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
+    const coreMat = glowMat('gale-core', '#ffffff', { emissiveIntensity: 1.8, transparent: true, opacity: 0.85, depthWrite: false });
+    const airMat = glowMat('gale-streak', '#e6f8ff', { emissiveIntensity: 1.6, transparent: true, opacity: 0.7, depthWrite: false });
+    // the swirl: a cone-shaped spiral, wide at the top, three arms
+    const arms = [0, 1, 2].map((k) => {
+      const pts = Array.from({ length: 16 }, (_, i) => { const t = i / 15, a = k * 2.094 + t * 7.5, r = 0.2 + 0.8 * t; return new THREE.Vector3(Math.cos(a) * r, (t - 0.5) * 1.1, Math.sin(a) * r); });
+      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.11, 4);
+    });
+    const core = new THREE.Mesh(mergeGeometries(arms), coreMat);
+    group.add(core);
+    // air streaks: short thin arcs round the bell at different heights and radii, two rings turning opposite ways
+    const ring = (n, radius, y0, dy, len, seed) => {
+      const parts = [];
+      for (let i = 0; i < n; i++) {
+        const g = new THREE.TorusGeometry(h * radius * (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4), h * 0.008, 3, 10, len * (0.7 + 0.5 * ((i * 3 + seed) % 4) / 3)).rotateX(Math.PI / 2).rotateY(i / n * Math.PI * 2 + seed);
+        parts.push(g.translate(0, h * (y0 + dy * ((i * 5 + seed) % 4) / 3), 0));
+      }
+      const m = new THREE.Mesh(mergeGeometries(parts), airMat);
+      group.add(m);
+      return m;
+    };
+    const rings = [ring(5, L('streak-radius', 0.42), 0.12, 0.34, 0.9, 1), ring(4, L('streak-radius', 0.42) * 1.15, 0.2, 0.3, 0.7, 3)];
+    this.batch.track(group);
+    const glowCol = coreMat.color.clone();
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;
+      const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      core.visible = rings[0].visible = rings[1].visible = on;
+      if (!on) return;
+      const pulse = 0.92 + Math.sin(this.t * 5) * 0.08;
+      rig.parent.localToWorld(core.position.set(0, L('core-y', 0.8), 0));
+      core.scale.setScalar(h * L('core-size', 0.12) * pulse);
+      core.rotation.y += dt * L('core-spin', 7);
+      G?.hold(core.position, glowCol, h * L('glow-size', 0.6) * pulse, 0.45);
+      // the streaks circle the bell's middle, wherever the jelly goes
+      rig.parent.localToWorld(_gale.set(0, 0.42, 0));
+      const base = this.player.position.y;
+      rings.forEach((m, i) => {
+        m.position.set(_gale.x, base, _gale.z);
+        m.rotation.y += dt * L('streak-spin', 3.2) * (i ? -0.7 : 1);
+      });
     } };
   }
 

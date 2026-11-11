@@ -53,6 +53,9 @@ export class TentacleRig {
     this.barbed = false;
     this.barbThick = LOOK.num('barbed-tentacle-thickness', 1.8);
     this.barbLength = LOOK.num('barbed-tentacle-length', 1.35);
+    // the Wind jelly type (adornments.js gale): its tentacles streaming back as if in a breeze
+    this.breeze = false;
+    this.breezeStream = LOOK.num('gale-tentacle-stream', 0.3);
     this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
     this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
     // a striking tentacle swells and burns white-hot so the lash reads at play distance
@@ -141,6 +144,11 @@ export class TentacleRig {
         p.y -= L * s * (1 - 0.55 * fall);
         p.addScaledVector(T.out, flare * s + wave * 0.5);
         p.addScaledVector(side, wave);
+        if (this.breeze) {   // streaming back (the model faces +z), fluttering a little
+          p.z -= L * this.breezeStream * s15 * (1 + 0.2 * Math.sin(this.t * 3.1 + T.phase));
+          p.x += L * this.breezeStream * 0.12 * s * Math.sin(this.t * 2.3 + T.phase * 1.3);
+          p.y += L * this.breezeStream * 0.25 * s15;
+        }
         p.y += fall * 0.35 * s15;
         p.y = Math.max(p.y, 0.015 * (1 - fall));                       // don't reach into the floor
         p.applyMatrix4(M).divideScalar(unit);                           // to world, in model units

@@ -87,6 +87,8 @@ export class Bubbles {
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
+    this.main = null;                  // the Element a jelly type's main attack fires (update), else null
+    this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
     this.geo = new THREE.SphereGeometry(1, 20, 14);
     const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
       color: tint, transparent: true, opacity: 0.6, roughness: 0.02, metalness: 0, clearcoat: 1,
@@ -182,6 +184,7 @@ export class Bubbles {
     this.origin = origin;              // where the polyps (adornments.js) circle
     const main = attack && EL[attack.kind] ? attack.kind : null;
     this.hit = attack?.hit ?? 1;
+    this.main = main;
     const ids = attack ? (main ? [main] : []) : this.elements(mods);
     if (this.windCharge && !ids.includes('wind')) this.cancelWind();
     if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats, mods); return; }
@@ -300,9 +303,18 @@ export class Bubbles {
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), gap = Math.max(0.016, RADIUS * stats.bubbleSize * 3);
     const spread = (Math.random() - 0.5) * 0.12;
+    // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1)
+    const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) : 0);
+    // an angle (Crosswind): the shots past the first fire off to the side, 1 angle left, 1 right, 2 left…, and fly straight
+    const angle = P.angle > 0 ? P.angle * Math.PI / 180 : 0;
     for (let k = 0; k < count; k++) {
-      const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range, spread, off });
+      if (angle && k > 0) {
+        const turn = Math.ceil(k / 2) * angle * (k % 2 ? 1 : -1);
+        this.blow(origin.clone(), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce, speed: P.speed, range: stats.range * P.range, spread: spread + turn, straight: true });
+        continue;
+      }
+      const off = across.clone().multiplyScalar((k - (count - 1) / 2) * (angle ? 0 : gap));
+      this.blow(origin.clone().add(off), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce, speed: P.speed, range: stats.range * P.range, spread, off });
     }
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
@@ -361,7 +373,8 @@ export class Bubbles {
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
     b.speed = SPEED * (o.speed || 1);
     b.vel = dir.multiplyScalar(b.speed);
-    b.homing = true;
+    b.homing = !o.straight;              // a shot fired off to the side flies straight on
+    b.pushMul = this.pushMul;            // glide: how far this gust pushes (its own, from the moment it was blown)
     m.scale.setScalar(0.001);
     this.list.push(b);
     if(!o.tint&&(o.golden||o.big)){
@@ -490,6 +503,7 @@ export class Bubbles {
     }
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
+    if (b.ep?.falloff > 0 && b.hit.size > 1) dmg *= (1 - Math.min(0.9, b.ep.falloff)) ** (b.hit.size - 1);   // Gale: each bug a gust goes through takes less
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff';
       crit = true;
@@ -541,8 +555,8 @@ export class Bubbles {
     this.enemies.freshBurn = null;
     if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
-      targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
-      collisionDamage: dmg * (b.ep?.collision ?? 1),
+      targetId: e.id, dir, force: (0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0)) * (b.pushMul || 1),
+      collisionDamage: dmg * (b.ep?.collision ?? 1), pushHits: mods.pushedHits ? dmg : 0,
     });
   }
 

@@ -105,7 +105,7 @@ export class Gadgets {
     this.looks.reset();
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
-    this.clouds = []; this.heals = new Map(); this.clock = 0;
+    this.clouds = []; this.whirls = []; this.heals = new Map(); this.clock = 0;
     for (const b of this.bricks || []) this.group.remove(b.m);
     for (const m of this.marbles || []) { this.group.remove(m.m); m.hit.clear(); }
     this.bricks = [];
@@ -228,6 +228,7 @@ export class Gadgets {
     const E = this.enemies, fx = this.fx;
     this.clock = (this.clock || 0) + dt;
     this.tickClouds(dt);
+    this.tickWhirls(dt);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
 
@@ -518,6 +519,7 @@ export class Gadgets {
       if (times.length < ef.most && ctx.heal) { times.push(this.clock); ctx.heal(ef.health); }
       this.heals.set(ef, times);
     } else if (ef.kind === 'blob') ctx.blob?.(ef);
+    else if (ef.kind === 'whirl') this.whirl(ef, ctx);
   }
 
   // cloud (Toxic Cloud): gas hangs where it went off; every 0.5 s each bug inside gets a Poison stack
@@ -541,6 +543,43 @@ export class Gadgets {
       for (const e of this.near(C.at, C.r)) if (B && !e.dead) B.poison(e, C.pw, C.ep);
     }
     this.clouds = this.clouds.filter((C) => C.t > 0);
+  }
+
+  // whirl (Cyclone): a whirlwind rises at the nearest bug within range and holds for its time, pulling every bug in it to
+  // its middle. Nothing in range, nothing rises
+  whirl(ef, { center, pulse }) {
+    const E = this.enemies, e = this.near(center, ef.range, { proxies: false })[0];
+    if (!e) return;
+    const at = E.center(e, _to).clone();
+    at.y = e.pos.y;
+    (this.whirls ||= []).push({ at, r: ef.radius, t: ef.time, life: ef.time, pull: ef.pull, swirl: 0, streak: 0, turn: Math.random() * 6 });
+    this.fx.ring(at.clone().setY(at.y + 0.003), 0xffffff, ef.radius, 0.35);
+    this.fx.wind.swirl(at, ef.radius);
+    sfx.windLaunch(); pulse?.(0.25);
+  }
+  tickWhirls(dt) {
+    if (!this.whirls?.length) return;
+    const W = this.fx.wind;
+    for (const w of this.whirls) {
+      w.t -= dt;
+      w.turn += dt * 7;
+      if ((w.swirl -= dt) <= 0) { w.swirl = 0.22; W.swirl(w.at, w.r); }
+      if ((w.streak -= dt) <= 0) {   // air racing round its edge, a few streaks at a time
+        w.streak = 0.06;
+        for (let k = 0; k < 2; k++) {
+          const a = w.turn + k * Math.PI;
+          _to.set(w.at.x + Math.cos(a) * w.r * 0.9, w.at.y + w.r * (0.2 + 0.5 * Math.random()), w.at.z + Math.sin(a) * w.r * 0.9);
+          _cone.set(-Math.sin(a), 0, Math.cos(a));
+          W.streaks(_to, _cone, 1, 0.5, w.r * 0.8);
+        }
+      }
+      for (const e of this.near(w.at, w.r, { proxies: false })) {
+        _cone.set(w.at.x - e.pos.x, 0, w.at.z - e.pos.z);
+        const d = _cone.length();
+        if (d > 0.006) bus.emit('knockback', { targetId: e.id, dir: _cone.clone().divideScalar(d), force: Math.min(d - 0.004, w.pull * dt) });
+      }
+    }
+    this.whirls = this.whirls.filter((w) => w.t > 0);
   }
 
   // pass-stacks (Burst Sac): the dead bug's stacks pass to every bug round it

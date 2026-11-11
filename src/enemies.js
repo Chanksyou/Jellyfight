@@ -300,9 +300,9 @@ export class Enemies {
       const e = this.byId.get(from);
       if (e && !e.dead && !e.proxy) this.landed(e, contact);
     });
-    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0 }) => {
+    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0 }) => {
       const e = this.byId.get(targetId);
-      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage);
+      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
     });
   }
 
@@ -1279,7 +1279,8 @@ export class Enemies {
   }
 
   // Only the scenery collision world is queried, never other enemies.
-  push(e, direction, distance, collisionDamage = 0) {
+  // pushHits (pushed-hits, Bowling): the pushed bug hits every other bug it slides into for that much
+  push(e, direction, distance, collisionDamage = 0, pushHits = 0) {
     if (!(collisionDamage > 0)) { this.move(e, direction, distance); return; }
     const dir = S.windDir.copy(direction).setY(0).normalize(), center = this.center(e, S.windCenter), across = S.windAcross.set(-dir.z, 0, dir.x);
     let travel = distance, contact = false;
@@ -1297,6 +1298,7 @@ export class Enemies {
       if (contact) S.windContact.copy(S.moveHit.point);
     }
     if (!e.T.fly && from.distanceToSquared(e.pos) > 1e-6) this.fx.wind.skid(from, e.pos, e.pos.y, e.r);   // dust kicked up along its slide
+    if (pushHits > 0) this.bowl(e, from, dir, pushHits);
     if (contact) {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
@@ -1304,6 +1306,22 @@ export class Enemies {
       this.fx.splat(S.windFrom.copy(e.pos), SCUFF, e.r * 1.2, 'dust');                                    // a scuff where it hit
       sfx.windSlam(); juice.feel('impact');
       bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision', feedback: { element: 'wind', slam: true, dir } });
+    }
+  }
+
+  // Bowling: the bug `e` slid from `from` to where it is now; every other bug (not Elites or the boss) that slide went through takes `dmg`
+  // and a little shove along it, and a dust puff marks each
+  bowl(e, from, dir, dmg) {
+    const ax = from.x, az = from.z, dx = e.pos.x - ax, dz = e.pos.z - az, len2 = dx * dx + dz * dz;
+    for (const o of this.list) {
+      if (o === e || o.dead || o.proxy) continue;
+      const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((o.pos.x - ax) * dx + (o.pos.z - az) * dz) / len2)) : 0;
+      if (Math.hypot(o.pos.x - ax - dx * t, o.pos.z - az - dz * t) >= e.r + o.r) continue;
+      const at = this.center(o, S.windContact);
+      this.fx.wind.streaks(at, dir, 4, 1.1, o.r * 3.5);
+      this.fx.puff(at, 0xd8d0c2, o.r * 1.2, 0.3);
+      bus.emit('damage_taken', { targetId: o.id, amount: dmg, color: '#d9f6ff', source: 'wind-bowl', feedback: { element: 'wind', dir: dir.clone() } });
+      if (!o.dead && !o.T.fly) bus.emit('knockback', { targetId: o.id, dir: dir.clone(), force: 0.015 });
     }
   }
 

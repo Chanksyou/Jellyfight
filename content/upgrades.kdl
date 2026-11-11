@@ -196,3 +196,48 @@ upgrade "poisonRain" jelly="poison" name="Poison Rain" icon="🌧️" text="Ever
 upgrade "splitBlob" jelly="poison" name="Split Blob" icon="🫧" text="After it hits, your blob splits in two halves that fly on, each hitting for half and bursting." {
     split-on-hit 2 dmg=0.5
 }
+
+// --- Wind: movement, pushes, Dodge, jumps and landings (docs/jelly-types/types/wind.md). Numbers are starting values.
+upgrade "cyclone" jelly="wind" name="Cyclone" icon="🌪️" text="Every 5 s a whirlwind rises at the nearest bug within 30 cm and pulls every bug in it together for 1.6 s." {
+    every 5 {
+        whirl radius=0.09 time=1.6 pull=0.12 range=0.3
+    }
+}
+upgrade "bowling" jelly="wind" name="Bowling" icon="🎳" text="A bug your gust shoves knocks over every bug in its way, for the same damage." {
+    pushed-hits
+}
+upgrade "tailwind" jelly="wind" name="Tailwind" icon="🍃" text="Each gust that hits gives +30% Move speed for 2 s." {
+    stack-buff "hit" "move-speed" 30 percent=#true time=2 stacks=1
+}
+upgrade "updraft" jelly="wind" name="Updraft" icon="🌬️" text="Landing from a jump blasts a ring of wind that pushes every bug within 12 cm away." {
+    landing-shockwave 0.12 dmg=0 push=0.06
+}
+upgrade "gale" jelly="wind" name="Gale" icon="💨" text="Gusts blow through every bug in their path, but lose 20% of their damage for each bug." {
+    element-up "wind" pierce=99 falloff=0.2
+}
+upgrade "slipstream" jelly="wind" name="Slipstream" icon="🏄" text="+20% Dodge while you swim at full speed." {
+    while "moving" "dodge" 20
+}
+upgrade "crosswind" jelly="wind" name="Crosswind" icon="🧭" text="Every gust fires a second one off to the side, 30° from the first." {
+    element-up "wind" count=1 angle=30
+}
+upgrade "eyeOfTheStorm" jelly="wind" name="Eye of the Storm" icon="🌀" text="Every 2 s, bugs within 6 cm of you are pushed away." {
+    every 2 {
+        ring 0.06 dmg=0 push=0.04
+    }
+}
+upgrade "slamDunk" jelly="wind" name="Slam Dunk" icon="🏀" text="A bug your gust slams into furniture takes 3 times the hit, not 1 time." {
+    element-up "wind" collision=3
+}
+upgrade "secondWind" jelly="wind" name="Second Wind" icon="🫁" text="Once an act, when you are hit at 30% Health or less, a ring of wind throws everything back and you get +50% Move speed for 5 s." {
+    when-hit once-per-act=#true low-health=0.3 {
+        ring 0.15 dmg=0 push=0.1
+        dash 0.5 time=5
+    }
+}
+upgrade "jetStream" jelly="wind" name="Jet Stream" icon="🚀" text="Gusts fly 50% faster and 50% farther." {
+    element-up "wind" speed=1.5 range=1.5
+}
+upgrade "glide" jelly="wind" name="Glide" icon="🪂" text="Hold jump in the air to drift down slowly. Gusts blown while you drift push twice as far." {
+    glide fall=0.2 push=2
+}
