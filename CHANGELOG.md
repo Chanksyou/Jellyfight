@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v415 stops jumps from dodging boss attacks that should hit anything in their space: the Clog's hair chunks now splash a column 25 cm up off a duck's back (hop to the spared duck instead of jumping off), its comb curtains stand 22 cm tall (taller than a full jump), the Encore's disco spots hit at any height (step off them), and its floor tiles keep hurting while they're lit, so landing in a wave's wake is hit.
+
 v414 Fixed the balance smoke check failing after act 3: a boss's Legendary pick is not always an evolution, so the run may carry none.
 
 v413 Jelly types are here: after your first run you pick a jelly (Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle) before every run, each with its own attack, look and 12 Attack upgrades (one after each of the first three bosses). New types unlock by finishing acts and defeating Elites. The old Element treasures and the separate evolution pick are replaced: evolutions now come in the Legendary pick after a boss.
