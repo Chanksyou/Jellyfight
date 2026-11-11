@@ -448,3 +448,23 @@ upgrade('orbit', 'Orbit: a bubble that reaches the end of its Range without popp
   const first = lap(), on = lap(first.path[Math.round(first.path.length * 0.6)]);
   return ok(off.frames < 80 && first.frames > 250 && on.hit.length === 1 && on.hit[0][1] === 'bubble', { off: off.frames, frames: first.frames, on: on.hit });
 });
+
+story('treasures/flight-combos', {
+  about: 'The words that share the flight loop work together: Rebound (bubbles coming home) with orbit-misses, and rebound walls-only with orbit-misses and homing, leave no bubble flying after 15 s, and an orbiting bubble still laps once.',
+  setup() { calm(); },
+  play() {
+    const { run } = G(), B = run.bubbles;
+    withWords('rebound\norbit-misses');
+    const out = shoot({ dir: open(0.7) });
+    step(70);
+    out.t = 1e3;   // it has been out far too long (stuck on its way home): the timed-out path
+    step(60 * 15);
+    const home = !B.list.length && !!out;
+    clean();
+    withWords('rebound walls-only=#true times=1\norbit-misses\nhoming 4');
+    const w = (tp(4.0, 0.05, 4.2, 0), wall(0.1, 0.3));
+    shoot({ dir: w.dir }); shoot({ dir: open(0.7) });
+    step(60 * 15);
+    return ok(home && !B.list.length, { home, left: B.list.length });
+  },
+});

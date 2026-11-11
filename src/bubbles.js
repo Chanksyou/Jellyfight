@@ -469,7 +469,7 @@ export class Bubbles {
       }
       const reach = b.range ? b.range * 1.4 : maxTravel;
       if (!b.done && b.rebound && !b.returning && b.travel > reach) this.turn(b);
-      if (!b.done && (b.rebound ? b.t > reach / b.speed * 3 + 1 : !b.orb && (b.travel > reach || b.t > reach / b.speed + 0.5))) this.expire(b, stats, mods);
+      if (!b.done && !b.orb && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.expire(b, stats, mods);
     }
     this.looks.tickBolts(dt);
     this.looks.endFrame();
@@ -529,7 +529,7 @@ export class Bubbles {
 
   // the end of its Range (or time): orbit-misses sends it round you once, otherwise it pops
   expire(b, stats, mods) {
-    if (mods.orbitMisses && !b.tint && this.origin) {
+    if (mods.orbitMisses && !b.tint && !b.rebound && this.origin) {   // (a rebounding bubble has its own way home)
       const o = this.origin, p = b.m.position, dx = p.x - o.x, dz = p.z - o.z, r = Math.hypot(dx, dz);
       if (r > this.grace) {
         b.orb = { r, dir: dx * b.vel.z - dz * b.vel.x < 0 ? -1 : 1, dy: p.y - o.y, swept: 0 };
