@@ -97,6 +97,7 @@ export class Bubbles {
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
+    this.frostbitten = new Map();      // enemy -> { dps, t }: Chill that hurts (element-up ice frostbite)
     this.poisoned = new Map();         // enemy -> its Poison: { t, n stacks, dps a stack, ep }
     this.dotT = 0;                     // the 0.5 s beat percent-dot and spread-on-touch go on
     this.puddles = [];
@@ -115,6 +116,7 @@ export class Bubbles {
     this.list.forEach((b) => this.release(b, true));
     this.list = [];
     this.burning.clear();
+    this.frostbitten.clear();
     this.poisoned.clear();
     this.looks.clearBolts();
     this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
@@ -435,9 +437,12 @@ export class Bubbles {
         if (e.dead || b.hit.has(e)) continue;
         if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
+          const chilled = b.ep?.chillPierce && e.chillT > 0;   // Icicle Lance: a shard flies through a bug that was already Chilled
           this.strike(b, e, mods);
+          if (chilled) b.free = (b.free || 0) + 1;
+          if (b.ep?.grow) b.r *= 1 + b.ep.grow;                // Snowball
           if (b.rebound) { this.pop(b, e, stats, mods, true); continue; }
-          if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
+          if (b.hit.size - (b.free || 0) >= b.pierce) { this.pop(b, e, stats, mods); break; }
           if (b.hit.size === 1) this.splash(b);   // a piercing bubble splashes where it first hits, then flies on
         }
       }
@@ -493,6 +498,7 @@ export class Bubbles {
     }
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
+    const slide = mods.slideOnHit.find((S) => this.enemies.statuses[S.status](e));   // Avalanche: a hit on a bug that has the status sends it sliding
     if (el.has('fire')) {
       const was = this.burning.get(e)?.t > 0;
       this.ignite(e, b.pw, b.ep);
@@ -506,7 +512,18 @@ export class Bubbles {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
       const t = b.ep?.chill ?? 2;
       if (e.slowT > 0) dmg *= b.ep?.slowedMul ?? 1;      // Freezer Burn rewards follow-up hits
+      const was = e.chillT > 0;
       bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
+      if (b.ep?.frostbite) this.frostbitten.set(e, { dps: dmg * b.ep.frostbite, t: t + 0.01, tick: this.frostbitten.get(e)?.tick ?? 0.5 });   // Frostbite (a re-hit keeps the beat running)
+      const F = mods.chillFreeze;                         // Permafrost: hits in a row on a Chilled bug freeze it
+      if (F) {
+        e.chillHits = (was ? e.chillHits || 0 : 0) + 1;
+        if (e.chillHits >= F.hits) {
+          e.chillHits = 0;
+          bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: F.time });
+          bus.emit('enemy_frozen', { targetId: e.id, pos: c.clone(), r: e.r });
+        }
+      }
     }
     if (el.has('wind') && !e.proxy) {
       sfx.wind();
@@ -522,10 +539,28 @@ export class Bubbles {
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
     this.enemies.freshBurn = null;
+    if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
       collisionDamage: dmg * (b.ep?.collision ?? 1),
     });
+  }
+
+  // slide-on-hit: the bug is shoved `distance` along the hit; whatever it slides into is Chilled
+  slide(e, dir, S) {
+    const E = this.enemies, from = e.pos.clone();
+    E.push(e, dir, S.distance);
+    const to = e.pos, seg = to.clone().sub(from).setY(0), len2 = seg.lengthSq();
+    this.fx.ice.bloom(from, e.r * 3, 0.5);
+    sfx.iceShatter(false);
+    if (len2 < 1e-10) return;
+    for (const n of E.list) {
+      if (n === e || n.dead || n.proxy || Math.abs(n.pos.y - e.pos.y) > e.r + n.r) continue;
+      const u = Math.max(0, Math.min(1, ((n.pos.x - from.x) * seg.x + (n.pos.z - from.z) * seg.z) / len2));
+      if (Math.hypot(n.pos.x - (from.x + seg.x * u), n.pos.z - (from.z + seg.z * u)) > n.r + e.r) continue;
+      bus.emit('status_applied', { targetId: n.id, status: 'chill', duration: S.chill });
+      this.fx.puff(E.center(n), 0xdff8ff, n.r * 1.6, 0.4);
+    }
   }
 
   // refresh-all: every Burn back to its full time, a flare on each one but the bug just hit
@@ -541,6 +576,11 @@ export class Bubbles {
   // Burning enemies, lightning arcs and acid puddles
   effects(dt, stats, mods) {
     const E = this.enemies, c = this._c;
+    for (const [e, f] of this.frostbitten) {   // Frostbite: a Chilled bug takes a share of the hit that chilled it, every half second
+      if (e.dead) { this.frostbitten.delete(e); continue; }
+      if ((f.tick -= dt) <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#bff4ff', source: 'ice', feedback: { tick: true } }); }
+      if ((f.t -= dt) <= 0) this.frostbitten.delete(e);
+    }
     for (const [e, f] of this.burning) {
       if (e.dead) {
         // burning things that die set their neighbors alight

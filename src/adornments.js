@@ -12,6 +12,8 @@
 //   ember       the Fire jelly type: a flickering ember inside the bell, tentacle tips glowing like
 //               coals, sparks drifting up off them
 //   barbs       the Tentacle jelly type: its tentacles longer and thicker, with barbs along them
+//   frost       the Ice jelly type: a pale blue crystal turning in the bell, frost crystals on the
+//               tentacle tips, cold mist sinking off them to the floor
 //   toxin       the Poison jelly type: a pale green core in the bell with toxic bubbles rising off it, a
 //               drop swelling on every tentacle tip and falling, green drips running off the rim
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
@@ -175,6 +177,60 @@ export class Adornments {
         const r = rig.thick * rig.barbThick * (1 - 0.72 * j / n) * unit;
         m.scale.set(r, r * size, r);
       });
+    } };
+  }
+
+  // Ice jelly: a pale blue crystal turning in the bell (an emissive shape, not a light), a frost crystal
+  // on every tentacle tip, and cold mist drifting off the tips and sinking to the floor
+  make_frost() {
+    const group = new THREE.Group(), h = this.h;
+    const coreMat = glowMat('frost-core', '#bfeaff', { emissiveIntensity: 1.9, transparent: true, opacity: 0.85, depthWrite: false, flatShading: true });
+    const tipMat = glowMat('frost-tip', '#e4f8ff', { emissiveIntensity: 1.6, flatShading: true });
+    const mistMat = new THREE.MeshBasicMaterial({ color: LOOK.color('frost-mist', '#cfeeff'), toneMapped: false });
+    const crystal = new THREE.OctahedronGeometry(1, 0).scale(0.55, 1.5, 0.55), ball = new THREE.SphereGeometry(1, 8, 6);
+    const core = new THREE.Mesh(crystal, coreMat);
+    group.add(core);
+    const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(crystal, tipMat); group.add(m); return m; });
+    const mists = Array.from({ length: LOOK.num('frost-mists', 12) }, () => { const m = new THREE.Mesh(ball, mistMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
+    this.batch.track(group);
+    let next = 0;
+    const glowCol = coreMat.color.clone(), tipCol = tipMat.color.clone(), mistCol = mistMat.color.clone();
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;
+      const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      const shimmer = 0.9 + Math.sin(this.t * 3.1) * 0.1;
+      core.visible = on;
+      if (on) {
+        rig.parent.localToWorld(core.position.set(0, LOOK.num('frost-core-y', 0.86), 0));
+        core.scale.setScalar(h * LOOK.num('frost-core-size', 0.15));
+        core.rotation.y = this.t * 0.8;
+        coreMat.emissiveIntensity = 1.9 * shimmer;
+        G?.hold(core.position, glowCol, h * LOOK.num('frost-glow-size', 0.55) * shimmer, 0.5 * shimmer);
+      }
+      tips.forEach((m, i) => {
+        m.visible = on && !!rig.list[i];
+        if (!m.visible) return;
+        rig.list[i].tip.getWorldPosition(m.position);
+        m.scale.setScalar(rig.thick * unit * LOOK.num('frost-tip-size', 1.9));
+        m.rotation.y = this.t * 1.5 + i;
+        G?.hold(m.position, tipCol, m.scale.x * 5, 0.5);
+      });
+      // mist leaves a tip now and then, sinks and spreads, and fades out before it reaches the floor
+      if (on && (next -= dt) <= 0) {
+        next = LOOK.num('frost-mist-every', 0.08);
+        const m = mists.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
+        if (m && T) { T.tip.getWorldPosition(m.position); Object.assign(m.userData, { t: 0, dx: (Math.random() - 0.5) * 0.015, dz: (Math.random() - 0.5) * 0.015 }); m.visible = true; }
+      }
+      const life = LOOK.num('frost-mist-life', 1), sink = LOOK.num('frost-mist-sink', 0.05), size = LOOK.num('frost-mist-size', 0.0038), floor = this.player.position.y + 0.002;
+      for (const m of mists) {
+        if (!m.visible) continue;
+        const u = (m.userData.t += dt) / life;
+        if (u >= 1 || !on) { m.visible = false; continue; }
+        m.position.x += m.userData.dx * dt; m.position.z += m.userData.dz * dt;
+        m.position.y = Math.max(floor, m.position.y - sink / life * dt);
+        m.scale.setScalar(size * (0.6 + u * 0.8));
+        G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
+      }
     } };
   }
 

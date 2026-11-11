@@ -448,6 +448,7 @@ export class Gadgets {
         if (ef.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: ef.push });
         if (ef.freeze) bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: ef.freeze });
         if (ef.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: ef.slow });
+        if (ef.chill) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: ef.chill });
       }
     } else if (ef.kind === 'zap') {
       for (const e of this.near(center, ef.range).slice(0, ef.count)) {
@@ -455,6 +456,17 @@ export class Gadgets {
         this.looks.signal(center,to);sfx.gadgetRemote();ctx.pulse?.(.12);
         bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
       }
+    } else if (ef.kind === 'shards') {
+      const shard = new THREE.Color(LOOK.color('ice-shard', '#cfefff'));
+      for (const e of this.near(center, ef.range).slice(0, ef.count)) {
+        const to = E.center(e);
+        this.looks.streak(center, to, shard, LOOK.num('ice-shard-streak', 0.0016), 0.2, 'needle');
+        fx.impact(to, shard.getHex(), e.r * 0.5, 6);
+        fx.ice.shatter(to, 3, e.r * 0.25, 0.4, e.pos.y);
+        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#bff4ff', source: 'shards' });
+        bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: ef.chill });
+      }
+      sfx.iceShatter(false);
     } else if (ef.kind === 'brick') {
       const g = this.brickMesh();
       g.position.copy(feet);

@@ -1175,6 +1175,7 @@ export class Enemies {
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
 
+    const locks = this.mods?.groundLock || [];
     for (const e of list) {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
@@ -1200,11 +1201,18 @@ export class Enemies {
       c.flatDir.normalize();
       c.speed = 0;
       c.dir.set(0, 0, 0);
+      // ground-lock (Hoarfrost): a bug with the status can't start a leap, rise in the air or climb
+      const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
+      e.groundLocked = lock;
       if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
         this.moveGround(e, dt, near);
+      }
+      if (lock && !e.airborne && e.pos.y > y0 + 1e-5) {
+        if (e.T.fly) { e.pos.y = y0; e.vel.y = Math.min(0, e.vel.y); }
+        else { e.pos.set(x0, y0, z0); e.vel.x = e.vel.z = 0; }   // the step uphill doesn't happen
       }
 
       // look at the player, pop when hit, grow in when spawned
