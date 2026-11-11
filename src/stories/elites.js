@@ -531,3 +531,23 @@ story('elites/kettle-boil-over-feel', {
     return ok(released && hits.length >= 1 && n.kettleDrop.includes(true) && feels.includes('impact') && wet, { released, hits: hits.length, drops: n.kettleDrop, feels: [...new Set(feels)], wet });
   },
 });
+
+// --- circling an Elite tightly doesn't stall it: it attacks anyway (it used to wait to face you,
+// and at walking speed close in it never caught up)
+for (const kind of ['controller', 'mug', 'kettle']) {
+  story(`elites/${kind}-attacks-while-circled`, {
+    about: `Swimming tight circles round the ${kind} at walking speed doesn't stop it attacking.`,
+    setup() { fresh({ bubbles: false, lash: false }); tp(...ELITE_SPOTS[kind].map((v, i) => (i === 1 ? v + 0.05 : v)), 0); },
+    play() {
+      const { run } = G(), e = run.elites.list.find((x) => x.kind === kind);
+      const r = 0.12, w = CONFIG.player.walkSpeed / r, c = e.base, y = holdJelly().position.y;
+      const P = G().player.position;
+      let a = Math.atan2(P.x - c.x, P.z - c.z);
+      const circle = () => { a += w / 60; P.set(c.x + Math.sin(a) * r, y, c.z + Math.cos(a) * r); };
+      step(90, () => { e.cool = 1; circle(); });   // a lap and a half first, so its turn has fallen behind
+      e.cool = 0;
+      const frames = step(240, () => { circle(); return e.state !== 'idle'; });
+      return ok(e.state !== 'idle', { frames, state: e.state, w: +w.toFixed(2) });
+    },
+  });
+}
