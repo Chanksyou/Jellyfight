@@ -338,7 +338,7 @@ run.jellyFace = (look) => jellyPortrait(renderer, look);   // each player's jell
 // Desktop plays with the mouse locked to the game; phones use on-screen controls
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  tpc.distance = LOOK.num('camera-distance-phone', 0.7);
+  tpc.distance = LOOK.num('camera-distance-phone', 0.595);
 }
 input.touchOnly = IS_TOUCH;
 // Chrome refuses a lock asked for too soon after the last one (a rejected promise); the next click asks again
