@@ -107,19 +107,17 @@ export class Gadgets {
       g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.006, 16).translate(0, 0.003, 0), this.lampBase));
       g.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.006, 0), this.lampDome));
       const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending }));
-      const rim = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.45, depthWrite: false }));
-      pool.position.y = rim.position.y = 0.002;
-      g.add(pool, rim); g.userData.pool = pool; g.userData.rim = rim;
+      pool.position.y = 0.002;   // a soft pool, no rim: floor rings are for Warnings and area hits
+      g.add(pool); g.userData.pool = pool;
       g.visible = false; this.group.add(g);
       return g;
     });
-    // Chore List: a gold target over the marked bug and under its feet
+    // Chore List: a gold target over the marked bug
     const gold = LOOK.color('bounty', '#ffd23a');
     this.bountyMark = new THREE.Group();
     this.bountyMark.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.006).scale(1, 1.5, 1), new THREE.MeshBasicMaterial({ color: gold, toneMapped: false })));
-    this.bountyRing = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: gold, transparent: true, opacity: 0.7, depthWrite: false }));
-    this.bountyMark.visible = this.bountyRing.visible = false;
-    this.group.add(this.bountyMark, this.bountyRing);
+    this.bountyMark.visible = false;
+    this.group.add(this.bountyMark);
     this.ghostColor = LOOK.color('ghost', '#b4ffd6');   // glow-in-the-dark green: friendly and cool, never a hostile colour
     this.reset();
   }
@@ -145,7 +143,7 @@ export class Gadgets {
     this.beam.visible = this.aura.visible = false;
     this.lamps = []; this.lit = false;
     this.lampPool.forEach((g) => { g.visible = false; });
-    this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = this.bountyRing.visible = false;
+    this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = false;
     for (const g of this.ghosts || []) this.fx.free(g.m);
     this.ghosts = [];
   }
@@ -155,10 +153,9 @@ export class Gadgets {
     if (this.lamps.length >= Math.min(N.most, this.lampPool.length)) this.lamps.shift().g.visible = false;
     const g = this.lampPool.find((x) => !x.visible);
     g.position.set(at.x, this.enemies.floorBelow(at, at.y), at.z);
-    g.userData.pool.scale.setScalar(N.radius); g.userData.rim.scale.setScalar(N.radius);
+    g.userData.pool.scale.setScalar(N.radius);
     g.visible = true;
     this.lamps.push({ g, r: N.radius, age: 0 });
-    this.fx.ring(g.position.clone().setY(g.position.y + 0.004), this.lampDome.color.getHex(), N.radius, 0.6);
     sfx.gadgetLamp();
   }
   tickLights(dt, M, feet) {
@@ -167,10 +164,10 @@ export class Gadgets {
     for (const L of this.lamps) {
       L.age += dt;
       const p = L.g.position, u = Math.min(1, L.age / 0.4);   // it fades up as it's plugged in, then breathes
-      L.g.userData.pool.material.opacity = (0.03 + 0.015 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
+      L.breathe = (0.06 + 0.015 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
       if (Math.hypot(feet.x - p.x, feet.z - p.z) <= L.r && Math.abs(feet.y - p.y) < 0.15) this.lit = true;
     }
-    for (const L of this.lamps) L.g.userData.rim.material.opacity = this.lit ? 0.7 : 0.35;   // the edge brightens while you're inside
+    for (const L of this.lamps) L.g.userData.pool.material.opacity = L.breathe * (this.lit ? 1.8 : 1);   // the pool brightens while you're inside
   }
 
   // bounty: now and then an ordinary bug far from you gets a gold target (run.js onKill pays it out)
@@ -181,21 +178,18 @@ export class Gadgets {
       const bugs = this.enemies.list.filter((x) => !x.dead && !x.proxy).map((x) => [Math.hypot(x.pos.x - feet.x, x.pos.z - feet.z), x]);
       const far = bugs.filter(([d]) => d >= B.far);
       const pick = far.length ? far[(Math.random() * far.length) | 0][1] : bugs.sort((a, b) => b[0] - a[0])[0]?.[1];
-      if (pick) { this.bountyBug = pick; this.bountyId = pick.id; sfx.gadgetBounty(); this.fx.ring(pick.pos.clone().setY(pick.pos.y + 0.003), this.bountyRing.material.color.getHex(), pick.r * 3, 0.5); }
+      if (pick) { this.bountyBug = pick; this.bountyId = pick.id; sfx.gadgetBounty(); }
     }
     const b = this.bountyBug;
-    this.bountyMark.visible = this.bountyRing.visible = !!b;
+    this.bountyMark.visible = !!b;
     if (b) {
       this.bountyMark.position.copy(b.pos).y += (b.T.fly ? b.r * 1.6 : b.r * 3.4) + (this.looks.quiet ? 0 : Math.sin(this.clock * 4) * 0.004);
       this.bountyMark.rotation.y += dt * 3;
-      this.bountyRing.position.set(b.pos.x, this.enemies.floorBelow(b.pos, b.pos.y) + 0.002, b.pos.z);
-      this.bountyRing.scale.setScalar(b.r * (1.6 + (this.looks.quiet ? 0 : 0.15 * Math.sin(this.clock * 6))));
     }
   }
   bountyPaid(c) {
-    this.bountyBug = null; this.bountyId = null; this.bountyMark.visible = this.bountyRing.visible = false;
+    this.bountyBug = null; this.bountyId = null; this.bountyMark.visible = false;
     this.fx.burst(c, ['#ffd23a', '#fff4b0', '#ffffff'], 12, 0.004, 0.4);
-    this.fx.ring(c, 0xffd23a, 0.06, 0.4);
     sfx.gadgetBounty(true);
   }
 
@@ -257,10 +251,10 @@ export class Gadgets {
     for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen,this.mirrorShards,this.mirrorShell]){m.visible=on;if(on)m.position.copy(at);}
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
-    this.lampPool[0].visible = this.bountyMark.visible = this.bountyRing.visible = on;   // night-light and bounty shaders, compiled up front too
+    this.lampPool[0].visible = this.bountyMark.visible = on;   // night-light and bounty shaders, compiled up front too
     if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
     if (on) {
-      this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at); this.bountyRing.position.copy(at);
+      this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at);
       this.mouse.position.copy(at);
       this.bulbs.forEach((b) => b.position.copy(at));
       this.beam.position.copy(at);
