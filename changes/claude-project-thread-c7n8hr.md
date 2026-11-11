@@ -1,1 +1,0 @@
-Elites no longer stall when you swim tight circles round them: once an attack is ready, an Elite snaps round to face you and starts it, instead of waiting to finish turning (which a close circling jelly kept it from ever doing).
