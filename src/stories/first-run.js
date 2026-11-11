@@ -2,7 +2,6 @@
 
 import { isNewPlayer, PLAYED_KEY, markPlayed } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
-import { xpToNext } from '../stats.js';
 import { G, asNewPlayer, firstMinute, fresh, hintShown, hitJelly, mapShown, modalTitle, near, ok, pickFirstCard, spawn, step, story, stub, tp } from './kit.js';
 
 // --- a player's first run (first-run.js): systems arrive one at a time
@@ -18,28 +17,6 @@ story('first-run/no-element-pick-at-start', {
     return ok(!menus.open && run.startPicked && blown > 0, { menu: menus.open, title: modalTitle(), blown });
   },
 });
-story('first-run/element-pick-after-first-card', {
-  about: 'On a first run the Element pick opens right after the first Level-up\'s card, once; the next Level-up is just cards.',
-  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
-  play() {
-    const { menus, run } = G();
-    step(5);
-    const quietStart = !menus.open;
-    run.gainXp(xpToNext(run.level)); step(5);
-    const levelTitle = modalTitle();
-    pickFirstCard(); step(5);
-    const elementTitle = menus.open ? modalTitle() : '';
-    pickFirstCard(); step(50);   // the pick's outro (won pulse, discards burn) runs ~0.64 s of game time before the modal closes
-    const owned = run.owned.size;
-    run.gainXp(20); step(5);
-    const secondTitle = modalTitle();
-    pickFirstCard(); step(5);
-    const after = menus.open ? modalTitle() : '';
-    menus.close();
-    return ok(quietStart && /level/i.test(levelTitle) && /element/i.test(elementTitle) && owned >= 1 && /level/i.test(secondTitle) && !/element/i.test(after),
-      { quietStart, levelTitle, elementTitle, owned, secondTitle, after });
-  },
-});
 story('first-run/auto-attack-tip-at-start', {
   about: 'A player\'s first run opens with one tip for a few seconds: attacks are automatic, collect XP, survive until the boss. Other runs never show it.',
   setup() { fresh({ elites: false, firstRun: true }); tp(3.2, 0.05, 3.0, 0); },
@@ -48,7 +25,7 @@ story('first-run/auto-attack-tip-at-start', {
     const shown = hintShown();
     step(60 * 8);
     const gone = !/Attack automatically/.test(hintShown());
-    fresh({ elites: false }); G().run.startPicked = false; step(2); pickFirstCard(); step(50);   // another run's start: the Element pick, no tip
+    fresh({ elites: false }); G().run.startPicked = false; step(2); pickFirstCard(); step(50);   // another run's start: no tip
     const other = /Attack automatically/.test(hintShown());
     return ok(/^Attack automatically when bugs are nearby\. Collect XP to grow stronger and survive until the boss arrives\.$/.test(shown) && gone && !other, { shown, gone, other });
   },
@@ -70,65 +47,6 @@ story('first-run/health-hint-on-first-hit', {
     hitJelly(); step(2);
     const other = /Health/.test(hintShown());
     return ok(!/Health/.test(before) && /That's your Health, top left\. Run out and the run ends\./.test(shown) && gone && !again && !other, { before, shown, gone, again, other });
-  },
-});
-story('first-run/treasures-wait-for-the-element-pick', {
-  about: 'On a player\'s first run no Treasure turns up before the Element pick is done; one skipped before it turns up 4 s after the pick, not at the next scheduled time. An Elite still leaves its Treasure, and other runs get theirs at 0:15.',
-  setup() { fresh({ elites: false, firstRun: true, treasures: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
-  play() {
-    const { run } = G(), toasts = [];
-    stub(run.hud, 'toast', (text) => toasts.push(text));
-    const sched = () => run.roomTreasures.find((t) => t.active && t.timed);
-    step(60 * 20);                                         // past 0:15, no Element pick yet
-    const before = !!sched();
-    run.gainXp(xpToNext(run.level)); step(3); pickFirstCard(); step(3);      // the first card, then the Element pick
-    const elementOpen = /element/i.test(modalTitle());
-    pickFirstCard(); step(3);
-    const t0 = run.t, next = t0 + 4;
-    step(60 * 8, () => sched());
-    const at = run.t, first = !!sched(), told = toasts.some((t) => /A treasure appeared/.test(t));
-    const later = run.treasureTimesLeft[0];                // the night's other times are still to come
-    run.dropTreasure(near(0.2, 0));                        // an Elite's Treasure still drops on a first run
-    const eliteChest = run.roomTreasures.some((t) => t.active && !t.timed);
-    // another run: the first one at 0:15
-    fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0);
-    step(60 * 17, () => sched());
-    const otherAt = Math.round(G().run.t);
-    return ok(!before && elementOpen && first && Math.abs(at - next) <= 0.5 && told && later === run.stage.treasures.at[1] && eliteChest && Math.abs(otherAt - 15) <= 1,
-      { before, elementOpen, t0: +t0.toFixed(1), at: +at.toFixed(1), next: +next.toFixed(1), first, told, later, eliteChest, otherAt });
-  },
-});
-story('first-run/first-level-up-comes-sooner', {
-  about: 'On a player\'s first run XP counts double until the first Level-up\'s card, so that Level-up (and the Element pick after it) comes about twice as soon; other runs count it as before.',
-  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
-  play() {
-    const { run } = G();
-    step(2);
-    const need = xpToNext(run.level);
-    run.gainXp(need / 2); step(2);
-    const levelled = /level/i.test(modalTitle());
-    pickFirstCard(); step(3); pickFirstCard(); step(50);   // the card, then the Element
-    const xp0 = run.xp; run.gainXp(1); const after = run.xp - xp0;
-    fresh({ elites: false, levels: true }); G().menus.close();
-    const r = G().run, x1 = r.xp; r.gainXp(1); const other = r.xp - x1;
-    return ok(levelled && after === 1 && other === 1, { need, levelled, after, other });
-  },
-});
-story('first-run/hold-jump-tip', {
-  about: 'On a player\'s first run, the Element pick closes with one tip for a few seconds: hold jump to jump higher. Other runs never show it.',
-  setup() { fresh({ elites: false, firstRun: true, levels: true }); tp(3.2, 0.05, 3.0, 0); },
-  play() {
-    const { run } = G();
-    step(2);
-    const before = /Hold jump/.test(hintShown());
-    run.gainXp(xpToNext(run.level)); step(3); pickFirstCard(); step(3); pickFirstCard(); step(50);
-    const shown = hintShown();
-    step(60 * 6);
-    const gone = !/Hold jump/.test(hintShown());
-    fresh({ elites: false }); G().run.startPicked = false; step(2);
-    const title = modalTitle(); pickFirstCard(); step(50);
-    const other = /Hold jump/.test(hintShown());
-    return ok(!before && /Hold jump to jump higher\./.test(shown) && gone && /element/i.test(title) && !other, { before, shown, gone, title, other });
   },
 });
 story('first-run/minimap-with-the-first-treasure', {
@@ -157,20 +75,9 @@ story('first-run/minimap-with-the-first-treasure', {
   },
 });
 story('first-run/the-first-minute', {
-  about: 'A player\'s first minute, in order: swimming among roaches with bubbles firing on their own (no menu, no minimap), the Health hint on the first hit, the first card, the Element pick, then the first Treasure with the minimap (at 0:15, or 4 s after the Element pick if that came later).',
+  about: 'A player\'s first minute, in order: swimming among roaches with bubbles firing on their own (no menu, no minimap), the Health hint on the first hit, then the first Treasure with the minimap at its first scheduled time.',
   setup() {},
   play: firstMinute,
-});
-story('first-run/other-runs-unchanged', {
-  about: 'Any run that isn\'t a player\'s first opens the Element pick on the first frame, as before.',
-  setup() { fresh({ elites: false }); G().run.startPicked = false; },
-  play() {
-    const { menus } = G();
-    step(2);
-    const title = modalTitle();
-    menus.close();
-    return ok(/element/i.test(title), { title });
-  },
 });
 story('first-run/who-is-new', {
   about: 'A player is new until a run of theirs ends (dried out, or the boss beaten); one with a saved best score is not new; a new run (as after a reload) keeps them new.',

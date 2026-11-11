@@ -173,7 +173,7 @@ phone('minimap-is-small', {
   },
 });
 phone('the-first-minute', {
-  about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, the first card, the Element pick, then the first Treasure with the minimap.',
+  about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, then the first Treasure with the minimap.',
   setup() {},
   play: firstMinute,
 });

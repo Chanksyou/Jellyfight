@@ -9,7 +9,7 @@
 //   content/bosses.kdl    the bosses: Health and every attack's numbers (src/vacuum.js, src/clog.js, src/shark.js, src/encore.js)
 //   content/elites.kdl    the elites: Health, aggro and every attack's numbers (src/elites.js)
 //   content/levelups.kdl  level-ups: the XP curve, card rarities and card amounts (src/stats.js)
-//   content/jellies.kdl   the jelly types a run can start as (behind GAME.types: src/jelly-types.js)
+//   content/jellies.kdl   the jelly types a run can start as (src/jelly-types.js)
 //   content/upgrades.kdl  each jelly type's Attack upgrades, picked after an act's boss (the same effect words)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';

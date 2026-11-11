@@ -1,11 +1,10 @@
-// Stories: jelly types (content/jellies.kdl, src/jelly-types.js), built behind the GAME.types
-// switch until release. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
+// Stories: jelly types (content/jellies.kdl, src/jelly-types.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 import { CONTENT, compileJellies, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
+import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
@@ -31,17 +30,12 @@ story('content/jellies-load', {
 });
 
 story('types/normal-is-todays-jelly', {
-  about: 'With the switch off a run is Normal and starts on BASE_STATS, and does count; a Normal run with the switch on has the same stats but is a dev run.',
+  about: 'A plain run is Normal: it starts on BASE_STATS, fires the bubble attack, and counts (not a dev run).',
   setup() { fresh(); },
   play() {
-    const { run, GAME } = G();
+    const { run } = G();
     const same = (s) => Object.keys(BASE_STATS).every((k) => s[k] === BASE_STATS[k]);
-    const off = run.jelly === 'normal' && same(run.stats) && !GAME.types;
-    fresh({ types: 'normal' });
-    const on = run.jelly === 'normal' && same(run.stats) && GAME.types && run.dev;
-    fresh();
-    const back = !GAME.types && run.jelly === 'normal';
-    return ok(off && on && back, { off, on, back, jelly: run.jelly });
+    return ok(run.jelly === 'normal' && same(run.stats) && run.attack.kind === 'bubble' && !run.dev, { jelly: run.jelly, attack: run.attack, dev: run.dev });
   },
 });
 
@@ -373,7 +367,7 @@ story('types/first-run-is-normal', {
     try {
       const newPlayer = !picksType();
       pressPlay('fire');
-      first = { newPlayer, closed: !picker.isOpen, normal: run.jelly === 'normal' && run.stats.health === BASE_STATS.health, start: TYPE_SWITCH.start };
+      first = { newPlayer, closed: !picker.isOpen, normal: run.jelly === 'normal' && run.stats.health === BASE_STATS.health, start: TYPE_PICK.start };
     } finally { back(); }
     back = asPlayer(true);
     let again;

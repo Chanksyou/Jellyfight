@@ -55,11 +55,11 @@ const text = (good, name, ms, info) => `${good ? '✓' : '✗'} ${name}${ms != n
 // when it has a story to play). Later acts start as if the act before was just beaten, carrying a
 // level-6 run with a Candle (act 3: a level-10 run); stories with `phone: true` (phone/...) play in a page that looks
 // like a phone (opened on their act: `act: 3` plays in a phone page on act 3). The first page that opens lists every story for the rest.
-const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['candle', 1]], grown: 0, growCount: 0 };
+const CARRY = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['goldRing', 1]], grown: 0, growCount: 0 };
 // act 3 starts as if the Clog was just beaten: a level-10 run with act 1's and act 2's evolutions
-const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
+const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
 // act 4 as if the shark was just beaten: a level-15 run with three evolutions
-const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['candle', 1], ['battery', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
+const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
 const PAGES = [
   { key: 'act1', opts: { viewport: { width: 1100, height: 650 } } },
   { key: 'portrait', opts: { viewport: { width: 960, height: 1000 } } },
@@ -164,7 +164,7 @@ async function firstRunReload(e) {
   return [result(good, 'first-run/survives-a-reload', null, { ...out, errors })];
 }
 
-// --- on a phone: tap Play, pick a starting treasure, swim with the joystick, jump
+// --- on a phone: tap Play, swim with the joystick, jump
 async function touchControls(e) {
   const { page, errors } = await boot(e, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
   const cdp = await page.context().newCDPSession(page);
@@ -176,13 +176,11 @@ async function touchControls(e) {
   await page.tap('#g-over .play');
   await ev(() => {
     run.spawnWaves = () => {}; run.hurt = () => {};
-    // The title transition finishes before the starting pick can open.
-    for (let i = 0; i < 120 && !menus.open; i++) GAME.step(1 / 60);
+    // The title transition finishes before play starts. A first run is Normal: no pick opens.
+    for (let i = 0; i < 120; i++) GAME.step(1 / 60);
   });
-  out.startPick = await ev(() => menus.open);
-  await page.tap('.jf-card');
-  await step(45);   // the pick resolves after its 0.64 s outro (the other cards burning away), on the game's clock
-  out.picked = await ev(() => !menus.open && run.owned.size > 0);
+  out.startPick = await ev(() => !menus.open);   // straight into play
+  out.picked = await ev(() => run.jelly === 'normal');
   const a = await step(1);
   await touch('touchStart', [[150, 280]]);
   await touch('touchMove', [[150, 220]]);
