@@ -201,7 +201,7 @@ const creator = new Creator({
 });
 creator.mount(ui);
 // the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
-const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, adorn: CONTENT.jellies[id].adorn }), live: new AttackPreview(renderer) });
+const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, room: LOOK.num('pick-portrait-room', 1.3) }), live: new AttackPreview(renderer) });
 picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------

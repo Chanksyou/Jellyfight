@@ -13,6 +13,7 @@
 //   content/upgrades.kdl  each jelly type's Attack upgrades, picked after an act's boss (the same effect words)
 //   content/look.css      colours and render numbers (src/look.js)
 import { parse } from './kdl.js';
+import { AURAS } from './pick-aura.js';
 import { ADORNMENTS, ENEMY_WORDS, STAT_NAMES, TREASURE_WORDS, makeWord, newMods } from './words.js';
 
 export const CONTENT = { enemies: {}, waves: null, treasures: [], evolutions: [], bosses: {}, elites: {}, levelups: null, jellies: {}, upgrades: [], nodes: null };
@@ -254,9 +255,10 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
   return out;
 }
 
-// jelly "id" name="…" icon="…" unlock-act=N|unlock-elites=N attack="…" hit=N adorn="…" { stat <name> <value> … }: the jelly types. Each
+// jelly "id" name="…" icon="…" unlock-act=N|unlock-elites=N attack="…" hit=N adorn="…" aura="…" { stat <name> <value> … }: the jelly types. Each
 // stat line replaces Normal's value (BASE_STATS); Normal itself lists none. adorn= is the type's
-// look, a piece drawn on top of the player's own jelly (src/adornments.js)
+// look, a piece drawn on top of the player's own jelly (src/adornments.js); aura= the element the pick
+// screen draws round it (src/pick-aura.js)
 const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
 export function compileJellies(nodes, file = 'content/jellies.kdl') {
   const out = {};
@@ -271,6 +273,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (typeof n.props.about !== 'string') throw new Error(`${where}: "${id}" needs about="…" (the pick screen's line on its attack)`);
     if (n.props.area !== undefined && typeof n.props.area !== 'boolean') throw new Error(`${where}: "${id}" area= must be #true or #false`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
+    if (n.props.aura !== undefined && !(n.props.aura in AURAS)) throw new Error(`${where}: "${id}" aura= must be one of ${Object.keys(AURAS).join(', ')}, not "${n.props.aura}"`);
     if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
     const act = n.props['unlock-act'], elites = n.props['unlock-elites'];
     if (act !== undefined && elites !== undefined) throw new Error(`${where}: "${id}" takes unlock-act= or unlock-elites=, not both`);
@@ -285,7 +288,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
       stats[key] = value;
     }
-    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats, effects,
+    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, aura: n.props.aura ?? null, area: n.props.area === true, stats, effects,
       icon: typeof n.props.icon === 'string' ? n.props.icon : '🪼', unlock: act ? { act } : elites ? { elites } : null };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);

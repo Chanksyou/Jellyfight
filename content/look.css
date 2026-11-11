@@ -257,6 +257,9 @@
   --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre */
   --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
   --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
+  --pick-aura-fps: 30;         /* frames a second the elements round the jellies on the cards draw at */
+  --pick-aura-strength: 1;     /* how bright those elements are (0 hides them) */
+  --pick-portrait-room: 1.3;   /* how far back a card's portrait stands from the jelly (1: as close as the leaderboard's), leaving room round it for the element */
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
   /* the centre card's live picture (src/attack-preview.js): the jelly firing its attack at a bug */
   --preview-fps: 30;           /* frames a second it draws at most */

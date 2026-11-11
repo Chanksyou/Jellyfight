@@ -1,0 +1,1 @@
+shows each jelly type's element moving round the jelly on the pick screen's cards (flames, frost, crackling arcs, toxic bubbles, gusts, glitter, stings, bubbles), with the jelly itself drawn plain, so every card reads differently.

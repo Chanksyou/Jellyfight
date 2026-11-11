@@ -10,11 +10,14 @@
 // row jumps. Nothing here starts a run: Play calls onPlay(id) and main.js does that.
 //
 // Once the row is still, the centre card's portrait comes alive (attack-preview.js): the jelly fires
-// its real main attack at a bug. Reduce motion keeps the still portrait.
+// its real main attack at a bug. Reduce motion keeps the still portrait. Every other card shows the
+// player's jelly as it is with its type's element moving round it (pick-aura.js, aura= in
+// content/jellies.kdl); Reduce motion holds those still too.
 import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 import { esc } from './leaderboard.js';
+import { drawAura } from './pick-aura.js';
 import { BAR_NAMES, BAR_SEGMENTS, barSegments, typeBars, typeDetails, typeLock } from './jelly-types.js';
 
 const VIEWS = 8;   // views of the jelly that make one full turn: the portrait fades from one to the next
@@ -44,6 +47,7 @@ const CSS = `
 #type-pick .tp-art .tp-lock { position: absolute; right: 8px; top: 6px; font-size: 22px; z-index: 1; }
 #type-pick .tp-art canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 #type-pick .tp-art canvas[hidden] { display: none; }
+#type-pick .tp-art .tp-aura { mix-blend-mode: screen; }
 #type-pick .tp-bars { display: grid; gap: 5px; }
 #type-pick .tp-bar { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: #dcd6c4; }
 #type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 10px; }
@@ -98,6 +102,7 @@ export class TypePicker {
     this.pos = 0; this.target = 0; this.index = 0;
     this.queue = []; this.spin = 0; this.drag = null; this.wheel = 0; this.wheelAt = 0;
     this.onPlay = null; this.onBack = null; this.raf = 0; this.last = 0;
+    this.auraT = 0; this.auraAt = -1;   // the elements' clock, and when they were last drawn (-1: draw them now)
   }
 
   mount(parent) {
@@ -118,6 +123,7 @@ export class TypePicker {
     parent.appendChild(root);
     this.stage = root.querySelector('.tp-stage');
     this.cards = [...root.querySelectorAll('.tp-card')];
+    this.auras = this.cards.map((c) => c.querySelector('.tp-aura'));
     this.panel = { diff: root.querySelector('.tp-diff'), about: root.querySelector('.tp-about'), play: root.querySelector('.tp-play'), goal: root.querySelector('.tp-goal') };
     this.back = root.querySelector('.tp-back');
     this.panel.play.addEventListener('click', () => this.play());
@@ -137,7 +143,7 @@ export class TypePicker {
     return `<div class="tp-card" data-id="${id}" style="--accent:${esc(LOOK.color(`type-${id}`, '#8fd9ff'))}">
       <h3>${esc(J.name)}</h3>
       <div class="tp-body">
-        <div class="tp-art"><img alt="" hidden><img alt="" hidden></div>
+        <div class="tp-art"><img alt="" hidden><img alt="" hidden><canvas class="tp-aura" data-aura="${esc(J.aura || '')}" aria-hidden="true"></canvas></div>
         <div class="tp-bars">${BAR_NAMES.map((n, i) => `<div class="tp-bar" role="meter" aria-label="${n}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bars[i] * 100)}">${n}<span class="tp-track">${Array.from({ length: BAR_SEGMENTS }, (_, k) => `<i class="tp-seg${k < barSegments(bars[i]) ? ' on' : ''}"></i>`).join('')}</span></div>`).join('')}</div>
       </div>
     </div>`;
@@ -170,7 +176,7 @@ export class TypePicker {
     this.index = Math.max(0, this.ids.indexOf(start));
     this.pos = this.target = this.index;
     this.spin = 0;
-    this.measure();
+    this.measure();   // (draws the elements again: the size or Reduce motion may have changed)
     this.setCentre(this.index, true);
     this.place();
     this.queue = [];
@@ -232,7 +238,28 @@ export class TypePicker {
   }
 
   // --- where the cards sit ---------------------------------------------------------------------
-  measure() { this.cardW = this.cards[0].offsetWidth || 280; }
+  measure() {
+    this.cardW = this.cards[0].offsetWidth || 280;
+    // the elements' canvases at the screen's sharpness (at most 2x: they're soft anyway)
+    const px = Math.round((this.auras[0].clientWidth || 160) * Math.min(2, devicePixelRatio || 1));
+    for (const c of this.auras) if (c.width !== px) c.width = c.height = px;
+    this.auraAt = -1;
+  }
+
+  // --- the elements round the jellies: drawn at --pick-aura-fps, the cards in view only ----------
+  // (the live picture covers the centre card's once it shows; Reduce motion draws them once, still)
+  drawAuras(dt) {
+    const calm = this.calm();
+    this.auraT += calm ? 0 : dt;
+    if (this.auraAt >= 0 && (calm || this.auraT - this.auraAt < 1 / LOOK.num('pick-aura-fps', 30))) return;
+    this.auraAt = this.auraT;
+    const t = calm ? 0.6 : this.auraT, strength = LOOK.num('pick-aura-strength', 1);
+    const covered = this.liveFor && this.live?.canvas && !this.live.canvas.hidden ? this.index : -1;
+    this.auras.forEach((c, i) => {
+      if (Math.abs(i - this.pos) > 2.6 || i === covered) return;
+      drawAura(c, c.dataset.aura, t + i * 0.37, LOOK.color(`type-${this.ids[i]}`, '#8fd9ff'), strength);
+    });
+  }
 
   place() {
     this.placed = this.pos;
@@ -288,7 +315,8 @@ export class TypePicker {
       if (Math.abs(gap) > 0.002 && !this.calm()) { this.pos += gap * (1 - Math.exp(-dt * LOOK.num('pick-snap', 14))); moving = true; }
       else if (gap) this.pos = this.target;
     }
-    if (this.pos !== this.placed) this.place();
+    if (this.pos !== this.placed) { this.place(); this.auraAt = -1; }   // a card coming into view gets its element at once
+    this.drawAuras(dt);
     // pictures are drawn only while the row is still: a draw can take a few milliseconds
     if (!moving && this.queue.length) this.draw();
     // the row has settled: the centre card comes alive (its still portrait stays under it, and stays
@@ -304,7 +332,7 @@ export class TypePicker {
       this.spin += dt / LOOK.num('pick-spin-step', 1.4);
       this.showView(this.index, Math.floor(this.spin) % VIEWS, this.spin % 1);
     }
-    if (moving || turning || live || this.queue.length) this.kick();
+    if (moving || turning || live || this.queue.length || !this.calm()) this.kick();   // the elements keep moving
   }
 
   // --- moving the row --------------------------------------------------------------------------
