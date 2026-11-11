@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v413 Jelly types are here: after your first run you pick a jelly (Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle) before every run, each with its own attack, look and 12 Attack upgrades (one after each of the first three bosses). New types unlock by finishing acts and defeating Elites. The old Element treasures and the separate evolution pick are replaced: evolutions now come in the Legendary pick after a boss.
+
 v412 starts the camera 15% closer to the jelly (0.765 m on desktop, 0.595 m on phones); the mouse wheel still zooms out to the old 0.9 m view.
 
 v411 cuts the floor rings that crowded fights: hits, crits, kills, freezes, gusts, jumps, enemy throws, rebound trails, special bubbles, the Glow Stick's tick, the Chore List target and the Night-Light's rim no longer draw a circle on the floor, slowed bugs show drifting frost instead of a ring, and the room chest's timer is a thin gold arc instead of the danger Warning look, so floor circles now mean a Warning or the real reach of an area hit.
