@@ -710,6 +710,9 @@ export function newMods() {
     burnRamp: null,                  // burn-ramp: { step, most } Burn grows the longer a bug burns (bubbles.js)
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
     streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
+    percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
+    spreadOnTouch: [],               // spread-on-touch: statuses a bug passes on to bugs touching it (bubbles.js effects)
+    split: null,                     // split-on-hit: { count, dmg, angle } (bubbles.js pop)
   };
 }
 
@@ -718,11 +721,11 @@ const scopes = (by, where) => {
   if (!BY.includes(by)) throw new Error(`${where}: by= must be one of ${BY.join(', ')}`);
   return by === 'all' ? ['bubbles', 'tentacles'] : [by];
 };
-const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter'];
+const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter', 'poison'];   // poison: the Poison jelly type's attack only (it replaces acid there)
 
 // The statuses a bug can have, as status-damage, status-taken and on-kill-of name them. Each has a
 // reader in Enemies.statuses (bubbles.js adds burning, combat.js bleeding) giving its stacks, 0 for none.
-export const STATUSES = ['frozen', 'chilled', 'slowed', 'stunned', 'marked', 'burning', 'bleeding'];
+export const STATUSES = ['frozen', 'chilled', 'slowed', 'stunned', 'marked', 'burning', 'bleeding', 'poisoned'];
 // What dealt a hit, as `by=` names it: a plain bubble, a tentacle, a splash, or an Element's shot
 // (its burn, arcs and puddles go by the Element's name too)
 export const HIT_BY = ['all', 'bubble', 'tentacle', 'splash', ...ELEMENT_IDS];
@@ -745,6 +748,9 @@ export const ELEMENT_BASE = {
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
   wind: { push: 0.6, pierce: 1, speed: 1.6 / 0.57, rate: 0.88, dmg: 1.5, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
   glitter: { width: 0.08 / 0.026, splash: 1, slow: 0, rate: 1.05, speed: 0.4 / 0.57 },            // splash width x, splash damage x, slow s
+  // the Poison jelly's blob (docs/jelly-types/types/poison.md): its burst, a 5 cm sphere (width, as glitter's), does no
+  // damage but adds a Poison stack; each stack does `poison` x 20% of Attack damage a second for poisonTime s, up to poisonStacks
+  poison: { poison: 1, poisonTime: 5, poisonStacks: 5, width: 0.05 / 0.026 },
 };
 // element-up numbers that add (the rest multiply)
 export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
@@ -758,6 +764,7 @@ export const ELEMENT_HINTS = {
   puddleTime: 'seconds a puddle lasts', puddles: 'most puddles at once', push: 'how far it pushes',
   windup: 'wind-up before each shot (s)', collision: 'damage when a pushed enemy hits furniture',
   width: 'splash width', splash: 'splash damage', slow: 'slow seconds',
+  poison: 'Poison damage a second', poisonTime: 'seconds a Poison stack lasts', poisonStacks: 'Poison stacks one bug can hold',
 };
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
@@ -839,6 +846,42 @@ export const TIMED_WORDS = {
     args: ['xp'],
     make: ([n]) => ({ kind: 'xp', xp: n }),
   },
+  // --- Poison's Attack upgrades (P8c)
+  cloud: {
+    doc: 'A cloud of gas `radius` m round where it goes off, for `time` s: every 0.5 s each bug inside gets a Poison stack (as your Poison attack\'s).',
+    props: { radius: 0.05, time: 3 },
+    make: (_, p) => {
+      if (!(p.radius > 0 && p.time > 0)) throw new Error('cloud: radius and time must be above 0');
+      return { kind: 'cloud', ...p };
+    },
+  },
+  'pass-stacks': {
+    doc: 'In an on-kill-of block: the dead bug\'s stacks of `status` (poisoned) pass to every bug within `radius` m of it.',
+    args: ['status'],
+    props: { radius: 0.06 },
+    make: ([s], p) => {
+      if (s !== 'poisoned') throw new Error(`pass-stacks: status must be poisoned, not "${s}"`);
+      if (!(p.radius > 0)) throw new Error('pass-stacks: radius must be above 0');
+      return { kind: 'pass-stacks', status: s, ...p };
+    },
+  },
+  heal: {
+    doc: 'Gives back `health`, at most `most` times a second.',
+    args: ['health'],
+    props: { most: 3 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.most > 0)) throw new Error('heal: health and most= must be above 0');
+      return { kind: 'heal', health: n, most: p.most };
+    },
+  },
+  blob: {
+    doc: '`count` Poison blobs (your Poison attack\'s, its hit and burst) fall from above on as many bugs within `range` m of you.',
+    props: { count: 4, range: 0.3 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.count) && p.count >= 1 && p.range > 0)) throw new Error('blob: count must be a whole number, 1 or more, and range above 0');
+      return { kind: 'blob', ...p };
+    },
+  },
 };
 
 // what an nth-attack block can make its attack (bubbles.js volley)
@@ -863,7 +906,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs'];   // ember, barbs: the Fire and Tentacle jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin'];   // ember, barbs, toxin: the Fire, Tentacle and Poison jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
@@ -1040,7 +1083,7 @@ export const TREASURE_WORDS = {
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
   },
   'on-kill-of': {
-    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp.',
+    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp, cloud, pass-stacks, heal.',
     props: { status: null, by: null, stacks: 1 },
     block: TIMED_WORDS,
     make: (_, p, where, effects) => {
@@ -1125,4 +1168,29 @@ export const TREASURE_WORDS = {
   'orbit-lights': { doc: '`count` little bulbs circle you `radius` m out and sting whatever they touch for `dmg` (each enemy at most every 0.4 s).', args: ['count'], props: { radius: 0.07, dmg: 0.6 }, make: ([n], p) => (m) => { m.orbit = { count: n, ...p }; } },
   beam: { doc: 'A beam burns the nearest enemy within `range` m for `dmg` every `tick` s.', props: { range: 0.35, dmg: 0.3, tick: 0.25 }, make: (_, p) => (m) => { m.beam = p; } },
   aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s.', args: ['radius'], props: { dmg: 0.4, tick: 0.5 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
+  // --- Poison's Attack upgrades (P8c)
+  'percent-dot': {
+    doc: 'Bugs that are `status` lose `share` (0.01 = 1%) of their max Health a second, Elites too; `boss=#true` counts the boss as well. Copies add.',
+    args: ['status'],
+    props: { share: 0.01, boss: false },
+    make: ([s], p) => {
+      const st = status(s, 'percent-dot');
+      if (!(p.share > 0 && p.share < 1)) throw new Error('percent-dot: share must be between 0 and 1');
+      return (m) => { m.percentDots.push({ status: st, share: p.share, boss: p.boss }); };
+    },
+  },
+  'spread-on-touch': {
+    doc: 'A bug touching one that is `status` (poisoned) and isn\'t itself gets 1 stack of it (checked every 0.5 s).',
+    args: ['status'],
+    make: ([s]) => { if (s !== 'poisoned') throw new Error(`spread-on-touch: status must be poisoned, not "${s}"`); return (m) => { if (!m.spreadOnTouch.includes(s)) m.spreadOnTouch.push(s); }; },
+  },
+  'split-on-hit': {
+    doc: 'A shot that hits a bug splits into `count` smaller ones, fanned `angle`° apart, that fly on from there (missing that bug) and pop on their own, each `dmg` times its damage; a split never splits again.',
+    args: ['count'],
+    props: { dmg: 0.5, angle: 40 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 1 && p.dmg > 0 && p.angle >= 0)) throw new Error('split-on-hit: count must be a whole number, 1 or more, dmg above 0 and angle 0 or more');
+      return (m) => { m.split = { count: n, dmg: p.dmg, angle: p.angle }; };
+    },
+  },
 };

@@ -106,3 +106,50 @@ upgrade "bellPulse" jelly="tentacle" name="Bell Pulse" icon="🔔" text="Every 3
         reach-flare 2
     }
 }
+
+// --- Poison: stacks, weakening, spreading Poison, healing from Poisoned kills (docs/jelly-types/types/poison.md).
+// Numbers are starting values. Wither and Venom Strike say it with status-damage's per-stack (hits only, not Poison itself)
+upgrade "wither" jelly="poison" name="Wither" icon="🥀" text="Each Poison stack on a bug makes your hits on it do 6% more damage, on Elites and the boss too." {
+    status-damage "poisoned" more=0 per-stack=0.06 elites=#true
+}
+upgrade "lingeringDose" jelly="poison" name="Lingering Dose" icon="⏳" text="Poison lasts twice as long: 10 s." {
+    element-up "poison" poisonTime=2
+}
+upgrade "overdose" jelly="poison" name="Overdose" icon="💉" text="Poison stacks up to 10 times on one bug, not 5." {
+    element-up "poison" poisonStacks=2
+}
+upgrade "splatter" jelly="poison" name="Splatter" icon="💦" text="Your blob's burst is 50% wider." {
+    element-up "poison" width=1.5
+}
+upgrade "venomStrike" jelly="poison" name="Venom Strike" icon="🐍" text="Your blob's hit does 20% more for each Poison stack on the bug." {
+    status-damage "poisoned" more=0 per-stack=0.2 by="poison" elites=#true
+}
+upgrade "wasteAway" jelly="poison" name="Waste Away" icon="🦴" text="Poisoned bugs also lose 1% of their max Health a second, Elites too." {
+    percent-dot "poisoned" share=0.01
+}
+upgrade "toxicCloud" jelly="poison" name="Toxic Cloud" icon="☁️" text="A Poisoned bug that dies leaves a 5 cm cloud of gas for 3 s that Poisons every bug inside." {
+    on-kill-of status="poisoned" {
+        cloud radius=0.05 time=3
+    }
+}
+upgrade "burstSac" jelly="poison" name="Burst Sac" icon="🎈" text="A Poisoned bug that dies bursts, passing its Poison stacks to every bug within 6 cm." {
+    on-kill-of status="poisoned" {
+        pass-stacks "poisoned" radius=0.06
+    }
+}
+upgrade "leech" jelly="poison" name="Leech" icon="🩸" text="Heal 1 Health for each Poisoned bug that dies, up to 3 a second." {
+    on-kill-of status="poisoned" {
+        heal 1 most=3
+    }
+}
+upgrade "contagion" jelly="poison" name="Contagion" icon="🦠" text="A bug touching a Poisoned bug gets a Poison stack too." {
+    spread-on-touch "poisoned"
+}
+upgrade "poisonRain" jelly="poison" name="Poison Rain" icon="🌧️" text="Every 8 s, 4 Poison blobs fall on bugs within 30 cm of you." {
+    every 8 {
+        blob count=4 range=0.3
+    }
+}
+upgrade "splitBlob" jelly="poison" name="Split Blob" icon="🫧" text="After it hits, your blob splits in two halves that fly on, each hitting for half and bursting." {
+    split-on-hit 2 dmg=0.5
+}

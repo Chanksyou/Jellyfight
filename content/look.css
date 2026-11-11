@@ -567,7 +567,7 @@
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
-  /* Jelly types' looks (src/adornments.js ember and barbs; content/jellies.kdl adorn=) */
+  /* Jelly types' looks (src/adornments.js ember, barbs and toxin; content/jellies.kdl adorn=) */
   --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
   --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
   --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
@@ -584,6 +584,29 @@
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */
   --barb-size: 3;                 /* a barb's length, in tentacle widths */
+  --toxin-core: #9effc8;          /* Poison jelly: the pale green core in the bell (emissive, not a light) */
+  --toxin-core-size: 0.13;        /* its radius, in shares of the jelly's height (bigger than the ember, to read at play distance) */
+  --toxin-glow-size: 0.7;         /* the soft glow round it, likewise */
+  --toxin-core-y: 0.8;            /* its height in the bell (model units: the rim is at 0.56) */
+  --toxin-bubble: #d6ffe9;        /* toxic bubbles rising off the core */
+  --toxin-bubbles: 8;             /* at most this many at once */
+  --toxin-bubble-every: 0.14;     /* seconds between bubbles */
+  --toxin-bubble-life: 0.9;       /* seconds a bubble lasts */
+  --toxin-bubble-rise: 0.22;      /* how far it rises in that time (model units) */
+  --toxin-bubble-size: 0.025;     /* its biggest radius, in shares of the jelly's height */
+  --toxin-drop: #3ee68c;          /* the drops on the tentacle tips and the drips off the rim */
+  --toxin-drop-size: 1.3;         /* a full drop's radius, in tentacle widths */
+  --toxin-drop-hang: 0.9;         /* about how long a tip's drop swells before it falls, seconds */
+  --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */
+  --toxin-drips: 6;               /* drips off the rim at most at once */
+  --toxin-drip-every: 0.35;       /* seconds between them */
+  /* the Poison jelly's attack (src/bubble-looks.js poison): a cool friendly green, never the Clog's violet acid */
+  --poison-blob: #4ff0a0;         /* the blob and its streak */
+  --poison-bright: #c8ffe4;       /* its bubble and the bright heart of a burst */
+  --poison-deep: #12a866;         /* its tail and the drops off a Poisoned bug */
+  --poison-gas: #7dffc0;          /* the burst's gas, its vapour, a Toxic Cloud */
+  --poison-burst-life: 0.35;      /* seconds the burst's sphere takes to swell to its edge and fade */
+  --poison-drip-every: 0.2;       /* seconds between a Poisoned bug's bubbles and drips (faster with more stacks) */
   --ink-cloud: #0b0a22;           /* the Ink Cloud upgrade: near-black blue ink, the body of the cloud, its floor stains and drops */
   --ink-edge: #26205a;            /* the lighter blue where the cloud is thin, so it reads as ink and not a shadow */
   --venom: #8dff5a;              /* the puffs of a venomed bug */
