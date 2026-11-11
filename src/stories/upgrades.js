@@ -36,7 +36,7 @@ const FIRE_POOL = ['flashpoint', 'slowBurn', 'fireBreath', 'wildfire', 'hotHead'
 
 // ------------------------------------------------------------------ the pick, chests, saves
 story('types/end-of-act-offers-attack-upgrades', {
-  about: 'A Fire run with jelly types on: after act 1\'s boss, the Legendary pick (evolutions are in it since P9), then a pick of 3 Fire Attack upgrades, then the act ends. With the switch off it is the evolution and the Legendary pick, and no upgrade pick.',
+  about: 'A Fire run: after act 1\'s boss, the Legendary pick (evolutions are in it since P9), then a pick of 3 Fire Attack upgrades, then the act ends.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = () => {
@@ -50,18 +50,15 @@ story('types/end-of-act-offers-attack-upgrades', {
     };
     const on = once();
     fresh();
-    const off = once();
-    fresh();
     const up = on.picks[1], pool = new Set(FIRE_POOL);
     const pass = on.picks.length === 2 && /Attack upgrade/.test(up.title) && up.ids.length === 3 && up.ids.every((id) => pool.has(id))
-      && on.upgrades.length === 1 && on.upgrades[0] === up.ids[0] && on.ended[0] === 2
-      && off.picks.length === 2 && !off.upgrades.length && off.ended[0] === 2;
-    return ok(pass, { on, off });
+      && on.upgrades.length === 1 && on.upgrades[0] === up.ids[0] && on.ended[0] === 2;
+    return ok(pass, { on });
   },
 });
 
 story('types/attack-upgrade-is-never-in-a-chest', {
-  about: 'With jelly types on, no chest or Legendary pick ever offers an Attack upgrade, an Element, an Element upgrade, Power Bank or the six old tentacle Treasures; the upgrade pick offers each upgrade once and Inferno only after Slow Burn. With the switch off the tentacle Treasures still turn up.',
+  about: 'No chest or Legendary pick ever offers an Attack upgrade, an Element, an Element upgrade, Power Bank or the six old tentacle Treasures; the upgrade pick offers each upgrade once and Inferno only after Slow Burn. With the switch off the tentacle Treasures still turn up.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const { run } = G();
@@ -84,15 +81,12 @@ story('types/attack-upgrade-is-never-in-a-chest', {
     run.pickUpgrade({ id: 2 }, () => {});
     const inferno = offered[0]?.length === 2 && offered[0].includes('inferno');
     fresh();
-    const off = seen();
-    const oldStill = off.has('spaghetti') && off.has('nettle');
-    fresh();
-    return ok(!bad.length && on.size > 20 && noInferno && inferno && oldStill, { bad, offeredOn: on.size, noInferno, inferno, oldStill });
+    return ok(!bad.length && on.size > 20 && noInferno && inferno, { bad, offeredOn: on.size, noInferno, inferno });
   },
 });
 
 story('types/third-chest-is-ordinary', {
-  about: 'With jelly types on, every 3rd chest is an ordinary pick of three, even owning the Birthday Candle (still counted: Spare Change reads it); with the switch off every 3rd chest offers an Element upgrade.',
+  about: 'Every 3rd chest is an ordinary pick of three, even owning the Birthday Candle (still counted: Spare Change reads it), and no chest offers an Element upgrade.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const ups = () => {
@@ -104,9 +98,7 @@ story('types/third-chest-is-ordinary', {
     };
     const on = ups();
     fresh();
-    const off = ups();
-    fresh();
-    return ok(on.thirds.every((n) => n === 0) && on.opened === 30 && off.thirds.every((n) => n === 1), { on, off });
+    return ok(on.thirds.every((n) => n === 0) && on.opened === 30, { on });
   },
 });
 

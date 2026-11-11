@@ -53,13 +53,13 @@ phone('double-taps-cannot-zoom-the-page', {
   },
 });
 
-phone('camera-starts-at-0-7-metres', {
-  about: 'Phones start at 0.7 m; desktop still starts at 0.9 m and the outer zoom limit stays 0.9 m.',
+phone('camera-starts-at-0-6-metres', {
+  about: 'Phones start at 0.595 m (15% closer than 0.7); desktop starts at 0.765 m and the outer zoom limit stays 0.9 m.',
   setup() { fresh({ elites: false }); },
   play() {
     const { tpc } = G();
     step(1);
-    return ok(tpc.distance === 0.7 && tpc.currentDistance === 0.7 && tpc.cfg.distance === 0.9 && tpc.cfg.maxDistance === 0.9, { distance: tpc.distance, rendered: tpc.currentDistance, desktop: tpc.cfg.distance, max: tpc.cfg.maxDistance });
+    return ok(tpc.distance === 0.595 && tpc.currentDistance === 0.595 && tpc.cfg.distance === 0.765 && tpc.cfg.maxDistance === 0.9, { distance: tpc.distance, rendered: tpc.currentDistance, desktop: tpc.cfg.distance, max: tpc.cfg.maxDistance });
   },
 });
 
@@ -173,7 +173,7 @@ phone('minimap-is-small', {
   },
 });
 phone('the-first-minute', {
-  about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, the first card, the Element pick, then the first Treasure with the minimap.',
+  about: 'A player\'s first minute on a phone plays in the same order as on desktop: moving only, the Health hint, then the first Treasure with the minimap.',
   setup() {},
   play: firstMinute,
 });

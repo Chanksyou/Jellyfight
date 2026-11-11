@@ -22,6 +22,7 @@
 import { BEST_KEY } from './leaderboard.js';
 
 export const PLAYED_KEY = 'jellyrun.played';
+const JUMP_TIP_AT = 12;         // seconds into a first run
 const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
 // Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
@@ -69,6 +70,7 @@ export class FirstRun {
     this.hitHintShown = !this.active;
     this.elementChosen = typed;          // the run sets it when the start Element pick is made
     this.mapShown = !this.active;
+    this.jumpTipShown = false;
     this.skipped = false;                // a scheduled Treasure was skipped before the Element pick
   }
 
@@ -108,6 +110,13 @@ export class FirstRun {
     this.elementChosen = true;
     if (!this.active) return { hint: null, treasureAt: null };
     return { hint: 'Hold jump to jump higher.', treasureAt: this.skipped ? t + TREASURE_AFTER_PICK : null };
+  }
+
+  // the run is at time t: the jump tip, once, a few seconds after the opening tip is gone (and not over another line)
+  jumpTip(t) {
+    if (!this.active || this.jumpTipShown || t < JUMP_TIP_AT) return null;
+    this.jumpTipShown = true;
+    return 'Hold jump to jump higher.';
   }
 
   // a Level-up's card was just picked: open the Element pick now? (once, after the first card)

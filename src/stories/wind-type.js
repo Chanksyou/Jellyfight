@@ -52,20 +52,13 @@ story('types/wind-plays', {
 });
 
 story('types/wind-pierce-is-the-types-only', {
-  about: 'Pierce +1 reaches a type\'s main attack only: with jelly types off, the wind Element (Paper Fan) goes through 2 bugs as it always did; the Wind jelly\'s gusts go through 3.',
+  about: 'The Wind jelly\'s gusts go through 3 bugs (its Pierce stat).',
   setup() { setupFight({ types: 'wind' }); },
   play() {
     const a = roachAt(0, -0.15), blows = spy(G().run.bubbles, 'blow');
     step(60);
     const on = blows.filter((c) => c[2].tint === 'wind').map((c) => c[2].pierce);
-    fresh();
-    G().run.owned.add('paperFan');
-    roachAt(0, -0.15);
-    G().run.stats.pierce = 1;   // even with a Pierce stat, a run without a type is as it was
-    const off = spy(G().run.bubbles, 'blow');
-    step(120);
-    const fan = off.filter((c) => c[2].tint === 'wind').map((c) => c[2].pierce);
-    return ok(on.length > 0 && on.every((p) => p === 3) && fan.length > 0 && fan.every((p) => p === 2), { on, fan, a: !!a });
+    return ok(on.length > 0 && on.every((p) => p === 3), { on, a: !!a });
   },
 });
 

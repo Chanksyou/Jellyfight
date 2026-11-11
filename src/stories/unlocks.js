@@ -62,12 +62,13 @@ story('types/unlock-elites-count-across-runs', {
 });
 
 story('types/dev-run-unlocks-nothing', {
-  about: 'A dev run (dev tools unlocked, or jelly types on before release) beating Elites and a boss opens no jelly type and counts nothing toward one.',
+  about: 'A dev run (dev tools unlocked) beating Elites and a boss opens no jelly type and counts nothing toward one.',
   setup() {},
   play() {
     const { run } = G(), back = asPlayer(false);
     try {
       fresh({ types: 'normal' });
+      run.devRun();
       const dev = run.dev;
       for (const kind of ['mug', 'kettle', 'controller']) run.eliteDefeated(elite(kind));
       beatBoss(run);
@@ -78,7 +79,7 @@ story('types/dev-run-unlocks-nothing', {
 });
 
 story('types/book-has-jellies-page', {
-  about: 'With jelly types on the Treasure book opens on a Jellies page: all eight types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade or Power Bank and takes the former evolutions in; there is no Evolutions page. With the switch off the book is as before.',
+  about: 'The Treasure book opens on a Jellies page: all eight types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade or Power Bank and takes the former evolutions in; there is no Evolutions page.',
   setup() {},
   play() {
     const { run } = G(), back = asPlayer(true, { feats: { elites: 3 } });
@@ -97,15 +98,11 @@ story('types/book-has-jellies-page', {
       const T = S.find((s) => s.title === 'Treasures'), ids = new Set(T.items.map((i) => i.id));
       const gone = TREASURES.filter(leavesWithTypes).every((t) => !ids.has(t.id)) && !ids.has('powerBank');
       const evos = CONTENT.evolutions.every((e) => ids.has(e.id)) && !titles.includes('Evolutions');
-      fresh();
-      stub(run.ui, 'book', (title, sections) => shown.push(sections));
-      run.showBook(() => {});
-      const offTitles = shown[1].map((s) => s.title), off = offTitles.join() === 'Treasures,Evolutions,Elites,Bosses';
       // drawn: a locked type is a silhouette with its goal
       Object.getPrototypeOf(run.ui).book.call(run.ui, 'book', S, () => {});
       const drawn = modal().querySelectorAll('.jf-book-grid button.locked').length === 6 && /Finish act 1/.test(modal().textContent);
       G().menus.close(); run.ui.close();
-      return ok(cards && locks && upgrade && gone && evos && drawn && off, { titles, cards, locks, upgrade, gone, evos, drawn, offTitles });
+      return ok(cards && locks && upgrade && gone && evos && drawn, { titles, cards, locks, upgrade, gone, evos, drawn });
     } finally { back(); }
   },
 });
