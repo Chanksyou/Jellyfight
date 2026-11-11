@@ -71,6 +71,19 @@ story('types/poison-burst-and-stacks', {
   },
 });
 
+story('types/poison-hits-count-as-poison', {
+  about: 'Venom Strike\'s status-damage by="poison": the blob\'s hit on a bug with 2 Poison stacks lands 40% harder; a Poison tick on it doesn\'t (Wither and Venom Strike are for hits only), nor does a plain bubble.',
+  setup() { quiet(); },
+  play() {
+    withWords('status-damage "poisoned" more=0 per-stack=0.2 by="poison" elites=#true');
+    const bug = roachAt(0, -0.2), landed = record('enemy_hit');
+    G().run.bubbles.poison(bug, 1e-6, poison({ poisonTime: 30 }), 2);
+    const hit = (source, feedback) => { landed.length = 0; bus.emit('damage_taken', { targetId: bug.id, amount: 3, source, feedback }); return landed[0]?.amount; };
+    const blob = hit('bubble', { element: 'poison' }), tick = hit('poison'), plain = hit('bubble');
+    return ok(Math.abs(blob - 4.2) < 1e-9 && tick === 3 && plain === 3, { blob, tick, plain });
+  },
+});
+
 story('treasures/percent-dot', {
   about: 'percent-dot "poisoned" share=0.01: a Poisoned bug loses 1% of its max Health a second, an Elite too, the boss not (unless boss=#true); a bug without Poison loses nothing. A share of 1 or more is a mistake.',
   setup() { quiet(); },

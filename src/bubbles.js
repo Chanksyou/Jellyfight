@@ -53,7 +53,7 @@ const GOLD = new THREE.Color(0xffd86a);
 const _down = new THREE.Vector3(0, -1, 0);
 const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
-const _yAxis = new THREE.Vector3(0, 1, 0);
+const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
 const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
 // share of power each element deals (see the top of the file)
@@ -675,6 +675,7 @@ export class Bubbles {
   // gives every bug in it, the one it hit too, a Poison stack
   poisonBurst(b) {
     const p = b.m.position, E = this.enemies, c = this._c, r = SPLASH * (b.r / RADIUS) * (b.ep?.width ?? 1);
+    this.poisonPw = b.pw;   // what a stack from Toxic Cloud or Burst Sac is worth: the blob's own (its share with more Attacks)
     this.looks.poisonBurst(p, r);
     for (const e of E.list) {
       if (e.dead || E.center(e, c).distanceTo(p) >= r + e.r) continue;
@@ -694,7 +695,9 @@ export class Bubbles {
     const P = this.mainParams('poison', mods), n = Math.max(1, Math.round(stats.bubbles)), each = stats.bubbleDamage * bubbleShare(n);
     const bugs = this.inRange(origin, range).slice(0, count);
     for (const e of bugs) {
-      const at = this.enemies.center(e).add(_up);
+      // from 10 cm above it, or under the furniture over it (a blob starting inside it would pop on it unburst)
+      const c = this.enemies.center(e), hit = this.world.cast(c, _upDir, _up.y), r = RADIUS * stats.bubbleSize;
+      const at = c.clone().setY(c.y + (hit ? Math.max(r * 2, hit.distance - r * 2) : _up.y));
       this.blow(at, e, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: ['poison'], tint: 'poison', ep: P, pierce: 1, speed: P.speed, range: 0.3 });
     }
     if (bugs.length) { this.looks.launch('poison', origin, stats.bubbleSize); sfx.elementLaunch('poison'); this.onElementRelease?.('poison'); }
