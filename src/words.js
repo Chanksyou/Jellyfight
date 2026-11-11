@@ -69,7 +69,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt;
           e.leapCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.flat < p.range && e.grounded && e.leapCd <= 0) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
+            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
           } else if (e.state === 'crouch') {
             c.speed = 0;
             e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
@@ -694,10 +694,12 @@ export function newMods() {
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
-    shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false },   // the Shield stat's treasures (src/shield.js)
+    shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
     rebound: false, tentacleWeapon: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
+    touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
+    charged: [],                     // charged-shot: { when, time, strike, chain, dmg, key } (run.js builds the charge, bubbles.js spends it)
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
     eliteDamage: 1,                  // elite-damage: hits on Elites and the boss do this much
@@ -710,6 +712,9 @@ export function newMods() {
     burnRamp: null,                  // burn-ramp: { step, most } Burn grows the longer a bug burns (bubbles.js)
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
     streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
+    chillFreeze: null,               // chill-to-freeze: { hits, time } (bubbles.js strike)
+    groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
+    slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
     spreadOnTouch: [],               // spread-on-touch: statuses a bug passes on to bugs touching it (bubbles.js effects)
     split: null,                     // split-on-hit: { count, dmg, angle } (bubbles.js pop)
@@ -719,6 +724,17 @@ export function newMods() {
     splashReflect: false,            // splash-reflect: a burst near a wall goes off again, thrown back off it (bubbles.js)
     wish: null,                      // wish: { kills } once an act, a splash that kills that many gives a level-up (run.js)
     jackpot: null,                   // crumb-on-kill drop="level": { chance } a kill drops XP worth a whole level (run.js onKill)
+    pushedHits: false,               // pushed-hits: a bug a gust shoves knocks into the bugs on its way (enemies.js push)
+    glide: null,                     // glide: { fall, push } hold jump in the air to drift down (player.js), gusts blown then push further (bubbles.js)
+    freeAttacks: 0,                  // stat bubbles … no-penalty=#true: Attacks that cost the others no damage (bubbles.js share)
+    ricochet: 0,                     // rebound walls-only=#true: wall ricochets a bubble gets (bubbles.js fly)
+    trap: null,                      // trap-on-hit: { chance, time } (bubbles.js strike)
+    homing: null,                    // homing: { turn, reach } (bubbles.js fly)
+    popChain: null,                  // pop-chain: { dmg, range } (bubbles.js pop)
+    wobble: null,                    // wobble: { width, rate } (bubbles.js fly)
+    focusRamp: null,                 // focus-ramp: { step, most } (bubbles.js strike)
+    rangePop: null,                  // range-pop: { splash } (bubbles.js fly)
+    orbitMisses: false,              // orbit-misses (bubbles.js fly)
   };
 }
 
@@ -750,27 +766,29 @@ const SHATTER = Object.freeze({ status: 'frozen', more: 2, by: 'fire', elites: f
 export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
   fire: { burn: 1, burnTime: 3, spread: 0.06, burnStacks: 1 },        // burn dps x, seconds, how far a death spreads it, Burns one bug can hold at once
-  lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
-  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5 },         // chill s, frost: chills the whole splash, slowed enemies take x
+  lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1, revisit: 0, stunFirst: 0, eliteBolt: 1 },   // arcs, arc damage x, stun s, arc reach m, arcs may return to a bug already hit (1), arcs go to Stunned bugs first (1), arc damage x on Elites and the boss
+  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5, frostbite: 0, chillPierce: 0, grow: 0 },   // chill s, frost: chills the whole splash, slowed enemies take x, frostbite: Chill hurts for this share of the hit a second, chillPierce: shards fly through bugs already Chilled, grow: a shard grows this much with each bug it hits
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
-  wind: { push: 0.6, pierce: 1, speed: 1.6 / 0.57, rate: 0.88, dmg: 1.5, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
+  wind: { push: 0.6, pierce: 1, speed: 1.6 / 0.57, rate: 0.88, dmg: 1.5, windup: 0.28, collision: 1, falloff: 0, angle: 0 }, // half base bubble rate; windup s, scenery collision damage x; falloff: damage lost per bug a gust goes through, angle: degrees a second gust fires off to the side
   glitter: { width: 0.08 / 0.026, splash: 1, slow: 0, rate: 1.05, speed: 0.4 / 0.57 },            // splash width x, splash damage x, slow s
   // the Poison jelly's blob (docs/jelly-types/types/poison.md): its burst, a 5 cm sphere (width, as glitter's), does no
   // damage but adds a Poison stack; each stack does `poison` x 20% of Attack damage a second for poisonTime s, up to poisonStacks
   poison: { poison: 1, poisonTime: 5, poisonStacks: 5, width: 0.05 / 0.026 },
 };
 // element-up numbers that add (the rest multiply)
-export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
+export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul', 'frostbite', 'chillPierce', 'grow', 'falloff', 'angle', 'revisit', 'stunFirst']);
 // What each of those numbers is, for the balance editor
 export const ELEMENT_HINTS = {
   rate: 'shots a second', dmg: 'damage per hit (× attack damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
   speed: 'shot speed', range: 'how far it reaches', burn: 'burn damage a second', burnTime: 'seconds a burn lasts',
   spread: 'how far (m) a burning kill spreads the burn', burnStacks: 'Burns one bug can hold at once (each re-hit adds one)', chain: 'enemies a bolt arcs to', bolt: 'arc damage',
-  stun: 'stun seconds', chainRange: 'arc reach (m)', chill: 'chill seconds', frost: 'chilling the whole splash (1 = on)',
+  stun: 'stun seconds', chainRange: 'arc reach (m)', revisit: 'arcs may return to a bug already hit (1 = on)', stunFirst: 'arcs go to Stunned bugs first (1 = on)', eliteBolt: 'arc damage on Elites and the boss', chill: 'chill seconds', frost: 'chilling the whole splash (1 = on)',
   slowedMul: 'extra damage slowed enemies take', puddleDmg: 'puddle damage', puddleSize: 'puddle size',
   puddleTime: 'seconds a puddle lasts', puddles: 'most puddles at once', push: 'how far it pushes',
   windup: 'wind-up before each shot (s)', collision: 'damage when a pushed enemy hits furniture',
+  falloff: 'damage each gust loses on every bug it goes through (0.2 = 20%)', angle: 'degrees an extra gust fires off to the side',
   width: 'splash width', splash: 'splash damage', slow: 'slow seconds',
+  frostbite: 'Chill damage a second, as a share of the hit', chillPierce: 'shards fly through already Chilled bugs (1 = on)', grow: 'how much a shard grows with each bug it hits',
   poison: 'Poison damage a second', poisonTime: 'seconds a Poison stack lasts', poisonStacks: 'Poison stacks one bug can hold',
 };
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
@@ -778,16 +796,20 @@ export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s, Chills it for `chill` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
     args: ['radius'],
-    props: { dmg: 1, push: 0, freeze: 0, slow: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
+    props: { dmg: 1, push: 0, freeze: 0, slow: 0, chill: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
   },
   zap: {
-    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each.',
+    doc: 'Zaps the `count` nearest enemies within `range` m with a jagged bolt, `dmg` each. `target="toughest"` picks the ones with the most Health left instead (an Elite or the boss counts as the most). `look` is "signal" or "bolt" (a lightning bolt, which counts as a lightning arc).',
     args: ['count'],
-    props: { range: 0.45, dmg: 2 },
-    make: ([count], p) => ({ kind: 'zap', count, ...p }),
+    props: { range: 0.45, dmg: 2, target: 'nearest', look: 'signal' },
+    make: ([count], p) => {
+      if (p.target !== 'nearest' && p.target !== 'toughest') throw new Error('zap: target must be nearest or toughest');
+      if (p.look !== 'signal' && p.look !== 'bolt') throw new Error('zap: look must be signal or bolt');
+      return { kind: 'zap', count, ...p };
+    },
   },
   brick: {
     doc: 'Drops a brick at your feet, `size` times the usual size; the first walking enemy to step on it takes `dmg`, and with `burst` (m) so does every enemy within that of the brick. Lasts `last` s, at most `most` on the floor.',
@@ -848,6 +870,15 @@ export const TIMED_WORDS = {
       return { kind: 'cone', ...p };
     },
   },
+  shards: {
+    doc: 'Ice shards fly out from the spot (an on-kill-of block) or from you at the `count` nearest bugs within `range` m: each takes `dmg` times your power and is Chilled for `chill` s.',
+    args: ['count'],
+    props: { range: 0.12, dmg: 0.5, chill: 2 },
+    make: ([count], p) => {
+      if (!(Number.isInteger(count) && count >= 1 && p.range > 0 && p.dmg > 0 && p.chill > 0)) throw new Error('shards: count must be a whole number, 1 or more, and range, dmg and chill above 0');
+      return { kind: 'shards', count, ...p };
+    },
+  },
   xp: {
     doc: 'Drops `xp` worth of XP at your feet.',
     args: ['xp'],
@@ -906,6 +937,24 @@ export const TIMED_WORDS = {
       return { kind: 'splash', ...p };
     },
   },
+  // --- Wind's Attack upgrades (P8d)
+  whirl: {
+    doc: 'A whirlwind `radius` m across rises at the nearest bug within `range` m of you and stays `time` s, pulling every bug in it toward its middle at `pull` m/s.',
+    props: { radius: 0.09, time: 1.6, pull: 0.12, range: 0.3 },
+    make: (_, p) => {
+      if (!(p.radius > 0 && p.time > 0 && p.pull > 0 && p.range > 0)) throw new Error('whirl: radius, time, pull and range must be above 0');
+      return { kind: 'whirl', ...p };
+    },
+  },
+  // Lightning jelly (P8b)
+  orb: {
+    doc: 'A slow ball of lightning drifts out toward the nearest bug (or the way you face) at `speed` m/s for `life` s, zapping every bug within `radius` m of it for `dmg` (once each).',
+    props: { speed: 0.07, life: 5, radius: 0.025, dmg: 1.5 },
+    make: (_, p) => {
+      if (!(p.speed > 0 && p.life > 0 && p.radius > 0)) throw new Error('orb: speed, life and radius must be above 0');
+      return { kind: 'orb', ...p };
+    },
+  },
 };
 
 // what an nth-attack block can make its attack (bubbles.js volley)
@@ -923,6 +972,15 @@ export const ATTACK_WORDS = {
       return { kind: 'sweep', ...p };
     },
   },
+  // Lightning jelly (P8b)
+  bolt: {
+    doc: 'This lightning shot is a big bolt (lightning only; other attacks ignore it): `size` times bigger, its arcs `dmg` times as hard and `reach` times as far.',
+    props: { dmg: 2, reach: 2, size: 1.5 },
+    make: (_, p) => {
+      if (!(p.dmg > 0 && p.reach > 0 && p.size > 0)) throw new Error('bolt: dmg, reach and size must be above 0');
+      return { kind: 'bolt', ...p };
+    },
+  },
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
@@ -930,7 +988,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'sparkle'];   // ember, barbs, toxin, sparkle: the Fire, Tentacle, Poison and Glitter jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
@@ -943,14 +1001,16 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'echo-bubble': {
-    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting. `from="splash"`: every glitter burst fires `count` small shots from its middle at the nearest bugs within 20 cm, each `dmg` times the bomb\'s hit.',
-    props: { dmg: 1, by: 'bubbles', from: 'pop', count: 1 },
+    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `on="kill"`: only a bubble that killed its enemy does, and the one it fires goes on the same way. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting. `from="splash"`: every glitter burst fires `count` small shots from its middle at the nearest bugs within 20 cm, each `dmg` times the bomb\'s hit.',
+    props: { dmg: 1, by: 'bubbles', on: 'hit', from: 'pop', count: 1 },
     make: (_, p, where) => {
       if (p.by !== 'bubbles' && p.by !== 'tentacles') throw new Error(`${where}: by= must be bubbles or tentacles`);
+      if (p.on !== 'hit' && p.on !== 'kill') throw new Error(`${where}: on= must be hit or kill`);
+      if (p.on === 'kill' && p.by === 'tentacles') throw new Error(`${where}: on="kill" is for bubbles`);
       if (p.from !== 'pop' && p.from !== 'splash') throw new Error(`${where}: from= must be pop or splash`);
       if (!(Number.isInteger(p.count) && p.count >= 1)) throw new Error(`${where}: count= must be a whole number, 1 or more`);
       if (p.from === 'splash') return (m) => { m.splashShots.push({ min: 0, count: p.count, dmg: p.dmg }); };
-      return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg }; };
+      return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg, onKill: p.on === 'kill' }; };
     },
   },
   'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
@@ -962,7 +1022,7 @@ export const TREASURE_WORDS = {
     make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
   },
   'element-up': {
-    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow and slowedMul add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
+    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow, slowedMul, frostbite, chillPierce, grow, revisit and stunFirst add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
     args: ['name'],
     props: Object.fromEntries([...new Set(Object.values(ELEMENT_BASE).flatMap((o) => Object.keys(o)))].map((k) => [k, null])),
     make: ([name], p) => {
@@ -978,13 +1038,16 @@ export const TREASURE_WORDS = {
   'pin-on-crit': { doc: 'A critical hit pins the enemy in place for `seconds` (it can\'t move or attack). `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].pin = Math.max(m.hits[k].pin, s); }; } },
   'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your attack damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
-  'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg`.', args: ['radius'], props: { dmg: 2, drop: 0.04 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
+  'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg` (none if 0) and, with `push` (m), blasts everything in it that far away from you in a gust.', args: ['radius'], props: { dmg: 2, drop: 0.04, push: 0 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
   'when-hit': {
-    doc: 'When you get hit (not a dodge), does the effects in its { block } (ring, zap…), then waits `cooldown` s before it can again. Copies each have their own.',
-    props: { cooldown: 1 },
+    doc: 'When you get hit (not a dodge), does the effects in its { block } (ring, zap…), then waits `cooldown` s before it can again. `once-per-act=#true`: only the first time each act. `low-health` (a share of your max Health, 0.3 = 30%): only when you are at or under that. Copies each have their own.',
+    props: { cooldown: 1, 'once-per-act': false, 'low-health': null },
     block: TIMED_WORDS,
-    make: (_, p, where, effects) => (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}` }); },
+    make: (_, p, where, effects) => {
+      if (p['low-health'] != null && !(p['low-health'] > 0 && p['low-health'] <= 1)) throw new Error('when-hit: low-health must be above 0 and at most 1');
+      return (m, copy = 0) => { m.onHurt.push({ cooldown: p.cooldown, effects, key: `${where}#${copy}`, oncePerAct: p['once-per-act'], lowHealth: p['low-health'] }); };
+    },
   },
   reflect: { doc: 'Every `every` s, the first hit you take is sent back at whoever dealt it (if an enemy did) for at least `dmg` times your power, and you take none of it, then can\'t be hurt for `invuln` s. A shockwave hits every enemy within `burst` m for `burstDmg` times your power and shoves it `push` m.', props: { every: 20, invuln: 1, dmg: 0, burst: 0, burstDmg: 0, push: 0 }, make: (_, p) => (m) => { m.reflect = { ...p }; } },
   venom: { doc: 'Every tentacle sting adds a Bleed stack to the enemy (at most `stacks`), each bleeding `dps` times your Tentacle damage a second; stacks last `time` s after the last sting.', props: { dps: 0.5, time: 3, stacks: 5 }, make: (_, p) => (m) => { m.hits.tentacles.venom = { ...p }; } },
@@ -1018,7 +1081,14 @@ export const TREASURE_WORDS = {
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
   'tentacle-weapon': { doc: 'Your tentacles lash whatever your jelly type (with jelly types only the Tentacle jelly lashes otherwise); for the Tentacle jelly, more `tentacles` (stat) add to its Attacks.', make: () => (m) => { m.tentacleWeapon = true; } },
-  rebound: { doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight.', make: () => (m) => { m.rebound = true; } },
+  rebound: {
+    doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight. `walls-only=#true`: instead a bubble that hits a wall ricochets off it, up to `times` times, and flies on with its Range; nothing comes back to you.',
+    props: { 'walls-only': false, times: 1 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.times) && p.times >= 1)) throw new Error('rebound: times must be a whole number, 1 or more');
+      return (m) => { if (p['walls-only']) m.ricochet = Math.max(m.ricochet, p.times); else m.rebound = true; };
+    },
+  },
   decoy: {
     doc: 'Every `every` seconds spent moving, leaves a harmless copy for `time` seconds that attracts ordinary bugs within `range` m. Existing projectiles and locked aims stay unchanged.',
     props: { every: 8, time: 3, range: 0.45 },
@@ -1035,14 +1105,26 @@ export const TREASURE_WORDS = {
       return m => { m.fireTrail = { ...p }; };
     },
   },
-  'shield-recharge': { doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. Copies add.', props: { faster: 0, sooner: 0 }, make: (_, p) => (m) => { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } },
+  'shield-recharge': {
+    doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. With `near` (m), only while a Chilled bug is within that of you (then `sooner` is not allowed). Copies add.',
+    props: { faster: 0, sooner: 0, near: 0 },
+    make: (_, p) => {
+      if (!(p.near >= 0) || (p.near > 0 && p.sooner)) throw new Error('shield-recharge: near= is 0 or more, and goes with faster= only');
+      return (m) => { if (p.near > 0) m.shield.near.push({ faster: p.faster, radius: p.near }); else { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } };
+    },
+  },
   'shield-full-damage': { doc: 'While your Shield is full, everything you do hurts `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.shield.fullDamage += n / 100; } },
   'shield-burst': {
-    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true). Copies add their damage into one blast; different blasts each go off.',
-    props: { dmg: 2, radius: 0.3, flat: false },
+    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true), and with `invuln` you can\'t be hurt for that many seconds more (dmg=0 for no blast). Copies add their damage into one blast; different blasts each go off.',
+    props: { dmg: 2, radius: 0.3, flat: false, invuln: 0 },
     make: (_, p) => {
-      if (!(p.dmg > 0 && p.radius > 0)) throw new Error('shield-burst: dmg and radius must be positive');
-      return (m) => { const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat); if (same) same.dmg += p.dmg; else m.shield.bursts.push({ ...p }); };
+      if (!(p.radius > 0 && p.invuln >= 0 && (p.dmg > 0 || p.invuln > 0))) throw new Error('shield-burst: radius must be positive, and dmg or invuln above 0');
+      return (m) => {
+        m.shield.invuln = Math.max(m.shield.invuln, p.invuln);
+        if (!(p.dmg > 0)) return;
+        const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat);
+        if (same) same.dmg += p.dmg; else m.shield.bursts.push({ dmg: p.dmg, radius: p.radius, flat: p.flat });
+      };
     },
   },
   'health-to-shield': { doc: 'Your max Health stays at 1: the rest of it, now and whatever you gain later, is Shield instead. Health and Health regen cards are no longer offered.', make: () => (m) => { m.shield.fromHealth = true; } },
@@ -1065,14 +1147,15 @@ export const TREASURE_WORDS = {
   },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
     args: ['name', 'amount'],
-    props: { percent: false },
+    props: { percent: false, 'no-penalty': false },
     make: ([name, amount], p) => {
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
-      return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; };
+      if (p['no-penalty'] && (key !== 'bubbles' || p.percent || !(amount > 0))) throw new Error('stat: no-penalty=#true only goes with a positive whole number of bubbles (Attacks)');
+      return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; if (p['no-penalty']) m.freeAttacks += amount; };
     },
   },
   per: {
@@ -1118,7 +1201,7 @@ export const TREASURE_WORDS = {
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
   },
   'on-kill-of': {
-    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp, cloud, pass-stacks, heal, splash.',
+    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, shards, brick, bubble-ring, xp, cloud, pass-stacks, heal, splash.',
     props: { status: null, by: null, stacks: 1 },
     block: TIMED_WORDS,
     make: (_, p, where, effects) => {
@@ -1129,7 +1212,7 @@ export const TREASURE_WORDS = {
     },
   },
   'nth-attack': {
-    doc: 'Every `every`th attack (or, with random=#true, a random 1 in `every`) is the one in its { block } instead: big (bubbles) or sweep (tentacle lashes).',
+    doc: 'Every `every`th attack (or, with random=#true, a random 1 in `every`) is the one in its { block } instead: big (bubbles), bolt (lightning shots) or sweep (tentacle lashes).',
     args: ['every'],
     props: { random: false },
     block: ATTACK_WORDS,
@@ -1194,7 +1277,7 @@ export const TREASURE_WORDS = {
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, cone, grab, reach-flare, xp, next-attack.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl, next-attack.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,
@@ -1203,6 +1286,31 @@ export const TREASURE_WORDS = {
   'orbit-lights': { doc: '`count` little bulbs circle you `radius` m out and sting whatever they touch for `dmg` (each enemy at most every 0.4 s).', args: ['count'], props: { radius: 0.07, dmg: 0.6 }, make: ([n], p) => (m) => { m.orbit = { count: n, ...p }; } },
   beam: { doc: 'A beam burns the nearest enemy within `range` m for `dmg` every `tick` s.', props: { range: 0.35, dmg: 0.3, tick: 0.25 }, make: (_, p) => (m) => { m.beam = p; } },
   aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s.', args: ['radius'], props: { dmg: 0.4, tick: 0.5 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
+  // --- Ice jelly (P8a)
+  'chill-to-freeze': {
+    doc: 'Your Ice attack hitting one Chilled bug `hits` times in a row freezes it solid for `time` s (bugs only: Elites and the boss are not frozen). The count starts over when the Chill runs out or the bug freezes.',
+    args: ['hits'],
+    props: { time: 1.5 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 2 && p.time > 0)) throw new Error('chill-to-freeze: hits must be a whole number, 2 or more, and time= above 0');
+      return (m) => { m.chillFreeze = { hits: n, time: p.time }; };
+    },
+  },
+  'ground-lock': {
+    doc: 'A bug that is `status` can\'t jump, fly up or climb: it cannot start a leap, rises no higher in the air, and a step that would take a walking bug uphill does not happen.',
+    args: ['status'],
+    make: ([s]) => { const st = status(s, 'ground-lock'); return (m) => { if (!m.groundLock.includes(st)) m.groundLock.push(st); }; },
+  },
+  'slide-on-hit': {
+    doc: 'A hit on a bug that is `status` shoves it `distance` m along the hit, and every other bug it slides into is Chilled for `chill` s (the bug itself stays as it was).',
+    args: ['status'],
+    props: { distance: 0.12, chill: 2 },
+    make: ([s], p) => {
+      const st = status(s, 'slide-on-hit');
+      if (!(p.distance > 0 && p.chill > 0)) throw new Error('slide-on-hit: distance and chill must be above 0');
+      return (m) => { m.slideOnHit.push({ status: st, distance: p.distance, chill: p.chill }); };
+    },
+  },
   // --- Poison's Attack upgrades (P8c)
   'percent-dot': {
     doc: 'Bugs that are `status` lose `share` (0.01 = 1%) of their max Health a second, Elites too; `boss=#true` counts the boss as well. Copies add.',
@@ -1263,6 +1371,94 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(Number.isInteger(p.min) && p.min >= 1 && p.dmg > 0 && Number.isInteger(p.count) && p.count >= 0)) throw new Error('splash-shots: min must be a whole number, 1 or more, dmg above 0 and count a whole number, 0 or more');
       return (m) => { m.splashShots.push({ min: p.min, count: p.count, dmg: p.dmg }); };
+    },
+  },
+  // --- Wind's Attack upgrades (P8d)
+  'pushed-hits': {
+    doc: 'A bug your gust shoves hits every bug in its way as it slides: each takes the same damage as the shoved one took, once per shoved bug. Not Elites or the boss.',
+    make: () => (m) => { m.pushedHits = true; },
+  },
+  glide: {
+    doc: 'Hold jump in the air while falling to drift down at `fall` (0.2 = 20%) of the usual fall speed; gusts blown while you drift push `push` times as far.',
+    props: { fall: 0.2, push: 2 },
+    make: (_, p) => {
+      if (!(p.fall > 0 && p.fall <= 1 && p.push >= 1)) throw new Error('glide: fall must be above 0 and at most 1, push 1 or more');
+      return (m) => { m.glide = { fall: p.fall, push: p.push }; };
+    },
+  },
+  'trap-on-hit': {
+    doc: 'Each hit has `chance` to trap an ordinary bug in a bubble that holds it still (it can\'t move) for `time` s, then bursts. Elites and the boss are too big to trap.',
+    props: { chance: 0.125, time: 1.5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.time > 0)) throw new Error('trap-on-hit: chance must be above 0 and at most 1, and time above 0');
+      return (m) => { m.trap = m.trap ? { chance: Math.min(1, m.trap.chance + p.chance), time: Math.max(m.trap.time, p.time) } : { chance: p.chance, time: p.time }; };
+    },
+  },
+  homing: {
+    doc: 'Bubbles curve toward the nearest bug within `reach` m of them, turning up to `turn` radians a second.',
+    args: ['turn'],
+    props: { reach: 0.1 },
+    make: ([turn], p) => {
+      if (!(turn > 0 && p.reach > 0)) throw new Error('homing: turn and reach= must be above 0');
+      return (m) => { m.homing = { turn: Math.max(m.homing?.turn ?? 0, turn), reach: Math.max(m.homing?.reach ?? 0, p.reach) }; };
+    },
+  },
+  'pop-chain': {
+    doc: 'A bubble that pops on a bug also pops every other bubble within `range` m of it, in a splash that hurts each bug for `dmg` times that bubble\'s damage; those pop the bubbles next to them in turn.',
+    args: ['dmg'],
+    props: { range: 0.04 },
+    make: ([dmg], p) => {
+      if (!(dmg > 0 && p.range > 0)) throw new Error('pop-chain: dmg and range= must be above 0');
+      return (m) => { m.popChain = { dmg, range: p.range }; };
+    },
+  },
+  wobble: {
+    doc: 'Bubbles zigzag side to side as they fly, swinging `width` m either side of their line, brushing the bugs along it. `rate` is how fast, in radians a second.',
+    args: ['width'],
+    props: { rate: 9 },
+    make: ([width], p) => {
+      if (!(width > 0 && p.rate > 0)) throw new Error('wobble: width and rate= must be above 0');
+      return (m) => { m.wobble = { width: Math.max(m.wobble?.width ?? 0, width), rate: p.rate }; };
+    },
+  },
+  'focus-ramp': {
+    doc: 'Each hit in a row on the same bug does `step` (0.1 = 10%) more than the one before, up to `most` more. Hitting another bug starts over.',
+    args: ['step'],
+    props: { most: 0.5 },
+    make: ([step], p) => {
+      if (!(step > 0 && p.most >= step)) throw new Error('focus-ramp: step must be above 0 and most= at least step');
+      return (m) => { m.focusRamp = { step, most: p.most }; };
+    },
+  },
+  'range-pop': {
+    doc: 'A bubble that flies to the end of its Range without hitting anything pops in a splash `splash` times as wide as usual.',
+    args: ['splash'],
+    make: ([splash]) => {
+      if (!(splash > 1)) throw new Error('range-pop: splash must be more than 1');
+      return (m) => { m.rangePop = { splash: Math.max(m.rangePop?.splash ?? 0, splash) }; };
+    },
+  },
+  'orbit-misses': {
+    doc: 'A bubble that reaches the end of its Range without popping circles you once, at that distance, hitting the bugs it touches, then pops.',
+    make: () => (m) => { m.orbitMisses = true; },
+  },
+  // Lightning jelly (P8b)
+  'touch-zap': {
+    doc: 'A bug touching you (within `reach` m of your body) is zapped for `dmg` (x your power) and Stunned for `stun` s, once every `each` s per bug. Elites and the boss take the zap but not the Stun.',
+    props: { dmg: 0.6, stun: 1, each: 2, reach: 0.02 },
+    make: (_, p) => {
+      if (!(p.dmg >= 0 && p.stun > 0 && p.each > 0)) throw new Error('touch-zap: stun and each must be above 0');
+      return (m) => { m.touchZap = { ...p }; };
+    },
+  },
+  'charged-shot': {
+    doc: 'Hold `when` ("rooted": standing still on the ground, or "moving": swimming at full speed) for `seconds` and your next lightning shot is charged: it also strikes every bug within `strike` m of where it lands for `dmg` times its damage, and arcs to `chain` more bugs. Then it starts again from none.',
+    args: ['when', 'seconds'],
+    props: { strike: 0, chain: 0, dmg: 2 },
+    make: ([when, seconds], p, where) => {
+      if (!['rooted', 'moving'].includes(when)) throw new Error(`charged-shot: when must be rooted or moving, not "${when}"`);
+      if (!(seconds > 0 && p.strike >= 0 && Number.isInteger(p.chain) && p.chain >= 0 && p.dmg > 0 && (p.strike > 0 || p.chain > 0))) throw new Error('charged-shot: seconds must be above 0, and it needs strike= or chain=');
+      return (m, copy = 0) => { m.charged.push({ when, time: seconds, strike: p.strike, chain: p.chain, dmg: p.dmg, key: `${where}#${copy}` }); };
     },
   },
 };

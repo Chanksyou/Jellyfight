@@ -23,6 +23,7 @@ export class Player {
     this.climbing = false;
     this.flight = null;      // a vent launch in progress (scripted arc, see launch())
     this.airJumps = 0;       // mid-air jumps left
+    this.gliding = false;    // holding jump to drift down (the glide word)
     this.swim = 0;           // bell pulse phase, 0..1; each pulse gives a little surge forward
     this.speed = 0;
 
@@ -114,6 +115,7 @@ export class Player {
     const c = this.cfg;
     this.time += dt;
     this.maxAirJumps = env.airJumps ?? 0;
+    this.gliding = false;
 
     if (!this.flight && env.vent) this.launch(env.vent.land);
     if (this.flight) {
@@ -189,6 +191,9 @@ export class Player {
         : Math.abs(vy) <= (c.apexBand ?? 0) && this.held ? c.apexHang ?? 1
         : vy > 0 && this.cut ? c.jumpCut ?? 1 : 1;
       this.velocity.y = Math.max(-c.maxFall, vy - c.gravity * g * dt);
+      // glide (env.glide: the share of the fall speed left): holding jump in the air while falling drifts down slowly
+      this.gliding = env.glide > 0 && input.jumpHeld && !this.grounded && this.velocity.y < 0;
+      if (this.gliding) this.velocity.y = Math.max(this.velocity.y, -c.maxFall * env.glide);
     }
 
     // --- Move -------------------------------------------------------------

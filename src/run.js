@@ -42,7 +42,7 @@ import { loadLayout } from './layout.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
-const _near = new THREE.Vector3(), NEARBY = 0.3;   // per of="burning-nearby": how close a Burning bug counts (m)
+const UP_AIR = new THREE.Vector3(0, 1, 0), _near = new THREE.Vector3(), NEARBY = 0.3;   // per of="burning-nearby": how close a Burning bug counts (m)
 const UPGRADE_TIER = { name: 'Attack upgrade', color: '#7ff6ee' };   // how an Attack upgrade's pick card reads (no rarity)
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -113,6 +113,7 @@ export class Run {
     this.bubbles.onWindCharge = k => this.player.avatar?.pulse?.(0.15 + k * 0.55);
     this.bubbles.onWindRelease = () => this.player.avatar?.pulse?.(1);
     this.bubbles.onElementRelease = () => this.player.avatar?.pulse?.(0.75);   // the bell squeezes as an element shot leaves
+    this.bubbles.onCharged = (C) => { for (const k of C.keys) this.chargeT[k] = 0; this.player.avatar?.pulse?.(1); };   // spent: it builds again from none
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
     this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)
@@ -199,7 +200,7 @@ export class Run {
       }
       const M = this.mods;
       const L = M.landingShockwave;
-      if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff);
+      if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff, L.push);
     };
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
@@ -291,9 +292,12 @@ export class Run {
     this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
     this.bleedDripT = 0;
     this.stillT = 0;
+    this.chargeT = {};                // charged-shot: seconds each one's condition has been held
+    this.charged = { chain: 0, strike: 0, dmg: 1, keys: [] };   // what the next lightning shot spends
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
     this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
+    this.onceUsed = new Set();        // when-hit once-per-act: the ones that have gone off this act (a later act starts fresh)
     this.reborn = false;              // rebirth has saved you at least once this run (no-regen revived=#true)
     this.rerolls = 1;                 // level-up card rerolls: one an act, a later act starts fresh
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
@@ -387,7 +391,7 @@ export class Run {
     if (this.dev || !this.carry || this.duel || this.bossWon || !['explore', 'intro', 'boss'].includes(this.phase)) return;
     const { mid, ...C } = this.carry;
     keepAct({ ...C, mid: {
-      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, wishedIn: this.wishedIn,
+      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
@@ -402,7 +406,7 @@ export class Run {
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, eliteBugs: M.eliteBugs, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
-      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, wishedIn: M.wishedIn ?? null,
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
     if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
@@ -523,6 +527,7 @@ export class Run {
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
+        glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0,
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
@@ -573,6 +578,14 @@ export class Run {
       const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
       // main attack: bubbles, blown from the top of the bell (a jelly type: only its own attack)
       const A = this.attack;
+      this.charge(dt, P, A, s);
+      const G = this.mods.glide, gliding = !!G && P.gliding;
+      this.bubbles.pushMul = gliding ? G.push : 1;   // glide: gusts blown while you drift push further
+      if (gliding && (this.glideT = (this.glideT || 0) - dt) <= 0) {   // air streaming up past the bell while you drift
+        this.glideT = LOOK.num('glide-streak-every', 0.09);
+        const a = Math.random() * Math.PI * 2, r = this.cfg.radius * 1.1;
+        this.fx.wind.streaks(_drop.set(P.position.x + Math.cos(a) * r, P.position.y + this.cfg.height * 0.3, P.position.z + Math.sin(a) * r), UP_AIR, 1, 0.5, this.cfg.height * 0.9);
+      }
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
       // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes, or tentacle-weapon)
       if (!polyp && (!A || A.kind === 'tentacle' || this.mods.tentacleWeapon)) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
@@ -842,12 +855,14 @@ export class Run {
     // when-hit effects: a { ring, zap … } block on its own cooldown, aimed at whoever hit you
     for (const H of M.onHurt) {
       if ((this.hurtCd[H.key] || 0) > this.t) continue;
+      if (H.lowHealth != null && this.health > this.S.health * H.lowHealth) continue;   // low-health: only when you are down
+      if (H.oncePerAct) { if (this.onceUsed.has(H.key)) continue; this.onceUsed.add(H.key); }   // once-per-act
       this.hurtCd[H.key] = this.t + H.cooldown;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
       const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
       const lashAll = (k) => this.lash.sweepNow(center, this.tentacleStats, this.mods.hits.tentacles, k);   // the lash word with all=#true
       const ink = (ef) => { this.ink = { until: this.t + ef.time, miss: ef.miss, radius: ef.radius }; };   // the ink word
-      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, lashAll, ink, pulse: (k) => this.player.avatar?.pulse(k) };
+      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, lashAll, ink, pulse: (k) => this.player.avatar?.pulse(k), dash: (k, time) => { this.dashK = k; this.dashT = time; } };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from, contact, knock, at);
@@ -987,6 +1002,23 @@ export class Run {
     }
   }
 
+  // charged-shot: holding "rooted" or "moving" long enough charges the next lightning shot (bubbles.js
+  // elementVolley spends it); the bell crackles while one waits
+  charge(dt, P, A, s) {
+    const C = this.charged;
+    C.chain = C.strike = 0; C.dmg = 1; C.keys.length = 0;
+    for (const W of this.mods.charged) {
+      const held = W.when === 'rooted' ? this.stillT > 0 : P.fullSpeed;
+      const t = this.chargeT[W.key] = held ? (this.chargeT[W.key] || 0) + dt : 0;
+      if (t < W.time) continue;
+      C.chain += W.chain; C.strike = Math.max(C.strike, W.strike); C.dmg = Math.max(C.dmg, W.dmg); C.keys.push(W.key);
+    }
+    const ready = C.keys.length > 0 && (A?.kind === 'lightning' || this.mods.elements.has('lightning'));
+    if (ready && !this.bubbles.charge) { this.fx.number(P.position.clone().setY(P.position.y + this.cfg.height * 1.2), 'CHARGED', LOOK.color('number-lightning', '#fff27a'), 14); sfx.gadgetStatic(); }
+    this.bubbles.charge = ready ? C : null;
+    if (ready) this.bubbles.looks.gather('lightning', (this._chargeAt ||= new THREE.Vector3()).copy(P.position).setY(P.position.y + this.cfg.height * 0.75), 0.7, s.bubbleSize);
+  }
+
   onKill({ pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {} }) {
     this.kills++;
     this.buff('kill');
@@ -1071,11 +1103,19 @@ export class Run {
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
-  shockwave(c, radius, dmg, color) {
-    this.gadgets.looks.cushion(c,radius);this.player.avatar?.pulse(.3);sfx.gadgetCotton();
+  // push (m): a gust ring (Updraft), blasting everything in it that far away from you; no push is the cotton puff
+  shockwave(c, radius, dmg, color, push = 0) {
+    if (push > 0) {
+      this.fx.ring(_drop.copy(c).setY(c.y + 0.003), 0xffffff, radius, 0.35);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + 0.2; this.fx.wind.streaks(_drop.set(c.x + Math.cos(a) * radius * 0.4, c.y + 0.006, c.z + Math.sin(a) * radius * 0.4), _near.set(Math.cos(a), 0, Math.sin(a)), 1, 0.9, radius * 0.55); }
+      this.player.avatar?.pulse(.4); sfx.windLaunch();
+    } else { this.gadgets.looks.cushion(c,radius);this.player.avatar?.pulse(.3);sfx.gadgetCotton(); }
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy) continue;
-      if (this.enemies.center(e).distanceTo(c) < radius + e.r) {this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.cotton,.008);bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' });}
+      if (this.enemies.center(e).distanceTo(c) < radius + e.r) {
+        if (dmg > 0) { this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.cotton,.008);bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' }); }
+        if (push > 0 && !e.dead) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(c).setY(0).normalize(), force: push });
+      }
     }
   }
 
@@ -1877,7 +1917,10 @@ export class Run {
       if (!out[id] || left < out[id].left) out[id] = { left, spent };   // several copies: the soonest
     };
     for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first) / T.every);
-    for (const H of M.onHurt) put(H.owner, ((this.hurtCd[H.key] || 0) - this.t) / H.cooldown);
+    for (const H of M.onHurt) {
+      const used = H.oncePerAct && this.onceUsed.has(H.key);   // once-per-act: spent until the next act
+      put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / H.cooldown, used);
+    }
     M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / Q.cooldown));
     const O = M.owners;
     if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * 0.6) / M.mouse.every);

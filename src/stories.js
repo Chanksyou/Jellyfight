@@ -58,10 +58,14 @@ import './stories/act4.js';
 import './stories/phone.js';
 import './stories/nests.js';
 import './stories/types.js';
+import './stories/ice.js';
+import './stories/lightning.js';
 import './stories/legendaries.js';
 import './stories/upgrades.js';
 import './stories/poison.js';
 import './stories/glitter.js';
+import './stories/normal.js';
+import './stories/wind-type.js';
 export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()

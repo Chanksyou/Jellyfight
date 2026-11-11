@@ -570,7 +570,7 @@
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
-  /* Jelly types' looks (src/adornments.js ember, barbs and toxin; content/jellies.kdl adorn=) */
+  /* Jelly types' looks (src/adornments.js ember, barbs, frost, toxin and gale; content/jellies.kdl adorn=) */
   --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
   --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
   --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
@@ -583,6 +583,19 @@
   --ember-spark-life: 0.8;        /* seconds a spark lasts */
   --ember-spark-rise: 0.05;       /* meters it rises in that time */
   --ember-spark-size: 0.0022;     /* its radius at the start, meters */
+  --frost-core: #bfeaff;          /* Ice jelly: the crystal turning in the bell (emissive, not a light) */
+  --frost-core-size: 0.15;        /* its size, in shares of the jelly's height */
+  --frost-glow-size: 0.55;        /* the soft glow round it (seen through the bell), likewise */
+  --frost-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
+  --frost-tip: #e4f8ff;           /* the frost crystal on each tentacle tip */
+  --frost-tip-size: 1.9;          /* its size, in tentacle widths */
+  --frost-mist: #cfeeff;          /* cold mist sinking off the tips */
+  --frost-mists: 12;              /* at most this many at once */
+  --frost-mist-every: 0.08;       /* seconds between puffs */
+  --frost-mist-life: 1;           /* seconds a puff lasts */
+  --frost-mist-sink: 0.05;        /* meters it sinks in that time */
+  --frost-mist-size: 0.0038;      /* its radius, meters */
+  --ice-shard-streak: 0.0016;     /* the Shatter Shards upgrade: width of the streak to each bug */
   --barbed-tentacle-thickness: 1.8; /* Tentacle jelly: its tentacles this many times as thick */
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */
@@ -612,6 +625,16 @@
   --sparkle-twinkle-every: 0.16;  /* seconds between them */
   --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
   --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
+  --gale-core: #ffffff;           /* Wind jelly: the swirl spinning in the bell (emissive, not a light) */
+  --gale-core-size: 0.12;         /* its radius, in shares of the jelly's height */
+  --gale-glow-size: 0.6;          /* the soft glow round it, likewise */
+  --gale-core-y: 0.8;             /* its height in the bell (model units: the rim is at 0.56) */
+  --gale-core-spin: 7;            /* radians a second it turns */
+  --gale-streak: #e6f8ff;         /* the thin air streaks circling the bell */
+  --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
+  --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
+  --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
+  --glide-streak-every: 0.09;     /* seconds between the air streaks rising past you while you glide */
   /* the Poison jelly's attack (src/bubble-looks.js poison): a cool friendly green, never the Clog's violet acid */
   --poison-blob: #4ff0a0;         /* the blob and its streak */
   --poison-bright: #c8ffe4;       /* its bubble and the bright heart of a burst */
@@ -619,6 +642,24 @@
   --poison-gas: #7dffc0;          /* the burst's gas, its vapour, a Toxic Cloud */
   --poison-burst-life: 0.35;      /* seconds the burst's sphere takes to swell to its edge and fade */
   --poison-drip-every: 0.2;       /* seconds between a Poisoned bug's bubbles and drips (faster with more stacks) */
+  --storm-core: #bfe6ff;          /* Lightning jelly: the crackling core in the bell (emissive, not a light) */
+  --storm-core-size: 0.1;         /* its radius, in shares of the jelly's height */
+  --storm-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
+  --storm-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
+  --storm-tip: #7fd0ff;           /* the faint glow on each tentacle tip */
+  --storm-tip-size: 0.8;          /* its radius, in tentacle widths */
+  --storm-arc: #f4fbff;           /* the small arc that jumps between two tips */
+  --storm-arc-every: 2.5;         /* seconds between arcs (on average) */
+  --storm-arc-life: 0.16;         /* seconds one lasts */
+  --storm-arc-width: 0.35;        /* its width, in tentacle widths */
+  --storm-fleck: #cfeaff;         /* static flecks blinking round the bell */
+  --storm-flecks: 8;              /* at most this many at once */
+  --storm-fleck-life: 0.18;       /* seconds one stays lit */
+  --storm-fleck-size: 0.0018;     /* its radius, meters */
+  --ball-lightning: #ffe45c;      /* the Ball Lightning upgrade's ball, drifting out and zapping bugs */
+  --ball-lightning-size: 0.0065;  /* its radius, meters */
+  --lightning-strike: #fff27a;    /* the ring a Thunderclap strike (Storm Cell, Static Charge) sends out where it lands */
+  --lightning-scorch: #2a2620;    /* the scorch a lightning bolt or ball leaves on the floor */
   --ink-cloud: #0b0a22;           /* the Ink Cloud upgrade: near-black blue ink, the body of the cloud, its floor stains and drops */
   --ink-edge: #26205a;            /* the lighter blue where the cloud is thin, so it reads as ink and not a shadow */
   --venom: #8dff5a;              /* the puffs of a venomed bug */

@@ -114,8 +114,21 @@ _Avoid_: Miniboss
 Health the jelly loses each second for a few seconds after a bite that bleeds (the mosquito's): 1 a second for 3 s. Every bite adds its own Bleed, so they stack.
 Bugs can Bleed too: the Tentacle jelly's stings (Stinging Nettle, Venom Sac) add Bleed stacks that each take a share of the sting's damage every second for 3 s.
 
+**Chill**:
+What the Ice jelly's shards do to a bug: it moves at 55% speed for 2 s, and a new hit starts the 2 s again. A Chilled bug that dies shatters.
+
+**Frozen**:
+A bug held solid for a short time (Permafrost): it can't move or hurt anything. A hit that shatters the ice ends it (Deep Freeze).
+
+**Trapped**:
+A bug held still in a bubble (Bubble Trap) for 1.5 s: it can't move until the bubble bursts, or it dies. Elites and the boss can't be trapped.
+
 **Poison**:
 The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to every bug inside: each stack does 20% of Attack damage a second for 5 s, up to 5 stacks, and a new stack starts the time again. A Poisoned bug also deals 20% less damage to the jelly (Elites and the boss don't). Not the Clog's acid, which stays "acid".
+
+**Gust**:
+The Wind jelly type's attack: a fast crescent of wind that goes through bugs, shoves each one back, and hits a bug it slams into furniture a second time. Its upgrades (Gale, Crosswind, Jet Stream…) change how it flies.
+_Avoid_: Wind blade
 
 **Warning**:
 What shows where an Elite's or the Boss's attack will land before it does: a shape on the floor, with the space it will fill above it, both filling up to the moment of the hit.

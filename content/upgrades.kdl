@@ -54,6 +54,49 @@ upgrade "melt" jelly="fire" name="Melt" icon="🫠" text="Burning Elites and the
     status-damage "burning" more=0.2 elites=#true bugs=#false
 }
 
+// --- Ice: control and defence (docs/jelly-types/types/ice.md). Numbers are starting values.
+// Deep Freeze and Avalanche act on Frozen bugs, which only Permafrost makes, so they come after it.
+upgrade "permafrost" jelly="ice" name="Permafrost" icon="🧊" text="3 hits in a row on a Chilled bug freeze it solid for 1.5 s." {
+    chill-to-freeze 3 time=1.5
+}
+upgrade "brittle" jelly="ice" name="Brittle" icon="🔨" text="Chilled bugs take 40% more damage from everything." {
+    status-damage "chilled" more=0.4
+}
+upgrade "shatterShards" jelly="ice" name="Shatter Shards" icon="💎" text="A Chilled bug that dies bursts into 4 shards that hit the bugs nearby and Chill them." {
+    on-kill-of status="chilled" {
+        shards 4 range=0.12 dmg=0.5
+    }
+}
+upgrade "coldSnap" jelly="ice" name="Cold Snap" icon="❄️" text="Every 6 s a frost ring hits every bug within 15 cm and Chills it." {
+    every 6 {
+        ring 0.15 chill=2 color="#9fe8ff"
+    }
+}
+upgrade "glacierShell" jelly="ice" name="Glacier Shell" icon="🛡️" text="Your Shield refills twice as fast while a Chilled bug is within 15 cm." {
+    shield-recharge faster=1 near=0.15
+}
+upgrade "icicleLance" jelly="ice" name="Icicle Lance" icon="🗡️" text="Shards fly through every bug that is already Chilled." {
+    element-up "ice" chillPierce=1
+}
+upgrade "frostbite" jelly="ice" name="Frostbite" icon="🧤" text="Chill also hurts: 20% of the hit's damage every second while it lasts." {
+    element-up "ice" frostbite=0.2
+}
+upgrade "hoarfrost" jelly="ice" name="Hoarfrost" icon="🌨️" text="Chilled bugs can't jump, fly up or climb." {
+    ground-lock "chilled"
+}
+upgrade "snowball" jelly="ice" name="Snowball" icon="⛄" text="Shards go through 2 more bugs and grow 10% bigger with each one they hit." {
+    element-up "ice" pierce=2 grow=0.1
+}
+upgrade "deepFreeze" jelly="ice" name="Deep Freeze" icon="🥶" needs="permafrost" text="The next hit on a Frozen bug does 3x damage and thaws it." {
+    status-damage "frozen" more=2 thaw=#true
+}
+upgrade "cryoSleep" jelly="ice" name="Cryo Sleep" icon="😴" text="When your Shield breaks, you freeze over and can't be hurt for 1 s more." {
+    shield-burst dmg=0 invuln=1
+}
+upgrade "avalanche" jelly="ice" name="Avalanche" icon="🏔️" needs="permafrost" text="A hit on a Frozen bug sends it sliding 12 cm, and it Chills every bug it slides into." {
+    slide-on-hit "frozen" distance=0.12
+}
+
 // --- Tentacle: close range (docs/jelly-types/types/tentacle.md). The first six rework the old tentacle
 // Treasures (content/treasures.kdl, retired with jelly types on) and keep their names and icons.
 // Numbers are starting values. Tentacle damage is Attack damage here, so "Attack damage" in the text.
@@ -198,4 +241,136 @@ upgrade "partyPopper" jelly="glitter" name="Party Popper" icon="🎉" text="A ra
 }
 upgrade "starBurst" jelly="glitter" name="Star Burst" icon="⭐" text="A burst that reaches 5 or more bugs fires a star shot at each, 50% of the bomb's hit." {
     splash-shots min=5 dmg=0.5
+}
+// --- Wind: movement, pushes, Dodge, jumps and landings (docs/jelly-types/types/wind.md). Numbers are starting values.
+upgrade "cyclone" jelly="wind" name="Cyclone" icon="🌪️" text="Every 5 s a whirlwind rises at the nearest bug within 30 cm and pulls every bug in it together for 1.6 s." {
+    every 5 {
+        whirl radius=0.09 time=1.6 pull=0.12 range=0.3
+    }
+}
+upgrade "bowling" jelly="wind" name="Bowling" icon="🎳" text="A bug your gust shoves knocks over every bug in its way, for the same damage." {
+    pushed-hits
+}
+upgrade "tailwind" jelly="wind" name="Tailwind" icon="🍃" text="Each gust that hits gives +30% Move speed for 2 s." {
+    stack-buff "hit" "move-speed" 30 percent=#true time=2 stacks=1
+}
+upgrade "updraft" jelly="wind" name="Updraft" icon="🌬️" text="Landing from a jump blasts a ring of wind that pushes every bug within 12 cm away." {
+    landing-shockwave 0.12 dmg=0 push=0.06
+}
+upgrade "gale" jelly="wind" name="Gale" icon="💨" text="Gusts blow through every bug in their path, but lose 20% of their damage for each bug." {
+    element-up "wind" pierce=99 falloff=0.2
+}
+upgrade "slipstream" jelly="wind" name="Slipstream" icon="🏄" text="+20% Dodge while you swim at full speed." {
+    while "moving" "dodge" 20
+}
+upgrade "crosswind" jelly="wind" name="Crosswind" icon="🧭" text="Every gust fires a second one off to the side, 30° from the first." {
+    element-up "wind" count=1 angle=30
+}
+upgrade "eyeOfTheStorm" jelly="wind" name="Eye of the Storm" icon="🌀" text="Every 2 s, bugs within 6 cm of you are pushed away." {
+    every 2 {
+        ring 0.06 dmg=0 push=0.04
+    }
+}
+upgrade "slamDunk" jelly="wind" name="Slam Dunk" icon="🏀" text="A bug your gust slams into furniture takes 3 times the hit, not 1 time." {
+    element-up "wind" collision=3
+}
+upgrade "secondWind" jelly="wind" name="Second Wind" icon="🫁" text="Once an act, when you are hit at 30% Health or less, a ring of wind throws everything back and you get +50% Move speed for 5 s." {
+    when-hit once-per-act=#true low-health=0.3 {
+        ring 0.15 dmg=0 push=0.1
+        dash 0.5 time=5
+    }
+}
+upgrade "jetStream" jelly="wind" name="Jet Stream" icon="🚀" text="Gusts fly 50% faster and 50% farther." {
+    element-up "wind" speed=1.5 range=1.5
+}
+upgrade "glide" jelly="wind" name="Glide" icon="🪂" text="Hold jump in the air to drift down slowly. Gusts blown while you drift push twice as far." {
+    glide fall=0.2 push=2
+}
+
+// --- Normal: bubble physics (docs/jelly-types/types/normal.md). Numbers are starting values.
+// Popcorn says it with the split-on-hit word Split Blob brought. Pop Chain, Rapid Pop and Bubble Trap act on
+// what a bubble hits, the rest on how it flies (src/bubbles.js)
+upgrade "doubleBubble" jelly="normal" name="Double Bubble" icon="🫧" text="+1 Attack side by side, and the others lose no damage for it." {
+    stat bubbles 1 no-penalty=#true
+}
+upgrade "popcorn" jelly="normal" name="Popcorn" icon="🍿" text="A bubble that pops on a bug splits into 3 small ones that fly on for 30% of its damage each." {
+    split-on-hit 3 dmg=0.3 angle=60
+}
+upgrade "bubbleTrap" jelly="normal" name="Bubble Trap" icon="🪤" text="1 hit in 8 traps a small bug in a bubble that holds it still for 1.5 s." {
+    trap-on-hit chance=0.125 time=1.5
+}
+upgrade "bigBubble" jelly="normal" name="Big Bubble" icon="🔵" text="Attack size and splash +50%." {
+    stat bubble-size 50 percent=#true
+}
+upgrade "homing" jelly="normal" name="Homing" icon="🧲" text="Bubbles curve toward the nearest bug." {
+    homing 4
+}
+upgrade "popChain" jelly="normal" name="Pop Chain" icon="⛓️" text="A bubble popping next to another bubble pops it too, for 50% of its damage." {
+    pop-chain 0.5
+}
+upgrade "wobble" jelly="normal" name="Wobble" icon="〰️" text="Bubbles zigzag in a wide wobble, brushing more bugs on the way." {
+    wobble 0.02
+}
+upgrade "ricochet" jelly="normal" name="Ricochet" icon="↩️" text="Bubbles that hit a wall ricochet off it once." {
+    rebound walls-only=#true times=1
+}
+upgrade "bubbleChain" jelly="normal" name="Bubble Chain" icon="🔗" text="A bubble that kills a bug flies on to the next one." {
+    echo-bubble on="kill"
+}
+upgrade "rapidPop" jelly="normal" name="Rapid Pop" icon="⚡" text="Each hit in a row on the same bug does 10% more, up to +50%." {
+    focus-ramp 0.1 most=0.5
+}
+upgrade "bigFinish" jelly="normal" name="Big Finish" icon="🎆" text="A bubble that reaches the end of its Range pops in a splash twice as wide." {
+    range-pop 2
+}
+upgrade "orbit" jelly="normal" name="Orbit" icon="🪐" text="Bubbles that miss circle you once, hitting the bugs they touch." {
+    orbit-misses
+}
+
+// --- Lightning: chains and charge-ups (docs/jelly-types/types/lightning.md). Numbers are starting values.
+// The shots' arcs hit 3 more bugs for 41% each and Stun them 0.5 s (content/jellies.kdl).
+upgrade "overcharge" jelly="lightning" name="Overcharge" icon="🔋" text="Every 5th shot is a big bolt: bigger, its arcs hit twice as hard and jump twice as far." {
+    nth-attack 5 {
+        bolt dmg=2 reach=2
+    }
+}
+upgrade "conductor" jelly="lightning" name="Conductor" icon="🧲" text="Arcs can jump back to bugs they already hit, and jump 3 more times." {
+    element-up "lightning" revisit=1 chain=3
+}
+upgrade "staticSkin" jelly="lightning" name="Static Skin" icon="🧦" text="Bugs that touch you are zapped and Stunned for 1 s, once every 2 s each." {
+    touch-zap dmg=0.6 stun=1 each=2
+}
+upgrade "stormCell" jelly="lightning" name="Storm Cell" icon="⛈️" text="Stand still for 2 s to charge: your next shot strikes every bug within 20 cm of where it lands." {
+    charged-shot "rooted" 2 strike=0.2
+}
+upgrade "thunderclap" jelly="lightning" name="Thunderclap" icon="🥁" text="Stunned bugs take 50% more damage from everything." {
+    status-damage "stunned" more=0.5
+}
+upgrade "ballLightning" jelly="lightning" name="Ball Lightning" icon="🔮" text="Every 6 s a slow ball of lightning drifts out and zaps every bug it passes." {
+    every 6 {
+        orb
+    }
+}
+upgrade "chainReaction" jelly="lightning" name="Chain Reaction" icon="💫" text="A Stunned bug that dies sends bolts to 2 more bugs." {
+    on-kill-of status="stunned" {
+        zap 2 range=0.16 dmg=1 look="bolt"
+    }
+}
+upgrade "lightningRod" jelly="lightning" name="Lightning Rod" icon="🗼" text="Arcs jump to Stunned bugs first, and hit them for 30% more." {
+    element-up "lightning" stunFirst=1
+    status-damage "stunned" more=0.3 by="lightning"
+}
+upgrade "overload" jelly="lightning" name="Overload" icon="🌩️" text="Every 10 s a bolt strikes the toughest bug near you for 5x damage." {
+    every 10 {
+        zap 1 target="toughest" dmg=5 look="bolt"
+    }
+}
+upgrade "staticCharge" jelly="lightning" name="Static Charge" icon="🎈" text="After 3 s of moving, your next shot arcs to 3 more bugs." {
+    charged-shot "moving" 3 chain=3
+}
+upgrade "surge" jelly="lightning" name="Surge" icon="📈" text="Each arc gives +2% Fire rate for 3 s, up to +20%." {
+    stack-buff "arc" "fire-rate" 2 percent=#true time=3 stacks=10
+}
+upgrade "grounded" jelly="lightning" name="Grounded" icon="🌍" text="Arcs hit Elites and the boss twice as hard." {
+    element-up "lightning" eliteBolt=2
 }

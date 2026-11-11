@@ -5,6 +5,10 @@
 // little, so they mostly land), pop on the first enemy they touch for damage plus a small
 // splash, and pop harmlessly on walls or when they run out of range. Treasures hook in here.
 //
+// Normal's Attack upgrades (content/upgrades.kdl, docs/jelly-types/types/normal.md) shape the bubble's flight:
+// homing (seek), wobble, ricochet off walls, orbit-misses (orbit), range-pop (end), pop-chain (chain),
+// trap-on-hit (trapBug), focus-ramp (ramp) and share's free Attacks (Double Bubble).
+//
 // Element treasures are attacks of their own (elementVolley): each element you own fires its own
 // projectile on its own timer, at the nearest enemy, separate from the bubbles:
 //   fire (Birthday Candle)   a fireball: sets enemies burning; burning enemies that die set their
@@ -59,7 +63,8 @@ const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
 const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
-const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
+const SCORCH = LOOK.color('lightning-scorch', '#2a2620');   // the mark lightning leaves on the floor
+const STRIKE = LOOK.color('lightning-strike', '#fff27a');   // the ring where a charged strike lands
 // share of power each element deals (see the top of the file)
 export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
@@ -87,10 +92,18 @@ export class Bubbles {
     this._c = new THREE.Vector3();
     this._ic = new THREE.Vector3();    // scratch for inRange(): its own, since callers pass it centers held in _c
     this._t = new THREE.Vector3();     // scratch for touches()
+    this._s = new THREE.Vector3();     // scratch for seek()
+    this.traps = [];                   // trap-on-hit: { e, m, t, age } the bubble round each trapped bug
+    this.focusOn = null; this.focusN = 0;   // focus-ramp: the bug hit last, and how many hits in a row
     this.timer = 0;
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
+    this.bolts = 0;                   // lightning shots fired (nth-attack bolt counts them)
+    this.charge = null;               // a charged-shot ready to spend (run.js sets it): { chain, strike, dmg }
+    this.onCharged = null;            // called with it when the next lightning shot spends it
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
+    this.main = null;                  // the Element a jelly type's main attack fires (update), else null
+    this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
     this.geo = new THREE.SphereGeometry(1, 20, 14);
     const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
       color: tint, transparent: true, opacity: 0.6, roughness: 0.02, metalness: 0, clearcoat: 1,
@@ -101,6 +114,7 @@ export class Bubbles {
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
+    this.frostbitten = new Map();      // enemy -> { dps, t }: Chill that hurts (element-up ice frostbite)
     this.poisoned = new Map();         // enemy -> its Poison: { t, n stacks, dps a stack, ep }
     this.dotT = 0;                     // the 0.5 s beat percent-dot and spread-on-touch go on
     this.puddles = [];
@@ -112,6 +126,8 @@ export class Bubbles {
     this.puddleGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
     this.goldMat = film(0xffe8a0, 0xffb020);
+    this.trapMat = film(0xcfeeff, 0x4aa8ff);   // a bubble round a bug: thin, so the bug shows through
+    this.trapMat.opacity = 0.3;
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
     this.windCharge = null;
     this.friendly = FRIENDLY();
@@ -122,15 +138,21 @@ export class Bubbles {
     this.list.forEach((b) => this.release(b, true));
     this.list = [];
     this.burning.clear();
+    this.frostbitten.clear();
     this.poisoned.clear();
     this.gilded = [];
     this.next = null;
+    for (const T of this.traps) this.freeTrap(T);
+    this.traps = [];
+    this.focusOn = null;
     this.looks.clearBolts();
     this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
     this.puddles = [];
     this.timer = 0;
     this.elTimers = {};
     this.volleys = 0;
+    this.bolts = 0;
+    this.charge = null;
   }
 
   cancelWind() {
@@ -189,6 +211,7 @@ export class Bubbles {
     this.origin = origin;              // where the polyps (adornments.js) circle
     const main = attack && EL[attack.kind] ? attack.kind : null;
     this.hit = attack?.hit ?? 1;
+    this.main = main;
     this.mods = mods;
     if (this.next && main && !paused) this.looks.gather(main, origin, 1, stats.bubbleSize);   // Disco Bomb: the bell glows while the big one waits
     const ids = attack ? (main ? [main] : []) : this.elements(mods);
@@ -262,7 +285,7 @@ export class Bubbles {
     const golden = B.golden && n % B.golden.every === 0 ? B.golden.mult : 0;   // golden: its damage multiplier
     const size = stats.bubbleSize, elems = [], tint = null;   // bubbles are plain: elements fire their own shots
     // `bubbles` of them side by side, across the line to the target, all leaving now
-    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.bubbleDamage * bubbleShare(count) * this.hit;   // hit: a jelly type's (Normal's 1)
+    const count = Math.max(1, Math.round(stats.bubbles)), dmg = stats.bubbleDamage * this.share(count, mods) * this.hit;   // hit: a jelly type's (Normal's 1)
     const spread = (Math.random() - 0.5) * 0.12, gap = Math.max(0.014, RADIUS * size * 2.6);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
@@ -283,16 +306,20 @@ export class Bubbles {
     return true;
   }
 
-  // nth-attack (words.js): what the n-th attack becomes, the big words of every nth-attack it falls on
-  // multiplied together; null for an ordinary one
-  nth(mods, n) {
+  // each of `n` Attacks side by side does this share of Attack damage (stats.js bubbleShare), the free
+  // ones (Double Bubble: stat bubbles … no-penalty) not counted
+  share(n, mods) { return bubbleShare(Math.max(1, n - mods.freeAttacks)); }
+
+  // nth-attack (words.js): what the n-th attack becomes, the words of `kind` (big, a bubble's; bolt, a
+  // lightning shot's) of every nth-attack it falls on multiplied together; null for an ordinary one
+  nth(mods, n, kind = 'big') {
     let out = null;
     for (const N of mods.nth) {
       if (N.random ? Math.random() >= 1 / N.every : n % N.every !== 0) continue;
       for (const ef of N.effects) {
-        if (ef.kind !== 'big') continue;   // sweep is a lash's
-        out ||= { dmg: 1, size: 1, speed: 1, pierce: 0 };
-        out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed; out.pierce += ef.pierce;
+        if (ef.kind !== kind) continue;   // sweep is a lash's
+        out ||= { dmg: 1, size: 1, speed: 1, pierce: 0, reach: 1 };
+        out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed ?? 1; out.pierce += ef.pierce ?? 0; out.reach *= ef.reach ?? 1;
       }
     }
     return out;
@@ -305,20 +332,40 @@ export class Bubbles {
     if (!near.length) return false;
     const target = near[0];
     const n = Math.max(1, Math.round(stats.bubbles)), count = n + Math.round(P.count);
-    let each = stats.bubbleDamage * bubbleShare(n), size = stats.bubbleSize, speed = P.speed, ep = P, big = false;
-    if (P.main) {
-      // a main attack's big ones: nth-attack (Party Popper) and next-attack (Disco Bomb)
-      const N = this.nth(mods, ++this.volleys), X = this.next;
-      if (N) { each *= N.dmg; size *= N.size; speed *= N.speed; big = true; }
-      if (X) { each *= X.dmg; size *= X.size; if (X.width !== 1 && P.width) ep = { ...P, width: P.width * X.width }; this.next = null; big = true; }
-    }
+    let each = stats.bubbleDamage * this.share(n, mods);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), gap = Math.max(0.016, RADIUS * stats.bubbleSize * 3);
     const spread = (Math.random() - 0.5) * 0.12;
+    // a lightning shot can be a big bolt (nth-attack) and can spend a charge (charged-shot): it arcs
+    // harder, farther or to more bugs, or strikes everything round where it lands
+    let ep = P, size = stats.bubbleSize, big = null, strike = null, speed = P.speed;
+    if (id === 'lightning') {
+      big = this.nth(mods, ++this.bolts, 'bolt');
+      const C = this.charge;
+      if (big || C) {
+        ep = { ...P, bolt: P.bolt * (big?.dmg ?? 1), chainRange: P.chainRange * (big?.reach ?? 1), chain: P.chain + (C?.chain ?? 0) };
+        size *= big?.size ?? 1;
+      }
+      if (C) { if (C.strike) strike = { strike: C.strike, dmg: C.dmg }; this.charge = null; this.onCharged?.(C); }   // (a copy: run.js reuses C)
+    } else if (P.main) {
+      // another main attack's big ones: nth-attack big (Party Popper) and next-attack (Disco Bomb)
+      const N = this.nth(mods, ++this.volleys), X = this.next;
+      if (N) { each *= N.dmg; size *= N.size; speed *= N.speed; big = N; }
+      if (X) { each *= X.dmg; size *= X.size; if (X.width !== 1 && P.width) ep = { ...P, width: P.width * X.width }; this.next = null; big ||= X; }
+    }
+    // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1)
+    const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) : 0);
+    // an angle (Crosswind): the shots past the first fire off to the side, 1 angle left, 1 right, 2 left…, and fly straight
+    const angle = P.angle > 0 ? P.angle * Math.PI / 180 : 0;
     for (let k = 0; k < count; k++) {
-      const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce: 1 + P.pierce, speed, range: stats.range * P.range, spread, off, big });
+      if (angle && k > 0) {
+        const turn = Math.ceil(k / 2) * angle * (k % 2 ? 1 : -1);
+        this.blow(origin.clone(), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread: spread + turn, straight: true, big: !!big, strike });
+        continue;
+      }
+      const off = across.clone().multiplyScalar((k - (count - 1) / 2) * (angle ? 0 : gap));
+      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread, off, big: !!big, strike });
     }
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
@@ -369,7 +416,7 @@ export class Bubbles {
     for (const el of o.elems || []) elems.add(el);
     Object.assign(b, {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
-      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
+      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6, strike: o.strike || null,
       elems, tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     });
@@ -377,7 +424,8 @@ export class Bubbles {
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
     b.speed = SPEED * (o.speed || 1);
     b.vel = dir.multiplyScalar(b.speed);
-    b.homing = true;
+    b.homing = !o.straight;              // a shot fired off to the side flies straight on
+    b.pushMul = this.pushMul;            // glide: how far this gust pushes (its own, from the moment it was blown)
     m.scale.setScalar(0.001);
     this.list.push(b);
     if(!o.tint&&(o.golden||o.big)){
@@ -397,6 +445,7 @@ export class Bubbles {
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
+      if (b.done) continue;   // popped already: by the one before it (pop-chain)
       b.t += dt;
       if (b.rebound === undefined) b.rebound = !!mods.rebound && !b.tint;
       if (b.rebound && b.returning && this.origin) {
@@ -416,15 +465,19 @@ export class Bubbles {
         if (d < b.r * 2 || to.dot(b.vel) <= 0) b.homing = false;
         else b.vel.lerp(to.multiplyScalar(b.speed / d), 1 - Math.exp(-3 * dt)).setLength(b.speed);
       }
+      if (mods.homing && !b.returning && !b.orb) this.seek(b, mods.homing, dt);
+      if (b.orb) { this.orbit(b, dt, stats, mods); if (b.done) continue; }
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
       // bell while you're pressed under or against something, it would otherwise pop at once
-      if (b.travel > this.grace && (this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r) || this.blocked(b.m.position, this._dir, step + b.r, b.r))) {
-        if (b.rebound && !b.returning) this.turn(b);
-        else this.pop(b, null, stats, mods);
-        continue;
+      const wall = b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r);
+      if (wall || (b.travel > this.grace && this.blocked(b.m.position, this._dir, step + b.r, b.r))) {
+        if (b.rebound && !b.returning) { this.turn(b); continue; }
+        if (wall?.normal && !b.tint && !b.orb && (b.bounces || 0) < mods.ricochet) this.ricochet(b, wall);   // rebound walls-only: off the wall, flying on
+        else { this.pop(b, null, stats, mods); continue; }
       }
       b.m.position.addScaledVector(b.vel, dt);
+      if (mods.wobble && !b.orb) this.wobble(b, mods.wobble, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
       if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
@@ -453,15 +506,18 @@ export class Bubbles {
         if (e.dead || b.hit.has(e)) continue;
         if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
+          const chilled = b.ep?.chillPierce && e.chillT > 0;   // Icicle Lance: a shard flies through a bug that was already Chilled
           this.strike(b, e, mods);
+          if (chilled) b.free = (b.free || 0) + 1;
+          if (b.ep?.grow) b.r *= 1 + b.ep.grow;                // Snowball
           if (b.rebound) { this.pop(b, e, stats, mods, true); continue; }
-          if (b.hit.size >= b.pierce) { this.pop(b, e, stats, mods); break; }
+          if (b.hit.size - (b.free || 0) >= b.pierce) { this.pop(b, e, stats, mods); break; }
           if (b.hit.size === 1) this.splash(b);   // a piercing bubble splashes where it first hits, then flies on
         }
       }
       const reach = b.range ? b.range * 1.4 : maxTravel;
       if (!b.done && b.rebound && !b.returning && b.travel > reach) this.turn(b);
-      if (!b.done && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.pop(b, null, stats, mods);
+      if (!b.done && !b.orb && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.expire(b, stats, mods);
     }
     this.looks.tickBolts(dt);
     this.looks.endFrame();
@@ -475,6 +531,79 @@ export class Bubbles {
     b.vel.negate(); b.trailT = 0;
     this.fx.ring(b.m.position, this.friendly, b.r * 2, 0.2);
     sfx.rebound();
+  }
+
+  // wobble: a sideways swing off its line, the slope of a sine so the path is `width` m either side
+  wobble(b, W, dt) {
+    const sp = Math.hypot(b.vel.x, b.vel.z);
+    if (sp < 1e-6) return;
+    const k = Math.cos(b.t * W.rate + b.wobble) * W.width * W.rate * dt / sp;
+    b.m.position.x -= b.vel.z * k; b.m.position.z += b.vel.x * k;
+  }
+
+  // homing: every 0.1 s it picks the nearest bug it hasn't hit within `reach`, and turns toward it
+  // at up to `turn` radians a second (keeping its speed)
+  seek(b, H, dt) {
+    if ((b.seekT = (b.seekT ?? 0) - dt) <= 0) { b.seekT = 0.1; b.seeking = this.nearest(b.m.position, H.reach, b.hit); }
+    const e = b.seeking;
+    if (!e || e.dead || b.hit.has(e)) { b.seeking = null; return; }
+    const to = this.enemies.center(e, this._s).sub(b.m.position), ang = b.vel.angleTo(to);
+    if (ang < 1e-3) return;
+    b.vel.lerp(to.setLength(b.speed), Math.min(1, H.turn * dt / ang)).setLength(b.speed);
+  }
+
+  // the nearest bug within `reach` of a point (edge to edge) that isn't in `exclude`
+  nearest(at, reach, exclude) {
+    const E = this.enemies, c = this._ic;
+    let best = null, bd = reach;
+    for (const e of E.list) {
+      if (e.dead || exclude.has(e) || e.proxy?.immune) continue;
+      const d = E.center(e, c).distanceTo(at) - e.r;
+      if (d <= bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+
+  // rebound walls-only: it glances off the wall and flies on with what is left of its Range
+  ricochet(b, wall) {
+    const n = wall.normal;
+    if (n.dot(b.vel) > 0) n.negate();
+    b.vel.reflect(n);
+    b.m.position.addScaledVector(n, b.r);   // off the wall, so the next look along its way is clear of it
+    b.homing = false; b.seeking = null; b.bounces = (b.bounces || 0) + 1;
+    this.fx.puff(wall.point, this.friendly, b.r * 1.6, 0.15);
+    sfx.pop(false);
+  }
+
+  // the end of its Range (or time): orbit-misses sends it round you once, otherwise it pops
+  expire(b, stats, mods) {
+    if (mods.orbitMisses && !b.tint && !b.rebound && this.origin) {   // (a rebounding bubble has its own way home)
+      const o = this.origin, p = b.m.position, dx = p.x - o.x, dz = p.z - o.z, r = Math.hypot(dx, dz);
+      if (r > this.grace) {
+        b.orb = { r, dir: dx * b.vel.z - dz * b.vel.x < 0 ? -1 : 1, dy: p.y - o.y, swept: 0 };
+        b.homing = false; b.seeking = null;
+        return;
+      }
+    }
+    this.end(b, stats, mods);
+  }
+
+  // orbit-misses: its velocity this frame takes it a step further round the circle `r` from you, as you
+  // are now; one lap and it is spent
+  orbit(b, dt, stats, mods) {
+    const O = b.orb, o = this.origin, p = b.m.position;
+    if (!(dt > 0)) return;
+    O.swept += b.speed * dt / O.r;
+    if (O.swept >= Math.PI * 2) { this.end(b, stats, mods); return; }
+    const a = Math.atan2(p.z - o.z, p.x - o.x) + O.dir * b.speed * dt / O.r;
+    b.vel.set((o.x + Math.cos(a) * O.r - p.x) / dt, THREE.MathUtils.clamp((o.y + O.dy - p.y) / dt, -b.speed, b.speed), (o.z + Math.sin(a) * O.r - p.z) / dt);
+  }
+
+  // a bubble that ran out of Range or a lap: range-pop makes its splash wider, then it pops
+  end(b, stats, mods) {
+    const R = mods.rangePop;
+    if (R && !b.splashed && !b.tint) { this.splash(b, R.splash); sfx.pop(true); }
+    this.pop(b, null, stats, mods);
   }
 
   // Something that isn't the room's but stops bubbles all the same: a boss's body that can't be
@@ -503,14 +632,17 @@ export class Bubbles {
     }
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
+    if (b.ep?.falloff > 0 && b.hit.size > 1) dmg *= (1 - Math.min(0.9, b.ep.falloff)) ** (b.hit.size - 1);   // Gale: each bug a gust goes through takes less
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff';
       crit = true;
       this.fx.crit(this.enemies.center(e), e.r); sfx.crit();
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
+    if (mods.focusRamp) dmg *= 1 + this.ramp(e, mods.focusRamp);
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
+    const slide = mods.slideOnHit.find((S) => this.enemies.statuses[S.status](e));   // Avalanche: a hit on a bug that has the status sends it sliding
     if (el.has('fire')) {
       const was = this.burning.get(e)?.t > 0;
       this.ignite(e, b.pw, b.ep);
@@ -524,7 +656,18 @@ export class Bubbles {
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
       const t = b.ep?.chill ?? 2;
       if (e.slowT > 0) dmg *= b.ep?.slowedMul ?? 1;      // Freezer Burn rewards follow-up hits
+      const was = e.chillT > 0;
       bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
+      if (b.ep?.frostbite) this.frostbitten.set(e, { dps: dmg * b.ep.frostbite, t: t + 0.01, tick: this.frostbitten.get(e)?.tick ?? 0.5 });   // Frostbite (a re-hit keeps the beat running)
+      const F = mods.chillFreeze;                         // Permafrost: hits in a row on a Chilled bug freeze it
+      if (F) {
+        e.chillHits = (was ? e.chillHits || 0 : 0) + 1;
+        if (e.chillHits >= F.hits) {
+          e.chillHits = 0;
+          bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: F.time });
+          bus.emit('enemy_frozen', { targetId: e.id, pos: c.clone(), r: e.r });
+        }
+      }
     }
     if (el.has('wind') && !e.proxy) {
       sfx.wind();
@@ -540,10 +683,69 @@ export class Bubbles {
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
     this.enemies.freshBurn = null;
+    if (mods.trap && !e.dead && !e.proxy && Math.random() < mods.trap.chance) this.trapBug(e, mods.trap.time);   // trap-on-hit
+    if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
-      targetId: e.id, dir, force: 0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0),
-      collisionDamage: dmg * (b.ep?.collision ?? 1),
+      targetId: e.id, dir, force: (0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0)) * (b.pushMul || 1),
+      collisionDamage: dmg * (b.ep?.collision ?? 1), pushHits: mods.pushedHits ? dmg : 0,
     });
+  }
+
+  // focus-ramp: how much more this hit does, by how many hits in a row the same bug has had before it
+  ramp(e, F) {
+    const n = this.focusOn === e ? this.focusN : 0;
+    this.focusOn = e; this.focusN = n + 1;
+    return Math.min(F.most, F.step * n);
+  }
+
+  // trap-on-hit: a bubble round the bug that holds it still for `time` s, then bursts (a second trap on
+  // it only restarts the time)
+  trapBug(e, time) {
+    bus.emit('status_applied', { targetId: e.id, status: 'trap', duration: time });
+    const had = this.traps.find((T) => T.e === e);
+    if (had) { had.t = time; return; }
+    this.traps.push({ e, m: this.mesh(this.trapMat), t: time, age: 0 });
+    sfx.pop(true);
+  }
+
+  freeTrap(T) { T.m.visible = false; this.pool.push(T.m); T.m = null; }
+
+  // each trap bubble rides its bug, bobbing; it bursts when the time is up or the bug dies
+  tickTraps(dt) {
+    const E = this.enemies, c = this._c;
+    for (const T of this.traps) {
+      T.t -= dt; T.age += dt;
+      const e = T.e;
+      E.center(e, c);
+      if (e.dead || T.t <= 0) {
+        this.fx.burst(c, ['#dff4ff', '#9fd8ff', '#ffffff'], 8, e.r * 0.4, 0.3, c.y - e.r);
+        this.fx.puff(c, 0xdff4ff, e.r * 2.2, 0.25);
+        sfx.pop(false);
+        this.freeTrap(T);
+        continue;
+      }
+      const grow = Math.min(1, T.age * 8) * e.r * 1.4;
+      T.m.position.copy(c).y += e.r * 0.15 + Math.sin(T.age * 4) * e.r * 0.08;
+      T.m.scale.set(grow * (1 + Math.sin(T.age * 12) * 0.04), grow * (1 - Math.sin(T.age * 12) * 0.04), grow);
+    }
+    this.traps = this.traps.filter((T) => T.m);
+  }
+
+  // slide-on-hit: the bug is shoved `distance` along the hit; whatever it slides into is Chilled
+  slide(e, dir, S) {
+    const E = this.enemies, from = e.pos.clone();
+    E.push(e, dir, S.distance);
+    const to = e.pos, seg = to.clone().sub(from).setY(0), len2 = seg.lengthSq();
+    this.fx.ice.bloom(from, e.r * 3, 0.5);
+    sfx.iceShatter(false);
+    if (len2 < 1e-10) return;
+    for (const n of E.list) {
+      if (n === e || n.dead || n.proxy || Math.abs(n.pos.y - e.pos.y) > e.r + n.r) continue;
+      const u = Math.max(0, Math.min(1, ((n.pos.x - from.x) * seg.x + (n.pos.z - from.z) * seg.z) / len2));
+      if (Math.hypot(n.pos.x - (from.x + seg.x * u), n.pos.z - (from.z + seg.z * u)) > n.r + e.r) continue;
+      bus.emit('status_applied', { targetId: n.id, status: 'chill', duration: S.chill });
+      this.fx.puff(E.center(n), 0xdff8ff, n.r * 1.6, 0.4);
+    }
   }
 
   // refresh-all: every Burn back to its full time, a flare on each one but the bug just hit
@@ -559,6 +761,12 @@ export class Bubbles {
   // Burning enemies, lightning arcs and acid puddles
   effects(dt, stats, mods) {
     const E = this.enemies, c = this._c;
+    if (this.traps.length) this.tickTraps(dt);
+    for (const [e, f] of this.frostbitten) {   // Frostbite: a Chilled bug takes a share of the hit that chilled it, every half second
+      if (e.dead) { this.frostbitten.delete(e); continue; }
+      if ((f.tick -= dt) <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#bff4ff', source: 'ice', feedback: { tick: true } }); }
+      if ((f.t -= dt) <= 0) this.frostbitten.delete(e);
+    }
     for (const [e, f] of this.burning) {
       if (e.dead) {
         // burning things that die set their neighbors alight
@@ -654,6 +862,19 @@ export class Bubbles {
     this.burning.set(e, { t: ep?.burnTime ?? 3, dps: pw * ELEMENT.burn * (ep?.burn ?? 1), pw, ep, tick: had?.tick ?? 0.25, flame: 0, n, age: lit ? had.age : 0 });
   }
 
+  // a charged lightning shot lands: a ring out to `S.strike` and a bolt to every bug inside it
+  // (except `skip`), `S.dmg` times the shot's damage each
+  strikeAround(p, S, dmg, skip) {
+    const E = this.enemies, c = this._c;
+    this.fx.ring(V3.set(p.x, E.floorBelow(p, p.y - 0.03), p.z), STRIKE, S.strike, 0.35);
+    juice.feel('hit-big'); sfx.lightningBig();
+    let k = 0;
+    for (const e of this.inRange(p, S.strike, skip)) {
+      this.zap(p, E.center(e, c), k++);
+      bus.emit('damage_taken', { targetId: e.id, amount: dmg * S.dmg, color: '#fff27a', source: 'lightning' });
+    }
+  }
+
   // a bolt jumping from one thing to the next (a chain's k-th jump: each one higher-pitched)
   zap(from, to, k = 0) {
     this.looks.strike(from, to);
@@ -663,11 +884,12 @@ export class Bubbles {
 
   // splash: a share of the damage to everything close by (Glitter: twice as wide, harder). Once a
   // bubble: where it pops, or where a piercing one first hits
-  splash(b) {
+  // wide: a multiple of the usual radius (range-pop); flat: every bug takes this many times the bubble's damage in place of the usual share (pop-chain)
+  splash(b, wide = 1, flat = 0) {
     b.splashed = true;
     if (b.elems.has('poison')) { this.poisonBurst(b); return; }
     const p = b.m.position, glitter = b.elems.has('glitter');
-    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
+    const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1) * wide, E = this.enemies, c = this._c;
     if (glitter && b.ep?.main) { this.glitterBurst(b, splash); return; }
     let kills = 0;
     if (glitter) {
@@ -685,7 +907,7 @@ export class Bubbles {
       if (glitter) this.looks.glittered(E.center(e, c), e.r);                                                               // sparkles stuck on everything it hits
       if (glitter && b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });          // Glitter Glue
       if (b.ep?.frost && !e.proxy) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: b.ep.chill });     // Snow Globe
-      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (b.big ? 0.8 : 0.4), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash', feedback: { element: b.tint } });
+      bus.emit('damage_taken', { targetId: e.id, amount: glitter ? b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) : b.dmg * (flat || (b.big ? 0.8 : 0.4)), color: glitter ? '#ffb0f0' : '#bfe8ff', source: 'splash', feedback: { element: b.tint } });
       if (e.dead) kills++;
     }
     if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash
@@ -802,7 +1024,7 @@ export class Bubbles {
 
   // Poison Rain (the blob word): `count` of your Poison blobs fall from above on as many bugs within `range` of you
   rain(origin, count, range, stats, mods) {
-    const P = this.mainParams('poison', mods), n = Math.max(1, Math.round(stats.bubbles)), each = stats.bubbleDamage * bubbleShare(n);
+    const P = this.mainParams('poison', mods), n = Math.max(1, Math.round(stats.bubbles)), each = stats.bubbleDamage * this.share(n, mods);
     const bugs = this.inRange(origin, range).slice(0, count);
     for (const e of bugs) {
       // from 10 cm above it, or under the furniture over it (a blob starting inside it would pop on it unburst)
@@ -823,6 +1045,20 @@ export class Bubbles {
       half.split = true; half.homing = false;
       for (const e of b.hit) half.hit.add(e);
       half.pierce += b.hit.size;
+    }
+  }
+
+  // pop-chain: the bubbles within `range` of a popping one pop with it, each a splash that hurts for
+  // `dmg` times its damage, and set off the ones next to them in turn (each is spent first, so it ends)
+  chain(b, C) {
+    const p = b.m.position;
+    for (const o of this.list) {
+      if (o.done || o.tint || o === b || o.m.position.distanceTo(p) > C.range + o.r) continue;
+      o.done = true;
+      this.splash(o, 1, C.dmg);
+      this.fx.puff(o.m.position, o.golden ? 0xffe8a0 : 0xdff4ff, o.r * 2.2, 0.25);
+      sfx.pop(false);
+      this.chain(o, C);
     }
   }
 
@@ -852,20 +1088,24 @@ export class Bubbles {
     const E = this.enemies, c = this._c;
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
-      let from = p.clone();
-      const hit = new Set(b.hit);
+      const ep = b.ep, range = ep?.chainRange ?? 0.16, skip = new Set(b.hit), hit = new Set(b.hit);
+      let from = p.clone(), last = null, jumps = 0;
       this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), SCORCH, b.r * 2.2, 'scorch');   // a scorch where it struck (harmless, fades)
-      for (let k = 0, n = b.ep?.chain ?? 3; k < n; k++) {
-        const e = this.inRange(from, b.ep?.chainRange ?? 0.16, hit)[0];
+      for (let k = 0, n = ep?.chain ?? 3; k < n; k++) {
+        if (ep?.revisit && last) { skip.clear(); skip.add(last); }   // revisit: back to a bug already hit, just not the one it's on
+        const near = this.inRange(from, range, ep?.revisit ? skip : hit);
+        const e = (ep?.stunFirst && near.find((x) => x.stunT > 0)) || near[0];
         if (!e) break;
-        hit.add(e);
+        hit.add(e); last = e; jumps++;
         const to = E.center(e, c).clone();
         this.zap(from, to, k);
-        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * (b.ep?.bolt ?? 1), color: '#fff27a', source: 'lightning' });
-        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: b.ep?.stun ?? 0.5 });
+        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * (ep?.bolt ?? 1) * (e.proxy ? ep?.eliteBolt ?? 1 : 1), color: '#fff27a', source: 'lightning' });
+        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: ep?.stun ?? 0.5 });
         from = to;
       }
-      if (hit.size - b.hit.size >= 2) { juice.feel('hit-big'); sfx.lightningBig(); }      // a chain that really jumps lands harder
+      if (jumps >= 2) { juice.feel('hit-big'); sfx.lightningBig(); }      // a chain that really jumps lands harder
+      // a charged shot (charged-shot): everything within its strike range is struck too
+      if (b.strike) this.strikeAround(p, b.strike, b.dmg, b.hit);
     }
     // Acid: leave a puddle that eats at anything standing in it
     if (b.elems.has('acid') && this.puddles.length < (b.ep?.puddles ?? 6)) {
@@ -892,12 +1132,13 @@ export class Bubbles {
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }
     }
-    if (mods.split && !b.split) this.split(b, mods.split);   // split-on-hit (Split Blob)
+    if (mods.split && !b.split) this.split(b, mods.split);   // split-on-hit (Split Blob, Popcorn)
+    if (mods.popChain) this.chain(b, mods.popChain);
     if(b.child){this.treasureLooks?.echo(p,b.r);sfx.gadgetEcho(true);}
     // echo-bubble: the pop fires again at the next enemy close by (once), at a share of its damage
     // (it starts inside the enemy it popped on: it skips the ones its parent already hit)
     const echo = mods.bubbles.echo;
-    if (echo && !b.child) {
+    if (echo && (!b.child || echo.onKill) && (!echo.onKill || hitEnemy.dead)) {   // on="kill": only a bubble that killed, and what it fires goes on the same way
       const next = this.inRange(p, 0.2, b.hit)[0];
       if (next) { const k = this.blow(p, next, { size: b.r / RADIUS, dmg: b.dmg * echo.dmg, golden: b.golden, pierce: 1 }); k.child = true; k.hit = new Set(b.hit); k.pierce += b.hit.size;this.treasureLooks?.echo(p,b.r);sfx.gadgetEcho(); }
     }

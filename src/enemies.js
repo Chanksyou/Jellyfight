@@ -288,6 +288,7 @@ export class Enemies {
       else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
+      else if (status === 'trap') { e.trapT = Math.max(e.trapT || 0, duration); e.vel?.set(0, 0, 0); }   // held still in a bubble (trap-on-hit): a pin with no sparks
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {   // ice: a slow that shows as frost (chillT), so a chilled death shatters
@@ -300,9 +301,9 @@ export class Enemies {
       const e = this.byId.get(from);
       if (e && !e.dead && !e.proxy) this.landed(e, contact);
     });
-    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0 }) => {
+    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0 }) => {
       const e = this.byId.get(targetId);
-      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage);
+      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
     });
   }
 
@@ -1175,6 +1176,7 @@ export class Enemies {
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
 
+    const locks = this.mods?.groundLock || [];
     for (const e of list) {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
@@ -1184,7 +1186,8 @@ export class Enemies {
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
-      const slow = (e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
+      e.trapT = Math.max(0, (e.trapT || 0) - dt);
+      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
       const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
       const aim = lure ? decoy.center : pc;
       const toP = this._d.copy(aim).sub(this.center(e, tmp));
@@ -1200,11 +1203,18 @@ export class Enemies {
       c.flatDir.normalize();
       c.speed = 0;
       c.dir.set(0, 0, 0);
+      // ground-lock (Hoarfrost): a bug with the status can't start a leap, rise in the air or climb
+      const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
+      e.groundLocked = lock;
       if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
         this.moveGround(e, dt, near);
+      }
+      if (lock && !e.airborne && e.pos.y > y0 + 1e-5) {
+        if (e.T.fly) { e.pos.y = y0; e.vel.y = Math.min(0, e.vel.y); }
+        else { e.pos.set(x0, y0, z0); e.vel.x = e.vel.z = 0; }   // the step uphill doesn't happen
       }
 
       // look at the player, pop when hit, grow in when spawned
@@ -1271,7 +1281,8 @@ export class Enemies {
   }
 
   // Only the scenery collision world is queried, never other enemies.
-  push(e, direction, distance, collisionDamage = 0) {
+  // pushHits (pushed-hits, Bowling): the pushed bug hits every other bug it slides into for that much
+  push(e, direction, distance, collisionDamage = 0, pushHits = 0) {
     if (!(collisionDamage > 0)) { this.move(e, direction, distance); return; }
     const dir = S.windDir.copy(direction).setY(0).normalize(), center = this.center(e, S.windCenter), across = S.windAcross.set(-dir.z, 0, dir.x);
     let travel = distance, contact = false;
@@ -1289,6 +1300,7 @@ export class Enemies {
       if (contact) S.windContact.copy(S.moveHit.point);
     }
     if (!e.T.fly && from.distanceToSquared(e.pos) > 1e-6) this.fx.wind.skid(from, e.pos, e.pos.y, e.r);   // dust kicked up along its slide
+    if (pushHits > 0) this.bowl(e, from, dir, pushHits);
     if (contact) {
       this.fx.impact(S.windContact, FRIENDLY(), e.r * 0.5, 7);
       this.fx.burst(S.windContact, ['#c2cbd1', '#edf9ff'], 5, e.r * 0.12, 0.09, e.pos.y);
@@ -1296,6 +1308,22 @@ export class Enemies {
       this.fx.splat(S.windFrom.copy(e.pos), SCUFF, e.r * 1.2, 'dust');                                    // a scuff where it hit
       sfx.windSlam(); juice.feel('impact');
       bus.emit('damage_taken', { targetId: e.id, amount: collisionDamage, color: '#d9f6ff', source: 'wind-collision', sound: 'wind-collision', feedback: { element: 'wind', slam: true, dir } });
+    }
+  }
+
+  // Bowling: the bug `e` slid from `from` to where it is now; every other bug (not Elites or the boss) that slide went through takes `dmg`
+  // and a little shove along it, and a dust puff marks each
+  bowl(e, from, dir, dmg) {
+    const ax = from.x, az = from.z, dx = e.pos.x - ax, dz = e.pos.z - az, len2 = dx * dx + dz * dz;
+    for (const o of this.list) {
+      if (o === e || o.dead || o.proxy) continue;
+      const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((o.pos.x - ax) * dx + (o.pos.z - az) * dz) / len2)) : 0;
+      if (Math.hypot(o.pos.x - ax - dx * t, o.pos.z - az - dz * t) >= e.r + o.r) continue;
+      const at = this.center(o, S.windContact);
+      this.fx.wind.streaks(at, dir, 4, 1.1, o.r * 3.5);
+      this.fx.puff(at, 0xd8d0c2, o.r * 1.2, 0.3);
+      bus.emit('damage_taken', { targetId: o.id, amount: dmg, color: '#d9f6ff', source: 'wind-bowl', feedback: { element: 'wind', dir: dir.clone() } });
+      if (!o.dead && !o.T.fly) bus.emit('knockback', { targetId: o.id, dir: dir.clone(), force: 0.015 });
     }
   }
 

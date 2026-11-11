@@ -2,6 +2,14 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v404 builds the Wind jelly type behind the jelly types switch: fast gusts that go through three bugs and shove them back, a white swirl and streaming tentacles for its look, and its 12 Attack upgrades (Cyclone, Bowling, Glide: hold jump in the air to drift down, and more).
+
+v403 jelly types (behind the switch): the Normal jelly gets its 12 Attack upgrades, from Double Bubble to Orbit.
+
+v402 adds the Lightning jelly behind the jelly types switch: its shot arcs to 3 more bugs and stuns them, its jelly crackles with a storm look, and it has 12 Attack upgrades (big bolts, charge-ups, Ball Lightning and more).
+
+v401 jelly types (behind the switch): the Ice jelly gets its look (a pale crystal in the bell, frost on its tentacle tips, cold mist sinking to the floor) and its 12 Attack upgrades, from Permafrost to Avalanche.
+
 v400 Poison Rain blobs start under low furniture instead of inside it, and Toxic Cloud and Burst Sac stacks are worth the blob's own with more Attacks.
 
 v399 builds the Poison jelly type behind the jelly types switch: a blob that bursts into Poison stacks (no puddles), Poisoned bugs hit 20% softer, its green look, and its 12 Attack upgrades.
