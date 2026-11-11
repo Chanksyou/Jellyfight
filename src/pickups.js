@@ -49,6 +49,14 @@ export class XpDrops {
     }
   }
 
+  // one big drop worth `value` (Jackpot), drawn half again as big
+  gem(pos, value) {
+    const n = this.list.length;
+    this.drop(pos, BIG);
+    const d = this.list.length > n ? this.list[n] : null;
+    if (d) { d.value = value; d.k = 1.6; }
+  }
+
   clear() {
     this.list.forEach((d) => this.scene.remove(d.m));
     this.list = [];
@@ -75,14 +83,14 @@ export class XpDrops {
           d.m.position.x += this._to.z * bend; d.m.position.z -= this._to.x * bend;
           d.m.quaternion.setFromUnitVectors(UP, this._to);
           const stretch = LOOK.num('xp-pull-stretch', 0.8) * Math.min(1, d.pullT / 0.08);
-          d.m.scale.set(1 / Math.sqrt(1 + stretch), 1 + stretch, 1 / Math.sqrt(1 + stretch));
-        } else d.m.scale.setScalar(1);
+          d.m.scale.set(1 / Math.sqrt(1 + stretch), 1 + stretch, 1 / Math.sqrt(1 + stretch)).multiplyScalar(d.k || 1);
+        } else d.m.scale.setScalar(d.k || 1);
       } else {
         // pop out, fall, settle
         d.vel.y -= 1.2 * dt;
         p.addScaledVector(d.vel, dt);
         if (p.y <= d.floor) { p.y = d.floor; d.vel.set(0, 0, 0); }
-        d.m.scale.setScalar(1 + Math.sin(d.t * 5) * 0.08);
+        d.m.scale.setScalar((d.k || 1) * (1 + Math.sin(d.t * 5) * 0.08));
         d.m.position.copy(p);
       }
     }

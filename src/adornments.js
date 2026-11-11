@@ -12,6 +12,8 @@
 //   ember       the Fire jelly type: a flickering ember inside the bell, tentacle tips glowing like
 //               coals, sparks drifting up off them
 //   barbs       the Tentacle jelly type: its tentacles longer and thicker, with barbs along them
+//   sparkle     the Glitter jelly type: a rainbow core shimmering in the bell, a glinting rainbow
+//               bead on every tentacle tip, and little star twinkles winking on and off over the bell
 //   toxin       the Poison jelly type: a pale green core in the bell with toxic bubbles rising off it, a
 //               drop swelling on every tentacle tip and falling, green drips running off the rim
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
@@ -245,6 +247,70 @@ export class Adornments {
         if (m && T?.pts?.length) { rig.parent.localToWorld(m.position.copy(T.pts[0])); m.scale.setScalar(rig.thick * unit * L('drop-size', 1.3) * 0.7); m.userData.vy = 0; m.visible = true; }
       }
       for (const m of drips) if (m.visible) fall(m, dt, floor, G);
+    } };
+  }
+
+  // Glitter jelly: a core in the bell that shimmers through the rainbow (an emissive ball, not a light),
+  // a bead on every tentacle tip in its own colour of the glitter, glinting, and star twinkles that
+  // wink on and off over the bell. Colours from --glitter-flakes, the bomb's own
+  make_sparkle() {
+    const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('sparkle-' + k, f);
+    const cols = LOOK.list('glitter-flakes', ['#ff2ab0', '#ffc81a', '#2ae0ff', '#b04aff', '#6aff6a', '#ffffff']).slice(0, 5).map((c) => new THREE.Color(c));
+    const coreMat = new THREE.MeshStandardMaterial({ color: cols[0].clone(), emissive: cols[0].clone(), emissiveIntensity: 1.8, roughness: 0.2, transparent: true, opacity: 0.85, depthWrite: false });
+    const beadMats = cols.map((c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    const ball = new THREE.SphereGeometry(1, 10, 8), star = new THREE.OctahedronGeometry(1, 0);
+    const core = new THREE.Mesh(ball, coreMat);
+    group.add(core);
+    const beads = Array.from({ length: 8 }, (_, i) => { const m = new THREE.Mesh(star, beadMats[i % beadMats.length]); group.add(m); return m; });
+    const stars = Array.from({ length: L('twinkles', 7) }, () => { const m = new THREE.Mesh(star, starMat); m.visible = false; m.userData.t = 1; group.add(m); return m; });
+    this.batch.track(group);
+    const hue = new THREE.Color(), glowCol = new THREE.Color();
+    let next = 0;
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;
+      const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      // the core: drifting through the glitter's colours
+      core.visible = on;
+      if (on) {
+        const u = (this.t * L('shimmer', 0.6)) % cols.length, i = Math.floor(u);
+        hue.copy(cols[i]).lerp(cols[(i + 1) % cols.length], u - i);
+        coreMat.color.copy(hue); coreMat.emissive.copy(hue);
+        rig.parent.localToWorld(core.position.set(0, L('core-y', 0.82), 0));
+        core.scale.setScalar(h * L('core-size', 0.12) * (0.95 + Math.sin(this.t * 7) * 0.05));
+        G?.hold(core.position, glowCol.copy(hue), h * L('glow-size', 0.7), 0.55);
+      }
+      // a bead on every tip, turning, glinting now and then
+      beads.forEach((m, i) => {
+        m.visible = on && !!rig.list[i];
+        if (!m.visible) return;
+        rig.list[i].tip.getWorldPosition(m.position);
+        const glint = Math.max(0, Math.sin(this.t * 5 + i * 1.7)) ** 8;
+        m.scale.setScalar(rig.thick * unit * L('bead-size', 1.5) * (1 + glint * 0.6));
+        m.rotation.set(this.t * 3 + i, this.t * 2, 0);
+        G?.hold(m.position, beadMats[i % beadMats.length].color, m.scale.x * (4 + glint * 6), 0.5 + glint * 0.5);
+      });
+      // a star twinkle winks on somewhere over the bell, swells and is gone
+      if (on && (next -= dt) <= 0) {
+        next = L('twinkle-every', 0.16);
+        const m = stars.find((x) => !x.visible);
+        if (m) {
+          const a = Math.random() * Math.PI * 2, up = 0.6 + Math.random() * 0.4;   // over the dome, from the rim (0.56) to the crown
+          Object.assign(m.userData, { t: 0, x: Math.cos(a) * 0.5 * Math.sqrt(1 - (up - 0.6) / 0.45), y: up, z: Math.sin(a) * 0.5 * Math.sqrt(1 - (up - 0.6) / 0.45) });
+          m.visible = true;
+        }
+      }
+      const life = L('twinkle-life', 0.45);
+      for (const m of stars) {
+        if (!m.visible) continue;
+        const u = (m.userData.t += dt) / life;
+        if (u >= 1 || !on) { m.visible = false; continue; }
+        rig.parent.localToWorld(m.position.set(m.userData.x, m.userData.y, m.userData.z));
+        const k = Math.sin(u * Math.PI);
+        m.scale.set(h * L('twinkle-size', 0.03) * k * 0.35, h * L('twinkle-size', 0.03) * k, h * L('twinkle-size', 0.03) * k * 0.35);
+        m.rotation.y = u * 3;
+        G?.hold(m.position, starMat.color, h * L('twinkle-size', 0.03) * k * 2.5, 0.8 * k);
+      }
     } };
   }
 

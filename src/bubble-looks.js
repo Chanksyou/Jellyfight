@@ -413,6 +413,7 @@ export class BubbleLooks {
     this.fx.glow.emit(b, this.L.flash, w * 9, w * 2, 0.12, 1.4);                           // where it lands
   }
   tickBolts(dt) {
+    if (this.balls?.length) this.tickBalls(dt);
     if (!this.live.length) return;
     const L = this.L, glow = this.fx.glow;
     for (const s of this.live) {
@@ -441,7 +442,33 @@ export class BubbleLooks {
     }
     for (let i = this.live.length - 1; i >= 0; i--) if (this.live[i].t >= L.life) this.boltPool.push(this.live.splice(i, 1)[0]);
   }
-  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; }
+  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const v of this.balls || []) v.visible = false; }
+
+  // The Glitter jelly's burst (types on, bubbles.js glitterBurst): a ball of sparkle exactly the size
+  // of the hit, `r`, round `pos` (a sphere Volume, vfx.js, so a flying bug inside reads as hit). It
+  // swells out to its real edge, its glittering shell filling, then fades. Pooled (no new shader in a
+  // fight: every Volume shares one program). `color`: the bomb's, or its Rainbow roll's
+  sparkleBall(pos, r, color, crit = false) {
+    const B = (this.balls ||= []), most = LOOK.num('glitter-ball-most', 8);
+    let v = B.find((x) => !x.visible);
+    if (!v) v = B.length < most ? B[B.push(this.fx.volume(color, 'sphere', pos, r)) - 1] : B.reduce((a, x) => (x.userData.t > a.userData.t ? x : a));
+    v.material.uniforms.uColor.value.set(color);
+    v.position.copy(pos);
+    Object.assign(v.userData, { t: 0, r, life: LOOK.num('glitter-ball-life', 0.32) * (crit ? 1.4 : 1), peak: LOOK.num('glitter-ball-opacity', 0.8) * (crit ? 1.3 : 1) });
+    v.scale.setScalar(r * 0.5);
+    v.visible = true;
+  }
+  tickBalls(dt) {
+    for (const v of this.balls) {
+      if (!v.visible) continue;
+      const U = v.userData, u = (U.t += dt) / U.life;
+      if (u >= 1) { v.visible = false; continue; }
+      const out = 1 - (1 - Math.min(1, u * 3)) ** 3;              // swells out fast to its real edge, then holds
+      v.scale.setScalar(U.r * (0.5 + 0.5 * out));
+      v.material.progress = Math.min(1, u * 2.5);                  // the glitter shell fills from the bottom up
+      v.material.opacity = U.peak * (u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5);
+    }
+  }
 
   fireLaunch(pos, r) {
     const F = this.fire;

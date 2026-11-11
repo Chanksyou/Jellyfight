@@ -153,3 +153,49 @@ upgrade "poisonRain" jelly="poison" name="Poison Rain" icon="🌧️" text="Ever
 upgrade "splitBlob" jelly="poison" name="Split Blob" icon="🫧" text="After it hits, your blob splits in two halves that fly on, each hitting for half and bursting." {
     split-on-hit 2 dmg=0.5
 }
+
+// --- Glitter: chance, Luck, Crits, random effects and XP (docs/jelly-types/types/glitter.md). Numbers are starting values.
+upgrade "prism" jelly="glitter" name="Prism" icon="🔺" text="Each burst fires 3 small rainbow shots at the nearest bugs, 30% of the bomb's hit each." {
+    echo-bubble from="splash" count=3 dmg=0.3
+}
+upgrade "rainbow" jelly="glitter" name="Rainbow" icon="🌈" text="Each bomb rolls a colour: red sets bugs burning, blue Chills them, yellow Stuns them, for 1.5 s." {
+    random-status statuses="burning chilled stunned" time=1.5
+}
+upgrade "luckySparkle" jelly="glitter" name="Lucky Sparkle" icon="🍀" text="15% chance a burst Crits, splashing for 3x damage." {
+    crit by="splash" chance=0.15 mult=3
+}
+upgrade "confettiPop" jelly="glitter" name="Confetti Pop" icon="🎊" text="Bugs killed by a splash pop into confetti that splashes again at half damage." {
+    on-kill-of by="splash" {
+        splash dmg=0.5
+    }
+}
+upgrade "midasTouch" jelly="glitter" name="Midas Touch" icon="👑" text="1 in 20 splashed bugs turns to gold: held still and shining for 3 s, then it bursts into 5 small glitter bombs." {
+    gild chance=0.05 time=3 bombs=5
+}
+upgrade "discoBomb" jelly="glitter" name="Disco Bomb" icon="🪩" text="Every 8 s, your next bomb splashes 3x as wide." {
+    every 8 {
+        next-attack width=3
+    }
+}
+upgrade "mirrorGlitter" jelly="glitter" name="Mirror Glitter" icon="🪞" text="A burst that reaches a wall goes off once more, thrown back off it." {
+    splash-reflect
+}
+// kills=10: one splash killing 10 is rare in act 1, likelier with Hot Streak and Disco Bomb
+upgrade "wish" jelly="glitter" name="Wish" icon="🌠" text="Once each act, a splash that kills 10 bugs gives you a free level-up." {
+    wish 10
+}
+upgrade "jackpot" jelly="glitter" name="Jackpot" icon="🎰" text="1 in 100 kills drops a big XP gem worth the rest of your level." {
+    crumb-on-kill drop="level" chance=0.01
+}
+// "until a splash kills fewer" said with stack-buff's time: each big splash adds 50% Attack size for 4 s, up to 3
+upgrade "hotStreak" jelly="glitter" name="Hot Streak" icon="📈" text="A splash that kills 3 or more bugs makes your bombs 50% bigger for 4 s, stacking up to 3 times." {
+    stack-buff "big-splash" "bubble-size" 50 percent=#true time=4 stacks=3
+}
+upgrade "partyPopper" jelly="glitter" name="Party Popper" icon="🎉" text="A random bomb in 10 is giant, splashing for 3x damage." {
+    nth-attack 10 random=#true {
+        big dmg=3 size=2
+    }
+}
+upgrade "starBurst" jelly="glitter" name="Star Burst" icon="⭐" text="A burst that reaches 5 or more bugs fires a star shot at each, 50% of the bomb's hit." {
+    splash-shots min=5 dmg=0.5
+}
