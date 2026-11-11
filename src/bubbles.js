@@ -55,7 +55,8 @@ const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
 const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
-const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
+const SCORCH = LOOK.color('lightning-scorch', '#2a2620');   // the mark lightning leaves on the floor
+const STRIKE = LOOK.color('lightning-strike', '#fff27a');   // the ring where a charged strike lands
 // share of power each element deals (see the top of the file)
 export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
@@ -696,7 +697,7 @@ export class Bubbles {
   // (except `skip`), `S.dmg` times the shot's damage each
   strikeAround(p, S, dmg, skip) {
     const E = this.enemies, c = this._c;
-    this.fx.ring(V3.set(p.x, E.floorBelow(p, p.y - 0.03), p.z), 0xfff27a, S.strike, 0.35);
+    this.fx.ring(V3.set(p.x, E.floorBelow(p, p.y - 0.03), p.z), STRIKE, S.strike, 0.35);
     juice.feel('hit-big'); sfx.lightningBig();
     let k = 0;
     for (const e of this.inRange(p, S.strike, skip)) {

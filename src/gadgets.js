@@ -340,7 +340,7 @@ export class Gadgets {
         if (o.hit.has(e)) continue;
         o.hit.add(e);
         this.bubbles?.zap(o.m.position, E.center(e), o.hit.size - 1);
-        fx.splat(_to.set(e.pos.x, E.floorBelow(e.pos, e.pos.y), e.pos.z), 0x2a2620, 0.008, 'scorch');   // a scorch under it (harmless, fades)
+        fx.splat(_to.set(e.pos.x, E.floorBelow(e.pos, e.pos.y), e.pos.z), LOOK.color('lightning-scorch', '#2a2620'), 0.008, 'scorch');   // a scorch under it (harmless, fades)
         bus.emit('damage_taken', { targetId: e.id, amount: power * o.dmg, color: '#fff27a', source: 'lightning' });
       }
       if (o.t <= 0) { fx.impact(o.m.position, o.m.userData.orb.c, 0.012, 6); sfx.elementHit('lightning'); fx.free(o.m); o.hit.clear(); }

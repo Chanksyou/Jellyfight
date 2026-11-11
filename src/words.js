@@ -972,7 +972,7 @@ export const TREASURE_WORDS = {
     make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
   },
   'element-up': {
-    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow and slowedMul add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
+    doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow, slowedMul, frostbite, chillPierce, grow, revisit and stunFirst add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
     args: ['name'],
     props: Object.fromEntries([...new Set(Object.values(ELEMENT_BASE).flatMap((o) => Object.keys(o)))].map((k) => [k, null])),
     make: ([name], p) => {

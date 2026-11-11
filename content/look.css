@@ -636,6 +636,8 @@
   --storm-fleck-size: 0.0018;     /* its radius, meters */
   --ball-lightning: #ffe45c;      /* the Ball Lightning upgrade's ball, drifting out and zapping bugs */
   --ball-lightning-size: 0.0065;  /* its radius, meters */
+  --lightning-strike: #fff27a;    /* the ring a Thunderclap strike (Storm Cell, Static Charge) sends out where it lands */
+  --lightning-scorch: #2a2620;    /* the scorch a lightning bolt or ball leaves on the floor */
   --ink-cloud: #0b0a22;           /* the Ink Cloud upgrade: near-black blue ink, the body of the cloud, its floor stains and drops */
   --ink-edge: #26205a;            /* the lighter blue where the cloud is thin, so it reads as ink and not a shadow */
   --venom: #8dff5a;              /* the puffs of a venomed bug */
