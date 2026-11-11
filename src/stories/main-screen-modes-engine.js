@@ -318,7 +318,7 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     G().run.start();
     const afterLock = G().run.dev;
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag,pass-ao,pass-bloom,pass-lamps,types'
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag,pass-ao,pass-bloom,pass-lamps'
       && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
       { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, asked, devBefore, devRun, nextRunDev, afterLock });
   },

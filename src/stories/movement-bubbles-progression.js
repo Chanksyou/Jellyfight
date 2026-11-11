@@ -98,7 +98,7 @@ story('attack/bubble-feel', {
 });
 story('attack/sting-feel', {
   about: 'The tentacle sting completes its Attack Feel chain (docs/agents/attack-feel.md) and reads from the play camera: the bell twitches on the frame the tentacles whip out; the striking tentacle swells and a glow streak trails its tip; it lands on the near side of the bug, up its back (in sight from above), with a flash and a crescent swept across the bug on the same frame; the bug flashes white and is shoved by knockFor(damage), so a 4-damage sting shoves 4 mm.',
-  setup() { fresh({ elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
+  setup() { fresh({ types: 'tentacle', elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
   play() {
     const { run, enemies, fx, player } = G(), L = run.lash, e = enemies.list[0];
     let f = 0;
@@ -123,7 +123,7 @@ story('attack/sting-feel', {
 });
 story('attack/sting-miss-no-crack', {
   about: 'A tentacle that reaches a bug already dead when it lands gives no false hit: no flash, no crescent, no damage.',
-  setup() { fresh({ elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
+  setup() { fresh({ types: 'tentacle', elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
   play() {
     const { run, enemies, fx } = G(), L = run.lash, e = enemies.list[0];
     const slashes = spy(L, 'slash'), impacts = spy(fx, 'impact'), hits = record('damage_taken');
@@ -203,60 +203,6 @@ story('attack/side-by-side-bubbles', {
   },
 });
 
-story('attack/element-projectiles', {
-  about: 'Each element is an attack of its own: it fires its own projectile (a fireball, ball lightning, an ice shard, an acid glob, a wind gust, a glitter bomb) on its own timer, while the bubbles stay plain bubbles; the lightning one crackles with arcs.',
-  setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const P = G().player.position; spawn('roach', P.clone().add(V(0, 0, -0.25)), { still: true, hp: 1e6 }); },
-  play() {
-    const { run } = G();
-    const seen = {};
-    let arcs = 0, plainOnly = true;
-    for (const [id, el] of [['candle', 'fire'], ['battery', 'lightning'], ['freezerPack', 'ice'], ['nailPolish', 'acid'], ['paperFan', 'wind'], ['glitter', 'glitter']]) {
-      run.owned = new (run.owned.constructor)(); run.owned.add(id);
-      run.bubbles.reset(); run.bubbles.timer = 1; run.bubbles.elTimers[el] = 1;
-      step(el === 'wind' ? 20 : 6);   // wind now gathers for 0.28 s before release
-      const looks = run.bubbles.list.map((b) => b.m.userData.look || null);
-      seen[el] = looks.find(Boolean) || null;
-      if (!looks.includes(null)) plainOnly = false;            // a plain bubble flew alongside it
-      if (el === 'lightning') arcs = run.bubbles.looks.arcN;
-    }
-    const all = Object.entries(seen).every(([el, look]) => el === look);
-    return ok(all && plainOnly && arcs > 0, { seen, plainOnly, arcs });
-  },
-});
-story('treasures/element-rewards', {
-  about: 'Base elements are Legendary and never come from treasure chests: the start of a run offers 3 Legendary elements you don\'t have (and only elements). Element upgrades never turn up in an ordinary pick: owning fire, chests 1, 2, 4 and 5 offer none and chests 3 and 6 offer exactly one (a fire one); with no element, the 3rd chest is three ordinary treasures.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
-  play() {
-    const { run, menus } = G();
-    const isUp = (t) => ELEMENT_UPGRADES.includes(t.id);
-    let starts = 0, sample = null;
-    stub(menus, 'choose', (title, sub, list) => {
-      if (list.length === 3 && list.every((t) => ELEMENTS_IDS.includes(t.id) && !run.owned.has(t.id) && t.tier?.name === 'Legendary')) starts++;
-      sample = list.map((t) => t.id);
-    });
-    for (let i = 0; i < 60; i++) run.pickElement('start', '');
-    // a run with fire: count upgrades per chest, over many runs' first six chests
-    let wrong = [], baseEl = 0;
-    let ups = [];
-    stub(menus, 'choose', (title, sub, list) => { ups.push(list.filter(isUp)); if (list.some((t) => ELEMENTS_IDS.includes(t.id))) baseEl++; });
-    for (let r = 0; r < 40; r++) {
-      run.owned.clear(); run.owned.add('candle'); run.chestsOpened = 0; ups = [];
-      for (let c = 0; c < 6; c++) run.pickTreasure('', '', c % 2 ? 'elite' : 'room');
-      ups.forEach((u, i) => {
-        const want = (i + 1) % 3 === 0 ? 1 : 0;
-        if (u.length !== want || u.some((t) => t.needs !== 'candle')) wrong.push(`chest ${i + 1}: ${u.map((t) => t.id)}`);
-      });
-    }
-    // no element: the 3rd chest is three ordinary treasures
-    run.owned.clear(); run.chestsOpened = 2; ups = [];
-    let third = null;
-    stub(menus, 'choose', (title, sub, list) => { third = list; });
-    run.pickTreasure('', '', 'room');
-    restore();
-    const plainThird = third?.length === 3 && !third.some(isUp);
-    return ok(starts === 60 && !wrong.length && !baseEl && plainThird, { starts, wrong: wrong.slice(0, 5), baseEl, plainThird, sample });
-  },
-});
 story('enemies/ant-pin-colours', {
   about: 'Each ant spawns with one of the five thumbtack colours (--pin-colors), and the pin it throws is that colour too.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },

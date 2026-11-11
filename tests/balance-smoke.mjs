@@ -58,7 +58,7 @@ try {
     }
     const progress = await page.evaluate(async ({ act, carry }) => {
       const B = await import('/tests/balance-browser.mjs');
-      const start = B.startAct({ seed: 17, style: 'rooting', build: ['candle'], initial: act === 1, prefer: [], seconds: 30, actOnly: false });
+      const start = B.startAct({ seed: 17, style: 'rooting', build: ['goldRing'], initial: act === 1, prefer: [], seconds: 30, actOnly: false });
       const received = { level: run.level, evolved: [...run.evolved], owned: [...run.owned] };
       // Force a victory only in this integration test; the production bot never kills a boss for itself.
       run.startBossIntro(); run.updateBossIntro(1.5); run.boss.dead = true; run.onBossDead({ impact: false });
@@ -79,8 +79,8 @@ try {
     if (act < 4) {
       carry = progress.end.transition.carry;
       assert.equal(progress.end.transition.act, act + 1);
-      assert.equal(carry.evolved.length, act);
-      assert.ok(carry.owned.some(([id]) => id === 'candle'));
+      assert.ok(carry.evolved.length >= act - 1 && carry.evolved.length <= act);   // the boss's Legendary pick may or may not be an evolution
+      assert.ok(carry.owned.some(([id]) => id === 'goldRing'));
     }
     console.log(`PASS: act ${act} victory/reward/carry progression${act === 4 ? '/ending' : ''}`);
   }

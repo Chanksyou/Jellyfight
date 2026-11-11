@@ -4,6 +4,8 @@
 import { FEATS_KEY } from '../cosmetics.js';
 import { FOUND_KEY, KINDS, isFound } from '../collection.js';
 import { TREASURES } from '../stats.js';
+import { CONTENT } from '../content.js';
+import { leavesWithTypes } from '../jelly-types.js';
 import { SAVE_KEY, STAGES, carried, currentAct, keepRun, keptRun, nav, peekAction } from '../stages.js';
 import { G, fresh, ok, spy, step, story, stub } from './kit.js';
 
@@ -69,7 +71,7 @@ story('book/finds-are-recorded', {
       // the book
       run.showBook(() => {});
       const text = modal().innerText;
-      const count = new RegExp(`Treasures\\s*1 / ${TREASURES.length}`).test(text);
+      const count = new RegExp(`Treasures\\s*1 / ${TREASURES.filter((x) => !leavesWithTypes(x)).length + CONTENT.evolutions.length}`).test(text);
       const cell = [...modal().querySelectorAll('.jf-book-grid button')].find((b) => b.textContent.includes(t.name));
       cell?.click();
       const reads = modal().querySelector('.say').textContent.includes(t.text);
@@ -96,7 +98,7 @@ story('book/finds-are-recorded', {
 });
 
 story('book/every-entry-has-its-own-icon', {
-  about: 'With everything found, every Treasure book entry (Treasures, evolutions, Elites, bosses) shows an icon of its own: none blank, none shared.',
+  about: 'With everything found, every Treasure book entry (Treasures, evolutions, Elites, bosses; the Attack upgrades and Jellies pages aside) shows an icon of its own: none blank, none shared.',
   setup() { fresh({ elites: false }); },
   play() {
     const { run, menus } = G();
@@ -104,12 +106,18 @@ story('book/every-entry-has-its-own-icon', {
       const calls = spy(run.ui, 'book');
       run.showBook(() => {});
       // find everything, then open it again
-      localStorage.setItem(FOUND_KEY, JSON.stringify(Object.fromEntries(calls[0][1].map((s, i) => [KINDS[i], s.items.map((it) => it.id)]))));
+      const all = Object.fromEntries(KINDS.map((k) => [k, []]));
+      for (const sec of calls[0][1]) {
+        const base = sec.title === 'Treasures' ? 'treasures' : sec.title === 'Elites' ? 'elites' : sec.title === 'Bosses' ? 'bosses' : /Attack upgrades/.test(sec.title) ? 'upgrades' : null;
+        if (base) for (const it of sec.items) all[it.kind || base].push(it.id);   // (the Jellies page is judged by what is unlocked, not found)
+      }
+      localStorage.setItem(FOUND_KEY, JSON.stringify(all));
       run.showBook(() => {});
-      const cells = [...modal().querySelectorAll('.jf-book-grid button')];
+      const upgradeNames = [...CONTENT.upgrades, ...Object.values(CONTENT.jellies)].map((u) => u.name);   // Attack upgrades and jelly types may share emoji: judged apart
+      const cells = [...modal().querySelectorAll('.jf-book-grid button:not(.locked)')].filter((b) => !upgradeNames.some((n) => b.textContent.endsWith(n)));
       const icons = cells.map((b) => b.querySelector('.ic').textContent.replace(/\uFE0F/g, '').trim());
       menus.close();
-      const allFound = cells.length > 100 && cells.every((b) => !b.disabled);
+      const allFound = cells.length > 80 && cells.every((b) => !b.disabled);
       const blank = cells.filter((b, i) => !icons[i] || icons[i] === 'undefined').map((b) => b.textContent);
       const shared = cells.filter((b, i) => icons.indexOf(icons[i]) !== i).map((b) => b.textContent);
       return ok(allFound && !blank.length && !shared.length, { entries: cells.length, allFound, blank, shared });

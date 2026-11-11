@@ -398,6 +398,7 @@ act3('beating-the-shark-goes-on-to-act-4', {
     await wait(2400);                                     // the metamorphosis comes a moment after
     const legendary = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // a Legendary treasure
+    if (run.evolutionReveal.active) run.evolutionReveal.finish();   // a former evolution plays its portrait first
     const upgrade = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // an Attack upgrade
     const done = modal()?.innerText || '';

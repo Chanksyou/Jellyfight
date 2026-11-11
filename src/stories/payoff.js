@@ -1,7 +1,7 @@
 // The moments the game hands you something: a level-up's ding and cards, an end screen's tally,
 // a golden award's reveal, a boss cleared (ui.js, hud.js, run.js).
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
-import { DEATH_HINTS } from '../first-run.js';
+import { DEATH_HINTS, TYPE_HINTS } from '../first-run.js';
 import { juice } from '../juice.js';
 import { bus, PLAYER } from '../events.js';
 import { G, V, fresh, ok, phone, step, story, stub } from './kit.js';
@@ -140,7 +140,7 @@ story('payoff/death-hint-acts-1-and-2', {
       return hints;
     };
     const act1 = end(1, 'dead'), act2 = end(2, 'dead'), act3 = end(3, 'dead'), won = end(1, 'won');
-    const known = [...act1, ...act2].every((h) => DEATH_HINTS.includes(h));
+    const known = [...act1, ...act2].every((h) => DEATH_HINTS.includes(h) || TYPE_HINTS.includes(h));
     return ok(act1.length === 1 && act2.length === 1 && known && !act3.length && !won.length, { act1, act2, act3, won });
   },
 });
