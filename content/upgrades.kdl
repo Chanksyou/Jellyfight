@@ -241,3 +241,51 @@ upgrade "jetStream" jelly="wind" name="Jet Stream" icon="🚀" text="Gusts fly 5
 upgrade "glide" jelly="wind" name="Glide" icon="🪂" text="Hold jump in the air to drift down slowly. Gusts blown while you drift push twice as far." {
     glide fall=0.2 push=2
 }
+
+// --- Lightning: chains and charge-ups (docs/jelly-types/types/lightning.md). Numbers are starting values.
+// The shots' arcs hit 3 more bugs for 41% each and Stun them 0.5 s (content/jellies.kdl).
+upgrade "overcharge" jelly="lightning" name="Overcharge" icon="🔋" text="Every 5th shot is a big bolt: bigger, its arcs hit twice as hard and jump twice as far." {
+    nth-attack 5 {
+        bolt dmg=2 reach=2
+    }
+}
+upgrade "conductor" jelly="lightning" name="Conductor" icon="🧲" text="Arcs can jump back to bugs they already hit, and jump 3 more times." {
+    element-up "lightning" revisit=1 chain=3
+}
+upgrade "staticSkin" jelly="lightning" name="Static Skin" icon="🧦" text="Bugs that touch you are zapped and Stunned for 1 s, once every 2 s each." {
+    touch-zap dmg=0.6 stun=1 each=2
+}
+upgrade "stormCell" jelly="lightning" name="Storm Cell" icon="⛈️" text="Stand still for 2 s to charge: your next shot strikes every bug within 20 cm of where it lands." {
+    charged-shot "rooted" 2 strike=0.2
+}
+upgrade "thunderclap" jelly="lightning" name="Thunderclap" icon="🥁" text="Stunned bugs take 50% more damage from everything." {
+    status-damage "stunned" more=0.5
+}
+upgrade "ballLightning" jelly="lightning" name="Ball Lightning" icon="🔮" text="Every 6 s a slow ball of lightning drifts out and zaps every bug it passes." {
+    every 6 {
+        orb
+    }
+}
+upgrade "chainReaction" jelly="lightning" name="Chain Reaction" icon="💫" text="A Stunned bug that dies sends bolts to 2 more bugs." {
+    on-kill-of status="stunned" {
+        zap 2 range=0.16 dmg=1 look="bolt"
+    }
+}
+upgrade "lightningRod" jelly="lightning" name="Lightning Rod" icon="🗼" text="Arcs jump to Stunned bugs first, and hit them for 30% more." {
+    element-up "lightning" stunFirst=1
+    status-damage "stunned" more=0.3 by="lightning"
+}
+upgrade "overload" jelly="lightning" name="Overload" icon="🌩️" text="Every 10 s a bolt strikes the toughest bug near you for 5x damage." {
+    every 10 {
+        zap 1 target="toughest" dmg=5 look="bolt"
+    }
+}
+upgrade "staticCharge" jelly="lightning" name="Static Charge" icon="🎈" text="After 3 s of moving, your next shot arcs to 3 more bugs." {
+    charged-shot "moving" 3 chain=3
+}
+upgrade "surge" jelly="lightning" name="Surge" icon="📈" text="Each arc gives +2% Fire rate for 3 s, up to +20%." {
+    stack-buff "arc" "fire-rate" 2 percent=#true time=3 stacks=10
+}
+upgrade "grounded" jelly="lightning" name="Grounded" icon="🌍" text="Arcs hit Elites and the boss twice as hard." {
+    element-up "lightning" eliteBolt=2
+}

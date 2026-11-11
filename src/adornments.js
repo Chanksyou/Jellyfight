@@ -18,6 +18,8 @@
 //               drop swelling on every tentacle tip and falling, green drips running off the rim
 //   gale        the Wind jelly type: a white swirl spinning in the bell, thin air streaks circling it, its
 //               tentacles streaming back as if in a breeze
+//   storm       the Lightning jelly type: a crackling blue-white core in the bell, tentacle tips glowing
+//               faintly, a small arc jumping between two tips every few seconds, static flecks
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -351,6 +353,81 @@ export class Adornments {
         if (m && T?.pts?.length) { rig.parent.localToWorld(m.position.copy(T.pts[0])); m.scale.setScalar(rig.thick * unit * L('drop-size', 1.3) * 0.7); m.userData.vy = 0; m.visible = true; }
       }
       for (const m of drips) if (m.visible) fall(m, dt, floor, G);
+    } };
+  }
+
+  // Lightning jelly: a crackling blue-white core in the bell (an emissive ball, not a light), a faint
+  // glow on every tentacle tip, now and then a small arc jumping between two tips, and static flecks
+  // blinking about the bell
+  make_storm() {
+    const group = new THREE.Group(), h = this.h;
+    const coreMat = glowMat('storm-core', '#bfe6ff', { emissiveIntensity: 2.4, transparent: true, opacity: 0.85, depthWrite: false });
+    const tipMat = glowMat('storm-tip', '#7fd0ff', { emissiveIntensity: 1.8 });
+    const arcMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-arc', '#f4fbff'), toneMapped: false });
+    const fleckMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-fleck', '#cfeaff'), toneMapped: false });
+    const ball = new THREE.SphereGeometry(1, 10, 8), bar = new THREE.CylinderGeometry(0.5, 0.5, 1, 4);
+    const core = new THREE.Mesh(ball, coreMat);
+    group.add(core);
+    const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, tipMat); group.add(m); return m; });
+    const SEG = 6, segs = Array.from({ length: SEG }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
+    const flecks = Array.from({ length: LOOK.num('storm-flecks', 8) }, () => { const m = new THREE.Mesh(ball, fleckMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
+    this.batch.track(group);
+    const glowCol = coreMat.color.clone(), tipCol = tipMat.color.clone();
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    let arcIn = LOOK.num('storm-arc-every', 2.5), arcT = 0, arcA = 0, arcB = 1;
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;
+      const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      core.visible = on;
+      if (on) {
+        const crackle = 0.75 + Math.random() * 0.5;   // jitters every frame: it crackles
+        rig.parent.localToWorld(core.position.set(0, LOOK.num('storm-core-y', 0.86), 0));
+        core.scale.setScalar(h * LOOK.num('storm-core-size', 0.1) * (0.8 + crackle * 0.2));
+        coreMat.emissiveIntensity = 2.4 * crackle;
+        G?.hold(core.position, glowCol, h * LOOK.num('storm-glow-size', 0.6) * (0.8 + crackle * 0.2), 0.5 * crackle);
+      }
+      tips.forEach((m, i) => {
+        m.visible = on && !!rig.list[i];
+        if (!m.visible) return;
+        rig.list[i].tip.getWorldPosition(m.position);
+        m.scale.setScalar(rig.thick * unit * LOOK.num('storm-tip-size', 0.8));
+        G?.hold(m.position, tipCol, m.scale.x * 4, 0.35);
+      });
+      // an arc between two tips: a jagged bar of segments, re-shaped every frame for its short life
+      if (on && arcT <= 0 && (arcIn -= dt) <= 0 && rig.list.length > 1) {
+        arcIn = LOOK.num('storm-arc-every', 2.5) * (0.6 + Math.random() * 0.8);
+        arcT = LOOK.num('storm-arc-life', 0.16);
+        arcA = Math.floor(Math.random() * rig.list.length);
+        arcB = (arcA + 1 + Math.floor(Math.random() * (rig.list.length - 1))) % rig.list.length;
+      }
+      const arcOn = on && arcT > 0 && rig.list[arcA] && rig.list[arcB];
+      if (arcOn) {
+        arcT -= dt;
+        rig.list[arcA].tip.getWorldPosition(a); rig.list[arcB].tip.getWorldPosition(b);
+        const w = rig.thick * unit * LOOK.num('storm-arc-width', 0.35), kink = a.distanceTo(b) * 0.18;
+        prev.copy(a);
+        segs.forEach((m, k) => {
+          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+          m.visible = true;
+          m.position.copy(prev).add(next).multiplyScalar(0.5);
+          d.copy(next).sub(prev);
+          m.scale.set(w, d.length(), w);
+          m.quaternion.setFromUnitVectors(Y, d.normalize());
+          prev.copy(next);
+        });
+        G?.hold(a, tipCol, w * 12, 0.8); G?.hold(b, tipCol, w * 12, 0.8);
+      } else for (const m of segs) m.visible = false;
+      // static flecks: tiny points blinking on and off round the bell
+      const P = this.player.position, life = LOOK.num('storm-fleck-life', 0.18), size = LOOK.num('storm-fleck-size', 0.0018);
+      for (const m of flecks) {
+        if (!on) { m.visible = false; continue; }
+        if ((m.userData.t -= dt) > 0) continue;
+        if (m.visible) { m.visible = false; m.userData.t = 0.1 + Math.random() * 0.6; continue; }
+        const ang = Math.random() * 6.283, r = h * (0.25 + Math.random() * 0.25);
+        m.position.set(P.x + Math.cos(ang) * r, P.y + h * (0.2 + Math.random() * 0.7), P.z + Math.sin(ang) * r);
+        m.scale.setScalar(size * (0.6 + Math.random() * 0.8));
+        m.visible = true; m.userData.t = life * (0.5 + Math.random());
+      }
     } };
   }
 

@@ -113,6 +113,7 @@ export class Run {
     this.bubbles.onWindCharge = k => this.player.avatar?.pulse?.(0.15 + k * 0.55);
     this.bubbles.onWindRelease = () => this.player.avatar?.pulse?.(1);
     this.bubbles.onElementRelease = () => this.player.avatar?.pulse?.(0.75);   // the bell squeezes as an element shot leaves
+    this.bubbles.onCharged = (C) => { for (const k of C.keys) this.chargeT[k] = 0; this.player.avatar?.pulse?.(1); };   // spent: it builds again from none
     this.elites = new Elites(ctx.scene, ctx.enemies, ctx.fx, ctx.world, ctx.tpc.camera, ctx.apartment);
     this.elites.hpScale = this.stage.eliteHp || 1;
     this.elites.decorSpecs = this.stage.decor || [];   // what only hangs there in this act (the hall clock)
@@ -290,6 +291,8 @@ export class Run {
     this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
     this.bleedDripT = 0;
     this.stillT = 0;
+    this.chargeT = {};                // charged-shot: seconds each one's condition has been held
+    this.charged = { chain: 0, strike: 0, dmg: 1, keys: [] };   // what the next lightning shot spends
     this.dashT = 0; this.dashK = 0;  // dash: a burst of speed (Moon Jelly)
     this.polypT = 0;                  // rebirth: seconds left as a polyp (Immortal Jelly)
     this.rebornThisAct = false;       // rebirth is once an act: a later act starts fresh
@@ -574,6 +577,7 @@ export class Run {
       const polyp = this.polypT > 0;     // rebirth: a polyp can't attack
       // main attack: bubbles, blown from the top of the bell (a jelly type: only its own attack)
       const A = this.attack;
+      this.charge(dt, P, A, s);
       const G = this.mods.glide, gliding = !!G && P.gliding;
       this.bubbles.pushMul = gliding ? G.push : 1;   // glide: gusts blown while you drift push further
       if (gliding && (this.glideT = (this.glideT || 0) - dt) <= 0) {   // air streaming up past the bell while you drift
@@ -983,6 +987,23 @@ export class Run {
       const B = (this.buffs[b.key] ||= { n: 0, t: 0 });
       B.n = Math.min(b.stacks, B.n + 1); B.t = b.time;
     }
+  }
+
+  // charged-shot: holding "rooted" or "moving" long enough charges the next lightning shot (bubbles.js
+  // elementVolley spends it); the bell crackles while one waits
+  charge(dt, P, A, s) {
+    const C = this.charged;
+    C.chain = C.strike = 0; C.dmg = 1; C.keys.length = 0;
+    for (const W of this.mods.charged) {
+      const held = W.when === 'rooted' ? this.stillT > 0 : P.fullSpeed;
+      const t = this.chargeT[W.key] = held ? (this.chargeT[W.key] || 0) + dt : 0;
+      if (t < W.time) continue;
+      C.chain += W.chain; C.strike = Math.max(C.strike, W.strike); C.dmg = Math.max(C.dmg, W.dmg); C.keys.push(W.key);
+    }
+    const ready = C.keys.length > 0 && (A?.kind === 'lightning' || this.mods.elements.has('lightning'));
+    if (ready && !this.bubbles.charge) { this.fx.number(P.position.clone().setY(P.position.y + this.cfg.height * 1.2), 'CHARGED', LOOK.color('number-lightning', '#fff27a'), 14); sfx.gadgetStatic(); }
+    this.bubbles.charge = ready ? C : null;
+    if (ready) this.bubbles.looks.gather('lightning', (this._chargeAt ||= new THREE.Vector3()).copy(P.position).setY(P.position.y + this.cfg.height * 0.75), 0.7, s.bubbleSize);
   }
 
   onKill({ pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {} }) {

@@ -26,7 +26,10 @@ jelly "fire" name="Fire Jelly" about="Fire shots set bugs burning, and a burning
     stat fire-rate 1.5
 }
 
-jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nearby and stuns them for a moment." attack="lightning" hit=1 area=#true {
+// Lightning: the Lightning shot at full Fire rate. hit=1 lands it at 9.9 damage a second on one bug
+// (4.5 Attack damage x 1 x 2.2/s), inside the 9-12 budget; the arcs (41% each to 3 more bugs) and
+// their Stun are for groups and aren't counted (docs/jelly-types/spec-core.md)
+jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nearby and stuns them for a moment." attack="lightning" hit=1 area=#true adorn="storm" {
     stat fire-rate 2.2
     stat move-speed 1.15
     stat bubble-damage 4.5

@@ -59,6 +59,7 @@ import './stories/phone.js';
 import './stories/nests.js';
 import './stories/types.js';
 import './stories/ice.js';
+import './stories/lightning.js';
 import './stories/legendaries.js';
 import './stories/upgrades.js';
 import './stories/poison.js';

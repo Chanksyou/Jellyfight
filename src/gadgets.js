@@ -108,8 +108,10 @@ export class Gadgets {
     this.clouds = []; this.whirls = []; this.heals = new Map(); this.clock = 0;
     for (const b of this.bricks || []) this.group.remove(b.m);
     for (const m of this.marbles || []) { this.group.remove(m.m); m.hit.clear(); }
+    for (const o of this.orbs || []) this.fx.free(o.m);
     this.bricks = [];
     this.marbles = [];
+    this.orbs = [];                  // balls of lightning drifting about (the orb word)
     this.orbit = 0;
     this.mouseRun = null;
     this.mouse.visible = false;
@@ -246,6 +248,7 @@ export class Gadgets {
           const r=.026+.018*this.t[T.key]/LOOK.num('gadget-bath-prepare',.3);
           this.bathReady.children.forEach((m,i)=>{const a=i/8*Math.PI*2;m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);});
         }
+        if(ef.kind==='orb'&&this.t[T.key]<LOOK.num('gadget-orb-prepare',.4))this.bubbles?.looks.gather('lightning',center,1-this.t[T.key]/LOOK.num('gadget-orb-prepare',.4),1);   // static gathering at the bell
         if(ef.kind==='cone'&&this.t[T.key]<LOOK.num('gadget-cone-prepare',.35))this.bubbles?.looks.gather('fire',center,1-this.t[T.key]/LOOK.num('gadget-cone-prepare',.35),1);   // flame gathering at the bell
         if(ef.look==='puff'&&this.t[T.key]<LOOK.num('gadget-fizz-prepare',.3)){this.chordReady.visible=true;this.chordReady.position.copy(center);this.chordReady.scale.setScalar(.022);}
         if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
@@ -315,6 +318,35 @@ export class Gadgets {
       bus.emit('damage_taken', { targetId: e.id, amount: power * Tc.dmg, color: '#ffc8e6', source: 'touch' });
       fx.puff(E.center(e), 0xffc2e6, 0.006, 0.2);
     }
+
+    // touch-zap (Static Skin): a bug touching you is zapped and Stunned, once every `each` s per bug
+    const Tz = M.touchZap;
+    if (Tz && this.every('touchZap', dt, 0.1)) for (const e of this.near(center, (ctx.radius || 0.03) + Tz.reach)) {
+      if (this.clock < (e.zappedAt ?? -1e9) + Tz.each) continue;
+      e.zappedAt = this.clock;
+      this.bubbles?.zap(center, E.center(e), 0);
+      bus.emit('damage_taken', { targetId: e.id, amount: power * Tz.dmg, color: '#fff27a', source: 'touch' });
+      bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Tz.stun });
+      ctx.pulse?.(0.2);
+    }
+
+    // orb (Ball Lightning): each ball drifts on, zapping every bug it passes once
+    for (const o of this.orbs) {
+      o.t -= dt;
+      const step = o.speed * dt;
+      if (this.world.cast(o.m.position, o.dir, step + 0.004)) o.t = 0;
+      o.m.position.addScaledVector(o.dir, step);
+      this.fx.orbTick(o.m, dt);
+      for (const e of this.near(o.m.position, o.radius)) {
+        if (o.hit.has(e)) continue;
+        o.hit.add(e);
+        this.bubbles?.zap(o.m.position, E.center(e), o.hit.size - 1);
+        fx.splat(_to.set(e.pos.x, E.floorBelow(e.pos, e.pos.y), e.pos.z), LOOK.color('lightning-scorch', '#2a2620'), 0.008, 'scorch');   // a scorch under it (harmless, fades)
+        bus.emit('damage_taken', { targetId: e.id, amount: power * o.dmg, color: '#fff27a', source: 'lightning' });
+      }
+      if (o.t <= 0) { fx.impact(o.m.position, o.m.userData.orb.c, 0.012, 6); sfx.elementHit('lightning'); fx.free(o.m); o.hit.clear(); }
+    }
+    this.orbs = this.orbs.filter((o) => o.t > 0);
 
     // toy-mouse: now and then it scurries to the nearest enemy and slams into it
     const Mo = M.mouse;
@@ -452,10 +484,13 @@ export class Gadgets {
         if (ef.chill) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: ef.chill });
       }
     } else if (ef.kind === 'zap') {
-      for (const e of this.near(center, ef.range).slice(0, ef.count)) {
+      const hp = (e) => (e.proxy ? 1e9 : e.hp), found = this.near(center, ef.range);
+      if (ef.target === 'toughest') found.sort((a, b) => hp(b) - hp(a));   // (the sort is stable: the nearest of equals first)
+      for (const e of found.slice(0, ef.count)) {
         const to = E.center(e);
-        this.looks.signal(center,to);sfx.gadgetRemote();ctx.pulse?.(.12);
-        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: '#9fd8ff', source: 'zap' });
+        if (ef.look === 'bolt') { this.bubbles?.zap(center, to, 0); ctx.pulse?.(.2); }
+        else { this.looks.signal(center,to);sfx.gadgetRemote();ctx.pulse?.(.12); }
+        bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: ef.look === 'bolt' ? '#fff27a' : '#9fd8ff', source: ef.look === 'bolt' ? 'lightning' : 'zap' });
       }
     } else if (ef.kind === 'shards') {
       const shard = new THREE.Color(LOOK.color('ice-shard', '#cfefff'));
@@ -468,6 +503,13 @@ export class Gadgets {
         bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: ef.chill });
       }
       sfx.iceShatter(false);
+    } else if (ef.kind === 'orb') {
+      const near = this.near(center, 0.45)[0], dir = (near ? E.center(near, _cone).sub(center) : _cone.set(Math.sin(ctx.facing), 0, Math.cos(ctx.facing))).setY(0);
+      if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+      const m = fx.orb(LOOK.color('ball-lightning', '#ffe45c'), LOOK.num('ball-lightning-size', 0.0065));
+      m.position.copy(center);
+      this.orbs.push({ m, dir: dir.clone().normalize(), t: ef.life, speed: ef.speed, radius: ef.radius, dmg: ef.dmg, hit: new Set() });
+      this.bubbles?.looks.launch('lightning', center, 1); sfx.elementLaunch('lightning'); ctx.pulse?.(0.3);
     } else if (ef.kind === 'brick') {
       const g = this.brickMesh();
       g.position.copy(feet);
