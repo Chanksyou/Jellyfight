@@ -78,6 +78,7 @@ export const AUDIT = {
     'no-regen', 'shield-recharge', 'shield-full-damage', 'health-to-shield', 'adorn', 'death-save', 'damage-taken', 'spout', 'heal-on-kill', 'crumb-on-kill', 'xp-reach', 'stat',
     'per', 'while', 'xp-mult', 'card-rarity', 'card-choices', 'heal-on-hit', 'grow-on-kills', 'more-treasures',
     'elite-damage', 'bug-speed', 'more-bugs', 'every', 'dash', 'xp',
+    'execute', 'fresh-damage', 'hit-less', 'boss-levels', 'night-light', 'bounty',   // hit and stat rules, not attacks of their own
     'chill-to-freeze', 'ground-lock', 'slide-on-hit',   // Ice Attack upgrades: statuses on the ice shard's hits (the shard is audited above)
     'ink', 'reach-flare', 'reach-sweetspot', 'pin-on-stings', 'sting-count',   // Tentacle Attack upgrades: defence, or a change to the sting's reach and counting (the sting is audited above)
     'percent-dot', 'spread-on-touch', 'split-on-hit', 'heal',   // Poison Attack upgrades: damage over time, Poison passing on, the attack's own shots split (audited with it), healing

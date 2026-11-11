@@ -31,6 +31,7 @@ const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where 
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
 const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting
+const SLICE = new THREE.Color(LOOK.color('slice', '#f4fbff'));   // execute (Pizza Cutter): the slash that finishes a low bug
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
 // a chilled bug's crown: seven ice spikes in a ring round its feet, leaning out, uneven (one shared geometry)
 function iceCrown() {
@@ -453,10 +454,14 @@ export class Enemies {
       amount *= k;
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
       if (blast) this.statusBlast(e, blast, amount * share);
+      const M = this.mods, H = e.proxy || e;   // fresh-damage (Rolling Pin): a hit on something still near full Health
+      if (M?.freshMore && H.maxHp && H.hp >= H.maxHp * M.freshAbove) amount *= 1 + M.freshMore;
     }
     e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (e.proxy) {
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
+      const X = this.mods?.execute, P = e.proxy;   // execute (Pizza Cutter): an Elite low enough is finished off, never the boss
+      if (X?.elites && !e.boss && !P.dead && P.maxHp && P.hp > 0 && P.hp < P.maxHp * X.elites) { this.sliced(e); P.damage(P.hp, '#ffffff', { tick: true }); }
       if (e.proxy.dead) { e.dead = true; this.byId.delete(e.id); }
       return;
     }
@@ -479,7 +484,17 @@ export class Enemies {
     // the hits instead of staying a solid white shape
     if (!(e.flashCd > 0)) { e.flashT = LOOK.num('hit-flash', 0.07); e.flashCd = LOOK.num('hit-flash-gap', 0.2); }
     bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound, feedback });
+    const X = this.mods?.execute;
+    if (X && e.hp > 0 && e.hp < e.maxHp * X.under) { this.sliced(e); e.hp = 0; }   // execute (Pizza Cutter)
     if (e.hp <= 0) this.kill(e);
+  }
+
+  // execute: the moment a low bug is finished off, a white slash across it
+  sliced(e) {
+    const c = this.center(e);
+    this.fx.impact(c, SLICE, e.r * 0.7, 6);
+    this.fx.number(c.clone().setY(c.y + e.r * 2), 'SLICED', '#ffffff', 15);
+    sfx.crit();
   }
 
   // status-damage (words.js): how much harder a hit by `by` lands on e for the statuses it has.

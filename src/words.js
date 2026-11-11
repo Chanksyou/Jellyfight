@@ -735,6 +735,13 @@ export function newMods() {
     focusRamp: null,                 // focus-ramp: { step, most } (bubbles.js strike)
     rangePop: null,                  // range-pop: { splash } (bubbles.js fly)
     orbitMisses: false,              // orbit-misses (bubbles.js fly)
+    execute: null,                   // execute: { under, elites } (enemies.js applyDamage)
+    freshMore: 0, freshAbove: 0.9,   // fresh-damage: hits on a bug above freshAbove of its Health do this much more (enemies.js)
+    hitLess: 0, hitLeast: 0.5,       // hit-less: each hit on you takes this much less, never below hitLeast (run.js hit)
+    bossLevels: 0,                   // boss-levels: Treasures that level up when an act's boss falls (run.js onBossDead)
+    nightLight: null,                // night-light: { radius, most } (gadgets.js; while "lit")
+    bounty: null,                    // bounty: { every, stat, amount, far } (gadgets.js marks, run.js onKill pays)
+    ghosts: null,                    // ghosts: { chance, time, dmg, speed, rest, most } (gadgets.js)
   };
 }
 
@@ -990,7 +997,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 // the extra pieces adorn can add (src/adornments.js builds each)
 export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
-export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
+export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit'];   // lit: inside a night-light's glow
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby'];   // burning-nearby: Burning bugs within 30 cm of you
@@ -1172,7 +1179,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given), rooted (standing still on the ground for 1 s or more) or moving (swimming at full speed). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given), rooted (standing still on the ground for 1 s or more), moving (swimming at full speed) or lit (inside the glow of one of your night-lights). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false, under: 0.3 },
     make: ([when, name, amount], p) => {
@@ -1275,6 +1282,18 @@ export const TREASURE_WORDS = {
   'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
+  execute: { doc: 'A hit that leaves an ordinary bug under `under` (0.15 = 15%) of its max Health finishes it off; an Elite goes under `elites` (0 for never). Never the boss. Copies take the biggest.', props: { under: 0.15, elites: 0.08 }, make: (_, p) => (m) => { m.execute = { under: Math.max(m.execute?.under || 0, p.under), elites: Math.max(m.execute?.elites || 0, p.elites) }; } },
+  'fresh-damage': { doc: 'Hits (not damage over time) on anything above `above` (0.9 = 90%) of its max Health do `percent`% more. Copies add.', args: ['percent'], props: { above: 0.9 }, make: ([n], p) => (m) => { m.freshMore += n / 100; m.freshAbove = p.above; } },
+  'hit-less': { doc: 'Every hit on you takes `amount` less Health, but never less than `least` (a hit already under it is left as it is). Bleed and puddles are not hits. Copies add.', args: ['amount'], props: { least: 0.5 }, make: ([n], p) => (m) => { m.hitLess += n; m.hitLeast = p.least; } },
+  'boss-levels': { doc: 'When an act\'s boss falls, `count` of your Treasures that have levels to go (picked at random) go up a level. Copies add.', args: ['count'], make: ([n]) => (m) => { m.bossLevels += n; } },
+  'night-light': { doc: 'Each Level-up plugs in a night-light on the floor where you are, glowing `radius` m round it, for the rest of the act; at most `most` at once (a new one unplugs the oldest). Pair it with `while "lit"`.', props: { radius: 0.4, most: 3 }, make: (_, p) => (m) => { m.nightLight = { ...p }; } },
+  bounty: { doc: 'Every `every` s, if no bug has one, an ordinary bug at least `far` m from you (the farthest, if none is) gets a gold target; clearing it raises a stat (names as in `stat`) by `amount` for the rest of the run.', args: ['name', 'amount'], props: { every: 20, far: 0.4 },
+    make: ([name, amount], p) => {
+      const key = STAT_NAMES[name];
+      if (!key) throw new Error(`bounty: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
+      return (m) => { m.bounty = { every: p.every, far: p.far, stat: key, amount: (m.bounty?.amount || 0) + amount }; };
+    } },
+  ghosts: { doc: '`chance` that a bug you clear rises as a glowing ghost for `time` s: it flies (`speed` m/s) at the nearest bug, slams it for `dmg` times your power, bounces off and goes again after `rest` s. At most `most` at once. Copies add their chances.', props: { chance: 0.1, time: 8, dmg: 0.6, speed: 0.5, rest: 0.5, most: 5 }, make: (_, p) => (m) => { m.ghosts = { ...p, chance: (m.ghosts?.chance || 0) + p.chance }; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
     doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl, next-attack.',

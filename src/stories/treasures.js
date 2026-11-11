@@ -922,3 +922,104 @@ story('treasures/acid-vulnerability', {
     return ok(more === 0.3 && Math.abs(tick - 6 * 4.5 * 0.012 * 0.5 * 1.3) < 1e-8 && Math.abs(hit - 13) < 1e-8 && stronger === 0.5 && e.markT === 0, { more, tick, hit, stronger, expired: e.markT === 0 });
   },
 });
+
+// --- Risk of Rain-inspired finds (v407+)
+story('treasures/execute', {
+  about: 'execute (Pizza Cutter): a hit that leaves a bug under 15% of its Health finishes it off; one that leaves it above that does not.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('pizzaCutter'); roachAt(0.2, 0, { still: true }); roachAt(-0.2, 0, { still: true }); },
+  play() {
+    step(1);   // the run hands its treasures to the enemies on a frame
+    const [a, b] = G().enemies.list;
+    bus.emit('damage_taken', { targetId: a.id, amount: a.maxHp * 0.9, source: 'story' });   // left at 10%: sliced
+    bus.emit('damage_taken', { targetId: b.id, amount: b.maxHp * 0.8, source: 'story' });   // left at 20%: lives
+    return ok(a.dead && !b.dead, { sliced: a.dead, left: +(b.hp / b.maxHp).toFixed(2) });
+  },
+});
+story('treasures/execute-elites', {
+  about: 'execute (Pizza Cutter): an Elite dropped under 8% is finished off; the boss never is.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('pizzaCutter'); },
+  play() {
+    step(1);
+    const { enemies } = G();
+    const mk = (x) => ({ position: near(x, 0), r: 0.02, dead: false, hp: 100, maxHp: 100, damage(a) { this.hp -= a; if (this.hp <= 0) this.dead = true; } });
+    const elite = mk(-0.3), boss = mk(0.3), e = enemies.addProxy(elite), bo = enemies.addProxy(boss); bo.boss = true;
+    bus.emit('damage_taken', { targetId: e.id, amount: 95, source: 'story' });
+    bus.emit('damage_taken', { targetId: bo.id, amount: 95, source: 'story' });
+    for (const x of [e, bo]) { x.dead = true; enemies.list.splice(enemies.list.indexOf(x), 1); enemies.byId.delete(x.id); }
+    return ok(elite.dead && !boss.dead && boss.hp === 5, { elite: elite.hp, boss: boss.hp });
+  },
+});
+story('treasures/fresh-damage', {
+  about: 'fresh-damage (Rolling Pin): a hit on a bug above 90% Health does 40% more; once it is lower, hits do the usual.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('rollingPin'); spawn('mantis', near(0.2, 0), { still: true }); },
+  play() {
+    step(1);
+    const e = G().enemies.list[0], hp0 = e.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 25, source: 'story' });
+    const first = hp0 - e.hp, hp1 = e.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' });   // now under 90%
+    const second = hp1 - e.hp;
+    return ok(Math.abs(first - 35) < 1e-9 && Math.abs(second - 10) < 1e-9, { first, second });
+  },
+});
+story('treasures/hit-less', {
+  about: 'hit-less (Thimble): a hit takes 1 less Health, never under 0.5, and a hit already under 0.5 is left as it is.',
+  setup() { setupFight({ hurt: true }); give('thimble'); },
+  play() {
+    const { run } = G(), took = (n) => { run.iFrames = 0; const h = run.health; bus.emit('damage_taken', { targetId: PLAYER, amount: n, source: 'story' }); return +(h - run.health).toFixed(6); };
+    const big = took(4), small = took(1), tiny = took(0.3);
+    return ok(big === 3 && small === 0.5 && tiny === 0.3, { big, small, tiny });
+  },
+});
+story('treasures/boss-levels', {
+  about: 'boss-levels (Fish Food): when an act\'s boss falls, 2 Treasures that can still level up each go up one; one at its top level, or without levels, does not.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('fishFood'); give('rubberDuck'); give('whale'); give('whale'); give('whale'); give('lemon'); },
+  play() {
+    const { run } = G();
+    run.feedTreasures(run.mods.bossLevels);
+    const duck = run.owned.count('rubberDuck'), whale = run.owned.count('whale'), lemon = run.owned.count('lemon');
+    return ok(run.mods.bossLevels === 2 && duck === 2 && whale === 3 && lemon === 1, { duck, whale, lemon });
+  },
+});
+story('treasures/night-light', {
+  about: 'night-light (Night-Light): a Level-up plugs in a night-light where you are; inside its glow you get +40% Fire rate and +0.5 Health regen, outside it you don\'t; a 4th unplugs the oldest.',
+  setup() { setupFight({ lash: false, bubbles: false, levels: true }); give('nightLight'); },
+  play() {
+    const { run } = G(), gadgets = run.gadgets, rate0 = run.S.fireRate, regen0 = run.S.regen;
+    run.pendingLevels = 1; run.levelUp(); run.ui.close();
+    step(2);
+    const litRate = run.S.fireRate, litRegen = run.S.regen;
+    gadgets.lamps[0].g.position.x += 0.6; step(2);   // the lamp, not the jelly, moves away (no furniture in the way)
+    const awayRate = run.S.fireRate;
+    for (let i = 0; i < 3; i++) gadgets.plugIn(player.position, run.mods.nightLight);
+    return ok(Math.abs(litRate - rate0 * 1.4) < 1e-6 && Math.abs(litRegen - regen0 - 0.5) < 1e-6 && Math.abs(awayRate - rate0) < 1e-6 && gadgets.lamps.length === 3,
+      { rate0, litRate, awayRate, regen0, litRegen, lamps: gadgets.lamps.length });
+  },
+});
+story('treasures/bounty', {
+  about: 'bounty (Chore List): a far-off bug gets a gold target; clearing it adds 0.25 Attack damage for good, and clearing an unmarked bug adds nothing.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('choreList'); roachAt(0, -0.6, { still: true }); roachAt(0, -0.1, { still: true }); },
+  play() {
+    const { run, enemies } = G(), gadgets = run.gadgets, dmg0 = run.S.bubbleDamage;
+    step(60 * 11, () => gadgets.bountyId != null);
+    const marked = enemies.list.find((e) => e.id === gadgets.bountyId), other = enemies.list.find((e) => e !== marked);
+    bus.emit('damage_taken', { targetId: other.id, amount: 999, source: 'story' });
+    const afterOther = run.S.bubbleDamage;
+    bus.emit('damage_taken', { targetId: marked.id, amount: 999, source: 'story' });
+    const after = run.S.bubbleDamage;
+    return ok(!!marked && marked.pos.distanceTo(G().player.position) > 0.4 && afterOther === dmg0 && Math.abs(after - dmg0 - 0.25) < 1e-9 && gadgets.bountyId === null,
+      { marked: !!marked, dmg0, afterOther, after });
+  },
+});
+story('treasures/ghosts', {
+  about: 'ghosts (Glow-in-the-Dark Star): a cleared bug can rise as a glowing ghost that flies to another bug and slams it, then fades after 8 s.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('glowStar'); roachAt(0.1, -0.15, { still: true, hp: 9999 }); },
+  play() {
+    const { run } = G(), gadgets = run.gadgets, log = record('damage_taken');
+    gadgets.ghost(near(-0.05, -0.15, 0.02), run.mods.ghosts);
+    step(60 * 3, () => dmgBy(log, 'ghost').length > 0);
+    const hits = dmgBy(log, 'ghost').length;
+    step(60 * 8);
+    return ok(hits > 0 && gadgets.ghosts.length === 0, { hits, left: gadgets.ghosts.length });
+  },
+});
