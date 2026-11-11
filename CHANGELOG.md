@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v404 builds the Wind jelly type behind the jelly types switch: fast gusts that go through three bugs and shove them back, a white swirl and streaming tentacles for its look, and its 12 Attack upgrades (Cyclone, Bowling, Glide: hold jump in the air to drift down, and more).
+
 v403 jelly types (behind the switch): the Normal jelly gets its 12 Attack upgrades, from Double Bubble to Orbit.
 
 v402 adds the Lightning jelly behind the jelly types switch: its shot arcs to 3 more bugs and stuns them, its jelly crackles with a storm look, and it has 12 Attack upgrades (big bolts, charge-ups, Ball Lightning and more).
