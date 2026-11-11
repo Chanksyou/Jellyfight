@@ -620,6 +620,24 @@
   --poison-gas: #7dffc0;          /* the burst's gas, its vapour, a Toxic Cloud */
   --poison-burst-life: 0.35;      /* seconds the burst's sphere takes to swell to its edge and fade */
   --poison-drip-every: 0.2;       /* seconds between a Poisoned bug's bubbles and drips (faster with more stacks) */
+  --storm-core: #bfe6ff;          /* Lightning jelly: the crackling core in the bell (emissive, not a light) */
+  --storm-core-size: 0.1;         /* its radius, in shares of the jelly's height */
+  --storm-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
+  --storm-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
+  --storm-tip: #7fd0ff;           /* the faint glow on each tentacle tip */
+  --storm-tip-size: 0.8;          /* its radius, in tentacle widths */
+  --storm-arc: #f4fbff;           /* the small arc that jumps between two tips */
+  --storm-arc-every: 2.5;         /* seconds between arcs (on average) */
+  --storm-arc-life: 0.16;         /* seconds one lasts */
+  --storm-arc-width: 0.35;        /* its width, in tentacle widths */
+  --storm-fleck: #cfeaff;         /* static flecks blinking round the bell */
+  --storm-flecks: 8;              /* at most this many at once */
+  --storm-fleck-life: 0.18;       /* seconds one stays lit */
+  --storm-fleck-size: 0.0018;     /* its radius, meters */
+  --ball-lightning: #ffe45c;      /* the Ball Lightning upgrade's ball, drifting out and zapping bugs */
+  --ball-lightning-size: 0.0065;  /* its radius, meters */
+  --lightning-strike: #fff27a;    /* the ring a Thunderclap strike (Storm Cell, Static Charge) sends out where it lands */
+  --lightning-scorch: #2a2620;    /* the scorch a lightning bolt or ball leaves on the floor */
   --ink-cloud: #0b0a22;           /* the Ink Cloud upgrade: near-black blue ink, the body of the cloud, its floor stains and drops */
   --ink-edge: #26205a;            /* the lighter blue where the cloud is thin, so it reads as ink and not a shadow */
   --venom: #8dff5a;              /* the puffs of a venomed bug */

@@ -55,7 +55,8 @@ const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
 const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
-const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
+const SCORCH = LOOK.color('lightning-scorch', '#2a2620');   // the mark lightning leaves on the floor
+const STRIKE = LOOK.color('lightning-strike', '#fff27a');   // the ring where a charged strike lands
 // share of power each element deals (see the top of the file)
 export const ELEMENT = {
   burn: 0.17,       // fire: damage a second while burning (3 s)
@@ -86,6 +87,9 @@ export class Bubbles {
     this.timer = 0;
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
+    this.bolts = 0;                   // lightning shots fired (nth-attack bolt counts them)
+    this.charge = null;               // a charged-shot ready to spend (run.js sets it): { chain, strike, dmg }
+    this.onCharged = null;            // called with it when the next lightning shot spends it
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
     this.geo = new THREE.SphereGeometry(1, 20, 14);
     const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
@@ -124,6 +128,8 @@ export class Bubbles {
     this.timer = 0;
     this.elTimers = {};
     this.volleys = 0;
+    this.bolts = 0;
+    this.charge = null;
   }
 
   cancelWind() {
@@ -274,16 +280,16 @@ export class Bubbles {
     return true;
   }
 
-  // nth-attack (words.js): what the n-th attack becomes, the big words of every nth-attack it falls on
-  // multiplied together; null for an ordinary one
-  nth(mods, n) {
+  // nth-attack (words.js): what the n-th attack becomes, the words of `kind` (big, a bubble's; bolt, a
+  // lightning shot's) of every nth-attack it falls on multiplied together; null for an ordinary one
+  nth(mods, n, kind = 'big') {
     let out = null;
     for (const N of mods.nth) {
       if (N.random ? Math.random() >= 1 / N.every : n % N.every !== 0) continue;
       for (const ef of N.effects) {
-        if (ef.kind !== 'big') continue;   // sweep is a lash's
-        out ||= { dmg: 1, size: 1, speed: 1, pierce: 0 };
-        out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed; out.pierce += ef.pierce;
+        if (ef.kind !== kind) continue;   // sweep is a lash's
+        out ||= { dmg: 1, size: 1, speed: 1, pierce: 0, reach: 1 };
+        out.dmg *= ef.dmg; out.size *= ef.size; out.speed *= ef.speed ?? 1; out.pierce += ef.pierce ?? 0; out.reach *= ef.reach ?? 1;
       }
     }
     return out;
@@ -300,9 +306,21 @@ export class Bubbles {
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), gap = Math.max(0.016, RADIUS * stats.bubbleSize * 3);
     const spread = (Math.random() - 0.5) * 0.12;
+    // a lightning shot can be a big bolt (nth-attack) and can spend a charge (charged-shot): it arcs
+    // harder, farther or to more bugs, or strikes everything round where it lands
+    let ep = P, size = stats.bubbleSize, big = null, strike = null;
+    if (id === 'lightning') {
+      big = this.nth(mods, ++this.bolts, 'bolt');
+      const C = this.charge;
+      if (big || C) {
+        ep = { ...P, bolt: P.bolt * (big?.dmg ?? 1), chainRange: P.chainRange * (big?.reach ?? 1), chain: P.chain + (C?.chain ?? 0) };
+        size *= big?.size ?? 1;
+      }
+      if (C) { if (C.strike) strike = { strike: C.strike, dmg: C.dmg }; this.charge = null; this.onCharged?.(C); }   // (a copy: run.js reuses C)
+    }
     for (let k = 0; k < count; k++) {
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * gap);
-      this.blow(origin.clone().add(off), target, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range, spread, off });
+      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range, spread, off, big: !!big, strike });
     }
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
@@ -353,7 +371,7 @@ export class Bubbles {
     for (const el of o.elems || []) elems.add(el);
     Object.assign(b, {
       m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
-      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6,
+      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6, strike: o.strike || null,
       elems, tint: o.tint, trailT: 0,
       off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
     });
@@ -675,6 +693,19 @@ export class Bubbles {
     this.burning.set(e, { t: ep?.burnTime ?? 3, dps: pw * ELEMENT.burn * (ep?.burn ?? 1), pw, ep, tick: had?.tick ?? 0.25, flame: 0, n, age: lit ? had.age : 0 });
   }
 
+  // a charged lightning shot lands: a ring out to `S.strike` and a bolt to every bug inside it
+  // (except `skip`), `S.dmg` times the shot's damage each
+  strikeAround(p, S, dmg, skip) {
+    const E = this.enemies, c = this._c;
+    this.fx.ring(V3.set(p.x, E.floorBelow(p, p.y - 0.03), p.z), STRIKE, S.strike, 0.35);
+    juice.feel('hit-big'); sfx.lightningBig();
+    let k = 0;
+    for (const e of this.inRange(p, S.strike, skip)) {
+      this.zap(p, E.center(e, c), k++);
+      bus.emit('damage_taken', { targetId: e.id, amount: dmg * S.dmg, color: '#fff27a', source: 'lightning' });
+    }
+  }
+
   // a bolt jumping from one thing to the next (a chain's k-th jump: each one higher-pitched)
   zap(from, to, k = 0) {
     this.looks.strike(from, to);
@@ -782,20 +813,24 @@ export class Bubbles {
     const E = this.enemies, c = this._c;
     // Lightning: a bolt chains to 3 more enemies, stunning each
     if (b.elems.has('lightning')) {
-      let from = p.clone();
-      const hit = new Set(b.hit);
+      const ep = b.ep, range = ep?.chainRange ?? 0.16, skip = new Set(b.hit), hit = new Set(b.hit);
+      let from = p.clone(), last = null, jumps = 0;
       this.fx.splat(V3.set(p.x, this.enemies.floorBelow(p, p.y - 0.03), p.z), SCORCH, b.r * 2.2, 'scorch');   // a scorch where it struck (harmless, fades)
-      for (let k = 0, n = b.ep?.chain ?? 3; k < n; k++) {
-        const e = this.inRange(from, b.ep?.chainRange ?? 0.16, hit)[0];
+      for (let k = 0, n = ep?.chain ?? 3; k < n; k++) {
+        if (ep?.revisit && last) { skip.clear(); skip.add(last); }   // revisit: back to a bug already hit, just not the one it's on
+        const near = this.inRange(from, range, ep?.revisit ? skip : hit);
+        const e = (ep?.stunFirst && near.find((x) => x.stunT > 0)) || near[0];
         if (!e) break;
-        hit.add(e);
+        hit.add(e); last = e; jumps++;
         const to = E.center(e, c).clone();
         this.zap(from, to, k);
-        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * (b.ep?.bolt ?? 1), color: '#fff27a', source: 'lightning' });
-        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: b.ep?.stun ?? 0.5 });
+        bus.emit('damage_taken', { targetId: e.id, amount: b.pw * ELEMENT.bolt * (ep?.bolt ?? 1) * (e.proxy ? ep?.eliteBolt ?? 1 : 1), color: '#fff27a', source: 'lightning' });
+        bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: ep?.stun ?? 0.5 });
         from = to;
       }
-      if (hit.size - b.hit.size >= 2) { juice.feel('hit-big'); sfx.lightningBig(); }      // a chain that really jumps lands harder
+      if (jumps >= 2) { juice.feel('hit-big'); sfx.lightningBig(); }      // a chain that really jumps lands harder
+      // a charged shot (charged-shot): everything within its strike range is struck too
+      if (b.strike) this.strikeAround(p, b.strike, b.dmg, b.hit);
     }
     // Acid: leave a puddle that eats at anything standing in it
     if (b.elems.has('acid') && this.puddles.length < (b.ep?.puddles ?? 6)) {

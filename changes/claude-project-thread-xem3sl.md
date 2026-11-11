@@ -1,0 +1,1 @@
+adds the Lightning jelly behind the jelly types switch: its shot arcs to 3 more bugs and stuns them, its jelly crackles with a storm look, and it has 12 Attack upgrades (big bolts, charge-ups, Ball Lightning and more).
