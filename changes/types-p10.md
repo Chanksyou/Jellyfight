@@ -1,1 +1,0 @@
-adds jelly type unlocks (finish acts, defeat Elites), a Jellies page in the Treasure book, type-aware hints and achievement text, and each score's jelly type on the leaderboard, all behind the jelly types switch.
