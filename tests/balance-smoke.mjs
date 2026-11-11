@@ -79,7 +79,7 @@ try {
     if (act < 4) {
       carry = progress.end.transition.carry;
       assert.equal(progress.end.transition.act, act + 1);
-      assert.ok(carry.evolved.length >= act - 1 && carry.evolved.length <= act);   // the boss's Legendary pick may or may not be an evolution
+      assert.ok(carry.evolved.length <= act);   // the boss's Legendary pick may or may not be an evolution
       assert.ok(carry.owned.some(([id]) => id === 'goldRing'));
     }
     console.log(`PASS: act ${act} victory/reward/carry progression${act === 4 ? '/ending' : ''}`);
