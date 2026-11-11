@@ -288,6 +288,7 @@ export class Enemies {
       else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
+      else if (status === 'trap') { e.trapT = Math.max(e.trapT || 0, duration); e.vel?.set(0, 0, 0); }   // held still in a bubble (trap-on-hit): a pin with no sparks
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {   // ice: a slow that shows as frost (chillT), so a chilled death shatters
@@ -1185,7 +1186,8 @@ export class Enemies {
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
-      const slow = (e.freezeT > 0 || e.stunT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
+      e.trapT = Math.max(0, (e.trapT || 0) - dt);
+      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
       const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
       const aim = lure ? decoy.center : pc;
       const toP = this._d.copy(aim).sub(this.center(e, tmp));

@@ -13,7 +13,7 @@
 //                   at: where a hit on the jelly landed or came from (a Shot, a Blast's middle), presentation only: its red arc
 //   player_hurt     { amount, from?, contact? }   a hit on the jelly that really landed (past i-frames, dodge,
 //                   shields), after its Health went down; feedback only (enemies.js answers its attacker)
-//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'chill' | 'freeze' | 'thaw' | 'bleed' (the jelly: `strength` Health a second for `duration` s, each one stacking)
+//   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'trap' (held still in a bubble, with no sparks: trap-on-hit) | 'chill' | 'freeze' | 'thaw' | 'bleed' (the jelly: `strength` Health a second for `duration` s, each one stacking)
 //   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy); pushHits: damage to each other bug it slides through (pushed-hits)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
