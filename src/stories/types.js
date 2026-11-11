@@ -97,16 +97,12 @@ function hurtBy(frames) {
 }
 
 story('types/normal-has-no-lash', {
-  about: 'With the switch on a Normal jelly blows bubbles and never lashes, even with a bug right under its tentacles; with the switch off the same bug is stung.',
+  about: 'A Normal jelly blows bubbles and never lashes, even with a bug right under its tentacles.',
   setup() { setupFight({ types: 'normal' }); },
   play() {
     roachAt(0, -0.06);
-    const on = hurtBy(60 * 3);
-    setupFight();
-    roachAt(0, -0.06);
-    const off = hurtBy(60 * 3);
-    const pass = on.bubble?.length > 0 && !on.tentacle && off.tentacle?.length > 0;
-    return ok(pass, { on: Object.keys(on), off: Object.keys(off) });
+    const hit = hurtBy(60 * 3);
+    return ok(hit.bubble?.length > 0 && !hit.tentacle, { hit: Object.keys(hit) });
   },
 });
 
@@ -222,7 +218,7 @@ const key = (code) => dispatchEvent(new KeyboardEvent('keydown', { code, bubbles
 const cardName = (picker) => picker.cards[picker.index].querySelector('h3').textContent;
 
 story('types/pick-screen-shows-every-type', {
-  about: 'With the switch on, a returning player\'s Play opens the pick screen on the type the switch names, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
+  about: 'A returning player\'s Play opens the pick screen on the last type picked, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
   setup() {},
   play() {
     const { picker, run } = G(), back = asPlayer(true);
@@ -358,7 +354,7 @@ story('types/pick-screen-centre-card-attacks', {
 });
 
 story('types/first-run-is-normal', {
-  about: 'A first-time player never sees the pick screen: with the switch on, their Play starts a Normal run whatever the switch names; a returning player\'s Play opens the screen.',
+  about: 'A first-time player never sees the pick screen: their Play starts a Normal run whatever was picked before; a returning player\'s Play opens the screen.',
   setup() {},
   play() {
     const { picker, run } = G();
@@ -380,7 +376,7 @@ story('types/first-run-is-normal', {
 });
 
 story('types/pick-screen-opens-on-try-again', {
-  about: 'After a death in act 1 with jelly types on, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
+  about: 'After a death in act 1, a returning player\'s Try again opens the pick screen (no Back) and Play starts the next run as the chosen type; a first-time player\'s Try again restarts at once as Normal; with the switch off it restarts as before. A look changed in between is drawn on the cards.',
   setup() {},
   play() {
     const { run, picker } = G();

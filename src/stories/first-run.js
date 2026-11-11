@@ -79,6 +79,22 @@ story('first-run/the-first-minute', {
   setup() {},
   play: firstMinute,
 });
+story('first-run/jump-tip', {
+  about: 'A first run shows "Hold jump to jump higher." once, about 12 s in; another run never does.',
+  setup() { fresh({ elites: false, firstRun: true }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G();
+    step(60 * 10);
+    const early = /jump higher/.test(hintShown());
+    step(60 * 3);
+    const shown = /Hold jump to jump higher/.test(hintShown());
+    step(60 * 8);
+    const gone = !/jump higher/.test(hintShown());
+    fresh({ elites: false }); step(60 * 14);
+    const other = /jump higher/.test(hintShown());
+    return ok(!early && shown && gone && !other, { early, shown, gone, other });
+  },
+});
 story('first-run/who-is-new', {
   about: 'A player is new until a run of theirs ends (dried out, or the boss beaten); one with a saved best score is not new; a new run (as after a reload) keeps them new.',
   setup() { fresh({ elites: false }); },

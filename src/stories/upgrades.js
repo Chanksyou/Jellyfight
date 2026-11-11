@@ -36,7 +36,7 @@ const FIRE_POOL = ['flashpoint', 'slowBurn', 'fireBreath', 'wildfire', 'hotHead'
 
 // ------------------------------------------------------------------ the pick, chests, saves
 story('types/end-of-act-offers-attack-upgrades', {
-  about: 'A Fire run with jelly types on: after act 1\'s boss, the Legendary pick (evolutions are in it since P9), then a pick of 3 Fire Attack upgrades, then the act ends. With the switch off it is the evolution and the Legendary pick, and no upgrade pick.',
+  about: 'A Fire run: after act 1\'s boss, the Legendary pick (evolutions are in it since P9), then a pick of 3 Fire Attack upgrades, then the act ends. With the switch off it is the evolution and the Legendary pick, and no upgrade pick.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = () => {
@@ -61,7 +61,7 @@ story('types/end-of-act-offers-attack-upgrades', {
 });
 
 story('types/attack-upgrade-is-never-in-a-chest', {
-  about: 'With jelly types on, no chest or Legendary pick ever offers an Attack upgrade, an Element, an Element upgrade, Power Bank or the six old tentacle Treasures; the upgrade pick offers each upgrade once and Inferno only after Slow Burn. With the switch off the tentacle Treasures still turn up.',
+  about: 'No chest or Legendary pick ever offers an Attack upgrade, an Element, an Element upgrade, Power Bank or the six old tentacle Treasures; the upgrade pick offers each upgrade once and Inferno only after Slow Burn. With the switch off the tentacle Treasures still turn up.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const { run } = G();
@@ -92,7 +92,7 @@ story('types/attack-upgrade-is-never-in-a-chest', {
 });
 
 story('types/third-chest-is-ordinary', {
-  about: 'With jelly types on, every 3rd chest is an ordinary pick of three, even owning the Birthday Candle (still counted: Spare Change reads it); with the switch off every 3rd chest offers an Element upgrade.',
+  about: 'Every 3rd chest is an ordinary pick of three, even owning the Birthday Candle (still counted: Spare Change reads it); with the switch off every 3rd chest offers an Element upgrade.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const ups = () => {

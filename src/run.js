@@ -455,7 +455,7 @@ export class Run {
     return S;
   }
 
-  // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's, with jelly types off)
+  // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's)
   get baseStats() { return this._baseOf === this.jelly ? this._base : (this._baseOf = this.jelly, this._base = jellyStats(this.jelly)); }
 
   // what a per converter counts (`of`), read from stats S
@@ -649,6 +649,7 @@ export class Run {
     this.touchAction = null;
     const jumpKey = this.touch ? '⤴' : '<kbd>Space</kbd>';
     if (tr.vent) this.lastVent = tr.vent.to;
+    if (this.hintT <= 0) { const tip = this.firstRun.jumpTip(this.t); if (tip) { this.hint = tip; this.hintT = 4.5; } }   // a first run: how to jump higher (first-run.js)
     if (this.hintT > 0) { this.hintT -= dt; this.hud.hint(this.hint); }   // a timed line (first-run.js) wins for its few seconds
     else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
     else if (P.flight) this.hud.hint(`Whoosh! Up to ${this.lastVent}`);
