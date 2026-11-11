@@ -1017,7 +1017,8 @@ export class Elites {
       e.cool -= dt * CONTENT.elites.pace.recover;
       const muzzle = e.model.muzzle.clone().applyAxisAngle(UP, e.holder.rotation.y).add(e.wall ? e.holder.position : e.base);
       if (e.kind === 'clock') this.clockHands(e, dt);
-      const heading = e.holder.rotation.y, fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
+      let heading = e.holder.rotation.y;
+      const fwd = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
       const surf = e.base.clone().setY(e.base.y + 0.002);
 
       // the Soap Dispenser, attacking or not: the soap left is its health, bubbles drift up through it
@@ -1075,9 +1076,13 @@ export class Elites {
       // start the next attack
       if (e.state === 'idle') {
         if (!awake || e.cool > 0 || (e.wall && !e.ready) || !this.canSee(e,pc,cfg.radius)) continue;
-        // finish turning to face you first, so the telegraph points where you are
-        const off = Math.atan2(Math.sin(Math.atan2(to.x, to.z) - heading), Math.cos(Math.atan2(to.x, to.z) - heading));
-        if (Math.abs(off) > 0.15 && !e.wall) continue;
+        // snap round the rest of the way, so the telegraph points where you are. (Waiting to face
+        // you stalled it forever: its easing turn never catches a jelly circling it close)
+        if (!e.wall) {
+          heading = e.holder.rotation.y = Math.atan2(to.x, to.z);
+          fwd.set(Math.sin(heading), 0, Math.cos(heading));
+          muzzle.copy(e.model.muzzle).applyAxisAngle(UP, heading).add(e.base);
+        }
         e.attack = e.next++ % (ATTACKS[e.kind].length - (e.kind === 'clock' && e.hp >= e.maxHp * e.def.angry ? 1 : 0));   // the clock strikes the hour only once it's angry
         e.state = 'windup';
         e.stateT = 0;
