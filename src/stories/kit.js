@@ -2,7 +2,7 @@
 // the `story` / `act2` / `act3` / `phone` ways to add one. src/stories.js imports the areas in order.
 import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
-import { ENEMY_WORDS } from '../words.js';
+import { ENEMY_WORDS, elementParams } from '../words.js';
 import { CONTENT } from '../content.js';
 import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
@@ -70,7 +70,7 @@ export function fresh({ waves = false, treasures = false, hurt = false, levels =
   document.getElementById('g-over').hidden = true;   // the game doesn't step behind the pause menu
   menus.close();
   run.start();
-  run.firstRun = new FirstRun(firstRun, true);   // a player's first run, or (by default) any other run
+  run.firstRun = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
   run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});
@@ -127,7 +127,6 @@ export function feelSpy(fx = G().run.elites.fx) {
   log.near = (p, d = 0.06, from = 0) => log.impacts.slice(from).some((q) => q.distanceTo(p) < d);
   return log;
 }
-export const ELEMENTS_IDS = ['candle', 'battery', 'freezerPack', 'nailPolish', 'paperFan', 'glitter'];
 export const STORIES = {};
 export const story = (name, s) => { STORIES[name] = s; };
 
@@ -227,6 +226,8 @@ export function asNewPlayer(fn) {
 }
 export const near = (dx, dz, dy = 0) => G().player.position.clone().add(V(dx, dy, dz));
 export const give = (...ids) => { for (const id of ids) G().run.owned.add(id); };
+// Engine stories drive an Element directly (the game fires them only as a jelly type's attack): its base numbers into the run's mods
+export const withElement = (...ids) => { const m = G().run.mods; for (const id of ids) m.element[id] ||= elementParams(id); };
 export const evolve = (id) => { G().run.evolved.push(id); };   // take an evolution (content/evolutions.kdl)
 export const dmgBy = (log, source) => log.filter((d) => d.source === source && d.targetId !== PLAYER);
 export const roachAt = (dx, dz, opts = { still: true, hp: 9999 }) => spawn('roach', near(dx, dz), opts);

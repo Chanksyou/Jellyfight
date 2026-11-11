@@ -152,7 +152,6 @@ story('types/tentacle-has-no-bubbles', {
   setup() { setupFight({ types: 'tentacle' }); },
   play() {
     const { run } = G();
-    give('candle');   // an Element owned anyway does nothing for it
     const far = roachAt(0, -0.2);
     const blows = spy(run.bubbles, 'blow');
     const before = hurtBy(60 * 2);

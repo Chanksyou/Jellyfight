@@ -6,7 +6,7 @@ import { PLAYER } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { elementParams } from '../words.js';
-import { G, asPlayer, V, dmgBy, fresh, holdJelly, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { G, asPlayer, V, dmgBy, fresh, holdJelly, ok, record, roachAt, setupFight, spy, step, story, stub, withElement } from './kit.js';
 
 const POOL = ['overcharge', 'conductor', 'staticSkin', 'stormCell', 'thunderclap', 'ballLightning', 'chainReaction', 'lightningRod', 'overload', 'staticCharge', 'surge', 'grounded'];
 // take these Attack upgrades (the combined effects are worked out again)

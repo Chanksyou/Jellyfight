@@ -10,21 +10,21 @@ Old `balance-baseline.txt` and `clear-baseline.txt` results are historical and c
 
 ```powershell
 New-Item -ItemType Directory -Force .wrangler
-node tests/clear.mjs lighterFluid --seeds=10,11,12 --styles=ranged --build=candle > .wrangler/fire-before.jsonl
-# Run the identical command on the candidate revision, saving fire-after.jsonl.
-node tests/compare-balance.mjs .wrangler/fire-before.jsonl .wrangler/fire-after.jsonl
+node tests/clear.mjs lemon --seeds=10,11,12 --styles=ranged --type=fire > .wrangler/lemon-before.jsonl
+# Run the identical command on the candidate revision, saving lemon-after.jsonl.
+node tests/compare-balance.mjs .wrangler/lemon-before.jsonl .wrangler/lemon-after.jsonl
 ```
 
 The scripts pair each seed/style/scenario with its control.
-An upgrade's control includes its prerequisite, so Lighter Fluid is compared with Fire alone, not with no Element.
+A treasure with `needs=` has its prerequisite in the control, so it is compared with the prerequisite alone.
 The matchup tool reads Epic card values directly from `content/levelups.kdl`, skips cards not offered, and tests base and maximum copies/levels of treasures.
 Items already present at that level in a requested base build are reported as skipped.
-Build entries use treasure ids (`candle`), copy counts (`lemon@3`) or evolutions (`evo:boxJelly`); prerequisites are added automatically and invalid ids/counts fail.
+Build entries use treasure ids (`goldRing`), copy counts (`lemon@3`) or evolutions (`evo:boxJelly`); prerequisites are added automatically and invalid ids/counts fail.
 Explicit comparisons whose builds are identical are rejected.
 
 ```powershell
 $env:BUGS = 'roach,ants'
-node tests/matchup.mjs freezerBurn --seeds=10,11 --styles=ranged,close,rooting --build=freezerPack
+node tests/matchup.mjs lemon --seeds=10,11 --styles=ranged,close,rooting --type=ice
 Remove-Item Env:BUGS
 ```
 
@@ -47,14 +47,14 @@ The moving bots avoid nearby ordinary projectiles and jump when blocked.
 They seek active treasure chests when not engaging a nearby enemy.
 They do not solve navigation through furniture, learn boss mechanics, model phone controls or reproduce human reaction times.
 Playstyle-specific level-up priorities and a separate seeded tie-breaker replace always taking the first card.
-`--prefer=health,candle,upsideDown` overrides those priorities when the named stat/treasure/evolution is actually offered; it never manufactures rewards.
+`--prefer=health,goldRing,upsideDown` overrides those priorities when the named stat/treasure/evolution is actually offered; it never manufactures rewards.
 Random treasure/evolution ties remain random rather than claiming to know the best build.
 
 ## Full campaigns and build additions
 
 ```powershell
 node tests/balance.mjs 5 --seed=10 --styles=ranged,close,rooting > .wrangler/campaign.jsonl
-node tests/balance.mjs --seeds=10,11 --styles=ranged --build=candle --add=lighterFluid > .wrangler/fire-upgrade.jsonl
+node tests/balance.mjs --seeds=10,11 --styles=ranged --type=fire --add=lemon > .wrangler/fire-lemon.jsonl
 ```
 
 Act 1 starts a real campaign: level-ups, offered treasures, boss rewards and evolution choices lead into the next act with the game's real carry data.
@@ -69,8 +69,8 @@ It opens the next act with the carry produced by the game's own act-complete but
 ## Targeted synergies
 
 ```powershell
-node tests/clear.mjs --seeds=10,11 --styles=ranged --synergy=nailPolish+stickyNote > .wrangler/acid-mark.jsonl
-node tests/balance.mjs --seeds=10,11 --styles=close --build=freezerPack --synergy=freezerBurn+evo:boxJelly
+node tests/clear.mjs --seeds=10,11 --styles=ranged --type=poison --synergy=goldRing+stickyNote > .wrangler/poison-mark.jsonl
+node tests/balance.mjs --seeds=10,11 --styles=close --type=ice --synergy=lemon+evo:boxJelly
 ```
 
 This evaluates four matching builds: base, A, B and A+B.

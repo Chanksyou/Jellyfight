@@ -4,7 +4,7 @@ import { options, movement, choose, paired, winInterval } from './balance-core.m
 import { compareReports } from './compare-balance.mjs';
 
 test('balance options preserve explicit paired seeds and reject invalid experiments', () => {
-  const o = options(['--seeds=0,17', '--styles=close,rooting', '--build=candle', '--add=lighterFluid']);
+  const o = options(['--seeds=0,17', '--styles=close,rooting', '--build=goldRing', '--add=lemon']);
   assert.deepEqual(o.seeds, [0, 17]); assert.deepEqual(o.styles, ['close', 'rooting']);
   assert.deepEqual(options(['lemon', '1/3'], 'matchup').shard, 1);
   assert.equal(options(['--type=tentacle']).type, 'tentacle'); assert.equal(options([]).type, null);

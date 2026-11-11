@@ -9,7 +9,7 @@ import { juice } from '../juice.js';
 import { CONFIG } from '../config.js';
 import { LOOK } from '../look.js';
 import { sfx, unlock as unlockAudio } from '../sfx.js';
-import { ELEMENTS_IDS, G, JUMP_FEET, V, againVacuum, bossHits, feelVoices, fresh, holdJelly, ok, r3, record, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
+import { G, JUMP_FEET, V, againVacuum, bossHits, feelVoices, fresh, holdJelly, ok, r3, record, restore, shownWarnings, sim, spawn, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- the event bus: what hits, kills, freezes and rewards do
 story('events/player-hit-feedback', {

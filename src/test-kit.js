@@ -2,7 +2,7 @@
 // evolution on the run in front of you: add or take away copies and levels, see what you have,
 // spawn a pack of bugs to try it on, turn the waves off and stop yourself dying. Nothing here is
 // for players; it only changes the run it's opened on.
-import { TREASURES, EVOLUTIONS, TREASURE_RARITY, ELEMENT_UPGRADES } from './stats.js';
+import { TREASURES, EVOLUTIONS, TREASURE_RARITY } from './stats.js';
 import { CONTENT } from './content.js';
 
 const CSS = `
@@ -98,7 +98,7 @@ export class TestKit {
   items() {
     const q = this.query, f = this.filter;
     const evo = EVOLUTIONS.map((e) => ({ ...e, kind: 'evolution' }));
-    const tre = TREASURES.map((t) => ({ ...t, kind: ELEMENT_UPGRADES.includes(t.id) ? 'upgrade' : t.rarity }));
+    const tre = TREASURES.map((t) => ({ ...t, kind: t.rarity }));
     return [...evo, ...tre].filter((t) => (f === 'all' || t.kind === f)
       && (!q || `${t.name} ${t.text} ${t.id}`.toLowerCase().includes(q)));
   }

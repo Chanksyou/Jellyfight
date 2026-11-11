@@ -58,7 +58,7 @@ story('engine/run-details', {
     step(1 / 60);
     stub(run.ui, 'choose', (_title, _sub, choices, pick) => pick(choices[0]));
     stub(run.ui, 'treasure', () => {});
-    const treasure = TREASURES.find(t => t.id === 'candle');
+    const treasure = TREASURES.find(t => t.id === 'goldRing');
     run.t = 12.3; run.offer('', '', [treasure], () => {});
     const elite = run.elites.list[0];
     run.t = 25; bus.emit('elite_defeated', { elite });
@@ -70,7 +70,7 @@ story('engine/run-details', {
     run.recordRun('in-progress');
     const d = rows.at(-1).details;
     const elites = d.elitesBeaten === 1 && d.elites[0][0] === elite.kind && d.elites[0][1] === 25;
-    const pickups = d.treasuresObtained === 2 && JSON.stringify(d.pickups) === JSON.stringify([['candle', 12.3, 1], ['candle', 55.4, 2]]);
+    const pickups = d.treasuresObtained === 2 && JSON.stringify(d.pickups) === JSON.stringify([['goldRing', 12.3, 1], ['goldRing', 55.4, 2]]);
     const immutable = earlier.pickups.length === 1 && earlier.killedBy === null;
     const fatal = rows.at(-1).outcome === 'died' && d.killedBy.unit === 'mug' && d.killedBy.source === 'coffee';
     const carried = run.carryOver().logId === run.logId;
@@ -738,10 +738,10 @@ story('engine/raycast-matches-reference', {
 story('engine/fight-draw-calls', {
   about: 'A busy fight stays cheap to draw: bugs, bubbles and effects are instanced (batch.js).',
   setup() {
-    fresh({ elites: false });
+    fresh({ elites: false, types: 'fire' });
     tp(3.2, 0.05, 3.0, 0);
     const { run } = G(), P = G().player.position;
-    for (const t of ['candle', 'glitter', 'battery', 'fairyLights']) run.owned.add(t);
+    run.owned.add('fairyLights');
     Object.assign(run.stats, { bubbles: 6, fireRate: 3 });
     for (let k = 0; k < 25; k++) { const a = k * 0.9, d = 0.15 + (k % 5) * 0.06; spawn(['roach', 'ants', 'mosquito'][k % 3], P.clone().add(V(Math.cos(a) * d, 0, Math.sin(a) * d)), { hp: 9999 }); }
   },

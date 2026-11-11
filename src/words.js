@@ -675,7 +675,6 @@ export function makeWord(registry, node, where) {
 export function newMods() {
   return {
     bubbles: { pierce: 1, echo: null, golden: null, giant: null },
-    elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
     hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, splash: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null, echo: null, edge: null, coil: null } },
     popZap: null,
@@ -1023,11 +1022,6 @@ export const TREASURE_WORDS = {
   'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
   'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
-  element: {
-    doc: 'An element attack of its own: fire, lightning, ice, acid, wind or glitter (bubbles.js). It fires its own projectile on its own timer, separate from your bubbles. Legendary: you get these from the start-of-run pick and the Boss reward, not from treasures in the room.',
-    args: ['name'],
-    make: ([name]) => { if (!ELEMENT_IDS.includes(name)) throw new Error(`element must be one of ${ELEMENT_IDS.join(', ')}, not "${name}"`); return (m) => { m.elements.add(name); m.element[name] ||= elementParams(name); }; },
-  },
   'element-up': {
     doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow, slowedMul, frostbite, chillPierce, grow, revisit and stunFirst add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
     args: ['name'],

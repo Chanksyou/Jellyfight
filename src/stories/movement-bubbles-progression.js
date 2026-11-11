@@ -4,9 +4,9 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, ELEMENT_UPGRADES, xpToNext, cardText } from '../stats.js';
+import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
-import { ELEMENTS_IDS, G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
+import { G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
 
 // --- movement
 story('movement/jelly-steady-speed', {
