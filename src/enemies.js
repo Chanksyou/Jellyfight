@@ -1177,6 +1177,8 @@ export class Enemies {
     const list = this.list;
 
     const locks = this.mods?.groundLock || [];
+    const cam = this.fx?.camera, view = S.view, animFar = LOOK.num('bug-anim-far', 1.5);
+    if (cam) view.setFromProjectionMatrix(S.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
     for (const e of list) {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
@@ -1245,7 +1247,11 @@ export class Enemies {
         e.mesh.scale.y *= 1 - 0.28 * q; e.mesh.scale.x *= 1 + 0.14 * q; e.mesh.scale.z *= 1 + 0.14 * q;
       }
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
-      if (e.anim) e.anim(dt, e);
+      if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
+        e.animDt = (e.animDt || 0) + dt;
+        const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
+        if (!unseen || (this.frame + e.id) % 2 === 0) { e.anim(e.animDt, e); e.animDt = 0; }
+      }
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
@@ -1368,7 +1374,7 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 } };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 }, view: new THREE.Frustum(), viewProj: new THREE.Matrix4(), sphere: new THREE.Sphere() };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;

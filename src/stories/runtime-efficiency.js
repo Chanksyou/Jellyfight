@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { World } from '../collision.js';
 import { hostile } from '../vfx.js';
 import { Batcher } from '../batch.js';
-import { G, V, act2, fresh, give, ok, story, stub } from './kit.js';
+import { G, V, act2, fresh, give, ok, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
 
 story('collision/scenery-grid-refreshes-before-focus-early-return', {
   about: 'A static apartment prop crossing cells is reindexed on the next focus tick even while the jelly stands still; newly loaded scenery joins immediately.',
@@ -262,5 +262,37 @@ story('engine/ladybug-and-missile-batches-plateau', {
     } finally {
       for (const mats of b.groups.values()) for (const g of mats.values()) g.mesh?.dispose();
     }
+  },
+});
+
+story('engine/far-bugs-animate-at-half-rate', {
+  about: 'A bug near the jelly and on screen animates every frame; one far away, or behind the camera, animates on alternate frames with both frames\' time, so its legs keep the same pace.',
+  setup() { setupFight({ bubbles: false, lash: false, waves: false }); },
+  play() {
+    const { fx } = G(), cam = fx.camera;
+    step(5);
+    const behind = cam.position.clone().addScaledVector(cam.getWorldDirection(V()), -0.25).setY(G().player.position.y);
+    const bugs = { near: roachAt(0.15, 0), far: roachAt(2.2, 0), behind: spawn('roach', behind, { still: true, hp: 9999 }) };
+    const seen = {};
+    for (const [k, e] of Object.entries(bugs)) { const a = e.anim; seen[k] = { calls: 0, t: 0 }; e.anim = (dt, x) => { seen[k].calls++; seen[k].t += dt; a(dt, x); }; }
+    step(20);
+    const half = (s) => s.calls >= 9 && s.calls <= 11 && Math.abs(s.t - 20 / 60) < 1.5 / 60;
+    return ok(seen.near.calls === 20 && half(seen.far) && half(seen.behind), seen);
+  },
+});
+
+story('engine/crowd-hits-keep-their-flash', {
+  about: 'Past --fx-hits-per-frame hit effects in one frame, the rest keep only their flash (no sparks, no ring); the next frame has the full budget again.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  play() {
+    const { fx } = G(), budget = fx.hitBudget, at = G().player.position.clone();
+    fx.update(0);
+    const glow0 = fx.glow.parts.length, rings0 = fx.rings.filter((r) => r.alive).length;
+    for (let i = 0; i < budget + 4; i++) fx.impact(at, 0x9fe8ff, 0.02, 10);
+    const glow = fx.glow.parts.length - glow0, rings = fx.rings.filter((r) => r.alive).length - rings0;
+    fx.update(0);
+    const g1 = fx.glow.parts.length; fx.impact(at, 0x9fe8ff, 0.02, 10);
+    const fullAgain = fx.glow.parts.length - g1 === 11;
+    return ok(glow === budget * 11 + 4 && rings === budget && fullAgain, { budget, glow, rings, fullAgain });
   },
 });

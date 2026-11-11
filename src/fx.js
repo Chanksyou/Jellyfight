@@ -24,6 +24,7 @@ export class Fx {
     this.layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;font:700 14px system-ui,sans-serif;z-index:5';
     this.nums = [];
     this.numberClock = 0; this.numberSerial = 0;
+    this.hitsThisFrame = 0; this.hitBudget = LOOK.num('fx-hits-per-frame', 8);
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     this.numberLook = {
       cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
@@ -300,9 +301,12 @@ export class Fx {
   }
 
   // A hit landing: a flash, a ring of sparks flying out and a shockwave on the ground
+  // Past --fx-hits-per-frame impacts in one frame, the rest keep only their flash (the contact):
+  // a crowd hit at once stays readable without a spike of sparks and rings on a phone.
   impact(pos, color, size = 0.025, sparks = 10) {
     const c = new THREE.Color(color);
     this.glow.emit(pos, c, size * 2.2, size * 4, 0.16, 1.3);                     // the flash
+    if (++this.hitsThisFrame > this.hitBudget) return;
     for (let k = 0; k < sparks; k++) {
       const v = this._w.set(Math.random() - 0.5, Math.random() * 0.9 + 0.2, Math.random() - 0.5).normalize().multiplyScalar(0.25 + Math.random() * 0.45);
       this.glow.emit(pos, c, size * 0.45, size * 0.05, 0.3 + Math.random() * 0.25, 1, v, 1.4);
@@ -367,6 +371,7 @@ export class Fx {
   }
 
   update(dt) {
+    this.hitsThisFrame = 0;
     this.deaths.update(dt);
     this.ice.update(dt);
     this.glitter.update(dt);
