@@ -1776,8 +1776,8 @@ export class Run {
 
   // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not.
   // With jelly types on (docs/jelly-types/spec-meta.md): a Jellies page first (locked types as silhouettes
-  // with their goal), then each type's Attack upgrades; the Treasures page leaves out what leaves with
-  // types (leavesWithTypes) and takes the former evolutions in with the Legendaries; no Evolutions page
+  // with their goal), then each type's Attack upgrades; the Treasures page leaves out retired
+  // Treasures and takes the former evolutions in with the Legendaries; no Evolutions page
   showBook(back) {
     const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'], types = true;
     const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(x.kind || kind, x.id, f) })) });

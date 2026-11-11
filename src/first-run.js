@@ -2,17 +2,11 @@
 // (spec: GitHub issue #1). The run asks a FirstRun a few yes/no questions at the moments that
 // change; nothing else knows the first-run rules. Every other run behaves as before.
 //
-//   - the Element pick waits until right after the first Level-up's card (not the first frame);
-//     XP counts double until then, so that first Level-up comes about twice as soon
 //   - the run opens with one tip about how it's played: attacks are automatic, XP, the boss
 //   - the first hit shows one plain line about the Health bar, once
-//   - the Element pick closes with one tip: hold jump to jump higher
-//   - no Treasure turns up in the room before the Element pick is done (scheduled times before it
-//     are skipped; an Elite's Treasure still drops); a skipped one turns up a few seconds after the
-//     pick instead of waiting for the next scheduled time
+//   - a few seconds in, one tip: hold jump to jump higher
 //   - the minimap stays hidden until the first Treasure appears in the room, then stays
-//   - with jelly types on, the type pick screen is skipped: the run starts as Normal (picksType); a
-//     jelly type has no Element pick, so there's no double XP, no held-back Treasure and no jump tip
+//   - a first run is always the Normal jelly: the type pick screen is skipped (picksType)
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so

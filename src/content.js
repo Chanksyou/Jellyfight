@@ -118,7 +118,7 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
     // STACK_MAX; Legendary treasures, the elements and their upgrades are one of a kind
     const unique = rarity === 'legendary';
     if (n.props.stack > STACK_MAX) throw new Error(`${where}: "${id}" stack=${n.props.stack} is too many (at most ${STACK_MAX})`);
-    if (unique && n.props.stack > 1) throw new Error(`${where}: "${id}" is ${rarity === 'legendary' ? 'Legendary' : 'an element or its upgrade'}, so it's one of a kind (no stack=)`);
+    if (unique && n.props.stack > 1) throw new Error(`${where}: "${id}" is Legendary, so it's one of a kind (no stack=)`);
     const words = (list) => list.map((w) => makeWord(TREASURE_WORDS, w, `${file}:${w.line}`));
     const levels = [words(base), ...lv.map((L) => words(L.children))];
     out.push({
