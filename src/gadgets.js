@@ -227,7 +227,7 @@ export class Gadgets {
     const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
     this.clock = (this.clock || 0) + dt;
-    this.tickClouds(dt, M);
+    this.tickClouds(dt);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
 
@@ -511,11 +511,11 @@ export class Gadgets {
   // cloud (Toxic Cloud): gas hangs where it went off; every 0.5 s each bug inside gets a Poison stack
   // (pw: Attack damage x 4.5, from power = Attack damage x 1.8). It shows exactly as big and as long as it works
   cloud(ef, { center, power, mods }) {
-    (this.clouds ||= []).push({ at: center.clone(), r: ef.radius, t: ef.time, life: ef.time, tick: 0, pw: power * 2.5, ep: this.bubbles?.mainParams('poison', mods) });
+    (this.clouds ||= []).push({ at: center.clone(), r: ef.radius, t: ef.time, life: ef.time, tick: 0, pw: this.bubbles?.poisonPw ?? power * 2.5, ep: this.bubbles?.mainParams('poison', mods) });
     this.bubbles?.looks.poisonBurst(center, ef.radius);
     sfx.elementHit('poison');
   }
-  tickClouds(dt, mods) {
+  tickClouds(dt) {
     if (!this.clouds?.length) return;
     const B = this.bubbles, P = B?.looks.pz, c = _to;
     for (const C of this.clouds) {
@@ -537,7 +537,7 @@ export class Gadgets {
     if (!n || !B) return;
     B.looks.poisonBurst(center, ef.radius);
     sfx.elementHit('poison');
-    for (const e of this.near(center, ef.radius)) if (!e.dead) B.poison(e, power * 2.5, B.mainParams('poison', mods), n);
+    for (const e of this.near(center, ef.radius)) if (!e.dead) B.poison(e, B.poisonPw ?? power * 2.5, B.mainParams('poison', mods), n);
   }
 
   // The Ink Cloud's squirt (Ink Cloud): a billow of near-black blue blobs bursting out round the bell and
