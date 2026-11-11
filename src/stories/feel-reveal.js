@@ -53,12 +53,12 @@ story('attack/tentacle-miss-has-no-hit-feedback', {
 });
 
 story('evolutions/reveal-before-next-reward', {
-  about: 'Choosing an evolution pauses on its portrait, applies the choice once, then automatically offers the Legendary reward once.',
+  about: 'Choosing an evolution pauses on its portrait, applies the choice once, then automatically goes on to the next reward once.',
   setup,
   play() {
     const { run, menus } = G(); let rewards = 0;
-    stub(run, 'pickLegendary', () => rewards++);
-    run.metamorph(); menus.modal.querySelector('.jf-card').click();
+    run.phase = 'metamorph';
+    run.evolve(CONTENT.evolutions[0], () => rewards++);   // what taking an evolution from the Legendary pick does
     const R = run.evolutionReveal, held = R.active && menus.open && rewards === 0 && run.phase === 'metamorph';
     const t = run.t, health = run.health; step(30);
     const paused = run.t === t && run.health === health;

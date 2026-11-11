@@ -74,7 +74,7 @@ act2('carries-the-run', {
   setup() { fresh(); },
   play() {
     const { run } = G();
-    return ok(run.level === 6 && run.owned.has('candle') && run.score() >= 5000 && run.health === run.stats.health && run.stats.health === 130,
+    return ok(run.level === 6 && run.owned.has('goldRing') && run.score() >= 5000 && run.health === run.stats.health && run.stats.health === 130,
       { level: run.level, owned: [...run.owned], score: run.score(), health: run.health });
   },
 });

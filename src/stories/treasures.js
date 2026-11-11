@@ -1,8 +1,9 @@
 // Stories: treasure effect words. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import { bus, PLAYER } from '../events.js';
-import { CONTENT, compileTreasures } from '../content.js';
+import { CONTENT, compileMods, compileTreasures } from '../content.js';
 import { rollCards, RARITY, BASE_STATS, ELEMENT_UPGRADES } from '../stats.js';
+import { elementParams } from '../words.js';
 import { parse } from '../kdl.js';
 import { seededRandom } from '../story-random.mjs';
 import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
@@ -48,20 +49,27 @@ story('treasures/giant-bubble', {
     return ok(giants >= 1 && giants === Math.floor(normal / 6) && opts.find((x) => x.big).size === 2.5, { normal, giants });
   },
 });
+// the combined effects of one treasure written in these words (no run needed)
+const modsOf = (src) => {
+  const [t] = compileTreasures(parse(`treasure "w" name="W" icon="x" rarity="legendary" text="x" {\n${src}\n}`, 'w.kdl'), 'w.kdl');
+  const m = compileMods(new Set(), [], []);
+  for (const fx of t.effects) fx(m, 0);
+  return m;
+};
 story('treasures/element', {
-  about: 'element: fire burns, lightning arcs, ice slows, acid leaves puddles (Candle, Battery, Freezer Pack, Nail Polish).',
-  setup() { setupFight({ lash: false }); give('candle', 'battery', 'freezerPack', 'nailPolish'); G().run.stats.bubbles = 2; roachAt(-0.04, -0.15); roachAt(0.04, -0.15); roachAt(0.1, -0.2); },
+  about: 'element: names an element attack the run owns, with that element\'s base numbers (ELEMENT_BASE). Only old saves and the Element treasures kept for them use it; a jelly type fires its own attack.',
+  setup() {},
   play() {
-    const { run, enemies } = G();
-    let burned = false, puddles = false, zapped = false, slowed = false;
-    const zap = run.bubbles.zap.bind(run.bubbles);
-    stub(run.bubbles, 'zap', (...a) => { zapped = true; return zap(...a); });
-    step(60 * 6, () => {
-      burned ||= run.bubbles.burning.size > 0; puddles ||= run.bubbles.puddles.length > 0;
-      slowed ||= enemies.list.some((e) => e.slowT > 0);
-      return burned && puddles && zapped && slowed;
-    });
-    return ok(burned && puddles && zapped && slowed, { burned, puddles, zapped, slowed });
+    const m = modsOf('element "fire"');
+    return ok(m.elements.has('fire') && m.element.fire.burn === elementParams('fire').burn && !m.elements.has('ice'), { owned: [...m.elements], fire: m.element.fire });
+  },
+});
+story('treasures/element-up', {
+  about: 'element-up: changes one number of an element attack: some add (burnTime, count) and the rest multiply (burn), as a jelly type\'s Attack upgrades use it.',
+  setup() {},
+  play() {
+    const m = modsOf('element "fire"\nelement-up "fire" burn=2 burnTime=3'), base = elementParams('fire');
+    return ok(m.element.fire.burn === base.burn * 2 && m.element.fire.burnTime === base.burnTime + 3, { burn: m.element.fire.burn, burnTime: m.element.fire.burnTime });
   },
 });
 story('treasures/wind-blade', {
@@ -75,29 +83,6 @@ story('treasures/wind-blade', {
     const hits = [B.touches(wind, side, 0.005), B.touches(plain, side, 0.005)];
     B.release(wind); B.release(plain); B.list = B.list.filter((b) => b !== wind && b !== plain);
     return ok(hits[0] && !hits[1] && wind.m.userData.blade, { wind: hits[0], plain: hits[1], halfWidth: +wind.side.toFixed(4) });
-  },
-});
-story('treasures/element-up', {
-  about: 'Element upgrades change that element\'s attack: Lighter Fluid burns twice as hot, Long Matches burns 3 s longer, Birthday Cake fires two fireballs a shot; your Fire rate speeds every element attack up too.',
-  setup() { setupFight({ lash: false, bubbles: true }); give('candle'); roachAt(0, -0.15); },
-  play() {
-    const { run, enemies } = G(), B = run.bubbles, e = enemies.list[0];
-    step(2);
-    const base = { ...run.mods.element.fire };
-    give('lighterFluid'); give('longMatches'); give('birthdayCake');
-    step(2);
-    const up = run.mods.element.fire;
-    B.burning.clear(); B.ignite(e, 10, up);
-    const f = B.burning.get(e), burnT = f.t, burnDps = f.dps;
-    // a shot: how many fireballs leave at once
-    B.list.length = 0; B.elTimers.fire = 1; B.timer = 0;
-    step(1);
-    const fireballs = B.list.filter((b) => b.tint === 'fire').length;
-    // Fire rate: shots a second scale with it (count the fire timer's progress over 1 s)
-    const rateAt = (blow) => { run.stats.fireRate = blow; B.elTimers.fire = 0; let shots = 0; for (let i = 0; i < 60; i++) { const before = B.elTimers.fire; step(1); if (B.elTimers.fire < before) shots++; } return shots + B.elTimers.fire; };
-    const slow = rateAt(BASE_FIRE_RATE), fast = rateAt(BASE_FIRE_RATE * 2);
-    return ok(base.burn === 1 && up.burn === 2 && up.burnTime === 6 && burnT === 6 && Math.abs(burnDps - 10 * 0.17 * 2) < 1e-9 && up.count === 1 && fireballs === 2 && fast > slow * 1.7,
-      { base, up, burnT, fireballs, slow: +slow.toFixed(2), fast: +fast.toFixed(2) });
   },
 });
 story('treasures/rarity-by-source', {
@@ -609,16 +594,13 @@ story('treasures/stat', {
   },
 });
 story('treasures/stat-jump-tentacles', {
-  about: 'stat reaches the stats nothing raised before: Jump height and the tentacles (Spring Insole, Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle), and the lash uses them: two tentacles sting two bugs at once.',
-  setup() { setupFight({ bubbles: false }); give('insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); roachAt(0.06, 0); roachAt(-0.06, 0); },
+  about: 'stat reaches the stats nothing raised before: Jump height and the tentacles (Spring Insole, Spaghetti Strand, Tape Measure, Chopsticks, Stinging Nettle); the lash using them is proven by the Tentacle jelly stories.',
+  setup() { setupFight({ bubbles: false }); give('insole', 'spaghetti', 'tapeMeasure', 'chopsticks', 'nettle'); },
   play() {
     const { run } = G(), b = BASE_STATS, S = run.S, T = run.tentacleStats, near = (a, c) => Math.abs(a - c) < 1e-9;
     const stats = near(S.jumpHeight, b.jumpHeight * 1.5) && T.tentacles === b.tentacles + 2
       && near(T.reach, b.reach * 1.6) && near(T.tentacleSpeed, b.tentacleSpeed * 1.4) && T.tentacleDamage === b.tentacleDamage + 4;
-    const log = record('damage_taken');
-    step(60 * 2);
-    const stung = new Set(dmgBy(log, 'tentacle').map((d) => d.targetId)).size;
-    return ok(stats && stung === 2, { jump: S.jumpHeight, T: { ...T }, stung });
+    return ok(stats, { jump: S.jumpHeight, T: { ...T } });
   },
 });
 story('treasures/more-treasures', {

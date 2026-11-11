@@ -1,26 +1,23 @@
-// Jelly types (content/jellies.kdl): what a run starts as. Built behind one switch until release
-// (docs/jelly-types/spec-core.md). With TYPE_SWITCH.on false every run is Normal and nothing changes;
-// on (`?types` or `?types=<id>`, the dev tools' Types button, or a story's fresh({ types: '<id>' }))
-// a new run starts as TYPE_SWITCH.start, and counts as a dev run (no score, not in the run log).
+// Jelly types (content/jellies.kdl): what a run starts as (docs/jelly-types/spec-core.md). Every run is a
+// type; a first-time player's is Normal, a returning player picks (pick-screen.js) and the pick is TYPE_PICK.start.
 import { CONTENT } from './content.js';
 import { BASE_STATS, STAT_INFO } from './stats.js';
 import { found } from './collection.js';
 import { lifetime } from './cosmetics.js';
 import { STAGES } from './stages.js';
 
-export const TYPE_SWITCH = { on: false, start: 'normal' };
+export const TYPE_PICK = { start: 'normal' };
 
 // The jelly a new run starts as
-export const startingJelly = () => (TYPE_SWITCH.on && CONTENT.jellies[TYPE_SWITCH.start] ? TYPE_SWITCH.start : 'normal');
+export const startingJelly = () => (CONTENT.jellies[TYPE_PICK.start] ? TYPE_PICK.start : 'normal');
 
 // A run's starting stats: Normal's (BASE_STATS) with the type's stat lines on top
 export const jellyStats = (id) => ({ ...BASE_STATS, ...(CONTENT.jellies[id]?.stats || {}) });
 
-// The run's one attack (spec-core.md): null with the switch off, where a run has today's three at
-// once (bubbles, the Elements it owns, the lash); on, the jelly's attack= and hit= (content/jellies.kdl)
+// The run's one attack (spec-core.md): the jelly's attack= and hit= (content/jellies.kdl)
 export const jellyAttack = (id) => {
-  const J = CONTENT.jellies[id];
-  return TYPE_SWITCH.on && J ? { kind: J.attack, hit: J.hit } : null;
+  const J = CONTENT.jellies[id] || CONTENT.jellies.normal;
+  return { kind: J.attack, hit: J.hit };
 };
 
 // The pick screen's six bars (docs/jelly-types/spec-pick-screen.md), each 0 to 1 from the type's level-1

@@ -19,7 +19,7 @@ act3('carries-the-run', {
   play() {
     const { run, player } = G();
     const inBedroom = run.stage.rooms.includes('Bedroom') && run.inStage(player.position.x, player.position.z);
-    return ok(run.stage.id === 3 && run.level === 10 && run.owned.has('candle') && run.owned.has('battery') && run.evolved.length === 2 && run.score() >= 12000 && inBedroom,
+    return ok(run.stage.id === 3 && run.level === 10 && run.owned.has('goldRing') && run.owned.has('nailClipper') && run.evolved.length === 2 && run.score() >= 12000 && inBedroom,
       { act: run.stage.id, level: run.level, owned: [...run.owned], evolved: run.evolved, score: run.score(), at: r3(player.position) });
   },
 });
@@ -384,7 +384,7 @@ act3('dendi-finishes-the-shark', {
   },
 });
 act3('beating-the-shark-goes-on-to-act-4', {
-  about: 'Beating the Great White One grows the jelly into a Medusa, then a Legendary pick to take into act 4, then "Act 3 complete" with the score so far and a button on to act 4, the Encore\'s concert (the run goes on: nothing posts to the Leaderboard yet).',
+  about: 'Beating the Great White One opens a Legendary pick and an Attack upgrade to take into act 4, then "Act 3 complete" with the score so far and a button on to act 4, the Encore\'s concert (the run goes on: nothing posts to the Leaderboard yet).',
   setup() {},
   async play() {
     const B = sharkFight(), { run, menus } = G();
@@ -396,16 +396,16 @@ act3('beating-the-shark-goes-on-to-act-4', {
     step(60 * 10, () => run.bossWon);                     // Dendi finishes it, then the run sees it beaten
     step(5);
     await wait(2400);                                     // the metamorphosis comes a moment after
-    const grow = modal()?.innerText || '';
-    modal()?.querySelector('.jf-card')?.click();          // the evolution
-    run.evolutionReveal.finish();                        // skip its portrait
     const legendary = modal()?.innerText || '';
     modal()?.querySelector('.jf-card')?.click();          // a Legendary treasure
+    if (run.evolutionReveal.active) run.evolutionReveal.finish();   // a former evolution plays its portrait first
+    const upgrade = modal()?.innerText || '';
+    modal()?.querySelector('.jf-card')?.click();          // an Attack upgrade
     const done = modal()?.innerText || '';
     const next = [...(modal()?.querySelectorAll('button') || [])].some((b) => /On to act 4/.test(b.textContent));
     menus.close();
-    return ok(/Medusa/.test(grow) && /rest of the run/.test(grow) && /Legendary/.test(legendary) && /act 4/.test(legendary) && /Act 3 complete/.test(done) && next && !posted && run.evolved.length === 3,
-      { grow: grow.slice(0, 200), legendary: legendary.slice(0, 120), done: done.slice(0, 160), next, posted });
+    return ok(/Legendary/.test(legendary) && /act 4/.test(legendary) && /Attack upgrade/.test(upgrade) && /Act 3 complete/.test(done) && next && !posted,
+      { upgrade: upgrade.slice(0, 80), legendary: legendary.slice(0, 120), done: done.slice(0, 160), next, posted });
   },
 });
 act3('dying-starts-over-in-act-1', {

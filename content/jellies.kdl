@@ -1,5 +1,5 @@
-// Jelly types: what a run starts as (docs/jelly-types/spec-core.md). Behind the GAME.types switch
-// until release; with it off every run is Normal.
+// Jelly types: what a run starts as (docs/jelly-types/spec-core.md). A first run is
+// always Normal; later runs pick.
 //
 // Normal is BASE_STATS (src/stats.js). Every other type lists only where it differs, as
 // `stat <name> <value>` lines: the value replaces Normal's (stat names as the `stat` effect word
