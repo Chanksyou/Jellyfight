@@ -196,3 +196,43 @@ upgrade "poisonRain" jelly="poison" name="Poison Rain" icon="🌧️" text="Ever
 upgrade "splitBlob" jelly="poison" name="Split Blob" icon="🫧" text="After it hits, your blob splits in two halves that fly on, each hitting for half and bursting." {
     split-on-hit 2 dmg=0.5
 }
+
+// --- Normal: bubble physics (docs/jelly-types/types/normal.md). Numbers are starting values.
+// Popcorn says it with the split-on-hit word Split Blob brought. Pop Chain, Rapid Pop and Bubble Trap act on
+// what a bubble hits, the rest on how it flies (src/bubbles.js)
+upgrade "doubleBubble" jelly="normal" name="Double Bubble" icon="🫧" text="+1 Attack side by side, and the others lose no damage for it." {
+    stat bubbles 1 no-penalty=#true
+}
+upgrade "popcorn" jelly="normal" name="Popcorn" icon="🍿" text="A bubble that pops on a bug splits into 3 small ones that fly on for 30% of its damage each." {
+    split-on-hit 3 dmg=0.3 angle=60
+}
+upgrade "bubbleTrap" jelly="normal" name="Bubble Trap" icon="🪤" text="1 hit in 8 traps a small bug in a bubble that holds it still for 1.5 s." {
+    trap-on-hit chance=0.125 time=1.5
+}
+upgrade "bigBubble" jelly="normal" name="Big Bubble" icon="🔵" text="Attack size and splash +50%." {
+    stat bubble-size 50 percent=#true
+}
+upgrade "homing" jelly="normal" name="Homing" icon="🧲" text="Bubbles curve toward the nearest bug." {
+    homing 4
+}
+upgrade "popChain" jelly="normal" name="Pop Chain" icon="⛓️" text="A bubble popping next to another bubble pops it too, for 50% of its damage." {
+    pop-chain 0.5
+}
+upgrade "wobble" jelly="normal" name="Wobble" icon="〰️" text="Bubbles zigzag in a wide wobble, brushing more bugs on the way." {
+    wobble 0.02
+}
+upgrade "ricochet" jelly="normal" name="Ricochet" icon="↩️" text="Bubbles that hit a wall ricochet off it once." {
+    rebound walls-only=#true times=1
+}
+upgrade "bubbleChain" jelly="normal" name="Bubble Chain" icon="🔗" text="A bubble that kills a bug flies on to the next one." {
+    echo-bubble on="kill"
+}
+upgrade "rapidPop" jelly="normal" name="Rapid Pop" icon="⚡" text="Each hit in a row on the same bug does 10% more, up to +50%." {
+    focus-ramp 0.1 most=0.5
+}
+upgrade "bigFinish" jelly="normal" name="Big Finish" icon="🎆" text="A bubble that reaches the end of its Range pops in a splash twice as wide." {
+    range-pop 2
+}
+upgrade "orbit" jelly="normal" name="Orbit" icon="🪐" text="Bubbles that miss circle you once, hitting the bugs they touch." {
+    orbit-misses
+}

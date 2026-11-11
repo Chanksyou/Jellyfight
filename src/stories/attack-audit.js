@@ -73,6 +73,7 @@ export const AUDIT = {
     'chill-to-freeze', 'ground-lock', 'slide-on-hit',   // Ice Attack upgrades: statuses on the ice shard's hits (the shard is audited above)
     'ink', 'reach-flare', 'reach-sweetspot', 'pin-on-stings', 'sting-count',   // Tentacle Attack upgrades: defence, or a change to the sting's reach and counting (the sting is audited above)
     'percent-dot', 'spread-on-touch', 'split-on-hit', 'heal',   // Poison Attack upgrades: damage over time, Poison passing on, the attack's own shots split (audited with it), healing
+    'trap-on-hit', 'homing', 'wobble', 'focus-ramp', 'pop-chain', 'range-pop', 'orbit-misses',   // Normal Attack upgrades: how the bubble flies and what its hit does; the bubble is audited above, and a trap bubble, a chained or wider splash and an orbiting bubble reuse its pop, puff and sound
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {

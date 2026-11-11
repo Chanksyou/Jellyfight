@@ -120,6 +120,9 @@ What the Ice jelly's shards do to a bug: it moves at 55% speed for 2 s, and a ne
 **Frozen**:
 A bug held solid for a short time (Permafrost): it can't move or hurt anything. A hit that shatters the ice ends it (Deep Freeze).
 
+**Trapped**:
+A bug held still in a bubble (Bubble Trap) for 1.5 s: it can't move until the bubble bursts, or it dies. Elites and the boss can't be trapped.
+
 **Poison**:
 The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to every bug inside: each stack does 20% of Attack damage a second for 5 s, up to 5 stacks, and a new stack starts the time again. A Poisoned bug also deals 20% less damage to the jelly (Elites and the boss don't). Not the Clog's acid, which stays "acid".
 
