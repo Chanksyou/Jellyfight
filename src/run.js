@@ -436,7 +436,7 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : c.when === 'lit' ? this.gadgets.lit : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
     }
     // stack-buff: what each one's live stacks add
     for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? base[b.stat] * b.amount / 100 : b.amount); }
@@ -806,6 +806,7 @@ export class Run {
     this.iFrames = 1.0;
     const M = this.mods;
     amount *= M.damageTaken;
+    if (M.hitLess && amount > M.hitLeast) amount = Math.max(M.hitLeast, amount - M.hitLess);   // hit-less (Thimble)
     // dodge: the hit misses (and a moment of grace, so touching a bug doesn't re-roll every frame)
     // ink (Ink Cloud): while the cloud lasts, a hit from a bug close to you misses more often
     const I = this.ink, inked = I && this.t < I.until && from != null && this.enemies.list.some((e) => e.id === from && !e.dead && e.pos.distanceTo(this.player.position) <= I.radius);
@@ -1022,9 +1023,19 @@ export class Run {
     if (ready) this.bubbles.looks.gather('lightning', (this._chargeAt ||= new THREE.Vector3()).copy(P.position).setY(P.position.y + this.cfg.height * 0.75), 0.7, s.bubbleSize);
   }
 
-  onKill({ pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {} }) {
+  onKill({ targetId, pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {}, silent }) {
     this.kills++;
     this.buff('kill');
+    // bounty (Chore List): the bug with the gold target pays out for the rest of the run
+    const B = this.mods.bounty;
+    if (B && targetId != null && targetId === this.gadgets.bountyId) {
+      this.gadgets.bountyPaid(c);
+      this.grown[B.stat] = (this.grown[B.stat] || 0) + B.amount;
+      this.fx.number(c.clone().setY(c.y + r * 3), `+${B.amount} ${STAT_INFO[B.stat]?.icon || ''}`, '#ffd23a', 18);
+    }
+    // ghosts (Glow-in-the-Dark Star): now and then a cleared bug rises again on your side
+    const Gh = this.mods.ghosts;
+    if (Gh && !silent && Math.random() < Gh.chance) this.gadgets.ghost(c, Gh);
     // on-kill-of: a bug that died with a status (or to `by`) sets off the block where it fell
     for (const K of this.mods.killsOf) {
       if ((K.status && !(statuses[K.status] >= K.stacks)) || (K.by && K.by !== by)) continue;
@@ -1145,6 +1156,7 @@ export class Run {
 
   levelUp() {
     this.pendingLevels--;
+    if (this.mods.nightLight) this.gadgets.plugIn(this.player.position, this.mods.nightLight);   // night-light: one plugged in where you are
     // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
     // same ones come back, so a reload isn't a free reroll
     const skip = [...(this.mods.shield.fromHealth ? ['health', 'regen'] : []), ...cardsNotFor(this.attack?.kind)];
@@ -1495,12 +1507,22 @@ export class Run {
     const c = this.boss.center();
     this.fx.puff(c, 0x5a4030, 0.12, 0.8);
     this.xpDrops.drop(c, 1, 30);
+    this.feedTreasures(this.mods.bossLevels);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
     if (!still) juice.shake(LOOK.num('cleared-shake', 0.35));
     sfx.stamp();
     // the last act's boss: straight on to the ending (nothing after it to grow into); otherwise the metamorphosis
     this.later(() => (STAGES[this.stage.id] ? this.metamorph() : this.won()), 2200);
+  }
+
+  // boss-levels (Fish Food): `n` Treasures that still have levels to go, picked at random, each go up one
+  feedTreasures(n) {
+    if (!n) return;
+    const can = shuffle([...this.owned].map((id) => TREASURES.find((t) => t.id === id)).filter((t) => t && t.levels.length > 1 && this.owned.count(t.id) < t.stack)).slice(0, n);
+    for (const t of can) this.owned.add(t.id);
+    if (can.length) this.hud.toast(`🐟 Fish Food: ${can.map((t) => `${t.icon} ${t.name}`).join(' and ')} level up!`, 2600);
+    return can;
   }
 
   // The run is won (the last act's boss is beaten): the jelly swims home to the sea (victory.js), then

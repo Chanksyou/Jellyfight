@@ -96,6 +96,31 @@ export class Gadgets {
     this.mouseReady=key.clone();this.mouseReady.visible=false;this.group.add(this.mouseReady);
     mouse.visible = false;
     this.group.add(mouse);
+
+    // Night-Light: a little dome lamp on the floor, its glow (and the edge of it) showing where it helps.
+    // Glowing meshes only: never a real light (a new light rebuilds every shader, CLAUDE.md rule 7)
+    const lampC = LOOK.color('night-light', '#bfe2ff');
+    this.lampBase = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.5 });
+    this.lampDome = new THREE.MeshBasicMaterial({ color: lampC, toneMapped: false });
+    this.lampPool = Array.from({ length: 5 }, () => {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.006, 16).translate(0, 0.003, 0), this.lampBase));
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.006, 0), this.lampDome));
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const rim = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.45, depthWrite: false }));
+      pool.position.y = rim.position.y = 0.002;
+      g.add(pool, rim); g.userData.pool = pool; g.userData.rim = rim;
+      g.visible = false; this.group.add(g);
+      return g;
+    });
+    // Chore List: a gold target over the marked bug and under its feet
+    const gold = LOOK.color('bounty', '#ffd23a');
+    this.bountyMark = new THREE.Group();
+    this.bountyMark.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.006).scale(1, 1.5, 1), new THREE.MeshBasicMaterial({ color: gold, toneMapped: false })));
+    this.bountyRing = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: gold, transparent: true, opacity: 0.7, depthWrite: false }));
+    this.bountyMark.visible = this.bountyRing.visible = false;
+    this.group.add(this.bountyMark, this.bountyRing);
+    this.ghostColor = LOOK.color('ghost', '#b4ffd6');   // glow-in-the-dark green: friendly and cool, never a hostile colour
     this.reset();
   }
 
@@ -118,6 +143,109 @@ export class Gadgets {
     this.mouseReady.visible=false;
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
+    this.lamps = []; this.lit = false;
+    this.lampPool.forEach((g) => { g.visible = false; });
+    this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = this.bountyRing.visible = false;
+    for (const g of this.ghosts || []) this.fx.free(g.m);
+    this.ghosts = [];
+  }
+
+  // night-light: plug one in on the floor under `at`; past `most`, the oldest goes out
+  plugIn(at, N) {
+    if (this.lamps.length >= Math.min(N.most, this.lampPool.length)) this.lamps.shift().g.visible = false;
+    const g = this.lampPool.find((x) => !x.visible);
+    g.position.set(at.x, this.enemies.floorBelow(at, at.y), at.z);
+    g.userData.pool.scale.setScalar(N.radius); g.userData.rim.scale.setScalar(N.radius);
+    g.visible = true;
+    this.lamps.push({ g, r: N.radius, age: 0 });
+    this.fx.ring(g.position.clone().setY(g.position.y + 0.004), this.lampDome.color.getHex(), N.radius, 0.6);
+    sfx.gadgetLamp();
+  }
+  tickLights(dt, M, feet) {
+    if (!M.nightLight && this.lamps.length) { for (const L of this.lamps) L.g.visible = false; this.lamps = []; }
+    this.lit = false;
+    for (const L of this.lamps) {
+      L.age += dt;
+      const p = L.g.position, u = Math.min(1, L.age / 0.4);   // it fades up as it's plugged in, then breathes
+      L.g.userData.pool.material.opacity = (0.03 + 0.015 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
+      if (Math.hypot(feet.x - p.x, feet.z - p.z) <= L.r && Math.abs(feet.y - p.y) < 0.15) this.lit = true;
+    }
+    for (const L of this.lamps) L.g.userData.rim.material.opacity = this.lit ? 0.7 : 0.35;   // the edge brightens while you're inside
+  }
+
+  // bounty: now and then an ordinary bug far from you gets a gold target (run.js onKill pays it out)
+  tickBounty(dt, M, feet) {
+    const B = M.bounty, e = this.bountyBug;
+    if (e && (e.dead || !B)) { this.bountyBug = null; this.bountyId = null; }
+    if (B && !this.bountyBug && this.every('bounty', dt, B.every, B.every * 0.5)) {
+      const bugs = this.enemies.list.filter((x) => !x.dead && !x.proxy).map((x) => [Math.hypot(x.pos.x - feet.x, x.pos.z - feet.z), x]);
+      const far = bugs.filter(([d]) => d >= B.far);
+      const pick = far.length ? far[(Math.random() * far.length) | 0][1] : bugs.sort((a, b) => b[0] - a[0])[0]?.[1];
+      if (pick) { this.bountyBug = pick; this.bountyId = pick.id; sfx.gadgetBounty(); this.fx.ring(pick.pos.clone().setY(pick.pos.y + 0.003), this.bountyRing.material.color.getHex(), pick.r * 3, 0.5); }
+    }
+    const b = this.bountyBug;
+    this.bountyMark.visible = this.bountyRing.visible = !!b;
+    if (b) {
+      this.bountyMark.position.copy(b.pos).y += (b.T.fly ? b.r * 1.6 : b.r * 3.4) + (this.looks.quiet ? 0 : Math.sin(this.clock * 4) * 0.004);
+      this.bountyMark.rotation.y += dt * 3;
+      this.bountyRing.position.set(b.pos.x, this.enemies.floorBelow(b.pos, b.pos.y) + 0.002, b.pos.z);
+      this.bountyRing.scale.setScalar(b.r * (1.6 + (this.looks.quiet ? 0 : 0.15 * Math.sin(this.clock * 6))));
+    }
+  }
+  bountyPaid(c) {
+    this.bountyBug = null; this.bountyId = null; this.bountyMark.visible = this.bountyRing.visible = false;
+    this.fx.burst(c, ['#ffd23a', '#fff4b0', '#ffffff'], 12, 0.004, 0.4);
+    this.fx.ring(c, 0xffd23a, 0.06, 0.4);
+    sfx.gadgetBounty(true);
+  }
+
+  // ghosts: a cleared bug rises again as a glow that hunts the bugs round it (run.js onKill)
+  ghost(at, G) {
+    if (this.ghosts.length >= G.most) return;
+    const m = this.fx.orb(this.ghostColor, 0.008);
+    m.position.copy(at);
+    this.ghosts.push({ m, t: 0, rise: 0.4, rest: 0, prey: null, v: new THREE.Vector3(), home: at.y });
+    this.fx.puff(at, this.ghostColor, 0.012, 0.4, 0.4);
+  }
+  tickGhosts(dt, M, power) {
+    const G = M.ghosts, E = this.enemies, fx = this.fx;
+    for (const g of this.ghosts) {
+      g.t += dt;
+      const m = g.m, end = !G || g.t >= G.time;
+      if (end) {                                   // it fades out where it is, with a soft puff
+        fx.puff(m.position, this.ghostColor, 0.014, 0.5, 0.35); fx.free(m); g.done = true; continue;
+      }
+      const fade = Math.min(1, (G.time - g.t) / 0.6);
+      if (g.rise > 0) {                            // anticipation: it lifts off the body, glowing brighter
+        g.rise -= dt;
+        m.position.y += dt * 0.05;
+        fx.orbTick(m, dt, 0.5 + (0.4 - Math.max(0, g.rise)) * 1.5);
+        if (g.rise <= 0) { fx.impact(m.position, this.ghostColor, 0.012, 5); sfx.gadgetGhost(); }   // release
+        continue;
+      }
+      fx.orbTick(m, dt, 1.4 * fade);
+      if (g.rest > 0) {                            // bounced off: it drifts back and bobs before the next one
+        g.rest -= dt;
+        m.position.addScaledVector(g.v, dt); g.v.multiplyScalar(1 - Math.min(1, dt * 4));
+        continue;
+      }
+      if (!g.prey || g.prey.dead) g.prey = this.near(m.position, 0.8, { proxies: false })[0] || null;
+      if (!g.prey) { m.position.y += Math.sin(g.t * 3) * dt * 0.01; continue; }
+      const c = E.center(g.prey, _cone), d = c.distanceTo(m.position);
+      if (d <= g.prey.r + 0.008) {                 // the slam
+        const e = g.prey;
+        bus.emit('damage_taken', { targetId: e.id, amount: power * G.dmg, color: '#b4ffd6', source: 'ghost' });
+        bus.emit('knockback', { targetId: e.id, dir: _to.copy(e.pos).sub(m.position).setY(0).normalize(), force: 0.03 });
+        fx.impact(c, this.ghostColor, Math.max(0.012, e.r * 0.6), 6);
+        this.looks.contact(c, this.looks.color, Math.max(0.01, e.r * 0.6));
+        sfx.gadgetGhost(true);
+        g.v.copy(m.position).sub(c).setY(0).normalize().multiplyScalar(G.speed * 0.6).setY(G.speed * 0.4);   // it bounces back off
+        g.rest = G.rest; g.prey = null;
+        continue;
+      }
+      m.position.addScaledVector(_to.copy(c).sub(m.position).normalize(), Math.min(d, G.speed * dt));
+    }
+    if (this.ghosts.some((g) => g.done)) this.ghosts = this.ghosts.filter((g) => !g.done);
   }
 
   // Show everything for a frame so its shaders get compiled up front (main.js warmUp)
@@ -129,7 +257,10 @@ export class Gadgets {
     for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen,this.mirrorShards,this.mirrorShell]){m.visible=on;if(on)m.position.copy(at);}
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
+    this.lampPool[0].visible = this.bountyMark.visible = this.bountyRing.visible = on;   // night-light and bounty shaders, compiled up front too
+    if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
     if (on) {
+      this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at); this.bountyRing.position.copy(at);
       this.mouse.position.copy(at);
       this.bulbs.forEach((b) => b.position.copy(at));
       this.beam.position.copy(at);
@@ -231,6 +362,9 @@ export class Gadgets {
     this.clock = (this.clock || 0) + dt;
     this.tickClouds(dt);
     this.tickWhirls(dt);
+    this.tickLights(dt, M, feet);
+    this.tickBounty(dt, M, feet);
+    this.tickGhosts(dt, M, power);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
 

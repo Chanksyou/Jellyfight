@@ -562,6 +562,29 @@ treasure "windUpKey" name="Wind-Up Key" icon="🔑" rarity="rare" text="20% more
 treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="Everything you do hurts Elites and the Boss 15% more." stack=3 {
     elite-damage 15
 }
+treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits that leave a bug under 15% Health finish it off. Elites go under 8%. Never the Boss." stack=1 {
+    execute under=0.15 elites=0.08
+}
+treasure "rollingPin" name="Rolling Pin" icon="🫓" rarity="common" text="+40% damage to anything above 90% Health." stack=3 {
+    fresh-damage 40 above=0.9
+}
+treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Every hit takes 1 less Health, but never less than 0.5." stack=2 {
+    hit-less 1 least=0.5
+}
+treasure "fishFood" name="Fish Food" icon="🐟" rarity="rare" text="When an act's Boss falls, 2 of your treasures that can level up go up a level." stack=2 {
+    boss-levels 2
+}
+treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each Level-up plugs in a night-light where you are (up to 3). In its glow: +40% Fire rate and +0.5 Health regen." stack=1 {
+    night-light radius=0.3 most=3
+    while "lit" "fire-rate" 40 percent=#true
+    while "lit" "health-regen" 0.5
+}
+treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 20 s a far-off bug gets a gold target. Clear it for +0.25 Attack damage this run." stack=3 {
+    bounty "bubble-damage" 0.25 every=20 far=0.4
+}
+treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 bugs you clear rises as a glowing ghost for 8 s, slamming into other bugs." stack=2 {
+    ghosts chance=0.1 time=8 dmg=0.6 speed=0.5 rest=0.5 most=5
+}
 
 // --- the Shield (shield.js): offered only once you have a Shield bar (needs-stat)
 treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Your Shield refills 50% faster." stack=4 {

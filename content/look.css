@@ -95,6 +95,10 @@
   --gadget-cotton-life: 0.32;
   --gadget-salt-life: 0.36;
   --gadget-friendly: #a6f6ed;
+  --night-light: #bfe2ff;        /* Night-Light: the lamp dome and its glow on the floor (a glowing mesh, not a real light) */
+  --bounty: #ffd23a;             /* Chore List: the gold target over the marked bug */
+  --ghost: #b4ffd6;              /* Glow-in-the-Dark Star: the ghosts, glow-in-the-dark green (friendly, cool) */
+  --slice: #f4fbff;              /* Pizza Cutter: the white slash that finishes a low bug */
   --gadget-focus: #c6f6ff;
   --gadget-focus-height: 0.22;
   --gadget-focus-opacity: 0.12;
