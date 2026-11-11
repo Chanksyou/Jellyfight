@@ -54,6 +54,49 @@ upgrade "melt" jelly="fire" name="Melt" icon="🫠" text="Burning Elites and the
     status-damage "burning" more=0.2 elites=#true bugs=#false
 }
 
+// --- Ice: control and defence (docs/jelly-types/types/ice.md). Numbers are starting values.
+// Deep Freeze and Avalanche act on Frozen bugs, which only Permafrost makes, so they come after it.
+upgrade "permafrost" jelly="ice" name="Permafrost" icon="🧊" text="3 hits in a row on a Chilled bug freeze it solid for 1.5 s." {
+    chill-to-freeze 3 time=1.5
+}
+upgrade "brittle" jelly="ice" name="Brittle" icon="🔨" text="Chilled bugs take 40% more damage from everything." {
+    status-damage "chilled" more=0.4
+}
+upgrade "shatterShards" jelly="ice" name="Shatter Shards" icon="💎" text="A Chilled bug that dies bursts into 4 shards that hit the bugs nearby and Chill them." {
+    on-kill-of status="chilled" {
+        shards 4 range=0.12 dmg=0.5
+    }
+}
+upgrade "coldSnap" jelly="ice" name="Cold Snap" icon="❄️" text="Every 6 s a frost ring hits every bug within 15 cm and Chills it." {
+    every 6 {
+        ring 0.15 chill=2 color="#9fe8ff"
+    }
+}
+upgrade "glacierShell" jelly="ice" name="Glacier Shell" icon="🛡️" text="Your Shield refills twice as fast while a Chilled bug is within 15 cm." {
+    shield-recharge faster=1 near=0.15
+}
+upgrade "icicleLance" jelly="ice" name="Icicle Lance" icon="🗡️" text="Shards fly through every bug that is already Chilled." {
+    element-up "ice" chillPierce=1
+}
+upgrade "frostbite" jelly="ice" name="Frostbite" icon="🧤" text="Chill also hurts: 20% of the hit's damage every second while it lasts." {
+    element-up "ice" frostbite=0.2
+}
+upgrade "hoarfrost" jelly="ice" name="Hoarfrost" icon="🌨️" text="Chilled bugs can't jump, fly up or climb." {
+    ground-lock "chilled"
+}
+upgrade "snowball" jelly="ice" name="Snowball" icon="⛄" text="Shards go through 2 more bugs and grow 10% bigger with each one they hit." {
+    element-up "ice" pierce=2 grow=0.1
+}
+upgrade "deepFreeze" jelly="ice" name="Deep Freeze" icon="🥶" needs="permafrost" text="The next hit on a Frozen bug does 3x damage and thaws it." {
+    status-damage "frozen" more=2 thaw=#true
+}
+upgrade "cryoSleep" jelly="ice" name="Cryo Sleep" icon="😴" text="When your Shield breaks, you freeze over and can't be hurt for 1 s more." {
+    shield-burst dmg=0 invuln=1
+}
+upgrade "avalanche" jelly="ice" name="Avalanche" icon="🏔️" needs="permafrost" text="A hit on a Frozen bug sends it sliding 12 cm, and it Chills every bug it slides into." {
+    slide-on-hit "frozen" distance=0.12
+}
+
 // --- Tentacle: close range (docs/jelly-types/types/tentacle.md). The first six rework the old tentacle
 // Treasures (content/treasures.kdl, retired with jelly types on) and keep their names and icons.
 // Numbers are starting values. Tentacle damage is Attack damage here, so "Attack damage" in the text.

@@ -567,7 +567,7 @@
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
-  /* Jelly types' looks (src/adornments.js ember and barbs; content/jellies.kdl adorn=) */
+  /* Jelly types' looks (src/adornments.js ember, barbs and frost; content/jellies.kdl adorn=) */
   --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
   --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
   --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
@@ -580,6 +580,19 @@
   --ember-spark-life: 0.8;        /* seconds a spark lasts */
   --ember-spark-rise: 0.05;       /* meters it rises in that time */
   --ember-spark-size: 0.0022;     /* its radius at the start, meters */
+  --frost-core: #bfeaff;          /* Ice jelly: the crystal turning in the bell (emissive, not a light) */
+  --frost-core-size: 0.15;        /* its size, in shares of the jelly's height */
+  --frost-glow-size: 0.55;        /* the soft glow round it (seen through the bell), likewise */
+  --frost-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
+  --frost-tip: #e4f8ff;           /* the frost crystal on each tentacle tip */
+  --frost-tip-size: 1.9;          /* its size, in tentacle widths */
+  --frost-mist: #cfeeff;          /* cold mist sinking off the tips */
+  --frost-mists: 12;              /* at most this many at once */
+  --frost-mist-every: 0.08;       /* seconds between puffs */
+  --frost-mist-life: 1;           /* seconds a puff lasts */
+  --frost-mist-sink: 0.05;        /* meters it sinks in that time */
+  --frost-mist-size: 0.0038;      /* its radius, meters */
+  --ice-shard-streak: 0.0016;     /* the Shatter Shards upgrade: width of the streak to each bug */
   --barbed-tentacle-thickness: 1.8; /* Tentacle jelly: its tentacles this many times as thick */
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */

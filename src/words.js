@@ -69,7 +69,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt;
           e.leapCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.flat < p.range && e.grounded && e.leapCd <= 0) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
+            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
           } else if (e.state === 'crouch') {
             c.speed = 0;
             e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
@@ -694,7 +694,7 @@ export function newMods() {
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
-    shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false },   // the Shield stat's treasures (src/shield.js)
+    shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
     rebound: false, tentacleWeapon: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
@@ -710,6 +710,9 @@ export function newMods() {
     burnRamp: null,                  // burn-ramp: { step, most } Burn grows the longer a bug burns (bubbles.js)
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
     streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
+    chillFreeze: null,               // chill-to-freeze: { hits, time } (bubbles.js strike)
+    groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
+    slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
   };
 }
 
@@ -741,13 +744,13 @@ export const ELEMENT_BASE = {
   common: { rate: 0.75, dmg: 0.6, count: 0, pierce: 0, speed: 1, range: 1 },
   fire: { burn: 1, burnTime: 3, spread: 0.06, burnStacks: 1 },        // burn dps x, seconds, how far a death spreads it, Burns one bug can hold at once
   lightning: { chain: 3, bolt: 1, stun: 0.5, chainRange: 0.16, rate: 1.1 },   // arcs, arc damage x, stun s, arc reach m
-  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5 },         // chill s, frost: chills the whole splash, slowed enemies take x
+  ice: { chill: 2, frost: 0, slowedMul: 1, rate: 1, dmg: 2, speed: 0.5, frostbite: 0, chillPierce: 0, grow: 0 },   // chill s, frost: chills the whole splash, slowed enemies take x, frostbite: Chill hurts for this share of the hit a second, chillPierce: shards fly through bugs already Chilled, grow: a shard grows this much with each bug it hits
   acid: { puddleDmg: 1, puddleSize: 1, puddleTime: 3.5, puddles: 6, rate: 1.05 },   // puddle damage x, size x, seconds, most at once
   wind: { push: 0.6, pierce: 1, speed: 1.6 / 0.57, rate: 0.88, dmg: 1.5, windup: 0.28, collision: 1 }, // half base bubble rate; windup s, scenery collision damage x
   glitter: { width: 0.08 / 0.026, splash: 1, slow: 0, rate: 1.05, speed: 0.4 / 0.57 },            // splash width x, splash damage x, slow s
 };
 // element-up numbers that add (the rest multiply)
-export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul']);
+export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul', 'frostbite', 'chillPierce', 'grow']);
 // What each of those numbers is, for the balance editor
 export const ELEMENT_HINTS = {
   rate: 'shots a second', dmg: 'damage per hit (× attack damage)', count: 'extra shots at once', pierce: 'enemies each shot goes through',
@@ -758,15 +761,16 @@ export const ELEMENT_HINTS = {
   puddleTime: 'seconds a puddle lasts', puddles: 'most puddles at once', push: 'how far it pushes',
   windup: 'wind-up before each shot (s)', collision: 'damage when a pushed enemy hits furniture',
   width: 'splash width', splash: 'splash damage', slow: 'slow seconds',
+  frostbite: 'Chill damage a second, as a share of the hit', chillPierce: 'shards fly through already Chilled bugs (1 = on)', grow: 'how much a shard grows with each bug it hits',
 };
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s, Chills it for `chill` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
     args: ['radius'],
-    props: { dmg: 1, push: 0, freeze: 0, slow: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
+    props: { dmg: 1, push: 0, freeze: 0, slow: 0, chill: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
   },
   zap: {
@@ -834,6 +838,15 @@ export const TIMED_WORDS = {
       return { kind: 'cone', ...p };
     },
   },
+  shards: {
+    doc: 'Ice shards fly out from the spot (an on-kill-of block) or from you at the `count` nearest bugs within `range` m: each takes `dmg` times your power and is Chilled for `chill` s.',
+    args: ['count'],
+    props: { range: 0.12, dmg: 0.5, chill: 2 },
+    make: ([count], p) => {
+      if (!(Number.isInteger(count) && count >= 1 && p.range > 0 && p.dmg > 0 && p.chill > 0)) throw new Error('shards: count must be a whole number, 1 or more, and range, dmg and chill above 0');
+      return { kind: 'shards', count, ...p };
+    },
+  },
   xp: {
     doc: 'Drops `xp` worth of XP at your feet.',
     args: ['xp'],
@@ -863,7 +876,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs'];   // ember, barbs: the Fire and Tentacle jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'frost'];   // ember, barbs, frost: the Fire, Tentacle and Ice jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
@@ -965,14 +978,26 @@ export const TREASURE_WORDS = {
       return m => { m.fireTrail = { ...p }; };
     },
   },
-  'shield-recharge': { doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. Copies add.', props: { faster: 0, sooner: 0 }, make: (_, p) => (m) => { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } },
+  'shield-recharge': {
+    doc: 'Your Shield refills `faster` (0.5 = 50%) faster and starts refilling `sooner` s sooner after damage. With `near` (m), only while a Chilled bug is within that of you (then `sooner` is not allowed). Copies add.',
+    props: { faster: 0, sooner: 0, near: 0 },
+    make: (_, p) => {
+      if (!(p.near >= 0) || (p.near > 0 && p.sooner)) throw new Error('shield-recharge: near= is 0 or more, and goes with faster= only');
+      return (m) => { if (p.near > 0) m.shield.near.push({ faster: p.faster, radius: p.near }); else { m.shield.faster += p.faster; m.shield.sooner += p.sooner; } };
+    },
+  },
   'shield-full-damage': { doc: 'While your Shield is full, everything you do hurts `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.shield.fullDamage += n / 100; } },
   'shield-burst': {
-    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true). Copies add their damage into one blast; different blasts each go off.',
-    props: { dmg: 2, radius: 0.3, flat: false },
+    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true), and with `invuln` you can\'t be hurt for that many seconds more (dmg=0 for no blast). Copies add their damage into one blast; different blasts each go off.',
+    props: { dmg: 2, radius: 0.3, flat: false, invuln: 0 },
     make: (_, p) => {
-      if (!(p.dmg > 0 && p.radius > 0)) throw new Error('shield-burst: dmg and radius must be positive');
-      return (m) => { const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat); if (same) same.dmg += p.dmg; else m.shield.bursts.push({ ...p }); };
+      if (!(p.radius > 0 && p.invuln >= 0 && (p.dmg > 0 || p.invuln > 0))) throw new Error('shield-burst: radius must be positive, and dmg or invuln above 0');
+      return (m) => {
+        m.shield.invuln = Math.max(m.shield.invuln, p.invuln);
+        if (!(p.dmg > 0)) return;
+        const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat);
+        if (same) same.dmg += p.dmg; else m.shield.bursts.push({ dmg: p.dmg, radius: p.radius, flat: p.flat });
+      };
     },
   },
   'health-to-shield': { doc: 'Your max Health stays at 1: the rest of it, now and whatever you gain later, is Shield instead. Health and Health regen cards are no longer offered.', make: () => (m) => { m.shield.fromHealth = true; } },
@@ -1040,7 +1065,7 @@ export const TREASURE_WORDS = {
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
   },
   'on-kill-of': {
-    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, brick, bubble-ring, xp.',
+    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, shards, brick, bubble-ring, xp.',
     props: { status: null, by: null, stacks: 1 },
     block: TIMED_WORDS,
     make: (_, p, where, effects) => {
@@ -1116,7 +1141,7 @@ export const TREASURE_WORDS = {
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, brick, marble, cone, grab, reach-flare, xp.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, xp.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,
@@ -1125,4 +1150,29 @@ export const TREASURE_WORDS = {
   'orbit-lights': { doc: '`count` little bulbs circle you `radius` m out and sting whatever they touch for `dmg` (each enemy at most every 0.4 s).', args: ['count'], props: { radius: 0.07, dmg: 0.6 }, make: ([n], p) => (m) => { m.orbit = { count: n, ...p }; } },
   beam: { doc: 'A beam burns the nearest enemy within `range` m for `dmg` every `tick` s.', props: { range: 0.35, dmg: 0.3, tick: 0.25 }, make: (_, p) => (m) => { m.beam = p; } },
   aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s.', args: ['radius'], props: { dmg: 0.4, tick: 0.5 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
+  // --- Ice jelly (P8a)
+  'chill-to-freeze': {
+    doc: 'Your Ice attack hitting one Chilled bug `hits` times in a row freezes it solid for `time` s (bugs only: Elites and the boss are not frozen). The count starts over when the Chill runs out or the bug freezes.',
+    args: ['hits'],
+    props: { time: 1.5 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 2 && p.time > 0)) throw new Error('chill-to-freeze: hits must be a whole number, 2 or more, and time= above 0');
+      return (m) => { m.chillFreeze = { hits: n, time: p.time }; };
+    },
+  },
+  'ground-lock': {
+    doc: 'A bug that is `status` can\'t jump, fly up or climb: it cannot start a leap, rises no higher in the air, and a step that would take a walking bug uphill does not happen.',
+    args: ['status'],
+    make: ([s]) => { const st = status(s, 'ground-lock'); return (m) => { if (!m.groundLock.includes(st)) m.groundLock.push(st); }; },
+  },
+  'slide-on-hit': {
+    doc: 'A hit on a bug that is `status` shoves it `distance` m along the hit, and every other bug it slides into is Chilled for `chill` s (the bug itself stays as it was).',
+    args: ['status'],
+    props: { distance: 0.12, chill: 2 },
+    make: ([s], p) => {
+      const st = status(s, 'slide-on-hit');
+      if (!(p.distance > 0 && p.chill > 0)) throw new Error('slide-on-hit: distance and chill must be above 0');
+      return (m) => { m.slideOnHit.push({ status: st, distance: p.distance, chill: p.chill }); };
+    },
+  },
 };

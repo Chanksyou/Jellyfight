@@ -33,7 +33,10 @@ jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nea
     stat health 22
 }
 
-jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl while you chip them down." attack="ice" hit=1 {
+// Ice: the Ice shard at full Fire rate. hit=1 lands it at 10.8 damage a second on one bug
+// (9 x 1 x 1.2/s = 10.8; Chill only slows, so there is no damage over time in it), inside the 9-12 budget
+// (docs/jelly-types/spec-core.md). A slow tank: the hits are few and heavy
+jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl while you chip them down." attack="ice" hit=1 adorn="frost" {
     stat health 31
     stat shield 5
     stat bubble-damage 9

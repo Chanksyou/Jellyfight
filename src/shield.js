@@ -33,7 +33,13 @@ export class Shield {
 
   get full() { return this.max > 0 && this.hp >= this.max - 1e-6; }
   get wait() { return Math.max(0, SHIELD_WAIT - this.run.mods.shield.sooner); }
-  get fill() { return SHIELD_FILL / (1 + this.run.mods.shield.faster); }
+  // refills faster while a Chilled bug is close (Glacier Shell: shield-recharge near=)
+  get fill() {
+    const run = this.run, S = run.mods.shield;
+    let faster = S.faster;
+    for (const N of S.near) if (run.enemies.list.some((e) => !e.dead && !e.proxy && e.chillT > 0 && run.enemies.center(e).distanceTo(run.player.position) - e.r <= N.radius)) faster += N.faster;
+    return SHIELD_FILL / (1 + faster);
+  }
 
   update(dt) {
     const run = this.run, max = run.S.shield;
@@ -69,9 +75,15 @@ export class Shield {
       this.hp = 0;
       this.state = 'broken';
       run.fx.burst(at, [this.color, '#ffffff'], 10, 0.0025, 0.22, run.player.position.y);   // the shell shatters
-      const bursts = run.mods.shield.bursts;
+      const bursts = run.mods.shield.bursts, sleep = run.mods.shield.invuln;
       for (const B of bursts) this.burst(at, B.radius, B.flat ? B.dmg : B.dmg * run.S.bubbleDamage);
       if (!bursts.length) sfx.shieldBreak();
+      if (sleep > 0) {   // shield-burst invuln (Cryo Sleep): the jelly freezes over and can't be hurt for a moment
+        run.iFrames += sleep;   // on top of the 1 s of grace the breaking hit already gave
+        run.fx.ring(run.player.position.clone().setY(run.player.position.y + 0.004), 0xdff8ff, 0.04, 0.5);
+        run.fx.ice.shatter(at, 10, 0.004, 0.3, run.player.position.y);
+        run.fx.number(at.clone().setY(at.y + run.cfg.height * 0.5), 'CRYO SLEEP', '#bff4ff', 16);
+      }
     }
     return amount - blocked;
   }

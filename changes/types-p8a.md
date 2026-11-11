@@ -1,0 +1,1 @@
+jelly types (behind the switch): the Ice jelly gets its look (a pale crystal in the bell, frost on its tentacle tips, cold mist sinking to the floor) and its 12 Attack upgrades, from Permafrost to Avalanche.
