@@ -6,10 +6,9 @@ import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_SWITCH } from '../jelly-types.js';
-import { PLAYED_KEY, picksType } from '../first-run.js';
-import { BEST_KEY } from '../leaderboard.js';
-import { SAVE_KEY, carried, keepRun } from '../stages.js';
-import { G, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { picksType } from '../first-run.js';
+import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
+import { G, asPlayer, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const TYPE_IDS = ['normal', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
 
@@ -217,12 +216,6 @@ story('types/tentacle-is-not-offered-range', {
 
 // --- the pick screen (src/pick-screen.js, docs/jelly-types/spec-pick-screen.md) ---------------------
 // A story plays as a returning player (a played run on record) or a first-time one, and puts it back after
-function asPlayer(returning) {
-  const keys = [PLAYED_KEY, BEST_KEY], was = keys.map((k) => localStorage.getItem(k));
-  keys.forEach((k) => localStorage.removeItem(k));
-  if (returning) localStorage.setItem(PLAYED_KEY, '1');
-  return () => keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
-}
 // the title screen's Play with jelly types on, as `start`
 function pressPlay(start) {
   const { GAME, mainMenu, picker } = G();
@@ -263,27 +256,26 @@ story('types/pick-screen-shows-every-type', {
 });
 
 story('types/pick-screen-locked-card-cannot-play', {
-  about: 'A locked type\'s card is greyed out and its panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6") instead of Play; Play and Enter do nothing on it, and the next open type plays.',
+  about: 'A locked type\'s card is greyed out and its panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6", from the save\'s real Elite count) instead of Play; Play and Enter do nothing on it, and the next open type plays.',
   setup() {},
   play() {
-    const { picker, run } = G(), back = asPlayer(true);
+    const { picker, run } = G(), back = asPlayer(true, { feats: { elites: 4 }, book: { bosses: STAGES.map((st) => st.boss.kind) } });
     try {
       fresh({ types: 'normal' });
-      TYPE_SWITCH.locked = { ice: { goal: 'Defeat 6 Elites', have: 4, need: 6 } };
       G().mainMenu.home = true;
       G().GAME.startRun();
-      picker.go(picker.ids.indexOf('ice'));
-      const card = picker.cards[picker.ids.indexOf('ice')];
+      picker.go(picker.ids.indexOf('glitter'));
+      const card = picker.cards[picker.ids.indexOf('glitter')];
       const shown = card.classList.contains('locked') && !!card.querySelector('.tp-lock') && !picker.cards[0].classList.contains('locked')
         && picker.panel.play.hidden && !picker.panel.goal.hidden && picker.panel.goal.textContent === 'Defeat 6 Elites: 4/6';
       const refused = picker.play() === false && picker.isOpen;
       key('Enter');
       const enter = picker.isOpen && run.jelly === 'normal';
       key('ArrowRight');
-      const next = picker.centre === 'poison' && !picker.panel.play.hidden && picker.panel.goal.hidden;
+      const next = picker.centre === 'tentacle' && !picker.panel.play.hidden && picker.panel.goal.hidden;
       picker.play();
-      return ok(shown && refused && enter && next && run.jelly === 'poison', { shown, refused, enter, next, jelly: run.jelly });
-    } finally { back(); picker.close(); TYPE_SWITCH.locked = {}; G().mainMenu.home = false; }
+      return ok(shown && refused && enter && next && run.jelly === 'tentacle', { shown, refused, enter, next, jelly: run.jelly });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 

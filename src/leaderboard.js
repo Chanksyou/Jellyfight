@@ -16,7 +16,7 @@ const PENDING_WAIT = 4000;  // ms between tries while the run log's last act is 
 
 export class Leaderboard {
   constructor() {
-    this.rows = [];          // the top 10: [{ id, score, name, body, level, kills, time, won, at }]
+    this.rows = [];          // the top 10: [{ id, score, name, body, jelly, level, kills, time, won, at }]
     this.mine = null;        // your entry on the board
     this.id = null;
     this.canWrite = null;    // true / false / null (unknown: try, and let a refused write decide)
@@ -213,11 +213,12 @@ export class Leaderboard {
   rank() { const i = this.shown().findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1; }
 
   // Rows for the in-game table: [label, value] pairs, names escaped (they're other players' input).
-  // face(look): a picture of that player's own jelly (jelly-portrait.js), shown by their name
-  table(face = null) {
+  // face(look): a picture of that player's own jelly (jelly-portrait.js), shown by their name;
+  // typeName(jelly): the run's jelly type in words, under the name (with jelly types on), or null
+  table(face = null, typeName = null) {
     if (this.status === 'offline') return [];
     return this.shown().map((r, i) => [
-      `<i class="jf-rank">${['🥇', '🥈', '🥉'][i] || `${i + 1}.`}</i>${face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : ''}<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}</span>`,
+      `<i class="jf-rank">${['🥇', '🥈', '🥉'][i] || `${i + 1}.`}</i>${face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : ''}<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}${typeName ? ` <small class="jf-type">${esc(typeName(r.jelly))}</small>` : ''}</span>`,
       `${Number(r.score).toLocaleString()}${r.won ? ' 🏆' : ''}`,
     ]);
   }

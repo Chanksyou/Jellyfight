@@ -11,7 +11,8 @@
 //     are skipped; an Elite's Treasure still drops); a skipped one turns up a few seconds after the
 //     pick instead of waiting for the next scheduled time
 //   - the minimap stays hidden until the first Treasure appears in the room, then stays
-//   - with jelly types on, the type pick screen is skipped: the run starts as Normal (picksType)
+//   - with jelly types on, the type pick screen is skipped: the run starts as Normal (picksType); a
+//     jelly type has no Element pick, so there's no double XP, no held-back Treasure and no jump tip
 //
 // Who's new: no finished run on record and no saved best score (a run that posted a score). The
 // record is written when a run ends (dried out, or the act's boss beaten), not when it starts, so
@@ -24,11 +25,19 @@ export const PLAYED_KEY = 'jellyrun.played';
 const TREASURE_AFTER_PICK = 4;   // seconds from the Element pick to a skipped Treasure
 
 // Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
+// (with jelly types on, the Element hints give way to TYPE_HINTS)
+const ELEMENT_HINTS = [
+  'Your first Element is your second attack for the whole run. Pick treasures that fit it.',
+  'Every 3rd treasure pick offers an Element upgrade. It is usually worth taking.',
+];
+export const TYPE_HINTS = [
+  'Each jelly type has its own attack. Pick treasures that fit the way yours hits.',
+  'Finish acts and defeat Elites to unlock new jelly types. Each one plays differently.',
+];
 export const DEATH_HINTS = [
   'You attack on your own. Keep swimming and let bugs come into range instead of standing still.',
   'Grab XP droplets as you go. An early Level makes the rest of the act easier.',
-  'Your first Element is your second attack for the whole run. Pick treasures that fit it.',
-  'Every 3rd treasure pick offers an Element upgrade. It is usually worth taking.',
+  ...ELEMENT_HINTS,
   'Every beaten Elite drops a treasure, and those are rarer than the ones in the room.',
   'You get one reroll per act. Save it for a Level-up where no card helps.',
   'Watch the Warnings. Step out of the shape before it fills, or jump over a low Blast.',
@@ -36,7 +45,10 @@ export const DEATH_HINTS = [
   'Each Dodge card gives less the more Dodge you have, up to 60%. After a few, take Health or Shield.',
   'Mosquito bites Bleed 1 Health a second for 3 s, and each bite stacks. Kill them first.',
 ];
-export const deathHint = () => DEATH_HINTS[Math.floor(Math.random() * DEATH_HINTS.length)];
+export const deathHint = (types = false) => {
+  const list = types ? [...DEATH_HINTS.filter((h) => !ELEMENT_HINTS.includes(h)), ...TYPE_HINTS] : DEATH_HINTS;
+  return list[Math.floor(Math.random() * list.length)];
+};
 
 export function isNewPlayer() {
   try { return !localStorage.getItem(PLAYED_KEY) && !localStorage.getItem(BEST_KEY); } catch { return false; }
@@ -50,11 +62,12 @@ export function markPlayed() {
 }
 
 export class FirstRun {
-  constructor(active) {
+  // typed: the run is a jelly type (jelly-types.js), which has no Element pick: as if it were made
+  constructor(active, typed = false) {
     this.active = !!active;
-    this.elementPicked = !this.active;   // a normal run's Element pick is the start pick, as before
+    this.elementPicked = !this.active || typed;   // a normal run's Element pick is the start pick, as before
     this.hitHintShown = !this.active;
-    this.elementChosen = false;          // the run sets it when the start Element pick is made
+    this.elementChosen = typed;          // the run sets it when the start Element pick is made
     this.mapShown = !this.active;
     this.skipped = false;                // a scheduled Treasure was skipped before the Element pick
   }
@@ -66,7 +79,7 @@ export class FirstRun {
   treasureAppeared() { this.mapShown = true; }
 
   // Run.start: a player's first run is act 1, for a new player
-  static forStage(stage) { return new FirstRun(stage.id === 1 && isNewPlayer()); }
+  static forStage(stage, typed = false) { return new FirstRun(stage.id === 1 && isNewPlayer(), typed); }
 
   // the starting Element pick opens on the first frame?
   get startElementPick() { return !this.active; }

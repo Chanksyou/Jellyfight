@@ -2,7 +2,7 @@
 // beaten, across all their runs in this browser (FOUND_KEY), as lists of ids per kind. run.js notes a
 // find as it happens (never in a dev run); the main menu's 📖 Treasure book shows found and unfound.
 export const FOUND_KEY = 'jellyrun.found';
-export const KINDS = ['treasures', 'evolutions', 'elites', 'bosses'];
+export const KINDS = ['treasures', 'evolutions', 'elites', 'bosses', 'upgrades'];   // upgrades: Attack upgrades (jelly types)
 
 export function found() {
   try { const f = JSON.parse(localStorage.getItem(FOUND_KEY)); return f && typeof f === 'object' ? f : {}; } catch { return {}; }

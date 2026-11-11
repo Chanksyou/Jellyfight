@@ -11,15 +11,19 @@
 //
 // `about` is the one line on the pick screen about the signature attack (src/pick-screen.js).
 // `area` marks an attack that splashes, arcs or bursts: the screen's Area bar counts it 1.5x.
+// `icon` is the type's picture in the Treasure book's Jellies page.
+// `unlock-act=N` / `unlock-elites=N`: what opens the type, for good (docs/jelly-types/spec-meta.md):
+// finish act N (beat its boss), or defeat N Elites across all runs. A type with neither is open
+// from the start (Normal). src/jelly-types.js typeLock reads it.
 
-jelly "normal" name="Normal Jelly" about="Blows a plain, steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1
+jelly "normal" name="Normal Jelly" icon="🫧" about="Blows a plain, steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1
 
 // Fire: the Fire shot at full Fire rate. hit=0.5 lands it at 11.4 damage a second on one bug
 // (7.5 x 0.5 x 1.5/s = 5.6 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
 // the top of the 9-12 budget, for a glass cannon (docs/jelly-types/spec-core.md)
 // hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
 // about half of Fire's damage
-jelly "fire" name="Fire Jelly" about="Fire shots set bugs burning, and a burning bug that dies lights the ones next to it." attack="fire" hit=0.5 adorn="ember" {
+jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Fire shots set bugs burning, and a burning bug that dies lights the ones next to it." attack="fire" hit=0.5 adorn="ember" {
     stat bubble-damage 7.5
     stat move-speed 1.05
     stat health 19
@@ -29,7 +33,7 @@ jelly "fire" name="Fire Jelly" about="Fire shots set bugs burning, and a burning
 // Lightning: the Lightning shot at full Fire rate. hit=1 lands it at 9.9 damage a second on one bug
 // (4.5 Attack damage x 1 x 2.2/s), inside the 9-12 budget; the arcs (41% each to 3 more bugs) and
 // their Stun are for groups and aren't counted (docs/jelly-types/spec-core.md)
-jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nearby and stuns them for a moment." attack="lightning" hit=1 area=#true adorn="storm" {
+jelly "lightning" name="Lightning Jelly" icon="⚡" unlock-act=2 about="Each hit arcs to 3 more bugs nearby and stuns them for a moment." attack="lightning" hit=1 area=#true adorn="storm" {
     stat fire-rate 2.2
     stat move-speed 1.15
     stat bubble-damage 4.5
@@ -39,7 +43,7 @@ jelly "lightning" name="Lightning Jelly" about="Each hit arcs to 3 more bugs nea
 // Ice: the Ice shard at full Fire rate. hit=1 lands it at 10.8 damage a second on one bug
 // (9 x 1 x 1.2/s = 10.8; Chill only slows, so there is no damage over time in it), inside the 9-12 budget
 // (docs/jelly-types/spec-core.md). A slow tank: the hits are few and heavy
-jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl while you chip them down." attack="ice" hit=1 adorn="frost" {
+jelly "ice" name="Ice Jelly" icon="❄️" unlock-elites=3 about="Slow ice shards chill bugs, so they crawl while you chip them down." attack="ice" hit=1 adorn="frost" {
     stat health 31
     stat shield 5
     stat bubble-damage 9
@@ -53,7 +57,7 @@ jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl wh
 // 5 x 0.6 x 1.76/s = 5.3 from hits, plus 5 stacks (a hit every 0.57 s keeps all five of 5 s stacks)
 // x 20% of 5 = 5.0/s from Poison, in the middle of the 9-12 budget (docs/jelly-types/spec-core.md).
 // Poison follows Attack damage alone, not hit=. Health regen is per second: 0.5 every 5 s
-jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs take damage over time and hit weaker." attack="poison" hit=0.6 adorn="toxin" area=#true {
+jelly "poison" name="Poison Jelly" icon="🧪" unlock-act=3 about="A blob that bursts into Poison: bugs take damage over time and hit weaker." attack="poison" hit=0.6 adorn="toxin" area=#true {
     status-taken "poisoned" less=0.2
     stat health-regen 0.1
     stat bubble-size 1.2
@@ -65,7 +69,7 @@ jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs t
 // Wind: the gust at full Fire rate. hit=1.15 lands it at 10.35 damage a second on one bug (6 x 1.15 x 1.5/s,
 // the 0.28 s wind-up inside each 0.67 s gust), in the middle of the 9-12 budget (docs/jelly-types/spec-core.md).
 // Its pierce, push and the hit again on scenery are on top and don't count: they need other bugs or walls
-jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1.15 adorn="gale" {
+jelly "wind" name="Wind Jelly" icon="🌬️" unlock-elites=9 about="Fast gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1.15 adorn="gale" {
     stat move-speed 1.2
     stat jump-height 1.2
     stat range 0.36
@@ -78,7 +82,7 @@ jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove the
 // every other bug inside, flying ones too. hit=1.3 lands it at 9.4 damage a second on one bug:
 // 4.8 x 1.3 x 1.5/s (the splash never hits the bug the bomb hit, so it doesn't count), the low end of
 // the 9-12 budget: a crowd of 5 takes 9.4 + 4 x 4.8 x 0.4 x 1.5 = 21 more (docs/jelly-types/spec-core.md)
-jelly "glitter" name="Glitter Jelly" about="Glitter bombs burst into a sparkling ball that splashes every bug inside." attack="glitter" hit=1.3 adorn="sparkle" area=#true {
+jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Glitter bombs burst into a sparkling ball that splashes every bug inside." attack="glitter" hit=1.3 adorn="sparkle" area=#true {
     stat luck 10
     stat bubble-size 1.25
     stat dodge 5
@@ -88,7 +92,7 @@ jelly "glitter" name="Glitter Jelly" about="Glitter bombs burst into a sparkling
 
 // Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a
 // second: 9 x 1.76 = 15.8 a second on one bug, up to 47.5 on three in reach
-jelly "tentacle" name="Tentacle Jelly" about="No ranged attack: your tentacles sting up to 3 bugs in close reach." attack="tentacle" hit=1 adorn="barbs" {
+jelly "tentacle" name="Tentacle Jelly" icon="🪼" unlock-act=4 about="No ranged attack: your tentacles sting up to 3 bugs in close reach." attack="tentacle" hit=1 adorn="barbs" {
     stat bubble-damage 9
     stat bubbles 3
     stat tentacle-reach 0.11

@@ -96,7 +96,7 @@ The one big enemy that ends each act, arriving when the countdown runs out (the 
 A second attack type (fire, lightning, ice, acid, wind or glitter) fired alongside the main attack. Each is a Legendary treasure: the run starts with a pick of three, and the Boss reward can offer more.
 
 **Jelly type**:
-What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). Not offered to players yet; every run is Normal until release.
+What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). A first-time player has Normal only; each other type unlocks for good by finishing an act or defeating Elites across all runs (`unlock-act=`, `unlock-elites=`). Not offered to players yet; every run is Normal until release.
 
 **Attack upgrade**:
 A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three bosses (after the Legendary pick). Never in a treasure chest, and each one of a kind (`content/upgrades.kdl`). Not offered to players yet.

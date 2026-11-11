@@ -254,7 +254,7 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
   return out;
 }
 
-// jelly "id" name="…" attack="…" hit=N adorn="…" { stat <name> <value> … }: the jelly types. Each
+// jelly "id" name="…" icon="…" unlock-act=N|unlock-elites=N attack="…" hit=N adorn="…" { stat <name> <value> … }: the jelly types. Each
 // stat line replaces Normal's value (BASE_STATS); Normal itself lists none. adorn= is the type's
 // look, a piece drawn on top of the player's own jelly (src/adornments.js)
 const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
@@ -272,6 +272,10 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (n.props.area !== undefined && typeof n.props.area !== 'boolean') throw new Error(`${where}: "${id}" area= must be #true or #false`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
     if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
+    const act = n.props['unlock-act'], elites = n.props['unlock-elites'];
+    if (act !== undefined && elites !== undefined) throw new Error(`${where}: "${id}" takes unlock-act= or unlock-elites=, not both`);
+    if (act !== undefined && ![1, 2, 3, 4].includes(act)) throw new Error(`${where}: "${id}" unlock-act= must be an act, 1 to 4`);
+    if (elites !== undefined && !(Number.isInteger(elites) && elites > 0)) throw new Error(`${where}: "${id}" unlock-elites= must be a whole number above 0`);
     const stats = {}, effects = [];
     for (const s of n.children) {
       const at = `${file}:${s.line}`, [name, value] = s.args, key = STAT_NAMES[name];
@@ -281,10 +285,12 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       if (key in stats) throw new Error(`${at}: "${id}" sets ${name} twice`);
       stats[key] = value;
     }
-    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats, effects };
+    out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, area: n.props.area === true, stats, effects,
+      icon: typeof n.props.icon === 'string' ? n.props.icon : '🪼', unlock: act ? { act } : elites ? { elites } : null };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);
+  if (out.normal.unlock) throw new Error(`${file}: "normal" is open from the start, so it takes no unlock`);
   return out;
 }
 

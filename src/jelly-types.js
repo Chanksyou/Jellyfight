@@ -4,8 +4,11 @@
 // a new run starts as TYPE_SWITCH.start, and counts as a dev run (no score, not in the run log).
 import { CONTENT } from './content.js';
 import { BASE_STATS, STAT_INFO } from './stats.js';
+import { found } from './collection.js';
+import { lifetime } from './cosmetics.js';
+import { STAGES } from './stages.js';
 
-export const TYPE_SWITCH = { on: false, start: 'normal', locked: {} };
+export const TYPE_SWITCH = { on: false, start: 'normal' };
 
 // The jelly a new run starts as
 export const startingJelly = () => (TYPE_SWITCH.on && CONTENT.jellies[TYPE_SWITCH.start] ? TYPE_SWITCH.start : 'normal');
@@ -56,7 +59,24 @@ export const typeDetails = (id) => {
   });
 };
 
-// Is a type open to pick? null, or what unlocks it: { goal, have, need }. STUB until P10 (unlocks,
-// docs/jelly-types/spec-meta.md): every type is open. P10 replaces this with the achievements' progress;
-// until then a story locks one by setting TYPE_SWITCH.locked.
-export const typeLock = (id) => TYPE_SWITCH.locked[id] || null;
+// Is a type open to pick? null, or what unlocks it: { goal, have, need } (docs/jelly-types/spec-meta.md).
+// Read from what the save already keeps, so an unlock is for good and an older save gets its at once:
+// unlock-act=N is the Treasure book's beaten bosses (collection.js), unlock-elites=N the lifetime Elite
+// count (cosmetics.js). Neither counts a dev run (run.js), so a dev run unlocks nothing.
+export function typeLock(id) {
+  const U = CONTENT.jellies[id]?.unlock;
+  if (!U) return null;
+  if (U.act) {
+    const beaten = found().bosses, kind = STAGES[U.act - 1]?.boss.kind;
+    return Array.isArray(beaten) && beaten.includes(kind) ? null : { goal: `Finish act ${U.act}`, have: 0, need: 1 };
+  }
+  const have = lifetime().elites;
+  return have >= U.elites ? null : { goal: `Defeat ${U.elites} Elites`, have, need: U.elites };
+}
+// the types open now, in content order
+export const openTypes = () => Object.keys(CONTENT.jellies).filter((id) => !typeLock(id));
+
+// What leaves the game with jelly types on (spec-core.md): the Elements, their upgrades and Power Bank
+// (element, element-up), and the retired=#true Treasures (the old tentacle ones, now Tentacle Attack
+// upgrades). Never offered, not on the book's Treasures page, and dropped from an older save.
+export const leavesWithTypes = (t) => t.retired || t.vocabulary.includes('element') || t.vocabulary.includes('element-up');

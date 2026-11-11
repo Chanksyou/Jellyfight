@@ -1,4 +1,5 @@
 // Win-gated challenges. Run history travels with the act; earned achievements stay on this device.
+// typesText: the text with jelly types on (run.js showAchievements), where there are no Elements
 export const ACHIEVEMENTS_KEY = 'jellyrun.achievements';
 const defense = s => (s.cards.health || 0) + (s.cards.regen || 0) + (s.cards.dodge || 0);
 const offense = s => (s.cards.bubbleDamage || 0) + (s.cards.fireRate || 0);
@@ -10,13 +11,13 @@ export const ACHIEVEMENTS = [
   { id: 'perfect-run', name: 'The Perfect Run', text: 'Complete the entire game without losing Health at any point. Shields and Dodge are allowed.', test: s => !s.hurt },
   { id: 'perfect-boss', name: 'Perfect Boss', text: 'Defeat one boss without losing Health during its fight.', test: s => s.perfect.length >= 1 },
   { id: 'perfect-pair', name: 'Perfect Pair', text: 'Defeat two bosses without losing Health during their fights.', test: s => s.perfect.length >= 2 },
-  { id: 'one-of-everything', name: 'One of Everything', text: 'Never collect the same treasure twice. Element upgrades count as their own named treasures; evolutions are separate.', test: s => !s.duplicate },
+  { id: 'one-of-everything', name: 'One of Everything', text: 'Never collect the same treasure twice. Element upgrades count as their own named treasures; evolutions are separate.', typesText: 'Never collect the same treasure twice.', test: s => !s.duplicate },
   { id: 'early-retirement', name: 'Early Retirement', text: 'Defeat all three Act 1 household Elites before 3:00 of exploration.', test: s => s.early },
   { id: 'everything-must-go', name: 'Everything Must Go', text: 'Collect all four original scheduled room treasures in each apartment act. Elite drops and bonus treasures do not substitute.', test: s => allRooms(s, 'scheduled', 4) },
   { id: 'make-your-own-luck', name: 'Make Your Own Luck', text: 'Choose at least eight Luck level-up cards.', test: s => (s.cards.luck || 0) >= 8 },
   { id: 'built-to-last', name: 'Built to Last', text: 'Choose at least eleven Health, Health regen, or Dodge level-up cards in total.', test: s => defense(s) >= 11 },
   { id: 'glass-cannon', name: 'Glass Cannon', text: 'Choose at least ten Attack damage or Fire rate level-up cards, and no Health, Health regen, or Dodge cards.', test: s => offense(s) >= 10 && defense(s) === 0 },
-  { id: 'pack-light', name: 'Pack Light', text: 'Collect no more than six treasures total, counting starting Elements, boss rewards, repeats, and upgrades. Evolutions do not count.', test: s => s.treasures <= 6 },
+  { id: 'pack-light', name: 'Pack Light', text: 'Collect no more than six treasures total, counting starting Elements, boss rewards, repeats, and upgrades. Evolutions do not count.', typesText: 'Collect no more than six treasures total, counting boss rewards and repeats. Evolutions and Attack upgrades do not count.', test: s => s.treasures <= 6 },
   { id: 'trust-the-hand', name: 'Trust the Hand', text: 'Never use a level-up reroll.', test: s => s.rerolls === 0 },
 ];
 

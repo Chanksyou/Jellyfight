@@ -8,6 +8,9 @@ import { BASE_STATS, xpToNext } from '../stats.js';
 import { FirstRun, PLAYED_KEY } from '../first-run.js';
 import { TYPE_SWITCH } from '../jelly-types.js';
 import { BEST_KEY } from '../leaderboard.js';
+import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
+import { FOUND_KEY } from '../collection.js';
+import { STAGES } from '../stages.js';
 import { hostile, TeleMaterial, VolumeMaterial } from '../vfx.js';
 import { juice } from '../juice.js';
 import { sfx } from '../sfx.js';
@@ -27,6 +30,21 @@ export function stub(obj, key, fn) {
   patched.push([obj, key, Object.prototype.hasOwnProperty.call(obj, key), obj[key]]);
   obj[key] = fn;
 }
+// Play as a returning (or a first-time) player with this save, until back() (the returned function)
+// puts the real one back: whether they've played, their lifetime feats (cosmetics.js) and their Treasure
+// book (collection.js). A returning player has every jelly type open (jelly-types.js typeLock) unless
+// the story gives its own feats or book; a first-time player has nothing
+export function asPlayer(returning, { feats = null, book = null } = {}) {
+  const keys = [PLAYED_KEY, BEST_KEY, FEATS_KEY, FOUND_KEY, PEARLS_KEY], was = keys.map((k) => localStorage.getItem(k));
+  keys.forEach((k) => localStorage.removeItem(k));
+  if (returning) {
+    localStorage.setItem(PLAYED_KEY, '1');
+    if (!feats && !book) { feats = { elites: 9 }; book = { bosses: STAGES.map((st) => st.boss.kind) }; }
+  }
+  if (feats) localStorage.setItem(FEATS_KEY, JSON.stringify(feats));
+  if (book) localStorage.setItem(FOUND_KEY, JSON.stringify(book));
+  return () => keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
+}
 // stub obj[key] with a pass-through that logs each call's arguments in the returned list
 export function spy(obj, key) { const log = [], real = obj[key]; stub(obj, key, function (...a) { log.push(a); return real.apply(this, a); }); return log; }
 export const offs = [];
@@ -45,7 +63,7 @@ export function restore() {
 export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null } = {}) {
   const { run, menus, enemies, mainMenu } = G();
   restore();
-  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal'; TYPE_SWITCH.locked = {};
+  TYPE_SWITCH.on = !!types; TYPE_SWITCH.start = types || 'normal';
   mainMenu.restore(); mainMenu.cancelLaunch();
   mainMenu.home = false;
   mainMenu.overlay.classList.remove('menu-home');   // stories enter gameplay without the title transition

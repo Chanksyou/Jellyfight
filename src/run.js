@@ -2,7 +2,7 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
-import { TYPE_SWITCH, startingJelly, jellyStats, jellyAttack } from './jelly-types.js';
+import { TYPE_SWITCH, startingJelly, jellyStats, jellyAttack, typeLock, openTypes, leavesWithTypes } from './jelly-types.js';
 import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
@@ -260,13 +260,13 @@ export class Run {
     this.t = 0;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the starting Element pick is offered on the run's first frame
-    this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
     this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal unless GAME.types is on
     this.stats = jellyStats(this.jelly);
     this.attack = jellyAttack(this.jelly);   // { kind, hit }: the one attack it fires; null with the switch off (all of today's)
     this.typeAdorn = this.attack && CONTENT.jellies[this.jelly].adorn ? [CONTENT.jellies[this.jelly].adorn] : [];   // the type's look (adornments.js)
+    this.firstRun = FirstRun.forStage(this.stage, !!this.attack);   // a player's first run (first-run.js); a jelly type has no Element pick
     this.level = 1;
     this.xp = 0;
     this.purse = 0;
@@ -324,6 +324,7 @@ export class Run {
     this.newFinds = [];               // first-ever finds this run, for the end screen (collection.js)
     this.pearls = 0;                  // Pearls this run has earned (cosmetics.js), already in the bank
     this.awardsBefore = this.dev ? [] : unlockedAwards();   // golden awards held when the run began: the end screen names the new ones
+    this.typesBefore = openTypes();   // jelly types open when the run began (jelly-types.js): the end screen names the new ones
     this.bossHurt = false;            // lost Health in this act's boss fight (the Diamond tiara asks for a fight without)
     // a later act: the run carries on from the act before (main.js gives it: stages.js), or from
     // where this act stood when the page went (its level, Treasures, stats as they were then)
@@ -336,14 +337,16 @@ export class Run {
     if (C) {
       this.stats = { ...BASE_STATS, ...C.stats };
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
-      for (const [id, n] of C.owned) for (let k = 0; k < n; k++) this.owned.add(id);
+      // a Treasure an older save names that the game no longer has (or, with jelly types, has retired) is dropped
+      for (const [id, n] of C.owned) { const t = TREASURES.find((x) => x.id === id); if (t && !(this.attack && leavesWithTypes(t))) for (let k = 0; k < n; k++) this.owned.add(id); }
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
-      this.evolved = [...(C.evolved || [])];
-      this.upgrades = [...(C.upgrades || [])];
+      this.evolved = (C.evolved || []).filter((id) => EVOLUTIONS.some((e) => e.id === id));
+      this.upgrades = (C.upgrades || []).filter((id) => CONTENT.upgrades.some((u) => u.id === id));
       this.newFinds = [...(C.newFinds || [])];
       this.pearls = C.pearls || 0;
       if (C.awardsBefore) this.awardsBefore = C.awardsBefore;
+      if (C.typesBefore) this.typesBefore = C.typesBefore;
       this.saved = !!C.saved;
       this.reborn = !!C.reborn;
       this.health = this.S.health;   // with what its evolution and treasures add
@@ -1242,7 +1245,7 @@ export class Run {
   // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
   // A jelly type's attack is its own: no Element, Element upgrade or Power Bank (element, element-up),
   // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
-  forAttack(t) { return !this.attack || !(t.notFor?.includes(this.attack.kind) || t.retired || t.vocabulary.includes('element') || t.vocabulary.includes('element-up')); }
+  forAttack(t) { return !this.attack || !(t.notFor?.includes(this.attack.kind) || leavesWithTypes(t)); }
 
   // The end of an act (with jelly types): 1 of 3 Attack upgrades from the jelly's pool
   // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after
@@ -1254,6 +1257,7 @@ export class Run {
     this.ui.choose('⚔️ An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
       const before = this.S.health;
       this.upgrades.push(u.id);
+      this.found('upgrades', u.id, `${u.icon} ${u.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
       this.health = Math.min(this.health, this.S.health);
       this.ui.treasure(u);
@@ -1610,7 +1614,7 @@ export class Run {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
-    const entry = { score, run: this.logId, jelly: this.jelly, body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
@@ -1618,6 +1622,8 @@ export class Run {
     const had = new Set(this.awardsBefore), won = this.phase === 'won';
     this.flushFeats({ runs: 1, wins: won ? 1 : 0, ...(won ? { [`won_${entry.body}`]: 1 } : {}) });
     const earned = unlockedAwards().filter((k) => !had.has(k)).map((k) => { const [key, id] = k.split(':'); return { key, id, name: OPTIONS[key].find(([v]) => v === id)?.[1] || id }; });
+    // jelly types this run opened (jelly-types.js typeLock), named with the awards
+    const types = TYPE_SWITCH.on ? openTypes().filter((id) => !this.typesBefore.includes(id)).map((id) => CONTENT.jellies[id].name) : [];
     let typed = B?.mine?.name || savedName();
     // a death: how close it came, your best, and the unlock you're nearest, to pull you into the next run
     const dead = this.phase === 'dead', near = dead ? this.howClose() : null, next = dead ? nextAward() : null;
@@ -1629,7 +1635,7 @@ export class Run {
       ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
-    const hint = dead && this.stage.id <= 2 ? deathHint() : '';
+    const hint = dead && this.stage.id <= 2 ? deathHint(!!this.attack) : '';
     const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
     let last = null;
@@ -1643,7 +1649,7 @@ export class Run {
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
         ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} in all</small>`]]),
         ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...this.summary(), ...finds];
-      if (earned.length) rows.unshift(['🎁 Unlocked', `<b>${earned.map((a) => esc(a.name)).join(', ')}</b>`]);
+      if (earned.length || types.length) rows.unshift(['🎁 Unlocked', `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
       if (this.newAchievements.length) rows.unshift(['🏅 Achievements earned', this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && !this.dev && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
@@ -1745,7 +1751,7 @@ export class Run {
       score: this.score(), stats: this.stats, jelly: this.jelly, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, upgrades: this.upgrades, newFinds: this.newFinds,
-      pearls: this.pearls, awardsBefore: this.awardsBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),
+      pearls: this.pearls, awardsBefore: this.awardsBefore, typesBefore: this.typesBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),
     };
   }
 
@@ -1795,13 +1801,23 @@ export class Run {
       [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
   }
 
-  // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not
+  // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not.
+  // With jelly types on (docs/jelly-types/spec-meta.md): a Jellies page first (locked types as silhouettes
+  // with their goal), then each type's Attack upgrades; the Treasures page leaves out what leaves with
+  // types (leavesWithTypes) and takes the former evolutions in with the Legendaries; no Evolutions page
   showBook(back) {
-    const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'];
-    const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(kind, x.id, f) })) });
+    const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'], types = TYPE_SWITCH.on;
+    const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(x.kind || kind, x.id, f) })) });
+    const treasures = TREASURES.filter((t) => !types || !leavesWithTypes(t)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color, rank: RANK.indexOf(t.rarity) }));
+    const evolutions = EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text, ...(types ? { kind: 'evolutions', color: treasureTier({ rarity: 'legendary' }).color, rank: RANK.length - 1 } : {}) }));
+    const jellies = types ? [
+      { title: 'Jellies', items: Object.values(CONTENT.jellies).map((J) => { const lock = typeLock(J.id); return { id: J.id, icon: J.icon, name: J.name, text: J.about, found: !lock, locked: lock?.goal }; }) },
+      ...Object.values(CONTENT.jellies).map((J) => sec(`${J.icon} ${J.name}: Attack upgrades`, 'upgrades', CONTENT.upgrades.filter((u) => u.jelly === J.id).map((u) => ({ id: u.id, icon: u.icon, name: u.name, text: u.text })))).filter((s) => s.items.length),
+    ] : [];
     this.ui.book('📖 Treasure book', [
-      sec('Treasures', 'treasures', [...TREASURES].sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color }))),
-      sec('Evolutions', 'evolutions', EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text }))),
+      ...jellies,
+      sec('Treasures', 'treasures', [...treasures, ...(types ? evolutions : [])].sort((a, b) => a.rank - b.rank)),
+      ...(types ? [] : [sec('Evolutions', 'evolutions', evolutions)]),
       sec('Elites', 'elites', Object.values(CONTENT.elites).filter((e) => e.id).map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: 'beaten.' }))),
       sec('Bosses', 'bosses', STAGES.map((st) => ({ id: st.boss.kind, icon: Object.values(CONTENT.bosses).find((b) => b.name === st.boss.name)?.icon, name: st.boss.name, text: 'beaten.' }))),   // by name: the Clog's kind is 'hair'
     ], back);
@@ -1811,7 +1827,7 @@ export class Run {
   showAchievements(back) {
     this.endView = 'achievements';
     const earned = earnedAchievements();
-    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, earned: earned[a.id] })), back,
+    this.ui.achievements(ACHIEVEMENTS.map(a => ({ ...a, text: (TYPE_SWITCH.on && a.typesText) || a.text, earned: earned[a.id] })), back,
       () => this.showAchievementBoard(() => this.showAchievements(back)));
   }
 
@@ -1853,7 +1869,7 @@ export class Run {
       if (this.endView !== 'board') return;
       const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
       if (B.web && B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back)); } });
-      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace), buttons, 'jf-board');
+      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace, TYPE_SWITCH.on ? (id) => (CONTENT.jellies[id] || CONTENT.jellies.normal).name : null), buttons, 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)

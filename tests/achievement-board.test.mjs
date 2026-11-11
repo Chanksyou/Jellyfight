@@ -66,7 +66,7 @@ test('run details retain Elite defeats, pickup order and fatal attribution with 
   const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
   assert.equal((await save(row)).data.saved, true);
   const read = () => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries').get().details);
-  assert.deepEqual(read(), { jelly: 'normal', elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
+  assert.deepEqual(read(), { jelly: 'normal', upgrades: [], elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
     pickups: [['candle', 10.3, 1], ['candle', 40, 2]], killedBy: { unit: 'ladybug', source: 'missile' } });
   await save({ ...row, revision: 2, details: undefined });
   assert.equal(read().elitesBeaten, 2);   // an older client cannot erase recorded detail
@@ -334,6 +334,28 @@ test('a score names the jelly type its run was logged as, and a missing type is 
   logAct('player-one', 'run-swap', 1, 'next-act', { score: 4000, details: JSON.stringify({ jelly: 'fire' }) });
   logAct('player-one', 'run-swap', 2, 'died', { score: 5000, details: JSON.stringify({ jelly: 'ice' }) });   // changed type mid-run
   assert.equal((await post('run-swap', 5000, 'ice')).data.why, 'unverified');
+});
+
+test('a jelly type run with up to 3 Attack upgrades and several former evolutions posts, and the board shows its type', async () => {
+  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly }); };
+  const typed = (upgrades) => JSON.stringify({ jelly: 'fire', upgrades });
+  sqlite.prepare('UPDATE run_summaries SET evolutions = ?').run('[]');
+  logAct('player-one', 'run-many', 1, 'next-act', { score: 2000, details: typed(['slowBurn']) });
+  logAct('player-one', 'run-many', 2, 'next-act', { score: 3000, details: typed(['slowBurn', 'fireBreath']) });
+  logAct('player-one', 'run-many', 3, 'next-act', { score: 4000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });   // a fourth upgrade
+  logAct('player-one', 'run-many', 4, 'died', { score: 5000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });
+  assert.equal((await post('run-many', 5000, 'fire')).data.why, 'unverified');
+  logAct('player-one', 'run-fire', 1, 'next-act', { score: 2000, treasures: [['candle', 1]], details: typed(['slowBurn']) });
+  logAct('player-one', 'run-fire', 2, 'next-act', { score: 3000, details: typed(['slowBurn', 'fireBreath']) });
+  logAct('player-one', 'run-fire', 3, 'died', { score: 4000, details: typed(['slowBurn', 'fireBreath', 'a']) });
+  sqlite.prepare("UPDATE run_summaries SET evolutions = ? WHERE run_id = 'run-fire'").run('["moon","lion","box"]');   // three former evolutions as Legendaries
+  assert.equal((await post('run-fire', 4000, 'fire')).data.posted, true);
+  const { data } = await request('/api/scores?me=player-one');
+  assert.equal(data.top[0].jelly, 'fire');
+  assert.equal(data.mine.jelly, 'fire');
+  const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
+  await save({ run: 'run-upgrades', act: 1, revision: 1, outcome: 'died', details: { jelly: 'ice', upgrades: ['frostbite', '<bad>', 7] } });
+  assert.deepEqual(JSON.parse(sqlite.prepare("SELECT details FROM run_summaries WHERE run_id = 'run-upgrades'").get().details).upgrades, ['frostbite', 'bad', '7']);
 });
 
 test('the dev password is checked against the secret, slowly, and never opens without one', async () => {

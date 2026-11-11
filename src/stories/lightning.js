@@ -5,10 +5,8 @@
 import { PLAYER } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
-import { PLAYED_KEY } from '../first-run.js';
-import { BEST_KEY } from '../leaderboard.js';
 import { elementParams } from '../words.js';
-import { G, V, dmgBy, fresh, holdJelly, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { G, asPlayer, V, dmgBy, fresh, holdJelly, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const POOL = ['overcharge', 'conductor', 'staticSkin', 'stormCell', 'thunderclap', 'ballLightning', 'chainReaction', 'lightningRod', 'overload', 'staticCharge', 'surge', 'grounded'];
 // take these Attack upgrades (the combined effects are worked out again)
@@ -298,12 +296,6 @@ story('upgrades/lightning-pool', {
 });
 
 // ------------------------------------------------------------------ the pick screen's centre card
-function asPlayer(returning) {
-  const keys = [PLAYED_KEY, BEST_KEY], was = keys.map((k) => localStorage.getItem(k));
-  keys.forEach((k) => localStorage.removeItem(k));
-  if (returning) localStorage.setItem(PLAYED_KEY, '1');
-  return () => keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
-}
 
 story('types/pick-screen-lightning-card', {
   about: 'On the pick screen the Lightning card\'s jelly fires its real Lightning shots at three roaches, which arc to each other, are Stunned and die; its portrait wears the storm look (adornments.js); nothing reaches the game.',
