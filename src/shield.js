@@ -10,6 +10,8 @@ import { bus } from './events.js';
 import { juice } from './juice.js';
 import { SHIELD_FILL, SHIELD_WAIT, knockFor } from './stats.js';
 
+const _c = new THREE.Vector3();
+
 export class Shield {
   constructor(run) {
     this.run = run;
@@ -37,7 +39,7 @@ export class Shield {
   get fill() {
     const run = this.run, S = run.mods.shield;
     let faster = S.faster;
-    for (const N of S.near) if (run.enemies.list.some((e) => !e.dead && !e.proxy && e.chillT > 0 && run.enemies.center(e).distanceTo(run.player.position) - e.r <= N.radius)) faster += N.faster;
+    for (const N of S.near) if (run.enemies.list.some((e) => e.chillT > 0 && !e.dead && !e.proxy && run.enemies.center(e, _c).distanceTo(run.player.position) - e.r <= N.radius)) faster += N.faster;
     return SHIELD_FILL / (1 + faster);
   }
 

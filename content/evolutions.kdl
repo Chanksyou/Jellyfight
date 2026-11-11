@@ -17,7 +17,7 @@ evolution "cinder" name="Cinder Jelly" icon="👣" text="Flaming feet burn the g
 }
 
 // (not-for: Element shots keep their own flight, and tentacles throw nothing: add each new jelly type's attack)
-evolution "rebound" name="Rebound Jelly" icon="🪃" not-for="fire tentacle" text="Ordinary attacks return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
+evolution "rebound" name="Rebound Jelly" icon="🪃" not-for="fire poison tentacle" text="Ordinary attacks return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
     rebound
     stat fire-rate -20 percent=#true
     adorn "rebound-bands"

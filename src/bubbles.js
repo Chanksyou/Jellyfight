@@ -17,6 +17,9 @@
 //   wind (Paper Fan)         a fast crescent wind blade that hits across its whole width, pierces
 //                            once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
+//   poison (the Poison jelly type's attack only, in place of acid): a blob that hits the first bug,
+//                            then bursts in a sphere that does no damage but adds a Poison stack to
+//                            every bug in it (poisoned: stacks, each a share of Attack damage a second).
 // Each element's numbers (rate, damage, burn, chain…) come from mods.element (ELEMENT_BASE in
 // words.js, raised by its upgrade treasures), and scale with your stats: Attack damage, Fire rate,
 // Range, Attack size and extra Attacks all apply to them as they do to bubbles.
@@ -43,11 +46,14 @@ export const ELEMENTS = [
   { id: 'acid', color: 0x8aff5a, text: '#a8ff7a' },
   { id: 'wind', color: 0xeef2ff, text: '#ffffff' },
   { id: 'glitter', color: 0xff9ae8, text: '#ffb0f0' },
+  { id: 'poison', color: 0x4ff0a0, text: '#9dffc8' },   // a cool friendly green, never the Clog's violet acid
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
 const _down = new THREE.Vector3(0, -1, 0);
 const _zero = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
+const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
 const SCORCH = 0x2a2620;           // the mark lightning leaves on the floor
 // share of power each element deals (see the top of the file)
@@ -56,6 +62,7 @@ export const ELEMENT = {
   bolt: 0.09,       // lightning: each arc
   puddle: 0.012,    // acid: each tick of the puddle (every 0.5 s, halved)
   glitter: 0.4 / 4.5,    // glitter: the wide splash
+  poison: 0.2 / 4.5,     // poison: each stack, a second (20% of Attack damage)
 };
 
 // where in an element's timer its energy starts gathering at the bell (the last fifth)
@@ -67,6 +74,7 @@ export class Bubbles {
   constructor(scene, enemies, fx, world) {
     Object.assign(this, { scene, enemies, fx, world });
     enemies.statuses.burning = (e) => { const f = this.burning.get(e); return f?.t > 0 ? f.n : 0; };   // its Burn stacks (status-damage & co.: words.js STATUSES)
+    enemies.statuses.poisoned = (e) => { const f = this.poisoned.get(e); return f?.t > 0 ? f.n : 0; };  // its Poison stacks
     this.list = [];
     this.pool = [];
     this.statePool = [];
@@ -90,6 +98,8 @@ export class Bubbles {
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
     this.frostbitten = new Map();      // enemy -> { dps, t }: Chill that hurts (element-up ice frostbite)
+    this.poisoned = new Map();         // enemy -> its Poison: { t, n stacks, dps a stack, ep }
+    this.dotT = 0;                     // the 0.5 s beat percent-dot and spread-on-touch go on
     this.puddles = [];
     this.puddlePool = [];
     this.acidMat = new AcidMaterial();   // each puddle a copy (its own uniforms, the same program: no shader to build in a fight)
@@ -107,6 +117,7 @@ export class Bubbles {
     this.list = [];
     this.burning.clear();
     this.frostbitten.clear();
+    this.poisoned.clear();
     this.looks.clearBolts();
     this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
     this.puddles = [];
@@ -503,7 +514,7 @@ export class Bubbles {
       if (e.slowT > 0) dmg *= b.ep?.slowedMul ?? 1;      // Freezer Burn rewards follow-up hits
       const was = e.chillT > 0;
       bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
-      if (b.ep?.frostbite) this.frostbitten.set(e, { dps: dmg * b.ep.frostbite, t, tick: 0.5 });   // Frostbite
+      if (b.ep?.frostbite) this.frostbitten.set(e, { dps: dmg * b.ep.frostbite, t: t + 0.01, tick: this.frostbitten.get(e)?.tick ?? 0.5 });   // Frostbite (a re-hit keeps the beat running)
       const F = mods.chillFreeze;                         // Permafrost: hits in a row on a Chilled bug freeze it
       if (F) {
         e.chillHits = (was ? e.chillHits || 0 : 0) + 1;
@@ -566,8 +577,9 @@ export class Bubbles {
   effects(dt, stats, mods) {
     const E = this.enemies, c = this._c;
     for (const [e, f] of this.frostbitten) {   // Frostbite: a Chilled bug takes a share of the hit that chilled it, every half second
-      if (e.dead || !(e.chillT > 0) || (f.t -= dt) <= 0) { this.frostbitten.delete(e); continue; }
+      if (e.dead) { this.frostbitten.delete(e); continue; }
       if ((f.tick -= dt) <= 0) { f.tick = 0.5; bus.emit('damage_taken', { targetId: e.id, amount: f.dps * 0.5, color: '#bff4ff', source: 'ice', feedback: { tick: true } }); }
+      if ((f.t -= dt) <= 0) this.frostbitten.delete(e);
     }
     for (const [e, f] of this.burning) {
       if (e.dead) {
@@ -597,6 +609,7 @@ export class Bubbles {
       }
       if (f.t <= 0) this.burning.delete(e);
     }
+    this.poisonTick(dt, mods);
     for (const p of this.puddles) {
       p.t -= dt;
       // it splats in (overshooting, then settling), then for its last 0.6 s shrinks, darkens and dries up
@@ -624,6 +637,35 @@ export class Bubbles {
     this.puddles = this.puddles.filter((p) => p.t > 0);
   }
 
+  // Poisoned bugs: each stack ticks every 0.5 s; they bubble and drip green while it lasts. On the same
+  // 0.5 s beat, percent-dot (Waste Away) and spread-on-touch (Contagion)
+  poisonTick(dt, mods) {
+    const E = this.enemies, c = this._c, every = this.looks.pz.every;
+    for (const [e, f] of this.poisoned) {
+      if (e.dead || (f.t -= dt) <= 0) { this.poisoned.delete(e); continue; }
+      if ((f.tick -= dt) <= 0) {
+        f.tick = 0.5; sfx.acidSizzle();
+        bus.emit('damage_taken', { targetId: e.id, amount: f.dps * f.n * 0.5, color: '#9dffc8', source: 'poison' });
+      }
+      if ((f.drip -= dt) <= 0) { f.drip = every / Math.sqrt(f.n); E.center(e, c); this.looks.poisoned(c, e.r, e.T?.fly ? c.y - e.r * 4 : e.pos.y); }
+    }
+    if ((this.dotT -= dt) > 0) return;
+    this.dotT = 0.5;
+    for (const D of mods?.percentDots || []) for (const e of E.list) {
+      if (e.dead || (e.proxy && e.boss && !D.boss) || !E.statuses[D.status](e)) continue;
+      const max = e.proxy ? e.proxy.maxHp : e.maxHp;
+      if (max > 0) bus.emit('damage_taken', { targetId: e.id, amount: max * D.share * 0.5, color: '#9dffc8', source: 'poison' });
+    }
+    if (mods?.spreadOnTouch.includes('poisoned')) {
+      const fresh = [];
+      for (const [e, f] of this.poisoned) {
+        const at = E.center(e, this._t);
+        for (const n of E.list) if (!n.dead && n !== e && !this.poisoned.has(n) && !fresh.includes(n) && E.center(n, c).distanceTo(at) < e.r + n.r + 0.004) fresh.push(n, f);
+      }
+      for (let i = 0; i < fresh.length; i += 2) { this.poison(fresh[i], fresh[i + 1].pw, fresh[i + 1].ep); this.looks.poisonBurst(E.center(fresh[i], c), fresh[i].r * 1.4); }
+    }
+  }
+
   // set an enemy burning: pw the power it was lit with, ep the fire attack's numbers. A re-hit
   // restarts the time and, up to ep.burnStacks, adds a stack (each burns as hard); age is how
   // long it has kept burning (burn-ramp), from when it was first lit
@@ -644,6 +686,7 @@ export class Bubbles {
   // bubble: where it pops, or where a piercing one first hits
   splash(b) {
     b.splashed = true;
+    if (b.elems.has('poison')) { this.poisonBurst(b); return; }
     const p = b.m.position, glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1), E = this.enemies, c = this._c;
     let kills = 0;
@@ -668,6 +711,51 @@ export class Bubbles {
     if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash
   }
 
+  // the Poison blob bursts: a sphere round where it popped (flying bugs too) that does no damage but
+  // gives every bug in it, the one it hit too, a Poison stack
+  poisonBurst(b) {
+    const p = b.m.position, E = this.enemies, c = this._c, r = SPLASH * (b.r / RADIUS) * (b.ep?.width ?? 1);
+    this.poisonPw = b.pw;   // what a stack from Toxic Cloud or Burst Sac is worth: the blob's own (its share with more Attacks)
+    this.looks.poisonBurst(p, r);
+    for (const e of E.list) {
+      if (e.dead || E.center(e, c).distanceTo(p) >= r + e.r) continue;
+      this.poison(e, b.pw, b.ep);
+    }
+  }
+
+  // give a bug `n` Poison stacks (up to ep.poisonStacks; each new one restarts the time). pw: the power it was
+  // given with (Attack damage x 4.5), ep: the Poison attack's numbers
+  poison(e, pw, ep = null, n = 1) {
+    const had = this.poisoned.get(e), live = had?.t > 0, most = Math.max(1, Math.round(ep?.poisonStacks ?? 5));
+    this.poisoned.set(e, { t: ep?.poisonTime ?? 5, n: Math.min(most, (live ? had.n : 0) + n), dps: pw * ELEMENT.poison * (ep?.poison ?? 1), pw, ep, tick: had?.tick ?? 0.25, drip: had?.drip ?? 0 });
+  }
+
+  // Poison Rain (the blob word): `count` of your Poison blobs fall from above on as many bugs within `range` of you
+  rain(origin, count, range, stats, mods) {
+    const P = this.mainParams('poison', mods), n = Math.max(1, Math.round(stats.bubbles)), each = stats.bubbleDamage * bubbleShare(n);
+    const bugs = this.inRange(origin, range).slice(0, count);
+    for (const e of bugs) {
+      // from 10 cm above it, or under the furniture over it (a blob starting inside it would pop on it unburst)
+      const c = this.enemies.center(e), hit = this.world.cast(c, _upDir, _up.y), r = RADIUS * stats.bubbleSize;
+      const at = c.clone().setY(c.y + (hit ? Math.max(r * 2, hit.distance - r * 2) : _up.y));
+      this.blow(at, e, { size: stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, elems: ['poison'], tint: 'poison', ep: P, pierce: 1, speed: P.speed, range: 0.3 });
+    }
+    if (bugs.length) { this.looks.launch('poison', origin, stats.bubbleSize); sfx.elementLaunch('poison'); this.onElementRelease?.('poison'); }
+    return bugs.length;
+  }
+
+  // split-on-hit: a shot that hit splits into smaller ones fanned out ahead, missing the bug it hit
+  split(b, S) {
+    const dir = this._dir.copy(b.vel).normalize(), rad = S.angle * Math.PI / 180;
+    for (let k = 0; k < S.count; k++) {
+      const a = S.count > 1 ? (k / (S.count - 1) - 0.5) * rad : 0;
+      const half = this.blow(b.m.position, null, { size: b.r / RADIUS * 0.75, dmg: b.dmg * S.dmg, pw: b.pw, golden: b.golden, elems: [...b.elems], tint: b.tint, ep: b.ep, pierce: 1, speed: b.speed / SPEED, range: b.range, dir: dir.clone().applyAxisAngle(_yAxis, a) });
+      half.split = true; half.homing = false;
+      for (const e of b.hit) half.hit.add(e);
+      half.pierce += b.hit.size;
+    }
+  }
+
   pop(b, hitEnemy, stats, mods, keep = false) {
     if (b.done) return;
     b.done = !keep;
@@ -680,7 +768,7 @@ export class Bubbles {
       // pop: a splash of droplets, a plip, a tiny kick
       this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
       if (b.tint && b.tint !== 'wind') {   // each element lands its own way (ice: its shards skip off the floor under it)
-        const floor = b.tint === 'ice' || b.tint === 'acid' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
+        const floor = b.tint === 'ice' || b.tint === 'acid' || b.tint === 'poison' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
         this.looks.contact(b.tint, p, b.r, floor); sfx.elementHit(b.tint);
       }
       else if (!b.elems.has('wind')) sfx.pop(b.big);
@@ -734,6 +822,7 @@ export class Bubbles {
         if (Z.dmg) bus.emit('damage_taken', { targetId: e.id, amount: b.pw * Z.dmg, color: '#cfe8ff', source: 'static' });
       }
     }
+    if (mods.split && !b.split) this.split(b, mods.split);   // split-on-hit (Split Blob)
     if(b.child){this.treasureLooks?.echo(p,b.r);sfx.gadgetEcho(true);}
     // echo-bubble: the pop fires again at the next enemy close by (once), at a share of its damage
     // (it starts inside the enemy it popped on: it skips the ones its parent already hit)

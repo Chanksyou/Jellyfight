@@ -14,6 +14,8 @@
 //   barbs       the Tentacle jelly type: its tentacles longer and thicker, with barbs along them
 //   frost       the Ice jelly type: a pale blue crystal turning in the bell, frost crystals on the
 //               tentacle tips, cold mist sinking off them to the floor
+//   toxin       the Poison jelly type: a pale green core in the bell with toxic bubbles rising off it, a
+//               drop swelling on every tentacle tip and falling, green drips running off the rim
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -229,6 +231,76 @@ export class Adornments {
         m.scale.setScalar(size * (0.6 + u * 0.8));
         G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
       }
+    } };
+  }
+
+  // Poison jelly: a pale green core in the bell (emissive, not a light) with bubbles rising off it,
+  // a drop swelling on each tentacle tip until it falls, and drips running off the rim (the tentacles'
+  // roots). Everything moves with the jelly but the falling drops, which keep falling where they let go
+  make_toxin() {
+    const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('toxin-' + k, f);
+    const coreMat = glowMat('toxin-core', '#9effc8', { emissiveIntensity: 1.8, transparent: true, opacity: 0.8, depthWrite: false });
+    const dropMat = glowMat('toxin-drop', '#3ee68c', { emissiveIntensity: 1.6 });
+    const bubMat = new THREE.MeshBasicMaterial({ color: LOOK.color('toxin-bubble', '#d6ffe9'), toneMapped: false });
+    const ball = new THREE.SphereGeometry(1, 10, 8);
+    const core = new THREE.Mesh(ball, coreMat);
+    group.add(core);
+    const make = (mat, n) => Array.from({ length: n }, () => { const m = new THREE.Mesh(ball, mat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
+    const bubbles = make(bubMat, L('bubbles', 8)), tips = make(dropMat, 8), drips = make(dropMat, L('drips', 6));
+    this.batch.track(group);
+    const glowCol = coreMat.color.clone(), dropCol = dropMat.color.clone();
+    let nextBub = 0, nextDrip = 0;
+    // a falling drop: down at gravity (slowed by the water), gone at the floor
+    const fall = (m, dt, floor, G) => {
+      m.userData.vy -= L('drop-gravity', 1.2) * dt;
+      m.position.y += m.userData.vy * dt;
+      if (m.position.y <= floor) { m.visible = false; return false; }
+      G?.hold(m.position, dropCol, m.scale.x * 4, 0.5);
+      return true;
+    };
+    return { group, free: true, tick: (dt, run) => {
+      const G = run.fx?.glow;
+      const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      const floor = this.player.position.y, pulse = 0.9 + Math.sin(this.t * 4) * 0.1;
+      core.visible = on;
+      if (on) {
+        rig.parent.localToWorld(core.position.set(0, L('core-y', 0.8), 0));
+        core.scale.setScalar(h * L('core-size', 0.13) * pulse);
+        G?.hold(core.position, glowCol, h * L('glow-size', 0.7) * pulse, 0.5);
+      }
+      // bubbles well up off the core and rise inside the bell, swelling and popping
+      if (on && (nextBub -= dt) <= 0) {
+        nextBub = L('bubble-every', 0.14);
+        const m = bubbles.find((x) => !x.visible);
+        if (m) { Object.assign(m.userData, { t: 0, x: (Math.random() - 0.5) * 0.25, z: (Math.random() - 0.5) * 0.25 }); m.visible = true; }
+      }
+      const life = L('bubble-life', 0.9);
+      for (const m of bubbles) {
+        if (!m.visible) continue;
+        const u = (m.userData.t += dt) / life;
+        if (u >= 1 || !on) { m.visible = false; continue; }
+        rig.parent.localToWorld(m.position.set(m.userData.x * (1 - u * 0.5), L('core-y', 0.8) + L('bubble-rise', 0.22) * u, m.userData.z * (1 - u * 0.5)));
+        m.scale.setScalar(h * L('bubble-size', 0.025) * Math.sin(u * Math.PI));
+      }
+      // a drop on every tip: it swells for a while, then lets go and falls
+      tips.forEach((m, i) => {
+        const T = on && rig.list[i], U = m.userData;
+        if (U.falling) { if (!fall(m, dt, floor, G)) U.falling = false; return; }
+        m.visible = !!T;
+        if (!T) return;
+        U.hang ??= L('drop-hang', 0.9) * (0.6 + Math.random() * 0.8);
+        const u = Math.min(1, (U.t += dt) / U.hang), r = rig.thick * unit * L('drop-size', 1.3) * (0.3 + 0.7 * u);
+        T.tip.getWorldPosition(m.position); m.position.y -= r * 0.8;
+        m.scale.set(r, r * (1 + 0.4 * u), r);
+        if (u >= 1) { U.falling = true; U.vy = 0; U.t = 0; U.hang = null; }
+      });
+      // now and then a drip runs off the rim and falls
+      if (on && (nextDrip -= dt) <= 0) {
+        nextDrip = L('drip-every', 0.35);
+        const m = drips.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
+        if (m && T?.pts?.length) { rig.parent.localToWorld(m.position.copy(T.pts[0])); m.scale.setScalar(rig.thick * unit * L('drop-size', 1.3) * 0.7); m.userData.vy = 0; m.visible = true; }
+      }
+      for (const m of drips) if (m.visible) fall(m, dt, floor, G);
     } };
   }
 

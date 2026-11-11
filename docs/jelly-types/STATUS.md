@@ -15,7 +15,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | G1 | skipped | | Chan skipped the play-test (Nov 11 2026); treat as passed, to be played with G2 |
 | P8a Ice | in review | | Frost look (crystal, tip frost, mist); Ice's 12 Attack upgrades; words chill-to-freeze, ground-lock, slide-on-hit, shards, and props on ring, shield-recharge, shield-burst, element-up ice |
 | P8b Lightning | not started | | |
-| P8c Poison | not started | | |
+| P8c Poison | in review | | Blob + sphere burst + Poison stacks (no puddles), weakening via status-taken, toxin look, 12 upgrades, seven new words; hit=0.6 (10.3/s) |
 | P8d Wind | not started | | |
 | P8e Glitter | not started | | |
 | P8n Normal pool | not started | | |

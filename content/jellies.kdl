@@ -3,7 +3,7 @@
 //
 // Normal is BASE_STATS (src/stats.js). Every other type lists only where it differs, as
 // `stat <name> <value>` lines: the value replaces Normal's (stat names as the `stat` effect word
-// in src/words.js). `attack` is the type's one attack: bubble, an Element id, or tentacle.
+// in src/words.js). Any other line is a treasure effect word (src/words.js) the type always has. `attack` is the type's one attack: bubble, an Element id, or tentacle.
 // `hit` multiplies that attack's damage (the damage budget's one knob). `adorn` is the type's
 // look, a piece drawn on top of the player's own jelly (src/adornments.js).
 //
@@ -45,8 +45,13 @@ jelly "ice" name="Ice Jelly" about="Slow ice shards chill bugs, so they crawl wh
     stat jump-height 0.9
 }
 
-// Health regen is per second: 0.5 every 5 s
-jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs take damage over time and hit weaker." attack="poison" hit=1 area=#true {
+// Poison: the blob hits the first bug for hit= x Attack damage, then its burst adds a Poison stack to
+// every bug in 5 cm (6 at its Attack size). hit=0.6 lands it at 10.3 damage a second on one bug:
+// 5 x 0.6 x 1.76/s = 5.3 from hits, plus 5 stacks (a hit every 0.57 s keeps all five of 5 s stacks)
+// x 20% of 5 = 5.0/s from Poison, in the middle of the 9-12 budget (docs/jelly-types/spec-core.md).
+// Poison follows Attack damage alone, not hit=. Health regen is per second: 0.5 every 5 s
+jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs take damage over time and hit weaker." attack="poison" hit=0.6 adorn="toxin" area=#true {
+    status-taken "poisoned" less=0.2
     stat health-regen 0.1
     stat bubble-size 1.2
     stat health 28

@@ -268,8 +268,8 @@ export class Enemies {
     // status timers and position.
     bus.on('damage_taken', ({ targetId, amount, color, source, sound, feedback }) => {
       if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source, {
-        targetId, element: ['fire', 'acid', 'lightning'].includes(source) ? source : undefined,
-        tick: ['fire', 'acid', 'venom'].includes(source), ...feedback, by: hitBy(source, feedback?.element),
+        targetId, element: ['fire', 'acid', 'lightning', 'poison'].includes(source) ? source : undefined,
+        tick: ['fire', 'acid', 'venom', 'poison'].includes(source), ...feedback, by: hitBy(source, feedback?.element),
       });
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {

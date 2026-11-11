@@ -105,6 +105,7 @@ export class Gadgets {
     this.looks.reset();
     this.focus.visible=this.chordReady.visible=false;this.focusTarget=null;this.focusAge=this.focusKick=this.mouseAfter=0;
     this.t = {};
+    this.clouds = []; this.heals = new Map(); this.clock = 0;
     for (const b of this.bricks || []) this.group.remove(b.m);
     for (const m of this.marbles || []) { this.group.remove(m.m); m.hit.clear(); }
     this.bricks = [];
@@ -225,6 +226,8 @@ export class Gadgets {
   update(dt, ctx) {
     const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
+    this.clock = (this.clock || 0) + dt;
+    this.tickClouds(dt);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
 
@@ -507,6 +510,46 @@ export class Gadgets {
     } else if (ef.kind === 'xp') {
       ctx.dropXp?.(ef.xp);
     } else if (ef.kind === 'cone') this.cone(ef, ctx);
+    else if (ef.kind === 'cloud') this.cloud(ef, ctx);
+    else if (ef.kind === 'pass-stacks') this.passStacks(ef, ctx);
+    else if (ef.kind === 'heal') {
+      // at most `most` a second: the times this one healed in the last second
+      const times = (this.heals ||= new Map()).get(ef)?.filter((at) => this.clock - at < 1) || [];
+      if (times.length < ef.most && ctx.heal) { times.push(this.clock); ctx.heal(ef.health); }
+      this.heals.set(ef, times);
+    } else if (ef.kind === 'blob') ctx.blob?.(ef);
+  }
+
+  // cloud (Toxic Cloud): gas hangs where it went off; every 0.5 s each bug inside gets a Poison stack
+  // (pw: Attack damage x 4.5, from power = Attack damage x 1.8). It shows exactly as big and as long as it works
+  cloud(ef, { center, power, mods }) {
+    (this.clouds ||= []).push({ at: center.clone(), r: ef.radius, t: ef.time, life: ef.time, tick: 0, pw: this.bubbles?.poisonPw ?? power * 2.5, ep: this.bubbles?.mainParams('poison', mods) });
+    this.bubbles?.looks.poisonBurst(center, ef.radius);
+    sfx.elementHit('poison');
+  }
+  tickClouds(dt) {
+    if (!this.clouds?.length) return;
+    const B = this.bubbles, P = B?.looks.pz, c = _to;
+    for (const C of this.clouds) {
+      C.t -= dt;
+      if (P && Math.random() < dt * 10) {   // the gas churning inside its real edge, thinning as it ends
+        _cone.randomDirection().multiplyScalar(C.r * 0.7 * Math.random()).add(C.at);
+        this.fx.glow.emit(_cone, Math.random() < 0.5 ? P.gas : P.blob, C.r * 0.35, C.r * 0.6, 0.5, 0.3 * Math.min(1, C.t / 0.6));
+      }
+      if ((C.tick -= dt) > 0) continue;
+      C.tick = 0.5;
+      for (const e of this.near(C.at, C.r)) if (B && !e.dead) B.poison(e, C.pw, C.ep);
+    }
+    this.clouds = this.clouds.filter((C) => C.t > 0);
+  }
+
+  // pass-stacks (Burst Sac): the dead bug's stacks pass to every bug round it
+  passStacks(ef, { center, power, mods, statuses }) {
+    const n = statuses?.[ef.status] || 0, B = this.bubbles;
+    if (!n || !B) return;
+    B.looks.poisonBurst(center, ef.radius);
+    sfx.elementHit('poison');
+    for (const e of this.near(center, ef.radius)) if (!e.dead) B.poison(e, B.poisonPw ?? power * 2.5, B.mainParams('poison', mods), n);
   }
 
   // The Ink Cloud's squirt (Ink Cloud): a billow of near-black blue blobs bursting out round the bell and

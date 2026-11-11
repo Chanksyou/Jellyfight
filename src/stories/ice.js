@@ -101,7 +101,19 @@ story('treasures/ground-lock', {
     };
     const c = climb(true), u = climb(false);
     const stays = Math.abs(c.dy) < 1e-6 && Math.abs(c.dx) < 1e-6 && u.dy > 0.02;
-    return ok(free && !locked && unchilled && stays && !!mistake('ground-lock "soggy"'), { free, locked, unchilled, c, u, jelly: run.jelly });
+    // a flier whose word lifts it a little every frame: it rises, unless it is Chilled
+    const lift = (chilled) => {
+      const e = spawn('housefly', near(0, -0.4), { still: true });
+      e.T = { ...e.T, words: [{ tick: (b) => { b.pos.y += 0.01; } }] };
+      e.hold = false;
+      if (chilled) e.chillT = 99;
+      const y0 = e.pos.y; step(5);
+      const dy = e.pos.y - y0; e.dead = true;
+      return dy;
+    };
+    const fl = lift(true), fu = lift(false);
+    const flies = Math.abs(fl) < 1e-6 && fu > 0.02;
+    return ok(free && !locked && unchilled && stays && flies && !!mistake('ground-lock "soggy"'), { free, locked, unchilled, c, u, fl, fu, jelly: run.jelly });
   },
 });
 
@@ -199,7 +211,12 @@ story('treasures/ice-frostbite', {
     step(60 * 3);
     const ticks = (e) => log.filter((d) => d.source === 'ice' && d.targetId === e.id && d.feedback?.tick).map((d) => d.amount);
     const t = ticks(a);
-    return ok(t.length >= 3 && t.length <= 4 && t.every((x) => Math.abs(x - 1) < 1e-9) && !ticks(b).length, { ticks: t.length, amounts: t });
+    // the Ice jelly's rhythm: a hit every 0.83 s keeps the half-second beat running, so 2 s of hits tick 20% of a hit a second
+    const c = roachAt(-0.2, -0.3);
+    const n0 = ticks(c).length;
+    for (let i = 0; i < 3; i++) { shard(c, ice({ frostbite: 0.2 })); step(50); }
+    const beat = ticks(c).length - n0;   // 2.5 s: a tick every 0.5 s (4 or 5); a timer reset by each hit would give 3
+    return ok(t.length >= 3 && t.length <= 4 && t.every((x) => Math.abs(x - 1) < 1e-9) && !ticks(b).length && beat >= 4, { ticks: t.length, amounts: t, beat });
   },
 });
 

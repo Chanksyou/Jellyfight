@@ -10,6 +10,8 @@
 //   wind       a crescent wind blade, flat and bowed forward, with a fainter one behind it and wisps
 //              trailing off both tips (bubbles.js hits everything its arc passes through)
 //   glitter    a hot pink orb shedding twinkling sparks in every colour
+//   poison     the Poison jelly's blob: acid's wobbling glob in a cool green; it bursts in a sphere of gas
+//              (poisonBurst) and Poisoned bugs bubble and drip green while it lasts (poisoned)
 //
 // Every mesh is drawn instanced (batch.js) and every glow is a GlowPoints particle (vfx.js);
 // the lightning arcs share one line buffer. So a screen full of them is a handful of draw calls.
@@ -108,6 +110,12 @@ export class BubbleLooks {
       smoke: LOOK.color('fire-smoke', '#74655d'),
     };
     const F = this.fire;
+    // Poison (content/look.css --poison-*): a cool friendly green, never the Clog's violet acid
+    const PZ = this.pz = {
+      blob: C(LOOK.color('poison-blob', '#4ff0a0')), bright: C(LOOK.color('poison-bright', '#c8ffe4')),
+      deep: C(LOOK.color('poison-deep', '#12a866')), gas: C(LOOK.color('poison-gas', '#7dffc0')),
+      every: LOOK.num('poison-drip-every', 0.2), burstLife: LOOK.num('poison-burst-life', 0.35),
+    };
     const ball = new THREE.IcosahedronGeometry(1, 2);
     const flake = new THREE.CircleGeometry(1, 6), crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
     // Base at the hot core, tapered point trailing along local -z. No dynamic lights.
@@ -138,6 +146,13 @@ export class BubbleLooks {
         [ball, lit(0xc8ff6a), { name: 'bub', s: [0.36, 0.36, 0.36] }],
         [ball, lit(0x46d80c), { name: 'tail1', s: [0.62, 0.62, 0.8], at: [0, 0, -1.25] }],   // a sloshing tail
         [ball, lit(0x34b808), { name: 'tail2', s: [0.38, 0.38, 0.55], at: [0, 0, -2.05] }],
+      ],
+      poison: [
+        [ball, lit(PZ.blob), { name: 'blob' }],
+        [ball, lit(PZ.deep, 0.35), { s: [1.45, 1.45, 1.45] }],
+        [ball, lit(PZ.bright), { name: 'bub', s: [0.36, 0.36, 0.36] }],
+        [ball, lit(PZ.blob), { name: 'tail1', s: [0.62, 0.62, 0.8], at: [0, 0, -1.25] }],
+        [ball, lit(PZ.deep), { name: 'tail2', s: [0.38, 0.38, 0.55], at: [0, 0, -2.05] }],
       ],
       wind: [
         [crescent(WIND_ARC, 0.32), lit(0xffffff, 0.85, true), { name: 'blade', s: [1, 0.35, 1] }],
@@ -229,7 +244,7 @@ export class BubbleLooks {
   // each element's own colours for its gather, launch and contact: [main, bright accent]
   tones(el) {
     const F = this.fire;
-    return { fire: [F.flame, F.core], lightning: [COL.bolt, COL.spark], ice: [COL.frost, COL.snow], acid: [COL.acid, COL.drip], glitter: [COL.glitter[0], COL.glitter[1]] }[el] || [COL.snow, COL.snow];
+    return { fire: [F.flame, F.core], lightning: [COL.bolt, COL.spark], ice: [COL.frost, COL.snow], acid: [COL.acid, COL.drip], poison: [this.pz.blob, this.pz.bright], glitter: [COL.glitter[0], COL.glitter[1]] }[el] || [COL.snow, COL.snow];
   }
 
   // anticipation: motes of the element drawn in to the bell, tighter and brighter as `k` nears 1
@@ -275,6 +290,12 @@ export class BubbleLooks {
         glow.emit(pos, k % 3 ? COL.acid : COL.fume, r * 0.7, r * 0.35, 0.5 + Math.random() * 0.25, 1, _v.set(Math.cos(ang) * 0.12, 0.16 + Math.random() * 0.1, Math.sin(ang) * 0.12), 1.3);
       }
       this.fx.puff(_p.copy(pos).setY(pos.y + r), 0x9ab08a, r * 2.4, 0.6);                      // the sizzle's smoke
+    } else if (el === 'poison') {
+      glow.emit(pos, a, r * 4.5, r * 2, 0.2, 0.7);
+      for (let k = 0; k < 8; k++) {                                                             // a crown of green drops thrown up and falling
+        const ang = k * 0.79 + Math.random() * 0.3;
+        glow.emit(pos, k % 3 ? a : this.pz.deep, r * 0.6, r * 0.3, 0.45 + Math.random() * 0.2, 1, _v.set(Math.cos(ang) * 0.1, 0.14 + Math.random() * 0.08, Math.sin(ang) * 0.1), 1.3);
+      }
     } else if (el === 'glitter') {
       glow.emit(pos, a, r * 5, r * 3, 0.16, 0.6);
       for (let k = 0; k < 8; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 2)), COL.glitter[k % 5], r * 0.5, 0, 0.9 + Math.random() * 0.6, 1, _a.set((Math.random() - 0.5) * 0.05, 0.03, (Math.random() - 0.5) * 0.05), 0.05);   // twinkles drifting down
@@ -295,6 +316,29 @@ export class BubbleLooks {
   // a bug the glitter splash hit: it sparkles all over for a moment
   glittered(pos, r) {
     for (let k = 0; k < 5; k++) this.fx.glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.glitter[(Math.random() * 5) | 0], r * 0.45, 0, 0.35 + Math.random() * 0.4, 1.3, _a.set(0, 0.015, 0), 0.1);
+  }
+
+  // the Poison blob's burst: a sphere of green gas swelling out to its real edge (radius), a ring round
+  // its middle, wisps thrown to the edge. Nothing stays on the floor: the Poison shows on the bugs it reached
+  poisonBurst(pos, radius) {
+    const glow = this.fx.glow, P = this.pz, life = P.burstLife;
+    glow.emit(pos, P.bright, radius * 0.5, radius * 0.9, 0.08, 0.9);
+    glow.emit(pos, P.gas, radius * 0.8, radius * 2, life, 0.35);
+    this.fx.ring(pos, P.blob.getHex(), radius, life * 0.8);
+    for (let k = 0; k < 10; k++) {
+      _v.randomDirection();
+      glow.emit(_p.copy(pos).addScaledVector(_v, radius * 0.3), k % 2 ? P.gas : P.blob, radius * 0.25, radius * 0.45, life, 0.5, _a.copy(_v).multiplyScalar(radius * 2.2 / life), 0);
+    }
+  }
+  // a Poisoned bug, now and then while it lasts: a green bubble welling up off it and popping, a drop
+  // running off it and falling to `floor`
+  poisoned(pos, r, floor) {
+    const glow = this.fx.glow, P = this.pz;
+    glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r * 1.4, r * (0.3 + Math.random() * 0.6), (Math.random() - 0.5) * r * 1.4)), Math.random() < 0.5 ? P.blob : P.bright, r * 0.3, r * 0.5, 0.5, 0.9, _a.set(0, 0.03, 0));
+    if (Math.random() < 0.6) {
+      const t = Math.sqrt(Math.max(0.0005, pos.y - floor) * 2 / 1.4 / 9.8) + 0.05;   // about how long a drop takes to reach the floor
+      glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r, -r * 0.4, (Math.random() - 0.5) * r)), P.deep, r * 0.28, r * 0.2, Math.min(0.9, t), 1, _a.set(0, -0.01, 0), 1.4);
+    }
   }
 
   // the acid puddle splashing down: a ring of drops thrown out to its edge and a bright splat
@@ -512,18 +556,19 @@ export class BubbleLooks {
         }
         break;
       }
-      case 'acid': {
-        const k = Math.sin(t * 15 + w), j = Math.cos(t * 11 + w);
+      case 'acid': case 'poison': {
+        const k = Math.sin(t * 15 + w), j = Math.cos(t * 11 + w), pz = U.look === 'poison';
+        const body = pz ? this.pz.blob : COL.acid, drip = pz ? this.pz.deep : COL.drip, fume = pz ? this.pz.gas : COL.fume;
         U.blob.scale.set(1 + 0.22 * k, 1 - 0.2 * k, 1.1 + 0.15 * j);       // a wobbling glob
         U.bub.position.set(Math.cos(t * 7 + w) * 0.75, 0.55 + 0.2 * k, Math.sin(t * 7 + w) * 0.75);
         U.tail1.position.set(Math.sin(t * 13 + w) * 0.25, Math.cos(t * 11 + w) * 0.2, -1.25 - 0.15 * j);   // its tail sloshing behind it
         U.tail1.scale.set(0.62 - 0.1 * k, 0.62 + 0.1 * k, 0.8 + 0.2 * j);
         U.tail2.position.set(Math.sin(t * 13 + w - 1) * 0.4, Math.cos(t * 11 + w - 1) * 0.3, -2.05 - 0.2 * k);
-        glow.hold(m.position, COL.acid, r * 3.4, 0.35);
+        glow.hold(m.position, body, r * 3.4, 0.35);
         if (tick) {
-          for (let k = 0; k < steps; k++) glow.emit(along(k), COL.acid, r * 1.5, r * 0.3, 0.3, 0.5);   // a slimy streak
-          if (Math.random() < 0.7) glow.emit(_v.copy(m.position).setY(m.position.y - r * 0.8), COL.drip, r * 1.0, r * 0.6, 0.55, 0.95, _a.set((Math.random() - 0.5) * 0.02, -0.02, (Math.random() - 0.5) * 0.02), 1.4);   // drips fall
-          if (Math.random() < 0.5) glow.emit(tail, COL.fume, r * 1.2, r * 3, 0.7, 0.18, _a.set((Math.random() - 0.5) * 0.02, 0.035, (Math.random() - 0.5) * 0.02));   // toxic vapour coming off it
+          for (let k = 0; k < steps; k++) glow.emit(along(k), body, r * 1.5, r * 0.3, 0.3, 0.5);   // a slimy streak
+          if (Math.random() < 0.7) glow.emit(_v.copy(m.position).setY(m.position.y - r * 0.8), drip, r * 1.0, r * 0.6, 0.55, 0.95, _a.set((Math.random() - 0.5) * 0.02, -0.02, (Math.random() - 0.5) * 0.02), 1.4);   // drips fall
+          if (Math.random() < 0.5) glow.emit(tail, fume, r * 1.2, r * 3, 0.7, 0.18, _a.set((Math.random() - 0.5) * 0.02, 0.035, (Math.random() - 0.5) * 0.02));   // toxic vapour coming off it
         }
         break;
       }
