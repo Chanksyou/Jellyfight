@@ -2,8 +2,8 @@
 // (about three jellies tall) drops from above the arena for 8 beats and throws 32 light spots across
 // the floor, each on its own beam. Twice, 4 beats each: the spots wheel round as the ball turns for 3
 // beats, then stop and flash fast in the Encore's disco colour for the 4th, the Warning; as that beat
-// ends every spot strikes, hurting anything of the jelly on one up to --encore-floor-height (step off
-// it, or jump). The second time round the ball turns the other way. The song's breakdown skips it.
+// ends every spot strikes, hurting anything of the jelly in one's beam at any height (step off
+// it: a jump doesn't clear it). The second time round the ball turns the other way. The song's breakdown skips it.
 //
 // Time is in beats (the song's beatNow). No light is added: the ball, its rod, the beams and the
 // spots are four unlit or lightly lit draws, the spots and beams instanced.
@@ -196,13 +196,13 @@ export class EncoreDisco {
     }
     for (const m of [this.spots, this.beams]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
   }
-  // the spots where cycle `c` stopped strike: any under the jelly (its feet below the floor's hit
-  // height) hurts it, once
+  // the spots where cycle `c` stopped strike: any under the jelly hurts it, once, at any height (it's
+  // a beam of light from the ball: jumping doesn't clear it, stepping off does)
   strike(c, player, skip) {
     this.struck = c;
     if (skip) return;
     sfx.encoreDisco?.();
-    if (!player || player.position.y >= LOOK.num('encore-floor-height', 0.04)) return;
+    if (!player) return;
     const p = player.position, r = player.cfg?.radius ?? 0.03, t = this.turn(c * DISCO.cycle + DISCO.move), q = new THREE.Vector3();
     for (let i = 0; i < DISCO.spots; i++) if (this.spot(i, t, q) && Math.hypot(q.x - p.x, q.z - p.z) < this.spotR + r * 0.6) { this.onHit(DISCO_DMG, { name: 'disco' }); return; }
   }

@@ -1,8 +1,8 @@
 // The Encore's floor patterns (act 4): shapes of hot tiles that sweep across the concert floor a
 // tile every third of a beat, in time with its song, like notes coming down a rhythm game's lane. Each step
 // of a pattern is a set of tiles that goes off in its turn, with a low volume over them to the
-// height the hit reaches; anything of the jelly inside it (its feet below --encore-floor-height) is
-// hit. There are no Warning tiles ahead of the wave, by the owner's call (docs/adr/0001): you watch
+// height the hit reaches; anything of the jelly inside it (its feet below --encore-floor-height) while
+// the tile is lit is hit, so a jump has to be timed: land in the wave's wake and it still hurts. There are no Warning tiles ahead of the wave, by the owner's call (docs/adr/0001): you watch
 // the wave come at you. The Encore's wind-up is its Warning: the pyramid (or a wing) lights over the
 // bar before, and the DJ whose wave it is throws an arm up and pumps it on the beat until it's done.
 // Each wave is that DJ's colour. So: jump as it passes, or (an arc) step into its gap.
@@ -178,14 +178,13 @@ export class EncoreFloor {
     const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false };
     for (const c of this.casts) {
       const who = DJS.indexOf(c.dj);
-      // steps whose time has come: hit the jelly if it's in one (once a cast)
-      while (c.fired + 1 < c.steps.length && beat >= this.stepAt(c, c.fired + 1)) {
-        c.fired++;
-        if (!skip && !c.hit && player && player.position.y < band && this.touches(c.steps[c.fired], player)) { c.hit = true; this.onHit(c.dmg, c); }
-      }
-      // the wave: steps gone off, held near full then falling away over `fade` beats, so its front stays solid
+      // steps whose time has come
+      while (c.fired + 1 < c.steps.length && beat >= this.stepAt(c, c.fired + 1)) c.fired++;
+      // the wave: steps gone off, held near full then falling away over `fade` beats, so its front stays
+      // solid. A tile hurts the jelly while it's lit (once a cast), so landing in the wave's wake is hit too
       for (let k = Math.max(0, c.fired - Math.ceil(fade / c.step)); k <= c.fired; k++) {
         const u = (beat - this.stepAt(c, k)) / fade, h = Math.max(0, 1 - u * u);
+        if (h > 0 && !skip && !c.hit && player && player.position.y < band && this.touches(c.steps[k], player)) { c.hit = true; this.onHit(c.dmg, c); }
         for (const i of c.steps[k]) if (h > this.hot[i]) { this.hot[i] = h; this.who[i] = who; }
       }
       // the Encore winds up for it: its part fills over the bar before, flashes on the first step, fades after

@@ -73,13 +73,14 @@ function jumpTheRing(early) {
     p.spawn(V(x, 0.01, z)); p.snapToGround();
     let jump = false;
     const input = { moveAxes: () => ({ x: 0, y: 0 }), consumeJump: () => { const j = jump; jump = false; return j; }, jumpHeld: false };
-    let jumped = false, maxY = 0;
-    const due = T.floor.stepAt(T.floor.casts[0], 4);
+    let jumped = false, maxY = 0, overAtDue = null;
+    const due = T.floor.stepAt(T.floor.casts[0], 4), band = LOOK.num('encore-floor-height', 0.04);
     play(T.floor, p, -3, 6, (b) => {
       if (early !== null && !jumped && b >= due - early) { jump = jumped = true; }
       T.world.focus(p.position, DT); p.update(DT, input, 0); maxY = Math.max(maxY, p.position.y);
+      if (overAtDue === null && b >= due) overAtDue = p.position.y >= band;
     });
-    return { hits: T.hits.length, maxY };
+    return { hits: T.hits.length, maxY, overAtDue };
   } finally { T.done(); }
 }
 story('encore/a-jump-on-the-beat-clears-the-floor', {
@@ -88,6 +89,17 @@ story('encore/a-jump-on-the-beat-clears-the-floor', {
   play() {
     const onBeat = jumpTheRing(0.25), early = jumpTheRing(3.2), never = jumpTheRing(null);
     return ok(onBeat.hits === 0 && early.hits === 1 && never.hits === 1 && onBeat.maxY > 0.15, { onBeat, early, never });
+  },
+});
+
+story('encore/landing-in-the-waves-wake-is-hit', {
+  about: 'A hot tile keeps hurting while it is lit (just under half a beat), not only the instant it goes off: a jump pressed so early that the jelly is still over the wave as its tile goes off, but lands while that tile is lit, is hit.',
+  setup() {},
+  play() {
+    const tries = [];
+    for (let early = 2.3; early <= 3.1; early += 0.05) tries.push({ early: +early.toFixed(2), ...jumpTheRing(early) });
+    const wake = tries.filter((t) => t.overAtDue && t.hits === 1);
+    return ok(wake.length >= 1, { wake: wake.map((t) => t.early), tries: tries.map((t) => `${t.early}:${t.overAtDue ? 'over' : 'down'}/${t.hits}`) });
   },
 });
 
@@ -395,7 +407,7 @@ story('encore/the-disco-ball-comes-every-8-bars-from-32-bars-in', {
 });
 
 story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
-  about: 'Each 4 beats of the show: the 32 spots wheel round for 3 beats (moving), then stop and flash fast between warm white and hot magenta for the 4th; as it ends they strike where they stopped, hurting a jelly standing on one (once, for 4 Health), not one beside them, nor one jumping. The second 4 beats turn the other way and strike again. No light is added.',
+  about: 'Each 4 beats of the show: the 32 spots wheel round for 3 beats (moving), then stop and flash fast between warm white and hot magenta for the 4th; as it ends they strike where they stopped, hurting a jelly on one (once, for 4 Health), jumping or not (a beam of light: a jump doesn\'t clear it), but not one beside them. The second 4 beats turn the other way and strike again. No light is added.',
   setup() {},
   play() {
     const T = discoOn();
@@ -416,7 +428,7 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
       const on = strike((s) => [s.x, s.z]), clear = (s, d) => { for (let k = 0; k < 64; k++) { const x = s.x + Math.cos(k) * 0.12, z = s.z + Math.sin(k) * 0.12; let near = false; for (let i = 0; i < 32; i++) { const o = d.spot(i, d.turn(DISCO.move), new THREE.Vector3()); if (o && Math.hypot(o.x - x, o.z - z) < 0.07) near = true; } if (!near) return [x, z]; } return [9, 9]; };
       const beside = strike(clear), jumping = strike((s) => [s.x, s.z], 0.08);
       let after = 0; T.arena.root.traverse((o) => { if (o.isLight) after++; });
-      const strikes = on.n === 1 && on.dmg === DISCO_DMG && on.at >= 132 && on.at < 132.1 && beside.n === 0 && jumping.n === 0;
+      const strikes = on.n === 1 && on.dmg === DISCO_DMG && on.at >= 132 && on.at < 132.1 && beside.n === 0 && jumping.n === 1;
       return ok(moves && stops && flashes && reverse && strikes && lights === after, { moves, stops, colours: [...colours], reverse, on, beside, jumping });
     } finally { T.done(); }
   },
