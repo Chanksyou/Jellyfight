@@ -107,7 +107,7 @@ export class Gadgets {
       g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.006, 16).translate(0, 0.003, 0), this.lampBase));
       g.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.006, 0), this.lampDome));
       const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending }));
-      const rim = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.45, depthWrite: false }));
+      const rim = new THREE.Mesh(new THREE.RingGeometry(0.985, 1, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.45, depthWrite: false }));
       pool.position.y = rim.position.y = 0.002;
       g.add(pool, rim); g.userData.pool = pool; g.userData.rim = rim;
       g.visible = false; this.group.add(g);
@@ -167,7 +167,7 @@ export class Gadgets {
     for (const L of this.lamps) {
       L.age += dt;
       const p = L.g.position, u = Math.min(1, L.age / 0.4);   // it fades up as it's plugged in, then breathes
-      L.g.userData.pool.material.opacity = (0.06 + 0.04 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
+      L.g.userData.pool.material.opacity = (0.03 + 0.015 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
       if (Math.hypot(feet.x - p.x, feet.z - p.z) <= L.r && Math.abs(feet.y - p.y) < 0.15) this.lit = true;
     }
     for (const L of this.lamps) L.g.userData.rim.material.opacity = this.lit ? 0.7 : 0.35;   // the edge brightens while you're inside
@@ -202,7 +202,7 @@ export class Gadgets {
   // ghosts: a cleared bug rises again as a glow that hunts the bugs round it (run.js onKill)
   ghost(at, G) {
     if (this.ghosts.length >= G.most) return;
-    const m = this.fx.orb(this.ghostColor, 0.006);
+    const m = this.fx.orb(this.ghostColor, 0.008);
     m.position.copy(at);
     this.ghosts.push({ m, t: 0, rise: 0.4, rest: 0, prey: null, v: new THREE.Vector3(), home: at.y });
     this.fx.puff(at, this.ghostColor, 0.012, 0.4, 0.4);
@@ -223,7 +223,7 @@ export class Gadgets {
         if (g.rise <= 0) { fx.impact(m.position, this.ghostColor, 0.012, 5); sfx.gadgetGhost(); }   // release
         continue;
       }
-      fx.orbTick(m, dt, fade);
+      fx.orbTick(m, dt, 1.4 * fade);
       if (g.rest > 0) {                            // bounced off: it drifts back and bobs before the next one
         g.rest -= dt;
         m.position.addScaledVector(g.v, dt); g.v.multiplyScalar(1 - Math.min(1, dt * 4));
