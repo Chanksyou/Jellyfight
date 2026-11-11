@@ -69,6 +69,27 @@ story('types/wind-pierce-is-the-types-only', {
   },
 });
 
+story('types/pierce-reaches-every-types-main-attack', {
+  about: 'A Pierce stat goes through to any jelly type\'s main attack, not only the Wind jelly\'s: a Fire jelly\'s shot goes through 2 bugs with Pierce 1 and 1 without; so does the Poison jelly\'s blob (2 with Pierce 1), and the bug it first hits is still Poisoned.',
+  setup() { setupFight({ types: 'fire' }); },
+  play() {
+    const shots = () => { const s = spy(G().run.bubbles, 'blow'); step(90); return s.filter((c) => c[2].tint === 'fire').map((c) => c[2].pierce); };
+    roachAt(0, -0.15);
+    const plain = shots();
+    fresh({ types: 'fire' });
+    roachAt(0, -0.15);
+    G().run.stats.pierce = 1;
+    const withPierce = shots();
+    fresh({ types: 'poison' });
+    const first = roachAt(0, -0.15);
+    G().run.stats.pierce = 1;
+    const blob = spy(G().run.bubbles, 'blow');
+    step(90);
+    const blobs = blob.filter((c) => c[2].tint === 'poison').map((c) => c[2].pierce), poisoned = G().run.bubbles.poisoned.has(first) || first.dead;
+    return ok(plain.length > 0 && plain.every((p) => p === 1) && withPierce.length > 0 && withPierce.every((p) => p === 2) && blobs.length > 0 && blobs.every((p) => p === 2) && poisoned, { plain, withPierce, blobs, poisoned });
+  },
+});
+
 story('types/wind-look', {
   about: 'The Wind jelly wears its look (the gale piece: a swirl in the bell and air streaks circling it) and its tentacles stream back; another jelly has neither, and it never changes the body the player made.',
   setup() { setupFight({ types: 'wind' }); },

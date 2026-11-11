@@ -576,7 +576,7 @@ export class Gadgets {
       for (const e of this.near(w.at, w.r, { proxies: false })) {
         _cone.set(w.at.x - e.pos.x, 0, w.at.z - e.pos.z);
         const d = _cone.length();
-        if (d > 0.006) bus.emit('knockback', { targetId: e.id, dir: _cone.clone().divideScalar(d), force: Math.min(d - 0.004, w.pull * dt) });
+        if (d > 0.006) bus.emit('knockback', { targetId: e.id, dir: _cone.divideScalar(d), force: Math.min(d - 0.004, w.pull * dt) });
       }
     }
     this.whirls = this.whirls.filter((w) => w.t > 0);

@@ -1260,7 +1260,7 @@ export const TREASURE_WORDS = {
   },
   // --- Wind's Attack upgrades (P8d)
   'pushed-hits': {
-    doc: 'A bug your gust shoves hits every bug in its way as it slides: each takes the same damage as the shoved one took, once a gust. Not Elites or the boss.',
+    doc: 'A bug your gust shoves hits every bug in its way as it slides: each takes the same damage as the shoved one took, once per shoved bug. Not Elites or the boss.',
     make: () => (m) => { m.pushedHits = true; },
   },
   glide: {

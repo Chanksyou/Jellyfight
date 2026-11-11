@@ -73,8 +73,8 @@ export const AUDIT = {
     'elite-damage', 'bug-speed', 'more-bugs', 'every', 'dash', 'xp',
     'chill-to-freeze', 'ground-lock', 'slide-on-hit',   // Ice Attack upgrades: statuses on the ice shard's hits (the shard is audited above)
     'ink', 'reach-flare', 'reach-sweetspot', 'pin-on-stings', 'sting-count',   // Tentacle Attack upgrades: defence, or a change to the sting's reach and counting (the sting is audited above)
-    'percent-dot', 'spread-on-touch', 'split-on-hit', 'heal',
-    'pushed-hits', 'glide',   // Wind Attack upgrades: a gust's shove carrying on into the bugs it meets (audited with the gust), and drifting down in the air (movement)   // Poison Attack upgrades: damage over time, Poison passing on, the attack's own shots split (audited with it), healing
+    'percent-dot', 'spread-on-touch', 'split-on-hit', 'heal',   // Poison Attack upgrades: damage over time, Poison passing on, the attack's own shots split (audited with it), healing
+    'pushed-hits', 'glide',   // Wind Attack upgrades: a gust's shove carrying on into the bugs it meets (audited with the gust), and drifting down in the air (movement)
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {
