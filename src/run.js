@@ -181,7 +181,7 @@ export class Run {
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.health);
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
-    bus.on('big_splash', () => this.buff('big-splash'));
+    bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     // a jump's takeoff: a ring of water pushed out under the bell, a pop of bubbles, a bloop
     this.player.onJump = () => {
@@ -282,6 +282,7 @@ export class Run {
     this.collectAll = false;
     this.runId = (this.runId || 0) + 1;    // delayed steps (later()) belong to this run only
     this.pendingLevels = 0;
+    this.wishedIn = null;               // wish: the act its free level-up was used in
     this.choosingCard = false;        // a level-up's cards are open (keepProgress)
     this.owedCards = [];              // cards a reload owes, offered before any new roll
     this.iFrames = 0;
@@ -390,7 +391,7 @@ export class Run {
     if (this.dev || !this.carry || this.duel || this.bossWon || !['explore', 'intro', 'boss'].includes(this.phase)) return;
     const { mid, ...C } = this.carry;
     keepAct({ ...C, mid: {
-      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed],
+      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
@@ -405,7 +406,7 @@ export class Run {
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, eliteBugs: M.eliteBugs, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
-      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []),
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
     if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
@@ -597,6 +598,7 @@ export class Run {
         steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         blob: (ef) => this.bubbles.rain(origin, ef.count, ef.range, this.S, this.mods),
+        nextAttack: (ef) => { if (!this.attack || this.attack.kind === 'bubble' || this.attack.kind === 'tentacle') return false; this.bubbles.next = ef; return true; },   // an Element shot only
         dash: (k, time) => { this.dashK = k; this.dashT = time; } });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
@@ -979,6 +981,17 @@ export class Run {
     });
   }
 
+  // wish (Wish): once an act, a splash that killed enough gives a free level-up (the rest of the level's XP)
+  wish(kills) {
+    const W = this.mods.wish;
+    if (!W || kills < W.kills || this.wishedIn === this.stage.id) return;
+    this.wishedIn = this.stage.id;
+    this.gainXp(Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)));
+    const P = this.player.position;
+    this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.3), '🌠 WISH!', '#ffd23a', 22);
+    this.hud.toast('🌠 Your wish came true: a free level-up!', 1800);
+  }
+
   // stack-buff: an event adds a stack to every buff that answers it (up to its most) and restarts its time
   buff(event) {
     if (!event) return;
@@ -1015,6 +1028,7 @@ export class Run {
       const feet = new THREE.Vector3(c.x, floor, c.z);
       const ctx = { feet, center: c, facing: this.player.facing, power: this.power, mods: this.mods, statuses, heal: (n) => this.heal(n),
         dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
+        splash: (k) => this.bubbles.confetti(c, k, this.S, this.mods),
         dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of K.effects) this.gadgets.fire(ef, ctx);
     }
@@ -1056,6 +1070,10 @@ export class Run {
     // crumb-on-kill: now and then a bug leaves a Health crumb to pick up
     const cr = this.mods.crumbs;
     if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
+    // crumb-on-kill drop="level" (Jackpot): now and then a big XP gem worth the rest of the level
+    if (this.mods.jackpot && Math.random() < this.mods.jackpot.chance) {
+      if (this.xpDrops.gem(c, Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
+    }
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);

@@ -677,7 +677,7 @@ export function newMods() {
     bubbles: { pierce: 1, echo: null, golden: null, giant: null },
     elements: new Set(),
     element: {},                     // element -> its attack's numbers (ELEMENT_BASE, raised by element-up)
-    hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null, echo: null, edge: null, coil: null } },
+    hits: { bubbles: { mark: 0, markMore: 0, crit: null, pin: 0 }, splash: { mark: 0, markMore: 0, crit: null, pin: 0 }, tentacles: { mark: 0, markMore: 0, crit: null, pin: 0, venom: null, echo: null, edge: null, coil: null } },
     popZap: null,
     mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
     reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
@@ -718,6 +718,12 @@ export function newMods() {
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
     spreadOnTouch: [],               // spread-on-touch: statuses a bug passes on to bugs touching it (bubbles.js effects)
     split: null,                     // split-on-hit: { count, dmg, angle } (bubbles.js pop)
+    splashShots: [],                 // splash-shots, echo-bubble from="splash": { min, count, dmg } (bubbles.js glitterBurst)
+    randomStatus: null,              // random-status: { statuses, time } each glitter bomb rolls one (bubbles.js glitterBurst)
+    gild: null,                      // gild: { chance, time, bombs } (bubbles.js glitterBurst, gildTick)
+    splashReflect: false,            // splash-reflect: a burst near a wall goes off again, thrown back off it (bubbles.js)
+    wish: null,                      // wish: { kills } once an act, a splash that kills that many gives a level-up (run.js)
+    jackpot: null,                   // crumb-on-kill drop="level": { chance } a kill drops XP worth a whole level (run.js onKill)
     pushedHits: false,               // pushed-hits: a bug a gust shoves knocks into the bugs on its way (enemies.js push)
     glide: null,                     // glide: { fall, push } hold jump in the air to drift down (player.js), gusts blown then push further (bubbles.js)
     freeAttacks: 0,                  // stat bubbles … no-penalty=#true: Attacks that cost the others no damage (bubbles.js share)
@@ -732,7 +738,7 @@ export function newMods() {
   };
 }
 
-const BY = ['bubbles', 'tentacles', 'all'];
+const BY = ['bubbles', 'tentacles', 'splash', 'all'];   // splash: a glitter bomb's burst (types on); all is bubbles and tentacles
 const scopes = (by, where) => {
   if (!BY.includes(by)) throw new Error(`${where}: by= must be one of ${BY.join(', ')}`);
   return by === 'all' ? ['bubbles', 'tentacles'] : [by];
@@ -742,6 +748,7 @@ const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter', 'poi
 // The statuses a bug can have, as status-damage, status-taken and on-kill-of name them. Each has a
 // reader in Enemies.statuses (bubbles.js adds burning, combat.js bleeding) giving its stacks, 0 for none.
 export const STATUSES = ['frozen', 'chilled', 'slowed', 'stunned', 'marked', 'burning', 'bleeding', 'poisoned'];
+const RANDOM_STATUSES = ['burning', 'chilled', 'stunned', 'slowed'];   // what random-status can roll (bubbles.js colour)
 // What dealt a hit, as `by=` names it: a plain bubble, a tentacle, a splash, or an Element's shot
 // (its burn, arcs and puddles go by the Element's name too)
 export const HIT_BY = ['all', 'bubble', 'tentacle', 'splash', ...ELEMENT_IDS];
@@ -913,6 +920,23 @@ export const TIMED_WORDS = {
       return { kind: 'blob', ...p };
     },
   },
+  // --- Glitter's Attack upgrades (P8e)
+  'next-attack': {
+    doc: 'Your next attack (an Element shot) is a bigger one: its splash or burst `width` times as wide, `size` times bigger and `dmg` times the damage. The bell glows while it waits.',
+    props: { width: 1, size: 1, dmg: 1 },
+    make: (_, p) => {
+      if (!(p.width > 0 && p.size > 0 && p.dmg > 0) || (p.width === 1 && p.size === 1 && p.dmg === 1)) throw new Error('next-attack: width, size and dmg must be above 0, and one of them not 1');
+      return { kind: 'next-attack', ...p };
+    },
+  },
+  splash: {
+    doc: 'A glitter burst where it goes off (your Glitter attack\'s splash and its upgrades), for `dmg` times its usual damage.',
+    props: { dmg: 0.5 },
+    make: (_, p) => {
+      if (!(p.dmg > 0)) throw new Error('splash: dmg must be above 0');
+      return { kind: 'splash', ...p };
+    },
+  },
   // --- Wind's Attack upgrades (P8d)
   whirl: {
     doc: 'A whirlwind `radius` m across rises at the nearest bug within `range` m of you and stays `time` s, pulling every bug in it toward its middle at `pull` m/s.',
@@ -964,7 +988,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale'];   // ember, barbs, toxin, frost, storm, gale: the Fire, Tentacle, Poison, Ice, Lightning and Wind jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving'];
 
@@ -977,12 +1001,15 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'echo-bubble': {
-    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `on="kill"`: only a bubble that killed its enemy does, and the one it fires goes on the same way. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting.',
-    props: { dmg: 1, by: 'bubbles', on: 'hit' },
+    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `on="kill"`: only a bubble that killed its enemy does, and the one it fires goes on the same way. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting. `from="splash"`: every glitter burst fires `count` small shots from its middle at the nearest bugs within 20 cm, each `dmg` times the bomb\'s hit.',
+    props: { dmg: 1, by: 'bubbles', on: 'hit', from: 'pop', count: 1 },
     make: (_, p, where) => {
       if (p.by !== 'bubbles' && p.by !== 'tentacles') throw new Error(`${where}: by= must be bubbles or tentacles`);
       if (p.on !== 'hit' && p.on !== 'kill') throw new Error(`${where}: on= must be hit or kill`);
       if (p.on === 'kill' && p.by === 'tentacles') throw new Error(`${where}: on="kill" is for bubbles`);
+      if (p.from !== 'pop' && p.from !== 'splash') throw new Error(`${where}: from= must be pop or splash`);
+      if (!(Number.isInteger(p.count) && p.count >= 1)) throw new Error(`${where}: count= must be a whole number, 1 or more`);
+      if (p.from === 'splash') return (m) => { m.splashShots.push({ min: 0, count: p.count, dmg: p.dmg }); };
       return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg, onKill: p.on === 'kill' }; };
     },
   },
@@ -1109,7 +1136,15 @@ export const TREASURE_WORDS = {
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
-  'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
+  'crumb-on-kill': {
+    doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. `drop="level"`: a big XP gem worth the rest of your level instead. Copies add their chances.',
+    props: { chance: 0.02, health: 1, drop: 'health' },
+    make: (_, p, where) => {
+      if (p.drop !== 'health' && p.drop !== 'level') throw new Error(`${where}: drop= must be health or level`);
+      if (p.drop === 'level') return (m) => { m.jackpot = { chance: (m.jackpot?.chance || 0) + p.chance }; };
+      return (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { chance: p.chance, health: p.health }; };
+    },
+  },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
     doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
@@ -1166,7 +1201,7 @@ export const TREASURE_WORDS = {
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
   },
   'on-kill-of': {
-    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, shards, brick, bubble-ring, xp, cloud, pass-stacks, heal.',
+    doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, shards, brick, bubble-ring, xp, cloud, pass-stacks, heal, splash.',
     props: { status: null, by: null, stacks: 1 },
     block: TIMED_WORDS,
     make: (_, p, where, effects) => {
@@ -1242,7 +1277,7 @@ export const TREASURE_WORDS = {
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl, next-attack.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,
@@ -1299,6 +1334,43 @@ export const TREASURE_WORDS = {
     make: ([n], p) => {
       if (!(Number.isInteger(n) && n >= 1 && p.dmg > 0 && p.angle >= 0)) throw new Error('split-on-hit: count must be a whole number, 1 or more, dmg above 0 and angle 0 or more');
       return (m) => { m.split = { count: n, dmg: p.dmg, angle: p.angle }; };
+    },
+  },
+
+  // --- Glitter's Attack upgrades (P8e)
+  'random-status': {
+    doc: 'Each glitter bomb rolls one of `statuses` (any of burning, chilled, stunned, slowed) and gives it for `time` s to every bug its burst reaches; its burst shows in that colour.',
+    props: { statuses: 'burning chilled stunned', time: 1.5 },
+    make: (_, p) => {
+      const list = String(p.statuses).split(/\s+/).filter(Boolean);
+      if (!list.length || list.some((s) => !RANDOM_STATUSES.includes(s))) throw new Error(`random-status: statuses must be some of ${RANDOM_STATUSES.join(', ')}`);
+      if (!(p.time > 0)) throw new Error('random-status: time must be above 0');
+      return (m) => { m.randomStatus = { statuses: list, time: p.time }; };
+    },
+  },
+  gild: {
+    doc: '`chance` that a bug a glitter burst splashes turns to gold (never an Elite or the boss): held still and shining for `time` s, then it bursts into `bombs` small glitter bombs at the bugs nearest it, each half a bomb.',
+    props: { chance: 0.05, time: 3, bombs: 5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.time > 0 && Number.isInteger(p.bombs) && p.bombs >= 1)) throw new Error('gild: chance must be above 0 (at most 1), time above 0 and bombs a whole number, 1 or more');
+      return (m) => { m.gild = { ...p }; };
+    },
+  },
+  'splash-reflect': { doc: 'A glitter burst that reaches a wall goes off once more, thrown back off it: a second burst one radius back out from the wall, hurting bugs the first missed.', make: () => (m) => { m.splashReflect = true; } },
+  wish: {
+    doc: 'Once each act, a single splash that kills `kills` bugs or more gives you a free level-up.',
+    args: ['kills'],
+    make: ([n]) => {
+      if (!(Number.isInteger(n) && n >= 3)) throw new Error('wish: kills must be a whole number, 3 or more');
+      return (m) => { m.wish = { kills: n }; };
+    },
+  },
+  'splash-shots': {
+    doc: 'A glitter burst that reaches `min` bugs or more fires a shot from its middle at each of them (at most `count`, 0 = all), each `dmg` times the bomb\'s hit.',
+    props: { min: 5, dmg: 0.5, count: 0 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.min) && p.min >= 1 && p.dmg > 0 && Number.isInteger(p.count) && p.count >= 0)) throw new Error('splash-shots: min must be a whole number, 1 or more, dmg above 0 and count a whole number, 0 or more');
+      return (m) => { m.splashShots.push({ min: p.min, count: p.count, dmg: p.dmg }); };
     },
   },
   // --- Wind's Attack upgrades (P8d)

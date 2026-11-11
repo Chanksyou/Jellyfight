@@ -21,6 +21,8 @@
 //   wind (Paper Fan)         a fast crescent wind blade that hits across its whole width, pierces
 //                            once more and blasts what it hits away.
 //   glitter (Glitter)        a glitter bomb: a splash over twice as wide and much harder.
+//   As the Glitter jelly type's main attack (types on) the bomb's burst is a sphere you can see, the
+//   size of the real hit (glitterBurst), and its Attack upgrades hook in there.
 //   poison (the Poison jelly type's attack only, in place of acid): a blob that hits the first bug,
 //                            then bursts in a sphere that does no damage but adds a Poison stack to
 //                            every bug in it (poisoned: stacks, each a share of Attack damage a second).
@@ -54,6 +56,8 @@ export const ELEMENTS = [
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
+// random-status (Rainbow): the burst's colour for each status it rolls (red Burns, blue Chills, yellow Stuns)
+const STATUS_TINT = { burning: 0xff6a3a, chilled: 0x7ad8ff, stunned: 0xfff06a, slowed: 0x9fe4ff };
 const _down = new THREE.Vector3(0, -1, 0);
 const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
@@ -115,6 +119,9 @@ export class Bubbles {
     this.dotT = 0;                     // the 0.5 s beat percent-dot and spread-on-touch go on
     this.puddles = [];
     this.puddlePool = [];
+    this.gilded = [];                  // gild (Midas Touch): { e, t, b } bugs turned to gold, bursting when t runs out
+    this.next = null;                  // next-attack (Disco Bomb): the next main attack is bigger
+    this.mods = null;                  // the mods update last ran with (splash reads them)
     this.acidMat = new AcidMaterial();   // each puddle a copy (its own uniforms, the same program: no shader to build in a fight)
     this.puddleGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
     this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
@@ -133,6 +140,8 @@ export class Bubbles {
     this.burning.clear();
     this.frostbitten.clear();
     this.poisoned.clear();
+    this.gilded = [];
+    this.next = null;
     for (const T of this.traps) this.freeTrap(T);
     this.traps = [];
     this.focusOn = null;
@@ -203,6 +212,8 @@ export class Bubbles {
     const main = attack && EL[attack.kind] ? attack.kind : null;
     this.hit = attack?.hit ?? 1;
     this.main = main;
+    this.mods = mods;
+    if (this.next && main && !paused) this.looks.gather(main, origin, 1, stats.bubbleSize);   // Disco Bomb: the bell glows while the big one waits
     const ids = attack ? (main ? [main] : []) : this.elements(mods);
     if (this.windCharge && !ids.includes('wind')) this.cancelWind();
     if (paused) { this.cancelWind(); this.fly(dt, stats, mods); this.effects(dt, stats, mods); return; }
@@ -259,7 +270,7 @@ export class Bubbles {
   mainParams(id, mods) {
     const M = this._main;
     if (M?.id === id && M.mods === mods && M.hit === this.hit) return M.P;
-    const P = { ...(mods.element[id] || elementParams(id)), rate: BASE_FIRE_RATE, dmg: this.hit };
+    const P = { ...(mods.element[id] || elementParams(id)), rate: BASE_FIRE_RATE, dmg: this.hit, main: true };   // main: its splash is the type's (glitterBurst)
     this._main = { id, mods, hit: this.hit, P };
     return P;
   }
@@ -320,14 +331,15 @@ export class Bubbles {
     const near = this.inRange(origin, stats.range * P.range);
     if (!near.length) return false;
     const target = near[0];
-    const n = Math.max(1, Math.round(stats.bubbles)), count = n + Math.round(P.count), each = stats.bubbleDamage * this.share(n, mods);
+    const n = Math.max(1, Math.round(stats.bubbles)), count = n + Math.round(P.count);
+    let each = stats.bubbleDamage * this.share(n, mods);
     const dir = this.enemies.center(target).sub(origin).setY(0);
     if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
     const across = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), gap = Math.max(0.016, RADIUS * stats.bubbleSize * 3);
     const spread = (Math.random() - 0.5) * 0.12;
     // a lightning shot can be a big bolt (nth-attack) and can spend a charge (charged-shot): it arcs
     // harder, farther or to more bugs, or strikes everything round where it lands
-    let ep = P, size = stats.bubbleSize, big = null, strike = null;
+    let ep = P, size = stats.bubbleSize, big = null, strike = null, speed = P.speed;
     if (id === 'lightning') {
       big = this.nth(mods, ++this.bolts, 'bolt');
       const C = this.charge;
@@ -336,6 +348,11 @@ export class Bubbles {
         size *= big?.size ?? 1;
       }
       if (C) { if (C.strike) strike = { strike: C.strike, dmg: C.dmg }; this.charge = null; this.onCharged?.(C); }   // (a copy: run.js reuses C)
+    } else if (P.main) {
+      // another main attack's big ones: nth-attack big (Party Popper) and next-attack (Disco Bomb)
+      const N = this.nth(mods, ++this.volleys), X = this.next;
+      if (N) { each *= N.dmg; size *= N.size; speed *= N.speed; big = N; }
+      if (X) { each *= X.dmg; size *= X.size; if (X.width !== 1 && P.width) ep = { ...P, width: P.width * X.width }; this.next = null; big ||= X; }
     }
     // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1)
     const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) : 0);
@@ -344,11 +361,11 @@ export class Bubbles {
     for (let k = 0; k < count; k++) {
       if (angle && k > 0) {
         const turn = Math.ceil(k / 2) * angle * (k % 2 ? 1 : -1);
-        this.blow(origin.clone(), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed: P.speed, range: stats.range * P.range, spread: spread + turn, straight: true, big: !!big, strike });
+        this.blow(origin.clone(), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread: spread + turn, straight: true, big: !!big, strike });
         continue;
       }
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * (angle ? 0 : gap));
-      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed: P.speed, range: stats.range * P.range, spread, off, big: !!big, strike });
+      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread, off, big: !!big, strike });
     }
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
@@ -779,6 +796,7 @@ export class Bubbles {
       if (f.t <= 0) this.burning.delete(e);
     }
     this.poisonTick(dt, mods);
+    if (this.gilded.length) this.gildTick(dt);
     for (const p of this.puddles) {
       p.t -= dt;
       // it splats in (overshooting, then settling), then for its last 0.6 s shrinks, darkens and dries up
@@ -872,6 +890,7 @@ export class Bubbles {
     if (b.elems.has('poison')) { this.poisonBurst(b); return; }
     const p = b.m.position, glitter = b.elems.has('glitter');
     const splash = SPLASH * (b.r / RADIUS) * (glitter ? b.ep?.width ?? 2.2 : 1) * wide, E = this.enemies, c = this._c;
+    if (glitter && b.ep?.main) { this.glitterBurst(b, splash); return; }
     let kills = 0;
     if (glitter) {
       // the bomb goes off: real glitter flakes thrown out to the splash's edge, fluttering down and
@@ -904,6 +923,96 @@ export class Bubbles {
       if (e.dead || E.center(e, c).distanceTo(p) >= r + e.r) continue;
       this.poison(e, b.pw, b.ep);
     }
+  }
+
+  // The Glitter jelly's bomb going off (types on): a ball of sparkle exactly the size of the hit (a
+  // sphere: flying bugs inside are hit too), the bomb's flakes and pop, 40% of the bomb's power to
+  // every other bug inside. Its Attack upgrades hook in here: crit by="splash" (Lucky Sparkle),
+  // random-status (Rainbow), gild (Midas Touch), splash-reflect (Mirror Glitter), splash-shots and
+  // echo-bubble from="splash" (Star Burst, Prism), and the big-splash / wish count.
+  glitterBurst(b, r) {
+    const p = b.m.position, E = this.enemies, c = this._c, M = this.mods, H = M?.hits.splash;
+    const C = H?.crit, crit = !!C && Math.random() < C.chance;
+    const R = M?.randomStatus, roll = R ? R.statuses[(Math.random() * R.statuses.length) | 0] : null;
+    const floor = E.floorBelow(p, p.y - 0.03);
+    this.looks.sparkleBall(p, r, roll ? STATUS_TINT[roll] : EL.glitter.color, crit);
+    this.fx.glitter.burst(p, Math.round(LOOK.num('glitter-burst-flakes', 46) * Math.min(2, r / 0.05)), r, floor);
+    this.looks.glitterPop(p, r);
+    if (crit) { this.fx.crit(p, Math.min(0.02, r * 0.3)); sfx.crit(); }
+    else juice.feel('hit-big');
+    const amount = b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) * (crit ? C.mult : 1);
+    const inside = [];
+    let kills = 0;
+    for (const e of E.list) {
+      if (e.dead || E.center(e, c).distanceTo(p) >= r + e.r) continue;
+      inside.push(e);
+      if (roll) this.colour(e, roll, R.time, b);
+      if (b.hit.has(e)) continue;                                          // the bug the bomb hit took the hit itself
+      this.looks.glittered(c, e.r);
+      if (b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });
+      bus.emit('damage_taken', { targetId: e.id, amount, color: crit ? '#e6fbff' : '#ffb0f0', source: 'splash', feedback: { element: 'glitter', crit } });
+      if (e.dead) kills++;
+      else if (M?.gild && !b.small && !e.proxy && !this.gilded.some((g) => g.e === e) && Math.random() < M.gild.chance) this.gild(e, M.gild, b);
+    }
+    if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash, wish
+    // splash-shots (Star Burst: one at each bug inside) and echo-bubble from="splash" (Prism: the nearest)
+    for (const S of M?.splashShots || []) {
+      if (S.min && inside.length < S.min) continue;
+      const to = S.min ? inside.filter((e) => !e.dead) : this.inRange(p, 0.2);
+      for (const e of to.slice(0, S.count || to.length)) {
+        const k = this.blow(p, e, { size: b.r / RADIUS * 0.5, dmg: b.dmg * S.dmg, pierce: 1, speed: 1.6 });
+        k.child = true; k.splashed = true;   // a little shot: its own pop, no splash of its own
+      }
+      if (to.length) sfx.gadgetEcho();
+    }
+    // splash-reflect (Mirror Glitter): the burst reaches a wall, so it goes off again, thrown back off it
+    if (M?.splashReflect && !b.mirrored) {
+      let best = null;
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2, d = this._dir.set(Math.cos(a), 0, Math.sin(a)), h = this.world.cast(p, d, r);
+        if (h && (!best || h.distance < best.distance)) best = { distance: h.distance, dir: d.clone() };
+      }
+      if (best) {
+        const m = { position: p.clone().addScaledVector(best.dir, best.distance - r) };
+        this.glitterBurst({ ...b, m, hit: new Set([...b.hit, ...inside]), mirrored: true }, r);
+      }
+    }
+  }
+
+  // random-status (Rainbow): one bug the burst reached gets the bomb's colour
+  colour(e, status, time, b) {
+    if (status === 'burning') { this.ignite(e, b.pw, { burnTime: time }); return; }
+    bus.emit('status_applied', { targetId: e.id, status: status === 'chilled' ? 'chill' : status === 'stunned' ? 'stun' : 'slow', duration: time });
+  }
+
+  // gild (Midas Touch): the bug turns to gold, held still, then bursts into small bombs
+  gild(e, G, b) {
+    this.gilded.push({ e, t: G.time, bombs: G.bombs, b: { r: b.r * 0.6, dmg: b.dmg * 0.5, pw: b.pw * 0.5, ep: b.ep } });
+    bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: G.time });
+    sfx.gadgetBubble('gold');
+  }
+  gildTick(dt) {
+    const E = this.enemies, c = this._c;
+    for (const g of this.gilded) {
+      const at = E.center(g.e, c);
+      if (!g.e.dead && (g.t -= dt) > 0) { this.fx.glow.hold(at, GOLD, g.e.r * 3.2, 0.75 + Math.sin(this.clock * 12) * 0.15); if (Math.random() < dt * 12) this.looks.glittered(at, g.e.r); continue; }
+      g.t = 0;
+      // it bursts: a gold flash, and small bombs at the bugs nearest it
+      this.fx.impact(at, GOLD, g.e.r * 2.5, 14);
+      const from = at.clone(), B = g.b;
+      for (const e of this.inRange(from, 0.2, new Set([g.e])).slice(0, g.bombs)) {
+        this.blow(from, e, { size: B.r / RADIUS, dmg: B.dmg, pw: B.pw, elems: ['glitter'], tint: 'glitter', ep: B.ep, pierce: 1, speed: B.ep?.speed, range: 0.2 }).small = true;   // a gold bomb never gilds again
+      }
+      sfx.elementLaunch('glitter');
+    }
+    this.gilded = this.gilded.filter((g) => g.t > 0);
+  }
+
+  // splash (Confetti Pop): a glitter burst at `at` for `k` times the attack's usual damage
+  confetti(at, k, stats, mods) {
+    const P = this.mainParams('glitter', mods), n = Math.max(1, Math.round(stats.bubbles)), each = stats.bubbleDamage * bubbleShare(n) * k;
+    const b = { m: { position: at.clone() }, r: RADIUS * stats.bubbleSize, dmg: each * P.dmg, pw: each * 4.5, ep: P, elems: new Set(['glitter']), hit: new Set() };
+    this.glitterBurst(b, SPLASH * stats.bubbleSize * (P.width ?? 2.2));
   }
 
   // give a bug `n` Poison stacks (up to ep.poisonStacks; each new one restarts the time). pw: the power it was

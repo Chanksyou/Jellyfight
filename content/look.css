@@ -558,6 +558,9 @@
   --glitter-burst-flakes: 46;    /* flakes in a bomb (more for a wider splash) */
   --glitter-death-flakes: 34;    /* flakes a glitter-finished bug bursts into (more for big ones) */
   --glitter-pop: #ff9ae8;
+  --glitter-ball-life: 0.32;     /* Glitter jelly: s its burst's ball of sparkle (the real hit sphere) shows */
+  --glitter-ball-opacity: 0.8;   /* how bright it starts */
+  --glitter-ball-most: 8;        /* at most this many at once (the oldest is reused) */
   /* ice (Freezer Pack): its shards, the frost flower where one strikes, a chilled bug's crown (ice-looks.js, enemies.js) */
   --ice-shard: #cfefff;          /* the crystal shards that burst out of a hit and a chilled bug's shatter */
   --ice-shard-glow: #3aa8ff;     /* their cold inner glow */
@@ -613,6 +616,15 @@
   --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */
   --toxin-drips: 6;               /* drips off the rim at most at once */
   --toxin-drip-every: 0.35;       /* seconds between them */
+  --sparkle-shimmer: 0.6;         /* Glitter jelly: colours a second the core drifts through (the --glitter-flakes) */
+  --sparkle-core-size: 0.12;      /* the rainbow core's radius, in shares of the jelly's height (emissive, not a light) */
+  --sparkle-core-y: 0.82;         /* its height in the bell (model units: the rim is at 0.56) */
+  --sparkle-glow-size: 0.7;       /* the soft glow round it, in shares of the jelly's height */
+  --sparkle-bead-size: 1.5;       /* the glinting bead on each tentacle tip, in tentacle widths */
+  --sparkle-twinkles: 7;          /* star twinkles over the bell at most at once */
+  --sparkle-twinkle-every: 0.16;  /* seconds between them */
+  --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
+  --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
   --gale-core: #ffffff;           /* Wind jelly: the swirl spinning in the bell (emissive, not a light) */
   --gale-core-size: 0.12;         /* its radius, in shares of the jelly's height */
   --gale-glow-size: 0.6;          /* the soft glow round it, likewise */

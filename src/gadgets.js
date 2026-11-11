@@ -561,6 +561,8 @@ export class Gadgets {
       if (times.length < ef.most && ctx.heal) { times.push(this.clock); ctx.heal(ef.health); }
       this.heals.set(ef, times);
     } else if (ef.kind === 'blob') ctx.blob?.(ef);
+    else if (ef.kind === 'splash') ctx.splash?.(ef.dmg);              // Confetti Pop
+    else if (ef.kind === 'next-attack') { if (ctx.nextAttack?.(ef)) { sfx.elementLaunch('glitter'); ctx.pulse?.(0.25); } }   // Disco Bomb
     else if (ef.kind === 'whirl') this.whirl(ef, ctx);
   }
 

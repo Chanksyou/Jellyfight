@@ -112,7 +112,7 @@ story('types/third-chest-is-ordinary', {
 
 story('types/upgrades-survive-reload', {
   act: 2,
-  about: 'Attack upgrades taken are carried into the next act and through a reload part way through an act, and keep working (Slow Burn: 3 Burns on one bug); the run log lists them.',
+  about: 'Attack upgrades taken are carried into the next act and through a reload part way through an act, and keep working (Slow Burn: 3 Burns on one bug), a Wish spent in the act stays spent; the run log lists them.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const { run } = G(), was = sessionStorage.getItem('jellyrun.act'), wasCarry = run.carry, kept = localStorage.getItem(SAVE_KEY);
@@ -125,11 +125,11 @@ story('types/upgrades-survive-reload', {
       run.carry = start; run.resumed = false;
       run.start();
       const carriedOn = run.upgrades.join() === 'slowBurn,stoke';
-      run.t = 90; run.dev = false;
+      run.t = 90; run.dev = false; run.wishedIn = 2;   // Wish spent in this act: a reload doesn't give it back
       run.keepProgress();
       run.carry = carried(); run.resumed = false;
       run.start();
-      const back = run.upgrades.join() === 'slowBurn,stoke' && run.t === 90 && run.mods.element.fire?.burnStacks === 3 && !!run.mods.burnRamp;
+      const back = run.upgrades.join() === 'slowBurn,stoke' && run.t === 90 && run.wishedIn === 2 && run.mods.element.fire?.burnStacks === 3 && !!run.mods.burnRamp;
       const rows = [];
       Object.assign(run, { dev: false, logStarted: true, telemetryDisabled: false, board: { runLog: true, saveRun: (r) => rows.push(r) } });
       run.recordRun('in-progress');

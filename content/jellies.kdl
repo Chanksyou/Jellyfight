@@ -74,7 +74,11 @@ jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove the
     stat fire-rate 1.5
 }
 
-jelly "glitter" name="Glitter Jelly" about="Glitter bombs burst into a sparkling ball that splashes every bug inside." attack="glitter" hit=1 area=#true {
+// Glitter: slow bombs that burst in an 8 cm sphere (10 cm at its Attack size), 40% of Attack damage to
+// every other bug inside, flying ones too. hit=1.3 lands it at 9.4 damage a second on one bug:
+// 4.8 x 1.3 x 1.5/s (the splash never hits the bug the bomb hit, so it doesn't count), the low end of
+// the 9-12 budget: a crowd of 5 takes 9.4 + 4 x 4.8 x 0.4 x 1.5 = 21 more (docs/jelly-types/spec-core.md)
+jelly "glitter" name="Glitter Jelly" about="Glitter bombs burst into a sparkling ball that splashes every bug inside." attack="glitter" hit=1.3 adorn="sparkle" area=#true {
     stat luck 10
     stat bubble-size 1.25
     stat dodge 5
