@@ -50,10 +50,11 @@ export class LayoutSystem {
 // On-screen controls: shown only while playing, with the context button for the moment
 export class TouchSystem {
   constructor({ state, touch, run, menuOpen, isTouch }) { Object.assign(this, { state, touch, run, menuOpen, isTouch }); }
-  update() {
+  update(dt) {
     if (this.state.mode !== 'play') return;
     this.touch.show(this.isTouch && !this.menuOpen());
     this.touch.setAction(this.run.touchAction);
+    this.touch.update(dt);
   }
 }
 

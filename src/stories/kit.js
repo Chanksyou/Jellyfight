@@ -71,6 +71,7 @@ export function fresh({ waves = false, treasures = false, hurt = false, levels =
   menus.close();
   run.start();
   run.firstRun = new FirstRun(firstRun);   // a player's first run, or (by default) any other run
+  G().touch.setTurnHint(firstRun);         // the camera-turn hint (touch.js) as a new player sees it, else gone
   run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
   if (!waves) stub(run, 'spawnWaves', () => {});

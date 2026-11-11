@@ -1170,4 +1170,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, THREE, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });
