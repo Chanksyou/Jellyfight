@@ -718,6 +718,15 @@ export function newMods() {
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
     spreadOnTouch: [],               // spread-on-touch: statuses a bug passes on to bugs touching it (bubbles.js effects)
     split: null,                     // split-on-hit: { count, dmg, angle } (bubbles.js pop)
+    freeAttacks: 0,                  // stat bubbles … no-penalty=#true: Attacks that cost the others no damage (bubbles.js share)
+    ricochet: 0,                     // rebound walls-only=#true: wall ricochets a bubble gets (bubbles.js fly)
+    trap: null,                      // trap-on-hit: { chance, time } (bubbles.js strike)
+    homing: null,                    // homing: { turn, reach } (bubbles.js fly)
+    popChain: null,                  // pop-chain: { dmg, range } (bubbles.js pop)
+    wobble: null,                    // wobble: { width, rate } (bubbles.js fly)
+    focusRamp: null,                 // focus-ramp: { step, most } (bubbles.js strike)
+    rangePop: null,                  // range-pop: { splash } (bubbles.js fly)
+    orbitMisses: false,              // orbit-misses (bubbles.js fly)
   };
 }
 
@@ -956,11 +965,13 @@ export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage':
 export const TREASURE_WORDS = {
   pierce: { doc: 'Each bubble pops on up to `count` enemies in a line.', args: ['count'], make: ([n]) => (m) => { m.bubbles.pierce = Math.max(m.bubbles.pierce, n); } },
   'echo-bubble': {
-    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting.',
-    props: { dmg: 1, by: 'bubbles' },
+    doc: 'Every bubble that pops on an enemy fires again from there at the next enemy within 20 cm, once, doing `dmg` times the first bubble\'s damage. `on="kill"`: only a bubble that killed its enemy does, and the one it fires goes on the same way. `by="tentacles"`: every sting jumps on to the nearest other enemy within your Tentacle reach instead, once, doing `dmg` times the sting.',
+    props: { dmg: 1, by: 'bubbles', on: 'hit' },
     make: (_, p, where) => {
       if (p.by !== 'bubbles' && p.by !== 'tentacles') throw new Error(`${where}: by= must be bubbles or tentacles`);
-      return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg }; };
+      if (p.on !== 'hit' && p.on !== 'kill') throw new Error(`${where}: on= must be hit or kill`);
+      if (p.on === 'kill' && p.by === 'tentacles') throw new Error(`${where}: on="kill" is for bubbles`);
+      return (m) => { if (p.by === 'tentacles') m.hits.tentacles.echo = { dmg: p.dmg }; else m.bubbles.echo = { dmg: p.dmg, onKill: p.on === 'kill' }; };
     },
   },
   'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
@@ -1028,7 +1039,14 @@ export const TREASURE_WORDS = {
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
   'tentacle-weapon': { doc: 'Your tentacles lash whatever your jelly type (with jelly types only the Tentacle jelly lashes otherwise); for the Tentacle jelly, more `tentacles` (stat) add to its Attacks.', make: () => (m) => { m.tentacleWeapon = true; } },
-  rebound: { doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight.', make: () => (m) => { m.rebound = true; } },
+  rebound: {
+    doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight. `walls-only=#true`: instead a bubble that hits a wall ricochets off it, up to `times` times, and flies on with its Range; nothing comes back to you.',
+    props: { 'walls-only': false, times: 1 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.times) && p.times >= 1)) throw new Error('rebound: times must be a whole number, 1 or more');
+      return (m) => { if (p['walls-only']) m.ricochet = Math.max(m.ricochet, p.times); else m.rebound = true; };
+    },
+  },
   decoy: {
     doc: 'Every `every` seconds spent moving, leaves a harmless copy for `time` seconds that attracts ordinary bugs within `range` m. Existing projectiles and locked aims stay unchanged.',
     props: { every: 8, time: 3, range: 0.45 },
@@ -1079,14 +1097,15 @@ export const TREASURE_WORDS = {
   'crumb-on-kill': { doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. Copies add their chances.', props: { chance: 0.02, health: 1 }, make: (_, p) => (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { ...p }; } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
     args: ['name', 'amount'],
-    props: { percent: false },
+    props: { percent: false, 'no-penalty': false },
     make: ([name, amount], p) => {
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
-      return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; };
+      if (p['no-penalty'] && (key !== 'bubbles' || p.percent || !(amount > 0))) throw new Error('stat: no-penalty=#true only goes with a positive whole number of bubbles (Attacks)');
+      return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; if (p['no-penalty']) m.freeAttacks += amount; };
     },
   },
   per: {
@@ -1266,6 +1285,62 @@ export const TREASURE_WORDS = {
       if (!(Number.isInteger(n) && n >= 1 && p.dmg > 0 && p.angle >= 0)) throw new Error('split-on-hit: count must be a whole number, 1 or more, dmg above 0 and angle 0 or more');
       return (m) => { m.split = { count: n, dmg: p.dmg, angle: p.angle }; };
     },
+  },
+  'trap-on-hit': {
+    doc: 'Each hit has `chance` to trap an ordinary bug in a bubble that holds it still (it can\'t move) for `time` s, then bursts. Elites and the boss are too big to trap.',
+    props: { chance: 0.125, time: 1.5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.time > 0)) throw new Error('trap-on-hit: chance must be above 0 and at most 1, and time above 0');
+      return (m) => { m.trap = m.trap ? { chance: Math.min(1, m.trap.chance + p.chance), time: Math.max(m.trap.time, p.time) } : { chance: p.chance, time: p.time }; };
+    },
+  },
+  homing: {
+    doc: 'Bubbles curve toward the nearest bug within `reach` m of them, turning up to `turn` radians a second.',
+    args: ['turn'],
+    props: { reach: 0.1 },
+    make: ([turn], p) => {
+      if (!(turn > 0 && p.reach > 0)) throw new Error('homing: turn and reach= must be above 0');
+      return (m) => { m.homing = { turn: Math.max(m.homing?.turn ?? 0, turn), reach: Math.max(m.homing?.reach ?? 0, p.reach) }; };
+    },
+  },
+  'pop-chain': {
+    doc: 'A bubble that pops on a bug also pops every other bubble within `range` m of it, in a splash that hurts each bug for `dmg` times that bubble\'s damage; those pop the bubbles next to them in turn.',
+    args: ['dmg'],
+    props: { range: 0.04 },
+    make: ([dmg], p) => {
+      if (!(dmg > 0 && p.range > 0)) throw new Error('pop-chain: dmg and range= must be above 0');
+      return (m) => { m.popChain = { dmg, range: p.range }; };
+    },
+  },
+  wobble: {
+    doc: 'Bubbles zigzag side to side as they fly, swinging `width` m either side of their line, brushing the bugs along it. `rate` is how fast, in radians a second.',
+    args: ['width'],
+    props: { rate: 9 },
+    make: ([width], p) => {
+      if (!(width > 0 && p.rate > 0)) throw new Error('wobble: width and rate= must be above 0');
+      return (m) => { m.wobble = { width: Math.max(m.wobble?.width ?? 0, width), rate: p.rate }; };
+    },
+  },
+  'focus-ramp': {
+    doc: 'Each hit in a row on the same bug does `step` (0.1 = 10%) more than the one before, up to `most` more. Hitting another bug starts over.',
+    args: ['step'],
+    props: { most: 0.5 },
+    make: ([step], p) => {
+      if (!(step > 0 && p.most >= step)) throw new Error('focus-ramp: step must be above 0 and most= at least step');
+      return (m) => { m.focusRamp = { step, most: p.most }; };
+    },
+  },
+  'range-pop': {
+    doc: 'A bubble that flies to the end of its Range without hitting anything pops in a splash `splash` times as wide as usual.',
+    args: ['splash'],
+    make: ([splash]) => {
+      if (!(splash > 1)) throw new Error('range-pop: splash must be more than 1');
+      return (m) => { m.rangePop = { splash: Math.max(m.rangePop?.splash ?? 0, splash) }; };
+    },
+  },
+  'orbit-misses': {
+    doc: 'A bubble that reaches the end of its Range without popping circles you once, at that distance, hitting the bugs it touches, then pops.',
+    make: () => (m) => { m.orbitMisses = true; },
   },
   // Lightning jelly (P8b)
   'touch-zap': {
