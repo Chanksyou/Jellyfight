@@ -1,0 +1,1 @@
+builds the Wind jelly type behind the jelly types switch: fast gusts that go through three bugs and shove them back, a white swirl and streaming tentacles for its look, and its 12 Attack upgrades (Cyclone, Bowling, Glide: hold jump in the air to drift down, and more).

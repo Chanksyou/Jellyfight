@@ -567,7 +567,7 @@
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
-  /* Jelly types' looks (src/adornments.js ember, barbs, frost and toxin; content/jellies.kdl adorn=) */
+  /* Jelly types' looks (src/adornments.js ember, barbs, frost, toxin and gale; content/jellies.kdl adorn=) */
   --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
   --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
   --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
@@ -613,6 +613,16 @@
   --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */
   --toxin-drips: 6;               /* drips off the rim at most at once */
   --toxin-drip-every: 0.35;       /* seconds between them */
+  --gale-core: #ffffff;           /* Wind jelly: the swirl spinning in the bell (emissive, not a light) */
+  --gale-core-size: 0.12;         /* its radius, in shares of the jelly's height */
+  --gale-glow-size: 0.6;          /* the soft glow round it, likewise */
+  --gale-core-y: 0.8;             /* its height in the bell (model units: the rim is at 0.56) */
+  --gale-core-spin: 7;            /* radians a second it turns */
+  --gale-streak: #e6f8ff;         /* the thin air streaks circling the bell */
+  --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
+  --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
+  --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
+  --glide-streak-every: 0.09;     /* seconds between the air streaks rising past you while you glide */
   /* the Poison jelly's attack (src/bubble-looks.js poison): a cool friendly green, never the Clog's violet acid */
   --poison-blob: #4ff0a0;         /* the blob and its streak */
   --poison-bright: #c8ffe4;       /* its bubble and the bright heart of a burst */

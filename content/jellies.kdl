@@ -62,7 +62,10 @@ jelly "poison" name="Poison Jelly" about="A blob that bursts into Poison: bugs t
     stat range 0.25
 }
 
-jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1 {
+// Wind: the gust at full Fire rate. hit=1.15 lands it at 10.35 damage a second on one bug (6 x 1.15 x 1.5/s,
+// the 0.28 s wind-up inside each 0.67 s gust), in the middle of the 9-12 budget (docs/jelly-types/spec-core.md).
+// Its pierce, push and the hit again on scenery are on top and don't count: they need other bugs or walls
+jelly "wind" name="Wind Jelly" about="Fast gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1.15 adorn="gale" {
     stat move-speed 1.2
     stat jump-height 1.2
     stat range 0.36

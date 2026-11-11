@@ -126,6 +126,10 @@ A bug held still in a bubble (Bubble Trap) for 1.5 s: it can't move until the bu
 **Poison**:
 The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to every bug inside: each stack does 20% of Attack damage a second for 5 s, up to 5 stacks, and a new stack starts the time again. A Poisoned bug also deals 20% less damage to the jelly (Elites and the boss don't). Not the Clog's acid, which stays "acid".
 
+**Gust**:
+The Wind jelly type's attack: a fast crescent of wind that goes through bugs, shoves each one back, and hits a bug it slams into furniture a second time. Its upgrades (Gale, Crosswind, Jet Stream…) change how it flies.
+_Avoid_: Wind blade
+
 **Warning**:
 What shows where an Elite's or the Boss's attack will land before it does: a shape on the floor, with the space it will fill above it, both filling up to the moment of the hit.
 _Avoid_: Telegraph

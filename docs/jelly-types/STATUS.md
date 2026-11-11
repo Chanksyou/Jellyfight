@@ -16,7 +16,7 @@ One line per phase, newest last. The orchestrator reads this at the start of eve
 | P8a Ice | merged | #238 | v401 · Frost look (crystal, tip frost, mist); Ice's 12 Attack upgrades; words chill-to-freeze, ground-lock, slide-on-hit, shards, and props on ring, shield-recharge, shield-burst, element-up ice |
 | P8b Lightning | merged | #241 | v402 |
 | P8c Poison | merged | #236, #237 | v399-v400 · Blob + sphere burst + Poison stacks (no puddles), weakening via status-taken, toxin look, 12 upgrades, seven new words; hit=0.6 (10.3/s) |
-| P8d Wind | not started | | |
+| P8d Wind | in review | | Gust as the Wind jelly's main attack (hit=1.15 -> 10.35/s), Pierce +1 reaches a type's main attack, gale look, 12 upgrades, new words whirl, pushed-hits, glide + props on landing-shockwave, when-hit, wind element-up |
 | P8e Glitter | not started | | |
 | P8n Normal pool | in review | | Normal's 12 Attack upgrades (Double Bubble to Orbit); words trap-on-hit, homing, pop-chain, wobble, focus-ramp, range-pop, orbit-misses; props stat no-penalty, rebound walls-only, echo-bubble on="kill"; the trap status |
 | P9 | merged | #230 | v393 · Evolutions join the Legendary pick with types on (still in content/evolutions.kdl until P11); not-for= on Rebound, Man o' War, Disco Ball; tentacle-weapon word |

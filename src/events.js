@@ -14,7 +14,7 @@
 //   player_hurt     { amount, from?, contact? }   a hit on the jelly that really landed (past i-frames, dodge,
 //                   shields), after its Health went down; feedback only (enemies.js answers its attacker)
 //   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'trap' (held still in a bubble, with no sparks: trap-on-hit) | 'chill' | 'freeze' | 'thaw' | 'bleed' (the jelly: `strength` Health a second for `duration` s, each one stacking)
-//   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy)
+//   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy); pushHits: damage to each other bug it slides through (pushed-hits)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
 //   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent, chilled, element, dir, by, statuses, body, remains? } by: what dealt the last hit (words.js hitBy); statuses: what it was as it died, name -> stacks (on-kill-of); remains: presentation-only model/pose, never a target; chilled: it died chilled (ice), so it shatters; element: what its last hit was (glitter: it bursts into glitter; acid: its body melts; wind: it's blown away along dir)
