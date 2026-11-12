@@ -54,7 +54,7 @@ story('types/glitter-plays', {
 });
 
 story('types/glitter-burst-sphere', {
-  about: 'The Glitter jelly\'s burst is a 10 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 15 cm off nor the bug the bomb hit, and shows a ball of sparkle swelling out to that same 10 cm and fading. The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
+  about: 'The Glitter jelly\'s burst is a 10 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 15 cm off nor the bug the bomb hit, and shows a plain glassy ball (no Warning hex cells) swelling out to that same 10 cm and fading. The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
   setup() { quiet(); },
   play() {
     const { run, enemies } = G(), B = run.bubbles;
@@ -62,7 +62,7 @@ story('types/glitter-burst-sphere', {
     const log = record('damage_taken');
     B.splash(bomb(hit));
     const got = { hit: splashOn(log, hit).length, beside: splashOn(log, beside)[0], flyer: splashOn(log, flyer)[0], far: splashOn(log, far).length };
-    const ball = B.looks.balls.find((v) => v.visible);
+    const ball = B.looks.balls.find((v) => v.visible), plain = ball?.material.uniforms.uLines.value === 0;
     step(12);
     const grown = ball?.scale.x;
     step(30);
@@ -74,8 +74,8 @@ story('types/glitter-burst-sphere', {
     G().run.bubbles.splash({ m: { position: enemies.center(e).clone() }, r: 0.0065, dmg: 1, pw: 6 * 4.5, ep: elementParams('glitter'), elems: new Set(['glitter']), hit: new Set([e]) });
     const old = (G().run.bubbles.looks.balls?.filter((v) => v.visible).length || 0) - shown;
     const pass = got.hit === 0 && Math.abs(got.beside - AD * 0.4) < 1e-9 && Math.abs(got.flyer - AD * 0.4) < 1e-9 && got.far === 0
-      && Math.abs(grown - RADIUS) < RADIUS * 0.05 && gone && old === 0;
-    return ok(pass, { ...got, grown, radius: RADIUS, gone, old });
+      && Math.abs(grown - RADIUS) < RADIUS * 0.05 && gone && old === 0 && plain;
+    return ok(pass, { ...got, grown, radius: RADIUS, gone, old, plain });
   },
 });
 

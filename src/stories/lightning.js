@@ -2,6 +2,7 @@
 // its 12 Attack upgrades (content/upgrades.kdl) and the words they brought (nth-attack bolt, charged-shot,
 // touch-zap, orb, zap target and look, and new props on element-up).
 // Shared helpers are in ./kit.js; src/stories.js imports this file in order.
+import { LOOK } from '../look.js';
 import { PLAYER } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
@@ -51,7 +52,7 @@ story('types/lightning-plays', {
 });
 
 story('types/lightning-look-comes-and-goes', {
-  about: 'The Lightning jelly\'s storm look is a core and glowing tips on its jelly, a small arc that jumps between two tips every few seconds (a bar of segments that shows for a moment), and static flecks that blink; a Normal jelly has none of it.',
+  about: 'The Lightning jelly\'s storm look is glowing tips on its jelly (nothing inside the bell), a small arc that jumps between two tips every few seconds (a bar of segments that shows for a moment), and static flecks that blink; a Normal jelly has none of it.',
   setup() { setupFight({ types: 'lightning', bubbles: false, lash: false }); },
   play() {
     const { run } = G();
@@ -60,12 +61,12 @@ story('types/lightning-look-comes-and-goes', {
       step(1);
       const P = run.adorn.pieces.storm;
       if (!P) continue;
-      const kids = P.group.children;   // core, 8 tips, 6 arc segments, then the flecks
-      if (kids.slice(9, 15).some((m) => m.visible)) seen.arc = true;
-      if (kids.slice(15).some((m) => m.visible)) seen.fleck = true;
+      const kids = P.group.children;   // 8 tips, 6 arc segments, then the flecks
+      if (kids.slice(8, 14).some((m) => m.visible)) seen.arc = true;
+      if (kids.slice(14).some((m) => m.visible)) seen.fleck = true;
     }
-    const P = run.adorn.pieces.storm, core = P.group.children[0], tips = P.group.children.slice(1, 9).filter((m) => m.visible).length;
-    const worn = P.group.visible && core.visible && tips >= 3;
+    const P = run.adorn.pieces.storm, tips = P.group.children.slice(0, 8).filter((m) => m.visible).length;
+    const worn = P.group.visible && tips >= 3 && P.group.children.length === 8 + 6 + LOOK.num('storm-flecks', 8);
     fresh({ types: 'normal' }); step(2);
     const none = !run.adorn.pieces.storm?.group.visible;
     return ok(worn && seen.arc && seen.fleck && none, { worn, tips, seen, none });
