@@ -362,6 +362,7 @@ test('the dev password is checked against the secret, slowly, and never opens wi
   const unlock = async (pass, secret) => { clearRates(); env.DEV_PASSWORD = secret; return (await request('/api/dev', { pass })).data.open; };
   assert.equal(await unlock('anything', undefined), false);
   assert.equal(await unlock('', ''), false);
+  clearRates(); assert.equal((await request('/api/dev', { pass: 'x' })).data.why, 'unset');
   assert.equal(await unlock('nope', 'sea-secret'), false);
   assert.equal(await unlock(' sea-secret ', 'sea-secret'), true);
   assert.equal((await request('/api/dev', { pass: 'sea-secret' })).status, 429);

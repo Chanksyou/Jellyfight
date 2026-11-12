@@ -1,0 +1,1 @@
+keeps a dev password saved in the Cloudflare dashboard through every deploy, and the unlock box now says "No dev password set on the server" when the Worker can't see one, instead of "Wrong password".

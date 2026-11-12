@@ -197,7 +197,8 @@ async function devUnlock(request, env) {
   if (recent && now - recent.at < DEV_TRY_MS) return json({ open: false, why: 'slow' }, 429);
   await db.prepare('INSERT INTO posts (key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(key, now).run();
   const want = typeof env.DEV_PASSWORD === 'string' ? env.DEV_PASSWORD.trim() : '', pass = typeof b?.pass === 'string' ? b.pass.trim() : '';
-  return json({ open: !!want && await same(pass, want) });
+  if (!want) return json({ open: false, why: 'unset' });   // the Worker can't see a DEV_PASSWORD: say so instead of "wrong"
+  return json({ open: await same(pass, want) });
 }
 const DEV_TRY_MS = 3000;   // one password try per address every 3 s
 async function same(a, b) {   // compares digests, so the time taken says nothing about the password
