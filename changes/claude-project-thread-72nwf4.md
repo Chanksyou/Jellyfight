@@ -1,0 +1,1 @@
+takes the glowing core out of every jelly type's bell (it poked out of flat bells like the Fried Egg's, on the pick card and in play), and turns the Glitter jelly's burst into a plain glassy ball with no hex cells, so it's much less busy.

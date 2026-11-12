@@ -84,7 +84,7 @@ story('types/pierce-reaches-every-types-main-attack', {
 });
 
 story('types/wind-look', {
-  about: 'The Wind jelly wears its look (the gale piece: a swirl in the bell and air streaks circling it) and its tentacles stream back; another jelly has neither, and it never changes the body the player made.',
+  about: 'The Wind jelly wears its look (the gale piece: air streaks circling the bell, nothing inside it) and its tentacles stream back; another jelly has neither, and it never changes the body the player made.',
   setup() { setupFight({ types: 'wind' }); },
   play() {
     const { run } = G();
@@ -96,7 +96,7 @@ story('types/wind-look', {
     const off = !piece()?.group.visible && rig().breeze === false;
     fresh(); step(5);
     const normal = !piece()?.group.visible && rig().breeze === false;
-    return ok(on && off && normal && children === 3 && run.typeAdorn !== undefined, { on, off, normal, children });
+    return ok(on && off && normal && children === 2 && run.typeAdorn !== undefined, { on, off, normal, children });
   },
 });
 

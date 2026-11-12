@@ -577,11 +577,7 @@
   --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
   --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
   /* Jelly types' looks (src/adornments.js ember, barbs, frost, toxin and gale; content/jellies.kdl adorn=) */
-  --ember-core: #ff7a1a;          /* Fire jelly: the ember inside the bell (emissive, not a light) */
-  --ember-core-size: 0.1;         /* its radius, in shares of the jelly's height */
-  --ember-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
-  --ember-core-y: 0.86;           /* its height in the bell, up under the crown so it shows from behind (model units: the rim is at 0.56) */
-  --ember-coal: #ff5a14;          /* the coal on each tentacle tip */
+  --ember-coal: #ff5a14;          /* Fire jelly: the coal on each tentacle tip */
   --ember-coal-size: 1;           /* its radius, in tentacle widths */
   --ember-spark: #ffc26a;         /* sparks drifting up off the tips */
   --ember-sparks: 10;             /* at most this many at once */
@@ -589,11 +585,7 @@
   --ember-spark-life: 0.8;        /* seconds a spark lasts */
   --ember-spark-rise: 0.05;       /* meters it rises in that time */
   --ember-spark-size: 0.0022;     /* its radius at the start, meters */
-  --frost-core: #bfeaff;          /* Ice jelly: the crystal turning in the bell (emissive, not a light) */
-  --frost-core-size: 0.15;        /* its size, in shares of the jelly's height */
-  --frost-glow-size: 0.55;        /* the soft glow round it (seen through the bell), likewise */
-  --frost-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
-  --frost-tip: #e4f8ff;           /* the frost crystal on each tentacle tip */
+  --frost-tip: #e4f8ff;           /* Ice jelly: the frost crystal on each tentacle tip */
   --frost-tip-size: 1.9;          /* its size, in tentacle widths */
   --frost-mist: #cfeeff;          /* cold mist sinking off the tips */
   --frost-mists: 12;              /* at most this many at once */
@@ -606,37 +598,18 @@
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */
   --barb-size: 3;                 /* a barb's length, in tentacle widths */
-  --toxin-core: #9effc8;          /* Poison jelly: the pale green core in the bell (emissive, not a light) */
-  --toxin-core-size: 0.13;        /* its radius, in shares of the jelly's height (bigger than the ember, to read at play distance) */
-  --toxin-glow-size: 0.7;         /* the soft glow round it, likewise */
-  --toxin-core-y: 0.8;            /* its height in the bell (model units: the rim is at 0.56) */
-  --toxin-bubble: #d6ffe9;        /* toxic bubbles rising off the core */
-  --toxin-bubbles: 8;             /* at most this many at once */
-  --toxin-bubble-every: 0.14;     /* seconds between bubbles */
-  --toxin-bubble-life: 0.9;       /* seconds a bubble lasts */
-  --toxin-bubble-rise: 0.22;      /* how far it rises in that time (model units) */
-  --toxin-bubble-size: 0.025;     /* its biggest radius, in shares of the jelly's height */
-  --toxin-drop: #3ee68c;          /* the drops on the tentacle tips and the drips off the rim */
+  --toxin-drop: #3ee68c;          /* Poison jelly: the drops on the tentacle tips and the drips off the rim */
   --toxin-drop-size: 1.3;         /* a full drop's radius, in tentacle widths */
   --toxin-drop-hang: 0.9;         /* about how long a tip's drop swells before it falls, seconds */
   --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */
   --toxin-drips: 6;               /* drips off the rim at most at once */
   --toxin-drip-every: 0.35;       /* seconds between them */
-  --sparkle-shimmer: 0.6;         /* Glitter jelly: colours a second the core drifts through (the --glitter-flakes) */
-  --sparkle-core-size: 0.12;      /* the rainbow core's radius, in shares of the jelly's height (emissive, not a light) */
-  --sparkle-core-y: 0.82;         /* its height in the bell (model units: the rim is at 0.56) */
-  --sparkle-glow-size: 0.7;       /* the soft glow round it, in shares of the jelly's height */
-  --sparkle-bead-size: 1.5;       /* the glinting bead on each tentacle tip, in tentacle widths */
+  --sparkle-bead-size: 1.5;       /* Glitter jelly: the glinting bead on each tentacle tip, in tentacle widths */
   --sparkle-twinkles: 7;          /* star twinkles over the bell at most at once */
   --sparkle-twinkle-every: 0.16;  /* seconds between them */
   --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
   --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
-  --gale-core: #ffffff;           /* Wind jelly: the swirl spinning in the bell (emissive, not a light) */
-  --gale-core-size: 0.12;         /* its radius, in shares of the jelly's height */
-  --gale-glow-size: 0.6;          /* the soft glow round it, likewise */
-  --gale-core-y: 0.8;             /* its height in the bell (model units: the rim is at 0.56) */
-  --gale-core-spin: 7;            /* radians a second it turns */
-  --gale-streak: #e6f8ff;         /* the thin air streaks circling the bell */
+  --gale-streak: #e6f8ff;         /* Wind jelly: the thin air streaks circling the bell */
   --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
   --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
   --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
@@ -648,11 +621,7 @@
   --poison-gas: #7dffc0;          /* the burst's gas, its vapour, a Toxic Cloud */
   --poison-burst-life: 0.35;      /* seconds the burst's sphere takes to swell to its edge and fade */
   --poison-drip-every: 0.2;       /* seconds between a Poisoned bug's bubbles and drips (faster with more stacks) */
-  --storm-core: #bfe6ff;          /* Lightning jelly: the crackling core in the bell (emissive, not a light) */
-  --storm-core-size: 0.1;         /* its radius, in shares of the jelly's height */
-  --storm-glow-size: 0.6;         /* the soft glow round it (seen through the bell), likewise */
-  --storm-core-y: 0.86;           /* its height in the bell (model units: the rim is at 0.56) */
-  --storm-tip: #7fd0ff;           /* the faint glow on each tentacle tip */
+  --storm-tip: #7fd0ff;           /* Lightning jelly: the faint glow on each tentacle tip */
   --storm-tip-size: 0.8;          /* its radius, in tentacle widths */
   --storm-arc: #f4fbff;           /* the small arc that jumps between two tips */
   --storm-arc-every: 2.5;         /* seconds between arcs (on average) */
