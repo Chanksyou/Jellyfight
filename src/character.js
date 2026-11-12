@@ -22,7 +22,8 @@ import { LOOK } from './look.js';
 // marginal tentacles ([count, shortest, longest, thickness]); `organs`: the bright sense dots on
 // the rim. `arms`: oral arms ({ n, len, width, frill, twist }). `tentacles`: the hunting tentacles
 // ({ count, length, thickness, flare, corners: bundles at a box bell's corners }). `outer`: how
-// see-through the bell is. `extra`: a species' own feature (built in jellyParts).
+// see-through the bell is. `extra`: a species' own feature (built in jellyParts). `sides`: a cut bell of
+// that many flat facets (a gem) instead of a round one. A bell's rim is as wide as the first profile point.
 export const SPECIES = {
   nettle: {
     name: 'Sea Nettle', blurb: 'Tall bell, long frilly arms, six long stinging tentacles.',
@@ -35,36 +36,64 @@ export const SPECIES = {
     name: 'Moon Jelly', blurb: 'A wide, flat saucer with four glowing rings and a fine fringe.',
     R: 0.34, profile: [[1, -0.05], [1.03, 0.06], [0.98, 0.18], [0.86, 0.31], [0.64, 0.42], [0.35, 0.5], [0, 0.53]],
     canals: 32, crownSpots: 0, lobes: 8, lobeAmp: 0.03, fringe: [120, 0.035, 0.06, 0.003], organs: 8,
-    arms: { n: 4, len: 0.22, width: 0.06, frill: 0.012, twist: 0.8 },
+    arms: { n: 4, len: 0.4, width: 0.09, frill: 0.016, twist: 1.2 },
     tentacles: { count: 6, length: 0.6, thickness: 0.014, flare: 0.25 }, outer: 0.24, extra: 'rings',
   },
   lion: {
     name: "Lion's Mane", blurb: 'A lobed dome with a huge mane of hair and eight heavy arms.',
     R: 0.3, profile: [[1, -0.05], [1.02, 0.1], [0.97, 0.35], [0.85, 0.6], [0.62, 0.82], [0.33, 0.95], [0, 0.99]],
     canals: 16, crownSpots: 10, lobes: 8, lobeAmp: 0.12, fringe: [160, 0.25, 0.55, 0.0045], organs: 8,
-    arms: { n: 8, len: 0.55, width: 0.13, frill: 0.035, twist: 3 },
+    arms: { n: 8, len: 0.72, width: 0.13, frill: 0.035, twist: 3 },
     tentacles: { count: 6, length: 1.1, thickness: 0.02, flare: 0.15 }, outer: 0.3,
   },
   box: {
     name: 'Box Jelly', blurb: 'A clear, square bell, tentacles bundled at its four corners.',
     R: 0.27, square: true, profile: [[1, -0.04], [1, 0.3], [0.96, 0.75], [0.82, 1.05], [0.48, 1.24], [0, 1.28]],
     canals: 4, crownSpots: 6, lobes: 0, lobeAmp: 0, fringe: null, organs: 4,
-    arms: { n: 1, len: 0.14, width: 0.05, frill: 0.006, twist: 0.4 },
+    arms: { n: 4, len: 0.42, width: 0.09, frill: 0.014, twist: 1.2 },
     tentacles: { count: 8, length: 1.05, thickness: 0.016, flare: 0.05, corners: true }, outer: 0.2, extra: 'pedalia',
   },
   crystal: {
     name: 'Crystal Jelly', blurb: 'Almost invisible, with dozens of fine glowing canals.',
     R: 0.3, profile: [[1, -0.04], [1.02, 0.08], [0.97, 0.25], [0.85, 0.42], [0.62, 0.57], [0.33, 0.66], [0, 0.68]],
     canals: 64, crownSpots: 0, lobes: 0, lobeAmp: 0, fringe: [140, 0.14, 0.22, 0.002], organs: 0,
-    arms: { n: 1, len: 0.16, width: 0.05, frill: 0.008, twist: 0.5 },
+    arms: { n: 4, len: 0.4, width: 0.09, frill: 0.014, twist: 1.4 },
     tentacles: { count: 6, length: 0.85, thickness: 0.012, flare: 0.2 }, outer: 0.14,
   },
   egg: {
     name: 'Fried Egg', blurb: 'A flat dome with a golden yolk and eight short club arms.',
     R: 0.3, profile: [[1, -0.04], [1.02, 0.1], [0.95, 0.3], [0.78, 0.5], [0.5, 0.64], [0, 0.7]],
     canals: 16, crownSpots: 0, lobes: 16, lobeAmp: 0.04, fringe: [60, 0.06, 0.1, 0.005], organs: 8,
-    arms: { n: 8, len: 0.28, width: 0.08, frill: 0.015, twist: 1 },
+    arms: { n: 8, len: 0.4, width: 0.09, frill: 0.016, twist: 1.2 },
     tentacles: { count: 6, length: 0.75, thickness: 0.018, flare: 0.15 }, outer: 0.3, extra: 'yolk',
+  },
+  onion: {
+    name: 'Onion Dome', blurb: 'A swelling dome that rises to a point.',
+    R: 0.27, profile: [[1, -0.05], [1.08, 0.2], [1.1, 0.45], [0.95, 0.75], [0.6, 1.05], [0.25, 1.3], [0.08, 1.5], [0, 1.62]],
+    canals: 8, crownSpots: 8, lobes: 8, lobeAmp: 0.05, fringe: [30, 0.1, 0.18, 0.006], organs: 8,
+    arms: { n: 4, len: 0.5, width: 0.1, frill: 0.02, twist: 2.4 },
+    tentacles: { count: 6, length: 0.95, thickness: 0.022, flare: 0.1 }, outer: 0.3,
+  },
+  bubble: {
+    name: 'Bubble', blurb: 'An almost-round ball of jelly.',
+    R: 0.3, profile: [[0.7, -0.08], [0.95, 0.1], [1.02, 0.4], [0.95, 0.75], [0.72, 1.02], [0.4, 1.18], [0, 1.22]],
+    canals: 0, crownSpots: 0, lobes: 0, lobeAmp: 0, fringe: [24, 0.06, 0.1, 0.005], organs: 0,
+    arms: { n: 4, len: 0.45, width: 0.1, frill: 0.02, twist: 2 },
+    tentacles: { count: 6, length: 0.9, thickness: 0.02, flare: 0.15 }, outer: 0.35,
+  },
+  gem: {
+    name: 'Gem', blurb: 'A cut crystal with flat shining facets.',
+    R: 0.3, sides: 6, profile: [[0.85, -0.04], [1, 0.15], [1, 0.5], [0.6, 0.95], [0, 1.1]],
+    canals: 6, crownSpots: 0, lobes: 0, lobeAmp: 0, fringe: null, organs: 6,
+    arms: { n: 4, len: 0.45, width: 0.1, frill: 0.012, twist: 1.5 },
+    tentacles: { count: 6, length: 0.9, thickness: 0.02, flare: 0.1 }, outer: 0.4,
+  },
+  comb: {
+    name: 'Comb Jelly', blurb: 'An oval jelly with eight rows of rainbow lights rippling down it.',
+    R: 0.25, profile: [[0.6, -0.06], [0.86, 0.06], [1, 0.3], [1.02, 0.6], [0.92, 0.9], [0.7, 1.15], [0.38, 1.32], [0, 1.38]],
+    canals: 8, crownSpots: 0, lobes: 0, lobeAmp: 0, fringe: null, organs: 0,
+    arms: { n: 4, len: 0.42, width: 0.09, frill: 0.016, twist: 1.6 },
+    tentacles: { count: 6, length: 1, thickness: 0.014, flare: 0.2 }, outer: 0.22, extra: 'combs',
   },
 };
 
@@ -85,7 +114,10 @@ export const OPTIONS = {
     ['earmuffs', 'Dust-bunny earmuffs'], ['duck', 'Golden duck'], ['sharkfin', 'Golden fin'], ['headset', 'Encore headset'],
     ['goldbook', 'Golden book'], ['goldkettle', 'Golden kettle'], ['tiara', 'Diamond tiara'],
     ['crown_nettle', 'Nettle crown'], ['crown_moon', 'Moon crown'], ['crown_lion', 'Mane crown'], ['crown_box', 'Box crown'], ['crown_crystal', 'Crystal crown'], ['crown_egg', 'Yolk crown']],
-  pattern: [['none', 'None'], ['rings', 'Rings'], ['stripes', 'Stripes'], ['freckles', 'Freckles']],   // drawn on the inner bell in the arm color
+  pattern: [['none', 'None'], ['rings', 'Rings'], ['stripes', 'Stripes'], ['freckles', 'Freckles'],
+    ['spots', 'Spots'], ['hearts', 'Hearts'], ['stars', 'Stars'], ['zigzag', 'Zigzag'], ['spiral', 'Spiral']],   // drawn on the inner bell in the second color
+  arms: [['frilly', 'Frilly'], ['curly', 'Curly'], ['pompoms', 'Pom-poms'], ['streamers', 'Streamers']],   // the oral arms' style
+  tentacles: [['straight', 'Straight'], ['curly', 'Curly'], ['beaded', 'Beaded'], ['ribbon', 'Ribbon']],   // the hunting tentacles' style (the same reach)
   finish: [['glow', 'Glow'], ['gilded', 'Gilded']],
 };
 // tops that keep their own colour (the Hat colour row is hidden for them)
@@ -101,6 +133,8 @@ export const DEFAULT_LOOK = {
   color: LOOK.color('jelly-color', '#2ff0c4'),     // content/look.css
   accent: LOOK.color('jelly-accent', '#3d8cff'),
   pattern: 'none',
+  arms: 'frilly',
+  tentacles: 'straight',
   eyes: 'big',
   eyeColor: '#123a4a',
   mouth: 'smile',
@@ -144,9 +178,20 @@ export function randomLook(isOpen = () => true) {
     mouth: option('mouth'),
     top: option('top'),
     pattern: option('pattern'),
+    arms: option('arms'),
+    tentacles: option('tentacles'),
     topColor: hsl((h + 0.5) % 1, 0.8, 0.6),
   });
 }
+
+// The arms' styles, as shares of a species' own arms (len, width, frill, twist), plus a coil
+// round the arm (units) and a pom-pom on its end (its radius, in arm widths)
+const ARM_STYLES = {
+  frilly: { len: 1, width: 1, frill: 1, twist: 1, coil: 0 },
+  curly: { len: 1, width: 0.5, frill: 0.3, twist: 2.5, coil: 0.035 },
+  pompoms: { len: 0.6, width: 0.35, frill: 0, twist: 0.4, coil: 0, puff: 0.7 },
+  streamers: { len: 1.35, width: 0.55, frill: 0, twist: 0.3, coil: 0 },
+};
 
 // Where the face, the hat and the spots go on a species' bell (in units)
 function placement(sp) {
@@ -159,6 +204,23 @@ function placement(sp) {
     halo: BELL_Y + top * R * 0.4,
   };
 }
+
+// How far in front of the bell's axis its surface is at sideways offset x, where the bell is
+// `radius` wide (the face is pressed onto it): round, a rounded square (box) or flat facets (gem)
+export function bellFront(sp, radius, x) {
+  if (sp.square) return Math.pow(Math.max(0, (radius * 0.8) ** 4 - x ** 4), 0.25);
+  if (!sp.sides) return Math.sqrt(Math.max(0, radius * radius - x * x));
+  // the facet the front looks through: the lathe puts a flat face square to the front
+  const n = sp.sides, step = (Math.PI * 2) / n;
+  let z = 0;
+  for (let k = 0; k < n; k++) {
+    const p0 = step / 2 + k * step, x0 = radius * Math.sin(p0), z0 = radius * Math.cos(p0), x1 = radius * Math.sin(p0 + step), z1 = radius * Math.cos(p0 + step);
+    if (x0 !== x1 && (x - x0) * (x - x1) <= 0) z = Math.max(z, z0 + (z1 - z0) * (x - x0) / (x1 - x0));
+  }
+  return z;
+}
+// how wide the bell is sideways where it is `radius` wide (a box bell's flat sides sit inside it)
+export const bellHalfWidth = (sp, radius) => radius * (sp.square ? 0.8 : 1);
 
 // a round outline pushed out toward a rounded square (box jellies), on the x/z (or x/y) plane
 function squarish(geo, b = 'z') {
@@ -339,6 +401,7 @@ export function buildCharacter(look, heightMeters) {
 
   const wobblers = [];                       // things that sway: [object, axis, phase, amount]
   const spinners = [];                       // things that turn: [object, axis, speed]
+  const scrollers = [];                      // textures that run down the bell: [texture, speed]
   let bell = null, rig = null;               // jellyfish only: the pulsing bell and its tentacles
 
   // --- Body: the jellyfish -------------------------------------------------
@@ -354,9 +417,13 @@ export function buildCharacter(look, heightMeters) {
   const bellCol = gilded ? base.clone().lerp(new THREE.Color('#ffc93a'), 0.8) : base;   // the inner bell's glow (a gilded bell's runs gold)
   const rimCol = gilded ? new THREE.Color('#ffd76a') : base.clone().lerp(new THREE.Color('#f4ff8a'), 0.55);
   const glow = LOOK.num('jelly-glow', 1);
+  // the second color (the arms') also lights the rim and the tentacle tips, so it shows on every bell
+  const trimCol = gilded ? rimCol : acc.clone();
   const R = sp.R, box = !!sp.square;
   const lathe = (k) => {
-    const g = new THREE.LatheGeometry(sp.profile.map(([r, y]) => new THREE.Vector2(r * R * k, y * R * k)), 48, 0, Math.PI * 2);
+    const n = sp.sides || 48;
+    let g = new THREE.LatheGeometry(sp.profile.map(([r, y]) => new THREE.Vector2(r * R * k, y * R * k)), n, sp.sides ? Math.PI / n : 0, Math.PI * 2);
+    if (sp.sides) { g = g.toNonIndexed(); g.computeVertexNormals(); }   // flat facets
     return box ? squarish(g) : g;
   };
   // inner bell (u runs around the bell, canvas top = the crown): dark, with glowing canals,
@@ -391,6 +458,33 @@ export function buildCharacter(look, heightMeters) {
         for (const dx of [-w, 0, w]) { g.beginPath(); g.arc(x + dx, y, r, 0, 7); g.fill(); }
       }
     }
+    // the shapes below sit in staggered rows; each is drawn at (x, y) with size r, again across the seam
+    const rows = (n, perRow, draw) => {
+      for (let i = 0; i < n; i++) for (let k = 0; k < perRow; k++) {
+        const x = (k + (i % 2) * 0.5) / perRow * w, y = h * (0.16 + 0.66 * i / Math.max(1, n - 1));
+        for (const dx of [-w, 0, w]) draw(x + dx, y);
+      }
+    };
+    if (look.pattern === 'spots') rows(3, 6, (x, y) => { g.beginPath(); g.arc(x, y, 10, 0, 7); g.fill(); });
+    if (look.pattern === 'hearts') rows(3, 7, (x, y) => {
+      const r = 7; g.beginPath(); g.moveTo(x, y + r);
+      g.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.8, y - r * 1.5, x, y - r * 0.5);
+      g.bezierCurveTo(x + r * 0.8, y - r * 1.5, x + r * 1.6, y - r * 0.2, x, y + r); g.fill();
+    });
+    if (look.pattern === 'stars') rows(3, 7, (x, y) => {
+      g.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 3.5 : 9; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+      g.fill();
+    });
+    if (look.pattern === 'zigzag') {
+      g.strokeStyle = g.fillStyle; g.lineWidth = 5; g.lineJoin = 'round';
+      for (const y of [0.3, 0.55, 0.8]) { g.beginPath(); for (let k = 0; k <= 16; k++) g.lineTo(k / 16 * w, h * y + (k % 2 ? -7 : 7)); g.stroke(); }
+    }
+    if (look.pattern === 'spiral') {
+      // stripes that wind round the bell from the crown to the rim
+      g.strokeStyle = g.fillStyle; g.lineWidth = 7;
+      for (let k = 0; k < 4; k++) for (const dx of [-w, 0]) { const x = k / 4 * w + dx; g.beginPath(); g.moveTo(x, h * 0.06); g.lineTo(x + w, h * 0.9); g.stroke(); }
+    }
     g.globalAlpha = 1;
   });
   const inner = new THREE.MeshStandardMaterial({ map: innerTex, emissiveMap: innerTex, emissive: 0xffffff, emissiveIntensity: 1.6 * glow, roughness: 0.3 });
@@ -403,11 +497,13 @@ export function buildCharacter(look, heightMeters) {
   const shell = mesh(lathe(1), outer, bell);
   shell.renderOrder = 2;
   // underside (the subumbrella), seen when it jumps
-  const underGeo = new THREE.CircleGeometry(R * 0.95, 40);
+  const rim0 = sp.profile[0][0], underGeo = new THREE.CircleGeometry(R * 0.95 * rim0, sp.sides || 40);
   const under = mesh(box ? squarish(underGeo, 'y') : underGeo, inner, bell, 0, 0.005, 0);
   under.rotation.x = Math.PI / 2;
   // the edge of the bell: how far out the rim is at angle a (a box bell is a rounded square)
-  const edge = (a) => (box ? 0.8 / Math.pow(Math.abs(Math.cos(a)) ** 4 + Math.abs(Math.sin(a)) ** 4, 0.25) : 1) * R;
+  // (a cut bell's rim runs straight between its corners)
+  const cut = (a) => { const n = sp.sides, step = (Math.PI * 2) / n, d = ((((a - Math.PI / 2 + step / 2) % step) + step) % step) - step / 2; return Math.cos(step / 2) / Math.cos(d); };
+  const edge = (a) => (box ? 0.8 / Math.pow(Math.abs(Math.cos(a)) ** 4 + Math.abs(Math.sin(a)) ** 4, 0.25) : sp.sides ? cut(a) : 1) * R * rim0;
   // luminous rim, scalloped into lobes
   const lit = (c, k) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k * glow, roughness: 0.3 });
   const rimGeo = new THREE.TorusGeometry(R, 0.016, 8, 96);
@@ -419,7 +515,7 @@ export function buildCharacter(look, heightMeters) {
       if (sp.lobes) p.setZ(k, v.z + 0.012 * Math.sin(a * sp.lobes * 2));
     }
     rimGeo.computeVertexNormals(); }
-  const rim = mesh(rimGeo, lit(rimCol, 2.2), bell);
+  const rim = mesh(rimGeo, lit(trimCol, gilded ? 2.2 : LOOK.num('jelly-rim-glow', 1.1)), bell);
   rim.rotation.x = Math.PI / 2;
   // around the rim (angle a, measured like the rim: x = cos, z = sin) and a little in
   const onRim = (a, k = 1) => [Math.cos(a) * edge(a) * k, Math.sin(a) * edge(a) * k];
@@ -439,8 +535,10 @@ export function buildCharacter(look, heightMeters) {
     mesh(new THREE.SphereGeometry(box ? 0.02 : 0.012, 8, 6), dot, bell, x, box ? 0.03 : -0.015, z);
   }
   // oral arms twisting down from the middle
-  const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: 0.9 * glow, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
-  const A = sp.arms;
+  const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: LOOK.num('jelly-arm-glow', 0.55) * glow, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+  // the arms' style (look.arms) stretches the species' own arms: longer, narrower, coiled, or ending in a puff
+  const AS = ARM_STYLES[look.arms] || ARM_STYLES.frilly;
+  const A = { ...sp.arms, len: sp.arms.len * AS.len, width: sp.arms.width * AS.width, frill: sp.arms.frill * AS.frill, twist: sp.arms.twist * AS.twist };
   for (let k = 0; k < A.n; k++) {
     const a = (k / A.n) * Math.PI * 2 + Math.PI / 4;
     const pivot = new THREE.Group();
@@ -451,13 +549,15 @@ export function buildCharacter(look, heightMeters) {
     const L = A.len, half = A.width / 2, armGeo = new THREE.PlaneGeometry(A.width, L, 6, 28).translate(0, -L / 2, 0);
     const ap = armGeo.attributes.position;
     for (let q = 0; q < ap.count; q++) {
-      const x = ap.getX(q), y = ap.getY(q), e = Math.abs(x) / half, f = -y / L;
+      const x = ap.getX(q), y = ap.getY(q), e = Math.abs(x) / half, f = Math.max(0, -y / L);
       const ruffle = Math.sin(y * 70) * A.frill * e, tw = f * A.twist + k;            // frilly edges, and a slow twist
-      const xx = x * (1 - f * 0.35), zz = ruffle + Math.sin(-y * 8) * 0.02;
+      const coil = AS.coil * Math.sqrt(f), turn = f * 18 + k;
+      const xx = x * (1 - f * 0.35) + Math.cos(turn) * coil, zz = ruffle + Math.sin(-y * 8) * 0.02 + Math.sin(turn) * coil;
       ap.setXYZ(q, xx * Math.cos(tw) - zz * Math.sin(tw), y, xx * Math.sin(tw) + zz * Math.cos(tw));
     }
     armGeo.computeVertexNormals();
     mesh(armGeo, armMat, pivot);
+    if (AS.puff) mesh(new THREE.IcosahedronGeometry(sp.arms.width * AS.puff, 1), armMat, pivot, 0, -L, 0);   // a pom-pom on the end
     wobblers.push([pivot, 'x', k * 1.3, 0.16], [pivot, 'z', k * 2.1, 0.1]);
   }
   // the species' own feature
@@ -473,6 +573,19 @@ export function buildCharacter(look, heightMeters) {
     // fried egg jelly: a raised golden yolk on the crown
     const yolk = mesh(new THREE.SphereGeometry(R * 0.45, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), lit(new THREE.Color('#ffb21a'), 1.1), bell, 0, crownH * 0.82, 0);
     yolk.scale.y = 0.55;
+  } else if (sp.extra === 'combs') {
+    // comb jelly: eight rows of tiny paddles from crown to rim that catch the light in rainbow
+    // colours, the colours rippling down the rows (a clear shell just over the bell, its texture scrolling)
+    const combs = canvasTexture(256, 128, (g, w, h) => {
+      for (let k = 0; k < 8; k++) for (let y = 4; y < h; y += 8) {
+        g.fillStyle = `hsl(${(y / h) * 720 % 360}, 100%, 65%)`;
+        g.fillRect((k + 0.5) / 8 * w - 4, y, 8, 4);
+      }
+    });
+    combs.wrapT = THREE.RepeatWrapping;
+    const rows = mesh(lathe(1.015), new THREE.MeshBasicMaterial({ map: combs, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), bell);
+    rows.renderOrder = 2;
+    scrollers.push([combs, LOOK.num('comb-ripple', 0.35)]);
   } else if (sp.extra === 'pedalia') {
     // box jelly: a fleshy pad at each corner that the tentacles hang from
     for (let k = 0; k < 4; k++) {
@@ -485,9 +598,11 @@ export function buildCharacter(look, heightMeters) {
   // hang in bundles from its corners
   const T = sp.tentacles, corners = T.corners ? Array.from({ length: T.count }, (_, i) => Math.PI / 4 + Math.floor(i / 2) * Math.PI / 2 + (i % 2 ? 0.12 : -0.12)) : null;
   rig = new TentacleRig(lean, {
-    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * 0.92), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare, floorRoot: root,
+    count: T.count, radius: (box ? edge(Math.PI / 4) * 0.92 : R * rim0 * 0.92 * (sp.sides ? Math.cos(Math.PI / sp.sides) : 1)), y: BELL_Y, length: T.length, thickness: T.thickness, flare: T.flare, floorRoot: root,
     angles: corners && corners.map((a) => Math.PI / 2 - a),   // rig angles: x = sin, z = cos
-    material: lit(base.clone().lerp(rimCol, 0.3), 1.3),
+    material: lit(base, LOOK.num('jelly-tentacle-glow', 0.75)),
+    tipMaterial: lit(trimCol, LOOK.num('jelly-tip-glow', 0.9)), tipSize: LOOK.num('jelly-tip-size', 0.8),
+    style: look.tentacles,
   });
   // a soft fluorescent halo, so it glows even without the bloom pass (phones)
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: base, transparent: true, opacity: LOOK.num('jelly-halo', 0.37) * (glow + 0.15) / 1.15, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -729,10 +844,8 @@ export function buildCharacter(look, heightMeters) {
         const [r0, y0] = sp.profile[Math.max(0, upper - 1)];
         const [r1, y1] = sp.profile[Math.max(1, upper)];
         const radius = R * (r0 + (r1 - r0) * (y - y0) / (y1 - y0));
-        if (Math.abs(point.x) >= radius * (sp.square ? 0.8 : 1) * 0.98) faceFits = false;
-        const z = sp.square
-          ? Math.pow(Math.max(0, (radius * 0.8) ** 4 - point.x ** 4), 0.25)
-          : Math.sqrt(Math.max(0, radius * radius - point.x * point.x));
+        if (Math.abs(point.x) >= bellHalfWidth(sp, radius) * 0.98) faceFits = false;
+        const z = bellFront(sp, radius, point.x);
         point.z = z + faceOffset + o.parent.children.indexOf(o) * faceLayer;
         point.applyMatrix4(fromBell);
         positions.setXYZ(i, point.x, point.y, point.z);
@@ -755,7 +868,7 @@ export function buildCharacter(look, heightMeters) {
     let i = P.findIndex((q) => q[1] >= v);
     if (i < 1) i = i === 0 ? 1 : P.length - 1;
     const [r0, y0] = P[i - 1], [r1, y1] = P[i];
-    return R * Math.max(0, r0 + (r1 - r0) * THREE.MathUtils.clamp((v - y0) / (y1 - y0), 0, 1)) * (box ? 0.95 : 1);
+    return R * Math.max(0, r0 + (r1 - r0) * THREE.MathUtils.clamp((v - y0) / (y1 - y0), 0, 1)) * (box ? 0.95 : sp.sides ? Math.cos(Math.PI / sp.sides) : 1);
   };
   const toTop = shape.topY - BELL_Y;          // from the bell's frame to the top's
   // where a round thing of radius r rests on the bell, in the top's frame: the highest point where
@@ -1514,6 +1627,7 @@ export function buildCharacter(look, heightMeters) {
 
 
     spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });
+    scrollers.forEach(([tex, sp]) => { tex.offset.y = (tex.offset.y + dt * sp) % 1; });
     floaters.forEach(([o, y, amt], i) => { o.position.y = y + Math.sin(t * 1.6 + i) * amt; });
     // steam from the golden kettle: puffs rise from the spout, swelling and thinning out
     steam.forEach(([o, ph]) => { const u = (t * 0.6 + ph) % 1; o.position.set(0, 0.09 + u * 0.1, 0.13 + u * 0.03); o.scale.setScalar(0.4 + u * 1.4 - (u > 0.8 ? (u - 0.8) * 7 : 0)); });

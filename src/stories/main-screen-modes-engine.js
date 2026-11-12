@@ -569,7 +569,9 @@ story('modes/pearls-and-the-shop', {
       const broken = [];
       for (const body of Object.keys(SPECIES)) {
         const plain = { body, top: 'none', eyes: 'big', mouth: 'smile', pattern: 'none', finish: 'glow' }, base = meshes(plain);
-        for (const [k, id] of all) if (k !== 'pattern' && k !== 'finish' && meshes({ ...plain, [k]: id }) === base) broken.push(`${body}:${k}:${id}`);
+        // (a pattern or finish is paint, a body is checked by look/every-species-builds, and an arm or tentacle
+        // style reshapes the same parts: look/arm-and-tentacle-styles)
+        for (const [k, id] of all) if (!['pattern', 'finish', 'body', 'arms', 'tentacles'].includes(k) && meshes({ ...plain, [k]: id }) === base) broken.push(`${body}:${k}:${id}`);
       }
       Object.assign(info, { rules, listed, broken: broken.slice(0, 6) });
       return ok(earnOk && devOk && shopOk && rules && listed && !broken.length, info);

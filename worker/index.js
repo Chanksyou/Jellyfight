@@ -119,7 +119,7 @@ async function migrateNames(db) {
 
 // a look as the board carries it: only the descriptor's own keys (character.js
 // DEFAULT_LOOK), short string values and finite numbers, stored as JSON text
-const LOOK_KEYS = ['name', 'body', 'finish', 'color', 'accent', 'pattern', 'eyes', 'eyeColor', 'mouth', 'top', 'topColor', 'size'];
+const LOOK_KEYS = ['name', 'body', 'finish', 'color', 'accent', 'pattern', 'arms', 'tentacles', 'eyes', 'eyeColor', 'mouth', 'top', 'topColor', 'size'];
 const cleanLook = (l) => {
   if (!l || typeof l !== 'object') return null;
   const out = {};
