@@ -167,6 +167,13 @@ verification across all player attack families.
 
 ## Agent skills
 
+### Game toolkit
+
+For combat design/feel reviews, phone performance investigations, and playtest
+analysis, use the focused [game toolkit](docs/agents/game-toolkit.md). Shared
+workflows live in `.claude/skills/jelly-*/SKILL.md`; `.agents/skills/` provides
+Codex discovery entries. Load only the workflow relevant to the request.
+
 ### Issue tracker
 
 GitHub Issues on `Chanksyou/Jellyfight` (no `gh` in cloud sessions: use the GitHub MCP tools). See `docs/agents/issue-tracker.md`.
