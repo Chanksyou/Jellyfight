@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v418 takes the glowing core out of every jelly type's bell (it poked out of flat bells like the Fried Egg's, on the pick card and in play), and turns the Glitter jelly's burst into a plain glassy ball with no hex cells, so it's much less busy.
+
 v417 keeps a dev password saved in the Cloudflare dashboard through every deploy, and the unlock box now says "No dev password set on the server" when the Worker can't see one, instead of "Wrong password".
 
 v416 Removed the old Element Treasures (the 37 Elements and their upgrades, plus Power Bank) and the Element pick code they needed, now that every run is a jelly type.
