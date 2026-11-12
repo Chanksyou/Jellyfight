@@ -235,3 +235,30 @@ phone('frame-rate-cool-by-default', {
     return ok(cool && offered && smooth && back, { cool, fps: pacer.fps, offered, smooth, back, kept });
   },
 });
+
+phone('camera-turn-hint-until-first-drag', {
+  about: 'A phone that has never turned the camera shows a dashed hint on the right with a finger sweeping across it, and the camera turns along with its first two sweeps, ending where it started. A right-side drag hides it for good; an act that ends with no turn brings it back in the next act.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { touch, tpc } = G(), el = document.querySelector('#touch'), hint = el.querySelector('.turn');
+    const was = localStorage.getItem('jellyrun.turned');
+    const act = () => { touch.turnHint = null; step(1); return !hint.classList.contains('off'); };   // a new act's page
+    localStorage.removeItem('jellyrun.turned');
+    const newPlayer = act();
+    const yaw0 = tpc.yaw; let swing = 0;
+    step(60 * 5, () => { swing = Math.max(swing, Math.abs(tpc.yaw - yaw0)); });
+    const demo = swing > 0.1, settled = Math.abs(tpc.yaw - yaw0) < 0.02;
+    const y1 = tpc.yaw; step(60 * 6); const restStill = Math.abs(tpc.yaw - y1) < 1e-6;   // later loops: the finger only
+    const capture = el.setPointerCapture; el.setPointerCapture = () => {};
+    const x = innerWidth * 0.75, at = (type, dx) => el.dispatchEvent(new PointerEvent(type, { pointerId: 72, clientX: x + dx, clientY: 200, bubbles: true }));
+    at('pointerdown', 0); at('pointermove', 20); at('pointermove', 60); at('pointerup', 60);
+    el.setPointerCapture = capture;
+    const hidden = hint.classList.contains('off') && localStorage.getItem('jellyrun.turned') === '1';
+    const keptHidden = !act() && localStorage.getItem('jellyrun.turned') === 'act';   // turned last act: no hint, but this act checks
+    const back = act();                                                              // that act ended with no turn
+    if (was === null) localStorage.removeItem('jellyrun.turned'); else localStorage.setItem('jellyrun.turned', was);
+    touch.setTurnHint(false);
+    return ok(newPlayer && demo && settled && restStill && hidden && keptHidden && back,
+      { newPlayer, swing: +swing.toFixed(3), settled, restStill, hidden, keptHidden, back });
+  },
+});

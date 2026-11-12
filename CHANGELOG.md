@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v420 the Glitter jelly's burst no longer draws a shaded sphere: its glitter flies out to fill the burst's reach, hangs a moment and sinks.
+
+v419 shows phone players how to turn the camera: until they first drag on the right side, a dashed hint there has a see-through finger sweeping across it, and the camera turns along with its first two sweeps. It comes back in the next act if a whole act passes without a turn.
+
 v418 takes the glowing core out of every jelly type's bell (it poked out of flat bells like the Fried Egg's, on the pick card and in play), and turns the Glitter jelly's burst into a plain glassy ball with no hex cells, so it's much less busy.
 
 v417 keeps a dev password saved in the Cloudflare dashboard through every deploy, and the unlock box now says "No dev password set on the server" when the Worker can't see one, instead of "Wrong password".

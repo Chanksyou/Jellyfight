@@ -38,7 +38,7 @@ const kill = (e) => bus.emit('damage_taken', { targetId: e.id, amount: 1e6, sour
 const GLITTER_POOL = ['prism', 'rainbow', 'luckySparkle', 'confettiPop', 'midasTouch', 'discoBomb', 'mirrorGlitter', 'wish', 'jackpot', 'hotStreak', 'partyPopper', 'starBurst'];
 
 story('types/glitter-plays', {
-  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 4.8 x 1.3 = 6.24 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 1.92. Each burst shows as a ball of sparkle.',
+  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 4.8 x 1.3 = 6.24 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 1.92. Each burst shows as a cloud of glitter.',
   setup() { setupFight({ types: 'glitter' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley');
@@ -48,13 +48,13 @@ story('types/glitter-plays', {
     for (const d of log) if (d.targetId !== PLAYER) { const k = d.source === 'bubble' && d.feedback?.element ? d.feedback.element : d.source; (by[k] ||= []).push(d.amount); }
     const sources = Object.keys(by).sort().join(' ');
     const hits = (by.glitter || []).filter((a) => Math.abs(a - AD * HIT) < 1e-9).length, splashes = (by.splash || []).filter((a) => Math.abs(a - AD * 0.4) < 1e-9).length;
-    const balls = run.bubbles.looks.balls?.length || 0;
+    const balls = run.bubbles.looks.clouds?.length || 0;
     return ok(sources === 'glitter splash' && hits >= 3 && splashes >= 3 && !volleys.length && balls >= 1 && !run.lash.list?.some?.((t) => t.striking), { sources, hits, splashes, volleys: volleys.length, balls, bug: bug.hp, next: next.hp });
   },
 });
 
 story('types/glitter-burst-sphere', {
-  about: 'The Glitter jelly\'s burst is a 10 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 15 cm off nor the bug the bomb hit, and shows a plain glassy ball (no Warning hex cells) swelling out to that same 10 cm and fading. The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
+  about: 'The Glitter jelly\'s burst is a 10 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 15 cm off nor the bug the bomb hit, and shows its glitter flung out to fill that same 10 cm, roughly (no shell drawn round it). The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
   setup() { quiet(); },
   play() {
     const { run, enemies } = G(), B = run.bubbles;
@@ -62,19 +62,22 @@ story('types/glitter-burst-sphere', {
     const log = record('damage_taken');
     B.splash(bomb(hit));
     const got = { hit: splashOn(log, hit).length, beside: splashOn(log, beside)[0], flyer: splashOn(log, flyer)[0], far: splashOn(log, far).length };
-    const ball = B.looks.balls.find((v) => v.visible), plain = ball?.material.uniforms.uLines.value === 0;
+    const ball = B.looks.clouds.find((v) => v.visible), at = enemies.center(hit).clone(), F = G().fx.glitter;
+    const plain = !B.looks.balls;   // no shell
     step(12);
-    const grown = ball?.scale.x;
+    // how far out the flakes got: the farthest few, a little before they sink
+    const reach = F.list.filter((f) => f.life && !f.down).map((f) => f.p.distanceTo(at)).sort((a, b) => b - a);
+    const grown = reach[Math.floor(reach.length * 0.05)];
     step(30);
     const gone = !ball?.visible;
     // the Element as a Treasure: no ball
     fresh({ bubbles: true });
-    const shown = G().run.bubbles.looks.balls?.filter((v) => v.visible).length || 0;
+    const shown = G().run.bubbles.looks.clouds?.filter((v) => v.visible).length || 0;
     const e = roachAt(0, -0.25);
     G().run.bubbles.splash({ m: { position: enemies.center(e).clone() }, r: 0.0065, dmg: 1, pw: 6 * 4.5, ep: elementParams('glitter'), elems: new Set(['glitter']), hit: new Set([e]) });
-    const old = (G().run.bubbles.looks.balls?.filter((v) => v.visible).length || 0) - shown;
+    const old = (G().run.bubbles.looks.clouds?.filter((v) => v.visible).length || 0) - shown;
     const pass = got.hit === 0 && Math.abs(got.beside - AD * 0.4) < 1e-9 && Math.abs(got.flyer - AD * 0.4) < 1e-9 && got.far === 0
-      && Math.abs(grown - RADIUS) < RADIUS * 0.05 && gone && old === 0 && plain;
+      && Math.abs(grown - RADIUS) < RADIUS * 0.25 && gone && old === 0 && plain;
     return ok(pass, { ...got, grown, radius: RADIUS, gone, old, plain });
   },
 });
@@ -92,7 +95,7 @@ story('types/glitter-aims-at-flying-bugs', {
 });
 
 story('treasures/random-status', {
-  about: 'random-status statuses="stunned" time=1.5: a glitter burst Stuns the bug it hit and the one beside it, not one outside; with "chilled" it Chills them and its ball turns blue; with "burning" they Burn. "frozen" is not a status it can roll.',
+  about: 'random-status statuses="stunned" time=1.5: a glitter burst Stuns the bug it hit and the one beside it, not one outside; with "chilled" it Chills them and its glitter turns blue; with "burning" they Burn. "frozen" is not a status it can roll.',
   setup() { quiet(); },
   play() {
     const { run, enemies } = G(), S = enemies.statuses, out = {};
@@ -101,8 +104,8 @@ story('treasures/random-status', {
       withWords(`random-status statuses="${st}" time=1.5`);
       const hit = roachAt(0, -0.25), beside = roachAt(0.05, -0.25), far = roachAt(0.2, -0.25);
       G().run.bubbles.splash(bomb(hit));
-      const ball = G().run.bubbles.looks.balls.find((v) => v.visible);
-      out[st] = [S[st](hit), S[st](beside), S[st](far), ball?.material.uniforms.uColor.value.getHexString()];
+      const ball = G().run.bubbles.looks.clouds.find((v) => v.visible);
+      out[st] = [S[st](hit), S[st](beside), S[st](far), ball?.color?.toString(16)];
     }
     const yes = (a) => a[0] > 0 && a[1] > 0 && a[2] === 0;
     return ok(yes(out.stunned) && yes(out.chilled) && yes(out.burning) && out.chilled[3] === '7ad8ff' && !!mistake('random-status statuses="frozen"'), out);
@@ -178,7 +181,7 @@ story('treasures/splash-reflect', {
     if (!h) return ok(false, { wall: 'none near' });
     const at = h.point.clone().addScaledVector(dir, -0.04);
     const hit = roachAt(at.x - G().player.position.x, at.z - G().player.position.z), back = spawn('roach', at.clone().addScaledVector(dir, -0.11).setY(G().player.position.y), { still: true, hp: 9999 });
-    const log = record('damage_taken'), balls = () => (B.looks.balls || []).filter((v) => v.visible).length;
+    const log = record('damage_taken'), balls = () => (B.looks.clouds || []).filter((v) => v.visible).length;
     const before = balls();
     B.splash(bomb(hit, G().enemies.center(hit).clone()));
     const wallBalls = balls() - before, reflected = splashOn(log, back).length;
@@ -343,7 +346,7 @@ story('types/glitter-pick-card-attacks', {
         const now = live.P.enemies.list, n = now.filter((b) => b.dead).length;
         if (now !== list) { kills += 3 - dead; list = now; dead = 0; } else { kills += n - dead; dead = n; }
         bombs = Math.max(bombs, live.P.bubbles.list.filter((b) => b.tint === 'glitter').length);
-        balls = Math.max(balls, live.P.bubbles.looks.balls?.filter((v) => v.visible).length || 0);
+        balls = Math.max(balls, live.P.bubbles.looks.clouds?.filter((v) => v.visible).length || 0);
       }
       const worn = !!live.P.worn.pieces.sparkle?.group.visible;
       return ok(picker.liveFor === 'glitter' && bombs >= 1 && balls >= 1 && kills >= 3 && worn, { live: picker.liveFor, bombs, balls, kills, worn });

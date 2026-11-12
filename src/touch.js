@@ -1,7 +1,13 @@
 // Phone and tablet controls:
 //  - left side: a joystick that appears wherever your thumb lands
-//  - right side: drag to look around
+//  - right side: drag to look around; until a player has, a dashed hint there with a see-through
+//    finger sweeping across it, and the camera turning along with its first sweeps (TURN_KEY)
 //  - jump button (hold it to climb fabric), a context button (unused for now), pause
+// '1': this device has turned the camera. 'act': it had, but not yet this act (each act is a page
+// load), so if the act ends unturned the next one shows the hint again. Missing: never turned.
+export const TURN_KEY = 'jellyrun.turned';
+const TURN_SWEEP = 2.4, TURN_REACH = 32, TURN_REST = 6;   // s per sweep, px each way, s between pairs of sweeps
+const TURNED_PX = 30;           // a look drag this far counts as having turned
 export const IS_TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
 const CSS = `
@@ -15,6 +21,12 @@ const CSS = `
 #touch .ghost { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 70px); bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
   width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; border: 2px dashed #ffffff40; pointer-events: none; }
 #touch .ghost.off { display: none; }
+#touch .turn { position: absolute; left: 72%; top: 44%; width: 150px; height: 58px; margin: -29px 0 0 -75px; border-radius: 29px;
+  border: 2px dashed #ffffff40; pointer-events: none; color: #ffffff70; font: 700 22px system-ui, sans-serif;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; }
+#touch .turn i { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  background: #ffffff8c; box-shadow: 0 2px 8px #0005; }
+#touch .turn.off { display: none; }
 #touch button { position: absolute; border: 0; border-radius: 50%; color: #fff; font: 700 15px system-ui, sans-serif;
   display: grid; place-items: center; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #touch .jump { right: calc(env(safe-area-inset-right, 0px) + 24px); bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); width: 84px; height: 84px;
@@ -34,6 +46,7 @@ export class TouchControls {
     this.el.id = 'touch';
     this.el.hidden = true;
     this.el.innerHTML = `<style>${CSS}</style><div class="ghost"></div><div class="stick"><i></i></div>
+      <div class="turn off" aria-hidden="true">‹<i></i>›</div>
       <button class="act" hidden></button><button class="jump" aria-label="Jump">⤴</button><button class="pause" aria-label="Pause">❚❚</button>`;
     this.stick = this.el.querySelector('.stick');
     this.knob = this.stick.firstChild;
@@ -43,6 +56,13 @@ export class TouchControls {
     this.move = null;   // { id, x, y }
     this.look = null;   // { id, x, y }
     this.lookSpeed = 2.2;
+    this.turn = this.el.querySelector('.turn');
+    this.finger = this.turn.querySelector('i');
+    this.turnHint = null;   // decided the first time the controls show (null: not yet)
+    this.turnT = 0;         // s into the finger's loop
+    this.turnDemo = false;  // the camera turns with the finger's first two sweeps after the hint appears
+    this.turnX = 0;         // the finger's offset, px
+    this.calm = matchMedia('(prefers-reduced-motion: reduce)').matches;   // no finger, no camera turning
 
     const el = this.el;
     el.addEventListener('pointerdown', (e) => {
@@ -58,7 +78,7 @@ export class TouchControls {
         this.stick.classList.add('on');
         this.ghost.classList.add('off');
       } else if (!left && !this.look) {
-        this.look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        this.look = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0 };
       }
       el.setPointerCapture(e.pointerId);
     });
@@ -77,6 +97,8 @@ export class TouchControls {
       } else if (this.look && e.pointerId === this.look.id) {
         input.mouseDX += (e.clientX - this.look.x) * this.lookSpeed;
         input.mouseDY += (e.clientY - this.look.y) * this.lookSpeed;
+        this.look.moved += Math.abs(e.clientX - this.look.x);
+        if (this.look.moved > TURNED_PX) this.turned();
         this.look.x = e.clientX;
         this.look.y = e.clientY;
       }
@@ -112,6 +134,11 @@ export class TouchControls {
   mount(parent) { parent.appendChild(this.el); }
 
   show(on) {
+    if (on && this.turnHint === null) {
+      let seen = null; try { seen = localStorage.getItem(TURN_KEY); } catch {}
+      this.setTurnHint(seen !== '1');
+      if (seen === '1') try { localStorage.setItem(TURN_KEY, 'act'); } catch {}
+    }
     document.documentElement.classList.toggle('touch-playing', on);
     this.el.hidden = !on;
     if (!on) {
@@ -120,6 +147,34 @@ export class TouchControls {
       this.input.touchJump = false;
       this.stick.classList.remove('on');
     }
+  }
+
+  // the player turned the camera: no hint for the rest of this act, nor the next ones while they keep turning
+  turned() {
+    if (this.turnedHere) return;
+    this.turnedHere = true;
+    this.setTurnHint(false);
+    try { localStorage.setItem(TURN_KEY, '1'); } catch {}
+  }
+
+  setTurnHint(on) {
+    this.turnHint = on;
+    this.turn.classList.toggle('off', !on);
+    this.turnT = 0; this.turnX = 0; this.turnDemo = on; this.finger.style.transform = '';
+  }
+
+  // each frame while playing: the finger sweeps twice, rests, sweeps again; the camera follows only
+  // its first two sweeps, the way the player's own drag would turn it (back where it started after)
+  update(dt) {
+    if (!this.turnHint || this.el.hidden || this.calm) return;
+    const loop = TURN_SWEEP * 2 + TURN_REST;
+    this.turnT += dt;
+    const t = this.turnT % loop;
+    const x = t < TURN_SWEEP * 2 ? Math.sin((t / TURN_SWEEP) * Math.PI * 2) * TURN_REACH : 0;
+    if (this.turnDemo && !this.look) this.input.mouseDX += (x - this.turnX) * this.lookSpeed;
+    if (this.turnT >= TURN_SWEEP * 2) this.turnDemo = false;
+    this.turnX = x;
+    this.finger.style.transform = `translateX(${x.toFixed(1)}px)`;
   }
 
   // label: text for the context button, or null to hide it
