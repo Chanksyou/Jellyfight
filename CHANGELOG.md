@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v417 keeps a dev password saved in the Cloudflare dashboard through every deploy, and the unlock box now says "No dev password set on the server" when the Worker can't see one, instead of "Wrong password".
+
 v416 Removed the old Element Treasures (the 37 Elements and their upgrades, plus Power Bank) and the Element pick code they needed, now that every run is a jelly type.
 
 v415 stops jumps from dodging boss attacks that should hit anything in their space: the Clog's hair chunks now splash a column 25 cm up off a duck's back (hop to the spared duck instead of jumping off), its comb curtains stand 22 cm tall (taller than a full jump), the Encore's disco spots hit at any height (step off them), and its floor tiles keep hurting while they're lit, so landing in a wave's wake is hit.
