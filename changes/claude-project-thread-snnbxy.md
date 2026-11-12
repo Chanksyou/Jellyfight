@@ -1,0 +1,1 @@
+makes furniture and walls the camera fades see-through much cheaper to draw: they use a plain lit copy of their material, drawn once, and High's AO no longer draws them a second time, so the frame rate holds when you walk behind a sofa or wall.

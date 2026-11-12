@@ -937,13 +937,12 @@ story('engine/furniture-drawn-in-batches', {
   about: 'Furniture that shares a material is drawn in one batch (far fewer draws), and each piece still acts on its own: one the camera fades leaves the batch and is drawn see-through by itself, then goes back; one that moves (a door swinging) moves in the batch; a hidden one is hidden there too.',
   setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   play() {
-    const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2), p = b.pieces[0], o = p.mesh, mat = o.material;
+    const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2), p = b.pieces[0], o = p.mesh;
     const visibleAt = () => b.batch.getVisibleAt(p.id);
     const pieces = statics.count, start = visibleAt() && o.layers.mask !== 1;
     tpc.startFade(o); statics.sync();
     const faded = !visibleAt() && o.layers.mask === 1;
-    [].concat(tpc._fades.get(o).see).forEach((c) => c.dispose()); tpc._fades.delete(o);
-    o.material = mat; statics.sync();
+    tpc.unfade(o, tpc._fades.get(o)); statics.sync();
     const back = visibleAt() && o.layers.mask !== 1;
     const m = new THREE.Matrix4(), was = o.position.clone();
     o.position.x += 0.1; o.updateMatrixWorld(true); statics.sync(); b.batch.getMatrixAt(p.id, m);
