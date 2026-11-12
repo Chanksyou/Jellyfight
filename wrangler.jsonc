@@ -6,6 +6,9 @@
   "name": "jelly-fight",
   "main": "worker/index.js",
   "compatibility_date": "2026-08-12",
+  // Keep variables added in the Cloudflare dashboard (e.g. DEV_PASSWORD saved as Text, not Secret):
+  // without this, every deploy from main deletes them.
+  "keep_vars": true,
   // Branch previews serve the game without binding the production leaderboard database.
   "previews": {},
   "assets": {
