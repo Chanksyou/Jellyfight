@@ -1575,7 +1575,10 @@ export function buildCharacter(look, heightMeters) {
   const hatTop = top.children.length ? new THREE.Box3().setFromObject(top).max.y / (heightMeters * look.size) : 0;
 
   // --- Animation --------------------------------------------------------------
-  let t = 0, phase = 0, impact = 0, impactV = 0, blinkIn = 1 + Math.random() * 2;
+  // blinks have their own dice: a face's animation never draws on the game's Math.random, so how
+  // long a page has been open (and when the jelly last blinked) can't change what the night rolls
+  const blinkDice = rng(hash(look.body + 'blink'));
+  let t = 0, phase = 0, impact = 0, impactV = 0, blinkIn = 1 + blinkDice() * 2;
   let kick = 0, roll = 0, idleSwim = 0, surge = 0;
   const baseRot = wobblers.map(([o, ax]) => o.rotation[ax]);
   const toUnits = 1 / (heightMeters * look.size);
@@ -1651,7 +1654,7 @@ export function buildCharacter(look, heightMeters) {
 
     blinkIn -= dt;
     const closing = blinkIn < 0 && blinkIn > -0.12;
-    if (blinkIn < -0.12) blinkIn = 2 + Math.random() * 3.5;
+    if (blinkIn < -0.12) blinkIn = 2 + blinkDice() * 3.5;
     const eyeHeight = closing && blinks ? 0.12 : 1;
     if (eyes[0].scale.y !== eyeHeight) {
       eyes.forEach((e) => { e.scale.y = eyeHeight; });
