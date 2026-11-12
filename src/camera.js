@@ -26,8 +26,21 @@ const sizeOf = (m) => {
   return _sphere.radius * 2;
 };
 
+// A see-through copy of a material. A faded piece is drawn over the room behind it, so every pixel
+// of it is lit twice (it, then what's behind): a sofa back filling half a phone screen cost a fifth
+// of the frame. So a lit (standard) material fades as a plain diffuse one, which side by side
+// looks the same at that faintness at a fraction of the work per lamp, and it's drawn in one pass
+// (three.js draws a see-through two-sided piece twice, back faces then front).
+const LAMBERT = ['color', 'map', 'lightMap', 'lightMapIntensity', 'aoMap', 'aoMapIntensity', 'emissive', 'emissiveMap', 'emissiveIntensity',
+  'bumpMap', 'bumpScale', 'normalMap', 'normalMapType', 'normalScale', 'displacementMap', 'displacementScale', 'displacementBias',
+  'alphaMap', 'wireframe', 'flatShading', 'fog'];
 const faded = (mat) => {
-  const c = mat.clone();
+  let c;
+  if (mat.isMeshStandardMaterial) {
+    c = THREE.Material.prototype.copy.call(new THREE.MeshLambertMaterial(), mat);
+    for (const k of LAMBERT) c[k] = mat[k]?.isColor || mat[k]?.isVector2 ? mat[k].clone() : mat[k];
+    c.forceSinglePass = true;   // (only these: any other copy keeps its own shaders, which a boss's warm-up may have built already)
+  } else c = mat.clone();
   c.onBeforeCompile = mat.onBeforeCompile;   // clone() leaves it out: the baked corner shadows (baked-ao.js) stay on
   c.transparent = true;
   c.depthWrite = false;
@@ -105,7 +118,7 @@ export class ThirdPersonCamera {
       if (this.over.has(m) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;
       const goal = f.hold > 0 ? this.keep.get(m) ?? f.low : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
-      if (goal === 1 && f.k > 0.98) { m.material = f.mats; for (const c of [].concat(f.see)) c.dispose(); this._fades.delete(m); continue; }   // the clones are this fade's alone: free them, or every fade leaks materials
+      if (goal === 1 && f.k > 0.98) { this.unfade(m, f); continue; }
       for (const s of [].concat(f.see)) s.opacity = s.userData.solid * f.k;
     }
   }
@@ -115,6 +128,17 @@ export class ThirdPersonCamera {
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
     this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
     m.material = see;
+    // High's N8AO draws every see-through thing again to keep its shading off them; a faded piece
+    // is mostly the room behind it, so that room's shading may show through it, and it's drawn once
+    m.userData.treatAsOpaque = true;
+  }
+
+  // the piece on its own material again; the clones are this fade's alone: free them, or every fade leaks materials
+  unfade(m, f) {
+    m.material = f.mats;
+    delete m.userData.treatAsOpaque;
+    for (const c of [].concat(f.see)) c.dispose();
+    this._fades.delete(m);
   }
 
   // Keep these meshes faint (opacity: how solid) until dropKeep: they fade like anything in the way
@@ -124,10 +148,7 @@ export class ThirdPersonCamera {
   dropKeep() {
     for (const m of this.keep.keys()) {
       const f = this._fades.get(m);
-      if (!f) continue;
-      m.material = f.mats;
-      for (const c of [].concat(f.see)) c.dispose();
-      this._fades.delete(m);
+      if (f) this.unfade(m, f);
     }
     this.keep.clear();
   }

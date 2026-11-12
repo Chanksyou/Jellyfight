@@ -38,6 +38,26 @@ story('camera/fade-disposes-its-clones', {
     return ok(mesh.material === f.mats && !tpc._fades.has(mesh) && disposed === [].concat(f.see).length, { disposed, clones: [].concat(f.see).length, restored: mesh.material === f.mats });
   },
 });
+story('camera/see-through-is-cheap-to-draw', {
+  about: 'A faded piece of lit furniture is drawn with a plain diffuse copy of its material (same colour, texture and baked corner shadows), in one pass, and High\'s AO doesn\'t draw it a second time; once it\'s clear it is its own solid self again. A see-through sofa back used to cost a fifth of the frame.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, run } = G();
+    let mesh = null, f = null;
+    for (const p of cameraSpots([])) for (let k = 0; k < 8 && !f; k++) {
+      tp(p[0], p[1], p[2], (k * Math.PI) / 4); step(12);
+      [mesh, f] = [...tpc._fades].find(([, x]) => !Array.isArray(x.mats) && x.mats.isMeshStandardMaterial) || [];
+    }
+    if (!f) return ok(false, { faded: false });
+    const own = f.mats, see = f.see;
+    const cheap = see.isMeshLambertMaterial && see.forceSinglePass && see.transparent && !see.depthWrite && see.map === own.map && see.color.equals(own.color) && see.side === own.side && see.onBeforeCompile === own.onBeforeCompile;
+    const once = mesh.userData.treatAsOpaque === true;
+    const st = run.stage.start;
+    tp(st[0], 0.05, st[2], 0); step(90);
+    const back = mesh.material === own && !tpc._fades.has(mesh) && !('treatAsOpaque' in mesh.userData);
+    return ok(cheap && once && back, { mesh: mesh.name, see: see.type, single: see.forceSinglePass, once, back });
+  },
+});
 story('camera/see-through-holds-and-clears-clutter', {
   about: 'What the camera sees through stays faded for a moment after it\'s clear (no flicker as the rays sweep a shelf of cups), and small clutter (under 15 cm across) fades right out rather than to see-through, while furniture and walls fade to see-through as before. Both come back on their own materials.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
