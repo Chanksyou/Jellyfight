@@ -2,6 +2,9 @@
 //   burst(pos, n, radius, floor)  a glitter bomb going off: real flakes thrown out to the splash's
 //                                 edge, fluttering down, each glinting as it turns to face you, then
 //                                 lying on the floor as a sparkly patch that fades
+//   cloud(pos, n, radius, floor, tint)  the Glitter jelly's burst: the flakes thrown out through the
+//                                 whole sphere of the hit (each to its own spot inside it, roughly),
+//                                 hanging there a moment, then fluttering down the same way
 // Colours and timings in content/look.css (--glitter-*).
 import * as THREE from 'three';
 import { LOOK } from './look.js';
@@ -16,7 +19,7 @@ export class GlitterLooks {
     // a flake: a little flat hexagon (a 6-sided disc), facing +z
     this.mesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false }), FLAKES);
     this.mesh.name = 'Glitter flakes'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true;
-    this.list = Array.from({ length: FLAKES }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), spin: new THREE.Vector3(), col: new THREE.Color(), size: 0, t: 0, life: 0, floor: 0, down: false, seed: 0 }));
+    this.list = Array.from({ length: FLAKES }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), spin: new THREE.Vector3(), col: new THREE.Color(), size: 0, t: 0, life: 0, floor: 0, down: false, seed: 0, g: 0.6, drag: 6 }));
     for (let i = 0; i < FLAKES; i++) { this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.mesh.setColorAt(i, _c.set(0)); }
     this.next = 0; this.busy = false;
     scene.add(this.mesh);
@@ -33,9 +36,25 @@ export class GlitterLooks {
       f.q.setFromEuler(_e.set(Math.random() * 6, Math.random() * 6, Math.random() * 6));
       f.spin.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
       f.col.set(cols[k % cols.length]); f.size = size * (0.7 + Math.random() * 0.6);
-      f.t = 0; f.life = life * (0.8 + Math.random() * 0.4); f.floor = floor + 0.0008 + Math.random() * 0.0006; f.down = false; f.seed = Math.random() * 100;
+      f.t = 0; f.life = life * (0.8 + Math.random() * 0.4); f.floor = floor + 0.0008 + Math.random() * 0.0006; f.down = false; f.seed = Math.random() * 100; f.g = 0.6; f.drag = 6;
     }
     this.busy = true;
+  }
+
+  // n flakes from pos, each flung to a spot of its own inside the sphere of `radius` (a cloud flake's
+  // drag stops it 1/12 of its speed out, most of the way there in a fifth of a second), hanging
+  // there a moment and sinking slowly to `floor`.
+  // tint: every flake that colour (a Rainbow roll), else the glitter's colours
+  cloud(pos, n, radius, floor = pos.y - 0.05, tint = null) {
+    const first = this.next;
+    this.burst(pos, n, radius, floor);
+    for (let k = 0; k < n; k++) {
+      const f = this.list[(first + k) % FLAKES];
+      f.drag = 12;
+      f.v.randomDirection().multiplyScalar(f.drag * radius * Math.cbrt(0.15 + 0.85 * Math.random()));   // spread through the volume, a few near the middle
+      f.g = LOOK.num('glitter-cloud-fall', 0.2);
+      if (tint) f.col.set(tint);
+    }
   }
 
   update(dt) {
@@ -49,7 +68,7 @@ export class GlitterLooks {
       any = true;
       if (!f.down) {
         // flutter: heavy air drag, a gentle fall, tumbling as it goes
-        f.v.multiplyScalar(Math.exp(-6 * dt)); f.v.y -= 0.6 * dt;
+        f.v.multiplyScalar(Math.exp(-f.drag * dt)); f.v.y -= f.g * dt;
         f.v.x += Math.sin(f.seed + f.t * 9) * 0.02 * dt; f.v.z += Math.cos(f.seed + f.t * 7) * 0.02 * dt;
         f.p.addScaledVector(f.v, dt);
         _q.setFromEuler(_e.set(f.spin.x * dt, f.spin.y * dt, f.spin.z * dt)); f.q.multiply(_q);

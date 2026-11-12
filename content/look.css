@@ -564,9 +564,9 @@
   --glitter-burst-flakes: 46;    /* flakes in a bomb (more for a wider splash) */
   --glitter-death-flakes: 34;    /* flakes a glitter-finished bug bursts into (more for big ones) */
   --glitter-pop: #ff9ae8;
-  --glitter-ball-life: 0.32;     /* Glitter jelly: s its burst's ball of sparkle (the real hit sphere) shows */
-  --glitter-ball-opacity: 0.8;   /* how bright it starts */
-  --glitter-ball-most: 8;        /* at most this many at once (the oldest is reused) */
+  --glitter-cloud-flakes: 110;   /* Glitter jelly: flakes in its burst, thrown out to fill its 10 cm hit sphere (more for a wider one) */
+  --glitter-cloud-fall: 0.2;     /* how fast they sink while they hang there, m/s a second (a plain bomb's flakes: 0.6) */
+  --glitter-cloud-life: 0.5;     /* s a burst counts as showing (stories) */
   /* ice (Freezer Pack): its shards, the frost flower where one strikes, a chilled bug's crown (ice-looks.js, enemies.js) */
   --ice-shard: #cfefff;          /* the crystal shards that burst out of a hit and a chilled bug's shatter */
   --ice-shard-glow: #3aa8ff;     /* their cold inner glow */

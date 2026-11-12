@@ -229,7 +229,6 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
         uHeight: { value: k.height },
         uHex: { value: LOOK.num('warning-volume-hex', 90) },
         uGlow: { value: LOOK.num('warning-volume-glow', 1.5) },
-        uLines: { value: 1 },                                // the hex cells (0: a plain glassy shell, for a friendly burst)
       },
       vertexShader: /* glsl */`
         ${LOGV_PARS}
@@ -244,7 +243,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
         }`,
       fragmentShader: /* glsl */`
         ${LOGF_PARS}
-        uniform vec3 uColor; uniform float uProgress, uOpacity, uBottom, uHeight, uHex, uGlow, uLines;
+        uniform vec3 uColor; uniform float uProgress, uOpacity, uBottom, uHeight, uHex, uGlow;
         varying vec3 vLocal, vWorld, vN;
         float hex(vec2 p) {                                  // distance to the nearest hex cell edge (0 on the line)
           p *= vec2(1.0, 1.1547);
@@ -257,7 +256,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
           float h = (vLocal.y - uBottom) / uHeight;          // 0 at the bottom of the volume, 1 at the top
           vec3 view = normalize(cameraPosition - vWorld);
           float rim = pow(1.0 - abs(dot(normalize(vN), view)), 2.0);
-          float lines = uLines * (1.0 - smoothstep(0.0, 0.07, hex(vWorld.xz * uHex + vec2(vWorld.y * uHex, 0.0))));
+          float lines = 1.0 - smoothstep(0.0, 0.07, hex(vWorld.xz * uHex + vec2(vWorld.y * uHex, 0.0)));
           float filled = step(h, uProgress), front = smoothstep(0.08, 0.0, abs(h - uProgress));
           float a = clamp(lines * (0.18 + filled * 0.55) + front * 0.8 + rim * 0.25 + filled * 0.08, 0.0, 1.0) * uOpacity;
           vec3 col = uColor * (1.0 + a * 0.6);
@@ -275,7 +274,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
   set opacity(v) { if (this.uniforms) this.uniforms.uOpacity.value = v; }
   get progress() { return this.uniforms.uProgress.value; }
   set progress(v) { this.uniforms.uProgress.value = v; }
-  clone() { const m = new VolumeMaterial(this.uniforms.uColor.value, this.kind); m.opacity = this.opacity; m.uniforms.uLines.value = this.uniforms.uLines.value; return m; }
+  clone() { const m = new VolumeMaterial(this.uniforms.uColor.value, this.kind); m.opacity = this.opacity; return m; }
 }
 
 // ------------------------------------------------------------------ blasts
