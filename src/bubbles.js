@@ -920,8 +920,7 @@ export class Bubbles {
     const C = H?.crit, crit = !!C && Math.random() < C.chance;
     const R = M?.randomStatus, roll = R ? R.statuses[(Math.random() * R.statuses.length) | 0] : null;
     const floor = E.floorBelow(p, p.y - 0.03);
-    this.looks.sparkleBall(p, r, roll ? STATUS_TINT[roll] : EL.glitter.color, crit);
-    this.fx.glitter.burst(p, Math.round(LOOK.num('glitter-burst-flakes', 46) * Math.min(2, r / 0.05)), r, floor);
+    this.looks.sparkleCloud(p, r, floor, roll ? STATUS_TINT[roll] : null, crit);
     this.looks.glitterPop(p, r);
     if (crit) { this.fx.crit(p, Math.min(0.02, r * 0.3)); sfx.crit(); }
     else juice.feel('hit-big');
