@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v421 makes furniture and walls the camera fades see-through much cheaper to draw: they use a plain lit copy of their material, drawn once, and High's AO no longer draws them a second time, so the frame rate holds when you walk behind a sofa or wall.
+
 v420 the Glitter jelly's burst no longer draws a shaded sphere: its glitter flies out to fill the burst's reach, hangs a moment and sinks.
 
 v419 shows phone players how to turn the camera: until they first drag on the right side, a dashed hint there has a see-through finger sweeping across it, and the camera turns along with its first two sweeps. It comes back in the next act if a whole act passes without a turn.
