@@ -5,7 +5,7 @@ import { bus } from '../events.js';
 import { CONTENT, compileMods, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { elementParams } from '../words.js';
-import { G, V, fresh, offs, ok, record, roachAt, setupFight, spawn, near, step, story, stub } from './kit.js';
+import { G, V, fresh, offs, ok, record, roachAt, setupFight, spawn, near, step, story, stub, withElement } from './kit.js';
 
 const ICE_POOL = ['permafrost', 'brittle', 'shatterShards', 'coldSnap', 'glacierShell', 'icicleLance', 'frostbite', 'hoarfrost', 'snowball', 'deepFreeze', 'cryoSleep', 'avalanche'];
 

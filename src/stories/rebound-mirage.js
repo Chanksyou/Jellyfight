@@ -1,6 +1,6 @@
 import { PLAYER } from '../events.js';
 import { BASE_STATS } from '../stats.js';
-import { G, V, evolve, fresh, give, near, ok, record, setupFight, spawn, step, story, stub } from './kit.js';
+import { G, V, evolve, fresh, give, near, ok, record, setupFight, spawn, step, story, stub, withElement } from './kit.js';
 
 story('treasures/rebound', {
   about: 'A bubble hits once going out and once returning, retains hit feedback, then is caught. Elements keep their own flight.',
@@ -45,7 +45,7 @@ story('evolutions/rebound-wall-and-guidance', {
 
 story('evolutions/rebound-elements-and-pierce', {
   about: 'Pierce permits two distinct bugs per leg; Element projectiles never become returning bubbles.',
-  setup() { setupFight({ bubbles: false, lash: false }); evolve('rebound'); give('freezerPack'); },
+  setup() { setupFight({ bubbles: false, lash: false }); evolve('rebound'); withElement('ice'); },
   play() {
     const { run, enemies } = G(), B = run.bubbles;
     const a = spawn('roach', near(0, -0.08), { still: true, hp: 100 });

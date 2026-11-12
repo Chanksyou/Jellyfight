@@ -2,11 +2,11 @@
 
 import { bus, PLAYER } from '../events.js';
 import { CONTENT, compileMods, compileTreasures } from '../content.js';
-import { rollCards, RARITY, BASE_STATS, ELEMENT_UPGRADES } from '../stats.js';
+import { rollCards, RARITY, BASE_STATS } from '../stats.js';
 import { elementParams } from '../words.js';
 import { parse } from '../kdl.js';
 import { seededRandom } from '../story-random.mjs';
-import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
+import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, spy, step, story, stub, tp, withElement } from './kit.js';
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
 
@@ -56,19 +56,11 @@ const modsOf = (src) => {
   for (const fx of t.effects) fx(m, 0);
   return m;
 };
-story('treasures/element', {
-  about: 'element: names an element attack the run owns, with that element\'s base numbers (ELEMENT_BASE). Only old saves and the Element treasures kept for them use it; a jelly type fires its own attack.',
-  setup() {},
-  play() {
-    const m = modsOf('element "fire"');
-    return ok(m.elements.has('fire') && m.element.fire.burn === elementParams('fire').burn && !m.elements.has('ice'), { owned: [...m.elements], fire: m.element.fire });
-  },
-});
 story('treasures/element-up', {
   about: 'element-up: changes one number of an element attack: some add (burnTime, count) and the rest multiply (burn), as a jelly type\'s Attack upgrades use it.',
   setup() {},
   play() {
-    const m = modsOf('element "fire"\nelement-up "fire" burn=2 burnTime=3'), base = elementParams('fire');
+    const m = modsOf('element-up "fire" burn=2 burnTime=3'), base = elementParams('fire');
     return ok(m.element.fire.burn === base.burn * 2 && m.element.fire.burnTime === base.burnTime + 3, { burn: m.element.fire.burn, burnTime: m.element.fire.burnTime });
   },
 });
@@ -142,7 +134,7 @@ story('treasures/pick-screen-order-and-rarity', {
   },
 });
 story('treasures/choices-resume-mouse-during-selection', {
-  about: 'Treasure and Element picks resume synchronously during the selection gesture, once, while their visual outro remains. A newer modal still blocks resume and survives the old outro.',
+  about: 'Treasure picks resume synchronously during the selection gesture, once, while their visual outro remains. A newer modal still blocks resume and survives the old outro.',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G(), ui = run.ui;
@@ -157,10 +149,6 @@ story('treasures/choices-resume-mouse-during-selection', {
     const treasure = resumes === 1 && ui.open && ui.closing;
     ui.tick(1);
     const closed = !ui.open && !ui.closing && resumes === 1;
-    run.pickStartElement();
-    ui.keyHandler({ code: 'Digit1' });
-    const element = resumes === 2 && ui.closing && run.firstRun.elementChosen;
-    ui.tick(1);
     const choice = { icon: '*', name: 'Next menu', text: '' };
     ui.choose('One', '', [choice], () => {
       ui.choose('Two', '', [choice], () => {});
@@ -168,10 +156,10 @@ story('treasures/choices-resume-mouse-during-selection', {
     });
     ui.modal.querySelector('.jf-card').click();
     ui.tick(1);
-    const nextMenu = ui.open && !ui.closing && resumes === 2 && ui.modal.textContent.includes('Two');
+    const nextMenu = ui.open && !ui.closing && resumes === 1 && ui.modal.textContent.includes('Two');
     ui.close(); restore();
-    return ok(blockedBeforePick && noEarlyResume && treasure && closed && element && nextMenu,
-      { resumes, blockedBeforePick, noEarlyResume, treasure, closed, element, nextMenu });
+    return ok(blockedBeforePick && noEarlyResume && treasure && closed && nextMenu,
+      { resumes, blockedBeforePick, noEarlyResume, treasure, closed, nextMenu });
   },
 });
 story('treasures/held-key-recovers-after-focus-loss', {
@@ -557,16 +545,6 @@ story('treasures/while-low-health', {
     return ok(same(full, [0, 0, 0]) && same(above, [0, 0, 0]) && same(low, [50, 40, 20]) && dry && steam, { full, above, low, dry, steam });
   },
 });
-story('treasures/power-bank', {
-  about: 'Power Bank (element-up for every element, Legendary): the elements you own fire 50% faster; it needs no element, so it\'s never offered as an Element upgrade.',
-  setup() { setupFight({ lash: false }); give('candle'); },
-  play() {
-    const { run } = G(), before = run.mods.element.fire.rate;
-    give('powerBank');
-    const after = run.mods.element.fire.rate, owns = [...run.mods.elements];
-    return ok(Math.abs(after - before * 1.5) < 1e-9 && owns.join() === 'fire' && !ELEMENT_UPGRADES.includes('powerBank'), { before, after, owns });
-  },
-});
 story('treasures/found-count-carries-over', {
   about: 'The count of treasures found (each one opened adds 1) carries into the next act with the rest of the run.',
   setup() { setupFight({ lash: false }); },
@@ -832,16 +810,6 @@ story('treasures/upgrades-show-current-effect-once', {
   },
 });
 
-story('treasures/tuned-element-upgrades', {
-  about: 'The tuned fire, lightning, ice, wind and glitter upgrades reach the live attack modifiers with their requested durations, multipliers and pierce counts.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('candle', 'battery', 'freezerPack', 'paperFan', 'glitter', 'longMatches', 'lighterFluid', 'copperWire', 'powerStrip', 'popsicleStick', 'hairDryer', 'deskFan', 'craftGlitter', 'glitterGlue', 'sequins'); },
-  play() {
-    const E = G().run.mods.element;
-    const got = [E.fire.burnTime, E.fire.burn, E.lightning.chainRange, E.lightning.bolt, E.ice.pierce, E.wind.pierce, E.wind.rate, E.glitter.width, E.glitter.slow, E.glitter.rate];
-    const want = [6, 2, 0.32, 2, 5, 6, 0.88 * 1.4, (0.08 / 0.026) * 1.4, 2, 1.05 * 1.4];
-    return ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-9), { got, want });
-  },
-});
 story('treasures/tuned-level-effects', {
   about: 'At each level the tuned Cotton Ball, Rubber Duck, Whale Bath Toy, Guitar Pick, Bath Bomb and Sticky Note feed the requested damage, range, shove, cooldown, healing and mark bonuses into gameplay.',
   setup() { setupFight({ bubbles: false, lash: false }); },
@@ -863,7 +831,7 @@ story('treasures/tuned-level-effects', {
 
 story('treasures/element-damage-and-speed', {
   about: 'Base Ice hits for 2x at 0.285 m/s, Wind for 1.5x at 1.6 m/s, and Glitter splashes for 0.4x within 8 cm at 0.4 m/s; damage scales with Attack damage.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'paperFan', 'glitter'); roachAt(0, -0.18); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('ice', 'wind', 'glitter'); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];
     e.hp = e.maxHp = 10000;
@@ -891,7 +859,7 @@ story('treasures/element-damage-and-speed', {
 
 story('treasures/acid-vulnerability', {
   about: 'Acid puddles apply 30% vulnerability to their own ticks and other hits, expire normally, and do not weaken a stronger Sticky Note mark.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('nailPolish'); roachAt(0, -0.18); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('acid'); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0]; e.hp = e.maxHp = 10000;
     B.elementVolley('acid', run.mods.element.acid, player.position.clone().add(V(0, 0.06, 0)), run.S, run.mods);

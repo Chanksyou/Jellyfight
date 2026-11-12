@@ -20,7 +20,7 @@
 //   acid      at 75% and again at 25%: the spout pours toxic violet acid until the tub is half full (it
 //             hurts to float in), and the four rubber ducks on the tub floor bob up on it. From the
 //             head of the tub, where it can't be hurt, it lobs a hair chunk at three of the ducks
-//             every 1.5 s (each duck's circle and half sphere fill till it lands): get on the fourth.
+//             every 1.5 s (each duck's circle and splash column fill till it lands; jumping off doesn't clear it): get on the fourth.
 //             Eight rounds, then it drains. The second time the acid swirls and the ducks circle;
 //             each chunk lands where its duck will be.
 // Below 65% health it's angry: faster, shorter pauses, the spray and double lashes.
@@ -399,7 +399,7 @@ export class Clog {
     });
     this.placeDucks(0);
     // the hair chunks it lobs at them: a thick clump of curls each, with its Warning on the duck
-    // (a circle on its back and the half sphere over it)
+    // (a circle on its back and the column it splashes up, taller than a jump)
     const R = rng(31), clump = [];
     for (let k = 0; k < 26; k++) { const d = new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).normalize(); clump.push(curl(R, d.clone().multiplyScalar(0.008), new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).normalize(), 0.03, 0.0028, HAIR[(R() * 7) | 0], 6)); }
     clump.push(paint(new THREE.IcosahedronGeometry(0.014, 1), HAIR[1]));
@@ -407,7 +407,7 @@ export class Clog {
     this.chunks = [0, 1, 2].map(() => {
       const m = new THREE.Mesh(chunkGeo, chunkMat);
       m.visible = false; scene.add(m);
-      return { m, tele: tele('circle', new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)), vol: vol('dome', 1), on: false, duck: 0, t: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
+      return { m, tele: tele('circle', new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2)), vol: vol('disc', 1), on: false, duck: 0, t: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
     });
     this.acid = null;
     this.acidDone = 0;   // how many acid phases it has had
@@ -1123,7 +1123,7 @@ export class Clog {
     const at = this.duckBack(c.duck, this._tip, this.duckAng);
     for (const w of [c.tele, c.vol]) {
       w.position.copy(at).setY(at.y + (w === c.tele ? 0.003 : 0));
-      w.scale.setScalar(R);
+      if (w === c.tele) w.scale.setScalar(R); else w.scale.set(R, AC.splash, R);
       w.material.progress = u;
       w.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(this.t * (u > 0.75 ? 30 : 14)));
     }
@@ -1137,7 +1137,8 @@ export class Clog {
     this.fx.puff(this._puff.copy(c.to).setY(this.acidY + 0.01), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.04, 0.5);
     sfx.clogSplat(); sfx.duckSqueak();
     juice.feel('impact');
-    if (blastHits(c.to, R, P, player.cfg)) { out.hit = Math.max(out.hit, AC.hit); this.knockBack(_rel.copy(P).sub(c.to), 0.7); this.contact(P, player.cfg); }
+    // it splashes up in a column taller than a jump, so jumping off a struck duck doesn't clear it
+    if (Math.hypot(P.x - c.to.x, P.z - c.to.z) < R + player.cfg.radius && P.y < c.to.y + AC.splash && P.y + player.cfg.height > c.to.y - R) { out.hit = Math.max(out.hit, AC.hit); this.knockBack(_rel.copy(P).sub(c.to), 0.7); this.contact(P, player.cfg); }
   }
 
   clampIn(q) {

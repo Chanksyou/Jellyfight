@@ -2,8 +2,8 @@
 // the ones elites drop), then beat the stage's boss and evolve.
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
-import { startingJelly, jellyStats, jellyAttack, typeLock, openTypes, leavesWithTypes } from './jelly-types.js';
-import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, ELEMENT_TREASURES, ELEMENT_UPGRADES, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
+import { startingJelly, jellyStats, jellyAttack, typeLock, openTypes } from './jelly-types.js';
+import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -258,14 +258,14 @@ export class Run {
     this.phase = 'explore';
     this.t = 0;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
-    this.startPicked = false;         // the starting Element pick is offered on the run's first frame
+    this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
     this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal for a first run, else the pick (pick-screen.js)
     this.stats = jellyStats(this.jelly);
     this.attack = jellyAttack(this.jelly);   // { kind, hit }: the one attack it fires
     this.typeAdorn = this.attack && CONTENT.jellies[this.jelly].adorn ? [CONTENT.jellies[this.jelly].adorn] : [];   // the type's look (adornments.js)
-    this.firstRun = FirstRun.forStage(this.stage, !!this.attack);   // a player's first run (first-run.js); a jelly type has no Element pick
+    this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.level = 1;
     this.xp = 0;
     this.purse = 0;
@@ -332,12 +332,11 @@ export class Run {
     if (balanceChanges().length || Object.keys(loadLayout(s.id)).length) this.disqualifyChallenges();
     this.newAchievements = [];
     this.scheduledTreasureSlots = Object.fromEntries((s.treasures?.at || []).map((at, i) => [at, i]));
-    this.skippedTreasureSlot = null;
     if (C) {
       this.stats = { ...BASE_STATS, ...C.stats };
       this.level = C.level; this.xp = C.xp; this.purse = C.purse;
       // a Treasure an older save names that the game no longer has (or, with jelly types, has retired) is dropped
-      for (const [id, n] of C.owned) { const t = TREASURES.find((x) => x.id === id); if (t && !(this.attack && leavesWithTypes(t))) for (let k = 0; k < n; k++) this.owned.add(id); }
+      for (const [id, n] of C.owned) { const t = TREASURES.find((x) => x.id === id); if (t && !t.retired) for (let k = 0; k < n; k++) this.owned.add(id); }
       this.grown = { ...C.grown }; this.growCount = { ...C.growCount }; this.growTotal = { ...C.growTotal };
       this.chestsOpened = C.chestsOpened || 0;
       this.evolved = (C.evolved || []).filter((id) => EVOLUTIONS.some((e) => e.id === id));
@@ -504,13 +503,10 @@ export class Run {
     this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
-    // every run starts with an Element: pick 1 of 3 before anything happens (on a player's first
-    // run it waits for the first Level-up instead: first-run.js)
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
       if (hint) { this.hint = hint; this.hintT = 7; }
-      if (this.firstRun.startElementPick && !this.attack) { this.pickStartElement(); return; }   // a jelly type's attack is its own
     }
     this.t += dt;
     const P = this.player, s = this.S;
@@ -990,7 +986,7 @@ export class Run {
     const W = this.mods.wish;
     if (!W || kills < W.kills || this.wishedIn === this.stage.id) return;
     this.wishedIn = this.stage.id;
-    this.gainXp(Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)));
+    this.gainXp(Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)));
     const P = this.player.position;
     this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.3), '🌠 WISH!', '#ffd23a', 22);
     this.hud.toast('🌠 Your wish came true: a free level-up!', 1800);
@@ -1017,7 +1013,7 @@ export class Run {
       if (t < W.time) continue;
       C.chain += W.chain; C.strike = Math.max(C.strike, W.strike); C.dmg = Math.max(C.dmg, W.dmg); C.keys.push(W.key);
     }
-    const ready = C.keys.length > 0 && (A?.kind === 'lightning' || this.mods.elements.has('lightning'));
+    const ready = C.keys.length > 0 && (A?.kind === 'lightning' );
     if (ready && !this.bubbles.charge) { this.fx.number(P.position.clone().setY(P.position.y + this.cfg.height * 1.2), 'CHARGED', LOOK.color('number-lightning', '#fff27a'), 14); sfx.gadgetStatic(); }
     this.bubbles.charge = ready ? C : null;
     if (ready) this.bubbles.looks.gather('lightning', (this._chargeAt ||= new THREE.Vector3()).copy(P.position).setY(P.position.y + this.cfg.height * 0.75), 0.7, s.bubbleSize);
@@ -1086,7 +1082,7 @@ export class Run {
     if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
     // crumb-on-kill drop="level" (Jackpot): now and then a big XP gem worth the rest of the level
     if (this.mods.jackpot && Math.random() < this.mods.jackpot.chance) {
-      if (this.xpDrops.gem(c, Math.max(1, Math.ceil((xpToNext(this.level) - this.xp) / this.firstRun.xpMul)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
+      if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
@@ -1146,7 +1142,7 @@ export class Run {
   // ------------------------------------------------------------ growth
   gainXp(n) {
     this.purse += n;
-    this.xp += n * this.firstRun.xpMul;   // a first run's first Level-up comes sooner (first-run.js)
+    this.xp += n;
     while (this.xp >= xpToNext(this.level)) {
       this.xp -= xpToNext(this.level);
       this.level++;
@@ -1175,7 +1171,6 @@ export class Run {
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
-      if (!this.attack && this.firstRun.elementPickAfterCard()) { this.pickStartElement(); return; }   // a first run: the Element comes now
       this.resume();
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect());
   }
@@ -1190,34 +1185,17 @@ export class Run {
   // a dev run: no Pearls, finds, achievements, run log or leaderboard
   devRun() { this.dev = true; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
 
-  pickStartElement() {
-    this.pickElement('🔥 Pick your element', 'Adds an attack alongside your main one. Upgrades appear every third treasure pick.',
-      () => {
-        const { hint, treasureAt } = this.firstRun.elementChose(this.t);   // a first run: a tip, and the skipped Treasure soon (first-run.js)
-        if (hint) { this.hint = hint; this.hintT = 4.5; }
-        if (treasureAt != null) {
-          this.treasureTimesLeft = [treasureAt, ...this.treasureTimesLeft.filter((x) => x > treasureAt)];
-          this.scheduledTreasureSlots[treasureAt] = this.skippedTreasureSlot;
-        }
-        this.resume();
-      });
-  }
-
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
-  // their stack=N) from a treasure chest; every 3rd chest, one of them is an Element upgrade. Base elements never come from here: they're Legendary (pickElement, pickLegendary).
+  // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
   pickTreasure(title = '✨ A treasure', sub = 'Choose a treasure.', source = 'room') {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
     const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
-    const can = (t) => weights[t.rarity] > 0 && takeable(t) && !ELEMENT_TREASURES.includes(t.id) && !ELEMENT_UPGRADES.includes(t.id);
-    // every 3rd chest: one of the three is an upgrade for an element you own (by its own rarity), if any is left
-    // (a jelly type has no Element upgrades: its every 3rd chest is ordinary)
-    const ups = ++this.chestsOpened % 3 === 0 && !this.attack ? TREASURES.filter((t) => ELEMENT_UPGRADES.includes(t.id) && takeable(t)) : [];
-    const up = ups.length ? rollTreasures(ups, 1, this.S.luck, favor) : [];
-    const rolled = rollTreasures(TREASURES.filter(can), 3 - up.length, this.S.luck, favor);
-    let left = shuffle([...up, ...rolled]);
+    const can = (t) => weights[t.rarity] > 0 && takeable(t);
+    this.chestsOpened++;
+    let left = shuffle(rollTreasures(TREASURES.filter(can), 3, this.S.luck, favor));
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
@@ -1230,24 +1208,12 @@ export class Run {
     this.offer(title, sub, left);
   }
 
-  // The start of a run: pick the base version of one element attack you don't have yet (1 of 3,
-  // all Legendary); every 3rd treasure chest then offers one of its upgrades.
-  // then: what happens after the pick (or straight away, if you already have every element)
-  pickElement(title, sub, then = () => this.resume()) {
-    const left = shuffle(TREASURES.filter((t) => ELEMENT_TREASURES.includes(t.id) && !this.owned.has(t.id))).slice(0, 3)
-      .map((t) => ({ ...t, tier: treasureTier(t) }));
-    if (!left.length) { then(); return; }
-    this.offer(title, sub, left, then);
-  }
-
-  // The Boss reward: a Legendary pick of three, with at least one element you don't have yet
-  // (while any are left); the rest from the other Legendary treasures and elements you can take
-  // With jelly types the evolutions not taken yet are in the same pool (docs/jelly-types/spec-legendaries.md)
+  // The Boss reward: a Legendary pick of three from the Legendary treasures you can take, the
+  // evolutions not taken yet among them (docs/jelly-types/spec-legendaries.md)
   pickLegendary(title, sub, then = () => this.resume()) {
     const can = (t) => t.rarity === 'legendary' && this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
-    const evos = this.attack ? EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e)) : [];
-    const pool = shuffle([...TREASURES.filter(can), ...evos]), el = pool.find((t) => ELEMENT_TREASURES.includes(t.id));
-    const left = (el ? [el, ...pool.filter((t) => t !== el)] : pool).slice(0, 3);
+    const evos = EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e));
+    const left = shuffle([...TREASURES.filter(can), ...evos]).slice(0, 3);
     if (!left.length) { then(); return; }
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
@@ -1255,9 +1221,8 @@ export class Run {
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
   hasStat(t) { return !t.needsStat || this.S[t.needsStat] > 0; }
   // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
-  // A jelly type's attack is its own: no Element, Element upgrade or Power Bank (element, element-up),
   // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
-  forAttack(t) { return !this.attack || !(t.notFor?.includes(this.attack.kind) || leavesWithTypes(t)); }
+  forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }
 
   // The end of an act (with jelly types): 1 of 3 Attack upgrades from the jelly's pool
   // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after
@@ -1311,7 +1276,6 @@ export class Run {
     if (!T || !this.treasureTimesLeft.length || this.t < this.treasureTimesLeft[0]) return;
     if (this.roomTreasures.some((t) => t.active && t.timed)) return;   // one scheduled at a time: the next waits
     const at = this.treasureTimesLeft.shift(), bonus = this.bonusTreasureAt.delete(at);
-    if (!this.firstRun.treasuresDue) { this.skippedTreasureSlot = this.scheduledTreasureSlots[at]; return; }
     const spot = this.nextTreasureSpot();
     if (!spot) return;
     const chest = this.placeTreasure(spot, T.stay);
@@ -1562,22 +1526,9 @@ export class Run {
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
-    // jelly types: no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
-    if (this.attack) {
-      if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
-      else { this.phase = 'won'; this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
-      return;
-    }
-    const choices = shuffle(EVOLUTIONS.filter((e) => !this.evolved.includes(e.id))).slice(0, 3);
-    const pick = next ? 'Choose an evolution for the rest of the run.' : 'Choose an evolution.';   // (the last act: nothing after it to promise)
-    this.ui.choose('Metamorphosis!', `${this.stage.evolve || 'Your polyp becomes an <b>Ephyra</b>, a baby jellyfish.'} ${pick}`, this.markNew('evolutions', choices), (evo) => {
-      this.evolve(evo, () => {
-        this.phase = 'won';
-        // The transformation finishes before the next reward replaces its portrait.
-        if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => this.actComplete(next));
-        else this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true });
-      });
-    });
+    // no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
+    if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+    else { this.phase = 'won'; this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
   }
 
   // Take an evolution: its effects join the run's, Health refills, and the metamorphosis plays; then: after it
@@ -1825,12 +1776,12 @@ export class Run {
 
   // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not.
   // With jelly types on (docs/jelly-types/spec-meta.md): a Jellies page first (locked types as silhouettes
-  // with their goal), then each type's Attack upgrades; the Treasures page leaves out what leaves with
-  // types (leavesWithTypes) and takes the former evolutions in with the Legendaries; no Evolutions page
+  // with their goal), then each type's Attack upgrades; the Treasures page leaves out retired
+  // Treasures and takes the former evolutions in with the Legendaries; no Evolutions page
   showBook(back) {
     const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'], types = true;
     const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(x.kind || kind, x.id, f) })) });
-    const treasures = TREASURES.filter((t) => !types || !leavesWithTypes(t)).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color, rank: RANK.indexOf(t.rarity) }));
+    const treasures = TREASURES.filter((t) => !t.retired).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color, rank: RANK.indexOf(t.rarity) }));
     const evolutions = EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text, ...(types ? { kind: 'evolutions', color: treasureTier({ rarity: 'legendary' }).color, rank: RANK.length - 1 } : {}) }));
     const jellies = types ? [
       { title: 'Jellies', items: Object.values(CONTENT.jellies).map((J) => { const lock = typeLock(J.id); return { id: J.id, icon: J.icon, name: J.name, text: J.about, found: !lock, locked: lock?.goal }; }) },

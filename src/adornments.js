@@ -9,19 +9,19 @@
 //   moon-ring   Moon Jelly: a pale ring round the bell that flares on every pulse
 //   mane        Lion's Mane: a fringe of fine glowing hair round the rim
 //   fronds      Upside-down Jelly: fronds that grow out on the floor while you're rooted
-//   ember       the Fire jelly type: a flickering ember inside the bell, tentacle tips glowing like
-//               coals, sparks drifting up off them
+//   ember       the Fire jelly type: tentacle tips glowing like coals, sparks drifting up off them
 //   barbs       the Tentacle jelly type: its tentacles longer and thicker, with barbs along them
-//   sparkle     the Glitter jelly type: a rainbow core shimmering in the bell, a glinting rainbow
-//               bead on every tentacle tip, and little star twinkles winking on and off over the bell
-//   frost       the Ice jelly type: a pale blue crystal turning in the bell, frost crystals on the
-//               tentacle tips, cold mist sinking off them to the floor
-//   toxin       the Poison jelly type: a pale green core in the bell with toxic bubbles rising off it, a
-//               drop swelling on every tentacle tip and falling, green drips running off the rim
-//   gale        the Wind jelly type: a white swirl spinning in the bell, thin air streaks circling it, its
-//               tentacles streaming back as if in a breeze
-//   storm       the Lightning jelly type: a crackling blue-white core in the bell, tentacle tips glowing
-//               faintly, a small arc jumping between two tips every few seconds, static flecks
+//   sparkle     the Glitter jelly type: a glinting rainbow bead on every tentacle tip, and little star
+//               twinkles winking on and off over the bell
+//   frost       the Ice jelly type: frost crystals on the tentacle tips, cold mist sinking off them to the floor
+//   toxin       the Poison jelly type: a drop swelling on every tentacle tip and falling, green drips
+//               running off the rim
+//   gale        the Wind jelly type: thin air streaks circling the bell, its tentacles streaming back
+//               as if in a breeze
+//   storm       the Lightning jelly type: tentacle tips glowing faintly, a small arc jumping between two
+//               tips every few seconds, static flecks
+// (no type puts anything inside the bell: a core there pokes out of a flat species' bell, and Chan
+// asked for them gone, Nov 11 2026)
 // (a jelly type's look is its adorn= in content/jellies.kdl: run.typeAdorn)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -107,33 +107,20 @@ export class Adornments {
     } };
   }
 
-  // Fire jelly: an ember glowing in the bell (an emissive ball, not a light), a coal on every
-  // tentacle tip, and sparks drifting up off them and fading
+  // Fire jelly: a coal on every tentacle tip, and sparks drifting up off them and fading
   make_ember() {
-    const group = new THREE.Group(), h = this.h;
-    const coreMat = glowMat('ember-core', '#ff7a1a', { emissiveIntensity: 2.2, transparent: true, opacity: 0.85, depthWrite: false });
+    const group = new THREE.Group();
     const coalMat = glowMat('ember-coal', '#ff5a14', { emissiveIntensity: 2.4 });
     const sparkMat = new THREE.MeshBasicMaterial({ color: LOOK.color('ember-spark', '#ffc26a'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8);
-    const core = new THREE.Mesh(ball, coreMat);
-    group.add(core);
     const coals = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, coalMat); group.add(m); return m; });
     const sparks = Array.from({ length: LOOK.num('ember-sparks', 10) }, () => { const m = new THREE.Mesh(ball, sparkMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
     let next = 0;
-    const glowCol = coreMat.color.clone(), coalCol = coalMat.color.clone(), sparkCol = sparkMat.color.clone();
+    const coalCol = coalMat.color.clone(), sparkCol = sparkMat.color.clone();
     return { group, free: true, tick: (dt, run) => {
-      const G = run.fx?.glow;   // a soft glow (vfx.js, one batched draw) so the ember reads through the bell and on Low
+      const G = run.fx?.glow;   // a soft glow (vfx.js, one batched draw) so the coals read on Low
       const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      const flick = 0.8 + Math.sin(this.t * 13) * 0.12 + Math.sin(this.t * 31) * 0.08;
-      // the core: in the middle of the bell, which the rig hangs from (model units: the bell's rim at 0.56)
-      core.visible = on;
-      if (on) {
-        rig.parent.localToWorld(core.position.set(0, LOOK.num('ember-core-y', 0.86), 0));
-        core.scale.setScalar(h * LOOK.num('ember-core-size', 0.1) * (0.92 + flick * 0.1));
-        coreMat.emissiveIntensity = 2.2 * flick;
-        G?.hold(core.position, glowCol, h * LOOK.num('ember-glow-size', 0.6) * flick, 0.55 * flick);
-      }
       coals.forEach((m, i) => {
         m.visible = on && !!rig.list[i];
         if (!m.visible) return;
@@ -187,33 +174,20 @@ export class Adornments {
     } };
   }
 
-  // Ice jelly: a pale blue crystal turning in the bell (an emissive shape, not a light), a frost crystal
-  // on every tentacle tip, and cold mist drifting off the tips and sinking to the floor
+  // Ice jelly: a frost crystal on every tentacle tip, and cold mist drifting off the tips and sinking to the floor
   make_frost() {
-    const group = new THREE.Group(), h = this.h;
-    const coreMat = glowMat('frost-core', '#bfeaff', { emissiveIntensity: 1.9, transparent: true, opacity: 0.85, depthWrite: false, flatShading: true });
+    const group = new THREE.Group();
     const tipMat = glowMat('frost-tip', '#e4f8ff', { emissiveIntensity: 1.6, flatShading: true });
     const mistMat = new THREE.MeshBasicMaterial({ color: LOOK.color('frost-mist', '#cfeeff'), toneMapped: false });
     const crystal = new THREE.OctahedronGeometry(1, 0).scale(0.55, 1.5, 0.55), ball = new THREE.SphereGeometry(1, 8, 6);
-    const core = new THREE.Mesh(crystal, coreMat);
-    group.add(core);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(crystal, tipMat); group.add(m); return m; });
     const mists = Array.from({ length: LOOK.num('frost-mists', 12) }, () => { const m = new THREE.Mesh(ball, mistMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
     let next = 0;
-    const glowCol = coreMat.color.clone(), tipCol = tipMat.color.clone(), mistCol = mistMat.color.clone();
+    const tipCol = tipMat.color.clone(), mistCol = mistMat.color.clone();
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
       const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      const shimmer = 0.9 + Math.sin(this.t * 3.1) * 0.1;
-      core.visible = on;
-      if (on) {
-        rig.parent.localToWorld(core.position.set(0, LOOK.num('frost-core-y', 0.86), 0));
-        core.scale.setScalar(h * LOOK.num('frost-core-size', 0.15));
-        core.rotation.y = this.t * 0.8;
-        coreMat.emissiveIntensity = 1.9 * shimmer;
-        G?.hold(core.position, glowCol, h * LOOK.num('frost-glow-size', 0.55) * shimmer, 0.5 * shimmer);
-      }
       tips.forEach((m, i) => {
         m.visible = on && !!rig.list[i];
         if (!m.visible) return;
@@ -241,19 +215,10 @@ export class Adornments {
     } };
   }
 
-  // Wind jelly: a white swirl (three spiral arms, emissive, not a light) spinning in the bell, thin air
-  // streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
+  // Wind jelly: thin air streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
   make_gale() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
-    const coreMat = glowMat('gale-core', '#ffffff', { emissiveIntensity: 1.8, transparent: true, opacity: 0.85, depthWrite: false });
     const airMat = glowMat('gale-streak', '#e6f8ff', { emissiveIntensity: 1.6, transparent: true, opacity: 0.7, depthWrite: false });
-    // the swirl: a cone-shaped spiral, wide at the top, three arms
-    const arms = [0, 1, 2].map((k) => {
-      const pts = Array.from({ length: 16 }, (_, i) => { const t = i / 15, a = k * 2.094 + t * 7.5, r = 0.2 + 0.8 * t; return new THREE.Vector3(Math.cos(a) * r, (t - 0.5) * 1.1, Math.sin(a) * r); });
-      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.11, 4);
-    });
-    const core = new THREE.Mesh(mergeGeometries(arms), coreMat);
-    group.add(core);
     // air streaks: short thin arcs round the bell at different heights and radii, two rings turning opposite ways
     const ring = (n, radius, y0, dy, len, seed) => {
       const parts = [];
@@ -267,17 +232,10 @@ export class Adornments {
     };
     const rings = [ring(5, L('streak-radius', 0.42), 0.12, 0.34, 0.9, 1), ring(4, L('streak-radius', 0.42) * 1.15, 0.2, 0.3, 0.7, 3)];
     this.batch.track(group);
-    const glowCol = coreMat.color.clone();
     return { group, free: true, tick: (dt, run) => {
-      const G = run.fx?.glow;
       const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      core.visible = rings[0].visible = rings[1].visible = on;
+      rings[0].visible = rings[1].visible = on;
       if (!on) return;
-      const pulse = 0.92 + Math.sin(this.t * 5) * 0.08;
-      rig.parent.localToWorld(core.position.set(0, L('core-y', 0.8), 0));
-      core.scale.setScalar(h * L('core-size', 0.12) * pulse);
-      core.rotation.y += dt * L('core-spin', 7);
-      G?.hold(core.position, glowCol, h * L('glow-size', 0.6) * pulse, 0.45);
       // the streaks circle the bell's middle, wherever the jelly goes
       rig.parent.localToWorld(_gale.set(0, 0.42, 0));
       const base = this.player.position.y;
@@ -288,22 +246,17 @@ export class Adornments {
     } };
   }
 
-  // Poison jelly: a pale green core in the bell (emissive, not a light) with bubbles rising off it,
-  // a drop swelling on each tentacle tip until it falls, and drips running off the rim (the tentacles'
+  // Poison jelly: a drop swelling on each tentacle tip until it falls, and drips running off the rim (the tentacles'
   // roots). Everything moves with the jelly but the falling drops, which keep falling where they let go
   make_toxin() {
-    const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('toxin-' + k, f);
-    const coreMat = glowMat('toxin-core', '#9effc8', { emissiveIntensity: 1.8, transparent: true, opacity: 0.8, depthWrite: false });
+    const group = new THREE.Group(), L = (k, f) => LOOK.num('toxin-' + k, f);
     const dropMat = glowMat('toxin-drop', '#3ee68c', { emissiveIntensity: 1.6 });
-    const bubMat = new THREE.MeshBasicMaterial({ color: LOOK.color('toxin-bubble', '#d6ffe9'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8);
-    const core = new THREE.Mesh(ball, coreMat);
-    group.add(core);
     const make = (mat, n) => Array.from({ length: n }, () => { const m = new THREE.Mesh(ball, mat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
-    const bubbles = make(bubMat, L('bubbles', 8)), tips = make(dropMat, 8), drips = make(dropMat, L('drips', 6));
+    const tips = make(dropMat, 8), drips = make(dropMat, L('drips', 6));
     this.batch.track(group);
-    const glowCol = coreMat.color.clone(), dropCol = dropMat.color.clone();
-    let nextBub = 0, nextDrip = 0;
+    const dropCol = dropMat.color.clone();
+    let nextDrip = 0;
     // a falling drop: down at gravity (slowed by the water), gone at the floor
     const fall = (m, dt, floor, G) => {
       m.userData.vy -= L('drop-gravity', 1.2) * dt;
@@ -315,27 +268,7 @@ export class Adornments {
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
       const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      const floor = this.player.position.y, pulse = 0.9 + Math.sin(this.t * 4) * 0.1;
-      core.visible = on;
-      if (on) {
-        rig.parent.localToWorld(core.position.set(0, L('core-y', 0.8), 0));
-        core.scale.setScalar(h * L('core-size', 0.13) * pulse);
-        G?.hold(core.position, glowCol, h * L('glow-size', 0.7) * pulse, 0.5);
-      }
-      // bubbles well up off the core and rise inside the bell, swelling and popping
-      if (on && (nextBub -= dt) <= 0) {
-        nextBub = L('bubble-every', 0.14);
-        const m = bubbles.find((x) => !x.visible);
-        if (m) { Object.assign(m.userData, { t: 0, x: (Math.random() - 0.5) * 0.25, z: (Math.random() - 0.5) * 0.25 }); m.visible = true; }
-      }
-      const life = L('bubble-life', 0.9);
-      for (const m of bubbles) {
-        if (!m.visible) continue;
-        const u = (m.userData.t += dt) / life;
-        if (u >= 1 || !on) { m.visible = false; continue; }
-        rig.parent.localToWorld(m.position.set(m.userData.x * (1 - u * 0.5), L('core-y', 0.8) + L('bubble-rise', 0.22) * u, m.userData.z * (1 - u * 0.5)));
-        m.scale.setScalar(h * L('bubble-size', 0.025) * Math.sin(u * Math.PI));
-      }
+      const floor = this.player.position.y;
       // a drop on every tip: it swells for a while, then lets go and falls
       tips.forEach((m, i) => {
         const T = on && rig.list[i], U = m.userData;
@@ -358,36 +291,21 @@ export class Adornments {
     } };
   }
 
-  // Glitter jelly: a core in the bell that shimmers through the rainbow (an emissive ball, not a light),
-  // a bead on every tentacle tip in its own colour of the glitter, glinting, and star twinkles that
+  // Glitter jelly: a bead on every tentacle tip in its own colour of the glitter, glinting, and star twinkles that
   // wink on and off over the bell. Colours from --glitter-flakes, the bomb's own
   make_sparkle() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('sparkle-' + k, f);
     const cols = LOOK.list('glitter-flakes', ['#ff2ab0', '#ffc81a', '#2ae0ff', '#b04aff', '#6aff6a', '#ffffff']).slice(0, 5).map((c) => new THREE.Color(c));
-    const coreMat = new THREE.MeshStandardMaterial({ color: cols[0].clone(), emissive: cols[0].clone(), emissiveIntensity: 1.8, roughness: 0.2, transparent: true, opacity: 0.85, depthWrite: false });
     const beadMats = cols.map((c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
     const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-    const ball = new THREE.SphereGeometry(1, 10, 8), star = new THREE.OctahedronGeometry(1, 0);
-    const core = new THREE.Mesh(ball, coreMat);
-    group.add(core);
+    const star = new THREE.OctahedronGeometry(1, 0);
     const beads = Array.from({ length: 8 }, (_, i) => { const m = new THREE.Mesh(star, beadMats[i % beadMats.length]); group.add(m); return m; });
     const stars = Array.from({ length: L('twinkles', 7) }, () => { const m = new THREE.Mesh(star, starMat); m.visible = false; m.userData.t = 1; group.add(m); return m; });
     this.batch.track(group);
-    const hue = new THREE.Color(), glowCol = new THREE.Color();
     let next = 0;
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
       const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      // the core: drifting through the glitter's colours
-      core.visible = on;
-      if (on) {
-        const u = (this.t * L('shimmer', 0.6)) % cols.length, i = Math.floor(u);
-        hue.copy(cols[i]).lerp(cols[(i + 1) % cols.length], u - i);
-        coreMat.color.copy(hue); coreMat.emissive.copy(hue);
-        rig.parent.localToWorld(core.position.set(0, L('core-y', 0.82), 0));
-        core.scale.setScalar(h * L('core-size', 0.12) * (0.95 + Math.sin(this.t * 7) * 0.05));
-        G?.hold(core.position, glowCol.copy(hue), h * L('glow-size', 0.7), 0.55);
-      }
       // a bead on every tip, turning, glinting now and then
       beads.forEach((m, i) => {
         m.visible = on && !!rig.list[i];
@@ -422,36 +340,24 @@ export class Adornments {
     } };
   }
 
-  // Lightning jelly: a crackling blue-white core in the bell (an emissive ball, not a light), a faint
-  // glow on every tentacle tip, now and then a small arc jumping between two tips, and static flecks
+  // Lightning jelly: a faint glow on every tentacle tip, now and then a small arc jumping between two tips, and static flecks
   // blinking about the bell
   make_storm() {
     const group = new THREE.Group(), h = this.h;
-    const coreMat = glowMat('storm-core', '#bfe6ff', { emissiveIntensity: 2.4, transparent: true, opacity: 0.85, depthWrite: false });
     const tipMat = glowMat('storm-tip', '#7fd0ff', { emissiveIntensity: 1.8 });
     const arcMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-arc', '#f4fbff'), toneMapped: false });
     const fleckMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-fleck', '#cfeaff'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8), bar = new THREE.CylinderGeometry(0.5, 0.5, 1, 4);
-    const core = new THREE.Mesh(ball, coreMat);
-    group.add(core);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, tipMat); group.add(m); return m; });
     const SEG = 6, segs = Array.from({ length: SEG }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
     const flecks = Array.from({ length: LOOK.num('storm-flecks', 8) }, () => { const m = new THREE.Mesh(ball, fleckMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
-    const glowCol = coreMat.color.clone(), tipCol = tipMat.color.clone();
+    const tipCol = tipMat.color.clone();
     const a = new THREE.Vector3(), b = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     let arcIn = LOOK.num('storm-arc-every', 2.5), arcT = 0, arcA = 0, arcB = 1;
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
       const rig = this.player.avatar?.tentacles, unit = rig?.unit || 1, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
-      core.visible = on;
-      if (on) {
-        const crackle = 0.75 + Math.random() * 0.5;   // jitters every frame: it crackles
-        rig.parent.localToWorld(core.position.set(0, LOOK.num('storm-core-y', 0.86), 0));
-        core.scale.setScalar(h * LOOK.num('storm-core-size', 0.1) * (0.8 + crackle * 0.2));
-        coreMat.emissiveIntensity = 2.4 * crackle;
-        G?.hold(core.position, glowCol, h * LOOK.num('storm-glow-size', 0.6) * (0.8 + crackle * 0.2), 0.5 * crackle);
-      }
       tips.forEach((m, i) => {
         m.visible = on && !!rig.list[i];
         if (!m.visible) return;

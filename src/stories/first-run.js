@@ -62,7 +62,6 @@ story('first-run/minimap-with-the-first-treasure', {
     const stays = mapShown();
     // a scheduled one also counts
     fresh({ elites: false, firstRun: true, treasures: true }); tp(3.2, 0.05, 3.0, 0); G().run.startPicked = true;
-    run.firstRun.elementChosen = true;                     // past the Element pick, so the 0:15 one comes
     step(5);
     const hiddenAgain = !mapShown();
     step(60 * 16, () => run.roomTreasures.some((t) => t.active));

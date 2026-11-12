@@ -1,9 +1,9 @@
 import { sfx, unlock as unlockAudio, loadSamples, loadFireFlight, audio } from '../sfx.js';
-import { G, V, dmgBy, give, ok, record, roachAt, setupFight, step, story, stub } from './kit.js';
+import { G, V, dmgBy, ok, record, roachAt, setupFight, step, story, stub, withElement } from './kit.js';
 
 story('attack/fire-feedback', {
   about: 'A fireball keeps its original damage and burn ticks, makes one contact cue per real hit, and clears on reset. Cosmetic launch and flame animation do not add damage or delay the shot.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('candle'); roachAt(0, -0.18); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('fire'); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, S = run.S, M = run.mods;
     const P = M.element.fire, origin = player.position.clone().add(V(0, 0.06, 0)), e = enemies.list[0];
@@ -25,7 +25,7 @@ story('attack/fire-feedback', {
 
 story('attack/fire-miss', {
   about: 'A fireball that expires without touching an enemy has no contact flash, impact sound, splash, or damage.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('candle'); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('fire'); step(2); },
   play() {
     const { run, player } = G(), B = run.bubbles;
     let contacts = 0, sounds = 0;
@@ -37,30 +37,7 @@ story('attack/fire-miss', {
   },
 });
 
-story('attack/fire-audio-upgrades', {
-  about: 'Fire upgrades give the launch and confirmed hits more audio weight, bounded at high upgrade levels; the extra weight does not change projectile damage.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('candle'); roachAt(0, -0.18); step(2); },
-  play() {
-    const { run, player } = G(), B = run.bubbles, launches = [], impacts = [];
-    stub(sfx, 'fireLaunch', weight => { launches.push(weight); });
-    stub(sfx, 'fire', weight => impacts.push(weight));
-    const origin = player.position.clone().add(V(0, 0.06, 0));
-    B.elementVolley('fire', run.mods.element.fire, origin, run.S, run.mods);
-    const normal = launches[0];
-    B.reset(); launches.length = 0;
-    give('lighterFluid', 'birthdayCake'); step(2);
-    B.elementVolley('fire', run.mods.element.fire, origin, run.S, run.mods);
-    const upgraded = [...launches], damage = B.list.map(b => b.dmg);
-    for (let i = 0; i < 60; i++) B.fly(1 / 60, run.S, run.mods);
-    B.blow(origin, null, { dir: V(1, 0, 0), size: 100, dmg: 1, tint: 'fire', elems: ['fire'], ep: run.mods.element.fire, pierce: 1 });
-    const capped = launches.at(-1);
-    return ok(normal === 1 && upgraded.length === 2 && upgraded.every(w => w > normal && w <= 1.6) && impacts.length > 0 && impacts.every(w => w > normal) && damage.every(d => Math.abs(d - run.S.bubbleDamage * run.mods.element.fire.dmg) < 1e-8) && capped === 1.6,
-      { normal, upgraded, impacts, damage, capped });
-  },
-});
-
 // --- the other Elements' Attack Feel chain (docs/agents/attack-feel.md)
-const ELEMENT_OF = { lightning: 'battery', ice: 'freezerPack', acid: 'nailPolish', glitter: 'glitter' };
 story('attack/element-feel', {
   about: 'Lightning, ice, acid and glitter each complete the Attack Feel chain: energy gathers at the bell over the last fifth of the timer (the shot still leaves on time); on the frame it leaves, the bell squeezes, a launch flash and the element\'s launch sound; a hit lands with its own contact effect and hit sound, once; a shot that hits nothing makes neither. Lightning\'s chain draws a bolt to each bug it jumps to, and a stunned bug crackles while the stun lasts.',
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.06, -0.24); step(2); },
@@ -68,11 +45,11 @@ story('attack/element-feel', {
     const { run, player, enemies } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0)), out = {};
     const n = {}, spy = (o, k) => { const fn = o[k].bind(o); stub(o, k, (...a) => { n[k] = (n[k] || 0) + 1; return fn(...a); }); };
     spy(player.avatar, 'pulse'); spy(B.looks, 'gather'); spy(B.looks, 'launch'); spy(B.looks, 'contact'); spy(B.looks, 'strike'); spy(sfx, 'elementLaunch'); spy(sfx, 'elementHit');
-    for (const [el, id] of Object.entries(ELEMENT_OF)) {
-      run.owned = new (run.owned.constructor)(); run.owned.add(id); step(1);
+    for (const el of ['lightning', 'ice', 'acid', 'glitter']) {
+      withElement(el);
       B.reset(); for (const k in n) n[k] = 0;
       const M = run.mods, P = M.element[el];
-      B.elTimers[el] = 0.85; Object.getPrototypeOf(B).update.call(B, 1 / 60, origin, run.S, M);   // gathering, not yet fired (the setup stubs update)
+      B.elTimers[el] = 0.85; Object.getPrototypeOf(B).update.call(B, 1 / 60, origin, run.S, M, false, { kind: el, hit: 1 });   // gathering, not yet fired (the setup stubs update)
       const gathered = n.gather > 0 && !B.list.length;
       B.reset(); for (const k in n) n[k] = 0;
       B.elementVolley(el, P, origin, run.S, M);
@@ -96,7 +73,7 @@ story('attack/lightning-chain', {
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.07, -0.25); roachAt(-0.06, -0.3); roachAt(0.8, 0.8); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0));
-    run.owned = new (run.owned.constructor)(); run.owned.add('battery'); step(1);
+    withElement('lightning');
     const jumps = [], pitches = [], log = record('damage_taken');
     const zap = B.zap.bind(B); stub(B, 'zap', (from, to, k) => { jumps.push(to.clone()); return zap(from, to, k); });
     stub(sfx, 'chainZap', (k) => { pitches.push(k); });
@@ -121,7 +98,7 @@ story('attack/lightning-recorded-sounds', {
     unlockAudio();
     const loaded = await loadSamples();
     const { run, player } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0));
-    run.owned = new (run.owned.constructor)(); run.owned.add('battery'); step(1);
+    withElement('lightning');
     const log = record('damage_taken');
     B.elementVolley('lightning', run.mods.element.lightning, origin, run.S, run.mods);
     for (let i = 0; i < 90 && B.list.length; i++) { B.fly(1 / 60, run.S, run.mods); B.effects(1 / 60, run.S); }
@@ -163,7 +140,7 @@ story('attack/acid-puddle-feel', {
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); step(2); },
   play() {
     const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0];
-    run.owned = new (run.owned.constructor)(); run.owned.add('nailPolish'); step(1);
+    withElement('acid');
     const n = { live: 0, bite: 0, sizzle: 0 }, spy = (o, k, key) => { const fn = o[k].bind(o); stub(o, k, (...a) => { n[key]++; return fn(...a); }); };
     spy(B.looks, 'puddleLive', 'live'); spy(B.looks, 'acidBite', 'bite'); spy(sfx, 'acidSizzle', 'sizzle');
     const log = record('damage_taken');

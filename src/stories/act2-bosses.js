@@ -431,6 +431,34 @@ act2('clog-acid-spares-one-duck', {
       { rounds: rounds.length, distinct, changes, hitOnSafe, hitOnStruck, hurtAfter: hp - B.hp, ducksDown });
   },
 });
+act2('clog-acid-chunk-splash-is-taller-than-a-jump', {
+  about: 'A hair chunk landing on a duck splashes a column 25 cm up off its back (its Warning volume that tall): a jelly that jumps off the struck duck, held at the top of a full jump (20 cm) over it as the chunk lands, is still hit; one on the spared duck is not.',
+  setup() {},
+  play() {
+    const B = clogFight(), log = record('damage_taken');
+    const A = acidUp(B);
+    let player = null, wasRound = 0, aimed = -1;
+    const res = { jumping: 0, spared: 0, tall: 0 };
+    step(60 * 7, () => {
+      if (A.round !== wasRound) {
+        wasRound = A.round;
+        const c = B.chunks.find((q) => q.on);
+        aimed = A.round % 2 ? c.duck : A.safe;
+        player = byDuck(B, aimed, true);
+        log.length = 0;
+      }
+      if (player) {
+        res.tall = Math.max(res.tall, ...B.chunks.filter((c) => c.on).map((c) => c.vol.scale.y));
+        const d = B.ducks[aimed];
+        player.position.set(d.g.position.x, d.y + B.duckTop + (A.round % 2 ? CONFIG.player.jumpHeight : 0), d.g.position.z);
+        player.grounded = !(A.round % 2);
+        if (log.some((x) => x.source === 'boss' && !x.drain)) { res[A.round % 2 ? 'jumping' : 'spared']++; player = null; }
+      }
+      return A.round >= 4;
+    });
+    return ok(res.jumping >= 1 && res.spared === 0 && Math.abs(res.tall - 0.25) < 1e-6, res);
+  },
+});
 act2('clog-acid-whirlpool-leads-the-ducks', {
   about: 'The second acid phase, at 25%, swirls: a whirlpool turns in the middle, its bubbles swept round with it, and the ducks circle the middle of the tub evenly, about a turn every 6 s (a jelly on one is carried round with it); each hair chunk lands right where its duck has got to.',
   setup() {},
@@ -688,7 +716,7 @@ act2('clog-pinball-dodged', {
   },
 });
 act2('clog-comb', {
-  about: 'Comb: hair curtains slam down across the tub in 5 lanes, every other lane then the ones between, three times, each a floor strip with a lane too tall to jump (12 cm) over it, filling together. A jelly that stays in one lane is hit (3, slowed); one that steps into the lane that just struck each time is never hit.',
+  about: 'Comb: hair curtains slam down across the tub in 5 lanes, every other lane then the ones between, three times, each a floor strip with a lane too tall to jump (22 cm, over a full jump\'s 20 cm) over it, filling together. A jelly that stays in one lane is hit (3, slowed), even held at the top of a jump; one that steps into the lane that just struck each time is never hit.',
   setup() {},
   play() {
     const B = clogFight(), hits = bossHits(), out = {};
@@ -698,6 +726,7 @@ act2('clog-comb', {
       const h0 = hits.length;
       let wave = 0, shown = 0, tall = 0, together = true;
       if (B.comb) player.position.x = B.combX[1];
+      if (!dodge) { player.position.y = B.floor + CONFIG.player.jumpHeight; player.grounded = false; }   // at the top of a full jump
       step(60 * 4, () => {
         const vis = B.combTeles.filter((T) => T.visible);
         shown = Math.max(shown, vis.length);
@@ -708,7 +737,7 @@ act2('clog-comb', {
       out[dodge ? 'dodging' : 'staying'] = { hits: hits.slice(h0).map((h) => h.amount), shown, tall, together };
     }
     const st = out.staying, dg = out.dodging;
-    return ok(st.shown === 3 && Math.abs(st.tall - 0.12) < 1e-6 && st.together && st.hits.includes(3) && dg.hits.length === 0, out);
+    return ok(st.shown === 3 && Math.abs(st.tall - 0.22) < 1e-6 && st.together && st.hits.includes(3) && dg.hits.length === 0, out);
   },
 });
 

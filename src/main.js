@@ -39,7 +39,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v414';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v418';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -826,6 +826,7 @@ async function unlockDev() {
     const a = await r.json();
     open = !!a.open;
     if (a.why === 'slow') { box.value = ''; box.placeholder = 'Wait 3 seconds, then try again'; return; }
+    if (a.why === 'unset') { box.value = ''; box.classList.add('wrong'); box.placeholder = 'No dev password set on the server'; return; }
   } catch {   // no Worker answering: only your own computer's file server opens without one
     open = ['localhost', '127.0.0.1'].includes(location.hostname);
   }

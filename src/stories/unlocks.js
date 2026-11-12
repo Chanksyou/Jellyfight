@@ -3,7 +3,7 @@
 // asPlayer) and puts the real one back. Shared helpers are in ./kit.js.
 import { CONTENT } from '../content.js';
 import { TREASURES } from '../stats.js';
-import { typeLock, openTypes, leavesWithTypes } from '../jelly-types.js';
+import { typeLock, openTypes } from '../jelly-types.js';
 import { lifetime } from '../cosmetics.js';
 import { discover } from '../collection.js';
 import { FirstRun, deathHint, TYPE_HINTS } from '../first-run.js';
@@ -96,7 +96,7 @@ story('types/book-has-jellies-page', {
       const fireUps = S.find((s) => /Fire Jelly: Attack upgrades/.test(s.title));
       const upgrade = fireUps?.items.length === CONTENT.upgrades.filter((u) => u.jelly === 'fire').length && fireUps.items.find((i) => i.id === 'slowBurn').found;
       const T = S.find((s) => s.title === 'Treasures'), ids = new Set(T.items.map((i) => i.id));
-      const gone = TREASURES.filter(leavesWithTypes).every((t) => !ids.has(t.id)) && !ids.has('powerBank');
+      const gone = TREASURES.filter((t) => t.retired).every((t) => !ids.has(t.id)) && !ids.has('powerBank');
       const evos = CONTENT.evolutions.every((e) => ids.has(e.id)) && !titles.includes('Evolutions');
       // drawn: a locked type is a silhouette with its goal
       Object.getPrototypeOf(run.ui).book.call(run.ui, 'book', S, () => {});
@@ -113,22 +113,22 @@ story('types/old-save-with-retired-treasure-loads', {
   play() {
     const { run } = G();
     fresh({ types: 'fire' });
-    const carry = { ...run.carryOver(), owned: [['goldRing', 2], ['notATreasureAnyMore', 1], ['candle', 1]], evolved: ['goneEvolution'], upgrades: ['slowBurn', 'goneUpgrade'] };
+    const carry = { ...run.carryOver(), owned: [['goldRing', 2], ['notATreasureAnyMore', 1], ['paperclipChain', 1]], evolved: ['goneEvolution'], upgrades: ['slowBurn', 'goneUpgrade'] };
     stub(run, 'carry', carry);
     let error = null;
     try { run.start(); run.refreshHud(); } catch (e) { error = e.message; }
-    const kept = run.owned.count('goldRing') === 2 && !run.owned.has('notATreasureAnyMore') && !run.owned.has('candle');   // the Birthday Candle is the Fire Element
+    const kept = run.owned.count('goldRing') === 2 && !run.owned.has('notATreasureAnyMore') && !run.owned.has('paperclipChain');   // a retired Treasure
     const lists = run.evolved.length === 0 && run.upgrades.join() === 'slowBurn';
     return ok(!error && kept && lists, { error, owned: [...run.owned], evolved: run.evolved, upgrades: run.upgrades });
   },
 });
 
 story('types/player-text-without-elements', {
-  about: 'With a jelly type there is no Element pick: a first run has no double XP, holds no Treasure back and gives no jump tip, but keeps its opening tip; the death hints swap the Element ones for type hints; Pack Light and One of Everything say nothing about Elements.',
+  about: 'A first run keeps its opening tip; the death hints are the type ones; Pack Light and One of Everything say nothing about Elements.',
   setup() {},
   play() {
-    const F = new FirstRun(true, true);
-    const first = F.xpMul === 1 && F.treasuresDue && !F.elementPickAfterCard() && /Attack automatically/.test(F.startHint);
+    const F = new FirstRun(true);
+    const first = /Attack automatically/.test(F.startHint);
     const hints = Array.from({ length: 200 }, () => deathHint(true));
     const noElement = hints.every((h) => !/Element/.test(h)) && TYPE_HINTS.every((h) => hints.includes(h));
     const texts = ACHIEVEMENTS.map((a) => a.typesText || a.text);

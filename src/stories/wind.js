@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { bus } from '../events.js';
 import { sfx } from '../sfx.js';
 import { BASE_STATS, knockFor } from '../stats.js';
-import { G, V, give, offs, ok, record, roachAt, setupFight, step, story, stub } from './kit.js';
+import { G, V, offs, ok, record, roachAt, setupFight, step, story, stub, withElement } from './kit.js';
 
-function setup() { setupFight({ bubbles: false, lash: false }); give('paperFan'); roachAt(0, -0.18); step(2); }
+function setup() { setupFight({ bubbles: false, lash: false }); withElement('wind'); roachAt(0, -0.18); step(2); }
 function blade() {
   const { run, player, enemies } = G(), B = run.bubbles;
   return B.blow(player.position.clone().add(V(0, 0.06, 0)), enemies.list[0], { size: 1, dmg: run.S.bubbleDamage * run.mods.element.wind.dmg, tint: 'wind', elems: ['wind'], ep: run.mods.element.wind, pierce: 2, dir: V(0, 0, -1) });
@@ -42,21 +42,6 @@ story('attack/wind-scenery-collision', {
   },
 });
 
-story('attack/wind-doubled-base-push', {
-  about: 'Wind uses a 0.6 base push multiplier (4.2 cm), adds its original damage-based shove, and Box Fan multiplies only the base by 1.8.',
-  setup,
-  play() {
-    const { run, enemies } = G(), e = enemies.list[0], knocks = record('knockback');
-    stub(enemies.world, 'cast', () => null);
-    const base = blade(), push = run.mods.element.wind.push;
-    run.bubbles.strike(base, e, run.mods);
-    give('boxFan'); const upgraded = blade(); run.bubbles.strike(upgraded, e, run.mods);
-    const forces = knocks.filter(k => k.targetId === e.id).map(k => k.force);
-    const expected = [0.042 + knockFor(base.dmg), 0.042 * 1.8 + knockFor(upgraded.dmg)];
-    return ok(push === 0.6 && forces.length === 2 && forces.every((f, i) => Math.abs(f - expected[i]) < 1e-9), { push, forces, expected });
-  },
-});
-
 story('attack/wind-enemies-are-not-scenery', {
   about: 'Pushing a wind target into another enemy never produces collision damage or damages that enemy.',
   setup,
@@ -82,33 +67,6 @@ story('attack/wind-floor-and-rooted', {
     const position = e.pos.clone();
     run.bubbles.strike(blade(), e, run.mods);
     return ok(!damage.some(d => d.source === 'wind-collision') && e.pos.equals(position), { collisions: damage.filter(d => d.source === 'wind-collision').length, rootedMoved: !e.pos.equals(position) });
-  },
-});
-
-story('attack/wind-windup-and-rate', {
-  about: 'Wind winds up visibly before release, repeats at half the bubble rate, scales with attack speed, and cancels cleanly on pause/reset.',
-  setup() { setupFight({ lash: false }); give('paperFan'); roachAt(0, -0.18); step(2); },
-  play() {
-    const { run, player, enemies } = G(), B = run.bubbles, P = run.mods.element.wind, origin = player.position.clone().add(V(0, 0.06, 0));
-    stub(B, 'volley', () => true); stub(B, 'elementVolley', () => true); stub(B, 'fly', () => {}); stub(B, 'effects', () => {});
-    stub(B, 'inRange', () => [enemies.list[0]]);
-    let stops = 0, gathers = 0;
-    stub(sfx, 'windCharge', () => () => { stops++; }); stub(sfx, 'windLaunch', () => {});
-    stub(B.looks, 'windGather', () => { gathers++; }); stub(B.looks, 'windRelease', () => {});
-    const intervals = [];
-    for (const speed of [1, 4]) {
-      B.reset(); B.elTimers.wind = 0;
-      let t = 0; const releases = [];
-      stub(B, 'onWindRelease', () => releases.push(t));
-      for (let i = 0; i < 600; i++) { t += 1 / 60; B.update(1 / 60, origin, { ...run.S, fireRate: BASE_STATS.fireRate * speed }, run.mods); }
-      const expected = 1 / (P.rate * speed);
-      intervals.push(releases.length >= 4 && releases.slice(1).every((v, i) => Math.abs(v - releases[i] - expected) < 0.035));
-    }
-    B.reset(); B.elTimers.wind = 1; B.update(0.01, origin, run.S, run.mods);
-    const charging = !!B.windCharge;
-    B.silenceAttacks(); const cancelled = !B.windCharge;
-    return ok(P.rate === BASE_STATS.fireRate * 0.5 && intervals.every(Boolean) && gathers > 0 && stops > 0 && charging && cancelled,
-      { rate: P.rate, intervals, gathers, stops, charging, cancelled });
   },
 });
 
@@ -145,7 +103,7 @@ story('attack/wind-gust-feel', {
 
 story('attack/ice-shatter-feel', {
   about: 'Ice lands like ice: a shard that hits throws real crystal shards that skip off the floor and melt away, and a frost flower spreads where it struck and fades; the chilled bug wears a crown of ice spikes exactly while the chill lasts; a bug that dies chilled shatters into ice (shards and a frost flower, its shatter sound, no body left), and everything is gone again within about 2.5 s. Its looks were prepared at load: no new shader mid-fight.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack'); roachAt(0, -0.18); roachAt(0.2, -0.2); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('ice'); roachAt(0, -0.18); roachAt(0.2, -0.2); step(2); },
   play() {
     const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, other] = enemies.list, P = run.mods.element.ice;
     const programs = APT.renderer.info.programs.length;
@@ -179,7 +137,7 @@ story('attack/ice-shatter-feel', {
 
 story('attack/glitter-bomb-feel', {
   about: 'Glitter lands like a glitter bomb: when it goes off, real flakes fly out to the splash\'s edge, flutter down and lie on the floor glinting, then fade (all gone in about 3 s); every bug the splash hits sparkles; a bug finished by glitter bursts into glitter (flakes, its sparkly pop, no body left). Its flakes are prepared at load: no new shader mid-fight.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('glitter'); roachAt(0, -0.18); roachAt(0.025, -0.18); roachAt(0.4, -0.3); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('glitter'); roachAt(0, -0.18); roachAt(0.025, -0.18); roachAt(0.4, -0.3); step(2); },
   play() {
     const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, near, far] = enemies.list, P = run.mods.element.glitter;
     const programs = APT.renderer.info.programs.length;
@@ -208,7 +166,7 @@ story('attack/glitter-bomb-feel', {
 
 story('attack/acid-melt-feel', {
   about: 'Acid lands like acid: a glob that hits splashes real drops that arc out and land with a fizz and a green spot; a bug finished by acid melts, its own body turning to glowing goo and slumping into the floor in under a second (its melt sound, a stain, no guts or body flung), then its model gets its own materials back. The goo is prepared at load: no new shader mid-fight.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('nailPolish'); roachAt(0, -0.18); roachAt(0.3, -0.25); step(2); },
+  setup() { setupFight({ bubbles: false, lash: false }); withElement('acid'); roachAt(0, -0.18); roachAt(0.3, -0.25); step(2); },
   play() {
     const { run, player, enemies, fx, APT } = G(), B = run.bubbles, [e, other] = enemies.list, P = run.mods.element.acid;
     const programs = APT.renderer.info.programs.length;
@@ -235,18 +193,3 @@ story('attack/acid-melt-feel', {
   },
 });
 
-story('attack/ice-slow-and-followup-upgrade', {
-  about: 'Freezer Pack and Snow Globe only slow; Freezer Burn doubles a follow-up shard against an already slowed enemy.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('freezerPack', 'freezerBurn', 'snowGlobe'); roachAt(0, -0.18); roachAt(0.01, -0.18); step(2); },
-  play() {
-    const { run, player, enemies } = G(), B = run.bubbles, e = enemies.list[0], other = enemies.list[1], P = run.mods.element.ice;
-    const b = B.blow(player.position.clone().add(V(0, 0.06, 0)), e, { size: 1, dmg: 5, tint: 'ice', elems: ['ice'], ep: P, pierce: 2 });
-    const damage = record('damage_taken');
-    B.strike(b, e, run.mods); B.strike(b, e, run.mods);
-    other.pos.copy(e.pos).add(V(0.03, 0, 0));
-    b.m.position.copy(enemies.center(e)); b.hit.add(e); B.splash(b);
-    const hits = damage.filter(d => d.targetId === e.id && d.source === 'bubble');
-    return ok(hits[0].amount === 5 && hits[1].amount === 10 && e.slowT > 0 && other.slowT > 0 && !e.freezeT && !other.freezeT,
-      { hits: hits.map(h => h.amount), slow: e.slowT, splashSlow: other.slowT, frozen: !!e.freezeT || !!other.freezeT });
-  },
-});

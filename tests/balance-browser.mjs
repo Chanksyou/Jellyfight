@@ -208,7 +208,7 @@ export function startAct(config) {
   resetTrial(config.seed, undo);
   run.devRun();
   if (config.initial) installBuild(config.build);
-  run.startPicked = !!run.carry || [...run.mods.elements].length > 0;
+  run.startPicked = !!run.carry;
   const meter = observe(), bot = controller(config, meter), choiceRandom = seededRandom(seedFor(`choices/act${run.stage.id}`, config.seed));
   const state = { elapsed: 0, frames: 0, choices: [], pending: null, transition: null, scheduled: [] };
   patch(undo, run.ui, 'choose', () => (title, sub, choices, pick) => {
