@@ -1,1 +1,0 @@
-shows phone players how to turn the camera: until they first drag on the right side, a dashed hint there has a see-through finger sweeping across it, and the camera turns along with its first two sweeps. It comes back in the next act if a whole act passes without a turn.
