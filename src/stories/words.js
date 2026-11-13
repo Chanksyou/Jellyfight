@@ -9,7 +9,7 @@ import { TREASURES, STAT_INFO, EVOLUTIONS } from '../stats.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
 import { sfx, unlock as unlockAudio, audio } from '../sfx.js';
-import { SPECIES, buildCharacter, normalizeLook } from '../character.js';
+import { SPECIES, buildCharacter, normalizeLook, bellFront, bellHalfWidth } from '../character.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
 import { applyState } from '../cat.js';
@@ -1091,8 +1091,7 @@ story('look/face-fits-every-head', {
           const y = p.y / sp.R, upper = sp.profile.findIndex((v) => v[1] >= y);
           const [r0, y0] = sp.profile[Math.max(0, upper - 1)], [r1, y1] = sp.profile[Math.max(1, upper)];
           const radius = sp.R * (r0 + (r1 - r0) * (y - y0) / (y1 - y0));
-          const edge = sp.square ? radius * 0.8 : radius;
-          const surface = sp.square ? Math.pow(Math.max(0, edge ** 4 - p.x ** 4), 0.25) : Math.sqrt(Math.max(0, radius ** 2 - p.x ** 2));
+          const edge = bellHalfWidth(sp, radius), surface = bellFront(sp, radius, p.x);
           good &&= Number.isFinite(p.z) && p.y > 0 && p.y < top && Math.abs(p.x) < edge && p.z > surface && p.z < surface + 0.03;
         }
       });

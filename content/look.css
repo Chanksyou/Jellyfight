@@ -354,6 +354,13 @@
   --jelly-color: #2ff0c4;      /* default look: bell and tentacles (the Look screen can change it) */
   --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */
   --jelly-glow: 1;             /* how brightly the bell, rim and tentacles fluoresce */
+  --jelly-tentacle-glow: 0.75; /* the tentacles' own glow (higher bleaches every colour to white) */
+  --jelly-arm-glow: 0.55;      /* the arms' glow (higher bleaches their colour) */
+  --jelly-rim-glow: 1.1;       /* the rim, lit in the second color (higher bleaches it to white) */
+  --jelly-tip-glow: 0.9;       /* the tentacle tips, lit in the second color */
+  --jelly-tip-size: 0.8;       /* a tentacle tip's radius, in tentacle thicknesses */
+  --tentacle-curl: 0.07;       /* how wide Curly tentacles wind (model units) */
+  --comb-ripple: 0.35;         /* how fast the Comb Jelly's rainbow runs down its rows */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
   --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */
   --shield-opacity: 0.22;       /* how faint the shell is; it flashes brighter when it's full again */

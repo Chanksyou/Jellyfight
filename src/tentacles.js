@@ -24,6 +24,16 @@ const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
 const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
+// The tentacles' styles (look.tentacles): every ring's shape. bead: every third ring this much
+// thicker (beads on a string); wide/thin: the ring stretched one way and pressed the other (a
+// ribbon); twist: how far the ring turns from root to tip. Curly also winds the pose (update).
+const STYLES = {
+  straight: { bead: 1, wide: 1, thin: 1, twist: 0 },
+  curly: { bead: 1, wide: 1, thin: 1, twist: 0 },
+  beaded: { bead: 2.1, wide: 1, thin: 1, twist: 0 },
+  ribbon: { bead: 1, wide: 2.6, thin: 0.3, twist: Math.PI * 3 },
+};
+
 function tubeGeometry() {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((SEG + 1) * RAD * 3), 3));
@@ -41,7 +51,8 @@ function tubeGeometry() {
 
 export class TentacleRig {
   // parent: the group the tentacles hang from (moves and tilts with the bell).
-  // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material, angles? (each one's place around the ring) }
+  // opts: { count, radius (anchor ring), y (anchor height), length, thickness, material, angles? (each one's place around the ring),
+  //   tipMaterial? (the tip's own colour), tipSize? (the tip's radius, in thicknesses), style? (STYLES) }
   constructor(parent, opts) {
     this.parent = parent;
     this.floorRoot = opts.floorRoot || parent;
@@ -63,16 +74,21 @@ export class TentacleRig {
     this.strikeGlow = LOOK.num('lash-strike-glow', 2.6);
     this.strikeColor = new THREE.Color(LOOK.color('lash-strike', '#e9fdff'));
     this.flare = opts.flare ?? 0.3;
+    this.style = STYLES[opts.style] ? opts.style : 'straight';
+    this.tipSize = opts.tipSize ?? 0.45;
+    this.curl = LOOK.num('tentacle-curl', 0.07);
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
       const a = opts.angles?.[i] ?? (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face (unless placed)
       const mat = opts.material.clone();                                   // same shader, own glow
       const mesh = new THREE.Mesh(tubeGeometry(), mat);
       mesh.frustumCulled = false;
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), mat);
+      const tipMat = opts.tipMaterial ? opts.tipMaterial.clone() : mat;
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), tipMat);
       parent.add(mesh, tip);
       this.list.push({
         mesh, tip, mat, baseEmissive: mat.emissive.clone(), baseGlow: mat.emissiveIntensity,
+        tipMat, tipEmissive: tipMat.emissive.clone(), tipGlow: tipMat.emissiveIntensity,
         angle: a, out: new THREE.Vector3(Math.sin(a), 0, Math.cos(a)),
         anchor: new THREE.Vector3(Math.sin(a) * opts.radius, opts.y, Math.cos(a) * opts.radius),
         phase: i * 1.7, pts: Array.from({ length: SEG + 1 }, () => new THREE.Vector3()),
@@ -144,6 +160,7 @@ export class TentacleRig {
         p.y -= L * s * (1 - 0.55 * fall);
         p.addScaledVector(T.out, flare * s + wave * 0.5);
         p.addScaledVector(side, wave);
+        if (this.style === 'curly') { const c = this.curl * Math.sqrt(s), a = s * 14 + T.phase; p.addScaledVector(T.out, Math.cos(a) * c).addScaledVector(side, Math.sin(a) * c); }
         if (this.breeze) {   // streaming back (the model faces +z), fluttering a little
           p.z -= L * this.breezeStream * s15 * (1 + 0.2 * Math.sin(this.t * 3.1 + T.phase));
           p.x += L * this.breezeStream * 0.12 * s * Math.sin(this.t * 2.3 + T.phase * 1.3);
@@ -217,9 +234,11 @@ export class TentacleRig {
         if (T.golden) T.mat.emissive.setHex(0xffc23a); else T.mat.emissive.copy(this.strikeColor);
         const strikeGlow = 0.6 + T.k * (this.strikeGlow - 0.6);
         T.mat.emissiveIntensity = this.venom ? Math.max(glow, strikeGlow) : strikeGlow;
+        if (T.tipMat !== T.mat) { T.tipMat.emissive.copy(T.mat.emissive); T.tipMat.emissiveIntensity = T.mat.emissiveIntensity; }   // a strike burns the whole tentacle
       } else {
         T.mat.emissive.copy(T.baseEmissive);
         T.mat.emissiveIntensity = glow;
+        if (T.tipMat !== T.mat) { T.tipMat.emissive.copy(T.tipEmissive); T.tipMat.emissiveIntensity = T.tipGlow * glow / T.baseGlow; }
       }
       this.build(T, floorY);
     }
@@ -243,21 +262,23 @@ export class TentacleRig {
       if (j === 0) _n.crossVectors(_t, Math.abs(_t.z) < 0.9 ? Z : X).normalize();
       else _n.addScaledVector(_t, -_n.dot(_t)).normalize();
       _b.crossVectors(_t, _n);
-      const s = j / SEG, r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3);
+      const s = j / SEG, st = STYLES[this.style], r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3) * (j % 3 === 1 ? st.bead : 1);
       for (let k = 0; k < RAD; k++) {
-        const th = (k / RAD) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
+        const th = (k / RAD) * Math.PI * 2 + (j / SEG) * st.twist, c = Math.cos(th), s = Math.sin(th);
         const nx = _n.x * c + _b.x * s, ny = _n.y * c + _b.y * s, nz = _n.z * c + _b.z * s;
+        // a ribbon is a flattened ring (wide one way, thin the other), twisting down its length
+        const wx = (_n.x * c * st.wide + _b.x * s * st.thin) * r, wz = (_n.z * c * st.wide + _b.z * s * st.thin) * r, wy = (_n.y * c * st.wide + _b.y * s * st.thin) * r;
         const i = j * RAD + k;
-        const x = P[j].x + nx * r, z = P[j].z + nz * r;
+        const x = P[j].x + wx, z = P[j].z + wz;
         const floor = (floorY - M[1] * x - M[9] * z - M[13]) / M[5];
-        pos.setXYZ(i, x, Math.max(floor, P[j].y + ny * r), z);
+        pos.setXYZ(i, x, Math.max(floor, P[j].y + wy), z);
         nor.setXYZ(i, nx, ny, nz);
       }
     }
     pos.needsUpdate = true;
     nor.needsUpdate = true;
     T.tip.position.copy(P[SEG]);
-    T.tip.scale.setScalar(thick * 0.45);
+    T.tip.scale.setScalar(thick * this.tipSize);
     if (T.impact > 0) {
       T.tip.quaternion.setFromUnitVectors(Y, _t.copy(P[SEG]).sub(P[SEG - 1]).normalize());
       T.tip.scale.multiply(_s.set(1 + T.impact * 1.8, 1 - T.impact * 0.65, 1 + T.impact * 1.8));
@@ -273,6 +294,7 @@ export class TentacleRig {
       T.mesh.geometry.dispose();
       T.tip.geometry.dispose();
       T.mat.dispose();
+      if (T.tipMat !== T.mat) T.tipMat.dispose();
     }
   }
 }

@@ -51,7 +51,7 @@ const CSS = `
   .cr-hint { right: 0; bottom: calc(58vh + 10px); } }
 `;
 
-const COLOR_ROWS = [['color', 'Bell and tentacle color'], ['accent', 'Arm color'], ['eyeColor', 'Eye color'], ['topColor', 'Hat color']];
+const COLOR_ROWS = [['color', 'Bell and tentacle color'], ['accent', 'Arm and rim color'], ['eyeColor', 'Eye color'], ['topColor', 'Hat color']];
 
 export class Creator {
   constructor({ onChange, onDone, onPreview }) {
@@ -133,6 +133,8 @@ export class Creator {
       ${colors('color', COLOR_ROWS[0][1])}
       ${colors('accent', COLOR_ROWS[1][1])}
       ${chips('pattern', 'Bell pattern')}
+      ${chips('arms', 'Arms')}
+      ${chips('tentacles', 'Tentacles')}
       ${chips('finish', 'Finish')}
       ${chips('eyes', 'Eyes')}
       ${colors('eyeColor', COLOR_ROWS[2][1])}

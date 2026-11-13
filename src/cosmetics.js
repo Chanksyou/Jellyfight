@@ -55,7 +55,10 @@ export const PRICES = {
   top: { bottlecap: 60, thimble: 60, paperboat: 60, stickynote: 60, showercap: 150, shell: 150, starfish: 150, sock: 150, lampshade: 300, fishbowl: 300, coral: 300 },
   eyes: { googly: 60, hearts: 60, stars: 150, snorkel: 150, monocle: 150, glasses3d: 150 },
   mouth: { moustache: 60, tongue: 60, bubblegum: 150 },
-  pattern: { rings: 100, stripes: 100, freckles: 100 },
+  pattern: { rings: 100, stripes: 100, freckles: 100, spots: 100, hearts: 100, stars: 100, zigzag: 100, spiral: 100 },
+  body: { onion: 150, bubble: 150, gem: 150, comb: 300 },
+  arms: { curly: 60, streamers: 60, pompoms: 100 },
+  tentacles: { curly: 100, beaded: 100, ribbon: 100 },
 };
 
 // What a run pays in Pearls (run.js credits it as it goes: bugs and Elites as they fall, a boss when
