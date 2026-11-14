@@ -458,7 +458,7 @@ export class Run {
 
   // what a per converter counts (`of`), read from stats S
   perSource(of, S) {
-    return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / BASE_STATS.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1
+    return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / this.baseStats.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1
       : of === 'burning-nearby' ? this.burningNear || 0 : this.chestsOpened || 0;
   }
 
@@ -480,8 +480,7 @@ export class Run {
   // (the Tentacle jelly's lash is its attack: Attacks tentacles, each for Attack damage, Fire rate lashes a second)
   get tentacleStats() {
     const s = this.S, A = this.attack;   // treasures can raise all four (stat, per)
-    // (tentacle-weapon, Box Jelly: its extra tentacles add to the Tentacle jelly's Attacks)
-    if (A?.kind === 'tentacle') return { tentacles: Math.min(MAX_TENTACLES, s.bubbles + (this.mods.tentacleWeapon ? s.tentacles - BASE_STATS.tentacles : 0)), reach: s.reach, tentacleDamage: s.bubbleDamage * A.hit, tentacleSpeed: s.fireRate };
+    if (A?.kind === 'tentacle') return { tentacles: Math.min(MAX_TENTACLES, s.bubbles), reach: s.reach, tentacleDamage: s.bubbleDamage * A.hit, tentacleSpeed: s.fireRate };
     return { tentacles: s.tentacles, reach: s.reach, tentacleDamage: s.tentacleDamage, tentacleSpeed: s.tentacleSpeed };
   }
   // seconds until the boss comes (treasures can make the night longer)
@@ -585,8 +584,8 @@ export class Run {
         this.fx.wind.streaks(_drop.set(P.position.x + Math.cos(a) * r, P.position.y + this.cfg.height * 0.3, P.position.z + Math.sin(a) * r), UP_AIR, 1, 0.5, this.cfg.height * 0.9);
       }
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
-      // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes, or tentacle-weapon)
-      if (!polyp && (!A || A.kind === 'tentacle' || this.mods.tentacleWeapon)) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
+      // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes)
+      if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
         pulse: (k) => P.avatar?.pulse(k),
@@ -1192,7 +1191,7 @@ export class Run {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
-    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t);
+    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t) && !(t.heals && this.mods.shield.fromHealth);   // heals=: no use at 1 max Health (Pot Lid)
     const can = (t) => weights[t.rarity] > 0 && takeable(t);
     this.chestsOpened++;
     let left = shuffle(rollTreasures(TREASURES.filter(can), 3, this.S.luck, favor));

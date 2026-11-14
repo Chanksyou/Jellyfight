@@ -10,14 +10,15 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
-evolution "cinder" name="Cinder Jelly" icon="👣" text="Flaming feet burn the ground you walk over for 3 seconds, dealing half your power per second to bugs touching the trail. No trail in the air. Range is 20% lower." {
+evolution "cinder" name="Cinder Jelly" icon="👣" text="Flaming feet burn the ground you walk over for 3 seconds, dealing half your power per second to bugs touching the trail. No trail in the air. Range and Tentacle reach are 20% lower." {
     fire-trail time=3 radius=0.03 height=0.05 dps=0.5 tick=0.25
     stat range -20 percent=#true
+    stat tentacle-reach -20 percent=#true
     adorn "flaming-feet"
 }
 
-// (not-for: Element shots keep their own flight, and tentacles throw nothing: add each new jelly type's attack)
-evolution "rebound" name="Rebound Jelly" icon="🪃" not-for="fire poison glitter tentacle" text="Ordinary attacks return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
+// (not-for: Element shots keep their own flight (bubbles.js: a tinted shot never rebounds), and tentacles throw nothing: only Normal's bubbles return)
+evolution "rebound" name="Rebound Jelly" icon="🪃" not-for="fire lightning ice poison wind glitter tentacle" text="Ordinary attacks return, hitting each bug once each way. Move to guide them. -20% Fire rate." {
     rebound
     stat fire-rate -20 percent=#true
     adorn "rebound-bands"
@@ -35,14 +36,6 @@ evolution "aegis" name="Aegis Jelly" icon="🛡️" retired=#true text="+5 Shiel
     shield-burst dmg=15 radius=0.2 flat=#true
 }
 
-evolution "boxJelly" name="Box Jelly" icon="🟦" text="Your tentacles become a weapon: 3 more of them lash out, reaching twice as far, and every sting stacks venom that burns (up to 5 stacks). Attacks fire 35% slower." {
-    tentacle-weapon
-    stat tentacles 3
-    stat tentacle-reach 100 percent=#true
-    venom dps=0.5 time=3 stacks=5
-    stat fire-rate -35 percent=#true
-    adorn "venom-tips"
-}
 evolution "manOWar" name="Man o' War" icon="⛵" not-for="tentacle" text="Two polyps circle you and shoot with you: every attack, each fires one more at 30% damage. -15% max Health." {
     polyps 2 dmg=0.3
     stat health -15 percent=#true

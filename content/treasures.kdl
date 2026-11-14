@@ -13,6 +13,8 @@
 //                  for unique rule-changers: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure
 //   needs-stat="…" offered only once that stat (names as in the `stat` word) is above 0
+//   heals=#true    all it does is give back Health (or it trades for that): not offered once Pot Lid
+//                  (health-to-shield) holds your max Health at 1
 //   not-for="…"    never offered to a jelly type with one of these attacks (attack= in
 //                  content/jellies.kdl), because it does nothing for them (Range for tentacles)
 //   stack=N        you can own up to N copies and their effects add up. A treasure without levels
@@ -25,7 +27,7 @@
 // A new treasure that combines existing words needs no code: add it here and a story.
 
 // --- your bubbles (bubbles.js)
-treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true not-for="tentacle" text="Attacks pierce, popping on up to 3 enemies in a line." {
+treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true not-for="poison glitter tentacle" text="Attacks pierce, popping on up to 3 enemies in a line." {
     pierce 3
     level 2 text="Attacks pierce up to 5 enemies in a line." {
         pierce 5
@@ -43,7 +45,7 @@ treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10t
         golden-bubble every=7 mult=6
     }
 }
-treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
+treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter tentacle" text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
     giant-bubble every=6 size=2.5 dmg=5 speed=0.6
     level 2 text="Every 5th bubble brings a giant, slow bubble that bursts in a wide splash." {
         giant-bubble every=5 size=2.5 dmg=5 speed=0.6
@@ -90,7 +92,7 @@ treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When 
         squeak-when-hit radius=0.21 push=0.2 dmg=9 cooldown=3
     }
 }
-treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for two seconds and you start spouting, refilling health." {
+treasure "whale" heals=#true name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for two seconds and you start spouting, refilling health." {
     spout after=2 heal=1.5
     level 2 text="Stand still for 1.5 s to restore 1.75 Health per second." {
         spout after=1.5 heal=1.75
@@ -99,7 +101,7 @@ treasure "whale" name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand sti
         spout after=1 heal=2
     }
 }
-treasure "babyBottle" name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
+treasure "babyBottle" heals=#true name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
     heal-on-kill 0.2
     level 2 text="Restore 0.3 Health per enemy cleared." {
         heal-on-kill 0.3
@@ -246,7 +248,7 @@ treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up ca
 }
 
 // --- found later: more treasures
-treasure "handCream" name="Hand Cream" icon="🧴" rarity="common" text="Restore 0.2 Health per second." stack=5 {
+treasure "handCream" heals=#true name="Hand Cream" icon="🧴" rarity="common" text="Restore 0.2 Health per second." stack=5 {
     stat health-regen 0.2
 }
 treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely." stack=5 {
@@ -286,11 +288,12 @@ treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true te
     stat bubble-damage 40 percent=#true
     stat fire-rate 15 percent=#true
     stat range -30 percent=#true
+    stat tentacle-reach -30 percent=#true
 }
 treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster." stack=2 {
     stat move-speed 20 percent=#true
 }
-treasure "fangs" name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 attack hits gives back 1 health. -5 max health." stack=2 {
+treasure "fangs" heals=#true name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 attack hits gives back 1 health. -5 max health." stack=2 {
     heal-on-hit chance=0.1 health=1
     stat health -5
 }
@@ -350,7 +353,7 @@ treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Attack d
 treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="Each bug cleared adds 0.2% Attack damage this run, up to +100%." stack=3 {
     grow-on-kills "bubble-damage" 0.2 kills=1 percent=#true cap=100
 }
-treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="10% of the bugs you clear leave a crumb: +1 Health." stack=5 {
+treasure "meatball" heals=#true name="Meatball, Leftover" icon="🍖" rarity="rare" text="10% of the bugs you clear leave a crumb: +1 Health." stack=5 {
     crumb-on-kill chance=0.1 health=1
 }
 
@@ -385,7 +388,7 @@ treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once 
 treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true not-for="tentacle lightning" text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
     echo-bubble dmg=0.4
 }
-treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 attacks bursts out from you in every direction." {
+treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a plain bubble bursts out from you in each of 8 directions." {
     every 5 {
         bubble-ring 8
     }
@@ -403,7 +406,7 @@ treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#
 treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 Luck for every treasure found this run." stack=3 {
     per "luck" 3 every=1 of="chests"
 }
-treasure "teaBag" name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every 2 Levels gained this run." stack=3 {
+treasure "teaBag" heals=#true name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every 2 Levels gained this run." stack=3 {
     per "health-regen" 0.05 every=2 of="levels"
 }
 treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (2.5x damage) and pin the bug for 0.2 s." stack=2 {

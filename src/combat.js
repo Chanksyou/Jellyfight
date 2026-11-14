@@ -39,7 +39,7 @@ export class Lash {
     this._b = new THREE.Vector3();
     this.getRig = () => null;     // main.js: () => player.avatar.tentacles
     this.onLash = null;           // () => void: the jelly's body answers as its tentacles whip out (run.js)
-    this.venom = new Map();       // venom word (Box Jelly): enemy -> { stacks, perStack (dps), t, tick }
+    this.venom = new Map();       // venom word (Stinging Nettle): enemy -> { stacks, perStack (dps), t, tick }
     enemies.statuses.bleeding = (e) => this.venom.get(e)?.stacks || 0;   // status-damage & co. (words.js STATUSES)
     this.venomColor = new THREE.Color(LOOK.color('venom', '#8dff5a'));
     this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#2ee9ff'));

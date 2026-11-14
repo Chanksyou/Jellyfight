@@ -1,24 +1,22 @@
 // Stories: evolution words. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
-import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
 import { newMods, TREASURE_WORDS, TIMED_WORDS } from '../words.js';
 import { CONTENT, isRemoved, compileTreasures } from '../content.js';
 import { balanceGroups, applyBalance, toggleRemoved, resetBalance } from '../balance-editor.js';
 import { BASE_STATS, xpToNext, rollCards } from '../stats.js';
 import { parse } from '../kdl.js';
-import { buildCharacter, SPECIES } from '../character.js';
 import { G, STORIES, dmgBy, evolve, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
 
 // --- evolutions (content/evolutions.kdl): one story per word they brought
 story('treasures/venom', {
-  about: 'venom (Box Jelly): each tentacle sting adds a venom stack (up to 5) that burns half your Tentacle damage a second per stack; Box Jelly lashes with 4 tentacles reaching three times as far.',
-  setup() { setupFight({ bubbles: false }); evolve('boxJelly'); roachAt(0.13, 0); },
+  about: 'venom (Stinging Nettle, the Tentacle jelly\'s upgrade): each tentacle sting adds a Bleed stack (up to 5) that bleeds 25% of your Tentacle damage a second per stack.',
+  setup() { setupFight({ types: 'tentacle', bubbles: false }); G().run.upgrades.push('stingingNettle'); roachAt(0.09, 0); },
   play() {
     const { run } = G(), e = G().enemies.list[0], log = record('damage_taken');
     step(60 * 6);
-    const venom = dmgBy(log, 'venom'), stacks = run.lash.venom.get(e)?.stacks, T = run.tentacleStats;
-    return ok(T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 2) < 1e-9 && venom.length > 5 && stacks === 5, { tentacles: T.tentacles, reach: T.reach, ticks: venom.length, stacks });
+    const venom = dmgBy(log, 'venom'), stacks = run.lash.venom.get(e)?.stacks;
+    return ok(venom.length > 5 && stacks === 5 && run.mods.hits.tentacles.venom?.dps === 0.25, { ticks: venom.length, stacks });
   },
 });
 story('treasures/polyps', {
@@ -100,64 +98,6 @@ story('treasures/while-rooted', {
       { early, rooted, moving, fronds });
   },
 });
-story('evolutions/box-jelly-existing-tentacles', {
-  about: 'Box Jelly brightens and thickens the current tentacles instead of adding floor-clipping strands, and a new run restores them.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
-  play() {
-    const { run, player } = G(), avatar = player.avatar, rig = avatar.tentacles;
-    const meshes = rig.list.map((t) => t.mesh), glow = rig.list[0].baseGlow;
-    evolve('boxJelly'); step(3);
-    const enhanced = rig.venom && rig.list.every((t, i) => t.mesh === meshes[i] && t.mat.emissiveIntensity > glow) && !run.adorn.pieces['venom-tips']?.group.children.length;
-    run.onMainMenu();
-    const clearedBeforePlay = !rig.venom;
-    step(3);
-    const restored = rig.list.every((t) => t.mat.emissiveIntensity === t.baseGlow);
-    fresh({ bubbles: false, lash: false });
-    return ok(enhanced && player.avatar === avatar && clearedBeforePlay && restored, { enhanced, clearedBeforePlay, restored, sameAvatar: player.avatar === avatar });
-  },
-});
-story('look/box-jelly-tentacles-every-species', {
-  about: 'Every species keeps its tentacle count and length with Box Jelly, glows during a Lash, and keeps thicker tubes and tips off the floor.',
-  setup() {},
-  play() {
-    const failures = [];
-    for (const body of Object.keys(SPECIES)) {
-      const c = buildCharacter({ body }, 1), rig = c.tentacles, T = rig.list[0];
-      c.root.position.set(2, 0.2, 3);
-      c.root.rotation.y = 0.7;
-      const state = { speed: 0, walkSpeed: 1, grounded: true, vy: 0 };
-      c.update(0, state);
-      const width = T.tip.scale.x, count = rig.count, length = rig.length;
-      rig.venom = true;
-      c.update(0, state);
-      let good = T.tip.scale.x >= width * 2.9 && rig.count === count && rig.length === length;
-      for (const phase of [null, -0.14, 0.65, 1, null]) {
-        const striking = phase !== null;
-        state.speed = striking ? 0.35 : 0;
-        state.walkSpeed = 0.35;
-        state.vel = new THREE.Vector3(0.3, 0, 0.2);
-        if (striking) rig.aim(0, T.mesh.localToWorld(T.anchor.clone().setY(0)), phase, false, phase === 1 ? 1 : 0);
-        else rig.aim(0, null);
-        c.update(1 / 60, state);
-        c.root.updateMatrixWorld(true);
-        for (const t of rig.list) {
-          const p = new THREE.Vector3();
-          for (const mesh of [t.mesh, t.tip]) {
-            const positions = mesh.geometry.attributes.position;
-            for (let i = 0; i < positions.count; i++) {
-              p.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld);
-              good &&= p.y >= c.root.position.y;
-            }
-          }
-          good &&= t.mat.emissiveIntensity >= t.baseGlow * 2.9;
-        }
-      }
-      if (!good) failures.push(body);
-      c.dispose();
-    }
-    return ok(failures.length === 0, { failures });
-  },
-});
 story('treasures/adorn', {
   about: 'adorn: an evolution adds its piece on top of the jelly, and the player\'s own model is untouched (same meshes before and after).',
   setup() { setupFight({ bubbles: false, lash: false }); },
@@ -174,13 +114,13 @@ story('evolutions/one-of-each-and-carried', {
   setup() { setupFight(); },
   play() {
     const { run } = G();
-    run.evolved.push('boxJelly');
+    run.evolved.push('lionsMane');
     let offered = [];
     stub(run.ui, 'choose', (t, s, choices) => { offered = choices.map((c) => c.id); });
     run.metamorph();
     restore();
     const carry = run.carryOver();
-    return ok(offered.length === 3 && !offered.includes('boxJelly') && carry.evolved.includes('boxJelly'), { offered, carried: carry.evolved });
+    return ok(offered.length === 3 && !offered.includes('lionsMane') && carry.evolved.includes('lionsMane'), { offered, carried: carry.evolved });
   },
 });
 story('dev/test-kit', {
@@ -194,15 +134,15 @@ story('dev/test-kit', {
     const row = (id, k) => tap(`.row[data-id="${id}"] [data-k="${k}"]`);
     row('lemon', 'plus'); row('lemon', 'plus'); row('lemon', 'minus');
     row('bobbyPin', 'plus'); row('bobbyPin', 'plus');
-    row('boxJelly', 'plus');
+    row('lionsMane', 'plus');
     const t0 = run.t; G().GAME.step(1 / 60); const held = run.t === t0;
     tap('[data-k="pack"]');
     const bugs = G().enemies.list.filter((e) => e.type === 'roach').length;
     run.health = 1; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 50, source: 'story' });
     const alive = run.health >= 1 && run.phase !== 'dead';
-    const got = { lemon: run.owned.count('lemon'), pin: run.owned.count('bobbyPin'), evolved: [...run.evolved], tentacles: run.tentacleStats.tentacles };
+    const got = { lemon: run.owned.count('lemon'), pin: run.owned.count('bobbyPin'), evolved: [...run.evolved] };
     kit.hide();
-    return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'boxJelly' && got.tentacles === 4 && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
+    return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'lionsMane' && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
   },
 });
 story('dev/tools-mid-run-stop-it-counting', {

@@ -1,9 +1,7 @@
 // Adornments: the extra pieces an evolution adds to the jelly (the adorn word, content/evolutions.kdl).
-// The body, colours and face the player made stay exactly as they are. Box Jelly strengthens
-// the existing tentacles; other pieces are a few procedural meshes, built the first time they're
-// needed and hidden when the run doesn't have it.
+// The body, colours and face the player made stay exactly as they are. The pieces are a few
+// procedural meshes, built the first time they're needed and hidden when the run doesn't have it.
 //
-//   venom-tips  Box Jelly: thickens and brightens the jelly's existing tentacles
 //   sail        Man o' War: a translucent crest on the bell, and the orbiting polyps (polyps word)
 //   halo        Immortal Jelly: a gold ring over the bell, dim once its rebirth is spent
 //   moon-ring   Moon Jelly: a pale ring round the bell that flares on every pulse
@@ -64,9 +62,8 @@ export class Adornments {
     this.t += dt;
     const want = new Set(run.mods.adorn);
     for (const k of run.typeAdorn || []) want.add(k);
-    const venom = want.delete('venom-tips');
     const rig = this.player.avatar?.tentacles;
-    if (rig) { rig.venom = venom; rig.barbed = want.has('barbs'); rig.breeze = want.has('gale'); }
+    if (rig) { rig.barbed = want.has('barbs'); rig.breeze = want.has('gale'); }
     for (const k of want) this.piece(k).group.visible = true;
     for (const [k, P] of Object.entries(this.pieces)) {
       P.group.visible = want.has(k);
@@ -77,9 +74,6 @@ export class Adornments {
     polyps.group.visible = !!Pl;
     if (Pl) polyps.tick(dt, run);
   }
-
-  // The portrait and shader warmup enumerate all adornments; this one styles the existing rig.
-  make_venom_tips() { return { group: new THREE.Group(), tick() {} }; }
 
   make_flaming_feet() {
     const group = new THREE.Group(), feet = [], geo = new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0);
