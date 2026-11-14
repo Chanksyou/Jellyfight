@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v427 makes four Elite attacks play differently: the Controller's symbols go off one at a time in the order its buttons light, the Kettle's steam balls aim where you're heading, the Soap Dispenser's bubbles are foam columns you can't jump or duck (find the gap), and the Alligator's frost balls land one after another across the fan.
+
 v426 gives the last look-alike Treasures a body of their own: Fly Swatter slaps flying bugs with a real swatter, Bath Bomb is lobbed onto a crowd and erupts in a foam geyser that throws bugs into the air, Ice Cube melts into a slippery puddle bugs skid on (and you swim faster on), Disco Ball's spotlight picks the toughest bug close by and makes it take double damage (now for every jelly type), Whale Bath Toy spouts Health when you land a jump, Night-Light's glow keeps ordinary bugs out (no more stat bonus), and Bubble Wrap goes off as a ring of little pops.
 
 v425 makes more look-alike Treasures their own thing: Rubber Duck Stuns instead of hurting, Marble is a pinball that speeds up off walls, Glow Stick grows while you swim, Moon Jelly stings the bugs it surges through, Dustpan and Leftover Meatball leave things on the floor to swim for, Gold Ring's golden attacks drop big gold XP gems on every jelly type, and Coffee Bean, Drinking Straw, Flip Flop, Odd Sock, Hand Cream and Bubble Wand each get their own twist.
