@@ -158,21 +158,19 @@ act2('soap-dispenser-bubble-ring', {
   },
 });
 act2('soap-dispenser-angry', {
-  about: 'Under its angry threshold the Soap Dispenser pumps ten times, each glob landing as a floor Blast, and lets go five bubble rings instead of three, each mixing floor-level and jump-height bubbles.',
+  about: 'Under its angry threshold the Soap Dispenser pumps ten times, each glob landing as a floor Blast, and lets go five bubble rings instead of three, of 16 foam columns each.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
     holdJelly();   // counting its attacks: the globs' pushback can carry the jelly out of its reach
     let globs = 0, domes = 0, bubbles = 0;
-    const heights = Array.from({ length: 5 }, () => ({ low: 0, high: 0 }));
     const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
     stub(run.elites, 'lob', (...a) => { globs++; if (a[7]?.dome) domes++; return lob(...a); });
-    stub(run.elites, 'bubble', (from, ...a) => { heights[Math.min(4, bubbles++ >> 4)][from.y - e.base.y > 0.1 ? 'high' : 'low']++; return bub(from, ...a); });
+    stub(run.elites, 'bubble', (...a) => { bubbles++; return bub(...a); });
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
     e.cool = 0; e.next = 1;
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
-    const mixed = heights.every((h) => h.low === 8 && h.high === 8);
-    return ok(globs === 10 && domes === 10 && bubbles === 80 && mixed, { globs, domes, bubbles, heights });
+    return ok(globs === 10 && domes === 10 && bubbles === 80, { globs, domes, bubbles });
   },
 });
 // --- 3D attacks: each soap glob lands as a floor Blast (a 4 cm half sphere over its pink circle),
@@ -214,40 +212,34 @@ act2('soap-squirt-hits-standing-not-jumping', {
     return ok(standing === 1 && hits[0].amount === 4 && jumping === 0, { standing, jumping, amount: hits[0]?.amount });
   },
 });
-// let a ring go, then put the jelly 20 cm out in the path of one low and one high bubble in turn
+// let a ring go, then put the jelly 20 cm out in the path of one of its bubbles, grounded or jumping
 function bubbleVsJelly(jump) {
-  const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble'), out = {};
+  const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble');
   const floor = e.base.y, toYou = Math.atan2(player.position.x - e.base.x, player.position.z - e.base.z);
-  for (const kind of ['low', 'high']) {
-    e.state = 'idle'; e.next = 1; e.cool = 99; e.rings = 0; e.clearTele();   // wait until all rings from the previous phase have cleared
-    step(400, () => !run.elites.soapBubbles.length);
-    e.cool = 0;
-    player.position.set(e.base.x + Math.sin(toYou) * 0.12, floor, e.base.z + Math.cos(toYou) * 0.12); player.grounded = true;
-    step(400, () => run.elites.soapBubbles.length > 0);
-    // the bubble of this height drifting nearest the open vanity (where you stood)
-    const mine = run.elites.soapBubbles.filter((b) => (b.y - floor > 0.1 ? 'high' : 'low') === kind);
-    const off = (b) => Math.abs(Math.atan2(Math.sin(Math.atan2(b.v.x, b.v.z) - toYou), Math.cos(Math.atan2(b.v.x, b.v.z) - toYou)));
-    const b = mine.sort((x, y) => off(x) - off(y))[0];
-    if (!b) { out[kind] = 'none'; continue; }
-    // Test this bubble's height without another ring crossing the jelly during the measurement.
-    e.state = 'idle'; e.cool = 99; e.clearTele();
-    for (const other of run.elites.soapBubbles) if (other !== b) run.elites.scene.remove(other.m);
-    run.elites.soapBubbles = [b];
-    const dir = b.v.clone().normalize();
-    player.position.set(e.base.x + dir.x * 0.2, floor + (jump ? JUMP_FEET : 0), e.base.z + dir.z * 0.2); player.grounded = !jump;
-    const h0 = hits.length;
-    step(150, () => hits.length > h0 || !run.elites.soapBubbles.includes(b));
-    out[kind] = hits.length - h0;
-  }
-  return out;
+  player.position.set(e.base.x + Math.sin(toYou) * 0.12, floor, e.base.z + Math.cos(toYou) * 0.12); player.grounded = true;
+  e.next = 1; e.cool = 0;
+  step(400, () => run.elites.soapBubbles.length > 0);
+  // the bubble drifting nearest the open vanity (where you stood)
+  const off = (b) => Math.abs(Math.atan2(Math.sin(Math.atan2(b.v.x, b.v.z) - toYou), Math.cos(Math.atan2(b.v.x, b.v.z) - toYou)));
+  const b = [...run.elites.soapBubbles].sort((x, y) => off(x) - off(y))[0];
+  // test this one bubble without another ring crossing the jelly during the measurement
+  e.state = 'idle'; e.cool = 99; e.rings = 0; e.clearTele();
+  for (const other of run.elites.soapBubbles) if (other !== b) run.elites.scene.remove(other.m);
+  run.elites.soapBubbles = [b];
+  const dir = b.v.clone().normalize();
+  player.position.set(e.base.x + dir.x * 0.2, floor + (jump ? JUMP_FEET : 0), e.base.z + dir.z * 0.2); player.grounded = !jump;
+  const h0 = hits.length;
+  step(150, () => hits.length > h0 || !run.elites.soapBubbles.includes(b));
+  return hits.length - h0;
 }
-act2('soap-bubble-ring-low-and-high', {
-  about: 'A bubble ring mixes floor-level and jump-height bubbles: low ones pass under a jumping jelly and hit a grounded one; high ones pass over a grounded jelly and hit a jumping one.',
+act2('soap-bubble-ring-full-height', {
+  about: "A bubble ring's bubbles are columns of foam from near the vanity to above a jump: one hits a grounded jelly and a jumping one alike, so the ring's gap is the only way through.",
   setup() { startSoap(1); },
   play() {
-    const grounded = bubbleVsJelly(false), jumping = bubbleVsJelly(true);
-    const pass = grounded.low === 1 && grounded.high === 0 && jumping.low === 0 && jumping.high === 1;
-    return ok(pass, { grounded, jumping });
+    const grounded = bubbleVsJelly(false);
+    startSoap(1);
+    const jumping = bubbleVsJelly(true);
+    return ok(grounded === 1 && jumping === 1, { grounded, jumping });
   },
 });
 act2('soap-attacks-build-no-shader', {
@@ -605,9 +597,9 @@ act2('feel-soap-bubble-ring', {
     const { run } = G(), e = soapElite(), player = holdJelly(), spy = feelSpy(), hits = caught('soap-bubble');
     step(400, () => run.elites.soapBubbles.length > 0);
     const released = spy.feels.includes('hit') && spy.sounds.includes('soapBubbles') && spy.impacts.length > 0;
-    // one floor-level bubble alone, the jelly standing in its way
+    // one bubble alone, the jelly standing in its way
     e.state = 'idle'; e.cool = 99; e.rings = 0; e.clearTele();
-    const b = run.elites.soapBubbles.find((q) => q.y - e.base.y < 0.1);
+    const b = run.elites.soapBubbles[0];
     for (const q of run.elites.soapBubbles) if (q !== b) run.elites.scene.remove(q.m);
     run.elites.soapBubbles = [b];
     const dir = b.v.clone().normalize();

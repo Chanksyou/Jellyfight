@@ -4,7 +4,8 @@
 // can read it and dodge. Beating one gives a treasure pick (run.js).
 //
 //   controller  on the media console.
-//     Button barrage: four floor symbols charge at and around you, then explode in low prisms.
+//     Button combo:   four floor symbols (one per button) fill on and around you, then go off one
+//                     at a time in the order its buttons light, in low prisms: step into a spent one.
 //     Rumble:         it buzzes while a red circle fills around it, then a shockwave knocks
 //                     you back off the console if you're inside.
 //   mug         on the standing desk.
@@ -14,21 +15,20 @@
 //   kettle      on the stove.
 //     Steam balls:    it shakes, whistles and swells while a ball of steam boils up at its
 //                     spout (nothing on the counter yet), then fires three in a row, each at where
-//                     you are as it leaves; only then does each one's orange circle and half dome
+//                     you'll be as it lands if you keep going (change direction); only then does each one's orange circle and half dome
 //                     show, filling while it flies, and it bursts there in gusts of steam: keep moving.
 //     Boil over:      the lid pops and orange circles fill around you; boiling drops land in
 //                     each one.
 //   soap        on the bathroom vanity (act 2): the glass soap dispenser by the tap. The pink soap
 //               inside drains as it's hurt (its level is its health).
-//     Soap squirt:    it pumps three times; each squirt lobs a glob of soap onto a pink circle
+//     Soap squirt:    it pumps nine times; each squirt lobs a glob of soap onto a pink circle
 //                     (and a half sphere over it) filling where you stand. It lands as a floor
 //                     Blast (jump it), and leaves a slick: soap underfoot takes away your grip,
 //                     so you slide.
-//     Bubble ring:    it foams up while a pink ring fills around it, then lets go a ring of soap
-//                     bubbles drifting outward, with one gap to slip through; they alternate
-//                     floor level (jump them) and jump height (stay down).
-//     Under half health it's angry: quicker, four squirts, and a second ring right after the
-//     first with its gap somewhere else.
+//     Bubble ring:    it foams up while a pink ring fills around it, then lets go rings of foam
+//                     columns drifting outward, each too tall to jump or duck, with one gap to
+//                     slip through.
+//     Under its angry threshold: quicker, ten squirts, and five rings, each gap somewhere else.
 //   clock       the ornate wall clock over the hallway's cubby bench (act 2; clock-model.js). It
 //               hangs on the wall; when you come onto the bench it slides down the wall to fight
 //               you there (its bearded mask is its face and the place to hit), and goes back up
@@ -59,8 +59,8 @@
 //               the bed (stage3.js `wake`), then turns to face you and fights; leave the bed and it
 //               settles back. Its numbers, radii and timings are all in content/elites.kdl.
 //     Frost volley:   its mouth opens while three Warnings (a circle, a half sphere over it) fill in
-//                     a fan round you; then three fast frost balls fly there and burst as Blasts
-//                     that also slow you.
+//                     a fan round you; then three fast frost balls fly there one after another,
+//                     from one end of the fan, and burst as Blasts that also slow you: outpace it.
 //     Tail slam:      it turns its back on you and slams its tail 3 to 5 times in a rhythm picked
 //                     afresh each time, a small ring Warning filling at the tail before each slam;
 //                     each slam sends a thick ring wall rolling out over the bed: jump it.
@@ -445,6 +445,9 @@ const ONE = new THREE.Vector3(1, 1, 1);
 // high over the bench (jump them); the wreath is a Shot with this hit radius, flying out in this many s
 const CLOCK_HITS = { sweepH: 0.02, chimeH: 0.03, wreathRadius: 0.04, wreathFlight: 0.5 };
 const NOWHERE = new THREE.Vector3(0, -99, 0);
+// the Soap Dispenser's bubble ring: each bubble is a column of foam (m over the vanity: its middle,
+// half its height, its radius, and the heights its hit is tested at), too tall to jump or duck: find the gap
+const SOAP_COLUMN = { mid: 0.12, half: 0.09, r: 0.016, at: [SHOT_HEIGHT.floor, 0.1, SHOT_HEIGHT.jump] };
 // the Alligator: its tail pieces' pitch at rest (rad: a little up off the bed), and its tail slam's
 // Warning, a circle this wide (m) where the tail lands, with the ring wall round it
 const CROC_TAIL_REST = [0.08, 0.04, 0.02], CROC_SLAM_WARN = 0.05;   // where a wreath that already hit you this way (out or back) looks for the jelly
@@ -544,7 +547,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -859,7 +862,7 @@ export class Elites {
   // a soap bubble drifting outward from `from` along `dir` (unit, flat)
   bubble(from, dir, speed, life) {
     const m = new THREE.Mesh(this.bubbleGeo, this.bubbleMat);
-    m.scale.setScalar(0.011);
+    m.scale.set(SOAP_COLUMN.r, SOAP_COLUMN.half, SOAP_COLUMN.r);
     m.position.copy(from);
     m.renderOrder = 4;
     this.scene.add(m);
@@ -1095,46 +1098,52 @@ export class Elites {
       if (e.kind === 'controller') {
         const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
-          // Fixed floor symbols give a full warning beat; all four discharge together.
-          const D = SK.barrage, charge = Math.min(1, s / D.windup);
-          if (!e.tele.length) {
+          // Button combo: four fixed floor symbols, one per button, go off one after another in the
+          // order their buttons light (a new order each time); each symbol's Warning fills to its own
+          // moment, so the fullest goes next. Step into one that already went off. One hit at most
+          const D = SK.barrage, due = (i) => D.windup + e.combo.indexOf(i) * D.gap, last = D.windup + (FLOOR_SHAPES.length - 1) * D.gap;
+          if (!e.tele.length && !e.combo) {
+            e.combo = FLOOR_SHAPES.map((_, i) => i).sort(() => Math.random() - 0.5); e.fired = 0; e.struck = false;
             const floor = this.surfaceBelow(P), angle = Math.atan2(P.x-e.base.x, P.z-e.base.z);
             FLOOR_SHAPES.forEach((kind, i) => {
               const a = angle + (i-1)*Math.PI*2/3, at = P.clone();
               if (i) { at.x += Math.sin(a)*D.spread; at.z += Math.cos(a)*D.spread; }
               this.platformTarget(e,at.setY(floor),D.radius);
               const m = this.mark(e, floorShapeGeometry(kind), this.T.symbols[i], at, new THREE.Vector3(D.radius,1,D.radius));
-              m.position.y += .002; m.userData.symbol = kind;
+              m.position.y += .002; m.userData.symbol = kind; m.userData.i = i;
               const vol = this.volume(hostile('controller'), 'symbol-'+kind, at, new THREE.Vector3(D.radius,D.height,D.radius));
-              vol.userData.symbol = kind; e.tele.push(vol);
+              vol.userData.symbol = kind; vol.userData.i = i; e.tele.push(vol);
             });
             sfx.controllerCharge(false, D.windup / CONTENT.elites.pace.tempo);
           }
-          if (s < D.windup) {
-            g.rotation.x = charge * LOOK.num('controller-windup-tilt', 0.12);
-            M.buttons.forEach((b, i) => {
-              b.position.y -= charge * LOOK.num('controller-button-press', 0.002);
-              b.material.emissive.copy(hostile('controller'));
-              b.material.emissiveIntensity = 0.5 + charge * LOOK.num('controller-button-glow', 3) + (Math.sin(e.t * 30 + i) * 0.5 + 0.5);
-            });
-            if (charge > .75 && !e.locked) { e.locked = true; sfx.controllerLock(); }
-            e.tele.forEach(m => { m.material.progress = charge; });
-          } else {
-            let struck = null;   // the symbol that caught you
-            for (const m of e.tele) if (m.material instanceof VolumeMaterial) {
-              const at = m.position, kind = m.userData.symbol;
-              if (!struck && floorShapeHits(kind, at, D.radius, D.height, P, cfg)) struck = at;
-              this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', .03), LOOK.num('controller-symbol-sparks', 8));
-              this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', .002), .1, at.y);
-              const pulse = this.volume(hostile('controller'), 'symbol-'+kind, at, m.scale);
-              pulse.material.progress = 1;
-              this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
-            }
-            if (struck) hit(D.dmg, 'controller', struck); // overlapping symbols are one attack receipt
-            sfx.controllerFire(); sfx.controllerContact(struck); juice.feel('impact-big');
-            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', .2);
+          const charge = Math.min(1, s / D.windup), next = e.combo[e.fired];
+          g.rotation.x = s < last ? charge * LOOK.num('controller-windup-tilt', 0.12) : g.rotation.x;
+          M.buttons.forEach((b, i) => {   // the next button to go lights hot; the ones still to come glow; spent ones go dark
+            const k = e.combo.indexOf(i), spent = k < e.fired, lit = i === next ? 1 : spent ? 0 : 0.35;
+            b.position.y -= (spent ? 1 : charge) * LOOK.num('controller-button-press', 0.002);
+            b.material.emissive.copy(spent ? b.material.color : hostile('controller'));
+            b.material.emissiveIntensity = spent ? 0.1 : 0.5 + lit * charge * LOOK.num('controller-button-glow', 3) + (i === next ? Math.sin(e.t * 30) * 0.5 + 0.5 : 0);
+          });
+          if (charge > .75 && !e.locked) { e.locked = true; sfx.controllerLock(); }
+          for (const m of e.tele) m.material.progress = Math.min(1, s / due(m.userData.i));
+          while (e.fired < FLOOR_SHAPES.length && s >= due(e.combo[e.fired])) {
+            const i = e.combo[e.fired++], parts = e.tele.filter((m) => m.userData.i === i), v = parts.find((m) => m.material instanceof VolumeMaterial);
+            const at = v.position, kind = v.userData.symbol;
+            const struck = !e.struck && floorShapeHits(kind, at, D.radius, D.height, P, cfg);
+            if (struck) { e.struck = true; hit(D.dmg, 'controller', at); }
+            this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', .03), LOOK.num('controller-symbol-sparks', 8));
+            this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', .002), .1, at.y);
+            const pulse = this.volume(hostile('controller'), 'symbol-'+kind, at, v.scale);
+            pulse.material.progress = 1;
+            this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
+            for (const m of parts) { this.scene.remove(m); e.tele.splice(e.tele.indexOf(m), 1); }
+            sfx.controllerFire(); sfx.controllerContact(struck); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
+            e.controllerKick = 1;
+          }
+          if (e.fired >= FLOOR_SHAPES.length) {
+            e.clearTele(); g.rotation.x = -LOOK.num('controller-recoil', .2);
             g.scale.y *= 1 - LOOK.num('controller-recoil-squash', .15);
-            e.state = 'idle'; e.cool = D.rest; e.locked = false;
+            e.combo = null; e.state = 'idle'; e.cool = D.rest; e.locked = false;
           }
         } else {
           // Rumble: buzz while a red dome fills over its circle, then a shockwave: a floor Blast
@@ -1256,7 +1265,7 @@ export class Elites {
               // the release: a ball leaves on this frame, locked on where you are now
               e.fired++; e.sinceShot = 0; e.launched = true;
               this.fx.free(e.ball); e.ball = null;
-              const at = this.platformTarget(e, P.clone(), R * 0.5);
+              const at = this.platformTarget(e, P.clone().addScaledVector(player.velocity, B.lead * B.flight).setY(P.y), R * 0.5);   // where you'll be as it lands, if you keep going: change direction
               e.kick = 1; M.lid.position.y = 0.13; M.led.material.emissiveIntensity = 2 + 2 * (B.shots - e.fired);
               this.fx.impact(muzzle, hostile('kettle'), 0.025, 12); this.fx.puff(muzzle, 0xffffff, 0.03, 0.35);
               juice.feel('hit'); sfx.kettleBlast();
@@ -1347,8 +1356,7 @@ export class Elites {
             for (let k = 0; k < slots; k++) {
               if (k === skip || k === (skip + 1) % slots) continue;          // the gap: two slots wide
               const a = (k / slots) * Math.PI * 2 + (e.rings - 1) * 0.6, dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
-              const y = e.base.y + (k % 2 ? SHOT_HEIGHT.jump : SHOT_HEIGHT.floor);
-              this.bubble(e.base.clone().addScaledVector(dir, e.r * 1.1).setY(y), dir, 0.26, 2.3);
+              this.bubble(e.base.clone().addScaledVector(dir, e.r * 1.1).setY(e.base.y + SOAP_COLUMN.mid), dir, 0.26, 2.3);
             }
             this.fx.ring(surf, hostile('soap'), 0.17, 0.35);
             this.fx.impact(muzzle, hostile('soap'), LOOK.num('act2-muzzle-flash', 0.014) * 1.5, 6);   // the foam letting go
@@ -1586,13 +1594,13 @@ export class Elites {
                   hit(V.dmg, 'croc-frost', p);
                   bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: V.slowTime, strength: V.slow });
                 }
-              }, { dome: true, arc: V.arc, wait: wind / tempo, size: V.size, owner: e, onLaunch: k ? null : launch });
+              }, { dome: true, arc: V.arc, wait: wind / tempo + k * V.stagger, size: V.size, owner: e, onLaunch: launch });   // one after another, from one end of the fan: outpace it
             }
             sfx.freeze();
           }
           jaw(Math.min(1, s / wind));
           if (s < wind && Math.random() < dt * 25) this.fx.glow.emit(muzzle, hostile('croc'), 0.03, 0.006, 0.3, 0.9);   // frost gathering in its mouth
-          if (s > wind + (V.flight + 0.35) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
+          if (s > wind + (V.flight + 0.35 + V.stagger * ((angry ? V.angryCount : V.count) - 1)) * tempo) { jaw(0); e.volleyed = false; e.locked = false; e.state = 'idle'; e.cool = angry ? V.angryRest : V.rest; }
         } else if (e.attack === 1) {
           // Tail slam: it turns its back to you, then slams its tail on the bed in a rhythm of its
           // own each time (gaps picked as it starts); before each slam a small Warning (a circle and
@@ -2102,10 +2110,12 @@ export class Elites {
       b.t -= dt;
       b.m.position.addScaledVector(b.v, dt);
       b.m.position.y = b.y + Math.sin(b.t * 5 + b.wob) * 0.006;   // bobbing as it drifts
-      b.m.scale.setScalar(0.011 * (1 + Math.sin(b.t * 9 + b.wob) * 0.06));
+      const wob = 1 + Math.sin(b.t * 9 + b.wob) * 0.06;
+      b.m.scale.set(SOAP_COLUMN.r * wob, SOAP_COLUMN.half / wob, SOAP_COLUMN.r * wob);
       this.fx.glow.hold(b.m.position, hostile('soap'), 0.05, 0.55);
-      if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + 0.011)) b.t = 0;
-      if (shotHits(b.m.position, 0.011, P, cfg)) { hit(CONTENT.elites.soap.skills.ring.dmg, 'soap-bubble', b.m.position); b.t = 0; b.hitYou = true; }
+      if (this.world.cast(b.m.position, this._dir.copy(b.v).normalize(), b.v.length() * dt + SOAP_COLUMN.r)) b.t = 0;
+      // a column of foam from near the floor to above a jump: anything of the jelly level with it is hit
+      if (SOAP_COLUMN.at.some((y) => shotHits(this._probe.copy(b.m.position).setY(b.y - SOAP_COLUMN.mid + y), SOAP_COLUMN.r, P, cfg))) { hit(CONTENT.elites.soap.skills.ring.dmg, 'soap-bubble', b.m.position); b.t = 0; b.hitYou = true; }
       if (b.t <= 0) {
         this.scene.remove(b.m);
         const floor = this.surfaceBelow(b.m.position);                 // where its suds land (once, as it pops)

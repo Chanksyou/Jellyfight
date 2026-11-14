@@ -73,6 +73,22 @@ act3('croc-frost-volley', {
   },
 });
 
+act3('croc-frost-volley-lands-in-order', {
+  about: 'The frost balls leave one after another from one end of the fan, stagger s apart, each Warning filling to its own landing: a sweep across the fan you can outpace, not one cluster.',
+  setup() { startCroc(0); },
+  play() {
+    const { e } = startCroc(0), { run } = G(), V = e.def.skills.volley;
+    step(60, () => run.elites.blobs.length >= V.count);
+    const balls = run.elites.blobs.filter((b) => b.owner === e), waits = balls.map((b) => +b.wait.toFixed(3));
+    const gaps = waits.slice(1).map((w, k) => +(w - waits[k]).toFixed(3));
+    const side = V3 => V3.to.clone().sub(e.base).dot(new THREE.Vector3(Math.cos(e.holder.rotation.y), 0, -Math.sin(e.holder.rotation.y)));
+    const along = balls.map(side), oneWay = along.every((a, k) => !k || a > along[k - 1]) || along.every((a, k) => !k || a < along[k - 1]);
+    step(10);
+    const fills = balls.map((b) => b.warn.material.progress), fullestFirst = fills.every((f, k) => !k || f < fills[k - 1]);
+    return ok(balls.length === V.count && gaps.every((g) => Math.abs(g - V.stagger) < 1e-3) && oneWay && fullestFirst, { waits, gaps, oneWay, fills: fills.map((f) => +f.toFixed(2)) });
+  },
+});
+
 act3('croc-tail-slam', {
   about: 'Tail slam: it turns its back on the jelly, then slams its tail 3 to 5 times; before each slam a Warning (a small circle with the ring wall round it) fills where the tail lands, and each slam sends a thick ring wall rolling out over the bed: 3 to a jelly standing in its way, from every ring.',
   setup() { startCroc(1); },
