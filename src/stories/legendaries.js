@@ -5,7 +5,7 @@ import { CONTENT } from '../content.js';
 import { BASE_STATS } from '../stats.js';
 import { G, fresh, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
-const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid'];
+const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs'];
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
@@ -23,7 +23,7 @@ function evolveAll(...ids) {
 }
 
 story('types/boss-gives-legendary-then-upgrade', {
-  about: 'An act\'s boss gives one Legendary pick from the pool of 19 (the 9 Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends; after the last act\'s boss there is no pick, just the win. Picking a former evolution plays the metamorphosis.',
+  about: 'An act\'s boss gives one Legendary pick from the pool of 20 (the 10 Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends; after the last act\'s boss there is no pick, just the win. Picking a former evolution plays the metamorphosis.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = (pickEvolution) => {

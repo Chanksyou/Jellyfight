@@ -112,6 +112,7 @@ export class Run {
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
     this.lash.onLash = () => this.player.avatar?.pulse?.(0.3);   // and twitches as its tentacles whip out
+    this.bubbles.onAttack = this.lash.onAttack = () => this.attacked();   // on-attack rolls (Pocket Vacuum)
     this.bubbles.onWindCharge = k => this.player.avatar?.pulse?.(0.15 + k * 0.55);
     this.bubbles.onWindRelease = () => this.player.avatar?.pulse?.(1);
     this.bubbles.onElementRelease = () => this.player.avatar?.pulse?.(0.75);   // the bell squeezes as an element shot leaves
@@ -337,6 +338,7 @@ export class Run {
     this.upgrades = [];               // Attack upgrades taken (content/upgrades.kdl), one after each of the first three bosses
     this.streaks = {};                // streak: when each one's recent kills died
     this.lost = {};                   // Health lost this act, by what took it (recordRun)
+    this.walked = 0; this.walkFrom = null;   // distance-xp (Pedometer): metres swum toward the next XP, and from where
     this.eliteLog = [];
     this.pickupLog = [];
     this.treasuresObtained = 0;
@@ -641,6 +643,7 @@ export class Run {
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
     if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
+    if (this.phase === 'explore' || this.phase === 'boss') { this.drain(dt); this.pedometer(); }
 
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
@@ -903,6 +906,42 @@ export class Run {
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from, contact, knock, at);
+  }
+
+  // on-attack (Pocket Vacuum): each attack you make rolls each on-attack's chance, and doing its { block }
+  attacked() {
+    const L = this.mods.onAttack;
+    if (!L?.length) return;
+    const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
+    const ctx = { feet: P, center, facing: this.player.facing, power: this.power, mods: this.mods, pulse: (k) => this.player.avatar?.pulse(k) };
+    for (const A of L) if (Math.random() < A.chance) for (const ef of A.effects) this.gadgets.fire(ef, ctx);
+  }
+
+  // health-drain (Bloody Fangs): Health (never the Shield) seeps away, never below its least, red drops falling off the bell
+  drain(dt) {
+    const D = this.mods.drain;
+    if (!(D?.dps > 0) || this.polypT > 0) return;
+    const take = Math.min(D.dps * dt, this.health - D.least);
+    if (take <= 0) return;
+    this.health -= take;
+    this.lost.drain = (this.lost.drain || 0) + take;
+    if ((this.drainDripT = (this.drainDripT ?? 0) - dt) > 0) return;
+    this.drainDripT = LOOK.num('drain-drip', 0.4);
+    const P = this.player.position, c = LOOK.color('bleed', '#ff2a4a');
+    this.fx.burst(_drop.set(P.x, P.y + this.cfg.height * 0.35, P.z), [c, c], 2, this.cfg.radius * LOOK.num('bleed-drop', 0.16), 0.12, P.y);
+  }
+
+  // distance-xp (Pedometer): every `every` m swum gives XP straight away, with a click and a small "+XP" over the jelly
+  pedometer() {
+    const D = this.mods.distanceXp, P = this.player.position;
+    if (!(D?.xp > 0)) { this.walkFrom = null; return; }
+    if (this.walkFrom) this.walked += Math.min(0.2, Math.hypot(P.x - this.walkFrom.x, P.z - this.walkFrom.z));   // a jump between rooms isn't swimming
+    (this.walkFrom ||= new THREE.Vector3()).copy(P);
+    if (this.walked < D.every) return;
+    this.walked -= D.every;
+    this.gainXp(D.xp);
+    sfx.pedometerClick();
+    this.fx.number(_drop.set(P.x, P.y + this.cfg.height * 1.2, P.z), `+${D.xp} XP`, LOOK.color('pedometer', '#7fe7ff'), 12);
   }
 
   // bleeding: Health lost each second (no i-frames, no flinch), and drops of it dripping off the
