@@ -78,7 +78,7 @@ export class Shield {
       this.state = 'broken';
       run.fx.burst(at, [this.color, '#ffffff'], 10, 0.0025, 0.22, run.player.position.y);   // the shell shatters
       const bursts = run.mods.shield.bursts, sleep = run.mods.shield.invuln;
-      for (const B of bursts) this.burst(at, B.radius, B.flat ? B.dmg : B.dmg * run.S.bubbleDamage);
+      for (const B of bursts) this.burst(at, B.radius, B.flat ? B.dmg : B.dmg * run.S.bubbleDamage, B.look);
       if (!bursts.length) sfx.shieldBreak();
       if (sleep > 0) {   // shield-burst invuln (Cryo Sleep): the jelly freezes over and can't be hurt for a moment
         run.iFrames += sleep;   // on top of the 1 s of grace the breaking hit already gave
@@ -92,14 +92,24 @@ export class Shield {
 
   // shield-burst: the breaking shell blasts outward; the ring and puff show the real `radius`,
   // every enemy inside takes `dmg` and is shoved
-  burst(at, radius, dmg) {
-    const run = this.run, color = this.color;
-    run.fx.ring(run.player.position.clone().setY(run.player.position.y + 0.004), color, radius, 0.4);
-    run.fx.puff(at, color, radius / 1.6, 0.3);   // puff expands to 1.6×: stop at the actual blast radius
-    run.fx.burst(at, [color, '#ffffff'], 12, 0.003, 0.25, run.player.position.y);
+  // look="pops" (Bubble Wrap): no blast, a ring of little pops goes off one after another round you
+  burst(at, radius, dmg, look = 'blast') {
+    const run = this.run, color = this.color, feet = run.player.position;
+    if (look === 'pops') {
+      const n = 10, c = new THREE.Color(color);
+      for (let i = 0; i < n; i++) run.later(() => {
+        const a = i / n * Math.PI * 2, r = radius * (0.55 + 0.4 * (i % 2));
+        run.gadgets.looks.pop(new THREE.Vector3(feet.x + Math.cos(a) * r, feet.y + 0.006, feet.z + Math.sin(a) * r), c);
+      }, i * 35);
+      sfx.wrapPops(n);
+    } else {
+      run.fx.ring(feet.clone().setY(feet.y + 0.004), color, radius, 0.4);
+      run.fx.puff(at, color, radius / 1.6, 0.3);   // puff expands to 1.6×: stop at the actual blast radius
+      run.fx.burst(at, [color, '#ffffff'], 12, 0.003, 0.25, feet.y);
+      sfx.shieldBreak();
+    }
     run.player.avatar?.pulse(1);
     juice.feel('impact');
-    sfx.shieldBreak();
     for (const e of run.gadgets.near(at, radius)) {
       const hit = run.enemies.center(e);
       run.fx.impact(hit, color, 0.02, 8);

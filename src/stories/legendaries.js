@@ -83,14 +83,14 @@ story('types/former-evolutions-stack', {
 });
 
 story('types/legendary-not-offered-to-wrong-type', {
-  about: 'A Legendary that does nothing for a jelly type\'s attack isn\'t offered to it (not-for=): Rebound Jelly only turns plain bubbles, so only Normal gets it (never Fire, Lightning, Ice, Wind or the Tentacle jelly); Man o\' War and Disco Ball only work on shots, so never to the Tentacle jelly. Bubble Bath is offered to every type, and Box Jelly is gone from the game.',
+  about: 'A Legendary that does nothing for a jelly type\'s attack isn\'t offered to it (not-for=): Rebound Jelly only turns plain bubbles, so only Normal gets it (never Fire, Lightning, Ice, Wind or the Tentacle jelly); Man o\' War only works on shots, so never to the Tentacle jelly; Disco Ball\'s spotlight works for every type. Bubble Bath is offered to every type, and Box Jelly is gone from the game.',
   setup() { fresh({ types: 'tentacle' }); },
   play() {
     const pools = {};
     for (const t of ['tentacle', 'fire', 'lightning', 'ice', 'wind', 'normal']) { fresh({ types: t }); pools[t] = legendaryPool(); }
     fresh();
     const { tentacle, fire, normal } = pools;
-    const pass = !['rebound', 'manOWar', 'discoBall'].some((id) => tentacle.has(id)) && tentacle.has('bubbleBath')
+    const pass = !['rebound', 'manOWar'].some((id) => tentacle.has(id)) && tentacle.has('bubbleBath') && tentacle.has('discoBall')
       && ['fire', 'lightning', 'ice', 'wind'].every((t) => !pools[t].has('rebound'))
       && fire.has('manOWar') && fire.has('discoBall')
       && ['rebound', 'manOWar', 'discoBall', 'bubbleBath'].every((id) => normal.has(id))

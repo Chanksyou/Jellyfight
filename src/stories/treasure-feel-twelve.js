@@ -16,10 +16,6 @@ story('treasure-feel-twelve/air-jump-only-on-real-extra-jump',{
  setup(){setupFight({bubbles:false,lash:false});give('penSpring');},
  play(){const {player,input,run}=G();player.position.y+=.1;player.grounded=false;player.coyote=0;player.airJumps=1;player.maxAirJumps=1;input.jumpQueued=true;step(1);const used=player.airJumps===0&&active(run.gadgets.looks,'spring').length===1&&player.velocity.y>0;step(20);return ok(used&&!active(run.gadgets.looks,'spring').length,{used});},
 });
-story('treasure-feel-twelve/fizz-prepares-original-damage',{
- setup(){ready('bathBomb');roachAt(.05,0);roachAt(.4,0);},
- play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');let prepared=false;step(365,()=>{prepared ||= g.chordReady.visible;return log.some(d=>d.source==='ring');});const hits=log.filter(d=>d.source==='ring');return ok(prepared&&hits.length===1&&hits[0].amount===run.power*2&&active(g.looks,'foam').length>0,{prepared,hits:hits.length});},
-});
 story('treasure-feel-twelve/remote-three-confirmed-connections',{
  setup(){ready('remote');for(const x of [.08,.15,.22,.3])roachAt(x,0);},
  play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');g.fire(ef('zap'),ctx());const hits=log.filter(d=>d.source==='zap');return ok(hits.length===3&&hits.every(d=>d.amount===run.power*2)&&active(g.looks,'rod').length===12,{hits:hits.length,streaks:active(g.looks,'rod').length});},
@@ -49,5 +45,5 @@ story('treasure-feel-twelve/snooze-once-original-health',{
 });
 story('treasure-feel-twelve/prepared-quiet-bounded',{
  setup(){ready(...ids);roachAt(.07,0);},
- play(){const {run,GAME,APT,fx}=G(),g=run.gadgets,L=g.looks,c=ctx();GAME.render();const n=APT.renderer.info.programs.length;g.fire(ef('ring'),c);g.fire(ef('zap'),c);g.t.aura=0;g.update(1/60,c);L.stamp(c.center,.01);L.spring(c.feet);L.snooze(c.feet);run.bubbles.volley(c.center,run.S,run.mods);step(2);GAME.render();const shaders=APT.renderer.info.programs.length-n;stub(fx,'reducedMotion',{matches:true});L.reset();L.fizzBurst(c.feet,.1);const quiet=active(L,'foam').length===3;for(let i=0;i<100;i++){L.stamp(c.center,.02);L.signal(c.center,c.center.clone().addScalar(.1));}const capped=Object.entries(L.pools).every(([k,p])=>p.length<=L.caps[k]);g.reset();return ok(shaders===0&&quiet&&capped&&Object.values(L.pools).flat().every(p=>!p.alive&&!p.follow),{shaders,quiet,capped});},
+ play(){const {run,GAME,APT,fx}=G(),g=run.gadgets,L=g.looks,c=ctx();GAME.render();const n=APT.renderer.info.programs.length;g.fire(ef('geyser'),c);g.fire(ef('zap'),c);g.t.aura=0;g.update(1/60,c);L.stamp(c.center,.01);L.spring(c.feet);L.snooze(c.feet);run.bubbles.volley(c.center,run.S,run.mods);step(2);GAME.render();const shaders=APT.renderer.info.programs.length-n;stub(fx,'reducedMotion',{matches:true});L.reset();L.geyser(c.feet,.1);const quiet=active(L,'foam').length===3;for(let i=0;i<100;i++){L.stamp(c.center,.02);L.signal(c.center,c.center.clone().addScalar(.1));}const capped=Object.entries(L.pools).every(([k,p])=>p.length<=L.caps[k]);g.reset();return ok(shaders===0&&quiet&&capped&&Object.values(L.pools).flat().every(p=>!p.alive&&!p.follow),{shaders,quiet,capped});},
 });

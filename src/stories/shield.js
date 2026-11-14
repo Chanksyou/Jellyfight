@@ -2,7 +2,7 @@
 // treasures that need it (needs-stat="shield") and Aegis Jelly, which gives one.
 import { bus, PLAYER } from '../events.js';
 import { rollCards } from '../stats.js';
-import { G, evolve, fresh, give, near, ok, record, setupFight, spawn, step, story, stub } from './kit.js';
+import { G, evolve, fresh, give, near, ok, record, setupFight, spawn, spy, step, story, stub } from './kit.js';
 
 const hit = (amount, drain = false) => { G().run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount, source: 'story', drain }); };
 const setup = () => { setupFight({ hurt: true, bubbles: false, lash: false }); };
@@ -142,12 +142,12 @@ story('treasures/shield-full-damage', {
 });
 
 story('treasures/shield-burst', {
-  about: 'Bubble Wrap: when the Shield breaks it blasts every enemy within 30 cm for 2x Attack damage a copy (one blast; up to 3 copies); enemies outside are untouched.',
+  about: 'Bubble Wrap: when the Shield breaks every enemy within 30 cm takes 2x Attack damage a copy (one hit; up to 3 copies), shown as a ring of little pops one after another, not the blast ring; enemies outside are untouched.',
   setup,
   play() {
     const { run } = G(); withShield(4); give('bubbleWrap'); step(1);
     run.stats.bubbleDamage = 10;
-    const log = record('damage_taken');
+    const log = record('damage_taken'), rings = spy(run.fx, 'ring'), pops = spy(run, 'later');
     const close = spawn('roach', near(0.2, 0), { still: true, hp: 100 });
     const far = spawn('roach', near(0.6, 0), { still: true, hp: 100 });
     hit(3);
@@ -157,7 +157,7 @@ story('treasures/shield-burst', {
     give('bubbleWrap', 'bubbleWrap'); step(60 * 8);
     hit(4);
     const three = log.filter((d) => d.source === 'shield-burst').slice(1);
-    return ok(early === 0 && burst.length === 1 && burst[0].amount === 20 && closeHp === 80 && far.hp === 100 && three.length === 1 && three[0].amount === 60 && run.owned.count('bubbleWrap') === 3,
+    return ok(early === 0 && burst.length === 1 && burst[0].amount === 20 && closeHp === 80 && far.hp === 100 && three.length === 1 && three[0].amount === 60 && run.owned.count('bubbleWrap') === 3 && !rings.length && pops.length >= 10,
       { early, burst: burst.map((d) => d.amount), close: closeHp, far: far.hp, three: three.map((d) => d.amount) });
   },
 });
