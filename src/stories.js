@@ -25,6 +25,7 @@ import './stories/type-words.js';
 import './stories/treasure-feel.js';
 import './stories/treasure-feel-more.js';
 import './stories/treasure-feel-twelve.js';
+import './stories/treasure-house.js';
 import './stories/arena4.js';
 import './stories/encore.js';
 import './stories/fire.js';

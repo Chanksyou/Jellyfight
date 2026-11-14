@@ -65,7 +65,6 @@
   --gadget-signal-bend: 0.006;
   --gadget-tag-life: 0.25;
   --gadget-pin-height: 0.014;
-  --gadget-fizz-prepare: 0.3;
   --gadget-cone-prepare: 0.35;   /* s of flame gathering at the bell before a flame cone (Fire Breath) */
   --gadget-tags: 24;
   --gadget-gold: #f5e7a7;
@@ -95,6 +94,10 @@
   --gadget-salt-life: 0.36;
   --gadget-friendly: #a6f6ed;
   --night-light: #bfe2ff;        /* Night-Light: the lamp dome and its glow on the floor (a glowing mesh, not a real light) */
+  --gadget-swatter: #4fb8ff;     /* Fly Swatter: its head (a friendly blue mesh) */
+  --bath-foam: #ff9ad8;          /* Bath Bomb: the ball, its reach on the floor and the foam column */
+  --puddle: #7cc8ff;             /* Ice Cube: the slippery puddle (water, not frost) */
+  --disco-light: #d8beff;        /* Disco Ball: the spotlight cone and its pool on the picked bug */
   --bounty: #ffd23a;             /* Chore List: the gold target over the marked bug */
   --ghost: #b4ffd6;              /* Glow-in-the-Dark Star: the ghosts, glow-in-the-dark green (friendly, cool) */
   --slice: #f4fbff;              /* Pizza Cutter: the white slash that finishes a low bug */

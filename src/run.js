@@ -202,6 +202,13 @@ export class Run {
       const M = this.mods;
       const L = M.landingShockwave;
       if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff, L.push);
+      const W = M.landHeal;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
+      if (W && drop > 0.04 && this.t - this.spoutAt >= W.every) {
+        const P = this.player.position;
+        this.spoutAt = this.t; this.heal(W.health);
+        this.gadgets.looks.spout(P.clone(), this.cfg.radius); sfx.whaleSpout(); this.player.avatar?.pulse(0.5);
+        this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${W.health} Health`, '#c6ffb0', 14);
+      }
     };
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
@@ -275,7 +282,7 @@ export class Run {
     this.fade.style.opacity = 0;
 
     this.phase = 'explore';
-    this.t = 0; this.hurtAt = 0;
+    this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
@@ -453,7 +460,7 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : c.when === 'lit' ? this.gadgets.lit : c.when === 'unhurt' ? this.t - (this.hurtAt ?? 0) >= UNHURT : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : c.when === 'lit' ? this.gadgets.lit : c.when === 'unhurt' ? this.t - (this.hurtAt ?? 0) >= UNHURT : c.when === 'wet' ? this.gadgets.house.wetNow : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
     }
     // stack-buff: what each one's live stacks add
     for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? base[b.stat] * b.amount / 100 : b.amount); }
@@ -564,7 +571,7 @@ export class Run {
       for (const [e, f] of this.bubbles.burning) if (!e.dead && f.t > 0 && this.enemies.center(e, _near).distanceTo(P.position) < NEARBY) n++;
       this.burningNear = n;
     }
-    this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (spout, rooted)
+    this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
     this.slipT = Math.max(0, this.slipT - dt);
     if (this.bleeds.length) this.bleed(dt);
@@ -634,8 +641,6 @@ export class Run {
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
     if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
-    const spout = this.mods.spout;
-    if (spout && this.stillT > spout.after) this.heal(spout.heal * dt, true);
 
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you

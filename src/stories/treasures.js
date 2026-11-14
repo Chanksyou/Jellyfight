@@ -259,12 +259,14 @@ story('treasures/crit', {
   },
 });
 story('treasures/echo-bubble', {
-  about: 'echo-bubble (Disco Ball): a bubble that pops on a bug fires again from there at the next bug close by, for 40% of its damage.',
-  setup() { setupFight({ lash: false }); give('discoBall'); roachAt(0, -0.15); roachAt(0.06, -0.24); },
+  about: 'echo-bubble dmg=0.4: a bubble that pops on a bug fires again from there at the next bug close by, for 40% of its damage.',
+  setup() { setupFight({ lash: false }); roachAt(0, -0.15); roachAt(0.06, -0.24); },
   play() {
+    const undo = withWords('echo-bubble dmg=0.4');
     const { enemies, run } = G(), [first, second] = enemies.list, log = record('damage_taken');
     step(60 * 3, () => dmgBy(log, 'bubble').some((d) => d.targetId === second.id));
     const echoes = dmgBy(log, 'bubble').filter((d) => d.targetId === second.id), full = run.S.bubbleDamage;
+    undo();
     return ok(echoes.length > 0 && echoes.every((d) => Math.abs(d.amount - full * 0.4) < 1e-6), { echoes: echoes.map((d) => d.amount), full, onFirst: dmgBy(log, 'bubble').filter((d) => d.targetId === first.id).length });
   },
 });
@@ -386,15 +388,17 @@ story('treasures/lash', {
   },
 });
 story('treasures/ring-slow', {
-  about: 'ring slow= (Ice Cube): a cold snap slows the bugs close by for 2 s (not the ones farther out), and frost drifts up off a slowed bug (no ring on the floor).',
-  setup() { setupFight({ bubbles: false, lash: false }); give('iceCube'); roachAt(0.1, 0); roachAt(0.4, 0); },
+  about: 'ring slow=: a cold snap slows the bugs close by for 2 s (not the ones farther out), and frost drifts up off a slowed bug (no ring on the floor).',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0.1, 0); roachAt(0.4, 0); },
   play() {
+    const undo = withWords('every 6 {\n ring 0.16 dmg=0.5 slow=2 color="#bff4ff" show=0.6\n}');
     const { enemies } = G(), [close, far] = enemies.list, log = record('status_applied');
     step(60 * 6, () => log.some((s) => s.status === 'slow'));
     const glows = spy(G().fx.glow, 'emit'), rings = spy(G().fx, 'ring');
     step(60);
     const slowed = log.filter((s) => s.status === 'slow').map((s) => s.targetId);
     const frost = glows.filter((a) => a[1]?.getHexString?.() === '9fe4ff').length, floorRings = rings.filter((a) => a[1] === 0x9fe4ff).length;
+    undo();
     return ok(slowed.includes(close.id) && !slowed.includes(far.id) && log.find((s) => s.targetId === close.id)?.duration === 2 && !(close.freezeT > 0) && frost > 0 && !floorRings,
       { slowed: slowed.map((id) => (id === close.id ? 'close' : id === far.id ? 'far' : id)), frost, floorRings });
   },
@@ -448,11 +452,6 @@ story('treasures/damage-taken', {
   about: 'damage-taken (Shot Glass): hits take 25% more health.',
   setup() { setupFight({ hurt: true }); give('shotGlass'); },
   play() { const { run } = G(), m0 = run.health; run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'story' }); return ok(Math.abs(m0 - run.health - 5) < 1e-9, { lost: m0 - run.health }); },
-});
-story('treasures/spout', {
-  about: 'spout (Whale Bath Toy): stand still and you refill health.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('whale'); G().run.health = 10; },
-  play() { step(60 * 3); return ok(G().run.health > 10.5, { health: +G().run.health.toFixed(2) }); },
 });
 story('treasures/heal-on-kill', {
   about: 'heal-on-kill (Baby Bottle): every bug you clear gives back a sip of health.',
@@ -836,12 +835,14 @@ story('treasures/every', {
   },
 });
 story('treasures/ring', {
-  about: 'ring (Bath Bomb, every 6 s): you fizz, stinging everything close for 2x your power, and nothing farther out.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('bathBomb'); roachAt(0.06, 0); roachAt(0.3, 0); },
+  about: 'ring (every 6 s): a ring round you stings everything close for 2x your power, and nothing farther out.',
+  setup() { setupFight({ bubbles: false, lash: false }); roachAt(0.06, 0); roachAt(0.3, 0); },
   play() {
+    const undo = withWords('every 6 first=6 {\n ring 0.12 dmg=2\n}');
     const { run, enemies } = G(), [close, far] = enemies.list, log = record('damage_taken');
     step(60 * 7, () => dmgBy(log, 'ring').length > 0);
     const hits = dmgBy(log, 'ring');
+    undo();
     return ok(hits.length === 1 && hits[0].targetId === close.id && Math.abs(hits[0].amount - run.power * 2) < 1e-6, { hits: hits.map((d) => [d.targetId === close.id ? 'close' : 'far', +d.amount.toFixed(1)]) });
   },
 });
@@ -913,14 +914,14 @@ story('treasures/tuned-level-effects', {
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const got = [], want = [
-      [2.5, .25, .15, 4, 1.5, .18, 2, .05, .12, 2, .3],
-      [5, .28, .18, 4, 1.75, .22, 3, .07, .15, 3, .35],
-      [7, .3, .22, 3, 2, .26, 4, .09, .18, 4, .4],
+      [2.5, .25, .15, 4, 1.5, .18, 2, .05, .1, 2, .3],
+      [5, .28, .18, 4, 2, .22, 3, .07, .12, 3, .35],
+      [7, .3, .22, 3, 2.5, .26, 4, .09, .14, 4, .4],
     ];
     for (let i = 0; i < 3; i++) {
       give('cottonBall', 'rubberDuck', 'whale', 'guitarPick', 'bathBomb', 'stickyNote');
-      const M = G().run.mods, duck = M.squeaks[0], rings = M.timed.flatMap((t) => t.effects), chord = rings.find((e) => e.kind === 'ring' && e.look === 'chord'), bomb = rings.find((e) => e.kind === 'ring' && e.look === 'puff');
-      got.push([M.landingShockwave.dmg, duck.radius, duck.push, duck.cooldown, M.spout.heal, chord.radius, chord.dmg, chord.push, bomb.radius, bomb.dmg, M.hits.bubbles.markMore]);
+      const M = G().run.mods, duck = M.squeaks[0], rings = M.timed.flatMap((t) => t.effects), chord = rings.find((e) => e.kind === 'ring' && e.look === 'chord'), bomb = rings.find((e) => e.kind === 'geyser');
+      got.push([M.landingShockwave.dmg, duck.radius, duck.push, duck.cooldown, M.landHeal.health, chord.radius, chord.dmg, chord.push, bomb.radius, bomb.dmg, M.hits.bubbles.markMore]);
     }
     return ok(got.every((row, i) => row.every((v, j) => Math.abs(v - want[i][j]) < 1e-9)), { got, want });
   },
@@ -1032,9 +1033,10 @@ story('treasures/boss-levels', {
   },
 });
 story('treasures/night-light', {
-  about: 'night-light (Night-Light): a Level-up plugs in a night-light where you are; inside its glow you get +40% Fire rate and +0.5 Health regen, outside it you don\'t; a 4th unplugs the oldest.',
+  about: 'night-light with while "lit": a Level-up plugs in a night-light where you are; inside its glow you get +40% Fire rate and +0.5 Health regen, outside it you don\'t; a 4th unplugs the oldest.',
   setup() { setupFight({ lash: false, bubbles: false, levels: true }); give('nightLight'); },
   play() {
+    const undo = withWords('while "lit" "fire-rate" 40 percent=#true\nwhile "lit" "health-regen" 0.5');
     const { run } = G(), gadgets = run.gadgets, rate0 = run.S.fireRate, regen0 = run.S.regen;
     run.pendingLevels = 1; run.levelUp(); run.ui.close();
     step(2);
@@ -1042,6 +1044,7 @@ story('treasures/night-light', {
     gadgets.lamps[0].g.position.x += 0.6; step(2);   // the lamp, not the jelly, moves away (no furniture in the way)
     const awayRate = run.S.fireRate;
     for (let i = 0; i < 3; i++) gadgets.plugIn(player.position, run.mods.nightLight);
+    undo();
     return ok(Math.abs(litRate - rate0 * 1.4) < 1e-6 && Math.abs(litRegen - regen0 - 0.5) < 1e-6 && Math.abs(awayRate - rate0) < 1e-6 && gadgets.lamps.length === 3,
       { rate0, litRate, awayRate, regen0, litRegen, lamps: gadgets.lamps.length });
   },

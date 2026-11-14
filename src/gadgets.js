@@ -10,6 +10,7 @@ import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { batcher } from './batch.js';
 import { knockFor } from './stats.js';
+import { HouseGadgets } from './house-gadgets.js';
 
 const _to = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 
@@ -119,6 +120,7 @@ export class Gadgets {
     this.bountyMark.visible = false;
     this.group.add(this.bountyMark);
     this.ghostColor = LOOK.color('ghost', '#b4ffd6');   // glow-in-the-dark green: friendly and cool, never a hostile colour
+    this.house = new HouseGadgets(this);   // the swatter, bath bombs, puddles and the disco ball
     this.reset();
   }
 
@@ -142,7 +144,8 @@ export class Gadgets {
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
     this.auraCharge = 0;
-    this.lamps = []; this.lit = false;
+    this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
+    this.house?.reset();
     this.lampPool.forEach((g) => { g.visible = false; });
     this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = false;
     for (const g of this.ghosts || []) this.fx.free(g.m);
@@ -169,6 +172,9 @@ export class Gadgets {
       if (Math.hypot(feet.x - p.x, feet.z - p.z) <= L.r && Math.abs(feet.y - p.y) < 0.15) this.lit = true;
     }
     for (const L of this.lamps) L.g.userData.pool.material.opacity = L.breathe * (this.lit ? 1.8 : 1);   // the pool brightens while you're inside
+    // safe=#true: ordinary bugs stop at the glow's edge (enemies.js keepOut)
+    const K = this.enemies.keepOut; K.length = 0;
+    if (M.nightLight?.safe) for (const L of this.lamps) K.push({ x: L.g.position.x, y: L.g.position.y, z: L.g.position.z, r: L.r });
   }
 
   // bounty: now and then an ordinary bug far from you gets a gold target (run.js onKill pays it out)
@@ -253,6 +259,7 @@ export class Gadgets {
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
     this.lampPool[0].visible = this.bountyMark.visible = on;   // night-light and bounty shaders, compiled up front too
+    this.house.warm(on, at);
     if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
     if (on) {
       this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at);
@@ -360,6 +367,7 @@ export class Gadgets {
     this.tickLights(dt, M, feet);
     this.tickBounty(dt, M, feet);
     this.tickGhosts(dt, M, power);
+    this.house.update(dt, ctx);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
 
@@ -379,7 +387,6 @@ export class Gadgets {
         }
         if(ef.kind==='orb'&&this.t[T.key]<LOOK.num('gadget-orb-prepare',.4))this.bubbles?.looks.gather('lightning',center,1-this.t[T.key]/LOOK.num('gadget-orb-prepare',.4),1);   // static gathering at the bell
         if(ef.kind==='cone'&&this.t[T.key]<LOOK.num('gadget-cone-prepare',.35))this.bubbles?.looks.gather('fire',center,1-this.t[T.key]/LOOK.num('gadget-cone-prepare',.35),1);   // flame gathering at the bell
-        if(ef.look==='puff'&&this.t[T.key]<LOOK.num('gadget-fizz-prepare',.3)){this.chordReady.visible=true;this.chordReady.position.copy(center);this.chordReady.scale.setScalar(.022);}
         if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
           this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
           this.chordReady.scale.setScalar(ef.radius*(.25+.35*(1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25))));
@@ -596,8 +603,7 @@ export class Gadgets {
     const E = this.enemies, fx = this.fx;
     if (ef.kind === 'ring') {
       const col = new THREE.Color(ef.color);
-      if (ef.look === 'puff') {this.looks.fizzBurst(feet.clone().setY(feet.y+.004),ef.radius);sfx.gadgetFizz();ctx.pulse?.(.25);}
-      else if(ef.look==='chord'){
+      if(ef.look==='chord'){
         this.looks.arc(feet.clone().setY(feet.y+.004),ef.radius,col,ef.show);
         sfx.gadgetChord();ctx.pulse?.(.3);
       }else if(ef.look==='needles'){
@@ -605,7 +611,7 @@ export class Gadgets {
       }
       else fx.ring(feet.clone().setY(feet.y + 0.004), col.getHex(), ef.radius, ef.show);
       for (const e of this.near(center, ef.radius, { proxies: ef.elites })) {
-        if(ef.look==='chord'||ef.look==='needles'||ef.look==='puff'){
+        if(ef.look==='chord'||ef.look==='needles'){
           const at=E.center(e);
           this.looks.contact(at,col,Math.max(.006,e.r*.6));
           if(ef.look==='needles')this.looks.streak(center,at,col,LOOK.num('gadget-needle-width',.0013),LOOK.num('gadget-needle-life',.16),'needle');
@@ -698,6 +704,7 @@ export class Gadgets {
     else if (ef.kind === 'splash') ctx.splash?.(ef.dmg);              // Confetti Pop
     else if (ef.kind === 'next-attack') { if (ctx.nextAttack?.(ef)) { sfx.elementLaunch('glitter'); ctx.pulse?.(0.25); } }   // Disco Bomb
     else if (ef.kind === 'whirl') this.whirl(ef, ctx);
+    else if (ef.kind === 'swatter' || ef.kind === 'geyser' || ef.kind === 'puddle') this.house.fire(ef, ctx);
   }
 
   // cloud (Toxic Cloud): gas hangs where it went off; every 0.5 s each bug inside gets a Poison stack

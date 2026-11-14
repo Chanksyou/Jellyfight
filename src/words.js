@@ -685,7 +685,7 @@ export function newMods() {
     landingShockwave: null, extraJumps: 0,
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
-    squeaks: [], onHurt: [], spout: null, burstOnKill: null, cardRarity: 0,
+    squeaks: [], onHurt: [], landHeal: null, spotlight: null, burstOnKill: null, cardRarity: 0,
     crumbs: null,                    // crumb-on-kill: { chance, health }
     leaves: [],                      // leave-on-kill: { chance, last, health, look, event } (run.js)
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
@@ -803,7 +803,7 @@ export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[
 // effects that fire on an `every N { … }` timer; each gets (gadgets, ctx) when it fires
 export const TIMED_WORDS = {
   ring: {
-    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s, Chills it for `chill` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "puff", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
+    doc: 'A ring around you, `radius` m: stings everything inside for `dmg`, pushes it out by `push` m, freezes it for `freeze` s, slows it for `slow` s, Chills it for `chill` s. `elites=#false` spares elites and the boss; it shows for `show` s; `look` is "ring", "chord" (vibrating arcs) or "needles" (streaks to actual targets).',
     args: ['radius'],
     props: { dmg: 1, push: 0, freeze: 0, slow: 0, chill: 0, elites: true, color: '#ffffff', look: 'ring', show: 0.45 },
     make: ([radius], p) => ({ kind: 'ring', radius, ...p }),
@@ -827,6 +827,21 @@ export const TIMED_WORDS = {
     doc: 'Rolls a marble `size` times the usual size out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`. Like a pinball, each of its first `bounces` wall hits makes it `grow` (0.2 = 20%) faster and harder, and lets it bowl the same bugs again.',
     props: { dmg: 2, speed: 0.825, life: 1.47, size: 1, bounces: 0, grow: 0.2 },
     make: (_, p) => ({ kind: 'marble', ...p }),
+  },
+  swatter: {
+    doc: 'A fly swatter slaps down on the nearest flying bug within `range` m for `mult` times your Attack damage and Stuns it for `stun` s; with no flyer that close, it swats the nearest bug for `plain` times instead.',
+    props: { mult: 3, plain: 2, stun: 1, range: 0.3 },
+    make: (_, p) => ({ kind: 'swatter', ...p }),
+  },
+  geyser: {
+    doc: 'Lobs a fizzing bomb at the biggest crowd within `range` m; after `fuse` s it erupts in a foam column: every bug within `radius` m of it takes `dmg` times your Attack damage and is thrown up into the air (`lift` m/s up, not Elites or the boss), Stunned until it lands.',
+    props: { range: 0.4, radius: 0.1, dmg: 2, fuse: 0.6, lift: 0.4 },
+    make: (_, p) => ({ kind: 'geyser', ...p }),
+  },
+  puddle: {
+    doc: 'Drops an ice cube at your feet that melts into a slippery puddle `radius` m round for `last` s (at most `most` at once): a bug that walks onto it skids on and is Stunned for `skid` s (once per puddle). Pair it with `while "wet"` for something while you\'re on one.',
+    props: { radius: 0.15, last: 5, skid: 0.5, most: 3 },
+    make: (_, p) => ({ kind: 'puddle', ...p }),
   },
   lash: {
     doc: 'In a when-hit block: one of your tentacles lashes the enemy that hit you (if it\'s within `range` m) for `dmg` times your Tentacle damage. `all=#true`: every enemy within your Tentacle reach is lashed instead (`range` is ignored).',
@@ -997,7 +1012,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up'];
 // the extra pieces adorn can add (src/adornments.js builds each)
 export const ADORNMENTS = ['sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
-export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit', 'unhurt'];   // lit: inside a night-light's glow; unhurt: no hit taken for 4 s (run.js UNHURT)
+export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit', 'unhurt', 'wet'];   // lit: inside a night-light's glow; unhurt: no hit taken for 4 s (run.js UNHURT); wet: on one of your puddles
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby'];   // burning-nearby: Burning bugs within 30 cm of you
@@ -1119,15 +1134,16 @@ export const TREASURE_WORDS = {
   },
   'shield-full-damage': { doc: 'While your Shield is full, everything you do hurts `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.shield.fullDamage += n / 100; } },
   'shield-burst': {
-    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true), and with `invuln` you can\'t be hurt for that many seconds more (dmg=0 for no blast). Copies add their damage into one blast; different blasts each go off.',
-    props: { dmg: 2, radius: 0.3, flat: false, invuln: 0 },
+    doc: 'When your Shield breaks, a blast hits every enemy within `radius` m of you for `dmg` times your Attack damage (a flat `dmg` with flat=#true), and with `invuln` you can\'t be hurt for that many seconds more (dmg=0 for no blast). `look="pops"`: it goes off as a ring of little pops one after another instead of one blast. Copies add their damage into one blast; different blasts each go off.',
+    props: { dmg: 2, radius: 0.3, flat: false, invuln: 0, look: 'blast' },
     make: (_, p) => {
       if (!(p.radius > 0 && p.invuln >= 0 && (p.dmg > 0 || p.invuln > 0))) throw new Error('shield-burst: radius must be positive, and dmg or invuln above 0');
+      if (p.look !== 'blast' && p.look !== 'pops') throw new Error('shield-burst: look must be blast or pops');
       return (m) => {
         m.shield.invuln = Math.max(m.shield.invuln, p.invuln);
         if (!(p.dmg > 0)) return;
-        const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat);
-        if (same) same.dmg += p.dmg; else m.shield.bursts.push({ dmg: p.dmg, radius: p.radius, flat: p.flat });
+        const same = m.shield.bursts.find((b) => b.radius === p.radius && b.flat === p.flat && b.look === p.look);
+        if (same) same.dmg += p.dmg; else m.shield.bursts.push({ dmg: p.dmg, radius: p.radius, flat: p.flat, look: p.look });
       };
     },
   },
@@ -1137,7 +1153,7 @@ export const TREASURE_WORDS = {
   adorn: { doc: 'Adds an evolution look (src/adornments.js): sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
   'death-save': { doc: 'Once per run, a hit that would take your last Health leaves you at `health` (a share of your max Health) instead.', props: { health: 0.5 }, make: (_, p) => (m) => { m.deathSave = { ...p }; } },
   'damage-taken': { doc: 'Hits take `times` as much health.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
-  spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
+  'land-heal': { doc: 'Landing from a jump (a drop of at least 4 cm) spouts water and gives back `health`, at most once every `every` s.', args: ['health'], props: { every: 4 }, make: ([n], p) => (m) => { m.landHeal = { health: Math.max(m.landHeal?.health || 0, n), every: p.every }; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
   'leave-on-kill': {
@@ -1191,7 +1207,7 @@ export const TREASURE_WORDS = {
     },
   },
   while: {
-    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given), rooted (standing still on the ground for 1 s or more), moving (swimming at full speed) or lit (inside the glow of one of your night-lights). Stat names as in `stat`.',
+    doc: 'Raises a stat by `amount` (a % of its starting value with percent=#true) only while `when` holds: airborne (off the ground), low-health (under `under` of your max Health, 0.3 if not given), rooted (standing still on the ground for 1 s or more), moving (swimming at full speed), lit (inside the glow of one of your night-lights), unhurt (no hit taken for 4 s) or wet (on one of your puddles). Stat names as in `stat`.',
     args: ['when', 'name', 'amount'],
     props: { percent: false, under: 0.3 },
     make: ([when, name, amount], p) => {
@@ -1298,7 +1314,8 @@ export const TREASURE_WORDS = {
   'fresh-damage': { doc: 'Hits (not damage over time) on anything above `above` (0.9 = 90%) of its max Health do `percent`% more. Copies add.', args: ['percent'], props: { above: 0.9 }, make: ([n], p) => (m) => { m.freshMore += n / 100; m.freshAbove = p.above; } },
   'hit-less': { doc: 'Every hit on you takes `amount` less Health, but never less than `least` (a hit already under it is left as it is). Bleed and puddles are not hits. Copies add.', args: ['amount'], props: { least: 0.5 }, make: ([n], p) => (m) => { m.hitLess += n; m.hitLeast = p.least; } },
   'boss-levels': { doc: 'When an act\'s boss falls, `count` of your Treasures that have levels to go (picked at random) go up a level. Copies add.', args: ['count'], make: ([n]) => (m) => { m.bossLevels += n; } },
-  'night-light': { doc: 'Each Level-up plugs in a night-light on the floor where you are, glowing `radius` m round it, for the rest of the act; at most `most` at once (a new one unplugs the oldest). Pair it with `while "lit"`.', props: { radius: 0.4, most: 3 }, make: (_, p) => (m) => { m.nightLight = { ...p }; } },
+  spotlight: { doc: 'A disco ball hangs over you; every `every` s its spotlight picks the toughest bug within `range` m (an Elite or the boss first) and follows it for `time` s: everything you do hurts it `more` (1 = 100%) more.', props: { every: 4, time: 4, more: 1, range: 0.4 }, make: (_, p) => (m) => { m.spotlight = { ...p }; } },
+  'night-light': { doc: 'Each Level-up plugs in a night-light on the floor where you are, glowing `radius` m round it, for the rest of the act; at most `most` at once (a new one unplugs the oldest). With safe=#true ordinary bugs won\'t walk into its glow (Elites, the boss and shots still reach in). Pair it with `while "lit"`.', props: { radius: 0.4, most: 3, safe: false }, make: (_, p) => (m) => { m.nightLight = { ...p }; } },
   bounty: { doc: 'Every `every` s, if no bug has one, an ordinary bug at least `far` m from you (the farthest, if none is) gets a gold target; clearing it raises a stat (names as in `stat`) by `amount` for the rest of the run.', args: ['name', 'amount'], props: { every: 20, far: 0.4 },
     make: ([name, amount], p) => {
       const key = STAT_NAMES[name];

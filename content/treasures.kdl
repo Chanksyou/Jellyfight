@@ -94,13 +94,13 @@ treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When 
         squeak-when-hit radius=0.3 push=0.22 dmg=0 stun=0.9 cooldown=3
     }
 }
-treasure "whale" heals=#true name="Whale Bath Toy" icon="🐳" rarity="rare" text="Stand still for two seconds and you start spouting, refilling health." {
-    spout after=2 heal=1.5
-    level 2 text="Stand still for 1.5 s to restore 1.75 Health per second." {
-        spout after=1.5 heal=1.75
+treasure "whale" heals=#true name="Whale Bath Toy" icon="🐳" rarity="rare" text="Landing from a jump spouts water: +1.5 Health, at most once every 4 s." {
+    land-heal 1.5 every=4
+    level 2 text="Landing from a jump: +2 Health, at most once every 3.5 s." {
+        land-heal 2 every=3.5
     }
-    level 3 text="Stand still for 1 s to restore 2 Health per second." {
-        spout after=1 heal=2
+    level 3 text="Landing from a jump: +2.5 Health, at most once every 3 s." {
+        land-heal 2.5 every=3
     }
 }
 treasure "babyBottle" heals=#true name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
@@ -138,33 +138,36 @@ treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true 
         }
     }
 }
-treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s you fizz, stinging everything close around you." {
+treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s you lob a bath bomb onto the biggest crowd. It fizzes, then erupts: bugs on it take 2x Attack damage and are thrown into the air, Stunned until they land." {
     every 6 first=6 {
-        ring 0.12 dmg=2 color="#ff9ad8" look="puff" elites=#false
+        geyser dmg=2 radius=0.1 lift=0.4
     }
-    level 2 text="Every 5 s, fizz stings nearby enemies with a stronger burst." {
+    level 2 text="Every 5 s you lob a bath bomb onto the biggest crowd: bugs on it take 3x Attack damage and are thrown into the air, Stunned until they land." {
         every 5 first=5 {
-            ring 0.15 dmg=3 color="#ff9ad8" look="puff" elites=#false
+            geyser dmg=3 radius=0.12 lift=0.45
         }
     }
-    level 3 text="Every 4 s, fizz stings nearby enemies with a powerful burst." {
+    level 3 text="Every 4 s you lob a bath bomb onto the biggest crowd: a wider eruption, 4x Attack damage, bugs thrown higher, Stunned until they land." {
         every 4 first=4 {
-            ring 0.18 dmg=4 color="#ff9ad8" look="puff" elites=#false
+            geyser dmg=4 radius=0.14 lift=0.5
         }
     }
 }
-treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true not-for="ice" text="Every 6 s a cold snap slows everything close for 2 s." {
+treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s an ice cube drops and melts into a slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.5 s; you swim 25% faster on it." {
+    while "wet" "move-speed" 25 percent=#true
     every 6 {
-        ring 0.16 dmg=0.5 slow=2 color="#bff4ff" show=0.6
+        puddle radius=0.15 last=5 skid=0.5
     }
-    level 2 text="Every 5 s, a cold snap slows nearby enemies for 2.5 s." {
+    level 2 text="Every 5 s an ice cube melts into a slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.7 s; you swim 25% faster on it." {
+        while "wet" "move-speed" 25 percent=#true
         every 5 {
-            ring 0.17 dmg=0.6 slow=2.5 color="#bff4ff" show=0.6
+            puddle radius=0.16 last=5 skid=0.7
         }
     }
-    level 3 text="Every 4 s, a cold snap slows nearby enemies for 3 s." {
+    level 3 text="Every 4 s an ice cube melts into a bigger slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.9 s; you swim 25% faster on it." {
+        while "wet" "move-speed" 25 percent=#true
         every 4 {
-            ring 0.18 dmg=0.7 slow=3 color="#bff4ff" show=0.6
+            puddle radius=0.18 last=5 skid=0.9
         }
     }
 }
@@ -396,8 +399,8 @@ treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Ev
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true not-for="tentacle lightning" text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
-    echo-bubble dmg=0.4
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="A disco ball hangs over you. Every 4 s its spotlight picks the toughest bug close by (an Elite or the boss first): for 4 s everything you do hurts it twice as much." {
+    spotlight every=4 time=4 more=1 range=0.4
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a plain bubble bursts out from you in each of 8 directions." {
     every 5 {
@@ -420,9 +423,10 @@ treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 
 treasure "teaBag" heals=#true name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every 2 Levels gained this run." stack=3 {
     per "health-regen" 0.05 every=2 of="levels"
 }
-treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="10% of hits are critical (2.5x damage) and pin the bug for 0.2 s." stack=2 {
-    crit chance=0.1 mult=2.5
-    pin-on-crit 0.2
+treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="Every 6 s a swatter slaps the nearest flying bug for 3x Attack damage and Stuns it for 1 s. No flyer close: the nearest bug, for 2x." stack=2 {
+    every 6 {
+        swatter mult=3 plain=2 stun=1 range=0.3
+    }
 }
 
 // --- jumps and tentacles (stat): stats that nothing raised before
@@ -461,10 +465,8 @@ treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Every hit take
 treasure "fishFood" name="Fish Food" icon="🐟" rarity="rare" text="When an act's Boss falls, 2 of your treasures that can level up go up a level." stack=2 {
     boss-levels 2
 }
-treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each Level-up plugs in a night-light where you are (up to 3). In its glow: +40% Fire rate and +0.5 Health regen." stack=1 {
-    night-light radius=0.3 most=3
-    while "lit" "fire-rate" 40 percent=#true
-    while "lit" "health-regen" 0.5
+treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each Level-up plugs in a night-light where you are (up to 3). Ordinary bugs are afraid of its glow and won't come in; Elites, the boss and shots still do." stack=1 {
+    night-light radius=0.3 most=3 safe=#true
 }
 treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 20 s a far-off bug gets a gold target. Clear it for +0.25 Attack damage this run." stack=3 {
     bounty "bubble-damage" 0.25 every=20 far=0.4
@@ -490,8 +492,8 @@ treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shiel
 treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full, you deal 30% more damage." stack=2 {
     shield-full-damage 30
 }
-treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, it bursts for 200% of your Attack damage all around you." stack=3 {
-    shield-burst dmg=2 radius=0.3
+treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, a ring of little pops goes off all round you, one after another, for 200% of your Attack damage." stack=3 {
+    shield-burst dmg=2 radius=0.3 look="pops"
 }
 treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 of your max Health becomes Shield. You can no longer gain Health." {
     health-to-shield

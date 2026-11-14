@@ -226,6 +226,7 @@ export class Enemies {
     this.world = world;
     this.fx = fx;
     this.list = [];
+    this.keepOut = [];   // safe glows (night-light safe=#true): { x, y, z, r }, the gadgets keep it
     this.models = new ModelPool();
     this.projectiles = new ModelPool();
     this.looks = makeLooks();
@@ -277,6 +278,7 @@ export class Enemies {
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
       if (!e || e.dead) return;
+      if (status === 'spot') { e.spotUntil = (this.now ?? 0) + duration; e.spotMore = more ?? 1; return; }   // in the spotlight (Disco Ball): Elites and the boss too
       if (e.proxy) {   // Elites and bosses can't be stunned: say so, at most every 1.5 s each
         if ((status === 'stun' || status === 'pin') && !(this.frame < e.immuneAt)) {
           e.immuneAt = this.frame + 90;
@@ -303,9 +305,10 @@ export class Enemies {
       const e = this.byId.get(from);
       if (e && !e.dead && !e.proxy) this.landed(e, contact);
     });
-    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0 }) => {
+    bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0, lift = 0 }) => {
       const e = this.byId.get(targetId);
       if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
+      if (lift > 0 && e && !e.dead && !e.proxy && !e.T.fly && !e.T.rooted) { e.vy = lift; e.grounded = false; }   // thrown up (a geyser): gravity brings it down
     });
   }
 
@@ -450,6 +453,7 @@ export class Enemies {
     }
     e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (!feedback.tick) e.lastGolden = !!feedback.golden;   // golden-bubble coin: the last real hit was golden
+    if (e.spotUntil > (this.now ?? 0)) amount *= 1 + e.spotMore;   // in the spotlight (Disco Ball)
     if (e.proxy) {
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
       const X = this.mods?.execute, P = e.proxy;   // execute (Pizza Cutter): an Elite low enough is finished off, never the boss
@@ -1175,6 +1179,7 @@ export class Enemies {
   // player: { position, radius, height }
   update(dt, player, t, decoy = null) {
     this.frame++;
+    this.now = t;
     this.playerRadius = player.radius;
     this.player = player;
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
@@ -1218,6 +1223,10 @@ export class Enemies {
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
         this.moveGround(e, dt, near);
+      }
+      for (const z of this.keepOut) {      // a safe glow (night-light safe=#true): ordinary bugs stop at its edge
+        const dx = e.pos.x - z.x, dz = e.pos.z - z.z, d = Math.hypot(dx, dz), r = z.r + e.r;
+        if (d < r && d > 1e-6 && Math.abs(e.pos.y - z.y) < 0.15) this.move(e, S.step.set(dx / d * (r - d), 0, dz / d * (r - d)));
       }
       if (lock && !e.airborne && e.pos.y > y0 + 1e-5) {
         if (e.T.fly) { e.pos.y = y0; e.vel.y = Math.min(0, e.vel.y); }

@@ -316,6 +316,15 @@ export const sfx = {
   dustSweep(){if(!ready()||!gap('dustSweep',90))return;const j=jitter(.1);noise(2200*j,.7,.16,.03,'bandpass',0,900);},   // Dustpan: a soft fff as a dust bunny is swept up
   snackChomp(){if(!ready()||!gap('snackChomp',120))return;const j=jitter(.08);noise(700*j,2,.06,.05,'lowpass');noise(900*j,2,.06,.04,'lowpass',.09);tone('triangle',240*j,160*j,.08,.02);},   // Leftover Meatball: two quick chomps
   goldCoin(){if(!ready()||!gap('goldCoin',90))return;const j=jitter(.03);tone('triangle',2637*j,2637*j,.09,.03);tone('triangle',3520*j,3520*j,.16,.022,.06);},   // Gold Ring: a coin clink
+  swat(){if(!ready()||!gap('swat',120))return;const j=jitter(.08);noise(1600*j,.8,.05,.07,'bandpass',0,600);tone('triangle',180*j,70*j,.09,.05);noise(4000*j,1,.03,.03,'highpass',.01);},   // Fly Swatter: a flat thwack
+  bombLob(){if(!ready()||!gap('bombLob',120))return;const j=jitter(.06);tone('sine',300*j,700*j,.14,.025);},   // Bath Bomb: thrown
+  bombFizz(){if(!ready()||!gap('bombFizz',200))return;const j=jitter(.06);noise(5200*j,.8,.55,.03,'highpass',0,7000);},   // Bath Bomb: fizzing on the floor
+  geyser(){if(!ready()||!gap('geyser',150))return;const j=jitter(.06);noise(900*j,.7,.45,.06,'bandpass',0,3200);tone('sine',140*j,420*j,.3,.04);},   // Bath Bomb: the foam column whooshes up
+  iceDrop(){if(!ready()||!gap('iceDrop',150))return;const j=jitter(.05);tone('triangle',2100*j,1900*j,.05,.03);tone('triangle',2700*j,2500*j,.07,.018,.05);},   // Ice Cube: clink on the floor
+  skid(){if(!ready()||!gap('skid',90))return;const j=jitter(.12);tone('sine',1500*j,2300*j,.09,.02);noise(2800*j,3,.08,.015,'bandpass');},   // Ice Cube: a bug skids on the puddle (a squeak)
+  disco(){if(!ready()||!gap('disco',300))return;const j=jitter(.03);tone('sawtooth',330*j,494*j,.22,.018);tone('sine',660*j,990*j,.25,.02,.02);noise(6000,1,.2,.01,'highpass',.05);},   // Disco Ball: the spotlight picks (a wah)
+  whaleSpout(){if(!ready()||!gap('whaleSpout',200))return;const j=jitter(.06);noise(1400*j,.8,.3,.05,'bandpass',0,500);tone('sine',260*j,180*j,.2,.02);},   // Whale: a blowhole pfff
+  wrapPops(n=8){if(!ready()||!gap('wrapPops',150))return;for(let i=0;i<n;i++){const j=jitter(.15);noise(3200*j,2,.025,.05,'bandpass',i*.035);tone('square',900*j,500*j,.02,.012,i*.035);}},   // Bubble Wrap: pop-pop-pop
   sockSlip(){if(!ready()||!gap('sockSlip',120))return;const j=jitter(.08);noise(3000*j,1.2,.14,.03,'bandpass',0,1200);tone('sine',900*j,500*j,.1,.012);},   // Odd Sock: a bug skids on a dodge
   gadgetSalt(){
     if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14);
