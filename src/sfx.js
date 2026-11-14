@@ -298,7 +298,7 @@ export const sfx = {
   gadgetGhost(hit=false){if(!ready()||!gap('gadgetGhost-'+hit,90))return;const j=jitter(.07);if(hit){tone('sine',240*j,120*j,.1,.04);tone('sine',1500*j,1250*j,.12,.016,.01);noise(1800*j,1,.06,.02,'bandpass');}else{tone('sine',380*j,760*j,.28,.025);noise(1200*j,1,.25,.012,'lowpass');}},
   gadgetFairy(){if(!ready()||!gap('gadgetFairy',160))return;const j=jitter();tone('sine',1700*j,1500*j,.08,.018);tone('sine',2500*j,2300*j,.1,.008,.015);},
   gadgetPaper(){if(!ready()||!gap('gadgetPaper',180))return;noise(3500*jitter(),2,.045,.018,'highpass');},
-  gadgetAura(){if(!ready()||!gap('gadgetAura',300))return;tone('sine',330*jitter(.04),300,.12,.012);},
+  gadgetAura(k=1){if(!ready()||!gap('gadgetAura',300))return;tone('sine',(220+110*k)*jitter(.04),300,.12,.012);},   // k: Glow Stick's charge, the hum rises with it
   gadgetPin(){if(!ready()||!gap('gadgetPin',120))return;const j=jitter();tone('triangle',1800*j,700*j,.045,.03);noise(2200*j,2,.025,.025);},
   gadgetSnooze(){if(!ready()||!gap('gadgetSnooze',500))return;const j=jitter(.03);for(const [i,f]of [659,523,784].entries())tone('sine',f*j,f*j,.28,.055,i*.08);noise(1400,1,.15,.025,'bandpass');},
   gadgetBath(){
@@ -313,6 +313,10 @@ export const sfx = {
     if(!ready()||!gap('gadgetCotton',120))return;const j=jitter(.1);
     tone('sine',100*j,55*j,.18,.075);noise(700*j,1,.23,.05,'lowpass',0,140);
   },
+  dustSweep(){if(!ready()||!gap('dustSweep',90))return;const j=jitter(.1);noise(2200*j,.7,.16,.03,'bandpass',0,900);},   // Dustpan: a soft fff as a dust bunny is swept up
+  snackChomp(){if(!ready()||!gap('snackChomp',120))return;const j=jitter(.08);noise(700*j,2,.06,.05,'lowpass');noise(900*j,2,.06,.04,'lowpass',.09);tone('triangle',240*j,160*j,.08,.02);},   // Leftover Meatball: two quick chomps
+  goldCoin(){if(!ready()||!gap('goldCoin',90))return;const j=jitter(.03);tone('triangle',2637*j,2637*j,.09,.03);tone('triangle',3520*j,3520*j,.16,.022,.06);},   // Gold Ring: a coin clink
+  sockSlip(){if(!ready()||!gap('sockSlip',120))return;const j=jitter(.08);noise(3000*j,1.2,.14,.03,'bandpass',0,1200);tone('sine',900*j,500*j,.1,.012);},   // Odd Sock: a bug skids on a dodge
   gadgetSalt(){
     if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14);
     noise(4200*j,3,.035,.055,'highpass');tone('triangle',2600*j,900*j,.07,.025);noise(6500*j,2,.1,.02,'highpass',.025);
@@ -353,10 +357,11 @@ export const sfx = {
     noise(1800*j,2,.035,hit?.07:.035);tone('triangle',hit?240*j:640*j,hit?90*j:440*j,.06,hit?.055:.025);
     if(hit)for(let i=0;i<3;i++)tone('triangle',(1200+i*200)*j,800*j,.035,.018,.025+i*.025);
   },
-  gadgetMarble(phase){
-    if(!ready()||!gap('gadgetMarble-'+phase,phase==='roll'?210:65))return;const j=jitter(.06);
+  moonSurge(){if(!ready()||!gap('moonSurge',200))return;const j=jitter(.05);noise(900*j,1.5,.25,.02,'bandpass',0,1800);tone('sine',520*j,260*j,.2,.012);},   // Moon Jelly's surge: a soft rushing swish
+  gadgetMarble(phase,bounce=0){   // bounce: a pinball wall hit, each one higher and sharper
+    if(!ready()||!gap('gadgetMarble-'+phase,phase==='roll'?210:65))return;const j=jitter(.06)*(1+.09*bounce);
     if(phase==='roll')noise(650*j,2,.13,.012,'bandpass',0,450);
-    else{tone('sine',(phase==='wall'?2100:1300)*j,900*j,.12,.035);noise(500*j,1,.035,.03,'lowpass');}
+    else{tone('sine',(phase==='wall'?2100:1300)*j,900*j,.12,.035);noise(500*j,1,.035,.03,'lowpass');if(bounce)tone('square',3200*j,2400*j,.05,.012);}
   },
   gadgetFocus(acquire=false){
     if(!ready()||!gap('gadgetFocus',150))return;const j=jitter(.05);

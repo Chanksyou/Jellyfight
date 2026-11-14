@@ -649,6 +649,8 @@
   --moon-ring: #dff4ff;          /* Moon Jelly: the ring round the bell */
   --mane: #ffb46a;               /* Lion's Mane: the hair round the rim */
   --fronds: #6affc0;
+  --left-dust: #a9a39b;          /* Dustpan's dust bunny: a soft grey puff that waits on the floor */
+  --left-meatball: #8a4a2c;      /* Leftover Meatball: a brown meatball that waits on the floor */
   --health-crumb: #ffb47a;       /* a Health crumb a bug can drop (Meatball, Leftover): peach, distinct from gold XP */
   --bleed: #ff2a4a;             /* bleeding (a mosquito's bite): the drops dripping off the jelly while it lasts, and its BLEED */
   --bleed-drip: 0.22;           /* seconds between drips with one bleed running (faster with more, up to 3x) */

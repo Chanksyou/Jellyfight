@@ -6,7 +6,7 @@ function ef(kind){return G().run.mods.timed.flatMap(t=>t.effects).find(e=>e.kind
 const active=(L,k)=>L.pools[k].filter(p=>p.alive);
 for(const [id,key,n]of [['goldRing','golden',10],['reedStick','giant',6]])story('treasure-feel-twelve/'+key+'-volley-rule',{
  setup(){ready(id);roachAt(.15,0);},
- play(){const {run}=G(),B=run.bubbles,L=run.gadgets.looks,c=ctx();for(let i=0;i<n;i++)B.volley(c.center,run.S,run.mods);const special=B.list.filter(b=>key==='golden'?b.golden:b.big),value=key==='golden'?special[0]?.golden===5:special[0]?.speed===B.list[0].speed*.6;return ok(special.length===1&&value&&!active(L,'arc').length,{special:special.length,value});},
+ play(){const {run}=G(),B=run.bubbles,L=run.gadgets.looks,c=ctx();for(let i=0;i<n;i++)B.volley(c.center,run.S,run.mods);const special=B.list.filter(b=>key==='golden'?b.golden:b.big),value=key==='golden'?special[0]?.golden===1:special[0]?.speed===B.list[0].speed*.6;return ok(special.length===1&&value&&!active(L,'arc').length,{special:special.length,value});},
 });
 for(const [id,kind]of [['bobbyPin','pierce'],['stickyNote','mark'],['thumbtack','pin']])story('treasure-feel-twelve/'+kind+'-confirmed-contact',{
  setup(){ready(id);roachAt(.1,0);},
@@ -28,9 +28,16 @@ story('treasure-feel-twelve/fairy-retains-per-enemy-gap',{
  setup(){ready('fairyLights');},
  play(){const {run}=G(),g=run.gadgets,c=ctx(),e=roachAt(.1,0);g.update(0,c);e.pos.copy(g.bulbs[0].position);e.fairyT=0;const log=record('damage_taken');g.update(0,c);g.update(0,c);const hits=log.filter(d=>d.source==='orbit-lights');return ok(hits.length===1&&hits[0].amount===run.power*2&&g.bulbs[0].children.length===1,{hits:hits.length});},
 });
+story('treasures/aura-grows-while-moving',{
+ about:'Glow Stick charges while you swim flat out: 8 cm still, 22 cm after 3 s of full speed, back to 8 cm 3 s after you stop.',
+ setup(){ready('glowStick');},
+ play(){const {run}=G(),g=run.gadgets,go=(moving,s)=>{for(let i=0;i<s*60;i++)g.update(1/60,{...ctx(),moving});};
+   const still=g.aura.scale.x;go(true,3.1);const full=g.aura.scale.x;go(false,3.1);const back=g.aura.scale.x;
+   return ok(Math.abs(full-.22)<1e-3&&Math.abs(back-.08)<1e-3&&full>still,{still,full,back});},
+});
 story('treasure-feel-twelve/aura-keeps-tick-damage-radius',{
  setup(){ready('glowStick');roachAt(.05,0);roachAt(.4,0);},
- play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');g.t.aura=0;g.update(1/60,ctx());const hits=log.filter(d=>d.source==='aura');return ok(hits.length===1&&hits[0].amount===run.power*.15&&g.auraLip.visible&&Math.abs(g.aura.scale.x-.15)<.001&&!active(g.looks,'arc').length,{hits:hits.length,radius:g.aura.scale.x});},
+ play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');g.t.aura=0;g.update(1/60,ctx());const hits=log.filter(d=>d.source==='aura');return ok(hits.length===1&&Math.abs(hits[0].amount-run.power*.2*.08/.22)<1e-9&&g.auraLip.visible&&Math.abs(g.aura.scale.x-.08)<.001&&!active(g.looks,'arc').length,{hits:hits.length,radius:g.aura.scale.x});},
 });
 story('treasure-feel-twelve/static-only-actual-proc-target',{
  setup(){ready('staticBalloon');roachAt(.08,0);roachAt(.16,0);},

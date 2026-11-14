@@ -687,6 +687,7 @@ export function newMods() {
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], onHurt: [], spout: null, burstOnKill: null, cardRarity: 0,
     crumbs: null,                    // crumb-on-kill: { chance, health }
+    leaves: [],                      // leave-on-kill: { chance, last, health, look, event } (run.js)
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
@@ -823,8 +824,8 @@ export const TIMED_WORDS = {
     make: (_, p) => ({ kind: 'brick', ...p }),
   },
   marble: {
-    doc: 'Rolls a marble `size` times the usual size out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`.',
-    props: { dmg: 2, speed: 0.825, life: 1.47, size: 1 },
+    doc: 'Rolls a marble `size` times the usual size out the way you face at `speed` m/s for `life` s, bouncing off walls; each enemy it bowls through takes `dmg`. Like a pinball, each of its first `bounces` wall hits makes it `grow` (0.2 = 20%) faster and harder, and lets it bowl the same bugs again.',
+    props: { dmg: 2, speed: 0.825, life: 1.47, size: 1, bounces: 0, grow: 0.2 },
     make: (_, p) => ({ kind: 'marble', ...p }),
   },
   lash: {
@@ -863,10 +864,10 @@ export const TIMED_WORDS = {
     make: ([count], p) => ({ kind: 'bubble-ring', count, ...p }),
   },
   dash: {
-    doc: 'A burst of speed: +`speed` Move speed (1 = +100% of your starting speed) for `time` s.',
+    doc: 'A burst of speed: +`speed` Move speed (1 = +100% of your starting speed) for `time` s. With `dmg`, bugs you surge through (within `reach` m of you) are stung once each for `dmg` times your power and shoved `push` m aside.',
     args: ['speed'],
-    props: { time: 0.35 },
-    make: ([speed], p) => ({ kind: 'dash', speed, time: p.time }),
+    props: { time: 0.35, dmg: 0, push: 0, reach: 0.05 },
+    make: ([speed], p) => ({ kind: 'dash', speed, time: p.time, dmg: p.dmg, push: p.push, reach: p.reach }),
   },
   cone: {
     doc: 'A flame cone toward the nearest bug within `range` m (or the way you face): everything within `angle`° of that way takes `dmg` times your power and is set alight (Burn, as your Fire attack\'s).',
@@ -990,13 +991,13 @@ export const ATTACK_WORDS = {
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
-export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
+export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
 export const ADORNMENTS = ['sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
-export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit'];   // lit: inside a night-light's glow
+export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit', 'unhurt'];   // lit: inside a night-light's glow; unhurt: no hit taken for 4 s (run.js UNHURT)
 
 // What `per` can count (Run.S works each one out)
 export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby'];   // burning-nearby: Burning bugs within 30 cm of you
@@ -1020,7 +1021,7 @@ export const TREASURE_WORDS = {
     },
   },
   'toy-mouse': { doc: 'Every `every` s a wind-up toy mouse `size` times its usual size scurries (`speed` m/s) to the nearest enemy and slams into it for `dmg` times your power, hitting every enemy within `splash` m of it and shoving them `push` m.', props: { every: 12, dmg: 3, speed: 0.6, size: 1, splash: 0, push: 0 }, make: (_, p) => (m) => { m.mouse = { ...p }; } },
-  'golden-bubble': { doc: 'Every `every`th bubble is golden and does `mult` times damage.', props: { every: 10, mult: 5 }, make: (_, p) => (m) => { m.bubbles.golden = p; } },
+  'golden-bubble': { doc: 'Every `every`th attack (a bubble, an Element shot or a tentacle sting) is golden and does `mult` times damage; a bug a golden attack finishes off drops a big gold XP gem worth `coin` times its XP (0 for none).', props: { every: 10, mult: 5, coin: 0 }, make: (_, p) => (m) => { m.bubbles.golden = p; m.hits.tentacles.golden = p; } },
   'giant-bubble': { doc: 'Every `every`th bubble also blows a giant one: `size` times bigger, `dmg` times the damage, `speed` times as fast.', props: { every: 6, size: 2.5, dmg: 4, speed: 0.6 }, make: (_, p) => (m) => { m.bubbles.giant = p; } },
   'element-up': {
     doc: 'Upgrades one element attack (its base treasure must be owned to be offered: needs="…" on the treasure). Any of its numbers (ELEMENT_BASE in words.js): count, pierce, chain, burnTime, puddleTime, puddles, frost, slow, slowedMul, frostbite, chillPierce, grow, revisit and stunFirst add; the rest multiply. E.g. element-up "fire" burn=1.5 burnTime=2.',
@@ -1038,9 +1039,12 @@ export const TREASURE_WORDS = {
   crit: { doc: '`chance` of a hit doing `mult` times damage. `by` as above. Several crits (or copies) add their chances and use the biggest mult.', props: { chance: 0.2, mult: 3, by: 'all' }, make: (_, p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) { const c = m.hits[k].crit; m.hits[k].crit = c ? { chance: c.chance + p.chance, mult: Math.max(c.mult, p.mult) } : { chance: p.chance, mult: p.mult }; } }; } },
   'pin-on-crit': { doc: 'A critical hit pins the enemy in place for `seconds` (it can\'t move or attack). `by` as above.', args: ['seconds'], props: { by: 'all' }, make: ([s], p, where) => { const sc = scopes(p.by, where); return (m) => { for (const k of sc) m.hits[k].pin = Math.max(m.hits[k].pin, s); }; } },
   'zap-on-pop': { doc: '`chance` that a bubble popping on an enemy snaps static to `count` other enemies within `range` m, stunning each for `stun` s (and doing `dmg`, x your attack damage). Copies add their chances.', props: { chance: 0.2, count: 1, range: 0.3, stun: 0.5, dmg: 0 }, make: (_, p) => (m) => { const z = m.popZap; m.popZap = z ? { ...z, chance: z.chance + p.chance, count: Math.max(z.count, p.count) } : { ...p }; } },
+  'dodge-slip': { doc: 'A bug whose hit you dodge slips: it is Stunned for `stun` s (not Elites or the boss).', args: ['stun'], make: ([t]) => (m) => { m.dodgeSlip = Math.max(m.dodgeSlip || 0, t); } },
+  'shot-speed': { doc: 'Your shots (bubbles and Element shots) fly `percent`% faster. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.bubbles.speed = (m.bubbles.speed || 1) + n / 100; } },
+  'rear-shot': { doc: 'Every volley also fires `count` more of your shots straight behind you, each for your full Attack damage (no side-by-side share).', args: ['count'], make: ([n]) => (m) => { m.bubbles.rear = (m.bubbles.rear || 0) + n; } },
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg` (none if 0) and, with `push` (m), blasts everything in it that far away from you in a gust.', args: ['radius'], props: { dmg: 2, drop: 0.04, push: 0 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
-  'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m and take `dmg` (a flat number). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
+  'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m, take `dmg` (a flat number; 0 for none) and are Stunned for `stun` s (not Elites or the boss). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, stun: 0, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
   'when-hit': {
     doc: 'When you get hit (not a dodge), does the effects in its { block } (ring, zap…), then waits `cooldown` s before it can again. `once-per-act=#true`: only the first time each act. `low-health` (a share of your max Health, 0.3 = 30%): only when you are at or under that. Copies each have their own.',
     props: { cooldown: 1, 'once-per-act': false, 'low-health': null },
@@ -1136,6 +1140,21 @@ export const TREASURE_WORDS = {
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },
   'heal-on-kill': { doc: 'Every enemy you clear gives back `health`.', args: ['health'], make: ([n]) => (m) => { m.healOnKill += n; } },
   'burst-on-kill': { doc: 'Enemies you finish off burst, stinging everything within `radius` m for `dmg`.', args: ['radius'], props: { dmg: 0.5 }, make: ([r], p) => (m) => { m.burstOnKill = { radius: r, dmg: p.dmg }; } },
+  'leave-on-kill': {
+    doc: '`chance` that an enemy you clear leaves something on the floor for `last` s; it stays put (no drift) until you swim over it. Picking one up heals `health` and, with `stat`, adds a stack of +`amount` of that stat (a % of its start with percent=#true) for `time` s, up to `stacks`. `look` is "dust" (a grey dust bunny) or "meatball". Copies add their chances.',
+    props: { chance: 0.1, last: 6, health: 0, look: 'dust', stat: '', amount: 0, percent: true, time: 5, stacks: 5 },
+    make: (_, p, where) => {
+      if (!['dust', 'meatball'].includes(p.look)) throw new Error(`${where}: leave-on-kill look= must be dust or meatball, not "${p.look}"`);
+      const key = p.stat && STAT_NAMES[p.stat];
+      if (p.stat && !key) throw new Error(`${where}: leave-on-kill stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${p.stat}"`);
+      const event = `left:${p.look}`;
+      return (m, copy = 0) => {
+        const had = m.leaves.find((l) => l.look === p.look);
+        if (had) had.chance += p.chance; else m.leaves.push({ chance: p.chance, last: p.last, health: p.health, look: p.look, event });
+        if (key && !had) m.buffs.push({ event, stat: key, amount: p.amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` });
+      };
+    },
+  },
   'crumb-on-kill': {
     doc: '`chance` that an enemy you clear leaves a crumb worth `health`; it drifts to you like XP. `drop="level"`: a big XP gem worth the rest of your level instead. Copies add their chances.',
     props: { chance: 0.02, health: 1, drop: 'health' },
@@ -1297,7 +1316,7 @@ export const TREASURE_WORDS = {
   },
   'orbit-lights': { doc: '`count` little bulbs circle you `radius` m out and sting whatever they touch for `dmg` (each enemy at most every 0.4 s).', args: ['count'], props: { radius: 0.07, dmg: 0.6 }, make: ([n], p) => (m) => { m.orbit = { count: n, ...p }; } },
   beam: { doc: 'A beam burns the nearest enemy within `range` m for `dmg` every `tick` s.', props: { range: 0.35, dmg: 0.3, tick: 0.25 }, make: (_, p) => (m) => { m.beam = p; } },
-  aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s.', args: ['radius'], props: { dmg: 0.4, tick: 0.5 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
+  aura: { doc: 'A glow of `radius` m around you stings everything inside for `dmg` every `tick` s. With `grow` (s) it starts at `min` m and grows to `radius` over `grow` s of swimming flat out, shrinking back as fast when you stop; its sting scales with its size.', args: ['radius'], props: { dmg: 0.4, tick: 0.5, grow: 0, min: 0 }, make: ([r], p) => (m) => { m.aura = { radius: r, ...p }; } },
   // --- Ice jelly (P8a)
   'chill-to-freeze': {
     doc: 'Your Ice attack hitting one Chilled bug `hits` times in a row freezes it solid for `time` s (bugs only: Elites and the boss are not frozen). The count starts over when the Chill runs out or the bug freezes.',

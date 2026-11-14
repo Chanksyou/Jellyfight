@@ -18,6 +18,16 @@ story('treasure-feel/mouse-contact-and-recovery',{
     const hits=log.filter(d=>d.source==='toy-mouse'),after=g.mouse.visible&&g.mouseNose.scale.z<1&&g.looks.pools.spring.some(p=>p.alive);
     step(30);return ok(prepared&&animated&&after&&hits.length===1&&hits[0].amount===run.power*run.mods.mouse.dmg&&!g.mouse.visible,{prepared,animated,after,hits:hits.map(d=>d.amount),hidden:!g.mouse.visible});},
 });
+story('treasures/marble-pinball',{
+  about:'Marble is a pinball: each of its first 6 wall bounces makes it 20% faster and harder and lets it bowl the same bug again; after that a bounce changes nothing.',
+  setup(){ready('marble');},
+  play(){const {run}=G(),g=run.gadgets,c=context(),ef=effect('marble');g.fire(ef,c);const b=g.marbles[0],s0=b.speed,d0=b.dmg;b.hit.add(1);
+    const wall=()=>({normal:b.dir.clone().negate(),point:b.m.position.clone()});stub(g.world,'cast',wall);g.update(1/60,c);
+    const first=Math.abs(b.speed-s0*1.2)<1e-9&&Math.abs(b.dmg-d0*1.2)<1e-9&&b.hit.size===0;
+    for(let i=0;i<10;i++)g.update(1/60,c);
+    const capped=b.bounced===6&&Math.abs(b.speed-s0*1.2**6)<1e-9;
+    return ok(first&&capped,{first,bounced:b.bounced,speed:b.speed/s0});},
+});
 story('treasure-feel/marble-roll-bounce-and-one-hit',{
   about:'The marble has a turning swirl and bounded trail, preserves speed/reflection and damages each bug once.',
   setup(){ready('marble');},
