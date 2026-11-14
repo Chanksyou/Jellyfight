@@ -149,7 +149,7 @@ treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text
         }
     }
 }
-treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s a cold snap slows everything close for 2 s." {
+treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true not-for="ice" text="Every 6 s a cold snap slows everything close for 2 s." {
     every 6 {
         ring 0.16 dmg=0.5 slow=2 color="#bff4ff" show=0.6
     }
@@ -367,7 +367,7 @@ treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true
 }
 
 // --- procs: now and then a hit does something more
-treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true text="20% chance per copy for attack hits to zap a bug within 30 cm, stunning it for 0.5 s." stack=2 {
+treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true not-for="lightning tentacle" text="20% chance per copy for attack hits to zap a bug within 30 cm, stunning it for 0.5 s." stack=2 {
     zap-on-pop chance=0.2 count=1 range=0.3 stun=0.5
 }
 treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="+5% crit chance, and critical hits pin the bug in place for 0.8 s." stack=1 {
@@ -382,7 +382,7 @@ treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Ev
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true not-for="tentacle" text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true not-for="tentacle lightning" text="Every bubble that pops on a bug fires again from there at the next bug, for 40% of its damage." {
     echo-bubble dmg=0.4
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a ring of 8 attacks bursts out from you in every direction." {
@@ -460,10 +460,17 @@ treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack
 }
 
 // --- the Shield (shield.js): offered only once you have a Shield bar (needs-stat)
-treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Your Shield refills 50% faster." stack=4 {
+treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Your Shield refills 50% faster." {
     shield-recharge faster=0.5
+    level 2 text="Your Shield refills twice as fast and starts refilling 1 s sooner." {
+        shield-recharge faster=1 sooner=1
+    }
+    level 3 text="Your Shield refills 2.5x as fast and starts refilling 1.5 s sooner." {
+        shield-recharge faster=1.5 sooner=1.5
+    }
 }
-treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shield" text="Your Shield starts refilling 1 s sooner." stack=3 {
+// retired: folded into Crank Flashlight's levels (both just made the Shield come back quicker)
+treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shield" text="Your Shield starts refilling 1 s sooner." stack=3 retired=#true {
     shield-recharge sooner=1
 }
 treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full, you deal 30% more damage." stack=2 {

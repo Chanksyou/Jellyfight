@@ -1782,7 +1782,7 @@ export class Run {
     const f = found(), RANK = ['common', 'rare', 'epic', 'legendary'], types = true;
     const sec = (title, kind, list) => ({ title, items: list.map((x) => ({ ...x, found: isFound(x.kind || kind, x.id, f) })) });
     const treasures = TREASURES.filter((t) => !t.retired).map((t) => ({ id: t.id, icon: t.icon, name: t.name, text: t.text, color: treasureTier(t).color, rank: RANK.indexOf(t.rarity) }));
-    const evolutions = EVOLUTIONS.map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text, ...(types ? { kind: 'evolutions', color: treasureTier({ rarity: 'legendary' }).color, rank: RANK.length - 1 } : {}) }));
+    const evolutions = EVOLUTIONS.filter((e) => !e.retired).map((e) => ({ id: e.id, icon: e.icon, name: e.name, text: e.text, ...(types ? { kind: 'evolutions', color: treasureTier({ rarity: 'legendary' }).color, rank: RANK.length - 1 } : {}) }));
     const jellies = types ? [
       { title: 'Jellies', items: Object.values(CONTENT.jellies).map((J) => { const lock = typeLock(J.id); return { id: J.id, icon: J.icon, name: J.name, text: J.about, found: !lock, locked: lock?.goal }; }) },
       ...Object.values(CONTENT.jellies).map((J) => sec(`${J.icon} ${J.name}: Attack upgrades`, 'upgrades', CONTENT.upgrades.filter((u) => u.jelly === J.id).map((u) => ({ id: u.id, icon: u.icon, name: u.name, text: u.text })))).filter((s) => s.items.length),

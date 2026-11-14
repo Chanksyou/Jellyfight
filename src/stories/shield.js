@@ -95,7 +95,7 @@ story('shield/treasures-need-a-shield-bar', {
   about: 'The shield treasures are offered only once the jelly has some Shield.',
   setup,
   play() {
-    const { run } = G(), ids = ['crankFlashlight', 'eggTimer', 'ovenMitt', 'bubbleWrap', 'potLid'];
+    const { run } = G(), ids = ['crankFlashlight', 'ovenMitt', 'bubbleWrap', 'potLid'];
     const offered = new Set();
     stub(run, 'offer', (t, s, choices) => choices.forEach((c) => offered.add(c.id)));
     const roll = () => { offered.clear(); for (let i = 0; i < 300; i++) { run.pickTreasure(); run.pickLegendary(); } return ids.filter((id) => offered.has(id)); };
@@ -107,12 +107,12 @@ story('shield/treasures-need-a-shield-bar', {
 });
 
 story('treasures/shield-recharge', {
-  about: 'Crank Flashlight refills the Shield 50% faster a copy; Egg Timer starts it 1 s sooner a copy.',
+  about: 'Crank Flashlight refills the Shield 50% faster; its level 2 refills twice as fast and starts 1 s sooner.',
   setup,
   play() {
     const { run } = G(); withShield(4);
     const base = [S().wait, S().fill];
-    give('crankFlashlight', 'crankFlashlight', 'eggTimer');
+    give('crankFlashlight', 'crankFlashlight');
     const quick = [S().wait, S().fill];
     hit(10);
     step(60 * 3.9);

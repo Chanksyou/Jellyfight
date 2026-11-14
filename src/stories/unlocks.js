@@ -79,7 +79,7 @@ story('types/dev-run-unlocks-nothing', {
 });
 
 story('types/book-has-jellies-page', {
-  about: 'The Treasure book opens on a Jellies page: all eight types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade or Power Bank and takes the former evolutions in; there is no Evolutions page.',
+  about: 'The Treasure book opens on a Jellies page: all eight types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade, Power Bank or retired Treasure and takes the former evolutions in (not retired ones); there is no Evolutions page.',
   setup() {},
   play() {
     const { run } = G(), back = asPlayer(true, { feats: { elites: 3 } });
@@ -97,7 +97,7 @@ story('types/book-has-jellies-page', {
       const upgrade = fireUps?.items.length === CONTENT.upgrades.filter((u) => u.jelly === 'fire').length && fireUps.items.find((i) => i.id === 'slowBurn').found;
       const T = S.find((s) => s.title === 'Treasures'), ids = new Set(T.items.map((i) => i.id));
       const gone = TREASURES.filter((t) => t.retired).every((t) => !ids.has(t.id)) && !ids.has('powerBank');
-      const evos = CONTENT.evolutions.every((e) => ids.has(e.id)) && !titles.includes('Evolutions');
+      const evos = CONTENT.evolutions.every((e) => ids.has(e.id) !== !!e.retired) && !titles.includes('Evolutions');
       // drawn: a locked type is a silhouette with its goal
       Object.getPrototypeOf(run.ui).book.call(run.ui, 'book', S, () => {});
       const drawn = modal().querySelectorAll('.jf-book-grid button.locked').length === 6 && /Finish act 1/.test(modal().textContent);
