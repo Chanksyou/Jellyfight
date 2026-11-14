@@ -70,7 +70,7 @@ story('book/finds-are-recorded', {
       // the book
       run.showBook(() => {});
       const text = modal().innerText;
-      const count = new RegExp(`Treasures\\s*1 / ${TREASURES.filter((x) => !x.retired).length + CONTENT.evolutions.length}`).test(text);
+      const count = new RegExp(`Treasures\\s*1 / ${TREASURES.filter((x) => !x.retired).length + CONTENT.evolutions.filter((x) => !x.retired).length}`).test(text);
       const cell = [...modal().querySelectorAll('.jf-book-grid button')].find((b) => b.textContent.includes(t.name));
       cell?.click();
       const reads = modal().querySelector('.say').textContent.includes(t.text);
