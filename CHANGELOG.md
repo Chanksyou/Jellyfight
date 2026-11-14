@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v424 fixes Treasures that didn't fit some jelly types: removes Box Jelly; Reed Stick is Normal's alone and Rebound Jelly is only offered to Normal (Element shots never rebounded); Bobby Pin now pierces with Fire, Lightning, Ice and Wind shots (not offered to Poison, Glitter or Tentacle); with Pot Lid, chests stop offering Treasures that only heal; Hot Chili and Cinder Jelly cut Tentacle reach too, so their cost bites the Tentacle jelly; Ricochet still works with Rebound Jelly; Roller Skate counts Move speed from your jelly's own start; Nail Clipper, Thumbtack and Fly Swatter crits now reach Glitter bursts; Bubble Bath says it fires plain bubbles.
+
 v423 cuts look-alike Treasures: Aegis Jelly is retired (Bubble Wrap does its job), Egg Timer folds into Crank Flashlight's new levels, Static Balloon, Disco Ball and Ice Cube are no longer offered to the jelly types they copy, and Attack upgrades that shared an icon get their own.
 
 v422 makes every jelly's arms show (four or more real arms below the rim, on every bell), lights the rim and the tentacle tips in the second color ("Arm and rim color"), softens the tentacles' glow so a bell color stays that color instead of turning white, and adds four bells (Onion Dome, Bubble, Gem, Comb Jelly with rippling rainbow rows), an Arms row (Frilly, Curly, Pom-poms, Streamers), a Tentacles row (Straight, Curly, Beaded, Ribbon) and five bell patterns (Spots, Hearts, Stars, Zigzag, Spiral) in the Pearl shop.
