@@ -6,7 +6,7 @@ import { BASE_STATS } from '../stats.js';
 import { G, fresh, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid'];
-const EVOLUTION_IDS = () => CONTENT.evolutions.map((e) => e.id);
+const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
 function legendaryPool(rolls = 300) {
@@ -42,7 +42,7 @@ story('types/boss-gives-legendary-then-upgrade', {
     fresh({ types: 'normal' });
     G().run.stats.shield = 5;
     const pool = legendaryPool(), want = [...OLD_LEGENDARIES, ...EVOLUTION_IDS()];
-    const all19 = want.length === 19 && pool.size === 19 && want.every((id) => pool.has(id));
+    const whole = want.length >= 17 && pool.size === want.length && want.every((id) => pool.has(id));
     // a Fire run: one Legendary pick, then the upgrade pick
     fresh({ types: 'fire' });
     let on;
@@ -59,9 +59,9 @@ story('types/boss-gives-legendary-then-upgrade', {
     const last = ends.length === 1 && /won/.test(ends[0]) && !lastPicks.length && !R.evolved.length;
     R.stage = stage;
     fresh();
-    const pass = last && all19 && on.picks.length === 2 && /Legendary/.test(on.picks[0].title) && /Attack upgrade/.test(on.picks[1].title)
+    const pass = last && whole && on.picks.length === 2 && /Legendary/.test(on.picks[0].title) && /Attack upgrade/.test(on.picks[1].title)
       && on.reveals.length === 1 && on.evolved.length === 1 && on.evolved[0] === on.reveals[0] && on.upgrades.length === 1 && on.ended[0] === 2;
-    return ok(pass, { all19, last, ends, lastPicks, pool: [...pool], on });
+    return ok(pass, { whole, last, ends, lastPicks, pool: [...pool], on });
   },
 });
 
