@@ -26,15 +26,30 @@ story('treasures/pierce-splash', {
   },
 });
 story('treasures/golden-bubble', {
-  about: 'golden-bubble (Gold Ring): every 10th bubble is golden and hits 5x.',
+  about: 'golden-bubble (Gold Ring): every 10th bubble is golden (Gold Ring\'s does no extra damage: its payout is the coin).',
   setup() { setupFight({ lash: false }); give('goldRing'); roachAt(0, -0.15); },
   play() {
     const { run } = G(), opts = [];
     const blow = run.bubbles.blow.bind(run.bubbles);
     stub(run.bubbles, 'blow', (o, t, x) => { opts.push(x.golden); return blow(o, t, x); });
     step(60 * 13);
-    const golden = opts.filter((g) => g === 5).length;
+    const golden = opts.filter((g) => g === 1).length;
     return ok(opts.length >= 20 && golden === Math.floor(opts.length / 10), { blown: opts.length, golden });
+  },
+});
+story('treasures/golden-coin', {
+  about: 'golden-bubble coin= (Gold Ring) on a Fire jelly: every 10th Element volley is golden too, keeping its fire look; a bug a golden hit finishes drops a big gold XP gem worth 4x its XP; one finished by an ordinary hit drops plain XP.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('goldRing'); withElement('fire'); roachAt(0, -0.15); step(2); },
+  play() {
+    const { run } = G(), B = run.bubbles, opts = [];
+    const blow = B.blow.bind(B);
+    stub(B, 'blow', (o, t, x) => { opts.push(x); return blow(o, t, x); });
+    const at = G().player.position.clone().setY(G().player.position.y + 0.04);
+    for (let i = 0; i < 10; i++) B.elementVolley('fire', run.mods.element.fire, at, run.S, run.mods);
+    const shots = opts.filter((x) => x.tint === 'fire'), gold = shots.filter((x) => x.golden);
+    const kill = (golden) => { const e = roachAt(0.05, 0.05, { hp: 1 }), n = run.xpDrops.list.length; bus.emit('damage_taken', { targetId: e.id, amount: 50, source: 'story', feedback: { golden } }); return run.xpDrops.list.slice(n).reduce((s, d) => s + d.value, 0); };
+    const xp = G().enemies.list[0].T.xp, coin = kill(true), plain = kill(false);
+    return ok(gold.length >= 1 && gold.length <= Math.ceil(shots.length / 10) && coin >= xp * 4 && plain < xp * 4, { shots: shots.length, gold: gold.length, coin, plain, xp });
   },
 });
 story('treasures/giant-bubble', {
@@ -332,14 +347,14 @@ story('treasures/landing-shockwave', {
   play() { const log = record('damage_taken'); G().input.jumpQueued = true; step(120); return ok(dmgBy(log, 'shockwave').length > 0, { hits: dmgBy(log, 'shockwave').length }); },
 });
 story('treasures/squeak-when-hit', {
-  about: 'squeak-when-hit (Rubber Duck): when you get hit, nearby bugs are knocked back and hurt.',
+  about: 'squeak-when-hit (Rubber Duck): when you get hit, nearby bugs are knocked back and Stunned, and take no damage.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('rubberDuck'); roachAt(0.05, 0); },
   play() {
     const e = G().enemies.list[0], d0 = e.pos.distanceTo(G().player.position), log = record('damage_taken');
     G().run.iFrames = 0;
     bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
     const d1 = e.pos.distanceTo(G().player.position);
-    return ok(dmgBy(log, 'squeak').length === 1 && d1 > d0 + 0.03, { pushed: +(d1 - d0).toFixed(3) });
+    return ok(dmgBy(log, 'squeak').length === 0 && e.stunT > 0 && d1 > d0 + 0.03, { pushed: +(d1 - d0).toFixed(3), stun: e.stunT });
   },
 });
 story('treasures/when-hit', {
@@ -568,7 +583,59 @@ story('treasures/stat', {
   setup() { setupFight({ lash: false }); give('lemon'); give('coffeeBean'); },
   play() {
     const { run } = G(), b = run.stats;
-    return ok(run.S.bubbleDamage === b.bubbleDamage + 2 && Math.abs(run.S.fireRate - b.fireRate * 1.25) < 1e-9, { pop: [b.bubbleDamage, run.S.bubbleDamage], blowRate: [b.fireRate, +run.S.fireRate.toFixed(3)] });
+    return ok(run.S.bubbleDamage === b.bubbleDamage + 2 && Math.abs(run.S.fireRate - b.fireRate * 1.15) < 1e-9, { pop: [b.bubbleDamage, run.S.bubbleDamage], blowRate: [b.fireRate, +run.S.fireRate.toFixed(3)] });
+  },
+});
+story('treasures/level-up-kick', {
+  about: 'stack-buff "level-up" (Coffee Bean): each Level-up gives +40% Fire rate for 8 s, on top of its +15%; a second Level-up restarts the time, not doubling it.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('coffeeBean'); },
+  play() {
+    const { run } = G(), b = run.stats.fireRate, rate = () => run.S.fireRate / b;
+    const before = rate(); run.buff('level-up'); step(1); const kicked = rate(); run.buff('level-up'); step(1); const again = rate();
+    step(60 * 8.2); const after = rate();
+    return ok(Math.abs(before - 1.15) < 1e-6 && Math.abs(kicked - 1.55) < 1e-6 && Math.abs(again - 1.55) < 1e-6 && Math.abs(after - 1.15) < 1e-6, { before, kicked, again, after });
+  },
+});
+story('treasures/shot-speed', {
+  about: 'shot-speed (Drinking Straw): bubbles fly 40% faster.',
+  setup() { setupFight({ lash: false, bubbles: false }); roachAt(0, -0.2); },
+  play() {
+    const { run, player } = G(), B = run.bubbles, at = player.position.clone().setY(player.position.y + 0.04);
+    B.volley(at, run.S, run.mods); const plain = B.list.at(-1).speed;
+    give('straw'); step(1); B.volley(at, run.S, run.mods); const fast = B.list.at(-1).speed;
+    return ok(Math.abs(fast / plain - 1.4) < 1e-6, { plain, fast });
+  },
+});
+story('treasures/while-unhurt', {
+  about: 'while "unhurt" (Hand Cream): no Health regen from it until 4 s pass without a hit; a hit starts the wait again.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('handCream'); },
+  play() {
+    const { run } = G(), r0 = run.stats.regen;
+    run.iFrames = 0; run.hit(1); step(2); const early = run.S.regen;
+    step(60 * 4.2); const later = run.S.regen;
+    run.iFrames = 0; run.hit(1); step(2); const reset = run.S.regen;
+    return ok(early === r0 && Math.abs(later - r0 - 0.5) < 1e-9 && reset === r0, { r0, early, later, reset });
+  },
+});
+story('treasures/dodge-slip', {
+  about: 'dodge-slip (Odd Sock): a bug whose hit you dodge is Stunned for 0.5 s; one you didn\'t dodge isn\'t.',
+  setup() { setupFight({ hurt: true, bubbles: false, lash: false }); give('sock'); roachAt(0.05, 0); },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], real = Math.random;
+    Math.random = () => 0.001; run.iFrames = 0; run.hit(1, e.id); Math.random = real;
+    const slipped = e.stunT > 0; e.stunT = 0;
+    Math.random = () => 0.999; run.iFrames = 0; run.hit(1, e.id); Math.random = real;
+    return ok(slipped && !(e.stunT > 0), { slipped, after: e.stunT });
+  },
+});
+story('treasures/rear-shot', {
+  about: 'rear-shot (Bubble Wand): every volley also fires one shot straight behind you, at full Attack damage, while the ones at the bug keep theirs.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('bubbleWand'); roachAt(0, -0.2); },
+  play() {
+    const { run, player } = G(), B = run.bubbles, at = player.position.clone().setY(player.position.y + 0.04), n = B.list.length;
+    B.volley(at, run.S, run.mods);
+    const shots = B.list.slice(n), front = shots[0], back = shots.find((b) => b.vel.dot(front.vel) < 0);
+    return ok(shots.length === 2 && !!back && Math.abs(back.dmg - run.S.bubbleDamage) < 1e-9, { shots: shots.length, back: back?.dmg, full: run.S.bubbleDamage });
   },
 });
 story('treasures/stat-jump-tentacles', {
@@ -613,8 +680,17 @@ story('treasures/elite-damage', {
     return ok(Math.abs(1000 - big.hp - 11.5) < 1e-9 && hp0 - roach.hp === 10, { elite: 1000 - big.hp, bug: hp0 - roach.hp });
   },
 });
+// the run's effects plus a few words that no Treasure uses as written any more (undo() puts the real ones back)
+function withWords(src) {
+  const { run } = G();
+  const [t] = compileTreasures(parse(`treasure "w" name="W" icon="x" text="x" {\n${src}\n}`, 'w.kdl'), 'w.kdl');
+  const m = compileMods(run.owned, run.evolved || [], run.upgrades || [], run.attack ? run.jelly : null);
+  for (const fx of t.effects) fx(m, 0);
+  Object.defineProperty(run, 'mods', { value: m, configurable: true, writable: true });
+  return () => { delete run.mods; };
+}
 story('treasures/grow-on-kills', {
-  about: 'grow-on-kills (Bandage, Dustpan): every 30 bugs you clear, +1 max health for good (and it refills); with a cap (Dustpan) a copy stops growing at +100% and a second copy grows on.',
+  about: 'grow-on-kills (Bandage): every 30 bugs you clear, +1 max health for good (and it refills); with a cap (+0.2% Attack damage a bug, up to +100%) it stops at the cap.',
   setup() { setupFight({ bubbles: false, lash: false }); give('bandage'); },
   play() {
     const { run } = G(), max0 = run.S.health;
@@ -622,22 +698,21 @@ story('treasures/grow-on-kills', {
     for (let i = 0; i < 4; i++) kill();
     const after4 = run.S.health;
     for (let i = 0; i < 56; i++) kill();
-    // with a cap (Dustpan: +0.2% Attack damage a bug, up to +100% a copy): it stops at the cap, and a second copy grows on
-    give('dustpan');
+    // with a cap (+0.2% Attack damage a bug, up to +100%): it stops at the cap
+    const undo = withWords('grow-on-kills "bubble-damage" 0.2 kills=1 percent=#true cap=100');
     const pct = () => (run.S.bubbleDamage - run.stats.bubbleDamage) / BASE_STATS.bubbleDamage * 100;
-    for (let i = 0; i < 1100; i++) kill();
-    const capped = pct();
-    give('dustpan');
     for (let i = 0; i < 300; i++) kill();
-    const second = pct();
+    const part = pct();
+    for (let i = 0; i < 800; i++) kill();
+    const capped = pct(); undo();
     const same = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(after4 === max0 && run.S.health >= max0 + 2 && same(capped, 100) && same(second, 160),
-      { max0, after4, after10: run.S.health, capped: +capped.toFixed(3), second: +second.toFixed(3) });
+    return ok(after4 === max0 && run.S.health >= max0 + 2 && same(part, 60) && same(capped, 100),
+      { max0, after4, after10: run.S.health, part: +part.toFixed(3), capped: +capped.toFixed(3) });
   },
 });
 story('treasures/pause-lists-what-you-carry', {
   about: 'Pausing lists every treasure you carry with what it does, its copies or level, and for the ones that grow during the run what they have given so far and how near the next step is.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('trophy', 'lemon', 'lemon', 'bobbyPin', 'bobbyPin', 'paperclipChain', 'dustpan'); },
+  setup() { setupFight({ bubbles: false, lash: false }); give('trophy', 'lemon', 'lemon', 'bobbyPin', 'bobbyPin', 'paperclipChain'); },
   async play() {
     const { run } = G(), overlay = document.getElementById('g-over');
     const kill = () => bus.emit('enemy_killed', { type: 'roach', pos: near(0.05, 0, 0.02), floor: G().player.position.y, r: 0.02, xp: 1 });
@@ -646,22 +721,21 @@ story('treasures/pause-lists-what-you-carry', {
     await Promise.resolve();                                  // the menu fills as it opens
     const card = (id) => overlay.querySelector(`.g-bag .t[data-id="${id}"]`)?.textContent || '';
     const shown = overlay.querySelector('.g-bag').getBoundingClientRect().height > 0;
-    const trophy = card('trophy'), lemon = card('lemon'), pin = card('bobbyPin'), clip = card('paperclipChain'), pan = card('dustpan');
+    const trophy = card('trophy'), lemon = card('lemon'), pin = card('bobbyPin'), clip = card('paperclipChain');
     overlay.hidden = true;
     return ok(shown && run.level === 1
       && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Attack damage') && trophy.includes('Next +0.25 Attack damage in 7 bugs')
       && lemon.includes('×2') && lemon.includes('+2 attack damage')
       && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce, popping on up to 3') && pin.includes('Next level: Attacks pierce up to 7')
-      && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2')
-      && pan.includes('+2.6 / +100% Attack damage') && !pan.includes('So far:'),
-    { shown, trophy, lemon, pin, clip, pan });
+      && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2'),
+    { shown, trophy, lemon, pin, clip });
   },
 });
 story('treasures/crumb-on-kill', {
-  about: 'crumb-on-kill (Meatball, Leftover): a bug you clear sometimes leaves a crumb; it drifts to you like XP and gives back 1 Health.',
-  setup() { setupFight({ bubbles: false, lash: false }); give('meatball'); },
+  about: 'crumb-on-kill: a bug you clear sometimes leaves a crumb; it drifts to you like XP and gives back 1 Health.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
-    const { run, player } = G();
+    const { run, player } = G(), undo = withWords('crumb-on-kill chance=0.1 health=1');
     const none = run.crumbs.list.length;
     run.health = 10;
     const real = Math.random;
@@ -669,8 +743,32 @@ story('treasures/crumb-on-kill', {
     bus.emit('enemy_killed', { type: 'roach', pos: near(0.04, 0, 0.02), floor: player.position.y, r: 0.02, xp: 1 });
     Math.random = real;
     const dropped = run.crumbs.list.length;
-    step(240, () => !run.crumbs.list.length);
+    step(240, () => !run.crumbs.list.length); undo();
     return ok(none === 0 && dropped === 1 && run.crumbs.list.length === 0 && Math.abs(run.health - 11) < 0.01, { dropped, health: +run.health.toFixed(2), left: run.crumbs.list.length });
+  },
+});
+story('treasures/leave-on-kill', {
+  about: 'leave-on-kill (Dustpan, Leftover Meatball): a cleared bug sometimes leaves a dust bunny or a meatball that stays put. Close by it doesn\'t drift to you; swim onto it to pick it up. A dust bunny gives a stack of +8% Fire rate for 5 s; a meatball +3 Health and +20% Move speed for 3 s. One not picked up is gone after its time.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('dustpan', 'meatball'); },
+  play() {
+    const { run, player } = G(), real = Math.random, fire0 = run.S.fireRate, move0 = run.S.moveSpeed;
+    Math.random = () => 0.001;
+    bus.emit('enemy_killed', { type: 'roach', pos: near(0.06, 0, 0.02), floor: player.position.y, r: 0.02, xp: 1 });
+    Math.random = real;
+    const dust = run.left.dust.list[0], meat = run.left.meatball.list[0];
+    step(60);
+    const waits = run.left.dust.list.length === 1 && run.left.meatball.list.length === 1 && dust.pos.distanceTo(player.position) > 0.07;
+    run.health = 10;
+    player.position.x = dust.pos.x; player.position.z = dust.pos.z; step(20);
+    player.position.x = meat.pos.x; player.position.z = meat.pos.z; step(20);
+    const picked = !run.left.dust.list.length && !run.left.meatball.list.length;
+    const buffed = run.S.fireRate > fire0 * 1.079 && run.S.moveSpeed > move0 * 1.19 && Math.abs(run.health - 13) < 0.05;
+    Math.random = () => 0.001;
+    bus.emit('enemy_killed', { type: 'roach', pos: near(0.3, 0.3, 0.02), floor: player.position.y, r: 0.02, xp: 1 });
+    Math.random = real;
+    step(60 * 8.5);
+    const gone = !run.left.dust.list.length && !run.left.meatball.list.length;
+    return ok(waits && picked && buffed && gone, { waits, picked, buffed, health: run.health, fire: run.S.fireRate / fire0, gone });
   },
 });
 story('treasures/heal-on-hit', {
@@ -815,9 +913,9 @@ story('treasures/tuned-level-effects', {
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const got = [], want = [
-      [2.5, .21, .12, 4, 1.5, .18, 2, .05, .12, 2, .3],
-      [5, .21, .15, 4, 1.75, .22, 3, .07, .15, 3, .35],
-      [7, .21, .2, 3, 2, .26, 4, .09, .18, 4, .4],
+      [2.5, .25, .15, 4, 1.5, .18, 2, .05, .12, 2, .3],
+      [5, .28, .18, 4, 1.75, .22, 3, .07, .15, 3, .35],
+      [7, .3, .22, 3, 2, .26, 4, .09, .18, 4, .4],
     ];
     for (let i = 0; i < 3; i++) {
       give('cottonBall', 'rubberDuck', 'whale', 'guitarPick', 'bathBomb', 'stickyNote');

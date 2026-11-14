@@ -99,6 +99,7 @@ export class Bubbles {
     this.elTimers = {};               // each element attack's own firing timer
     this.volleys = 0;
     this.bolts = 0;                   // lightning shots fired (nth-attack bolt counts them)
+    this.goldShots = 0;               // Element volleys fired (golden-bubble counts them)
     this.charge = null;               // a charged-shot ready to spend (run.js sets it): { chain, strike, dmg }
     this.onCharged = null;            // called with it when the next lightning shot spends it
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
@@ -152,6 +153,7 @@ export class Bubbles {
     this.elTimers = {};
     this.volleys = 0;
     this.bolts = 0;
+    this.goldShots = 0;
     this.charge = null;
   }
 
@@ -273,6 +275,7 @@ export class Bubbles {
   }
 
   volley(origin, stats, mods) {
+    this.mods = mods;   // blow reads shot-speed from it
     const near = this.inRange(origin, stats.range);
     if (!near.length) return false;
     const target = near[0];
@@ -294,6 +297,8 @@ export class Bubbles {
       this.blow(origin.clone().add(off), target, big ? { size: size * big.size, dmg: dmg * big.dmg, golden, elems, tint, pierce: pierce + big.pierce, speed: big.speed, spread, off, big: true }
         : { size, dmg, golden, elems, tint, pierce, spread, off });
     }
+    // rear-shot (Bubble Wand): more straight out behind you, each at full damage
+    for (let k = 0; k < (B.rear || 0); k++) this.blow(origin.clone(), null, { size, dmg: stats.bubbleDamage * this.hit, golden, elems, tint, pierce, dir: dir.clone().negate(), spread: (k - (B.rear - 1) / 2) * 0.15 });
     // polyps (Man o' War): each blows one of the same at the enemy nearest it
     this.forPolyps(mods, origin, stats.range, (from, t, k) => this.blow(from, t, { size: size * 0.75, dmg: dmg * k, golden, elems, tint, pierce }));
     // Reed Stick: every 6th bubble is a giant, slow one
@@ -325,6 +330,7 @@ export class Bubbles {
   // One shot of an element attack: `count` of its projectiles side by side (your extra Attacks
   // plus its own), at the nearest enemy in its range
   elementVolley(id, P, origin, stats, mods) {
+    this.mods = mods;   // blow reads shot-speed from it
     const near = this.inRange(origin, stats.range * P.range);
     if (!near.length) return false;
     const target = near[0];
@@ -351,6 +357,7 @@ export class Bubbles {
       if (N) { each *= N.dmg; size *= N.size; speed *= N.speed; big = N; }
       if (X) { each *= X.dmg; size *= X.size; if (X.width !== 1 && P.width) ep = { ...P, width: P.width * X.width }; this.next = null; big ||= X; }
     }
+    const Gd = mods.bubbles.golden, golden = Gd && ++this.goldShots % Gd.every === 0 ? Gd.mult : 0;   // golden-bubble: every Nth Element volley too
     // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1), and Bobby Pin's
     const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) + mods.bubbles.pierce - 1 : 0);
     // an angle (Crosswind): the shots past the first fire off to the side, 1 angle left, 1 right, 2 left…, and fly straight
@@ -358,12 +365,14 @@ export class Bubbles {
     for (let k = 0; k < count; k++) {
       if (angle && k > 0) {
         const turn = Math.ceil(k / 2) * angle * (k % 2 ? 1 : -1);
-        this.blow(origin.clone(), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread: spread + turn, straight: true, big: !!big, strike });
+        this.blow(origin.clone(), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread: spread + turn, straight: true, big: !!big, strike, golden });
         continue;
       }
       const off = across.clone().multiplyScalar((k - (count - 1) / 2) * (angle ? 0 : gap));
-      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread, off, big: !!big, strike });
+      this.blow(origin.clone().add(off), target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, spread, off, big: !!big, strike, golden });
     }
+    const rear = mods.bubbles.rear || 0;   // rear-shot (Bubble Wand): more straight out behind you, each at full damage
+    for (let k = 0; k < rear; k++) this.blow(origin.clone(), null, { size, dmg: stats.bubbleDamage * P.dmg, pw: stats.bubbleDamage * 4.5, elems: [id], tint: id, ep, pierce, speed, range: stats.range * P.range, dir: dir.clone().negate(), spread: (k - (rear - 1) / 2) * 0.15, straight: true, golden });
     this.forPolyps(mods, origin, stats.range * P.range, (from, t, k) => this.blow(from, t, { size: stats.bubbleSize * 0.75, dmg: each * P.dmg * k, pw: each * 4.5 * k, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range: stats.range * P.range }));
     // release, on the frame the shots leave: the bell squeezes and a flash and launch sound in the
     // element's look (fire's own launch is per fireball, in blow; wind has its own windup and release)
@@ -403,7 +412,7 @@ export class Bubbles {
   }
 
   blow(origin, target, o) {
-    const m = !o.golden && o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);
+    const m = o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);   // a golden Element shot keeps its look, with a gold glow
     m.position.copy(origin);
     const dir = o.dir ? o.dir.clone().normalize() : this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
@@ -419,7 +428,7 @@ export class Bubbles {
     });
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
-    b.speed = SPEED * (o.speed || 1);
+    b.speed = SPEED * (o.speed || 1) * (this.mods?.bubbles.speed || 1);   // shot-speed (Drinking Straw)
     b.vel = dir.multiplyScalar(b.speed);
     b.homing = !o.straight;              // a shot fired off to the side flies straight on
     b.pushMul = this.pushMul;            // glide: how far this gust pushes (its own, from the moment it was blown)
@@ -480,7 +489,7 @@ export class Bubbles {
         b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
         if(!this.treasureLooks.quiet)this.treasureLooks.streak(b.m.position.clone().addScaledVector(b.vel,-.045),b.m.position,this.treasureLooks.disco,.0008,.14);
       }
-      if (b.m.userData.look) this.looks.update(b, dt, this.clock);   // an element projectile: its own look and particles
+      if (b.m.userData.look) { this.looks.update(b, dt, this.clock); if (b.golden) this.fx.glow.hold(b.m.position, GOLD, b.r * 5, 0.55); }   // an element projectile: its own look and particles
       else {
         // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
         this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.friendly, b.r * (b.big ? 6 : 5), b.golden ? 0.55 : 0.4);
@@ -666,7 +675,7 @@ export class Bubbles {
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
-    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir } });
+    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir, golden: !!b.golden } });
     this.enemies.freshBurn = null;
     if (mods.trap && !e.dead && !e.proxy && Math.random() < mods.trap.chance) this.trapBug(e, mods.trap.time);   // trap-on-hit
     if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);

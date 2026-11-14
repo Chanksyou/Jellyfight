@@ -62,13 +62,15 @@ story('treasures/no-regen', {
   },
 });
 story('treasures/dash', {
-  about: 'every + ring + dash (Moon Jelly): every 2 s the bell pulses, stinging and pushing back bugs close by, and the jelly surges (+80% Move speed for 0.35 s).',
-  setup() { setupFight({ bubbles: false, lash: false }); evolve('moonJelly'); roachAt(0.08, 0); },
+  about: 'every + dash (Moon Jelly): every 2 s the jelly surges (+120% Move speed for 0.35 s); a bug it surges through is stung once and shoved aside, one farther off isn\'t, and no ring goes off round it.',
+  setup() { setupFight({ bubbles: false, lash: false }); evolve('moonJelly'); roachAt(0.03, 0); roachAt(0.3, 0.3); },
   play() {
-    const { run } = G(), log = record('damage_taken');
+    const { run, enemies } = G(), [near, far] = enemies.list, log = record('damage_taken'), at = near.pos.clone();
     let surge = 0;
-    step(60 * 3, () => { if (run.dashT > 0) surge = Math.max(surge, run.S.moveSpeed); return dmgBy(log, 'ring').length > 0 && surge > 0; });
-    return ok(dmgBy(log, 'ring').length === 1 && Math.abs(surge - BASE_STATS.moveSpeed * 1.8) < 1e-6, { rings: dmgBy(log, 'ring').length, surge });
+    step(60 * 3, () => { if (run.dashT > 0) surge = Math.max(surge, run.S.moveSpeed); return run.dashT === 0 && surge > 0; });
+    const stung = dmgBy(log, 'surge');
+    return ok(stung.length === 1 && stung[0].targetId === near.id && near.pos.distanceTo(at) > 0.01 && !dmgBy(log, 'ring').length && Math.abs(surge - BASE_STATS.moveSpeed * 2.2) < 1e-6,
+      { stung: stung.map((d) => d.targetId), far: far.id, moved: near.pos.distanceTo(at), surge });
   },
 });
 story('treasures/touch-sting', {

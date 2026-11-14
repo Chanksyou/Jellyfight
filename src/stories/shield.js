@@ -180,11 +180,11 @@ story('treasures/health-to-shield', {
   },
 });
 story('content/pot-lid-skips-healing-treasures', {
-  about: 'heals=#true: once Pot Lid holds max Health at 1, a chest never offers a Treasure that only gives back Health (Hand Cream, Tea Bag, Baby Bottle, Whale Bath Toy, Meatball, Plastic Fangs); before it, they turn up.',
+  about: 'heals=#true: once Pot Lid holds max Health at 1, a chest never offers a Treasure that only gives back Health (Hand Cream, Tea Bag, Baby Bottle, Whale Bath Toy, Plastic Fangs); before it, they turn up. Leftover Meatball still does: its Move speed works without Health.',
   setup,
   play() {
     const { run } = G(); withShield(3);
-    const HEALS = ['handCream', 'teaBag', 'babyBottle', 'whale', 'meatball', 'fangs'];
+    const HEALS = ['handCream', 'teaBag', 'babyBottle', 'whale', 'fangs'];
     const offered = () => { const ids = new Set(); stub(run, 'offer', (t, sub, list) => { for (const x of list) ids.add(x.id); }); for (let i = 0; i < 300; i++) run.pickTreasure(); return ids; };
     const before = offered();
     give('potLid');

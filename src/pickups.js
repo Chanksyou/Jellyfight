@@ -13,9 +13,10 @@ const BIG = 5;                // XP a big drop is worth: every 5 XP comes as one
 // ---------------------------------------------------------------- XP
 // Health crumbs (the crumb-on-kill word) are the same pickups in another colour: `look` picks it
 export class XpDrops {
-  constructor(scene, world, look = null) {
+  constructor(scene, world, look = null, life = 0) {   // life (s): a drop not picked up by then is gone (leave-on-kill)
     this.scene = scene;
     this.world = world;
+    this.life = life;
     this.list = [];
     this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
     this.mat = look
@@ -87,6 +88,7 @@ export class XpDrops {
           d.m.scale.set(1 / Math.sqrt(1 + stretch), 1 + stretch, 1 / Math.sqrt(1 + stretch)).multiplyScalar(d.k || 1);
         } else d.m.scale.setScalar(d.k || 1);
       } else {
+        if (this.life && d.t > this.life) { d.done = true; this.scene.remove(d.m); continue; }
         // pop out, fall, settle
         d.vel.y -= 1.2 * dt;
         p.addScaledVector(d.vel, dt);
@@ -95,7 +97,7 @@ export class XpDrops {
         d.m.position.copy(p);
       }
     }
-    if (got || this.list.some((d) => d.done)) this.list = this.list.filter((d) => !d.done);
+    if (got || this.life || this.list.some((d) => d.done)) this.list = this.list.filter((d) => !d.done);
     this.magnetAll = false;
     return got;
   }

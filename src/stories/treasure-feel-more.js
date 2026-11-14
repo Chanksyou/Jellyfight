@@ -38,8 +38,8 @@ story('treasure-feel-more/salt-queued-chain-and-real-neighbor-contact',{
 });
 story('treasure-feel-more/duck-cooldown-and-confirmed-recoil',{
   setup(){ready('rubberDuck');roachAt(.05,0);roachAt(.5,0);},
-  play(){const {run}=G(),L=run.gadgets.looks,log=record('damage_taken');run.iFrames=0;run.hit(1);const first=log.filter(d=>d.source==='squeak'),lines=L.pools.rod.filter(p=>p.alive).length;run.iFrames=0;run.hit(1);
-    return ok(first.length===1&&first[0].amount===run.mods.squeaks[0].dmg&&lines===1&&log.filter(d=>d.source==='squeak').length===1,{hits:first.length,lines,total:log.filter(d=>d.source==='squeak').length});},
+  play(){const {run}=G(),L=run.gadgets.looks,log=record('damage_taken');run.iFrames=0;run.hit(1);const [near,far]=G().enemies.list,first=near.stunT>0&&!(far.stunT>0),lines=L.pools.rod.filter(p=>p.alive).length;near.stunT=0;run.iFrames=0;run.hit(1);
+    return ok(first&&lines===1&&!(near.stunT>0)&&log.filter(d=>d.source==='squeak').length===0,{first,lines,again:near.stunT});},
 });
 story('treasure-feel-more/mirror-ready-block-attacker-and-expiry',{
   setup(){ready('handMirror');roachAt(.2,0);},

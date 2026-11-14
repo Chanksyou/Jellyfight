@@ -32,6 +32,7 @@ export class Lash {
     this.strikes = [];            // tentacles currently out
     this.pool = [];
     this.statePool = [];
+    this.goldStrikes = 0;   // golden-bubble: counts stings, every Nth one is golden
     this.geo = new THREE.CylinderGeometry(1, 0.55, 1, 6, 1).translate(0, 0.5, 0); // base at 0, tip at 1
     this.mat = new THREE.MeshStandardMaterial({ color: 0xffb8e0, emissive: 0xff6fb5, emissiveIntensity: 0.6, roughness: 0.3 });
     this.goldMat = new THREE.MeshStandardMaterial({ color: 0xffe07a, emissive: 0xffc23a, emissiveIntensity: 1.2, roughness: 0.3 });
@@ -164,7 +165,7 @@ export class Lash {
     }
     const s = this.statePool.pop() || { from: new THREE.Vector3(), tip: new THREE.Vector3() };
     s.from.copy(from); s.tip.copy(from);
-    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: false, hit: false, hits, released: false, landed: false, extra, reel: null, reach: this.reachNow });
+    Object.assign(s, { mesh: m, rig: tent < 0 ? null : rig, tent, target, fixedFrom: null, t: 0, dmg, golden: !!(hits?.golden && ++this.goldStrikes % hits.golden.every === 0), hit: false, hits, released: false, landed: false, extra, reel: null, reach: this.reachNow });
     this.strikes.push(s);
     sfx.lashDraw();
   }
@@ -279,6 +280,7 @@ export class Lash {
     if (H.mark) bus.emit('status_applied', { targetId: id, status: 'mark', duration: H.mark, more: H.markMore });
     let dmg = s.dmg, color = '#fff', crit = false;
     if (edge) { dmg *= H.edge.mult; color = '#ffe9a8'; }
+    if (s.golden) { dmg *= H.golden.mult; color = '#ffd23a'; }
     if (H.crit && Math.random() < H.crit.chance) {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r); sfx.crit();
       crit = true;
@@ -286,7 +288,7 @@ export class Lash {
     }
     // a shove away from the jelly: the harder the sting, the further (a grabbed bug is reeled in instead)
     if (!s.target.T.fly && !X?.grab) bus.emit('knockback', { targetId: id, dir: E.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * E.statusMore(s.target, 'tentacle')) });
-    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit } });
+    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit, golden: s.golden } });
     this.slash(s.target, a, b);
     // the streak (glowLash) fades behind it; floor droplets stay a moment longer
     this.fx.splat(b.clone().setY(E.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));

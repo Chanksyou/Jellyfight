@@ -43,6 +43,7 @@ import { loadLayout } from './layout.js';
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
 const UP_AIR = new THREE.Vector3(0, 1, 0), _near = new THREE.Vector3(), NEARBY = 0.3;   // per of="burning-nearby": how close a Burning bug counts (m)
+const UNHURT = 4;   // while "unhurt": seconds without a hit before it holds
 const UPGRADE_TIER = { name: 'Attack upgrade', color: '#7ff6ee' };   // how an Attack upgrade's pick card reads (no rarity)
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -107,6 +108,7 @@ export class Run {
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
+    this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
     this.lash.onLash = () => this.player.avatar?.pulse?.(0.3);   // and twitches as its tentacles whip out
@@ -210,6 +212,23 @@ export class Run {
     this.start();
   }
 
+  // dash (Moon Jelly): a burst of speed; with dmg, the bugs you surge through are stung once and shoved aside
+  dash(k, time, ef) {
+    this.dashK = k; this.dashT = time; this.dashEf = ef || null; this.dashHit = new Set();
+    if (ef?.dmg) { sfx.moonSurge(); this.player.avatar?.pulse(0.3); }
+  }
+  surgeThrough() {
+    const P = this.player.position, D = this.dashEf, f = this.player.facing, side = _near.set(Math.cos(f), 0, -Math.sin(f));
+    this.fx.puff(P.clone().setY(P.y + this.cfg.height * 0.4), new THREE.Color(LOOK.color('moon-surge', '#dff4ff')).getHex(), 0.012, 0.35);
+    for (const e of this.gadgets.near(P, D.reach + this.cfg.radius)) {
+      if (this.dashHit.has(e)) continue;
+      this.dashHit.add(e);
+      bus.emit('damage_taken', { targetId: e.id, amount: this.power * D.dmg, color: '#dff4ff', source: 'surge' });
+      if (D.push) { const away = e.pos.clone().sub(P).setY(0), s = Math.sign(away.dot(side)) || 1; bus.emit('knockback', { targetId: e.id, dir: side.clone().multiplyScalar(s), force: D.push }); }
+      this.fx.impact(this.enemies.center(e), 0xdff4ff, 0.012, 6);
+    }
+  }
+
   // ------------------------------------------------------------ setup
   start() {
     this.evolutionReveal.cancel();
@@ -235,7 +254,7 @@ export class Run {
     this.xpDrops.clear();
     this.xpChain = this.xpChainT = this.xpFeedbackT = 0;
     this.hud.resetXp();
-    this.crumbs?.clear();
+    this.crumbs?.clear(); for (const k in this.left || {}) this.left[k].clear();
     this.fx.clear();
     this.lash.reset();
     this.shield.reset();
@@ -256,7 +275,7 @@ export class Run {
     this.fade.style.opacity = 0;
 
     this.phase = 'explore';
-    this.t = 0;
+    this.t = 0; this.hurtAt = 0;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
@@ -434,7 +453,7 @@ export class Run {
     const whiles = this.mods.whiles;
     if (whiles.length) {
       const P = this.player, air = !P.grounded && !P.climbing, rooted = this.stillT >= ROOTED;
-      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : c.when === 'lit' ? this.gadgets.lit : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
+      for (const c of whiles) if (c.when === 'airborne' ? air : c.when === 'rooted' ? rooted : c.when === 'moving' ? P.fullSpeed : c.when === 'lit' ? this.gadgets.lit : c.when === 'unhurt' ? this.t - (this.hurtAt ?? 0) >= UNHURT : this.health < S.health * c.under) S[c.stat] += c.percent ? base[c.stat] * c.amount / 100 : c.amount;
     }
     // stack-buff: what each one's live stacks add
     for (const b of this.mods.buffs) { const n = this.buffs?.[b.key]?.n; if (n) S[b.stat] += n * (b.percent ? base[b.stat] * b.amount / 100 : b.amount); }
@@ -538,6 +557,7 @@ export class Run {
     this.slowT = Math.max(0, this.slowT - dt);
     this.slowHardT = Math.max(0, this.slowHardT - dt);
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
+    if (this.dashT > 0 && this.dashEf?.dmg) this.surgeThrough();
     for (const k in this.buffs) if ((this.buffs[k].t -= dt) <= 0) delete this.buffs[k];   // stack-buff: its stacks run out together
     if (this.mods.per.some((c) => c.of === 'burning-nearby')) {   // per of="burning-nearby" (Fuel): counted once a frame
       let n = 0;
@@ -587,7 +607,7 @@ export class Run {
       // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes)
       if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
       else this.lash.animate(dt, origin);
-      if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius,
+      if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius, moving: P.fullSpeed,
         pulse: (k) => P.avatar?.pulse(k),
         grab: (ef) => this.lash.grab(origin, this.tentacleStats, this.mods.hits.tentacles, ef),
         flare: (mult) => { this.lash.flare = Math.max(this.lash.flare, mult); return this.tentacleStats.reach * mult; },
@@ -596,7 +616,7 @@ export class Run {
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         blob: (ef) => this.bubbles.rain(origin, ef.count, ef.range, this.S, this.mods),
         nextAttack: (ef) => { if (!this.attack || this.attack.kind === 'bubble' || this.attack.kind === 'tentacle') return false; this.bubbles.next = ef; return true; },   // an Element shot only
-        dash: (k, time) => { this.dashK = k; this.dashT = time; } });
+        dash: (k, time, ef) => this.dash(k, time, ef) });
       if (this.phase === 'explore') {
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD
@@ -635,6 +655,15 @@ export class Run {
     }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
     if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
+    for (const L of this.mods.leaves) {   // leave-on-kill: only swimming onto one picks it up (well inside XP's reach, never Fridge Magnet's)
+      const pool = this.left[L.look]; pool.life = L.last;
+      const n = pool.update(dt, origin, 0.6);
+      if (!n) continue;
+      if (L.health) { this.heal(n * L.health); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${n * L.health} Health`, '#c6ffb0', 14); }
+      for (let i = 0; i < n; i++) this.buff(L.event);
+      this.fx.puff(origin, pool.mat.color.getHex(), 0.014, 0.3);
+      if (L.look === 'meatball') sfx.snackChomp(); else sfx.dustSweep();
+    }
     juice.update(dt);
     this.hud.setCombo(juice.combo, juice.comboT / 2.5, juice.bonus);
 
@@ -810,6 +839,8 @@ export class Run {
       this.iFrames = 0.4;
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height), 'DODGE', '#bfffd0', 15);
+      const slip = M.dodgeSlip && from != null && this.enemies.list.find((e) => e.id === from && !e.dead && !e.proxy);   // dodge-slip (Odd Sock): the attacker skids
+      if (slip) { bus.emit('status_applied', { targetId: slip.id, status: 'stun', duration: M.dodgeSlip }); this.fx.puff(this.enemies.center(slip), 0xe8f4ff, slip.r * 2.4, 0.35); this.fx.number(this.enemies.center(slip).setY(slip.pos.y + slip.r * 3), 'SLIP', '#e8f4ff', 13); sfx.sockSlip(); }
       return;
     }
     // reflect: the first hit every so often goes back where it came from, and you take none of it
@@ -834,6 +865,7 @@ export class Run {
       if (e && R.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(P).setY(0).normalize(), force: R.push });
       return;
     }
+    this.hurtAt = this.t;   // while "unhurt" (Hand Cream) waits UNHURT s from here
     // squeak-when-hit effects (they stack), each on its own cooldown
     M.squeaks.forEach((Q, i) => {
       if ((this.squeakCd[i] || 0) > this.t) return;
@@ -848,7 +880,8 @@ export class Run {
         if (d > Q.radius) continue;
         if (Q.push) bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: Q.push });
         this.gadgets.looks.streak(this.enemies.center(e),this.enemies.center(e).addScaledVector(away,.018),this.gadgets.looks.duck,.001,.16);
-        bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
+        if (Q.dmg) bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
+        if (Q.stun) bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Q.stun });
       }
     });
     // when-hit effects: a { ring, zap … } block on its own cooldown, aimed at whoever hit you
@@ -861,7 +894,7 @@ export class Run {
       const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
       const lashAll = (k) => this.lash.sweepNow(center, this.tentacleStats, this.mods.hits.tentacles, k);   // the lash word with all=#true
       const ink = (ef) => { this.ink = { until: this.t + ef.time, miss: ef.miss, radius: ef.radius }; };   // the ink word
-      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, lashAll, ink, pulse: (k) => this.player.avatar?.pulse(k), dash: (k, time) => { this.dashK = k; this.dashT = time; } };
+      const ctx = { feet: P, center, facing: this.player.facing, power: this.power, from, taken: amount, lash, lashAll, ink, pulse: (k) => this.player.avatar?.pulse(k), dash: (k, time, ef) => this.dash(k, time, ef) };
       for (const ef of H.effects) this.gadgets.fire(ef, ctx);
     }
     this.hurt(amount, false, from, contact, knock, at);
@@ -1018,8 +1051,14 @@ export class Run {
     if (ready) this.bubbles.looks.gather('lightning', (this._chargeAt ||= new THREE.Vector3()).copy(P.position).setY(P.position.y + this.cfg.height * 0.75), 0.7, s.bubbleSize);
   }
 
-  onKill({ targetId, pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {}, silent }) {
+  onKill({ targetId, pos: c, r, xp: baseXp, elite, floor = c.y, by, statuses = {}, silent, golden }) {
     this.kills++;
+    // golden-bubble coin (Gold Ring): a bug a golden attack finished drops a gold coin worth several times its XP
+    const Gc = this.mods.bubbles.golden;
+    if (golden && Gc?.coin && baseXp > 0 && this.xpDrops.gem(c, Math.round(baseXp * Gc.coin))) {
+      this.fx.burst(c, ['#ffd23a', '#fff4c0'], 10, 0.0025, 0.25, floor); sfx.goldCoin();
+      this.fx.number(c.clone().setY(c.y + r * 3), 'GOLD', '#ffd23a', 16);
+    }
     this.buff('kill');
     // bounty (Chore List): the bug with the gold target pays out for the rest of the run
     const B = this.mods.bounty;
@@ -1038,7 +1077,7 @@ export class Run {
       const ctx = { feet, center: c, facing: this.player.facing, power: this.power, mods: this.mods, statuses, heal: (n) => this.heal(n),
         dropXp: (n) => this.xpDrops.drop(feet, 1, n), bubbleRing: (n, k) => this.bubbles.ring(c, n, this.S.bubbleDamage * k, this.S, this.mods),
         splash: (k) => this.bubbles.confetti(c, k, this.S, this.mods),
-        dash: (k, time) => { this.dashK = k; this.dashT = time; }, pulse: (k) => this.player.avatar?.pulse(k) };
+        dash: (k, time, ef) => this.dash(k, time, ef), pulse: (k) => this.player.avatar?.pulse(k) };
       for (const ef of K.effects) this.gadgets.fire(ef, ctx);
     }
     // streak: enough kills (of bugs with its status) close enough together sets off the block around you
@@ -1079,6 +1118,10 @@ export class Run {
     // crumb-on-kill: now and then a bug leaves a Health crumb to pick up
     const cr = this.mods.crumbs;
     if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
+    for (const L of this.mods.leaves) if (Math.random() < L.chance) {   // leave-on-kill: a bigger thing that waits where the bug fell
+      const pool = this.left[L.look], n = pool.list.length; pool.drop(c, 1);
+      if (pool.list.length > n) pool.list[n].k = L.look === 'dust' ? 5 : 4;   // a 2 cm dust bunny, a 1.5 cm meatball: big enough to swim for
+    }
     // crumb-on-kill drop="level" (Jackpot): now and then a big XP gem worth the rest of the level
     if (this.mods.jackpot && Math.random() < this.mods.jackpot.chance) {
       if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
@@ -1151,6 +1194,7 @@ export class Run {
 
   levelUp() {
     this.pendingLevels--;
+    this.buff('level-up');   // stack-buff "level-up" (Coffee Bean)
     if (this.mods.nightLight) this.gadgets.plugIn(this.player.position, this.mods.nightLight);   // night-light: one plugged in where you are
     // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
     // same ones come back, so a reload isn't a free reroll

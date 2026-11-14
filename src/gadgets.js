@@ -141,6 +141,7 @@ export class Gadgets {
     this.mouseReady.visible=false;
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
+    this.auraCharge = 0;
     this.lamps = []; this.lit = false;
     this.lampPool.forEach((g) => { g.visible = false; });
     this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = false;
@@ -435,9 +436,12 @@ export class Gadgets {
     const A = M.aura;
     this.aura.visible = !!A;
     if (A) {
+      // it charges while you swim flat out and fades while you don't: from `min` m still to `radius` after `grow` s
+      const k = this.auraCharge = A.grow ? Math.min(1, Math.max(0, (this.auraCharge || 0) + (ctx.moving ? dt : -dt) / A.grow)) : 1;
+      const r = (A.min ?? A.radius) + (A.radius - (A.min ?? A.radius)) * k;
       this.aura.position.copy(feet).setY(feet.y + 0.002);
-      this.aura.scale.setScalar(A.radius);
-      if (this.every('aura', dt, A.tick)) {for (const e of this.near(center, A.radius)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura();bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg, color: '#8aff9f', source: 'aura' });}}
+      this.aura.scale.setScalar(r); this.aura.material.opacity = 0.1 + 0.14 * k;
+      if (this.every('aura', dt, A.tick)) {for (const e of this.near(center, r)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura(k);bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg * r / A.radius, color: '#8aff9f', source: 'aura' });}}
     }
 
     // touch-sting (Lion's Mane): whatever touches you gets stung
@@ -563,7 +567,9 @@ export class Gadgets {
       const R = 0.007 * mb.size, wall = this.world.cast(mb.m.position, mb.dir, step + R);
       if (wall) {
         const nrm = wall.normal.clone().setY(0).normalize(); mb.dir.addScaledVector(nrm, -2 * mb.dir.dot(nrm)).normalize();
-        this.looks.contact(wall.point||mb.m.position,this.looks.color,R*.5);sfx.gadgetMarble('wall');
+        // pinball: each of the first `bounces` wall hits speeds it up and hits harder, and it can bowl the same bugs again
+        const pin = mb.bounced < mb.bounces; if (pin) { mb.bounced++; mb.speed *= 1 + mb.grow; mb.dmg *= 1 + mb.grow; mb.hit.clear(); }
+        this.looks.contact(wall.point||mb.m.position,this.looks.color,R*(pin?.5+.15*mb.bounced:.5));sfx.gadgetMarble('wall',pin?mb.bounced:0);
       }
       const previous=_to.copy(mb.m.position);
       mb.m.position.addScaledVector(mb.dir, step);
@@ -655,7 +661,7 @@ export class Gadgets {
       this.group.add(m);
       const state = m.userData.state ||= { dir: new THREE.Vector3(), hit: new Set(), trailAt: new THREE.Vector3() };
       state.dir.set(Math.sin(ctx.facing), 0, Math.cos(ctx.facing)); state.hit.clear(); state.trailAt.copy(m.position);
-      this.marbles.push(Object.assign(state, { m, t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, trailT:0 }));
+      this.marbles.push(Object.assign(state, { m, t: ef.life, speed: ef.speed, dmg: ef.dmg, size: ef.size, trailT:0, bounces: ef.bounces, grow: ef.grow, bounced: 0 }));
       sfx.gadgetMarble('launch');ctx.pulse?.(.2);
     } else if (ef.kind === 'lash') {
       if (ef.all) ctx.lashAll?.(ef.dmg);
@@ -675,7 +681,7 @@ export class Gadgets {
       sfx.inkSquirt();
       ctx.pulse?.(0.3);
     } else if (ef.kind === 'dash') {
-      ctx.dash?.(ef.speed, ef.time);
+      ctx.dash?.(ef.speed, ef.time, ef);
     } else if (ef.kind === 'bubble-ring') {
       ctx.bubbleRing?.(ef.count, ef.dmg);
     } else if (ef.kind === 'xp') {
