@@ -472,7 +472,7 @@ treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 2
     bounty "bubble-damage" 0.25 every=20 far=0.4
 }
 // Megabonk-inspired (Chan, Nov 14): XP for distance, a fast glass cannon that bleeds, a tornado on attack
-treasure "pedometer" name="Pedometer" icon="👣" rarity="rare" text="Every 2 m you swim, it clicks over: +1 XP." {
+treasure "pedometer" name="Pedometer" icon="📟" rarity="rare" text="Every 2 m you swim, it clicks over: +1 XP." {
     distance-xp 1 every=2
 }
 treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="You lose 1 Health a second (never your last), but swim 25% faster, attack 50% faster and get +1 mid-air jump." {
