@@ -19,7 +19,7 @@ The scripts pair each seed/style/scenario with its control.
 A treasure with `needs=` has its prerequisite in the control, so it is compared with the prerequisite alone.
 The matchup tool reads Epic card values directly from `content/levelups.kdl`, skips cards not offered, and tests base and maximum copies/levels of treasures.
 Items already present at that level in a requested base build are reported as skipped.
-Build entries use treasure ids (`goldRing`), copy counts (`lemon@3`) or evolutions (`evo:boxJelly`); prerequisites are added automatically and invalid ids/counts fail.
+Build entries use treasure ids (`goldRing`), copy counts (`lemon@3`) or evolutions (`evo:lionsMane`); prerequisites are added automatically and invalid ids/counts fail.
 Explicit comparisons whose builds are identical are rejected.
 
 ```powershell
@@ -70,7 +70,7 @@ It opens the next act with the carry produced by the game's own act-complete but
 
 ```powershell
 node tests/clear.mjs --seeds=10,11 --styles=ranged --type=poison --synergy=goldRing+stickyNote > .wrangler/poison-mark.jsonl
-node tests/balance.mjs --seeds=10,11 --styles=close --type=ice --synergy=lemon+evo:boxJelly
+node tests/balance.mjs --seeds=10,11 --styles=close --type=ice --synergy=lemon+evo:lionsMane
 ```
 
 This evaluates four matching builds: base, A, B and A+B.

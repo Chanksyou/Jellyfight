@@ -269,6 +269,16 @@ story('treasures/rebound-walls-only', {
   },
 });
 
+story('treasures/rebound-then-ricochet', {
+  about: 'Ricochet with Rebound Jelly: a bubble that hits a wall on its way out glances off it first (Ricochet), and Rebound still brings it home after; Rebound no longer swallows Ricochet.',
+  setup() { calm(); },
+  play() {
+    withWords('rebound\nrebound walls-only=#true times=1');
+    const m = G().run.mods, on = glance();
+    return ok(m.rebound && m.ricochet === 1 && on && on.bounces === 1, { on });
+  },
+});
+
 // three bugs in a line, the bubble at the first: how many were hit by a bubble
 function ladder(hp1) {
   clean();

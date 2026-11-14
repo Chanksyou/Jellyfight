@@ -694,7 +694,7 @@ export function newMods() {
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
-    rebound: false, tentacleWeapon: false, decoy: null, fireTrail: null,
+    rebound: false, decoy: null, fireTrail: null,
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
@@ -744,10 +744,10 @@ export function newMods() {
   };
 }
 
-const BY = ['bubbles', 'tentacles', 'splash', 'all'];   // splash: a glitter bomb's burst (types on); all is bubbles and tentacles
+const BY = ['bubbles', 'tentacles', 'splash', 'all'];   // splash: a glitter bomb's burst (types on); all is all three
 const scopes = (by, where) => {
   if (!BY.includes(by)) throw new Error(`${where}: by= must be one of ${BY.join(', ')}`);
-  return by === 'all' ? ['bubbles', 'tentacles'] : [by];
+  return by === 'all' ? ['bubbles', 'tentacles', 'splash'] : [by];
 };
 const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter', 'poison'];   // poison: the Poison jelly type's attack only (it replaces acid there)
 
@@ -994,7 +994,7 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['venom-tips', 'sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle'];   // ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit'];   // lit: inside a night-light's glow
 
@@ -1081,7 +1081,6 @@ export const TREASURE_WORDS = {
   },
   polyps: { doc: '`count` little polyps orbit you and shoot with you: every time you blow bubbles or fire an element, each polyp fires one of the same at the enemy nearest it, doing `dmg` times the damage.', args: ['count'], props: { dmg: 0.5 }, make: ([n], p) => (m) => { m.polyps = { count: n, dmg: p.dmg }; } },
   rebirth: { doc: 'Once each act, a hit that would take your last Health turns you back into a polyp for `time` s instead: nothing can hurt you, but you can\'t attack. Then you bloom back with full Health.', props: { time: 5 }, make: (_, p) => (m) => { m.rebirth = { ...p }; } },
-  'tentacle-weapon': { doc: 'Your tentacles lash whatever your jelly type (with jelly types only the Tentacle jelly lashes otherwise); for the Tentacle jelly, more `tentacles` (stat) add to its Attacks.', make: () => (m) => { m.tentacleWeapon = true; } },
   rebound: {
     doc: 'Ordinary bubbles return toward the jelly after their outward range or a wall, hitting each target at most once per leg. Elements keep their own flight. `walls-only=#true`: instead a bubble that hits a wall ricochets off it, up to `times` times, and flies on with its Range; nothing comes back to you.',
     props: { 'walls-only': false, times: 1 },
@@ -1131,7 +1130,7 @@ export const TREASURE_WORDS = {
   'health-to-shield': { doc: 'Your max Health stays at 1: the rest of it, now and whatever you gain later, is Shield instead. Health and Health regen cards are no longer offered.', make: () => (m) => { m.shield.fromHealth = true; } },
   'no-regen': { doc: 'Health regen does nothing (from cards, treasures or anything else). `revived=#true`: only once rebirth has saved you this run.', props: { revived: false }, make: (_, p) => (m) => { m.noRegen = m.noRegen === true || !p.revived ? true : 'revived'; } },
   'touch-sting': { doc: 'Enemies touching you (within `reach` m of your body) take `dmg` every `every` s.', props: { dmg: 0.6, every: 0.5, reach: 0.02 }, make: (_, p) => (m) => { m.touch = { ...p }; } },
-  adorn: { doc: 'Adds an evolution look (src/adornments.js): venom-tips thickens and brightens existing tentacles; sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
+  adorn: { doc: 'Adds an evolution look (src/adornments.js): sail, halo, moon-ring, mane and fronds add pieces.', args: ['piece'], make: ([k]) => { if (!ADORNMENTS.includes(k)) throw new Error(`adorn: one of ${ADORNMENTS.join(', ')}, not "${k}"`); return (m) => { m.adorn.push(k); }; } },
   'death-save': { doc: 'Once per run, a hit that would take your last Health leaves you at `health` (a share of your max Health) instead.', props: { health: 0.5 }, make: (_, p) => (m) => { m.deathSave = { ...p }; } },
   'damage-taken': { doc: 'Hits take `times` as much health.', args: ['times'], make: ([k]) => (m) => { m.damageTaken *= k; } },
   spout: { doc: 'Stand still for `after` s and you refill `heal` health a second.', props: { after: 1, heal: 0.5 }, make: (_, p) => (m) => { m.spout = p; } },

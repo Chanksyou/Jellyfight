@@ -1,5 +1,5 @@
 // Stories: jelly types (content/jellies.kdl, src/jelly-types.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
-import { CONTENT, compileJellies, compileTreasures } from '../content.js';
+import { CONTENT, compileJellies, compileMods, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
@@ -7,7 +7,7 @@ import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
-import { G, asPlayer, fresh, give, ok, record, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const TYPE_IDS = ['normal', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
 
@@ -436,5 +436,63 @@ story('types/pick-screen-opens-on-try-again', {
     } finally { back(); picker.close(); }
     const pass = returning.opened && returning.redrawn && returning.started && first.closed && first.normal && off.closed && off.restarted;
     return ok(pass, { returning, first, off });
+  },
+});
+
+// --- Treasures that fit the jelly types (the Nov 14 treasure audit) ---------------------------------
+story('types/treasures-offered-only-where-they-work', {
+  about: 'Reed Stick\'s giant bubble is Normal\'s alone (not-for every other attack); Bobby Pin is offered to the shot types it pierces with (Fire, Lightning, Ice, Wind, Normal) but not to Poison and Glitter, whose blob and bomb burst on the first bug, nor the Tentacle jelly.',
+  setup() { fresh({ types: 'normal' }); },
+  play() {
+    const by = (id) => CONTENT.treasures.find((t) => t.id === id), offers = {};
+    for (const type of TYPE_IDS) { fresh({ types: type }); const { run } = G(); offers[type] = ['reedStick', 'bobbyPin'].filter((id) => run.forAttack(by(id))); }
+    fresh();
+    const reed = TYPE_IDS.filter((t) => offers[t].includes('reedStick')), pin = TYPE_IDS.filter((t) => offers[t].includes('bobbyPin'));
+    return ok(reed.join() === 'normal' && pin.join() === 'normal,fire,lightning,ice,wind', { reed, pin });
+  },
+});
+story('types/bobby-pin-pierces-element-shots', {
+  about: 'Bobby Pin\'s pierce reaches a jelly type\'s Element shot: a Fire jelly\'s fireball goes through 2 more bugs with it (up to 3), as a Normal bubble does.',
+  setup() { setupFight({ types: 'fire' }); roachAt(0.1, 0); },
+  play() {
+    const { run } = G(), shot = () => { const blows = spy(run.bubbles, 'blow'); step(60 * 2, () => blows.length); restore(); return blows[0]?.[2]?.pierce; };
+    const plain = shot();
+    give('bobbyPin');
+    const pinned = shot();
+    return ok(plain === 1 && pinned === 3, { plain, pinned });
+  },
+});
+story('types/range-costs-cut-tentacle-reach', {
+  about: 'A Range cost bites the Tentacle jelly too: Hot Chili takes 30% off its Tentacle reach and Cinder Jelly 20%, as they take Range off a shot type.',
+  setup() { fresh({ types: 'tentacle' }); },
+  play() {
+    const { run } = G(), base = run.tentacleStats.reach;
+    give('chili');
+    const chili = run.tentacleStats.reach;
+    run.evolved.push('cinder');
+    const both = run.tentacleStats.reach;
+    fresh();
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    return ok(near(chili, base * 0.7) && near(both, base * 0.5), { base, chili, both });
+  },
+});
+story('types/roller-skate-counts-from-your-start', {
+  about: 'Roller Skate counts Move speed above your jelly type\'s own start: a fresh Wind jelly (Move speed 1.2) gets no Fire rate from it until it speeds up.',
+  setup() { fresh({ types: 'wind' }); },
+  play() {
+    const { run } = G(), before = run.S.fireRate;
+    give('rollerSkate');
+    const after = run.S.fireRate;
+    fresh();
+    return ok(Math.abs(after - before) < 1e-9, { before, after });
+  },
+});
+story('types/crit-treasures-reach-glitter-bursts', {
+  about: 'by="all" covers a Glitter bomb\'s burst too: Nail Clipper gives the splash its 20% crit chance (Lucky Sparkle\'s 15% adds to it), as it does bubbles, shots and stings.',
+  setup() {},
+  play() {
+    const m = compileMods(new Set(['nailClipper'])), both = compileMods(new Set(['nailClipper']), [], ['luckySparkle']);
+    const H = m.hits, near = (a, b) => Math.abs(a - b) < 1e-9;
+    return ok(near(H.splash.crit?.chance, 0.2) && near(H.bubbles.crit?.chance, 0.2) && near(H.tentacles.crit?.chance, 0.2) && near(both.hits.splash.crit?.chance, 0.35), { splash: H.splash.crit, both: both.hits.splash.crit });
   },
 });

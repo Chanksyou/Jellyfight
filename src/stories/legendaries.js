@@ -83,41 +83,19 @@ story('types/former-evolutions-stack', {
 });
 
 story('types/legendary-not-offered-to-wrong-type', {
-  about: 'A Legendary that does nothing for a jelly type\'s attack isn\'t offered to it (not-for=): Rebound Jelly, Man o\' War and Disco Ball only work on shots, so never to the Tentacle jelly; Rebound only turns plain bubbles, so never to Fire either. Box Jelly and Bubble Bath are offered to every type.',
+  about: 'A Legendary that does nothing for a jelly type\'s attack isn\'t offered to it (not-for=): Rebound Jelly only turns plain bubbles, so only Normal gets it (never Fire, Lightning, Ice, Wind or the Tentacle jelly); Man o\' War and Disco Ball only work on shots, so never to the Tentacle jelly. Bubble Bath is offered to every type, and Box Jelly is gone from the game.',
   setup() { fresh({ types: 'tentacle' }); },
   play() {
-    const tentacle = legendaryPool();
-    fresh({ types: 'fire' });
-    const fire = legendaryPool();
-    fresh({ types: 'normal' });
-    const normal = legendaryPool();
+    const pools = {};
+    for (const t of ['tentacle', 'fire', 'lightning', 'ice', 'wind', 'normal']) { fresh({ types: t }); pools[t] = legendaryPool(); }
     fresh();
-    const pass = !['rebound', 'manOWar', 'discoBall'].some((id) => tentacle.has(id)) && tentacle.has('boxJelly') && tentacle.has('bubbleBath')
-      && !fire.has('rebound') && fire.has('manOWar') && fire.has('discoBall') && fire.has('boxJelly')
-      && ['rebound', 'manOWar', 'discoBall', 'boxJelly', 'bubbleBath'].every((id) => normal.has(id));
-    return ok(pass, { tentacle: [...tentacle], fire: [...fire], normal: [...normal] });
-  },
-});
-
-story('treasures/tentacle-weapon', {
-  about: 'tentacle-weapon (Box Jelly): with jelly types on, a Fire jelly\'s tentacles lash too, a second close-range attack beside its Fire shot (4 tentacles at twice the reach, stacking venom); for the Tentacle jelly the 3 extra tentacles add to its Attacks (3 + 3 = 6) with +100% Tentacle reach (a percent of the jelly\'s own 11 cm, so 22 cm). Without it, a Fire jelly never lashes.',
-  setup() { setupFight({ types: 'fire' }); },
-  play() {
-    const { run } = G();
-    roachAt(0.12, 0);
-    const before = spy(run.lash, 'strike');
-    step(60 * 2);
-    const noLash = !before.length;
-    evolveAll('boxJelly');
-    const strikes = spy(run.lash, 'strike');
-    step(60 * 3);
-    const T = run.tentacleStats, venom = run.lash.venom.size, fireLash = strikes.length > 0 && T.tentacles === 4 && Math.abs(T.reach - BASE_STATS.reach * 2) < 1e-9 && venom > 0;
-    setupFight({ types: 'tentacle' });
-    const base = run.tentacleStats.tentacles;
-    evolveAll('boxJelly');
-    const U = run.tentacleStats, tentacle = base === 3 && U.tentacles === 6 && Math.abs(U.reach - 0.22) < 1e-9;
-    fresh();
-    return ok(noLash && fireLash && tentacle, { noLash, strikes: strikes.length, venom, T, base, U });
+    const { tentacle, fire, normal } = pools;
+    const pass = !['rebound', 'manOWar', 'discoBall'].some((id) => tentacle.has(id)) && tentacle.has('bubbleBath')
+      && ['fire', 'lightning', 'ice', 'wind'].every((t) => !pools[t].has('rebound'))
+      && fire.has('manOWar') && fire.has('discoBall')
+      && ['rebound', 'manOWar', 'discoBall', 'bubbleBath'].every((id) => normal.has(id))
+      && Object.values(pools).every((p) => !p.has('boxJelly'));
+    return ok(pass, Object.fromEntries(Object.entries(pools).map(([t, p]) => [t, [...p]])));
   },
 });
 

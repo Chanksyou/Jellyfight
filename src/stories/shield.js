@@ -179,6 +179,19 @@ story('treasures/health-to-shield', {
     return ok(converted && later && noHeal && !cards && run.mods.shield.fromHealth, { converted, later, noHeal, cards, shield: run.S.shield });
   },
 });
+story('content/pot-lid-skips-healing-treasures', {
+  about: 'heals=#true: once Pot Lid holds max Health at 1, a chest never offers a Treasure that only gives back Health (Hand Cream, Tea Bag, Baby Bottle, Whale Bath Toy, Meatball, Plastic Fangs); before it, they turn up.',
+  setup,
+  play() {
+    const { run } = G(); withShield(3);
+    const HEALS = ['handCream', 'teaBag', 'babyBottle', 'whale', 'meatball', 'fangs'];
+    const offered = () => { const ids = new Set(); stub(run, 'offer', (t, sub, list) => { for (const x of list) ids.add(x.id); }); for (let i = 0; i < 300; i++) run.pickTreasure(); return ids; };
+    const before = offered();
+    give('potLid');
+    const after = offered();
+    return ok(HEALS.some((id) => before.has(id)) && !HEALS.some((id) => after.has(id)), { before: HEALS.filter((id) => before.has(id)), after: HEALS.filter((id) => after.has(id)) });
+  },
+});
 
 story('evolutions/aegis-gives-shield', {
   about: 'Aegis Jelly gives +5 Shield on the bar, bursts once for a flat 15 within 20 cm when it breaks, and refills like any Shield.',

@@ -351,8 +351,8 @@ export class Bubbles {
       if (N) { each *= N.dmg; size *= N.size; speed *= N.speed; big = N; }
       if (X) { each *= X.dmg; size *= X.size; if (X.width !== 1 && P.width) ep = { ...P, width: P.width * X.width }; this.next = null; big ||= X; }
     }
-    // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1)
-    const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) : 0);
+    // a jelly type's main attack goes through its Pierce more bugs too (the Wind jelly's +1), and Bobby Pin's
+    const pierce = 1 + P.pierce + (this.main ? Math.round(stats.pierce || 0) + mods.bubbles.pierce - 1 : 0);
     // an angle (Crosswind): the shots past the first fire off to the side, 1 angle left, 1 right, 2 left…, and fly straight
     const angle = P.angle > 0 ? P.angle * Math.PI / 180 : 0;
     for (let k = 0; k < count; k++) {
@@ -468,8 +468,8 @@ export class Bubbles {
       // bell while you're pressed under or against something, it would otherwise pop at once
       const wall = b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r);
       if (wall || (b.travel > this.grace && this.blocked(b.m.position, this._dir, step + b.r, b.r))) {
-        if (b.rebound && !b.returning) { this.turn(b); continue; }
-        if (wall?.normal && !b.tint && !b.orb && (b.bounces || 0) < mods.ricochet) this.ricochet(b, wall);   // rebound walls-only: off the wall, flying on
+        if (wall?.normal && !b.tint && !b.orb && (b.bounces || 0) < mods.ricochet) this.ricochet(b, wall);   // rebound walls-only: off the wall, flying on (before Rebound turns it home)
+        else if (b.rebound && !b.returning) { this.turn(b); continue; }
         else { this.pop(b, null, stats, mods); continue; }
       }
       b.m.position.addScaledVector(b.vel, dt);

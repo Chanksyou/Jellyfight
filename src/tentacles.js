@@ -59,7 +59,6 @@ export class TentacleRig {
     this.count = opts.count;
     this.length = opts.length;
     this.thick = opts.thickness;
-    this.venom = false;
     // the Tentacle jelly type (adornments.js barbs): its tentacles drawn longer and thicker
     this.barbed = false;
     this.barbThick = LOOK.num('barbed-tentacle-thickness', 1.8);
@@ -67,8 +66,6 @@ export class TentacleRig {
     // the Wind jelly type (adornments.js gale): its tentacles streaming back as if in a breeze
     this.breeze = false;
     this.breezeStream = LOOK.num('gale-tentacle-stream', 0.3);
-    this.venomThickness = LOOK.num('box-jelly-tentacle-thickness', 3);
-    this.venomGlow = LOOK.num('box-jelly-tentacle-glow', 3);
     // a striking tentacle swells and burns white-hot so the lash reads at play distance
     this.strikeThick = LOOK.num('lash-strike-thickness', 2.4);
     this.strikeGlow = LOOK.num('lash-strike-glow', 2.6);
@@ -205,7 +202,7 @@ export class TentacleRig {
 
       // --- striking: a whip arc from the root out to the target, blended over the chain (which
       // follows it, so the tentacle swings back on its own when the strike ends)
-      const glow = T.baseGlow * (this.venom ? this.venomGlow : 1);
+      const glow = T.baseGlow;
       if (T.aim) {
         const target = this.parent.worldToLocal(_v.copy(T.aim));
         if (T.k < 0) {
@@ -233,7 +230,7 @@ export class TentacleRig {
         }
         if (T.golden) T.mat.emissive.setHex(0xffc23a); else T.mat.emissive.copy(this.strikeColor);
         const strikeGlow = 0.6 + T.k * (this.strikeGlow - 0.6);
-        T.mat.emissiveIntensity = this.venom ? Math.max(glow, strikeGlow) : strikeGlow;
+        T.mat.emissiveIntensity = strikeGlow;
         if (T.tipMat !== T.mat) { T.tipMat.emissive.copy(T.mat.emissive); T.tipMat.emissiveIntensity = T.mat.emissiveIntensity; }   // a strike burns the whole tentacle
       } else {
         T.mat.emissive.copy(T.baseEmissive);
@@ -250,7 +247,7 @@ export class TentacleRig {
 
   // Skin the tube around the points
   build(T, floorY) {
-    const thick = this.thick * (this.venom ? this.venomThickness : 1) * (this.barbed ? this.barbThick : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
+    const thick = this.thick * (this.barbed ? this.barbThick : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
     const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
     const P = T.pts;

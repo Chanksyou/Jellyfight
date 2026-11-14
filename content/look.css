@@ -581,8 +581,6 @@
   --ice-frost: #9fe4ff;          /* frost flowers on the floor, frost drifting off a chilled bug */
   --ice-bloom: 5;                /* a hit's frost flower, in shard radii */
   --ice-shatter-shards: 18;      /* shards a chilled bug shatters into (more for big ones) */
-  --box-jelly-tentacle-thickness: 3; /* Box Jelly: width multiplier on the existing tentacles */
-  --box-jelly-tentacle-glow: 3;  /* Box Jelly: emission multiplier, including during a Lash */
   /* Jelly types' looks (src/adornments.js ember, barbs, frost, toxin and gale; content/jellies.kdl adorn=) */
   --ember-coal: #ff5a14;          /* Fire jelly: the coal on each tentacle tip */
   --ember-coal-size: 1;           /* its radius, in tentacle widths */
