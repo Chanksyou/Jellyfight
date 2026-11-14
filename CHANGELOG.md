@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v423 cuts look-alike Treasures: Aegis Jelly is retired (Bubble Wrap does its job), Egg Timer folds into Crank Flashlight's new levels, Static Balloon, Disco Ball and Ice Cube are no longer offered to the jelly types they copy, and Attack upgrades that shared an icon get their own.
+
 v422 makes every jelly's arms show (four or more real arms below the rim, on every bell), lights the rim and the tentacle tips in the second color ("Arm and rim color"), softens the tentacles' glow so a bell color stays that color instead of turning white, and adds four bells (Onion Dome, Bubble, Gem, Comb Jelly with rippling rainbow rows), an Arms row (Frilly, Curly, Pom-poms, Streamers), a Tentacles row (Straight, Curly, Beaded, Ribbon) and five bell patterns (Spots, Hearts, Stars, Zigzag, Spiral) in the Pearl shop.
 
 v421 makes furniture and walls the camera fades see-through much cheaper to draw: they use a plain lit copy of their material, drawn once, and High's AO no longer draws them a second time, so the frame rate holds when you walk behind a sofa or wall.

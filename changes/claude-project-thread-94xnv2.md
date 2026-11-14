@@ -1,1 +1,0 @@
-cuts look-alike Treasures: Aegis Jelly is retired (Bubble Wrap does its job), Egg Timer folds into Crank Flashlight's new levels, Static Balloon, Disco Ball and Ice Cube are no longer offered to the jelly types they copy, and Attack upgrades that shared an icon get their own.
