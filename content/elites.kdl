@@ -11,7 +11,7 @@
 pace recover=1 tempo=1.4
 
 elite "controller" name="The Controller" icon="🎮" hp=250 aggro=1.1 {
-    barrage dmg=3 windup=1.4 radius=0.075 height=0.06 spread=0.19 rest=1.6
+    barrage dmg=3 windup=1.4 gap=0.35 radius=0.075 height=0.06 spread=0.19 rest=1.6   // gap: tempo s between symbols going off, in their buttons' order
     rumble dmg=3
 }
 
@@ -21,7 +21,7 @@ elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
 }
 
 elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
-    ball dmg=3 shots=3 every=0.4 gusts=3 gap=0.15 charge=1.4 flight=0.6 radius=0.06   // charge is in tempo time (1.4 is 1 s at tempo 1.4); every, flight and gap are real s
+    ball dmg=3 shots=3 every=0.4 lead=1 gusts=3 gap=0.15 charge=1.4 flight=0.6 radius=0.06   // charge is in tempo time (1.4 is 1 s at tempo 1.4); every, flight and gap are real s; lead: each ball aims where you'll be as it lands (1: all the way, 0: where you are)
     boil dmg=3 drops=6
 }
 
@@ -44,7 +44,8 @@ elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.6
 // act 3: the plush on the pillows at the head of the bed. It sleeps until you're on the bed
 // (stage3.js `wake`), then within aggro= of it.
 //   volley: its mouth opens for windup= s while count= Warnings fill in a fan round you, spread=
-//           apart; then frost balls are flung there in a high arc (arc= m over the line, flight= s)
+//           apart; then frost balls are flung there in a high arc (arc= m over the line, flight= s),
+//           one after another from one end of the fan, stagger= s apart,
 //           and burst as Blasts of radius=,
 //           slowing you by slow= for slowTime= s
 //   tail:   it turns its back (turn= s) and slams its tail slams= to maxSlams= times, a random
@@ -53,7 +54,7 @@ elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.6
 //   pounce: it crouches for windup= s while a Warning of radius= fills under it, leaps leap= m
 //           up for air= s and lands as a Blast of radius= round itself (knock= knocks you back)
 elite "croc" name="The Alligator" icon="🐊" hp=800 aggro=1.8 angry=0.65 {
-    volley dmg=3 count=3 angryCount=5 spread=0.16 radius=0.09 size=0.016 windup=0.8 angryWindup=0.6 flight=0.45 arc=0.25 slow=0.5 slowTime=1.5 rest=1.0 angryRest=0.7
+    volley dmg=3 count=3 angryCount=5 spread=0.16 radius=0.09 size=0.016 windup=0.8 angryWindup=0.6 flight=0.45 stagger=0.15 arc=0.25 slow=0.5 slowTime=1.5 rest=1.0 angryRest=0.7
     tail dmg=3 slams=3 maxSlams=5 angrySlams=4 angryMaxSlams=6 gapMin=0.35 gapMax=0.9 turn=0.5 height=0.03 band=0.07 speed=0.5 reach=0.9 knock=0.45 rest=1.0 angryRest=0.7
     pounce dmg=4 radius=0.32 windup=1.0 angryWindup=0.75 leap=0.2 air=0.55 knock=0.9 rest=1.1 angryRest=0.8
 }

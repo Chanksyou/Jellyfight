@@ -266,7 +266,7 @@ for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
 }
 
 story('elites/controller-barrage-feedback', {
-  about: 'Four symbols charge with pressed buttons, click once and discharge with same-frame recoil, shape pulses, localized impact and mechanical sound; all pulses fade.',
+  about: 'Four symbols charge with pressed buttons and click once; each then discharges on its own frame with recoil, its shape pulse, a localized impact and mechanical sound; all pulses fade.',
   setup() { startController(0); },
   play() {
     const {run,fx}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'); holdJelly();
@@ -274,12 +274,35 @@ story('elites/controller-barrage-feedback', {
     stub(sfx,'controllerCharge',()=>charge++); stub(sfx,'controllerLock',()=>lock++);
     stub(sfx,'controllerFire',()=>fire++); stub(sfx,'controllerContact',()=>ends++);
     step(400,()=>e.state==='windup' && e.stateT>.4);
-    const pressed=e.model.buttons.every(b=>b.position.y<.027 && b.material.emissiveIntensity>1);
-    step(120,()=>E.controllerPulses.length===4); e.cool=99;
-    const pulses=[...E.controllerPulses], released=e.state==='idle' && e.model.group.rotation.x<0 && !E.bullets.length;
+    const pressed=e.model.buttons.every(b=>b.position.y<.027) && e.model.buttons[e.combo[0]].material.emissiveIntensity>1;
+    const pulses=new Set();
+    step(200,()=>{ E.controllerPulses.forEach(p=>pulses.add(p)); return e.state==='idle'; }); e.cool=99;
+    const released=e.state==='idle' && e.model.group.rotation.x<0 && !E.bullets.length;
     const debris=fx.chunks.some(c=>c.alive); step(30);
-    return ok(pressed && released && charge===1 && lock===1 && fire===1 && ends===1 && debris && !E.controllerPulses.length && pulses.every(p=>!p.m.parent),
-      {pressed,released,charge,lock,fire,ends,debris,pulses:pulses.length});
+    return ok(pressed && released && charge===1 && lock===1 && fire===4 && ends===4 && pulses.size===4 && debris && !E.controllerPulses.length && [...pulses].every(p=>!p.m.parent),
+      {pressed,released,charge,lock,fire,ends,debris,pulses:pulses.size});
+  },
+});
+
+story('elites/controller-barrage-goes-off-in-button-order', {
+  about: "Button combo: the four symbols go off one at a time, gap s apart, in the order the Controller's buttons light (the next one's button glows hottest, spent ones go dark); each symbol's Warning fills to its own moment, so the fullest goes next. A jelly that steps into a symbol that already went off is not hit.",
+  setup() { startController(0, { hurt: true }); },
+  play() {
+    const {run}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'), player=holdJelly(), D=e.def.skills.barrage, hits=controllerHits();
+    step(400,()=>e.state==='windup' && e.stateT>D.windup*0.5);
+    const order=[...e.combo], vols=()=>e.tele.filter(m=>m.material instanceof VolumeMaterial);
+    const fill=Object.fromEntries(vols().map(m=>[m.userData.i,m.material.progress]));
+    const fullestNext=order.every((i,k)=>!k || fill[order[k-1]]>fill[i]);
+    const hot=e.model.buttons.reduce((b,x,i,a)=>x.material.emissiveIntensity>a[b].material.emissiveIntensity?i:b,0)===order[0];
+    const firstAt=vols().find(m=>m.userData.i===order[0]).position.clone();
+    player.position.y+=0.3; player.grounded=false;                     // up out of every symbol until the first has gone
+    const gone=[], times=[];
+    step(400,()=>{ const left=vols().map(m=>m.userData.i), went=order.filter(i=>!left.includes(i)&&!gone.includes(i));
+      for (const i of went) { gone.push(i); times.push(e.stateT); if (gone.length===1) { player.position.copy(firstAt); player.grounded=true; } }   // step into the spent one
+      return e.state==='idle'; });
+    const gaps=times.slice(1).map((t,k)=>+(t-times[k]).toFixed(2)), inOrder=gone.join()===order.join();
+    const spaced=gaps.length===3 && gaps.every(g=>Math.abs(g-D.gap)<0.05);
+    return ok(fullestNext && hot && inOrder && spaced && hits.length===0,{order,gone,gaps,fullestNext,hot,hits:hits.length});
   },
 });
 
@@ -376,6 +399,18 @@ story('elites/kettle-steam-ball-volley-aims-at-each-new-spot', {
     return ok(seen >= 3 && aims.every((d) => d < 0.01) && hits.length === 0, { shots: seen, aims, hits: hits.length });
   },
 });
+story('elites/kettle-steam-ball-leads-a-moving-jelly', {
+  about: 'Each steam ball aims where a swimming jelly will be as it lands (its position plus its velocity times the flight, lead=1): keeping on in one direction walks into it; a jelly standing still is aimed at where it stands.',
+  setup() { startKettle(0); },
+  play() {
+    const player = holdJelly(), E = G().run.elites, B = theKettle().def.skills.ball;
+    player.velocity.set(0, 0, -0.3);                                // swimming along the counter (holdJelly keeps it there)
+    step(400, () => E.blobs.length > 0);
+    const b = E.blobs[0], want = player.position.clone().addScaledVector(player.velocity, B.lead * B.flight);
+    const ahead = +Math.hypot(b.to.x - want.x, b.to.z - want.z).toFixed(3), lead = +Math.hypot(b.to.x - player.position.x, b.to.z - player.position.z).toFixed(3);
+    return ok(ahead < 0.01 && lead > 0.15, { ahead, lead });
+  },
+});
 const firstDrop =() => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
 story('elites/kettle-drop-warning-has-volume', {
   about: "Each boiling drop's Warning is its orange floor circle with a half-sphere volume over it, filling together; both go when it lands.",
@@ -432,13 +467,13 @@ for (const [atk, name] of [[0, 'steam-ball'], [1, 'boil-over']]) {
 }
 
 story('elites/controller-overlapping-shapes-hit-once', {
-  about: 'Even four overlapping symbols subtract exactly 3 Health once; their harmless pulses cannot hurt again.',
+  about: 'Even four overlapping symbols going off one after another subtract exactly 3 Health once; their harmless pulses cannot hurt again.',
   setup() { startController(0,{hurt:true}); },
   play() {
     const {run}=G(), E=run.elites, e=E.list.find(e=>e.kind==='controller'), player=holdJelly(), hp=run.health;
     stub(e.def.skills,'barrage',{...e.def.skills.barrage,spread:0});
     step(400,()=>e.tele.length===8); player.position.copy(e.tele[1].position);
-    const hits=controllerHits(); step(120,()=>E.controllerPulses.length===4); e.cool=99; step(40);
+    const hits=controllerHits(); step(200,()=>e.state==='idle'); e.cool=99; step(40);
     return ok(hits.length===1 && run.health===hp-3 && !E.controllerPulses.length,{hits:hits.length,damage:hp-run.health});
   },
 });
@@ -453,7 +488,7 @@ story('phone/controller-shapes-on-low', {
       juice.calm=true; step(400,()=>e.tele.length===8 && e.stateT>.5);
       const visible=e.tele.length===8 && e.tele.every(m=>m.visible && m.material.progress>0 && m.material.opacity>.5);
       batcher.sync(); G().GAME.compile();
-      step(120,()=>run.elites.controllerPulses.length===4); e.cool=99;
+      step(200,()=>e.state==='idle'); e.cool=99;
       batcher.sync(); G().GAME.compile();
       return ok(visible && APT.renderer.info.programs.length===programs,{visible,newShaders:APT.renderer.info.programs.length-programs});
     } finally {juice.calm=calm;}

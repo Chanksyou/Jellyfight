@@ -1,0 +1,1 @@
+makes four Elite attacks play differently: the Controller's symbols go off one at a time in the order its buttons light, the Kettle's steam balls aim where you're heading, the Soap Dispenser's bubbles are foam columns you can't jump or duck (find the gap), and the Alligator's frost balls land one after another across the fan.
