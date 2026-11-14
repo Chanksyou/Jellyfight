@@ -471,6 +471,21 @@ treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each Le
 treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 20 s a far-off bug gets a gold target. Clear it for +0.25 Attack damage this run." stack=3 {
     bounty "bubble-damage" 0.25 every=20 far=0.4
 }
+// Megabonk-inspired (Chan, Nov 14): XP for distance, a fast glass cannon that bleeds, a tornado on attack
+treasure "pedometer" name="Pedometer" icon="👣" rarity="rare" text="Every 2 m you swim, it clicks over: +1 XP." {
+    distance-xp 1 every=2
+}
+treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="You lose 1 Health a second (never your last), but swim 25% faster, attack 50% faster and get +1 mid-air jump." {
+    health-drain 1 least=1
+    stat move-speed 25 percent=#true
+    stat fire-rate 50 percent=#true
+    extra-jumps 1
+}
+treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks sets off a mini tornado by the nearest bug: for 4 s it pulls bugs together and stings them a little." {
+    on-attack chance=0.1 {
+        whirl radius=0.12 time=4 pull=0.15 range=0.6 dmg=0.15 most=3
+    }
+}
 treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 bugs you clear rises as a glowing ghost for 8 s, slamming into other bugs." stack=2 {
     ghosts chance=0.1 time=8 dmg=0.6 speed=0.5 rest=0.5 most=5
 }

@@ -1076,3 +1076,73 @@ story('treasures/ghosts', {
     return ok(hits > 0 && gadgets.ghosts.length === 0, { hits, left: gadgets.ghosts.length });
   },
 });
+// --- Megabonk-inspired (Chan, Nov 14): Pedometer, Bloody Fangs, Pocket Vacuum
+story('treasures/distance-xp', {
+  about: 'distance-xp (Pedometer): every 2 m you swim gives 1 XP straight away, so 4.2 m back and forth gives 2; standing still gives none, and a jump of more than 20 cm in one frame (a room change) counts as 20 cm.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('pedometer'); },
+  play() {
+    const { run, player } = G(), x0 = player.position.x;
+    step(2);
+    const still0 = run.purse;
+    step(60);
+    const still = run.purse - still0, p0 = run.purse;
+    for (let i = 0; i < 42; i++) { player.position.x = x0 + (i % 2 ? 0 : 0.1); step(1); }
+    const swum = run.purse - p0, p1 = run.purse;
+    run.walked = 0; player.position.x += 5; step(1);
+    const jumped = run.purse - p1;
+    return ok(run.mods.distanceXp.xp === 1 && still === 0 && swum === 2 && jumped === 0, { still, swum, jumped, walked: run.walked });
+  },
+});
+story('treasures/health-drain', {
+  about: 'health-drain (Bloody Fangs): Health seeps away at 1 a second, but never below 1, and the Shield is left alone (a Tentacle jelly, which has one); it also gives +25% Move speed, +50% Fire rate and one more mid-air jump.',
+  setup() { setupFight({ types: 'tentacle', lash: false, bubbles: false }); },
+  play() {
+    const { run } = G(), was = { speed: run.S.moveSpeed, rate: run.S.fireRate, jumps: run.mods.extraJumps };
+    give('bloodyFangs'); run.health = 10;
+    step(1);
+    const h0 = run.health, shield0 = run.shield.hp;
+    step(120);
+    const lost = +(h0 - run.health).toFixed(2), shieldSame = shield0 > 0 && run.shield.hp === shield0;
+    run.health = 1.5; step(120);
+    const floor = run.health;
+    const S = run.S, ok1 = Math.abs(S.moveSpeed - was.speed * 1.25) < 1e-6 && Math.abs(S.fireRate - was.rate * 1.5) < 1e-6 && run.mods.extraJumps === was.jumps + 1;
+    return ok(Math.abs(lost - 2) < 0.05 && floor === 1 && shieldSame && ok1, { lost, floor, shieldSame, speed: S.moveSpeed, rate: S.fireRate, jumps: run.mods.extraJumps, was });
+  },
+});
+story('treasures/pocket-vacuum', {
+  about: 'on-attack + whirl dmg= (Pocket Vacuum): an attack that rolls under 1 in 10 sets off a tornado at the nearest bug; one that rolls over sets off none. It pulls a bug 10 cm off toward it, stings the bugs in it every 0.5 s, keeps to 3 at once and is gone after 4 s.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('pocketVacuum'); },
+  play() {
+    const { run } = G(), Gd = run.gadgets, log = record('damage_taken'), real = Math.random;
+    const a = roachAt(0, -0.2), b = roachAt(0.1, -0.2);
+    let none, one, capped;
+    try {
+      Math.random = () => 0.5; run.attacked(); none = Gd.whirls?.length || 0;
+      Math.random = () => 0.05; run.attacked(); one = Gd.whirls.length;
+      for (let i = 0; i < 5; i++) run.attacked();
+      capped = Gd.whirls.length;
+    } finally { Math.random = real; }
+    const d0 = b.pos.distanceTo(a.pos);
+    step(120);
+    const d1 = b.pos.distanceTo(a.pos), stung = new Set(dmgBy(log, 'whirl').map((d) => d.targetId)).size;
+    step(130);
+    const gone = Gd.whirls.length === 0;
+    return ok(none === 0 && one === 1 && capped === 3 && d1 < d0 - 0.01 && stung === 2 && gone, { none, one, capped, d0, d1, stung, gone });
+  },
+});
+story('treasures/on-attack', {
+  about: 'on-attack rolls once per attack for every jelly type: Normal\'s volley of bubbles, an Element shot (Fire) and a round of tentacle stings each roll it, a Tentacle round of 3 stings only once.',
+  setup() {},
+  play() {
+    const counts = {};
+    for (const type of ['normal', 'fire', 'tentacle']) {
+      setupFight({ types: type });
+      const { run } = G(), calls = spy(run, 'attacked'), strikes = spy(run.lash, 'strike');
+      for (let i = 0; i < 3; i++) roachAt(0.05 + i * 0.02, -0.04);
+      step(150);
+      counts[type] = { attacks: calls.length, stings: strikes.length };
+    }
+    const T = counts.tentacle;
+    return ok(counts.normal.attacks >= 2 && counts.fire.attacks >= 2 && T.attacks >= 2 && T.stings >= T.attacks * 2, counts);
+  },
+});

@@ -1,0 +1,1 @@
+adds three Megabonk-inspired Treasures: Pedometer (rare, +1 XP for every 2 m you swim), Bloody Fangs (Legendary, lose 1 Health a second but never your last, for +25% Move speed, +50% Fire rate and +1 mid-air jump) and Pocket Vacuum (epic, 1 in 10 attacks sets off a 4 s mini tornado by the nearest bug that pulls bugs together and stings them a little).
