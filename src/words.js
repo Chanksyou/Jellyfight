@@ -685,7 +685,7 @@ export function newMods() {
     landingShockwave: null, extraJumps: 0,
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
-    squeaks: [], onHurt: [], landHeal: null, spotlight: null, burstOnKill: null, cardRarity: 0,
+    squeaks: [], onHurt: [], onAttack: [], landHeal: null, spotlight: null, burstOnKill: null, cardRarity: 0,
     crumbs: null,                    // crumb-on-kill: { chance, health }
     leaves: [],                      // leave-on-kill: { chance, last, health, look, event } (run.js)
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
@@ -741,6 +741,8 @@ export function newMods() {
     bossLevels: 0,                   // boss-levels: Treasures that level up when an act's boss falls (run.js onBossDead)
     nightLight: null,                // night-light: { radius, most } (gadgets.js; while "lit")
     bounty: null,                    // bounty: { every, stat, amount, far } (gadgets.js marks, run.js onKill pays)
+    distanceXp: { xp: 0, every: 2 }, // distance-xp: XP for every `every` m swum (run.js)
+    drain: { dps: 0, least: 1 },     // health-drain: Health lost a second, never below least (run.js)
     ghosts: null,                    // ghosts: { chance, time, dmg, speed, rest, most } (gadgets.js)
   };
 }
@@ -961,10 +963,11 @@ export const TIMED_WORDS = {
   },
   // --- Wind's Attack upgrades (P8d)
   whirl: {
-    doc: 'A whirlwind `radius` m across rises at the nearest bug within `range` m of you and stays `time` s, pulling every bug in it toward its middle at `pull` m/s.',
-    props: { radius: 0.09, time: 1.6, pull: 0.12, range: 0.3 },
+    doc: 'A whirlwind `radius` m across rises at the nearest bug within `range` m of you and stays `time` s, pulling every bug in it toward its middle at `pull` m/s; with `dmg`, every 0.5 s each bug in it takes `dmg` times your power. `most`: at most that many at once (0: any number).',
+    props: { radius: 0.09, time: 1.6, pull: 0.12, range: 0.3, dmg: 0, most: 0 },
     make: (_, p) => {
       if (!(p.radius > 0 && p.time > 0 && p.pull > 0 && p.range > 0)) throw new Error('whirl: radius, time, pull and range must be above 0');
+      if (!(p.dmg >= 0 && Number.isInteger(p.most) && p.most >= 0)) throw new Error('whirl: dmg must be 0 or more and most a whole number, 0 or more');
       return { kind: 'whirl', ...p };
     },
   },
@@ -1060,6 +1063,33 @@ export const TREASURE_WORDS = {
   'extra-jumps': { doc: '`count` more jumps in mid-air.', args: ['count'], make: ([n]) => (m) => { m.extraJumps += n; } },
   'landing-shockwave': { doc: 'Landing from a drop of at least `drop` m sends out a ring of `radius` m that stings for `dmg` (none if 0) and, with `push` (m), blasts everything in it that far away from you in a gust.', args: ['radius'], props: { dmg: 2, drop: 0.04, push: 0 }, make: ([r], p) => (m) => { m.landingShockwave = { radius: r, ...p }; } },
   'squeak-when-hit': { doc: 'When you get hit, enemies within `radius` m are pushed back `push` m, take `dmg` (a flat number; 0 for none) and are Stunned for `stun` s (not Elites or the boss). Once every `cooldown` s. Several stack.', props: { radius: 0.09, push: 0.06, dmg: 3, stun: 0, cooldown: 5 }, make: (_, p) => (m) => { m.squeaks.push(p); } },
+  'on-attack': {
+    doc: 'Each attack you make (a volley of bubbles, an Element shot, a round of tentacle stings) has `chance` (0.1 = 1 in 10) to do the effects in its { block } (whirl, ring, zap…). Copies each roll.',
+    props: { chance: 0.1 },
+    block: TIMED_WORDS,
+    make: (_, p, where, effects) => {
+      if (!(p.chance > 0 && p.chance <= 1)) throw new Error('on-attack: chance must be above 0 and at most 1');
+      return (m) => { m.onAttack.push({ chance: p.chance, effects }); };
+    },
+  },
+  'distance-xp': {
+    doc: 'Every `every` m you swim (along the floor or in the air), you gain `xp` XP. Copies add their XP.',
+    args: ['xp'],
+    props: { every: 2 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.every > 0)) throw new Error('distance-xp: xp and every= must be above 0');
+      return (m) => { m.distanceXp.xp += n; m.distanceXp.every = p.every; };
+    },
+  },
+  'health-drain': {
+    doc: 'You lose `health` Health a second (not your Shield), but it never takes you below `least`. Copies add.',
+    args: ['health'],
+    props: { least: 1 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.least > 0)) throw new Error('health-drain: health and least= must be above 0');
+      return (m) => { m.drain.dps += n; m.drain.least = Math.max(m.drain.least, p.least); };
+    },
+  },
   'when-hit': {
     doc: 'When you get hit (not a dodge), does the effects in its { block } (ring, zap…), then waits `cooldown` s before it can again. `once-per-act=#true`: only the first time each act. `low-health` (a share of your max Health, 0.3 = 30%): only when you are at or under that. Copies each have their own.',
     props: { cooldown: 1, 'once-per-act': false, 'low-health': null },

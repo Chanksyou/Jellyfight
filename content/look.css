@@ -658,6 +658,8 @@
   --bleed: #ff2a4a;             /* bleeding (a mosquito's bite): the drops dripping off the jelly while it lasts, and its BLEED */
   --bleed-drip: 0.22;           /* seconds between drips with one bleed running (faster with more, up to 3x) */
   --bleed-drop: 0.16;           /* how big each drop is, x the jelly's radius */
+  --drain-drip: 0.4;            /* Bloody Fangs (health-drain): seconds between the red drops falling off the bell */
+  --pedometer: #7fe7ff;         /* Pedometer (distance-xp): the little "+1 XP" over the jelly as it clicks over */
 
   /* what each bug bursts into when it dies */
   --guts-roach: #4a2210 #8a4a1c #b27a40 #e8d070;

@@ -126,6 +126,7 @@ export class Lash {
     const X = sweep && { sweep: true, bleed: sweep.bleed };
     for (const e of targets) this.strike(origin, e, stats.tentacleDamage * (sweep?.dmg ?? 1), hits, X);
     this.onLash?.();
+    this.onAttack?.();   // on-attack (run.js): one roll for the whole round of stings
     return true;
   }
 

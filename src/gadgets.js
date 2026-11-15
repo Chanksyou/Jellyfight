@@ -732,12 +732,14 @@ export class Gadgets {
 
   // whirl (Cyclone): a whirlwind rises at the nearest bug within range and holds for its time, pulling every bug in it to
   // its middle. Nothing in range, nothing rises
-  whirl(ef, { center, pulse }) {
+  // (Pocket Vacuum's, an on-attack one, also stings with dmg= and keeps to most= at once)
+  whirl(ef, { center, pulse, power = 0 }) {
+    if (ef.most && (this.whirls?.length || 0) >= ef.most) return;
     const E = this.enemies, e = this.near(center, ef.range, { proxies: false })[0];
     if (!e) return;
     const at = E.center(e, _to).clone();
     at.y = e.pos.y;
-    (this.whirls ||= []).push({ at, r: ef.radius, t: ef.time, life: ef.time, pull: ef.pull, swirl: 0, streak: 0, turn: Math.random() * 6 });
+    (this.whirls ||= []).push({ at, r: ef.radius, t: ef.time, life: ef.time, pull: ef.pull, swirl: 0, streak: 0, turn: Math.random() * 6, dmg: (ef.dmg || 0) * power, sting: 0.5 });
     this.fx.ring(at.clone().setY(at.y + 0.003), 0xffffff, ef.radius, 0.35);
     this.fx.wind.swirl(at, ef.radius);
     sfx.windLaunch(); pulse?.(0.25);
@@ -758,7 +760,10 @@ export class Gadgets {
           W.streaks(_to, _cone, 1, 0.5, w.r * 0.8);
         }
       }
+      const sting = w.dmg > 0 && (w.sting -= dt) <= 0;   // dmg=: every 0.5 s each bug in it is stung
+      if (sting) w.sting += 0.5;
       for (const e of this.near(w.at, w.r, { proxies: false })) {
+        if (sting && !e.dead) bus.emit('damage_taken', { targetId: e.id, amount: w.dmg, color: '#dff4ff', source: 'whirl' });
         _cone.set(w.at.x - e.pos.x, 0, w.at.z - e.pos.z);
         const d = _cone.length();
         if (d > 0.006) bus.emit('knockback', { targetId: e.id, dir: _cone.divideScalar(d), force: Math.min(d - 0.004, w.pull * dt) });

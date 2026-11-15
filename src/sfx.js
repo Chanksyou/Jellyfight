@@ -315,6 +315,7 @@ export const sfx = {
   },
   dustSweep(){if(!ready()||!gap('dustSweep',90))return;const j=jitter(.1);noise(2200*j,.7,.16,.03,'bandpass',0,900);},   // Dustpan: a soft fff as a dust bunny is swept up
   snackChomp(){if(!ready()||!gap('snackChomp',120))return;const j=jitter(.08);noise(700*j,2,.06,.05,'lowpass');noise(900*j,2,.06,.04,'lowpass',.09);tone('triangle',240*j,160*j,.08,.02);},   // Leftover Meatball: two quick chomps
+  pedometerClick(){if(!ready()||!gap('pedometerClick',120))return;const j=jitter(.05);noise(4200*j,3,.02,.04,'bandpass');tone('square',1600*j,1200*j,.025,.018);tone('triangle',2200*j,2200*j,.06,.014,.04);},   // Pedometer: the counter clicks over
   goldCoin(){if(!ready()||!gap('goldCoin',90))return;const j=jitter(.03);tone('triangle',2637*j,2637*j,.09,.03);tone('triangle',3520*j,3520*j,.16,.022,.06);},   // Gold Ring: a coin clink
   swat(){if(!ready()||!gap('swat',120))return;const j=jitter(.08);noise(1600*j,.8,.05,.07,'bandpass',0,600);tone('triangle',180*j,70*j,.09,.05);noise(4000*j,1,.03,.03,'highpass',.01);},   // Fly Swatter: a flat thwack
   bombLob(){if(!ready()||!gap('bombLob',120))return;const j=jitter(.06);tone('sine',300*j,700*j,.14,.025);},   // Bath Bomb: thrown

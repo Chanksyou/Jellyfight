@@ -222,7 +222,7 @@ export class Bubbles {
     // one blow at a time: a faster fire rate = a faster stream
     if (!attack || attack.kind === 'bubble') this.timer += dt * stats.fireRate;
     if (this.timer >= 1) {
-      if (this.volley(origin, stats, mods)) this.timer -= 1;
+      if (this.volley(origin, stats, mods)) { this.timer -= 1; this.onAttack?.(); }   // on-attack (run.js)
       else this.timer = 1;            // ready, waiting for something in range
       this.timer = Math.min(this.timer, 1);
     }
@@ -245,6 +245,7 @@ export class Bubbles {
           if (progress >= 1) {
             charge.stop?.(); this.windCharge = null;
             if (this.elementVolley(id, P, origin, stats, mods)) {
+              this.onAttack?.();
               this.onWindRelease?.(); sfx.windLaunch(); juice.feel('hit');
               this.looks.windRelease(origin, stats.bubbleSize, this.list[this.list.length - 1]?.vel);
             } else t = 1;
@@ -254,7 +255,7 @@ export class Bubbles {
         // anticipation: energy gathers at the bell over the last fifth of its timer, while it has
         // something to shoot at (no added delay: the shot leaves when the timer would fire it anyway)
         if (t >= GATHER && this.inRange(origin, stats.range * P.range).length) this.looks.gather(id, origin, Math.min(1, (t - GATHER) / (1 - GATHER)), stats.bubbleSize);
-        if (t >= 1) t = this.elementVolley(id, P, origin, stats, mods) ? t - 1 : 1;
+        if (t >= 1) { if (this.elementVolley(id, P, origin, stats, mods)) { t -= 1; this.onAttack?.(); } else t = 1; }
       }
       this.elTimers[id] = Math.min(t, 1);
     }
