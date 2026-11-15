@@ -126,19 +126,27 @@ act2('soap-dispenser-stands-in', {
     return ok(e.hidden && !e.hidden.visible && e.name === 'The Soap Dispenser' && drained, { hidden: !!e.hidden, realShown: e.hidden?.visible, full: +full.toFixed(3), now: +e.model.liquid.scale.y.toFixed(3) });
   },
 });
-act2('soap-dispenser-squirt', {
-  about: 'Soap squirt: it pumps nine times, each glob lobbed onto a pink circle filling where you stand: a hit stings for 4 and leaves a slick that makes you slip.',
-  setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.cool = 0; e.next = 0; },
+act2('soap-bubble-trap', {
+  about: "Bubble trap: it pumps up a big bubble and lets it go; the bubble drifts after the jelly (slower than it swims) with a pink circle under it filling. One that reaches the jelly holds it and carries it toward the Dispenser, then pops on it: 4, and a slick that makes it slip. One that is shot pops harmlessly, and is something the jelly's attacks can aim at.",
+  setup() { startSoap(0); },
   play() {
-    const { run } = G(), log = record('damage_taken');
-    let circles = 0, slipped = false, slicks = 0;
-    step(60 * 3, () => {
-      circles = Math.max(circles, run.elites.blobs.length);
-      slicks = Math.max(slicks, run.elites.slicks.length);
-      if (run.slipT > 0) slipped = true;
-    });
-    const hits = log.filter((d) => d.source === 'soap');
-    return ok(circles >= 1 && hits.length >= 1 && hits[0].amount === 4 && slicks >= 1 && slipped, { circles, hits: hits.map((d) => d.amount), slicks, slipped });
+    const out = {};
+    for (const shoot of [false, true]) {
+      const e = startSoap(0), { run, enemies } = G(), player = holdJelly(), log = soapHits('soap'), T = e.def.skills.trap;
+      let trap = null, warned = false, held = false, slipped = false, pull = 0, aimed = false;
+      step(60 * 8, () => {
+        trap ||= run.elites.traps.find((B) => B.loose);
+        if (trap && !trap.held && trap.warn.parent && trap.warn.material.progress > 0) warned = true;
+        if (trap) aimed = aimed || enemies.list.includes(trap.entry);
+        if (shoot && trap && trap.loose && !trap.dead) enemies.applyDamage(trap.entry, 5);
+        if (trap?.held) { held = true; if (run.elites.pull) pull = Math.max(pull, run.elites.pull.length()); }
+        if (run.slipT > 0) slipped = true;
+        return trap?.gone && e.state === 'idle';
+      });
+      out[shoot ? 'shot' : 'caught'] = { warned, aimed, held, pull: +pull.toFixed(2), slipped, hits: log.map((d) => d.amount), left: run.elites.traps.length, entryDead: !!trap?.entry.dead };
+    }
+    const { caught: c, shot: s } = out;
+    return ok(c.warned && c.aimed && c.held && c.slipped && c.hits[0] === 4 && !c.left && c.entryDead && s.aimed && !s.held && !s.hits.length && s.entryDead, out);
   },
 });
 act2('soap-dispenser-bubble-ring', {
@@ -158,60 +166,22 @@ act2('soap-dispenser-bubble-ring', {
   },
 });
 act2('soap-dispenser-angry', {
-  about: 'Under its angry threshold the Soap Dispenser pumps ten times, each glob landing as a floor Blast, and lets go five bubble rings instead of three, of 16 foam columns each.',
+  about: 'Under its angry threshold the Soap Dispenser blows two bubble traps instead of one, and lets go five bubble rings instead of three, of 16 foam columns each.',
   setup() { fresh({ hurt: true }); besideSoap(); const e = soapElite(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
   play() {
     const { run } = G(), e = soapElite();
     holdJelly();   // counting its attacks: the globs' pushback can carry the jelly out of its reach
-    let globs = 0, domes = 0, bubbles = 0;
-    const lob = run.elites.lob.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
-    stub(run.elites, 'lob', (...a) => { globs++; if (a[7]?.dome) domes++; return lob(...a); });
+    let traps = 0, bubbles = 0;
+    const trap = run.elites.trapBubble.bind(run.elites), bub = run.elites.bubble.bind(run.elites);
+    stub(run.elites, 'trapBubble', (...a) => { traps++; return trap(...a); });
     stub(run.elites, 'bubble', (...a) => { bubbles++; return bub(...a); });
-    step(60 * 3, (i) => i > 10 && e.state === 'idle');          // the squirt attack, to its end
+    step(60 * 4, (i) => i > 10 && e.state === 'idle');          // the bubble traps, to their end
     e.cool = 0; e.next = 1;
     step(60 * 3, (i) => i > 10 && e.state === 'idle');          // then the bubble rings
-    return ok(globs === 10 && domes === 10 && bubbles === 80, { globs, domes, bubbles });
+    return ok(traps === 2 && bubbles === 80, { traps, bubbles });
   },
 });
-// --- 3D attacks: each soap glob lands as a floor Blast (a 4 cm half sphere over its pink circle),
-const firstGlob = () => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
 function soapHits(source = 'soap') { const s = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) s.push(d); })); return s; }
-act2('soap-squirt-warning-has-volume', {
-  about: "A soap glob's Warning is its pink floor circle with a half-sphere volume over it, filling together; both go when it lands.",
-  setup() { startSoap(0); },
-  play() {
-    const b = firstGlob(), to = b.to.clone();
-    holdJelly().position.x += 0.12;   // so the next globs land elsewhere
-    step(12);
-    const w1 = warningsAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
-    step(12);
-    const w2 = warningsAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
-    const dome = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
-    const domed = !!dome && dome.min.y > to.y - 0.005 && dome.max.y > to.y + 0.03 && dome.max.y < to.y + 0.05;   // a 4 cm half sphere
-    step(200, () => !G().run.elites.blobs.includes(b));
-    const w3 = warningsAt(to), gone = !w3.floor && !w3.volume;
-    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
-    return ok(filling && domed && gone, { p1, p2, domed, gone });
-  },
-});
-act2('soap-squirt-hits-standing-not-jumping', {
-  about: "A jelly standing where a soap glob lands is hit by its Blast (4 Health); one in the air just above its 4 cm half sphere isn't.",
-  setup() { startSoap(0); },
-  play() {
-    const { run } = G(), hits = soapHits(), b1 = firstGlob();
-    const player = holdJelly();
-    player.position.copy(b1.to); player.grounded = true;
-    step(200, () => !run.elites.blobs.includes(b1));
-    const standing = hits.length;
-    step(200, () => run.elites.blobs.some((b) => b !== b1));
-    const b2 = run.elites.blobs.find((b) => b !== b1);
-    step(200, () => b2.t > b2.T - 0.1);
-    player.position.set(b2.to.x, b2.to.y + 0.05, b2.to.z); player.grounded = false;   // feet 5 cm up: above a 4 cm dome
-    step(30, () => !run.elites.blobs.includes(b2));
-    const jumping = hits.length - standing;
-    return ok(standing === 1 && hits[0].amount === 4 && jumping === 0, { standing, jumping, amount: hits[0]?.amount });
-  },
-});
 // let a ring go, then put the jelly 20 cm out in the path of one of its bubbles, grounded or jumping
 function bubbleVsJelly(jump) {
   const { run } = G(), e = soapElite(), player = holdJelly(), hits = soapHits('soap-bubble');
@@ -243,22 +213,22 @@ act2('soap-bubble-ring-full-height', {
   },
 });
 act2('soap-attacks-build-no-shader', {
-  about: "Starting the Soap Dispenser's squirt and bubble ring builds no new shader: their Warnings (floor circles, the glob's volume) and bubbles were built behind Play.",
+  about: "Starting the Soap Dispenser's bubble trap and bubble ring builds no new shader: their Warnings (floor circles) and bubbles were built behind Play.",
   setup() { startSoap(0); },
   play() {
     const { APT, batcher, run } = G(), programs = APT.renderer.info.programs.length, e = soapElite();
-    const b = firstGlob(), to = b.to.clone();
-    step(5);
-    const w = warningsAt(to);
+    holdJelly();
+    step(400, () => run.elites.traps.some((B) => B.loose));
+    const shown = run.elites.traps.some((B) => B.warn.parent);
     batcher.sync(); G().GAME.compile();
-    step(200, () => e.state === 'idle');
+    step(600, () => e.state === 'idle' && !run.elites.traps.length);
     e.next = 1; e.cool = 0;
     step(400, () => e.state === 'windup' && e.tele.length > 0);   // the ring's Warning shown
     batcher.sync(); G().GAME.compile();
     step(400, () => run.elites.soapBubbles.length > 0);            // and its bubbles
     batcher.sync(); G().GAME.compile();
     const newShaders = APT.renderer.info.programs.length - programs;
-    return ok(w.floor && w.volume && newShaders === 0, { newShaders, volume: !!w.volume });
+    return ok(shown && newShaders === 0, { newShaders, shown });
   },
 });
 act2('one-on-one-soap-dispenser', {
@@ -352,20 +322,32 @@ act2('clock-wreath-boomerang', {
     return ok(warned && flew && hits[0] === 4 && e.model.wreath.visible && !run.elites.thrown.length, { warned, flew, hits, back: e.model.wreath.visible });
   },
 });
-act2('clock-strikes-the-hour', {
-  about: 'Under half health the clock also strikes the hour: six chimes, each a golden ring rolling out across the bench (2 if it rolls over you).',
-  setup() { fresh({ hurt: true, bubbles: false, lash: false }); onBench(); },
+// put the jelly on the bench 20 cm out from the clock, `hours` from twelve on its face (Telling the time)
+function onTheHour(e, player, bench, hours) {
+  const b = e.holder.rotation.y - hours * Math.PI / 6;
+  player.position.set(e.base.x + Math.sin(b) * 0.2, bench, e.base.z + Math.cos(b) * 0.2); player.grounded = true;
+}
+act2('clock-tells-the-time', {
+  about: 'Under its angry threshold the clock also tells the time: three times its hands snap to a time and a wedge Warning (a floor wedge with the cone over it) fills on the bench under each hand; on the chime both strike: 4 to a jelly in one, nothing to one standing between them. Its attacks then go round three ways.',
+  setup() { startClock(2, { angry: true }); },
   play() {
-    const { run } = G(), e = hallClock(), log = record('damage_taken');
-    e.hp = e.maxHp * 0.4;
-    step(90); e.state = 'idle'; e.clearTele(); e.cool = 0; e.next = 2;
-    let rings = 0;
-    const ring = run.elites.rings;
-    step(60 * 6, () => { rings = Math.max(rings, e.chimed + 1 || 0); return rings >= 6 && e.state === 'idle'; });
-    const hits = log.filter((d) => d.source === 'clock-chime');
-    // and its attacks now go round three ways
-    const order = [0, 1, 2, 3].map(() => e.next++ % (e.hp < e.maxHp * 0.5 ? 3 : 2));
-    return ok(rings === 6 && hits.length >= 1 && order.includes(2), { rings, hits: hits.length, order });
+    const { e, player, bench } = startClock(2, { angry: true }), log = record('damage_taken');
+    let round = null, rounds = 0, pointing = true, wedges = 0;
+    const plan = ['in', 'between', 'in'], perRound = [];
+    step(60 * 6, () => {
+      if (e.round != null && e.round >= 0 && e.round !== round) {
+        round = e.round; rounds++; perRound.push(log.filter((d) => d.source === 'clock-chime').length);
+        const [h, m] = e.hours, free = [-3, -2, -1, 0, 1, 2, 3].sort((x, y) => Math.min(Math.abs(y - h), Math.abs(y - m)) - Math.min(Math.abs(x - h), Math.abs(x - m)))[0];
+        onTheHour(e, player, bench, plan[round] === 'in' ? h : free);
+        wedges = Math.max(wedges, e.tele.filter((t) => t.material.shape === 'wedge' || t.material.kind === 'cone').length);
+      }
+      if (e.hours && e.stateT % 1 > 0.7) pointing = pointing && Math.abs(e.model.hourHand.rotation.z + e.hours[0] * Math.PI / 6) < 0.1;
+      return rounds && e.state === 'idle';
+    });
+    perRound.push(log.filter((d) => d.source === 'clock-chime').length);
+    const each = perRound.slice(1).map((n, i) => n - perRound[i]);
+    const order = [0, 1, 2, 3].map(() => e.next++ % (e.hp < e.maxHp * e.def.angry ? 3 : 2));
+    return ok(rounds === 3 && wedges === 4 && pointing && each.join() === '1,0,1' && log.find((d) => d.source === 'clock-chime')?.amount === 4 && order.includes(2), { rounds, wedges, pointing, each, order });
   },
 });
 act2('clock-beaten-hangs-again', {
@@ -462,45 +444,6 @@ act2('clock-wreath-hits-going-out-and-coming-back', {
     return ok(flew && out.length === 1 && back.length === 1 && hits.every((h) => h.amount === 4), { hits });
   },
 });
-act2('clock-chime-jumped-clear', {
-  about: "Each chime is a ring wall 3 cm high rolling out over the bench: a jelly standing in its path is hit (4), and so is one barely off the bench (feet 2 cm up); one in the air over it (feet 5 cm up) isn't hit by any of the six.",
-  setup() { startClock(2, { angry: true }); },
-  play() {
-    const out = {};
-    for (const [name, up] of [['standing', 0], ['hopping', 0.02], ['jumping', 0.05]]) {
-      const { e, player, bench } = startClock(2, { angry: true, x: 2.06, z: 7.5 }), hits = clockHits('clock-chime'), run = G().run;
-      if (up) { player.position.y = bench + up; player.grounded = false; }
-      const walls = [];
-      let warned = false;
-      step(60 * 4, () => {
-        const w = clockWarning(e);
-        if (w.floor.length && w.volume.length) warned = true;
-        for (const r of run.elites.rings) if (r.vol) { const b = new THREE.Box3().setFromObject(r.vol); walls.push(+(b.max.y - r.at.y).toFixed(3)); }
-        return e.chimed === -1 && e.state === 'idle' && !run.elites.rings.length;
-      });
-      out[name] = { warned, walls: walls.length, tall: walls.length ? Math.max(...walls) : null, hits: hits.map((h) => h.amount) };
-    }
-    const { standing: s, hopping: h, jumping: j } = out, low = (r) => r.walls > 0 && Math.abs(r.tall - 0.03) < 0.006, fours = (r) => r.hits.length >= 1 && r.hits.every((n) => n === 4);
-    return ok(s.warned && low(s) && fours(s) && fours(h) && low(j) && !j.hits.length, out);
-  },
-});
-for (const [atk, name] of [[0, 'sweep'], [1, 'wreath'], [2, 'chime']]) {
-  act2(`clock-${name}-builds-no-shader`, {
-    about: `Starting the Wall Clock's ${name} builds no new shader: its Warning's floor shape and volume (the wreath: its lines) were built behind Play.`,
-    setup() { startClock(atk, { angry: atk === 2 }); },
-    play() {
-      const { APT, batcher } = G(), e = hallClock(), programs = APT.renderer.info.programs.length;
-      step(200, () => clockWarning(e).floor.length);
-      step(5);
-      const w = clockWarning(e);
-      batcher.sync(); G().GAME.compile();
-      const newShaders = APT.renderer.info.programs.length - programs;
-      const shown = atk === 1 ? w.floor.length >= 2 : w.floor.length && w.volume.length;
-      return ok(!!shown && newShaders === 0, { newShaders, floor: w.floor.length, volume: w.volume.length });
-    },
-  });
-}
-
 act2('whipper-balloon-bursts-on-time', {
   about: 'The Cream Whipper blows a balloon up on its nozzle and lets it go; it drifts after you with its Warning (a floor circle) filling, and bursts 4 s after it\'s let go: 4, and all the sound goes deep.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; },
@@ -578,16 +521,15 @@ act2('whipper-angry-balloons', {
 // the jelly where it lands, the shake step, the harmless leftover splat, the layered sound
 const middle = (p) => p.clone().setY(p.y + CONFIG.player.height * 0.5);
 function caught(source) { const out = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === source) out.push(d); })); return out; }
-act2('feel-soap-squirt', {
-  about: 'A soap glob lands with weight: a flash at the nozzle as it leaves (the pump with its squirt and whoosh), a flash where it lands on the jelly, a small shake (hit), and the splat with its droplets.',
+act2('feel-soap-bubble-trap', {
+  about: 'A bubble trap lets go with a flash at the nozzle, a small shake (hit) and the bubbles sound; when it pops on a held jelly a flash goes off on it with the impact shake and a slick spreads under it; shot down, it bursts with suds and a pop.',
   setup() { startSoap(0); },
   play() {
     const { run } = G(), spy = feelSpy(), hits = caught('soap');
-    const b = firstGlob(), player = holdJelly();
-    player.position.copy(b.to); player.grounded = true;
-    step(200, () => !run.elites.blobs.includes(b));
-    const out = { hit: hits.length, release: spy.near(b.from, 0.01), landed: spy.near(b.to, 0.02), feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
-    return ok(out.hit === 1 && out.release && out.landed && out.feels.includes('hit') && ['soapPump', 'soapSplat'].every((k) => out.sounds.includes(k)), out);
+    holdJelly();
+    step(60 * 8, () => run.elites.traps.length === 0 && soapElite().state === 'idle' && hits.length);
+    const out = { hit: hits.length, release: spy.impacts.length > 0, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)], slicks: run.elites.slicks.length };
+    return ok(out.hit === 1 && out.release && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['soapPump', 'soapBubbles', 'bubblePop'].every((k) => out.sounds.includes(k)) && out.slicks >= 1, out);
   },
 });
 act2('feel-soap-bubble-ring', {
@@ -633,13 +575,14 @@ act2('feel-clock-wreath', {
   },
 });
 act2('feel-clock-hour', {
-  about: 'Each chime of the hour flashes at the clock with a small shake (hit); a ring wall that catches the jelly flashes on it, scuffs the bench, clangs and shakes (impact).',
+  about: 'Each chime of Telling the time flashes at the clock and at each wedge with a small shake (hit); a wedge that catches the jelly flashes on it, scuffs the bench, clangs and shakes (impact).',
   setup() { startClock(2, { angry: true }); },
   play() {
-    const { e, player } = startClock(2, { angry: true, x: 2.06, z: 7.5 }), run = G().run, spy = feelSpy(), hits = caught('clock-chime');
-    step(60 * 4, () => e.chimed === -1 && e.state === 'idle' && !run.elites.rings.length);
+    const { e, player, bench } = startClock(2, { angry: true }), spy = feelSpy(), hits = caught('clock-chime');
+    let round = null;
+    step(60 * 6, () => { if (e.round != null && e.round >= 0 && e.round !== round) { round = e.round; onTheHour(e, player, bench, e.hours[0]); } return round != null && e.state === 'idle'; });
     const out = { hits: hits.length, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
-    return ok(out.hits >= 1 && out.onJelly && out.splats >= 1 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['clockChime', 'clockStrike'].every((k) => out.sounds.includes(k)), out);
+    return ok(out.hits === 3 && out.onJelly && out.splats >= 1 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['clockChime', 'clockStrike'].every((k) => out.sounds.includes(k)), out);
   },
 });
 act2('feel-whipper-balloon', {
