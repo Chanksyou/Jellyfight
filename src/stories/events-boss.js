@@ -796,6 +796,31 @@ story('engine/music-renders-and-builds', {
   },
 });
 
+story('engine/act-4-song-holds-the-kick-back', {
+  about: 'Act 4\'s exploring song "Sunrise Set" (E minor, 128 BPM like the Encore recording) is a soundcheck: no kick until the fuller layer, then four on the floor; it renders, gets louder with intensity and answers the beat.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Music, SONGS } = await import('../music.js');
+    const kicks = async (I) => {
+      const ctx = new OfflineAudioContext(1, 16000 * 8, 16000), m = new Music(ctx, ctx.destination);
+      let n = 0, nowBeat = null;
+      const kick = m.kick; m.kick = function (...a) { n++; return kick.apply(this, a); };
+      m.play('sunrise', 0.05);
+      m.I = I;
+      m.schedule(8);
+      nowBeat = typeof m.beatNow();
+      const d = (await ctx.startRendering()).getChannelData(0);
+      let sum = 0;
+      for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+      return { n, rms: Math.sqrt(sum / d.length), beat: nowBeat };
+    };
+    const soft = await kicks(0.5), full = await kicks(0.9), bare = await kicks(0);
+    const S = SONGS.sunrise;
+    return ok(S?.bpm === 128 && S.name === 'Sunrise Set' && soft.n === 0 && bare.n === 0 && full.n >= 12 && bare.rms > 0.002 && full.rms > bare.rms * 1.5 && full.beat === 'number',
+      { bpm: S?.bpm, kicks: { bare: bare.n, soft: soft.n, full: full.n }, rms: [bare.rms, soft.rms, full.rms].map((x) => +x.toFixed(4)) });
+  },
+});
+
 story('engine/sound-comes-back-on-the-first-tap-after-an-act-change', {
   about: 'A phone reloading into the next act has lost the tap that allowed sound: the first tap after (a touchend, not the finger going down) turns sound and the act\'s music back on.',
   setup() { fresh({ elites: false }); },
