@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { buildAct4 } from '../act4-arena.js';
 import { EncoreFloor, EncoreSet, PATTERNS, FLOOR_DMG, FLOOR_STEP, tileX, tileZ } from '../encore-floor.js';
-import { STAGE4 } from '../stage4.js';
+import { ENCORE } from '../stage4.js';
 import { World } from '../collision.js';
 import { CONFIG } from '../config.js';
 import { Player } from '../player.js';
@@ -14,7 +14,7 @@ import { EncorePulses, PULSE, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
 import { story, ok, V } from './kit.js';
 
-const N = STAGE4.tiles, S = STAGE4.tileSize, BOSS = STAGE4.bossSpace;
+const N = ENCORE.tiles, S = ENCORE.tileSize, BOSS = ENCORE.bossSpace;
 const BPM = TRACKS.encore.bpm, DT = 1 / 60;   // the floor plays to the Encore's track
 function make() {
   const scene = new THREE.Scene(), arena = buildAct4(scene), world = new World(scene, { staticScene: true });

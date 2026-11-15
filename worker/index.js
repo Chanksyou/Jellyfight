@@ -158,10 +158,12 @@ async function top(db, me) {
 
 // What a real run can't do, from the run log (run_summaries). Generous: the best real runs so far
 // (Nov 2026) reached levels 14 / 17 / 20 / 20 by the end of acts 1-4 and took 260 s+ to clear acts 1-3.
-const LEVEL_CAP = [0, 18, 24, 28, 30];   // highest believable level at the end of each act
+// Act 4 now has a 3 minute night in the living room before its arena, so more levels come in it.
+const LEVEL_CAP = [0, 18, 24, 28, 32];   // highest believable level at the end of each act
 // the run's jelly type (content/jellies.kdl); a client from before jelly types sends none: Normal
 export const jellyOf = (v) => String(v ?? '').replace(/[^a-z]/g, '').slice(0, 16) || 'normal';
 const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back for 260 s
+const MIN_NIGHT_4 = 170;                 // seconds: act 4's stage door opens after its 180 s night, so its arena is reached no sooner
 const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
 const MAX_UPGRADES = 3;                  // a jelly type's Attack upgrades: one after each of acts 1-3's bosses
 // null when the run backs the score; 'pending' while its last act hasn't been logged yet; else 'unverified'
@@ -177,6 +179,7 @@ export function checkRun(acts, score, jelly = 'normal') {
     if (jellyOf(d.jelly) !== jellyOf(jelly)) return 'unverified';   // one jelly type the whole run
     if (a.level > (LEVEL_CAP[a.act] ?? 0)) return 'unverified';
     if (a !== last && a.act < 4 && a.time < MIN_ACT_TIME) return 'unverified';
+    if (a.act === 4 && (a.outcome === 'won' || a.boss_left != null) && a.time < MIN_NIGHT_4) return 'unverified';   // won or fought the Encore: through the night first
     let held = [];
     try { held = JSON.parse(a.treasures || '[]'); } catch {}
     if (held.some((t) => !(t?.[1] <= MAX_COPIES))) return 'unverified';
@@ -223,7 +226,7 @@ async function post(request, env) {
     if (r.key.startsWith('ip:') && now - r.at < PER_IP_MS) return json({ posted: false, why: 'slow' }, 429);
   }
   // the score must be the end of a run this player logged act by act, and that run must look playable
-  const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures, details FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
+  const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures, details, boss_left FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
     .bind(b.id, b.run).all()).results;
   const check = checkRun(acts, score, b.jelly);
   if (check) return json({ posted: false, why: check }, check === 'pending' ? 409 : 422);

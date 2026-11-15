@@ -9,7 +9,7 @@ import { start, openGame, ROOT } from '../tests/lib.mjs';
 
 const acts = process.argv.slice(2).map(Number).filter(Boolean);
 const g = await start();
-for (const act of acts.length ? acts : [1, 2, 3]) {
+for (const act of acts.length ? acts : [1, 2, 3, 4]) {
   const t0 = Date.now();
   const { page, errors } = await openGame(g, { viewport: { width: 640, height: 360 }, act: { act } });
   const out = await page.evaluate(async (act) => (await import('./tools/bake-ao-page.js')).bake(act), act);

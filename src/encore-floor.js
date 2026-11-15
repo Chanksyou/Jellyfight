@@ -15,12 +15,12 @@
 // speakers' beat; it never adds or removes a light, and redraws only the arena's tile colours.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
-import { STAGE4 } from './stage4.js';
+import { ENCORE } from './stage4.js';
 
-const N = STAGE4.tiles, S = STAGE4.tileSize, HALF = (N * S) / 2;
+const N = ENCORE.tiles, S = ENCORE.tileSize, HALF = (N * S) / 2;
 export const tileX = (col) => (col + 0.5) * S - HALF;
 export const tileZ = (row) => (row + 0.5) * S - HALF;
-const BOSS = STAGE4.bossSpace;
+const BOSS = ENCORE.bossSpace;
 // Health one hit takes (the owner's call: 3, lighter than the disco spots' and the stage edge's 4)
 export const FLOOR_DMG = 4;
 // beats between a wave's steps: a tile every third of a beat (8th-note triplets)

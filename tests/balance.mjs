@@ -34,13 +34,13 @@ try {
     limits: 'Scripted bots, no pathfinding or human reaction model; one RNG stream per act. A changed version can consume randomness differently.' });
   let first = true;
   for (const style of opts.styles) for (const seed of opts.seeds) for (const arm of arms) {
-    let carry = opts.act > 1 ? CARRY[opts.act] : null, act = opts.act;
+    let carry = opts.act > 1 ? CARRY[opts.act] : null, act = opts.act, scene = 1;
     const acts = [];
     while (true) {
       if (!first) {
         await page.close();
         opened = await openGame(env, { viewport: { width: 800, height: 500 }, seed,
-          ...(act > 1 && { act: { act, carry } }) });
+          ...(act > 1 && { act: { act, scene, carry } }) });
         page = opened.page;
       }
       first = false;
@@ -52,9 +52,11 @@ try {
       if (opened.errors.length) throw Error(opened.errors.join('\n'));
       acts.push(result);
       console.error(`seed ${seed} ${style} ${arm.arm}: act ${act} ${result.outcome}, level ${result.level}, Health ${result.health.toFixed(1)}`);
+      // through act 4's stage door: the same act's next scene, with the act carried over as it stood
+      if (result.outcome === 'next-scene') { if (!result.transition.carry || !(result.transition.scene > scene)) throw Error('Invalid scene transition'); carry = result.transition.carry; scene = result.transition.scene; continue; }
       if (result.outcome !== 'next-act') break;
       if (result.transition?.act !== act + 1 || !result.transition.carry) throw Error('Invalid act transition');
-      carry = result.transition.carry; act++;
+      carry = result.transition.carry; act++; scene = 1;
     }
     const last = acts.at(-1), total = key => acts.reduce((s, a) => s + a[key], 0);
     const row = { type: 'run', style, seed, arm: arm.arm, build: arm.build, outcome: last.outcome,

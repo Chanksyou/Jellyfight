@@ -65,11 +65,12 @@ const PAGES = [
   { key: 'portrait', opts: { viewport: { width: 960, height: 1000 } } },
   { key: 'act2', opts: { viewport: { width: 1100, height: 650 }, act: { act: 2, carry: CARRY } } },
   { key: 'act3', opts: { viewport: { width: 1100, height: 650 }, act: { act: 3, carry: CARRY3 } } },
-  { key: 'act4', opts: { viewport: { width: 1100, height: 650 }, act: { act: 4, carry: CARRY4 } } },
+  { key: 'act4', opts: { viewport: { width: 1100, height: 650 }, act: { act: 4, scene: 2, carry: CARRY4 } } },   // the arena, behind the stage door
+  { key: 'night4', opts: { viewport: { width: 1100, height: 650 }, act: { act: 4, carry: CARRY4 } } },           // act 4's night in the living room
   { key: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
   { key: 'phone3', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, act: { act: 3, carry: CARRY3 } } },
 ];
-const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : n.startsWith('act4/') ? 'act4' : 'act1');
+const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : n.startsWith('act4/') ? 'act4' : n.startsWith('night4/') ? 'night4' : 'act1');
 // Most of a full run is the game booting (a minute or more each: its shaders are built in software),
 // not the stories, so pages play side by side (--jobs=N, default 3, each in its own browser) and boot
 // two at a time (--boots=N): more at once starve each other's shader building past openGame's wait.
@@ -86,7 +87,7 @@ const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...
 // Start on the likely first page of this shard instead of booting act 1 on every runner.
 const first = shardArg ? PAGES[shardIndex % PAGES.length] : PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
 let listing = await boot(env, first.opts);
-const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? 'act' + s.act : 'act1']));
+const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1']));
 // one task per page (the page that listed the stories plays its own act's), then the two checks that need a page of their own
 const pageTask = (P, names) => async (e) => {
   let got = listing && P === first ? listing : await boot(e, P.opts);

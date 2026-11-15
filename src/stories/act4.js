@@ -1,7 +1,8 @@
-// Stories: act 4, the Encore's concert (stage4.js, act4-arena.js, encore.js). The run comes here
-// after beating the shark (tests/run.mjs opens these on an act-4 page with that run's carry). There
-// is no night: the fight starts straight away, and beating the Encore wins the run. Shared helpers
-// are in ./kit.js; src/stories.js imports this file in order.
+// Stories: act 4's arena, the Encore's concert (stage4.js ENCORE, act4-arena.js, encore.js): the
+// act's second scene, behind the living room's stage door (night4.js plays the room). tests/run.mjs
+// opens these on an act-4 page opened in the arena with the shark's run carried. There is no night
+// here: the fight starts straight away, and beating the Encore wins the run. Shared helpers are in
+// ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
 import { CONTENT } from '../content.js';
@@ -252,4 +253,24 @@ act4('every-attack-is-listed', {
   about: 'Every Encore attack the game has is on the attack list (kit.js EVERY_ATTACK), and nothing listed is missing from the game.',
   setup() { encoreFight(); },
   play() { return everyAttack(4); },
+});
+
+act4('through-the-stage-door-the-fight-starts-with-the-act-carried', {
+  about: 'Come through the living room\'s stage door, the arena picks the act up where the room left it: the act\'s clock, Health, kills and score go on (nothing lost or counted twice), then the Encore\'s fight starts straight away with no "Time\'s up!".',
+  setup() { fresh(); },
+  play() {
+    const { run, hud } = G(), toasts = [], was = run.carry, resumed = run.resumed;
+    stub(hud, 'toast', (t) => toasts.push(t));
+    // the room as it stood at the door (what run.throughStageDoor sends)
+    run.t = 186; run.health = 61; run.kills = 52;
+    const mid = { ...run.progress(), scene: 2, chests: [], treasureTimesLeft: [], bonusTreasureAt: [], recentTreasureSpots: [] }, score = run.score();
+    try {
+      run.carry = { ...was, mid }; run.resumed = false;
+      run.start();
+      const back = Math.abs(run.t - 186) < 0.01 && run.health === 61 && run.kills === 52 && run.score() === score;
+      step(150);
+      return ok(back && run.phase === 'boss' && run.boss?.constructor.name === 'Encore' && !toasts.some((t) => /Time's up/.test(t)),
+        { back, t: run.t, health: run.health, kills: run.kills, score: run.score(), was: score, phase: run.phase, toasts });
+    } finally { run.carry = was; run.resumed = resumed; }
+  },
 });

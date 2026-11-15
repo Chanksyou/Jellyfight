@@ -547,7 +547,10 @@ export function everyAttack(act) {
 // run as if the Clog was just beaten (tests/run.mjs)
 export const act3 = (name, s) => story('act3/' + name, { act: 3, ...s });
 // run as if the shark was just beaten: act 4, the Encore's concert arena (tests/run.mjs)
-export const act4 = (name, s) => story('act4/' + name, { act: 4, ...s });
+// act 4 in its arena, the scene behind the living room's stage door (tests/run.mjs plays these on an act 4 page opened there)
+export const act4 = (name, s) => story('act4/' + name, { act: 4, scene: 2, ...s });
+// act 4's night in the living room, its first scene
+export const night4 = (name, s) => story('night4/' + name, { act: 4, ...s });
 // the Encore (encore.js): an act with no night goes straight into its fight; `beat`: where its set starts
 // (guard: keep its opening force field, bosses.kdl start `guard`; most stories start past it)
 export const encoreFight = ({ beat = 0, guard = false, ...opts } = {}) => {

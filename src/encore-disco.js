@@ -9,10 +9,10 @@
 // spots are four unlit or lightly lit draws, the spots and beams instanced.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
-import { STAGE4 } from './stage4.js';
+import { ENCORE } from './stage4.js';
 import { sfx } from './sfx.js';
 
-const HALF = (STAGE4.tiles * STAGE4.tileSize) / 2, BOSS = STAGE4.bossSpace;
+const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2, BOSS = ENCORE.bossSpace;
 // Health a strike takes (heavy, as the floor waves); moves to content/bosses.kdl with the campaign
 export const DISCO_DMG = 5;
 export const DISCO = { first: 128, every: 32, length: 8, cycle: 4, move: 3, spots: 32 };

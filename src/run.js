@@ -243,8 +243,10 @@ export class Run {
     this.victory.cancel();
     this.driedOut.cancel();
     const s = this.stage;
-    // a later act reloaded part way through (keepProgress): it picks up where it was, once
-    const M = (!this.resumed && this.carry?.mid) || null;
+    // a later act reloaded part way through (keepProgress), or come through its stage door: it picks
+    // up where it was, once. Only in the scene it was kept in: a run kept in act 4 before it had a
+    // night (no scene) was in the arena, so its room starts the act afresh from the act's carry.
+    const mid = this.carry?.mid, M = (!this.resumed && mid && (mid.scene ?? (s.stageDoor ? 2 : 1)) === (s.scene || 1) && mid) || null;
     if (M) this.resumed = true;
     const beaten = new Set((M?.eliteLog || []).map(([kind]) => kind));
     this.duel = null;                 // dev: one on one with a single enemy (startDuel)
@@ -283,6 +285,7 @@ export class Run {
     this.fade.style.opacity = 0;
 
     this.phase = 'explore';
+    this.doorOpen = false;            // a two-scene act's stage door (openStageDoor)
     this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the run's opening tip is shown on its first frame
@@ -387,6 +390,7 @@ export class Run {
     this.player.spawn(start);
     this.player.snapToGround();
     this.tpc.endFight();
+    if (s.face != null) { this.player.facing = s.face; this.tpc.yaw = s.face + Math.PI; }   // a start that faces the room
     this.tpc.snapTo(this.player.position);
 
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
@@ -406,6 +410,7 @@ export class Run {
     this.adorn.update(0, this);       // reset evolution visuals even when the main menu pauses the run
     this.shield.update(0);            // a later act starts with its Shield full
     if (M) this.resumeAct(M);
+    this.logResumed = !!M;
     this.keepT = 1;
     if (devSession()) this.devRun();  // a tab with the dev tools unlocked never plays a run that counts
     this.refreshHud();
@@ -419,15 +424,19 @@ export class Run {
   keepProgress() {
     if (this.dev || !this.carry || this.duel || this.bossWon || !['explore', 'intro', 'boss'].includes(this.phase)) return;
     const { mid, ...C } = this.carry;
-    keepAct({ ...C, mid: {
-      now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
+    keepAct({ ...C, mid: this.progress() });
+  }
+  // where the act stands now (keepProgress, throughStageDoor), as resumeAct reads it back
+  progress() {
+    return {
+      scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
       treasureTimesLeft: this.treasureTimesLeft, bonusTreasureAt: [...this.bonusTreasureAt], recentTreasureSpots: this.recentTreasureSpots,
       chests: this.roomTreasures.filter((c) => c.active && c.opening === null)
         .map((c) => ({ at: c.pos.toArray(), facing: c.chest.rotation.y, stay: c.timed ? c.stay : null, left: c.timed ? c.left : null, slot: c.scheduledSlot })),
-    } });
+    };
   }
 
   resumeAct(M) {
@@ -518,7 +527,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
-    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun('started'); }
+    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun(this.logResumed ? 'in-progress' : 'started'); }   // an act picked up part way (a reload, a stage door) goes on
     if ((this.keepT -= dt) <= 0) { this.keepT = 1; this.keepProgress(); }
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
@@ -529,7 +538,7 @@ export class Run {
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
-    if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph') { this.touchAction = null; return; }
+    if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
@@ -591,7 +600,9 @@ export class Run {
       this.spawnWaves(dt);
       this.scheduleTreasures();
       this.updateRoomTreasures(dt);
-      if (this.t >= this.duration && this.phase === 'explore') this.startBossIntro();
+      // time's up: the boss comes, or in a two-scene act the stage door opens (and you go through it)
+      if (this.t >= this.duration && this.phase === 'explore') { if (this.stage.stageDoor) this.openStageDoor(); else this.startBossIntro(); }
+      if (this.doorOpen && !this.pendingLevels && this.atStageDoor(P.position)) this.throughStageDoor();
     }
     this.nightT -= dt;
     if (this.nightT <= 0) {
@@ -687,6 +698,7 @@ export class Run {
     if (this.hintT > 0) { this.hintT -= dt; this.hud.hint(this.hint); }   // a timed line (first-run.js) wins for its few seconds
     else if (tr.climb && !P.climbing && this.phase === 'explore') this.hud.hint(`Hold ${jumpKey} to climb the ${tr.climb.name.toLowerCase()}`);
     else if (P.flight) this.hud.hint(`Whoosh! Up to ${this.lastVent}`);
+    else if (this.doorOpen) this.hud.hint(this.stage.stageDoor.hint);
     else this.hud.hint(null);
 
     if (this.phase === 'intro') this.updateBossIntro(dt);
@@ -714,7 +726,8 @@ export class Run {
   }
 
   startBossFight(pick) {
-    if (pick.act !== this.stage.id) { goToAct(pick.act, null, { boss: pick.name }); return; }   // its arena is in another act
+    // its arena is in another act, or the other side of this act's stage door
+    if (pick.act !== this.stage.id || this.stage.stageDoor) { goToAct(pick.act, null, { boss: pick.name }, STAGES[pick.act - 1].stageDoor ? 2 : 1); return; }
     this.start();
     this.devRun();
     this.startBossIntro();
@@ -773,7 +786,7 @@ export class Run {
   // ------------------------------------------------------------ waves
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
-    if (this.devCalm) return;         // dev test kit: waves off
+    if (this.devCalm || !this.duration || this.doorOpen) return;   // dev test kit: waves off; none in an act with no night, nor once its stage door is open
     if (this.nestsAt != null && this.t >= this.nestsAt) { this.nestsAt = null; this.spawnNests(); }   // nests that come later in the night
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
@@ -1486,6 +1499,36 @@ export class Run {
     return { ok: true, y: sy };
   }
 
+  // ------------------------------------------------------------ stage door
+  // A two-scene act's night is over (stage.stageDoor: act 4): the bugs go, the XP comes to you, and
+  // the door opens; the act goes on through it (throughStageDoor)
+  openStageDoor() {
+    if (this.doorOpen) return;
+    this.doorOpen = true;
+    this.hud.toast(this.stage.stageDoor.opens, 2600);
+    for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
+    this.collectAll = true;
+  }
+  atStageDoor(p) {
+    const { min, max } = this.stage.stageDoor;
+    return p.x >= min[0] && p.x <= max[0] && p.y >= min[1] && p.y <= max[1] && p.z >= min[2] && p.z <= max[2];
+  }
+  // Through the door: the next scene loads (the same reload as an act change, stages.js), picking the
+  // act up as it stands here (progress(): Health, level, kills, the act's clock), with nothing of the
+  // room's (its chests and their times) and no pick, since no boss was beaten
+  throughStageDoor() {
+    const left = this.xpDrops.list.reduce((n, d) => n + d.value, 0);   // XP still on its way counts
+    this.xpDrops.clear();
+    if (left) { this.gainXp(left); if (this.pendingLevels) return; }   // its level-ups first, then the door
+    this.phase = 'door';
+    this.fade.style.opacity = 1;
+    this.flushFeats();                // the room's bugs into the lifetime totals (and its Pearls into the carry)
+    const to = this.stage.stageDoor.to, { mid, ...C } = this.carry || this.carryOver();
+    const carry = { ...C, mid: { ...this.progress(), scene: to.scene, chests: [], treasureTimesLeft: [], bonusTreasureAt: [], recentTreasureSpots: [] } };
+    if (!this.dev) keepRun(this.stage.id, carry, to.scene);
+    goToAct(this.stage.id, carry, { continue: true }, to.scene);
+  }
+
   // ------------------------------------------------------------ boss
   startBossIntro() {
     this.phase = 'intro';
@@ -1661,7 +1704,7 @@ export class Run {
       ['Elites beaten', this.elitesBeaten * 300],
       ['Levels', (this.level - 1) * 100],
       ['Treasures', treasures * 150],
-      ['Survival', Math.round(Math.min(this.t, this.duration) * 2)],
+      ['Survival', Math.round(Math.min(this.t, STAGES[this.stage.id - 1].duration) * 2)],   // the act's night (in act 4's arena, the room's)
       [`${this.stage.boss.name} damage`, Math.round(bossDamage * 1500)],
     ];
     if (this.bossWon) parts.push([`${this.stage.boss.name} beaten`, 3000 + Math.round(Math.max(0, 180 - (this.bossTime || 180)) * 20)]);
@@ -2026,7 +2069,8 @@ export class Run {
     // big: how long until the boss; small: the night's clock and who's coming
     const clock = `${hh === 0 ? 12 : hh}:${String(mm).padStart(2, '0')} AM`;
     const exploring = this.phase === 'explore';
-    h.setClock(exploring ? `Boss in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : clock, exploring && left <= 20);
+    const until = `${this.stage.stageDoor ? 'Stage door' : 'Boss'} in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    h.setClock(exploring ? (this.doorOpen ? 'Stage door open' : until) : clock, exploring && left <= 20 && !this.doorOpen);
     h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
   }
 
@@ -2035,6 +2079,7 @@ export class Run {
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) out.push({ kind: 'enemy', x: e.pos.x, y: e.pos.y, z: e.pos.z });
     if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) out.push({ kind: 'treasure', x: t.pos.x, y: t.pos.y, z: t.pos.z, color: '#ffc93a', big: true });
     if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ x: e.base.x, y: e.base.y, z: e.base.z, color: '#ff8a3a' });
+    if (this.doorOpen) { const { min, max } = this.stage.stageDoor; out.push({ x: (min[0] + max[0]) / 2, y: min[1], z: (min[2] + max[2]) / 2, color: '#9fd8ff', big: true }); }
     if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ x: p.x, y: p.y, z: p.z, color: '#ff4a4a', big: true }); }
     return out;
   }

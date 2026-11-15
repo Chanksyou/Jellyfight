@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 import { buildEncoreBoss } from './encore-model.js';
-import { STAGE4 } from './stage4.js';
+import { ENCORE } from './stage4.js';
 
 export function buildAct4(scene){
   const root=new THREE.Group();root.name='Act 4 concert arena';scene.add(root);
@@ -22,7 +22,7 @@ export function buildAct4(scene){
   const box=geo(new THREE.BoxGeometry(1,1,1)),rod=geo(new THREE.CylinderGeometry(1,1,1,5));
   const a=new THREE.Vector3(),b=new THREE.Vector3(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0);
   function bar(from,to,r,m){a.fromArray(from);b.fromArray(to).sub(a);q.setFromUnitVectors(up,b.clone().normalize());const e=new THREE.Euler().setFromQuaternion(q);put(rod,m,...a.addScaledVector(b,.5).toArray(),[r,b.length(),r],e.toArray().slice(0,3));}
-  const {tiles:n,tileSize:s}=STAGE4,span=n*s,half=span/2;
+  const {tiles:n,tileSize:s}=ENCORE,span=n*s,half=span/2;
   const floorMat=mat(new THREE.MeshStandardMaterial({color:LOOK.color('arena-floor','#202738'),roughness:LOOK.num('arena-floor-roughness',.34),metalness:.5}));
   const tileGeo=geo(new THREE.BoxGeometry(s-.0015,.006,s-.0015));
   const floor=new THREE.InstancedMesh(tileGeo,floorMat,n*n);floor.name='144 dark floor tiles';floor.userData.noCollide=true;root.add(floor);
