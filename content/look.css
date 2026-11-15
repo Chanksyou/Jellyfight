@@ -11,6 +11,8 @@
   --hostile-shark: #ff6548;
   --shark-dust: #d6c5a7;
   --shark-fish: #ffb15e;
+  --shark-illusion-opacity: 0.35;   /* the half-Health illusion (src/shark.js): how see-through it is */
+  --shark-illusion-glow: 0.18;      /* and its faint hostile glow, so it reads as a threat, not scenery */
   --shark-water: #304c51;
   --shark-pool-deep: #30281d;
   --shark-pool-shallow: #796644;

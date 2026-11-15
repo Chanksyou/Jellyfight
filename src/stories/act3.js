@@ -477,3 +477,37 @@ act3('fewer-regular-bugs', {
     } finally { stage.bugs = previous; }
   },
 });
+// The illusion (shark.js summon): at half Health a see-through copy that only attacks
+const illusionFight=(opts)=>{const B=sharkFight(opts),P=holdJelly();B.elapsed=-1e6;B.hp=B.maxHp*.49;step(60*4,()=>B.ghost.ready);return {B,P,I:B.ghost};};
+act3('shark-illusion-surfaces-at-half-health',{
+  about:'At half Health the shark summons its illusion once, on the far side of the jelly: clearly see-through, with no Health, and the shark itself stays solid.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly();B.elapsed=-1e6;step(30);const early=B.ghost.summoned;
+    B.hp=B.maxHp*.51;step(10);const above=B.ghost.summoned;B.hp=B.maxHp*.49;step(2);const I=B.ghost,at=I.position.clone();step(60*4,()=>I.ready);
+    const ghost=I.model.rig.mat,real=B.model.rig.mat,far=at.distanceTo(B.position)>P.position.distanceTo(B.position);
+    return ok(!early&&!above&&I.summoned&&I.ready&&I.holder.visible&&ghost.transparent&&ghost.opacity<.5&&!real.transparent&&ghost!==real&&I.hp===0&&far,{early,above,summoned:I.summoned,opacity:ghost.opacity,far,real:real.transparent});},
+});
+act3('shark-illusion-draws-no-aggro-and-takes-no-damage',{
+  about:'The illusion is not an enemy: nothing aims at it, hits pass through it, and it never shows on the boss bar.',setup(){},
+  play(){const {B,I}=illusionFight({hurt:false}),{enemies}=G(),bar=record('boss_health');step(30);
+    const listed=enemies.list.some(e=>e.proxy===I),bars=bar.filter(b=>b.hp===0).length,hp=B.hp;
+    return ok(!listed&&enemies.list.some(e=>e.proxy===B)&&bars===0&&bar.length>0&&B.hp===hp,{listed,bars});},
+});
+act3('shark-illusion-bites-for-the-same-damage',{
+  about:'The illusion uses the shark\'s own attacks for the same damage, and the Prey and frenzy its bite earns are its own, not the shark\'s.',setup(){},
+  play(){const {B,P,I}=illusionFight(),{run}=G();B.position.set(I.position.x+.5,B.position.y,I.position.z);I.recover();I.elapsed=-1e6;
+    P.position.copy(I.position).add(V(0,0,.15));I.begin('bite',P);P.position.copy(I.warning.at);run.iFrames=0;const hits=record('damage_taken');
+    step(120,()=>hits.some(h=>h.from==='shark-bite'));const bite=hits.find(h=>h.from==='shark-bite'),want=B.def.skills.bite.dmg;
+    return ok(bite&&Math.abs(bite.amount-want)<1e-6&&I.prey>0&&I.frenzy>0&&!B.prey&&!B.frenzy,{amount:bite?.amount,want,ghostPrey:I.prey,realPrey:B.prey});},
+});
+act3('shark-illusion-attacks-out-of-step',{
+  about:'The illusion picks its own attacks, with a longer rest, so it and the shark do not strike in lockstep.',setup(){},
+  play(){const {B,I}=illusionFight({hurt:false}),starts=[[],[]];B.elapsed=0;let was=['rest','rest'];
+    step(60*20,()=>{[B,I].forEach((s,k)=>{if(s.phase==='windup'&&was[k]==='rest')starts[k].push(s.state);was[k]=s.phase;});});
+    const same=starts[0].slice(0,3).join()===starts[1].slice(0,3).join();
+    return ok(starts[0].length>=2&&starts[1].length>=2&&!same,{shark:starts[0],illusion:starts[1]});},
+});
+act3('shark-illusion-goes-when-the-shark-is-beaten',{
+  about:'Beating the shark takes its illusion and every hazard it left with it.',setup(){},
+  play(){const {B,I}=illusionFight({hurt:false});I.pool(I.position);B.damage(B.hp+1);step(2);
+    return ok(I.dead&&!I.holder.visible&&!I.pools.length&&!I.warning,{dead:I.dead,pools:I.pools.length});},
+});
