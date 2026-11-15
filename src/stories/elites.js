@@ -17,6 +17,7 @@ for (const kind of ['controller', 'mug', 'kettle']) {
     play() {
       const { run, enemies, menus } = G();
       const e = run.elites.list.find((x) => x.kind === kind), hp0 = e.hp;
+      holdJelly();   // stays put (the Mug's spill would wash it along the desk)
       step(600, () => { if (menus.open) menus.close(); });
       const dmg = Math.round(hp0 - e.hp);
       return ok(enemies.list.includes(e.entry) && dmg > 60, { dmg });
@@ -25,7 +26,7 @@ for (const kind of ['controller', 'mug', 'kettle']) {
   for (const atk of [0, 1]) {
     const when = { controller: [0.45, 0.8], mug: [0.6, 0.6], kettle: [1.6, 0.6] }[kind][atk];
     const at = { controller: [[1.62, 0.61, 4.47], [1.55, 0.61, 4.45]], mug: [[0.62, 0.78, 2.95], [0.62, 0.78, 3.0]], kettle: [[4.5, 0.91, 3.45], [4.5, 0.91, 3.45]] }[kind][atk];
-    const name = { controller: ['barrage', 'rumble'], mug: ['lob', 'spill'], kettle: ['steam-ball', 'boil-over'] }[kind][atk];
+    const name = { controller: ['barrage', 'rumble'], mug: ['lob', 'spill'], kettle: ['steam-ball', 'boil-dry'] }[kind][atk];
     story(`elites/${kind}-${name}`, {
       about: `The ${kind}'s ${name} attack shows its warning on the ground before it lands.`,
       setup() { fresh({ bubbles: false, lash: false }); tp(at[0], at[1] + 0.05, at[2], 0); const e = G().run.elites.list.find((x) => x.kind === kind); e.next = atk; e.cool = 0; },
@@ -411,54 +412,46 @@ story('elites/kettle-steam-ball-leads-a-moving-jelly', {
     return ok(ahead < 0.01 && lead > 0.15, { ahead, lead });
   },
 });
-const firstDrop =() => { step(400, () => G().run.elites.blobs.length > 0); return G().run.elites.blobs[0]; };
-story('elites/kettle-drop-warning-has-volume', {
-  about: "Each boiling drop's Warning is its orange floor circle with a half-sphere volume over it, filling together; both go when it lands.",
+// the Kettle's Boil dry: its lid lands away from you, a white circle round it; the steam then covers
+// its reach round the Kettle except that circle
+function boilDry(where) {
+  const e = theKettle(), player = holdJelly(), hits = kettleHits(), D = e.def.skills.boil;
+  let safe = null, filling = false, p0 = null;
+  step(400, () => {
+    if (!safe && e.lidFly?.landed) {
+      safe = e.lidFly.at.clone();
+      const T = e.tele.find((m) => m.material.uniforms?.uColor && m.position.distanceTo(e.base) < 0.01);
+      p0 = T?.material.progress;
+      if (where === 'lid') player.position.copy(safe);
+      if (where === 'out') player.position.set(e.base.x, e.base.y, e.base.z + D.reach + 0.08);
+    }
+    if (safe && p0 != null && !filling) { const T = e.tele.find((m) => m.position.distanceTo(e.base) < 0.01); filling = !!T && T.material.progress > p0; }
+    return e.state === 'idle' && safe;
+  });
+  return { safe, hits: hits.map((h) => h.amount), filling, away: safe ? +Math.hypot(safe.x - player.position.x, safe.z - player.position.z).toFixed(2) : null };
+}
+story('elites/kettle-boil-dry', {
+  about: "Boil dry: the lid pops off and lands on the stove at least away= from the jelly, a white circle round it; an orange circle with a dome over it fills round the Kettle; then steam covers all its reach: 3 to a jelly that stayed in it, nothing to one on the lid's circle or out of reach. The lid goes back on after.",
   setup() { startKettle(1); },
   play() {
-    const b = firstDrop(), to = b.to.clone();
-    step(20);
-    const w1 = warningsAt(to), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
-    step(20);
-    const w2 = warningsAt(to), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
-    const dome = w1.volume ? new THREE.Box3().setFromObject(w1.volume) : null;
-    const domed = !!dome && dome.min.y > to.y - 0.005 && dome.max.y > to.y + 0.025 && dome.max.y < to.y + 0.045;   // a 3.5 cm half sphere
-    step(200, () => !G().run.elites.blobs.includes(b));
-    const w3 = warningsAt(to), gone = !w3.floor && !w3.volume;
-    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
-    return ok(filling && domed && gone, { p1, p2, domed, gone });
+    const out = {};
+    for (const where of ['stay', 'lid', 'out']) {
+      startKettle(1);
+      const P0 = G().player.position.clone(), r = boilDry(where), e = theKettle();
+      out[where] = { ...r, farFromStart: r.safe ? +Math.hypot(r.safe.x - P0.x, r.safe.z - P0.z).toFixed(2) : null, lidBack: e.model.lid.visible };
+    }
+    const D = theKettle().def.skills.boil, { stay, lid, out: o } = out;
+    return ok(stay.hits[0] === 3 && stay.farFromStart >= D.away - 0.01 && stay.filling && !lid.hits.length && !o.hits.length && stay.lidBack, out);
   },
 });
-story('elites/kettle-drop-hits-standing-jelly', {
-  about: 'A jelly standing in a boiling drop\'s circle is hit by its Blast (3 Health).',
-  setup() { startKettle(1); },
-  play() {
-    const hits = kettleHits(), b = firstDrop();
-    holdJelly().position.copy(b.to);
-    step(200, () => !G().run.elites.blobs.includes(b));
-    return ok(hits.length >= 1 && hits[0].amount === 3, { hits: hits.map((h) => h.amount) });
-  },
-});
-story('elites/kettle-drop-jumped-clear', {
-  about: "A jelly in the air just above a boiling drop's 3.5 cm Blast when it lands is not hit.",
-  setup() { startKettle(1); },
-  play() {
-    const hits = kettleHits(), b = firstDrop();
-    const player = holdJelly();
-    player.position.set(b.to.x, b.to.y + 0.045, b.to.z); player.grounded = false;   // feet 4.5 cm up: above a 3.5 cm dome
-    step(200, () => !G().run.elites.blobs.includes(b));
-    const landed = !G().run.elites.blobs.includes(b);
-    return ok(landed && hits.length === 0, { landed, hits: hits.length });
-  },
-});
-for (const [atk, name] of [[0, 'steam-ball'], [1, 'boil-over']]) {
+for (const [atk, name] of [[0, 'steam-ball'], [1, 'boil-dry']]) {
   story(`elites/kettle-${name}-builds-no-shader`, {
     about: `Starting the Kettle's ${name} builds no new shader: its Warning's floor shape and volume were built behind Play.`,
     setup() { startKettle(atk); },
     play() {
       const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
       let shown;
-      const b = atk === 0 ? firstBall() : firstDrop(); step(5); shown = warningsAt(b.to);
+      if (atk === 0) { const b = firstBall(); step(5); shown = warningsAt(b.to); } else { const e = theKettle(); step(400, () => e.lidFly && e.tele.length >= 2); step(5); shown = warningsAt(e.base); }
       batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown.floor && shown.volume && newShaders === 0, { newShaders, volume: !!shown.volume });
@@ -553,17 +546,41 @@ story('elites/kettle-steam-ball-feel', {
       { charge: n.kettleCharge.length, shaking, released, hits: hits.length, feels: [...new Set(feels)], gusts: n.kettleGust.length, wet });
   },
 });
-story('elites/kettle-boil-over-feel', {
-  about: 'The lid pops on one frame (a flash at the lid, the Kettle kicking, a clank and burble); a boiling drop landing on the jelly plops and sizzles and shakes the screen (feel impact), and each drop leaves a harmless wet mark that fades.',
+story('elites/kettle-boil-dry-feel', {
+  about: 'The lid pops on one frame (a flash at the lid, the Kettle kicking, a clank and burble) and clatters down; the steam goes off with a big shake (feel impact-big), a gust on a caught jelly, and puffs all over its reach.',
   setup() { startKettle(1); },
   play() {
-    const { fx } = G(), e = theKettle(), hits = kettleHits();
-    const { feels, n } = feelVoices('kettlePop', 'kettleDrop');
-    const b = firstDrop(), released = e.kick > 0.5 && n.kettlePop.length === 1;
-    holdJelly().position.copy(b.to);
-    step(200, () => !G().run.elites.blobs.includes(b));
-    const wet = fx.splats.some((s) => s.alive);
-    return ok(released && hits.length >= 1 && n.kettleDrop.includes(true) && feels.includes('impact') && wet, { released, hits: hits.length, drops: n.kettleDrop, feels: [...new Set(feels)], wet });
+    const e = theKettle(), hits = kettleHits();
+    const { feels, n } = feelVoices('kettlePop', 'kettleDrop', 'kettleGust');
+    holdJelly();
+    step(400, () => n.kettlePop.length);
+    const released = e.kick > 0.5 && !!e.lidFly;
+    step(400, () => e.state === 'idle');
+    return ok(released && n.kettleDrop.length === 1 && hits.length === 1 && n.kettleGust.includes(true) && feels.includes('impact-big'), { released, hits: hits.length, gusts: n.kettleGust, feels: [...new Set(feels)] });
+  },
+});
+
+story('elites/mug-spill-washes-you-along', {
+  about: "Spill: a lane Warning (a strip with the box over it) fills along the line while the Mug tips; the wave poured down it scalds a jelly on the line (3) and washes it along toward the line's end; one beside the line is not touched.",
+  setup() { fresh({ bubbles: false, lash: false }); tp(0.62, 0.83, 3.0, 0); },
+  play() {
+    const out = {};
+    for (const side of [0, 0.1]) {
+      fresh({ bubbles: false, lash: false }); tp(0.35, 0.83, 2.85, 0);
+      const { run, player } = G(), e = run.elites.list.find((x) => x.kind === 'mug'), log = record('damage_taken');
+      e.next = 1; e.cool = 0;
+      let lane = false, dir = null, start = null, pushed = 0;
+      step(400, () => {
+        if (!lane && e.tele.some((m) => m.material.kind === 'lane')) {
+          lane = true; dir = e.spillDir.clone(); player.position.addScaledVector(V(dir.z, 0, -dir.x), side); start = player.position.clone();
+        }
+        if (run.elites.pull) pushed = Math.max(pushed, run.elites.pull.dot(dir));
+        return e.state === 'idle' && lane;
+      });
+      out[side ? 'beside' : 'on'] = { lane, hits: log.filter((d) => d.source === 'mug').map((d) => d.amount), pushed: +pushed.toFixed(2), moved: start ? +player.position.clone().sub(start).dot(dir).toFixed(2) : null };
+    }
+    const { on, beside } = out;
+    return ok(on.lane && on.hits[0] === 3 && on.pushed > 0.5 && on.moved > 0.1 && !beside.hits.length, out);
   },
 });
 

@@ -420,15 +420,15 @@ const atClog = (a) => () => {
 export const EVERY_ATTACK = {
   1: {
     controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) } },
-    mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'hazard' } },
-    kettle: { 'steam-ball': { is: 'volume', start: held(() => startKettle(0)) }, 'boil-over': { is: 'volume', start: held(() => startKettle(1)) } },
+    mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'volume', start: held(() => { startCoffeeLob(); G().run.elites.list.find((x) => x.kind === 'mug').next = 1; }) } },
+    kettle: { 'steam-ball': { is: 'volume', start: held(() => startKettle(0)) }, 'boil-dry': { is: 'volume', start: held(() => startKettle(1)) } },
     vacuum: {
       charge: { is: 'volume', start: atVacuum('charge') }, brushes: { is: 'sweep', start: atVacuum('brushes') }, spin: { is: 'shot', start: atVacuum('spin') },
       suction: { is: 'hazard' }, flies: { is: 'none' }, dump: { is: 'none' },
     },
   },
   2: {
-    soap: { squirt: { is: 'volume', start: held(() => startSoap(0)) }, 'bubble-ring': { is: 'shot', start: held(() => startSoap(1)) } },
+    soap: { 'bubble-trap': { is: 'floor', start: held(() => startSoap(0)), during: () => G().run.elites.traps.some((b) => b.loose && !b.dead), end: () => { const E = G().run.elites, soap = E.list.find((x) => x.kind === 'soap'); soap.cool = 1e9; step(60 * 4, () => soap.state === 'idle'); soap.cool = 1e9; for (const B of E.traps) B.dead = true; step(60 * 6, () => !E.traps.length && !E.slicks.length); } }, 'bubble-ring': { is: 'shot', start: held(() => startSoap(1)) } },
     clock: { sweep: { is: 'volume', start: () => startClock(0) }, wreath: { is: 'shot', start: () => startClock(1) }, hour: { is: 'volume', start: () => startClock(2, { angry: true }) } },
     whipper: { balloon: { is: 'floor', start: held(startBalloon) }, cream: { is: 'volume', start: held(startSpray) } },
     clog: {
@@ -528,7 +528,7 @@ function checkAttack(who, name, a) {
   step(60 * 6, () => !els.blobs.length && !els.steams.length && !els.balloons.length && !els.rings.length && !shotsFlying());
   step(20);
   const w = shownWarnings();
-  r.gone = !w.floor.length && !w.volume.length;
+  r.gone = !w.floor.length && !w.volume.length; if (!r.gone) r.left = w.floor.map((o) => [o.material.kind, o.material.progress, o.position.toArray().map((v) => +v.toFixed(2))]);
   return r;
 }
 export function everyAttack(act) {

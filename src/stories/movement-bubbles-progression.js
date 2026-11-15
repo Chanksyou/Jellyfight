@@ -268,12 +268,12 @@ story('content/levelup-and-elite-tuning', {
       bubbles: L.cards.bubbles.weight, bubbleSize: L.cards.bubbleSize.weight, pace: E.pace,
       aggro: ['controller', 'mug', 'kettle', 'soap', 'whipper'].map((id) => E[id].aggro),
       mug: [E.mug.skills.spill.puddles, E.mug.skills.coffee.lobs, E.mug.skills.coffee.drain],
-      soap: [E.soap.skills.squirt.count, E.soap.skills.squirt.angryCount, E.soap.skills.ring.rings, E.soap.skills.ring.angryRings],
+      soap: [E.soap.skills.trap.count, E.soap.skills.trap.angryCount, E.soap.skills.ring.rings, E.soap.skills.ring.angryRings],
     };
     const expected = {
       xp: { base: 4, growth: 1.35 }, rarities: { common: 65, rare: 25, epic: 10 },
       cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.1, 0.2, 0.3], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
-      bubbles: 0, bubbleSize: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [9, 10, 3, 5],
+      bubbles: 0, bubbleSize: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [1, 2, 3, 5],
     };
     return ok(JSON.stringify(actual) === JSON.stringify(expected), { actual });
   },

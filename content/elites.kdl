@@ -17,23 +17,23 @@ elite "controller" name="The Controller" icon="🎮" hp=250 aggro=1.1 {
 
 elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
     coffee dmg=3 lobs=5 drain=3
-    spill puddles=7
+    spill dmg=3 puddles=7 width=0.08 height=0.06 carry=0.4 push=0.7   // a lane wave (m); caught, washed along at push= m/s for carry= s
 }
 
 elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
     ball dmg=3 shots=3 every=0.4 lead=1 gusts=3 gap=0.15 charge=1.4 flight=0.6 radius=0.06   // charge is in tempo time (1.4 is 1 s at tempo 1.4); every, flight and gap are real s; lead: each ball aims where you'll be as it lands (1: all the way, 0: where you are)
-    boil dmg=3 drops=6
+    boil dmg=3 reach=0.5 safe=0.08 away=0.2 flight=0.6 fill=1.6   // lid lands at least away= m from you, a safe circle of safe= m round it; steam over reach= m round the Kettle once fill= tempo s are up
 }
 
 elite "soap" name="The Soap Dispenser" icon="🧼" hp=500 aggro=1.2 angry=0.75 {
-    squirt dmg=4 count=9 angryCount=10
+    trap dmg=4 count=1 angryCount=2 radius=0.04 hp=20 speed=0.15 life=6 hold=1.4 carry=0.1   // big bubbles drifting after you at speed= m/s; hp= to pop; caught, held hold= s, carried carry= m/s toward it
     ring dmg=3 rings=3 angryRings=5
 }
 
 elite "clock" name="The Wall Clock" icon="🕰️" hp=450 aggro=0.75 angry=0.65 {
     sweep dmg=4
     wreath dmg=4
-    hour dmg=4 chimes=6
+    hour dmg=4 rounds=3 warn=1.0   // Telling the time: rounds= times its hands point at the bench, a wedge under each, striking after warn= tempo s
 }
 
 elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.65 {

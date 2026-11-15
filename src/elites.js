@@ -10,25 +10,27 @@
 //                     you back off the console if you're inside.
 //   mug         on the standing desk.
 //     Coffee lob:     a brown circle fills where you stand; hot coffee lands there and scalds.
-//     Spill:          it tips toward you and a brown arrow shows the line; then it pours a
-//                     wave of scalding puddles along it.
+//     Spill:          it tips toward you while a lane fills along the line; then it pours a wave
+//                     down it: caught, you're scalded and washed along it, and scalding puddles
+//                     stay on the line.
 //   kettle      on the stove.
 //     Steam balls:    it shakes, whistles and swells while a ball of steam boils up at its
 //                     spout (nothing on the counter yet), then fires three in a row, each at where
 //                     you'll be as it lands if you keep going (change direction); only then does each one's orange circle and half dome
 //                     show, filling while it flies, and it bursts there in gusts of steam: keep moving.
-//     Boil over:      the lid pops and orange circles fill around you; boiling drops land in
-//                     each one.
+//     Boil dry:       the lid pops off and lands on the stove away from you with a white circle
+//                     round it; an orange circle and dome fill round the Kettle, then steam rolls over
+//                     all of it except the lid's circle: get to the lid, or out of reach.
 //   soap        on the bathroom vanity (act 2): the glass soap dispenser by the tap. The pink soap
 //               inside drains as it's hurt (its level is its health).
-//     Soap squirt:    it pumps nine times; each squirt lobs a glob of soap onto a pink circle
-//                     (and a half sphere over it) filling where you stand. It lands as a floor
-//                     Blast (jump it), and leaves a slick: soap underfoot takes away your grip,
-//                     so you slide.
+//     Bubble trap:    it pumps up a big soap bubble and lets it go; it drifts after you (slower
+//                     than you swim) with a pink circle under it. Shoot it and it pops. One that
+//                     reaches you closes round you, carries you toward the Dispenser and pops:
+//                     hurt, and a slick underfoot (soap takes away your grip, so you slide).
 //     Bubble ring:    it foams up while a pink ring fills around it, then lets go rings of foam
 //                     columns drifting outward, each too tall to jump or duck, with one gap to
 //                     slip through.
-//     Under its angry threshold: quicker, ten squirts, and five rings, each gap somewhere else.
+//     Under its angry threshold: two bubble traps, quicker, and five rings, each gap somewhere else.
 //   clock       the ornate wall clock over the hallway's cubby bench (act 2; clock-model.js). It
 //               hangs on the wall; when you come onto the bench it slides down the wall to fight
 //               you there (its bearded mask is its face and the place to hit), and goes back up
@@ -40,8 +42,8 @@
 //                     she'll throw it and a second line from her hand shows the height (the
 //                     jelly's middle, mid-jump included; both lock halfway); then it's a Shot out
 //                     along that line and back: be above, below or beside it.
-//     Striking the hour (under half health): it chimes three times, each chime a golden ring wall
-//                     (3 cm) rolling out across the bench: jump each one.
+//     Telling the time (angry only): three times its hands snap to a time, and a wedge fills on
+//                     the bench under each hand; on the chime both strike: stand between them.
 //   whipper     the cream whipper and its N2O cylinder on the hall floor by the front door (act 2;
 //               whipper-model.js). The cylinder has the face; the gauges' needles swing as it works.
 //     Balloon:        it blows a balloon up on its nozzle (a hiss, the gauges climbing), lets it go,
@@ -120,8 +122,8 @@ import { buildCoffer, COFFER } from './coffer-model.js';
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
-  controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-over'],
-  soap: ['squirt', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
+  controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
+  soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
 };
 
@@ -545,6 +547,7 @@ class Elite {
   cancelAttack() {
     this.clearTele();
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }
+    if (this.blowing) { this.blowing.dead = true; this.blowing = null; }   // a bubble trap still on the nozzle
     this.owner.blobs = this.owner.blobs.filter(b => {
       if (b.owner !== this || b.t >= b.wait) return true;
       this.owner.fx.free(b.m); this.owner.scene.remove(b.warn); if (b.vol) this.owner.scene.remove(b.vol);
@@ -552,13 +555,14 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
     if (this.model.whip) this.model.whip.rotation.x = 0;
     if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
     if (this.kind === 'clock') this.spin = 0;
+    if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
     if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
     if (this.kind === 'soap') {
       const M = this.model;
@@ -602,6 +606,7 @@ export class Elites {
     this.bandGeo = new THREE.RingGeometry(0.5, 1, 64, 1).rotateX(-Math.PI / 2);   // a thick band (ring()): each copy's inner edge moves
     this._probe = new THREE.Vector3(); this._ringAt = new THREE.Vector3(); this._glowAt = new THREE.Vector3();   // scratch for the rings
     this.soapBubbles = [];   // the Soap Dispenser's bubble rings, drifting outward
+    this.traps = [];         // the Soap Dispenser's bubble traps, drifting after you
     this.slicks = [];        // and the slippery soap its squirts leave
     this._dir = new THREE.Vector3();   // scratch for the bubbles' wall raycasts
     this.bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
@@ -626,6 +631,8 @@ export class Elites {
       frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
       rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
       coffer: new TeleMaterial(hostile('coffer')),
+      safe: new TeleMaterial(LOOK.color('safe-spot', '#ffffff')),   // the one spot an attack spares (the Kettle's lid)
+      hour: new TeleMaterial(hostile('clock'), 'wedge', 0.45),
     };
     this.minis = [];         // the Bull's little bulls, charging along their lanes
     // a spiral Shot that reached the jelly leaves a little stuffing and a scuff under it
@@ -683,6 +690,8 @@ export class Elites {
     for (const b of this.steams) { this.scene.remove(b.warn); this.scene.remove(b.vol); }
     this.steams = [];
     this.bullets = []; this.blobs = []; this.puddles = []; this.slicks = []; this.soapBubbles = [];
+    for (const B of this.traps) { this.scene.remove(B.m); this.scene.remove(B.warn); B.entry.dead = true; }
+    this.traps = []; this.washT = 0;
   }
 
   get alive() { return this.list.filter((e) => !e.dead); }
@@ -867,6 +876,21 @@ export class Elites {
     this.slicks.push({ m, r, t: life });
   }
 
+  // the Soap Dispenser's bubble trap: a big bubble that drifts after the jelly (see update), and a
+  // target (enemies.addProxy) your attacks pop; its Warning is the pink circle under it
+  trapBubble(at, T) {
+    const m = new THREE.Mesh(this.bubbleGeo, this.bubbleMat);
+    m.position.copy(at); m.scale.setScalar(0.002); m.renderOrder = 4;
+    this.scene.add(m);
+    const warn = this.mark(null, this.flat, this.T.soap, at, new THREE.Vector3(T.radius, T.radius, T.radius));
+    const B = { m, warn, t: 0, T, loose: false, held: 0, hp: T.hp, maxHp: T.hp, r: T.radius, dead: false, vel: new THREE.Vector3(), from: null,
+      get position() { return m.position; }, center: (out) => out.copy(m.position),
+      damage: (amount, color) => { if (B.dead || !B.loose) return; B.hp -= amount; this.fx.number(m.position.clone().setY(m.position.y + T.radius), amount, color, 12); if (B.hp <= 0) { B.hp = 0; B.dead = true; B.popped = true; } } };
+    B.entry = this.enemies.addProxy(B);
+    this.traps.push(B);
+    return B;
+  }
+
   // a soap bubble drifting outward from `from` along `dir` (unit, flat)
   bubble(from, dir, speed, life) {
     const m = new THREE.Mesh(this.bubbleGeo, this.bubbleMat);
@@ -935,6 +959,22 @@ export class Elites {
     return this.platformTarget(e, e.aim, A.radius);
   }
 
+  // the Wall Clock's chime in Telling the time: both wedges under its hands strike at once
+  clockStrikes(e, H, half, len, P, cfg, pc, hit, knock) {
+    sfx.clockChime(e.round); juice.feel('hit'); e.hitPop = 0.7;
+    this.fx.impact(e.center(this._mid), hostile('clock'), LOOK.num('act2-muzzle-flash', 0.014) * 2, 8);   // the bell struck
+    const surf = this._probe.copy(e.base).setY(e.base.y + 0.002);
+    let struck = false;
+    for (const k of e.hours) {
+      const b = e.holder.rotation.y - k * (Math.PI / 6), dir = this._dir.set(Math.sin(b), 0, Math.cos(b));
+      const tip = this._to.copy(surf).addScaledVector(dir, len * 0.7);
+      this.fx.impact(tip.setY(tip.y + 0.01), hostile('clock'), 0.025, 10);
+      this.fx.glow.emit(tip, hostile('clock'), 0.06, 0.02, 0.3, 0.9);
+      if (!struck && coneHits(surf, dir, len, half, P, cfg)) { struck = true; hit(H.dmg, 'clock-chime', e.base); knock(e.base, 0.5); this.clockStruck(P, cfg); }
+    }
+    e.clearTele();
+  }
+
   // the Coffer's jewels: n spots on its ground (spec.wake, inset by the Warning's size), at least
   // J.spread apart (closing up a little if they don't fit) and off the Coffer itself
   cofferSpots(e, n, J) {
@@ -959,6 +999,7 @@ export class Elites {
     const hit = (amount, source, at) => bus.emit('damage_taken', { targetId: PLAYER, amount, source, at });   // at: where it struck from (the red arc on the jelly)
     const knock = (from, force) => { const dir = P.clone().sub(from).setY(0); bus.emit('knockback', { targetId: PLAYER, dir: dir.lengthSq() > 1e-8 ? dir.normalize() : dir.set(1, 0, 0), force, launch: 0.25 }); };   // (right under it: any way out)
     this.pull = null;
+    if (this.washT > 0) { this.washT -= dt; this.pull = this.washDir; }   // washed along by the Mug's spill
 
     // things that only hang there: a hanging elite goes back up its wall; clock hands keep time
     for (const d of this.decor) {
@@ -1230,25 +1271,40 @@ export class Elites {
           if (e.thrown < SK.coffee.lobs && s >= e.thrown * 0.6) { e.thrown++; throwAt(); }
           if (s > SK.coffee.lobs * 0.6) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
         } else {
-          // Spill: tips toward you (arrow on the surface shows the line), then pours a wave
-          const wind = 0.9;
+          // Spill: tips toward you while a lane Warning (a strip and the box over it) fills along the
+          // line, then pours a wave down it: caught, you're scalded and washed along to its end
+          // (toward the desk's edge); it leaves scalding puddles along the line
+          const W = SK.spill, wind = 0.9, len = W.puddles * 0.075 + 0.05, pour = Math.max(0.5, W.puddles * 0.12 + 0.02);
           if (s < wind) {
-            if (!e.tele.length) { e.locked = true; e.poured = -1; this.mark(e, this.stripGeo, this.T.brown, surf.clone().addScaledVector(fwd, e.r), new THREE.Vector3(0.08, 1, 0.34), heading); }
+            if (!e.tele.length) {
+              e.locked = true; e.poured = -1; e.washed = false; e.spillDir = fwd.clone();
+              const at = surf.clone().addScaledVector(fwd, e.r);
+              this.mark(e, this.stripGeo, this.T.brown, at, new THREE.Vector3(W.width, 1, len), heading);
+              const vol = this.volume(hostile('mug'), 'lane', at, new THREE.Vector3(W.width, W.height, len)); vol.rotation.y = heading; e.tele.push(vol);
+            }
+            for (const m of e.tele) m.material.progress = s / wind;
             e.tele[0].material.opacity = 0.75 + Math.sin(e.t * 18) * 0.2;
-            e.tele[0].material.progress = s / wind;
             g.rotation.x = (s / wind) * 0.7;                                  // tipping over
-          } else if (s < wind + Math.max(0.5, SK.spill.puddles * 0.12 + 0.02)) {
+          } else if (s < wind + pour) {
             g.rotation.x = 0.9 + e.kick * 0.25;                               // tipped, jolting on as it lets go
-            const k = Math.floor((s - wind) / 0.12);
-            if (k !== e.poured && k < SK.spill.puddles) {
+            if (e.tele.length) e.clearTele();
+            const k = Math.floor((s - wind) / 0.12), front = e.r + 0.05 + ((s - wind) / pour) * (len - 0.05);
+            if (k !== e.poured && k < W.puddles) {
               if (e.poured < 0) { e.kick = 1; this.fx.impact(muzzle, hostile('mug'), 0.015, 6); juice.feel('hit'); sfx.mugPour(); }   // the release: it lets go
               e.poured = k;
-              const at = e.base.clone().addScaledVector(fwd, e.r + 0.05 + k * 0.075);
-              if (!this.onPlatform(e,at)) continue;
-              at.y = this.surfaceBelow(at);
-              this.puddle(at, 0.04, 3);
-              this.fx.burst(at.clone().setY(at.y + 0.01), ['#3a2214', '#6a4a2a'], 5, 0.003, 0.25, at.y);
-              sfx.mugSplash();
+              const at = e.base.clone().addScaledVector(e.spillDir, e.r + 0.05 + k * 0.075);
+              if (this.onPlatform(e,at)) {
+                at.y = this.surfaceBelow(at);
+                this.puddle(at, 0.04, 3);
+                this.fx.burst(at.clone().setY(at.y + 0.01), ['#3a2214', '#6a4a2a'], 5, 0.003, 0.25, at.y);
+                sfx.mugSplash();
+              }
+            }
+            // the wave's front: a jelly it reaches (low enough, on the line) is scalded and washed along
+            const dx = P.x - e.base.x, dz = P.z - e.base.z, along = dx * e.spillDir.x + dz * e.spillDir.z, across = Math.abs(dx * e.spillDir.z - dz * e.spillDir.x);
+            if (!e.washed && along > e.r && along < front + cfg.radius && across < W.width / 2 + cfg.radius && P.y < e.base.y + W.height) {
+              e.washed = true; hit(W.dmg, 'mug', P); this.washT = W.carry; this.washDir = e.spillDir.clone().multiplyScalar(W.push);
+              this.fx.impact(pc, hostile('mug'), LOOK.num('act2-contact-flash', 0.03), 10); juice.feel('impact'); sfx.mugSplash(true);
             }
           } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.8; }
         }
@@ -1311,29 +1367,49 @@ export class Elites {
             }
           }
         } else {
-          // Boil over: the lid pops, four boiling drops fall on filling orange circles around you, each
-          // landing as a small floor Blast (jump it)
-          if (!e.popped) {
-            e.popped = true;
+          // Boil dry: the lid pops off and lands on the stove away from you, a white circle round it;
+          // then a big Warning (a circle and the half dome over it, reach= round the Kettle) fills and
+          // steam rolls over all of it except the lid's circle: get to the lid (or out of reach)
+          const D = SK.boil, fill = D.flight + D.fill;
+          if (!e.lidFly) {
             M.led.material.emissiveIntensity = 4;
-            e.kick = 0.7; this.fx.impact(M.lid.getWorldPosition(this._mid), hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettlePop();   // the release: the lid jumps
-            const center = P.clone(); center.y = this.surfaceBelow(P);
-            for (let k = 0; k < SK.boil.drops; k++) {
-              const at = k === 0 ? center.clone() : center.clone().add(new THREE.Vector3(Math.cos(k * 2.1) * 0.09, 0, Math.sin(k * 2.1) * 0.09));
-              const R = 0.035;
-              this.platformTarget(e,at,R);
-              this.lob(muzzle, at, 1.0 + k * 0.15, hostile('kettle'), this.T.orange, R, (p) => {
-                this.fx.impact(p.clone().setY(p.y + 0.008), hostile('kettle'), 0.025, 12);
-                this.fx.puff(p, 0xffffff, 0.03, 0.4);
-                this.fx.splat(p, LOOK.color('kettle-wet', '#b8c8d8'), LOOK.num('kettle-wet-size', 0.03));   // a harmless wet mark, fading
-                const struck = blastHits(p, R, P, cfg);
-                if (struck) hit(SK.boil.dmg, 'kettle', p);
-                juice.feel(struck ? 'impact' : 'hit'); sfx.kettleDrop(struck);
-              }, { dome: true });
+            e.kick = 0.7; this.fx.impact(M.lid.getWorldPosition(this._mid), hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettlePop();   // the release: the lid jumps off
+            // where it lands: in reach, on the stove, at least `away` from you and clear of the Kettle
+            const at = new THREE.Vector3();
+            for (let i = 0; i < 60; i++) {
+              const a = Math.random() * Math.PI * 2, r = e.r + D.safe + Math.random() * (D.reach - e.r - D.safe * 2);
+              this.platformTarget(e, at.set(e.base.x + Math.sin(a) * r, e.base.y + 0.05, e.base.z + Math.cos(a) * r), D.safe);
+              if (Math.hypot(at.x - P.x, at.z - P.z) >= D.away && Math.hypot(at.x - e.base.x, at.z - e.base.z) <= D.reach - D.safe) break;
             }
+            const lid = (this.flyingLid ||= M.lid.clone());
+            lid.scale.setScalar(e.size); lid.rotation.set(0, 0, 0);
+            this.scene.add(lid); M.lid.visible = false;
+            e.lidFly = { lid, from: M.lid.getWorldPosition(new THREE.Vector3()), at, steamed: false };
+            e.tele.push(this.warnCircle(surf, D.reach, this.T.orange), this.volume(hostile('kettle'), 'dome', surf, D.reach));
           }
-          M.lid.position.y = 0.112 + Math.max(0, Math.sin(Math.min(1, s * 2) * Math.PI)) * 0.04;
-          if (s > 1.6) { e.popped = false; M.led.material.emissiveIntensity = 2; M.lid.position.y = 0.112; e.state = 'idle'; e.cool = 1.8; }
+          const F = e.lidFly, u = Math.min(1, s / D.flight), k = Math.min(1, s / fill);
+          F.lid.position.lerpVectors(F.from, F.at, u); F.lid.position.y += Math.sin(u * Math.PI) * 0.12;
+          F.lid.rotation.x += dt * (u < 1 ? 14 : 0); if (u >= 1) F.lid.rotation.x = 0;
+          if (u >= 1 && !F.landed) {   // it clatters down: its safe circle shows
+            F.landed = true; sfx.kettleDrop(false); this.fx.puff(F.at, 0xffffff, 0.02, 0.3);
+            const safe = this.mark(e, this.flat, this.T.safe, F.at.clone().setY(F.at.y + 0.003), new THREE.Vector3(D.safe, D.safe, D.safe));
+            safe.material.progress = 1; safe.renderOrder = 4;
+          }
+          if (e.tele[0]) { e.tele[0].userData.fill(k); e.tele[1].material.progress = k; }
+          if (F.landed && e.tele[2]) e.tele[2].material.opacity = 0.75 + Math.sin(e.t * 12) * 0.25;
+          M.lid.position.y = 0.112;
+          g.rotation.z = Math.sin(e.t * 50) * 0.04 * k;   // rattling harder as it boils
+          if (s >= fill && !F.steamed) {
+            // the steam: a Blast over all its reach, except the lid's circle
+            F.steamed = true; e.clearTele();
+            this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('kettle'), 0.05, 20);
+            for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = D.reach * (0.3 + 0.6 * Math.random()); this.fx.puff(this._mid.set(e.base.x + Math.sin(a) * r, e.base.y + 0.02, e.base.z + Math.cos(a) * r), 0xffffff, D.reach * 0.35, 0.6); }
+            this.fx.ring(surf, hostile('kettle'), D.reach, 0.4);
+            juice.feel('impact-big'); sfx.kettleGust(false, true);
+            const safe = Math.hypot(P.x - F.at.x, P.z - F.at.z) < D.safe;
+            if (!safe && blastHits(e.base, D.reach, P, cfg)) { hit(D.dmg, 'kettle', e.base); knock(e.base, 0.8); this.fx.puff(pc, 0xffffff, 0.025, 0.4); sfx.kettleGust(true, false); }
+          }
+          if (s > fill + 0.5) { this.scene.remove(F.lid); M.lid.visible = true; e.lidFly = null; e.clearTele(); M.led.material.emissiveIntensity = 2; M.lid.position.y = 0.112; e.state = 'idle'; e.cool = 1.8; }
         }
       }
 
@@ -1342,28 +1418,23 @@ export class Elites {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry;
         const press = (k) => { M.head.position.y = M.headY - k * 0.012; M.stem.scale.y = 1 - k * 0.5; M.stem.position.y = M.headY - 0.012 - k * 0.006; };
         if (e.attack === 0) {
-          // Soap squirt: a pump stroke for each glob, each lobbed where you stand then; each lands
-          // as a floor Blast (a 4 cm half sphere: jump it) and leaves a slick
-          const R = 0.04, n = angry ? SK.squirt.angryCount : SK.squirt.count, gap = angry ? 0.32 : 0.42;
-          const k = Math.floor(s / gap), ph = (s % gap) / gap;
-          press(k < n ? Math.sin(Math.min(1, ph * 1.6) * Math.PI) : 0);
-          if (k < n && k !== e.squirted) {
-            e.squirted = k;
-            const target = this.platformTarget(e,P.clone(),R);
-            this.lob(muzzle, target, 0.75, hostile('soap'), this.T.soap, R, (at) => {
-              this.fx.impact(at.clone().setY(at.y + 0.008), hostile('soap'), 0.02, 8);
-              this.fx.burst(at.clone().setY(at.y + 0.01), ['#ffb8d4', '#ff6aa8', '#ffffff'], 6, 0.003, 0.25, at.y);
-              sfx.soapSplat();
-              juice.feel('hit');
-              if (blastHits(at, R, P, cfg)) hit(SK.squirt.dmg, 'soap', at);
-              this.slick(at);
-            }, { dome: true });
-            this.fx.puff(muzzle, 0xffd0e4, 0.008, 0.3);
-            this.fx.impact(muzzle, hostile('soap'), LOOK.num('act2-muzzle-flash', 0.014), 4);   // the squirt leaving the nozzle
-            sfx.soapPump();
-            e.hitPop = 0.5;
-          }
-          if (s > n * gap + 0.25) { press(0); e.squirted = -1; e.state = 'idle'; e.cool = angry ? 1.1 : 1.6; }
+          // Bubble trap: it pumps up a big soap bubble at its nozzle (the bubble swelling), lets it go,
+          // and it drifts after you (slower than you swim) with a pink circle under it filling as it
+          // goes; it has a little Health: shoot it and it pops. One that reaches you closes round the
+          // jelly and carries it back toward the Dispenser, then pops: scalded by the soap, and a slick
+          const T = SK.trap, n = angry ? T.angryCount : T.count, blow = 1.0, k = Math.floor(s / (blow + 0.2)), u = (s % (blow + 0.2)) / blow;
+          if (k < n) {
+            press(Math.abs(Math.sin(e.t * 14)) * 0.6 * Math.min(1, u));
+            if (!e.blowing && u < 1) { e.blowing = this.trapBubble(muzzle, T); sfx.soapPump(); }
+            if (e.blowing) {
+              const B = e.blowing, grow = THREE.MathUtils.smoothstep(Math.min(1, u), 0, 1);
+              B.m.position.copy(muzzle).addScaledVector(fwd, T.radius * grow); B.m.scale.setScalar(Math.max(0.002, T.radius * grow));
+              if (u >= 1) {   // let go: off it drifts
+                B.loose = true; e.blowing = null; press(0);
+                this.fx.impact(muzzle, hostile('soap'), LOOK.num('act2-muzzle-flash', 0.014), 6); sfx.soapBubbles(); juice.feel('hit'); e.hitPop = 0.5;
+              }
+            }
+          } else { press(0); e.state = 'idle'; e.cool = angry ? 1.3 : 1.8; }
         } else {
           // Bubble ring: foams up (pumping fast, the ring filling round it), then lets go a ring
           // of 16 bubbles drifting outward with a gap; angry, a second ring with its gap elsewhere.
@@ -1483,26 +1554,33 @@ export class Elites {
             e.hitPop = 0.6; juice.feel('hit');
           } else if (!this.thrown.some((w) => w.owner === e)) { e.threw = false; e.aim = null; M.wreath.visible = true; M.wreath.scale.setScalar(1); e.state = 'idle'; e.cool = angry ? 1.2 : 1.7; }
         } else {
-          // Striking the hour: the hands snap to the hour, then three chimes, each a golden ring rolling out over the bench
-          const wind = 0.6, gap = 0.7;
-          if (s < wind) {
-            if (!e.tele.length) e.tele.push(this.warnCircle(surf, 0.06, this.T.chime), this.volume(hostile('clock'), 'ring', e.base, new THREE.Vector3(0.06, CLOCK_HITS.chimeH, 0.06)));
-            e.tele[0].userData.fill(s / wind);
-            e.tele[1].material.progress = s / wind;
-            M.minuteHand.rotation.z += (0 - M.minuteHand.rotation.z) * (1 - Math.exp(-12 * dt));   // to twelve
-            g.rotation.z = Math.sin(e.t * 30) * 0.01;
-          } else {
-            const k = Math.floor((s - wind) / gap);
-            if (k < SK.hour.chimes && k !== e.chimed) {
-              e.chimed = k;
-              e.clearTele();
-              sfx.clockChime(k);
-              e.hitPop = 0.7; juice.feel('hit');
-              this.fx.impact(e.center(this._mid), hostile('clock'), LOOK.num('act2-muzzle-flash', 0.014) * 2, 8);   // the bell struck
-              this.ring(e.base, hostile('clock'), SK.hour, 'clock-chime', { h: CLOCK_HITS.chimeH, onHit: () => this.clockStruck(P, cfg) });
+          // Telling the time (angry only): the bench is its face. Each round the hands snap to a time,
+          // and a wedge Warning (a floor wedge and the cone over it) fills on the bench under each
+          // hand; on the chime both strike. Read the hands, stand between them. rounds= times
+          const H = SK.hour, half = 0.45, len = R * 0.95, round = Math.floor(s / H.warn);
+          if (round < H.rounds && round !== e.round) {
+            if (e.round != null && e.round >= 0) this.clockStrikes(e, H, half, len, P, cfg, pc, hit, knock);
+            e.round = round; e.clearTele();
+            // a new time: two hands on the bench's half of the face (nine through twelve to three), apart
+            const slot = () => [-3, -2, -1, 0, 1, 2, 3][Math.floor(Math.random() * 7)];   // hours from twelve
+            let h = slot(), m = slot(); while (Math.abs(h - m) < 2) m = slot();
+            e.hours = [h, m];
+            for (const k of e.hours) {
+              const b = heading + k * (Math.PI / 6) * -1, dir = this._dir.set(Math.sin(b), 0, Math.cos(b));
+              this.mark(e, this.coneGeo, this.T.hour, surf, new THREE.Vector3(len, 1, len), b);
+              e.tele.push(coneVolume(this, hostile('clock'), surf, b, len, half));
             }
-            if (s > wind + gap * SK.hour.chimes) { e.chimed = -1; e.state = 'idle'; e.cool = 1.6; }
+            sfx.clockTick(); e.hitPop = 0.4;
           }
+          if (round >= H.rounds && e.round != null && e.round >= 0) { this.clockStrikes(e, H, half, len, P, cfg, pc, hit, knock); e.round = -1; }
+          const u = (s % H.warn) / H.warn;
+          for (const m of e.tele) m.material.progress = u;
+          if (e.hours) {   // the hands point there: hour hand at the first, minute hand at the second
+            M.hourHand.rotation.z += ((-e.hours[0] * Math.PI / 6) - M.hourHand.rotation.z) * (1 - Math.exp(-14 * dt));
+            M.minuteHand.rotation.z += ((-e.hours[1] * Math.PI / 6) - M.minuteHand.rotation.z) * (1 - Math.exp(-14 * dt));
+          }
+          g.rotation.z = Math.sin(e.t * 30) * 0.01;
+          if (s > H.warn * H.rounds + 0.3) { e.round = null; e.hours = null; e.clearTele(); e.state = 'idle'; e.cool = 1.6; }
         }
       }
 
@@ -2191,6 +2269,45 @@ export class Elites {
     }
     this.soapBubbles = this.soapBubbles.filter((b) => b.t > 0);
 
+    // the Soap Dispenser's bubble traps: drifting after you; shot, they pop harmlessly; one that
+    // reaches you holds you and carries you toward the Dispenser for T.hold s, then pops on you
+    for (const B of this.traps) {
+      const T = B.T, m = B.m, soap = this.list.find((x) => x.kind === 'soap');
+      if (B.loose && !B.held && !B.dead) {
+        B.t += dt;
+        const want = this._dir.copy(pc).sub(m.position), d = want.length();
+        B.vel.lerp(want.multiplyScalar(d > 0.005 ? T.speed / d : 0), 1 - Math.exp(-2 * dt));
+        m.position.addScaledVector(B.vel, dt);
+        m.scale.setScalar(T.radius * (1 + Math.sin(B.t * 7) * 0.05));
+        if (shotHits(m.position, T.radius * 0.8, P, cfg)) { B.held = 1e-6; B.from = m.position.clone(); sfx.bubblePop(); this.fx.impact(pc, hostile('soap'), 0.02, 6); juice.feel('hit'); }
+        else if (B.t > T.life) B.dead = true;
+      }
+      if (B.held) {
+        // trapped: the bubble round the jelly, carried toward the Dispenser (or held still)
+        B.held += dt;
+        const home = soap ? this._to.copy(soap.base) : B.from, toHome = this._dir.set(home.x - B.from.x, 0, home.z - B.from.z);
+        const L = toHome.length(); if (L > 0.12) B.from.addScaledVector(toHome, Math.min(L - 0.12, T.carry * dt) / L);
+        this.pull = this._pull.set((B.from.x - P.x) * 12, 0, (B.from.z - P.z) * 12);
+        m.position.copy(pc); m.scale.setScalar(T.radius * 1.3 * (1 + Math.sin(B.held * 30) * 0.04));
+        if (B.held >= T.hold && !B.dead) {
+          B.dead = true;
+          hit(T.dmg, 'soap', P); this.slick(this._probe.copy(P).setY(this.surfaceBelow(P))); bus.emit('status_applied', { targetId: PLAYER, status: 'slip', duration: 0.6 });
+          this.fx.impact(pc, hostile('soap'), LOOK.num('act2-contact-flash', 0.03), 12); juice.feel('impact');
+        }
+      }
+      if (B.loose && !B.held && !B.dead) { B.warn.position.set(m.position.x, this.surfaceBelow(m.position) + 0.003, m.position.z); B.warn.material.progress = Math.min(1, B.t / T.life); }
+      else if (!B.loose) B.warn.position.set(m.position.x, this.surfaceBelow(m.position) + 0.003, m.position.z);
+      if (B.dead && !B.gone) {
+        B.gone = true; B.entry.dead = true; this.enemies.byId?.delete(B.entry.id);
+        this.scene.remove(m); this.scene.remove(B.warn);
+        const floor = this.surfaceBelow(m.position);
+        this.fx.burst(m.position, ['#ffe0ee', '#ff8ac0', '#ffffff'], 10, 0.003, 0.3, floor);
+        this.fx.ring(m.position.clone().setY(floor + 0.003), hostile('soap'), T.radius, 0.3);
+        this.fx.splat(this._probe.set(m.position.x, floor, m.position.z), LOOK.color('soap-suds', '#f6e4ee'), T.radius * 0.5);
+        sfx.bubblePop();
+      }
+    }
+    this.traps = this.traps.filter((B) => !B.gone);
     // soap slicks: standing in one, you slip
     for (const p of this.slicks) {
       p.t -= dt;
