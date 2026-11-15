@@ -244,14 +244,14 @@ const ENCORE = {
 // Act 4, the living room at sunrise (the exploring song before the Encore): a soundcheck. E minor, the
 // key measured from the Encore's recording (assets/audio/encore-around-the-world.mp3: E minor, close
 // with B minor), 4/4 at 128 BPM like it, so the handoff to the recording lands on the same grid.
-// Em9, Cmaj7, Am7 and D6, two bars each. It starts bare, a warm pad and a soft bass, then a pluck
+// Em7, Cmaj7, Am7 and D6, two bars each. It starts bare, a warm pad and a soft bass, then a pluck
 // arpeggio, then hats and rim clicks with a count-in before each phrase; the kick stays out until the
 // fuller layer (intensity ~0.6), then four on the floor pumps the pads and the lead sings on top.
 const SUNRISE = {
   name: 'Sunrise Set', bpm: 128, steps: 16, per: 2, pump: true, supersaw: true, sub: 1, air: 9000, arpWave: 'triangle',
   layers: { pad: -1, bass: 0.1, arp: 0.25, drums: 0.4, full: 0.6, lead: 0.74 },
   chords: [
-    { pad: [52, 59, 62, 67], arp: [64, 67, 71, 74], root: 40 },   // Em9
+    { pad: [52, 59, 62, 67], arp: [64, 67, 71, 74], root: 40 },   // Em7
     { pad: [48, 55, 59, 64], arp: [60, 64, 67, 71], root: 36 },   // Cmaj7
     { pad: [45, 52, 55, 60], arp: [57, 60, 64, 67], root: 33 },   // Am7
     { pad: [50, 57, 62, 66], arp: [62, 66, 69, 71], root: 38 },   // D6
@@ -276,7 +276,7 @@ const SUNRISE = {
     if (L.arp && s % 2 === 0) m.pluck(C.arp[this.arp[(s / 2) % 8]] + (bar % 2 && s > 7 ? 12 : 0), t, 0.045 * L.arp, 0.08 + 0.2 * m.I, (s / 2) % 2 ? 0.4 : -0.4);
     if (L.drums) {
       m.hat(t, s % 4 === 2 ? 0.03 * L.drums : 0, s % 4 === 2);
-      if (s === 4 || s === 12) m.clap(t, 0.07 * L.drums);              // a soft rim click on 2 and 4
+      if (!L.full && (s === 4 || s === 12)) m.clap(t, 0.07 * L.drums);            // a soft rim click on 2 and 4
       if (bar % 8 === 7 && s % 4 === 0 && !L.full) m.clap(t, 0.09 * L.drums);   // the count-in: one, two, three, four
     }
     if (L.full) {
