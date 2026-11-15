@@ -1839,7 +1839,7 @@ export class Run {
 
   // How near a death came to beating the act: the boss's time still to come, or its Health left
   howClose() {
-    const name = this.stage.boss.name, B = this.boss;
+    const name = this.stage.stageDoor ? 'The stage door' : this.stage.boss.name, B = this.boss;   // a two-scene act's room: the door is what's coming
     if (B && !this.bossWon) return `${name} had ${Math.max(1, Math.round((100 * Math.max(0, B.hp)) / B.maxHp))}% Health left`;
     const left = Math.ceil(this.duration - this.t);
     return left > 0 ? `${name} was ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} away` : null;

@@ -142,3 +142,18 @@ night4('fight-boss-from-the-room-goes-through-the-door', {
     });
   },
 });
+
+night4('dying-in-the-room-says-how-far-the-stage-door-was', {
+  about: 'A death in the room counts down to the stage door, not to the Encore (who is in the next scene); a run kept in act 4\'s arena before it had a night is offered to continue from the start of the room, at the act\'s carried level.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    run.t = run.duration - 83;
+    const close = run.howClose();
+    return keepingSaves(() => {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ act: 4, carry: { level: 15, score: 24000, mid: { t: 40, now: { level: 19, score: 30000 } } } }));
+      const k = keptRun();
+      return ok(close === 'The stage door was 1:23 away' && k.scene === undefined && !k.carry.mid && k.carry.level === 15, { close, kept: k });
+    });
+  },
+});

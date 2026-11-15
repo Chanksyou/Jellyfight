@@ -48,7 +48,12 @@ export function goToAct(act, carry = null, then = null, scene = 1) {
 export const SAVE_KEY = 'jellyrun.run';
 export function keepRun(act, carry, scene = 1) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ act, scene, carry })); } catch {} }
 export function keptRun() {
-  try { const v = JSON.parse(localStorage.getItem(SAVE_KEY)); return v && v.carry && STAGES[v.act - 1] ? v : null; } catch { return null; }
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!(v && v.carry && STAGES[v.act - 1])) return null;
+    if (v.carry.mid && !v.carry.mid.scene && STAGES[v.act - 1].stageDoor) delete v.carry.mid;   // kept in act 4's arena before it had a night: its room starts afresh (Run.start)
+    return v;
+  } catch { return null; }
 }
 export function forgetRun() {
   try { localStorage.removeItem(SAVE_KEY); } catch {}
