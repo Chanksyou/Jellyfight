@@ -392,11 +392,45 @@ export const ENEMY_WORDS = {
           }
         } else if (e.state === 'charge') {
           e.vel.set(0, 0, 0);
-          if (e.stateT <= 0) { en.beam(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.2; }
+          if (e.stateT <= 0) { en.beam(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.2; e.whirlCd = Math.max(e.whirlCd ?? 0, 1.5); }
         } else if (e.state === 'rest' && e.stateT <= 0) {
           e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.beamCd = p.every;
         }
         if (e.firedT > 0) e.firedT -= c.dt;
+      },
+    }),
+  },
+
+  whirlwind: {
+    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a little whirlwind in front of it for `windup` s (spinning blades that grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. In flight it sucks you toward it, at up to `suck` m/s from within `pull` m. Touching it: `dmg`. It rests `rest` s. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
+    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.03, life: 2.2, pull: 0.25, suck: 0.12, dmg: 2, rest: 0.5 },
+    make: (_, p) => ({
+      init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.whirlCd -= c.dt;
+        if (e.whirlKick > 0) e.whirlKick -= c.dt;
+        if (e.state === 'whirl') {
+          if (!live || e.dodgeLeft > 0) {                     // frozen, stunned or dodging: the whirlwind falls apart
+            en.breakWhirl(e);
+            e.state = 'approach'; e.faceLock = false; e.whirlCd = 1.5;
+            if (!live) e.flyHeld = false;                     // (a dodge holds it itself)
+            return;
+          }
+          e.vel.set(0, 0, 0);
+          e.whirlT -= c.dt;
+          e.whirlK = Math.min(1, 1 - e.whirlT / p.windup);
+          if (e.whirlK < p.lock) { e.whirlAt.copy(c.pc); e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z); }
+          if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; }
+        } else if (e.state === 'whirl-rest') {
+          e.whirlT -= c.dt * live;
+          if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; e.beamCd = Math.max(e.beamCd || 0, 1.5); }
+        } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range) {
+          e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
+          e.vel.set(0, 0, 0);
+          e.whirlAt.copy(c.pc);
+          en.whirlCharge(e, p);
+        }
       },
     }),
   },

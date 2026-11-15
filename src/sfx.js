@@ -1094,6 +1094,15 @@ export const sfx = {
     tone('sawtooth', 2400 * j, 300, 0.18, 0.08); tone('square', 1200 * j, 150, 0.14, 0.04);
     noise(3800 * j, 2, 0.25, 0.04, 'bandpass', 0.08, 1500);              // a sizzle dying away where it struck
   },
+  // the dragonfly's whirlwind: a whirr rising as its wings whip it up, a whoosh as it's flung, and
+  // a gusty thump when it hits you (a softer puff when it breaks up on a wall or runs out)
+  whirlCharge(dur = 0.7) {
+    if (!ready() || !gap('whirlCharge', 150)) return;
+    const j = jitter(0.1);
+    noise(700 * j, 3, dur, 0.06, 'bandpass', 0, 2600 * j); tone('triangle', 110 * j, 330 * j, dur, 0.03);
+  },
+  whirlFling() { if (!ready() || !gap('whirlFling', 80)) return; const j = jitter(0.12); noise(2200 * j, 1.2, 0.3, 0.1, 'bandpass', 0, 600 * j); tone('sine', 260 * j, 120, 0.12, 0.04); },
+  whirlEnd(hit) { if (!ready() || !gap('whirlEnd', 60)) return; const j = jitter(0.12); noise((hit ? 500 : 900) * j, 1, hit ? 0.22 : 0.15, hit ? 0.16 : 0.06, 'lowpass', 0, 200); if (hit) tone('sine', 140 * j, 60, 0.12, 0.08); },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
   // the crack of a hit; the explosion where it lands is sparkBoom
