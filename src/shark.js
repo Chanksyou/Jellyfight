@@ -97,11 +97,13 @@ export class Shark {
     this.ghost=new Shark(scene,enemies,fx,arena,world,{illusion:true});this.ghost.real=this;   // made now so its see-through shaders are built with the rest
   }
   warm(on){this.ghost.holder.visible=on;}   // main.js warmUp: show the illusion so its shaders are built before the fight
-  // At half Health the illusion surfaces on the far side of the jelly, a different attack next in its
+  // At half Health the illusion surfaces beside the jelly, a different attack next in its
   // list than the shark's and a longer rest between attacks, so the two drift apart instead of striking together.
   summon(player){
     const g=this.ghost,a=this.def.skills.arrival;
-    g.position.copy(player.position).multiplyScalar(2).sub(this.position);g.clampIn(g.position);
+    // beside the jelly, square to the shark, so the fight camera (behind the jelly, facing the shark) sees both
+    const d=this._move.subVectors(player.position,this.position).setY(0),n=Math.max(.45,d.length());if(d.lengthSq()<1e-6)d.set(0,0,1);
+    d.normalize();g.position.copy(player.position).add(V(d.z*n,0,-d.x*n));g.clampIn(g.position);
     g.floor=g.floorAt(g.position);g.position.y=g.floor;g.model.rig.clipPlane.constant=-g.floor;
     g.heading=Math.atan2(player.position.x-g.position.x,player.position.z-g.position.z);
     g.arrivalT=a.barrier;g.next=this.next+Math.ceil(ATTACKS.angry.length/2);g.summoned=true;g.holder.visible=true;

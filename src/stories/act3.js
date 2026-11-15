@@ -480,7 +480,7 @@ act3('fewer-regular-bugs', {
 // The illusion (shark.js summon): at half Health a see-through copy that only attacks
 const illusionFight=(opts)=>{const B=sharkFight(opts),P=holdJelly();B.elapsed=-1e6;B.hp=B.maxHp*.49;step(60*4,()=>B.ghost.ready);return {B,P,I:B.ghost};};
 act3('shark-illusion-surfaces-at-half-health',{
-  about:'At half Health the shark summons its illusion once, on the far side of the jelly: clearly see-through, with no Health, and the shark itself stays solid.',setup(){},
+  about:'At half Health the shark summons its illusion once, beside the jelly and away from the shark: clearly see-through, with no Health, and the shark itself stays solid.',setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly();B.elapsed=-1e6;step(30);const early=B.ghost.summoned;
     B.hp=B.maxHp*.51;step(10);const above=B.ghost.summoned;B.hp=B.maxHp*.49;step(2);const I=B.ghost,at=I.position.clone();step(60*4,()=>I.ready);
     const ghost=I.model.rig.mat,real=B.model.rig.mat,far=at.distanceTo(B.position)>P.position.distanceTo(B.position);
