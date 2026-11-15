@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v432 reloads a page still running an older version's code into the new one, so a phone can't crash mid-fight reading new content with old code (the Soap Dispenser's `SK.squirt` error).
+
 v431 gives the dragonfly a second attack: it whips its wings into a little whirlwind of spinning blades and flings it at you. The whirlwind flies slowly and sucks you toward it as it comes, so swim hard to one side.
 
 v430 gives four act 1 and act 2 Elite attacks their own answer: the Kettle's Boil dry pops its lid onto the counter and the only spot the steam misses is the white circle round it, the Soap Dispenser blows a bubble trap that drifts after you (shoot it down or be held and popped), the Clock's hour strikes now light the wedges its real hands point at, and the Mug's spill scalds you and washes you along the line.
