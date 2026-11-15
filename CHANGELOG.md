@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v430 gives four act 1 and act 2 Elite attacks their own answer: the Kettle's Boil dry pops its lid onto the counter and the only spot the steam misses is the white circle round it, the Soap Dispenser blows a bubble trap that drifts after you (shoot it down or be held and popped), the Clock's hour strikes now light the wedges its real hands point at, and the Mug's spill scalds you and washes you along the line.
+
 v429 makes three act 3 Elites move: the Bull's rush is a real charge down a lane to the table's edge (sidestep it, then hit it while it's dizzy), the Alligator's pounce lands where you are and it stays there till you leave the bed, and the Coffer's accordion Warning follows you until it locks.
 
 v428 adds three Megabonk-inspired Treasures: Pedometer (rare, +1 XP for every 2 m you swim), Bloody Fangs (Legendary, lose 1 Health a second but never your last, for +25% Move speed, +50% Fire rate and +1 mid-air jump) and Pocket Vacuum (epic, 1 in 10 attacks sets off a 4 s mini tornado by the nearest bug that pulls bugs together and stings them a little).
