@@ -2,7 +2,8 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { STAGES } from '../stages.js';
+import { STAGES, nav } from '../stages.js';
+import { serverBuild, reloadIfStale } from '../fresh.js';
 import { FramePacer, FrameGovernor } from '../pacing.js';
 import { checkBvhLayout } from '../collision.js';
 import { loadLayout, applyLayout } from '../layout.js';
@@ -954,5 +955,24 @@ story('engine/furniture-drawn-in-batches', {
     const hidden = !visibleAt();
     o.visible = true; statics.sync();
     return ok(pieces > 300 && start && faded && back && moved && hidden && visibleAt(), { pieces, batches: statics.batches.length, start, faded, back, moved, hidden });
+  },
+});
+
+story('engine/old-code-reloads-into-the-new-version', {
+  about: 'A page running an older BUILD than the server has (a phone holding last version\'s code while content comes fresh: the Soap crash of Nov 15) fetches its files past the cache and reloads, once per version; a matching BUILD plays on.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    let reloads = 0;
+    stub(nav, 'reload', () => { reloads++; });
+    const KEY = 'jellyrun.freshReload', was = sessionStorage.getItem(KEY);
+    try {
+      sessionStorage.removeItem(KEY);
+      const server = await serverBuild(), asksServer = !!server && server === window.JF_BUILD;
+      const same = !(await reloadIfStale(Promise.resolve('v1'), 'v1')) && reloads === 0;
+      const unknown = !(await reloadIfStale(Promise.resolve(null), 'v1')) && reloads === 0;
+      const stale = (await reloadIfStale(Promise.resolve('v2'), 'v1')) && reloads === 1;
+      const once = !(await reloadIfStale(Promise.resolve('v2'), 'v1')) && reloads === 1;
+      return ok(asksServer && same && unknown && stale && once, { server, running: window.JF_BUILD, asksServer, same, unknown, stale, once, reloads });
+    } finally { was === null ? sessionStorage.removeItem(KEY) : sessionStorage.setItem(KEY, was); }
   },
 });

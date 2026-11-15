@@ -9,6 +9,7 @@ import { IS_TOUCH } from './touch.js';
 import { loadLook } from './look.js';
 import { loadContent } from './content.js';
 import { currentStage } from './stages.js';
+import { serverBuild, reloadIfStale } from './fresh.js';
 
 // The apartment's colors and lights were authored for three.js r128 conventions
 THREE.ColorManagement.enabled = false;
@@ -64,6 +65,14 @@ window.JF_LOAD = {
 };
 const loading = window.JF_LOAD;
 loading.steps.push([said.textContent, 0]);
+// which version the server has now, asked while the rest loads (fresh.js)
+const asked = serverBuild();
+// main.js: the game, then its graphics prepared (warmUp); old code with new content reloads first
+async function startGame() {
+  const game = await import('./main.js');
+  if (await reloadIfStale(asked)) await new Promise(() => {});
+  await game.ready;
+}
 try {
   if(new URLSearchParams(location.search).get('arena')==='act4'){
     await loadLook();
@@ -77,7 +86,7 @@ try {
   window.APT = { root: arena.root, plan: stage.plan, arena, doors: {}, scene, renderer, camera, lights: { rescan() {} }, load: async () => [] };
   await loadContent();
   await loading.step(0.55, 'Building the stage…');
-  await (await import('./main.js')).ready;
+  await startGame();
   }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
   const bakedAO = loadBakedAO(currentStage().id);   // its corner shadows (baked-ao.js), alongside
@@ -88,7 +97,7 @@ try {
   await loadLook();                 // content/look.css: colours and render numbers
   await loadContent();              // content/*.kdl: the bugs and the waves
   await loading.step(0.55, 'Building the rooms…');
-  await (await import('./main.js')).ready;   // main.js: the game, then its graphics prepared (warmUp)
+  await startGame();
   }
   document.getElementById('loading').classList.add('gone');
 } catch (e) {
