@@ -47,26 +47,29 @@ act3('bull-wakes-when-you-are-on-the-table', {
 });
 
 act3('bull-rush', {
-  about: 'Bull rush: its horns swell to twice their size and glow while it stamps and a big Warning (a circle with the half sphere over it, 90% of the table top\'s half diagonal) fills round it; then a Blast round itself: 4 and knocked away anywhere in it (beside it, or in the air over the table), nothing outside it. The horns shrink back after.',
+  about: "Bull rush: its horns swell to twice their size and glow while it stamps and a lane Warning (a strip with the box over it, as wide as the Bull and taller than a jump) fills from it through the jelly to the table's edge; then it charges down the lane: 4 and knocked on to a jelly in it (on the table or in the air over it), nothing to one beside the lane. It skids to a stop at the edge, stands dizzy, then walks back to its spot.",
   setup() { startBull(0); },
   play() {
-    const out = {};
-    const R = CONTENT.elites.bull.skills.rush.radius;
-    for (const [name, dx, up] of [['beside', R * 0.6, 0], ['over', R * 0.4, 0.12], ['outside', R + 0.06, 0]]) {
+    const out = {}, Q = CONTENT.elites.bull.skills.rush;
+    for (const [name, side, up] of [['in', 0, 0], ['over', 0, 0.12], ['beside', Q.width * 0.5 + 0.08, 0]]) {
       const { e, player, table } = startBull(0), log = record('damage_taken'), knocks = record('knockback');
-      player.position.set(e.base.x + dx, table + up, e.base.z);
-      player.grounded = !up;
-      let radius = 0, horns = 0;
-      step(60 * 4, () => {
-        const v = bullPairs().find(([w]) => w.material.kind === 'dome');
-        if (v) radius = Math.max(radius, v[0].scale.x);
+      let lane = null, horns = 0, far = 0, dizzy = false;
+      const home = e.base.clone();
+      step(60 * 6, () => {
+        if (!lane && e.lane) {
+          lane = { len: +e.lane.len.toFixed(2), height: +e.tele.find((m) => m.material.kind === 'lane')?.scale.y.toFixed(2) };
+          const right = V(e.lane.dir.z, 0, -e.lane.dir.x);
+          player.position.addScaledVector(right, side).setY(table + up); player.grounded = !up;
+        }
         horns = Math.max(horns, e.model.horns[0].scale.x);
-        return e.state === 'idle' && radius > 0;
+        far = Math.max(far, e.base.distanceTo(home));
+        if (e.dizzyT > 0) dizzy = true;
+        return e.state === 'idle' && lane && e.base.distanceTo(home) < 0.006;
       });
-      out[name] = { radius: +radius.toFixed(3), horns: +horns.toFixed(2), after: +e.model.horns[0].scale.x.toFixed(2), hits: hitsBy(log, 'bull-rush'), away: knocks.filter((k) => k.dir.x > 0.9).length };
+      out[name] = { lane, horns: +horns.toFixed(2), far: +far.toFixed(2), dizzy, back: e.base.distanceTo(home) < 0.006, hits: hitsBy(log, 'bull-rush'), knocks: knocks.length };
     }
-    const { beside: b, over: o, outside: x } = out;
-    return ok(Math.abs(b.radius - R) < 0.005 && R > 0.35 && b.horns > 1.9 && b.after === 1 && b.hits[0] === 4 && b.away >= 1 && o.hits[0] === 4 && !x.hits.length, out);
+    const { in: i, over: o, beside: b } = out;
+    return ok(i.lane?.len > 0.3 && i.lane.height === Q.height && Q.height > 0.2 && i.horns > 1.9 && i.far > 0.3 && i.dizzy && i.back && i.hits[0] === 4 && i.knocks >= 1 && o.hits[0] === 4 && !b.hits.length, out);
   },
 });
 
@@ -209,17 +212,15 @@ act3('bull-minis-burst-on-each-other-and-are-jumped', {
 const liveSplats = () => G().fx.splats.filter((x) => x.alive).length;
 
 act3('bull-rush-feel', {
-  about: 'Bull rush feel: the Blast slams the Bull down flat (springing back), throws up stuffing, leaves a scuff on the table that fades, shakes the screen hard (feel impact-big) with its own layered boom, and flashes at the jelly it hit.',
+  about: 'Bull rush feel: it lets go with a flash, a puff of dust behind and a snort; meeting the jelly it shakes the screen hard (feel impact-big) with its own layered boom and a flash at the jelly; at the edge it slams to a stop (squashed, springing back), throws stuffing and leaves skid marks that fade, and sways dizzy with stars round its head.',
   setup() { startBull(0); },
   play() {
-    const { e, player, table } = startBull(0), { fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact'), booms = spy(sfx, 'bullRush');
-    player.position.set(e.base.x + CONTENT.elites.bull.skills.rush.radius * 0.6, table, e.base.z);
+    const { e, player } = startBull(0), { fx } = G(), log = record('damage_taken'), feels = spy(juice, 'feel'), impacts = spy(fx, 'impact'), booms = spy(sfx, 'bullRush'), snorts = spy(sfx, 'bullSnort');
     const before = liveSplats();
-    let squash = 0, splats = 0;
-    step(60 * 4, () => { squash = Math.max(squash, e.squash || 0); splats = Math.max(splats, liveSplats() - before); return e.state === 'idle' && log.length; });
-    const atJelly = impacts.some(([at]) => Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.01);
-    return ok(log.some((d) => d.source === 'bull-rush') && squash > 0.9 && splats >= 1 && feels.some(([k]) => k === 'impact-big') && booms.length === 1 && atJelly,
-      { hits: log.length, squash: +squash.toFixed(2), splats, booms: booms.length, atJelly });
+    let squash = 0, splats = 0, atJelly = false;
+    step(60 * 5, () => { squash = Math.max(squash, e.squash || 0); splats = Math.max(splats, liveSplats() - before); if (log.length && !atJelly) atJelly = impacts.some(([at]) => Math.hypot(at.x - player.position.x, at.z - player.position.z) < 0.01); return e.state === 'idle'; });
+    return ok(log.some((d) => d.source === 'bull-rush') && snorts.length >= 1 && squash > 0.9 && splats >= 1 && feels.some(([k]) => k === 'impact-big') && booms.length === 1 && atJelly,
+      { hits: log.length, snorts: snorts.length, squash: +squash.toFixed(2), splats, booms: booms.length, atJelly });
   },
 });
 

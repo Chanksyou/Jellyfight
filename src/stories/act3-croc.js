@@ -146,29 +146,34 @@ act3('croc-tail-rhythm-differs-each-time', {
 });
 
 act3('croc-pounce', {
-  about: 'Pounce: it crouches while a big Warning (a circle round it, the half sphere over it, its radius in content/elites.kdl) fills, leaps up and lands where it started as a Blast round itself: 4 and knocked back anywhere in it (on the bed beside it, or in the air over it), nothing outside it.',
+  about: 'Pounce: it crouches while a Warning (a circle with the half sphere over it, its radius in content/elites.kdl) fills where the jelly is, following it until lock= of the crouch; then it leaps there and lands as a Blast round itself: 4 and knocked back to a jelly that stayed (on the bed or in the air over it), nothing to one that moved off after the lock. It stays where it landed while you are on the bed, and walks back to its pillows once you leave.',
   setup() { startCroc(2); },
   play() {
-    const out = {};
-    const R = CONTENT.elites.croc.skills.pounce.radius;
-    for (const [name, dz, up] of [['beside', R * 0.6, 0], ['over', R * 0.4, 0.08], ['outside', R + 0.09, 0]]) {
+    const out = {}, Q = CONTENT.elites.croc.skills.pounce;
+    for (const [name, early, late, up] of [['stays', 0, 0, 0], ['over', 0, 0, 0.08], ['follows', 0.15, 0, 0], ['dodges', 0, Q.radius + 0.1, 0]]) {
       const { e, player } = startCroc(2), { run } = G(), log = record('damage_taken'), knocks = record('knockback');
-      const a = e.holder.rotation.y;
-      player.position.set(e.base.x + Math.sin(a) * dz, 0, e.base.z + Math.cos(a) * dz);
-      player.position.y = run.elites.surfaceBelow(player.position.clone().setY(1)) + up;
-      player.grounded = !up;
-      let radius = 0, peak = 0, came = null;
+      const home = e.base.clone(), a = e.holder.rotation.y;
+      player.position.set(e.base.x + Math.sin(a) * 0.3, 0, e.base.z + Math.cos(a) * 0.3);   // 30 cm in front of it
+      const bed = () => run.elites.surfaceBelow(player.position.clone().setY(1));
+      player.position.y = bed() + up; player.grounded = !up;
+      let radius = 0, peak = 0, moved = 0;
       step(60 * 4, () => {
         const v = crocPairs().find(([w]) => w.material.kind === 'dome');
         if (v) radius = Math.max(radius, v[0].scale.x);
         peak = Math.max(peak, e.model.group.position.y);
-        if (log.length && !came) came = r3(e.holder.position.clone().add(e.model.group.position));
+        const wind = Q.windup;
+        if (early && !moved && e.stateT > wind * Q.lock * 0.3) { moved = 1; player.position.x += early; player.position.y = bed(); }
+        if (late && !moved && e.stateT > wind * Q.lock + 0.05) { moved = 1; player.position.x += late; player.position.y = bed(); }
         return e.state === 'idle' && peak > 0;
       });
-      out[name] = { radius: +radius.toFixed(3), peak: +peak.toFixed(3), hits: hitsBy(log, 'croc-pounce'), knocked: knocks.length, home: e.holder.position.distanceTo(e.base) < 1e-6 };
+      out[name] = { radius: +radius.toFixed(3), peak: +peak.toFixed(3), hits: hitsBy(log, 'croc-pounce'), knocked: knocks.length, moved: +e.base.distanceTo(home).toFixed(2) };
+      if (name === 'stays') {   // it stays put while you're on the bed, and walks home once you leave
+        step(60); const still = e.base.distanceTo(home) > 0.15;
+        player.position.y -= 0.6; step(60 * 4); out[name].still = still; out[name].home = e.base.distanceTo(home) < 0.006; out[name].left = { awake: e.awake, state: e.state, d: +e.base.distanceTo(home).toFixed(3), stays: e.stays };
+      }
     }
-    const { beside: b, over: o, outside: x } = out;
-    return ok(Math.abs(b.radius - R) < 0.005 && b.peak > 0.06 && b.home && b.hits[0] === 4 && b.knocked >= 1 && o.hits[0] === 4 && !x.hits.length, out);
+    const { stays: s, over: o, follows: f, dodges: d } = out;
+    return ok(Math.abs(s.radius - Q.radius) < 0.005 && s.peak > 0.06 && s.moved > 0.2 && s.still && s.home && s.hits[0] === 4 && s.knocked >= 1 && o.hits[0] === 4 && f.hits[0] === 4 && !d.hits.length, out);
   },
 });
 

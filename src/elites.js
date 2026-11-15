@@ -64,15 +64,17 @@
 //     Tail slam:      it turns its back on you and slams its tail 3 to 5 times in a rhythm picked
 //                     afresh each time, a small ring Warning filling at the tail before each slam;
 //                     each slam sends a thick ring wall rolling out over the bed: jump it.
-//     Pounce:         it crouches while a big Warning fills under it, leaps and lands where it
-//                     started as a Blast round itself: too big to jump, get out of it.
+//     Pounce:         it crouches while a Warning fills where you are, following you until it
+//                     locks; then it leaps there and lands as a Blast round itself: move after the
+//                     lock. It stays where it landed till you leave the bed, then walks home.
 //     Under 65% Health it's angry: five frost balls, 4 to 6 slams, quicker windups.
 //   bull        the red plush bull on the changing table (act 3; bull-model.js): the dresser on the
 //               bedroom's north wall. It sleeps until you're on the table top (stage3.js `wake`),
 //               then fights there; leave and it settles back. Its numbers are in content/elites.kdl.
-//     Bull rush:      its horns swell and glow while it stamps and lowers its head, and a big Warning
-//                     (a circle, the half sphere over it) fills round it, almost the whole table;
-//                     then a Blast round itself knocks you away: too big to jump, get off the table.
+//     Bull rush:      its horns swell and glow while it stamps and lowers its head, and a lane
+//                     Warning (too tall to jump) fills from it through you to the table's edge;
+//                     then it charges down it: sidestep. It stands dizzy at the edge (hit it), then
+//                     walks home.
 //     Spiral:         a Warning circle fills round it, then it spins, firing red Shots out along two
 //                     arms that wind into a spiral; one arm flies at floor level (jump it), the
 //                     other at jump height (stay down).
@@ -85,9 +87,10 @@
 //               standing in for the inlaid wooden box there. It sleeps as a plain shut box until
 //               you're on the desk top, then opens its amber eyes, rises on its legs and fights;
 //               leave and it settles back. Its numbers, radii and timings are in content/elites.kdl.
-//     Accordion:      five strikes in a row: each locks where you are (60 cm from it at most), a
-//                     Warning (a circle, the half sphere over it) fills there while the lid shoots
-//                     out on its stretching bellows, then the lid slams down there as a Blast.
+//     Accordion:      five strikes in a row: each aims where you are (80 cm from it at most), a
+//                     Warning (a circle, the half sphere over it) fills there, sliding with you
+//                     until it locks, while the lid shoots out on its stretching bellows, then the
+//                     lid slams down there as a Blast: dodge after the lock.
 //     Tongue:         its mouth opens and the tongue latches onto you: no Warning, it can't miss
 //                     (docs/adr/0001). For 4 s it pulls you toward its mouth (this.pull, which the
 //                     run adds to your swimming) faster than base move speed; reach the mouth and
@@ -445,6 +448,7 @@ const ONE = new THREE.Vector3(1, 1, 1);
 // high over the bench (jump them); the wreath is a Shot with this hit radius, flying out in this many s
 const CLOCK_HITS = { sweepH: 0.02, chimeH: 0.03, wreathRadius: 0.04, wreathFlight: 0.5 };
 const NOWHERE = new THREE.Vector3(0, -99, 0);
+const ELITE_WALK = 0.35;   // m/s: how fast an Elite that moved walks back to its spot
 // the Soap Dispenser's bubble ring: each bubble is a column of foam (m over the vanity: its middle,
 // half its height, its radius, and the heights its hit is tested at), too tall to jump or duck: find the gap
 const SOAP_COLUMN = { mid: 0.12, half: 0.09, r: 0.016, at: [SHOT_HEIGHT.floor, 0.1, SHOT_HEIGHT.jump] };
@@ -462,6 +466,7 @@ class Elite {
     this.maxHp = this.hp = Math.round(D.hp * (owner.hpScale || 1));   // later acts: tougher (stage eliteHp)
     this.dead = false;
     this.base = new THREE.Vector3(...spec.at);
+    this.home = this.base.clone();       // its spot: one that moves (rush, pounce) walks back here
     const m = K.build();
     this.size = K.scale || 1;             // a bit bigger than life, so it reads from the game camera
     m.r *= this.size;
@@ -547,7 +552,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -752,6 +757,9 @@ export class Elites {
     return m;
   }
 
+  // an Elite that moves (the Bull's rush, the Alligator's pounce): its base and model go to `at`
+  moveElite(e, at) { e.base.copy(at); e.base.y = this.surfaceBelow(at); e.holder.position.copy(e.base); }
+
   // a flat telegraph mesh on a surface
   mark(e, geo, mat, pos, scale, rotY = 0) {
     let m = this.warningPool.find(m => !m.parent && m.geometry === geo && m.userData.template === mat);
@@ -919,6 +927,14 @@ export class Elites {
     juice.feel('impact'); sfx.clockStrike(true);
   }
 
+  // where the Coffer's accordion strike aims: at the jelly, no further than its reach (A.range) from it
+  cofferAim(e, A, P) {
+    e.aim.copy(P);
+    const dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, d = Math.hypot(dx, dz);
+    if (d > A.range) { e.aim.x = e.base.x + (dx / d) * A.range; e.aim.z = e.base.z + (dz / d) * A.range; }
+    return this.platformTarget(e, e.aim, A.radius);
+  }
+
   // the Coffer's jewels: n spots on its ground (spec.wake, inset by the Warning's size), at least
   // J.spread apart (closing up a little if they don't fit) and off the Coffer itself
   cofferSpots(e, n, J) {
@@ -941,7 +957,7 @@ export class Elites {
     const camQ = this.camera.quaternion;
     const sameLevel = (y) => Math.abs(P.y - y) < 0.1;
     const hit = (amount, source, at) => bus.emit('damage_taken', { targetId: PLAYER, amount, source, at });   // at: where it struck from (the red arc on the jelly)
-    const knock = (from, force) => bus.emit('knockback', { targetId: PLAYER, dir: P.clone().sub(from).setY(0).normalize(), force, launch: 0.25 });
+    const knock = (from, force) => { const dir = P.clone().sub(from).setY(0); bus.emit('knockback', { targetId: PLAYER, dir: dir.lengthSq() > 1e-8 ? dir.normalize() : dir.set(1, 0, 0), force, launch: 0.25 }); };   // (right under it: any way out)
     this.pull = null;
 
     // things that only hang there: a hanging elite goes back up its wall; clock hands keep time
@@ -1075,6 +1091,18 @@ export class Elites {
           M.pose(C.lift, C.gap, C.jaw);
         }
       }
+
+      // an Elite that moved walks back to its spot once it's idle (one that stays, the Alligator after
+      // a pounce, only once you've left it); it starts nothing on the way
+      const homeD = e.wall ? 0 : Math.hypot(e.home.x - e.base.x, e.home.z - e.base.z);
+      if (e.state === 'idle' && homeD > 0.005 && (!awake || !e.stays)) {
+        const d = Math.min(homeD, dt * ELITE_WALK);
+        this.moveElite(e, this._probe.set(e.base.x + (e.home.x - e.base.x) / homeD * d, e.base.y + 0.05, e.base.z + (e.home.z - e.base.z) / homeD * d));
+        e.holder.rotation.y = Math.atan2(e.home.x - e.base.x, e.home.z - e.base.z);
+        g.position.y = Math.abs(Math.sin(e.t * 12)) * 0.005;
+        continue;
+      }
+      if (homeD <= 0.005 && e.stays !== undefined) { e.stays = undefined; e.base.copy(e.home); e.holder.position.copy(e.home); }   // back on its spot (as it was placed)
 
       // start the next attack
       if (e.state === 'idle') {
@@ -1643,12 +1671,19 @@ export class Elites {
             }
           } else if (s > due + 0.45) { e.rhythm = null; e.locked = false; e.state = 'idle'; e.cool = angry ? T.angryRest : T.rest; }
         } else {
-          // Pounce: it crouches while a big Warning fills under it (a circle and the half sphere
-          // over it), leaps, and lands where it started as a Blast round itself: too big to jump
-          // clear, get out of it
+          // Pounce: it crouches while a Warning (a circle and the half sphere over it) fills where you
+          // are, following you until lock= of the crouch; then it leaps there and lands as a Blast
+          // round itself, and stays there (it walks back to its pillows only once you leave the bed)
           const Q = SK.pounce, wind = angry ? Q.angryWindup : Q.windup, land = wind + Q.air;
-          if (!e.tele.length && !e.landed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.pounce), this.volume(hostile('croc'), 'dome', surf, Q.radius));
-          if (e.tele.length) { const u = Math.min(1, s / land); e.tele[0].userData.fill(u); e.tele[1].material.progress = u; }
+          if (!e.pounceAt) { e.pounceAt = new THREE.Vector3(); e.pounceFrom = e.base.clone(); e.landed = false; }
+          const at = e.pounceAt;
+          if (s < wind * Q.lock) { this.platformTarget(e, at.copy(P), Q.radius * 0.5); at.y = this.surfaceBelow(this._probe.copy(at).setY(P.y + 0.05)); }
+          else e.locked = true;
+          if (!e.tele.length && !e.landed) e.tele.push(this.warnCircle(at, Q.radius, this.T.pounce), this.volume(hostile('croc'), 'dome', at, Q.radius));
+          if (e.tele.length) {
+            const u = Math.min(1, s / land); e.tele[0].userData.fill(u); e.tele[1].material.progress = u;
+            e.tele[0].position.copy(at).setY(at.y + 0.002); e.tele[1].position.copy(at);
+          }
           if (s < wind) {
             const c = Math.min(1, s / (wind * 0.6));
             g.scale.y *= 1 - c * 0.22;                                           // crouching down
@@ -1657,7 +1692,8 @@ export class Elites {
             jaw(c * 0.25);
           } else if (s < land) {
             const u = (s - wind) / Q.air;
-            if (!e.leapt) { e.leapt = true; sfx.wind(); sfx.crocThump(0.5); this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, 0.05, 0.4); e.squash = 0.6; }   // the push off
+            if (!e.leapt) { e.leapt = true; sfx.wind(); sfx.crocThump(0.5); this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xdfe6ff, 0.05, 0.4); e.squash = 0.6; e.holder.rotation.y = Math.atan2(at.x - e.base.x, at.z - e.base.z); }   // the push off
+            e.holder.position.lerpVectors(e.pounceFrom, at, u);
             g.position.y = Math.sin(u * Math.PI) * Q.leap;
             g.rotation.x = -0.35 * Math.cos(u * Math.PI);                       // nose up going up, down coming down
             M.tail.forEach((t, i) => { t.rotation.x = 0.25 - u * 0.4 + i * 0.05; });
@@ -1665,6 +1701,8 @@ export class Elites {
           } else if (!e.landed) {
             e.landed = true;
             e.clearTele();
+            this.moveElite(e, this._mid.copy(at).setY(at.y + 0.05)); e.stays = true;
+            const surf = e.base.clone().setY(e.base.y + 0.002);
             jaw(0);
             this.fx.ring(surf, hostile('croc'), Q.radius, 0.5);
             this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('croc'), 0.05, 22);
@@ -1674,7 +1712,7 @@ export class Elites {
             e.squash = 1;                                                        // it lands flat, then springs back
             juice.feel('impact-big'); sfx.crocThump(1.4);
             if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'croc-pounce', surf); knock(e.base, Q.knock); this.fx.impact(pc, hostile('croc'), 0.02, 8); }
-          } else if (s > land + 0.4) { e.landed = e.leapt = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
+          } else if (s > land + 0.4) { e.landed = e.leapt = false; e.pounceAt = null; e.locked = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
         }
       }
 
@@ -1682,15 +1720,25 @@ export class Elites {
       if (e.kind === 'bull') {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('bull');
         if (e.attack === 0) {
-          // Bull rush: its horns swell and glow while it stamps and lowers its head, and a big
-          // Warning (a circle and the half sphere over it) fills round it; then a Blast round
-          // itself knocks you away. Too big to jump: off the table, or take it
+          // Bull rush: its horns swell and glow while it stamps and lowers its head, and a lane
+          // Warning (a strip and the box over it, as wide as the Bull and too tall to jump) fills from
+          // it through you to the table's edge; then it charges down it, knocking away what it meets,
+          // skids to a stop at the edge and stands there dizzy (hit it!) before it walks home
           const Q = SK.rush, wind = angry ? Q.angryWindup : Q.windup, big = angry ? Q.angryHorns : Q.horns;
-          if (!e.tele.length && !e.rushed) e.tele.push(this.warnCircle(surf, Q.radius, this.T.rush), this.volume(col, 'dome', surf, Q.radius));
+          if (!e.lane) {
+            e.locked = true;
+            const dir = fwd.clone(), W = e.spec.wake, m = Q.width * 0.5;
+            let len = 0;   // to the table's edge (its wake box, less half the Bull)
+            while (len < 2 && this._probe.copy(e.base).addScaledVector(dir, len + 0.01).x > W.min[0] + m && this._probe.x < W.max[0] - m && this._probe.z > W.min[2] + m && this._probe.z < W.max[2] - m) len += 0.01;
+            e.lane = { dir, len, from: e.base.clone(), along: 0, struck: false, rushed: false };
+            this.mark(e, this.stripGeo, this.T.lane, surf.clone().setY(surf.y + 0.002), new THREE.Vector3(Q.width, 1, len), heading);
+            const vol = this.volume(col, 'lane', surf.clone().setY(surf.y + 0.002), new THREE.Vector3(Q.width, Q.height, len));
+            vol.rotation.y = heading; e.tele.push(vol);
+          }
+          const L = e.lane, charge = s - wind, run = Math.min(L.len, Math.max(0, charge) / CONTENT.elites.pace.tempo * (angry ? Q.angrySpeed : Q.speed));   // speed: real m/s
           if (s < wind) {
             const u = s / wind, k = THREE.MathUtils.smoothstep(u, 0, 0.75);
-            e.tele[0].userData.fill(u);
-            e.tele[1].material.progress = u;
+            for (const m of e.tele) m.material.progress = u;
             for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
             M.hornMat.emissive.copy(col);
             M.hornMat.emissiveIntensity = k * (1.4 + Math.sin(e.t * 30) * 0.5);
@@ -1699,23 +1747,39 @@ export class Elites {
             g.rotation.x = 0.22 * k;
             g.rotation.z = (stamp % 2 ? 1 : -1) * 0.05;
             if (stamp !== e.stamped) { e.stamped = stamp; this.fx.puff(surf.clone().setY(surf.y + 0.01), 0xf0d0c0, 0.03, 0.35); sfx.crocThump(0.5); }
-          } else if (!e.rushed) {
-            e.rushed = true;
-            e.clearTele();
-            this.fx.ring(surf, col, Q.radius, 0.5);
-            this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.06, 24);
-            this.fx.puff(surf.clone().setY(surf.y + 0.02), 0xf0d0c0, Q.radius * 0.7, 0.55);
-            this.fx.burst(surf.clone().setY(surf.y + 0.03), LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 12, 0.004, 0.4, surf.y);   // stuffing and fluff thrown up
-            this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), Q.radius * LOOK.num('bull-scuff-size', 0.2), 'dust');   // a scuff where it stamped, fading
-            e.squash = 1;                                                        // it slams down into the table and springs back
-            juice.feel('impact-big'); sfx.bullRush();
-            if (blastHits(surf, Q.radius, P, cfg)) { hit(Q.dmg, 'bull-rush', surf); knock(e.base, Q.knock); this.fx.impact(pc, col, 0.02, 8); }
+          } else if (L.along < L.len) {
+            if (!L.rushed) {   // off it goes: the release
+              L.rushed = true; e.clearTele();
+              this.fx.impact(surf.clone().setY(surf.y + 0.02), col, 0.04, 16);
+              this.fx.puff(surf.clone().setY(surf.y + 0.01).addScaledVector(L.dir, -0.04), 0xf0d0c0, 0.05, 0.4);
+              juice.feel('hit'); sfx.bullSnort();
+            }
+            L.along = run;
+            this.moveElite(e, this._mid.copy(L.from).addScaledVector(L.dir, L.along)); e.stays = false;
+            g.rotation.x = 0.3; g.position.y = Math.abs(Math.sin(s * 28)) * 0.008;
+            if (Math.random() < dt * 30) this.fx.puff(this._to.copy(e.base).setY(e.base.y + 0.006), 0xf0d0c0, 0.02, 0.3);
+            const c = this._to.copy(e.base).setY(e.base.y + Q.height * 0.4);
+            if (!L.struck && blastHits(c, Q.width * 0.5 + 0.02, P, cfg)) {
+              L.struck = true; hit(Q.dmg, 'bull-rush', c); knock(this._from.copy(e.base).addScaledVector(L.dir, -0.2), Q.knock);
+              this.fx.impact(pc, col, 0.03, 14); juice.feel('impact-big'); sfx.bullRush();
+            }
+            if (L.along >= L.len) {   // the skid at the edge: it slams to a stop, stuffing flying
+              e.squash = 1; e.dizzyT = 0;
+              this.fx.impact(surf.clone().setY(surf.y + 0.02).addScaledVector(L.dir, 0.04), col, 0.04, 16);
+              this.fx.burst(surf.clone().setY(surf.y + 0.03), LOOK.list('bull-fluff', ['#f0d0c0', '#ffffff', '#a83a3a']), 12, 0.004, 0.4, surf.y);   // stuffing and fluff thrown up
+              this.fx.splat(surf, LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-mini-scuff', 0.02) * 1.5, 'dust');   // skid marks, fading
+              if (!L.struck) juice.feel('impact'); sfx.bullMini(false);
+            }
           } else {
-            const k = Math.max(0, 1 - (s - wind) / 0.4);                        // the horns shrink back
+            // dizzy: the horns shrink back, it sways round in a daze, then it's done (and walks home)
+            e.dizzyT += dt;
+            const k = Math.max(0, 1 - e.dizzyT / 0.4);
             for (const h of M.horns) h.scale.setScalar(1 + (big - 1) * k);
             M.hornMat.emissiveIntensity = k * 1.4;
-            g.rotation.x = 0.22 * k;
-            if (s > wind + 0.45) { e.rushed = false; e.stamped = -1; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
+            g.rotation.x = 0;
+            g.rotation.z = Math.sin(e.dizzyT * 9) * 0.12; e.holder.rotation.y += dt * Math.sin(e.dizzyT * 4) * 2;
+            if (Math.random() < dt * 6) this.fx.glow.emit(this._to.copy(e.base).setY(e.base.y + e.r * 2.4), LOOK.color('bull-dizzy', '#fff2a0'), 0.012, 0.01, 0.4, 0.8);   // stars round its head
+            if (e.dizzyT > Q.dizzy) { e.lane = null; e.stamped = -1; e.locked = false; e.state = 'idle'; e.cool = angry ? Q.angryRest : Q.rest; }
           }
         } else if (e.attack === 1) {
           // Spiral: a Warning circle fills round it; then it spins, firing a Shot out along each arm
@@ -1817,13 +1881,12 @@ export class Elites {
           if (k < n && k !== e.strike) {
             // the next strike: lock where you are
             e.strike = k;
-            e.aim.copy(P);
-            const dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, d = Math.hypot(dx, dz);
-            if (d > A.range) { e.aim.x = e.base.x + (dx / d) * A.range; e.aim.z = e.base.z + (dz / d) * A.range; }
-            this.platformTarget(e,e.aim,A.radius);
+            this.cofferAim(e, A, P);
             e.tele.push(this.warnCircle(e.aim, A.radius, this.T.coffer), this.volume(col, 'dome', e.aim, A.radius));
             sfx.cofferWheeze(unfold / tempo);
           }
+          // the lid hovers over you, its Warning sliding with you, until track= of the strike: then it locks
+          if (k < n && e.tele.length && (s - k * unfold) / unfold < A.track) { this.cofferAim(e, A, P); e.tele[0].position.copy(e.aim).setY(e.aim.y + 0.002); e.tele[1].position.copy(e.aim); }
           const to = g.worldToLocal(this._to.copy(e.aim));                  // the spot, in its frame
           if (k < n) {
             const u = (s - k * unfold) / unfold;

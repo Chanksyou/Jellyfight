@@ -51,19 +51,21 @@ elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.6
 //   tail:   it turns its back (turn= s) and slams its tail slams= to maxSlams= times, a random
 //           gap= (gapMin= to gapMax= s) before each; each sends a ring wall height= tall, band=
 //           thick, out at speed= m/s to reach= m: jump it, or it hits and shoves you on (knock=)
-//   pounce: it crouches for windup= s while a Warning of radius= fills under it, leaps leap= m
-//           up for air= s and lands as a Blast of radius= round itself (knock= knocks you back)
+//   pounce: it crouches for windup= s while a Warning of radius= fills where you are, following you
+//           until lock= of the crouch; then it leaps there (leap= m up, air= s) and lands as a Blast of
+//           radius= round itself (knock= knocks you back), and stays there till you leave the bed
 elite "croc" name="The Alligator" icon="🐊" hp=800 aggro=1.8 angry=0.65 {
     volley dmg=3 count=3 angryCount=5 spread=0.16 radius=0.09 size=0.016 windup=0.8 angryWindup=0.6 flight=0.45 stagger=0.15 arc=0.25 slow=0.5 slowTime=1.5 rest=1.0 angryRest=0.7
     tail dmg=3 slams=3 maxSlams=5 angrySlams=4 angryMaxSlams=6 gapMin=0.35 gapMax=0.9 turn=0.5 height=0.03 band=0.07 speed=0.5 reach=0.9 knock=0.45 rest=1.0 angryRest=0.7
-    pounce dmg=4 radius=0.32 windup=1.0 angryWindup=0.75 leap=0.2 air=0.55 knock=0.9 rest=1.1 angryRest=0.8
+    pounce dmg=4 radius=0.2 lock=0.5 windup=1.0 angryWindup=0.75 leap=0.2 air=0.55 knock=0.9 rest=1.1 angryRest=0.8
 }
 
 // act 3: the red plush bull on the changing table (the dresser by the north wall). It sleeps
 // until you're on the table top (stage3.js `wake`), then within aggro= of it.
-//   rush:   its horns swell (horns= times their size) for windup= s while a big Warning of radius=
-//           fills round it; then a Blast round itself (knock= knocks you away): too big to jump,
-//           get off the table or take it
+//   rush:   its horns swell (horns= times their size) for windup= s while a lane Warning width= wide
+//           and height= tall (too tall to jump) fills from it through you to the table's edge; then
+//           it charges down it at speed= m/s (real s), knocking you on (knock=) if it meets you, skids
+//           to a stop at the edge and stands dizzy for dizzy= s (hit it), then walks home
 //   spiral: a Warning circle of warnRadius= fills round it for warn= s; then it spins, firing arms=
 //           opposite Shots every= s for time= s while it turns turn= degrees a second, each flying
 //           out at speed= m/s for reach= m (size=: its radius, m): the arms alternate floor level
@@ -73,16 +75,17 @@ elite "croc" name="The Alligator" icon="🐊" hp=800 aggro=1.8 angry=0.65 {
 //           then they charge along it at speed= m/s and burst on you (knock=), on each other, or
 //           at the lane's end or the table's edge
 elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
-    rush dmg=4 radius=0.4 windup=1.2 angryWindup=0.9 horns=2 angryHorns=2.5 knock=1.6 rest=1.0 angryRest=0.7
+    rush dmg=4 width=0.14 height=0.22 windup=1.2 angryWindup=0.9 horns=2 angryHorns=2.5 speed=1.0 angrySpeed=1.3 knock=1.6 dizzy=1.2 rest=1.0 angryRest=0.7
     spiral dmg=2 arms=2 angryArms=3 warn=0.6 warnRadius=0.16 time=2.5 every=0.08 turn=200 angryTurn=260 speed=0.35 reach=0.7 size=0.009 rest=1.0 angryRest=0.7
     minis dmg=3 side=0.15 warn=0.7 speed=0.6 angrySpeed=0.8 reach=0.4 width=0.07 height=0.09 knock=1.0 rest=1.0 angryRest=0.7
 }
 
 // act 3: the Latticework Coffer, the mimic box on the vanity desk in the north-west corner. It
 // sleeps (a plain box) until you're on the desk top (stage3.js `wake`), then within aggro= of it.
-//   accordion: strikes= strikes in a row. Each locks where you are (no further than range= m from
+//   accordion: strikes= strikes in a row. Each aims where you are (no further than range= m from
 //              it) and a Warning of radius= fills there for unfold= s while the lid shoots out on its
-//              bellows, hovering hover= m over the spot; then the lid slams down there as a Blast
+//              bellows, hovering hover= m over the spot; the Warning follows you until track= of the
+//              strike, then locks, and the lid slams down there as a Blast
 //   tongue:    its mouth opens for open= s, then the tongue shoots to you in shoot= s and latches on:
 //              it can't miss. For hold= s it pulls you toward its mouth at pull= m/s (base swim speed
 //              is 0.42 m/s: config.js walkSpeed, so it takes over 143% move speed to get away, 167% angry);
@@ -94,7 +97,7 @@ elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
 //              jewels fall from up= m onto them in drop= s and burst as Blasts
 // (its times were authored for tempo=1.2; the shared pace above scales these attacks too)
 elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=0.65 {
-    accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
+    accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 track=0.45 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
     tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7
     jewels dmg=3 count=10 angryCount=14 radius=0.1 spread=0.17 rain=2.4 drop=0.25 up=0.9 rest=1.0 angryRest=0.7
 }
