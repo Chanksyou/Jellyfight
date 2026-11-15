@@ -10,6 +10,8 @@
 //               bass, hats and 16th arpeggios with the fuller layer, the brass a fourth higher.
 //   bloom       "Medusa Bloom", exploring act 3: E minor (Phrygian) at 116 BPM, a chord a bar,
 //               full-time drums, driving 16ths and risers; the brass highest of the three.
+//   sunrise     "Sunrise Set", exploring act 4: E minor at 128 BPM (the Encore recording's key and tempo), a
+//               soundcheck: pads and arpeggio first, the kick held back until the fuller layer.
 //   machinery   "Domestic Machinery", the Vacuum, after deadmau5's "HR 8938 Cephei" with a dubby
 //               twist: F minor, 4/4 at 128 BPM, pumping supersaw chords, a wobbling reese bass,
 //               risers, and a supersaw lead once the fight gets desperate.
@@ -200,7 +202,7 @@ const MACHINERY = {
   },
 };
 
-// The Encore (act 4): an original French-house track for the concert floor, in the style of the
+// The Encore (act 4's boss floor): an original French-house track for the concert floor, in the style of the
 // late-90s Paris filter-house records, none of their melodies: D minor, 4/4 at 121 BPM, through
 // Dm9, Bbmaj7, F and C6. An octave-jumping disco bass whose filter opens with intensity, chopped
 // chord stabs pumping against the kick, four on the floor with claps and offbeat open hats, and a
@@ -239,7 +241,56 @@ const ENCORE = {
   },
 };
 
-export const SONGS = { drift: DRIFT, tide: TIDE, bloom: BLOOM, machinery: MACHINERY, encore: ENCORE };
+// Act 4, the living room at sunrise (the exploring song before the Encore): a soundcheck. E minor, the
+// key measured from the Encore's recording (assets/audio/encore-around-the-world.mp3: E minor, close
+// with B minor), 4/4 at 128 BPM like it, so the handoff to the recording lands on the same grid.
+// Em7, Cmaj7, Am7 and D6, two bars each. It starts bare, a warm pad and a soft bass, then a pluck
+// arpeggio, then hats and rim clicks with a count-in before each phrase; the kick stays out until the
+// fuller layer (intensity ~0.6), then four on the floor pumps the pads and the lead sings on top.
+const SUNRISE = {
+  name: 'Sunrise Set', bpm: 128, steps: 16, per: 2, pump: true, supersaw: true, sub: 1, air: 9000, arpWave: 'triangle',
+  layers: { pad: -1, bass: 0.1, arp: 0.25, drums: 0.4, full: 0.6, lead: 0.74 },
+  chords: [
+    { pad: [52, 59, 62, 67], arp: [64, 67, 71, 74], root: 40 },   // Em7
+    { pad: [48, 55, 59, 64], arp: [60, 64, 67, 71], root: 36 },   // Cmaj7
+    { pad: [45, 52, 55, 60], arp: [57, 60, 64, 67], root: 33 },   // Am7
+    { pad: [50, 57, 62, 66], arp: [62, 66, 69, 71], root: 38 },   // D6
+  ],
+  bass: [[0, 0], [3, 12], [6, 0], [8, 7], [11, 12], [14, 0]],       // [step, semitones over the root]
+  arp: [0, 1, 2, 3, 2, 1, 2, 3],                                     // 8ths, up and down
+  lead: [
+    [0, 0, 79, 6], [0, 6, 76, 2], [0, 8, 74, 8],
+    [1, 0, 71, 8], [1, 8, 74, 4], [1, 12, 76, 4],
+    [2, 0, 79, 6], [2, 6, 83, 2], [2, 8, 81, 8],
+    [3, 0, 79, 12], [3, 12, 76, 4],
+    [4, 0, 81, 6], [4, 6, 79, 2], [4, 8, 76, 8],
+    [5, 0, 72, 4], [5, 4, 76, 4], [5, 8, 79, 8],
+    [6, 0, 78, 6], [6, 6, 76, 2], [6, 8, 74, 8],
+    [7, 0, 76, 16],
+  ],
+  tick(m, s, bar, t, L) {
+    const C = this.chords[Math.floor(bar / this.per) % this.chords.length], dur = m.stepDur;
+    if (s === 0 && bar % this.per === 0) m.pad(C.pad, t, dur * this.steps * this.per + 0.4, 0.04, 600 + 1800 * m.I, true);
+    if (L.full && s % 4 === 0) m.pumpAt(t, dur * 4);                 // only the kick ducks the music
+    if (L.bass) for (const [st, up] of this.bass) if (st === s) m.bass(C.root + up, t, dur * 1.6, 0.15 * L.bass, 0.1 + 0.4 * m.I);
+    if (L.arp && s % 2 === 0) m.pluck(C.arp[this.arp[(s / 2) % 8]] + (bar % 2 && s > 7 ? 12 : 0), t, 0.045 * L.arp, 0.08 + 0.2 * m.I, (s / 2) % 2 ? 0.4 : -0.4);
+    if (L.drums) {
+      m.hat(t, s % 4 === 2 ? 0.03 * L.drums : 0, s % 4 === 2);
+      if (!L.full && (s === 4 || s === 12)) m.clap(t, 0.07 * L.drums);            // a soft rim click on 2 and 4
+      if (bar % 8 === 7 && s % 4 === 0 && !L.full) m.clap(t, 0.09 * L.drums);   // the count-in: one, two, three, four
+    }
+    if (L.full) {
+      if (s % 4 === 0) m.kick(t, 0.6 * L.full);
+      if (s === 4 || s === 12) m.clap(t, 0.1 * L.full);
+      if (s % 2 === 1) m.hat(t, 0.016 * L.full, false);
+      if (s === 0 && bar % 8 === 0) { m.crash(t, 0.08 * L.full); m.drop(t, 0.08 * L.full); }
+      if (s === 0 && bar % 8 === 7) m.riser(t, dur * 16, 0.05 * L.full);
+    }
+    if (L.lead) for (const [b, st, n, len] of this.lead) if (b === bar % 8 && st === s) m.lead(n, t, dur * len, 0.07 * L.lead);
+  },
+};
+
+export const SONGS = { drift: DRIFT, tide: TIDE, bloom: BLOOM, machinery: MACHINERY, encore: ENCORE, sunrise: SUNRISE };
 
 // --------------------------------------------------------------------------- the engine
 export class Music {
