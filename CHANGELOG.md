@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v434 writes act 4's exploring song, "Sunrise Set" (E minor, 128 BPM like the Encore recording): a soundcheck whose kick waits for the fuller layer. It isn't playing in game until act 4 exists.
+
 v433 makes the act 3 shark summon its illusion at half Health: a see-through copy that rises beside the jelly and uses the shark's own attacks for the same damage. It has no Health, nothing aims at it and your attacks pass through it, so keep hitting the solid shark; it rests a little longer between attacks so the two strike out of step, and it goes when the shark is beaten.
 
 v432 reloads a page still running an older version's code into the new one, so a phone can't crash mid-fight reading new content with old code (the Soap Dispenser's `SK.squirt` error).
