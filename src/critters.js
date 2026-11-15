@@ -1404,7 +1404,7 @@ export function buildDragonfly() {
     tail.rotation.x = Math.sin(t * 1.7 + e.phase) * 0.05 + dart * 0.08;
     tail.rotation.y = Math.sin(t * 1.3 + e.phase) * 0.04;
     body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5);
-    const kick = Math.max(0, e.firedT || 0) * 1.6;                     // its beam fired: it rocks back, tail flicking
+    const kick = Math.max(0, e.firedT || 0, e.whirlKick || 0) * 1.6;   // its beam or whirlwind fired: it rocks back, tail flicking
     body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03 - kick;   // nose down to dart
     tail.rotation.x += kick * 0.8;
     body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;

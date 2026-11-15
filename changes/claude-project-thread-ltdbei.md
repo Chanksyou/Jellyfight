@@ -1,0 +1,1 @@
+gives the dragonfly a second attack: it whips its wings into a little whirlwind of spinning blades and flings it at you. The whirlwind flies slowly and sucks you toward it as it comes, so swim hard to one side.

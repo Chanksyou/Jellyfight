@@ -78,10 +78,14 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
 // Within reach it turns to face you and holds dead still for half a second, charging; the only warning is a
 // whine that builds, then a beam fires instantly along the way it faced. Move off that line. Hit
 // it and it darts away in a random direction (at most once every 5 s), breaking off a charge.
+// Now and then it whips its wings into a little whirlwind instead (spinning blades growing in front
+// of its head, a rising whirr; its aim locks part way through) and flings it at you. It flies slowly
+// and sucks you toward it as it comes: swim hard to one side.
 enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     death-motion "flutter"
     zip distance=0.2 above=0.06 speed=1.25 length=0.2 pause=0.35
     charge-beam range=0.65 charge=0.5 dmg=3 reach=0.8 width=0.08 every=3
+    whirlwind range=0.6 every=5 windup=0.7 lock=0.6 speed=0.45 size=0.03 life=2.2 pull=0.25 suck=0.12 dmg=2 rest=0.5
     evade every=5 distance=0.25 speed=2.2
 }
 

@@ -425,7 +425,9 @@
   --burst-warning-pulse: 0.06;   /* its flicker above that (was 0.2) */
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
-  --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam: hot rose (it gives no warning but its whine) */
+  --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
+  --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
+  --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */
   --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant, hair tangle): a small flash where they meet */
   --hurt-arc: #ff2626;           /* the jelly is hit: a short red arc on its edge facing where the hit came from (not an attack colour: it marks the jelly, never a hazard) */
   --hurt-arc-life: 0.32;         /* seconds it shows; it pops out a little and fades */
