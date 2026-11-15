@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v429 makes three act 3 Elites move: the Bull's rush is a real charge down a lane to the table's edge (sidestep it, then hit it while it's dizzy), the Alligator's pounce lands where you are and it stays there till you leave the bed, and the Coffer's accordion Warning follows you until it locks.
+
 v428 adds three Megabonk-inspired Treasures: Pedometer (rare, +1 XP for every 2 m you swim), Bloody Fangs (Legendary, lose 1 Health a second but never your last, for +25% Move speed, +50% Fire rate and +1 mid-air jump) and Pocket Vacuum (epic, 1 in 10 attacks sets off a 4 s mini tornado by the nearest bug that pulls bugs together and stings them a little).
 
 v427 makes four Elite attacks play differently: the Controller's symbols go off one at a time in the order its buttons light, the Kettle's steam balls aim where you're heading, the Soap Dispenser's bubbles are foam columns you can't jump or duck (find the gap), and the Alligator's frost balls land one after another across the fan.

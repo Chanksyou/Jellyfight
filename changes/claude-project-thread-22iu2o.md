@@ -1,1 +1,0 @@
-makes three act 3 Elites move: the Bull's rush is a real charge down a lane to the table's edge (sidestep it, then hit it while it's dizzy), the Alligator's pounce lands where you are and it stays there till you leave the bed, and the Coffer's accordion Warning follows you until it locks.
