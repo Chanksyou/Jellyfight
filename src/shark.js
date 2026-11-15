@@ -1,7 +1,7 @@
 // Act 3's moving plush shark. Damage/state numbers live in content/bosses.kdl.
 // The quilt is its sea: only a dorsal fin remains above it during a dive.
 import * as THREE from 'three';
-import { buildShark } from './shark-model.js';
+import { buildShark, ghostly } from './shark-model.js';
 import { sharkWaterMaterial } from './shark-water.js';
 import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
@@ -37,26 +37,31 @@ function hazardAssets(color){
 }
 
 export class Shark {
-  constructor(scene,enemies,fx,arena,world){
+  // ctx.illusion: this is the see-through copy the shark summons at half Health (summon()): it has no
+  // Health, isn't an enemy (nothing aims at it, attacks pass through it) and only attacks
+  constructor(scene,enemies,fx,arena,world,ctx={}){
     Object.assign(this,{scene,enemies,fx,arena,world});
+    this.illusion=!!ctx.illusion;
     this.kind='shark';this.def=CONTENT.bosses.shark;this.hp=this.maxHp=this.def.hp;
     this.r=.19*K;this.bound=.39*K;this.rise=0;this.t=0;this.next=0;this.heading=Math.PI;
     this.dead=false;this.dying=false;this.frenzy=0;this.prey=0;this.bleed=0;this.bleedFx=0;
     this.state='idle';this.stateT=1;this.elapsed=0;this.phase='rest';this.beat=0;this.repeats=0;this.lift=0;this.groundT=0;
     this.gait=0;this.sway=0;this.settle=0;this.walkBlend=0;this.visualTilt=-1.1;this.visualRoll=0;
-    this.holder=new THREE.Group();this.model=buildShark();this.model.scale.setScalar(SIZE);
+    this.holder=new THREE.Group();this.model=buildShark();if(this.illusion)ghostly(this.model,LOOK.num('shark-illusion-opacity',.35));this.model.scale.setScalar(SIZE);
     this.model.position.y=-.45;this.model.rotation.x=-1.1; // submerged even on the creation frame
     this.holder.add(this.model);this.holder.position.fromArray(arena.spawn);scene.add(this.holder);
     this.floor=this.floorAt(this.holder.position);this.holder.position.y=this.floor;
     this.model.rig.clipPlane.constant=-this.floor;
     this.arrivalT=0;this.flooded=0;
     const A=arena,arrival=this.def.skills.arrival,width=A.arenaMax[0]-A.arenaMin[0],length=A.arenaMax[2]-A.arenaMin[2];
+    if(!this.illusion){   // the illusion floods nothing: the real shark's sea is already there
     this.waterFloor=this.floorAt(V(this.position.x,0,A.arenaMin[2]+.3))-.003;
     this.water=new THREE.Mesh(new THREE.BoxGeometry(width,arrival.depth,length),sharkWaterMaterial());
     this.water.position.set((A.arenaMin[0]+A.arenaMax[0])/2,this.waterFloor,(A.arenaMin[2]+A.arenaMax[2])/2);
     this.water.userData.noCollide=true;this.water.name='Shark bed water';this.water.renderOrder=2;scene.add(this.water);
     const U=this.water.material.uniforms;U.uCenter.value.set(this.water.position.x,this.water.position.z);U.uExtent.value.set(width/2,length/2);U.uSource.value.set(this.position.x,this.position.z);U.uFill.value=0;
     U.uReach.value=Math.hypot(Math.max(this.position.x-A.arenaMin[0],A.arenaMax[0]-this.position.x),Math.max(this.position.z-A.arenaMin[2],A.arenaMax[2]-this.position.z))+.04;
+    }
     this.start=V();this.target=V();this.warning=null;this.pools=[];this.tornadoes=[];this.shots=[];
     this.color=hostile('shark');this.dust=new THREE.Color(LOOK.color('shark-dust','#d6c5a7'));
     // the fight view: the Vacuum's high angle, aimed a little ahead so the jelly sits just below the middle with the shark in front
@@ -71,7 +76,8 @@ export class Shark {
     this.fish=new THREE.InstancedMesh(this.fishGeo,this.fishMat,72);this.fish.count=0;this.fish.userData.noCollide=true;this.fish.frustumCulled=false;scene.add(this.fish);
     this._matrix=new THREE.Matrix4();this._quat=new THREE.Quaternion();this._pos=V();this._scale=V(1,1,1);this._up=V(0,1,0);this._front=V();this._move=V();
     this.off=bus.on('player_hurt',e=>{
-      if(this.dead||this.dying||!['shark-bite','shark-melee','shark-impact'].includes(e.from))return;
+      // only a hit this shark is landing right now (hit()): the shark and its illusion each keep their own Prey and frenzy
+      if(!this.striking||this.dead||this.dying||!['shark-bite','shark-melee','shark-impact'].includes(e.from))return;
       this.confirmed=true;if(e.from==='shark-impact')return;
       const sk=this.def.skills;
       if(!this.prey)this.fx.number(this.player.position.clone().add(V(0,.12,0)),'PREY',this.color,14);
@@ -84,8 +90,29 @@ export class Shark {
       this.stunT=Math.max(this.stunT,e.duration||.5);this.frenzy=0;this.recover();
     });
     this.tornadoVisuals=Array.from({length:3},()=>{const m=new THREE.Mesh(this.tornadoGeo,this.tornadoMat);m.position.copy(this.position);m.scale.setScalar(.001);m.userData.noCollide=true;scene.add(m);return m;});
+    this.glow=this.illusion?LOOK.num('shark-illusion-glow',.18):0;
+    if(this.illusion){this.hp=0;this.holder.visible=false;this.summoned=false;return;}   // hidden until summon()
     this.warn(this.position,.1,.1); // include the warning material in main.js's existing shader warmup
     this.fish.count=1;this._matrix.makeTranslation(this.position.x,this.position.y,this.position.z);this.fish.setMatrixAt(0,this._matrix);this.fish.instanceMatrix.needsUpdate=true;
+    this.ghost=new Shark(scene,enemies,fx,arena,world,{illusion:true});this.ghost.real=this;   // made now so its see-through shaders are built with the rest
+  }
+  warm(on){this.ghost.holder.visible=on;}   // main.js warmUp: show the illusion so its shaders are built before the fight
+  // At half Health the illusion surfaces beside the jelly, a different attack next in its
+  // list than the shark's and a longer rest between attacks, so the two drift apart instead of striking together.
+  summon(player){
+    const g=this.ghost,a=this.def.skills.arrival;
+    // beside the jelly, square to the shark, so the fight camera (behind the jelly, facing the shark) sees both
+    const d=this._move.subVectors(player.position,this.position).setY(0),n=Math.max(.45,d.length());if(d.lengthSq()<1e-6)d.set(0,0,1);
+    d.normalize();g.position.copy(player.position).add(V(d.z*n,0,-d.x*n));g.clampIn(g.position);
+    g.floor=g.floorAt(g.position);g.position.y=g.floor;g.model.rig.clipPlane.constant=-g.floor;
+    g.heading=Math.atan2(player.position.x-g.position.x,player.position.z-g.position.z);
+    g.arrivalT=a.barrier;g.next=this.next+Math.ceil(ATTACKS.angry.length/2);g.summoned=true;g.holder.visible=true;
+    this.fx.number(g.position.clone().add(V(0,.3,0)),'ILLUSION',this.color,15);sfx.sharkRumble(a.breach);
+  }
+  vanish(){   // the real shark is beaten: its illusion goes with it, and so do its hazards
+    const g=this.ghost;if(!g?.summoned||g.dead)return;
+    g.dead=true;g.clearHazards();g.clearWarning();g.holder.visible=g.fin.visible=false;for(const m of g.tornadoVisuals)m.visible=false;
+    for(let i=0;i<6;i++)this.fx.puff(g.position.clone().add(V(Math.sin(i)*.1,.05+i*.03,Math.cos(i)*.1)),this.dust,.04,.6);
   }
   get position(){return this.holder.position;}
   get angry(){return this.hp<=this.maxHp*this.def.skills.tornado.at;}
@@ -107,7 +134,7 @@ export class Shark {
     if(this.dead||this.dying||this.rise<1||this.shielded)return;
     this.hp=Math.max(0,this.hp-amount);this.hitPop=.14;
     this.fx.number(this.center().add(V(0,.08,0)),amount,color,18,feedback);
-    if(!this.hp){this.dying=true;this.clearHazards();this.clearWarning();this.state='idle';this.phase='rest';}
+    if(!this.hp){this.dying=true;this.vanish();this.clearHazards();this.clearWarning();this.state='idle';this.phase='rest';}
   }
   die(){if(this.dying){this.dead=true;this.dying=false;this.clearHazards();this.clearWarning();juice.feel('boss-kill');}}
   warn(at,r,height=.12){
@@ -148,8 +175,9 @@ export class Shark {
   hit(player,at,r,height,amount,bite=false,melee=true){
     const p=player.position;
     if(Math.hypot(p.x-at.x,p.z-at.z)>r+player.cfg.radius||p.y>=at.y+height||p.y+player.cfg.height<=at.y)return false;
-    this.confirmed=false;
-    bus.emit('damage_taken',{targetId:PLAYER,amount:amount*(this.frenzy>0?this.def.skills.frenzy.damage:1),source:'boss',from:bite?'shark-bite':melee?'shark-melee':'shark-impact'});
+    this.confirmed=false;this.striking=true;
+    bus.emit('damage_taken',{targetId:PLAYER,amount:amount*(this.frenzy>0?this.def.skills.frenzy.damage:1),source:'boss',from:bite?'shark-bite':melee?'shark-melee':'shark-impact',at:this.illusion?this.center():undefined});
+    this.striking=false;
     if(!this.confirmed||this.dead||this.dying||this.stunT>0)return false;
     const dir=V(p.x-at.x,0,p.z-at.z);if(dir.lengthSq()<1e-6)dir.set(0,0,1);
     bus.emit('knockback',{targetId:PLAYER,dir:dir.normalize(),force:this.def.skills.motion.knock,launch:.08});
@@ -252,7 +280,10 @@ export class Shark {
   }
   update(dt,player){
     this.player=player;this.t+=dt;this.lift ||=0;
-    this.arrivalT+=dt;this.updateWater(dt,player);
+    this.arrivalT+=dt;if(!this.illusion)this.updateWater(dt,player);
+    const G=this.ghost;
+    if(G&&!G.summoned&&this.ready&&!this.dying&&!this.dead&&this.hp<=this.maxHp*this.def.skills.illusion.at)this.summon(player);
+    if(G?.summoned&&!G.dead){G.update(dt,player);if(this.dead||this.dying)return{push:null};}
     if(this.dead){this.model.rotation.z=mix(this.model.rotation.z,-1.4,1-Math.exp(-5*dt));this.holder.position.y-=dt*.025;return{push:null};}
     const arrival=this.def.skills.arrival;
     this.rise=clamp((this.arrivalT-arrival.barrier)/arrival.breach,0,1);
@@ -291,8 +322,12 @@ export class Shark {
     }
     else if(this.phase==='rest'){
       this.heading+=clamp(delta,-dt*2,dt*2);
+      if(this.illusion){   // the illusion keeps out of the shark's body, so the two never blur into one
+        const apart=this.def.skills.illusion.apart,d=this._move.subVectors(this.position,this.real.position).setY(0),n=d.length();
+        if(n>1e-4&&n<apart){this.position.addScaledVector(d,(apart-n)/n*Math.min(1,dt*4));this.clampIn(this.position);}
+      }
       if(this.position.distanceTo(player.position)>.42){this.position.x+=Math.sin(this.heading)*this.def.skills.motion.speed*dt*rate;this.position.z+=Math.cos(this.heading)*this.def.skills.motion.speed*dt*rate;this.clampIn(this.position);}
-      if(!this.stunT&&this.elapsed>(this.state==='tornado'?this.def.skills.motion.punish:this.def.skills.motion.rest)){
+      if(!this.stunT&&this.elapsed>(this.state==='tornado'?this.def.skills.motion.punish:this.illusion?this.def.skills.illusion.rest:this.def.skills.motion.rest)){
         const names=this.angry?ATTACKS.angry:ATTACKS.calm;let name=names[this.next++%names.length];
         const dist=this.position.distanceTo(player.position);
         if(Math.abs(delta)>2&&name==='bite')name='rear';else if(dist>.65&&name==='bite')name='leap';
@@ -391,15 +426,16 @@ export class Shark {
     // The jaw remains frame-exact; only secondary body motion eases between poses.
     this.model.position.y=.15*K+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
     this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2),coil,roll,stretch,time:this.t,energy:this.frenzy>0?1.6:1,squint});
-    this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:(this.frenzy>0?.13:0));
-    bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});
+    this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:Math.max(this.glow,this.frenzy>0?.13:0));
+    if(!this.illusion)bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});
     return{push:null};
   }
   dispose(){
+    this.ghost?.dispose();   // (its see-through materials stay alive like the shared ones: disposing them would drop the built shaders)
     this.off();this.offStatus();this.clearWarning();this.clearHazards();this.scene.remove(this.holder,this.fin,this.fish,this.water,...this.tornadoVisuals);
     // Shark model geometry/materials are shared with the warmed template and stay alive.
     this.fin.geometry.dispose();this.circleGeo.dispose();this.fish.dispose(); // hazard geometry/materials stay warmed too
-    this.water.geometry.dispose();
+    this.water?.geometry.dispose();
     this.model.traverse(o=>{if(o.isSkinnedMesh)o.skeleton.dispose();});
   }
 }

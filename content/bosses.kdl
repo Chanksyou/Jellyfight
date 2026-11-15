@@ -71,6 +71,9 @@ boss "shark" name="The Great White One" icon="🦈" hp=6000 contact=0 {
     pools max=6 life=20 radius=0.17 height=0.05 dmg=3 slow=0.3
     scent time=6 speed=1.4 bleed=3 dmg=0.6
     frenzy time=4 tempo=1.25 damage=1.15
+    // at `at` of its Health it summons its illusion, a see-through copy with no Health that only attacks
+    // (the same attacks, the same damage): it rests `rest` s between attacks and keeps `apart` m from the shark
+    illusion at=0.5 rest=1.8 apart=0.45
 }
 
 // act 4's, the DJ booth on the concert stage: src/encore.js. Its attacks all land on its song's beat

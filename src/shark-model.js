@@ -117,6 +117,20 @@ function fabricGrain() {
   return t;
 }
 
+// The shark's illusion (src/shark.js): see-through copies of its materials, with their own floor
+// clip plane, so the copy can fade and sink without touching the real shark's shared ones.
+export function ghostly(group, opacity) {
+  const plane = new THREE.Plane(V(0, 1, 0), 1000), made = new Map();
+  group.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = false;
+    if (!made.has(o.material)) made.set(o.material, Object.assign(o.material.clone(), { transparent: true, opacity, clippingPlanes: [plane] }));
+    o.material = made.get(o.material);
+  });
+  group.rig.mat = group.rig.trunk.material; group.rig.clipPlane = plane;
+  return group;
+}
+
 export function buildShark() {
   if(SHARED)return riggedClone(SHARED);
   const blue = new THREE.Color(LOOK.color('shark-blue', '#506f83'));
