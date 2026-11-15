@@ -1,1 +1,0 @@
-makes the act 3 shark summon its illusion at half Health: a see-through copy that rises beside the jelly and uses the shark's own attacks for the same damage. It has no Health, nothing aims at it and your attacks pass through it, so keep hitting the solid shark; it rests a little longer between attacks so the two strike out of step, and it goes when the shark is beaten.
