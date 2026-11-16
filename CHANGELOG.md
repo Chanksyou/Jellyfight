@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v448 wakes the Mushroom Pillow on Act 4's sofa, the act's second Elite: the plush toadstool on the seat comes alive and teaches the Encore's disco rule. Its cap breathes in, then puffs spores that drift over the seat (one onto where you are) and settle as marked spots with a column over each; they flash for a beat and burst on the bar as columns taller than a jump, so step off the spot, a jump won't clear it. It also crouches and hops a short way toward you, landing on the beat as a Blast round itself: step back out of its circle. Under 65% Health it puffs more spores and they settle faster.
+
 v447 adds the Firefly to act 4 from 0:00 (in place of the dragonfly stand-in, so the living room now has only Fireflies, Moths and Cicadas): a small beetle that drifts round you with a lantern for a tail. The lantern blinks on every beat of the song, and on the fourth blink it tips up, lit, and darts at you for 2 Health. New word: on-beat.
 
 v446 the Encore only ever plays its own recording: if the recording is slow to load, the fight plays without music until it's ready, rather than switching to a different built-in song; a stuck decode of the recording is tried again once.
