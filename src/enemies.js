@@ -558,6 +558,7 @@ export class Enemies {
   clear() {
     for (const e of this.list) {
       if (e.dead) continue; // Death effects own dead models until their own cleanup.
+      e.chargeSound?.(); e.chargeSound = null;   // a whine that was charging stops with the bug
       e.dead = true; if (e.root) this.scene.remove(e.root);
       if (!e.proxy) e.pos = e.pos.clone();
       this.models.release(e.model);

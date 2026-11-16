@@ -1227,3 +1227,16 @@ story('words/sing-dodge', {
     return ok(e.state === 'rest' && !log.some((d) => d.source === 'cicada'), { state: e.state });
   },
 });
+story('words/sing-breaks-off', {
+  about: 'Freezing a cicada half way through its wind-up breaks the song off: its Warning goes, its drone stops and it goes back to walking.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 3, () => e.state === 'windup');
+    step(60 * 3, () => e.songK > 0.5);
+    e.freezeT = 1;
+    step(5);
+    const marks = enemies.songMarks.some((M) => M.floor.visible || M.vol.visible);
+    return ok(e.state === 'approach' && !marks && !e.chargeSound && !log.some((d) => d.source === 'cicada'), { state: e.state, marks, sound: !!e.chargeSound });
+  },
+});

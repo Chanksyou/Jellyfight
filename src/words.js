@@ -492,7 +492,7 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'sing') {
           c.speed = 0;
           e.vel.set(0, 0, 0);
-          e.stateT -= c.dt * live;
+          e.stateT -= c.dt;   // the song ends on time even if it is frozen: its Warning must not hang
           if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.songK = 0; }
         } else if (e.state === 'rest') {
           c.speed = 0;

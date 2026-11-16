@@ -1117,7 +1117,7 @@ export const sfx = {
       o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
       o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
     }
-    lfo.frequency.setValueAtTime(22, t); lfo.frequency.linearRampToValueAtTime(60, t + dur); lg.gain.value = 0.03;   // the buzz pulsing in the level
+    lfo.frequency.setValueAtTime(22, t); lfo.frequency.linearRampToValueAtTime(60, t + dur); lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(0.02, t + dur);   // the buzz pulsing in the level
     lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t + dur + 0.05);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.025, t + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.06, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
