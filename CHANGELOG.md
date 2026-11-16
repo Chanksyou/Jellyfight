@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v444 keeps the Encore's music and attacks going on phones: its song now downloads while the arena loads and, if decoding it stalls for 8 seconds, the synthesized Encore song plays instead of silence (a stuck decode also left the Encore waiting for a beat that never came).
+
 v443 tones the Cicada's cone Warning way down: it's much fainter with less glow, so it no longer drowns the fight.
 
 v442 reworks the Moth's attack: with the lamps too high to use, it now flutters round you in wide loops and swoops in passes (3 Health a sting), living through each one. Drops the lamp word.
