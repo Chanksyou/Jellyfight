@@ -53,7 +53,7 @@ try {
   for (let act = 1; act <= 4; act++) {
     if (act > 1) {
       await page.close();
-      const next = await openGame(env, { viewport: { width: 800, height: 500 }, seed: 17, act: { act, carry } });
+      const next = await openGame(env, { viewport: { width: 800, height: 500 }, seed: 17, act: { act, scene: act === 4 ? 2 : 1, carry } });   // act 4's boss is in its second scene, the arena
       page = next.page; errors = next.errors;
     }
     const progress = await page.evaluate(async ({ act, carry }) => {
