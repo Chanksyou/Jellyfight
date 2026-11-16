@@ -10,6 +10,7 @@
 //   c.flatDir, c.flat   the same, flat on the floor (unit vector, meters)
 //   c.slow              1 normally, 0.55 slowed, 0 frozen or stunned
 //   c.speed, c.dir      ground bugs: set these and the bug walks that way (collision included)
+//   c.beat              the song's beat now (run.js keepTime); c.wait: on-beat says an attack can't start this frame
 // Flying words move the bug themselves and set `fly`.
 //
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
@@ -69,7 +70,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt;
           e.leapCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
+            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked && !c.wait) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
           } else if (e.state === 'crouch') {
             c.speed = 0;
             e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
@@ -193,7 +194,7 @@ export const ENEMY_WORDS = {
         e.ballCd -= c.dt;
         if (e.state === 'rest' && e.curlK > 0) { e.state = 'uncurl'; e.stateT = p.uncurl; }   // rolled into a wall (Enemies.moveGround)
         if (e.state === 'approach') {
-          if (c.flat < p.range && e.grounded && e.ballCd <= 0 && live) { e.state = 'curl'; e.stateT = p.curl; en.ballCurl(e); }
+          if (c.flat < p.range && e.grounded && e.ballCd <= 0 && live && !c.wait) { e.state = 'curl'; e.stateT = p.curl; en.ballCurl(e); }
         } else if (e.state === 'curl') {
           c.speed = 0;
           e.curlK = 1 - Math.max(0, e.stateT) / p.curl;
@@ -251,7 +252,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt * live;
           e.pokeCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.dist < p.range && e.pokeCd <= 0 && live) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
+            if (c.dist < p.range && e.pokeCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
           } else if (e.state === 'windup') {
             e.vel.multiplyScalar(Math.exp(-10 * c.dt));
             en.move(e, e.vel, c.dt * live);
@@ -383,7 +384,7 @@ export const ENEMY_WORDS = {
         e.beamCd -= c.dt;
         if (e.state === 'charge' && !live) { en.breakCharge(e); e.flyHeld = false; }   // frozen or stunned: the charge is lost
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.beamCd <= 0 && live && !e.flyHeld) {
+          if (c.dist < p.range && e.beamCd <= 0 && live && !e.flyHeld && !c.wait) {
             e.state = 'charge'; e.stateT = e.chargeMax = p.charge; e.flyHeld = true; e.faceLock = true;
             e.vel.set(0, 0, 0);
             e.beamDir.copy(c.toP).normalize();                         // it aims where it faces, and doesn't turn again
@@ -425,7 +426,7 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'whirl-rest') {
           e.whirlT -= c.dt * live;
           if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; e.beamCd = Math.max(e.beamCd || 0, 1.5); }
-        } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range) {
+        } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && !c.wait) {
           e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
           e.vel.set(0, 0, 0);
           e.whirlAt.copy(c.pc);
@@ -445,7 +446,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.swatCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.flat < p.range && e.grounded && e.swatCd <= 0 && live) { e.state = 'windup'; e.stateT = e.swatMax = p.windup; e.swatDir.copy(c.flatDir); }
+          if (c.flat < p.range && e.grounded && e.swatCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.swatMax = p.windup; e.swatDir.copy(c.flatDir); }
         } else if (e.state === 'windup') {
           c.speed = 0;
           if (e.stateT > p.windup * 0.5) { e.swatDir.copy(c.flatDir); e.root.rotation.y = Math.atan2(c.flatDir.x, c.flatDir.z); }
@@ -513,7 +514,7 @@ export const ENEMY_WORDS = {
         e.shotCd -= c.dt;
         if (e.state === 'charge' && !live) { en.breakSpark(e); e.state = 'approach'; e.faceLock = false; e.ballK = 0; e.shotCd = 1.5; }
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.shotCd <= 0 && live) {
+          if (c.dist < p.range && e.shotCd <= 0 && live && !c.wait) {
             e.state = 'charge'; e.stateT = p.charge; e.aimLocked = false; e.ballK = 0; e.faceLock = true;
             e.vel.set(0, 0, 0);
             en.sparkCharge(e, p.charge);
@@ -591,7 +592,7 @@ export const ENEMY_WORDS = {
         const from = e.emergeAt || e.pos, flat = Math.hypot(c.foot.x - from.x, c.foot.z - from.z);
         const aim = () => { if (flat > 1e-4) e.whipDir.set(c.foot.x - from.x, 0, c.foot.z - from.z).normalize(); e.whipFloor = c.foot.y; };
         if (e.state === 'approach') {
-          if (flat < p.range && e.whipCd <= 0 && live) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
+          if (flat < p.range && e.whipCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
         } else if (e.state === 'windup') {
           if (e.stateT > p.windup * 0.5) aim();
           if (e.stateT <= 0) { e.state = 'lash'; e.stateT = 0.12; en.whipLash(e); }
@@ -646,7 +647,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.diveCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
+          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
         } else if (e.state === 'windup') {
           e.vel.multiplyScalar(Math.exp(-10 * c.dt));
           en.move(e, e.vel, c.dt * live);
@@ -680,7 +681,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.biteCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.biteCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; en.biteWind(e, p.windup); }
+          if (c.dist < p.range && e.biteCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; en.biteWind(e, p.windup); }
         } else if (e.state === 'windup') {
           if (e.stateT > p.windup * 0.5) e.biteDir.copy(c.toP).normalize();   // tracks you, then locks on
           else e.faceLock = true;
@@ -718,6 +719,23 @@ export const ENEMY_WORDS = {
   rolls: {
     doc: 'Its body rolls along the floor as it moves (no animation of its own).',
     make: () => ({ rolls: true }),
+  },
+
+  'on-beat': {
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    props: { every: 1 },
+    make: (_, p, where) => {
+      if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);
+      return {
+        init(e) { e.beatN = null; e.beatPulse = 0; },
+        tick(e, c) {
+          const n = Math.floor(c.beat), on = e.beatN !== null && n !== e.beatN;   // a new beat this frame
+          e.beatN = n;
+          e.beatPulse = on ? 1 : Math.max(0, e.beatPulse - c.dt * 4);           // its model (or the size pulse) shows it
+          c.wait = !(on && n % p.every === 0);
+        },
+      };
+    },
   },
 
 };

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v447 adds the Firefly to act 4 from 0:00 (in place of the dragonfly stand-in, so the living room now has only Fireflies, Moths and Cicadas): a small beetle that drifts round you with a lantern for a tail. The lantern blinks on every beat of the song, and on the fourth blink it tips up, lit, and darts at you for 2 Health. New word: on-beat.
+
 v446 the Encore only ever plays its own recording: if the recording is slow to load, the fight plays without music until it's ready, rather than switching to a different built-in song; a stuck decode of the recording is tried again once.
 
 v445 wakes the Singing Bowl on Act 4's lounge chair, the act's first Elite: a bronze bowl on its golden cushion that keeps the song's time. On the bar its striker hits the rim and a thin, low ring rolls out across the seat (a disc and a low wall fill round the bowl as its Warning): jump it. Its chime sings a ball of sound over the bowl, then fires a Shot a beat at you: keep moving sideways. Under 65% Health it strikes two rings a bar, the second faster.

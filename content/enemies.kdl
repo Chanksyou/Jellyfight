@@ -99,6 +99,16 @@ enemy "moth" name="Moth" hp=110 r=0.045 dmg=1 xp=9 model="moth" {
     dive range=0.45 spend=#false every=2.5 windup=0.6 speed=1.5 reach=0.7 dmg=3 rest=0.9
 }
 
+// Act 4 (from the start): the firefly, a small beetle with a lantern for a tail. It drifts round you
+// at about a hand's breadth; its lamp blinks on every beat of the song, and on the fourth blink (the
+// bar) it tips up, lamp lit, and darts at where you are. Count the blinks and step aside on the bar.
+enemy "firefly" name="Firefly" hp=60 r=0.036 dmg=1 xp=3 model="firefly" {
+    death-motion "flutter"
+    hover 0.12 above=0.03 speed=0.3 circle=0.6
+    on-beat every=4
+    bite range=0.3 every=0.5 windup=0.3 speed=1.5 reach=0.4 dmg=2 rest=0.6
+}
+
 // Act 3 (from 0:45): the praying mantis stalks after you on four legs, its forelegs folded.
 // Up close it rears up, forelegs raised and opened (that's the only warning: nothing on the floor),
 // then lunges and snaps them shut across a wedge in front of it, reaching a little farther than a

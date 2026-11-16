@@ -28,7 +28,7 @@ story('treasures/aura-grows-while-moving',{
  about:'Glow Stick charges while you swim flat out: 8 cm still, 22 cm after 3 s of full speed, back to 8 cm 3 s after you stop.',
  setup(){ready('glowStick');},
  play(){const {run}=G(),g=run.gadgets,go=(moving,s)=>{for(let i=0;i<s*60;i++)g.update(1/60,{...ctx(),moving});};
-   const still=g.aura.scale.x;go(true,3.1);const full=g.aura.scale.x;go(false,3.1);const back=g.aura.scale.x;
+   go(false,.1);const still=g.aura.scale.x;go(true,3.1);const full=g.aura.scale.x;go(false,3.1);const back=g.aura.scale.x;
    return ok(Math.abs(full-.22)<1e-3&&Math.abs(back-.08)<1e-3&&full>still,{still,full,back});},
 });
 story('treasure-feel-twelve/aura-keeps-tick-damage-radius',{

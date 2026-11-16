@@ -436,6 +436,9 @@
   --burst-warning-pulse: 0.06;   /* its flicker above that (was 0.2) */
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
+  --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, and its dart as it lands: hot acid yellow */
+  --firefly-dim: #3a2208;        /* its lamp between blinks */
+  --firefly-glow: 1.8;           /* how far past white its lamp burns at a blink (bloom lifts it) */
   --hostile-moth: #ffb300;       /* the moth's swoop as it lands: hot amber (its wings are pale, so the hit isn't) */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
@@ -628,6 +631,7 @@
   --acid-bright: #b8ff4a;       /* and its glowing rim, ripples and blisters */
   --hit-flash: 0.07;            /* s a bug flashes white when hit, */
   --hit-flash-gap: 0.2;         /* and how long before it can flash again (steady fire: it blinks, not stays white) */
+  --bug-beat-pulse: 0.12;       /* how much bigger a bug with on-beat (src/words.js) pumps on each beat */
   --crowd-ring: 0.5;            /* the cool ring under the jelly while 2+ bugs crowd it: its brightness at 5+ */
   --crowd-near: 0.12;           /* m round the jelly that counts as crowding it */
   --stunned: #fff27a;           /* sparks crackling over a bug stunned by lightning, for as long as the stun lasts */
