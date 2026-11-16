@@ -23,16 +23,18 @@ export class SongTrack {
   }
   get bpm() { return this.track.bpm; }
   get loopBeats() { return this.track.bars * 4 - (this.track.start || 0); }   // from `start` to the end of its last whole bar
-  // fetch and decode it; false if it can't (offline, a bad file), or if decoding hasn't finished within
-  // `wait` s (a phone stuck decoding the 5 minute file left the Encore with no song and, waiting for its
-  // beat, no attacks): the caller falls back to a synthesized song, and a late decode is dropped
+  // fetch and decode it; false if it can't (offline, a bad file). A decode that hasn't finished within
+  // `wait` s (a phone could get stuck on the 5 minute file) is started again once; false if that sticks too
   async load() {
     if (this.buffer) return true;
     let bytes;
-    try { bytes = (await fetchTrack(this.track)).slice(0); } catch { return false; }   // decoding takes the bytes: decode a copy
-    const decoded = this.ctx.decodeAudioData(bytes).catch(() => null);
-    const late = new Promise((done) => setTimeout(() => done(null), (this.track.wait ?? 8) * 1000));
-    return !!(this.buffer = await Promise.race([decoded, late]));
+    try { bytes = await fetchTrack(this.track); } catch { return false; }
+    for (let tries = 0; tries < 2 && !this.buffer; tries++) {
+      const decoded = this.ctx.decodeAudioData(bytes.slice(0)).catch(() => null);   // decoding takes the bytes: decode a copy
+      const late = new Promise((done) => setTimeout(() => done(null), (this.track.wait ?? 8) * 1000));
+      this.buffer = await Promise.race([decoded, late]);
+    }
+    return !!this.buffer;
   }
   // from `start` beats in, looping on whole bars back to there
   play() {

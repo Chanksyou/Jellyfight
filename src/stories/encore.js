@@ -228,18 +228,20 @@ story('encore/the-track-loops-on-whole-bars-and-rests-in-its-breakdown', {
   },
 });
 
-story('encore/a-track-that-wont-load-in-time-falls-back', {
-  about: 'A phone stuck decoding the Encore\'s 5 minute track left the fight silent, and with no beat to play to, the Encore never attacked. Now a track not decoded within its `wait` gives up (load() is false), so the synthesized Encore song plays and sets the beat; one that decodes in time is used.',
+story('encore/a-stuck-track-decode-is-tried-again', {
+  about: 'A phone could get stuck decoding the Encore\'s 5 minute track. A decode not done within the track\'s `wait` is started again once (a second one that finishes is used); if that sticks too, load() is false and the fight plays on its own clock with no other song in its place.',
   setup() {},
   async play() {
-    const small = { ...TRACKS.encore, url: './assets/audio/fireball-flight.mp3' };
+    const small = { ...TRACKS.encore, url: './assets/audio/fireball-flight.mp3', wait: 0.2 };
     const stuck = new OfflineAudioContext(1, 44100, 44100);
-    stuck.decodeAudioData = () => new Promise(() => {});                 // never settles, as on the phone
-    const T = new SongTrack(stuck, stuck.destination, { ...small, wait: 0.2 }), t0 = performance.now();
+    stuck.decodeAudioData = () => new Promise(() => {});                 // never settles
+    const T = new SongTrack(stuck, stuck.destination, small), t0 = performance.now();
     const gave = await T.load(), took = performance.now() - t0;
-    const ctx = new OfflineAudioContext(1, 44100, 44100), fine = new SongTrack(ctx, ctx.destination, { ...small, wait: 10 });
-    const loaded = await fine.load();
-    return ok(gave === false && !T.buffer && took < 2000 && loaded === true && !!fine.buffer, { gave, took: Math.round(took), loaded });
+    const once = new OfflineAudioContext(1, 44100, 44100), real = once.decodeAudioData.bind(once);
+    let calls = 0;
+    once.decodeAudioData = (b) => (++calls === 1 ? new Promise(() => {}) : real(b));   // stuck the first time only
+    const again = await new SongTrack(once, once.destination, small).load();
+    return ok(gave === false && !T.buffer && took >= 350 && took < 2000 && again === true && calls === 2, { gave, took: Math.round(took), again, calls });
   },
 });
 

@@ -308,12 +308,13 @@ function saveLook(l) {
 }
 applyLook(state.look);
 
-// A song with a recording (song-track.js TRACKS: the Encore's) plays that, loaded once audio starts,
-// and the synthesized one only if the file won't load; its beat is what a boss on the beat reads (`song`)
+// A song with a recording (song-track.js TRACKS: the Encore's) only ever plays that recording, loaded once
+// audio starts (silent if the file won't load: Chan wants no other track there); its beat is what a boss on
+// the beat reads (`song`)
 const tracks = {};
 if (stage.arena) for (const name in TRACKS) fetchTrack(TRACKS[name]).catch(() => {});   // the file downloads while the act loads
 // It loads once sound is on: a phone reloaded into the arena makes its audio before the tap that turns it
-// on, and decoding into that silent context could hang (song-track.js `wait` gives up on it anyway).
+// on, and decoding into that silent context could hang (song-track.js `wait` tries it again).
 function trackFor(name) {
   const A = audio(), T = TRACKS[name];
   if (!A || !T || (!tracks[name] && A.ctx.state !== 'running')) return null;
@@ -325,7 +326,7 @@ function trackFor(name) {
 // Only a recording knows its breakdown and drop.
 const song = {
   playing: null,
-  beat() { if (audio()?.ctx.state !== 'running') return undefined; const t = this.playing; if (!t) return music?.beatNow() ?? undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
+  beat() { if (audio()?.ctx.state !== 'running') return undefined; const t = this.playing; if (!t) return music?.beatNow() ?? undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : undefined; },
   quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };
@@ -576,7 +577,7 @@ function updateMusic(dt) {
   song.playing = rec;
   if (rec?.state === 'ready') rec.track.play();
   rec?.track.duck(menuOpen() || run.paused);
-  music.play(rec && rec.state !== 'failed' ? null : st.song);
+  music.play(TRACKS[st.song] ? null : st.song);   // a recorded song is never swapped for a synthesized one
   music.duck(menuOpen() || run.paused);
   music.suck(!!st.suck);              // the Vacuum sucking drags the music through a dub filter
   music.update(dt, st.intensity);
