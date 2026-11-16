@@ -436,6 +436,7 @@
   --burst-warning-pulse: 0.06;   /* its flicker above that (was 0.2) */
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
+  --hostile-moth: #b8ff1a;       /* the moth's swoop as it lands: hot lime (its wings are pale, so the hit isn't) */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */

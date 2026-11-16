@@ -2000,6 +2000,81 @@ export function buildWasp() {
   return { body: outer, face: new THREE.Group(), anim };
 }
 
+// ------------------------------------------------------------------ moth
+// A dusty house moth: a furry cream thorax and tapering abdomen, a small head with long feathered
+// antennae, tucked legs, and two pairs of broad pale wings, powdery grey-brown toward their edges
+// with a dark band and a dark eye-spot on each. Wings beat slowly (a moth, not a wasp); rearing to
+// swoop it flares them wide and holds them quivering, diving it sweeps them back. Facing +z,
+// centred on its thorax; about 2.6 radii long, wings out about 3.4 across.
+function mothParts() {
+  const cream = '#e4d9bf', fur = '#cfc2a4', dust = '#8b7d63';
+  const body = merge([
+    ellipsoid(0.34, 0.3, 0.42, V(0, 0, 0.1), cream),                 // thorax
+    ellipsoid(0.25, 0.23, 0.78, V(0, -0.04, -0.7), fur),             // abdomen
+    ellipsoid(0.2, 0.18, 0.2, V(0, 0.02, 0.62), cream),              // head
+    ...[-1, 1].map((s) => tube([V(s * 0.07, 0.14, 0.72), V(s * 0.22, 0.45, 1.0), V(s * 0.4, 0.62, 1.2)], 0.018, dust, 6)),   // antennae
+    ...[-1, 1].flatMap((s) => [0.35, 0.05, -0.2].map((z) => rod(V(s * 0.12, -0.2, z), V(s * 0.2, -0.55, z - 0.18), 0.03, 0.012, dust))),   // legs
+  ]);
+  // a wing out along +x from its hinge, flat; front edge toward -y here, which rotateX turns to +z
+  const wing = (w, d) => {
+    const sh = new THREE.Shape();
+    sh.moveTo(0, -0.1); sh.bezierCurveTo(0.5, -0.75 * d, 1.3, -0.7 * d, w, -0.3 * d); sh.bezierCurveTo(w * 1.02, 0.2 * d, w * 0.8, 0.75 * d, 0.5, 0.7 * d); sh.bezierCurveTo(0.2, 0.55 * d, 0.05, 0.35 * d, 0, 0.2);
+    const g = new THREE.ShapeGeometry(sh, 10).rotateX(-Math.PI / 2), pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const u = pos.getX(i) / w, band = Math.abs(u - 0.62) < 0.07 ? 0.5 : 0;     // a dark band across
+      c.set(cream).lerp(new THREE.Color(dust), Math.min(1, u * u * 0.85 + band));
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g;
+  };
+  const spot = merge([ellipsoid(0.16, 0.012, 0.16, V(0.95, 0.01, 0.0), '#3b3226'), ellipsoid(0.16, 0.012, 0.16, V(0.95, -0.01, 0.0), '#3b3226')]);
+  return { body, fore: wing(1.7, 1), hind: wing(1.2, 0.9), spot };
+}
+
+export function buildMoth() {
+  const G = (GEO.moth ||= mothParts()), M = mats();
+  if (!M.moWing) {
+    M.moWing = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.95 });
+    standOut(M.moWing, { base: 0.3, rim: 0.55 });
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(G.body, M.matte));
+  body.add(angryEyes({ y: 0.1, z: 0.8, size: 0.08, gap: 0.12 }));
+  const wings = [];
+  for (const [geo, z, hind] of [[G.fore, 0.3, false], [G.hind, -0.05, true]]) for (const s of [-1, 1]) {
+    const hinge = new THREE.Group(), flap = new THREE.Group();
+    hinge.position.set(s * 0.18, 0.22, z);
+    hinge.add(flap);
+    const m = new THREE.Mesh(geo, M.moWing);
+    m.scale.x = s;
+    flap.add(m);
+    if (!hind) { const sp = new THREE.Mesh(G.spot, M.matte); sp.scale.x = s; flap.add(sp); }
+    body.add(hinge);
+    wings.push({ s, hind, hinge, flap });
+  }
+  let t = 0, wind = 0, sweep = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    const ph = e?.phase || 0;
+    wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-9 * dt));
+    sweep += (((e?.state === 'dive') ? 1 : 0) - sweep) * (1 - Math.exp(-14 * dt));
+    for (const W of wings) {
+      const beat = Math.sin(t * (22 + wind * 14) + ph + (W.hind ? 0.6 : 0));
+      // fluttering: wings up and down; rearing: held wide and high, quivering; swooping: swept back
+      W.flap.rotation.z = W.s * (0.2 + beat * (0.55 - 0.45 * wind) + wind * 0.75 + sweep * 0.9);
+      W.hinge.rotation.y = W.s * (-0.15 - sweep * 0.7 + wind * 0.3);
+    }
+    const diving = e?.state === 'dive' && e.diveDir;
+    body.position.y = Math.sin(t * 4 + ph) * 0.1 * (1 - wind);
+    body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.2 : 0.1 - wind * 0.55;
+  };
+  anim.reset = () => { t = 0; wind = 0; sweep = 0; };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
 // ------------------------------------------------------------------ wasp nest
 // A paper wasp nest, after the photo: a grey teardrop of chewed-wood paper, hung from its broad
 // flat top, built of overlapping shell layers whose lips run in wavy bands round it, streaked in

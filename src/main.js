@@ -291,6 +291,9 @@ const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num(
 const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
 if (lightSlots) APT.lights.rescan();
 const enemies = new Enemies(scene, world, fx);
+// the apartment's lamps, for the moth to circle (enemies.lamps); run again when an act's rooms load
+const collectLamps = () => { enemies.lamps.length = 0; scene.traverse((o) => { if (o.isPointLight && o.userData.lamp) enemies.lamps.push(o); }); };
+collectLamps();
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
 const xpDrops = new XpDrops(scene, world);
@@ -533,6 +536,7 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
+  collectLamps();
   applyLayout(APT.root, stage.id);
   world.addObjects(added);
   added.forEach((o) => statics.add(o));
