@@ -292,7 +292,8 @@ export function startVacuum(attack, at = VAC_JELLY) {
 export function bossHits() { const b = []; offs.push(bus.on('damage_taken', (d) => { if (d.source === 'boss' && !d.drain) b.push(d); })); return b; }
 // the Warnings showing in the scene: floor shapes and volumes (the Vacuum hides its own, never removes them)
 export function shownWarnings() {
-  const shown = (o) => o.visible && o.material?.opacity > 0;
+  // (the sun's line, a hazard's Warning that always shows, is no attack's)
+  const shown = (o) => o.visible && o.material?.opacity > 0 && o !== G().run.sunrise?.vol;
   const kids = G().APT.scene.children.filter(shown);
   return { floor: kids.filter((o) => o.material instanceof TeleMaterial), volume: kids.filter((o) => o.material instanceof VolumeMaterial) };
 }
@@ -462,6 +463,12 @@ export const EVERY_ATTACK = {
     encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' } },
     // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line
     sun: { light: { is: 'hazard' } },
+    // the room's bass wave (bass-wave.js): a floor strip and its volume over the bar before it goes. Only
+    // in the room (scene 1): started a bar and a bit before its next bar line, on the run's own beat
+    bass: { wave: { is: 'volume', scene: 1,
+      start: () => { const { run } = G(); stub(run, 'song', null); run.beat = run.bass.next - 4.5; },
+      during: () => G().run.bass.state !== 'idle',
+      end: () => { G().run.bass.next = 1e9; } } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -472,6 +479,7 @@ function attacksInGame(act) {
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the shark's pools)
   if (STAGES[act - 1].sun) out.sun = ['light'];   // an act whose room has a sun (act 4), in either of its scenes
+  if (STAGES[act - 1].bass) out.bass = ['wave'];   // and a bass wave
   // Bugs that warn (a behaviour word with a hostile `color`; none do now) are checked in act 3, listed
   // under `bugs` in EVERY_ATTACK
   const warning = act === 3 ? Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id) : [];
@@ -541,6 +549,7 @@ export function everyAttack(act) {
     for (const [name, a] of Object.entries(attacks)) {
       if (!inGame[who]?.includes(name)) { bad.push(`${who} ${name}: not in the game`); continue; }
       if (!a.start) continue;   // a floor hazard, or no Warning
+      if (a.scene && a.scene !== (G().run.stage.scene || 1)) continue;   // it's in the act's other scene
       const r = out[`${who} ${name}`] = checkAttack(who, name, a);
       if (!(r.shown && r.newShaders === 0 && r.gone && (a.is !== 'volume' || r.filling))) bad.push(`${who} ${name}`);
     }

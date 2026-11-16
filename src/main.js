@@ -39,7 +39,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v439';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v440';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -320,11 +320,12 @@ function trackFor(name) {
   if (!tracks[name]) { const t = tracks[name] = { track: new SongTrack(A.ctx, A.master, T), state: 'loading' }; t.track.load().then((ok) => { t.state = ok ? 'ready' : 'failed'; }); }
   return tracks[name];
 }
-// The run's beat source: loading or unavailable audio lets the boss keep its own time.
+// The run's beat source: loading or unavailable audio lets the boss (and the run) keep its own time.
+// With no recording playing, it is the synthesized song's (act 4's "Sunrise Set": the bass wave).
 // Only a recording knows its breakdown and drop.
 const song = {
   playing: null,
-  beat() { if (audio()?.ctx.state !== 'running') return undefined; const t = this.playing; if (!t) return undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
+  beat() { if (audio()?.ctx.state !== 'running') return undefined; const t = this.playing; if (!t) return music?.beatNow() ?? undefined; if (t.state === 'loading') return null; return t.state === 'ready' ? (t.track.beatNow() ?? null) : music?.beatNow() ?? undefined; },
   quiet(b) { return this.playing?.state === 'ready' && this.playing.track.quiet(b); },
   drop(b) { return this.playing?.state === 'ready' && this.playing.track.drop(b); },
 };
