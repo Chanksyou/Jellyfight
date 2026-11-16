@@ -113,6 +113,29 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  lamp: {
+    doc: 'Circles the nearest lit lamp within `reach` m of you, `circle` m out, `above` m over you (never higher than the lamp), going round `turn` radians a second at up to `speed` m/s; while you stand within `near` m of that lamp and it is circling the lamp (within twice `circle`) it is `lampNear` (a `dive lamp=#true` goes for you then). With no lamp lit in reach it circles you instead.',
+    props: { reach: 1.5, circle: 0.12, above: 0.18, speed: 0.45, turn: 1.8, near: 0.3 },
+    make: (_, p) => ({
+      fly: true,
+      init(e) { e.lampT = 0; e.lampPos = new THREE.Vector3(); e.lampAt = null; e.lampNear = false; },
+      tick(e, c, en) {
+        e.lampT -= c.dt;
+        if (e.lampT <= 0) { e.lampT = 0.5; e.lampAt = en.nearestLamp(e.pos, c.pc, p.reach, e.lampPos); }
+        const at = e.lampAt || c.pc;
+        e.lampNear = !!e.lampAt && Math.hypot(c.pc.x - at.x, c.pc.z - at.z) < p.near && Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < p.circle * 2;
+        if (e.flyHeld) return;              // a dive is holding it still
+        const away = _away.copy(e.pos).sub(at).setY(0);
+        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
+        away.normalize().applyAxisAngle(UP, c.dt * p.turn);
+        const to = _spot.copy(at).addScaledVector(away, p.circle).setY(Math.min(at.y, c.pc.y + p.above)).sub(e.pos);
+        const s = p.speed * c.slow;
+        e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
+        en.move(e, e.vel, c.dt);
+      },
+    }),
+  },
+
   sortie: {
     doc: 'A flier that lands to shoot: it flies round you `circle` m out and `height` m up at up to `speed` m/s for about `fly` s, then lands on the floor `land` m from you, raises its carapace and locks on for `aim` s (a reticle closes in round you, beeping faster), and fires a homing missile: `rocket` m/s, turning `turn` radians a second, hunting you for `fuel` s (then it sputters out and falls), `dmg` if it hits. It closes up, rests `rest` s and takes off again.',
     props: { circle: 0.3, height: 0.12, speed: 0.4, fly: 3, land: 0.35, aim: 0.9, rest: 0.7, rocket: 0.36, turn: 2.4, fuel: 4, dmg: 3 },
@@ -637,8 +660,8 @@ export const ENEMY_WORDS = {
   },
 
   dive: {
-    doc: 'Within `range` m every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and dies doing it. If it misses (or hits a wall) it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
-    props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6 },
+    doc: 'Within `range` m (or, with `lamp=#true`, while you stand by its lamp: see `lamp`) every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and, unless `spend=#false`, dies doing it. If it misses, hits a wall, or survives its sting, it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6, lamp: false, spend: true },
     make: (_, p) => ({
       init(e) { e.diveCd = 1 + Math.random() * 1.5; e.diveDir = new THREE.Vector3(); },
       tick(e, c, en) {
@@ -646,7 +669,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.diveCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
+          if ((p.lamp ? e.lampNear : c.dist < p.range) && e.diveCd <= 0 && live && !e.flyHeld) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
         } else if (e.state === 'windup') {
           e.vel.multiplyScalar(Math.exp(-10 * c.dt));
           en.move(e, e.vel, c.dt * live);
@@ -659,7 +682,7 @@ export const ENEMY_WORDS = {
           const blocked = en.move(e, e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
-          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + (e.hitR || e.r)) { en.sting(e, c, p); return; }   // stung you (as soon as it touches, so its touch can't land first): it dies
+          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + (e.hitR || e.r)) { en.sting(e, c, p); if (p.spend) return; e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); return; }   // stung you (as soon as it touches, so its touch can't land first): it dies, or pulls up
           if (wall || blocked || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
         } else if (e.state === 'rest') {
           e.vel.multiplyScalar(Math.exp(-4 * c.dt));
