@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v436 gives Act 4's living room its own map: the Singing bowl moves onto the lounge chair, the Mushroom pillow stands clear on the sofa and the Headphones sit on the glass coffee table, ready to come alive as Act 4's Elites, with the vents beside them landing you across from each one; the Disco-ball mobile and a clutter bowl are cleared away, the corner shadows are baked for the new layout, and the night plays its own song, "Sunrise Set".
+
 v435 gives act 4 a night before the Encore: the run now arrives in the living room at dawn, just inside the hallway door, for 3 minutes from 6:00 to 8:00 AM, with three chests and act 3's bugs standing in until the act's own crowd comes. When the time is up no boss comes: the bugs go and the stage door opens on the media console, and landing there takes the run through to the concert arena with its Health, level, Treasures and kills as they were, for the same Encore fight as before. A run saved part way through act 4 before this update opens in the room.
 
 v434 writes act 4's exploring song, "Sunrise Set" (E minor, 128 BPM like the Encore recording): a soundcheck whose kick waits for the fuller layer. It isn't playing in game until act 4 exists.
