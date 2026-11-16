@@ -539,6 +539,14 @@
   --sun-dry-in: 1.2;             /* s in the sun until the bell looks fully dried out */
   --sun-dry-out: 2;              /* s in the shade until it looks wet again (the look only: the drain stops at once) */
   --sun-dry-glow: 0.65;          /* how much of the inner glow drying takes away */
+
+  /* act 4's bass wave (src/bass-wave.js): the Soundbar's low wave rolling down the room on the bar.
+     Painted, never a light: its floor strip and the hex volume over it */
+  --hostile-bass: #ff2448;       /* hot speaker red: not the Encore's blue, gold, magenta or green, nor the sun's pale gold */
+  --bass-volume-opacity: 0.8;
+  --bass-lift: 0.003;            /* m its floor strip floats over the floor */
+  --bass-mote-gap: 0.05;         /* s between the motes it lifts off the floor behind it */
+  --bass-mote-life: 0.5;         /* s each mote lasts */
   --sun-dry-rough: 0.7;          /* how dull the clear bell goes (its gloss: roughness) */
   --sun-dry-tint: #5e4b32;       /* the dull dry-leather colour it fades toward (half way, fully dried) */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
@@ -713,6 +721,7 @@
   --feel-hit: 0.03 0;          /* a bubble popping on a bug */
   --feel-sun: 0.05 0;          /* each second the sun bites the jelly (act 4): a small tremor, no hit-stop */
   --feel-hit-big: 0.12 0;      /* a giant bubble popping */
+  --feel-bass: 0.15 0;         /* the Soundbar's bass wave going off (act 4): the room thumps, no hit-stop */
   --feel-crit: 0.1 0;          /* a critical hit: a step past a pop, no hit-stop (crits come too often) */
   --feel-kill: 0.18 0.035;     /* a bug finished off */
   --feel-hurt-minor: 0.22 0;  /* light global player hit feedback; no hit-stop */

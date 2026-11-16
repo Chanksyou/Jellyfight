@@ -58,6 +58,7 @@ import './stories/act3-bull.js';
 import './stories/act3-coffer.js';
 import './stories/act4.js';
 import './stories/night4.js';
+import './stories/bass-wave.js';
 import './stories/sunrise.js';
 import './stories/phone.js';
 import './stories/nests.js';
