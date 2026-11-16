@@ -100,6 +100,17 @@
 //     Jewels:         jewels shoot up off its lid out of sight while Warnings fill on random spots
 //                     spread over the desk; then they fall onto them and burst as Blasts.
 //     Under 65% Health it's angry: quicker strikes, a harder pull, more jewels.
+//   bowl        the Singing Bowl on the lounge chair (act 4's living room; bowl-model.js), standing in
+//               for the real bowl there, on its cushion with its striker. It keeps the song's time:
+//               every strike and chime lands on a beat (the run's beat, `beat`), so its numbers in
+//               content/elites.kdl are in beats.
+//     Rim ring:       the striker lifts over the rim while a Warning (a disc round the bowl and the low
+//                     ring wall over it) fills; on the bar it strikes and a thin, low ring wall rolls
+//                     out across the seat: jump it. One a bar.
+//     Chime:          the striker runs round the rim and the bowl sings, a ball of its song swelling
+//                     over it (no floor Warning: the ball is the tell); then on the next bar's beats
+//                     a Shot a beat flies at you: keep moving sideways.
+//     Under 65% Health it's angry: two rings a bar, the second faster.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -118,6 +129,7 @@ import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
 import { buildBull, buildMiniBull } from './bull-model.js';
 import { buildCoffer, COFFER } from './coffer-model.js';
+import { buildBowl } from './bowl-model.js';
 
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
@@ -125,6 +137,7 @@ export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
+  bowl: ['ring', 'chime'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -425,6 +438,11 @@ function cofferModel() {
   return { ...c, muzzle: new THREE.Vector3(0, 0.05, COFFER.D / 2), r: 0.12, barY: 0.16, hitAt: new THREE.Vector3(0, 0.055, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
 }
 
+// the Singing Bowl (act 4; bowl-model.js): its chimes leave from just over its rim
+function bowlModel() {
+  return { ...buildBowl(), muzzle: new THREE.Vector3(0, 0.112, 0), r: 0.07, barY: 0.17, hitAt: new THREE.Vector3(0, 0.07, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
+}
+
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
@@ -444,6 +462,7 @@ const KINDS = {
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
   coffer: { name: 'The Latticework Coffer', build: cofferModel },
+  bowl: { name: 'The Singing Bowl', scale: 1.4, build: bowlModel },
 };
 const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
@@ -555,7 +574,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','chimes','fromBeat','turn','beatWas']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -564,6 +583,7 @@ class Elite {
     if (this.kind === 'clock') this.spin = 0;
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
     if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
+    if (this.kind === 'bowl') { this.owner.fx.free(this.ball); this.ball = null; this.model.pose('rest'); this.charge = 0; }
     if (this.kind === 'soap') {
       const M = this.model;
       M.head.position.y = M.headY; M.stem.scale.y = 1; M.stem.position.y = M.headY - 0.012;
@@ -631,6 +651,7 @@ export class Elites {
       frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
       rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
       coffer: new TeleMaterial(hostile('coffer')),
+      bowl: new TeleMaterial(hostile('bowl')),
       safe: new TeleMaterial(LOOK.color('safe-spot', '#ffffff')),   // the one spot an attack spares (the Kettle's lid)
       hour: new TeleMaterial(hostile('clock'), 'wedge', 0.45),
     };
@@ -649,6 +670,16 @@ export class Elites {
     // to the jelly's movement next frame, as it does a Boss's `push`
     this.pull = null;
     this._pull = new THREE.Vector3(); this._home = new THREE.Vector3(); this._mouth = new THREE.Vector3(); this._tip = new THREE.Vector3();   // scratch for the Coffer
+    // the song's time, as the run keeps it (run.js keepTime): its beat now and its tempo (the Singing Bowl)
+    this.beat = 0; this.bpm = 120;
+    // a chime that reached the jelly leaves a fading shimmer under it and rings out
+    this.bowlShotEnd = (b, struck) => {
+      if (!struck) return;
+      const at = b.m.position, y = this.surfaceBelow(at);
+      this.fx.burst(at, LOOK.list('bowl-glints', ['#fff2c0', '#cba24b', '#ffffff']), 5, 0.0025, 0.2, y);
+      this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bowl-shimmer', '#d8c890'), LOOK.num('bowl-chime-shimmer', 0.014), 'dust');
+      juice.feel('impact'); sfx.bowlHit();
+    };
     this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._eul = new THREE.Euler(); this._s3 = new THREE.Vector3();
   }
 
@@ -719,6 +750,10 @@ export class Elites {
       standOut(coffer.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
       coffer.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       for (const o of coffer.loose) { const c = o.clone(); c.visible = true; if (c.isInstancedMesh) c.count = 1; this._warm.push(c); }
+      const bowl = buildBowl();                                            // the Singing Bowl, its cushion and striker, as they stand out
+      standOut(bowl.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
+      bowl.song.material.opacity = 0.5;
+      bowl.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       this._warm.push(new THREE.Mesh(this.stripGeo, this.T.lane));
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
@@ -1101,6 +1136,19 @@ export class Elites {
           M.upper.rotation.x = M.lower.rotation.x = 0;
           M.tail.forEach((t, i) => { t.rotation.x = CROC_TAIL_REST[i]; t.rotation.y = Math.sin(e.t * (awake ? 2.4 : 0.8) - i * 0.9) * (awake ? 0.18 : 0.05); });
         }
+      }
+
+      // the Singing Bowl, attacking or not: its eyes close while it sleeps; its song glows in it as it
+      // charges and while it still rings after a strike (e.hum), its rim trembling with it
+      if (e.kind === 'bowl') {
+        const M = e.model;
+        M.eyes.scale.y += ((awake || e.state !== 'idle' ? 1 : 0.12) - M.eyes.scale.y) * (1 - Math.exp(-6 * dt));
+        e.hum = Math.max(0, (e.hum || 0) - dt * LOOK.num('bowl-ring-out', 0.8));
+        M.song.material.color.copy(hostile('bowl'));
+        M.song.material.opacity = Math.min(1, Math.max(e.charge || 0, e.hum) * LOOK.num('bowl-song-glow', 0.8));
+        const shiver = e.hum * LOOK.num('bowl-tremble', 0.03) * Math.sin(e.t * 90);
+        M.body.scale.set(1 + shiver, 1, 1 - shiver);
+        if (e.state === 'idle') { g.position.y = 0; if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.015; }   // asleep: still, breathing a little
       }
 
       // the Bull, attacking or not: its eyes close while it sleeps, it breathes, it sways awake
@@ -2112,6 +2160,78 @@ export class Elites {
             juice.feel('impact'); sfx.jewelCrack();
           }
           if (s > J.rain + 0.4) { e.spots = e.gems = null; e.locked = false; e.state = 'idle'; e.cool = angry ? J.angryRest : J.rest; }
+        }
+      }
+
+      // ---------------------------------------------------------- the singing bowl
+      // Both attacks keep the song's time (this.beat: the run's beat), not the pace's tempo: a strike
+      // or a chime is due on a beat planned as the attack starts. If the beat jumps (a menu ate some,
+      // or the song started), the attack is called off rather than going off unwarned
+      if (e.kind === 'bowl') {
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('bowl'), beat = this.beat;
+        const jumped = (e.strikes || e.chimes) && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
+        e.beatWas = beat;
+        if (jumped) { const S = e.attack ? SK.chime : SK.ring; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        const rim = this._mid.copy(muzzle);
+        if (e.attack === 0) {
+          // Rim ring: the striker lifts over the rim while a Warning (a disc round the bowl and the low
+          // ring wall over it) fills to the strike; on the bar it hits the rim and a thin, low ring
+          // wall rolls out across the seat: jump it. Angry: two a bar, the second faster
+          const R = SK.ring;
+          if (!e.strikes) {                                                  // planned as it starts: turning angry part way keeps the plan
+            const first = Math.ceil((beat + R.windup) / 4) * 4, every = angry ? 2 : 4;   // the first bar line at least windup beats away
+            e.strikes = Array.from({ length: angry ? R.angryRings : R.rings }, (_, k) => first + k * every);
+            e.struckN = 0; e.fromBeat = beat;
+          }
+          const k = e.struckN, n = e.strikes.length;
+          if (k < n) {
+            const due = e.strikes[k], from = k ? e.strikes[k - 1] : e.fromBeat, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
+            if (!e.tele.length) e.tele.push(this.warnCircle(surf, R.warn, this.T.bowl), this.volume(col, 'ring', surf, new THREE.Vector3(R.warn, R.height, R.warn)));
+            e.tele[0].userData.fill(u); e.tele[1].material.progress = u;
+            M.pose('strike', u < 0.8 ? 1 - u / 0.8 : (u - 0.8) / 0.2);       // lifts up and back, then down onto the rim
+            e.charge = u;
+            if (beat >= due) {
+              e.struckN++;
+              e.clearTele();
+              M.pose('strike', 1);
+              e.hum = 1; e.hitPop = 0.6; e.recoil = 0.6;
+              this.fx.impact(rim.clone().setY(rim.y - 0.01).addScaledVector(this._right.set(Math.cos(heading), 0, -Math.sin(heading)), e.r * 0.9), col, LOOK.num('bowl-strike-flash', 0.03), 10);   // where the striker meets the rim
+              this.fx.burst(rim, LOOK.list('bowl-glints', ['#fff2c0', '#cba24b', '#ffffff']), 6, 0.0025, 0.25, e.base.y);
+              this.fx.splat(surf, LOOK.color('bowl-shimmer', '#d8c890'), R.warn * LOOK.num('bowl-shimmer-size', 0.5), 'dust');   // a shimmer on the cushion, fading
+              juice.feel('impact'); sfx.bowlStrike(angry && k % 2 === 1);
+              this.ring(surf, col, R, 'bowl-ring', { band: R.band, speed: angry && k % 2 ? R.angrySpeed : R.speed, max: R.reach, r: e.r * 0.4, follow: true, onHit: () => sfx.bowlHit() });
+            }
+          } else if (beat > e.strikes[n - 1] + 1) { e.strikes = null; e.charge = 0; M.pose('rest'); e.state = 'idle'; e.cool = angry ? R.angryRest : R.rest; }
+        } else {
+          // Chime: the striker runs round the rim and the bowl sings, a ball of its song swelling over
+          // it; then on the beats of the next bar a Shot flies from it at you (your middle, mid-jump
+          // included), one a beat: keep moving sideways
+          const C = SK.chime;
+          if (!e.chimes) {
+            const first = Math.ceil((beat + C.windup) / 4) * 4;
+            e.chimes = Array.from({ length: C.shots }, (_, k) => first + k * C.every);
+            e.fired = 0; e.fromBeat = beat; e.turn = 0;
+            e.ball = this.fx.orb(col, C.size);
+            sfx.bowlSing((first - beat) * 60 / this.bpm);
+          }
+          const last = e.chimes[C.shots - 1];
+          if (e.fired < C.shots) {
+            const due = e.chimes[e.fired], u = THREE.MathUtils.clamp((beat - e.fromBeat) / (e.chimes[0] - e.fromBeat), 0, 1);
+            e.turn += dt * (4 + u * 10);                                         // round the rim, faster as it sings
+            M.pose('sing', 0, e.turn);
+            e.charge = Math.max(u, 0.6);
+            if (e.ball) { e.ball.position.copy(rim).setY(rim.y + C.size * 1.5); e.ball.scale.setScalar(C.size * Math.min(1, u * 1.2) * (1 + Math.sin(e.t * 30) * 0.06)); this.fx.orbTick(e.ball, dt, 0.2 + u * 0.8); }
+            if (u < 1 && Math.random() < dt * 20) this.fx.glow.emit(rim, col, 0.025, 0.006, 0.3, 0.9);   // the song gathering
+            if (beat >= due) {
+              e.fired++;
+              const from = e.ball ? e.ball.position : rim;
+              this.shoot(from, shotTarget(P, cfg, null, P.y, this._to), col, 'bowl-chime', C.dmg, { speed: C.speed, size: C.size, life: C.reach / C.speed }).onEnd = this.bowlShotEnd;
+              this.fx.impact(from, col, LOOK.num('bowl-chime-flash', 0.02), 8);
+              e.kick = 1; e.hum = Math.max(e.hum || 0, 0.6);
+              juice.feel('hit'); sfx.bowlChime(e.fired - 1);
+              if (e.fired >= C.shots) { this.fx.free(e.ball); e.ball = null; }
+            }
+          } else if (beat > last + 1) { e.chimes = null; e.charge = 0; M.pose('rest'); e.state = 'idle'; e.cool = angry ? C.angryRest : C.rest; }
         }
       }
     }

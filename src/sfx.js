@@ -1447,6 +1447,25 @@ export const sfx = {
   // the spit: a wet splat and a puff of air
   cofferCrunch() { if (!ready() || !gap('cofferCrunch', 60)) return; const j = jitter(0.15); noise(2600 * j, 1.2, 0.07, 0.22, 'bandpass', 0, 900); tone('square', 160 * j, 70, 0.06, 0.07); noise(700 * j, 0.8, 0.1, 0.12, 'lowpass', 0.02, 250); },
   cofferSpit() { if (!ready()) return; const j = jitter(0.1); noise(1200 * j, 0.7, 0.18, 0.22, 'lowpass', 0, 3200); tone('sine', 420 * j, 160, 0.12, 0.08); noise(5000, 1, 0.06, 0.08, 'highpass', 0.08); },
+  // the Singing Bowl: a struck rim (a wooden tok, then the bowl's long inharmonic ring; the faster
+  // second ring of an angry bar a fourth higher), the rim rubbed into song, a chime let go, one landing
+  bowlStrike(high = false) {
+    if (!ready() || !gap('bowlStrike', 80)) return; const j = jitter(0.03), f = (high ? 293 : 220) * j;
+    noise(2400 * j, 2, 0.03, 0.14, 'bandpass'); tone('triangle', 900 * j, 500 * j, 0.04, 0.08);       // the striker's tok
+    for (const [m, v, d] of [[1, 0.13, 2.4], [1.006, 0.07, 2.2], [2.71, 0.06, 1.5], [5.13, 0.03, 0.9], [8.27, 0.015, 0.5]]) tone('sine', f * m, f * m * 0.997, d, v);
+    patter(3, 0.05, 0.25, 0.025);                                                                   // the glints falling
+  },
+  bowlSing(dur = 1.5) {
+    if (!ready()) return; const j = jitter(0.03), f = 440 * j;
+    for (let k = 0; k < 6; k++) { tone('sine', f, f * 1.003, dur * 0.45, 0.012 + k * 0.01, k * dur / 7); tone('sine', f * 2.71, f * 2.72, dur * 0.3, 0.004 + k * 0.003, k * dur / 7); }   // swelling as it's rubbed
+    noise(1800 * j, 4, dur, 0.025, 'bandpass', 0, 2600 * j);                                          // the rub round the rim
+  },
+  bowlChime(k = 0) {
+    if (!ready()) return; const f = 660 * Math.pow(2, [0, 3, 7][k % 3] / 12) * jitter(0.01);
+    tone('sine', f, f * 0.998, 0.6, 0.09); tone('sine', f * 2.71, f * 2.7, 0.3, 0.03); noise(5200, 2, 0.02, 0.06, 'highpass');
+    noise(2000, 1, 0.18, 0.04, 'bandpass', 0.02, 900);                                                // the whoosh as it flies off
+  },
+  bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
   jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
   jewelWhistle(dur = 0.25) { if (!ready()) return; const j = jitter(0.06); tone('sine', 2600 * j, 700 * j, dur, 0.06); tone('sine', 2750 * j, 760 * j, dur, 0.03); },
   jewelCrack() { if (!ready()) return; const j = jitter(0.08); noise(6500 * j, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) { const f = (2200 + k * 450) * j * jitter(0.05); tone('triangle', f, f * 0.9, 0.09, 0.04, k * 0.02 + Math.random() * 0.015); } noise(500 * j, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },

@@ -377,6 +377,21 @@ export function startCoffer(atk, { x = -1.52, z = 8.8, angry = false, hold = tru
   e.cool = 0; e.next = atk;
   return { e, player, desk: player.position.y };
 }
+// act 4's Singing Bowl on the lounge chair in the living room (elites.js kind 'bowl', bowl-model.js):
+// the chair's seat 0.435 m up. Start one of its attacks with the jelly held on the seat in front of
+// it (x, z), facing it, on the run's own beat (no song)
+export const bowl = () => G().run.elites.list.find((e) => e.kind === 'bowl');
+export const onChair = (x = 3.2, z = 1.72) => tp(x, 0.48, z, 0);   // (yaw 0: the camera behind the jelly, looking at the bowl)
+export function startBowl(atk, { x = 3.2, z = 1.72, angry = false, hold = true } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onChair(x, z);
+  stub(G().run, 'song', null);
+  const e = bowl(), player = hold ? holdJelly() : G().player;
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, seat: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -469,6 +484,9 @@ export const EVERY_ATTACK = {
       start: () => { const { run } = G(); stub(run, 'song', null); run.beat = run.bass.next - 4.5; },
       during: () => G().run.bass.state !== 'idle',
       end: () => { G().run.bass.next = 1e9; } } },
+    // the Singing Bowl on the lounge chair (elites.js), in the room: its rim rings' Warning (a disc and
+    // the low ring wall over it), its chimes' Shots (the ball of song swelling over it is their tell)
+    bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, chime: { is: 'shot', scene: 1, start: () => startBowl(1) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -547,9 +565,9 @@ export function everyAttack(act) {
   for (const [who, names] of Object.entries(inGame)) for (const n of names) if (!listed[who]?.[n]) bad.push(`${who} ${n}: not listed`);
   for (const [who, attacks] of Object.entries(listed)) {
     for (const [name, a] of Object.entries(attacks)) {
+      if (a.scene && a.scene !== (G().run.stage.scene || 1)) continue;   // it's in the act's other scene
       if (!inGame[who]?.includes(name)) { bad.push(`${who} ${name}: not in the game`); continue; }
       if (!a.start) continue;   // a floor hazard, or no Warning
-      if (a.scene && a.scene !== (G().run.stage.scene || 1)) continue;   // it's in the act's other scene
       const r = out[`${who} ${name}`] = checkAttack(who, name, a);
       if (!(r.shown && r.newShaders === 0 && r.gone && (a.is !== 'volume' || r.filling))) bad.push(`${who} ${name}`);
     }
