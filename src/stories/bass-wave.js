@@ -45,6 +45,19 @@ night4('the-bass-wave-goes-off-on-the-bar', {
   },
 });
 
+night4('a-menu-over-the-warning-drops-that-wave', {
+  about: 'A menu (a level-up, the pause) holds the run while the song plays on: if it ate the end of a Warning, that wave doesn\'t go off unwarned when play comes back; the next one comes on the next 16-bar line.',
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(...OPEN); },
+  play() {
+    const { run } = G(), B = ready(2), feels = spy(juice, 'feel'), went = spy(sfx, 'bassWave'), at = B.next;
+    step(10);
+    const warned = B.state === 'warn';
+    run.beat += 8;                 // the menu: eight beats pass at once
+    step(30);
+    return ok(warned && B.state === 'idle' && !went.length && !feels.some(([k]) => k === 'bass') && B.next === at + STAGE4.bass.every * 4, { warned, state: B.state, went: went.length, next: B.next });
+  },
+});
+
 night4('a-jump-clears-the-bass-wave', {
   about: 'Jumping as the wave reaches you clears it: its top is 5 cm, and a jump\'s feet are well above that as it passes. The same wave hits a jelly that stays down.',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(...OPEN); },

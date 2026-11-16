@@ -87,6 +87,7 @@ export class BassWave {
       if (beat >= this.next) this.next = this.nextAfter(beat);       // came in too late for this one's Warning
       else { this.state = 'warn'; this.at = this.next; this.hit = false; this.dropped = false; this.show(true); }
     }
+    if (this.state === 'warn' && skip) this.stop();   // a menu ate the end of its Warning: no unwarned wave, the next bar line instead
     if (this.state === 'warn') {
       const k = Math.min(1, Math.max(0, (beat - (this.at - WARN)) / WARN));
       this.place(B.from, k);
