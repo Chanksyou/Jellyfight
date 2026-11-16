@@ -281,6 +281,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
 - **Act 4: the Encore.**
   Beat the shark and the run comes back to the living room at dawn, 6 am to 8 am, entering from the hallway door (3:00 this time).
   Act 3's bugs stand in for now, and three chests turn up in the night.
+  The sun comes up through the night: its line creeps from the window wall to 3.3 m in over the 3 minutes, and standing on its side of it, on the floor or any furniture, costs 3 Health a second while the jelly dries out (bugs don't mind it; chests never turn up where it will reach before they fade; `sun` in `src/stage4.js`, `src/sunrise.js`).
   When time runs out no boss comes: the stage door opens on the media console, and landing there takes the run through to the concert arena for **The Encore**, carrying its Health, level, Treasures and kills.
   The act is two scenes of one act (`src/stage4.js`: the room's `stageDoor` leads to `ENCORE`, the arena), loaded by the same reload as an act change.
 

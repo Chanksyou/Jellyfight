@@ -152,7 +152,7 @@ export class GadgetLooks {
     if(burst)this.arc(at,LOOK.num('gadget-steam-ring',.06),this.mist,.4);
     for(let i=0;i<(burst?(this.quiet?3:8):1);i++){
       const a=Math.random()*Math.PI*2,r=burst?.025:.015,z=LOOK.num('gadget-steam-size',.01),p=this.take('foam',at,this.mist,LOOK.num('gadget-steam-life',.7));if(!p)break;
-      p.m.position.add(new THREE.Vector3(Math.cos(a)*r,.015,Math.sin(a)*r));
+      p.m.position.x+=Math.cos(a)*r;p.m.position.y+=.015;p.m.position.z+=Math.sin(a)*r;
       p.size.setScalar(burst?z*1.4:z);p.m.scale.copy(p.size);p.alpha=LOOK.num('gadget-steam-opacity',.3);p.m.userData.opacity=p.alpha;
       p.v.set(0,this.quiet?0:LOOK.num('gadget-steam-rise',.05),0);
     }

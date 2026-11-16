@@ -554,6 +554,10 @@ export const sfx = {
   },
   // standing in something scalding: a short sizzle
   scald() { if (!ready() || !gap('scald', 220)) return; const j = jitter(0.15); noise(6000*j, 1, 0.12, 0.05, 'highpass'); noise(2400*j, 3, 0.05, 0.03, 'bandpass', 0.03); },
+  // the sun (sunrise.js): stepping into it, a sharp hiss with a crackle; standing in it, a low
+  // sizzle (a warm hiss and a few spits), every one a little different
+  sunIn() { if (!ready() || !gap('sunIn', 400)) return; const j = jitter(0.12); noise(5200*j, 1.2, 0.22, 0.05, 'highpass'); noise(1400*j, 2, 0.3, 0.035, 'bandpass', 0.02, 900*j); patter(3, 0.03, 0.15, 0.025); },
+  sunSizzle() { if (!ready() || !gap('sunSizzle', 250)) return; const j = jitter(0.18); noise(1100*j, 0.9, 0.45, 0.022, 'bandpass', 0, 800*j); noise(4200*j, 2.5, 0.2, 0.01, 'bandpass', 0.05); patter(2, 0.04, 0.3, 0.015); },
   // the Kettle charging its steam ball: a whistle climbing over the second, a hiss swelling under it, a boiling rattle
   kettleCharge() {
     if (!ready() || !gap('kettleCharge', 400)) return; const j = jitter(0.08);

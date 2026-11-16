@@ -5,7 +5,7 @@
 //
 // Anything with the same shape as buildCharacter's return value can be the player's
 // avatar: { root: Object3D, update(dt, state), land(impact), dispose() }, plus optionally
-// pulse() (a jump's bell squeeze) and tentacles (a TentacleRig the Lash strikes with). When we get a
+// pulse() (a jump's bell squeeze), dry(k) (drying out in the sun) and tentacles (a TentacleRig the Lash strikes with). When we get a
 // rigged model, a second builder can map the same look (colors, hat, eyes) onto it.
 //
 // Models are built in "units": 1 unit = the character's height, bottom at y = 0, facing +z.
@@ -1674,11 +1674,22 @@ export function buildCharacter(look, heightMeters) {
 
   function pulse(k = 1) { kick = Math.max(kick, k); }
 
+  // drying out in the sun (sunrise.js), k 0 (wet) to 1: the inner glow fades and the clear bell
+  // goes dull and dusty. Only uniforms change, so no shader is rebuilt
+  const wet = { glow: inner.emissiveIntensity, rough: outer.roughness, coat: outer.clearcoatRoughness, color: outer.color.clone() };
+  const DRY = { tint: new THREE.Color(LOOK.color('sun-dry-tint', '#5e4b32')), glow: LOOK.num('sun-dry-glow', 0.65), rough: LOOK.num('sun-dry-rough', 0.7) };
+  function dry(k) {
+    inner.emissiveIntensity = wet.glow * (1 - DRY.glow * k);
+    outer.roughness = wet.rough + (DRY.rough - wet.rough) * k;
+    outer.clearcoatRoughness = wet.coat + (DRY.rough - wet.coat) * k;
+    outer.color.copy(wet.color).lerp(DRY.tint, 0.5 * k);
+  }
+
   function dispose() {
     rig?.dispose();
     root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.bumpMap?.dispose(); o.material.dispose(); } });
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, update, land, takeoff, pulse, dispose, look, tentacles: rig, squash, hatTop };
+  return { root, update, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
 }
