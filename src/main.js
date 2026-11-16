@@ -28,7 +28,7 @@ import { juice } from './juice.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
-import { SongTrack, TRACKS } from './song-track.js';
+import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
@@ -311,9 +311,12 @@ applyLook(state.look);
 // A song with a recording (song-track.js TRACKS: the Encore's) plays that, loaded once audio starts,
 // and the synthesized one only if the file won't load; its beat is what a boss on the beat reads (`song`)
 const tracks = {};
+if (stage.arena) for (const name in TRACKS) fetchTrack(TRACKS[name]).catch(() => {});   // the file downloads while the act loads
+// It loads once sound is on: a phone reloaded into the arena makes its audio before the tap that turns it
+// on, and decoding into that silent context could hang (song-track.js `wait` gives up on it anyway).
 function trackFor(name) {
   const A = audio(), T = TRACKS[name];
-  if (!A || !T) return null;
+  if (!A || !T || (!tracks[name] && A.ctx.state !== 'running')) return null;
   if (!tracks[name]) { const t = tracks[name] = { track: new SongTrack(A.ctx, A.master, T), state: 'loading' }; t.track.load().then((ok) => { t.state = ok ? 'ready' : 'failed'; }); }
   return tracks[name];
 }
@@ -567,7 +570,7 @@ try { localStorage.removeItem('jellyrun.effects'); } catch {}   // the old butto
 function updateMusic(dt) {
   if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
   const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
-  if (stage.arena) for (const name in TRACKS) trackFor(name);   // start loading the act's recording early
+  if (stage.arena) for (const name in TRACKS) trackFor(name);   // start decoding the act's recording early
   const rec = st.song ? trackFor(st.song) : null;
   for (const name in tracks) if (tracks[name] !== rec) tracks[name].track.stop();
   song.playing = rec;
