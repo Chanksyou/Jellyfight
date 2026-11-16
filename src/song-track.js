@@ -11,6 +11,10 @@ export const TRACKS = {
   encore: { url: './assets/audio/encore-around-the-world.mp3', bpm: 128, offset: 0.052, bars: 159, start: 64, quiet: [75, 76, 77, 78, 79], drop: [32, 33, 34, 35, 36, 37, 38, 39] },
 };
 
+// a track's file, fetched once (it needs no audio yet, so an act can start on it as it loads)
+const files = {};
+export const fetchTrack = (track) => (files[track.url] ||= fetch(track.url).then((r) => { if (!r.ok) throw new Error(`${track.url}: ${r.status}`); return r.arrayBuffer(); }).catch((e) => { delete files[track.url]; throw e; }));
+
 export class SongTrack {
   constructor(ctx, dest, track) {
     Object.assign(this, { ctx, track });
@@ -19,10 +23,16 @@ export class SongTrack {
   }
   get bpm() { return this.track.bpm; }
   get loopBeats() { return this.track.bars * 4 - (this.track.start || 0); }   // from `start` to the end of its last whole bar
-  // fetch and decode it; false if it can't (offline, a bad file): the caller falls back to a synthesized song
+  // fetch and decode it; false if it can't (offline, a bad file), or if decoding hasn't finished within
+  // `wait` s (a phone stuck decoding the 5 minute file left the Encore with no song and, waiting for its
+  // beat, no attacks): the caller falls back to a synthesized song, and a late decode is dropped
   async load() {
-    try { this.buffer ||= await this.ctx.decodeAudioData(await (await fetch(this.track.url)).arrayBuffer()); return true; }
-    catch { return false; }
+    if (this.buffer) return true;
+    let bytes;
+    try { bytes = (await fetchTrack(this.track)).slice(0); } catch { return false; }   // decoding takes the bytes: decode a copy
+    const decoded = this.ctx.decodeAudioData(bytes).catch(() => null);
+    const late = new Promise((done) => setTimeout(() => done(null), (this.track.wait ?? 8) * 1000));
+    return !!(this.buffer = await Promise.race([decoded, late]));
   }
   // from `start` beats in, looping on whole bars back to there
   play() {

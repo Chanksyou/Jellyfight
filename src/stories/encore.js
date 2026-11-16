@@ -228,6 +228,21 @@ story('encore/the-track-loops-on-whole-bars-and-rests-in-its-breakdown', {
   },
 });
 
+story('encore/a-track-that-wont-load-in-time-falls-back', {
+  about: 'A phone stuck decoding the Encore\'s 5 minute track left the fight silent, and with no beat to play to, the Encore never attacked. Now a track not decoded within its `wait` gives up (load() is false), so the synthesized Encore song plays and sets the beat; one that decodes in time is used.',
+  setup() {},
+  async play() {
+    const small = { ...TRACKS.encore, url: './assets/audio/fireball-flight.mp3' };
+    const stuck = new OfflineAudioContext(1, 44100, 44100);
+    stuck.decodeAudioData = () => new Promise(() => {});                 // never settles, as on the phone
+    const T = new SongTrack(stuck, stuck.destination, { ...small, wait: 0.2 }), t0 = performance.now();
+    const gave = await T.load(), took = performance.now() - t0;
+    const ctx = new OfflineAudioContext(1, 44100, 44100), fine = new SongTrack(ctx, ctx.destination, { ...small, wait: 10 });
+    const loaded = await fine.load();
+    return ok(gave === false && !T.buffer && took < 2000 && loaded === true && !!fine.buffer, { gave, took: Math.round(took), loaded });
+  },
+});
+
 story('encore/the-track-beat-grid-lands-on-its-kicks', {
   about: 'The track loads and its measured grid (128 BPM, first beat 0.052 s) sits on the kicks: the low end is far louder just after each beat than halfway between beats, through the whole song.',
   setup() {},
