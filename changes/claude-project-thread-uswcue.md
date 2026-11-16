@@ -1,1 +1,0 @@
-the Encore only ever plays its own recording: if the recording is slow to load, the fight plays without music until it's ready, rather than switching to a different built-in song; a stuck decode of the recording is tried again once.
