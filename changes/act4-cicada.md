@@ -1,1 +1,0 @@
-adds the Cicada to Act 4's living room from 1:30, replacing the stag beetle there: a stocky, slow tank with big red eyes and clear wings that plants itself and sings a cone of sound (a floor wedge and a cone fill as a warning, then it hurts and shoves you away). Step out of the wedge, or jump it close to its head.

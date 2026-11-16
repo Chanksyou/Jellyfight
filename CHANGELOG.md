@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v439 adds the Cicada to Act 4's living room from 1:30, replacing the stag beetle there: a stocky, slow tank with big red eyes and clear wings that plants itself and sings a cone of sound (a floor wedge and a cone fill as a warning, then it hurts and shoves you away). Step out of the wedge, or jump it close to its head.
+
 v438 brings the sun up in Act 4's living room: a line of daylight creeps from the window wall toward the TV over the 3 minute night, and a jelly standing on its side of it, floor or furniture, loses 3 Health a second, its bell drying dull and steaming with a low sizzle. Its edge glows hot with a low hex Warning just ahead; bugs aren't hurt, chests never turn up where it will reach before they fade, and the stage door stays in the shade.
 
 v437 gives Act 4's living room its dawn look: a blue hour at 6:00 AM warming to gold by 8:00 AM, a little brighter than the night, with the window glowing.
