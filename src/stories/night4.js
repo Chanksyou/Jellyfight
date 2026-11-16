@@ -58,12 +58,12 @@ night4('time-up-opens-the-stage-door-instead-of-a-boss', {
     stub(hud, 'toast', (t) => toasts.push(t));
     for (let i = 0; i < 3; i++) enemies.spawn('mantis', player.position.clone().add(V(0.3 + 0.1 * i, 0, -0.4)), 1);
     step(2);
-    const before = enemies.list.filter((e) => !e.dead).length;
+    const before = enemies.list.filter((e) => !e.dead && !e.proxy).length;
     run.t = run.duration - 0.5;
     step(60);
-    const gone = enemies.list.filter((e) => !e.dead).length;
+    const gone = enemies.list.filter((e) => !e.dead && !e.proxy).length;
     step(60 * 6);
-    const after = enemies.list.filter((e) => !e.dead).length, clock = hud.el.querySelector('.clock').textContent;
+    const after = enemies.list.filter((e) => !e.dead && !e.proxy).length, clock = hud.el.querySelector('.clock').textContent;
     const marked = run.markers().some((m) => m.color === '#9fd8ff');
     return ok(before > 0 && gone === 0 && after === 0 && run.doorOpen && run.phase === 'explore' && !run.boss
       && toasts.some((t) => /stage door is open/.test(t)) && !toasts.some((t) => /Time's up/.test(t)) && /Stage door open/.test(clock) && marked,

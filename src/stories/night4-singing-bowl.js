@@ -134,13 +134,13 @@ night4('bowl-chime-shots-on-the-beat', {
 });
 
 night4('bowl-chime-dodged-by-moving-sideways', {
-  about: 'Each chime is aimed at where the jelly is as it leaves, no leading: a jelly that keeps stepping the same way sideways, 12 cm after each one leaves, is missed by all three.',
-  setup() { startBowl(1, { x: 3.0 }); },
+  about: 'Each chime is aimed at where the jelly is as it leaves, no leading: a jelly that keeps stepping the same way sideways, 10 cm after each one leaves, is missed by all three.',
+  setup() { startBowl(1); },
   play() {
-    const { e, player } = startBowl(1, { x: 3.0 }), { run } = G(), log = record('damage_taken');
+    const { e, player } = startBowl(1), { run } = G(), log = record('damage_taken');
     let was = 0;
     step(60 * 10, () => {
-      if ((e.fired || 0) > was) { was = e.fired; player.position.x += 0.12; }
+      if ((e.fired || 0) > was) { was = e.fired; player.position.x -= 0.1; }
       return e.state === 'idle' && was && !run.elites.bullets.length;
     });
     return ok(was === SK().chime.shots && !hitsBy(log, 'bowl-chime').length, { fired: was, hits: hitsBy(log, 'bowl-chime'), x: +player.position.x.toFixed(2) });

@@ -381,7 +381,7 @@ export function startCoffer(atk, { x = -1.52, z = 8.8, angry = false, hold = tru
 // the chair's seat 0.435 m up. Start one of its attacks with the jelly held on the seat in front of
 // it (x, z), facing it, on the run's own beat (no song)
 export const bowl = () => G().run.elites.list.find((e) => e.kind === 'bowl');
-export const onChair = (x = 3.2, z = 1.72) => tp(x, 0.48, z, Math.PI);
+export const onChair = (x = 3.2, z = 1.72) => tp(x, 0.48, z, 0);   // (yaw 0: the camera behind the jelly, looking at the bowl)
 export function startBowl(atk, { x = 3.2, z = 1.72, angry = false, hold = true } = {}) {
   fresh({ hurt: true, bubbles: false, lash: false }); onChair(x, z);
   stub(G().run, 'song', null);
