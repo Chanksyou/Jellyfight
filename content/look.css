@@ -447,6 +447,7 @@
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
+  --hostile-cicada: #9dff00;     /* the cicada's song: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2) */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */

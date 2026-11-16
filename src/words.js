@@ -462,6 +462,47 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  sing: {
+    doc: 'Within `range` m every `every` s or so, plants itself, turns to you and draws breath for `windup` s (its wings lift and quiver; a Warning wedge on the floor fills with a cone over it, `arc` degrees wide and `reach` m long; its aim locks `lock` of the way through), then sings: anything of you inside the cone takes `dmg` and a `knock` shove away from it. The cone is low near its mouth (jump it there) and too tall to jump further out. It rests `rest` s. Freezing or stunning it breaks the song off. List it after the walking word.',
+    props: { range: 0.5, every: 4, windup: 1.2, lock: 0.5, reach: 0.45, arc: 70, dmg: 3, knock: 0.8, rest: 1 },
+    make: (_, p) => ({
+      init(e) { e.songCd = 1 + Math.random() * 2; e.songDir = new THREE.Vector3(0, 0, 1); e.songK = 0; e.songReach = p.reach; e.songHalf = THREE.MathUtils.degToRad(p.arc) / 2; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;
+        e.songCd -= c.dt;
+        if (e.state === 'windup' && !live) { en.breakSong(e); e.state = 'approach'; e.faceLock = false; e.songK = 0; e.songCd = 1.5; }
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.songCd <= 0 && live && e.grounded) {
+            e.state = 'windup'; e.stateT = p.windup; e.faceLock = true; e.songK = 0; e.songDir.copy(c.flatDir);
+            e.vel.set(0, 0, 0);
+            en.songWind(e, p.windup);
+          }
+        } else if (e.state === 'windup') {
+          c.speed = 0;
+          e.vel.set(0, 0, 0);
+          e.stateT -= c.dt;
+          e.songK = Math.min(1, 1 - e.stateT / p.windup);
+          if (e.songK < p.lock) {                                    // it turns after you until its aim locks
+            e.songDir.copy(c.flatDir);
+            let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;
+            d = Math.atan2(Math.sin(d), Math.cos(d));
+            e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-12 * c.dt)), -4 * c.dt, 4 * c.dt);
+          }
+          if (e.stateT <= 0) { e.state = 'sing'; e.stateT = 0.35; en.sing(e, c, p); }
+        } else if (e.state === 'sing') {
+          c.speed = 0;
+          e.vel.set(0, 0, 0);
+          e.stateT -= c.dt * live;
+          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.songK = 0; }
+        } else if (e.state === 'rest') {
+          c.speed = 0;
+          e.stateT -= c.dt * live;
+          if (e.stateT <= 0) { e.state = 'approach'; e.faceLock = false; e.songCd = p.every; }
+        }
+      },
+    }),
+  },
+
   'charge-shot': {
     doc: 'Within `range` m every `every` s or so, stops, turns to you and charges a ball between its jaws for `charge` s (it grows, crackling; the aim locks `lock` of the way through, so stepping aside after that dodges), then fires it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. It explodes on whatever it meets (you, furniture, the floor, or the end of its flight): a Blast `blast` m round, `dmg` and a `knock` shove to anything of you inside it. It rests `rest` s. Freezing or stunning it breaks the charge off. List it after the walking word.',
     props: { range: 0.6, charge: 1, lock: 0.6, speed: 1.2, dmg: 3, size: 0.011, blast: 0.05, knock: 0.5, life: 1.2, rest: 0.7, every: 3.5 },

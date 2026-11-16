@@ -4,7 +4,7 @@ import { ModelPool } from './model-pool.js';
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile, buildBeetle, buildPushpin } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -12,7 +12,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
-import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
+import { hostile, FRIENDLY, TeleMaterial, blastHits, coneHits, shotHits } from './vfx.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -216,6 +216,7 @@ function makeLooks() {
     wasp: buildWasp,
     nest: buildNest,
     beetle: buildBeetle,
+    cicada: buildCicada,
     fuzz, hairMat,
   };
 }
@@ -262,6 +263,7 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
+    this.songMarks = [];      // pooled: the wedge and cone about to sing at you (the sing word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
@@ -1179,6 +1181,47 @@ export class Enemies {
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
+  // ---------------------------------------------------------------- the cicada (sing)
+  songWind(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.songWind(dur); }
+  breakSong(e) { e.chargeSound?.(); e.chargeSound = null; }
+  // the song lands: you're hit if you're in the cone it locked onto (a wedge as high as the Warning's cone), and shoved away
+  sing(e, c, { dmg, knock }) {
+    e.chargeSound = null;
+    sfx.songBlast();
+    const P = this.player, feet = c.realFoot || c.foot, col = hostile('cicada'), dir = e.songDir, len = e.songReach;
+    const apex = S.spot.copy(e.pos), hit = coneHits(apex, dir, len, e.songHalf, feet, P);
+    const mouth = S.o.set(e.pos.x + dir.x * e.r * 1.4, e.pos.y + e.r * 0.6, e.pos.z + dir.z * e.r * 1.4);
+    this.fx.impact(mouth, col, 0.025, 10);
+    if (hit) {
+      this.fx.impact((c.realPc || c.pc).clone(), col, 0.02, 10);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
+      bus.emit('knockback', { targetId: PLAYER, dir: S.dir.set(feet.x - e.pos.x, 0, feet.z - e.pos.z).normalize().clone(), force: knock, launch: 0.1 });
+    }
+  }
+  // the Warning under each cicada about to sing: a floor wedge and the cone over it, filling together
+  // as it draws breath, full while the song is out
+  drawSongs(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.songDir || (e.state !== 'windup' && e.state !== 'sing')) continue;
+      let M = this.songMarks[n];
+      if (!M) {   // shortcut: one wedge shape per pool slot, so every singer shares one arc; give it its own pool if a second kind of singer needs another
+        const half = e.songHalf, geo = (this.songGeo ||= new THREE.CircleGeometry(1, 24, -half, half * 2).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2));
+        const floor = new THREE.Mesh(geo, new TeleMaterial(hostile('cicada'), 'wedge', half));
+        floor.renderOrder = 3; this.scene.add(floor);
+        const w = e.songReach * Math.tan(half), vol = this.fx.volume(hostile('cicada'), 'cone', e.pos, S.o.set(w, w, e.songReach));
+        M = { floor, vol }; this.songMarks.push(M);
+      }
+      n++;
+      const k = e.state === 'sing' ? 1 : e.songK, heading = Math.atan2(e.songDir.x, e.songDir.z), op = e.state === 'sing' ? 1 : 0.7 + 0.15 * Math.abs(Math.sin(t * 16));
+      M.floor.visible = M.vol.visible = true;
+      M.floor.position.set(e.pos.x, e.pos.y + 0.003, e.pos.z); M.floor.rotation.y = heading; M.floor.scale.set(e.songReach, 1, e.songReach);
+      M.vol.position.copy(e.pos); M.vol.rotation.y = heading;
+      M.floor.material.progress = M.vol.material.progress = k;
+      M.floor.material.opacity = M.vol.material.opacity = op;
+    }
+    for (let i = n; i < this.songMarks.length; i++) this.songMarks[i].floor.visible = this.songMarks[i].vol.visible = false;
+  }
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
   diveGo(e) { sfx.diveGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.8, 0.25); }
@@ -1424,6 +1467,7 @@ export class Enemies {
     this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
+    this.drawSongs(t);
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
