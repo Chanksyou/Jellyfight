@@ -1107,6 +1107,29 @@ export const sfx = {
   },
   whirlFling() { if (!ready() || !gap('whirlFling', 80)) return; const j = jitter(0.12); noise(2200 * j, 1.2, 0.3, 0.1, 'bandpass', 0, 600 * j); tone('sine', 260 * j, 120, 0.12, 0.04); },
   whirlEnd(hit) { if (!ready() || !gap('whirlEnd', 60)) return; const j = jitter(0.12); noise((hit ? 500 : 900) * j, 1, hit ? 0.22 : 0.15, hit ? 0.16 : 0.06, 'lowpass', 0, 200); if (hit) tone('sine', 140 * j, 60, 0.12, 0.08); },
+  // the cicada: a drone climbing through its wind-up with a pulsing buzz in it (returns a function that cuts it off), then the song itself: a loud rattling shriek
+  songWind(dur = 1) {
+    if (!ready()) return null;
+    const t = now(), k = pitch() * jitter(0.05), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), oscs = [];
+    for (const [type, f0, f1, v] of [['sawtooth', 700, 2300, 0.4], ['square', 1400, 4600, 0.15]]) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = type; og.gain.value = v;
+      o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
+      o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
+    }
+    lfo.frequency.setValueAtTime(22, t); lfo.frequency.linearRampToValueAtTime(60, t + dur); lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(0.02, t + dur);   // the buzz pulsing in the level
+    lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t + dur + 0.05);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.025, t + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.06, t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
+    g.connect(master);
+    return () => { const n = now(); holdAt(g.gain, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of [...oscs, lfo]) { try { o.stop(n + 0.06); } catch {} } };
+  },
+  songBlast() {
+    if (!ready() || !gap('songBlast', 80)) return;
+    const j = jitter(0.08);
+    tone('sawtooth', 2400 * j, 2100 * j, 0.4, 0.09); tone('square', 4800 * j, 4200 * j, 0.4, 0.04); tone('sine', 120 * j, 70, 0.3, 0.2);
+    for (let i = 0; i < 10; i++) noise(5000 + Math.random() * 3000, 2, 0.02, 0.07, 'bandpass', i * 0.035);   // the rattle
+  },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
   // the crack of a hit; the explosion where it lands is sparkBoom

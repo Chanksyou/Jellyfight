@@ -1751,6 +1751,85 @@ export function buildBeetle() {
   return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
 }
 
+// ------------------------------------------------------------------ cicada
+// The cicada (act 4): a stocky dark-green body with pale green collar and rim lines, a wide blunt
+// head with big red eyes set far apart on its sides and three red dots between them, a thick thorax,
+// a tapering banded abdomen, six short thick legs, and four clear wings veined in green that lie
+// folded like a roof over its back. As it draws breath to sing (the sing word) its wings lift and
+// quiver and its abdomen swells; as it sings it shakes. About 2.8 radii long; feet at its origin.
+function cicadaParts() {
+  const body = '#1a2616', thorax = '#243a1c', pale = '#9ab85a', band = '#34502a', eye = '#c4301c', leg = '#2a3a1e', dark = '#0c140a';
+  const bodyParts = [
+    ellipsoid(0.62, 0.52, 0.78, V(0, 0.78, 0.15), thorax),                   // the thick thorax
+    ellipsoid(0.5, 0.18, 0.2, V(0, 1.05, 0.5), pale),                         // the pale collar
+    ellipsoid(0.7, 0.34, 0.26, V(0, 0.75, 0.8), body),                        // the wide blunt head
+    ellipsoid(0.26, 0.28, 0.26, V(-0.68, 0.82, 0.82), eye, 14),               // the big red eyes, far apart on its sides
+    ellipsoid(0.26, 0.28, 0.26, V(0.68, 0.82, 0.82), eye, 14),
+    ellipsoid(0.05, 0.05, 0.05, V(-0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0, 1.06, 0.92), eye, 8),   // three simple eyes
+  ];
+  for (let i = 0; i < 5; i++) bodyParts.push(ellipsoid(0.5 - i * 0.045, 0.4 - i * 0.035, 0.22, V(0, 0.66, -0.35 - i * 0.3), i % 2 ? band : body));   // the tapering banded abdomen
+  for (const s of [-1, 1]) {
+    bodyParts.push(tube([V(s * 0.1, 1.2, 0.35), V(s * 0.45, 1.1, -0.2), V(s * 0.5, 0.95, -0.9)], 0.02, pale, 10));   // pale lines along its back
+    bodyParts.push(rod(V(s * 0.28, 0.52, 0.4), V(s * 0.45, 0.86, 0.65), 0.03, 0.01, dark));   // short antennae
+  }
+  // a leg: thick femur out and down, short tibia to the ground, built at the hip
+  const legGeo = (s, reach) => merge([rod(V(0, 0, 0), V(s * 0.4, 0.05, 0), 0.1, 0.07, leg), rod(V(s * 0.4, 0.05, 0), V(s * reach, -0.52, 0), 0.07, 0.02, leg), rod(V(s * 0.55, -0.12, 0), V(s * 0.6, 0.0, 0.03), 0.015, 0.002, dark)]);
+  // a wing out from its root along +z' (turned backwards when hung), clear with a green rim and veins
+  const wing = (len, wid) => {
+    const sh = new THREE.Shape();
+    sh.moveTo(0, 0); sh.bezierCurveTo(wid * 0.9, len * 0.1, wid * 1.1, len * 0.7, 0, len); sh.bezierCurveTo(-wid * 0.3, len * 0.7, -wid * 0.2, len * 0.15, 0, 0);
+    const veins = merge([0, 0.35, 0.7].map((u) => tube([V(0, 0.003, 0.02), V(wid * (0.1 + 0.55 * u), 0.003, len * 0.5), V(wid * (0.05 + 0.2 * u), 0.003, len * 0.9)], 0.012, pale, 8)));
+    return { sheet: new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), veins };
+  };
+  return { body: merge(bodyParts), legs: [[0.55, 0.85], [0.1, 0.95], [-0.35, 1.05]].map(([z, reach]) => ({ z, geo: [-1, 1].map((s) => legGeo(s, reach)) })), fore: wing(2.0, 0.6), hind: wing(1.5, 0.5) };
+}
+export function buildCicada() {
+  const G = (GEO.cicada ||= cicadaParts()), M = mats();
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(G.body, M.matte));
+  const legs = [];
+  for (const L of G.legs) [-1, 1].forEach((s, j) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.45, 0.48, L.z);
+    hip.add(new THREE.Mesh(L.geo[j], M.matte));
+    body.add(hip);
+    legs.push({ hip, base: s * (L.z - 0.1) * 0.5, s, phase: (L.z > 0.3) !== (s > 0) ? Math.PI : 0 });
+  });
+  // the four wings: hinged on its back, each a (left, right) pair lying along its sides like a roof
+  const wings = [[G.fore, 0.2], [G.hind, 0.05]].flatMap(([geo, z]) => [-1, 1].map((s) => {
+    const hinge = new THREE.Group();
+    hinge.position.set(s * 0.22, 1.12, z);
+    const m = new THREE.Group();   // wing lies back along -z, tilted down at its outer edge
+    m.rotation.set(0, Math.PI, 0);
+    m.scale.x = -s;
+    m.add(new THREE.Mesh(geo.sheet, M.wing), new THREE.Mesh(geo.veins, M.matte));
+    hinge.add(m); body.add(hinge);
+    return { hinge, s };
+  }));
+  let t = 0, k = 0, lift = 0;
+  const anim = (dt, e) => {
+    const speed = Math.hypot(e.vel.x, e.vel.z);
+    k += (Math.min(1, speed * 10) - k) * (1 - Math.exp(-8 * dt));
+    t += dt * (2 + 8 * k);
+    for (const L of legs) {
+      L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
+      L.hip.rotation.z = -L.s * Math.max(0, Math.cos(t + L.phase)) * 0.2 * k;
+    }
+    // drawing breath: the wings lift and quiver, harder as the song nears; singing: held up, shaking
+    const wind = e.state === 'windup' ? e.songK || 0 : e.state === 'sing' ? 1 : 0, song = e.state === 'sing' ? 1 : 0;
+    lift += (wind - lift) * (1 - Math.exp(-10 * dt));
+    const shake = Math.sin(performance.now() * 0.12) * (0.03 + 0.08 * song) * lift;
+    for (const W of wings) { W.hinge.rotation.z = W.s * (-0.35 + lift * 0.9 + shake); W.hinge.rotation.x = lift * 0.15; }
+    body.rotation.x = -0.12 * lift;
+    body.scale.set(1 + 0.04 * lift, 1 + 0.06 * lift - 0.05 * song, 1);
+    body.position.y = Math.abs(Math.sin(t)) * 0.015 * k + song * Math.sin(performance.now() * 0.09) * 0.01;
+    body.rotation.z = Math.sin(t) * 0.025 * k;
+  };
+  anim.reset = () => { t = 0; k = 0; lift = 0; };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
+}
+
 // ------------------------------------------------------------------ horsehair worm
 // What was inside the mantis: its carcass lies rolled on its side and a long, thin, glossy
 // dark-brown worm writhes up out of the tip of its abdomen in loose coils. It can't leave the body. To attack
