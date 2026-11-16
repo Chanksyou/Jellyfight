@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v443 tones the Cicada's cone Warning way down: it's much fainter with less glow, so it no longer drowns the fight.
+
+v442 reworks the Moth's attack: with the lamps too high to use, it now flutters round you in wide loops and swoops in passes (3 Health a sting), living through each one. Drops the lamp word.
+
 v441 adds the Moth to act 4 from 0:45 (in place of the praying mantis stand-in): pale and dusty-winged, it flutters round the nearest lit lamp and, when you stand under or near that lamp, rears up with its wings flared and swoops at you for 3 Health. It lives through the swoop and climbs back to its lamp. New words: lamp, and dive's lamp/spend options.
 
 v440 adds the Soundbar's bass wave to act 4's living room: every 16 bars of "Sunrise Set" (30 s), on the bar, a low wave rolls down the room from the TV wall to the window. Jump it as it passes, or be up on the furniture; caught on the floor it takes 8 Health. A bar ahead its Warning fills along the TV wall in hot speaker red, and a sub drop plays a beat before it goes.
