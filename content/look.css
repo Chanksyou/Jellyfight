@@ -470,7 +470,7 @@
   --pillow-puff-flash: 0.03;     /* the flash as it puffs (m), */
   --pillow-spore-size: 0.008;    /* a spore drifting (m), */
   --pillow-spore-arc: 0.12;      /* how high spores float on their way (m), */
-  --pillow-column: 0.35;         /* how tall a spot's column is drawn (m: over a full jump; it hits at any height), */
+  --pillow-column: 0.35;         /* how tall a spot's column is drawn (m: over a full jump; it hits all the way up), */
   --pillow-column-opacity: 0.5;  /* how strongly it shows while it fills (it flashes full as it's about to burst), */
   --pillow-burst-flash: 0.03;    /* the flash at a spot's foot as it bursts (m), */
   --pillow-column-life: 0.3;     /* how long a burst's column lingers, fading (s), */

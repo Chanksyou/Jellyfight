@@ -116,7 +116,7 @@
 //     Spores:         its cap breathes in, its spots glowing, then puffs spores that drift over the
 //                     seat (one onto where you are) and settle as marked spots (a circle and the
 //                     column over it); they flash for a beat, then burst on the bar as columns that
-//                     hit at any height: step off the spot, a jump doesn't clear it.
+//                     hit all the way up over a jump: step off the spot, a jump doesn't clear it.
 //     Hop-slam:       it crouches while a Warning (a circle and the half sphere over it) fills where
 //                     it will land, a short hop toward you; it leaps on a beat and lands as a Blast
 //                     round itself on the next, then waddles back to its spot.
@@ -1051,19 +1051,19 @@ export class Elites {
     return out;
   }
 
-  // the Mushroom Pillow's spore spots: the first where the jelly stands, the rest on open surfaces of
-  // its sofa (its wake box) within S.near of the jelly, S.spread apart, none under the pillow itself
+  // the Mushroom Pillow's spore spots: the first where the jelly stands, the rest on its seat (its wake
+  // box, at the pillow's own level, never the back or an arm) within S.near of the jelly, S.spread apart, none under the pillow itself
   pillowSpots(e, P, n, S) {
     const W = e.spec.wake, out = [this.platformTarget(e, P.clone(), S.radius)];
     let gap = S.spread;
-    for (let tries = 1; out.length < n && tries < 600; tries++) {
-      if (tries % 150 === 0) gap *= 0.85;
+    for (let tries = 1; out.length < n && tries < 300; tries++) {
+      if (tries % 75 === 0) gap *= 0.85;
       const a = Math.random() * Math.PI * 2, d = gap + Math.random() * Math.max(0, S.near - gap);
       const at = new THREE.Vector3(P.x + Math.cos(a) * d, W.max[1], P.z + Math.sin(a) * d);
       if (at.x < W.min[0] + S.radius || at.x > W.max[0] - S.radius || at.z < W.min[2] + S.radius || at.z > W.max[2] - S.radius) continue;
       if (Math.hypot(at.x - e.base.x, at.z - e.base.z) < e.r + S.radius || out.some((o) => Math.hypot(o.x - at.x, o.z - at.z) < gap)) continue;
       at.y = this.surfaceBelow(at);
-      if (at.y > W.min[1]) out.push(at);
+      if (Math.abs(at.y - e.base.y) < 0.04) out.push(at);   // (the seat, not the back or an arm)
     }
     return out;
   }
@@ -2315,7 +2315,7 @@ export class Elites {
           // Spores: the cap breathes in, its spots glowing; on a beat it puffs spores that drift over
           // the seat (the first onto where you are) and settle as marked spots, a circle and the
           // column over it filling to the burst; settled, they flash for one beat, then burst on the
-          // bar as columns that hit at any height: step off the spot. Angry: more, settling faster
+          // bar as columns that hit all the way up over a jump: step off the spot. Angry: more, settling faster
           const S = SK.spores;
           if (!e.plan) {
             const drift = angry ? S.angryDrift : S.drift, burst = Math.ceil((beat + S.windup + drift + 1) / 4) * 4;   // the first bar line far enough off
@@ -2367,10 +2367,10 @@ export class Elites {
               e.clearTele();                                                 // (its volumes go back to the pool for the columns)
               e.spores.forEach((sp) => {
                 const at = sp.at, mid = this._mid.copy(at).setY(at.y + 0.02);
-                if (!struck && Math.hypot(P.x - at.x, P.z - at.z) < S.radius + cfg.radius && P.y + cfg.height > at.y) struck = true;   // the column: any height over the spot
+                if (!struck && Math.hypot(P.x - at.x, P.z - at.z) < S.radius + cfg.radius && P.y + cfg.height > at.y && P.y < at.y + LOOK.num('pillow-column', 0.35)) struck = true;   // the column, as tall as it's drawn (over a full jump)
                 const pulse = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
                 pulse.material.progress = 1;
-                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3) });
+                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-opacity', 0.5) });
                 this.fx.impact(mid, col, LOOK.num('pillow-burst-flash', 0.03), 8);
                 for (const h of [0.1, 0.45, 0.8]) this.fx.puff(this._probe.copy(at).setY(at.y + h * LOOK.num('pillow-column', 0.35)), LOOK.color('pillow-puff', '#f0c8ff'), S.radius * 0.9, 0.45, 0.4);
                 this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), S.radius * LOOK.num('pillow-dust-size', 0.7), 'dust');   // spore dust, fading
@@ -2638,7 +2638,7 @@ export class Elites {
     this.bullets = this.bullets.filter((b) => !b.done);
     for (const p of this.controllerPulses) {
       p.t += dt;
-      p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * LOOK.num('controller-pulse-opacity', 0.45);
+      p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * (p.o ?? LOOK.num('controller-pulse-opacity', 0.45));
       if (p.t >= p.life) this.scene.remove(p.m);
     }
     this.controllerPulses = this.controllerPulses.filter(p => p.t < p.life);

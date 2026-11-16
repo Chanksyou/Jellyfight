@@ -124,8 +124,8 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //   spores: its cap breathes in for at least windup= beats, then on a beat it puffs spots= spores that
 //           drift over the seat for drift= beats (the first onto where you are, the rest within near= m
 //           of you, spread= m apart) and settle as marked spots radius= m round; they flash for one
-//           beat, then burst on the bar as columns: dmg= once, at any height over the spot (a jump
-//           doesn't clear one; look.css --pillow-column is how tall it's drawn). Angry, angrySpots= of
+//           beat, then burst on the bar as columns: dmg= once, anywhere in the column (as tall as
+//           look.css --pillow-column, over a full jump, so a jump doesn't clear one). Angry, angrySpots= of
 //           them settling in angryDrift= beats
 //   hop:    it crouches for at least windup= beats, following you, then hops at most reach= m toward
 //           you on a beat (leap= m high, air= beats) and lands as a Blast radius= m round itself (its

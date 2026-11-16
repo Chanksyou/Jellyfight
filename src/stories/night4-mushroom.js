@@ -84,12 +84,12 @@ night4('pillow-spores-settle-then-burst-on-the-bar', {
   },
 });
 
-night4('pillow-spore-columns-hit-at-any-height', {
-  about: 'Each spore spot bursts as a column that hits at any height over its spot, its Warning\'s volume drawn taller than a full jump (look.css --pillow-column): a jelly in the air over its spot (feet 15 cm up, near the top of a jump, or 50 cm up on extra jumps) is hit all the same. Step off the spot; a jump does not clear it.',
+night4('pillow-spore-columns-hit-as-tall-as-drawn', {
+  about: 'Each spore spot bursts as a column that hits as high as its Warning\'s volume is drawn (look.css --pillow-column), which is taller than a full jump: a jelly at the top of a jump over its spot is hit all the same, so step off the spot; a jump does not clear it. Over the drawn column (extra jumps) it is not hit.',
   setup() { startPillow(0); },
   play() {
-    const out = {};
-    for (const up of [0.15, 0.5]) {
+    const drawn = LOOK.num('pillow-column', 0.35), jump = CONFIG.player.jumpHeight, out = {};
+    for (const up of [jump, drawn + 0.03]) {
       const { e, player, seat } = startPillow(0), log = record('damage_taken');
       let tall = 0;
       playSpores(e, (i, plan) => {
@@ -97,10 +97,10 @@ night4('pillow-spore-columns-hit-at-any-height', {
         if (v) tall = Math.max(tall, new THREE.Box3().setFromObject(v[0]).max.y - v[0].position.y);
         if (plan && plan.settled) { player.position.y = seat + up; player.grounded = false; }
       });
-      out[up] = { tall: +tall.toFixed(3), hits: hitsBy(log, 'pillow-spores').length };
+      out[up.toFixed(2)] = { tall: +tall.toFixed(3), hits: hitsBy(log, 'pillow-spores').length };
     }
-    const drawn = LOOK.num('pillow-column', 0.35), jump = CONFIG.player.jumpHeight + CONFIG.player.height;
-    return ok(Object.values(out).every((r) => Math.abs(r.tall - drawn) < 0.01 && r.hits === 1) && drawn > jump, { ...out, drawn, jump });
+    const [atJump, over] = Object.values(out);
+    return ok(Math.abs(atJump.tall - drawn) < 0.01 && atJump.hits === 1 && over.hits === 0 && drawn > jump + CONFIG.player.height, { ...out, drawn, jump });
   },
 });
 
@@ -123,13 +123,16 @@ night4('pillow-spores-dodged-by-stepping-off', {
 });
 
 night4('pillow-angry-more-spores-settling-faster', {
-  about: 'Under 65% Health the Mushroom Pillow is angry: it puffs eight spores instead of five, and they settle in one beat instead of two (still a beat of flashing, still bursting on the bar).',
+  about: 'Under 65% Health the Mushroom Pillow is angry: it puffs eight spores instead of five, and they settle in one beat instead of two (still a beat of flashing, still bursting on the bar). Even with the jelly by the sofa\'s back, every spot settles on the seat, never up on the back or an arm.',
   setup() { startPillow(0, { angry: true }); },
   play() {
     const { e } = startPillow(0, { angry: true }), S = SK().spores;
     const r = playSpores(e);
-    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05,
-      { spots: r.spots?.length, drift: +(r.settle - r.puff).toFixed(2), burst: +r.burst.toFixed(2) });
+    const { e: c } = startPillow(0, { angry: true, x: 1.6, z: 1.95 }), corner = playSpores(c);   // by the sofa's back: every spot still on the seat
+    const offSeat = (corner.spots || []).filter((s) => Math.abs(s.y - c.base.y) > 0.04).length;
+    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
+      && corner.spots?.length > 1 && offSeat === 0,
+      { spots: r.spots?.length, drift: +(r.settle - r.puff).toFixed(2), burst: +r.burst.toFixed(2), corner: corner.spots?.length, offSeat, ys: corner.spots?.map((s) => +s.y.toFixed(2)) });
   },
 });
 
