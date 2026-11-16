@@ -458,6 +458,23 @@
   --bowl-song-glow: 0.8;         /* its song glowing in the bowl as it charges and rings out, */
   --bowl-ring-out: 0.8;          /* how fast a strike's ringing fades (a second), */
   --bowl-tremble: 0.03;          /* and how much its rim trembles with it */
+  --hostile-pillow: #e040ff;     /* the Mushroom Pillow's spores, spots and hop: hot spore violet, apart from act 4's dawn oranges, golds and reds and the cicada's green (and from the Encore's disco magenta, the rule it teaches) */
+  --pillow-spot-glow: 0.9;       /* the Mushroom Pillow: its cap's spots glowing as it gathers spores, */
+  --pillow-inhale: 0.16;         /* how far its cap squashes as it breathes in, */
+  --pillow-pop: 0.18;            /* and pops up as it puffs, */
+  --pillow-puff: #f0c8ff;        /* the pale spore cloud it puffs, and that rises off a burst, */
+  --pillow-puff-size: 0.12;      /* the puff's size (m), */
+  --pillow-puff-flash: 0.03;     /* the flash as it puffs (m), */
+  --pillow-spore-size: 0.008;    /* a spore drifting (m), */
+  --pillow-spore-arc: 0.12;      /* how high spores float on their way (m), */
+  --pillow-column: 0.35;         /* how tall a spot's column is drawn (m: over a full jump; it hits at any height), */
+  --pillow-column-opacity: 0.5;  /* how strongly it shows while it fills (it flashes full as it's about to burst), */
+  --pillow-burst-flash: 0.03;    /* the flash at a spot's foot as it bursts (m), */
+  --pillow-column-life: 0.3;     /* how long a burst's column lingers, fading (s), */
+  --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst or a landing leaves (fading), */
+  --pillow-dust-size: 0.7;       /* its size as a part of the spot's radius, */
+  --pillow-crouch: 0.22;         /* how low it crouches before a hop, */
+  --pillow-fluff: #f4ecdc #c8312b #f0c8ff;   /* and the fluff a landing throws */
   --hostile-cicada: #9dff00;     /* the cicada's song: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2) */
   --cicada-wedge-opacity: 0.15;  /* the cicada's floor wedge: kept quiet (Chan, Nov 16: the first cone was too much) */
   --cicada-cone-opacity: 0.22;   /* its cone over the wedge */

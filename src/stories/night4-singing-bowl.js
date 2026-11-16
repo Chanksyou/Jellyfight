@@ -199,7 +199,7 @@ night4('bowl-attacks-feel', {
 });
 
 night4('bowl-chest-reachable', {
-  about: 'Beat the Singing Bowl and its chest lands on an open spot on the lounge chair the jelly can walk or jump to and touch.',
+  about: 'Beat each of act 4\'s Elites (the Singing Bowl, the Mushroom Pillow) and its chest lands on an open spot on its furniture (the lounge chair, the sofa) the jelly can walk or jump to and touch.',
   setup() { fresh({ treasures: false }); },
   play: eliteChestsReachable,
 });

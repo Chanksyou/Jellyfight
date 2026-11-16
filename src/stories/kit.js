@@ -392,6 +392,21 @@ export function startBowl(atk, { x = 3.2, z = 1.72, angry = false, hold = true }
   e.cool = 0; e.next = atk;
   return { e, player, seat: player.position.y };
 }
+// act 4's Mushroom Pillow on the sofa seat (elites.js kind 'pillow', pillow-model.js): the seat 0.51 m
+// up. Start one of its attacks with the jelly held on the seat (x, z: its stand point by default,
+// 48 cm from it toward the vent's landing), facing it, on the run's own beat (no song)
+export const pillow = () => G().run.elites.list.find((e) => e.kind === 'pillow');
+export const onSofa = (x = 1.2, z = 2.25) => tp(x, 0.53, z, -Math.PI / 2);   // (the camera behind the jelly, looking along the seat at the pillow)
+export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onSofa(x, z);
+  stub(G().run, 'song', null);
+  const e = pillow(), player = hold ? holdJelly() : G().player;
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, seat: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -487,6 +502,9 @@ export const EVERY_ATTACK = {
     // the Singing Bowl on the lounge chair (elites.js), in the room: its rim rings' Warning (a disc and
     // the low ring wall over it), its chimes' Shots (the ball of song swelling over it is their tell)
     bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, chime: { is: 'shot', scene: 1, start: () => startBowl(1) } },
+    // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
+    // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
+    pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')

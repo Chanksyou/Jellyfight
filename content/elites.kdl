@@ -117,3 +117,20 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
     ring dmg=3 rings=3 angryRings=4 windup=3 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 rest=1.0 angryRest=0.7
     chime dmg=3 shots=3 every=1 windup=3 speed=0.65 size=0.012 reach=1.2 rest=1.0 angryRest=0.7
 }
+
+// act 4: the Mushroom Pillow, on the sofa seat in the living room at dawn. It sleeps until you're on
+// the sofa (stage4.js ELITES4 `wake`), then within aggro= of it. Like the Singing Bowl it keeps the
+// song's time: windup=, drift=, windup= and air= are beats of the song (a beat is 0.47 s); rest= is s.
+//   spores: its cap breathes in for at least windup= beats, then on a beat it puffs spots= spores that
+//           drift over the seat for drift= beats (the first onto where you are, the rest within near= m
+//           of you, spread= m apart) and settle as marked spots radius= m round; they flash for one
+//           beat, then burst on the bar as columns: dmg= once, at any height over the spot (a jump
+//           doesn't clear one; look.css --pillow-column is how tall it's drawn). Angry, angrySpots= of
+//           them settling in angryDrift= beats
+//   hop:    it crouches for at least windup= beats, following you, then hops at most reach= m toward
+//           you on a beat (leap= m high, air= beats) and lands as a Blast radius= m round itself (its
+//           cap is 11 cm round)
+elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
+    spores dmg=4 spots=5 angrySpots=8 windup=2 drift=2 angryDrift=1 radius=0.06 near=0.45 spread=0.13 rest=1.0 angryRest=0.7
+    hop dmg=4 radius=0.17 reach=0.3 windup=2 air=1 leap=0.1 knock=0.8 rest=1.0 angryRest=0.7
+}

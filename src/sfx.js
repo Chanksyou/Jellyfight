@@ -1466,6 +1466,28 @@ export const sfx = {
     noise(2000, 1, 0.18, 0.04, 'bandpass', 0.02, 900);                                                // the whoosh as it flies off
   },
   bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
+  // the Mushroom Pillow: a long soft breath in, the spores puffed out (a plush pff, a sparkle as they
+  // scatter, the whoosh they drift on), spores settling (soft ticks), the spots bursting as columns
+  // (a rising hiss and a pop, a dull thud on the jelly), a springy hop and a heavy plush landing
+  pillowInhale(dur = 1) { if (!ready()) return; const j = jitter(0.05); noise(700 * j, 1.5, dur, 0.05, 'bandpass', 0, 2200 * j); tone('sine', 110 * j, 150 * j, dur, 0.03); },
+  pillowPuff() {
+    if (!ready() || !gap('pillowPuff', 80)) return; const j = jitter(0.08);
+    noise(900 * j, 0.8, 0.25, 0.22, 'lowpass', 0, 300); tone('sine', 130 * j, 70, 0.18, 0.12);    // the pff
+    noise(7000 * j, 2, 0.3, 0.05, 'highpass', 0.04); noise(1500 * j, 1, 0.6, 0.04, 'bandpass', 0.08, 600);   // the sparkle, then the drift
+  },
+  pillowSettle(n = 5) { if (!ready()) return; patter(Math.min(n, 6), 0, 0.25, 0.02); noise(4000, 2, 0.08, 0.03, 'highpass'); },
+  pillowBurst(struck = false) {
+    if (!ready() || !gap('pillowBurst', 80)) return; const j = jitter(0.08);
+    noise(600 * j, 1.2, 0.3, 0.16, 'bandpass', 0, 5000 * j); tone('triangle', 260 * j, 520 * j, 0.12, 0.08);   // the columns hiss up and pop
+    noise(800 * j, 0.7, 0.5, 0.07, 'lowpass', 0.12, 200); patter(4, 0.15, 0.3, 0.02);                         // the dust settling
+    if (struck) { tone('sine', 160 * j, 80, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); }
+  },
+  pillowHop() { if (!ready()) return; const j = jitter(0.08); tone('sine', 170 * j, 340 * j, 0.22, 0.12); noise(1200 * j, 1, 0.2, 0.08, 'bandpass', 0, 2600); },
+  pillowSlam() {
+    if (!ready() || !gap('pillowSlam', 80)) return; const j = jitter(0.08);
+    tone('sine', 95 * j, 40, 0.35, 0.26); noise(500 * j, 0.7, 0.3, 0.3, 'lowpass', 0, 120);     // the plush thud
+    noise(2500 * j, 1, 0.15, 0.06, 'bandpass', 0.03); patter(5, 0.06, 0.3, 0.025);                  // fluff and dust
+  },
   jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
   jewelWhistle(dur = 0.25) { if (!ready()) return; const j = jitter(0.06); tone('sine', 2600 * j, 700 * j, dur, 0.06); tone('sine', 2750 * j, 760 * j, dur, 0.03); },
   jewelCrack() { if (!ready()) return; const j = jitter(0.08); noise(6500 * j, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) { const f = (2200 + k * 450) * j * jitter(0.05); tone('triangle', f, f * 0.9, 0.09, 0.04, k * 0.02 + Math.random() * 0.015); } noise(500 * j, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
