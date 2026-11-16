@@ -47,6 +47,22 @@ export const ENCORE = {
   },
 };
 
+// The living room's three Elites, as plain data for the threads that build them (nothing spawns
+// them yet: STAGE4.elites stays empty until their kinds exist). Each stands on its own furniture,
+// clear of the clutter (layout-baked.js act 4 moves and hides the props round them).
+//   at: where it stands (world metres, y = the surface)   face: yaw toward its vent's landing (the jelly's side)
+//   wake: the box that wakes it   vent: the vent that lands you on the same furniture (`land`)
+//   hide: the apartment object it stands in for while alive
+// "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
+export const ELITES4 = [
+  { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0, vent: 'Vent by the lounge chair',
+    at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] } },
+  { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -1.332, vent: 'Vent by the sofa',
+    at: [1.68, 0.51, 2.21], wake: { min: [0.5, 0.46, 1.0], max: [2.9, 1.2, 2.6] } },
+  { kind: 'headphones', hide: 'Headphones', area: 'coffee table', face: 1.454, vent: 'Vent by the coffee table',
+    at: [1.75, 0.46, 2.9], wake: { min: [1.46, 0.41, 2.34], max: [2.82, 1.1, 3.33] } },
+];
+
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
 export const STAGE4 = {
   id: 4,
@@ -58,7 +74,7 @@ export const STAGE4 = {
   face: Math.PI,                      // facing the room, toward the window (run.js start)
   duration: 180,                      // seconds until the stage door opens (3:00)
   clock: [360, 480],                  // in-game minutes after midnight: 6:00 AM -> 8:00 AM
-  music: 'bloom',                     // stand-in: act 3's "Medusa Bloom" until act 4 has its own song
+  music: 'sunrise',                   // "Sunrise Set" (music.js)
   // as tough as the arena (the act's numbers); `bugs` is act 3's pacing, a stand-in like the bugs
   // themselves (content/waves.kdl act=4)
   toughness: 3.5,
@@ -72,9 +88,10 @@ export const STAGE4 = {
   fade: {},
   doors: STAGE1.doors,
   walls: STAGE1.walls,                // the hallway opening and the safety floor, as in act 1
-  vents: STAGE1.vents.map((v) => ({ ...v })),   // act 1's six (a copy: the layout editor moves this act's own)
+  vents: STAGE1.vents.map((v) => ({ ...v })),   // act 1's six (a copy: the layout editor moves this act's own; the three by the Elites land clear of them: layout-baked.js)
   climbs: [],
-  spots: STAGE1.spots,
+  // act 1's spots, less the two the Elites' props now crowd (the sofa seat under the Mushroom pillow, the lounge chair seat)
+  spots: STAGE1.spots.filter((sp) => !['sofa seat', 'lounge chair'].includes(sp.label)),
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
   elites: [],                         // the opening acts come later
 

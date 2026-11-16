@@ -26,6 +26,15 @@ export const BAKED_LAYOUT = {
     'Bronze_figurine#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
   },
   4: {
+    // act 4's props: the Elites' furniture (stage4.js ELITES4) is cleared round each one
+    'Singing_bowl#1': { p: [1.155, -0.165, -3.085], q: [0, 0, 0, 1] },
+    'Mushroom_pillow#1': { p: [0, 0, 0.45], q: [0, 0, 0, 1] },
+    'Headphones#1': { p: [1.195, -0.3, -0.785], q: [0, 0, 0, 1] },
+    'Wooden_bowl#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
+    'Disco-ball_mobile#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
+    // the vents by the Elites land you across from them, not on them
+    'vent:Vent by the lounge chair': { at: [3.432, 0, 1.877], land: [3.2, 0.435, 1.72] },
+    'vent:Vent by the sofa': { at: [1.268, 0, 2.463], land: [0.9, 0.511, 2.4] },
     'Pet_corner#1': { p: [-0.0504, 0, -0.0065], q: [0, 0, 0, 1] },
     'Mug#1': { p: [-0.0027, 0, -0.043], q: [0, 0, 0, 1], hidden: true },
     'Cat_scratcher_and_box#1': { p: [0.0439, 0, -0.1053], q: [0, 0, 0, 1] },
