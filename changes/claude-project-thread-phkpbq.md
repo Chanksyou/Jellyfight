@@ -1,0 +1,1 @@
+adds the Soundbar's bass wave to act 4's living room: every 16 bars of "Sunrise Set" (30 s), on the bar, a low wave rolls down the room from the TV wall to the window. Jump it as it passes, or be up on the furniture; caught on the floor it takes 8 Health. A bar ahead its Warning fills along the TV wall in hot speaker red, and a sub drop plays a beat before it goes.

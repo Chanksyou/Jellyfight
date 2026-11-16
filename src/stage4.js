@@ -104,6 +104,13 @@ export const STAGE4 = {
   // Elites aren't hurt. It never reaches the stage door (z 4.35 up). `across`: the room's x span.
   sun: { from: 0.3, to: 3.3, drain: 1.5, across: [0, 5] },
 
+  // The Soundbar's bass wave (bass-wave.js): every `every` bars of the song (16: 30 s at 128 BPM), on the
+  // bar, one low wave rolls from the TV wall (z `from`, the media console's front) to the window wall
+  // (z `to`), the room's width (`across`), `width` m deep and `height` m tall, at `speed` m/s (4 s across):
+  // `dmg` to anything of the jelly under its top as it passes (a bug's heavy hit; x the act's power).
+  // A jump clears it; furniture tops stand above it.
+  bass: { every: 16, height: 0.05, width: 0.1, speed: 1.1, dmg: 4, from: 4.35, to: 0, across: [0, 5] },
+
   // When the time is up this opens on the media console (stage1.js: x 0.9-2.4, z 4.35-4.8, top 0.6):
   // land on its top (the vent by the TV goes there) to go through to the arena
   stageDoor: {
