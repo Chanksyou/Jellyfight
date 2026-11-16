@@ -98,6 +98,9 @@ export class Sunrise {
   // editor), so drape the sheet again
   start(stage, rebuild = false) {
     this.sun = stage.sun || null;
+    // the look's timings, read once (update runs every frame)
+    this.K = { beat: LOOK.num('sun-volume-beat', 1.5), tick: LOOK.num('sun-tick', 1), pulse: LOOK.num('sun-pulse', 0.8), steam: LOOK.num('sun-steam-gap', 0.35),
+      sizzle: LOOK.num('sun-sizzle-gap', 0.32), dryIn: LOOK.num('sun-dry-in', 1.2), dryOut: LOOK.num('sun-dry-out', 2), flash: LOOK.num('sun-flash', 0.02) };
     this.lit = false; this.tickT = 0; this.steamT = 0; this.sizzleT = 0; this.tagT = 0; this.dryK = 0; this.shown = -1; this.told = false;
     if (rebuild && this.sheet) { this.run.scene.remove(this.sheet); this.sheet.geometry.dispose(); this.sheet = null; }
     if (!this.sun) { if (this.sheet) this.sheet.visible = this.vol.visible = false; return; }
@@ -169,13 +172,13 @@ export class Sunrise {
     this.sheet.geometry.setDrawRange(0, this.rows[Math.max(0, row)]);
     this.vol.position.z = z;
     this.vol.visible = z < this.sun.to;   // the Warning while it still moves: stopped, nothing more fills
-    this.vol.material.progress = (this.run.t / LOOK.num('sun-volume-beat', 1.5)) % 1;
+    this.vol.material.progress = (this.run.t / this.K.beat) % 1;
   }
 
   // each frame of play
   update(dt) {
     if (!this.sun) return;
-    const run = this.run, P = run.player.position, S = this.sun;
+    const run = this.run, P = run.player.position, S = this.sun, K = this.K;
     this.place(run.t);
     const U = this.sheet.material.uniforms;
     U.uPulse.value = Math.max(0, U.uPulse.value - dt * 3);
@@ -187,19 +190,19 @@ export class Sunrise {
       bus.emit('damage_taken', { targetId: PLAYER, amount: S.drain * dt, source: 'sun', drain: true });
       if (!this.lit) {   // stepping in: a hiss and a puff of steam off the bell, a flash where the light catches it
         run.gadgets.looks.steam(top);
-        run.fx.impact(mid, colour, LOOK.num('sun-flash', 0.02), 6);
+        run.fx.impact(mid, colour, K.flash, 6);
         sfx.sunIn();
         if (run.t - this.tagT > 3 || !this.tagT) { this.tagT = run.t; run.fx.number(_o.set(P.x, P.y + run.cfg.height * 1.1, P.z), 'DRYING', '#' + colour.getHexString(), 13); }
         if (!this.told) { this.told = true; run.hud.toast('☀️ The sun dries you out: keep to the shade', 2600); }
-        this.tickT = LOOK.num('sun-tick', 1);
+        this.tickT = K.tick;
       }
-      if ((this.tickT -= dt) <= 0) { this.tickT += LOOK.num('sun-tick', 1); juice.feel('sun'); U.uPulse.value = LOOK.num('sun-pulse', 0.8); }   // it bites: a tremor, the rim flares
-      if ((this.steamT -= dt) <= 0) { this.steamT = LOOK.num('sun-steam-gap', 0.35); run.gadgets.looks.steam(top); }
-      if ((this.sizzleT -= dt) <= 0) { this.sizzleT = LOOK.num('sun-sizzle-gap', 0.32); sfx.sunSizzle(); }
+      if ((this.tickT -= dt) <= 0) { this.tickT += K.tick; juice.feel('sun'); U.uPulse.value = K.pulse; }   // it bites: a tremor, the rim flares
+      if ((this.steamT -= dt) <= 0) { this.steamT = K.steam; run.gadgets.looks.steam(top); }
+      if ((this.sizzleT -= dt) <= 0) { this.sizzleT = K.sizzle; sfx.sunSizzle(); }
     }
     this.lit = lit;
     // the bell dries as it stays, and comes back slowly in the shade (that is only the look: the drain stops at once)
-    this.dryK = lit ? Math.min(1, this.dryK + dt / LOOK.num('sun-dry-in', 1.2)) : Math.max(0, this.dryK - dt / LOOK.num('sun-dry-out', 2));
+    this.dryK = lit ? Math.min(1, this.dryK + dt / K.dryIn) : Math.max(0, this.dryK - dt / K.dryOut);
     const av = run.player.avatar;
     if (av !== this.avatar) { this.avatar = av; this.shown = -1; }
     if (av?.dry && this.dryK !== this.shown) { this.shown = this.dryK; av.dry(this.dryK); }
