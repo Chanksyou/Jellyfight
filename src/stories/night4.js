@@ -2,9 +2,12 @@
 // opens these on an act-4 page with the shark's run carried over (CARRY4); at time-up the stage door
 // opens on the media console, and through it the arena loads (act4.js plays that scene).
 import { STAGES, SAVE_KEY, keptRun, nav, stageOf } from '../stages.js';
-import { ENCORE, STAGE4 } from '../stage4.js';
+import { ENCORE, STAGE4, ELITES4 } from '../stage4.js';
+import * as THREE from 'three';
+import { SONGS } from '../music.js';
+import { movables, visibleBox } from '../layout.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
-import { G, V, fresh, night4, ok, step, stub, tp } from './kit.js';
+import { G, V, fresh, night4, ok, sim, step, stub, tp } from './kit.js';
 import { LOOK } from '../look.js';
 
 const STATE = 'jellyrun.act';
@@ -157,6 +160,75 @@ night4('dying-in-the-room-says-how-far-the-stage-door-was', {
       return ok(close === 'The stage door was 1:23 away' && k.scene === undefined && !k.carry.mid && k.carry.level === 15, { close, kept: k });
     });
   },
+});
+
+// --- the room's own map (layout-baked.js act 4, ELITES4): vents, chests and the three Elites' spots
+// the small props on the furniture (boxes of things under 60 cm; a big sparse plant's box is no use), as [name, box]
+function smallProps(skip) {
+  const out = [];
+  for (const { key, node } of movables(G().APT.root)) {
+    const b = visibleBox(node, new THREE.Box3());
+    if (!node.visible || b.isEmpty() || skip.test(key) || b.max.x - b.min.x > 0.6 || b.max.z - b.min.z > 0.6) continue;
+    out.push([key, b]);
+  }
+  return out;
+}
+// metres from a point to the nearest small prop standing at that height (xz distance to its box)
+const nearProp = (skip, x, y, z) => Math.min(...smallProps(skip).filter(([, b]) => b.max.y > y + 0.02 && b.min.y < y + 0.3)
+  .map(([, b]) => Math.hypot(Math.max(b.min.x - x, 0, x - b.max.x), Math.max(b.min.z - z, 0, z - b.max.z))));
+
+night4('every-vent-lands-where-it-says', {
+  about: 'Each of act 4\'s six vents flings the jelly to its landing spot, standing: the three by the Elites land across the furniture from them.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { traversal } = G(), bad = [];
+    for (const v of traversal.vents) {
+      tp(v.x, 0.05, v.z, 0);
+      const r = sim(3), [lx, ly, lz] = v.land;
+      if (!(Math.hypot(r.pos[0] - lx, r.pos[2] - lz) < 0.08 && Math.abs(r.pos[1] - ly) < 0.06 && r.grounded)) bad.push({ to: v.to, end: r.pos, land: v.land });
+    }
+    return ok(traversal.vents.length === 6 && !bad.length, { bad });
+  },
+});
+
+night4('every-chest-spot-is-open', {
+  about: 'Every chest spot the act lists is open in this layout: none is covered, crowded, or on a vent\'s landing, so no run drops one (Run.openSpot rejects).',
+  setup() { fresh(); },
+  play() {
+    const { run } = G();
+    return ok(run.spots.length === STAGE4.spots.length && run.spots.length >= 8 && !run.spotRejects.length, { listed: STAGE4.spots.length, kept: run.spots.length, rejects: run.spotRejects });
+  },
+});
+
+night4('each-elite-spot-is-on-its-furniture-and-clear', {
+  about: 'The Singing bowl\'s spot is on the lounge chair seat, the Mushroom pillow\'s on the sofa seat and the Headphones\' on the glass coffee table: each on its furniture\'s own surface, 15 cm clear of other small props, 30 cm or more from its vent\'s landing on the same surface, which sits in its wake box. Nothing spawns them yet.',
+  setup() { fresh(); },
+  play() {
+    const { run, traversal, APT } = G(), THREEBOX = THREE.Box3;
+    const FURNITURE = { 'lounge chair': 'Lounge_chair#1', sofa: 'Corduroy_sofa#1', 'coffee table': 'Glass_coffee_table#1' };
+    const bad = [];
+    for (const e of ELITES4) {
+      const v = traversal.vents.find((q) => q.name === e.vent), node = movables(APT.root).find((m) => m.key === FURNITURE[e.area]).node;
+      const f = visibleBox(node, new THREEBOX()), [x, y, z] = e.at, [lx, ly, lz] = v.land, w = e.wake;
+      const own = new RegExp(`^(${e.hide}|${FURNITURE[e.area].replace(/#.*/, '')})#`);
+      const checks = {
+        onFurniture: x > f.min.x && x < f.max.x && z > f.min.z && z < f.max.z && Math.abs(y - ly) < 0.02 && y < f.max.y,
+        clear: nearProp(own, x, y, z) > 0.15,
+        landsClear: nearProp(own, lx, ly, lz) > 0.06 && Math.hypot(x - lx, z - lz) > 0.3,
+        wakes: [x, lx].every((a, i) => a > w.min[0] && a < w.max[0]) && [z, lz].every((a) => a > w.min[2] && a < w.max[2]) && y > w.min[1] && y < w.max[1],
+        faces: Math.abs(Math.sin(e.face) * (lz - z) - Math.cos(e.face) * (lx - x)) < 0.05 && Math.sin(e.face) * (lx - x) + Math.cos(e.face) * (lz - z) > 0,   // toward the landing, not away
+        hidesARealObject: movables(APT.root).some((m) => m.key.startsWith(e.hide + '#')),
+      };
+      if (Object.values(checks).some((c) => !c)) bad.push({ kind: e.kind, checks });
+    }
+    return ok(ELITES4.length === 3 && !bad.length && run.stage.elites.length === 0 && run.elites.alive.length === 0, { bad });
+  },
+});
+
+night4('the-act-plays-sunrise-set', {
+  about: 'Act 4\'s night plays its own song, "Sunrise Set", not the stand-in from act 3.',
+  setup() { fresh(); },
+  play() { return ok(STAGE4.music === 'sunrise' && !!SONGS.sunrise, { music: STAGE4.music }); },
 });
 
 night4('the-dawn-look-warms-across-the-night', {
