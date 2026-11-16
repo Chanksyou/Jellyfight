@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v435 gives act 4 a night before the Encore: the run now arrives in the living room at dawn, just inside the hallway door, for 3 minutes from 6:00 to 8:00 AM, with three chests and act 3's bugs standing in until the act's own crowd comes. When the time is up no boss comes: the bugs go and the stage door opens on the media console, and landing there takes the run through to the concert arena with its Health, level, Treasures and kills as they were, for the same Encore fight as before. A run saved part way through act 4 before this update opens in the room.
+
 v434 writes act 4's exploring song, "Sunrise Set" (E minor, 128 BPM like the Encore recording): a soundcheck whose kick waits for the fuller layer. It isn't playing in game until act 4 exists.
 
 v433 makes the act 3 shark summon its illusion at half Health: a see-through copy that rises beside the jelly and uses the shark's own attacks for the same damage. It has no Health, nothing aims at it and your attacks pass through it, so keep hitting the solid shark; it rests a little longer between attacks so the two strike out of step, and it goes when the shark is beaten.
