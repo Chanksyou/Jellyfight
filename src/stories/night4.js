@@ -36,7 +36,7 @@ function atTheDoor() {
 }
 
 night4('the-act-opens-in-the-living-room-at-dawn', {
-  about: 'Act 4 starts in act 1\'s living room, not the arena: the run arrives just inside the hallway door facing the room, with its level from act 3, at 6:00 AM, 3 minutes before the stage door opens. No boss, no Elites yet.',
+  about: 'Act 4 starts in act 1\'s living room, not the arena: the run arrives just inside the hallway door facing the room, with its level from act 3, at 6:00 AM, 3 minutes before the stage door opens. No boss; the room\'s Elites wait asleep on their furniture.',
   setup() { fresh(); },
   play() {
     const { run, player, hud } = G(), P = player.position;
@@ -44,7 +44,7 @@ night4('the-act-opens-in-the-living-room-at-dawn', {
     const clock = hud.el.querySelector('.clock').textContent + ' ' + hud.el.querySelector('.stage').textContent;
     const room = run.stage === STAGE4 && STAGES[3] === STAGE4 && !G().APT.arena && run.stage.parts.join() === 'act1';
     const atDoor = Math.hypot(P.x - 3.05, P.z - 4.4) < 0.03 && Math.abs(player.facing - Math.PI) < 0.01;
-    return ok(room && atDoor && run.phase === 'explore' && !run.boss && run.level === 15 && run.duration === 180 && run.elites.alive.length === 0
+    return ok(room && atDoor && run.phase === 'explore' && !run.boss && run.level === 15 && run.duration === 180 && run.elites.alive.length === STAGE4.elites.length && run.elites.alive.every((e) => !e.awake)
       && /Stage door in (3:00|2:5\d)/.test(clock) && /6:00 AM · The Encore/.test(clock),
     { room, at: [P.x, P.z], facing: player.facing, phase: run.phase, level: run.level, duration: run.duration, clock });
   },
@@ -201,7 +201,7 @@ night4('every-chest-spot-is-open', {
 });
 
 night4('each-elite-spot-is-on-its-furniture-and-clear', {
-  about: 'The Singing bowl\'s spot is on the lounge chair seat, the Mushroom pillow\'s on the sofa seat and the Headphones\' on the glass coffee table: each on its furniture\'s own surface, 15 cm clear of other small props, 30 cm or more from its vent\'s landing on the same surface, which sits in its wake box. Nothing spawns them yet.',
+  about: 'The Singing bowl\'s spot is on the lounge chair seat, the Mushroom pillow\'s on the sofa seat and the Headphones\' on the glass coffee table: each on its furniture\'s own surface, 15 cm clear of other small props, 30 cm or more from its vent\'s landing on the same surface, which sits in its wake box. The act spawns each whose kind exists (the Singing Bowl so far), where it says.',
   setup() { fresh(); },
   play() {
     const { run, traversal, APT } = G(), THREEBOX = THREE.Box3;
@@ -221,7 +221,8 @@ night4('each-elite-spot-is-on-its-furniture-and-clear', {
       };
       if (Object.values(checks).some((c) => !c)) bad.push({ kind: e.kind, checks });
     }
-    return ok(ELITES4.length === 3 && !bad.length && run.stage.elites.length === 0 && run.elites.alive.length === 0, { bad });
+    const spawned = run.elites.list.map((e) => e.kind), placed = run.elites.list.every((e) => e.spec === ELITES4.find((q) => q.kind === e.kind));
+    return ok(ELITES4.length === 3 && !bad.length && spawned.join() === 'bowl' && placed, { bad, spawned });
   },
 });
 

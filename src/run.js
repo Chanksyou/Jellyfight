@@ -651,6 +651,7 @@ export class Run {
         nextAttack: (ef) => { if (!this.attack || this.attack.kind === 'bubble' || this.attack.kind === 'tentacle') return false; this.bubbles.next = ef; return true; },   // an Element shot only
         dash: (k, time, ef) => this.dash(k, time, ef) });
       if (this.phase === 'explore') {
+        this.elites.beat = this.beat; this.elites.bpm = this.bpm;   // the song's time (the Singing Bowl keeps it)
         this.elites.update(dt, P, this.cfg);
         // the elite fighting you (the closest awake one): its name and health on the HUD
         const fe = this.elites.list.filter((e) => !e.dead && !e.decor && !e.beaten && (e.awake || e.state !== 'idle'))

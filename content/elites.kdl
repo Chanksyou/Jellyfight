@@ -101,3 +101,19 @@ elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=
     tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7
     jewels dmg=3 count=10 angryCount=14 radius=0.1 spread=0.17 rain=2.4 drop=0.25 up=0.9 rest=1.0 angryRest=0.7
 }
+
+// act 4: the Singing Bowl, on its cushion on the lounge chair in the living room at dawn. It sleeps
+// until you're on the chair (stage4.js ELITES4 `wake`), then within aggro= of it. It keeps the song's
+// time: windup=, every= and the rests' beats are beats of the song (128 BPM: a beat is 0.47 s), not
+// the pace's tempo; rest= is s, as for every elite.
+//   ring:  the striker lifts while a Warning of radius= (a disc and the ring wall over it) fills,
+//          then strikes the rim on the first bar line at least windup= beats away, and a ring wall
+//          height= tall, band= thick rolls out at speed= m/s to reach= m: jump it. rings= of them,
+//          one a bar; angry, angryRings= of them two a bar, every second one at angrySpeed=
+//   chime: the striker runs round the rim and a ball of song swells over the bowl until the first
+//          bar line at least windup= beats away; then shots= Shots, every= beats apart, each at your
+//          middle as it leaves, flying at speed= m/s for reach= m (size=: its radius, m)
+elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
+    ring dmg=3 rings=3 angryRings=4 windup=3 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 rest=1.0 angryRest=0.7
+    chime dmg=3 shots=3 every=1 windup=3 speed=0.65 size=0.012 reach=1.2 rest=1.0 angryRest=0.7
+}

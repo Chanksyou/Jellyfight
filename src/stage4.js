@@ -47,16 +47,16 @@ export const ENCORE = {
   },
 };
 
-// The living room's three Elites, as plain data for the threads that build them (nothing spawns
-// them yet: STAGE4.elites stays empty until their kinds exist). Each stands on its own furniture,
+// The living room's three Elites, as plain data (STAGE4.elites spawns those whose kinds exist in
+// elites.js; the threads building the others add them there). Each stands on its own furniture,
 // clear of the clutter (layout-baked.js act 4 moves and hides the props round them).
 //   at: where it stands (world metres, y = the surface)   face: yaw toward its vent's landing (the jelly's side)
 //   wake: the box that wakes it   vent: the vent that lands you on the same furniture (`land`)
-//   hide: the apartment object it stands in for while alive
+//   hide: the apartment object it stands in for while alive   stand: where a 1 on 1 with it puts you
 // "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
 export const ELITES4 = [
   { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0, vent: 'Vent by the lounge chair',
-    at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] } },
+    at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] }, stand: [3.2, 0.435, 1.72] },
   { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -1.332, vent: 'Vent by the sofa',
     at: [1.68, 0.51, 2.21], wake: { min: [0.5, 0.46, 1.0], max: [2.9, 1.2, 2.6] } },
   { kind: 'headphones', hide: 'Headphones', area: 'coffee table', face: 1.454, vent: 'Vent by the coffee table',
@@ -95,7 +95,9 @@ export const STAGE4 = {
   // act 1's spots, less the two the Elites' props now crowd (the sofa seat under the Mushroom pillow, the lounge chair seat)
   spots: STAGE1.spots.filter((sp) => !['sofa seat', 'lounge chair'].includes(sp.label)),
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
-  elites: [],                         // the opening acts come later
+  // the opening acts (elites.js): the Singing Bowl so far; the Mushroom pillow and the Headphones come later
+  elites: ELITES4.filter((e) => ['bowl'].includes(e.kind)),
+  eliteHp: 2.8,                       // a stand-in until the tuning phase picks act 4's: act 3's 2.4 grown as its toughness grows (3 -> 3.5): 800 x 2.8 = 2240
 
   // The sun (sunrise.js): its line runs straight across the room in x and creeps from the window
   // wall (z `from`) to `to` over the night (`duration`), then stays. All of the room on the window
