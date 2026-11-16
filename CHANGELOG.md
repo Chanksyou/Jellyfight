@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v440 adds the Soundbar's bass wave to act 4's living room: every 16 bars of "Sunrise Set" (30 s), on the bar, a low wave rolls down the room from the TV wall to the window. Jump it as it passes, or be up on the furniture; caught on the floor it takes 8 Health. A bar ahead its Warning fills along the TV wall in hot speaker red, and a sub drop plays a beat before it goes.
+
 v439 adds the Cicada to Act 4's living room from 1:30, replacing the stag beetle there: a stocky, slow tank with big red eyes and clear wings that plants itself and sings a cone of sound (a floor wedge and a cone fill as a warning, then it hurts and shoves you away). Step out of the wedge, or jump it close to its head.
 
 v438 brings the sun up in Act 4's living room: a line of daylight creeps from the window wall toward the TV over the 3 minute night, and a jelly standing on its side of it, floor or furniture, loses 3 Health a second, its bell drying dull and steaming with a low sizzle. Its edge glows hot with a low hex Warning just ahead; bugs aren't hurt, chests never turn up where it will reach before they fade, and the stage door stays in the shade.
