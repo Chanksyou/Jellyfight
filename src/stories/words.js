@@ -906,6 +906,30 @@ story('words/bite-dodge', {
     return ok(darted && !log.includes('mosquito'), { darted, hits: log });
   },
 });
+story('words/on-beat', {
+  about: 'on-beat every=4: a mosquito keeping time pumps on every beat of the song, and its bite only starts on the bar (every 4th beat), however long its cooldown has been ready.',
+  setup() {
+    const { run } = G();
+    fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); stub(run, 'contactDamage', () => {});
+    const T = compileEnemies(parse('enemy "beat-mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {\n    zip distance=0.15 above=0.05 speed=0.9 length=0.07 pause=0.08\n    on-beat every=4\n    bite range=0.25 every=1.6 windup=0.35 speed=1.4 reach=0.35 dmg=1 rest=0.5\n}', 'test.kdl'), 'test.kdl')['beat-mosquito'];
+    stub(CONTENT.enemies, 'beat-mosquito', T);
+    stub(run, 'song', null); run.beat = 1.3;   // the run's own beat count, a little past a bar
+    spawn('beat-mosquito', near(0, -0.18, 0.05)).biteCd = 0;
+  },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], starts = [];
+    let was = e.state, pulses = 0, big = 0;
+    step(60 * 10, () => {
+      if (e.state === 'windup' && was !== 'windup') starts.push(+run.beat.toFixed(3));
+      was = e.state;
+      if (e.beatPulse === 1) pulses++;
+      big = Math.max(big, e.mesh.scale.x / (e.baseScale * e.spawnT));
+      return starts.length >= 2;
+    });
+    const onBar = starts.length >= 2 && starts.every((b) => b % 4 < 0.1);
+    return ok(onBar && starts[0] >= 4 && pulses >= 4 && big > 1.05, { starts, pulses, pumped: +big.toFixed(3) });
+  },
+});
 story('words/bleeds', {
   about: 'bleeds: a mosquito\'s bite that lands makes you bleed 1 Health a second for 3 s, and a second bite stacks another on top.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mosquito', near(0.4, 0, 0.1), { still: true }).hold = true; },

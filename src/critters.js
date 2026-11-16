@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
+import { hostile } from './vfx.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -2151,6 +2152,67 @@ export function buildMoth() {
     body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.2 : 0.1 - wind * 0.55;
   };
   anim.reset = () => { t = 0; wind = 0; sweep = 0; };
+  return { body: outer, face: new THREE.Group(), anim };
+}
+
+// ------------------------------------------------------------------ firefly
+// A firefly beetle, soft dark wing covers over a flat orange-red shield behind a tucked head, long
+// beaded antennae, six thin legs and a pair of pale gauzy wings. Its last two body segments are the
+// lantern: a glowing mesh (not a light) that blinks on every beat of the song in the hostile colour
+// (--hostile-firefly) and stays lit while it draws back to dart. Facing +z, centred on its thorax;
+// about 2.6 radii long.
+function fireflyParts() {
+  const dark = '#2a1a12', cover = '#3a2616', shield = '#d8431a', band = '#1a0e08', ink = '#120a06';
+  const body = merge([
+    ellipsoid(0.4, 0.22, 0.95, V(0, 0.05, -0.35), cover),               // wing covers
+    ellipsoid(0.03, 0.04, 0.8, V(0, 0.27, -0.35), band, 8),             // the seam down them
+    ellipsoid(0.42, 0.16, 0.34, V(0, 0.1, 0.55), shield),               // the flat shield behind the head
+    ellipsoid(0.06, 0.04, 0.26, V(0, 0.26, 0.55), band, 8),             // its dark stripe
+    ellipsoid(0.18, 0.15, 0.18, V(0, 0.02, 0.9), dark),                 // head, tucked under the shield
+    ...[-1, 1].map((s) => tube([V(s * 0.08, 0.08, 1.0), V(s * 0.2, 0.3, 1.3), V(s * 0.36, 0.38, 1.6)], 0.022, ink, 6)),   // antennae
+    ...[-1, 1].flatMap((s) => [0.6, 0.15, -0.3].map((z) => rod(V(s * 0.25, -0.05, z), V(s * 0.55, -0.4, z + (z > 0.3 ? 0.15 : z < 0 ? -0.2 : 0)), 0.045, 0.02, ink))),   // legs
+  ]);
+  const wing = new THREE.ShapeGeometry(new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.4, 0.22, 1.2, 0.2, 1.5, 0).bezierCurveTo(1.2, -0.14, 0.4, -0.12, 0, 0), 10).rotateX(-Math.PI / 2).rotateY(Math.PI * 0.55);
+  return { body, wing, lamp: ellipsoid(0.34, 0.19, 0.42, V(0, 0.02, -1.22), '#ffffff') };
+}
+
+export function buildFirefly() {
+  const G = (GEO.firefly ||= fireflyParts()), M = mats();
+  if (!M.ffLamp) {   // one shared glow, tinted per bug (batch.js perInstance); unlit, so bloom lifts it
+    M.ffLamp = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+    M.ffLamp.userData.perInstance = true;
+  }
+  const outer = new THREE.Group(), body = new THREE.Group();
+  outer.add(body);
+  body.add(new THREE.Mesh(G.body, M.matte));
+  const lamp = new THREE.Mesh(G.lamp, M.ffLamp);
+  lamp.userData.color = new THREE.Color();
+  body.add(lamp);
+  const wings = [-1, 1].map((s) => {
+    const pivot = new THREE.Group(), w = new THREE.Mesh(G.wing, M.wing);
+    pivot.position.set(s * 0.2, 0.26, 0.2);
+    w.scale.x = -s;
+    pivot.add(w);
+    body.add(pivot);
+    return { pivot, s };
+  });
+  body.add(angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 }));
+  const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
+  let t = 0, wind = 0, dart = 0;
+  const anim = (dt, e) => {
+    t += dt;
+    wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
+    dart += (((e?.state === 'dart') ? 1 : 0) - dart) * (1 - Math.exp(-20 * dt));
+    // the lamp: a flash on every beat, held lit while it draws back and darts
+    const k = Math.max(e?.beatPulse || 0, wind, dart);
+    hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 1.8));
+    lamp.userData.color.copy(dim).lerp(hot, k * k);
+    const flap = Math.sin(t * (50 + wind * 20));
+    for (const W of wings) { W.pivot.rotation.z = W.s * (0.3 + flap * 0.55); W.pivot.rotation.y = W.s * (0.25 + 0.15 * Math.cos(t * 50)); }
+    body.position.y = Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - wind);
+    body.rotation.x = 0.05 - wind * 0.45 - dart * 0.2;    // drawing back it tips up, lamp low; darting, nose first
+  };
+  anim.reset = () => { t = 0; wind = 0; dart = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 

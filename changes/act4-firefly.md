@@ -1,0 +1,1 @@
+adds the Firefly to act 4 from 0:00 (in place of the dragonfly stand-in, so the living room now has only Fireflies, Moths and Cicadas): a small beetle that drifts round you with a lantern for a tail. The lantern blinks on every beat of the song, and on the fourth blink it tips up, lit, and darts at you for 2 Health. New word: on-beat.

@@ -4,7 +4,7 @@ import { ModelPool } from './model-pool.js';
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildMoth, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildMoth, buildFirefly, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -212,6 +212,7 @@ function makeLooks() {
     ladybug: buildLadybug,
     dragonfly: buildDragonfly,
     moth: buildMoth,
+    firefly: buildFirefly,
     mantis: () => buildMantis(),
     worm: buildWorm,
     wasp: buildWasp,
@@ -1384,7 +1385,7 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
@@ -1429,6 +1430,7 @@ export class Enemies {
       }
       let sc = e.baseScale * e.spawnT * (1 + e.pop * 0.35);
       if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
+      if (e.beatPulse > 0) sc *= 1 + LOOK.num('bug-beat-pulse', 0.12) * e.beatPulse * e.beatPulse;   // on-beat: a pump on every beat
       e.mesh.scale.setScalar(sc);
       e.face.scale.setScalar(sc);
       if (e.recoil > 0) {                    // its hit landed (landed): a quick squash with the blow
