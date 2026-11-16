@@ -1213,15 +1213,17 @@ export class Enemies {
         const floor = new THREE.Mesh(geo, new TeleMaterial(hostile('cicada'), 'wedge', half));
         floor.renderOrder = 3; this.scene.add(floor);
         const w = e.songReach * Math.tan(half), vol = this.fx.volume(hostile('cicada'), 'cone', e.pos, S.o.set(w, w, e.songReach));
+        vol.material.uniforms.uGlow.value = LOOK.num('cicada-cone-glow', 0.6);
         M = { floor, vol }; this.songMarks.push(M);
       }
       n++;
-      const k = e.state === 'sing' ? 1 : e.songK, heading = Math.atan2(e.songDir.x, e.songDir.z), op = e.state === 'sing' ? 1 : 0.7 + 0.15 * Math.abs(Math.sin(t * 16));
+      const k = e.state === 'sing' ? 1 : e.songK, heading = Math.atan2(e.songDir.x, e.songDir.z), pulse = e.state === 'sing' ? 1 : 0.85 + 0.15 * Math.abs(Math.sin(t * 16));
       M.floor.visible = M.vol.visible = true;
       M.floor.position.set(e.pos.x, e.pos.y + 0.003, e.pos.z); M.floor.rotation.y = heading; M.floor.scale.set(e.songReach, 1, e.songReach);
       M.vol.position.copy(e.pos); M.vol.rotation.y = heading;
       M.floor.material.progress = M.vol.material.progress = k;
-      M.floor.material.opacity = M.vol.material.opacity = op;
+      M.floor.material.opacity = pulse * LOOK.num('cicada-wedge-opacity', 0.15);   // a quiet Warning: it must not drown the fight
+      M.vol.material.opacity = pulse * LOOK.num('cicada-cone-opacity', 0.22);
     }
     for (let i = n; i < this.songMarks.length; i++) this.songMarks[i].floor.visible = this.songMarks[i].vol.visible = false;
   }
