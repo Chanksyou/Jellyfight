@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v445 wakes the Singing Bowl on Act 4's lounge chair, the act's first Elite: a bronze bowl on its golden cushion that keeps the song's time. On the bar its striker hits the rim and a thin, low ring rolls out across the seat (a disc and a low wall fill round the bowl as its Warning): jump it. Its chime sings a ball of sound over the bowl, then fires a Shot a beat at you: keep moving sideways. Under 65% Health it strikes two rings a bar, the second faster.
+
 v444 keeps the Encore's music and attacks going on phones: its song now downloads while the arena loads and, if decoding it stalls for 8 seconds, the synthesized Encore song plays instead of silence (a stuck decode also left the Encore waiting for a beat that never came).
 
 v443 tones the Cicada's cone Warning way down: it's much fainter with less glow, so it no longer drowns the fight.
