@@ -1,0 +1,1 @@
+adds the Moth to act 4 from 0:45 (in place of the praying mantis stand-in): pale and dusty-winged, it flutters round the nearest lit lamp and, when you stand under or near that lamp, rears up with its wings flared and swoops at you for 3 Health. It lives through the swoop and climbs back to its lamp. New words: lamp, and dive's lamp/spend options.
