@@ -177,7 +177,7 @@ const nearProp = (skip, x, y, z) => Math.min(...smallProps(skip).filter(([, b]) 
   .map(([, b]) => Math.hypot(Math.max(b.min.x - x, 0, x - b.max.x), Math.max(b.min.z - z, 0, z - b.max.z))));
 
 night4('every-vent-lands-where-it-says', {
-  about: 'Each of act 4\'s six vents flings the jelly onto the furniture it names, landing on its spot: the three by the Elites land across the furniture from them.',
+  about: 'Each of act 4\'s six vents flings the jelly to its landing spot, standing: the three by the Elites land across the furniture from them.',
   setup() { fresh({ elites: false }); },
   play() {
     const { traversal } = G(), bad = [];
@@ -215,7 +215,7 @@ night4('each-elite-spot-is-on-its-furniture-and-clear', {
         clear: nearProp(own, x, y, z) > 0.15,
         landsClear: nearProp(own, lx, ly, lz) > 0.06 && Math.hypot(x - lx, z - lz) > 0.3,
         wakes: [x, lx].every((a, i) => a > w.min[0] && a < w.max[0]) && [z, lz].every((a) => a > w.min[2] && a < w.max[2]) && y > w.min[1] && y < w.max[1],
-        faces: Math.abs(Math.sin(e.face) * (lz - z) - Math.cos(e.face) * (lx - x)) < 0.05,
+        faces: Math.abs(Math.sin(e.face) * (lz - z) - Math.cos(e.face) * (lx - x)) < 0.05 && Math.sin(e.face) * (lx - x) + Math.cos(e.face) * (lz - z) > 0,   // toward the landing, not away
         hidesARealObject: movables(APT.root).some((m) => m.key.startsWith(e.hide + '#')),
       };
       if (Object.values(checks).some((c) => !c)) bad.push({ kind: e.kind, checks });
