@@ -2032,6 +2032,7 @@ export class Run {
   keepTime(dt) {
     const b = this.song?.beat?.();
     this.beat = Number.isFinite(b) ? b : (this.beat ?? 0) + dt * (this.bpm || 120) / 60;
+    this.enemies.beat = this.beat;   // the song's beat for bugs with on-beat
   }
 
   // What the soundtrack (music.js) should play: the act's own song while you explore (its stage's
