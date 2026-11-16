@@ -1166,7 +1166,7 @@ story('look/tokens-reach-the-game', {
   setup() {},
   play() {
     const s = G().APT.scene;
-    return ok(LOOK.has('night-fill') && s.environmentIntensity === LOOK.num('night-fill') && s.fog.density === LOOK.num('haze'), { fill: s.environmentIntensity, haze: s.fog.density });
+    return ok(LOOK.has('night-fill') && s.environmentIntensity === LOOK.num('night-fill') && s.fog.density === LOOK.num('haze') && !s.getObjectByName('Dawn window'), { fill: s.environmentIntensity, haze: s.fog.density });   // act 1 keeps the night: no dawn card
   },
 });
 

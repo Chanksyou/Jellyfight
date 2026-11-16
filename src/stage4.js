@@ -58,6 +58,8 @@ export const STAGE4 = {
   face: Math.PI,                      // facing the room, toward the window (run.js start)
   duration: 180,                      // seconds until the stage door opens (3:00)
   clock: [360, 480],                  // in-game minutes after midnight: 6:00 AM -> 8:00 AM
+  sky: 'dawn',                        // the look: content/look.css --dawn-* (blue hour at 6:00 warming to gold by 8:00; main.js)
+  window: { x: -0.3, y: [0.3, 2.45], z: [1.15, 4.0] },   // the glow card just outside the window (the glass on the desk wall, x 0; stage1.js)
   music: 'bloom',                     // stand-in: act 3's "Medusa Bloom" until act 4 has its own song
   // as tough as the arena (the act's numbers); `bugs` is act 3's pacing, a stand-in like the bugs
   // themselves (content/waves.kdl act=4)

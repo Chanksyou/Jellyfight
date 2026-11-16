@@ -5,6 +5,7 @@ import { STAGES, SAVE_KEY, keptRun, nav, stageOf } from '../stages.js';
 import { ENCORE, STAGE4 } from '../stage4.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { G, V, fresh, night4, ok, step, stub, tp } from './kit.js';
+import { LOOK } from '../look.js';
 
 const STATE = 'jellyrun.act';
 // run fn, then put back the act's state, the kept run and the lifetime totals a run adds to
@@ -155,5 +156,25 @@ night4('dying-in-the-room-says-how-far-the-stage-door-was', {
       const k = keptRun();
       return ok(close === 'The stage door was 1:23 away' && k.scene === undefined && !k.carry.mid && k.carry.level === 15, { close, kept: k });
     });
+  },
+});
+
+night4('the-dawn-look-warms-across-the-night', {
+  about: 'Act 4\'s room is lit by the dawn values (look.css --dawn-*), not the night\'s: the blue hour at 6:00 AM (fill, sky, haze, an unlit glow card on the window wall) warming to gold by 8:00 AM, with no light added or removed.',
+  setup() { fresh(); },
+  play() {
+    const { run, APT } = G(), S = APT.scene, card = () => S.getObjectByName('Dawn window');
+    const near = (a, b) => Math.abs(a - b) < 0.005;   // a frame or two into the night
+    const hex = (c) => '#' + c.getHexString();
+    const lights = () => { let n = 0; S.traverse((o) => { if (o.isLight) n++; }); return n; };
+    step(2);
+    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, window: hex(card().material.color) };
+    run.t = run.duration; run.nightT = 0;
+    step(2);
+    const end = { fill: S.environmentIntensity, sky: hex(S.background), window: hex(card().material.color) };
+    const unlit = card().material.isMeshBasicMaterial && card().position.x < 0;
+    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze')) && start.window === LOOK.color('dawn-window')
+      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late') && end.window === LOOK.color('dawn-window-late')
+      && unlit && lights() === lit, { start, end, lit });
   },
 });
