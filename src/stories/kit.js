@@ -460,6 +460,8 @@ export const EVERY_ATTACK = {
     // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
     // stage edge is a hazard
     encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' } },
+    // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line
+    sun: { light: { is: 'hazard' } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
@@ -469,6 +471,7 @@ function attacksInGame(act) {
   const { run } = G(), out = {}, boss = bossKind(), A = { vacuum: VACUUM_ATTACKS, clog: CLOG_ATTACKS, shark: SHARK_ATTACKS, encore: ENCORE_ATTACKS }[boss];
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the shark's pools)
+  if (STAGES[act - 1].sun) out.sun = ['light'];   // an act whose room has a sun (act 4), in either of its scenes
   // Bugs that warn (a behaviour word with a hostile `color`; none do now) are checked in act 3, listed
   // under `bugs` in EVERY_ATTACK
   const warning = act === 3 ? Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id) : [];

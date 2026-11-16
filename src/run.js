@@ -21,6 +21,7 @@ import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
+import { Sunrise } from './sunrise.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
@@ -107,6 +108,7 @@ export class Run {
     this.evolutionReveal = new EvolutionReveal(this);
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
+    this.sunrise = new Sunrise(this);   // a stage's sun (act 4's room): the line creeping across, drying you out (sunrise.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
     this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
@@ -394,6 +396,7 @@ export class Run {
     this.tpc.snapTo(this.player.position);
 
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
+    this.sunrise.start(s, !this.spots);   // (and the sun's sheet, draped over the room as it stands)
     if (!this.spots) {
       this.spots = [];
       this.spotRejects = [];
@@ -658,6 +661,7 @@ export class Run {
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
     if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
     if (this.phase === 'explore' || this.phase === 'boss') { this.drain(dt); this.pedometer(); }
+    this.sunrise.update(dt);   // a stage's sun: drying the jelly while it stands in it
 
     // --- XP
     if (this.collectAll) this.xpDrops.magnetAll = true;   // the boss is down: everything on the floor flies to you
@@ -1445,10 +1449,11 @@ export class Run {
   }
 
   // somewhere else: away from you, in another part of the room from the last one, not one of the
-  // last three spots (from the stage's open spots: flat, nothing overhead)
+  // last three spots (from the stage's open spots: flat, nothing overhead), never where the sun
+  // (a stage's `sun`) reaches before it fades
   nextTreasureSpot() {
-    const P = this.player.position, last = this.lastTreasureSpot;
-    const ok = (sp, far, elsewhere) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z) > far
+    const P = this.player.position, last = this.lastTreasureSpot, until = this.t + (this.stage.treasures?.stay || 0);
+    const ok = (sp, far, elsewhere) => Math.hypot(sp.at[0] - P.x, sp.at[2] - P.z) > far && this.sunrise.shaded(sp.at[2], until)
       && (!elsewhere || !last || (sp.area !== last.area && Math.hypot(sp.at[0] - last.at[0], sp.at[2] - last.at[2]) > 0.8 && !this.recentTreasureSpots.includes(sp.label)));
     for (const [far, elsewhere] of [[0.8, true], [0.5, true], [0.5, false], [0, false]]) {
       const c = (this.spots || []).filter((sp) => ok(sp, far, elsewhere));

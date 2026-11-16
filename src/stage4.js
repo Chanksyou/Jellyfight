@@ -78,6 +78,13 @@ export const STAGE4 = {
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
   elites: [],                         // the opening acts come later
 
+  // The sun (sunrise.js): its line runs straight across the room in x and creeps from the window
+  // wall (z `from`) to `to` over the night (`duration`), then stays. All of the room on the window
+  // side of it is sunlit, floor and furniture tops alike, and a jelly there loses `drain` Health a
+  // second before the act's `power` (1.5 x 2 = 3; the Clog's acid is 2.667 x 1.5 = 4). Bugs and
+  // Elites aren't hurt. It never reaches the stage door (z 4.35 up). `across`: the room's x span.
+  sun: { from: 0.3, to: 3.3, drain: 1.5, across: [0, 5] },
+
   // When the time is up this opens on the media console (stage1.js: x 0.9-2.4, z 4.35-4.8, top 0.6):
   // land on its top (the vent by the TV goes there) to go through to the arena
   stageDoor: {

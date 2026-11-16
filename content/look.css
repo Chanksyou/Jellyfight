@@ -506,6 +506,31 @@
   --encore-floor-hot-white: 0.08; /* how far a tile going off is pushed towards white (a touch: the DJ colour must read) */
   --encore-dance-raise: 1.35;    /* radians a DJ throws his outer arm up while his wave plays */
   --encore-dance-pump: 0.32;     /* and how far it pumps, down on every beat */
+  /* act 4's sun (src/sunrise.js): painted, never a light. A sheet draped over the room's floor and
+     furniture tops glows where the sun is, with a hard hot rim on its line, and a low hex volume
+     stands on the line over the strip it moves into next (its Warning) */
+  --hostile-sun: #ffcf7a;        /* the sun: hot pale gold (paler than the Kettle's and the Clock's yellows and the Encore's gold) */
+  --sun-fill: 0.25;              /* how much light it adds to what it covers (the room stays dim: the attacks must still read) */
+  --sun-rim: 0.035;              /* m: the hot band along its line */
+  --sun-rim-glow: 0.7;           /* how bright that band is */
+  --sun-pulse: 0.8;              /* how much brighter the band flares each second it bites the jelly */
+  --sun-tick: 1;                 /* s between those bites (a tremor: --feel-sun) */
+  --sun-volume-height: 0.04;     /* m: the low hex wall on its line */
+  --sun-volume-ahead: 0.06;      /* m: how far ahead of the line it reaches (about 4 s of the sun's creep) */
+  --sun-volume-opacity: 0.6;
+  --sun-volume-beat: 1.5;        /* s for its fill to rise through it once, over and over while the sun moves */
+  --sun-cell: 0.04;              /* m: the sheet's grid (finer follows furniture edges closer; more triangles) */
+  --sun-reach: 1.2;              /* m: the tops it lies on are the first surface below this (above it: cabinets, lamps) */
+  --sun-floor-from: 0.05;        /* m: and the floor is the first surface below this (under tables and chairs too) */
+  --sun-lift: 0.002;             /* m it floats over what it lies on */
+  --sun-flash: 0.02;             /* m: the flash on the jelly as it steps into the sun */
+  --sun-steam-gap: 0.35;         /* s between wisps of steam off it while it's in the sun */
+  --sun-sizzle-gap: 0.32;        /* s between sizzles */
+  --sun-dry-in: 1.2;             /* s in the sun until the bell looks fully dried out */
+  --sun-dry-out: 2;              /* s in the shade until it looks wet again (the look only: the drain stops at once) */
+  --sun-dry-glow: 0.65;          /* how much of the inner glow drying takes away */
+  --sun-dry-rough: 0.7;          /* how dull the clear bell goes (its gloss: roughness) */
+  --sun-dry-tint: #5e4b32;       /* the dull dry-leather colour it fades toward (half way, fully dried) */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
   --beetle-fire: #ffd060;        /* the yellow heart of the fireball when its ball explodes, round the orange */
@@ -676,6 +701,7 @@
      One ladder, quietest first, so an ordinary hit stays small and a boss kill can be loud
      (docs/agents/attack-feel.md, L2). An attack picks a step; it never invents its own numbers. */
   --feel-hit: 0.03 0;          /* a bubble popping on a bug */
+  --feel-sun: 0.05 0;          /* each second the sun bites the jelly (act 4): a small tremor, no hit-stop */
   --feel-hit-big: 0.12 0;      /* a giant bubble popping */
   --feel-crit: 0.1 0;          /* a critical hit: a step past a pop, no hit-stop (crits come too often) */
   --feel-kill: 0.18 0.035;     /* a bug finished off */
