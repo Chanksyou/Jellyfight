@@ -351,6 +351,15 @@
   --night-sky: #05060c;        /* what you see through the windows */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
+
+  /* --- the dawn (act 4's living room): each value at 6:00 AM, then "-late" at 8:00 AM; the look moves between
+     them across the 3 minutes. A bit brighter than the night but still dim, so cool friendly and hot hostile
+     attacks read. The window is the bright thing: an unlit card on the window wall. */
+  --dawn-fill: 0.2;               --dawn-fill-late: 0.34;
+  --dawn-sky: #141f3c;            --dawn-sky-late: #8a6a58;
+  --dawn-haze: 0.14;              --dawn-haze-late: 0.16;
+  --dawn-haze-color: #0b1226;     --dawn-haze-color-late: #301c10;
+  --dawn-window: #7ea0ee;         --dawn-window-late: #ffcf86;
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 

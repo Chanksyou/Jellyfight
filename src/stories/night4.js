@@ -8,6 +8,7 @@ import { SONGS } from '../music.js';
 import { movables, visibleBox } from '../layout.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { G, V, fresh, night4, ok, sim, step, stub, tp } from './kit.js';
+import { LOOK } from '../look.js';
 
 const STATE = 'jellyrun.act';
 // run fn, then put back the act's state, the kept run and the lifetime totals a run adds to
@@ -228,4 +229,24 @@ night4('the-act-plays-sunrise-set', {
   about: 'Act 4\'s night plays its own song, "Sunrise Set", not the stand-in from act 3.',
   setup() { fresh(); },
   play() { return ok(STAGE4.music === 'sunrise' && !!SONGS.sunrise, { music: STAGE4.music }); },
+});
+
+night4('the-dawn-look-warms-across-the-night', {
+  about: 'Act 4\'s room is lit by the dawn values (look.css --dawn-*), not the night\'s: the blue hour at 6:00 AM (fill, sky, haze, an unlit glow card on the window wall) warming to gold by 8:00 AM, with no light added or removed.',
+  setup() { fresh(); },
+  play() {
+    const { run, APT } = G(), S = APT.scene, card = () => S.getObjectByName('Dawn window');
+    const near = (a, b) => Math.abs(a - b) < 0.005;   // a frame or two into the night
+    const hex = (c) => '#' + c.getHexString();
+    const lights = () => { let n = 0; S.traverse((o) => { if (o.isLight) n++; }); return n; };
+    step(2);
+    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, window: hex(card().material.color) };
+    run.t = run.duration; run.nightT = 0;
+    step(2);
+    const end = { fill: S.environmentIntensity, sky: hex(S.background), window: hex(card().material.color) };
+    const unlit = card().material.isMeshBasicMaterial && card().position.x < 0;
+    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze')) && start.window === LOOK.color('dawn-window')
+      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late') && end.window === LOOK.color('dawn-window-late')
+      && unlit && lights() === lit, { start, end, lit });
+  },
 });
