@@ -30,4 +30,4 @@ bug "beetle" weight=0.35 from=60 act=3      // stag beetles from 1:00: a tank, s
 // act's own crowd (Firefly, Moth, Cicada) comes in
 bug "dragonfly" weight=1 act=4              // stand-in: dragonflies from the start
 bug "moth" weight=0.6 from=45 act=4         // moths from 0:45
-bug "beetle" weight=0.35 from=60 act=4      // stand-in: stag beetles from 1:00
+bug "cicada" weight=0.35 from=90 act=4      // cicadas from 1:30: a tank, so only a few

@@ -250,3 +250,15 @@ night4('the-dawn-look-warms-across-the-night', {
       && unlit && lights() === lit, { start, end, lit });
   },
 });
+night4('cicadas-from-1-30', {
+  about: 'A roll favouring the last eligible bug cannot spawn a cicada before 1:30 in the living room, but spawns one at exactly 1:30.',
+  setup() { fresh({ waves: true, elites: false }); },
+  play() {
+    const { run, enemies, player } = G();
+    stub(Math, 'random', () => .999999);
+    stub(run, 'spawnPoint', () => player.position.clone());
+    const during = (t) => { enemies.clear(); run.t = t; run.spawnAcc = 1; run.spawnWaves(0); return enemies.list.filter((e) => e.type === 'cicada').length; };
+    const before = during(89.999), after = during(90);
+    return ok(!before && after > 0, { before, after });
+  },
+});

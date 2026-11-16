@@ -1187,3 +1187,56 @@ story('words/leap-subtle-warning', {
       && samples.map(s => s.progress).join() === '0,0.25,0.5,0.5,0.75,1' && !enemies.leapMarks[0].visible, { samples, hiddenAfter: !enemies.leapMarks[0].visible });
   },
 });
+
+// --- the cicada (act 4): a slow tank that plants itself and sings a cone that shoves and hurts
+const cicadaAt = (d = 0.3) => { const e = spawn('cicada', near(d, 0)); e.songCd = 0.2; return e; };
+story('words/sing', {
+  about: 'Within reach the cicada stops and turns to you for 1.2 s while a floor wedge and a cone over it fill together, then sings: a jelly still in the cone takes 4 and is shoved away from it; the Warning is gone once it rests.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
+    step(60 * 3, () => e.state === 'windup');
+    const at = e.pos.clone();
+    let frames = 0, moved = 0, both = true, grew = true, last = 0;
+    step(60 * 3, () => {
+      if (e.state === 'windup') {
+        frames++; moved = Math.max(moved, e.pos.distanceTo(at));
+        const M = enemies.songMarks[0];
+        both = both && !!M && M.floor.visible && M.vol.visible && M.floor.material.progress === M.vol.material.progress;
+        if (M) { grew = grew && M.floor.material.progress >= last; last = M.floor.material.progress; }
+      }
+      return e.state !== 'windup';
+    });
+    step(60, () => log.some((d) => d.source === 'cicada'));
+    const hit = log.find((d) => d.source === 'cicada'), secs = frames / 60;
+    step(60 * 3, () => e.state === 'approach');
+    const gone = !enemies.songMarks.some((M) => M.floor.visible || M.vol.visible);
+    return ok(secs > 1.1 && secs < 1.3 && moved < 0.005 && both && grew && hit?.amount === 4 && shoves.some((k) => k.targetId === PLAYER && k.force === 0.8) && gone, { secs: +secs.toFixed(2), moved: +moved.toFixed(4), both, grew, hit: hit?.amount, gone });
+  },
+});
+story('words/sing-dodge', {
+  about: 'The cicada\'s aim locks half way through its wind-up: stepping out of the wedge after that, the song goes past and the jelly is not hurt.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.35); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 3, () => e.state === 'windup');
+    step(60 * 3, () => e.songK > 0.55);
+    const P = player.position, side = V(-e.songDir.z, 0, e.songDir.x).normalize();
+    tp(P.x + side.x * 0.4, P.y, P.z + side.z * 0.4);
+    step(60 * 3, () => e.state === 'rest');
+    return ok(e.state === 'rest' && !log.some((d) => d.source === 'cicada'), { state: e.state });
+  },
+});
+story('words/sing-breaks-off', {
+  about: 'Freezing a cicada half way through its wind-up breaks the song off: its Warning goes, its drone stops and it goes back to walking.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 3, () => e.state === 'windup');
+    step(60 * 3, () => e.songK > 0.5);
+    e.freezeT = 1;
+    step(5);
+    const marks = enemies.songMarks.some((M) => M.floor.visible || M.vol.visible);
+    return ok(e.state === 'approach' && !marks && !e.chargeSound && !log.some((d) => d.source === 'cicada'), { state: e.state, marks, sound: !!e.chargeSound });
+  },
+});
