@@ -228,7 +228,6 @@ export class Enemies {
     this.world = world;
     this.fx = fx;
     this.list = [];
-    this.lamps = [];     // the apartment's point lights (main.js collectLamps): the moth circles the lit ones
     this.keepOut = [];   // safe glows (night-light safe=#true): { x, y, z, r }, the gadgets keep it
     this.models = new ModelPool();
     this.projectiles = new ModelPool();
@@ -1237,18 +1236,6 @@ export class Enemies {
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
-  // the lit lamp (a light with intensity) nearest `from` among those within `reach` m of `near`, written to `out`; null if none
-  nearestLamp(from, near, reach, out) {
-    let bd = Infinity, found = false;
-    for (const L of this.lamps) {
-      if (!(L.intensity > 0)) continue;
-      L.getWorldPosition(S.lamp);
-      if (S.lamp.distanceTo(near) > reach) continue;
-      const d = S.lamp.distanceToSquared(from);
-      if (d < bd) { bd = d; out.copy(S.lamp); found = true; }
-    }
-    return found ? out : null;
-  }
   // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
   // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
   biteWind(e, dur) { sfx.biteWind(dur); }
@@ -1577,7 +1564,7 @@ export class Enemies {
 const tmp = new THREE.Vector3();
 const PUSH_RAYS = [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.5], [0, -0.5]];
 // scratch vectors for the per-frame movement code (no garbage per enemy per frame)
-const S = { lamp: new THREE.Vector3(), step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 }, view: new THREE.Frustum(), viewProj: new THREE.Matrix4(), sphere: new THREE.Sphere() };
+const S = { step: new THREE.Vector3(), dir: new THREE.Vector3(), o: new THREE.Vector3(), away: new THREE.Vector3(), spot: new THREE.Vector3(), want: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), ray: new THREE.Vector3(), windDir: new THREE.Vector3(), windCenter: new THREE.Vector3(), windAcross: new THREE.Vector3(), windOrigin: new THREE.Vector3(), windContact: new THREE.Vector3(), windFrom: new THREE.Vector3(), windBack: new THREE.Vector3(), separate: new THREE.Vector3(), hurt: new THREE.Vector3(), moveDelta: new THREE.Vector3(), moveCenter: new THREE.Vector3(), moveTo: new THREE.Vector3(), moveHit: { normal: new THREE.Vector3(), point: new THREE.Vector3(), distance: 0 }, view: new THREE.Frustum(), viewProj: new THREE.Matrix4(), sphere: new THREE.Sphere() };
 
 // The mark's skull: white bone with dark eye sockets, nose and teeth, on a soft red glow
 let _skull = null;

@@ -89,14 +89,14 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     evade every=5 distance=0.25 speed=2.2
 }
 
-// Act 4 (from 0:45): the moth, pale and dusty-winged. It flutters round the nearest lit lamp (a lamp
-// within 1.5 m of you; with none, round you). Stand under or near that lamp and it rears up, wings
-// flared and a rising whirr, then swoops at where you were and stings; miss it and it climbs
-// back to the lamp. Unlike the wasp it lives through its sting. Get out from under the lamp.
+// Act 4 (from 0:45): the moth, pale and dusty-winged. Drawn to your glow, it flutters round you in
+// wide loops, then rears up (wings flared, a rising whirr) and swoops at where you were, stinging for 3
+// as it passes. Unlike the wasp it lives through its sting: it pulls up, rests and comes round again.
+// Step off its line as it rears.
 enemy "moth" name="Moth" hp=110 r=0.045 dmg=1 xp=9 model="moth" {
     death-motion "flutter"
-    lamp reach=1.5 circle=0.12 above=0.18 speed=0.45 turn=1.8 near=0.3
-    dive lamp=#true spend=#false every=2.5 windup=0.6 speed=1.5 reach=0.7 dmg=3 rest=0.9
+    hover 0.25 above=0.14 speed=0.5 circle=1.8
+    dive range=0.45 spend=#false every=2.5 windup=0.6 speed=1.5 reach=0.7 dmg=3 rest=0.9
 }
 
 // Act 3 (from 0:45): the praying mantis stalks after you on four legs, its forelegs folded.
