@@ -74,10 +74,11 @@ export function buildPillow() {
   cap.add(glow);
 
   // angry eyes on the stem's front, under the cap
-  const eyes = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.46 });
-  eyes.scale.setScalar(0.07);
-  eyes.position.set(0, STEM_H * 0.52, STEM_R * 0.93);
-  g.add(eyes);
+  const eyes = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.46 }), face = new THREE.Group();   // (the elite blinks `eyes` by its scale.y, so the sizing is on `face`)
+  face.scale.setScalar(0.07);
+  face.position.set(0, STEM_H * 0.52, STEM_R * 0.93);
+  face.add(eyes);
+  g.add(face);
 
   return { group: g, stem, cap, glow, eyes, capY: CAP_Y };
 }

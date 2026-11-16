@@ -9,6 +9,7 @@ import { CONTENT } from '../content.js';
 import { CONFIG } from '../config.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
+import * as kit from './kit.js';
 import { G, fresh, night4, ok, onSofa, pillow, r3, record, spy, startPillow, step, tp, volumePairs } from './kit.js';
 
 const offSofa = () => tp(0.3, 0.02, 2.9, 0);                    // on the floor past the sofa's end
@@ -208,5 +209,20 @@ night4('pillow-attacks-feel', {
     const hop = { ring: rings.filter(([, , rad]) => Math.abs(rad - SK().hop.radius) < 1e-6).length, fluff: bursts.length, dust: splats.length, big: feels.filter(([k]) => k === 'impact-big').length, squash: +squash.toFixed(2) };
     return ok(spores.glow > 0.5 && spores.pop > 1.05 && spores.puffFlash >= 1 && spores.footFlash >= n && spores.dust >= n && spores.shake >= 2 && n === S.spots
       && hop.ring >= 1 && hop.fluff >= 1 && hop.dust >= 1 && hop.big >= 1 && hop.squash < 0.9, { spores, hop, run: !!run });
+  },
+});
+
+night4('room-elites-eyes-keep-their-size', {
+  about: 'The room\'s Elites blink by squashing their eyes (scale.y from 0.12 asleep to 1 awake), so their eyes are sized by the face round them: awake, the Singing Bowl\'s and the Mushroom Pillow\'s eyes stay about 3 cm tall, not stretched up over the whole Elite.',
+  setup() { fresh(); },
+  play() {
+    const out = {};
+    for (const [kind, at] of [['bowl', () => kit.onChair()], ['pillow', () => onSofa()]]) {
+      fresh(); at(); step(90);
+      const e = G().run.elites.list.find((q) => q.kind === kind);
+      e.holder.updateMatrixWorld(true);
+      out[kind] = { awake: e.awake, scale: +e.model.eyes.getWorldScale(new THREE.Vector3()).y.toFixed(3) };   // an eye is about 0.6 of this tall (enemies.js angryEyes)
+    }
+    return ok(Object.values(out).every((r) => r.awake && r.scale < 0.08), out);
   },
 });
