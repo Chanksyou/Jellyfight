@@ -17,7 +17,7 @@ import { MainMenu } from './main-menu.js';
 import { ADORNMENTS } from './words.js';
 import { Hud, inPoly } from './hud.js';
 import { addSurfaceDetail } from './detail.js';
-import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction } from './stages.js';
+import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction, stageOf } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
@@ -448,7 +448,7 @@ const systems = {
 let layoutChanged = false;
 function openLayout() {
   run.disqualifyChallenges();
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: stage.id, acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (a built arena, act 4, has no furniture to lay out)
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: stage.id, acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (act 4: its room; the arena behind its stage door is built, with no furniture)
     onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
@@ -754,7 +754,7 @@ overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   sfx.tap();
-  if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }); }
+  if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }, k.scene); }
   else if (b.classList.contains('play')) startRun();
   else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
   else if (b.dataset.fps) { setFps(+b.dataset.fps); renderQuality(); }
@@ -900,8 +900,9 @@ async function warmUp() {
   enemies.markLook(temp[2], 0);
   temp.at(-2).mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
   temp.at(-1).mesh.traverse((o) => { if (o.isMesh) o.material = fx.acid.gooMat; });   // an acid-finished bug melting (acid-looks.js)
-  const warmBoss = makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });   // this act's boss
-  warmBoss.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
+  // this act's boss (not in a scene before its stage door: the boss is through it, in the next scene's page)
+  const warmBoss = stage.stageDoor ? null : makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });
+  warmBoss?.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);
@@ -930,7 +931,7 @@ async function warmUp() {
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));
   warmFx.forEach((m) => scene.remove(m));
-  warmBoss.dispose();
+  warmBoss?.dispose();
   scene.remove(flash);
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
@@ -1064,7 +1065,7 @@ if (continuing) {
 function showKept() {
   const k = stage.id === 1 && !continuing ? keptRun() : null, btn = overlay.querySelector('.resume');
   btn.hidden = !k;
-  if (k) btn.innerHTML = `Continue act ${k.act}<small>${STAGES[k.act - 1].subtitle} · Level ${k.carry.mid?.now.level ?? k.carry.level} · Score ${(+(k.carry.mid?.now.score ?? k.carry.score) || 0).toLocaleString()}</small>`;
+  if (k) btn.innerHTML = `Continue act ${k.act}<small>${stageOf(k.act, k.scene).subtitle} · Level ${k.carry.mid?.now.level ?? k.carry.level} · Score ${(+(k.carry.mid?.now.score ?? k.carry.score) || 0).toLocaleString()}</small>`;
 }
 showKept();
 GAME.showKept = showKept;

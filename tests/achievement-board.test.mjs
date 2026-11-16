@@ -37,9 +37,9 @@ const request = async (path, body) => {
 };
 // a score backed by a logged run: one act, finished with that score (the Worker checks it: checkRun)
 const logAct = (id, run, act, outcome, extra = {}) => sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
-  (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures, details)
-  VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
-  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]), extra.details ?? null);
+  (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures, details, boss_left)
+  VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
+  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]), extra.details ?? null, extra.bossLeft ?? null);
 const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { score: body.score }); return request('/api/scores', { run: 'run-' + body.id, ...body }); };
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
@@ -320,6 +320,21 @@ test('a score must be the last act of a run its player logged, and the run must 
   logAct('player-one', 'run-rush', 2, 'died', { score: 30000 });
   assert.equal((await post('run-rush', 30000)).data.why, 'unverified');
   assert.equal(sqlite.prepare('SELECT score FROM scores').get().score, 20000);
+});
+
+test('act 4 has a night before its arena: a win or an Encore fight takes 170 s, and its levels go higher', async () => {
+  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score }); };
+  const upTo3 = (run) => [1, 2, 3].forEach((act) => logAct('player-one', run, act, 'next-act', { score: act * 1000, level: 10 + act }));
+  upTo3('run-won4'); logAct('player-one', 'run-won4', 4, 'won', { score: 9000, level: 31, time: 260 });       // the night, then the Encore beaten
+  assert.equal((await post('run-won4', 9000)).data.posted, true);
+  upTo3('run-quick'); logAct('player-one', 'run-quick', 4, 'won', { score: 9000, level: 20, time: 90 });    // won act 4 without its night
+  assert.equal((await post('run-quick', 9000)).data.why, 'unverified');
+  upTo3('run-arena'); logAct('player-one', 'run-arena', 4, 'died', { score: 9000, level: 20, time: 120, bossLeft: 60 });   // in the arena too soon
+  assert.equal((await post('run-arena', 9000)).data.why, 'unverified');
+  upTo3('run-room4'); logAct('player-one', 'run-room4', 4, 'died', { score: 9500, level: 20, time: 60 });     // dried out in the room: no rule on time
+  assert.equal((await post('run-room4', 9500)).data.posted, true);
+  upTo3('run-high4'); logAct('player-one', 'run-high4', 4, 'won', { score: 9000, level: 33, time: 300 });    // past act 4's level cap
+  assert.equal((await post('run-high4', 9000)).data.why, 'unverified');
 });
 
 test('a score names the jelly type its run was logged as, and a missing type is Normal', async () => {

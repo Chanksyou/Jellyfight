@@ -278,6 +278,11 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Piranha pools expire and cap at six.
   Dendi finishes it at zero Health, followed by the evolution, Legendary reward and Act 4.
   See [the model and fight notes](docs/shark-boss.md).
+- **Act 4: the Encore.**
+  Beat the shark and the run comes back to the living room at dawn, 6 am to 8 am, entering from the hallway door (3:00 this time).
+  Act 3's bugs stand in for now, and three chests turn up in the night.
+  When time runs out no boss comes: the stage door opens on the media console, and landing there takes the run through to the concert arena for **The Encore**, carrying its Health, level, Treasures and kills.
+  The act is two scenes of one act (`src/stage4.js`: the room's `stageDoor` leads to `ENCORE`, the arena), loaded by the same reload as an act change.
 
 **Music:** an adaptive soundtrack synthesized in the browser (`src/music.js`), in the spirit of Risk of Rain 2.
 Exploring plays "Puddle Drift", inspired by Daft Punk's Tron: Legacy score: dark string pads, then a pulsing sequenced analog bass that carries the song, a slow arpeggio, deep half-time drums and toms, and a low brass lead as more bugs close in and the night gets later, with no bright highs to distract; the Vacuum fight plays "Domestic Machinery", after deadmau5's "HR 8938 Cephei" but dubbier: pumping supersaw chords, a wobbling reese bass that speeds up as the Vacuum weakens, risers into every phrase, and a supersaw lead once it's below about 60% health; its suction drags the whole mix through a dub filter.

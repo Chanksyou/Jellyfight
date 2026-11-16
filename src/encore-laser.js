@@ -10,10 +10,10 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { TeleMaterial } from './vfx.js';
-import { STAGE4 } from './stage4.js';
+import { ENCORE } from './stage4.js';
 import { sfx } from './sfx.js';
 
-const HALF = (STAGE4.tiles * STAGE4.tileSize) / 2;
+const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2;
 // Health one hit takes (the owner's call: 2, the lightest of the Encore's hits)
 export const LASER_DMG = 3;
 // the emitters: just inside each corner of the floor, on the corner posts

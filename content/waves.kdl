@@ -25,3 +25,9 @@ bug "ladybug" weight=0.5 from=120 act=2     // ladybugs from 2:00
 bug "dragonfly" weight=1 act=3              // dragonflies from the start
 bug "mantis" weight=0.6 from=45 act=3       // praying mantises from 0:45
 bug "beetle" weight=0.35 from=60 act=3      // stag beetles from 1:00: a tank, so only a few
+
+// act 4: the living room at dawn (src/stage4.js). Stand-ins: act 3's bugs and pacing, until the
+// act's own crowd (Firefly, Moth, Cicada) comes in
+bug "dragonfly" weight=1 act=4              // stand-in: dragonflies from the start
+bug "mantis" weight=0.6 from=45 act=4       // stand-in: praying mantises from 0:45
+bug "beetle" weight=0.35 from=60 act=4      // stand-in: stag beetles from 1:00

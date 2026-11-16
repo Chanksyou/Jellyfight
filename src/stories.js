@@ -8,7 +8,7 @@
 //
 // When you add a behaviour, add a story that proves it. When a story breaks, the game did.
 
-import { currentAct, goToAct } from './stages.js';
+import { currentAct, currentScene, goToAct } from './stages.js';
 import { G, STORIES, restore } from './stories/kit.js';
 import { DEFAULT_SEED, seededRandom, seedFor } from './story-random.mjs';
 import './stories/traversal.js';
@@ -57,6 +57,7 @@ import './stories/act3-croc.js';
 import './stories/act3-bull.js';
 import './stories/act3-coffer.js';
 import './stories/act4.js';
+import './stories/night4.js';
 import './stories/phone.js';
 import './stories/nests.js';
 import './stories/types.js';
@@ -96,7 +97,7 @@ export async function runStory(name, baseSeed = DEFAULT_SEED) {
 export function mount(name) {
   const s = STORIES[name];
   if (!s) return list(`No story called "${name}".`);
-  if ((s.act || 1) !== currentAct()) return goToAct(s.act || 1);   // it plays in another act: reload into it
+  if ((s.act || 1) !== currentAct() || (s.scene || 1) !== currentScene()) return goToAct(s.act || 1, null, null, s.scene || 1);   // it plays in another act (or scene): reload into it
   s.setup();
   document.getElementById('g-over').hidden = true;
   const tag = document.createElement('div');

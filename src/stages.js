@@ -1,6 +1,8 @@
 // The acts, in order, and which one this page plays. Moving on to the next act carries the run
 // over (level, stats, treasures, score) in sessionStorage and reloads the page into it, so
-// every system is built for that act's rooms from the start (src/run.js nextAct).
+// every system is built for that act's rooms from the start (src/run.js nextAct). An act can be
+// played in two scenes (act 4: the living room, then through its `stageDoor` the concert arena):
+// the second is the same reload, with `scene: 2` in the act's state.
 import { STAGE1 } from './stage1.js';
 import { STAGE2 } from './stage2.js';
 import { STAGE3 } from './stage3.js';
@@ -23,16 +25,20 @@ function save(v) {
 
 // The act to play now (1-based), and what the run brought with it from the act before (or null)
 export function currentAct() { return Math.min(STAGES.length, Math.max(1, +(load()?.act) || 1)); }
-export const currentStage = () => STAGES[currentAct() - 1];
+// an act's stage data for a scene (1, or 2 for the other side of its stage door)
+export const stageOf = (act, scene = 1) => { const s = STAGES[act - 1]; return scene === 2 && s?.stageDoor ? s.stageDoor.to : s; };
+export const currentScene = () => (stageOf(currentAct(), load()?.scene)?.scene || 1);
+export const currentStage = () => stageOf(currentAct(), load()?.scene);
 export const carried = () => load()?.carry || null;
 
 // how the page reloads (a story swaps it out to see where a run goes next without leaving the page)
 export const nav = { reload: () => location.reload() };
 
 // Go to an act (with the run's carry, or none for a fresh run) and reload into it. `then`: what
-// to do once it's loaded (the dev 1 on 1 picker: { duel: name }), read once with pendingAction()
-export function goToAct(act, carry = null, then = null) {
-  save({ act, carry, then });
+// to do once it's loaded (the dev 1 on 1 picker: { duel: name }), read once with pendingAction();
+// `scene`: 2 for the act's second scene
+export function goToAct(act, carry = null, then = null, scene = 1) {
+  save({ act, scene, carry, then });
   nav.reload();
 }
 // A run kept on the device (localStorage) from the start of the act it reached, so a closed tab or a
@@ -40,9 +46,14 @@ export function goToAct(act, carry = null, then = null) {
 // the run moves on to the next act, gone when the run ends or a new one starts; kept up to date with
 // the act's progress as it's played (keepAct).
 export const SAVE_KEY = 'jellyrun.run';
-export function keepRun(act, carry) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ act, carry })); } catch {} }
+export function keepRun(act, carry, scene = 1) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ act, scene, carry })); } catch {} }
 export function keptRun() {
-  try { const v = JSON.parse(localStorage.getItem(SAVE_KEY)); return v && v.carry && STAGES[v.act - 1] ? v : null; } catch { return null; }
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!(v && v.carry && STAGES[v.act - 1])) return null;
+    if (v.carry.mid && !v.carry.mid.scene && STAGES[v.act - 1].stageDoor) delete v.carry.mid;   // kept in act 4's arena before it had a night: its room starts afresh (Run.start)
+    return v;
+  } catch { return null; }
 }
 export function forgetRun() {
   try { localStorage.removeItem(SAVE_KEY); } catch {}
@@ -60,7 +71,7 @@ export function keepAct(carry) {
   if (!v?.carry) return;
   save({ ...v, carry });
   const k = keptRun();
-  if (k && k.act === v.act && k.carry.logId === carry.logId) keepRun(k.act, carry);
+  if (k && k.act === v.act && (k.scene || 1) === (v.scene || 1) && k.carry.logId === carry.logId) keepRun(k.act, carry, k.scene);
 }
 // the same, without using it up (main.js shows a different loading screen for { continue: true })
 export const peekAction = () => load()?.then || null;

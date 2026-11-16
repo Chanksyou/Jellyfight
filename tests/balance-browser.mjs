@@ -149,7 +149,9 @@ function controller(config, meter) {
       .map(e => { const p = enemies.center(e); return { x: p.x, z: p.z, r: e.r, distance: Math.hypot(P.x - p.x, P.z - p.z) - e.r }; })
       .sort((a, b) => a.distance - b.distance);
     const chests = run.roomTreasures.filter(t => t.active).sort((a, b) => a.pos.distanceToSquared(P) - b.pos.distanceToSquared(P));
-    const target = chests[0]?.pos || { x: run.stage.start[0], z: run.stage.start[2] };
+    // a two-scene act's open stage door: the vent that lands on it (act 4: the vent by the TV)
+    const D = run.doorOpen && run.stage.stageDoor, up = D && run.traversal.vents.find(v => v.land[0] >= D.min[0] && v.land[0] <= D.max[0] && v.land[2] >= D.min[2] && v.land[2] <= D.max[2]);
+    const target = up ? { x: up.at[0], z: up.at[2] } : chests[0]?.pos || { x: run.stage.start[0], z: run.stage.start[2] };
     const move = movement(config.style, { x: P.x, z: P.z, nearest: candidates[0], target,
       range: stats.range, reach: stats.reach, retreat: state.retreat,
       shots: enemies.shots.filter(s => !s.done).map(s => ({ x: s.m.position.x, z: s.m.position.z })) });
@@ -229,7 +231,7 @@ export function startAct(config) {
     moved: bot.state.moved, rootedSeconds: bot.state.rootedSeconds, transition: state.transition });
   active.chunk = (frames = 600) => {
     for (let i = 0; i < frames; i++) {
-      if (state.transition) return snapshot('next-act');
+      if (state.transition) return snapshot(state.transition.act === run.stage.id ? 'next-scene' : 'next-act');   // through a stage door, or on to the next act
       if (run.phase === 'dead') return snapshot('died');
       if (run.bossWon && config.actOnly) return snapshot('beat-boss');
       if (run.phase === 'won' && !STAGES[run.stage.id]) return snapshot('won');

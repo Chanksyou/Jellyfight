@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { EncoreContact, CONTACT_DMG } from '../encore-contact.js';
 import { buildEncoreBoss } from '../encore-model.js';
 import { buildAct4 } from '../act4-arena.js';
-import { STAGE4 } from '../stage4.js';
+import { ENCORE } from '../stage4.js';
 import { World } from '../collision.js';
 import { CONFIG } from '../config.js';
 import { Player } from '../player.js';
