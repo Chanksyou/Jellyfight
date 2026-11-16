@@ -2171,19 +2171,19 @@ export class Elites {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('bowl'), beat = this.beat;
         const jumped = (e.strikes || e.chimes) && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
         e.beatWas = beat;
-        if (jumped) { e.cancelAttack(); e.cool = angry ? SK.ring.angryRest : SK.ring.rest; continue; }
+        if (jumped) { const S = e.attack ? SK.chime : SK.ring; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
         const rim = this._mid.copy(muzzle);
         if (e.attack === 0) {
           // Rim ring: the striker lifts over the rim while a Warning (a disc round the bowl and the low
           // ring wall over it) fills to the strike; on the bar it hits the rim and a thin, low ring
           // wall rolls out across the seat: jump it. Angry: two a bar, the second faster
-          const R = SK.ring, n = angry ? R.angryRings : R.rings, every = angry ? 2 : 4;
-          if (!e.strikes) {
-            const first = Math.ceil((beat + R.windup) / 4) * 4;              // the first bar line at least windup beats away
-            e.strikes = Array.from({ length: n }, (_, k) => first + k * every);
+          const R = SK.ring;
+          if (!e.strikes) {                                                  // planned as it starts: turning angry part way keeps the plan
+            const first = Math.ceil((beat + R.windup) / 4) * 4, every = angry ? 2 : 4;   // the first bar line at least windup beats away
+            e.strikes = Array.from({ length: angry ? R.angryRings : R.rings }, (_, k) => first + k * every);
             e.struckN = 0; e.fromBeat = beat;
           }
-          const k = e.struckN;
+          const k = e.struckN, n = e.strikes.length;
           if (k < n) {
             const due = e.strikes[k], from = k ? e.strikes[k - 1] : e.fromBeat, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
             if (!e.tele.length) e.tele.push(this.warnCircle(surf, R.warn, this.T.bowl), this.volume(col, 'ring', surf, new THREE.Vector3(R.warn, R.height, R.warn)));

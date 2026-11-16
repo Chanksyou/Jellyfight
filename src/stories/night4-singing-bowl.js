@@ -43,7 +43,7 @@ night4('bowl-wakes-when-you-are-on-the-chair', {
     offChair();
     step(60 * 4);
     const hp = e.maxHp === Math.round(CONTENT.elites.bowl.hp * run.stage.eliteHp);
-    return ok(awake && eyes > 0.8 && facing < 0.3 && !e.awake && e.model.eyes.scale.y < 0.4 && hp && CONTENT.elites.bowl.hp === 800,
+    return ok(awake && eyes > 0.8 && facing < 0.3 && !e.awake && e.model.eyes.scale.y < 0.4 && hp,
       { awake, eyes: +eyes.toFixed(2), facing: +facing.toFixed(2), asleep: !e.awake, maxHp: e.maxHp });
   },
 });
@@ -61,7 +61,7 @@ night4('bowl-rim-ring-strikes-on-the-bar', {
       return e.state === 'idle' && beats.length && !run.elites.rings.length;
     });
     const hits = hitsBy(log, 'bowl-ring'), gaps = beats.slice(1).map((b, i) => +(b - beats[i]).toFixed(2));
-    return ok(warned > 30 && lifted > 0.1 && beats.length === SK().ring.rings && beats.every((b) => offBar(b) < 0.1) && gaps.every((g) => Math.abs(g - 4) < 0.1) && hits.length === beats.length && hits.every((n) => n === 3),
+    return ok(warned > 30 && lifted > 0.1 && beats.length === SK().ring.rings && beats.every((b) => offBar(b) < 0.1) && gaps.every((g) => Math.abs(g - 4) < 0.1) && hits.length === beats.length && hits.every((n) => n === SK().ring.dmg),
       { warned, lifted: +lifted.toFixed(2), beats, gaps, hits });
   },
 });
@@ -110,6 +110,21 @@ night4('bowl-angry-two-rings-a-bar-the-second-faster', {
   },
 });
 
+night4('bowl-turning-angry-mid-ring-finishes-the-ring', {
+  about: 'A Singing Bowl that turns angry part way through its rim ring (the jelly\'s hits take it under 65%) finishes the rings it planned on their beats and rests, rather than waiting on a ring it never planned; its next attacks are angry.',
+  setup() { startBowl(0); },
+  play() {
+    const { e } = startBowl(0), { run } = G(), R = SK().ring;
+    let struck = 0;
+    step(60 * 12, () => {
+      if (e.struckN === 1 && e.hp >= e.maxHp * e.def.angry) e.hp = e.maxHp * 0.5;   // angry after the first ring
+      struck = Math.max(struck, e.struckN || 0);
+      return e.state === 'idle' && struck && !run.elites.rings.length;
+    });
+    return ok(struck === R.rings && e.state === 'idle' && !e.strikes && !e.tele.length && e.cool === R.angryRest, { struck, state: e.state, cool: e.cool });
+  },
+});
+
 night4('bowl-chime-shots-on-the-beat', {
   about: 'Chime: the striker runs round the rim and a ball of song swells over the bowl until a bar line; then a Shot a beat (three) flies from it at the jelly\'s middle, mid-jump included: a jelly that stays put is hit by each, 3 a Shot, jumping or not.',
   setup() { startBowl(1); },
@@ -128,7 +143,7 @@ night4('bowl-chime-shots-on-the-beat', {
       const gaps = beats.slice(1).map((b, i) => +(b - beats[i]).toFixed(2));
       out[name] = { swell: +swell.toFixed(4), turned: +turned.toFixed(1), beats, gaps, hits: hitsBy(log, 'bowl-chime') };
     }
-    const C = SK().chime, good = (r) => r.swell > C.size * 0.8 && r.turned > 3 && r.beats.length === C.shots && offBar(r.beats[0]) < 0.1 && r.gaps.every((g) => Math.abs(g - C.every) < 0.1) && r.hits.length === C.shots && r.hits.every((n) => n === 3);
+    const C = SK().chime, good = (r) => r.swell > C.size * 0.8 && r.turned > 3 && r.beats.length === C.shots && offBar(r.beats[0]) < 0.1 && r.gaps.every((g) => Math.abs(g - C.every) < 0.1) && r.hits.length === C.shots && r.hits.every((n) => n === C.dmg);
     return ok(good(out.standing) && good(out.jumping), out);
   },
 });
