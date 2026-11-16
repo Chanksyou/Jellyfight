@@ -111,6 +111,16 @@
 //                     over it (no floor Warning: the ball is the tell); then on the next bar's beats
 //                     a Shot a beat flies at you: keep moving sideways.
 //     Under 65% Health it's angry: two rings a bar, the second faster.
+//   pillow      the Mushroom Pillow on the sofa (act 4's living room; pillow-model.js), standing in for
+//               the real pillow there. It keeps the song's time too (its numbers are in beats).
+//     Spores:         its cap breathes in, its spots glowing, then puffs spores that drift over the
+//                     seat (one onto where you are) and settle as marked spots (a circle and the
+//                     column over it); they flash for a beat, then burst on the bar as columns that
+//                     hit all the way up over a jump: step off the spot, a jump doesn't clear it.
+//     Hop-slam:       it crouches while a Warning (a circle and the half sphere over it) fills where
+//                     it will land, a short hop toward you; it leaps on a beat and lands as a Blast
+//                     round itself on the next, then waddles back to its spot.
+//     Under 65% Health it's angry: more spores, settling faster.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -130,6 +140,7 @@ import { buildCroc } from './croc-model.js';
 import { buildBull, buildMiniBull } from './bull-model.js';
 import { buildCoffer, COFFER } from './coffer-model.js';
 import { buildBowl } from './bowl-model.js';
+import { buildPillow } from './pillow-model.js';
 
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
@@ -137,7 +148,7 @@ export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
-  bowl: ['ring', 'chime'],
+  bowl: ['ring', 'chime'], pillow: ['spores', 'hop'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -443,6 +454,11 @@ function bowlModel() {
   return { ...buildBowl(), muzzle: new THREE.Vector3(0, 0.112, 0), r: 0.07, barY: 0.17, hitAt: new THREE.Vector3(0, 0.07, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
 }
 
+// the Mushroom Pillow (act 4; pillow-model.js): its spores leave from the top of its cap
+function pillowModel() {
+  return { ...buildPillow(), muzzle: new THREE.Vector3(0, 0.45, 0), r: 0.19, barY: 0.34, hitAt: new THREE.Vector3(0, 0.13, 0) };   // (barY and hitAt: in the elite's frame, unscaled)
+}
+
 const BALLOON = 0.15;      // the Cream Whipper's balloons: scale of the model (about 18 cm tall, 15 cm across)
 export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its knot, in its model's units (whipper-model.js: the body is 1.2 tall)
 
@@ -463,6 +479,7 @@ const KINDS = {
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
   coffer: { name: 'The Latticework Coffer', build: cofferModel },
   bowl: { name: 'The Singing Bowl', scale: 1.4, build: bowlModel },
+  pillow: { name: 'The Mushroom Pillow', scale: 0.6, build: pillowModel },   // smaller than the 44 cm prop: life size, its cap filled the game camera
 };
 const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
@@ -562,6 +579,8 @@ class Elite {
   }
 
   clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); }); this.tele = []; }
+  // the Mushroom Pillow's spores still out (drifting or settled): back to the pool
+  dropSpores() { for (const s of this.spores || []) this.owner.fx.free(s.orb); this.spores = null; }
 
   cancelAttack() {
     this.clearTele();
@@ -584,6 +603,7 @@ class Elite {
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
     if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
     if (this.kind === 'bowl') { this.owner.fx.free(this.ball); this.ball = null; this.model.pose('rest'); this.charge = 0; }
+    if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // back on the seat if it was mid-hop
     if (this.kind === 'soap') {
       const M = this.model;
       M.head.position.y = M.headY; M.stem.scale.y = 1; M.stem.position.y = M.headY - 0.012;
@@ -595,6 +615,7 @@ class Elite {
   remove() {
     this.clearTele();
     this.owner.fx.free(this.ball);   // the Kettle's steam ball, still charging
+    this.dropSpores();               // the Mushroom Pillow's, still drifting
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
     this.owner.scene.remove(this.holder);
     for (const o of this.model.loose || []) this.owner.scene.remove(o);
@@ -652,6 +673,7 @@ export class Elites {
       rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
       coffer: new TeleMaterial(hostile('coffer')),
       bowl: new TeleMaterial(hostile('bowl')),
+      pillow: new TeleMaterial(hostile('pillow')),
       safe: new TeleMaterial(LOOK.color('safe-spot', '#ffffff')),   // the one spot an attack spares (the Kettle's lid)
       hour: new TeleMaterial(hostile('clock'), 'wedge', 0.45),
     };
@@ -754,6 +776,10 @@ export class Elites {
       standOut(bowl.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
       bowl.song.material.opacity = 0.5;
       bowl.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
+      const pillow = buildPillow();                                        // the Mushroom Pillow, as it stands out, its spots glowing
+      standOut(pillow.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });
+      pillow.glow.material.opacity = 0.5;
+      pillow.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       this._warm.push(new THREE.Mesh(this.stripGeo, this.T.lane));
       this._warm.push(new THREE.Mesh(this.ringGeo, this.ringMat));
       this._warm.push(new THREE.Mesh(volumeGeometry('dome'), new VolumeMaterial(hostile('mug'))));   // every Warning volume shares this one program
@@ -1025,6 +1051,35 @@ export class Elites {
     return out;
   }
 
+  // the Mushroom Pillow's spore spots: the first where the jelly stands, the rest on its seat (its wake
+  // box, at the pillow's own level, never the back or an arm) within S.near of the jelly, S.spread apart, none under the pillow itself
+  pillowSpots(e, P, n, S) {
+    const W = e.spec.wake, out = [this.platformTarget(e, P.clone(), S.radius)];
+    let gap = S.spread;
+    for (let tries = 1; out.length < n && tries < 300; tries++) {
+      if (tries % 75 === 0) gap *= 0.85;
+      const a = Math.random() * Math.PI * 2, d = gap + Math.random() * Math.max(0, S.near - gap);
+      const at = new THREE.Vector3(P.x + Math.cos(a) * d, W.max[1], P.z + Math.sin(a) * d);
+      if (at.x < W.min[0] + S.radius || at.x > W.max[0] - S.radius || at.z < W.min[2] + S.radius || at.z > W.max[2] - S.radius) continue;
+      if (Math.hypot(at.x - e.base.x, at.z - e.base.z) < e.r + S.radius || out.some((o) => Math.hypot(o.x - at.x, o.z - at.z) < gap)) continue;
+      at.y = this.surfaceBelow(at);
+      if (Math.abs(at.y - e.base.y) < 0.04) out.push(at);   // (the seat, not the back or an arm)
+    }
+    return out;
+  }
+
+  // where the Mushroom Pillow's hop lands (into `to`): toward the jelly, at most H.reach from where
+  // it starts, on the seat it stands on (cut short if the way there leaves it)
+  pillowLanding(e, P, H, to) {
+    const from = e.plan.start, dx = P.x - from.x, dz = P.z - from.z, d = Math.hypot(dx, dz), k = d > H.reach ? H.reach / d : 1;
+    for (let i = 0; i <= 5; i++) {
+      const f = k * (1 - i / 5);
+      this.platformTarget(e, to.set(from.x + dx * f, from.y + 0.1, from.z + dz * f), H.radius * 0.5);
+      if (Math.abs(to.y - from.y) < 0.04) return to;
+    }
+    return to.copy(from);
+  }
+
   // What they do to you goes out as events (damage_taken, knockback, status_applied); a beaten
   // elite sends elite_defeated
   update(dt, player, cfg) {
@@ -1149,6 +1204,19 @@ export class Elites {
         const shiver = e.hum * LOOK.num('bowl-tremble', 0.03) * Math.sin(e.t * 90);
         M.body.scale.set(1 + shiver, 1, 1 - shiver);
         if (e.state === 'idle') { g.position.y = 0; if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.015; }   // asleep: still, breathing a little
+      }
+
+      // the Mushroom Pillow, attacking or not: its eyes close while it sleeps, it breathes; its spots
+      // glow as it gathers spores (e.charge), and its cap pops up as it puffs them (e.pop)
+      if (e.kind === 'pillow') {
+        const M = e.model;
+        M.eyes.scale.y += ((awake || e.state !== 'idle' ? 1 : 0.12) - M.eyes.scale.y) * (1 - Math.exp(-6 * dt));
+        e.pop = Math.max(0, (e.pop || 0) - dt * 4);
+        M.cap.scale.set(1 - e.pop * 0.05, 1 + e.pop * LOOK.num('pillow-pop', 0.18), 1 - e.pop * 0.05);
+        M.cap.position.y = M.capY;
+        M.glow.material.color.copy(hostile('pillow'));
+        M.glow.material.opacity = Math.min(1, Math.max(e.charge || 0, e.pop)) * LOOK.num('pillow-spot-glow', 0.9);
+        if (e.state === 'idle') { g.position.y = 0; if (!awake) g.scale.y *= 1 + Math.sin(e.t * 1.6) * 0.015; else g.rotation.z = Math.sin(e.t * 2.4) * 0.025; }   // asleep: breathing; awake: swaying
       }
 
       // the Bull, attacking or not: its eyes close while it sleeps, it breathes, it sways awake
@@ -2234,6 +2302,127 @@ export class Elites {
           } else if (beat > last + 1) { e.chimes = null; e.charge = 0; M.pose('rest'); e.state = 'idle'; e.cool = angry ? C.angryRest : C.rest; }
         }
       }
+
+      // ---------------------------------------------------------- the mushroom pillow
+      // Both attacks keep the song's time (this.beat), planned in beats as they start (e.plan); if the
+      // beat jumps, the attack is called off rather than going off unwarned (as the Singing Bowl's)
+      if (e.kind === 'pillow') {
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('pillow'), beat = this.beat;
+        const jumped = e.plan && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
+        e.beatWas = beat;
+        if (jumped) { const S = e.attack ? SK.hop : SK.spores; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        if (e.attack === 0) {
+          // Spores: the cap breathes in, its spots glowing; on a beat it puffs spores that drift over
+          // the seat (the first onto where you are) and settle as marked spots, a circle and the
+          // column over it filling to the burst; settled, they flash for one beat, then burst on the
+          // bar as columns that hit all the way up over a jump: step off the spot. Angry: more, settling faster
+          const S = SK.spores;
+          if (!e.plan) {
+            const drift = angry ? S.angryDrift : S.drift, burst = Math.ceil((beat + S.windup + drift + 1) / 4) * 4;   // the first bar line far enough off
+            e.plan = { from: beat, puff: burst - 1 - drift, settle: burst - 1, burst, n: angry ? S.angrySpots : S.spots };
+            sfx.pillowInhale((e.plan.puff - beat) * 60 / this.bpm);
+          }
+          const L = e.plan;
+          if (beat < L.puff) {                                               // breathing in
+            const u = THREE.MathUtils.clamp((beat - L.from) / (L.puff - L.from), 0, 1);
+            M.cap.scale.y *= 1 - u * LOOK.num('pillow-inhale', 0.16); M.cap.scale.x *= 1 + u * 0.05; M.cap.scale.z *= 1 + u * 0.05;
+            e.charge = u;
+            if (Math.random() < dt * 12 * u) this.fx.glow.emit(this._mid.copy(muzzle).setY(muzzle.y - 0.05 + Math.random() * 0.05).addScaledVector(this._right.set(Math.random() - 0.5, 0, Math.random() - 0.5), 0.3), col, 0.02, 0.005, 0.3, 0.8);   // spores gathering to the cap
+          } else if (!L.puffed) {                                            // the puff, on the beat
+            L.puffed = true;
+            const spots = this.pillowSpots(e, P, L.n, S), size = LOOK.num('pillow-spore-size', 0.008);
+            e.spores = spots.map((at) => {
+              const v = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
+              v.material.opacity = LOOK.num('pillow-column-opacity', 0.5);
+              e.tele.push(this.warnCircle(at, S.radius, this.T.pillow), v);
+              const orb = this.fx.orb(col, size);
+              orb.position.copy(muzzle);
+              return { at, from: muzzle.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.12, 0, (Math.random() - 0.5) * 0.12)), orb, phase: Math.random() * 6.28 };
+            });
+            e.pop = 1; e.charge = 0.4;
+            this.fx.puff(muzzle, LOOK.color('pillow-puff', '#f0c8ff'), LOOK.num('pillow-puff-size', 0.12), 0.7, 0.5);
+            this.fx.impact(muzzle, col, LOOK.num('pillow-puff-flash', 0.03), 10);
+            juice.feel('hit'); sfx.pillowPuff();
+          }
+          if (e.spores) {
+            const k = THREE.MathUtils.clamp((beat - L.puff) / (L.burst - L.puff), 0, 1), u = THREE.MathUtils.clamp((beat - L.puff) / (L.settle - L.puff), 0, 1);
+            const flash = beat >= L.settle ? +(Math.sin((beat - L.settle) * Math.PI * 4) > 0) : 0, arc = LOOK.num('pillow-spore-arc', 0.12);
+            e.spores.forEach((sp, i) => {
+              const w = e.tele[i * 2], v = e.tele[i * 2 + 1], ease = 1 - (1 - u) * (1 - u);
+              w.userData.fill(k); v.material.progress = k;
+              if (beat >= L.settle) { const o = LOOK.num('pillow-column-opacity', 0.5); w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
+              sp.orb.position.lerpVectors(sp.from, sp.at, ease);
+              sp.orb.position.y += Math.sin(Math.min(1, u * 1.4) * Math.PI) * arc + LOOK.num('pillow-spore-size', 0.008);
+              sp.orb.position.x += Math.sin(u * 9 + sp.phase) * 0.02 * (1 - u); sp.orb.position.z += Math.cos(u * 7 + sp.phase) * 0.02 * (1 - u);
+              this.fx.orbTick(sp.orb, dt, u < 1 ? 1 : 0.7 + flash * 0.9);
+            });
+            e.charge = 0.4 + flash * 0.6;
+            if (beat >= L.settle && !L.settled) {                            // they settle on their spots
+              L.settled = true;
+              for (const sp of e.spores) this.fx.puff(sp.at.clone().setY(sp.at.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), S.radius * 0.6, 0.35, 0.35);
+              sfx.pillowSettle(e.spores.length);
+            }
+            if (beat >= L.burst) {                                           // the burst, on the bar: columns
+              let struck = false;
+              e.clearTele();                                                 // (its volumes go back to the pool for the columns)
+              e.spores.forEach((sp) => {
+                const at = sp.at, mid = this._mid.copy(at).setY(at.y + 0.02);
+                if (!struck && Math.hypot(P.x - at.x, P.z - at.z) < S.radius + cfg.radius && P.y + cfg.height > at.y && P.y < at.y + LOOK.num('pillow-column', 0.35)) struck = true;   // the column, as tall as it's drawn (over a full jump)
+                const pulse = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
+                pulse.material.progress = 1;
+                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-opacity', 0.5) });
+                this.fx.impact(mid, col, LOOK.num('pillow-burst-flash', 0.03), 8);
+                for (const h of [0.1, 0.45, 0.8]) this.fx.puff(this._probe.copy(at).setY(at.y + h * LOOK.num('pillow-column', 0.35)), LOOK.color('pillow-puff', '#f0c8ff'), S.radius * 0.9, 0.45, 0.4);
+                this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), S.radius * LOOK.num('pillow-dust-size', 0.7), 'dust');   // spore dust, fading
+              });
+              if (struck) { hit(S.dmg, 'pillow-spores', P); this.fx.impact(pc, col, 0.02, 8); }
+              e.dropSpores();
+              e.charge = 0; e.pop = 0.5;
+              juice.feel(struck ? 'impact' : 'hit'); sfx.pillowBurst(struck);
+              e.plan = null; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest;
+            }
+          }
+        } else {
+          // Hop-slam: it crouches while a Warning (a circle and the half sphere over it) fills where it
+          // will land, a short hop toward you (it follows you until it leaps); it leaps on a beat and
+          // lands a beat later as a Blast round itself, then waddles back to its spot
+          const H = SK.hop;
+          if (!e.plan) { const leap = Math.ceil(beat + H.windup); e.plan = { from: beat, leap, land: leap + H.air, start: e.base.clone(), to: new THREE.Vector3() }; }
+          const L = e.plan, to = L.to;
+          if (beat < L.leap) this.pillowLanding(e, P, H, to);
+          else e.locked = true;
+          if (!e.tele.length && !L.landed) e.tele.push(this.warnCircle(to, H.radius, this.T.pillow), this.volume(col, 'dome', to, H.radius));
+          if (e.tele.length) {
+            const u = THREE.MathUtils.clamp((beat - L.from) / (L.land - L.from), 0, 1);
+            e.tele[0].userData.fill(u); e.tele[1].material.progress = u;
+            e.tele[0].position.copy(to).setY(to.y + 0.002); e.tele[1].position.copy(to);
+          }
+          if (beat < L.leap) {                                               // crouching
+            const c = Math.min(1, (beat - L.from) / ((L.leap - L.from) * 0.6));
+            g.scale.y *= 1 - c * LOOK.num('pillow-crouch', 0.22); g.scale.x *= 1 + c * 0.1; g.scale.z *= 1 + c * 0.1;
+            g.position.x = (Math.random() - 0.5) * 0.003 * c;
+          } else if (beat < L.land) {                                        // in the air
+            const u = (beat - L.leap) / (L.land - L.leap);
+            if (!L.leapt) { L.leapt = true; e.squash = 0.5; this.fx.puff(surf.clone().setY(surf.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), 0.1, 0.4, 0.4); sfx.pillowHop(); }   // the push off
+            e.holder.position.lerpVectors(L.start, to, u);
+            g.position.y = Math.sin(u * Math.PI) * H.leap;
+            g.scale.y *= 1 + Math.sin(u * Math.PI) * 0.12; g.scale.x *= 1 - Math.sin(u * Math.PI) * 0.05; g.scale.z *= 1 - Math.sin(u * Math.PI) * 0.05;
+          } else if (!L.landed) {                                            // the slam
+            L.landed = true;
+            e.clearTele();
+            this.moveElite(e, this._mid.copy(to).setY(to.y + 0.05));
+            const at = e.base.clone().setY(e.base.y + 0.002);
+            this.fx.ring(at, col, H.radius, 0.5);                            // its real reach
+            this.fx.impact(at.clone().setY(at.y + 0.01), col, 0.05, 22);
+            this.fx.puff(at.clone().setY(at.y + 0.02), LOOK.color('pillow-puff', '#f0c8ff'), H.radius * 0.9, 0.6, 0.45);
+            this.fx.burst(at.clone().setY(at.y + 0.03), LOOK.list('pillow-fluff', ['#f4ecdc', '#c8312b', '#f0c8ff']), 10, 0.004, 0.35, at.y);
+            this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), H.radius * LOOK.num('pillow-dust-size', 0.7) * 0.6, 'dust');
+            e.squash = 1;                                                    // it lands flat, then springs back
+            juice.feel('impact-big'); sfx.pillowSlam();
+            if (blastHits(at, H.radius, P, cfg)) { hit(H.dmg, 'pillow-hop', at); knock(e.base, H.knock); this.fx.impact(pc, col, 0.02, 8); }
+          } else if (beat > L.land + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? H.angryRest : H.rest; }
+        }
+      }
     }
 
     // the Bull's little bulls: popping up, charging along their lanes, and bursting (a squash, a puff
@@ -2449,7 +2638,7 @@ export class Elites {
     this.bullets = this.bullets.filter((b) => !b.done);
     for (const p of this.controllerPulses) {
       p.t += dt;
-      p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * LOOK.num('controller-pulse-opacity', 0.45);
+      p.m.material.opacity = Math.max(0, 1 - p.t / p.life) * (p.o ?? LOOK.num('controller-pulse-opacity', 0.45));
       if (p.t >= p.life) this.scene.remove(p.m);
     }
     this.controllerPulses = this.controllerPulses.filter(p => p.t < p.life);

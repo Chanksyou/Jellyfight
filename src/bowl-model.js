@@ -64,11 +64,11 @@ export function buildBowl() {
   g.add(orbit);
 
   // angry eyes on the bowl's front
-  const face = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.42 });
+  const eyes = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.42 }), face = new THREE.Group();   // (the elite blinks `eyes` by its scale.y, so the sizing is on `face`: it stretched them 30 times tall)
   face.scale.setScalar(0.034);
   face.position.set(0, SEAT + H * 0.55, R * 0.86);
+  face.add(eyes);
   g.add(face);
-  const eyes = face;
 
   // where the striker is: `at` 'rest' (leaning on the bowl's back), 'strike' (k: 0 raised over the
   // right side of the rim, 1 on it), 'sing' (held to the rim, round at `turn` rad)
