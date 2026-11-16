@@ -1,1 +1,1 @@
-keeps the Encore's music and attacks going on phones: its song now downloads while the arena loads and, if decoding it stalls for 8 seconds, the synthesized Encore song plays instead of silence (a stuck decode also left the Encore waiting for a beat that never came).
+the Encore only ever plays its own recording: if the recording is slow to load, the fight plays without music until it's ready, rather than switching to a different built-in song; a stuck decode of the recording is tried again once.
