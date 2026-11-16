@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v438 brings the sun up in Act 4's living room: a line of daylight creeps from the window wall toward the TV over the 3 minute night, and a jelly standing on its side of it, floor or furniture, loses 3 Health a second, its bell drying dull and steaming with a low sizzle. Its edge glows hot with a low hex Warning just ahead; bugs aren't hurt, chests never turn up where it will reach before they fade, and the stage door stays in the shade.
+
 v437 gives Act 4's living room its dawn look: a blue hour at 6:00 AM warming to gold by 8:00 AM, a little brighter than the night, with the window glowing.
 
 v436 gives Act 4's living room its own map: the Singing bowl moves onto the lounge chair, the Mushroom pillow stands clear on the sofa and the Headphones sit on the glass coffee table, ready to come alive as Act 4's Elites, with the vents beside them landing you across from each one; the Disco-ball mobile and a clutter bowl are cleared away, the corner shadows are baked for the new layout, and the night plays its own song, "Sunrise Set".
