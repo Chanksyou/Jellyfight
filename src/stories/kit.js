@@ -329,13 +329,13 @@ export function startClock(atk, { x = 2.0, z = 7.42, angry = false } = {}) {
   e.cool = 0; e.next = atk;
   return { e, player, bench: player.position.y };
 }
-// the Cream Whipper in the hall's far corner by the front door (elites.js, whipper-model.js)
+// the Cream Whipper by the hall's far corner at the front door (elites.js, whipper-model.js)
 export const whipper = () => G().run.elites.alive.find((e) => e.kind === 'whipper');
-export const byDoor = () => tp(3.15, 0.02, 8.5, 0);   // where its 1 on 1 puts you (stage2.js stand)
+export const byDoor = () => tp(2.95, 0.02, 8.3, 0);   // where its 1 on 1 puts you (stage2.js stand)
 // the balloon's Warning as the scene holds it: its floor circle (and a volume, which it shouldn't have)
 export function balloonWarning(B) { return warningsAt(B.m.position); }
 export const startBalloon = () => { fresh({ bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 0; };
-export const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.25, 0.02, 8.6, 0); const e = whipper(); e.cool = 0; e.next = 1; };
+export const startSpray = () => { fresh({ bubbles: false, lash: false }); tp(3.05, 0.02, 8.4, 0); const e = whipper(); e.cool = 0; e.next = 1; };
 // act 3's Alligator on the pillows at the head of the bed (elites.js kind 'croc', croc-model.js):
 // start one of its attacks with the jelly held on the bed in front of it (x, z), facing it
 export const croc = () => G().run.elites.list.find((e) => e.kind === 'croc');
@@ -396,8 +396,8 @@ export function startBowl(atk, { x = 3.2, z = 1.72, angry = false, hold = true }
 // up. Start one of its attacks with the jelly held on the seat (x, z: its stand point by default,
 // 48 cm from it toward the vent's landing), facing it, on the run's own beat (no song)
 export const pillow = () => G().run.elites.list.find((e) => e.kind === 'pillow');
-export const onSofa = (x = 1.2, z = 2.25) => tp(x, 0.53, z, -Math.PI / 2);   // (the camera behind the jelly, looking along the seat at the pillow)
-export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true } = {}) {
+export const onSofa = (x = 1.2, z = 2.1) => tp(x, 0.53, z, Math.atan2(x - 1.15, z - 1.8));   // (the camera behind the jelly, looking along the seat at the pillow)
+export function startPillow(atk, { x = 1.2, z = 2.1, angry = false, hold = true } = {}) {
   fresh({ hurt: true, bubbles: false, lash: false }); onSofa(x, z);
   stub(G().run, 'song', null);
   const e = pillow(), player = hold ? holdJelly() : G().player;
@@ -407,14 +407,14 @@ export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true
   e.cool = 0; e.next = atk;
   return { e, player, seat: player.position.y };
 }
-// act 4's Headphones on the glass coffee table (elites.js kind 'headphones', headphones-model.js): the
-// table top 0.46 m up. Start one of its attacks with the jelly on the table (x, z: its stand point by
-// default, 40 cm from it toward the vent's landing), facing it, on the run's own beat (no song). Its
-// waves shove, so the jelly isn't held unless asked
+// act 4's Headphones on the kitchen counter by the stove (elites.js kind 'headphones', headphones-model.js):
+// the counter top 0.94 m up. Start one of its attacks with the jelly on the counter (x, z: its stand point by default,
+// 40 cm from it toward the vent's landing), facing it, on the run's own beat (no song). Its waves
+// shove, so the jelly isn't held unless asked
 export const headphones = () => G().run.elites.list.find((e) => e.kind === 'headphones');
-export const onCoffeeTable = (x = 2.15, z = 3.05) => tp(x, 0.5, z, Math.PI / 2);   // (the camera behind the jelly, looking along the table at the headphones)
-export function startHeadphones(atk, { x = 2.15, z = 3.05, angry = false, hold = false } = {}) {
-  fresh({ hurt: true, bubbles: false, lash: false }); onCoffeeTable(x, z);
+export const onCounter = (x = 4.57, z = 2.65) => tp(x, 0.99, z, Math.atan2(x - 4.62, z - 2.85));   // (the camera behind the jelly, looking at the headphones)
+export function startHeadphones(atk, { x = 4.57, z = 2.65, angry = false, hold = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onCounter(x, z);
   stub(G().run, 'song', null);
   const e = headphones(), player = hold ? holdJelly() : G().player;
   e.cool = 99;
@@ -521,7 +521,7 @@ export const EVERY_ATTACK = {
     // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
     // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
-    // the Headphones on the coffee table (elites.js), in the room: its shove waves' Warning (a white strip
+    // the Headphones on the kitchen counter (elites.js), in the room: its shove waves' Warning (a white strip
     // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
     headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },

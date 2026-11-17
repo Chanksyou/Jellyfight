@@ -96,22 +96,25 @@ export const ENEMY_WORDS = {
   },
 
   hover: {
-    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s.',
+    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s. With `bob` (m) it bobs that far up and down as it goes; with `pause` (0 to 1) it hangs still that share of the time, in short spells (a firefly drifting).',
     args: ['distance'],
-    props: { above: 0.07, speed: 0.33, circle: 0.4 },
-    make: ([distance], p) => ({
+    props: { above: 0.07, speed: 0.33, circle: 0.4, bob: 0, pause: 0 },
+    make: ([distance], p) => {
+      const still = Math.sin(Math.PI * (p.pause - 0.5));   // under this, the slow wave below means hang still: `pause` of the time
+      return {
       fly: true,
       tick(e, c, en) {
         if (e.flyHeld) return;              // another word is holding it still (a poke)
+        const s = p.speed * c.slow * (p.pause > 0 && Math.sin(c.t * 1.3 + e.phase) < still ? 0 : 1);
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.normalize().applyAxisAngle(UP, c.dt * p.circle);
-        const to = _spot.copy(c.pc).addScaledVector(away, distance).setY(c.pc.y + p.above).sub(e.pos);
-        const s = p.speed * c.slow;
+        away.normalize().applyAxisAngle(UP, c.dt * p.circle * (s > 0 ? 1 : 0));
+        const to = _spot.copy(c.pc).addScaledVector(away, distance).setY(c.pc.y + p.above + p.bob * Math.sin(c.t * 2.1 + e.phase * 3)).sub(e.pos);
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
         en.move(e, e.vel, c.dt);
       },
-    }),
+      };
+    },
   },
 
   sortie: {
@@ -751,6 +754,30 @@ export const ENEMY_WORDS = {
     }),
   },
 
+  lob: {
+    doc: 'Within `range` m every `every` s or so, stops, turns its tail to you and lifts it for `windup` s (its lamp held lit), then lobs a glowing Shot from its tail in a slow, high arc (rising `peak` m over the straight line) that lands `flight` s later where you were when it threw; while it flies, a Warning circle and dome `radius` m round fill there. It lands as a Blast (`dmg`), then lies there as a glowing pool as big for `last` s, draining `drain` Health a second while you stand in it (jump it; overlapping pools add up; at most `most` at once, the oldest fades first). It rests `rest` s. Freezing or stunning it breaks the throw off. List it after the flying word.',
+    props: { range: 0.6, every: 8, windup: 0.45, flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12, rest: 0.6 },
+    make: (_, p) => ({
+      init(e) { e.lobCd = 1 + Math.random() * 3; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it stays put
+        e.lobCd -= c.dt;
+        if (e.firedT > 0) e.firedT -= c.dt;
+        if (e.state === 'windup' && !live) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.lobCd = 1.5; }   // broken off
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.lobCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.lobWind(e, p.windup); }
+        } else if (e.state === 'windup') {
+          let d = Math.atan2(-c.flatDir.x, -c.flatDir.z) - e.root.rotation.y;   // its tail to you
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          e.root.rotation.y += d * (1 - Math.exp(-12 * c.dt));
+          if ((e.stateT -= c.dt) <= 0) { en.lob(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.3; }
+        } else if (e.state === 'rest') {
+          if ((e.stateT -= c.dt * live) <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.lobCd = p.every; }
+        }
+      },
+    }),
+  },
+
   bleeds: {
     doc: 'Its hits that land (past i-frames, dodges and shields) make you bleed: you lose `dps` Health a second for `seconds` s. Every hit adds its own bleed, so they stack.',
     args: ['seconds'],
@@ -764,7 +791,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);
@@ -826,6 +853,7 @@ export function newMods() {
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
+    eliteBonus: null,                // elite-bonus: { every } every `every`th Elite beaten leaves a second treasure
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
@@ -1472,6 +1500,7 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
+  'elite-bonus': { doc: 'Every `every`th Elite you beat leaves a second treasure beside the first (the count runs from when you take it, across acts).', props: { every: 2 }, make: (_, p) => (m) => { m.eliteBonus = { every: p.every }; } },
   'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },

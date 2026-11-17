@@ -1201,7 +1201,7 @@ export class Run {
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
-      if (this.phase === 'explore') { this.dropTreasure(_drop.set(c.x, floor, c.z)); this.hud.toast('✨ Elite cleared! It left a treasure.', 1800); }
+      if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), '✨ Elite cleared! It left a treasure.', 1800);
     }
     if (this.mods.burstOnKill) {this.gadgets.looks.salt(c,this.mods.burstOnKill.radius,true);this.bursts.push(c);}
   }
@@ -1222,8 +1222,19 @@ export class Run {
     juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
-    this.dropTreasure(e.base);
-    this.hud.toast(`✨ ${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
+    this.eliteTreasure(e.base, `✨ ${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
+  }
+
+  // A beaten Elite's treasure; with the Goodie Bag (elite-bonus) every `every`th Elite leaves a second one beside it
+  eliteTreasure(at, text, ms) {
+    const first = this.dropTreasure(at), B = this.mods.eliteBonus;
+    if (!B) return this.hud.toast(text, ms);
+    const n = this.growCount.goodieBag = (this.growCount.goodieBag || 0) + 1;
+    if (n % B.every) return this.hud.toast(`${text} Goodie Bag: next one.`, ms);
+    let p = this.openSpotNear(_drop.copy(first).add(_near.set(0.12, 0, 0)));
+    if (!p || p.distanceTo(first) < 0.08) p = first.clone().add(_near.set(0.12, 0, 0));   // never on top of the first
+    this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
+    this.hud.toast('✨ Goodie Bag! It left two treasures.', ms);
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
@@ -1414,7 +1425,9 @@ export class Run {
   dropTreasure(at) {
     const p = this.openSpotNear(at);
     if (!p) { const hit = this.world.castAll(_drop.set(at.x, at.y + 0.03, at.z), DOWN, 2.5); p0.copy(at); if (hit) p0.y = hit.point.y; }
-    this.placeTreasure((p || p0).clone(), Infinity, Math.random() * Math.PI * 2);
+    const spot = (p || p0).clone();
+    this.placeTreasure(spot, Infinity, Math.random() * Math.PI * 2);
+    return spot;
   }
 
   // The closest open spot to `at` (rings out to 50 cm), on the same surface if there is one there

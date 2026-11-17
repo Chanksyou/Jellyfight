@@ -1,6 +1,6 @@
-// The Headphones (act 4's coffee-table Elite, elites.js kind 'headphones'), after the real pair on
+// The Headphones (act 4's kitchen-counter Elite, elites.js kind 'headphones'), after the real pair on
 // its stand there: black over-ear headphones with pale grey cushions. Come alive, they stand on the
-// table on their two ear cups, swivelled flat to face forward like a pair of speakers, the band
+// counter on their two ear cups, swivelled flat to face forward like a pair of speakers, the band
 // arching over them. Built in meters facing +z, the cups' feet on y = 0, life size (21 cm across,
 // 18 cm tall). It wakes with angry eyes on the band's padding.
 //
