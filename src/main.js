@@ -39,7 +39,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v451';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v453';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -914,6 +914,7 @@ async function warmUp() {
   run.shield.group.scale.setScalar(0.001);
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
+  enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -954,6 +955,7 @@ async function warmUp() {
   run.shield.update(0);
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
+  enemies.glowPools.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);

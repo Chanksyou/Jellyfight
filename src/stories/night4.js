@@ -201,11 +201,11 @@ night4('every-chest-spot-is-open', {
 });
 
 night4('each-elite-spot-is-on-its-furniture-and-clear', {
-  about: 'The Singing bowl\'s spot is on the lounge chair seat, the Mushroom pillow\'s on the sofa seat and the Headphones\' on the glass coffee table: each on its furniture\'s own surface, 15 cm clear of other small props, 30 cm or more from its vent\'s landing on the same surface, which sits in its wake box. The act spawns all three, where it says.',
+  about: 'The Singing bowl\'s spot is on the lounge chair seat, the Mushroom pillow\'s on the sofa seat and the Headphones\' on the kitchen counter by the stove: each on its furniture\'s own surface, 15 cm clear of other small props, 30 cm or more from its vent\'s landing on the same surface, which sits in its wake box. The act spawns all three, where it says.',
   setup() { fresh(); },
   play() {
     const { run, traversal, APT } = G(), THREEBOX = THREE.Box3;
-    const FURNITURE = { 'lounge chair': 'Lounge_chair#1', sofa: 'Corduroy_sofa#1', 'coffee table': 'Glass_coffee_table#1' };
+    const FURNITURE = { 'lounge chair': 'Lounge_chair#1', sofa: 'Corduroy_sofa#1', 'kitchen counter': 'Kitchen#1' };
     const bad = [];
     for (const e of ELITES4) {
       const v = traversal.vents.find((q) => q.name === e.vent), node = movables(APT.root).find((m) => m.key === FURNITURE[e.area]).node;
@@ -223,6 +223,20 @@ night4('each-elite-spot-is-on-its-furniture-and-clear', {
     }
     const spawned = run.elites.list.map((e) => e.kind), placed = run.elites.list.every((e) => e.spec === ELITES4.find((q) => q.kind === e.kind));
     return ok(ELITES4.length === 3 && !bad.length && spawned.join() === 'bowl,pillow,headphones' && placed, { bad, spawned });
+  },
+});
+
+night4('elites-are-spread-out-so-two-never-wake-together', {
+  about: 'Act 4\'s three Elites stand 2 m or more apart and their wake boxes never overlap, so no spot in the room is inside two of them: the jelly never fights two at once.',
+  setup() { fresh(); },
+  play() {
+    const bad = [];
+    for (const [i, a] of ELITES4.entries()) for (const b of ELITES4.slice(i + 1)) {
+      const apart = Math.hypot(a.at[0] - b.at[0], a.at[2] - b.at[2]);
+      const overlap = [0, 1, 2].every((k) => a.wake.min[k] < b.wake.max[k] && b.wake.min[k] < a.wake.max[k]);
+      if (apart < 2 || overlap) bad.push({ pair: [a.kind, b.kind], apart: +apart.toFixed(2), overlap });
+    }
+    return ok(!bad.length, { bad });
   },
 });
 

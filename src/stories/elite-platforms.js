@@ -9,7 +9,7 @@ const cases = [
   [story, 'kettle', [4.5,.96,3.45]], [act2, 'soap', [1.5,.93,5.47]],
   [act2, 'clock', [2,.5,7.42]], [act2, 'whipper', [3.05,.02,8.4]],
   [act3, 'croc', [-.1,.75,10.2]], [act3, 'bull', [-.6,1.2,8.36]],
-  [act3, 'coffer', [-1.52,.83,8.8]], [night4, 'bowl', [3.2,.48,1.72]], [night4, 'pillow', [1.2,.53,2.25]], [night4, 'headphones', [2.15,.5,3.05]],
+  [act3, 'coffer', [-1.52,.83,8.8]], [night4, 'bowl', [3.2,.48,1.72]], [night4, 'pillow', [1.2,.53,2.1]], [night4, 'headphones', [4.57,.99,2.65]],
 ];
 function prepare(kind, at, attack) {
   fresh({ bubbles:false, lash:false }); tp(...at,0);

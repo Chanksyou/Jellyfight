@@ -135,10 +135,10 @@ elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.6
     hop dmg=4 radius=0.17 reach=0.3 windup=2 air=1 leap=0.1 knock=0.8 rest=1.0 angryRest=0.7
 }
 
-// act 4: the Headphones, up on their ear cups on the glass coffee table in the living room at dawn. They
-// sleep until you're on the table (stage4.js ELITES4 `wake`), then within aggro= of them. Like the
+// act 4: the Headphones, up on their ear cups on the kitchen counter by the stove in the living room at dawn. They
+// sleep until you're on the counter (stage4.js ELITES4 `wake`), then within aggro= of them. Like the
 // Singing Bowl they keep the song's time: windup=, every= and lock= are beats of the song; rest= is s.
-// The table is small (1.3 m by 0.7 m): falling off is the punishment, and the vent by it brings you back.
+// The counter is 1.3 m long and 0.65 m deep and ends at a drop: falling off is the punishment, and the vent by the stove brings you back.
 //   shove: the cups take turns, waves= of them every= beats apart from the first bar line at least
 //          windup= beats away. Each one's Warning (a white strip width= m wide from the cup through you
 //          to the table's edge, and the lane height= m tall over it) follows you until lock= beats
