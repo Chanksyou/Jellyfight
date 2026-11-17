@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v471 adds the Badminton Racket, a Legendary Treasure: your attacks (bubbles, Element shots, gusts, Glitter and Poison bursts, tentacle lashes) swat bug Shots (pushpins, web balls) out of the air, and a swatted Shot flies back at the bug that fired it for 3x your Attack damage; and fixes a pin that was stuck when the bugs cleared coming back stuck the next time it was thrown.
+
 v470 takes the last plants out of the living room (the Monstera and the Tall snake plant) and bakes in the Headphones' new spot in act 1.
 
 v469 gives the end screens the kit look: an act complete stamps a gold seal beside its heading and shows the Treasures you took as tiles over the score parts counting up; the death screen is a dark panel that reads over the sand and fits a phone with every button on screen; the win shows the jelly up close beside a panel with the run's numbers and a trophy icon. Evolution reveals already used the kit.

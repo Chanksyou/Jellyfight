@@ -1,1 +1,0 @@
-adds the Badminton Racket, a Legendary Treasure: your attacks (bubbles, Element shots, gusts, Glitter and Poison bursts, tentacle lashes) swat bug Shots (pushpins, web balls) out of the air, and a swatted Shot flies back at the bug that fired it for 3x your Attack damage; and fixes a pin that was stuck when the bugs cleared coming back stuck the next time it was thrown.
