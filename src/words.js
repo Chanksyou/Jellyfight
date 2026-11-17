@@ -792,6 +792,7 @@ export function newMods() {
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
+    overkill: null,                  // overkill: { reach, passes, least } (enemies.js)
     charged: [],                     // charged-shot: { when, time, strike, chain, dmg, key } (run.js builds the charge, bubbles.js spends it)
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
@@ -1620,6 +1621,15 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.dmg >= 0 && p.stun > 0 && p.each > 0)) throw new Error('touch-zap: stun and each must be above 0');
       return (m) => { m.touchZap = { ...p }; };
+    },
+  },
+  // Newton's Cradle
+  overkill: {
+    doc: 'When a hit of yours finishes off a bug, the damage left over (at least `least`) passes to the nearest bug within `reach` m of it, `passes` times at most. Not from Burn, Poison or Bleed, an execute, or an Elite or the boss.',
+    props: { reach: 0.12, passes: 3, least: 1 },
+    make: (_, p) => {
+      if (!(p.reach > 0 && Number.isInteger(p.passes) && p.passes >= 1 && p.least > 0)) throw new Error('overkill: reach and least must be above 0, and passes a whole number of 1 or more');
+      return (m) => { m.overkill = { ...p }; };
     },
   },
   'charged-shot': {
