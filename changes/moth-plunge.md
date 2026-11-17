@@ -1,1 +1,0 @@
-gives the Moth a new attack in act 4: it climbs about 30 cm over you while a circle and a column fill under it, then drops straight down into it (a jump doesn't clear it) and leaves a puff of black smoke for about a second that hides bugs, XP and pools behind it. Step off the circle to dodge.
