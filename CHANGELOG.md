@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v462 UI kit follow-up: buttons, tiles and cards light up on hover only with a mouse, so a tapped one on a phone no longer stays lit; the 12 px and 44 px guards now measure each screen after it has faded in, and list the small text and short buttons that were hiding behind the fade.
+
 v461 adds the UI design kit the coming menu and HUD redesign is built from: night-aquarium colours, the Fredoka and Inter fonts, line icons and shared buttons, cards, bars and sheets. Nothing on screen changes yet.
 
 v460 fits the title screen on a short landscape phone, gives Achievements a scroll area above a solid footer, hides the thumb ring in Change your look, adds a close button and a slimmer header to the Treasure book, and hides the Dev button and fps readout from players (five taps on the version bring up Dev).
