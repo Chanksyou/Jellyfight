@@ -311,6 +311,12 @@
      and a landing's splash, from drops of this many m (a step down makes none) */
   --jump-splash: #cfefff;
   --land-splash-from: 0.04;
+  /* a stomp (Pogo Stick, run.js stomp): spark size off the bug's back (m, a little more each stomp in a
+     row), how hard the bell squeezes on the bounce, and how flat the bug squashes (share of its height) and for how long (s) */
+  --stomp-spark: 0.02;
+  --stomp-squeeze: 0.8;
+  --stomp-squash: 0.55;
+  --stomp-squash-time: 0.3;
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;

@@ -516,3 +516,6 @@ treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shie
 treasure "goodieBag" name="Goodie Bag" icon="🛍️" rarity="legendary" text="Every second Elite you beat leaves two Treasures instead of one." {
     elite-bonus every=2
 }
+treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 4x Attack damage and spring back up. Each stomp in a row before you touch the floor hits 1x harder, up to 8x." {
+    stomp dmg=4 step=1 most=8 stun=1 safe=0.3 reach=0.02 drop=0.03
+}

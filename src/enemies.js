@@ -299,6 +299,7 @@ export class Enemies {
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
       else if (status === 'trap') { e.trapT = Math.max(e.trapT || 0, duration); e.vel?.set(0, 0, 0); }   // held still in a bubble (trap-on-hit): a pin with no sparks
+      else if (status === 'squash') e.squashT = e.squashFor = duration;   // stomped (Pogo Stick): flattened for a moment
       else if (status === 'freeze') e.freezeT = duration;
       else if (status === 'thaw') e.freezeT = 0;
       else if (status === 'chill') {   // ice: a slow that shows as frost (chillT), so a chilled death shatters
@@ -1437,6 +1438,11 @@ export class Enemies {
         e.recoil = Math.max(0, e.recoil - dt * 5);
         const q = e.recoil * e.recoil;
         e.mesh.scale.y *= 1 - 0.28 * q; e.mesh.scale.x *= 1 + 0.14 * q; e.mesh.scale.z *= 1 + 0.14 * q;
+      }
+      if (e.squashT > 0) {                   // stomped: squashed flat, springing back
+        e.squashT = Math.max(0, e.squashT - dt);
+        const q = (e.squashT / e.squashFor) ** 2, k = LOOK.num('stomp-squash', 0.55) * q;
+        e.mesh.scale.y *= 1 - k; e.mesh.scale.x *= 1 + k * 0.5; e.mesh.scale.z *= 1 + k * 0.5;
       }
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
