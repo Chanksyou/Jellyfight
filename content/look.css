@@ -612,6 +612,7 @@
   --clock-glints: #fff0b0 #ffc23a #e0b048;   /* gilt glints thrown off where it struck */
   --cream-splat: #fff6e8;        /* whipped cream splatted on the floor under a jelly the piping caught */
   --whipper-bead: #f8ecff;       /* the Cream Whipper's piped bead of cream and its stream (a hint of its violet) */
+  --whipper-bead-bright: 1.8;    /* how much brighter than lit it's drawn, so it reads as cream in the night hall */
   --cream-splat-size: 0.022;
   --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
   --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */

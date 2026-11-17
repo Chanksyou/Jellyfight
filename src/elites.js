@@ -1050,7 +1050,7 @@ export class Elites {
   bead(a, to, bead, life, yaw) {
     const m = this.beadFree.pop() || this.fx.piece(this.beadGeo, this.fx.chunkMat);
     m.visible = true; m.scale.setScalar(0);
-    m.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')); m.userData.opacity = 1;
+    m.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')).multiplyScalar(LOOK.num('whipper-bead-bright', 1.8)); m.userData.opacity = 1;
     const b = { m, a, to, u: 0, yaw, t: 0, life, bead };
     this.beads.push(b);
     return b;
@@ -1926,9 +1926,9 @@ export class Elites {
             gauges(0.8 + Math.sin(e.t * 12) * 0.1);
             e.holder.updateMatrixWorld(true);
             const from = M.tip.getWorldPosition(this._mid), to = tip.setY(tip.y + PI.height * 0.8), st = (e.stream ||= this.fx.piece(this.streamGeo, this.fx.chunkMat));
-            st.visible = true; st.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')); st.userData.opacity = 1;
+            st.visible = true; st.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')).multiplyScalar(LOOK.num('whipper-bead-bright', 1.8)); st.userData.opacity = 1;
             st.position.copy(from); st.lookAt(to);
-            const w = PI.height * 0.22 * (1 + Math.sin(e.t * 40) * 0.15);
+            const w = PI.height * 0.16 * (1 + Math.sin(e.t * 40) * 0.15);
             st.scale.set(w, w, from.distanceTo(to));
             if (!e.sprayed) {   // the release: the nozzle opens with a flash, the whipper pops, a pssht
               e.sprayed = true; sfx.creamSpray(pipe);
