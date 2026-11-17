@@ -688,7 +688,7 @@ export class Elites {
     this.beadGeo = beadGeometry();
     this.streamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);   // along +z, 0 to 1
     this._beadDir = new THREE.Vector3(); this._beadAt = new THREE.Vector3();
-    this.rings = [];         // and its chime rings rolling out
+    this.rings = [];         // and its rings rolling out (the clock's chimes, the Singing Bowl's rim rings)
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
     this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
     this.ringMats = {};      // the ring walls' bands, one per hostile colour (all one program: ringMat's)
@@ -968,14 +968,15 @@ export class Elites {
   // started, as bright as it left, and hits again (a ring walks out and back); owner: the Elite it is
   // the attack of: it is gone when that one is dead or the jelly is off its ground
   ring(at, color, skill, source, { h = skill.height, band = 0, speed = 0.75, max = 0.55, r = 0.03, follow = false, onHit = null, echo = null, onEcho = null, owner = null } = {}) {
-    const mat = (this.ringMats[color.getHex()] ||= Object.assign(this.ringMat.clone(), { color: color.clone().multiplyScalar(1.6) }));
+    // (a ring that echoes dims and brightens on its own, so it has a band material of its own, not the colour's shared one)
+    const own = echo != null, mat = own ? Object.assign(this.ringMat.clone(), { color: color.clone().multiplyScalar(1.6) }) : (this.ringMats[color.getHex()] ||= Object.assign(this.ringMat.clone(), { color: color.clone().multiplyScalar(1.6) }));
     const m = new THREE.Mesh(band ? this.bandGeo.clone() : this.ringGeo, mat);
     m.position.copy(at).setY(at.y + 0.006);
     m.scale.setScalar(r);
     this.scene.add(m);
     const vol = this.volume(color, 'ring', at, new THREE.Vector3(r, h, r));   // the wall it rolls out as
     vol.material.progress = 1;
-    this.rings.push({ m, vol, at: at.clone(), y: at.y, r, min: r, max, speed, h, band, follow, skill, source, color, hit: false, onHit, echo, onEcho, owner, phase: 'out' });
+    this.rings.push({ m, vol, at: at.clone(), y: at.y, r, min: r, max, speed, h, band, follow, skill, source, color, hit: false, onHit, echo, onEcho, owner, phase: 'out', own });
   }
 
   // fire a Shot (fx.shot) from `from` at `to`; it hits for `damage` as `source`
@@ -2398,7 +2399,7 @@ export class Elites {
 
       // ---------------------------------------------------------- the singing bowl
       // Both attacks keep the song's time (this.beat: the run's beat), not the pace's tempo: a strike
-      // or a chime is due on a beat planned as the attack starts. If the beat jumps (a menu ate some,
+      // or the hum is due on a beat planned as the attack starts. If the beat jumps (a menu ate some,
       // or the song started), the attack is called off rather than going off unwarned
       if (e.kind === 'bowl') {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('bowl'), beat = this.beat;
@@ -2468,11 +2469,11 @@ export class Elites {
               M.pose('strike', 1);
               e.hum = 1; e.kick = 1; e.hitPop = 0.6;
               this.fx.impact(rim, col, LOOK.num('bowl-hum-flash', 0.025), 12);
-              this.fx.ring(surf, col, Math.hypot(Math.max(S.max[0] - e.base.x, e.base.x - S.min[0]), Math.max(S.max[1] - e.base.z, e.base.z - S.min[1])), 0.5);   // out to the seat's far corner
+              this.fx.ring(surf, col, Math.hypot(Math.max(S.max[0] - e.base.x, e.base.x - S.min[0]), Math.max(S.max[1] - e.base.z, e.base.z - S.min[1])), LOOK.num('bowl-hum-shock', 0.5));   // out to the seat's far corner
               this.fx.burst(rim, LOOK.list('bowl-glints', ['#fff2c0', '#cba24b', '#ffffff']), 6, 0.0025, 0.25, e.base.y);
               this.fx.splat(surf, LOOK.color('bowl-shimmer', '#d8c890'), H.safe, 'dust');   // a shimmer where it spared you, fading
               juice.feel('impact-big'); sfx.bowlHum();
-              if (P.x >= S.min[0] && P.x <= S.max[0] && P.z >= S.min[1] && P.z <= S.max[1] && Math.hypot(P.x - e.base.x, P.z - e.base.z) >= H.safe && P.y < e.base.y + H.height) { hit(H.dmg, 'bowl-hum', e.base); knock(e.base, 0.5); this.bowlHurt(this._mid.set(P.x, P.y + cfg.height * 0.5, P.z)); }
+              if (P.x >= S.min[0] - cfg.radius && P.x <= S.max[0] + cfg.radius && P.z >= S.min[1] - cfg.radius && P.z <= S.max[1] + cfg.radius && Math.hypot(P.x - e.base.x, P.z - e.base.z) >= H.safe && P.y < e.base.y + H.height) { hit(H.dmg, 'bowl-hum', e.base); knock(e.base, H.knock); this.bowlHurt(this._mid.set(P.x, P.y + cfg.height * 0.5, P.z)); }
             }
           } else if (beat > e.humAt + 1) { e.humAt = null; e.charge = 0; M.pose('rest'); e.state = 'idle'; e.cool = angry ? H.angryRest : H.rest; }
         }
@@ -2829,6 +2830,7 @@ export class Elites {
     for (const r of this.rings) {
       if (r.owner && (r.owner.dead || !this.onPlatform(r.owner, P))) { r.r = r.max; r.phase = 'out'; r.echo = null; r.hit = true; }   // its Elite is gone, or you left its ground: it ends here
       const was = r.r;
+      if (r.phase === 'wait') r.backAt = Math.min(r.backAt, this.beat + r.echo);   // (the song's beat jumping back can't hold it longer)
       if (r.phase === 'wait' && this.beat >= r.backAt) { r.phase = 'back'; r.hit = false; r.onEcho?.(); }
       else if (r.phase === 'out') r.r = Math.min(r.max, r.r + dt * r.speed);
       else if (r.phase === 'back') r.r = Math.max(r.min, r.r - dt * r.speed);
@@ -2841,7 +2843,7 @@ export class Elites {
         p.needsUpdate = true;
       }
       // an echoing ring never fades away: it dims as it goes out, holds dim (harmless) at its reach and
-      // brightens through the last beat before it comes back, then fades in as it returns
+      // brightens through the last beat before it comes back, then fades again as it rolls home
       const fade = r.echo == null ? 1 - r.r / r.max : r.phase === 'wait' ? 0.25 + 0.75 * Math.max(0, 1 - (r.backAt - this.beat)) : r.phase === 'back' ? 1 - 0.7 * (1 - r.r / r.max) : 1 - 0.75 * r.r / r.max;
       r.m.material.opacity = 0.9 * fade;
       r.vol.scale.set(r.r, r.h, r.r);
@@ -2856,7 +2858,7 @@ export class Elites {
       }
       const back = r.phase === 'back', hitting = r.phase !== 'wait';
       if (!r.hit && hitting && at && (back ? ringHits(at, Math.max(0, r.r - r.band), was, r.h, P, cfg) : ringHits(at, Math.max(0, was - r.band), r.r, r.h, P, cfg))) { r.hit = true; this.fx.impact(this._scuff.set(P.x, r.y + 0.01, P.z), r.color, 0.02, 8); hit(r.skill.dmg, r.source, r.at); if (r.skill.knock) knock(r.at, r.skill.knock); r.onHit?.(); }   // (a wave with knock= shoves you on, away from where it started)
-      if (back ? r.r <= r.min : r.r >= r.max && r.echo == null) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
+      if (back ? r.r <= r.min : r.r >= r.max && r.echo == null) { r.done = true; this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); if (r.own) r.m.material.dispose(); }
     }
     this.rings = this.rings.filter((r) => !r.done);
 

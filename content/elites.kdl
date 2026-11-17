@@ -114,11 +114,11 @@ elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=
 //   hum:   the striker runs round the rim and its song swells while a Warning fills the whole seat
 //          (its cushion, `seat` in stage4.js ELITES4) except a white safe circle, safe= m from the bowl's middle;
 //          on the first bar line at least windup= beats away the sound hits everything on the seat
-//          outside that circle, up to height= m over it (a jump doesn't clear it): swim in close,
-//          where the rings' echo catches you
+//          outside that circle (the jelly's body counting), up to height= m over it (a jump doesn't clear it), and shoves you a little (knock=):
+//          swim in close, where the rings' echo catches you
 elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
     ring dmg=3 rings=3 angryRings=4 windup=3 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 echo=2 rest=1.0 angryRest=0.7
-    hum dmg=3 windup=4 safe=0.12 height=0.35 rest=1.0 angryRest=0.7
+    hum dmg=3 windup=4 safe=0.12 height=0.35 knock=0.5 rest=1.0 angryRest=0.7
 }
 
 // act 4: the Mushroom Pillow, on the sofa seat in the living room at dawn. It sleeps until you're on

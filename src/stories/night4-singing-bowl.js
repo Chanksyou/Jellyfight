@@ -153,6 +153,21 @@ night4('bowl-ring-echo-rolls-back-in', {
   },
 });
 
+night4('bowl-echo-rings-dim-and-brighten-each-on-their-own', {
+  about: 'Rings overlap (two a bar when angry): one holding dim at its reach while a newer one is still rolling out bright keeps its own look, not the newer ring\'s (each echoing ring has a band material of its own).',
+  setup() { startBowl(0, { angry: true }); },
+  play() {
+    const { e } = startBowl(0, { angry: true }), { run } = G();
+    let dim = null, bright = null, apart = false;
+    step(60 * 18, () => {
+      const rs = run.elites.rings, w = rs.find((r) => r.phase === 'wait'), o = rs.find((r) => r.phase === 'out');
+      if (w && o && !apart) { apart = w.m.material !== o.m.material; dim = w.m.material.opacity; bright = o.m.material.opacity; }
+      return apart;
+    });
+    return ok(apart && dim < bright, { apart, dim, bright });
+  },
+});
+
 night4('bowl-hum-hits-outside-the-safe-circle-not-inside', {
   about: 'Hum: on the first bar line at least windup= beats away the song hits the jelly anywhere on the seat outside a circle of safe= m round the bowl, over a jump too (height= tall): 3 to a jelly out on the seat standing or jumping, nothing to one swum in close.',
   setup() { startBowl(1); },

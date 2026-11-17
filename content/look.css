@@ -469,6 +469,7 @@
   --hostile-bowl: #ff7a14;       /* the Singing Bowl's rim rings and hum: hot bronze orange, its metal made hot (between act 4's mantis gold and worm red, apart from the sun's pale gold and the bass wave's red) */
   --bowl-strike-flash: 0.03;     /* the Singing Bowl: the flash where its striker meets the rim (m), */
   --bowl-hum-flash: 0.025;       /* where its hum is let go (and where it lands on the jelly) (m), */
+  --bowl-hum-shock: 0.5;         /* how long the shock ring the hum throws across the seat lasts (s), */
   --bowl-echo-flash: 0.02;       /* where a ring turns back at the bowl, */
   --bowl-glints: #fff2c0 #cba24b #ffffff;   /* the brass glints a strike throws, */
   --bowl-shimmer: #d8c890;       /* the harmless shimmer a strike leaves on the cushion (fading), */
