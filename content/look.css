@@ -439,7 +439,7 @@
   --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, and its dart as it lands: hot acid yellow */
   --firefly-dim: #3a2208;        /* its lamp between blinks */
   --firefly-glow: 1.8;           /* how far past white its lamp burns at a blink (bloom lifts it) */
-  --hostile-moth: #ffb300;       /* the moth's swoop as it lands: hot amber (its wings are pale, so the hit isn't) */
+  --hostile-moth: #ffb300;       /* the moth's plunge as it lands: hot amber (its wings are pale, so the hit isn't) */
   --plunge-warning-opacity: 0.3;  /* the moth's circle on the floor as it climbs (it follows you, then locks and brightens) */
   --plunge-column-opacity: 0.25;  /* and the column over it, as tall as the plunge reaches */
   --smoke-size: 0.07;            /* the moth's smoke: each of its four blobs (m); the puff is about 25 cm across */
