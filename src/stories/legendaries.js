@@ -3,7 +3,8 @@
 // pick, a run can hold several, and their costs add up. Shared helpers are in ./kit.js.
 import { CONTENT } from '../content.js';
 import { BASE_STATS } from '../stats.js';
-import { G, fresh, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { roll } from '../chance.js';
+import { G, fresh, give, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs'];
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
@@ -113,5 +114,55 @@ story('types/stacked-adornments-draw', {
     const stacked = draws();
     const P = run.adorn.pieces, shown = ['ember', 'halo', 'mane', 'sail', 'moon-ring', 'polyps'].filter((k) => P[k]?.group.visible);
     return ok(shown.length === 6 && info.programs.length === programs && stacked - bare <= 30, { shown, bare, stacked, programs, after: info.programs.length });
+  },
+});
+
+// Lucky Cat (words.js lucky-rolls, chance.js): every "1 in N" chance of yours gets a second try
+const randoms = (...values) => { const q = [...values]; stub(Math, 'random', () => (q.length ? q.shift() : 0.9)); };
+story('treasures/lucky-rolls', {
+  about: 'lucky-rolls (Lucky Cat): a 20% chance that misses on the first roll (0.9) and would hit on a second (0.1) misses without the cat, hits with it, and takes exactly one Math.random() without it.',
+  setup() { fresh({ elites: false }); give('nailClipper'); },
+  play() {
+    const { run } = G();
+    let calls = 0; stub(Math, 'random', () => { calls++; return 0.9; });
+    const plain = roll(0.2, run.mods);
+    randoms(0.9, 0.1); const without = roll(0.2, run.mods);
+    give('luckyCat');
+    randoms(0.9, 0.1); const withCat = roll(0.2, run.mods);
+    randoms(0.9, 0.9); const bothMiss = roll(0.2, run.mods);
+    return ok(!plain && calls === 1 && !without && withCat && !bothMiss && run.mods.luckyRolls === 2, { plain, calls, without, withCat, bothMiss });
+  },
+});
+story('treasures/lucky-rolls-not-dodge', {
+  about: 'lucky-rolls: Dodge is rolled once, even with the cat: a hit that misses the Dodge roll (0.9) is not dodged though a second roll (0.1) would have dodged it.',
+  setup() { fresh({ elites: false }); give('luckyCat'); G().run.stats.dodge = 20; },
+  play() {
+    const { run } = G(), dodged = [];
+    stub(run.fx, 'number', (pos, text) => { if (text === 'DODGE') dodged.push(text); });
+    randoms(0.9, 0.1);
+    run.hit(1);
+    return ok(!dodged.length && run.iFrames === 1, { dodged: dodged.length, iFrames: run.iFrames });
+  },
+});
+story('treasures/lucky-rolls-offer', {
+  about: 'needs-chance: Lucky Cat is not offered to a run with no chance effect, and is once it owns Nail Clipper.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const without = legendaryPool(200).has('luckyCat');
+    give('nailClipper');
+    const withClipper = legendaryPool(200).has('luckyCat');
+    return ok(!without && withClipper, { without, withClipper });
+  },
+});
+story('treasures/lucky-rolls-paw', {
+  about: 'lucky-rolls: a second roll that hits shows a paw over the jelly, at most twice a second; a first-roll hit shows none.',
+  setup() { fresh({ elites: false }); give('nailClipper', 'luckyCat'); },
+  play() {
+    const { run } = G(), paws = [];
+    stub(run.fx, 'number', (pos, text) => { if (text === '🐾') paws.push(text); });
+    randoms(0.1); roll(0.2, run.mods); const first = paws.length;
+    randoms(0.9, 0.1, 0.9, 0.1); roll(0.2, run.mods); roll(0.2, run.mods); const quick = paws.length;
+    step(40); randoms(0.9, 0.1); roll(0.2, run.mods);
+    return ok(first === 0 && quick === 1 && paws.length === 2, { first, quick, later: paws.length });
   },
 });

@@ -13,6 +13,7 @@
 //                  for unique rule-changers: the Boss reward offers only these.
 //   needs="id"     offered only once you own that treasure
 //   needs-stat="…" offered only once that stat (names as in the `stat` word) is above 0
+//   needs-chance=#true  offered only once you own an effect that rolls a chance (crit, trap, ghosts, life steal...)
 //   heals=#true    all it does is give back Health (or it trades for that): not offered once Pot Lid
 //                  (health-to-shield) holds your max Health at 1
 //   not-for="…"    never offered to a jelly type with one of these attacks (attack= in
@@ -480,6 +481,9 @@ treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="
     stat move-speed 25 percent=#true
     stat fire-rate 50 percent=#true
     extra-jumps 1
+}
+treasure "luckyCat" name="Lucky Cat" icon="🐱" rarity="legendary" needs-chance=#true text="Every '1 in N' chance of yours is rolled twice, and the better roll counts." {
+    lucky-rolls 2
 }
 treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks sets off a mini tornado by the nearest bug: for 4 s it pulls bugs together and stings them a little." {
     on-attack chance=0.1 {

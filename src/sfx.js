@@ -1543,5 +1543,7 @@ export const sfx = {
   bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); tone('sine', f * 2.6, f * 3, 0.02, 0.015, 0.03); },
   // a hit glancing off armour: a short metallic tink
   clink() { if (!ready() || !gap('clink', 80)) return; const j = jitter(0.06); tone('triangle', 2600 * j, 2400 * j, 0.08, 0.05); tone('sine', 3900 * j, 3700 * j, 0.05, 0.03); },
+  // Lucky Cat's second roll hit: two soft bell notes, a fifth apart
+  luckyBell() { if (!ready()) return; tone('sine', 1320, 1320, 0.25, 0.03); tone('sine', 1980, 1980, 0.3, 0.02, 0.07); },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };
