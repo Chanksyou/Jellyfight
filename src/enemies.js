@@ -267,6 +267,7 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
+    this.plungeMarks = [];    // pooled: the circle and column under each moth about to plunge (the plunge word)
     this.songMarks = [];      // pooled: the wedge and cone about to sing at you (the sing word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
@@ -1230,15 +1231,50 @@ export class Enemies {
     }
     for (let i = n; i < this.songMarks.length; i++) this.songMarks[i].floor.visible = this.songMarks[i].vol.visible = false;
   }
+  // the Warning under each moth about to plunge: a floor circle and the column over it, filling
+  // together as it climbs (brighter once locked)
+  drawPlunges(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.plungeAt || (e.state !== 'climb' && e.state !== 'drop')) continue;
+      const w = e.T.words.find((x) => x.plungeRadius);
+      let M = this.plungeMarks[n];
+      if (!M) {
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new TeleMaterial(hostile('moth'), 'circle'));
+        floor.renderOrder = 3; this.scene.add(floor);
+        M = { floor, vol: this.fx.volume(hostile('moth'), 'disc', e.pos, 1) }; this.plungeMarks.push(M);
+      }
+      n++;
+      const a = e.plungeAt, locked = e.plungeLocked, pulse = locked ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 12));
+      M.floor.visible = M.vol.visible = true;
+      M.floor.position.set(a.x, a.y + 0.003, a.z); M.floor.scale.setScalar(w.plungeRadius);
+      M.vol.position.set(a.x, a.y, a.z); M.vol.scale.set(w.plungeRadius, w.plungeHeight, w.plungeRadius);
+      M.floor.material.progress = M.vol.material.progress = e.plungeK;
+      M.floor.material.opacity = pulse * LOOK.num('plunge-warning-opacity', 0.3);
+      M.vol.material.opacity = pulse * LOOK.num('plunge-column-opacity', 0.25);
+    }
+    for (let i = n; i < this.plungeMarks.length; i++) this.plungeMarks[i].floor.visible = this.plungeMarks[i].vol.visible = false;
+  }
+  // the moth lands in its column: a hit if you're in the column (a jump doesn't clear it), then the smoke
+  plungeLand(e, c, { radius, height, dmg }) {
+    const a = e.plungeAt, col = hostile('moth'), f = c.realFoot || c.foot;
+    sfx.waspSting();
+    this.fx.impact(S.o.set(a.x, a.y + 0.012, a.z), col, 0.03, 12);
+    this.fx.ring(S.spot.set(a.x, a.y + 0.003, a.z), col, radius, 0.3);
+    this.fx.smoke(S.o.set(a.x, a.y + 0.07, a.z));
+    if (Math.hypot(f.x - a.x, f.z - a.z) < radius + (this.playerRadius || 0.03) && f.y < a.y + height) {
+      this.fx.impact((c.realPc || c.pc).clone(), col, 0.025, 12);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at: a });
+    }
+  }
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
   diveGo(e) { sfx.diveGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.8, 0.25); }
   // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
-  sting(e, c, { dmg, spend }) {
+  sting(e, c, { dmg }) {
     sfx.waspSting();
     this.fx.impact((c.realPc || c.pc).clone(), hostile(e.type), 0.025, 14);
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
-    if (!spend) return;                  // a moth's swoop: it lives and pulls up
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
@@ -1487,6 +1523,8 @@ export class Enemies {
     this.updateWhirls(dt);
     this.drawParasites(t);
     this.drawSongs(t);
+    this.drawPlunges(t);
+    this.fx.smokeMat.userData.holdout.value.set(player.position.x, player.position.y + 0.05, player.position.z, 0.07);   // the jelly shows through its own smoke
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
