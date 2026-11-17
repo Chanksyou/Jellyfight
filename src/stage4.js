@@ -53,14 +53,16 @@ export const ENCORE = {
 //   at: where it stands (world metres, y = the surface)   face: yaw toward its vent's landing (the jelly's side)
 //   wake: the box that wakes it   vent: the vent that lands you on the same furniture (`land`)
 //   hide: the apartment object it stands in for while alive   stand: where a 1 on 1 with it puts you
+// No two are ever awake together (guard story night4/elite-spots-are-spread-out): their wake boxes never
+// overlap and each stands 2 m or more from the next.
 // "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
 export const ELITES4 = [
   { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0, vent: 'Vent by the lounge chair',
     at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] }, stand: [3.2, 0.435, 1.72] },
-  { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -1.332, vent: 'Vent by the sofa',
-    at: [1.68, 0.51, 2.21], wake: { min: [0.5, 0.46, 1.0], max: [2.9, 1.2, 2.6] }, stand: [1.2, 0.511, 2.25] },
-  { kind: 'headphones', hide: 'Headphones', area: 'coffee table', face: 1.454, vent: 'Vent by the coffee table',
-    at: [1.75, 0.46, 2.9], wake: { min: [1.46, 0.41, 2.34], max: [2.82, 1.1, 3.33] }, stand: [2.15, 0.46, 3.05] },
+  { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -0.695, vent: 'Vent by the sofa',
+    at: [1.15, 0.51, 1.8], wake: { min: [0.5, 0.46, 1.0], max: [2.0, 1.2, 2.3] }, stand: [1.2, 0.511, 2.1] },
+  { kind: 'headphones', hide: 'Headphones', area: 'kitchen counter', face: -2.906, vent: 'Vent by the stove',
+    at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 1.7], max: [5.0, 1.6, 3.0] }, stand: [4.57, 0.94, 2.65] },
 ];
 
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
