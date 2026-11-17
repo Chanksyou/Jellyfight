@@ -38,7 +38,7 @@ elite "clock" name="The Wall Clock" icon="🕰️" hp=450 aggro=0.75 angry=0.65 
 
 elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.65 {
     balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
-    cream dmg=3 slow=2
+    piping dmg=3 slow=2 pipe=3.5 angryPipe=5 stay=4 angryStay=6 wake=0.8 height=0.04 sag=0.6   // s are real s: it pipes along your path for pipe= s, wake= s behind you; the bead (height= m) stays stay= s, then sags sag= s
 }
 
 // act 3: the plush on the pillows at the head of the bed. It sleeps until you're on the bed

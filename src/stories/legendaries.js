@@ -6,10 +6,10 @@ import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { rollChance } from '../chance.js';
-import { G, fresh, give, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
-  'goodieBag', 'newtonsCradle'];   // (the new Legendaries join here)
+  'goodieBag', 'newtonsCradle', 'pogoStick'];   // (the new Legendaries join here)
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
@@ -255,5 +255,122 @@ story('treasures/elite-bonus-carries-across-acts', {
     const first = chestsAfterElite(0);
     const carried = JSON.parse(JSON.stringify(run.carryOver())).growCount.goodieBag;
     return ok(first === 1 && carried === 1, { first, carried });
+  },
+});
+
+// --- stomp (Pogo Stick)
+// the jelly hanging `up` m over where it stands, about to fall
+function hang(up) { const P = G().player; P.position.y += up; P.peakY = P.position.y; P.grounded = false; P.velocity.set(0, 0, 0); }
+// step until the next stomp lands (at most `n` frames): that hit's times Attack damage, or 0 if none
+function nextStomp(log, n = 150) {
+  const { run } = G(), was = dmgBy(log, 'stomp').length;
+  let power = run.power;
+  step(n, () => { if (dmgBy(log, 'stomp').length > was) return true; power = run.power; });
+  const d = dmgBy(log, 'stomp')[was];
+  return d ? +(d.amount / power).toFixed(3) : 0;
+}
+
+story('treasures/stomp', {
+  about: 'stomp (Pogo Stick): falling onto a bug stomps it for 4x Attack damage: it is Stunned and squashed flat, and the jelly bounces back up at jump speed with a moment it can\'t be hurt. Without the Pogo Stick the jelly just falls past it.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, player } = G(), log = record('damage_taken');
+    const bug = roachAt(0, 0);
+    hang(0.15);
+    const without = nextStomp(log, 60);
+    tp(3.2, 0.05, 3.0, 0); give('pogoStick'); hang(0.15);
+    const k = nextStomp(log), rising = player.velocity.y, safe = run.iFrames, squashed = bug.squashT > 0, stunned = bug.stunT > 0.9;
+    step(10);
+    const up = !player.grounded && player.position.y > bug.pos.y + bug.r * 2;
+    return ok(without === 0 && k === 4 && rising > 0.6 && up && squashed && stunned && safe > 0.25 && safe <= 0.3, { without, k, rising, up, squashed, stunned, safe });
+  },
+});
+
+story('treasures/stomp-chain', {
+  about: 'stomp: each stomp in a row before the jelly touches the ground hits 1x harder, 4x, 5x, 6x, 7x then 8x and no more; landing on the floor starts the count again at 4x. A mid-air jump spent before a stomp comes back with the bounce.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick', 'penSpring'); },
+  play() {
+    const { player } = G(), log = record('damage_taken'), bug = roachAt(0, 0);
+    hang(0.15);
+    const ks = [];
+    for (let i = 0; i < 6; i++) { player.airJumps = 0; ks.push(nextStomp(log)); }
+    const jumpsBack = player.airJumps > 0;
+    bug.pos.x += 0.5;                                    // out of the way: the jelly lands
+    step(150, () => player.grounded);
+    const landed = player.grounded;
+    bug.pos.x -= 0.5; hang(0.15);
+    const again = nextStomp(log);
+    return ok(ks.join() === '4,5,6,7,8,8' && jumpsBack && landed && again === 4, { ks, jumpsBack, landed, again });
+  },
+});
+
+story('treasures/stomp-only-from-above', {
+  about: 'stomp: swimming into a bug is never a stomp, and neither is dropping less than 3 cm onto one.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick'); },
+  play() {
+    const { input } = G(), log = record('damage_taken'), bug = roachAt(0, -0.15);
+    input.keys = new Set(['KeyW']);                     // swim straight at it (and through it)
+    step(90);
+    input.keys = new Set();
+    const swum = dmgBy(log, 'stomp').length;
+    tp(3.2, 0.05, 3.0, 0); bug.pos.copy(near(0, 0));
+    hang(bug.r * 2 + 0.02);                              // 2 cm over its back
+    const small = nextStomp(log, 60);
+    return ok(swum === 0 && small === 0, { swum, small });
+  },
+});
+
+story('treasures/stomp-flyer', {
+  about: 'stomp: a bug flying in mid-air can be stomped too (a mosquito 12 cm up).',
+  setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick'); },
+  play() {
+    const { player } = G(), log = record('damage_taken');
+    const fly = spawn('mosquito', near(0, 0, 0.12), { still: true, hp: 9999 });
+    hang(0.3);
+    const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === fly.id;
+    return ok(k === 4 && hit && player.velocity.y > 0.6, { k, hit, vy: player.velocity.y });
+  },
+});
+
+story('treasures/stomp-elite', {
+  about: 'stomp: an Elite can be stomped (4x Attack damage, and the jelly bounces), but it is not Stunned and gives no moment of safety.',
+  setup() { fresh({ bubbles: false, lash: false }); give('pogoStick'); },
+  play() {
+    const { run, player, enemies } = G(), log = record('damage_taken');
+    tp(CONTROLLER_AT[0], CONTROLLER_AT[1] + 0.05, CONTROLLER_AT[2], 0);
+    const E = run.elites.list.find((x) => x.kind === 'controller'), e = E.entry, c = enemies.center(e);
+    player.position.set(c.x, c.y + e.r + 0.1, c.z); player.peakY = player.position.y; player.grounded = false; player.velocity.set(0, 0, 0);
+    const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === e.id;
+    return ok(k === 4 && hit && run.iFrames === 0 && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, safe: run.iFrames, vy: player.velocity.y });
+  },
+});
+
+story('treasures/stomp-is-not-a-landing', {
+  about: 'stomp: a bounce off a bug is not a landing, so Cotton Ball\'s shockwave stays quiet until the jelly really lands.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick', 'cottonBall'); },
+  play() {
+    const { player } = G(), log = record('damage_taken'), bug = roachAt(0, 0);
+    hang(0.15);
+    nextStomp(log); nextStomp(log);
+    const bounced = dmgBy(log, 'shockwave').length;
+    bug.pos.x += 0.12;                                   // past a stomp's reach, still in the ring's
+    step(150, () => player.grounded);
+    const landed = dmgBy(log, 'shockwave').length;
+    return ok(dmgBy(log, 'stomp').length === 2 && bounced === 0 && landed > 0, { stomps: dmgBy(log, 'stomp').length, bounced, landed });
+  },
+});
+
+phone('stomp-with-touch', {
+  about: 'stomp on a phone: holding the on-screen jump button by a bug jumps, comes down on its back and stomps it, then the bounce carries on with the button still held.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick'); },
+  play() {
+    const { touch, player } = G(), log = record('damage_taken'), btn = touch.jumpBtn, capture = btn.setPointerCapture;
+    roachAt(0, -0.07);
+    btn.setPointerCapture = () => {};
+    btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, bubbles: true }));
+    const k = nextStomp(log), vy = player.velocity.y;
+    btn.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true }));
+    btn.setPointerCapture = capture;
+    return ok(k === 4 && vy > 0.6, { k, vy });
   },
 });

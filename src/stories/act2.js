@@ -6,7 +6,7 @@ import { bus } from '../events.js';
 import { STAGES } from '../stages.js';
 import { isDeep, pitch } from '../sfx.js';
 import { TeleMaterial, VolumeMaterial, hostile } from '../vfx.js';
-import { G, JUMP_FEET, V, act2, balloonWarning, besideSoap, byDoor, feelSpy, fresh, hallClock, holdJelly, offs, ok, onBench, record, restore, sim, soapElite, startBalloon, startClock, startSoap, startSpray, step, story, stub, tp, warningsAt, whipper } from './kit.js';
+import { G, JUMP_FEET, V, act2, balloonWarning, besideSoap, byDoor, feelSpy, fresh, hallClock, holdJelly, offs, ok, onBench, record, restore, sim, soapElite, startBalloon, startClock, startSoap, startPiping, step, story, stub, tp, warningsAt, whipper } from './kit.js';
 
 // --- act 1 hands over to act 2
 story('acts/act-1-leads-to-act-2', {
@@ -491,17 +491,6 @@ act2('whipper-burst-misses-outside', {
     return ok(gone && !log.some((d) => d.source === 'balloon') && !isDeep(), { gone, hits: log.map((d) => d.source), deep: isDeep() });
   },
 });
-act2('whipper-cream-spray', {
-  about: 'Cream spray: the whipper tips toward you while a wedge and its cone fill on the floor, then sprays whipped cream along it: 3, and it slows you.',
-  setup() { fresh({ hurt: true, bubbles: false, lash: false }); tp(3.05, 0.02, 8.4, 0); const e = whipper(); e.cool = 0; e.next = 1; },
-  play() {
-    const { run } = G(), e = whipper(), log = record('damage_taken');
-    let warned = false, slowed = false;
-    step(60 * 3, () => { if (e.state === 'windup' && e.tele.length) warned = true; if (run.slowT > 0) slowed = true; return e.sprayed && e.state === 'idle'; });
-    const hits = log.filter((d) => d.source === 'cream');
-    return ok(warned && hits[0]?.amount === 3 && slowed, { warned, hits: hits.map((d) => d.amount), slowed });
-  },
-});
 act2('whipper-angry-balloons', {
   about: 'Under its angry threshold the Cream Whipper blows three balloons each time, each with its own floor circle (and no volume).',
   setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.hp = e.maxHp * 0.4; e.cool = 0; e.next = 0; },
@@ -596,14 +585,14 @@ act2('feel-whipper-balloon', {
     return ok(out.hit >= 1 && out.onJelly && out.impacts >= 3 && out.splats >= 1 && out.feels.includes('impact') && ['balloonLoose', 'balloonPop'].every((k) => out.sounds.includes(k)), out);
   },
 });
-act2('feel-whipper-cream', {
-  about: 'The cream spray opens with a flash at the nozzle and a small shake (hit); catching the jelly it flashes on it, splashes cream off it, shakes (impact) and splats; after the spray, cream lies along the cone on the floor (harmless, it fades).',
-  setup() { startSpray(); },
+act2('feel-whipper-piping', {
+  about: 'The piping opens with a flash at the nozzle, a small shake (hit) and a pssht; the stream reaching a still jelly flashes on it, splashes cream off it, shakes (impact) and splats cream under it.',
+  setup() { startPiping(); },
   play() {
     const e = whipper(), player = holdJelly(), spy = feelSpy(), hits = caught('cream');
-    step(60 * 3, () => e.sprayed && e.state === 'idle');
-    const out = { hit: hits.length, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
-    return ok(out.hit === 1 && out.onJelly && out.splats >= 4 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['creamSpray', 'creamSplat'].every((k) => out.sounds.includes(k)), out);
+    step(60 * 6, () => e.state === 'idle' && hits.length);
+    const out = { hit: hits.length, nozzle: spy.impacts.length >= 2, onJelly: spy.near(middle(player.position), 0.01), splats: spy.splats.length, feels: [...new Set(spy.feels)], sounds: [...new Set(spy.sounds)] };
+    return ok(out.hit === 1 && out.nozzle && out.onJelly && out.splats >= 1 && ['hit', 'impact'].every((k) => out.feels.includes(k)) && ['balloonFill', 'creamSpray', 'creamSplat'].every((k) => out.sounds.includes(k)), out);
   },
 });
 

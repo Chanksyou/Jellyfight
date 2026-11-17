@@ -289,6 +289,16 @@ export const sfx = {
     tone('sine', 170 * j, 80, 0.09 + 0.05 * k, 0.03 + 0.05 * k);
     for (let i = 0; i < 2 + Math.round(2 * k); i++) noise((2200 + Math.random() * 1600) * j, 3, 0.015, 0.015 + 0.015 * k, 'bandpass', 0.04 + i * 0.035);
   },
+  // a stomp (Pogo Stick; n: stomps in a row before it, 0 for the first): a soft thump on the bug's back
+  // under a springy boing, a whole tone higher each stomp in a row
+  stomp(n = 0) {
+    if (!ready() || !gap('stomp', 60)) return;
+    const j = jitter(0.05), up = 2 ** (Math.min(n, 4) / 6);
+    noise(800 * j, 1, 0.06, 0.05, 'lowpass', 0, 250);
+    tone('sine', 150 * j, 70, 0.08, 0.05);
+    tone('triangle', 240 * up * j, 720 * up * j, 0.15, 0.045, 0.01);
+    tone('sine', 720 * up * j, 480 * up * j, 0.12, 0.02, 0.08);
+  },
   gadgetSpring(){if(!ready()||!gap('gadgetSpring',150))return;const j=jitter();tone('triangle',260*j,900*j,.14,.045);tone('sine',900*j,500*j,.12,.025,.06);},
   gadgetFizz(){if(!ready()||!gap('gadgetFizz',150))return;const j=jitter();noise(4500*j,1,.3,.04,'highpass');tone('sine',180*j,80*j,.13,.045);},
   gadgetRemote(){if(!ready()||!gap('gadgetRemote',90))return;const j=jitter();tone('square',1100*j,700*j,.035,.025);noise(3000*j,2,.07,.03,'bandpass');},

@@ -52,10 +52,12 @@
 //                     blinking faster, then bursts: a whole-sphere Blast round it. Caught in it
 //                     (beside, under or level): 2, and all the sound goes deep and muffled for 5 s
 //                     (sfx.js deepen), easing back to normal after.
-//     Cream spray:    it tips toward you while a wedge fills on the floor with a cone over it, then
-//                     sprays whipped cream along it: 2, and the cream slows you. Jumping doesn't
-//                     clear the cone, stepping out does.
-//     Under half health it's angry: two balloons each time, and a longer spray.
+//     Piping:         its nozzle follows you while your wake glows behind you (a strip on the floor
+//                     and the low ridge of cream over it); then a stream of cream lays a star-ridged
+//                     bead exactly along the path you swam, 0.8 s behind you, for 3.5 s. The bead
+//                     (4 cm, jump it) stays 4 s, then sags and fades. Touch it, or stand still till
+//                     the stream catches you: 3, and the cream slows you. Keep moving, don't double back.
+//     Under 65% Health it's angry: more balloons each time, and it pipes longer (5 s, the bead stays 6 s).
 //   croc        the plush alligator on the pillows at the head of the bed (act 3; croc-model.js),
 //               standing in for the real plush. It sleeps (eyes shut, breathing) until you're on
 //               the bed (stage3.js `wake`), then turns to face you and fights; leave the bed and it
@@ -147,7 +149,7 @@ import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, FLOOR_SHAPES, floorShapeGeometry, floorShapeHits, blastHits, coneHits, coneVolume, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, FLOOR_SHAPES, floorShapeGeometry, floorShapeHits, blastHits, coneHits, coneVolume, laneHits, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
@@ -161,12 +163,24 @@ import { buildHeadphones } from './headphones-model.js';
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
-  soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'cream'],
+  soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'piping'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
   bowl: ['ring', 'chime'], pillow: ['spores', 'hop'], headphones: ['shove', 'bass'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+
+// the Cream Whipper's Piping: how often it notes where you swam (s), and the bead's piece: a
+// star-ridged prism standing on y = 0 (2 tall, 2 wide), from z = 0 to 1; scale (R, R, length)
+const PIPE_STEP = 0.12;
+function beadGeometry(points = 8) {
+  const star = new THREE.Shape();
+  for (let i = 0; i < points * 2; i++) {
+    const a = Math.PI * i / points, r = i % 2 ? 0.72 : 1;
+    star[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, 1 + Math.cos(a) * r);
+  }
+  return new THREE.ExtrudeGeometry(star, { depth: 1, bevelEnabled: false });
+}
 
 // the Wall Clock's wreath as Victory throws it: a glowing copy of the one in her hand
 function thrownWreath(wreath) {
@@ -617,11 +631,12 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','chimes','fromBeat','turn','beatWas']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','pipe','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','chimes','fromBeat','turn','beatWas']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
     if (this.model.whip) this.model.whip.rotation.x = 0;
+    if (this.kind === 'whipper' && this.owner.stream) this.owner.stream.visible = false;   // its stream of cream (its bead stays)
     if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
     if (this.kind === 'clock') this.spin = 0;
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
@@ -640,6 +655,7 @@ class Elite {
   remove() {
     this.clearTele();
     this.owner.fx.free(this.ball);   // the Kettle's steam ball, still charging
+    if (this.kind === 'whipper' && this.owner.stream) this.owner.stream.visible = false;
     this.dropSpores();               // the Mushroom Pillow's, still drifting
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
     this.owner.scene.remove(this.holder);
@@ -665,6 +681,11 @@ export class Elites {
     this.decorSpecs = [];    // set by the run: this act's decor (stage.decor)
     this.thrown = [];        // the clock's wreath in flight
     this.balloons = [];      // the Cream Whipper's balloons, drifting after you
+    this.beads = []; this.beadFree = [];   // and the pieces of cream it pipes along your path (fx pieces: drawn instanced, the bits' shader)
+    this.stream = null;      // and the stream it pipes them with (one fx piece, made the first time)
+    this.beadGeo = beadGeometry();
+    this.streamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);   // along +z, 0 to 1
+    this._beadDir = new THREE.Vector3(); this._beadAt = new THREE.Vector3();
     this.rings = [];         // and its chime rings rolling out
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
     this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
@@ -692,7 +713,7 @@ export class Elites {
       symbols: FLOOR_SHAPES.map(shape => new TeleMaterial(hostile('controller'), shape)),
       puddle: new TeleMaterial(hostile('mug')),
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
-      blast: new TeleMaterial(hostile('whipper')), cream: new TeleMaterial(hostile('whipper'), 'wedge', 0.45),
+      blast: new TeleMaterial(hostile('whipper')), pipe: new TeleMaterial(hostile('whipper'), 'strip'),
       sweep: new TeleMaterial(hostile('clock'), 'wedge', Math.PI / 2), beam: new TeleMaterial(hostile('clock'), 'strip'), wreath: new TeleMaterial(hostile('clock'), 'strip'), chime: new TeleMaterial(hostile('clock')),
       frost: new TeleMaterial(hostile('croc')), frostRing: new TeleMaterial(hostile('croc')), pounce: new TeleMaterial(hostile('croc')),
       rush: new TeleMaterial(hostile('bull')), spiral: new TeleMaterial(hostile('bull')), lane: new TeleMaterial(hostile('bull'), 'strip'),
@@ -781,7 +802,8 @@ export class Elites {
     for (const w of this.thrown) { this.scene.remove(w.m); this.fx.free(w.shot.m); }
     for (const r of this.rings) { this.scene.remove(r.m); this.scene.remove(r.vol); if (r.band) r.m.geometry.dispose(); }
     for (const b of this.balloons) { this.scene.remove(b.m); this.scene.remove(b.warn); }
-    this.thrown = []; this.rings = []; this.balloons = [];
+    for (const b of this.beads) { b.m.visible = false; this.beadFree.push(b.m); }
+    this.thrown = []; this.rings = []; this.balloons = []; this.beads = [];
     for (const b of this.minis) this.scene.remove(b.m);
     this.minis = [];
     for (const b of [...this.bullets, ...this.blobs]) { this.fx.free(b.m); if (b.warn) this.scene.remove(b.warn); if (b.vol) this.scene.remove(b.vol); }
@@ -807,7 +829,7 @@ export class Elites {
       const whip = buildWhipper(), bal = buildBalloon();
       whip.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       bal.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
-      this._warm.push(new THREE.Mesh(this.flat, this.T.blast), new THREE.Mesh(this.flat, this.T.cream));
+      this._warm.push(new THREE.Mesh(this.flat, this.T.blast), new THREE.Mesh(this.flat, this.T.pipe));
       const clock = buildClock();
       clock.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });
       thrownWreath(clock.wreath).traverse((o) => { if (o.isMesh) this._warm.push(o); });   // glowing, not tone mapped: its own program
@@ -1020,6 +1042,18 @@ export class Elites {
     if (!b) { b = buildBalloon(color); this.balloonPool.push(b); }
     b.mat.color.set(color); b.mat.emissive.set(color); b.mat.emissiveIntensity = 0.25;
     b.group.visible = true; b.group.position.set(0,0,0); b.group.rotation.set(0,0,0); b.group.scale.setScalar(1);
+    return b;
+  }
+
+  // a piece of the Cream Whipper's bead from `a` toward `to` (path points), laid `u` (0..1) of the way
+  // so far; it stands for `life` s, then sags (see the beads in update). bead: the one piping's
+  // bead it belongs to ({ hit }: it hurts once a piping)
+  bead(a, to, bead, life, yaw) {
+    const m = this.beadFree.pop() || this.fx.piece(this.beadGeo, this.fx.chunkMat);
+    m.visible = true; m.scale.setScalar(0);
+    m.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')).multiplyScalar(LOOK.num('whipper-bead-bright', 1.8)); m.userData.opacity = 1;
+    const b = { m, a, to, u: 0, yaw, t: 0, life, bead };
+    this.beads.push(b);
     return b;
   }
 
@@ -1841,48 +1875,73 @@ export class Elites {
             }
           } else { gauges(0); e.state = 'idle'; e.cool = angry ? 1.6 : 2.2; }
         } else {
-          // Cream spray: it tips toward you while its Warning fills (a wedge on the floor and the cone
-          // of cream rising over it as it spreads), then sprays along it: anything of the jelly in the
-          // cone is hit, so stepping out clears it, and jumping only near the nozzle
-          const wind = 0.85, dur = angry ? 1.0 : 0.6, len = angry ? 0.42 : 0.34, half = 0.45;   // half: the wedge's half-angle (T.cream)
-          if (s < wind) {
-            if (!e.tele.length) {
-              e.locked = true;
-              const apex = surf.clone().addScaledVector(fwd, 0.05);
-              this.mark(e, this.coneGeo, this.T.cream, apex, new THREE.Vector3(len, 1, len), heading);
-              e.tele.push(coneVolume(this, hostile('whipper'), apex, heading, len, half));
+          // Piping: the nozzle follows you while your wake glows behind you, its Warning: a strip on the
+          // floor and the low ridge of cream over it along each bit of the path, filling to when the
+          // cream gets there. Then a stream of cream lays a bead along exactly where you swam, wake= s
+          // behind you, for pipe= s (path noted every PIPE_STEP s). The bead stays and hurts (the beads
+          // in update): keep moving and don't double back. A stop lets the stream catch you up
+          const PI = SK.piping, rt = s / CONTENT.elites.pace.tempo, S = PIPE_STEP, wake = PI.wake;   // rt: real s since it started
+          const p = (e.pipe ||= { pts: [], segs: [], laid: -1, piece: null, bead: { hit: false }, pipe: angry ? PI.angryPipe : PI.pipe, stay: angry ? PI.angryStay : PI.stay }), pipe = p.pipe;   // (angry or not as it started)
+          // where you are, noted (on the surface under you, mid-jump too)
+          while (p.pts.length * S <= pipe + 1e-6 && rt >= p.pts.length * S) p.pts.push(new THREE.Vector3(P.x, this.surfaceBelow(P), P.z));
+          const last = p.pts.length - 1, noted = p.pts.length * S > pipe + 1e-6, tau = rt - wake;   // tau: the path's time the stream has got to
+          // the wake: a strip and its ridge over each bit of path (at least a square, so a still jelly shows one)
+          const W = PI.height * 1.25;
+          for (let i = 0; i < last; i++) {
+            const k = (rt - i * S) / (wake + S);   // 1 when the stream has laid this bit right through
+            let seg = p.segs[i];
+            if (k >= 1) { if (seg) { for (const m of seg) { this.scene.remove(m); e.tele.splice(e.tele.indexOf(m), 1); } p.segs[i] = null; } continue; }
+            if (seg === null) continue;
+            if (!seg) {
+              const a = p.pts[i], b = p.pts[i + 1], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), len = Math.max(W, d);
+              const yaw = d > 1e-4 ? Math.atan2(dx, dz) : (p.segs[i - 1]?.[0].rotation.y ?? heading);
+              const at = this._probe.copy(a).addScaledVector(this._beadDir.set(Math.sin(yaw), 0, Math.cos(yaw)), -(len - d) / 2);
+              const strip = this.mark(e, this.stripGeo, this.T.pipe, at, this._beadAt.set(W, 1, len), yaw);
+              strip.position.y += 0.002;
+              const vol = this.volume(hostile('whipper'), 'lane', at, this._beadAt.set(W, PI.height, len));
+              vol.rotation.y = yaw; e.tele.push(vol);
+              seg = p.segs[i] = [strip, vol];
             }
-            for (const m of e.tele) { m.material.progress = s / wind; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
-            M.whip.rotation.x = (s / wind) * 0.35;                       // tipping toward you
-            gauges(0.6 + Math.sin(e.t * 12) * 0.1);
-            if (!e.hissed) { e.hissed = true; sfx.balloonFill(0.4); }
-          } else if (s < wind + dur) {
-            M.whip.rotation.x = 0.4;
+            for (const m of seg) { m.material.progress = k; m.material.opacity = 0.75 + Math.sin(e.t * 22 + i) * 0.15; }
+          }
+          if (tau < 0) {
+            // winding up: tipping toward you, the gauges climbing, a hiss
+            M.whip.rotation.x = Math.min(1, rt / wake) * 0.35;
+            gauges(Math.min(1, rt / wake) * 0.7 + Math.sin(e.t * 12) * 0.05);
+            if (!e.hissed) { e.hissed = true; sfx.balloonFill(wake); }
+          } else if (!noted || tau < last * S) {
+            // the stream: from the nozzle to where your path was wake= s ago, laying the bead there
+            const k = Math.min(Math.floor(tau / S), last - 1), u = THREE.MathUtils.clamp((tau - k * S) / S, 0, 1);
+            while (p.laid < k) {
+              if (p.piece) p.piece.u = 1;
+              p.laid++;
+              p.piece = this.bead(p.pts[p.laid], p.pts[p.laid + 1], p.bead, p.stay, p.piece?.yaw ?? heading);
+            }
+            p.piece.u = u;
+            const tip = this._tip.copy(p.pts[k]).lerp(p.pts[k + 1], u);
+            e.locked = true;   // the nozzle follows the stream, not you
+            let d = Math.atan2(tip.x - e.base.x, tip.z - e.base.z) - e.holder.rotation.y;
+            e.holder.rotation.y += Math.atan2(Math.sin(d), Math.cos(d)) * (1 - Math.exp(-10 * dt));
+            M.whip.rotation.x = 0.4 + Math.sin(e.t * 25) * 0.02;
             M.lever.rotation.z = -0.3;
-            if (!e.sprayed) {
-              e.sprayed = true; sfx.creamSpray(dur);
-              e.holder.updateMatrixWorld(true);
-              this.fx.impact(M.tip.getWorldPosition(this._mid), hostile('whipper'), LOOK.num('act2-muzzle-flash', 0.014) * 1.5, 8);   // the nozzle opening
+            gauges(0.8 + Math.sin(e.t * 12) * 0.1);
+            e.holder.updateMatrixWorld(true);
+            const from = M.tip.getWorldPosition(this._mid), to = tip.setY(tip.y + PI.height * 0.8), st = (this.stream ||= this.fx.piece(this.streamGeo, this.fx.chunkMat));
+            st.visible = true; st.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')).multiplyScalar(LOOK.num('whipper-bead-bright', 1.8)); st.userData.opacity = 1;
+            st.position.copy(from); st.lookAt(to);
+            const w = PI.height * 0.16 * (1 + Math.sin(e.t * 40) * 0.15);
+            st.scale.set(w, w, from.distanceTo(to));
+            if (!e.sprayed) {   // the release: the nozzle opens with a flash, the whipper pops, a pssht
+              e.sprayed = true; sfx.creamSpray(pipe);
+              this.fx.impact(from, hostile('whipper'), LOOK.num('act2-muzzle-flash', 0.014) * 1.5, 8);
               e.hitPop = 0.6; juice.feel('hit');
             }
-            if (Math.random() < dt * 45) {
-              const kk = Math.random(), side = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar((Math.random() - 0.5) * 0.7 * kk * len);
-              this.fx.puff(e.base.clone().addScaledVector(fwd, 0.08 + kk * len * 0.9).add(side).setY(e.base.y + 0.02 + (1 - kk) * 0.12), 0xfffaf0, 0.016 + kk * 0.028, 0.5);
-            }
-            if (!e.creamed && e.tele[0] && coneHits(e.tele[0].position, fwd, len, half, P, cfg)) {
-              e.creamed = true;
-              hit(SK.cream.dmg, 'cream', e.base);
-              bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: SK.cream.slow });
-              this.fx.puff(pc.clone(), 0xfffaf0, 0.05, 0.6);
-              this.fx.impact(pc, hostile('whipper'), LOOK.num('act2-contact-flash', 0.03), 10);
-              this.fx.burst(pc, ['#fffaf0', '#fff6e8', '#f0e6ff'], 8, 0.004, 0.3, this.surfaceBelow(P));
-              this.fx.splat(this._probe.copy(P).setY(this.surfaceBelow(P)), LOOK.color('cream-splat', '#fff6e8'), LOOK.num('cream-splat-size', 0.022));
-              juice.feel('impact'); sfx.creamSplat();
-            }
+            if (Math.random() < dt * 10) this.fx.puff(to, 0xfffaf0, 0.012, 0.35);   // where it lands
           } else {
-            // the cream it sprayed stays on the floor along the cone a while (harmless: it fades)
-            if (e.sprayed) for (let k = 1; k <= 3; k++) this.fx.splat(this._probe.copy(surf).addScaledVector(fwd, 0.05 + len * k / 4).addScaledVector(this._right.set(fwd.z, 0, -fwd.x), (Math.random() - 0.5) * len * 0.3), LOOK.color('cream-splat', '#fff6e8'), LOOK.num('cream-splat-size', 0.022) * (0.7 + k * 0.2));
-            e.clearTele(); e.locked = false; e.hissed = e.sprayed = e.creamed = false; M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8;
+            p.piece && (p.piece.u = 1);
+            e.clearTele(); this.stream.visible = false;
+            e.locked = false; e.hissed = e.sprayed = false; e.pipe = null;
+            M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8;
           }
         }
       }
@@ -2697,6 +2756,36 @@ export class Elites {
       }
     }
     this.balloons = this.balloons.filter((b) => !b.done);
+
+    // the Cream Whipper's bead of piped cream: each piece stands its life (from when it was laid), then
+    // sags flat and fades, harmless by then. While it stands, anything of the jelly touching it, under
+    // its top (height=), is hit once a piping and slowed; jump over it and it misses
+    const PS = CONTENT.elites.whipper?.skills.piping;
+    let kept = 0;
+    for (const b of this.beads) {
+      b.t += dt;
+      const sag = Math.max(0, (b.t - b.life) / PS.sag);
+      if (sag >= 1) { b.m.visible = false; this.beadFree.push(b.m); continue; }
+      this.beads[kept++] = b;
+      const R = PS.height / 2, dx = b.to.x - b.a.x, dz = b.to.z - b.a.z, full = Math.hypot(dx, dz), len = full * b.u + R;   // its ends round off over the joins
+      if (full > 1e-4) b.yaw = Math.atan2(dx, dz);
+      const dir = this._beadDir.set(Math.sin(b.yaw), 0, Math.cos(b.yaw)), start = this._beadAt.copy(b.a).addScaledVector(dir, -R / 2);
+      b.m.position.copy(start); b.m.position.y += 0.001;
+      b.m.rotation.set(0, b.yaw, 0);
+      b.m.scale.set(R * (1 + sag * 0.6), R * (1 - sag * 0.85), len);
+      b.m.userData.opacity = 1 - sag;
+      if (!sag && !b.bead.hit && laneHits(start, dir, len, R * 2, PS.height, P, cfg)) {
+        b.bead.hit = true;
+        hit(PS.dmg, 'cream', start);
+        bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: PS.slow });
+        this.fx.puff(pc, 0xfffaf0, 0.05, 0.6);
+        this.fx.impact(pc, hostile('whipper'), LOOK.num('act2-contact-flash', 0.03), 10);
+        this.fx.burst(pc, LOOK.list('cream-bits', ['#fffaf0', '#fff6e8', '#f0e6ff']), 8, 0.004, 0.3, b.a.y);
+        this.fx.splat(this._probe.copy(P).setY(b.a.y), LOOK.color('cream-splat', '#fff6e8'), LOOK.num('cream-splat-size', 0.022));
+        juice.feel('impact'); sfx.creamSplat();
+      }
+    }
+    this.beads.length = kept;
 
     // the clock's wreath: a Shot out along its line to where you were (until then, or a wall), spinning,
     // then back to Victory's hand; it flies on through you, hitting you at most once going out and
