@@ -36,7 +36,7 @@ const CSS = `
 #type-pick .tp-dots i.on { background: var(--ui-mint); transform: scale(1.4); }
 #type-pick .tp-stage { position: relative; flex: 1; min-height: 0; container-type: size; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 #type-pick .tp-stage.drag { cursor: grabbing; }
-#type-pick .tp-arrow { position: absolute; top: 50%; z-index: 200; margin-top: calc(var(--ui-target) / -2); background: var(--ui-panel); }
+#type-pick .tp-arrow { position: absolute; top: 50%; z-index: 100; margin-top: calc(var(--ui-target) / -2); background: var(--ui-panel); }
 #type-pick .tp-arrow[data-dir="-1"] { left: 0; }
 #type-pick .tp-arrow[data-dir="1"] { right: 0; }
 #type-pick .tp-arrow[data-dir="1"] .ui-icon { transform: scaleX(-1); }
