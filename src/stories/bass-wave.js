@@ -8,7 +8,7 @@ import { sfx } from '../sfx.js';
 import { G, act4, encoreFight, everyAttack, fresh, night4, ok, record, spy, step, stub, tp } from './kit.js';
 
 const OPEN = [3.2, 0, 3.0];         // open floor in the middle of the room (act 1's spot), shaded early in the night
-const TABLE = [2.6, 0.5, 3.0];      // the coffee table top (0.46), where its vent lands you
+const TABLE = [2.0, 0.5, 2.4];      // the coffee table top (0.46), where its vent lands you
 // the beat clock is the run's own, and the next wave is a bar and a bit away
 const ready = (lead = 4.5) => { const { run } = G(); stub(run, 'song', null); run.beat = run.bass.next - lead; return run.bass; };
 const bassHits = (log) => log.filter((d) => d.source === 'bass' && d.targetId === PLAYER);

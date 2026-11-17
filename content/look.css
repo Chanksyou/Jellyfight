@@ -414,6 +414,14 @@
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */
+  --skyline-radius: 90;        /* the 33rd floor's view (src/skyline.js): the ring of city round the apartment, metres out */
+  --skyline-up: 25;            /* how far it reaches above the horizon (the jelly's eye level), metres */
+  --skyline-down: 100;         /* and below it: 33 floors is about 100 m, so the streets are far down */
+  --skyline-tower: #080b16;    /* the towers about as tall as you */
+  --skyline-lights: #ffd9a0 #ffb468 #bcd6ff;   /* their lit windows */
+  --skyline-street: #ffa653;   /* the street lights far below */
+  --skyline-street-dots: 2600; /* how many of them */
+  --skyline-window-chance: 0.22; /* the share of tower windows lit */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
 
