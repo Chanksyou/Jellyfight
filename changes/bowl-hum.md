@@ -1,1 +1,0 @@
-replaces the Singing Bowl's Chime with the Hum: its song swells while the whole chair seat fills with a Warning except a white circle round the bowl, then goes off on the bar, so swimming in close is the answer; its rim rings now roll out, hold dim for two beats, and roll back in to the bowl as an echo you jump again.
