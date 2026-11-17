@@ -18,6 +18,7 @@
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
 //   enemy_killed    { targetId, type, elite, pos, floor, r, xp, silent, chilled, element, dir, by, statuses, body, remains? } by: what dealt the last hit (words.js hitBy); statuses: what it was as it died, name -> stacks (on-kill-of); remains: presentation-only model/pose, never a target; chilled: it died chilled (ice), so it shatters; element: what its last hit was (glitter: it bursts into glitter; acid: its body melts; wind: it's blown away along dir)
+//   lucky_roll      {}                               a Lucky Cat second roll hit (chance.js); presentation only
 //   big_splash      { pos, kills }                   one splash killed 3 or more bugs (stack-buff's big-splash)
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded? }

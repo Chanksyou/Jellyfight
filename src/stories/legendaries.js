@@ -5,6 +5,7 @@ import { bus } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
+import { rollChance } from '../chance.js';
 import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
@@ -119,6 +120,56 @@ story('types/stacked-adornments-draw', {
   },
 });
 
+// Lucky Cat (words.js lucky-rolls, chance.js): every "1 in N" chance of yours gets a second try
+const randoms = (...values) => { const q = [...values]; stub(Math, 'random', () => (q.length ? q.shift() : 0.9)); };
+story('treasures/lucky-rolls', {
+  about: 'lucky-rolls (Lucky Cat): a 20% chance that misses on the first roll (0.9) and would hit on a second (0.1) misses without the cat, hits with it, and takes exactly one Math.random() without it.',
+  setup() { fresh({ elites: false }); give('nailClipper'); },
+  play() {
+    const { run } = G();
+    let calls = 0; stub(Math, 'random', () => { calls++; return 0.9; });
+    const plain = rollChance(0.2, run.mods);
+    randoms(0.9, 0.1); const without = rollChance(0.2, run.mods);
+    give('luckyCat');
+    randoms(0.9, 0.1); const withCat = rollChance(0.2, run.mods);
+    randoms(0.9, 0.9); const bothMiss = rollChance(0.2, run.mods);
+    return ok(!plain && calls === 1 && !without && withCat && !bothMiss && run.mods.luckyRolls === 2, { plain, calls, without, withCat, bothMiss });
+  },
+});
+story('treasures/lucky-rolls-not-dodge', {
+  about: 'lucky-rolls: Dodge is rolled once, even with the cat: a hit that misses the Dodge roll (0.9) is not dodged though a second roll (0.1) would have dodged it.',
+  setup() { fresh({ elites: false }); give('luckyCat'); G().run.stats.dodge = 20; },
+  play() {
+    const { run } = G(), dodged = [];
+    stub(run.fx, 'number', (pos, text) => { if (text === 'DODGE') dodged.push(text); });
+    randoms(0.9, 0.1);
+    run.hit(1);
+    return ok(!dodged.length && run.iFrames === 1, { dodged: dodged.length, iFrames: run.iFrames });
+  },
+});
+story('treasures/lucky-rolls-offer', {
+  about: 'needs-chance: Lucky Cat is not offered to a run with no chance effect, and is once it owns Nail Clipper.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const without = legendaryPool(200).has('luckyCat');
+    give('nailClipper');
+    const withClipper = legendaryPool(200).has('luckyCat');
+    return ok(!without && withClipper, { without, withClipper });
+  },
+});
+story('treasures/lucky-rolls-paw', {
+  about: 'lucky-rolls: a second roll that hits shows a paw over the jelly, at most twice a second; a first-roll hit shows none.',
+  setup() { fresh({ elites: false }); give('nailClipper', 'luckyCat'); },
+  play() {
+    const { run } = G(), paws = [];
+    stub(run.fx, 'number', (pos, text) => { if (text === '🐾') paws.push(text); });
+    randoms(0.1); rollChance(0.2, run.mods); const first = paws.length;
+    randoms(0.9, 0.1, 0.9, 0.1); rollChance(0.2, run.mods); rollChance(0.2, run.mods); const quick = paws.length;
+    step(40); randoms(0.9, 0.1); rollChance(0.2, run.mods);
+    return ok(first === 0 && quick === 1 && paws.length === 2, { first, quick, later: paws.length });
+  },
+});
+
 // --- Newton's Cradle (overkill): the leftover of a killing hit passes to the nearest bug in 12 cm
 const own = (on) => { const { run } = G(); run.enemies.passes.length = 0; run.owned[on ? 'add' : 'delete']('newtonsCradle'); run.enemies.mods = run.mods; };
 const cradle = () => own(true);
@@ -128,7 +179,7 @@ const mistake = (src) => { try { compileTreasures(parse(`treasure "x" name="X" i
 
 story('treasures/overkill', {
   about: 'overkill (Newton\'s Cradle): a 20 hit on a 5 Health bug takes the 15 left over off a bug 10 cm away; a bug 15 cm away is left alone; without the treasure nothing passes.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G();
     const trial = (d, owned) => {
@@ -145,7 +196,7 @@ story('treasures/overkill', {
 
 story('treasures/overkill-three-passes', {
   about: 'overkill stops after 3 passes from one original hit: a row of five 1-Health bugs 10 cm apart, hit once for plenty, loses the first four (the hit and 3 passes) and the fifth stays.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G(); cradle();
     const row = [0, 1, 2, 3, 4].map((i) => tinyAt(i * 0.1, 0, 1));
@@ -157,7 +208,7 @@ story('treasures/overkill-three-passes', {
 
 story('treasures/overkill-plain-hits-only', {
   about: 'overkill ignores Burn/Poison/Bleed ticks and anything under 1 left over; a passed hit never crits and does not itself add on-hit effects.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G(); cradle();
     const a = tinyAt(0, 0, 5), b = tinyAt(0.1, 0, 100);

@@ -39,6 +39,7 @@ import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
 import { elementParams } from './words.js';
+import { rollChance } from './chance.js';
 import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
@@ -318,7 +319,7 @@ export class Bubbles {
   nth(mods, n, kind = 'big') {
     let out = null;
     for (const N of mods.nth) {
-      if (N.random ? Math.random() >= 1 / N.every : n % N.every !== 0) continue;
+      if (N.random ? !rollChance(1 / N.every, mods) : n % N.every !== 0) continue;
       for (const ef of N.effects) {
         if (ef.kind !== kind) continue;   // sweep is a lash's
         out ||= { dmg: 1, size: 1, speed: 1, pierce: 0, reach: 1 };
@@ -629,7 +630,7 @@ export class Bubbles {
     const H = mods.hits.bubbles;
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
     if (b.ep?.falloff > 0 && b.hit.size > 1) dmg *= (1 - Math.min(0.9, b.ep.falloff)) ** (b.hit.size - 1);   // Gale: each bug a gust goes through takes less
-    if (H.crit && Math.random() < H.crit.chance) {
+    if (H.crit && rollChance(H.crit.chance, mods)) {
       dmg *= H.crit.mult; color = '#e6fbff';
       crit = true;
       this.fx.crit(this.enemies.center(e), e.r); sfx.crit();
@@ -678,7 +679,7 @@ export class Bubbles {
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
     bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir, golden: !!b.golden } });
     this.enemies.freshBurn = null;
-    if (mods.trap && !e.dead && !e.proxy && Math.random() < mods.trap.chance) this.trapBug(e, mods.trap.time);   // trap-on-hit
+    if (mods.trap && !e.dead && !e.proxy && rollChance(mods.trap.chance, mods)) this.trapBug(e, mods.trap.time);   // trap-on-hit
     if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);
     if (el.has('wind') && !e.proxy && !e.dead) bus.emit('knockback', {
       targetId: e.id, dir, force: (0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0)) * (b.pushMul || 1),
@@ -927,7 +928,7 @@ export class Bubbles {
   // echo-bubble from="splash" (Star Burst, Prism), and the big-splash / wish count.
   glitterBurst(b, r) {
     const p = b.m.position, E = this.enemies, c = this._c, M = this.mods, H = M?.hits.splash;
-    const C = H?.crit, crit = !!C && Math.random() < C.chance;
+    const C = H?.crit, crit = !!C && rollChance(C.chance, M);
     const R = M?.randomStatus, roll = R ? R.statuses[(Math.random() * R.statuses.length) | 0] : null;
     const floor = E.floorBelow(p, p.y - 0.03);
     this.looks.sparkleCloud(p, r, floor, roll ? STATUS_TINT[roll] : null, crit);
@@ -946,7 +947,7 @@ export class Bubbles {
       if (b.ep?.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: b.ep.slow });
       bus.emit('damage_taken', { targetId: e.id, amount, color: crit ? '#e6fbff' : '#ffb0f0', source: 'splash', feedback: { element: 'glitter', crit } });
       if (e.dead) kills++;
-      else if (M?.gild && !b.small && !e.proxy && !this.gilded.some((g) => g.e === e) && Math.random() < M.gild.chance) this.gild(e, M.gild, b);
+      else if (M?.gild && !b.small && !e.proxy && !this.gilded.some((g) => g.e === e) && rollChance(M.gild.chance, M)) this.gild(e, M.gild, b);
     }
     if (kills >= 3) bus.emit('big_splash', { pos: p, kills });   // stack-buff's big-splash, wish
     // splash-shots (Star Burst: one at each bug inside) and echo-bubble from="splash" (Prism: the nearest)
@@ -1118,7 +1119,7 @@ export class Bubbles {
     }
     // zap-on-pop: now and then the pop snaps static to enemies close by, stunning them
     const Z = mods.popZap;
-    if (Z && Math.random() < Z.chance) {
+    if (Z && rollChance(Z.chance, mods)) {
       for (const e of this.inRange(p, Z.range, b.hit).slice(0, Z.count)) {
         E.center(e,c);
         if(this.treasureLooks){this.treasureLooks.signal(p,c,true);sfx.gadgetStatic();}else this.zap(p,c);

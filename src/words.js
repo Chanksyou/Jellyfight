@@ -908,6 +908,8 @@ export function newMods() {
     bounty: null,                    // bounty: { every, stat, amount, far } (gadgets.js marks, run.js onKill pays)
     distanceXp: { xp: 0, every: 2 }, // distance-xp: XP for every `every` m swum (run.js)
     drain: { dps: 0, least: 1 },     // health-drain: Health lost a second, never below least (run.js)
+    chancy: false,                   // some effect of yours rolls a chance (chance.js): Lucky Cat is offered only then
+    luckyRolls: 1,                   // lucky-rolls: tries per chance of yours (chance.js)
     ghosts: null,                    // ghosts: { chance, time, dmg, speed, rest, most } (gadgets.js)
   };
 }
@@ -1448,7 +1450,7 @@ export const TREASURE_WORDS = {
     block: ATTACK_WORDS,
     make: ([n], p, where, effects) => {
       if (!(Number.isInteger(n) && n >= 2)) throw new Error('nth-attack: every must be a whole number, 2 or more');
-      return (m) => { m.nth.push({ every: n, random: p.random, effects }); };
+      return (m) => { m.nth.push({ every: n, random: p.random, effects }); if (p.random) m.chancy = true; };
     },
   },
   'stack-buff': {
@@ -1715,4 +1717,18 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.charged.push({ when, time: seconds, strike: p.strike, chain: p.chain, dmg: p.dmg, key: `${where}#${copy}` }); };
     },
   },
+  'lucky-rolls': {
+    doc: 'Every chance of yours that rolls through chance.js (crit, trap-on-hit, ghosts, life steal...) gets `rolls` tries in all, and any one hitting counts. Never Dodge or Rarity.',
+    args: ['rolls'],
+    make: ([n]) => {
+      if (!(Number.isInteger(n) && n >= 2)) throw new Error('lucky-rolls: rolls must be a whole number, 2 or more');
+      return (m) => { m.luckyRolls = Math.max(m.luckyRolls, n); };
+    },
+  },
 };
+
+// the words whose chance rolls through chance.js: owning one lets a needs-chance treasure be offered
+for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit']) {
+  const w = TREASURE_WORDS[k], make = w.make;
+  w.make = (...a) => { const apply = make(...a); return (m, copy) => { apply(m, copy); m.chancy = true; }; };
+}
