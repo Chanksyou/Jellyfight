@@ -914,6 +914,7 @@ async function warmUp() {
   run.shield.group.scale.setScalar(0.001);
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
+  enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -954,6 +955,7 @@ async function warmUp() {
   run.shield.update(0);
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
+  enemies.glowPools.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
