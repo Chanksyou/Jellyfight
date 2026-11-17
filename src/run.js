@@ -1248,7 +1248,7 @@ export class Run {
     if (!T || (this.phase !== 'explore' && this.phase !== 'boss')) return false;
     let best = null, bestD = Infinity, top = 0;
     for (const e of this.enemies.list) {
-      if (e.dead) continue;
+      if (e.dead || e.proxy?.immune) continue;   // a shielded or rising boss is no step to spring off
       const r = e.hitR || e.r, c = this.enemies.center(e, _bug), t = c.y + r;
       if (t > from || t < to || P.peakY - t < T.drop) continue;
       const d = Math.hypot(c.x - P.position.x, c.z - P.position.z);
