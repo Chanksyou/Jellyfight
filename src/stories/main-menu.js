@@ -1,5 +1,6 @@
 // Menu presentation must never move the actual player or replay when resuming a run.
-import { story, phone, G, fresh, ok, step, stub } from './kit.js';
+import { story, phone, G, fresh, ok, step, stub, give } from './kit.js';
+import { isMuted, setMuted } from '../sfx.js';
 import { SPECIES } from '../character.js';
 import { moveSaves, forwardFor, takeSaves, HOME } from '../rename.js';
 
@@ -13,7 +14,7 @@ const gameplaySummary = {
       const summary = over.querySelector('.menu-loop'), play = over.querySelector('.play');
       const help = summary.closest('details'), toggle = help.querySelector('summary');
       const icon = toggle.querySelector('.menu-help-icon');
-      const closed = !help.open && !summary.checkVisibility() && toggle.textContent.trim() === '? How to play' && icon?.getAttribute('aria-hidden') === 'true';
+      const closed = !help.open && !summary.checkVisibility() && toggle.textContent.trim() === 'How to play' && icon?.getAttribute('aria-hidden') === 'true';
       toggle.click();
       const text = summary.textContent;
       const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'treasures', 'countdown', 'boss', 'next act'].every(word => text.includes(word));
@@ -34,7 +35,7 @@ story('menu/portrait-gameplay-summary', { ...gameplaySummary, portrait: true });
 phone('gameplay-summary', gameplaySummary);
 
 story('menu/portrait-controls-centered', {
-  about: 'In a tall desktop window, the title, Play button, and customization button share the viewport center.',
+  about: 'In a tall desktop window, the title, Play button, and the row of tiles share the viewport center.',
   portrait: true,
   setup() { fresh({ elites: false }); },
   play() {
@@ -42,7 +43,7 @@ story('menu/portrait-controls-centered', {
     try {
       menu.show(); over.hidden = false; step(1);
       const center = selector => { const r = over.querySelector(selector).getBoundingClientRect(); return r.x + r.width / 2; };
-      const centers = ['h1', '.play', '.menu-jelly-caption button'].map(center);
+      const centers = ['h1', '.play', '.menu-tiles'].map(center);
       return ok(innerWidth < innerHeight && centers.every(x => Math.abs(x - innerWidth / 2) < 1), { width: innerWidth, centers });
     } finally {
       menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
@@ -74,7 +75,7 @@ story('menu/underwater-restoration', {
 });
 
 story('menu/change-your-look', {
-  about: 'Change your look under the jelly opens customization without poking it; the old main-menu row control is hidden.',
+  about: 'The Change your look tile on the title opens customization without poking the jelly.',
   setup() { fresh({ elites: false }); },
   play() {
     const { mainMenu: menu } = G(), over = menu.overlay;
@@ -82,9 +83,8 @@ story('menu/change-your-look', {
     stub(menu, 'onPoke', () => pokes++);
     try {
       menu.show(); over.hidden = false; step(1);
-      const button = over.querySelector('.menu-jelly-caption [data-act="creator"]');
-      const row = over.querySelector('.row [data-act="creator"]');
-      const visible = button.getClientRects().length > 0 && getComputedStyle(row).display === 'none';
+      const button = over.querySelector('.menu-tiles [data-act="creator"]');
+      const visible = button.getClientRects().length > 0;
       const label = button.textContent === 'Change your look';
       button.click();
       const opened = !document.querySelector('#creator').hidden && over.hidden;
@@ -267,5 +267,109 @@ story('menu/install-app-button', {
     const used = asked === 1 && btn.hidden;
     dispatchEvent(offer); dispatchEvent(new Event('appinstalled'));
     return ok(before && offered && used && btn.hidden, { before, offered, asked, hidden: btn.hidden });
+  },
+});
+
+// --- Settings and the pause menu (UI overhaul M1)
+const settingsSheet = {
+  about: 'The gear on the title (the Settings button in the pause menu) opens Settings as a sheet over a scrim: Sound, Music, Graphics and Text size (and Frame rate on a phone) as choices that show what is on, and Sound and Music change it. Close, the scrim and Escape shut it. A phone\'s sheet rises from the bottom edge; a desktop\'s sits in the middle. Install app waits for the browser\'s offer.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu, gfx } = G(), over = menu.overlay, $ = (s) => over.querySelector(s), sheet = $('.menu-settings'), scrim = $('.ui-scrim');
+    const phoneSized = matchMedia('(pointer: coarse)').matches;
+    const pressed = (attr) => [...sheet.querySelectorAll(`[${attr}]`)].find((b) => b.getAttribute('aria-pressed') === 'true')?.getAttribute(attr);
+    const wasMuted = isMuted(), wasMusic = localStorage.getItem('jellyrun.music');
+    try {
+      menu.show(); over.hidden = false; step(1);
+      const shut = sheet.hidden && scrim.hidden;
+      $('.menu-gear').click();
+      for (const a of sheet.getAnimations()) a.finish();
+      const r = sheet.getBoundingClientRect();
+      const open = !sheet.hidden && !scrim.hidden && r.height > 0;
+      const placed = phoneSized ? Math.abs(r.bottom - innerHeight) < 1 && r.width === innerWidth : Math.abs((r.top + r.bottom) / 2 - innerHeight / 2) < 2 && r.width < innerWidth;
+      const rows = [...sheet.querySelectorAll('.set-row .ui-label')].map((l) => l.textContent).join();
+      const wanted = phoneSized ? 'Sound,Music,Graphics,Frame rate,Text size' : 'Sound,Music,Graphics,Text size';
+      const shows = pressed('data-sound') === (wasMuted ? 'off' : 'on') && pressed('data-q') === gfx.choice && pressed('data-text') === 'normal';
+      sheet.querySelector('[data-sound="off"]').click();
+      const muted = isMuted() && pressed('data-sound') === 'off';
+      sheet.querySelector('[data-sound="on"]').click();
+      const unmuted = !isMuted() && pressed('data-sound') === 'on';
+      sheet.querySelector('[data-music="off"]').click();
+      const musicOff = localStorage.getItem('jellyrun.music') === 'off' && pressed('data-music') === 'off';
+      sheet.querySelector('[data-music="on"]').click();
+      const musicOn = localStorage.getItem('jellyrun.music') === 'on' && pressed('data-music') === 'on';
+      const install = $('[data-act="install"]').hidden;
+      const closes = [];
+      sheet.querySelector('[data-act="sheet-close"]').click(); closes.push(sheet.hidden && scrim.hidden);
+      $('.menu-gear').click(); scrim.click(); closes.push(sheet.hidden && scrim.hidden);
+      $('.menu-gear').click(); dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' })); closes.push(sheet.hidden && scrim.hidden);
+      // the pause menu's own Settings button opens the same sheet
+      over.classList.remove('menu-home'); step(1);
+      const gear = getComputedStyle($('.menu-gear')).display === 'none';
+      $('.pause-actions [data-act="settings"]').click();
+      const fromPause = !sheet.hidden;
+      sheet.querySelector('[data-act="sheet-close"]').click();
+      return ok(shut && open && placed && rows === wanted && shows && muted && unmuted && musicOff && musicOn && install && closes.every(Boolean) && gear && fromPause,
+        { shut, open, placed, rows, shows, muted, unmuted, musicOff, musicOn, install, closes, gear, fromPause });
+    } finally {
+      setMuted(wasMuted);
+      if (wasMusic === null) localStorage.removeItem('jellyrun.music'); else localStorage.setItem('jellyrun.music', wasMusic);
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+};
+story('menu/settings-sheet', settingsSheet);
+phone('settings-sheet', settingsSheet);
+
+story('menu/text-size', {
+  about: 'Settings\' Text size is Normal or Large: Large scales every kit size by 15% and is kept in this browser (jellyrun.textSize); Normal puts it back.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { mainMenu: menu } = G(), over = menu.overlay, root = document.documentElement, was = localStorage.getItem('jellyrun.textSize');
+    const probe = document.createElement('p'); probe.className = 'ui-text'; probe.textContent = 'size';
+    try {
+      document.body.appendChild(probe);
+      menu.show(); over.hidden = false; over.querySelector('.menu-gear').click();
+      const size = () => parseFloat(getComputedStyle(probe).fontSize), normal = size();
+      over.querySelector('[data-text="large"]').click();
+      const large = +(size() / normal).toFixed(2), kept = localStorage.getItem('jellyrun.textSize'), set = root.dataset.textSize;
+      const pressed = over.querySelector('[data-text="large"]').getAttribute('aria-pressed') === 'true';
+      over.querySelector('[data-text="normal"]').click();
+      const back = size() === normal && localStorage.getItem('jellyrun.textSize') === 'normal' && root.dataset.textSize === 'normal';
+      return ok(large === 1.15 && kept === 'large' && set === 'large' && pressed && back, { normal, large, kept, set, pressed, back });
+    } finally {
+      probe.remove(); root.dataset.textSize = 'normal';
+      if (was === null) localStorage.removeItem('jellyrun.textSize'); else localStorage.setItem('jellyrun.textSize', was);
+      over.querySelector('[data-act="sheet-close"]').click();
+      menu.restore(); menu.home = false; over.classList.remove('menu-home'); over.hidden = true;
+    }
+  },
+});
+
+story('menu/pause-summary', {
+  about: 'The pause menu is its own screen, not the title: a big Resume, Settings and Main menu, then a summary of the run (Health, Level, the time to the Boss, and each Treasure taken as an icon). The title\'s Play, tiles and gear are not there, and neither is the version. Main menu asks to be tapped twice before it leaves the run.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run, mainMenu: menu } = G(), over = menu.overlay, $ = (s) => over.querySelector(s), shown = (s) => $(s).getClientRects().length > 0;
+    give('lemon', 'lemon', 'trophy');
+    run.health = Math.max(1, Math.round(run.S.health / 2));
+    let left = 0;
+    stub(run, 'onMainMenu', () => { left++; });
+    over.classList.remove('menu-home'); over.hidden = false;
+    await Promise.resolve();                              // the menu fills as it opens
+    const pause = shown('.pause-resume') && shown('[data-act="main-menu"]') && shown('.pause-summary');
+    const title = shown('.play') || shown('.menu-tiles') || shown('.menu-gear') || shown('.ver') || shown('h1');
+    const text = $('.pause-summary').textContent;
+    const health = text.includes(`${run.health} / ${Math.ceil(run.S.health)}`) && +$('.pause-summary .ui-bar').style.getPropertyValue('--value') > 0.4;
+    const facts = text.includes('Level 1') && /Boss in \d+:\d\d/.test(text);
+    const icons = $('.ps-items').querySelectorAll('.ps-item').length === 2 && $('.ps-items').textContent.includes('×2');
+    const leave = $('[data-act="main-menu"]');
+    leave.click();
+    const asks = left === 0 && /Tap again/.test(leave.textContent);
+    leave.click();
+    const leaves = left === 1 && leave.textContent.trim() === 'Main menu';
+    leave.click(); over.hidden = true; await Promise.resolve();
+    const forgets = leave.textContent.trim() === 'Main menu';   // the question doesn't wait on the next pause
+    return ok(pause && !title && health && facts && icons && asks && leaves && forgets, { pause, title, text, health, facts, icons, asks, leaves, forgets });
   },
 });
