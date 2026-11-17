@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v470 takes the last plants out of the living room (the Monstera and the Tall snake plant) and bakes in the Headphones' new spot in act 1.
+
 v469 gives the end screens the kit look: an act complete stamps a gold seal beside its heading and shows the Treasures you took as tiles over the score parts counting up; the death screen is a dark panel that reads over the sand and fits a phone with every button on screen; the win shows the jelly up close beside a panel with the run's numbers and a trophy icon. Evolution reveals already used the kit.
 
 v468 restyles the Treasure book, Achievements, leaderboard and Change your look on the new look: the book's sections are tabs with its close always in view, unfound tiles show where to find them, Achievements keep their rules behind an info icon, and Change your look uses kit chips and buttons.
