@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v457 adds the Pogo Stick, a Legendary Treasure: land on a bug to stomp it for 4x Attack damage and spring back up; each stomp in a row before you touch the floor hits 1x harder, up to 8x.
+
 v456 replaces the Cream Whipper's cream spray with Piping: its nozzle follows you while your wake glows violet, then a stream of cream lays a 4 cm star-ridged bead along the path you swam, 0.8 s behind you, for 3.5 s (5 s angry); the bead stays 4 s (6 s angry), then sags and fades. Touch it or stand still and it's 3 and a slow: keep moving, don't double back, jump across your line.
 
 v455 adds Newton's Cradle, a Legendary Treasure: when a hit finishes off a bug, the damage left over passes to the nearest bug within 12 cm, up to 3 times.
