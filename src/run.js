@@ -32,6 +32,7 @@ import { meshesNamed } from './traversal.js';
 import { BossSet } from './boss-set.js';
 import { Elites, ELITE_NAMES } from './elites.js';
 import { Bubbles } from './bubbles.js';
+import { rollChance } from './chance.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
 import { FirstRun, markPlayed, deathHint } from './first-run.js';
 import { juice } from './juice.js';
@@ -159,6 +160,14 @@ export class Run {
         else this.hit(amount, from, contact, knock, at);
       } finally { this.hurtBy = beforeBy; this.hurtUnit = beforeUnit; }
     });
+    // Lucky Cat: a second roll that hit shows a paw and rings a soft bell, at most twice a second
+    bus.on('lucky_roll', () => {
+      if (this.t - this.pawT < 0.5) return;
+      this.pawT = this.t;
+      const P = this.player.position;
+      this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.3), '🐾', LOOK.color('friendly', '#5ff0ff'), 16);
+      sfx.luckyBell();
+    });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength, unit }) => {
       if (targetId === PLAYER && status === 'slow' && strength == null) this.slowT = Math.max(this.slowT, duration);
@@ -186,7 +195,7 @@ export class Run {
     bus.on('damage_taken', (d) => {
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
       const H = this.mods.healOnHit;
-      if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && Math.random() < H.chance) this.heal(H.health);
+      if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
@@ -292,7 +301,7 @@ export class Run {
 
     this.phase = 'explore';
     this.doorOpen = false;            // a two-scene act's stage door (openStageDoor)
-    this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9;
+    this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9; this.pawT = -1e9;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
@@ -641,7 +650,7 @@ export class Run {
       }
       this.bubbles.update(dt, P.position.clone().setY(P.position.y + this.cfg.height * 0.75), s, this.mods, polyp, A);
       // close-range sting: tentacles, improved only by treasures (a jelly type: only the Tentacle jelly lashes)
-      if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount });
+      if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount, mods: this.mods });
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius, moving: P.fullSpeed,
         pulse: (k) => P.avatar?.pulse(k),
@@ -945,7 +954,7 @@ export class Run {
     if (!L?.length) return;
     const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
     const ctx = { feet: P, center, facing: this.player.facing, power: this.power, mods: this.mods, pulse: (k) => this.player.avatar?.pulse(k) };
-    for (const A of L) if (Math.random() < A.chance) for (const ef of A.effects) this.gadgets.fire(ef, ctx);
+    for (const A of L) if (rollChance(A.chance, this.mods)) for (const ef of A.effects) this.gadgets.fire(ef, ctx);
   }
 
   // health-drain (Bloody Fangs): Health (never the Shield) seeps away, never below its least, red drops falling off the bell
@@ -1144,7 +1153,7 @@ export class Run {
     }
     // ghosts (Glow-in-the-Dark Star): now and then a cleared bug rises again on your side
     const Gh = this.mods.ghosts;
-    if (Gh && !silent && Math.random() < Gh.chance) this.gadgets.ghost(c, Gh);
+    if (Gh && !silent && rollChance(Gh.chance, this.mods)) this.gadgets.ghost(c, Gh);
     // on-kill-of: a bug that died with a status (or to `by`) sets off the block where it fell
     for (const K of this.mods.killsOf) {
       if ((K.status && !(statuses[K.status] >= K.stacks)) || (K.by && K.by !== by)) continue;
@@ -1192,13 +1201,13 @@ export class Run {
     }
     // crumb-on-kill: now and then a bug leaves a Health crumb to pick up
     const cr = this.mods.crumbs;
-    if (cr && Math.random() < cr.chance) this.crumbs.drop(c, cr.health);
-    for (const L of this.mods.leaves) if (Math.random() < L.chance) {   // leave-on-kill: a bigger thing that waits where the bug fell
+    if (cr && rollChance(cr.chance, this.mods)) this.crumbs.drop(c, cr.health);
+    for (const L of this.mods.leaves) if (rollChance(L.chance, this.mods)) {   // leave-on-kill: a bigger thing that waits where the bug fell
       const pool = this.left[L.look], n = pool.list.length; pool.drop(c, 1);
       if (pool.list.length > n) pool.list[n].k = L.look === 'dust' ? 5 : 4;   // a 2 cm dust bunny, a 1.5 cm meatball: big enough to swim for
     }
     // crumb-on-kill drop="level" (Jackpot): now and then a big XP gem worth the rest of the level
-    if (this.mods.jackpot && Math.random() < this.mods.jackpot.chance) {
+    if (this.mods.jackpot && rollChance(this.mods.jackpot.chance, this.mods)) {
       if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
@@ -1381,7 +1390,7 @@ export class Run {
   }
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
-  hasStat(t) { return !t.needsStat || this.S[t.needsStat] > 0; }
+  hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy); }   // needs-chance: some effect of yours rolls a chance
   // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
   // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
   forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }

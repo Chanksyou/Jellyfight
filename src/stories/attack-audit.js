@@ -91,6 +91,7 @@ export const AUDIT = {
     'pushed-hits', 'glide',   // Wind Attack upgrades: a gust's shove carrying on into the bugs it meets (audited with the gust), and drifting down in the air (movement)
     'trap-on-hit', 'homing', 'wobble', 'focus-ramp', 'pop-chain', 'range-pop', 'orbit-misses',   // Normal Attack upgrades: how the bubble flies and what its hit does; the bubble is audited above, and a trap bubble, a chained or wider splash and an orbiting bubble reuse its pop, puff and sound
     'charged-shot',   // Lightning Attack upgrades: a charge for the lightning shot (audited with that shot)
+    'lucky-rolls',   // Lucky Cat: a second try at your chances (chance.js), no attack of its own
     'on-attack', 'distance-xp', 'health-drain',   // a chance per attack to do a block of timed effects (audited where they're used: Pocket Vacuum's whirl), XP for distance swum, Health seeping away
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it

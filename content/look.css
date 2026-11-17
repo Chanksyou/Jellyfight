@@ -1,6 +1,64 @@
 /* How Jelly Run looks: every colour and render number you might want to tune, in one place.
    Change a value, reload, and the game uses it (src/look.js reads this file at startup).
    Numbers are plain numbers; colours are #rrggbb; lists are space-separated. */
+/* --- UI: the night-aquarium kit's tokens (src/ui-kit.css builds the shared pieces from these; the
+   rest of this file is the 3D world's). Friendly is cool mint, rewards and the main action are gold;
+   anything hostile keeps its own --hostile-* colour further down. Sizes grow from a phone held
+   sideways (390 px tall) to a desktop (720 px tall) and never go below 12 px. */
+:root {
+  --ui-deep: #0b1622;          /* the water behind every screen */
+  --ui-panel: #12233ae6;       /* a panel: solid and a little see-through (no backdrop blur: it costs phones) */
+  --ui-panel-raised: #1b3150;  /* a card or tile on a panel */
+  --ui-glass: #ffffff14;       /* a secondary button or tile at rest */
+  --ui-glass-strong: #ffffff26; /* ... hovered */
+  --ui-shade: #00000066;       /* shadows and empty bar tracks */
+  --ui-scrim: #0b1622b8;       /* behind a sheet */
+  --ui-ink: #e8f4f8;           /* text */
+  --ui-ink-dim: #a9bfcc;       /* secondary text */
+  --ui-line: #e8f4f82e;        /* hairlines and outlines */
+  --ui-mint: #a3f5d5;          /* yours, friendly, selected */
+  --ui-gold: #ffd46c;          /* the main action, rewards */
+  --ui-gold-ink: #2b1f00;      /* text on gold */
+  --ui-gold-deep: #b8891f;     /* the gold button's edge */
+  --ui-health: #5fc8ff;
+  --ui-xp: #ffd46c;
+  --ui-shield: #9fe8ff;
+  --ui-boss: #ff6a55;          /* a boss's Health bar: hot, like everything hostile */
+  --ui-common: #c9d4de;        /* Treasure rarity frames and labels */
+  --ui-rare: #5fb6ff;
+  --ui-epic: #c58bff;
+  --ui-legendary: #ffb340;
+
+  /* type: Fredoka for every heading (the title too), Inter for the rest (assets/fonts) */
+  --ui-font-display: "Fredoka", "Trebuchet MS", "Avenir Next", system-ui, sans-serif;
+  --ui-font-text: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ui-text-scale: 1;          /* the Normal/Large text setting multiplies every size below */
+  --ui-text-large: 1.15;       /* what Large is (html[data-text-size="large"], src/ui-kit.css) */
+  --ui-size-display: calc(clamp(44px, 20.36px + 6.061vmin, 64px) * var(--ui-text-scale));   /* phone 44, desktop 64 */
+  --ui-size-title: calc(clamp(24px, 16.91px + 1.818vmin, 30px) * var(--ui-text-scale));      /* 24 / 30 */
+  --ui-size-heading: calc(clamp(18px, 15.64px + 0.606vmin, 20px) * var(--ui-text-scale));    /* 18 / 20 */
+  --ui-size-body: calc(clamp(14px, 12.82px + 0.303vmin, 15px) * var(--ui-text-scale));        /* 14 / 15 */
+  --ui-size-label: calc(clamp(12px, 10.82px + 0.303vmin, 13px) * var(--ui-text-scale));       /* 12 / 13: the smallest text anywhere */
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-radius-s: 8px;          /* chips, bars, small buttons */
+  --ui-radius-m: 14px;         /* panels, cards, tiles */
+  --ui-radius-pill: 999px;
+  --ui-target: 44px;           /* the smallest thing a thumb has to hit */
+
+  /* motion: things arrive with a little overshoot and leave quickly; with reduced motion they only fade */
+  --ui-fast: 120ms;
+  --ui-mid: 240ms;
+  --ui-slow: 480ms;
+  --ui-ease-in: cubic-bezier(.34, 1.5, .64, 1);
+  --ui-ease-out: cubic-bezier(.5, 0, .9, .5);
+}
+
 :root {
   --portrait-resolution: 256;
   --shark-blue: #506f83;
@@ -944,14 +1002,17 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
 }
 @media (max-height: 620px) and (min-aspect-ratio: 1/1) {
   #g-over:is(.menu-home, .menu-launching) .menu-loop { font-size: 13px; }
-  #g-over:is(.menu-home, .menu-launching) > div { padding: 18px 0; margin-left: 6%; width: 50%; }
-  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 65px; margin-bottom: 10px; }
+  #g-over:is(.menu-home, .menu-launching) > div { padding: 8px 0; margin-left: 6%; width: 50%; }
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 46px; margin-bottom: 4px; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
-  #g-over:is(.menu-home, .menu-launching) .play { margin: 16px 0; padding: 11px 30px; font-size: 18px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 12px; padding: 9px 24px; font-size: 17px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 12px; }
-  #g-over:is(.menu-home, .menu-launching) .row button { padding: 7px 10px; font-size: 12px; }
-  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 9px; }
+  #g-over:is(.menu-home, .menu-launching) .play { margin: 8px 0; padding: 9px 30px; font-size: 18px; }
+  #g-over:is(.menu-home, .menu-launching) #g-quality { margin-top: 8px !important; }
+  #g-over:is(.menu-home, .menu-launching) .home-tip { margin-top: 4px; padding-block: 3px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 6px; padding: 7px 24px; font-size: 17px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 6px; }
+  #g-over:is(.menu-home, .menu-launching) .row { margin: 4px 0; }
+  #g-over:is(.menu-home, .menu-launching) .row button { padding: 5px 10px; font-size: 12px; min-height: 34px; }
+  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 4px; line-height: 1.5; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { right: 3%; width: 39%; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { right: 3%; width: 39%; bottom: 8%; }
 }

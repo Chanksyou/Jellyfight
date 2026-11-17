@@ -71,6 +71,7 @@ verification across all player attack families.
 | A bug's numbers or behaviour | `content/enemies.kdl` | Behaviour is words from `src/words.js` (`ENEMY_WORDS`) |
 | When bugs appear, how many, how fast | `content/waves.kdl` | |
 | Colours, glow, night lighting, haze, bloom, camera, jelly size | `content/look.css` | Read by `src/look.js` at startup |
+| UI colours, type, spacing, motion; shared UI pieces; icons | `content/look.css` (`--ui-*`, its top block); `src/ui-kit.css`; `src/icons.js` | Fonts self-hosted in `assets/fonts`. `?story=ui/kit` shows every piece; the stories `ui/text-at-least-12px` and `ui/targets-at-least-44px` guard every screen on a phone; `node tools/ui-shots.mjs [--only=<screen>]` shoots each screen on phone and desktop |
 | How hard a hit, kill or attack lands (screen shake, hit-stop) | `content/look.css` (`--feel-*`) | One ladder by significance; code calls `juice.feel(step)`, never its own numbers |
 | An attack's feel audit score | `src/stories/attack-audit.js` | Every attack is listed; `vocabulary/every-attack-is-audited` guards it |
 | What a new player's first run introduces, and when | `src/first-run.js` | The run asks it at a few points; stories use `fresh({ firstRun: true })`. A first run is always the Normal jelly; later runs open the type pick screen |
