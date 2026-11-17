@@ -517,3 +517,19 @@ story('types/crit-treasures-reach-glitter-bursts', {
     return ok(near(H.splash.crit?.chance, 0.2) && near(H.bubbles.crit?.chance, 0.2) && near(H.tentacles.crit?.chance, 0.2) && near(both.hits.splash.crit?.chance, 0.35), { splash: H.splash.crit, both: both.hits.splash.crit });
   },
 });
+
+story('types/pick-card-hugs-its-contents-on-a-tall-screen', {
+  portrait: true,
+  about: 'On a tall window the pick cards are as tall as what they hold: between the centre card\'s portrait and its bars there is no more than a little gap, not an empty half card (Chan, Nov 17).',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true);
+    try {
+      pressPlay('lightning');
+      step(3);
+      const card = picker.cards[picker.index], art = card.querySelector('.tp-art').getBoundingClientRect(), bars = card.querySelector('.tp-bars').getBoundingClientRect();
+      const gap = Math.round(bars.top - art.bottom);   // the space between the portrait and the bars
+      return ok(gap <= 40, { gap, art: Math.round(art.bottom), bars: Math.round(bars.top) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
