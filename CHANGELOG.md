@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v468 restyles the Treasure book, Achievements, leaderboard and Change your look on the new look: the book's sections are tabs with its close always in view, unfound tiles show where to find them, Achievements keep their rules behind an info icon, and Change your look uses kit chips and buttons.
+
 v467 improves the jelly pick screen: the centre card fills the screen's height with a bigger attack preview, taller stat bars, arrows and dots for swiping, and locked cards say how to unlock them.
 
 v466 rearranges the living room (acts 1 and 4) to Chan's new layout: the sofa, coffee table and lounge chair move toward the window, the plants that lost their pots and stands are gone, the vents and chest spots follow, and act 4's Singing Bowl and Mushroom Pillow Elites move with their furniture. The apartment is now on the 33rd floor: the windows look out over a city about 100 m down instead of a dark nothing.
