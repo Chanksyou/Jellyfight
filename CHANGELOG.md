@@ -2,6 +2,12 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v464 rebuilds the HUD and touch controls on the new UI kit: kit Health, XP, Shield, Elite and boss bars, a level ring, 12 px or larger HUD text with a dark outline (the night's time, the Health number, Treasure counts), a clean glass minimap of room outlines marking only chests, Elites, the boss and the way out (no more bug dots or furniture blobs), a mint glass jump button with an icon instead of the pink one, brighter thumb rings, outlined damage numbers and the kit's toast.
+
+v463 gives the title, the pause menu and the loading screens the new night-aquarium look. The title is slimmer: How to play, a big Play, and three tiles (Treasure book, Trophies, Change your look), with a gear in the corner that opens Settings (Sound, Music, Graphics, Frame rate on phones, a new Normal or Large Text size, and Install app). The pause menu is now its own screen: Resume, Settings, Main menu (it asks twice before leaving the run), and a summary of Health, Level, the time to the Boss and the Treasures you carry.
+
+v462 UI kit follow-up: buttons, tiles and cards light up on hover only with a mouse, so a tapped one on a phone no longer stays lit; the 12 px and 44 px guards now measure each screen after it has faded in, and list the small text and short buttons that were hiding behind the fade.
+
 v461 adds the UI design kit the coming menu and HUD redesign is built from: night-aquarium colours, the Fredoka and Inter fonts, line icons and shared buttons, cards, bars and sheets. Nothing on screen changes yet.
 
 v460 fits the title screen on a short landscape phone, gives Achievements a scroll area above a solid footer, hides the thumb ring in Change your look, adds a close button and a slimmer header to the Treasure book, and hides the Dev button and fps readout from players (five taps on the version bring up Dev).

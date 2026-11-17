@@ -3,131 +3,143 @@
 import { bus } from './events.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
+import { icon } from './icons.js';
 
+// Colours, type and spacing are the UI kit's (--ui-* in content/look.css, src/ui-kit.css: .ui-bar, .ui-toast).
+// Text over the floor wears --hud-outline, so it reads on wood, tile and rug alike.
 const CSS = `
-#hud .combo { position: absolute; right: 18px; top: 38%; text-align: right; color: hsl(var(--hue, 50) 100% 62%); text-shadow: 0 2px 6px #000a; pointer-events: none; }
+#hud { position: fixed; inset: 0; pointer-events: none; font: 600 var(--ui-size-body)/1.3 var(--ui-font-text); color: var(--ui-ink);
+  --hud-outline: 0 0 2px var(--ui-deep), 0 0 2px var(--ui-deep), 0 1px 3px var(--ui-deep); }
+#hud .combo { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 18px); top: 38%; text-align: right; color: hsl(var(--hue, 50) 100% 62%); text-shadow: var(--hud-outline); pointer-events: none; }
 #hud .combo[hidden] { display: none; }
-#hud .combo b { display: block; font: 900 44px/1 system-ui, sans-serif; transform-origin: right center; }
-#hud .combo span { font: 700 13px system-ui, sans-serif; opacity: .9; }
+#hud .combo b { display: block; font: 600 44px/1 var(--ui-font-display); transform-origin: right center; }
+#hud .combo span { font: 700 var(--ui-size-label) var(--ui-font-text); }
 #hud .combo i { display: block; height: 4px; margin-top: 4px; border-radius: 2px; background: currentColor; transform-origin: right; }
 #hud .combo.punch b { animation: jf-punch .22s ease-out; }
 @keyframes jf-punch { 0% { transform: scale(1.6) rotate(-6deg); } 100% { transform: scale(1) rotate(0); } }
-body.touch #hud .combo { top: 30%; right: 12px; } body.touch #hud .combo b { font-size: 34px; }
+body.touch #hud .combo { top: 30%; right: calc(env(safe-area-inset-right, 0px) + 12px); } body.touch #hud .combo b { font-size: 34px; }
 
-#hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
-/* vitals: a level badge, the health bar with just its number, a thin gold line of XP under it */
-#hud .tl { position: absolute; left: 18px; top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 12px; align-items: center; width: 340px; }
-#hud .lvl { grid-row: span 2; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 800 19px system-ui, sans-serif;
-  background: #0d1220cc; box-shadow: inset 0 0 0 3px #ffd25a, 0 0 10px #ffd25a55; color: #ffe7a0; }
-#hud .bar { position: relative; height: 20px; border-radius: 10px; background: #0d1220c0; overflow: hidden; box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008; }
-#hud .bar i { position: absolute; inset: 0; transform-origin: left; transition: transform .15s; border-radius: inherit; }
-#hud .moist i { background: linear-gradient(90deg, #3aa8ff, #7fe8ff); box-shadow: inset 0 -4px 0 #0002; }
-#hud .moist.low i { background: linear-gradient(90deg, #ff5a5a, #ff9a7a); }
+/* vitals: the level ring, the Health bar with its number (and the Shield's bar after it), a thin XP bar under it */
+#hud .tl { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 18px); top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; grid-template-columns: auto 1fr; gap: 0 12px; align-items: center; width: 340px; }
+#hud .lvl { grid-row: span 2; box-sizing: border-box; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 600 22px/1 var(--ui-font-display);
+  background: var(--ui-panel); border: 3px solid var(--ui-xp); box-shadow: 0 2px 8px var(--ui-shade); color: var(--ui-ink); font-variant-numeric: tabular-nums; }
+/* the bars are the kit's .ui-bar (track, outline and --fill colour by data-kind); the HUD sets their sizes */
+#hud .bar { height: 20px; box-shadow: 0 2px 8px var(--ui-shade); }
+#hud .bar > i { transition: transform var(--ui-fast) ease-out; }
+#hud .moist.low { --fill: var(--hp-critical-color); }
 #hud .player-health { position: relative; min-width: 0; transform-origin: center; }
 #hud .player-health .hp-fill { transition: transform .18s ease-out; }
-#hud .player-health .hp-trail { position: absolute; inset: 0; border-radius: inherit; background: var(--hp-trail-color); transform-origin: left; transition: transform var(--hp-drain) ease-out; }
-#hud .player-health .hp-edge { position: absolute; top: 50%; width: 10px; height: 110%; border-radius: 50%; background: #ffffff77; transform: translate(-50%, -50%); transition: left .18s ease-out; pointer-events: none; }
-#hud .player-health .hp-warning { display: none; position: absolute; left: 7px; top: 50%; transform: translateY(-50%); font: 900 12px system-ui; color: #fff; text-shadow: 0 1px 2px #000; }
+#hud .player-health .hp-trail { position: absolute; inset: 0; background: var(--hp-trail-color); transform-origin: left; transition: transform var(--hp-drain) ease-out; }
+#hud .player-health .hp-edge { position: absolute; top: 50%; width: 10px; height: 110%; border-radius: 50%; background: var(--ui-ink); opacity: .45; transform: translate(-50%, -50%); transition: left .18s ease-out; pointer-events: none; }
+#hud .player-health .hp-warning { display: none; position: absolute; left: 7px; top: 50%; transform: translateY(-50%); font: 800 var(--ui-size-label)/1 var(--ui-font-text); text-shadow: var(--hud-outline); }
 #hud .player-health .low .hp-warning { display: block; }
 #hud .player-health .low { animation: jf-hp-breathe var(--hp-breathe) ease-in-out infinite; }
-#hud .hp-delta { position: absolute; right: -39px; top: 0; width: 34px; font: 900 13px/20px system-ui; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; color: var(--hp-trail-color); }
+#hud .hp-delta { position: absolute; right: -40px; top: 0; width: 36px; font: 800 var(--ui-size-body)/20px var(--ui-font-text); font-variant-numeric: tabular-nums; text-shadow: var(--hud-outline); color: var(--hp-trail-color); }
 #hud .hp-delta.heal { color: var(--hp-heal-color); }
 #hud .hp-delta[hidden] { display: none; }
-@keyframes jf-hp-breathe { 0%, 100% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 2px 8px #0008; } 50% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 0 12px var(--hp-critical-color); } }
+@keyframes jf-hp-breathe { 0%, 100% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 2px 8px var(--ui-shade); } 50% { box-shadow: 0 0 0 2px var(--hp-critical-color), 0 0 12px var(--hp-critical-color); } }
 body.calm #hud .player-health, body.calm #hud .hp-delta, body.calm #hud .hp-edge { transform: none !important; filter: none !important; }
 body.calm #hud .hp-edge { transform: translate(-50%, -50%) !important; }
-body.calm #hud .player-health .moist { box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008 !important; }
+body.calm #hud .player-health .moist { box-shadow: 0 2px 8px var(--ui-shade) !important; }
 body.calm #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(--hp-critical-color) !important; }
 @media (prefers-reduced-motion: reduce) {
   #hud .player-health, #hud .hp-delta { transform: none !important; filter: none !important; }
   #hud .player-health .hp-edge { transform: translate(-50%, -50%) !important; }
-  #hud .player-health .moist { box-shadow: 0 0 0 2px #ffffff40, 0 2px 8px #0008 !important; }
+  #hud .player-health .moist { box-shadow: 0 2px 8px var(--ui-shade) !important; }
   #hud .player-health .low { animation: none; box-shadow: 0 0 0 2px var(--hp-critical-color) !important; }
 }
+#hud .hpn { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 700 var(--ui-size-label)/1 var(--ui-font-text); font-variant-numeric: tabular-nums; text-shadow: var(--hud-outline); }
 /* the Shield: its own bar right after Health's, a little longer for every point of Shield (setShield) */
 #hud .vit { position: relative; display: flex; gap: 3px; min-width: 0; }
 #hud .vit .player-health { flex: 1; }
-#hud .shield-bar { flex: none; max-width: 45%; box-shadow: 0 0 0 2px #dff4ff66, 0 2px 8px #0008; }
+#hud .shield-bar { flex: none; max-width: 45%; }
 #hud .shield-bar[hidden] { display: none; }
-#hud .shield-bar i { background: linear-gradient(90deg, var(--shield-color), #ffffff); transition: transform .12s linear; }
-#hud .shield-bar.charging i { background: linear-gradient(90deg, var(--shield-color) 30%, #ffffff 50%, var(--shield-color) 70%) 0 0 / 200% 100%; animation: jf-shield-charge .7s linear infinite; }
+#hud .shield-bar > i { transition: transform .12s linear; }
+#hud .shield-bar.charging > i { background: linear-gradient(90deg, var(--ui-shield) 30%, var(--ui-ink) 50%, var(--ui-shield) 70%) 0 0 / 200% 100%; animation: jf-shield-charge .7s linear infinite; }
 @keyframes jf-shield-charge { to { background-position: -200% 0; } }
-#hud .shn { position: absolute; inset: 0; display: grid; place-items: center; font: 800 11px system-ui, sans-serif; color: #0d1a2a; text-shadow: 0 0 2px #fff8; }
-#hud .shield-bar.empty .shn { color: #dff4ff; text-shadow: 0 1px 2px #000; }
-@media (prefers-reduced-motion: reduce) { #hud .shield-bar.charging i { animation: none; } }
-body.calm #hud .shield-bar.charging i { animation: none; }
-#hud .hpn { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 800 13px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
-#hud .xp { height: 10px; margin-top: 6px; background: #0d1220b3; box-shadow: 0 0 0 1.5px #ffd25a55, 0 2px 6px #0008; }
-#hud .xp i { background: linear-gradient(90deg, #f0b12a, #ffe27a); }
-#hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-#hud .items span { position: relative; width: 34px; height: 34px; display: grid; place-items: center; font-size: 22px; background: #0d122080; border-radius: 9px; }
+#hud .shn { position: absolute; inset: 0; display: grid; place-items: center; font: 800 var(--ui-size-label)/1 var(--ui-font-text); color: var(--ui-deep); }
+#hud .shield-bar.empty .shn { color: var(--ui-ink); text-shadow: var(--hud-outline); }
+@media (prefers-reduced-motion: reduce) { #hud .shield-bar.charging > i { animation: none; } }
+body.calm #hud .shield-bar.charging > i { animation: none; }
+#hud .xp { height: 10px; margin-top: 6px; }
+/* Treasures taken: a glass tile each, with how many in a badge on its corner */
+#hud .items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+#hud .items span { position: relative; box-sizing: border-box; width: 34px; height: 34px; display: grid; place-items: center; font-size: 22px;
+  background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-s); }
 #hud .items span b { font-weight: 400; transition: filter .15s; }
-#hud .items sub { position: absolute; right: 2px; bottom: 1px; font-size: 10px; font-weight: 800; z-index: 1; text-shadow: 0 1px 2px #000; }
+#hud .items sub { position: absolute; right: -5px; bottom: -5px; z-index: 1; box-sizing: border-box; min-width: 18px; padding: 0 4px; border-radius: var(--ui-radius-pill);
+  background: var(--ui-deep); border: 1px solid var(--ui-line); font: 700 var(--ui-size-label)/15px var(--ui-font-text); font-variant-numeric: tabular-nums; text-align: center; color: var(--ui-ink); }
 /* a timed treasure: a clock face over it. The dark wedge is the wait still to go, sweeping away
    clockwise from 12; while it waits the icon is greyed, and it lights up when it's ready or going off */
 #hud .items span.timed::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: conic-gradient(rgba(6, 9, 20, .72) calc(var(--cd, 0) * 1turn), transparent 0); }
+  background: conic-gradient(var(--ui-scrim) calc(var(--cd, 0) * 1turn), transparent 0); }
 #hud .items span.timed.wait b { filter: grayscale(1) brightness(.8); }
-#hud .items span.timed:not(.wait) { box-shadow: 0 0 0 2px #5ff0ff, 0 0 10px #5ff0ff88; }
+#hud .items span.timed:not(.wait) { border-color: var(--ui-mint); box-shadow: 0 0 10px var(--ui-mint); }
 #hud .items span.timed.spent b { filter: grayscale(1) brightness(.5); }
-#hud .items span.timed.spent { box-shadow: none; }
+#hud .items span.timed.spent { border-color: var(--ui-line); box-shadow: none; }
 #hud .items span.pop { animation: jf-pop .35s ease-out; }
-@keyframes jf-pop { 0% { transform: scale(1.3); box-shadow: 0 0 0 3px #fff, 0 0 16px #5ff0ff; } 100% { transform: scale(1); } }
-/* top centre: how long until the boss */
-#hud .tc { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000c; }
-#hud .clock { font: 800 24px/1 system-ui, sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-#hud .clock.dry { color: #ff7a6a; }   /* the boss is almost here */
-#hud .stage { font-size: 11px; opacity: .7; margin-top: 3px; letter-spacing: .04em; }
-#hud .boss { position: absolute; left: 50%; top: 116px; transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
-#hud .boss .bar { height: 14px; border-color: #ffd9c9; }
-#hud .boss i { background: linear-gradient(#ff8a6a, #c2312a); }
-#hud .boss.shield i { background: linear-gradient(#d6a8ff, #7a2ad0); }
-#hud .boss.shield .bar { border-color: #d6a8ff; }
-#hud .boss .nm { font-weight: 800; letter-spacing: .12em; font-size: 13px; margin-bottom: 4px; text-shadow: 0 1px 3px #000; }
-/* an elite you're fighting: its name and health, under the clock */
-#hud .elite { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); width: min(320px, 56vw); text-align: center; }
-#hud .elite .bar { height: 12px; border-color: #ffe6a0; }
-#hud .elite i { background: linear-gradient(#ffd86a, #e08a1a); }
-#hud .elite .nm { font-weight: 800; letter-spacing: .1em; font-size: 12px; margin-bottom: 3px; text-shadow: 0 1px 3px #000; color: #ffe6a0; }
-#hud .map { position: absolute; right: 18px; bottom: 18px; width: 285px; height: 285px; opacity: .88; }
-#hud .hint { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); font-size: 14px; font-weight: 600; background: #0009; padding: 6px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
+@keyframes jf-pop { 0% { transform: scale(1.3); box-shadow: 0 0 0 3px var(--ui-ink), 0 0 16px var(--ui-mint); } 100% { transform: scale(1); } }
+@keyframes jf-glow { 0% { box-shadow: 0 0 0 3px var(--ui-ink), 0 0 16px var(--ui-mint); } }
+/* top centre: how long until the boss, and the night's time and boss under it */
+#hud .tc { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); text-align: center; white-space: nowrap; text-shadow: var(--hud-outline); }
+#hud .clock { font: 700 24px/1 var(--ui-font-text); font-variant-numeric: tabular-nums; }
+#hud .clock.dry { color: var(--ui-boss); }   /* the boss is almost here */
+#hud .stage { margin-top: 4px; font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); letter-spacing: .03em; color: var(--ui-ink-dim); }
+/* a boss's or an Elite's name and Health (hot, like everything hostile), under the clock */
+#hud .boss { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 116px); transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
+#hud .boss .bar { height: 14px; }
+#hud .boss.shield .bar { --fill: var(--ui-epic); border-color: var(--ui-epic); }   /* shielded (the Vacuum's lanternflies): nothing gets through */
+#hud .elite { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 66px); transform: translateX(-50%); width: min(320px, 56vw); text-align: center; }
+#hud .elite .bar { height: 12px; }
+#hud :is(.boss, .elite) .nm { margin-bottom: 4px; font: 700 var(--ui-size-label)/1.2 var(--ui-font-text); letter-spacing: .1em; text-shadow: var(--hud-outline); }
+#hud .map { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 18px); bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); width: 285px; height: 285px; }
+#hud .hint { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); transform: translateX(-50%); padding: 6px 14px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-pill);
+  background: var(--ui-panel); box-shadow: 0 4px 16px var(--ui-shade); opacity: 0; transition: opacity .2s; }
 #hud .hint.on { opacity: 1; }
-#hud kbd { background: #fff3; border: 1px solid #fff6; border-radius: 4px; padding: 0 5px; font: inherit; }
-#hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font-size: 20px; font-weight: 800; text-shadow: 0 1px 3px #000c; opacity: 0; transition: opacity .3s; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; padding: 6px 16px; border-radius: 999px; background: #0a0f1ab8; box-shadow: 0 4px 16px #0006; }
+#hud kbd { background: var(--ui-glass-strong); border: 1px solid var(--ui-line); border-radius: 4px; padding: 0 5px; font: inherit; }
+/* a note in the middle of the screen: the kit's .ui-toast, on one line */
+#hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: block; max-width: 92vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: 600 var(--ui-size-heading)/1.3 var(--ui-font-text); opacity: 0; transition: opacity .3s; }
 #hud .toast.on { opacity: 1; }
 /* a boss cleared: the toast stamps in, big and gold (toast(text, ms, 'stamp')) */
-#hud .toast.stamp { font: 900 40px/1.1 system-ui, sans-serif; top: 28%; color: #ffd23a; background: none; box-shadow: none; text-shadow: 0 3px 0 #7a4a00, 0 6px 22px #000c; letter-spacing: -.01em; }
+#hud .toast.stamp { top: 28%; overflow: visible; font: 600 40px/1.1 var(--ui-font-display); color: var(--ui-gold); background: none; border-color: transparent; box-shadow: none;
+  text-shadow: 0 3px 0 var(--ui-gold-deep), var(--hud-outline), 0 6px 22px var(--ui-deep); }
 #hud .toast.stamp.on { animation: jf-stamp .42s cubic-bezier(.2, 1.5, .4, 1); }
 @keyframes jf-stamp { 0% { transform: translateX(-50%) scale(2.2) rotate(-4deg); opacity: 0; } 55% { opacity: 1; } 100% { transform: translateX(-50%) scale(1) rotate(0); } }
-/* a level-up: the badge pops and a gold ring leaves the jelly (levelDing) before the cards deal */
+/* a level-up: the ring pops and a gold ring leaves the jelly (levelDing) before the cards deal */
 #hud .lvl.ding { animation: jf-ding .5s cubic-bezier(.2, 1.6, .4, 1); }
-@keyframes jf-ding { 0% { transform: scale(1.9); box-shadow: inset 0 0 0 3px #ffd25a, 0 0 30px #ffd25a; } 100% { transform: scale(1); } }
-.jf-ding-ring { position: fixed; z-index: 31; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 4px solid #ffd25a; box-shadow: 0 0 24px #ffd25a99, inset 0 0 18px #ffd25a66;
+@keyframes jf-ding { 0% { transform: scale(1.9); box-shadow: 0 0 30px var(--ui-xp); } 100% { transform: scale(1); } }
+.jf-ding-ring { position: fixed; z-index: 31; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 4px solid var(--ui-xp); box-shadow: 0 0 24px var(--ui-xp), inset 0 0 18px var(--ui-xp);
   pointer-events: none; animation: jf-ring .5s ease-out forwards; }
 @keyframes jf-ring { from { transform: scale(.25); opacity: 1; } to { transform: scale(3.2); opacity: 0; } }
+/* reduced motion: nothing scales or turns; the toast fades (its transition), a Treasure going off and the combo glow instead */
 body.calm #hud .toast.stamp.on, body.calm #hud .lvl.ding { animation: none; }
-@media (prefers-reduced-motion: reduce) { #hud .toast.stamp.on, #hud .lvl.ding { animation: none; } }
+body.calm #hud .items span.pop { animation-name: jf-glow; } body.calm #hud .combo.punch b { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  #hud .toast.stamp.on, #hud .lvl.ding, #hud .combo.punch b { animation: none; }
+  #hud .items span.pop { animation-name: jf-glow; }
+}
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity .5s; }
 #hud .hurt.on { opacity: .5; transition: none; }
 body.calm #hud .hurt.on { opacity: .25; }
-#hud .debug { position: absolute; left: 18px; bottom: 14px; font: 11px/1.4 ui-monospace, monospace; white-space: pre; text-shadow: 0 1px 2px #000; opacity: .8; }
+#hud .debug { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 18px); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); font: 12px/1.4 ui-monospace, monospace; white-space: pre; text-shadow: var(--hud-outline); opacity: .8; }
 /* phones: smaller, and keep the bottom corners free for the thumbs */
 @media (max-height: 520px), (max-width: 700px) {
   #hud .tl { left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 235px; gap: 0 8px; }
-  #hud .lvl { width: 36px; height: 36px; font-size: 15px; }
-  #hud .bar { height: 15px; }
-  #hud .hpn { font-size: 11px; right: 7px; }
+  #hud .lvl { width: 38px; height: 38px; font-size: 18px; border-width: 2.5px; }
+  #hud .bar { height: 17px; }
+  #hud .hpn { right: 7px; }
+  #hud .hp-delta { line-height: 17px; }
   #hud .xp { height: 7px; margin-top: 5px; }
-  #hud .items { margin-top: 6px; gap: 3px; }
-  #hud .items span { width: 26px; height: 26px; font-size: 17px; border-radius: 7px; }
-  #hud .items sub { font-size: 8px; }
+  #hud .items { margin-top: 8px; gap: 5px; }
+  #hud .items span { width: 28px; height: 28px; font-size: 18px; }
   #hud .tc { top: calc(env(safe-area-inset-top, 0px) + 6px); }
-  #hud .clock { font-size: 18px; }
-  #hud .stage { font-size: 9.5px; margin-top: 2px; }
-  #hud .boss { top: 70px; }
-  #hud .toast { font-size: 15px; top: 30%; padding: 5px 12px; }
+  #hud .clock { font-size: 19px; }
+  #hud .stage { margin-top: 2px; }
+  #hud .boss { top: calc(env(safe-area-inset-top, 0px) + 70px); }
+  #hud .toast { top: 28%; padding: 6px 14px; font-size: var(--ui-size-body); }
   #hud .toast.stamp { font-size: 26px; }
-  #hud .hint { font-size: 12.5px; bottom: 16px; }
+  #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
 }
 body.touch #hud .map { top: calc(env(safe-area-inset-top, 0px) + 60px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 10px); width: 135px; height: 135px; }
 body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
@@ -143,21 +155,22 @@ export class Hud {
     this.el.innerHTML = `<style>${CSS}</style>
       <div class="tl">
         <div class="lvl"></div>
-        <div class="vit"><div class="player-health" role="progressbar" aria-label="Health"><div class="bar moist"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div></div><div class="bar shield-bar" role="progressbar" aria-label="Shield" hidden><i></i><span class="shn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
-        <div class="bar xp" role="progressbar" aria-label="XP"><i></i></div>
+        <div class="vit"><div class="player-health" role="progressbar" aria-label="Health"><div class="bar ui-bar moist" data-kind="health"><em class="hp-trail"></em><i class="hp-fill"></i><b class="hp-edge" aria-hidden="true"></b><span class="hp-warning" aria-hidden="true">!</span><span class="hpn"></span></div></div><div class="bar ui-bar shield-bar" data-kind="shield" role="progressbar" aria-label="Shield" hidden><i></i><span class="shn"></span></div><span class="hp-delta" aria-hidden="true" hidden></span></div>
+        <div class="bar ui-bar xp" data-kind="xp" role="progressbar" aria-label="XP"><i></i></div>
         <div class="items"></div>
       </div>
       <div class="tc"><div class="clock"></div><div class="stage"></div></div>
-      <div class="boss" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
-      <div class="elite" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
+      <div class="boss" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
+      <div class="elite" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
       <canvas class="map"></canvas>
-      <div class="hint"></div><div class="toast"></div><div class="hurt"></div><div class="debug" hidden></div>
+      <div class="hint"></div><div class="toast ui-toast" role="status"></div><div class="hurt"></div><div class="debug" hidden></div>
       <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
     this.$ = (s) => this.el.querySelector(s);
     this.map = this.$('.map');
     this.ctx = this.map.getContext('2d');
     this.room = undefined;
     this.cache = {};
+    this.reduced = matchMedia('(prefers-reduced-motion: reduce)');
     this.hpNodes = Object.fromEntries(['player-health', 'moist', 'hp-fill', 'hp-trail', 'hp-edge', 'hp-delta'].map(k => [k, this.$('.' + k)]));
     this.hpLook = {
       hold: LOOK.num('hp-trail-hold', 200), drain: LOOK.num('hp-trail-drain', 400),
@@ -167,9 +180,12 @@ export class Hud {
     for (const [key, value] of Object.entries({
       'hp-trail-color': LOOK.color('hp-trail', '#ffc0a0'), 'hp-heal-color': LOOK.color('hp-heal', '#9dffd9'),
       'hp-critical-color': LOOK.color('hp-critical', '#ff7068'), 'hp-drain': this.hpLook.drain + 'ms',
-      'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms', 'shield-color': LOOK.color('shield', '#b8e6ff'),
+      'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms',
     })) this.el.style.setProperty('--' + key, value);
     this.resetHealth();
+    // the minimap's colours: the kit's (look.css --ui-*), read once
+    this.mapLook = { deep: LOOK.color('ui-deep', '#0b1622'), ink: LOOK.color('ui-ink', '#e8f4f8'), you: LOOK.color('ui-mint', '#a3f5d5'),
+      treasure: LOOK.color('ui-gold', '#ffd46c'), elite: LOOK.color('ui-boss', '#ff6a55'), boss: LOOK.color('ui-boss', '#ff6a55'), exit: LOOK.color('ui-mint', '#a3f5d5') };
     const pts = plan.flatMap(([, poly]) => poly);
     const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
     this.bounds = { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
@@ -281,7 +297,7 @@ export class Hud {
       this.hpDamage = 0;
       this.healthNumber(delta, true, now);
       if (!this.hpLastHeal || now - this.hpLastHeal > this.hpLook.heal) {
-        this.healthAnimate('heal', N.moist, [{ boxShadow: '0 0 0 2px var(--hp-heal-color), 0 0 16px var(--hp-heal-color)' }, { boxShadow: '0 0 0 2px #ffffff40, 0 2px 8px #0008' }], this.hpLook.heal);
+        this.healthAnimate('heal', N.moist, [{ boxShadow: '0 0 0 2px var(--hp-heal-color), 0 0 16px var(--hp-heal-color)' }, { boxShadow: '0 0 0 0 transparent, 0 2px 8px var(--ui-shade)' }], this.hpLook.heal);
         this.healthAnimate('edge', N['hp-edge'], [{ transform: 'translate(-50%, -50%) scale(1.6, .8)' }, { transform: 'translate(-50%, -50%) scale(1)' }], this.hpLook.heal);
         this.hpLastHeal = now;
       }
@@ -321,8 +337,8 @@ export class Hud {
     bar.classList.toggle('empty', hp <= 0);
     bar.setAttribute('aria-valuenow', String(Math.ceil(hp)));
     this.set('shText', '.shn', () => `${Math.ceil(hp)}`);
-    if (state === 'broken') this.healthAnimate('shield', bar, [{ transform: 'translateX(-3px)', boxShadow: '0 0 0 2px #ff9a8a, 0 0 12px #ff9a8a' }, { transform: 'translateX(3px)', offset: 0.3 }, { transform: 'translateX(0)', boxShadow: '0 0 0 2px #dff4ff66, 0 2px 8px #0008' }], 320);
-    if (state === 'full') this.healthAnimate('shield', bar, [{ boxShadow: '0 0 0 2px #fff, 0 0 16px var(--shield-color)' }, { boxShadow: '0 0 0 2px #dff4ff66, 0 2px 8px #0008' }], 450);
+    if (state === 'broken') this.healthAnimate('shield', bar, [{ transform: 'translateX(-3px)', boxShadow: '0 0 0 2px var(--hp-critical-color), 0 0 12px var(--hp-critical-color)' }, { transform: 'translateX(3px)', offset: 0.3 }, { transform: 'translateX(0)', boxShadow: '0 0 0 0 transparent, 0 2px 8px var(--ui-shade)' }], 320);
+    if (state === 'full') this.healthAnimate('shield', bar, [{ boxShadow: '0 0 0 2px var(--ui-ink), 0 0 16px var(--ui-shield)' }, { boxShadow: '0 0 0 0 transparent, 0 2px 8px var(--ui-shade)' }], 450);
   }
 
   setXp(level, xp, need, purse) {
@@ -388,7 +404,7 @@ export class Hud {
     const b = this.$('.elite');
     b.hidden = name == null;
     if (name == null) return;
-    this.set('eliteName', '.elite .nm', () => `✨ ${name.toUpperCase()}`);
+    this.set('eliteName', '.elite .nm', () => `${icon('star')} ${name.toUpperCase()}`);
     this.$('.elite i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 
@@ -437,114 +453,95 @@ export class Hud {
   // the minimap on or off (a player's first run hides it until the first Treasure: first-run.js)
   showMap(on) { if (this.map.hidden === !on) return; this.map.hidden = !on; }
 
-  // Furniture footprints for the map: [{ x0, z0, x1, z1, top }], drawn once into a cached layer
-  // (only the big pieces: small clutter just makes noise at this size)
-  setFurniture(list) { this.furniture = list.filter((f) => (f.x1 - f.x0) * (f.z1 - f.z0) > 0.06 && f.top > 0.12); this.mapBase = null; }
-
-  // The minimap, kept quiet: the room in one tone with faint furniture, small coloured dots for
-  // what matters (gold treasures, orange elites, red bugs, the boss), a tiny ▲ / ▼ when
-  // something is well above or below you, and you as a cyan arrow. Round, centred on you, and
-  // turned so up is where the camera looks (the way "forward" moves you); a treasure or an elite past
-  // its edge sits on the rim, pointing the way.
-  // markers: [{ x, y, z, color, big?, kind? }]
+  // The minimap: a glass disc centred on you and turned so up is where the camera looks (the way
+  // "forward" moves you). The rooms are outlines; marks only for what's worth going to, each its own
+  // shape so colour isn't the only clue: a chest (gold square), an Elite (hot diamond), the boss (a big
+  // hot dot), the way out (a mint door). One past the edge waits on the rim, pointing the way, with a
+  // small arrow when it's well above or below you. You are a mint arrow.
+  // markers: [{ kind: 'treasure' | 'elite' | 'boss' | 'exit', x, y, z, color? }]
   update(pos, facing, cameraYaw, markers = []) {
     if (this.map.hidden) return;
-    const c = this.map, g = this.ctx;
+    const c = this.map, g = this.ctx, C = this.mapLook;
     const dpr = Math.min(3, devicePixelRatio || 1);
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
     const css = (c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
-    if (c.width !== W) { c.width = c.height = W; this.mapBase = null; }
-    const b = this.bounds, R = W / 2;
+    if (c.width !== W) { c.width = c.height = W; this.mapCone = null; }
+    const b = this.bounds, R = W / 2, TAU = Math.PI * 2;
     // the whole room fits across the map; centred on you, the far side of it can run off the edge
     const s = W / Math.max(b.x1 - b.x0, b.z1 - b.z0);
     const X = (x) => (x - b.x0) * s, Z = (z) => (z - b.z0) * s;
     const u = W / 190;                                    // scale for sizes, so small maps stay readable
-
-    // the static layer: the room and faint furniture, in world orientation
-    if (!this.mapBase) {
-      const base = this.mapBase = document.createElement('canvas');
-      base.width = Math.ceil(X(b.x1)); base.height = Math.ceil(Z(b.z1));
-      const q = base.getContext('2d');
-      const room = () => { q.beginPath(); for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? q.lineTo(X(x), Z(z)) : q.moveTo(X(x), Z(z)))); q.closePath(); } };
-      room();
-      q.fillStyle = 'rgba(120, 140, 170, 0.18)';
-      q.fill();
-      q.save();
-      room();
-      q.clip();
-      for (const f of this.furniture || []) {
-        q.fillStyle = `rgba(200, 215, 235, ${0.07 + Math.min(1, f.top / 1.0) * 0.1})`;   // taller = a little lighter
-        q.beginPath();
-        q.roundRect(X(f.x0), Z(f.z0), Math.max(2, (f.x1 - f.x0) * s), Math.max(2, (f.z1 - f.z0) * s), 3 * u);
-        q.fill();
-      }
-      q.restore();
-      room();
-      q.lineWidth = 1.5 * u;
-      q.strokeStyle = 'rgba(220, 235, 255, 0.5)';
-      q.stroke();
-    }
     // turn so the camera's forward, (-sin yaw, -cos yaw) on the floor, points up
     const turn = -Math.PI / 2 - Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw));
     const cs = Math.cos(turn), sn = Math.sin(turn), px = X(pos.x), pz = Z(pos.z);
     const out = this._pt || (this._pt = { x: 0, y: 0, d: 0 });
     const toMap = (x, z) => { const dx = X(x) - px, dz = Z(z) - pz; out.x = R + dx * cs - dz * sn; out.y = R + dx * sn + dz * cs; out.d = Math.hypot(dx, dz); return out; };
 
+    // the glass: dark water, the rooms' outlines on it, a light rim and a sheen across the top
     g.clearRect(0, 0, W, W);
     g.save();
-    g.beginPath(); g.arc(R, R, R - 1, 0, Math.PI * 2); g.clip();
-    g.fillStyle = 'rgba(13, 18, 32, 0.4)';
-    g.fillRect(0, 0, W, W);
+    g.beginPath(); g.arc(R, R, R - u, 0, TAU);
+    g.globalAlpha = 0.62; g.fillStyle = C.deep; g.fill();
+    g.clip();
     g.translate(R, R); g.rotate(turn); g.translate(-px, -pz);
-    g.drawImage(this.mapBase, 0, 0);
+    g.beginPath();
+    for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.closePath(); }
+    g.globalAlpha = 0.1; g.fillStyle = C.ink; g.fill();
+    g.globalAlpha = 0.75; g.lineWidth = 1.5 * u; g.lineJoin = 'round'; g.strokeStyle = C.ink; g.stroke();
     g.restore();
-    g.lineWidth = 1.5 * u; g.strokeStyle = 'rgba(220, 235, 255, 0.35)';
-    g.beginPath(); g.arc(R, R, R - 1, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = C.ink;
+    g.globalAlpha = 0.6; g.lineWidth = 2 * u; g.beginPath(); g.arc(R, R, R - 2 * u, 0, TAU); g.stroke();
+    g.globalAlpha = 0.2; g.lineWidth = 3 * u; g.lineCap = 'round'; g.beginPath(); g.arc(R, R, R - 6 * u, -0.9 * Math.PI, -0.62 * Math.PI); g.stroke();
+    g.globalAlpha = 1;
 
-    const t = performance.now() / 1000, rim = R - 6 * u;
-    const dot = (x, y, r, color) => { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
-    // bugs: small red dots (only those on the map)
-    for (const m of markers) if (m.kind === 'enemy') { const p = toMap(m.x, m.z); if (p.d < rim) dot(p.x, p.y, 2 * u, 'rgba(255, 80, 80, 0.9)'); }
-    // what's worth going to: a dot in its colour with a soft glow (a slow pulse for the big ones),
-    // held on the rim when it's further away than the map shows
+    // the marks, outlined in the water's colour so they read over a wall
+    const still = juice.calm || this.reduced.matches;
+    const pulse = still ? 0.3 : 0.25 + 0.2 * Math.sin(performance.now() / 250), rim = R - 9 * u;
+    g.lineWidth = 1.5 * u; g.lineJoin = 'round'; g.strokeStyle = C.deep;
     for (const m of markers) {
-      if (m.kind === 'vent' || m.kind === 'enemy') continue;
+      const kind = MARK_SIZE[m.kind] ? m.kind : 'treasure', color = m.color || C[kind];
       const p = toMap(m.x, m.z);
       if (p.d > rim) { p.x = R + (p.x - R) * rim / p.d; p.y = R + (p.y - R) * rim / p.d; }
-      const mx = p.x, mz = p.y, r = (m.big ? 4.5 : 3.5) * u * (m.kind === 'treasure' ? LOOK.num('map-treasure-scale', 1.33) : 1);
-      if (m.big) { g.globalAlpha = 0.25 + 0.2 * Math.sin(t * 4); dot(mx, mz, r * 2.4, m.color); g.globalAlpha = 1; }
-      dot(mx, mz, r, m.color);
+      const x = p.x, y = p.y, r = MARK_SIZE[kind] * u * (kind === 'treasure' ? LOOK.num('map-treasure-scale', 1.33) : 1);
+      g.fillStyle = color;
+      if (kind !== 'elite') { g.globalAlpha = pulse; g.beginPath(); g.arc(x, y, r * 2.2, 0, TAU); g.fill(); g.globalAlpha = 1; }   // a soft glow: worth going to
+      g.beginPath();
+      if (kind === 'treasure') g.roundRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6, r * 0.35);
+      else if (kind === 'elite') { g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); }
+      else if (kind === 'exit') g.roundRect(x - r * 0.6, y - r, r * 1.2, r * 2, [r * 0.6, r * 0.6, r * 0.15, r * 0.15]);
+      else g.arc(x, y, r, 0, TAU);
+      g.fill(); g.stroke();
       const dy = m.y - pos.y;
-      if (Math.abs(dy) > 0.15) {
-        g.fillStyle = '#fff';
-        g.font = `700 ${8 * u}px system-ui, sans-serif`;
-        g.textAlign = 'center';
-        g.fillText(dy > 0 ? '▲' : '▼', mx, mz - r - 2.5 * u);
+      if (Math.abs(dy) > 0.15) {   // well above (pointing up) or below you
+        const a = dy > 0 ? -1 : 1, ty = y - r - 5 * u;
+        g.beginPath(); g.moveTo(x, ty + a * 3 * u); g.lineTo(x + 3.2 * u, ty - a * 2 * u); g.lineTo(x - 3.2 * u, ty - a * 2 * u); g.closePath();
+        g.fillStyle = C.ink; g.fill(); g.stroke();
       }
     }
 
-    // you: a soft view cone (always up: it's where the camera looks) and a cyan arrow for the
-    // way the jelly faces
-    const grad = g.createRadialGradient(R, R, 0, R, R, 34 * u);
-    grad.addColorStop(0, 'rgba(95,240,255,0.25)'); grad.addColorStop(1, 'rgba(95,240,255,0)');
-    g.fillStyle = grad;
+    // you: a soft view cone (always up: it's where the camera looks) and an arrow for the way the jelly faces
+    if (!this.mapCone) {
+      this.mapCone = g.createRadialGradient(R, R, 0, R, R, 34 * u);
+      this.mapCone.addColorStop(0, C.you + '50'); this.mapCone.addColorStop(1, C.you + '00');
+    }
+    g.fillStyle = this.mapCone;
     g.beginPath(); g.moveTo(R, R); g.arc(R, R, 34 * u, -Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5); g.closePath(); g.fill();
     g.save();
     g.translate(R, R);
     g.rotate(turn + Math.atan2(Math.cos(facing), Math.sin(facing)));
     g.beginPath();
-    g.moveTo(8 * u, 0); g.lineTo(-5 * u, -5 * u); g.lineTo(-2 * u, 0); g.lineTo(-5 * u, 5 * u); g.closePath();
-    g.fillStyle = '#5ff0ff';
-    g.fill();
-    g.lineWidth = 1.2 * u;
-    g.strokeStyle = 'rgba(0, 20, 30, 0.8)';
-    g.stroke();
+    g.moveTo(9 * u, 0); g.lineTo(-5.5 * u, -6 * u); g.lineTo(-2 * u, 0); g.lineTo(-5.5 * u, 6 * u); g.closePath();
+    g.fillStyle = C.you; g.fill();
+    g.lineWidth = 1.5 * u; g.strokeStyle = C.deep; g.stroke();
     g.restore();
     this.mapTurn = turn;
   }
 
 }
+
+// a mark's size on the minimap (x the map's scale): a chest, an Elite, the boss, the way out
+const MARK_SIZE = { treasure: 3.6, elite: 5, boss: 5.5, exit: 5 };
 
 function inPoly(x, z, P) {
   let c = false;

@@ -95,13 +95,17 @@ const kitStory = (phone) => ({
     const fades = getComputedStyle($('[data-kit=enter]')).animationName === 'ui-fade-in';
     document.body.classList.toggle('calm', calm);
     const moves = getComputedStyle($('[data-kit=enter]')).animationName === (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'ui-fade-in' : 'ui-in');
+    // hover looks only where there is a mouse: a tapped button on a phone would otherwise stay lit (Reduce effects' reset is fine)
+    const kitRules = [...[...document.styleSheets].find((s) => s.href?.endsWith('ui-kit.css')).cssRules];
+    const looseHover = kitRules.filter((r) => r.selectorText?.includes(':hover') && !r.selectorText.startsWith('body.calm')).map((r) => r.selectorText);
+    const hoverGated = !looseHover.length && kitRules.some((r) => r.media?.mediaText === '(hover: hover)');
     const near = (a, b) => Math.abs(a - b) < .05;
     const scale = phone
       ? near(sizes.display, 44) && near(sizes.title, 24) && near(sizes.heading, 18) && near(sizes.text, 14) && near(sizes.label, 12)
       : sizes.display > 44 && sizes.display <= 64 && sizes.label >= 12 && sizes.label <= 13;
     const good = fonts.fredoka && fonts.inter && faces.display === 'Fredoka' && faces.text === 'Inter' && scale && gold && rarities && filled && icons
-      && sheetAt && closed && !small.length && !tiny.length && large === 1.15 && fades && moves;
-    return ok(good, { fonts, faces, sizes, gold, rarity, filled, icons: `${drawn}/${ICON_NAMES.length}`, sheetAt, closed, small, tiny, large, fades, moves });
+      && sheetAt && closed && !small.length && !tiny.length && large === 1.15 && fades && moves && hoverGated;
+    return ok(good, { fonts, faces, sizes, gold, rarity, filled, icons: `${drawn}/${ICON_NAMES.length}`, sheetAt, closed, small, tiny, large, fades, moves, looseHover });
   },
 });
 story('ui/kit', kitStory(false));
@@ -113,6 +117,8 @@ const over = () => document.getElementById('g-over');
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   pause: { open() { over().hidden = false; }, close() { over().hidden = true; } },
+  settings: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="settings"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
+  trophies: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="trophies"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   hud: { open() {}, close() {} },
   'type-pick': { open() { G().picker.open({ start: 'normal', onPlay() {}, onBack() {} }); }, close() { G().picker.close(); } },
   'level-up': { open() { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, close() { G().run.ui.close(); } },
@@ -152,14 +158,23 @@ const KNOWN = {
     'hud: div.bar.moist > span.hpn', 'hud: div.tc > div.stage',
     'type-pick: div.tp-bars > div.tp-bar',
     'change-look: div.sec > div.lbl',
+    // found once screens were measured at rest, after their deal-in (settle, below)
+    'level-up: button.jf-card > span.rar', 'level-up: button.jf-card > span.now',
+    'treasure-pick: button.jf-card > span.jf-new', 'treasure-pick: button.jf-card > span.rar', 'treasure-pick: button.jf-card > span.delta',
+    'treasure-pick: button.jf-card.jf-sheen > span.jf-new', 'treasure-pick: button.jf-card.jf-sheen > span.rar',
+    'book: button > span', 'book: button.locked > span', 'win: b > small.jf-best',
   ],
   targets: [
-    'title: details.menu-help > summary', 'title: div.row > button', 'title: b.seg > button',
-    'pause: div > button.play', 'pause: div.row > button', 'pause: b.seg > button',
     'type-pick: header > button.tp-back',
     'change-look: div.sec > input', 'change-look: div.chips > button', 'change-look: footer > button',
+    // 41 px tall with Inter or San Francisco (padding round one line of 15-18 px text, no min-height); taller fonts hide them
+    'title: div > button.play', 'level-up: div.btns > button', 'achievements: div.btns > button', 'leaderboard: div.btns > button',
+    'act-complete: div.btns > button', 'win: div.btns > button',
   ],
 };
+// a screen is measured where it comes to rest: arriving animations (.ui-enter, a card's deal-in) start
+// see-through, and an element at opacity 0 isn't seen, so skip them to their end (looping ones run on)
+const settle = () => { for (const a of document.getAnimations()) if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish(); };
 const guard = (kind, about) => story('ui/' + (kind === 'text' ? 'text-at-least-12px' : 'targets-at-least-44px'), {
   phone: true,
   about,
@@ -167,7 +182,7 @@ const guard = (kind, about) => story('ui/' + (kind === 'text' ? 'text-at-least-1
   play() {
     const found = {}, failed = [];
     for (const [screen, s] of Object.entries(SCREENS)) {
-      try { s.open(); step(2); found[screen] = MEASURE[kind](screen); }
+      try { s.open(); step(2); settle(); found[screen] = MEASURE[kind](screen); }
       catch (e) { failed.push(`${screen}: ${e.message}`); }
       finally { try { s.close(); } catch {} step(1); }
     }

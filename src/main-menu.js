@@ -143,7 +143,6 @@ export class MainMenu {
     this.hero.addEventListener('click', () => this.poke());
     const caption = document.createElement('section');
     caption.className = 'menu-jelly-caption';
-    caption.innerHTML = '<button type="button" data-act="creator">Change your look</button>';
     this.greet = document.createElement('p');
     this.greet.className = 'menu-greet';
     this.greet.hidden = true;

@@ -26,7 +26,7 @@ import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
-import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
+import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
 import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
@@ -40,7 +40,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v461';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v464';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -53,6 +53,8 @@ import { AttackPreview } from './attack-preview.js';
 import { picksType } from './first-run.js';
 import { CONTENT } from './content.js';
 import { bagHtml } from './treasure-bag.js';
+import { summaryHtml } from './pause-summary.js';
+import { icon } from './icons.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -75,121 +77,148 @@ ui.innerHTML = `
 <style>
   #game-ui { display: none; }
   body.game #game-ui { display: block; }
-  #g-over { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(10,12,20,.55); color: #fff;
-    text-align: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; z-index: 10; }
-  #g-over[hidden] { display: none; }
+  #g-over { position: fixed; inset: 0; display: grid; place-items: center; background: var(--ui-scrim, #0b1622b8); color: var(--ui-ink, #e8f4f8);
+    text-align: center; font-family: var(--ui-font-text, system-ui, sans-serif); z-index: 10; }
+  #g-over[hidden], #g-over [hidden] { display: none !important; }
   /* Pausing keeps browser zoom blocked, while the Treasure bag can still scroll. */
   #g-over:not(.menu-home) { touch-action: pan-y; }
   /* the main screen (and the pause menu) shows just itself: the HUD waits behind it */
   #g-over:not([hidden]) ~ #hud { visibility: hidden; }
-  #g-over h1 { margin: 0 0 4px; font-size: 46px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0008; }
-  #g-over .tag { margin: 0; opacity: .85; }
-  /* the version, always in the corner of the main screen (and the act's loading screen) */
-  #g-over .ver { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 12px); bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-    font: 600 13px system-ui, sans-serif; color: #fff; background: #0008; border: 1px solid #ffffff33; border-radius: 8px; padding: 4px 9px; }
-  #g-over .play { margin: 16px auto 18px; font: 600 18px system-ui, sans-serif; background: #ffd23a; color: #1d1a12; border: 0;
-    border-radius: 14px; padding: 12px 34px; cursor: pointer; }
-  #g-over .resume[hidden] { display: none; }
-  #g-over .play:disabled { opacity: .6; cursor: progress; }
-  #g-over .row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 8px 0; }
-  #g-over .row button { font: 14px system-ui, sans-serif; color: #fff; background: #ffffff1a; border: 1px solid #ffffff30;
-    border-radius: 10px; padding: 8px 14px; cursor: pointer; }
-  #g-over .row button.on { background: #fff; color: #111; }
-  #g-over .tag { margin-bottom: 4px; }
-  /* graphics: a small segmented switch, quieter than the main buttons */
-  #g-quality { gap: 0 !important; margin-top: 10px !important; font: 12px system-ui, sans-serif; opacity: .85; }
-  #g-quality span { margin-right: 8px; }
-  #g-quality .seg { display: flex; font-weight: normal; }
-  #g-quality .seg + span { margin-left: 16px; }
-  #g-quality button { border-radius: 0 !important; padding: 5px 12px !important; font-size: 12px !important; margin: 0 -1px 0 0; }
-  #g-quality button:first-of-type { border-radius: 8px 0 0 8px !important; }
-  #g-quality button:last-of-type { border-radius: 0 8px 8px 0 !important; }
-  /* dev tools: one 🔒 Dev button; the password opens the rest */
+  #g-over > .menu-col { box-sizing: border-box; width: min(100%, 880px); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: var(--ui-space-3);
+    padding: max(var(--ui-space-3), env(safe-area-inset-top)) max(var(--ui-space-4), env(safe-area-inset-right)) max(var(--ui-space-3), env(safe-area-inset-bottom)) max(var(--ui-space-4), env(safe-area-inset-left)); }
+  #g-over > .menu-col > * { flex-shrink: 0; }   /* a tall menu scrolls; it never squeezes its pieces */
+  /* what shows when: the title (home, or launching into the run) and the act's loading screen, or the pause menu (look.css has the title's layout) */
+  #g-over:is(.menu-home, .menu-launching, .cont) .pause-only { display: none; }
+  #g-over:not(.menu-home):not(.menu-launching) .home-only { display: none; }
+  #g-over:not(:is(.menu-home, .menu-launching, .cont)) .title-only { display: none; }
+  /* the version, in the corner of the title (and the act's loading screen) */
+  #g-over .ver { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); margin: 0;
+    font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); color: var(--ui-ink); text-shadow: 0 1px 6px var(--ui-shade); }
+  #g-over .cont-note { margin: 0; color: var(--ui-ink-dim); font: 400 var(--ui-size-heading)/1.3 var(--ui-font-text); }
+  #g-over:not(.cont) .cont-note { display: none; }
+  /* the pause menu */
+  #g-over .pause-title { margin: 0; }
+  #g-over .pause-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--ui-space-3); }
+  #g-over .pause-resume { min-width: 200px; min-height: 56px; }
+  #g-over .pause-summary { width: 100%; max-width: 560px; display: grid; gap: var(--ui-space-3); text-align: left; }
+  #g-over .ps-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--ui-space-2) var(--ui-space-3); }
+  #g-over .ps-hp { flex: 1 1 200px; display: grid; gap: var(--ui-space-1); }
+  #g-over .ps-row .ui-chip { min-height: 32px; font-size: var(--ui-size-body); }
+  #g-over .ps-items { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); }
+  #g-over .ps-item { position: relative; display: grid; place-items: center; width: 36px; height: 36px; font-size: 22px; background: var(--ui-glass); border-radius: var(--ui-radius-s); }
+  #g-over .ps-item sub { position: absolute; right: 2px; bottom: 0; font: 700 var(--ui-size-label)/1 var(--ui-font-text); text-shadow: 0 1px 2px var(--ui-shade); }
+  /* the pause menu's list of what you carry (treasure-bag.js) */
+  #g-over .g-bag { width: 100%; text-align: left; }
+  #g-over .g-bag:empty, #g-over:is(.menu-home, .menu-launching, .cont) .g-bag { display: none; }
+  #g-over .g-bag h2 { margin: 0 0 var(--ui-space-2); text-align: center; font: 500 var(--ui-size-heading)/1.1 var(--ui-font-display); }
+  #g-over .g-bag .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--ui-space-2); }
+  #g-over .g-bag .t { display: flex; gap: var(--ui-space-3); align-items: flex-start; background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-m); padding: var(--ui-space-2) var(--ui-space-3); }
+  #g-over .g-bag .i { font-size: 24px; font-weight: 400; line-height: 1.1; }
+  #g-over .g-bag .t > div { min-width: 0; flex: 1; }
+  #g-over .g-bag .n { font: 600 var(--ui-size-body)/1.3 var(--ui-font-text); }
+  #g-over .g-bag .tag { margin-left: var(--ui-space-1); padding: 1px 8px; border-radius: var(--ui-radius-pill); background: var(--ui-glass); font: 600 var(--ui-size-label)/1.4 var(--ui-font-text); }
+  #g-over .g-bag p { margin: 2px 0 0; font: 400 var(--ui-size-label)/1.4 var(--ui-font-text); color: var(--ui-ink-dim); }
+  #g-over .g-bag .g { margin-top: var(--ui-space-1); font: 400 var(--ui-size-label)/1.4 var(--ui-font-text); color: var(--ui-mint); }
+  #g-over .g-bag .g.dim { color: var(--ui-ink-dim); }
+  #g-over .g-bag .g i { display: block; height: 5px; margin-top: 3px; border-radius: 3px; background: var(--ui-shade); overflow: hidden; }
+  #g-over .g-bag .g i::after { content: ''; display: block; height: 100%; width: calc(var(--k) * 100%); background: var(--ui-mint); }
+  #g-over .keys { color: var(--ui-ink-dim); font-size: var(--ui-size-label); line-height: 1.9; }
+  #g-over kbd { background: var(--ui-glass); border: 1px solid var(--ui-line); border-radius: 4px; padding: 1px 6px; font: inherit; }
+  #g-over .touch-only { display: none; }
+  body.touch #g-over .touch-only { display: block; }
+  body.touch #g-over .desk-only { display: none; }
+  /* iPhones can't go full screen from the page: point them at Add to Home Screen (manifest.webmanifest) */
+  #g-over .home-tip { display: flex; align-items: center; gap: var(--ui-space-2); padding: 0 0 0 var(--ui-space-3); border-radius: var(--ui-radius-m); background: var(--ui-panel); border: 1px solid var(--ui-line); font: 400 var(--ui-size-label)/1.3 var(--ui-font-text); }
+  #g-over.cont .home-tip { display: none; }
+  #g-over .home-tip svg { width: 15px; height: 18px; vertical-align: -3px; }
+  #g-over .home-tip button { min-width: var(--ui-target); min-height: var(--ui-target); background: none; border: 0; color: var(--ui-ink-dim); font-size: 20px; cursor: pointer; }
+  /* Settings (and the Trophies chooser): sheets inside the menu, over its own scrim */
+  #g-over .ui-sheet { text-align: left; }
+  #g-over .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: var(--ui-space-3) var(--ui-space-5); }
+  #g-over .set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3); }
+  #g-over .set-row .ui-label { color: var(--ui-ink); }
+  #g-over .set-ver { margin: var(--ui-space-3) 0 0; text-align: center; color: var(--ui-ink-dim); font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); }
+  #g-over .trophy-btns { display: grid; gap: var(--ui-space-2); }
+  #g-over .trophy-btns .ui-btn { justify-content: flex-start; min-height: 56px; }
+  #g-over .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); justify-content: center; align-items: center; margin-top: var(--ui-space-3); }
+  /* dev tools: one Dev button; the password opens the rest */
   #g-over .dev-lock, #g-over .dev-tools, #g-over .dev-btn, #g-over #g-fps { display: none; }
-  #g-over.dev-reveal .dev-btn { display: inline-flex; }   /* tapping the version 5 times (below) */
+  #g-over.dev-reveal .dev-btn { display: inline-flex; }   /* tapping the version 5 times */
   #g-over.dev-open #g-fps { display: inline; }
   #g-over.dev-ask .dev-lock { display: flex; }
   #g-over.dev-open .dev-tools { display: flex; }
   #g-over.dev-open .dev-btn { display: none; }
-  #g-over .dev-lock input { font: 14px system-ui, sans-serif; width: 140px; padding: 7px 10px; border-radius: 10px; border: 1px solid #ffffff40; background: #0006; color: #fff; }
-  #g-over .dev-lock input.wrong { border-color: #ff6b6b; }
-  #g-over .dev-tools button { font-size: 13px !important; padding: 6px 11px !important; background: #ffffff10 !important; }
-  /* the pause menu's list of what you carry (treasure-bag.js) */
-  #g-over .g-bag { max-width: 880px; margin: 14px auto 0; text-align: left; }
-  #g-over .g-bag:empty, #g-over.menu-home .g-bag, #g-over.cont .g-bag { display: none; }
-  #g-over .g-bag h2 { margin: 0 0 8px; text-align: center; font: 700 16px system-ui, sans-serif; }
-  #g-over .g-bag .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
-  #g-over .g-bag .t { display: flex; gap: 9px; align-items: flex-start; background: #000a; border: 1px solid #ffffff22; border-radius: 10px; padding: 7px 10px; }
-  #g-over .g-bag .i { font-size: 22px; line-height: 1.1; }
-  #g-over .g-bag .t > div { min-width: 0; flex: 1; }
-  #g-over .g-bag .n { font: 600 14px system-ui, sans-serif; }
-  #g-over .g-bag .tag { font-weight: 500; font-size: 11.5px; background: #ffffff24; border-radius: 6px; padding: 1px 6px; margin-left: 2px; }
-  #g-over .g-bag p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.35; opacity: .82; }
-  #g-over .g-bag .g { margin-top: 4px; font-size: 12.5px; color: #c6ffb0; }
-  #g-over .g-bag .g.dim { color: #fff; opacity: .55; }
-  #g-over .g-bag .g i { display: block; height: 5px; margin-top: 3px; border-radius: 3px; background: #ffffff22; overflow: hidden; }
-  #g-over .g-bag .g i::after { content: ''; display: block; height: 100%; width: calc(var(--k) * 100%); background: #7dff9a; }
-  #g-over .keys { margin-top: 14px; opacity: .6; font-size: 12.5px; line-height: 1.9; }
-  #g-over kbd { background: #fff2; border: 1px solid #fff4; border-radius: 4px; padding: 1px 6px; font-size: 12.5px; }
-  #g-over > div { max-height: 100%; overflow-y: auto; padding: 12px 16px; box-sizing: border-box; }
-  #g-over .touch-only { display: none; }
-  body.touch #g-over .touch-only { display: block; }
-  body.touch #g-over .desk-only, body.touch #g-over button.desk-only { display: none; }
-  @media (max-height: 520px), (max-width: 600px) {
-    #g-over h1 { font-size: 32px; }
-    #g-over .tag { font-size: 13px; }
-    #g-over .play { margin: 10px auto 10px; padding: 10px 30px; }
-    #g-over .keys { margin-top: 6px; font-size: 12.5px; line-height: 1.7; }
-  }
-  /* iPhones can't go full screen from the page: point them at Add to Home Screen (manifest.webmanifest) */
-  #g-over .home-tip { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 6px 6px 12px; border-radius: 10px; background: #000a; border: 1px solid #ffffff2a; color: #fff; opacity: 1; font-size: 13px; line-height: 1.3; }
-  #g-over .home-tip[hidden] { display: none; }
-  #g-over .home-tip svg { width: 15px; height: 18px; vertical-align: -3px; }
-  #g-over .home-tip button { background: none !important; border: 0 !important; color: #fff; opacity: .6; font-size: 18px !important; padding: 0 6px !important; margin: 0 !important; line-height: 1; }
+  #g-over .dev-lock input { font: var(--ui-size-body) var(--ui-font-text); width: 150px; min-height: var(--ui-target); box-sizing: border-box; padding: 0 var(--ui-space-3); border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-shade); color: var(--ui-ink); }
+  #g-over .dev-lock input.wrong { border-color: var(--ui-boss); }
   /* phones play sideways only: held upright, the game is covered until it's turned (iOS can't lock orientation) */
-  #g-turn { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-    background: #041329; color: #fff; font: 600 19px system-ui, -apple-system, sans-serif; text-align: center; padding: 24px; }
-  #g-turn .ph { width: 44px; height: 76px; border: 4px solid #fff; border-radius: 10px; animation: g-turn 2.4s ease-in-out infinite; }
-  #g-turn p { margin: 0; opacity: .85; font-weight: 500; font-size: 15px; }
-  @keyframes g-turn { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
-  @media (prefers-reduced-motion: reduce) { #g-turn .ph { animation: none; transform: rotate(-90deg); } }
+  #g-turn { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: var(--ui-space-3);
+    background: var(--ui-deep, #0b1622); color: var(--ui-ink); padding: var(--ui-space-5); text-align: center; }
+  #g-turn p { margin: 0; }
+  #g-turn .ui-text { color: var(--ui-ink-dim); }
+  #g-turn .ph { width: 44px; height: 76px; margin-bottom: var(--ui-space-2); box-sizing: border-box; border: 4px solid var(--ui-mint); border-radius: 10px; animation: g-turn 2.8s ease-in-out infinite; }
+  @keyframes g-turn { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  /* reduced motion: the phone is already on its side and only fades */
+  @keyframes g-turn-fade { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s ease-in-out infinite; } }
+  body.calm #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s ease-in-out infinite; }
   body.upright #g-turn { display: flex; }
-  /* straight on from the act before: no menu, just the act's name while it loads */
-  #g-over .cont-note { display: none; margin: 0; opacity: .85; }
-  #g-over.cont .cont-note { display: block; }
-  #g-over.cont .tag, #g-over.cont .row, #g-over.cont .keys { display: none !important; }
 </style>
-<div id="g-over"><div>
-  <h1>Jelly Run</h1>
-  <div class="ver" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></div>
+<div id="g-over"><div class="menu-col">
+  <h1 class="ui-display title-only">Jelly Run</h1>
+  <h2 class="ui-title pause-title pause-only">Paused</h2>
   <p class="cont-note"></p>
-  <details class="menu-help">
-    <summary><span class="menu-help-icon" aria-hidden="true">?</span> How to play</summary>
-    <p class="menu-loop">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find treasures. Survive the countdown, beat the boss, and grow into the next act.</p>
+  <details class="menu-help home-only">
+    <summary class="ui-btn ui-btn--ghost"><span class="menu-help-icon" aria-hidden="true">${icon('info')}</span>How to play</summary>
+    <p class="menu-loop ui-text">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find treasures. Survive the countdown, beat the boss, and grow into the next act.</p>
   </details>
-  <button class="resume" hidden></button>
-  <button class="play">Play</button>
-  <div class="row"><button data-act="creator">Change your look</button><button data-act="sound">🔊 Sound on</button><button data-act="music">🎵 Music on</button><button data-act="install" hidden>📲 Install app</button><button data-act="board">🏆 Leaderboard</button><button data-act="achievements">🏅 Achievements</button><button data-act="book">📖 Treasure book</button><button data-act="dev" class="dev-btn">🔒 Dev</button></div>
-  <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button data-act="layout">🛠 Layout</button><button data-act="arena4">Act 4 preview</button><button data-act="boss">👹 Fight boss</button><button data-act="duel">🐞 1 on 1</button><button data-act="kit">🧪 Test kit</button><button data-act="tuner">⚖️ Tuner</button><button data-act="diag">🩺 Diagnostics</button><button data-act="pass-ao">AO on</button><button data-act="pass-bloom">Bloom on</button><button data-act="pass-lamps">Lamps on</button></div>
-  <div class="row" id="g-quality"></div>
+  <button class="resume ui-btn ui-btn--primary" hidden></button>
+  <button class="play ui-btn ui-btn--primary title-only">Play</button>
+  <div class="menu-tiles home-only">
+    <button class="ui-tile" data-act="book">${icon('book')}Treasure book</button>
+    <button class="ui-tile" data-act="trophies">${icon('trophy')}Trophies</button>
+    <button class="ui-tile" data-act="creator">${icon('palette')}Change your look</button>
+  </div>
+  <div class="pause-actions pause-only">
+    <button class="ui-btn ui-btn--primary pause-resume">${icon('play')}Resume</button>
+    <button class="ui-btn" data-act="settings">${icon('gear')}Settings</button>
+    <button class="ui-btn" data-act="main-menu">${icon('home')}Main menu</button>
+  </div>
+  <section class="pause-summary ui-panel pause-only"></section>
+  <div class="home-tip" hidden><span>Full screen: tap Share <svg viewBox="0 0 15 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1v11M3.5 5l4-4 4 4M5 8H1.5v9h12V8H10"/></svg> then <b>Add to Home Screen</b></span><button data-act="home-tip" aria-label="Hide this tip">×</button></div>
   <div class="g-bag"></div>
-  <div class="keys touch-only">
-    Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; ⤴ jump
-    <div><div class="home-tip" hidden><span>Full screen: tap Share <svg viewBox="0 0 15 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 1v11M3.5 5l4-4 4 4M5 8H1.5v9h12V8H10"/></svg> then <b>Add to Home Screen</b></span><button data-act="home-tip" aria-label="Hide this tip">×</button></div></div>
+  <div class="keys pause-only">
+    <div class="touch-only">Left thumb move &nbsp;·&nbsp; right thumb look &nbsp;·&nbsp; jump button</div>
+    <div class="desk-only"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause</div>
   </div>
-  <div class="keys desk-only">
-    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Mouse</kbd> look &nbsp; <kbd>Space</kbd> jump &nbsp; <kbd>Esc</kbd> pause
-  </div>
-</div></div>
-<div id="g-turn" role="alert"><div class="ph"></div>Turn your phone sideways<p>Jelly Run plays in landscape</p></div>`;
+</div>
+<div class="ver title-only" title="The game's version: check it matches the latest update">Version ${BUILD.replace(/^v/, '')}</div>
+<button class="ui-btn ui-btn--icon menu-gear home-only" data-act="settings" aria-label="Settings">${icon('gear')}</button>
+<div class="ui-scrim" hidden></div>
+<section class="ui-sheet menu-settings" role="dialog" aria-modal="true" aria-label="Settings" hidden>
+  <div class="ui-header"><h2>Settings</h2><button class="ui-btn ui-btn--icon" data-act="sheet-close" aria-label="Close">${icon('close')}</button></div>
+  <div class="set-grid"></div>
+  <button class="ui-btn" data-act="install" hidden>${icon('install')}Install app</button>
+  <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button class="ui-btn" data-act="dev-unlock">Unlock</button></div>
+  <div class="row dev-tools"><button class="ui-btn" data-act="layout">🛠 Layout</button><button class="ui-btn" data-act="arena4">Act 4 preview</button><button class="ui-btn" data-act="boss">👹 Fight boss</button><button class="ui-btn" data-act="duel">🐞 1 on 1</button><button class="ui-btn" data-act="kit">🧪 Test kit</button><button class="ui-btn" data-act="tuner">⚖️ Tuner</button><button class="ui-btn" data-act="diag">🩺 Diagnostics</button><button class="ui-btn" data-act="pass-ao">AO on</button><button class="ui-btn" data-act="pass-bloom">Bloom on</button><button class="ui-btn" data-act="pass-lamps">Lamps on</button></div>
+  <div class="row"><button class="ui-btn ui-btn--ghost dev-btn" data-act="dev">${icon('lock')}Dev</button></div>
+  <p class="set-ver">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></p>
+</section>
+<section class="ui-sheet menu-trophies" role="dialog" aria-modal="true" aria-label="Trophies" hidden>
+  <div class="ui-header"><h2>Trophies</h2><button class="ui-btn ui-btn--icon" data-act="sheet-close" aria-label="Close">${icon('close')}</button></div>
+  <div class="trophy-btns"><button class="ui-btn" data-act="achievements">${icon('medal')}Achievements</button><button class="ui-btn" data-act="board">${icon('trophy')}Leaderboard</button></div>
+</section></div>
+<div id="g-turn" role="alert"><div class="ph"></div><p class="ui-title">Turn your phone sideways</p><p class="ui-text">Jelly Run plays in landscape</p></div>`;
 document.body.appendChild(ui);
 const overlay = ui.querySelector('#g-over');
-const qualityRow = ui.querySelector('#g-quality');
 // a phone's frame-rate cap: look.css's default (30, cool) unless the player picked the other in the menu
 const FPS_STORE = 'jellyrun.fps', FPS_CHOICES = [30, 60];
 let phoneFps = LOOK.num('phone-fps', 30);
 try { const f = +localStorage.getItem(FPS_STORE); if (FPS_CHOICES.includes(f)) phoneFps = f; } catch {}
+// Settings' Text size (Normal or Large): ui-kit.css scales every kit size on html[data-text-size="large"]
+const TEXT_KEY = 'jellyrun.textSize';
+let textSize = 'normal';
+try { if (localStorage.getItem(TEXT_KEY) === 'large') textSize = 'large'; } catch {}
+document.documentElement.dataset.textSize = textSize;
 
 const plan = APT.plan.filter(([name]) => stage.rooms.includes(name));
 const hud = new Hud(plan);
@@ -268,22 +297,6 @@ if (!ARENA) addSkyline(scene, [1.5, 5.5]);   // the view from the 33rd floor, th
 
 applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
-// furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
-function mapFurniture() {
-  const out = [], bx = new THREE.Box3(), c = new THREE.Vector3();
-  for (const { node } of movables(APT.root)) {
-    if (!node.visible) continue;
-    visibleBox(node, bx);
-    if (bx.isEmpty() || bx.min.y > 1.2) continue;
-    const w = bx.max.x - bx.min.x, d = bx.max.z - bx.min.z;
-    if (w * d < 0.012 || w > 3 || d > 3) continue;
-    bx.getCenter(c);
-    if (!plan.some(([, poly]) => inPoly(c.x, c.z, poly))) continue;
-    out.push({ x0: bx.min.x, z0: bx.min.z, x1: bx.max.x, z1: bx.max.z, top: bx.max.y });
-  }
-  hud.setFurniture(out);
-}
-if (!ARENA) mapFurniture();
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
@@ -350,9 +363,7 @@ const board = new Leaderboard();
 run.board = board;
 run.telemetryDisabled = new URLSearchParams(location.search).has('story') || new URLSearchParams(location.search).has('stories');
 addEventListener('online', () => { void board.runLog?.flush(); });
-// whenever the pause menu opens, it lists what you carry as it stands (treasure-bag.js)
 const bag = overlay.querySelector('.g-bag');
-new MutationObserver(() => { if (!overlay.hidden) { bag.innerHTML = bagHtml(run); showKept(); } }).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
 // the end-of-run screen's 🏠 Main menu: back to act 1's menu (a later act reloads into act 1)
 run.onMainMenu = () => {
   if (stage.id > 1) { goToAct(1); return; }
@@ -503,7 +514,7 @@ function closeLayout() {
   input.enabled = true;
   hud.el.hidden = false;
   // things placed on furniture need checking again (treasure spots, the player's footing)
-  if (layoutChanged) { run.spots = null; run.start(); mapFurniture(); }
+  if (layoutChanged) { run.spots = null; run.start(); }
   tpc.snapTo(player.position);
   overlay.hidden = false;
 }
@@ -546,7 +557,6 @@ async function loadRooms(parts, onProgress) {
   applyLayout(APT.root, stage.id);
   world.addObjects(added);
   added.forEach((o) => statics.add(o));
-  mapFurniture();
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
   added.forEach((o) => box.expandByObject(o));
@@ -780,19 +790,62 @@ window.picker = picker;
 GAME.startRun = startRun;
 
 // --- Menus + keys ---------------------------------------------------------------
-function renderQuality() {
-  qualityRow.innerHTML = '<span>Graphics</span><b class="seg">' + CHOICES.map((q) => `<button data-q="${q}" class="${gfx.choice === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('') + '</b>'
-    + (IS_TOUCH ? '<span>Frame rate</span><b class="seg">' + FPS_CHOICES.map((f) => `<button data-fps="${f}" class="${phoneFps === f ? 'on' : ''}">${f}</button>`).join('') + '</b>' : '');
+// Settings: each row is a segmented choice (kit .ui-seg); syncSettings shows what is on now
+const settingsGrid = overlay.querySelector('.set-grid');
+const segRow = (label, attr, choices) => `<div class="set-row"><span class="ui-label">${label}</span><div class="ui-seg" role="group" aria-label="${label}">${choices.map(([v, text]) => `<button type="button" ${attr}="${v}" aria-pressed="false">${text}</button>`).join('')}</div></div>`;
+settingsGrid.innerHTML = segRow('Sound', 'data-sound', [['on', 'On'], ['off', 'Off']]) + segRow('Music', 'data-music', [['on', 'On'], ['off', 'Off']])
+  + segRow('Graphics', 'data-q', CHOICES.map((q) => [q, q[0].toUpperCase() + q.slice(1)])) + (IS_TOUCH ? segRow('Frame rate', 'data-fps', FPS_CHOICES.map((f) => [f, f])) : '')
+  + segRow('Text size', 'data-text', [['normal', 'Normal'], ['large', 'Large']]);
+function syncSettings() {
+  const now = { sound: isMuted() ? 'off' : 'on', music: musicOn ? 'on' : 'off', q: gfx.choice, fps: String(phoneFps), text: textSize };
+  for (const b of settingsGrid.querySelectorAll('button')) { const [k, v] = Object.entries(b.dataset)[0]; b.setAttribute('aria-pressed', String(now[k] === v)); }
 }
-renderQuality();
+syncSettings();
+// the sheets over the menu (Settings, Trophies), under one scrim
+const scrim = overlay.querySelector('.ui-scrim'), sheets = { settings: overlay.querySelector('.menu-settings'), trophies: overlay.querySelector('.menu-trophies') };
+function openSheet(name) {
+  for (const [k, el] of Object.entries(sheets)) { el.hidden = k !== name; el.classList.toggle('ui-enter', k === name); }
+  scrim.hidden = !name; scrim.classList.toggle('ui-enter', !!name);
+  if (name === 'settings') syncSettings();
+  sheets[name]?.querySelector('button')?.focus({ preventScroll: true });
+}
+scrim.addEventListener('click', () => openSheet(null));
+// the pause menu's Main menu leaves the run: it asks to be tapped twice
+const leaveBtn = overlay.querySelector('[data-act="main-menu"]');
+function askLeave(on) { leaveBtn.dataset.sure = on ? '1' : ''; leaveBtn.lastChild.textContent = on ? 'Leave this run? Tap again' : 'Main menu'; }
+// whenever the pause menu opens, it sums up the run and lists what you carry as it stands (pause-summary.js, treasure-bag.js)
+const summary = overlay.querySelector('.pause-summary');
+new MutationObserver(() => {
+  if (overlay.hidden) { openSheet(null); askLeave(false); return; }
+  bag.innerHTML = bagHtml(run); summary.innerHTML = summaryHtml(run); showKept();
+}).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
 overlay.addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   sfx.tap();
   if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }, k.scene); }
-  else if (b.classList.contains('play')) startRun();
-  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); renderQuality(); }
-  else if (b.dataset.fps) { setFps(+b.dataset.fps); renderQuality(); }
+  else if (b.classList.contains('play') || b.classList.contains('pause-resume')) startRun();
+  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); syncSettings(); }
+  else if (b.dataset.fps) { setFps(+b.dataset.fps); syncSettings(); }
+  else if (b.dataset.sound) { unlockAudio(); setMuted(b.dataset.sound === 'off'); syncSettings(); }
+  else if (b.dataset.music) {
+    unlockAudio();
+    musicOn = b.dataset.music === 'on';
+    try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
+    syncSettings();
+  }
+  else if (b.dataset.text) {
+    textSize = b.dataset.text;
+    document.documentElement.dataset.textSize = textSize;
+    try { localStorage.setItem(TEXT_KEY, textSize); } catch {}
+    syncSettings();
+  }
+  else if (b.dataset.act === 'settings') openSheet('settings');
+  else if (b.dataset.act === 'trophies') openSheet('trophies');
+  else if (b.dataset.act === 'sheet-close') openSheet(null);
+  else if (b.dataset.act === 'main-menu') {
+    if (leaveBtn.dataset.sure) { askLeave(false); run.onMainMenu(); } else { askLeave(true); setTimeout(() => askLeave(false), 4000); }
+  }
   else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'install') { installOffer?.prompt(); installOffer = null; installBtn.hidden = true; }
@@ -820,15 +873,8 @@ overlay.addEventListener('click', (e) => {
     run.ui.message('👹 Fight boss (dev)', 'Pick a boss: a fresh run straight to its intro. A boss from another act reloads the game into that act first.', [],
       [...picks.map((p) => ({ label: p.name, onClick: () => { run.startBossFight(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
   }
-  else if (b.dataset.act === 'sound') { unlockAudio(); setMuted(!isMuted()); b.textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on'; }
-  else if (b.dataset.act === 'music') {
-    unlockAudio();
-    musicOn = !musicOn;
-    try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
-    b.textContent = musicOn ? '🎵 Music on' : '🎵 Music off';
-  }
-  else if (b.dataset.act === 'board') { overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
-  else if (b.dataset.act === 'achievements') { overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
+  else if (b.dataset.act === 'board') { openSheet(null); overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
+  else if (b.dataset.act === 'achievements') { openSheet(null); overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
   else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
@@ -873,7 +919,7 @@ async function unlockDev() {
 }
 // Players never see the Dev button: five quick taps on the version bring it up (the fps readout shows once unlocked)
 let verTaps = 0, verTimer = 0;
-overlay.querySelector('.ver').addEventListener('click', () => {
+for (const ver of overlay.querySelectorAll('.ver, .set-ver')) ver.addEventListener('click', () => {
   clearTimeout(verTimer); verTimer = setTimeout(() => { verTaps = 0; }, 1500);
   if (++verTaps >= 5) overlay.classList.add('dev-reveal');
 });
@@ -888,9 +934,10 @@ document.addEventListener('pointerlockchange', () => {
 });
 addEventListener('keydown', (e) => {
   if (e.repeat || e.target.closest?.('input, textarea, select')) return;
+  if (e.code === 'Escape' && !scrim.hidden) { openSheet(null); return; }
   if (e.code === 'KeyC' && state.mode === 'play' && !menus.open && !overlay.hidden) openCreator();
   else if (e.code === 'Escape' && state.mode === 'creator') { saveLook(state.look); closeCreator(); }
-  if (e.code === 'KeyM') setMuted(!isMuted());
+  if (e.code === 'KeyM') { setMuted(!isMuted()); syncSettings(); }
   if (e.code === 'F3') { e.preventDefault(); state.debug = !state.debug; hud.setDebug(''); }
 });
 

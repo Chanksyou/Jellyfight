@@ -1,5 +1,5 @@
 import { juice } from '../juice.js';
-import { G, fresh, offs, ok, step, story } from './kit.js';
+import { G, fresh, offs, ok, roachAt, step, story } from './kit.js';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 function setup() { fresh({ bubbles: false, lash: false, elites: false }); G().hud.resetHealth(); }
@@ -104,5 +104,48 @@ story('hud/scales-with-the-window', {
     const phone = hud.scale === 1 && !hud.el.style.zoom;
     document.body.classList.remove('touch'); hud.fit();
     return ok(scale === want && zoom === scale && sharp && phone, { scale, want, zoom, map: [map.width, map.clientWidth], phone, window: [innerWidth, innerHeight] });
+  },
+});
+
+story('hud/minimap-marks-what-matters', {
+  about: 'The minimap is a glass disc of room outlines that marks only what is worth going to, each in its own shape and the kit\'s colour: a chest (gold square), an Elite (hot diamond), the boss (hot dot), the way out (mint door). Bugs get no dots.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { hud, run, player } = G(), P = player.position, c = hud.map, g = c.getContext('2d');
+    roachAt(0.2, -0.2); roachAt(-0.2, -0.3); step(2);
+    const kinds = run.markers().map((m) => m.kind);
+    hud.showMap(true);
+    // pixels of exactly a mark's colour (marks are drawn solid), with and without that mark
+    const count = (hex, markers) => {
+      hud.update(P, 0, 0, markers);
+      const [r, gr, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)), d = g.getImageData(0, 0, c.width, c.width).data;
+      let n = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - r) < 6 && Math.abs(d[i + 1] - gr) < 6 && Math.abs(d[i + 2] - b) < 6 && d[i + 3] > 250) n++;
+      return n;
+    };
+    const drawn = Object.fromEntries(['treasure', 'elite', 'boss', 'exit'].map((kind) => {
+      const hex = hud.mapLook[kind];
+      return [kind, count(hex, [{ kind, x: P.x + 0.3, y: P.y, z: P.z - 0.3 }]) - count(hex, [])];
+    }));
+    const noBugs = !kinds.includes('enemy') && kinds.every((k) => ['treasure', 'elite', 'boss', 'exit'].includes(k));
+    return ok(noBugs && Object.values(drawn).every((n) => n > 20) && drawn.boss !== drawn.elite, { kinds, drawn });
+  },
+});
+
+story('hud/reads-on-any-floor', {
+  phone: true,
+  about: 'On a phone the HUD\'s small words are at least 12 px (the night\'s time and boss, the Health number, a Treasure\'s count) and wear a dark outline; damage numbers are outlined too, the toast is the kit\'s toast, and the jump button is mint glass with the jump icon.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { hud, touch } = G();
+    hud.setStage('12:01 AM · The Vacuum'); hud.setHealth(40, 50);
+    hud.setItems([{ id: 'story', icon: '🍋<sub>×2</sub>', name: 'Lemon Slice', text: '' }]);
+    hud.toast('A treasure chest appeared');
+    const px = (sel) => parseFloat(getComputedStyle(hud.$(sel)).fontSize), outlined = (sel) => getComputedStyle(hud.$(sel)).textShadow !== 'none';
+    const sizes = { stage: px('.stage'), health: px('.hpn'), count: px('.items sub') };
+    const outline = outlined('.stage') && outlined('.hpn') && outlined('.clock');
+    const layer = getComputedStyle(G().run.fx.layer), numbers = parseFloat(layer.getPropertyValue('-webkit-text-stroke-width')) >= 2 && layer.getPropertyValue('paint-order').startsWith('stroke');
+    const toast = hud.$('.toast').classList.contains('ui-toast');
+    const jump = touch.jumpBtn.querySelector('use')?.getAttribute('href') === '#ui-i-jump' && getComputedStyle(touch.jumpBtn).borderTopColor !== 'rgba(0, 0, 0, 0)';
+    return ok(Object.values(sizes).every((s) => s >= 12) && outline && numbers && toast && jump, { sizes, outline, numbers, toast, jump });
   },
 });

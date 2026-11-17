@@ -22,7 +22,8 @@ export class Fx {
     this.scene = scene;
     this.camera = camera;
     this.layer = document.createElement('div');
-    this.layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;font:700 14px system-ui,sans-serif;z-index:5';
+    // damage numbers wear a dark outline (painted under the fill), so they read on any floor
+    this.layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;font:700 14px system-ui,sans-serif;z-index:5;-webkit-text-stroke:3px var(--ui-deep);paint-order:stroke fill';
     this.nums = [];
     this.numberClock = 0; this.numberSerial = 0;
     this.hitsThisFrame = 0; this.hitBudget = LOOK.num('fx-hits-per-frame', 8);
@@ -130,7 +131,7 @@ export class Fx {
       const el = document.createElement('div');
       el.style.cssText = 'position:absolute;left:0;top:0;white-space:nowrap;text-shadow:0 1px 2px #000,0 0 4px #0008;will-change:transform';
       const glyph = document.createElement('span'), accent = document.createElement('span'), flare = document.createElement('span'), tag = document.createElement('span');
-      accent.style.cssText = 'position:absolute;left:50%;top:100%;font-size:10px;pointer-events:none';
+      accent.style.cssText = 'position:absolute;left:50%;top:100%;font-size:10px;pointer-events:none;-webkit-text-stroke:0';
       // a crit's star burst behind its number: one glyph, so it costs a phone nothing
       flare.style.cssText = 'position:absolute;left:50%;top:50%;z-index:-1;pointer-events:none;display:none;font-style:normal;-webkit-text-stroke:1px #17212d';
       flare.textContent = '✦';
@@ -155,7 +156,6 @@ export class Fx {
     const m = this.camera.matrixWorld.elements;
     n.windSign = info.dir ? Math.sign(info.dir.x * m[0] + info.dir.z * m[2]) || 1 : (n.serial % 2 ? 1 : -1);
     this.numberText(n);
-    n.el.style.textShadow = '0 1px 2px #000,0 0 4px #000';
     n.el.style.display = '';
     return n;
   }
@@ -170,7 +170,6 @@ export class Fx {
     n.el.style.fontStyle = n.crit ? 'italic' : '';
     n.size = n.numeric ? n.tick ? this.numberLook.size - 2 : Math.min(this.numberLook.maxSize, this.numberLook.size + Math.sqrt(Math.max(0, n.amount))) + (n.crit ? this.numberLook.critSize : 0) : n.baseSize;
     n.el.style.fontSize = n.size + 'px';
-    n.el.style.webkitTextStroke = n.crit ? '1px #17212d' : '';
     n.flare.style.color = this.numberLook.critColor;
     n.life = n.tick ? this.numberLook.tickLife : n.crit ? this.numberLook.critLife : this.numberLook.life;
   }
@@ -470,7 +469,8 @@ export class Fx {
       n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotate}deg) scale(${sx}, ${sy})`;
       n.el.style.opacity = String(Math.max(0, Math.min(n.tick ? 0.8 : 1, (1 - k) / 0.3)));
       const hot = n.crit && !calm && n.critT < 0.25;
-      n.el.style.textShadow = hot ? '0 0 3px #fff,0 0 10px currentColor,0 2px 3px #000' : '0 1px 2px #000,0 0 4px #000';
+      const shadow = hot ? '0 0 3px #fff,0 0 10px currentColor,0 2px 3px #000' : '0 1px 3px #000';
+      if (n.shadow !== shadow) n.el.style.textShadow = n.shadow = shadow;   // only on a change: a number's frame writes are its transform and opacity
       if (n.crit) n.el.style.color = hot && n.critT < 0.05 ? '#fff' : this.numberColors[n.element] || n.color;   // a white-hot frame, then its colour
       const f = n.critT / this.numberLook.flare;
       if (n.crit && !calm && f < 1) {

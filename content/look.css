@@ -910,127 +910,84 @@
   --cat-scene-debris-color: #6a6057;
 }
 
-/* Main-menu typography and motion. Pause and act-loading screens keep their compact layout. */
+/* The title, the act's loading screen and the pause menu. The pieces (buttons, tiles, sheets, text) are the UI
+   kit's (src/ui-kit.css, the --ui-* tokens at the top of this file); main.js has what shows when and the pause layout. */
 .menu-jelly, .menu-jelly-caption { display: none; }
-#g-over:is(.menu-home, .menu-launching), #g-over.menu-launching {
-  color: var(--menu-paper); text-align: left; justify-items: start;
+#g-over:is(.menu-home, .menu-launching) {
+  text-align: left; justify-items: start;
   background: linear-gradient(90deg, #04132970 0%, #04132933 35%, transparent 65%, #04132918 100%);
 }
-#g-over:is(.menu-home, .menu-launching) > div, #g-over.menu-launching > div {
-  width: 47%; max-width: 610px; margin-left: 8%; padding: 30px 0;
+#g-over:is(.menu-home, .menu-launching) > .menu-col {
+  width: 47%; max-width: 610px; margin-left: 8%; padding-block: 30px; padding-inline: 0; align-items: flex-start;
 }
-#g-over:is(.menu-home, .menu-launching) h1, #g-over.menu-launching h1 {
-  font: 900 clamp(64px, 8vw, 118px)/.85 Georgia, serif; letter-spacing: -.075em;
-  text-shadow: 0 8px 35px #0005; margin: 0 0 25px; transform-origin: left bottom;
-  animation: menu-arrive .55s cubic-bezier(.16,1,.3,1) both;
-}
-#g-over:is(.menu-home, .menu-launching) h1 span, #g-over.menu-launching h1 span { display: block; color: var(--menu-mint); }
-#g-over .menu-help { display: none; }
-#g-over:is(.menu-home, .menu-launching) .menu-help { display: block; }
-#g-over .menu-help summary {
-  width: fit-content; padding: 8px 14px; border: 1px solid #ffffff30; border-radius: 13px;
-  background: #ffffff0b; font-size: 14px; cursor: pointer;
-}
-#g-over .menu-help summary:focus-visible { outline: 2px solid var(--menu-mint); outline-offset: 5px; }
-#g-over .menu-help-icon {
-  display: inline-grid; place-items: center; width: 1.1em; height: 1.1em;
-  border: 1px solid currentColor; border-radius: 50%; font-weight: 700; line-height: 1;
-}
-#g-over:is(.menu-home, .menu-launching) .menu-loop {
-  max-width: 42ch; margin: 10px auto 0 0;
-  font-size: 15px; line-height: 1.45; color: var(--menu-paper);
-}
-#g-over:is(.menu-home, .menu-launching) .play, #g-over.menu-launching .play {
-  display: block; margin: 26px 0 22px; padding: 16px 38px; min-width: 185px;
-  font-size: 21px; font-weight: 800; color: var(--menu-ink); background: var(--menu-gold);
-  border: 1px solid #fff8; border-radius: 24px; box-shadow: 0 5px 0 #9d7435, 0 14px 30px #0004;
-  transform-origin: center; transition: transform .12s, background .12s;
-}
+#g-over h1 { text-shadow: 0 8px 35px #0005; transform-origin: left bottom; }
+#g-over:is(.menu-home, .menu-launching) h1 { animation: menu-arrive .55s cubic-bezier(.16,1,.3,1) both; }
+#g-over h1 span { color: var(--ui-mint); }
+#g-over .menu-help summary { list-style: none; width: fit-content; color: var(--ui-ink); }
+#g-over .menu-help summary::-webkit-details-marker { display: none; }
+#g-over .menu-help-icon { display: inline-flex; }
+#g-over .menu-loop { max-width: 42ch; margin: var(--ui-space-2) 0 0; }
+#g-over .play, #g-over .resume { min-height: 56px; }
+#g-over .play { min-width: 200px; font-size: calc(var(--ui-size-heading) * 1.2); }
+#g-over .play:disabled { cursor: progress; }
 /* a run kept from a closed tab: Continue act N is the gold button, a new run's Play steps back */
-#g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) {
-  display: block; margin: 26px 0 0; padding: 12px 30px; text-align: left; cursor: pointer;
-  font: 800 20px system-ui, sans-serif; color: var(--menu-ink); background: var(--menu-gold);
-  border: 1px solid #fff8; border-radius: 24px; box-shadow: 0 5px 0 #9d7435, 0 14px 30px #0004;
+#g-over .resume:not([hidden]) { flex-direction: column; gap: 2px; padding-block: 8px; }
+#g-over .resume small { font: 500 var(--ui-size-label)/1.2 var(--ui-font-text); opacity: .75; }
+#g-over .resume:not([hidden]) + .play {
+  min-height: var(--ui-target); background: var(--ui-glass); color: var(--ui-ink); border-color: var(--ui-line);
+  font: 600 var(--ui-size-body)/1.1 var(--ui-font-text); box-shadow: none;
 }
-#g-over .resume small { display: block; font-weight: 600; font-size: 13px; opacity: .72; margin-top: 2px; }
-#g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play {
-  margin-top: 16px; background: #ffffff14; color: var(--menu-paper); box-shadow: none; border-color: #ffffff40;
-}
-#g-over:is(.menu-home, .menu-launching) .play:enabled:hover { background: var(--menu-paper); transform: translateY(-2px); }
-#g-over:is(.menu-home, .menu-launching) button:enabled:active { transform: translateY(3px) scale(.96, .93); }
-#g-over:is(.menu-home, .menu-launching) .row { justify-content: flex-start; gap: 7px; max-width: 440px; }
-#g-over:is(.menu-home, .menu-launching) .row button { border-radius: 13px; min-height: 40px; background: #ffffff0b; transition: background .15s, transform .12s; }
-#g-over:is(.menu-home, .menu-launching) .row button:hover { background: #ffffff20; }
-#g-over:is(.menu-home, .menu-launching) #g-quality { margin-top: 17px !important; }
-#g-over:is(.menu-home, .menu-launching) .keys { display: none; }
-#g-over:is(.menu-home, .menu-launching) .ver { opacity: .55; background: transparent; border: 0; }
+#g-over .resume:not([hidden]) + .play:hover { background: var(--ui-glass-strong); filter: none; }
+#g-over .menu-tiles { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }
+#g-over .menu-tiles .ui-tile { width: 104px; min-height: 72px; text-align: center; }
+#g-over .menu-gear { position: fixed; z-index: 2; top: max(var(--ui-space-3), env(safe-area-inset-top)); right: max(var(--ui-space-3), env(safe-area-inset-right)); }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly {
   display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
   position: absolute; right: 7%; top: 12%; width: 39%; height: 64%;
-  border: 1px solid transparent; border-radius: 45%; color: var(--menu-paper);
+  border: 1px solid transparent; border-radius: 45%; color: var(--ui-ink);
   background: none; cursor: pointer; padding: 0 0 18px; font: inherit;
 }
-#g-over:is(.menu-home, .menu-launching) .row [data-act="creator"] { display: none; }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption {
   display: flex; flex-direction: column; align-items: center; position: absolute;
   right: 7%; bottom: 13%; width: 39%; text-align: center;
 }
-#g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button {
-  margin-top: 12px; min-height: 44px; padding: 10px 22px; border: 1px solid #a3f5d566;
-  border-radius: 999px; background: #101a2380; color: var(--menu-mint); font: 600 14px system-ui, sans-serif;
-  cursor: pointer; transition: background .15s, transform .12s;
-}
-#g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button:hover { background: #a3f5d522; }
 #g-over:is(.menu-home, .menu-launching) .menu-greet {
-  margin: 0; color: var(--menu-paper); font: 600 17px system-ui, sans-serif;
-  text-shadow: 0 1px 10px #000a;
+  margin: 0; font: 500 var(--ui-size-heading)/1.2 var(--ui-font-display); text-shadow: 0 1px 10px #000a;
 }
-#g-over:is(.menu-home, .menu-launching) button:focus-visible { outline: 2px solid var(--menu-mint); outline-offset: 5px; }
+#g-over:is(.menu-home, .menu-launching) button:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 5px; }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly:active { transform: none; }
 #g-over:is(.menu-home, .menu-launching) .menu-pop { animation: menu-pop .24s ease-out; }
 #g-over.menu-launching { pointer-events: none; animation: menu-leave .28s ease-in both; }
-#g-over.menu-launching .menu-jelly { display: none; }
-#g-over.menu-launching .menu-jelly-caption { display: none; }
+#g-over.menu-launching .menu-jelly, #g-over.menu-launching .menu-jelly-caption { display: none; }
 @keyframes menu-arrive { from { opacity: 0; transform: translateY(12px) scale(.98,1.04); } to { opacity: 1; transform: none; } }
-@keyframes menu-pop { 0% { transform: scale(.96,.93); } 55% { transform: scale(1.035,1.02); } 100% { transform: none; } }
+@keyframes menu-pop { 0% { transform: none; } 55% { transform: scale(1.035,1.02); } 100% { transform: none; } }
 @keyframes menu-leave { to { opacity: 0; transform: translateY(8px); } }
 body.calm #g-over *, body.calm #g-over { animation: none !important; transition: none !important; }
-body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-over:is(.menu-home, .menu-launching) button:active { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   #g-over, #g-over * { animation: none !important; transition: none !important; }
-  #g-over:is(.menu-home, .menu-launching) button:hover, #g-over:is(.menu-home, .menu-launching) button:active { transform: none; }
 }
+/* a big landscape screen: the title grows with the room */
+@media (min-height: 621px) and (min-aspect-ratio: 1/1) {
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: calc(var(--ui-size-display) * 1.5); line-height: .95; }
+  #g-over:is(.menu-home, .menu-launching) h1 span { display: block; }
+}
+/* a phone held sideways: everything on the left, tight, no scrolling */
 @media (max-height: 620px) and (min-aspect-ratio: 1/1) {
-  #g-over:is(.menu-home, .menu-launching) .menu-loop { font-size: 13px; }
-  #g-over:is(.menu-home, .menu-launching) > div { padding: 8px 0; margin-left: 6%; width: 50%; }
-  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 46px; margin-bottom: 4px; }
-  #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
-  #g-over:is(.menu-home, .menu-launching) .play { margin: 8px 0; padding: 9px 30px; font-size: 18px; }
-  #g-over:is(.menu-home, .menu-launching) #g-quality { margin-top: 8px !important; }
-  #g-over:is(.menu-home, .menu-launching) .home-tip { margin-top: 4px; padding-block: 3px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 6px; padding: 7px 24px; font-size: 17px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 6px; }
-  #g-over:is(.menu-home, .menu-launching) .row { margin: 4px 0; }
-  #g-over:is(.menu-home, .menu-launching) .row button { padding: 5px 10px; font-size: 12px; min-height: 34px; }
-  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 4px; line-height: 1.5; }
+  #g-over:is(.menu-home, .menu-launching) > .menu-col { padding-block: var(--ui-space-2); margin-left: 6%; width: 50%; gap: var(--ui-space-2); }
+  #g-over .play { min-height: 52px; }
+  #g-over .menu-tiles .ui-tile { min-height: 64px; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { right: 3%; width: 39%; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { right: 3%; width: 39%; bottom: 8%; }
 }
+/* a tall window: the jelly on top, the controls centred below it */
 @media (max-aspect-ratio: 1/1), (max-width: 680px) and (orientation: portrait) {
-  #g-over:is(.menu-home, .menu-launching) .menu-loop { margin-inline: auto; }
-  #g-over .menu-help summary { margin-inline: auto; }
-  #g-over:is(.menu-home, .menu-launching) { display: block; overflow-y: auto; background: linear-gradient(0deg,#04132980 0%,#04132938 45%,transparent 100%); }
-  #g-over:is(.menu-home, .menu-launching) > div { position: relative; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; text-align: center; }
-  #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); margin-bottom: 14px; transform-origin: center; }
+  #g-over:is(.menu-home, .menu-launching) { display: block; overflow-y: auto; text-align: center; background: linear-gradient(0deg,#04132980 0%,#04132938 45%,transparent 100%); }
+  #g-over:is(.menu-home, .menu-launching) > .menu-col { position: relative; width: 100%; max-width: none; margin: 0; padding: 42vh 24px 55px; overflow: visible; align-items: center; }
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: clamp(57px,15vw,78px); transform-origin: center; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
-  #g-over:is(.menu-home, .menu-launching) .play { margin: 20px auto; padding: 13px 35px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin: 20px auto 0; text-align: center; }
-  #g-over:is(.menu-home, .menu-launching) .row { justify-content: center; margin-left: auto; margin-right: auto; }
-  #g-over:is(.menu-home, .menu-launching) .row button { font-size: 12px; padding: 8px 12px; }
+  #g-over .menu-tiles { justify-content: center; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { top: 3vh; right: 15%; width: 70%; height: 29vh; padding-bottom: 0; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { top: 33vh; right: 15%; width: 70%; bottom: auto; }
-  #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption button { margin-top: 0; }
-  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 16px; }
 }
 
 /* Evolution portrait: the selected jelly stays clear between the heading and skip control. */
