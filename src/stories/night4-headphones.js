@@ -1,7 +1,7 @@
 // Stories: act 4's third Elite, the Headphones (elites.js kind 'headphones', headphones-model.js): up on
-// their ear cups on the glass coffee table in the living room at dawn. They keep the song's time
+// their ear cups on the kitchen counter by the stove in the living room at dawn. They keep the song's time
 // (run.beat); these play on the run's own beat (no song). Their waves shove rather than hurt, and the
-// table is small, so falling off and coming back by the vent is part of the fight. Shared helpers are
+// counter ends at a drop, so falling off and coming back by the vent is part of the fight. Shared helpers are
 // in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
@@ -10,16 +10,16 @@ import { CONTENT } from '../content.js';
 import { CONFIG } from '../config.js';
 import { juice } from '../juice.js';
 import { ELITES4 } from '../stage4.js';
-import { G, fresh, headphones, night4, ok, onCoffeeTable, r3, record, spy, startHeadphones, step, tp } from './kit.js';
+import { G, fresh, headphones, night4, ok, onCounter, r3, record, spy, startHeadphones, step, tp } from './kit.js';
 
-const offTable = () => tp(3.2, 0.02, 3.4, 0);                  // on the floor past the table's end
+const offTable = () => tp(3.9, 0.02, 2.6, 0);                  // on the kitchen floor in front of the counter
 const SK = () => CONTENT.elites.headphones.skills;
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
 const offBar = (b) => Math.min(b % 4, 4 - (b % 4));              // beats from the nearest bar line
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const VENT = () => G().run.traversal.vents.find((v) => v.name === ELITES4.find((q) => q.kind === 'headphones').vent);
-const onTable = (e, p) => G().run.elites.onPlatform(e, p) && p.y > e.base.y - 0.02;
+const onTable = (e, p) => G().run.elites.onPlatform(e, p) && p.y > e.base.y - 0.02;   // (on the kitchen counter)
 // the waves and Shots it lets go, as they go: [beat, from, dir] and [beat, from, to, source]
 function watch() {
   const { run } = G(), E = run.elites, waves = [], shots = [];
@@ -33,8 +33,8 @@ function playOut(e, during, n = 60 * 14) {
   let started = false;
   step(n, (i) => { if (e.plan) started = true; during?.(i); return started && !e.plan && e.state === 'idle'; });
 }
-// walk the jelly to the coffee table's vent, steering round what's in the way (a step sideways when it
-// stops getting anywhere), until it's landed back on the table: how long it took (s), or null
+// walk the jelly to the stove's vent, steering round what's in the way (a step sideways when it
+// stops getting anywhere), until it's landed back on the counter: how long it took (s), or null
 function walkToVent(e, secs = 15) {
   const { input, player, tpc } = G(), v = VENT(), last = player.position.clone();
   let side = 0, back = null;
@@ -48,8 +48,8 @@ function walkToVent(e, secs = 15) {
   return back;
 }
 
-night4('headphones-sleep-on-the-coffee-table', {
-  about: 'The Headphones stand on the glass coffee table in place of the real pair on its stand (hidden while they are alive) and sleep while the jelly is off the table: eyes shut, no attack.',
+night4('headphones-sleep-on-the-counter', {
+  about: 'The Headphones stand on the kitchen counter in place of the real pair on the coffee table (hidden while they are alive) and sleep while the jelly is off the counter: eyes shut, no attack.',
   setup() { fresh(); offTable(); },
   play() {
     const { run } = G(), e = headphones();
@@ -57,14 +57,14 @@ night4('headphones-sleep-on-the-coffee-table', {
     let started = false;
     step(60 * 4, () => { if (e.state !== 'idle') started = true; });
     const real = run.elites.findObject('Headphones').visible;
-    const on = flat(e.base, { x: 1.75, z: 2.9 }) < 0.01 && Math.abs(e.base.y - 0.46) < 0.02;
+    const on = flat(e.base, { x: 4.62, z: 2.85 }) < 0.01 && Math.abs(e.base.y - 0.94) < 0.02;
     return ok(on && !real && !e.awake && !started && e.model.eyes.scale.y < 0.4, { at: r3(e.base), realShown: real, awake: e.awake, started, eyes: +e.model.eyes.scale.y.toFixed(2) });
   },
 });
 
-night4('headphones-wake-when-you-are-on-the-table', {
-  about: 'Land on the coffee table and the Headphones wake (eyes open) and turn to face you; leave it and they settle back to sleep. Their Health is act 3\'s 800 at act 4\'s Elite multiplier, like the other two room Elites\'.',
-  setup() { fresh(); onCoffeeTable(); },
+night4('headphones-wake-when-you-are-on-the-counter', {
+  about: 'Land on the kitchen counter and the Headphones wake (eyes open) and turn to face you; leave it and they settle back to sleep. Their Health is act 3\'s 800 at act 4\'s Elite multiplier, like the other two room Elites\'.',
+  setup() { fresh(); onCounter(); },
   play() {
     const { run, player } = G(), e = headphones();
     step(60 * 2);
@@ -81,7 +81,7 @@ night4('headphones-wake-when-you-are-on-the-table', {
 });
 
 night4('headphones-shove-waves-on-the-bar', {
-  about: 'Shove waves: the ear cups take turns, one wave a bar on the bar line. Each one\'s Warning, a white strip from the cup through the jelly to the table\'s edge and the low lane over it, fills to the wave; then a white sound wave rolls down it. It does no damage: a jelly in its way is shoved along it, about 20 cm.',
+  about: 'Shove waves: the ear cups take turns, one wave a bar on the bar line. Each one\'s Warning, a white strip from the cup through the jelly to the counter\'s edge and the low lane over it, fills to the wave; then a white sound wave rolls down it. It does no damage: a jelly in its way is shoved along it, about 20 cm.',
   setup() { startHeadphones(0, { hold: true }); },
   play() {
     const { e, player } = startHeadphones(0, { hold: true }), { run } = G(), W = SK().shove, log = record('damage_taken'), seen = watch();
@@ -108,7 +108,7 @@ night4('headphones-shove-moves-you-and-a-jump-keeps-you-put', {
   play() {
     const out = {};
     for (const jump of [false, true]) {
-      const { e, player, top } = startHeadphones(0, { x: 2.45, z: 2.85 }), { run } = G(), W = SK().shove, seen = watch();   // (the open end of the table: room to slide)
+      const { e, player, top } = startHeadphones(0, { x: 4.62, z: 2.55 }), { run } = G(), W = SK().shove, seen = watch();   // (between them and the room's edge: room to slide)
       const at = player.position.clone();
       step(60 * 8, () => {
         const w = run.elites.waves[0];
@@ -127,10 +127,10 @@ night4('headphones-shove-moves-you-and-a-jump-keeps-you-put', {
 });
 
 night4('headphones-shove-off-the-edge-and-back-by-the-vent', {
-  about: 'The table is small: a jelly near its edge that rides a shove falls off (unhurt), and the Headphones call their attack off. The vent by the coffee table brings it back: walk to it and you land on the table again, and they fight on.',
+  about: 'The counter\'s edge is a drop: a jelly near it that rides a shove falls off (unhurt), and the Headphones call their attack off. The vent by the stove brings it back: walk to it and you land on the kitchen counter again, and they fight on.',
   setup() { startHeadphones(0); },
   play() {
-    const { e, player } = startHeadphones(0, { x: 2.3, z: 3.08 }), log = record('damage_taken');
+    const { e, player } = startHeadphones(0, { x: 4.45, z: 2.85 }), log = record('damage_taken');
     let off = null;
     step(60 * 10, () => { if (player.position.y < e.base.y - 0.1) off = r3(player.position); return off && player.grounded; });
     const called = e.state === 'idle' && !e.tele.length;
@@ -142,12 +142,12 @@ night4('headphones-shove-off-the-edge-and-back-by-the-vent', {
   },
 });
 
-night4('headphones-table-never-strands-you', {
-  about: 'Wherever a jelly comes off the coffee table, all round it and under it, it can walk to the vent by the table (steering round the legs) and is carried back up onto the table top in a few seconds.',
+night4('headphones-counter-never-strands-you', {
+  about: 'Wherever a jelly comes off the kitchen counter, on the kitchen floor in front of it, it can walk to the vent by the stove (steering round the clutter) and is carried back up onto the kitchen counter in a few seconds.',
   setup() { fresh(); },
   play() {
     const out = [];
-    for (const [x, z] of [[1.4, 2.4], [1.4, 2.9], [1.45, 3.3], [1.9, 3.35], [2.4, 3.3], [2.9, 3.2], [2.9, 2.7], [2.85, 2.35], [2.3, 2.38], [1.8, 2.38], [2.0, 2.8], [2.5, 3.15]]) {
+    for (const [x, z] of [[3.5, 2.3], [3.5, 3.0], [3.9, 1.8], [3.9, 2.6], [3.9, 3.3], [4.15, 2.2], [4.15, 3.0], [4.1, 3.6], [3.6, 3.9], [3.5, 1.6]]) {
       fresh(); tp(x, 0.3, z, 0);
       out.push({ from: [x, z], back: walkToVent(headphones(), 12) });
     }
@@ -156,7 +156,7 @@ night4('headphones-table-never-strands-you', {
 });
 
 night4('headphones-bass-shots-on-the-beat', {
-  about: 'Bass Shots: from a bar line, a Shot a beat, the ear cups taking turns. Each one\'s Warning (a line on the table and the tube over it to the jelly\'s middle, in the Headphones\' indigo) fills to its beat; a jelly that stands still is hit by every one.',
+  about: 'Bass Shots: from a bar line, a Shot a beat, the ear cups taking turns. Each one\'s Warning (a line on the counter and the tube over it to the jelly\'s middle, in the Headphones\' indigo) fills to its beat; a jelly that stands still is hit by every one.',
   setup() { startHeadphones(1, { hold: true }); },
   play() {
     const { e, player } = startHeadphones(1, { hold: true }), B = SK().bass, log = record('damage_taken'), seen = watch();
@@ -183,7 +183,7 @@ night4('headphones-bass-dodged-by-stepping-sideways', {
       if (L && L.k < L.due.length && G().run.beat >= L.due[L.k] - B.lock && k !== L.k) {
         k = L.k; steps++;
         const d = new THREE.Vector3(L.aim.x - L.mouth.x, 0, L.aim.z - L.mouth.z).normalize();
-        player.position.x += d.z * 0.08; player.position.z -= d.x * 0.08;   // across the line, toward the table's middle
+        player.position.x += d.z * 0.08; player.position.z -= d.x * 0.08;   // across the line, toward the counter's middle
       }
     });
     step(60 * 2);
@@ -197,7 +197,7 @@ night4('headphones-angry-shove-and-shot-together', {
   play() {
     const out = {}, B = SK().bass, W = SK().shove;
     for (const jump of [false, true]) {
-      const { e, player, top } = startHeadphones(0, { angry: true, x: 2.45, z: 2.85 }), { run } = G(), log = record('damage_taken'), seen = watch();
+      const { e, player, top } = startHeadphones(0, { angry: true, x: 4.62, z: 2.55 }), { run } = G(), log = record('damage_taken'), seen = watch();
       let both = 0;
       step(60 * 8, () => {
         if (e.tele.length === 4 && e.tele[3].material.uniforms.uColor.value.getHex() === hostile('headphones').getHex()) both++;
@@ -239,7 +239,7 @@ night4('headphones-attacks-feel', {
   about: 'Headphones feel: a cup\'s speaker glows as it gets ready and the cup kicks back as it plays, with a flash at it; a wave lifts fading motes off the glass and flashes white on the jelly it shoves; a bass Shot that hits throws sparks, leaves a fading scuff and lands with feel impact.',
   setup() { startHeadphones(0); },
   play() {
-    let { e } = startHeadphones(0, { x: 2.0, z: 2.9 }), { run } = G();
+    let { e } = startHeadphones(0, { x: 4.62, z: 2.55 }), { run } = G();
     const fx = run.elites.fx, impacts = spy(fx, 'impact'), motes = spy(fx.glow, 'emit');
     let glow = 0, kick = 0;
     playOut(e, () => { glow = Math.max(glow, ...e.model.glows.map((m) => m.material.opacity)); kick = Math.max(kick, ...e.pump); });
