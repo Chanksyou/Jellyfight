@@ -58,7 +58,8 @@ export const ENCORE = {
 // "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
 export const ELITES4 = [
   { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0, vent: 'Vent by the lounge chair',
-    at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] }, stand: [3.2, 0.435, 1.72] },
+    at: [3.2, 0.435, 1.4], wake: { min: [2.85, 0.38, 1.09], max: [3.52, 1.2, 1.93] }, stand: [3.2, 0.435, 1.72],
+    seat: { min: [2.98, 1.3], max: [3.42, 1.8] } },   // seat: the cushion's top (x, z), where the bowl's Hum fills (measured: the wake box also takes in the chair's back and arms)
   { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -0.695, vent: 'Vent by the sofa',
     at: [1.15, 0.51, 1.8], wake: { min: [0.5, 0.46, 1.0], max: [2.0, 1.2, 2.3] }, stand: [1.2, 0.511, 2.1] },
   { kind: 'headphones', hide: 'Headphones', area: 'kitchen counter', face: -2.906, vent: 'Vent by the stove',

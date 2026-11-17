@@ -1465,7 +1465,7 @@ export const sfx = {
   cofferCrunch() { if (!ready() || !gap('cofferCrunch', 60)) return; const j = jitter(0.15); noise(2600 * j, 1.2, 0.07, 0.22, 'bandpass', 0, 900); tone('square', 160 * j, 70, 0.06, 0.07); noise(700 * j, 0.8, 0.1, 0.12, 'lowpass', 0.02, 250); },
   cofferSpit() { if (!ready()) return; const j = jitter(0.1); noise(1200 * j, 0.7, 0.18, 0.22, 'lowpass', 0, 3200); tone('sine', 420 * j, 160, 0.12, 0.08); noise(5000, 1, 0.06, 0.08, 'highpass', 0.08); },
   // the Singing Bowl: a struck rim (a wooden tok, then the bowl's long inharmonic ring; the faster
-  // second ring of an angry bar a fourth higher), the rim rubbed into song, a chime let go, one landing
+  // second ring of an angry bar a fourth higher), the rim rubbed into song, the hum let go, a ring's echo coming back, one landing
   bowlStrike(high = false) {
     if (!ready() || !gap('bowlStrike', 80)) return; const j = jitter(0.03), f = (high ? 293 : 220) * j;
     noise(2400 * j, 2, 0.03, 0.14, 'bandpass'); tone('triangle', 900 * j, 500 * j, 0.04, 0.08);       // the striker's tok
@@ -1477,10 +1477,15 @@ export const sfx = {
     for (let k = 0; k < 6; k++) { tone('sine', f, f * 1.003, dur * 0.45, 0.012 + k * 0.01, k * dur / 7); tone('sine', f * 2.71, f * 2.72, dur * 0.3, 0.004 + k * 0.003, k * dur / 7); }   // swelling as it's rubbed
     noise(1800 * j, 4, dur, 0.025, 'bandpass', 0, 2600 * j);                                          // the rub round the rim
   },
-  bowlChime(k = 0) {
-    if (!ready()) return; const f = 660 * Math.pow(2, [0, 3, 7][k % 3] / 12) * jitter(0.01);
-    tone('sine', f, f * 0.998, 0.6, 0.09); tone('sine', f * 2.71, f * 2.7, 0.3, 0.03); noise(5200, 2, 0.02, 0.06, 'highpass');
-    noise(2000, 1, 0.18, 0.04, 'bandpass', 0.02, 900);                                                // the whoosh as it flies off
+  bowlHum() {                                                                                    // the swelled song let go: a wide, low, beating swell and a bright shimmer over it
+    if (!ready()) return; const j = jitter(0.03), f = 110 * j;
+    tone('sine', f, f * 0.99, 1.4, 0.2); tone('sine', f * 1.014, f * 1.0, 1.4, 0.15); tone('sine', f * 2, f * 1.98, 1, 0.08); tone('sine', f * 2.71, f * 2.68, 0.7, 0.04);
+    noise(900 * j, 1.2, 0.5, 0.12, 'lowpass', 0, 220); noise(5200, 2, 0.04, 0.06, 'highpass'); patter(4, 0.03, 0.3, 0.025);
+  },
+  bowlEcho() {                                                                                    // a ring coming back in: the strike's ring, softer and a step down
+    if (!ready() || !gap('bowlEcho', 80)) return; const j = jitter(0.03), f = 185 * j;
+    for (const [m, v, d] of [[1, 0.07, 1.4], [2.71, 0.03, 0.8], [5.13, 0.015, 0.5]]) tone('sine', f * m, f * m * 0.99, d, v);
+    noise(1800 * j, 2, 0.2, 0.04, 'bandpass', 0, 600);
   },
   bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
   // the Mushroom Pillow: a long soft breath in, the spores puffed out (a plush pff, a sparkle as they
