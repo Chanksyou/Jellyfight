@@ -641,8 +641,8 @@ export const ENEMY_WORDS = {
   },
 
   dive: {
-    doc: 'Within `range` m every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and, unless `spend=#false`, dies doing it. If it misses, hits a wall, or survives its sting, it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
-    props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6, spend: true },
+    doc: 'Within `range` m every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and dies doing it. If it misses or hits a wall, it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6 },
     make: (_, p) => ({
       init(e) { e.diveCd = 1 + Math.random() * 1.5; e.diveDir = new THREE.Vector3(); },
       tick(e, c, en) {
@@ -663,9 +663,51 @@ export const ENEMY_WORDS = {
           const blocked = en.move(e, e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
-          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + (e.hitR || e.r)) { en.sting(e, c, p); if (p.spend) return; e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); return; }   // stung you (as soon as it touches, so its touch can't land first): it dies, or pulls up
+          if (e.pos.distanceTo(c.realPc || c.pc) < (en.playerRadius || 0.03) + (e.hitR || e.r)) { en.sting(e, c, p); return; }   // stung you (as soon as it touches, so its touch can't land first): it dies
           if (wall || blocked || e.diveLeft <= 0) { e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }   // missed: it pulls up
         } else if (e.state === 'rest') {
+          e.vel.multiplyScalar(Math.exp(-4 * c.dt));
+          en.move(e, e.vel, c.dt * live);
+          if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
+        }
+      },
+    }),
+  },
+
+  plunge: {
+    doc: 'Within `range` m every `every` s or so, climbs to `height` m over you while a circle and a column of radius `radius` m fill on the floor under it (they follow you, and lock where they are with `lock` of the `windup` s left), then drops straight down: you are hit for `dmg` if you are in the column when it lands (a jump does not dodge it; step off the circle). It leaves a puff of black smoke there (`smoke`), pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    props: { range: 0.45, every: 3, windup: 1, lock: 0.35, height: 0.3, climb: 0.5, speed: 1.6, radius: 0.08, dmg: 3, rest: 0.9 },
+    make: (_, p) => ({
+      plungeRadius: p.radius, plungeHeight: p.height,
+      init(e) { e.diveCd = 1 + Math.random() * 1.5; e.plungeAt = new THREE.Vector3(); e.plungeK = 0; },
+      tick(e, c, en) {
+        const live = c.slow > 0 ? 1 : 0, at = e.plungeAt;
+        e.stateT -= c.dt * live;
+        e.diveCd -= c.dt;
+        if (e.state === 'approach') {
+          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && !c.wait) {
+            e.state = 'climb'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.plungeLocked = false;
+            at.set(c.foot.x, en.floorBelow(c.foot, c.foot.y), c.foot.z); en.diveWind(e, p.windup);
+          }
+        } else if (e.state === 'climb') {
+          if (!e.plungeLocked) {                                          // the circle follows you until it locks
+            if (e.stateT <= p.windup * p.lock) e.plungeLocked = true;
+            else at.set(c.foot.x, en.floorBelow(c.foot, at.y), c.foot.z);
+          }
+          e.plungeK = 1 - Math.max(0, e.stateT) / p.windup;
+          _want.set(at.x, at.y + p.height, at.z).sub(e.pos);
+          e.vel.lerp(_want.clampLength(0, 1).multiplyScalar(p.climb * 6).clampLength(0, p.climb * c.slow), 1 - Math.exp(-6 * c.dt));
+          en.move(e, e.vel, c.dt);
+          e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
+          if (e.stateT <= 0) { e.state = 'drop'; e.stateT = 1; en.diveGo(e); }
+        } else if (e.state === 'drop') {
+          if (!live) return;
+          e.plungeK = 1;
+          e.vel.set((at.x - e.pos.x) * 12, -p.speed, (at.z - e.pos.z) * 12);   // straight down the column
+          const blocked = en.move(e, e.vel, c.dt, false);
+          if (e.pos.y <= at.y + e.r || blocked || e.stateT <= 0) { en.plungeLand(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }
+        } else if (e.state === 'rest') {
+          e.plungeK = 0;
           e.vel.multiplyScalar(Math.exp(-4 * c.dt));
           en.move(e, e.vel, c.dt * live);
           if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
@@ -820,6 +862,7 @@ export function newMods() {
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
+    overkill: null,                  // overkill: { reach, passes, least } (enemies.js)
     charged: [],                     // charged-shot: { when, time, strike, chain, dmg, key } (run.js builds the charge, bubbles.js spends it)
     adorn: [],                       // adorn: extra pieces on the jelly (src/adornments.js)
     owners: {},                      // which treasure/evolution set mouse, reflect, deathSave, rebirth (the HUD's timer faces)
@@ -1651,6 +1694,15 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.dmg >= 0 && p.stun > 0 && p.each > 0)) throw new Error('touch-zap: stun and each must be above 0');
       return (m) => { m.touchZap = { ...p }; };
+    },
+  },
+  // Newton's Cradle
+  overkill: {
+    doc: 'When a hit of yours finishes off a bug, the damage left over (at least `least`) passes to the nearest bug within `reach` m of it, `passes` times at most. Not from Burn, Poison or Bleed, an execute, or an Elite or the boss.',
+    props: { reach: 0.12, passes: 3, least: 1 },
+    make: (_, p) => {
+      if (!(p.reach > 0 && Number.isInteger(p.passes) && p.passes >= 1 && p.least > 0)) throw new Error('overkill: reach and least must be above 0, and passes a whole number of 1 or more');
+      return (m) => { m.overkill = { ...p }; };
     },
   },
   'charged-shot': {

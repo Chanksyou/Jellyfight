@@ -72,6 +72,7 @@
   --gadget-gold: #f5e7a7;
   --gadget-signal: #a5e5ff;
   --gadget-fizz: #b7ffe4;
+  --cradle-delay: 0.06;          /* s between a bug dying and its leftover damage landing on the next (Newton's Cradle) */
   --gadget-silver: #d3eaff;
   --gadget-cotton: #e8e5ff;
   --gadget-duck: #a8e9ce;
@@ -444,7 +445,16 @@
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
   --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
   --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
-  --hostile-moth: #ffb300;       /* the moth's swoop as it lands: hot amber (its wings are pale, so the hit isn't) */
+  --hostile-moth: #ffb300;       /* the moth's plunge as it lands: hot amber (its wings are pale, so the hit isn't) */
+  --plunge-warning-opacity: 0.3;  /* the moth's circle on the floor as it climbs (it follows you, then locks and brightens) */
+  --plunge-column-opacity: 0.25;  /* and the column over it, as tall as the plunge reaches */
+  --smoke-size: 0.07;            /* the moth's smoke: each of its four blobs (m); the puff is about 25 cm across */
+  --smoke-spread: 0.05;          /* how far the blobs sit from the middle (m) */
+  --smoke-hold: 1;               /* seconds it hangs full */
+  --smoke-fade: 0.4;             /* seconds it then thins out */
+  --smoke-opacity: 0.85;         /* how dark each blob is: bugs, XP and pools behind it all but vanish */
+  --smoke-ember: #4a2208;        /* the middle blob as it lands, cooling to black in 0.3 s */
+  --smoke-max: 3;                /* puffs alive at once (phones: the oldest goes) */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */

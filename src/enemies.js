@@ -267,11 +267,13 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
+    this.plungeMarks = [];    // pooled: the circle and column under each moth about to plunge (the plunge word)
     this.songMarks = [];      // pooled: the wedge and cone about to sing at you (the sing word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
     this.missiles = [];       // ladybugs' homing missiles in flight (the sortie word)
+    this.passes = [];         // Newton's Cradle: leftover damage on its way to the next bug
     this.lockMarks = [];      // pooled: the reticle round you while a ladybug locks on
     this.chargeMarks = [];    // pooled: the lane in front of each millipede about to roll (the ball-charge word)
 
@@ -451,7 +453,7 @@ export class Enemies {
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
-    if (!feedback.tick) {                // status-damage: a hit on a bug with a status does more (Shatter thaws it)
+    if (!feedback.tick && !feedback.pass) {   // (a Cradle pass is plain: no status-damage or fresh-damage) status-damage: a hit on a bug with a status does more (Shatter thaws it)
       const k = this.statusMore(e, feedback.by), blast = this._blast, share = this._blastDmg;
       amount *= k;
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
@@ -479,6 +481,7 @@ export class Enemies {
     }
     if (e.markT > 0) amount *= 1 + (e.markMore ?? 0.5);   // Sticky Note
     e.hp -= amount;
+    if (e.hp <= 0) this.overkill(e, -e.hp, feedback);   // Newton's Cradle: the leftover
     e.lastElement = feedback.element;     // what finished it, if this was the last hit (feedback.js: a glitter-finished bug bursts into glitter)
     if (feedback.dir) (e.lastDir ||= new THREE.Vector3()).copy(feedback.dir).multiplyScalar(feedback.slam ? -1 : 1);   // which way it was hit (a wind-finished bug is blown that way; off a wall, back out)
     else e.lastDir?.set(0, 0, 0);
@@ -491,6 +494,35 @@ export class Enemies {
     const X = this.mods?.execute;
     if (X && e.hp > 0 && e.hp < e.maxHp * X.under) { this.sliced(e); e.hp = 0; }   // execute (Pizza Cutter)
     if (e.hp <= 0) this.kill(e);
+  }
+
+  // overkill (Newton's Cradle): what a killing hit had left over passes to the nearest bug in reach, a beat later
+  // (queued, delivered in update(): never a hit inside a hit). A passed hit is plain and can pass again.
+  overkill(e, left, feedback) {
+    const O = this.mods?.overkill, depth = feedback.pass || 0;
+    if (!O || feedback.tick || depth >= O.passes || left < O.least) return;
+    const from = this.center(e, new THREE.Vector3());
+    let best = null, bestD = O.reach;
+    for (const n of this.list) {
+      if (n === e || n.dead || n.proxy?.immune) continue;
+      const d = this.center(n, S.o).distanceTo(from);
+      if (d <= bestD) { best = n; bestD = d; }
+    }
+    if (best) this.passes.push({ at: (this.now ?? 0) + LOOK.num('cradle-delay', 0.06), from, to: best.id, amount: left, depth: depth + 1 });
+  }
+  deliverPasses() {
+    for (let i = 0; i < this.passes.length; i++) {
+      const p = this.passes[i];
+      if (p.at > this.now) continue;
+      this.passes.splice(i--, 1);
+      const n = this.byId.get(p.to);
+      if (!n || n.dead) continue;
+      const c = this.center(n, S.o);
+      this.treasureLooks?.signal(p.from, c);
+      this.fx.impact(c, FRIENDLY(), n.r * 0.5, 5);
+      sfx.cradle(p.depth);
+      bus.emit('damage_taken', { targetId: n.id, amount: p.amount, color: '#9ff3ff', source: 'cradle', feedback: { pass: p.depth } });
+    }
   }
 
   // execute: the moment a low bug is finished off, a white slash across it
@@ -560,6 +592,7 @@ export class Enemies {
   }
 
   clear() {
+    this.passes.length = 0;
     for (const e of this.list) {
       if (e.dead) continue; // Death effects own dead models until their own cleanup.
       e.chargeSound?.(); e.chargeSound = null;   // a whine that was charging stops with the bug
@@ -1230,15 +1263,50 @@ export class Enemies {
     }
     for (let i = n; i < this.songMarks.length; i++) this.songMarks[i].floor.visible = this.songMarks[i].vol.visible = false;
   }
+  // the Warning under each moth about to plunge: a floor circle and the column over it, filling
+  // together as it climbs (brighter once locked)
+  drawPlunges(t) {
+    let n = 0;
+    for (const e of this.list) {
+      if (e.dead || !e.plungeAt || (e.state !== 'climb' && e.state !== 'drop')) continue;
+      const w = e.T.words.find((x) => x.plungeRadius);
+      let M = this.plungeMarks[n];
+      if (!M) {
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new TeleMaterial(hostile('moth'), 'circle'));
+        floor.renderOrder = 3; this.scene.add(floor);
+        M = { floor, vol: this.fx.volume(hostile('moth'), 'disc', e.pos, 1) }; this.plungeMarks.push(M);
+      }
+      n++;
+      const a = e.plungeAt, locked = e.plungeLocked, pulse = locked ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 12));
+      M.floor.visible = M.vol.visible = true;
+      M.floor.position.set(a.x, a.y + 0.003, a.z); M.floor.scale.setScalar(w.plungeRadius);
+      M.vol.position.set(a.x, a.y, a.z); M.vol.scale.set(w.plungeRadius, w.plungeHeight, w.plungeRadius);
+      M.floor.material.progress = M.vol.material.progress = e.plungeK;
+      M.floor.material.opacity = pulse * LOOK.num('plunge-warning-opacity', 0.3);
+      M.vol.material.opacity = pulse * LOOK.num('plunge-column-opacity', 0.25);
+    }
+    for (let i = n; i < this.plungeMarks.length; i++) this.plungeMarks[i].floor.visible = this.plungeMarks[i].vol.visible = false;
+  }
+  // the moth lands in its column: a hit if you're in the column (a jump doesn't clear it), then the smoke
+  plungeLand(e, c, { radius, height, dmg }) {
+    const a = e.plungeAt, col = hostile('moth'), f = c.realFoot || c.foot;
+    sfx.waspSting();
+    this.fx.impact(S.o.set(a.x, a.y + 0.012, a.z), col, 0.03, 12);
+    this.fx.ring(S.spot.set(a.x, a.y + 0.003, a.z), col, radius, 0.3);
+    this.fx.smoke(S.o.set(a.x, a.y + 0.07, a.z));
+    if (Math.hypot(f.x - a.x, f.z - a.z) < radius + (this.playerRadius || 0.03) && f.y < a.y + height) {
+      this.fx.impact((c.realPc || c.pc).clone(), col, 0.025, 12);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at: a });
+    }
+  }
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
   diveGo(e) { sfx.diveGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.8, 0.25); }
   // the sting lands: a big hit, and the wasp dies doing it (no kill for you, no XP)
-  sting(e, c, { dmg, spend }) {
+  sting(e, c, { dmg }) {
     sfx.waspSting();
     this.fx.impact((c.realPc || c.pc).clone(), hostile(e.type), 0.025, 14);
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
-    if (!spend) return;                  // a moth's swoop: it lives and pulls up
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
@@ -1368,6 +1436,7 @@ export class Enemies {
   update(dt, player, t, decoy = null) {
     this.frame++;
     this.now = t;
+    if (this.passes.length) this.deliverPasses();
     this.playerRadius = player.radius;
     this.player = player;
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
@@ -1487,6 +1556,8 @@ export class Enemies {
     this.updateWhirls(dt);
     this.drawParasites(t);
     this.drawSongs(t);
+    this.drawPlunges(t);
+    this.fx.smokeMat.userData.holdout.value.set(player.position.x, player.position.y + 0.05, player.position.z, 0.07);   // the jelly shows through its own smoke
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);
