@@ -17,78 +17,74 @@ import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 import { esc } from './leaderboard.js';
+import { icon } from './icons.js';
 import { drawAura } from './pick-aura.js';
 import { BAR_NAMES, BAR_SEGMENTS, barSegments, typeBars, typeDetails, typeLock } from './jelly-types.js';
 
 const VIEWS = 8;   // views of the jelly that make one full turn: the portrait fades from one to the next
 
 const CSS = `
-#type-pick { position: fixed; inset: 0; z-index: 15; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: none;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-  background: radial-gradient(120% 90% at 50% 0%, var(--menu-water-shallow, #175c70) 0%, var(--menu-water-deep, #06162e) 62%, #030d1c 100%);
-  color: var(--menu-paper, #fff6dc); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; --cw: clamp(230px, 24vw, 300px); --art: clamp(110px, 25vh, 210px); }
+#type-pick { position: fixed; inset: 0; z-index: 15; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: none; box-sizing: border-box;
+  padding: max(var(--ui-space-3), env(safe-area-inset-top, 0px)) max(var(--ui-space-4), env(safe-area-inset-right, 0px)) max(var(--ui-space-3), env(safe-area-inset-bottom, 0px)) max(var(--ui-space-4), env(safe-area-inset-left, 0px));
+  background: radial-gradient(120% 90% at 50% 0%, var(--menu-water-shallow) 0%, var(--menu-water-deep) 62%, var(--ui-deep) 100%);
+  color: var(--ui-ink); font: 400 var(--ui-size-body)/1.4 var(--ui-font-text); --cw: clamp(280px, 26vw, 340px); }
 #type-pick[hidden] { display: none; }
-#type-pick header { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; }
-#type-pick h2 { margin: 0; font: 800 22px Georgia, serif; letter-spacing: -.02em; }
-#type-pick .tp-back { min-height: 44px; padding: 8px 16px; border: 1px solid #ffffff30; border-radius: 13px; background: #ffffff0b; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
-#type-pick .tp-back:hover { background: #ffffff20; }
-#type-pick .tp-stage { position: relative; flex: 1; min-height: 0; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#type-pick header { flex: none; margin-bottom: var(--ui-space-2); }
+#type-pick .tp-headline { display: flex; align-items: center; gap: var(--ui-space-3); }
+#type-pick .tp-dots { display: flex; gap: var(--ui-space-2); padding-right: var(--ui-space-2); }
+#type-pick .tp-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-glass-strong); transition: background-color var(--ui-mid), transform var(--ui-mid); }
+#type-pick .tp-dots i.on { background: var(--ui-mint); transform: scale(1.4); }
+#type-pick .tp-stage { position: relative; flex: 1; min-height: 0; container-type: size; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 #type-pick .tp-stage.drag { cursor: grabbing; }
-#type-pick .tp-card { position: absolute; left: 50%; top: 50%; width: var(--cw); box-sizing: border-box; padding: 12px 14px 14px;
-  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 26px; background: #0a2036ee; will-change: transform;
-  box-shadow: 0 10px 34px #0006, inset 0 0 40px color-mix(in srgb, var(--accent) 12%, transparent); }
-#type-pick .tp-card.centre { box-shadow: 0 14px 44px #0008, 0 0 0 1px var(--accent), inset 0 0 40px color-mix(in srgb, var(--accent) 18%, transparent); }
-#type-pick .tp-card.locked { filter: grayscale(.9) brightness(.7); }
-#type-pick .tp-card h3 { margin: 0 0 8px; text-align: center; font: 700 17px Georgia, serif; color: var(--accent); }
-#type-pick .tp-art { position: relative; width: var(--art); height: var(--art); margin: 0 auto 10px; border-radius: 20px; overflow: hidden;
-  border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); background: var(--menu-water-deep, #06162e); }
+#type-pick .tp-arrow { position: absolute; top: 50%; z-index: 100; margin-top: calc(var(--ui-target) / -2); background: var(--ui-panel); }
+#type-pick .tp-arrow[data-dir="-1"] { left: 0; }
+#type-pick .tp-arrow[data-dir="1"] { right: 0; }
+#type-pick .tp-arrow[data-dir="1"] .ui-icon { transform: scaleX(-1); }
+#type-pick .tp-arrow[hidden] { display: none; }
+/* the centre card fills the stage's height; the portrait is as big as the card leaves room for (a square) */
+#type-pick .tp-card { --art: min(calc(var(--cw) - 32px), calc(100cqh - 247px)); position: absolute; left: 50%; top: 50%; width: var(--cw); height: calc(100cqh - 8px);
+  box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ui-space-2); padding: var(--ui-space-3);
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: var(--ui-radius-m); background: var(--ui-panel); will-change: transform;
+  box-shadow: 0 10px 34px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--accent) 12%, transparent); }
+#type-pick .tp-card.centre { box-shadow: 0 14px 44px var(--ui-shade), 0 0 0 1px var(--accent), inset 0 0 40px color-mix(in srgb, var(--accent) 18%, transparent); }
+#type-pick .tp-card.locked { filter: grayscale(.9) brightness(.8); }
+#type-pick .tp-card h3 { margin: 0; text-align: center; color: var(--accent); }
+#type-pick .tp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--ui-space-3); }
+#type-pick .tp-art { position: relative; flex: none; width: var(--art); height: var(--art); align-self: center; border-radius: var(--ui-radius-m); overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); background: var(--ui-deep); }
 #type-pick .tp-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
 #type-pick .tp-art img[hidden] { display: none; }
-#type-pick .tp-art .tp-lock { position: absolute; right: 8px; top: 6px; font-size: 22px; z-index: 1; }
+#type-pick .tp-art .tp-lock { position: absolute; inset: auto 0 0; z-index: 1; padding: var(--ui-space-1) var(--ui-space-2); background: var(--ui-scrim); text-align: center; font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); }
 #type-pick .tp-art canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 #type-pick .tp-art canvas[hidden] { display: none; }
 #type-pick .tp-art .tp-aura { mix-blend-mode: screen; }
-#type-pick .tp-bars { display: grid; gap: 5px; }
-#type-pick .tp-bar { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: #dcd6c4; }
-#type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 10px; }
-#type-pick .tp-seg { border-radius: 2px; background: #ffffff18; }
-#type-pick .tp-seg.on { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent); }
-#type-pick .tp-panel { flex: none; width: var(--cw); min-width: 260px; margin: 0 auto 14px; box-sizing: border-box; padding: 12px 14px; border-radius: 20px;
-  background: #0a2036ee; border: 1px solid #ffffff22; text-align: center; }
-#type-pick .tp-diff { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+#type-pick .tp-bars { display: grid; gap: var(--ui-space-2); }
+#type-pick .tp-bar { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: var(--ui-space-2); font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink-dim); white-space: nowrap; }
+#type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 14px; }
+#type-pick .tp-seg { border-radius: 3px; background: var(--ui-glass-strong); }
+#type-pick .tp-seg.on { background: var(--ui-mint); }
+#type-pick .tp-panel { flex: none; width: min(520px, 100%); margin: var(--ui-space-3) auto 0; text-align: center; }
+#type-pick .tp-diff { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--ui-space-2); margin: 0 0 var(--ui-space-2); padding: 0; list-style: none; }
 #type-pick .tp-diff:empty { display: none; }
-#type-pick .tp-diff li { padding: 3px 10px; border-radius: 999px; background: #ffffff14; font-size: 12.5px; }
-#type-pick .tp-about { margin: 0 0 10px; font-size: 13.5px; }
-#type-pick .tp-play { display: block; width: 100%; min-height: 48px; padding: 10px 24px; border: 1px solid #fff8; border-radius: 22px; cursor: pointer;
-  font: 800 20px system-ui, sans-serif; color: var(--menu-ink, #101a23); background: var(--menu-gold, #ffd46c); box-shadow: 0 4px 0 #9d7435, 0 10px 24px #0004; transition: transform .12s, background .12s; }
-#type-pick .tp-play:hover { background: var(--menu-paper, #fff6dc); transform: translateY(-2px); }
-#type-pick .tp-play:active { transform: translateY(3px) scale(.96, .93); }
-#type-pick .tp-play.menu-pop { animation: menu-pop .24s ease-out; }
+#type-pick .tp-about { margin: 0 0 var(--ui-space-3); }
+#type-pick .tp-play { display: flex; width: 100%; }
+#type-pick .tp-goal { display: flex; align-items: center; justify-content: center; min-height: var(--ui-target); margin: 0; padding: 0 var(--ui-space-3); border: 1px dashed var(--ui-line); border-radius: var(--ui-radius-pill); color: var(--ui-ink-dim); font-weight: 600; }
 #type-pick .tp-play[hidden], #type-pick .tp-goal[hidden], #type-pick .tp-back[hidden] { display: none; }
-#type-pick .tp-goal { margin: 0; padding: 12px; border: 1px dashed #ffd46c88; border-radius: 16px; color: var(--menu-gold, #ffd46c); font-weight: 700; }
-#type-pick button:focus-visible { outline: 2px solid var(--menu-mint, #a3f5d5); outline-offset: 4px; }
-/* a phone held sideways: the card's bars sit beside its portrait, and Play beside the words, to fit the height */
+/* a phone held sideways: a card's portrait sits beside its bars, and Play beside the words, to fit the height */
 @media (max-height: 520px) {
-  #type-pick { --cw: 330px; --art: 112px; }
-  #type-pick header { padding-top: 6px; }
-  #type-pick h2 { font-size: 19px; }
-  #type-pick .tp-back { min-height: 40px; padding: 4px 14px; }
-  #type-pick .tp-card { padding: 8px 12px 10px; border-radius: 22px; }
-  #type-pick .tp-card h3 { margin-bottom: 6px; font-size: 15px; }
-  #type-pick .tp-body { display: flex; align-items: center; gap: 10px; }
-  #type-pick .tp-art { margin: 0; flex: none; border-radius: 16px; }
-  #type-pick .tp-bars { flex: 1; gap: 4px; }
-  #type-pick .tp-bar { grid-template-columns: 82px 1fr; gap: 6px; font-size: 11.5px; white-space: nowrap; }
-  #type-pick .tp-track { height: 8px; gap: 1.5px; }
-  #type-pick .tp-panel { width: min(600px, calc(100vw - 32px)); margin-bottom: 8px; padding: 8px 12px; display: grid; grid-template-columns: 1fr 150px; align-items: center; gap: 4px 14px; text-align: left; }
+  #type-pick { --cw: 420px; padding-top: var(--ui-space-2); padding-bottom: var(--ui-space-2); }
+  #type-pick header { margin-bottom: 0; }
+  #type-pick h2 { font-size: var(--ui-size-heading); }
+  #type-pick .tp-card { --art: min(calc(100cqh - 74px), 190px); gap: var(--ui-space-1); padding: var(--ui-space-2) var(--ui-space-3); }
+  #type-pick .tp-card h3 { font-size: var(--ui-size-heading); }
+  #type-pick .tp-body { flex-direction: row; align-items: center; justify-content: flex-start; }
+  #type-pick .tp-bars { flex: 1; gap: 6px; }
+  #type-pick .tp-panel { width: min(640px, 100%); margin-top: var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); display: grid; grid-template-columns: 1fr 160px; align-items: center; gap: var(--ui-space-1) var(--ui-space-4); text-align: left; }
   #type-pick .tp-diff { justify-content: flex-start; margin: 0; grid-column: 1; }
-  #type-pick .tp-about { margin: 0; font-size: 12.5px; grid-column: 1; }
-  #type-pick .tp-play, #type-pick .tp-goal { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; font-size: 18px; }
-  #type-pick .tp-goal { padding: 6px; font-size: 13px; text-align: center; }
+  #type-pick .tp-about { margin: 0; grid-column: 1; }
+  #type-pick .tp-play, #type-pick .tp-goal { grid-column: 2; grid-row: 1 / span 2; }
 }
-@media (prefers-reduced-motion: reduce) { #type-pick .tp-play.menu-pop { animation: none; } }
 `;
-
 export class TypePicker {
   // calm: Reduce effects is on. look(): the player's jelly look, so the portraits are redrawn when it changes.
   // portrait(id, turn): a data URL of the player's jelly as that type, turned `turn` radians (jelly-portrait.js), or null.
@@ -112,12 +108,16 @@ export class TypePicker {
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', 'Choose your jelly');
     root.innerHTML = `<style>${CSS}</style>
-      <header><button type="button" class="tp-back">‹ Back</button><h2>Choose your jelly</h2></header>
-      <div class="tp-stage">${this.ids.map((id) => this.card(id)).join('')}</div>
-      <section class="tp-panel" aria-live="polite">
+      <header class="ui-header"><div class="tp-headline"><button type="button" class="ui-btn ui-btn--icon tp-back" aria-label="Back">${icon('back')}</button><h2 class="ui-title">Choose your jelly</h2></div>
+        <span class="tp-dots" aria-hidden="true">${this.ids.map(() => '<i></i>').join('')}</span></header>
+      <div class="tp-stage">${this.ids.map((id) => this.card(id)).join('')}
+        <button type="button" class="ui-btn ui-btn--icon tp-arrow" data-dir="-1" aria-label="Previous jelly">${icon('back')}</button>
+        <button type="button" class="ui-btn ui-btn--icon tp-arrow" data-dir="1" aria-label="Next jelly">${icon('back')}</button>
+      </div>
+      <section class="tp-panel ui-panel" aria-live="polite">
         <ul class="tp-diff"></ul>
-        <p class="tp-about"></p>
-        <button type="button" class="tp-play">Play</button>
+        <p class="tp-about ui-text"></p>
+        <button type="button" class="ui-btn ui-btn--primary tp-play">Play</button>
         <p class="tp-goal" hidden></p>
       </section>`;
     parent.appendChild(root);
@@ -126,9 +126,15 @@ export class TypePicker {
     this.auras = this.cards.map((c) => c.querySelector('.tp-aura'));
     this.panel = { diff: root.querySelector('.tp-diff'), about: root.querySelector('.tp-about'), play: root.querySelector('.tp-play'), goal: root.querySelector('.tp-goal') };
     this.back = root.querySelector('.tp-back');
+    this.dots = [...root.querySelectorAll('.tp-dots i')];
+    this.arrows = [...root.querySelectorAll('.tp-arrow')];
+    for (const a of this.arrows) {
+      a.addEventListener('pointerdown', (e) => e.stopPropagation());   // not the start of a drag
+      a.addEventListener('click', () => this.step(Number(a.dataset.dir)));
+    }
     this.panel.play.addEventListener('click', () => this.play());
     this.back.addEventListener('click', () => this.leave());
-    this.panel.play.addEventListener('animationend', () => this.panel.play.classList.remove('menu-pop'));
+    this.panel.play.addEventListener('animationend', () => this.panel.play.classList.remove('ui-pop'));
     this.stage.addEventListener('pointerdown', (e) => this.down(e));
     this.stage.addEventListener('pointermove', (e) => this.move(e));
     this.stage.addEventListener('pointerup', (e) => this.up(e));
@@ -141,7 +147,7 @@ export class TypePicker {
   card(id) {
     const J = CONTENT.jellies[id], bars = typeBars(id);
     return `<div class="tp-card" data-id="${id}" style="--accent:${esc(LOOK.color(`type-${id}`, '#8fd9ff'))}">
-      <h3>${esc(J.name)}</h3>
+      <h3 class="ui-title">${esc(J.name)}</h3>
       <div class="tp-body">
         <div class="tp-art"><img alt="" hidden><img alt="" hidden><canvas class="tp-aura" data-aura="${esc(J.aura || '')}" aria-hidden="true"></canvas></div>
         <div class="tp-bars">${BAR_NAMES.map((n, i) => `<div class="tp-bar" role="meter" aria-label="${n}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bars[i] * 100)}">${n}<span class="tp-track">${Array.from({ length: BAR_SEGMENTS }, (_, k) => `<i class="tp-seg${k < barSegments(bars[i]) ? ' on' : ''}"></i>`).join('')}</span></div>`).join('')}</div>
@@ -162,7 +168,8 @@ export class TypePicker {
     this.root.querySelectorAll('.tp-lock').forEach((l) => l.remove());
     this.cards.forEach((c, i) => {
       c.classList.toggle('locked', !!typeLock(this.ids[i]));
-      if (typeLock(this.ids[i])) c.querySelector('.tp-art').insertAdjacentHTML('beforeend', '<span class="tp-lock" aria-label="Locked">🔒</span>');
+      const lock = typeLock(this.ids[i]);   // the card says how to open it, in one short line ("Finish act 1")
+      if (lock) c.querySelector('.tp-art').insertAdjacentHTML('beforeend', `<span class="tp-lock">${icon('lock', 'Locked')} ${esc(lock.goal)}</span>`);
     });
     // the player may have changed their look since the last time: draw every portrait again
     const lookKey = JSON.stringify(this.look());
@@ -199,7 +206,7 @@ export class TypePicker {
     const id = this.centre;
     if (!this.isOpen || typeLock(id)) return false;
     sfx.tap();
-    if (!this.calm()) { this.panel.play.classList.remove('menu-pop'); void this.panel.play.offsetWidth; this.panel.play.classList.add('menu-pop'); }
+    if (!this.calm()) { this.panel.play.classList.remove('ui-pop'); void this.panel.play.offsetWidth; this.panel.play.classList.add('ui-pop'); }
     this.close();
     this.onPlay?.(id);
     return true;
@@ -229,7 +236,10 @@ export class TypePicker {
     this.index = i;
     const id = this.ids[i], J = CONTENT.jellies[id], lock = typeLock(id), P = this.panel;
     this.cards.forEach((c, k) => c.classList.toggle('centre', k === i));
-    P.diff.innerHTML = typeDetails(id).map((t) => `<li>${esc(t)}</li>`).join('');
+    P.diff.innerHTML = typeDetails(id).map((t) => `<li class="ui-chip">${esc(t)}</li>`).join('');
+    this.dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    this.arrows[0].hidden = i === 0;
+    this.arrows[1].hidden = i === this.ids.length - 1;
     P.about.textContent = J.about;
     P.play.hidden = !!lock;
     P.goal.hidden = !lock;
