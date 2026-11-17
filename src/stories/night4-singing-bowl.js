@@ -187,7 +187,7 @@ night4('bowl-hum-hits-outside-the-safe-circle-not-inside', {
 });
 
 night4('bowl-hum-warning-fills-the-seat-bar-the-safe-circle', {
-  about: 'Hum\'s Warning: a floor rectangle over the whole seat (the lounge chair\'s cushion, `seat` in stage4.js) and the slab over it, in the bowl\'s bronze orange, fill together to the hit; round the bowl a white circle and its low wall (safe= m) show the spared spot from the start. All of it goes the moment the hum is let go.',
+  about: 'Hum\'s Warning: a floor rectangle over the whole seat (the lounge chair\'s cushion, `seat` in stage4.js) and the slab over it, in the bowl\'s bronze orange, fill together to the hit; round the bowl a white circle (safe= m) shows the spared spot from the start. All of it goes the moment the hum is let go.',
   setup() { startBowl(1); },
   play() {
     const { e } = startBowl(1), { run } = G(), W = { min: [e.spec.seat.min[0], 0, e.spec.seat.min[1]], max: [e.spec.seat.max[0], 0, e.spec.seat.max[1]] }, H = SK().hum;
@@ -199,7 +199,7 @@ night4('bowl-hum-warning-fills-the-seat-bar-the-safe-circle', {
         seen.fills.push(+v.material.progress.toFixed(2));
         if (Math.abs(f.material.progress - v.material.progress) > 1e-6) seen.together = false;
         seen.seat ||= { floor: f.material.shape, w: +f.scale.x.toFixed(3), d: +f.scale.z.toFixed(3), x: +f.position.x.toFixed(3), z: +f.position.z.toFixed(3), h: +v.scale.y.toFixed(3) };
-        if (!seen.safe) { const white = e.tele.slice(2).map((m) => [m.material.shape, m.material.progress, +m.scale.x.toFixed(3), m.material.uniforms.uColor.value.getHex()]); seen.safe = white; }
+        if (!seen.safe) seen.safe = e.tele.slice(2).map((m) => [m.material.shape, m.material.progress, +m.scale.x.toFixed(3), m.material.uniforms.uColor.value.getHex()]);
       }
       return e.humDone;
     });
@@ -207,7 +207,7 @@ night4('bowl-hum-warning-fills-the-seat-bar-the-safe-circle', {
     const rising = seen.fills.length > 30 && seen.fills.every((p, i) => !i || p >= seen.fills[i - 1] - 1e-9) && seen.fills[seen.fills.length - 1] > 0.9;
     const hw = (W.max[0] - W.min[0]) / 2, hd = (W.max[2] - W.min[2]) / 2, s = seen.seat, sf = seen.safe;
     const seat = s && s.floor === 'square' && Math.abs(s.w - hw) < 0.01 && Math.abs(s.d - hd) < 0.01 && Math.abs(s.x - (W.min[0] + hw)) < 0.01 && Math.abs(s.z - (W.min[2] + hd)) < 0.01 && Math.abs(s.h - H.height) < 0.01;
-    const white = sf && sf.length === 2 && sf.every(([, p, , c]) => p === 1 && c === 0xffffff) && Math.abs(sf[0][2] - H.safe) < 0.005 && Math.abs(sf[1][2] - H.safe) < 0.005;
+    const white = sf && sf.length === 1 && sf[0][0] === 'circle' && sf[0][1] === 1 && sf[0][3] === 0xffffff && Math.abs(sf[0][2] - H.safe) < 0.005;
     const gone = !e.tele.length && !volumePairs().length;
     return ok(rising && seen.together && seat && white && gone, { ...seen, fills: seen.fills.length, last: seen.fills[seen.fills.length - 1], gone });
   },

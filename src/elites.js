@@ -2450,9 +2450,8 @@ export class Elites {
             e.tele.push(
               this.mark(null, floorShapeGeometry('square'), this.T.bowlSeat, this._probe.set(mid.x, e.base.y + 0.002, mid.z), this._s3.set(hw, 1, hd)),
               this.volume(col, 'symbol-square', mid, this._s3.set(hw, H.height, hd)));
-            const white = new THREE.Color(LOOK.color('safe-spot', '#ffffff')), safe = this.mark(null, this.flat, this.T.safe, this._probe.set(e.base.x, e.base.y + 0.004, e.base.z), this._s3.set(H.safe, H.safe, H.safe)), wall = this.volume(white, 'ring', e.base, this._s3.set(H.safe, H.height, H.safe));
-            safe.material.progress = 1; safe.renderOrder = 4; wall.material.progress = 1;   // the spared circle and the wall round it, there from the start
-            e.tele.push(safe, wall);
+            const safe = this.mark(e, this.flat, this.T.safe, this._probe.set(e.base.x, e.base.y + 0.004, e.base.z), this._s3.set(H.safe, H.safe, H.safe));
+            safe.material.progress = 1; safe.renderOrder = 4;   // the spared circle (white, as the Kettle's lid's), there from the start
             sfx.bowlSing((e.humAt - beat) * 60 / this.bpm);
           }
           if (!e.humDone) {
