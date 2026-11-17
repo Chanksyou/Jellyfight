@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v465 puts every pick on one card: level-up, Treasure, Attack upgrade and evolution picks now share the same look, with the rarity written on the card, numbers in the text highlighted, and New! and count together in the corner. The end screens, leaderboard, Treasure book and Achievements use the new panels and icon buttons.
+
 v464 rebuilds the HUD and touch controls on the new UI kit: kit Health, XP, Shield, Elite and boss bars, a level ring, 12 px or larger HUD text with a dark outline (the night's time, the Health number, Treasure counts), a clean glass minimap of room outlines marking only chests, Elites, the boss and the way out (no more bug dots or furniture blobs), a mint glass jump button with an icon instead of the pink one, brighter thumb rings, outlined damage numbers and the kit's toast.
 
 v463 gives the title, the pause menu and the loading screens the new night-aquarium look. The title is slimmer: How to play, a big Play, and three tiles (Treasure book, Trophies, Change your look), with a gear in the corner that opens Settings (Sound, Music, Graphics, Frame rate on phones, a new Normal or Large Text size, and Install app). The pause menu is now its own screen: Resume, Settings, Main menu (it asks twice before leaving the run), and a summary of Health, Level, the time to the Boss and the Treasures you carry.

@@ -4,6 +4,7 @@ import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { DEATH_HINTS, TYPE_HINTS } from '../first-run.js';
 import { juice } from '../juice.js';
 import { bus, PLAYER } from '../events.js';
+import { TREASURES, treasureTier } from '../stats.js';
 import { G, V, fresh, ok, phone, step, story, stub } from './kit.js';
 
 const modal = () => document.querySelector('.jf-modal');
@@ -30,6 +31,36 @@ story('payoff/level-up-dings-then-deals-like-a-pick', {
     step(50);
     const closed = !menus.open;
     return ok(dinged && delays[0] >= 300 && delays[1] > delays[0] && tinted && won && lingers && closed, { dinged, delays, tinted, won, lingers, closed });
+  },
+});
+
+story('payoff/every-pick-is-the-one-kit-card', {
+  about: 'A Treasure pick, a level-up and an Attack upgrade all deal the kit\'s .ui-card: icon, name, a rarity label that says the tier in words (an Attack upgrade says so instead), body text with every number, percentage and unit in a <b> (and nothing in the text taken as HTML), and the New! and count badges together in the top corner.',
+  setup() { fresh({ elites: false, levels: true }); },
+  play() {
+    const { run, menus } = G(), t = TREASURES.find((x) => x.rarity === 'rare') || TREASURES[0];
+    const cards = () => [...modal().querySelectorAll('.jf-pick .ui-card')];
+    const body = (c) => c.querySelector('.ui-card-body');
+    // a Treasure pick: the number highlight, the text kept as text, the badges in one place
+    run.offer('Pick', '', [{ ...t, text: 'Fire 40% faster for 8 s, reach +22 cm, ×3 <i>hits</i>', fresh: true, delta: 'Lv 1 → Lv 2' }].map((c) => ({ ...c, tier: treasureTier(c) })));
+    const [c] = cards(), tierName = treasureTier(t).name;
+    const parts = {
+      kit: c.classList.contains('jf-card') && !!c.querySelector('.ui-card-icon') && !!c.querySelector('.ui-card-name') && !!body(c),
+      rarity: c.dataset.rarity === tierName.toLowerCase() && c.querySelector('.ui-card-rarity').textContent === tierName,
+      numbers: [...body(c).querySelectorAll('b')].map((b) => b.textContent).join('|'),
+      asText: !body(c).querySelector('i') && body(c).textContent.includes('<i>hits</i>'),
+      badges: [...c.querySelectorAll('.jf-badges .jf-new, .jf-badges .ui-card-count')].map((b) => b.textContent).join('|'),
+    };
+    c.click(); step(60);
+    // a level-up: the same card, its "now" line highlighted
+    run.pendingLevels = 1; run.levelUp();
+    const lv = cards(), levelUp = lv.length > 1 && lv.every((x) => x.classList.contains('ui-card') && x.querySelector('.ui-card-rarity') && x.querySelector('.ui-card-name b') && body(x).querySelector('b'));
+    lv[0].click(); step(60);
+    // an Attack upgrade: no rarity, so its label says what it is and the frame is mint
+    run.ui.choose('Upgrade', '', [{ icon: '⚔️', name: 'Wider', text: 'Reach 12 cm more', tier: { name: 'Attack upgrade' } }], () => {});
+    const [u] = cards(), upgrade = u.querySelector('.ui-card-rarity').textContent === 'Attack upgrade' && u.style.getPropertyValue('--rarity') === 'var(--ui-mint)' && body(u).querySelector('b')?.textContent === '12 cm';
+    u.click(); step(60);
+    return ok(parts.kit && parts.rarity && parts.numbers === '40%|8 s|+22 cm|×3' && parts.asText && parts.badges === 'New!|Lv 1 → Lv 2' && levelUp && upgrade && !menus.open, { parts, levelUp, upgrade });
   },
 });
 
