@@ -3,6 +3,8 @@
 //  - right side: drag to look around; until a player has, a dashed hint there with a see-through
 //    finger sweeping across it, and the camera turning along with its first sweeps (TURN_KEY)
 //  - jump button (hold it to climb fabric), a context button (unused for now), pause
+import { icon } from './icons.js';
+
 // '1': this device has turned the camera. 'act': it had, but not yet this act (each act is a page
 // load), so if the act ends unturned the next one shows the hint again. Missing: never turned.
 export const TURN_KEY = 'jellyrun.turned';
@@ -10,33 +12,39 @@ const TURN_SWEEP = 2.4, TURN_REACH = 32, TURN_REST = 6;   // s per sweep, px eac
 const TURNED_PX = 30;           // a look drag this far counts as having turned
 export const IS_TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
+// Colours are the UI kit's (--ui-* in content/look.css): the thumb rings solid enough to see on any floor,
+// the jump button friendly glass (mint: yours), never louder than the fight.
 const CSS = `
 #touch { position: fixed; inset: 0; z-index: 8; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 #touch[hidden] { display: none; }
-#touch .stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
-  background: #ffffff1a; border: 2px solid #ffffff55; pointer-events: none; display: none; }
-#touch .stick i { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
-  background: #ffffffcc; box-shadow: 0 2px 8px #0006; }
+#touch .stick { position: absolute; box-sizing: border-box; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  background: var(--ui-shade); border: 3px solid var(--ui-ink); box-shadow: 0 0 0 1px var(--ui-shade), 0 4px 14px var(--ui-shade); pointer-events: none; display: none; }
+#touch .stick i { position: absolute; left: 50%; top: 50%; box-sizing: border-box; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+  background: var(--ui-ink); border: 2px solid var(--ui-mint); box-shadow: 0 2px 8px var(--ui-shade); }
 #touch .stick.on { display: block; }
-#touch .ghost { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 70px); bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
-  width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; border: 2px dashed #ffffff40; pointer-events: none; }
+#touch .ghost { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 70px); bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); box-sizing: border-box;
+  width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; border: 3px dashed var(--ui-ink); background: var(--ui-shade); opacity: .6; pointer-events: none; }
 #touch .ghost.off { display: none; }
 #touch .turn { position: absolute; left: 72%; top: 44%; width: 150px; height: 58px; margin: -29px 0 0 -75px; border-radius: 29px;
-  border: 2px dashed #ffffff40; pointer-events: none; color: #ffffff70; font: 700 22px system-ui, sans-serif;
+  border: 3px dashed var(--ui-ink); background: var(--ui-shade); opacity: .6; pointer-events: none; color: var(--ui-ink); font: 700 22px var(--ui-font-text);
   display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; }
 #touch .turn i { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
-  background: #ffffff8c; box-shadow: 0 2px 8px #0005; }
+  background: var(--ui-ink); box-shadow: 0 2px 8px var(--ui-shade); }
 #touch .turn.off { display: none; }
-#touch button { position: absolute; border: 0; border-radius: 50%; color: #fff; font: 700 15px system-ui, sans-serif;
+#touch button { position: absolute; box-sizing: border-box; border: 0; border-radius: 50%; color: var(--ui-ink); font: 600 var(--ui-size-body)/1 var(--ui-font-text);
   display: grid; place-items: center; touch-action: none; -webkit-tap-highlight-color: transparent; }
 #touch .jump { right: calc(env(safe-area-inset-right, 0px) + 24px); bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); width: 84px; height: 84px;
-  background: #ff8ad0cc; box-shadow: 0 4px 14px #0007; font-size: 30px; }
-#touch .jump.down { transform: scale(.92); background: #ff8ad0; }
+  background: var(--ui-scrim); border: 2px solid var(--ui-mint); color: var(--ui-mint); box-shadow: 0 4px 14px var(--ui-shade); transition: transform var(--ui-fast); }
+#touch .jump .ui-icon { width: 38px; height: 38px; stroke-width: 2.4; }
+#touch .jump.down { transform: scale(.92); background: var(--ui-mint); color: var(--ui-deep); }
 #touch .act { right: calc(env(safe-area-inset-right, 0px) + 122px); bottom: calc(env(safe-area-inset-bottom, 0px) + 40px); min-width: 64px; height: 64px;
-  border-radius: 32px; padding: 0 16px; background: #ffd23ae6; color: #1d1a12; box-shadow: 0 4px 14px #0007; }
+  border-radius: 32px; padding: 0 16px; background: var(--ui-gold); color: var(--ui-gold-ink); box-shadow: 0 4px 14px var(--ui-shade); }
 #touch .act[hidden] { display: none; }
 #touch .pause { top: calc(env(safe-area-inset-top, 0px) + 10px); right: calc(env(safe-area-inset-right, 0px) + 10px); width: 44px; height: 44px;
-  background: #0007; font-size: 18px; }
+  background: var(--ui-scrim); border: 1px solid var(--ui-line); }
+#touch .pause .ui-icon { width: 20px; height: 20px; }
+@media (prefers-reduced-motion: reduce) { #touch .jump.down { transform: none; } }
+body.calm #touch .jump.down { transform: none; }
 `;
 
 export class TouchControls {
@@ -47,7 +55,7 @@ export class TouchControls {
     this.el.hidden = true;
     this.el.innerHTML = `<style>${CSS}</style><div class="ghost"></div><div class="stick"><i></i></div>
       <div class="turn off" aria-hidden="true">‹<i></i>›</div>
-      <button class="act" hidden></button><button class="jump" aria-label="Jump">⤴</button><button class="pause" aria-label="Pause">❚❚</button>`;
+      <button class="act" hidden></button><button class="jump" aria-label="Jump">${icon('jump')}</button><button class="pause" aria-label="Pause">${icon('pause')}</button>`;
     this.stick = this.el.querySelector('.stick');
     this.knob = this.stick.firstChild;
     this.ghost = this.el.querySelector('.ghost');
