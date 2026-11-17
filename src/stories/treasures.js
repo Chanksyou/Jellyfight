@@ -118,7 +118,7 @@ story('treasures/chest-rolls-have-no-minimum-rarity', {
   },
 });
 story('treasures/pick-screen-order-and-rarity', {
-  about: 'The treasure pick screen (UI.choose): name first, then the big icon, the rarity written out, the text, and a delta line when the treasure grows (Lv 1 → Lv 2, ×1 → ×2). The whole card wears its rarity: an Epic card washes and glows harder than a Common one, a Legendary gets the animated sheen. Picking pulses the won card while the other two burn away, and the modal closes a beat later.',
+  about: 'The treasure pick screen (UI.choose): the kit card: the big icon, the rarity written out above the name, then the text, and a delta badge in the corner when the treasure grows (Lv 1 → Lv 2, ×1 → ×2). The whole card wears its rarity: an Epic card washes and glows harder than a Common one, a Legendary gets the animated sheen. Picking pulses the won card while the other two burn away, and the modal closes a beat later.',
   setup() { setupFight({ lash: false }); },
   async play() {
     const { run } = G(), ui = run.ui;
@@ -131,12 +131,12 @@ story('treasures/pick-screen-order-and-rarity', {
     const cards = [...ui.modal.querySelectorAll('.jf-card')];
     const inOrder = cards.every((el) => {
       const kids = [...el.children], at = (s) => kids.indexOf(el.querySelector(s));
-      return at('.big') < at('.ic') && at('.ic') < at('.rar') && at('.rar') < at('.txt');
+      return at('.ic') < at('.rar') && at('.rar') < at('.ui-card-name') && at('.ui-card-name') < at('.ui-card-body') && el.classList.contains('ui-card');
     });
     const tints = cards.map((el) => el.style.getPropertyValue('--tint'));
-    const deltas = cards.map((el) => el.querySelector('.delta')?.textContent || null);
+    const deltas = cards.map((el) => el.querySelector('.jf-badges .ui-card-count')?.textContent || null);
     const sheen = cards.map((el) => el.classList.contains('jf-sheen'));
-    const sheenAnim = getComputedStyle(cards[2]).animationName;
+    const sheenAnim = getComputedStyle(cards[2], '::before').animationName;   // (the sheen is the card's ::before)
     cards[1].click();
     const outro = cards.map((el) => el.classList.contains('jf-burn') ? 'burn' : el.classList.contains('jf-won') ? 'won' : '');
     const resolvedAtOnce = picked && picked.name === 'Deep Orb' && !ui.modal.hidden;
@@ -899,7 +899,7 @@ story('treasures/upgrades-show-current-effect-once', {
     run.chestsOpened = 0;
     run.pickTreasure();
     const cards = [...ui.modal.querySelectorAll('.jf-card')], card = cards[0];
-    const name = card?.querySelector('.big').textContent, text = card?.querySelector('.txt').textContent, delta = card?.querySelector('.delta').textContent;
+    const name = card?.querySelector('.ui-card-name').textContent, text = card?.querySelector('.ui-card-body').textContent, delta = card?.querySelector('.ui-card-count').textContent;
     card?.click();
     const toast = ui.pop.textContent;
     const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 5 enemies in a line.' && delta === 'Lv 1 → Lv 2'

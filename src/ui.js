@@ -2,47 +2,67 @@
 import { STAT_INFO, cardText } from './stats.js';
 import { esc } from './leaderboard.js';
 import { sfx } from './sfx.js';
+import { icon } from './icons.js';
 
 // How hard a pick card wears its rarity (treasure-pick-screen plan, step 2): the whole
-// card washes and glows in the tier colour, harder the rarer it is — [inner glow %, background wash %].
+// card washes and glows in the kit's rarity colour, harder the rarer it is — [inner glow %, background wash %].
 // Cards that set neither (level-up cards) keep the original 18% glow and no wash.
 const TIER_TINT = { Common: [18, 0], Rare: [26, 6], Epic: [36, 12], Legendary: [48, 20] };
 const TIERS = Object.keys(TIER_TINT);
 const calm = () => document.body.classList.contains('calm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
-// a pick card in its rarity colour: tint, wash, the Legendary sheen and its deal-in delay (ms)
-const tierCard = (tier, color, d) => { const [tint, wash] = TIER_TINT[tier] || [18, 0]; return { cls: tier === 'Legendary' ? ' jf-sheen' : '', style: `--d:${d}ms; --c:${color}; --tint:${tint}%; --wash:${wash}%` }; };
+// A number in card text, with its sign and unit: "+20%", "8 s", "22 cm", "×2"
+const NUM = /(?<![\w.])[+×−]?\d+(?:[.,]\d+)*(?:\s?(?:%|cm|s|m)(?!\w))?/g;
+// text made safe for HTML, with every number in a <b> (the kit shows it in mint)
+const hi = (text) => { let out = '', at = 0; for (const m of String(text).matchAll(NUM)) { out += esc(text.slice(at, m.index)) + `<b>${esc(m[0])}</b>`; at = m.index + m[0].length; } return out + esc(text.slice(at)); };
+// One pick card (the kit's .ui-card): its frame and label by rarity (the label says it, so colour is never
+// the only sign), tint, wash, the Legendary sheen and its deal-in delay (ms). A pick that isn't a rarity (an
+// Attack upgrade) wears mint. icon: an emoji; badges: HTML for the top corner (count, New!)
+const tierCard = ({ i, tier, icon: ic, name, body, badges = '', key = '', d }) => {
+  const [tint, wash] = TIER_TINT[tier?.name] || [18, 0], rarity = TIERS.includes(tier?.name) ? tier.name.toLowerCase() : '';
+  return `<button class="ui-card jf-card ui-enter${tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" data-rarity="${rarity}" style="--d:${calm() ? 0 : d}ms; --tint:${tint}%; --wash:${wash}%${rarity ? '' : '; --rarity:var(--ui-mint)'}">
+    <span class="ui-card-icon ic">${ic}</span>${tier ? `<span class="ui-card-rarity rar">${esc(tier.name)}</span>` : ''}<span class="ui-card-name">${name}</span>
+    <span class="ui-card-body">${body}</span><span class="jf-badges">${key ? `<span class="key" aria-hidden="true">${key}</span>` : ''}${badges}</span></button>`;
+};
 const DEAL = 90, BEAT = 300;   // ms between cards dealt; a level-up's beat before the first
 const COUNT = 0.7, ROW = 70;   // an end screen's tally: seconds a number counts up, ms between its rows
 
 const CSS = `
-.jf-modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 10, 22, .62); z-index: 30;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; text-align: center; animation: jfIn .18s ease-out; }
+.jf-modal { position: fixed; inset: 0; display: grid; place-items: center; box-sizing: border-box; background: var(--ui-scrim); z-index: 30;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn .18s ease-out; }
 .jf-modal[hidden] { display: none; }
 @keyframes jfIn { from { opacity: 0; } }
-.jf-modal h2 { margin: 0; font-size: 34px; letter-spacing: -.01em; text-shadow: 0 3px 12px #0009; }
-.jf-modal .sub { margin: 6px 0 22px; opacity: .85; font-size: 15px; }
-.jf-hint { position: relative; max-width: min(420px, calc(100vw - 32px)); margin: -8px auto 18px; padding: 10px 14px; border-radius: 16px; text-align: left; font-size: 14px; line-height: 1.35;
-  background: #1b3a52e6; border: 2px solid #7fd8ff88; box-shadow: 0 6px 18px #0007; }
-.jf-hint::before { content: ''; position: absolute; top: -9px; left: 26px; border: 8px solid transparent; border-top: 0; border-bottom-color: #7fd8ff88; }
-.jf-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
-.jf-card { width: 200px; min-height: 190px; border-radius: 18px; background: color-mix(in srgb, var(--c) var(--wash, 0%), #1d2034); border: 3px solid var(--c); cursor: pointer; font: inherit; color: inherit;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 14px; position: relative;
-  box-shadow: 0 8px 28px #0008, inset 0 0 40px color-mix(in srgb, var(--c) var(--tint, 18%), transparent); transition: transform .12s; }
-.jf-card.jf-sheen { background-image: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--c) 22%, transparent) 48%, transparent 62%); background-size: 230% 100%; background-position: 65% 0; }
+.jf-modal h2 { margin: 0; font: 600 var(--ui-size-title)/1.1 var(--ui-font-display); text-shadow: 0 2px 10px var(--ui-shade); text-wrap: balance; }
+.jf-modal .sub { margin: var(--ui-space-2) 0 var(--ui-space-5); color: var(--ui-ink-dim); font-size: var(--ui-size-body); }
+.jf-modal small { font-size: var(--ui-size-label); }
+.jf-hint { position: relative; max-width: min(420px, calc(100vw - 32px)); margin: var(--ui-space-1) auto var(--ui-space-4); padding: var(--ui-space-3) var(--ui-space-4); border-radius: var(--ui-radius-m); text-align: left; font-size: var(--ui-size-body); line-height: 1.35;
+  background: var(--ui-panel-raised); border: 1px solid var(--ui-line); }
+/* one card for every pick (the kit's .ui-card): its rarity frame, label and tint come from data-rarity */
+.jf-cards { display: flex; gap: var(--ui-space-4); justify-content: center; align-items: stretch; padding: 0 var(--ui-space-4); }
+.jf-cards .ui-card { flex: 0 1 280px; min-width: 0; align-content: start; padding-top: var(--ui-space-4); text-align: left;
+  background: linear-gradient(color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-panel-raised)), color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-deep)));
+  box-shadow: 0 8px 20px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--rarity) var(--tint, 18%), transparent); }
+.jf-cards .ui-card:hover { box-shadow: 0 10px 24px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--rarity) var(--tint, 18%), transparent); }
+.jf-cards .ui-card-icon { width: 52px; height: 52px; font-size: 36px; }
+.jf-cards .ui-card-name b { color: var(--ui-mint); font-weight: inherit; }
+.jf-cards .ui-card-body { color: var(--ui-ink); }
+.jf-card.ui-enter { animation-fill-mode: backwards; animation-delay: var(--d, 0ms); }
+.jf-sheen::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: jfSheen 3.6s ease-in-out infinite;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--rarity) 22%, transparent) 48%, transparent 62%); background-size: 230% 100%; background-position: 65% 0; }
 @keyframes jfSheen { 0% { background-position: 130% 0; } 42% { background-position: -30% 0; } 100% { background-position: -30% 0; } }
-.jf-pick .ic { font-size: 56px; }
-.jf-pick .jf-card { animation: jfDeal .3s ease-out backwards; animation-delay: var(--d, 0ms); }
-@keyframes jfDeal { from { opacity: 0; transform: translateY(14px) scale(.96); } }
-/* a Legendary pick card runs the deal-in and the sheen sweep together (the two
-   animations touch different properties); declared together so neither replaces the other */
-.jf-pick .jf-card.jf-sheen { animation: jfDeal .3s ease-out backwards, jfSheen 3.6s ease-in-out infinite; animation-delay: var(--d, 0ms), 0ms; }
+/* count / New! in the card's top corner, and the number key that picks it */
+.jf-badges { position: absolute; top: var(--ui-space-2); right: var(--ui-space-2); display: flex; gap: var(--ui-space-1); align-items: center; }
+.jf-badges .ui-card-count { position: static; }
+.jf-card .key { font: 700 var(--ui-size-label)/1 var(--ui-font-text); opacity: .55; }
+.jf-card .jf-new { padding: 2px 8px; border-radius: var(--ui-radius-pill); background: var(--ui-gold); color: var(--ui-gold-ink); font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); }
 .jf-pick .jf-card.jf-won { animation: jfWon .5s ease-out; }
-@keyframes jfWon { 30% { transform: scale(1.06); box-shadow: 0 10px 34px #000a, inset 0 0 60px color-mix(in srgb, var(--c) 45%, transparent); } }
+@keyframes jfWon { 30% { transform: scale(1.06); box-shadow: 0 10px 34px var(--ui-shade), inset 0 0 60px color-mix(in srgb, var(--rarity) 45%, transparent); } }
 .jf-pick .jf-card.jf-burn { animation: jfBurn .62s ease-in forwards; pointer-events: none; }
 @keyframes jfBurn { 20% { filter: brightness(1.6) sepia(.5) hue-rotate(-15deg); } 45% { filter: brightness(1.2) sepia(.85); transform: translateY(-3px); opacity: 1; } 100% { filter: grayscale(.9) brightness(.5) blur(1px); transform: translateY(-16px); opacity: 0; } }
-/* a level-up: the title pops in, then the cards deal after a beat */
-.jf-level h2 { animation: jfLevel .45s cubic-bezier(.2, 1.6, .4, 1) backwards; }
-@keyframes jfLevel { from { transform: scale(.4); opacity: 0; } }
+/* reduced motion (the device setting, or Reduce effects): the deal-in and the title only fade (the kit's
+   .ui-enter / .ui-pop), the sheen and the won / burn outro stand still (the pick closes at once) */
+body.calm .jf-sheen::before, body.calm .jf-pick .jf-card.jf-burn, body.calm .jf-pick .jf-card.jf-won { animation: none; }
+@media (prefers-reduced-motion: reduce) { .jf-sheen::before, .jf-pick .jf-card.jf-burn, .jf-pick .jf-card.jf-won { animation: none; } }
 /* the end screens tally (tick): rows arrive one by one and numbers count up. The real number stays
    in the page (only hidden while it counts), so what the screen says is always the final one */
 .jf-tally .jf-stats > * { animation: jfRow .28s ease-out backwards; animation-delay: var(--d, 0ms); }
@@ -53,126 +73,112 @@ const CSS = `
 .jf-best.on { display: inline-block; animation: jfBest .4s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes jfBest { from { transform: scale(2.4) rotate(-8deg); opacity: 0; } }
 /* a golden award earned (award): your jelly wearing it, on turning gold rays, before the score */
-.jf-award { position: fixed; inset: 0; z-index: 32; display: grid; place-items: center; background: radial-gradient(circle at 50% 42%, #3a2a08f2, #0b0a14f5 62%);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; text-align: center; animation: jfIn .25s ease-out; }
-.jf-award > div { display: grid; justify-items: center; gap: 6px; padding: 16px; }
-.jf-award .eyebrow { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #ffd23a; }
-.jf-award h2 { margin: 0; font-size: 34px; text-shadow: 0 3px 14px #000a; }
-.jf-award .for { margin: 0; opacity: .85; font-size: 15px; }
+.jf-award { position: fixed; inset: 0; z-index: 32; display: grid; place-items: center; box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ui-gold) 22%, var(--ui-deep)), var(--ui-deep) 62%);
+  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn .25s ease-out; }
+.jf-award > div { display: grid; justify-items: center; gap: var(--ui-space-2); padding: var(--ui-space-4); }
+.jf-award .eyebrow { margin: 0; font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
+.jf-award h2 { margin: 0; font: 600 var(--ui-size-title)/1.1 var(--ui-font-display); text-shadow: 0 3px 14px var(--ui-shade); }
+.jf-award .for { margin: 0; color: var(--ui-ink-dim); font-size: var(--ui-size-body); }
 .jf-award .face { position: relative; width: 190px; height: 190px; display: grid; place-items: center; margin: 6px 0 8px; }
 .jf-award .face::before { content: ''; position: absolute; inset: -40px; border-radius: 50%; animation: jfRays 9s linear infinite;
-  background: repeating-conic-gradient(#ffd23a55 0 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); }
-.jf-award .face img { position: relative; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 0 0 3px #ffd23a, 0 0 40px #ffd23a88; animation: jfRise .6s cubic-bezier(.2, 1.4, .4, 1) .1s backwards; }
+  background: repeating-conic-gradient(color-mix(in srgb, var(--ui-gold) 33%, transparent) 0 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); }
+.jf-award .face img { position: relative; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ui-gold), 0 0 40px color-mix(in srgb, var(--ui-gold) 55%, transparent); animation: jfRise .6s cubic-bezier(.2, 1.4, .4, 1) .1s backwards; }
 @keyframes jfRays { to { transform: rotate(1turn); } }
 @keyframes jfRise { from { transform: translateY(30px) scale(.6); opacity: 0; } }
-.jf-award .btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
-.jf-award button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
-.jf-award button.go { background: #ffd23a; color: #1d1a12; }
-.jf-award button:disabled { opacity: .6; cursor: default; }
-body.calm .jf-level h2, body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, body.calm .jf-award .face::before, body.calm .jf-award .face img { animation: none; }
-@media (prefers-reduced-motion: reduce) { .jf-level h2, .jf-tally .jf-stats > *, .jf-best.on, .jf-award, .jf-award .face::before, .jf-award .face img { animation: none; } }
-body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf-sheen, body.calm .jf-pick .jf-card.jf-burn, body.calm .jf-pick .jf-card.jf-won { animation: none; }
-@media (prefers-reduced-motion: reduce) { .jf-sheen, .jf-pick .jf-card, .jf-pick .jf-card.jf-sheen, .jf-pick .jf-card.jf-burn, .jf-pick .jf-card.jf-won { animation: none; } }
-.jf-card .delta { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); padding: 2px 8px; border-radius: 999px; }
-.jf-card:hover, .jf-card:focus-visible { transform: translateY(-6px) scale(1.03); outline: none; }
-.jf-card .ic { font-size: 44px; line-height: 1.1; }
-.jf-card .big { font-size: 22px; font-weight: 800; }
-.jf-card .rar { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--c); }
-.jf-card .now { font-size: 12.5px; opacity: .7; }
-.jf-card .txt { font-size: 14px; line-height: 1.35; opacity: .92; }
-.jf-card .key { position: absolute; top: 8px; left: 10px; font-size: 12px; opacity: .55; font-weight: 700; }
-.jf-card .jf-new { position: absolute; top: -11px; right: 12px; box-shadow: 0 2px 8px #0008; font-size: 11px; font-weight: 800; letter-spacing: .06em; background: #ffd23a; color: #1d1a12; padding: 2px 7px; border-radius: 999px; }
+.jf-award .btns { display: flex; gap: var(--ui-space-3); flex-wrap: wrap; justify-content: center; margin-top: var(--ui-space-3); }
+/* the title pops in, the award fades in and the face rises; with reduced motion nothing moves */
+body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, body.calm .jf-award .face::before, body.calm .jf-award .face img { animation: none; }
+@media (prefers-reduced-motion: reduce) { .jf-tally .jf-stats > *, .jf-best.on, .jf-award, .jf-award .face::before, .jf-award .face img { animation: none; } }
+/* panels: the end screens and the leaderboard (message), the Treasure book and the Achievements list */
+.jf-panel { width: min(560px, 94vw); max-height: 100%; overflow-y: auto; }
+.jf-panel > .ui-header { justify-content: center; }
+.jf-panel > .ui-header > :first-child { text-align: center; }
+.jf-panel .sub { margin: 0 0 var(--ui-space-3); }
 /* the Treasure book: a grid per kind, found ones in their colour, the rest as ? */
-.jf-book { width: min(900px, 94vw); max-height: 92vh; overflow-y: auto; padding: 12px 12px 16px; box-sizing: border-box; background: #12142af0; border-radius: 16px; }
-.jf-book h3 { margin: 18px 0 8px; font-size: 17px; text-align: left; }
-.jf-book h3 small { opacity: .65; font-weight: 600; }
-.jf-book h2 { font-size: 22px; }
-.jf-book .jf-head { position: sticky; top: 0; z-index: 2; margin: -12px -12px 0; padding: 8px 56px 6px; background: #12142a; border-radius: 16px 16px 0 0; }
-.jf-book .jf-head .sub { margin: 2px 0 0; font-size: 13px; }
-.jf-book .say { margin: 4px 0 0; padding: 4px 10px; font-size: 13px; background: #1d2034f0; border-radius: 10px; }
-.jf-x { position: absolute; top: 4px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ffffff1c; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
-.jf-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
-.jf-book-grid button { font: 600 11px system-ui, sans-serif; color: #fff; background: color-mix(in srgb, var(--c, #fff) 12%, #1d2034); border: 2px solid var(--c, #ffffff22); border-radius: 10px;
+.jf-book { width: min(900px, 94vw); max-height: 92dvh; overflow-y: auto; box-sizing: border-box; }
+.jf-book h3 { margin: var(--ui-space-4) 0 var(--ui-space-2); font: 500 var(--ui-size-heading)/1.2 var(--ui-font-display); text-align: left; }
+.jf-book h3 small { color: var(--ui-ink-dim); font-weight: 600; }
+.jf-book .jf-head { position: sticky; top: 0; z-index: 2; margin: calc(-1 * var(--ui-space-4)) calc(-1 * var(--ui-space-4)) 0; padding: var(--ui-space-1) var(--ui-space-4) var(--ui-space-1);
+  background: var(--ui-panel-raised); border-radius: var(--ui-radius-m) var(--ui-radius-m) 0 0; }
+.jf-book .jf-head .ui-header { margin: 0; }
+.jf-book .jf-head .ui-header > :first-child { display: flex; align-items: center; gap: var(--ui-space-2); text-align: left; }
+.jf-book .jf-head .sub { margin: 0; font-size: var(--ui-size-label); }
+.jf-book .say { margin: var(--ui-space-1) 0 0; padding: var(--ui-space-1) var(--ui-space-3); font-size: var(--ui-size-label); background: var(--ui-deep); border-radius: var(--ui-radius-s); text-align: left; }
+.jf-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--ui-space-2); }
+.jf-book-grid button { font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink); background: color-mix(in srgb, var(--c, var(--ui-line)) 12%, var(--ui-panel-raised)); border: 2px solid var(--c, var(--ui-line)); border-radius: var(--ui-radius-s);
   padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
+.jf-book-grid button:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 2px; }
 .jf-book-grid button .ic { font-size: 26px; line-height: 1.1; }
 .jf-book-grid button:disabled { cursor: default; opacity: .4; }
 .jf-book-grid button.locked { opacity: .6; border-style: dashed; }
 .jf-book-grid button.locked .ic { filter: brightness(0); }   /* a locked jelly type: its silhouette */
-.jf-achievements .jf-scroll > p { font-size: 13px; line-height: 1.5; }
-.jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 10px; text-align: left; }
-.jf-achievements article { border: 1px solid #ffffff33; border-radius: 12px; padding: 12px; background: #ffffff08; }
-.jf-achievements article.earned { border-color: #7ff6ee; background: #7ff6ee12; }
+.jf-achievements .jf-scroll > p { font-size: var(--ui-size-body); line-height: 1.5; color: var(--ui-ink-dim); }
+.jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--ui-space-3); text-align: left; }
+.jf-achievements article { border: 1px solid var(--ui-line); border-radius: var(--ui-radius-m); padding: var(--ui-space-3); background: var(--ui-glass); }
+.jf-achievements article.earned { border-color: var(--ui-mint); background: color-mix(in srgb, var(--ui-mint) 8%, transparent); }
 .jf-achievements article h3 { margin: 0 0 6px; }
-.jf-achievements article p { font-size: 13px; line-height: 1.45; margin: 0 0 10px; }
-.jf-achievements article small { display: block; font-size: 12px; opacity: .8; line-height: 1.4; }
+.jf-achievements article p { font-size: var(--ui-size-body); line-height: 1.45; margin: 0 0 var(--ui-space-2); color: var(--ui-ink-dim); }
+.jf-achievements article small { display: block; color: var(--ui-ink-dim); line-height: 1.4; }
 .jf-achievements { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
-.jf-achievements .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 0; }
-.jf-book.jf-achievements .btns { flex: none; margin: 0 -12px; max-width: none; padding: 8px; background: #12142a; border-top: 1px solid #ffffff22; }
-.jf-modal .btns { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
-.jf-modal .btns button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
-.jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
-.jf-modal .btns button:disabled { opacity: .35; cursor: default; }
-.jf-stats { margin: 4px auto 0; display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; opacity: .9; }
-.jf-stats b { text-align: right; }
-.jf-stats small { font-weight: 600; opacity: .75; }
-.jf-stats .jf-unlock { width: 56px; height: 56px; border-radius: 50%; vertical-align: middle; margin-right: 10px; box-shadow: 0 0 0 2px #ffc93a99, 0 4px 14px #0008; }
+.jf-achievements .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-2) 0; }
+.jf-book.jf-achievements .btns { flex: none; margin: 0 calc(-1 * var(--ui-space-4)); max-width: none; padding: var(--ui-space-2); background: var(--ui-panel-raised); border-top: 1px solid var(--ui-line); }
+.jf-modal .btns { margin-top: var(--ui-space-5); display: flex; flex-wrap: wrap; gap: var(--ui-space-3); justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
+.jf-modal .btns .ui-btn--primary { font-size: var(--ui-size-heading); }
+.jf-modal .btns .jf-key { color: var(--ui-ink-dim); font-size: var(--ui-size-label); }
+.jf-stats { margin: var(--ui-space-1) auto 0; display: grid; align-items: center; grid-template-columns: auto auto; gap: var(--ui-space-1) var(--ui-space-5); text-align: left; font-size: var(--ui-size-body); }
+.jf-stats > span { color: var(--ui-ink-dim); }
+.jf-stats b { text-align: right; font-variant-numeric: tabular-nums; }
+.jf-stats small { font-weight: 600; color: var(--ui-ink-dim); }
+.jf-stats .jf-unlock { width: 56px; height: 56px; border-radius: 50%; vertical-align: middle; margin-right: var(--ui-space-3); box-shadow: 0 0 0 2px var(--ui-gold), 0 4px 14px var(--ui-shade); }
 /* the leaderboard: big rows, each player's own jelly by their name */
-.jf-board { width: min(760px, 94vw); max-height: 100dvh; overflow-y: auto; padding: 16px 0; box-sizing: border-box; }
+.jf-board { width: min(760px, 94vw); max-height: 100dvh; overflow-y: auto; padding: var(--ui-space-4); box-sizing: border-box; }
 .jf-board .jf-stats { font-size: 22px; gap: 10px 36px; width: 100%; grid-template-columns: minmax(0, 1fr) auto; }
-.jf-board .jf-stats > span { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.jf-board .jf-stats > span { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; color: var(--ui-ink); }
 .jf-board .jf-stats > b { align-self: center; font-size: 24px; }
 .jf-board .jf-rank { font-style: normal; min-width: 1.6em; }
-.jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px #ffffff30, 0 4px 14px #0008; flex: none; }
+.jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px var(--ui-line), 0 4px 14px var(--ui-shade); flex: none; }
 .jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
-.jf-score { font-size: 1.5em; color: #ffd23a; }
-.jf-name { font: 600 15px system-ui, sans-serif; width: 11em; max-width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; text-align: right; }
-.jf-name::placeholder { color: #ffffff80; }
+.jf-score { font-size: 1.5em; color: var(--ui-gold); }
+.jf-name { box-sizing: border-box; min-height: var(--ui-target); font: 600 16px var(--ui-font-text); width: 11em; max-width: 100%; padding: 6px 10px; border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-glass); color: var(--ui-ink); text-align: right; }
+.jf-name::placeholder { color: var(--ui-ink-dim); }
 /* the end screens' beta bubble (a corner button), and the feedback box it opens (run.showFeedback) */
-.jf-modal .jf-beta { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 1; max-width: min(250px, 44vw);
-  font: 600 13px/1.3 system-ui, sans-serif; text-align: left; color: #fff; cursor: pointer; padding: 9px 13px; border-radius: 16px 16px 16px 4px;
-  background: #3a2a5ce6; border: 2px solid #c7a6ff99; box-shadow: 0 6px 18px #0007; }
-@media (max-height: 500px) { .jf-modal .jf-beta { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); max-width: 160px; font-size: 11.5px; padding: 7px 10px; } }
-.jf-modal .jf-beta:hover, .jf-modal .jf-beta:focus-visible { border-color: #e2d0ff; outline: none; }
-.jf-feedback { display: block; box-sizing: border-box; width: min(460px, calc(100vw - 32px)); margin: 12px auto 0; padding: 10px 12px; resize: vertical;
-  font: 15px/1.4 system-ui, sans-serif; border-radius: 10px; border: 1px solid #ffffff55; background: #ffffff18; color: #fff; }
-.jf-feedback::placeholder { color: #ffffff80; }
-.jf-feedback:focus { outline: 2px solid #ffd23a; outline-offset: 1px; }
-.jf-name:focus { outline: 2px solid #ffd23a; outline-offset: 1px; }
-.jf-pop { position: fixed; left: 50%; top: 16%; transform: translateX(-50%); z-index: 25; background: #1d2034ee; border: 2px solid #ffd23a; border-radius: 16px;
-  padding: 12px 18px; display: flex; gap: 12px; align-items: center; color: #fff; font-family: system-ui, sans-serif; box-shadow: 0 8px 28px #0009;
-  pointer-events: none; animation: jfPop .25s ease-out; max-width: 90vw; }
+.jf-modal .jf-beta { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 1; box-sizing: border-box; min-height: var(--ui-target); max-width: min(250px, 44vw);
+  font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); text-align: left; color: var(--ui-ink); cursor: pointer; padding: var(--ui-space-2) var(--ui-space-3); border-radius: var(--ui-radius-m) var(--ui-radius-m) var(--ui-radius-m) 4px;
+  background: var(--ui-panel); border: 1px solid var(--ui-epic); box-shadow: 0 6px 18px var(--ui-shade); }
+@media (max-height: 500px) { .jf-modal .jf-beta { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); max-width: 200px; } }
+.jf-modal .jf-beta:hover { border-color: var(--ui-ink); }
+.jf-modal .jf-beta:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 2px; }
+.jf-feedback { display: block; box-sizing: border-box; width: min(460px, calc(100vw - 32px)); margin: var(--ui-space-3) auto 0; padding: 10px var(--ui-space-3); resize: vertical;
+  font: 16px/1.4 var(--ui-font-text); border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-glass); color: var(--ui-ink); }
+.jf-feedback::placeholder { color: var(--ui-ink-dim); }
+.jf-feedback:focus, .jf-name:focus { outline: 2px solid var(--ui-gold); outline-offset: 1px; }
+/* the Treasure you just took, as a toast (the kit's .ui-toast, kept apart from the HUD's) */
+.jf-pop { position: fixed; left: 50%; top: 16%; translate: -50% 0; z-index: 25; border-color: var(--ui-gold); border-radius: var(--ui-radius-m); padding: var(--ui-space-3) var(--ui-space-4); gap: var(--ui-space-3); pointer-events: none; max-width: 90vw; }
 .jf-pop[hidden] { display: none; }
-@keyframes jfPop { from { transform: translateX(-50%) scale(.7); opacity: 0; } }
-.jf-pop .ic { font-size: 38px; }
-.jf-pop b { display: block; font-size: 17px; }
-.jf-pop span { font-size: 14px; opacity: .9; }
+.jf-pop .ic { font-size: 38px; line-height: 1; }
+.jf-pop b { display: block; font: 500 var(--ui-size-heading)/1.2 var(--ui-font-display); }
+.jf-pop span:not(.ic) { color: var(--ui-ink-dim); font-size: var(--ui-size-body); }
+.jf-evolution-heading p { margin: 0; font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
 @media (max-height: 520px), (max-width: 700px) {
   .jf-modal > div { max-height: 100%; overflow-y: auto; padding: 10px 0; box-sizing: border-box; }
-  .jf-modal h2 { font-size: 24px; }
-  .jf-modal .sub { margin: 2px 0 10px; font-size: 13px; }
-  .jf-cards { gap: 8px; flex-wrap: nowrap; padding: 0 8px; }
-  .jf-card { width: min(190px, 31vw); min-height: 0; padding: 12px 8px; border-radius: 14px; gap: 3px; }
-  .jf-card .ic { font-size: 30px; }
-  .jf-pick .ic { font-size: 34px; }
-  .jf-card .delta { font-size: 11px; }
-  .jf-card .big { font-size: 15px; }
-  .jf-card .txt { font-size: 12px; }
-  .jf-card .now { font-size: 11px; }
+  .jf-modal > .jf-panel { padding: var(--ui-space-4); }
+  .jf-modal .sub { margin: 2px 0 10px; }
+  .jf-cards { gap: var(--ui-space-2); flex-wrap: nowrap; padding: 0 var(--ui-space-2); }
+  .jf-cards .ui-card { padding: var(--ui-space-3); }
+  .jf-cards .ui-card-icon { width: 44px; height: 44px; font-size: 30px; }
   .jf-card .key { display: none; }
   .jf-modal .btns { margin-top: 10px; }
-  .jf-modal .btns small { display: none; }
-  .jf-stats { font-size: 13px; }
+  .jf-modal .btns .jf-key { display: none; }
   .jf-stats .jf-unlock { width: 40px; height: 40px; }
   .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
   .jf-board .jf-stats > b { font-size: 17px; }
   .jf-board .jf-jelly { width: var(--board-jelly-size-phone, 56px); height: var(--board-jelly-size-phone, 56px); }
-  .jf-pop { top: 12%; padding: 8px 12px; }
-  .jf-award h2 { font-size: 24px; }
+  .jf-pop { top: 12%; padding: var(--ui-space-2) var(--ui-space-3); }
   .jf-award .face { width: 120px; height: 120px; margin: 2px 0 4px; }
   .jf-award .face img { width: 100px; height: 100px; }
   .jf-pop .ic { font-size: 28px; }
-  .jf-pop b { font-size: 14px; }
-  .jf-pop span { font-size: 12px; }
 }
 `;
 
@@ -190,7 +196,7 @@ export class UI {
     });
     parent.appendChild(this.modal);
     this.pop = document.createElement('div');
-    this.pop.className = 'jf-pop';
+    this.pop.className = 'ui-toast jf-pop';
     this.pop.hidden = true;
     parent.appendChild(this.pop);
     this.keyHandler = null;
@@ -223,7 +229,7 @@ export class UI {
   evolution(evo, skip) {
     this.close();
     this.modal.classList.add('jf-evolution');
-    this.modal.innerHTML = `<div class="jf-evolution-heading"><p>Metamorphosis</p><h2>${esc(evo.name)}</h2></div><div class="jf-evolution-footer"><p>${esc(evo.text)}</p><button type="button">Skip animation</button></div>`;
+    this.modal.innerHTML = `<div class="jf-evolution-heading"><p>Metamorphosis</p><h2>${esc(evo.name)}</h2></div><div class="jf-evolution-footer"><p>${esc(evo.text)}</p><button type="button" class="ui-btn">Skip animation</button></div>`;
     this.modal.hidden = false;
     const button = this.modal.querySelector('button');
     this.modal.onclick = e => { if (e.target.closest('button')) skip(); };
@@ -239,16 +245,12 @@ export class UI {
     const gen = ++this._gen;
     let out = false;
     const render = (beat) => {
-      this.modal.innerHTML = `<div class="jf-level"><h2>Level ${level}!</h2><p class="sub">Choose an upgrade.</p>
-        <div class="jf-cards jf-pick">${cards.map((c, i) => { const t = tierCard(c.rarity.name, c.rarity.color, beat + i * DEAL); return `
-          <button class="jf-card${t.cls}" data-i="${i}" style="${t.style}">
-            <span class="key">${i + 1}</span>
-            <span class="ic">${STAT_INFO[c.stat].icon}</span>
-            <span class="big">${cardText(c)}</span>
-            <span class="rar">${c.rarity.name}</span>
-            <span class="now">now ${STAT_INFO[c.stat].fmt(stats[c.stat])}</span>
-          </button>`; }).join('')}</div>
-        <div class="btns"><button data-act="reroll" ${rerolls > 0 ? '' : 'disabled'}>🎲 Reroll (${rerolls}) <small>[R]</small></button></div></div>`;
+      this.modal.innerHTML = `<div class="jf-level"><h2 class="ui-pop">Level ${level}!</h2><p class="sub">Choose an upgrade.</p>
+        <div class="jf-cards jf-pick">${cards.map((c, i) => {
+          const info = STAT_INFO[c.stat], [head, ...more] = cardText(c).split(' · ');   // (the Attacks card's "· 20% less damage each" goes under its name)
+          return tierCard({ i, tier: c.rarity, icon: info.icon, name: hi(head), body: [...more, `now ${info.fmt(stats[c.stat])}`].map(hi).join('<br>'), key: i + 1, d: beat + i * DEAL });
+        }).join('')}</div>
+        <div class="btns"><button class="ui-btn" data-act="reroll" ${rerolls > 0 ? '' : 'disabled'}>${icon('reroll')} Reroll (${rerolls}) <span class="jf-key">[R]</span></button></div></div>`;
       this.dealSound(cards.map((c) => c.rarity.name), beat);
     };
     const pick = (i) => { const c = cards[i]; if (!c || out) return; out = true; this.outro(gen, i, to); onPick(c); };
@@ -278,10 +280,8 @@ export class UI {
   choose(title, sub, choices, onPick) {
     const gen = ++this._gen;
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
-      <div class="jf-cards jf-pick">${choices.map((c, i) => { const t = tierCard(c.tier?.name, c.tier?.color || '#7ff6ee', i * DEAL); return `
-        <button class="jf-card${t.cls}" data-i="${i}" style="${t.style}">
-          <span class="key">${i + 1}</span>${c.fresh ? '<span class="jf-new">New!</span>' : ''}<span class="big">${c.name}</span><span class="ic">${c.icon}</span>${c.tier ? `<span class="rar">${c.tier.name}</span>` : ''}<span class="txt">${c.text}</span>${c.delta ? `<span class="delta">${c.delta}</span>` : ''}
-        </button>`; }).join('')}</div></div>`;
+      <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: i * DEAL,
+        badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
     this.modal.hidden = false;
     this.dealSound(choices.map((c) => c.tier?.name), 0);
     let out = false;
@@ -374,7 +374,7 @@ export class UI {
     if (!ic || document.body.classList.contains('calm')) return;
     const r = ic.getBoundingClientRect(), el = document.createElement('span');
     el.textContent = ic.textContent;
-    el.style.cssText = `position:fixed; left:${r.left}px; top:${r.top}px; width:${r.width}px; height:${r.height}px; font-size:${r.height}px; line-height:1; text-align:center; z-index:40; pointer-events:none; transition:all .55s cubic-bezier(.5,0,.8,.4);`;
+    el.style.cssText = `position:fixed; left:${r.left}px; top:${r.top}px; width:${r.width}px; height:${r.height}px; font-size:${getComputedStyle(ic).fontSize}; line-height:${r.height}px; text-align:center; z-index:40; pointer-events:none; transition:all .55s cubic-bezier(.5,0,.8,.4);`;
     document.body.appendChild(el);
     const [x, y] = to ? [`${to.left + to.width / 2}px`, `${to.top + to.height / 2}px`] : ['50%', '13%'];
     requestAnimationFrame(() => { el.style.left = x; el.style.top = y; el.style.transform = 'translate(-50%,-50%) scale(.65)'; el.style.opacity = '.85'; });
@@ -387,14 +387,14 @@ export class UI {
   achievements(items, onBack, onTop = null) {
     this._gen++;
     const count = items.filter(a => a.earned).length;
-    this.modal.innerHTML = `<section class="jf-book jf-achievements" aria-label="Achievements">
-      <div class="jf-head"><h2>🏅 Achievements</h2><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p><button class="jf-x" data-back aria-label="Close">✕</button></div>
+    this.modal.innerHTML = `<section class="ui-panel jf-book jf-achievements" aria-label="Achievements">
+      <div class="jf-head"><div class="ui-header"><h2>${icon('medal')} Achievements</h2><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p></div>
       <div class="jf-scroll"><p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
       ${onTop ? `<p>${count ? 'Share your earned total with the achievement leaderboard.' : 'Earn an achievement to share your total with the leaderboard.'}</p>` : ''}
       <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
         <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
         ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div></div>
-      <div class="btns">${onTop ? `<button data-share ${count ? '' : 'disabled'}>Share achievements</button><button data-top>🏆 Top 5 players</button>` : ''}<button class="go">Back</button></div></section>`;
+      <div class="btns">${onTop ? `<button class="ui-btn" data-share ${count ? '' : 'disabled'}>Share achievements</button><button class="ui-btn" data-top>${icon('trophy')} Top 5 players</button>` : ''}<button class="ui-btn ui-btn--primary go">${icon('back')} Back</button></div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
     this.modal.onclick = e => {
@@ -410,10 +410,10 @@ export class UI {
   // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)
   message(title, sub, rows, buttons, cls = '', hint = '') {
     this._gen++;
-    this.modal.innerHTML = `<div class="${cls}"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}
+    this.modal.innerHTML = `<div class="ui-panel jf-panel ${cls}"><div class="ui-header"><h2>${title}</h2></div>${sub ? `<p class="sub">${sub}</p>` : ''}
       ${hint ? `<p class="jf-hint"><span aria-hidden="true">💡</span> ${esc(hint)}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
-      <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="${b.go ? 'go' : ''}">${b.label}</button>`)).join('')}</div>
+      <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`)).join('')}</div>
       ${buttons.map((b, i) => (b.corner ? `<button data-i="${i}" class="jf-beta">${b.label}</button>` : '')).join('')}</div>`;
     this.modal.hidden = false;
     this.tally(this.modal.firstElementChild);
@@ -440,14 +440,14 @@ export class UI {
     el.innerHTML = `<div><p class="eyebrow">Golden award unlocked${list.length + this._awardShown > 1 ? ` · ${this._awardShown + 1} of ${list.length + this._awardShown}` : ''}</p>
       <div class="face">${a.face ? `<img src="${a.face}" alt="">` : ''}</div>
       <h2>${esc(a.name)}</h2><p class="for">${esc(a.need)}</p>
-      <div class="btns"><button data-wear>Wear it now</button><button class="go" data-next>Continue</button></div></div>`;
+      <div class="btns"><button class="ui-btn" data-wear>Wear it now</button><button class="ui-btn ui-btn--primary go" data-next>Continue</button></div></div>`;
     this.modal.parentNode.appendChild(el);
     this.awardEl = el;
     sfx.award();
     const next = () => { this._awardShown++; this.award(rest); };
     el.onclick = (e) => {
       const b = e.target.closest('button');
-      if (b && 'wear' in b.dataset) { sfx.tap(); a.wear(); b.disabled = true; b.textContent = 'Wearing it ✓'; }
+      if (b && 'wear' in b.dataset) { sfx.tap(); a.wear(); b.disabled = true; b.innerHTML = `${icon('check')} Wearing it`; }
       else if (b) { sfx.tap(); next(); }
     };
     el.querySelector('[data-next]').focus({ preventScroll: true });
@@ -458,12 +458,12 @@ export class UI {
   book(title, sections, onBack) {
     this._gen++;
     const cell = (it) => (it.found
-      ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || '#7ff6ee'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
+      ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || 'var(--ui-mint)'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
       : it.locked ? `<button class="locked" data-say="${esc(`${it.name}: ${it.locked}`)}"><span class="ic">${it.icon}</span><span>${esc(it.locked)}</span></button>`   // locked: a silhouette with its goal
         : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
-    this.modal.innerHTML = `<div class="jf-book"><div class="jf-head"><h2>${title}</h2><button class="jf-x" data-back aria-label="Close">✕</button><p class="say" aria-live="polite">Select a discovery to read more.</p></div>
+    this.modal.innerHTML = `<div class="ui-panel jf-book"><div class="jf-head"><div class="ui-header"><h2>${title}</h2><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div><p class="say" aria-live="polite">Select a discovery to read more.</p></div>
       ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
-      <div class="btns"><button class="go" data-back>Back</button></div></div>`;
+      <div class="btns"><button class="ui-btn ui-btn--primary go" data-back>${icon('back')} Back</button></div></div>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
     this.modal.onclick = (e) => {
@@ -481,6 +481,7 @@ export class UI {
   treasure(t, count = 1) {
     const amount = t.levels?.length > 1 ? `Level ${count}` : t.stack > 1 ? `×${count}` : '';
     this.pop.innerHTML = `<span class="ic">${t.icon}</span><div><b>${t.name}</b>${amount ? `<span>${amount}</span>` : ''}</div>`;
+    this.pop.classList.remove('ui-pop'); void this.pop.offsetWidth; this.pop.classList.add('ui-pop');   // (replays the pop for a second pick)
     this.pop.hidden = false;
     clearTimeout(this._popT);
     this._popT = setTimeout(() => { this.pop.hidden = true; }, 3600);

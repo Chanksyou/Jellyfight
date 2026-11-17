@@ -385,7 +385,7 @@ story('progression/dodge-diminishes', {
     const pick = () => {
       run.pendingLevels = 1;
       run.levelUp();
-      const card = document.querySelector('.jf-modal .jf-card'), text = card.querySelector('.big').textContent;
+      const card = document.querySelector('.jf-modal .jf-card'), text = card.querySelector('.ui-card-name').textContent;
       const was = run.S.dodge;
       card.click();
       step(50);
