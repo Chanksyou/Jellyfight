@@ -1,0 +1,1 @@
+restyles the Treasure book, Achievements, leaderboard and Change your look on the new look: the book's sections are tabs with its close always in view, unfound tiles show where to find them, Achievements keep their rules behind an info icon, and Change your look uses kit chips and buttons.
