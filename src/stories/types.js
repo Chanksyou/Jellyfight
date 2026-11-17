@@ -244,6 +244,27 @@ story('types/pick-screen-shows-every-type', {
   },
 });
 
+story('types/pick-screen-locked-card-says-how-to-open', {
+  about: 'Every locked card says how to open it in one short line on its portrait ("Finish act 1", "Defeat 9 Elites"), read from the type\'s unlock; open cards say nothing. The arrows step the row (the first hides its Back arrow, the last its Next) and the dots follow the centre card.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true, { feats: { elites: 4 } });
+    try {
+      fresh({ types: 'normal' });
+      G().mainMenu.home = true;
+      G().GAME.startRun();
+      const line = (id) => picker.cards[picker.ids.indexOf(id)].querySelector('.tp-lock')?.textContent.trim() || '';
+      const lines = line('fire') === 'Finish act 1' && line('wind') === 'Defeat 9 Elites' && line('glitter') === 'Defeat 6 Elites' && line('normal') === '' && line('ice') === '';
+      const [prev, next] = picker.arrows, atStart = prev.hidden && !next.hidden && picker.dots[0].classList.contains('on');
+      next.click();
+      const stepped = picker.centre === 'fire' && !prev.hidden && picker.dots[1].classList.contains('on') && picker.dots.filter((d) => d.classList.contains('on')).length === 1;
+      picker.go(picker.ids.length - 1);
+      const atEnd = next.hidden && !prev.hidden;
+      return ok(lines && atStart && stepped && atEnd, { lines, atStart, stepped, atEnd });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-screen-locked-card-cannot-play', {
   about: 'A locked type\'s card is greyed out and its panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6", from the save\'s real Elite count) instead of Play; Play and Enter do nothing on it, and the next open type plays.',
   setup() {},
