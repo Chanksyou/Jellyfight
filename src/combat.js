@@ -10,7 +10,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { knockFor } from './stats.js';
-import { roll } from './chance.js';
+import { rollChance } from './chance.js';
 
 const EXTEND = 0.07, HOLD = 0.04, RETRACT = 0.12;   // seconds
 const BLEED = { dps: 0.25, time: 3, stacks: 5 };   // a sweep's Bleed when the run has no venom word to set its own
@@ -136,7 +136,7 @@ export class Lash {
   sweepFor(n, { nth = [], stingCount = [] }) {
     let out = null;
     const add = (ef, sting) => { out ||= { dmg: 1, bleed: 0, sting: false }; out.dmg *= ef.dmg; out.bleed = Math.max(out.bleed, ef.bleed); out.sting ||= sting; };
-    for (const N of nth) if (N.random ? roll(1 / N.every, this.mods) : n % N.every === 0) for (const ef of N.effects) if (ef.kind === 'sweep') add(ef, false);
+    for (const N of nth) if (N.random ? rollChance(1 / N.every, this.mods) : n % N.every === 0) for (const ef of N.effects) if (ef.kind === 'sweep') add(ef, false);
     for (const S of stingCount) if (this.stings >= S.every) for (const ef of S.effects) if (ef.kind === 'sweep') add(ef, true);
     return out;
   }
@@ -284,7 +284,7 @@ export class Lash {
     let dmg = s.dmg, color = '#fff', crit = false;
     if (edge) { dmg *= H.edge.mult; color = '#ffe9a8'; }
     if (s.golden) { dmg *= H.golden.mult; color = '#ffd23a'; }
-    if (H.crit && roll(H.crit.chance, this.mods)) {
+    if (H.crit && rollChance(H.crit.chance, this.mods)) {
       dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r); sfx.crit();
       crit = true;
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit

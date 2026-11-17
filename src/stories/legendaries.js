@@ -3,7 +3,7 @@
 // pick, a run can hold several, and their costs add up. Shared helpers are in ./kit.js.
 import { CONTENT } from '../content.js';
 import { BASE_STATS } from '../stats.js';
-import { roll } from '../chance.js';
+import { rollChance } from '../chance.js';
 import { G, fresh, give, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs'];
@@ -125,11 +125,11 @@ story('treasures/lucky-rolls', {
   play() {
     const { run } = G();
     let calls = 0; stub(Math, 'random', () => { calls++; return 0.9; });
-    const plain = roll(0.2, run.mods);
-    randoms(0.9, 0.1); const without = roll(0.2, run.mods);
+    const plain = rollChance(0.2, run.mods);
+    randoms(0.9, 0.1); const without = rollChance(0.2, run.mods);
     give('luckyCat');
-    randoms(0.9, 0.1); const withCat = roll(0.2, run.mods);
-    randoms(0.9, 0.9); const bothMiss = roll(0.2, run.mods);
+    randoms(0.9, 0.1); const withCat = rollChance(0.2, run.mods);
+    randoms(0.9, 0.9); const bothMiss = rollChance(0.2, run.mods);
     return ok(!plain && calls === 1 && !without && withCat && !bothMiss && run.mods.luckyRolls === 2, { plain, calls, without, withCat, bothMiss });
   },
 });
@@ -160,9 +160,9 @@ story('treasures/lucky-rolls-paw', {
   play() {
     const { run } = G(), paws = [];
     stub(run.fx, 'number', (pos, text) => { if (text === '🐾') paws.push(text); });
-    randoms(0.1); roll(0.2, run.mods); const first = paws.length;
-    randoms(0.9, 0.1, 0.9, 0.1); roll(0.2, run.mods); roll(0.2, run.mods); const quick = paws.length;
-    step(40); randoms(0.9, 0.1); roll(0.2, run.mods);
+    randoms(0.1); rollChance(0.2, run.mods); const first = paws.length;
+    randoms(0.9, 0.1, 0.9, 0.1); rollChance(0.2, run.mods); rollChance(0.2, run.mods); const quick = paws.length;
+    step(40); randoms(0.9, 0.1); rollChance(0.2, run.mods);
     return ok(first === 0 && quick === 1 && paws.length === 2, { first, quick, later: paws.length });
   },
 });
