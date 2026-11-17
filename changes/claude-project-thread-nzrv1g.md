@@ -1,1 +1,0 @@
-adds the Lucky Cat, a Legendary Treasure: every "1 in N" chance of yours (crits, traps, ghosts, life steal, Pocket Vacuum, gilding…) is rolled twice and the better roll counts, with a paw and a soft bell when the second try hit; Dodge and Rarity are not rolled twice, and it is only offered once you own an effect that rolls a chance.
