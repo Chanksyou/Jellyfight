@@ -60,7 +60,7 @@ export const ELITES4 = [
   { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -1.332, vent: 'Vent by the sofa',
     at: [1.68, 0.51, 2.21], wake: { min: [0.5, 0.46, 1.0], max: [2.9, 1.2, 2.6] }, stand: [1.2, 0.511, 2.25] },
   { kind: 'headphones', hide: 'Headphones', area: 'coffee table', face: 1.454, vent: 'Vent by the coffee table',
-    at: [1.75, 0.46, 2.9], wake: { min: [1.46, 0.41, 2.34], max: [2.82, 1.1, 3.33] } },
+    at: [1.75, 0.46, 2.9], wake: { min: [1.46, 0.41, 2.34], max: [2.82, 1.1, 3.33] }, stand: [2.15, 0.46, 3.05] },
 ];
 
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
@@ -95,8 +95,8 @@ export const STAGE4 = {
   // act 1's spots, less the two the Elites' props now crowd (the sofa seat under the Mushroom pillow, the lounge chair seat)
   spots: STAGE1.spots.filter((sp) => !['sofa seat', 'lounge chair'].includes(sp.label)),
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
-  // the opening acts (elites.js): the Singing Bowl and the Mushroom Pillow so far; the Headphones come later
-  elites: ELITES4.filter((e) => ['bowl', 'pillow'].includes(e.kind)),
+  // the opening acts (elites.js): the Singing Bowl, the Mushroom Pillow and the Headphones
+  elites: ELITES4,
   eliteHp: 2.8,                       // a stand-in until the tuning phase picks act 4's: act 3's 2.4 grown as its toughness grows (3 -> 3.5): 800 x 2.8 = 2240
 
   // The sun (sunrise.js): its line runs straight across the room in x and creeps from the window

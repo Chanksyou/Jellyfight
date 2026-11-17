@@ -407,6 +407,22 @@ export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true
   e.cool = 0; e.next = atk;
   return { e, player, seat: player.position.y };
 }
+// act 4's Headphones on the glass coffee table (elites.js kind 'headphones', headphones-model.js): the
+// table top 0.46 m up. Start one of its attacks with the jelly on the table (x, z: its stand point by
+// default, 40 cm from it toward the vent's landing), facing it, on the run's own beat (no song). Its
+// waves shove, so the jelly isn't held unless asked
+export const headphones = () => G().run.elites.list.find((e) => e.kind === 'headphones');
+export const onCoffeeTable = (x = 2.15, z = 3.05) => tp(x, 0.5, z, Math.PI / 2);   // (the camera behind the jelly, looking along the table at the headphones)
+export function startHeadphones(atk, { x = 2.15, z = 3.05, angry = false, hold = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onCoffeeTable(x, z);
+  stub(G().run, 'song', null);
+  const e = headphones(), player = hold ? holdJelly() : G().player;
+  e.cool = 99;
+  if (angry) e.hp = e.maxHp * 0.5;
+  step(60);                                         // awake, and turned to face the jelly
+  e.cool = 0; e.next = atk;
+  return { e, player, top: player.position.y };
+}
 // the Clog (clog.js): straight into the boss fight in the tub
 export const clogFight = () => {
   fresh({ hurt: true, bubbles: false, lash: false });
@@ -505,6 +521,9 @@ export const EVERY_ATTACK = {
     // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
     // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
+    // the Headphones on the coffee table (elites.js), in the room: its shove waves' Warning (a white strip
+    // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
+    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')

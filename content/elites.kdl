@@ -134,3 +134,23 @@ elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.6
     spores dmg=4 spots=5 angrySpots=8 windup=2 drift=2 angryDrift=1 radius=0.06 near=0.45 spread=0.13 rest=1.0 angryRest=0.7
     hop dmg=4 radius=0.17 reach=0.3 windup=2 air=1 leap=0.1 knock=0.8 rest=1.0 angryRest=0.7
 }
+
+// act 4: the Headphones, up on their ear cups on the glass coffee table in the living room at dawn. They
+// sleep until you're on the table (stage4.js ELITES4 `wake`), then within aggro= of them. Like the
+// Singing Bowl they keep the song's time: windup=, every= and lock= are beats of the song; rest= is s.
+// The table is small (1.3 m by 0.7 m): falling off is the punishment, and the vent by it brings you back.
+//   shove: the cups take turns, waves= of them every= beats apart from the first bar line at least
+//          windup= beats away. Each one's Warning (a white strip width= m wide from the cup through you
+//          to the table's edge, and the lane height= m tall over it) follows you until lock= beats
+//          before; then a white sound wave rolls down it at speed= m/s. It doesn't hurt: a jelly under
+//          its top as it passes is shoved push= m along it (over carry= s). Jump it to stay put.
+//          Angry, the other cup fires a bass Shot (its dmg= and size=) at jump height along with each
+//          wave, as fast as the wave: jumping the wave flies into it, so stay down and ride the shove
+//   bass:  shots= Shots, every= beats apart from the first bar line at least windup= beats away, the
+//          cups taking turns; each one's Warning (a line on the table and the tube over it to your
+//          middle, mid-jump included) locks lock= beats before it fires, at speed= m/s for reach= m
+//          (size=: its radius, m)
+elite "headphones" name="The Headphones" icon="🎧" hp=800 aggro=1.2 angry=0.65 {
+    shove waves=3 every=4 windup=3 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=1.0 angryRest=0.7
+    bass dmg=3 shots=4 every=1 windup=3 lock=0.5 speed=0.8 size=0.012 reach=1.3 rest=1.0 angryRest=0.7
+}

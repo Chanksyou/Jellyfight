@@ -63,6 +63,7 @@ import './stories/firefly.js';
 import './stories/bass-wave.js';
 import './stories/night4-singing-bowl.js';
 import './stories/night4-mushroom.js';
+import './stories/night4-headphones.js';
 import './stories/sunrise.js';
 import './stories/phone.js';
 import './stories/nests.js';

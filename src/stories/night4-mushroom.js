@@ -216,11 +216,11 @@ night4('pillow-attacks-feel', {
 });
 
 night4('room-elites-eyes-keep-their-size', {
-  about: 'The room\'s Elites blink by squashing their eyes (scale.y from 0.12 asleep to 1 awake), so their eyes are sized by the face round them: awake, the Singing Bowl\'s and the Mushroom Pillow\'s eyes stay about 3 cm tall, not stretched up over the whole Elite.',
+  about: 'The room\'s Elites blink by squashing their eyes (scale.y from 0.12 asleep to 1 awake), so their eyes are sized by the face round them: awake, the Singing Bowl\'s, the Mushroom Pillow\'s and the Headphones\' eyes stay about 3 cm tall, not stretched up over the whole Elite.',
   setup() { fresh(); },
   play() {
     const out = {};
-    for (const [kind, at] of [['bowl', () => kit.onChair()], ['pillow', () => onSofa()]]) {
+    for (const [kind, at] of [['bowl', () => kit.onChair()], ['pillow', () => onSofa()], ['headphones', () => kit.onCoffeeTable()]]) {
       fresh(); at(); step(90);
       const e = G().run.elites.list.find((q) => q.kind === kind);
       e.holder.updateMatrixWorld(true);

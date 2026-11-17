@@ -1488,6 +1488,22 @@ export const sfx = {
     tone('sine', 95 * j, 40, 0.35, 0.26); noise(500 * j, 0.7, 0.3, 0.3, 'lowpass', 0, 120);     // the plush thud
     noise(2500 * j, 1, 0.15, 0.06, 'bandpass', 0.03); patter(5, 0.06, 0.3, 0.025);                  // fluff and dust
   },
+  // the Headphones: a sound wave let go (a speaker's click, a deep whoomp, the air rushing after it;
+  // the two cups a tone apart), a jelly it shoves (a soft wobbling thump), the hum of the bass winding
+  // up, a bass Shot (a sub drop with a buzz) and one landing (a thud and a crackle)
+  headphonesWave(cup = 0) {
+    if (!ready() || !gap('headphonesWave', 80)) return; const j = jitter(0.06) * (cup ? 1.12 : 1);
+    noise(3800 * j, 3, 0.02, 0.1, 'bandpass'); tone('sine', 140 * j, 55 * j, 0.3, 0.2);
+    noise(900 * j, 0.8, 0.45, 0.06, 'bandpass', 0.03, 2600 * j);
+  },
+  headphonesShove() { if (!ready() || !gap('headphonesShove', 80)) return; const j = jitter(0.1); tone('sine', 220 * j, 120 * j, 0.14, 0.09); tone('sine', 330 * j, 180 * j, 0.1, 0.04, 0.04); noise(1400 * j, 1, 0.12, 0.05, 'lowpass'); },
+  headphonesHum(dur = 1.5) { if (!ready()) return; const j = jitter(0.04); tone('sawtooth', 55 * j, 62 * j, dur, 0.025); tone('sine', 110 * j, 124 * j, dur, 0.04); noise(300 * j, 2, dur, 0.02, 'lowpass', 0, 900); },
+  headphonesBass() {
+    if (!ready() || !gap('headphonesBass', 60)) return; const j = jitter(0.08);
+    tone('sine', 160 * j, 45 * j, 0.25, 0.22); tone('square', 80 * j, 40 * j, 0.12, 0.05); noise(2400 * j, 1.5, 0.05, 0.08, 'bandpass');
+    noise(1200 * j, 1, 0.25, 0.04, 'bandpass', 0.03, 400 * j);                                       // the whoosh as it flies off
+  },
+  headphonesBassHit() { if (!ready() || !gap('headphonesBassHit', 60)) return; const j = jitter(0.08); tone('sine', 120 * j, 50, 0.18, 0.18); noise(1000 * j, 1, 0.08, 0.1, 'lowpass'); noise(6000 * j, 2, 0.06, 0.04, 'highpass', 0.02); patter(4, 0.03, 0.2, 0.025); },
   jewelLaunch(k = 0) { if (!ready() || !gap('jewelLaunch', 25)) return; const f = 1600 * Math.pow(2, (k % 12) / 24) * jitter(0.03); tone('triangle', f, f * 1.5, 0.08, 0.05); },
   jewelWhistle(dur = 0.25) { if (!ready()) return; const j = jitter(0.06); tone('sine', 2600 * j, 700 * j, dur, 0.06); tone('sine', 2750 * j, 760 * j, dur, 0.03); },
   jewelCrack() { if (!ready()) return; const j = jitter(0.08); noise(6500 * j, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) { const f = (2200 + k * 450) * j * jitter(0.05); tone('triangle', f, f * 0.9, 0.09, 0.04, k * 0.02 + Math.random() * 0.015); } noise(500 * j, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
