@@ -450,7 +450,7 @@ export class Enemies {
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
-    if (!feedback.tick) {                // status-damage: a hit on a bug with a status does more (Shatter thaws it)
+    if (!feedback.tick && !feedback.pass) {   // (a Cradle pass is plain: no status-damage or fresh-damage) status-damage: a hit on a bug with a status does more (Shatter thaws it)
       const k = this.statusMore(e, feedback.by), blast = this._blast, share = this._blastDmg;
       amount *= k;
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
