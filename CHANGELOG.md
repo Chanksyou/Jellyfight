@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v451 moves the Cream Whipper Elite about 30 cm out of the hall's corner by the front door, so there is room to swim round it.
+
 v450 adds the Goodie Bag, a Legendary Treasure: every second Elite you beat leaves two Treasures instead of one.
 
 v449 wakes the Headphones on Act 4's glass coffee table, the act's third Elite: the pair on the stand comes alive, up on its ear cups like two speakers, and teaches the Encore's speaker rule. Its cups take turns sending white sound waves down a lane through you to the table's edge, one a bar: they don't hurt, they shove you 20 cm along. Jump one to stay put, step out of its lane, or ride it if there's room behind you; ride it off the edge and the vent by the table brings you back up. Between waves the cups fire bass Shots at you, a beat apart, each with a line and a tube showing where it flies: step sideways. Under 65% Health each wave comes with a bass Shot at jump height from the other cup, so jumping the wave flies you into the Shot: stay down and ride the shove.
