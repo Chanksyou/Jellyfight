@@ -1227,13 +1227,13 @@ export class Run {
 
   // A beaten Elite's treasure; with the Goodie Bag (elite-bonus) every `every`th Elite leaves a second one beside it
   eliteTreasure(at, text, ms) {
-    this.dropTreasure(at);
-    const B = this.mods.eliteBonus;
+    const first = this.dropTreasure(at), B = this.mods.eliteBonus;
     if (!B) return this.hud.toast(text, ms);
     const n = this.growCount.goodieBag = (this.growCount.goodieBag || 0) + 1;
     if (n % B.every) return this.hud.toast(`${text} Goodie Bag: next one.`, ms);
-    const p = this.openSpotNear(_drop.copy(at).add(_near.set(0.12, 0, 0))) || at;
-    this.placeTreasure(p.clone(), Infinity, Math.random() * Math.PI * 2);
+    let p = this.openSpotNear(_drop.copy(first).add(_near.set(0.12, 0, 0)));
+    if (!p || p.distanceTo(first) < 0.08) p = first.clone().add(_near.set(0.12, 0, 0));   // never on top of the first
+    this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
     this.hud.toast('✨ Goodie Bag! It left two treasures.', ms);
   }
 
@@ -1425,7 +1425,9 @@ export class Run {
   dropTreasure(at) {
     const p = this.openSpotNear(at);
     if (!p) { const hit = this.world.castAll(_drop.set(at.x, at.y + 0.03, at.z), DOWN, 2.5); p0.copy(at); if (hit) p0.y = hit.point.y; }
-    this.placeTreasure((p || p0).clone(), Infinity, Math.random() * Math.PI * 2);
+    const spot = (p || p0).clone();
+    this.placeTreasure(spot, Infinity, Math.random() * Math.PI * 2);
+    return spot;
   }
 
   // The closest open spot to `at` (rings out to 50 cm), on the same surface if there is one there
