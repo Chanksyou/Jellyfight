@@ -2565,7 +2565,7 @@ export class Elites {
               if (L.angry) { this.mark(e, this.stripGeo, this.T.bass, L.shotFrom, ONE); e.tele.push(this.volume(col, 'lane', L.shotFrom, ONE)); }
             }
             const yaw = Math.atan2(L.dir.x, L.dir.z);
-            for (const m of e.tele.slice(0, 2)) { m.position.copy(L.start); m.rotation.set(0, yaw, 0); m.scale.z = L.len; }
+            for (let i = 0; i < 2; i++) { const m = e.tele[i]; m.position.copy(L.start); m.rotation.set(0, yaw, 0); m.scale.z = L.len; }
             e.tele[0].position.y += 0.002;
             if (L.angry) this.aimLine(e.tele[2], e.tele[3], L.shotFrom, L.aim, top, B.size, L.len);
             for (const m of e.tele) m.material.progress = u;
@@ -2581,7 +2581,7 @@ export class Elites {
               juice.feel('hit'); sfx.headphonesWave(cup);
               if (L.angry) {
                 const from = this.headphonesMouth(e, 1 - cup, this._mid2);
-                this.shoot(from, L.aim, col, 'headphones-bass', B.dmg, { speed: W.speed, size: B.size, life: (L.len + 0.2) / W.speed }).onEnd = this.bassShotEnd;
+                this.shoot(from, L.aim, col, 'headphones-bass', B.dmg, { speed: W.speed, size: B.size, life: (Math.hypot(L.aim.x - from.x, L.aim.z - from.z) + L.len) / W.speed }).onEnd = this.bassShotEnd;
                 this.fx.impact(from, col, LOOK.num('headphones-bass-flash', 0.02), 8);
                 e.lit[1 - cup] = 0; e.pump[1 - cup] = 1; sfx.headphonesBass();
               }
