@@ -404,7 +404,7 @@ export class UI {
       else if (button) back();
     };
     this.keyHandler = e => { if (e.code === 'Escape') { e.preventDefault(); back(); } };   // Enter activates the focused button natively
-    this.modal.querySelector('button:not(:disabled)').focus({ preventScroll: true });
+    this.modal.querySelector('.btns button:not(:disabled)').focus({ preventScroll: true });
   }
 
   // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)
