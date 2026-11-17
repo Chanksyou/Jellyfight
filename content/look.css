@@ -478,6 +478,17 @@
   --pillow-dust-size: 0.7;       /* its size as a part of the spot's radius, */
   --pillow-crouch: 0.22;         /* how low it crouches before a hop, */
   --pillow-fluff: #f4ecdc #c8312b #f0c8ff;   /* and the fluff a landing throws */
+  --hostile-headphones: #5a40ff; /* the Headphones' bass Shots: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
+  --headphones-wave-warning: 0.3; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint), */
+  --headphones-wave-volume: 0.35; /* and the lane over it, */
+  --headphones-speaker-glow: 0.9; /* the Headphones: a cup's speaker glowing as it gets ready to play, */
+  --headphones-kick: 0.012;      /* how far a cup kicks back as it plays (m), */
+  --headphones-wave-flash: 0.025; /* the flash at a cup as a wave leaves (m), */
+  --headphones-bass-flash: 0.02; /* and as a bass Shot does (m), */
+  --headphones-shove-flash: 0.02; /* the white flash on the jelly a wave shoves (m), */
+  --headphones-buzz: #ffffff #b8a8ff #5a40ff;   /* the sparks off a jelly a bass Shot hits, */
+  --headphones-scuff: #6c6680;   /* and the fading scuff it leaves under it, */
+  --headphones-scuff-size: 0.014;
   --hostile-cicada: #9dff00;     /* the cicada's song: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2) */
   --cicada-wedge-opacity: 0.15;  /* the cicada's floor wedge: kept quiet (Chan, Nov 16: the first cone was too much) */
   --cicada-cone-opacity: 0.22;   /* its cone over the wedge */
