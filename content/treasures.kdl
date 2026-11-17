@@ -415,6 +415,9 @@ treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary"
 treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 5 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
     toy-mouse every=5 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
 }
+treasure "newtonsCradle" name="Newton's Cradle" icon="🎱" rarity="legendary" attack=#true text="When a hit finishes off a bug, the damage left over passes to the nearest bug within 12 cm, up to 3 times." {
+    overkill reach=0.12 passes=3 least=1
+}
 
 // --- more combinations of the words above (no new code)
 treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 Luck for every treasure found this run." stack=3 {

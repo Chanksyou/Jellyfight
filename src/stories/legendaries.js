@@ -2,11 +2,13 @@
 // there is no separate evolution pick: the evolutions are Legendary treasures in the Boss reward's
 // pick, a run can hold several, and their costs add up. Shared helpers are in ./kit.js.
 import { bus } from '../events.js';
-import { CONTENT } from '../content.js';
+import { CONTENT, compileTreasures } from '../content.js';
+import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
 
-const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs', 'goodieBag', 'pogoStick'];
+const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
+  'goodieBag', 'newtonsCradle', 'pogoStick'];   // (the new Legendaries join here)
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
@@ -24,7 +26,7 @@ function evolveAll(...ids) {
 }
 
 story('types/boss-gives-legendary-then-upgrade', {
-  about: 'An act\'s boss gives one Legendary pick from the pool of 20 (the 10 Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends; after the last act\'s boss there is no pick, just the win. Picking a former evolution plays the metamorphosis.',
+  about: 'An act\'s boss gives one Legendary pick from the Legendary pool (the Legendary treasures and the 10 former evolutions; no Element or Power Bank), then the Attack upgrade pick, then the act ends; after the last act\'s boss there is no pick, just the win. Picking a former evolution plays the metamorphosis.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const once = (pickEvolution) => {
@@ -114,6 +116,61 @@ story('types/stacked-adornments-draw', {
     const stacked = draws();
     const P = run.adorn.pieces, shown = ['ember', 'halo', 'mane', 'sail', 'moon-ring', 'polyps'].filter((k) => P[k]?.group.visible);
     return ok(shown.length === 6 && info.programs.length === programs && stacked - bare <= 30, { shown, bare, stacked, programs, after: info.programs.length });
+  },
+});
+
+// --- Newton's Cradle (overkill): the leftover of a killing hit passes to the nearest bug in 12 cm
+const own = (on) => { const { run } = G(); run.enemies.passes.length = 0; run.owned[on ? 'add' : 'delete']('newtonsCradle'); run.enemies.mods = run.mods; };
+const cradle = () => own(true);
+const hitFor = (e, amount, feedback) => bus.emit('damage_taken', { targetId: e.id, amount, source: 'bubble', feedback });
+const tinyAt = (dx, dz, hp) => roachAt(dx, dz, { still: true, hp });
+const mistake = (src) => { try { compileTreasures(parse(`treasure "x" name="X" icon="x" text="x" {\n${src}\n}`, 't.kdl'), 't.kdl'); return null; } catch (e) { return e.message; } };
+
+story('treasures/overkill', {
+  about: 'overkill (Newton\'s Cradle): a 20 hit on a 5 Health bug takes the 15 left over off a bug 10 cm away; a bug 15 cm away is left alone; without the treasure nothing passes.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { enemies } = G();
+    const trial = (d, owned) => {
+      enemies.clear(); own(owned);
+      const a = tinyAt(0, 0, 5), b = tinyAt(d, 0, 100);
+      hitFor(a, 20); step(10);
+      return b.hp;
+    };
+    const near = trial(0.10, true), far = trial(0.15, true), without = trial(0.10, false);
+    const bad = mistake('overkill passes=0');
+    return ok(Math.abs(near - 85) < 1e-6 && far === 100 && without === 100 && /overkill: reach and least/.test(bad), { near, far, without, bad });
+  },
+});
+
+story('treasures/overkill-three-passes', {
+  about: 'overkill stops after 3 passes from one original hit: a row of five 1-Health bugs 10 cm apart, hit once for plenty, loses the first four (the hit and 3 passes) and the fifth stays.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { enemies } = G(); cradle();
+    const row = [0, 1, 2, 3, 4].map((i) => tinyAt(i * 0.1, 0, 1));
+    hitFor(row[0], 50); step(60);
+    const dead = row.map((e) => e.dead);
+    return ok(dead.slice(0, 4).every(Boolean) && !dead[4], { dead });
+  },
+});
+
+story('treasures/overkill-plain-hits-only', {
+  about: 'overkill ignores Burn/Poison/Bleed ticks and anything under 1 left over; a passed hit never crits and does not itself add on-hit effects.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { enemies } = G(); cradle();
+    const a = tinyAt(0, 0, 5), b = tinyAt(0.1, 0, 100);
+    hitFor(a, 20, { tick: true }); step(10);
+    const tick = b.hp;
+    const c = tinyAt(0.3, 0, 5), d = tinyAt(0.4, 0, 100);
+    hitFor(c, 5.5); step(10);
+    const small = d.hp;
+    const e = tinyAt(0.6, 0, 5), f = tinyAt(0.7, 0, 100);
+    const log = []; const off = bus.on('enemy_hit', (h) => log.push(h));
+    hitFor(e, 20); step(10); off();
+    const passed = log.find((h) => h.targetId === f.id);
+    return ok(tick === 100 && small === 100 && passed && passed.amount === 15 && !passed.feedback?.crit, { tick, small, passed: passed && passed.amount });
   },
 });
 

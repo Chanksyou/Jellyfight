@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v456 replaces the Cream Whipper's cream spray with Piping: its nozzle follows you while your wake glows violet, then a stream of cream lays a 4 cm star-ridged bead along the path you swam, 0.8 s behind you, for 3.5 s (5 s angry); the bead stays 4 s (6 s angry), then sags and fades. Touch it or stand still and it's 3 and a slow: keep moving, don't double back, jump across your line.
+
+v455 adds Newton's Cradle, a Legendary Treasure: when a hit finishes off a bug, the damage left over passes to the nearest bug within 12 cm, up to 3 times.
+
 v454 gives the Moth a new attack in act 4: it climbs about 30 cm over you while a circle and a column fill under it, then drops straight down into it (a jump doesn't clear it) and leaves a puff of black smoke for about a second that hides bugs, XP and pools behind it. Step off the circle to dodge.
 
 v453 makes Act 4's firefly a real flier: it drifts and bobs 12 to 20 cm up, hanging still now and then, and on the bar (every 8 s or so) turns its tail to you and lobs a glowing blob in a slow high arc; a circle and dome fill where it lands, it splashes there (2) and leaves a glowing pool for 10 s that drains 1 Health a second while you stand in it (jump it). Pools from several fireflies add up, at most 12 at once. Its bite is gone.

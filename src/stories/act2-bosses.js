@@ -7,11 +7,11 @@ import { isDeep } from '../sfx.js';
 import { juice } from '../juice.js';
 import { TeleMaterial, VolumeMaterial, hostile } from '../vfx.js';
 import { BALLOON_MID } from '../elites.js';
-import { G, JUMP_FEET, V, act2, balloonWarning, bossHits, byDoor, cameraStory, clogAgain, clogAttack, clogFight, feelSpy, fresh, holdJelly, near, offs, ok, r3, record, shownWarnings, sim, startBalloon, startSpray, step, stub, tp, whipper } from './kit.js';
+import { G, JUMP_FEET, V, act2, balloonWarning, bossHits, byDoor, cameraStory, clogAgain, clogAttack, clogFight, feelSpy, fresh, holdJelly, near, offs, ok, r3, record, shownWarnings, sim, startBalloon, startPiping, step, stub, tp, whipper } from './kit.js';
 
 // --- 3D attacks: the balloon bursts as a whole-sphere Blast round its middle (beside, below or level
-// all count), shown only by its floor circle (no volume, the owner's call); the cream spray is a cone
-// rising as it spreads (jumping doesn't clear it, stepping out does)
+// all count), shown only by its floor circle (no volume, the owner's call); the piping lays a 4 cm
+// bead of cream along the path the jelly swam (jump it; don't double back or stand still)
 function balloonLoose() { step(60 * 3, () => G().run.elites.balloons.length > 0); return G().run.elites.balloons[0]; }
 // where its burst is centred: the middle of its body, above the knot
 const balloonMiddle = (B) => B.m.position.clone().setY(B.m.position.y + B.m.scale.y * BALLOON_MID);
@@ -43,6 +43,7 @@ act2('whipper-balloon-blast-is-a-sphere', {
     // body's top at `off` from the sphere's centre
     const burstWith = (off) => {
       player.position.copy(home); player.grounded = true;
+      step(60 * 6, () => e.state === 'idle');   // (whatever it was doing, the piping takes over 4 s)
       e.cool = 0; e.next = 0;
       const B = balloonLoose();
       if (!B) return -1;
@@ -58,78 +59,118 @@ act2('whipper-balloon-blast-is-a-sphere', {
     return ok(beside === 1 && below === 1 && corner === 0 && hits[0]?.amount === 4 && isDeep(), { beside, below, corner, deep: isDeep() });
   },
 });
-// the cream spray's Warning, as the scene holds it: its floor wedge and its cone volume
-function creamWarning() {
-  const kids = G().APT.scene.children, e = whipper(), mine = (o) => e.tele.includes(o);
-  return { floor: kids.find((o) => mine(o) && o.material instanceof TeleMaterial), volume: kids.find((o) => mine(o) && o.material instanceof VolumeMaterial) };
+// the piping's Warning, as the Whipper holds it: the floor strips along the jelly's wake and the
+// ridge over each (in pairs: a strip, then its ridge)
+function pipingWarning() {
+  const e = whipper();
+  return { floor: e.tele.filter((o) => o.material instanceof TeleMaterial), volume: e.tele.filter((o) => o.material instanceof VolumeMaterial) };
 }
-act2('whipper-cream-warning-has-cone', {
-  about: "The cream spray's Warning is a floor wedge with a cone volume over it, rising as it spreads, filling together; both go after the spray.",
-  setup() { startSpray(); },
+// swim the held jelly down the hall from where it stands at `speed` m/s, weaving 6 cm side to side
+// (never back over its own path), until `until` (each frame); returns where it was each frame
+function swim(player, speed, until) {
+  const o = player.position.clone(), path = [o.clone()];
+  let t = 0;
+  step(60 * 12, (i) => { t += 1 / 60; player.position.set(o.x + Math.sin(t * 2) * 0.06, o.y, o.z - speed * t); path.push(player.position.clone()); return until(i); });
+  return path;
+}
+// one whole piping swum through; the Whipper then rests (no balloon after it)
+function swimPiping(speed = 0.3, each = () => {}) {
+  const e = whipper(), player = holdJelly();
+  let began = false;
+  const path = swim(player, speed, (i) => { each(i); if (e.state === 'windup' && e.attack === 1) began = true; return began && e.state === 'idle'; });
+  e.cool = 1e9;
+  return { e, player, path, beads: G().run.elites.beads };
+}
+const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+act2('whipper-piping-follows-your-path', {
+  about: "Piping: while the jelly swims, its wake glows behind it (floor strips, the low ridge over each, filling together); then the stream lays the bead along exactly where it swam, 0.8 s behind it, for 3.5 s, each piece standing 4 s. Keep moving and it never hits.",
+  setup() { startPiping(); },
   play() {
-    step(400, () => creamWarning().floor);
-    step(10);
-    const w1 = creamWarning(), p1 = [w1.floor?.material.progress, w1.volume?.material.progress];
-    step(10);
-    const w2 = creamWarning(), p2 = [w2.floor?.material.progress, w2.volume?.material.progress];
-    const filling = !!(w1.floor && w1.volume) && Math.abs(p1[0] - p1[1]) < 1e-6 && Math.abs(p2[0] - p2[1]) < 1e-6 && p2[1] > p1[1];
-    let shape = {};
-    if (w1.volume) {
-      const vol = new THREE.Box3().setFromObject(w1.volume), y0 = w1.floor.position.y, tall = vol.max.y - y0;
-      // 34 cm long: about 0.34 * tan(0.45) * 1.5 = 25 cm tall at the far end, standing on the floor
-      shape = { onFloor: vol.min.y > y0 - 0.01, tall: +tall.toFixed(3) };
-      shape.ok = shape.onFloor && tall > 0.2 && tall < 0.3;
-    }
-    step(400, () => whipper().state !== 'windup');
-    const w3 = creamWarning(), gone = !w3.floor && !w3.volume;
-    return ok(filling && shape.ok && gone, { p1, p2, shape, gone });
+    const hits = whipperHits('cream'), els = G().run.elites;
+    let warned = false, paired = true, filled = 0, lag = null;
+    const { e, player, path, beads } = swimPiping(0.3, () => {
+      const w = pipingWarning();
+      if (w.floor.length) {
+        warned = true;
+        paired &&= w.floor.length === w.volume.length && w.floor.every((f, i) => Math.abs(f.material.progress - w.volume[i].material.progress) < 1e-6);
+        filled = Math.max(filled, ...w.floor.map((f) => f.material.progress));
+      }
+      const b = els.beads.at(-1);
+      if (lag == null && els.beads.length > 12) lag = flat(b.a.clone().lerp(b.to, b.u), G().player.position);   // halfway: how far behind the stream lays it
+    });
+    const onPath = (p) => path.some((q) => flat(p, q) < 0.002);
+    const length = beads.reduce((d, b) => d + flat(b.a, b.to), 0);
+    const out = { warned, paired, filled: +filled.toFixed(2), lag: lag && +lag.toFixed(3), pieces: beads.length, length: +length.toFixed(3), onPath: beads.every((b) => onPath(b.a) && onPath(b.to)), life: [...new Set(beads.map((b) => b.life))], hits: hits.length, warningGone: !pipingWarning().floor.length && !G().run.elites.stream.visible };
+    // 3.5 s at 0.3 m/s (and a little weave): about 1.06 m of bead in 29 pieces; the stream 0.8 s (24 cm) behind
+    return ok(warned && paired && out.filled > 0.8 && out.lag > 0.2 && out.lag < 0.29 && out.pieces === 29 && out.length > 1.0 && out.length < 1.15 && out.onPath && out.life.join() === '4' && !out.hits && out.warningGone, out);
   },
 });
-act2('whipper-cream-hits-inside-the-cone-even-mid-jump', {
-  about: "A jelly in the air inside the cream cone is still hit (3, and slowed); one beside the cone on the floor isn't.",
-  setup() { startSpray(); },
+act2('whipper-piping-touched-hits-once-and-slows', {
+  about: "Swimming back into the piped bead hits the jelly (3) and slows it; touching it again, anywhere along it, doesn't hit again (once a piping).",
+  setup() { fresh({ hurt: true, bubbles: false, lash: false }); byDoor(); const e = whipper(); e.cool = 0; e.next = 1; },
   play() {
-    const hits = whipperHits('cream');
-    step(400, () => creamWarning().floor);
-    const { floor } = creamWarning(), a = floor.rotation.y, apex = floor.position.clone();
-    const dir = V(Math.sin(a), 0, Math.cos(a)), side = V(Math.cos(a), 0, -Math.sin(a));
-    step(400, () => whipper().state === 'windup' && whipper().stateT >= 0.8);   // just before it sprays (0.85)
-    const player = holdJelly();
-    player.position.copy(apex).addScaledVector(dir, 0.2).addScaledVector(side, 0.2).setY(apex.y); player.grounded = true;   // 20 cm to the side, the wedge is 10 cm wide there
-    step(10);
-    const beside = hits.length;
-    player.position.copy(apex).addScaledVector(dir, 0.2).setY(apex.y + 0.15); player.grounded = false;                     // feet 15 cm up: high in a jump
-    step(10);
-    const inside = hits.length - beside;
-    return ok(beside === 0 && inside === 1 && hits[0]?.amount === 3 && G().run.slowT > 0, { beside, inside, slowed: G().run.slowT > 0 });
+    const hits = whipperHits('cream'), { player, beads } = swimPiping();
+    const on = (b) => { player.position.copy(b.a).lerp(b.to, 0.5); player.grounded = true; step(3); };
+    on(beads[10]); const first = hits.length, slowed = G().run.slowT > 0;
+    on(beads[20]); on(beads[25]);
+    return ok(first === 1 && hits.length === 1 && hits[0].amount === 3 && slowed, { first, total: hits.length, amount: hits[0]?.amount, slowed });
   },
 });
-act2('whipper-cream-jumped-over-near-the-nozzle', {
-  about: "Near the nozzle the cream cone is low (it rises as it spreads): a jelly 5 cm out along it with its feet 10 cm up is above it and isn't hit; one there with its feet 1 cm up is inside it and is (3).",
-  setup() { startSpray(); },
+act2('whipper-piping-jumped-over', {
+  about: "The bead is 4 cm tall: a jelly over it with its feet 5 cm up (jumping across its own line) isn't hit; one with its feet 3 cm up is in it and is.",
+  setup() { startPiping(); },
   play() {
-    const hits = whipperHits('cream');
-    step(400, () => creamWarning().floor);
-    const { floor } = creamWarning(), a = floor.rotation.y, apex = floor.position.clone(), dir = V(Math.sin(a), 0, Math.cos(a));
-    step(400, () => whipper().state === 'windup' && whipper().stateT >= 0.8);   // just before it sprays (0.85)
-    const player = holdJelly();
-    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.1); player.grounded = false;   // the cone is about 6 cm tall there
-    step(10);
-    const above = hits.length;
-    player.position.copy(apex).addScaledVector(dir, 0.05).setY(apex.y + 0.01);
-    step(10);
-    const inside = hits.length - above;
-    return ok(above === 0 && inside === 1 && hits[0]?.amount === 3, { above, inside });
+    const hits = whipperHits('cream'), { player, beads } = swimPiping(), b = beads[14], mid = b.a.clone().lerp(b.to, 0.5);
+    player.position.copy(mid).setY(b.a.y + 0.05); player.grounded = false; step(5);
+    const over = hits.length;
+    player.position.copy(mid).setY(b.a.y + 0.03); step(5);
+    return ok(over === 0 && hits.length === 1, { over, inside: hits.length - over });
   },
 });
-for (const [atk, name] of [[0, 'balloon'], [1, 'cream']]) {
+act2('whipper-piping-catches-a-still-jelly', {
+  about: "A jelly that stands still is caught: the stream reaches it 0.8 s after the piping starts and lays the bead on it (3, slowed).",
+  setup() { startPiping(); },
+  play() {
+    const e = whipper(), hits = whipperHits('cream');
+    holdJelly();
+    let began = -1;
+    const at = step(60 * 3, (i) => { if (began < 0 && e.state === 'windup' && e.attack === 1) began = i; return hits.length > 0; });
+    const after = (at - began) / 60;
+    return ok(hits.length === 1 && hits[0].amount === 3 && G().run.slowT > 0 && after > 0.75 && after < 0.9, { hits: hits.length, after: +after.toFixed(2), slowed: G().run.slowT > 0 });
+  },
+});
+act2('whipper-piping-bead-expires', {
+  about: "Each piece of the bead hurts for 4 s after it's laid, then sags flat and fades (0.6 s) and can't hurt any more; then it's gone.",
+  setup() { startPiping(); },
+  play() {
+    const hits = whipperHits('cream'), { player, beads } = swimPiping(), els = G().run.elites, b0 = beads[0], away = player.position.clone();
+    const put = (p) => { player.position.copy(p); step(2); const n = hits.length; player.position.copy(away); step(1); return n; };
+    step(600, () => b0.t > b0.life - 0.3);
+    const standing = put(b0.a);
+    b0.bead.hit = false;   // (it hits once a piping: let it again, to see that sagging it doesn't)
+    step(600, () => b0.t > b0.life + 0.4);
+    const sagging = put(b0.a) - standing, flatter = b0.m.scale.y < b0.m.scale.x * 0.8 && b0.m.userData.opacity < 0.5;
+    const n = step(60 * 6, () => !els.beads.length);
+    return ok(standing === 1 && sagging === 0 && flatter && !els.beads.length && n < 60 * 5, { standing, sagging, flatter, goneAfter: +(n / 60).toFixed(2) });
+  },
+});
+act2('whipper-piping-angry', {
+  about: "Angry (under 65% Health), the Cream Whipper pipes for 5 s (41 pieces at 0.3 m/s) and its bead stands 6 s.",
+  setup() { startPiping(); whipper().hp = whipper().maxHp * 0.4; },
+  play() {
+    const { beads } = swimPiping();
+    return ok(beads.length === 41 && beads.every((b) => b.life === 6), { pieces: beads.length, life: [...new Set(beads.map((b) => b.life))] });
+  },
+});
+for (const [atk, name] of [[0, 'balloon'], [1, 'piping']]) {
   act2(`whipper-${name}-builds-no-shader`, {
-    about: `Starting the Cream Whipper's ${name} builds no new shader: its Warning (${atk ? 'a floor wedge and its cone' : 'a floor circle, no volume'}) was built behind Play.`,
-    setup() { if (atk) startSpray(); else startBalloon(); },
+    about: `Starting the Cream Whipper's ${name} builds no new shader: its Warning (${atk ? 'the wake strips and their ridges' : 'a floor circle, no volume'})${atk ? ', its stream and its bead were' : ' was'} built behind Play.`,
+    setup() { if (atk) startPiping(); else startBalloon(); },
     play() {
-      const { APT, batcher } = G(), programs = APT.renderer.info.programs.length;
+      const { APT, batcher, run } = G(), programs = APT.renderer.info.programs.length;
       let shown = {};
-      if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); } else { step(400, () => creamWarning().floor); step(5); shown = creamWarning(); }
+      if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); }
+      else { holdJelly(); step(400, () => run.elites.beads.length && run.elites.stream?.visible); shown = { floor: pipingWarning().floor[0], volume: pipingWarning().volume[0] }; }
       batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown.floor && !!shown.volume === !!atk && newShaders === 0, { newShaders, volume: !!shown.volume });

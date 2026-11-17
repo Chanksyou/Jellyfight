@@ -273,6 +273,7 @@ export class Enemies {
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
     this.missiles = [];       // ladybugs' homing missiles in flight (the sortie word)
+    this.passes = [];         // Newton's Cradle: leftover damage on its way to the next bug
     this.lockMarks = [];      // pooled: the reticle round you while a ladybug locks on
     this.chargeMarks = [];    // pooled: the lane in front of each millipede about to roll (the ball-charge word)
 
@@ -453,7 +454,7 @@ export class Enemies {
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
     if (!e || e.dead) return;
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
-    if (!feedback.tick) {                // status-damage: a hit on a bug with a status does more (Shatter thaws it)
+    if (!feedback.tick && !feedback.pass) {   // (a Cradle pass is plain: no status-damage or fresh-damage) status-damage: a hit on a bug with a status does more (Shatter thaws it)
       const k = this.statusMore(e, feedback.by), blast = this._blast, share = this._blastDmg;
       amount *= k;
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
@@ -481,6 +482,7 @@ export class Enemies {
     }
     if (e.markT > 0) amount *= 1 + (e.markMore ?? 0.5);   // Sticky Note
     e.hp -= amount;
+    if (e.hp <= 0) this.overkill(e, -e.hp, feedback);   // Newton's Cradle: the leftover
     e.lastElement = feedback.element;     // what finished it, if this was the last hit (feedback.js: a glitter-finished bug bursts into glitter)
     if (feedback.dir) (e.lastDir ||= new THREE.Vector3()).copy(feedback.dir).multiplyScalar(feedback.slam ? -1 : 1);   // which way it was hit (a wind-finished bug is blown that way; off a wall, back out)
     else e.lastDir?.set(0, 0, 0);
@@ -493,6 +495,35 @@ export class Enemies {
     const X = this.mods?.execute;
     if (X && e.hp > 0 && e.hp < e.maxHp * X.under) { this.sliced(e); e.hp = 0; }   // execute (Pizza Cutter)
     if (e.hp <= 0) this.kill(e);
+  }
+
+  // overkill (Newton's Cradle): what a killing hit had left over passes to the nearest bug in reach, a beat later
+  // (queued, delivered in update(): never a hit inside a hit). A passed hit is plain and can pass again.
+  overkill(e, left, feedback) {
+    const O = this.mods?.overkill, depth = feedback.pass || 0;
+    if (!O || feedback.tick || depth >= O.passes || left < O.least) return;
+    const from = this.center(e, new THREE.Vector3());
+    let best = null, bestD = O.reach;
+    for (const n of this.list) {
+      if (n === e || n.dead || n.proxy?.immune) continue;
+      const d = this.center(n, S.o).distanceTo(from);
+      if (d <= bestD) { best = n; bestD = d; }
+    }
+    if (best) this.passes.push({ at: (this.now ?? 0) + LOOK.num('cradle-delay', 0.06), from, to: best.id, amount: left, depth: depth + 1 });
+  }
+  deliverPasses() {
+    for (let i = 0; i < this.passes.length; i++) {
+      const p = this.passes[i];
+      if (p.at > this.now) continue;
+      this.passes.splice(i--, 1);
+      const n = this.byId.get(p.to);
+      if (!n || n.dead) continue;
+      const c = this.center(n, S.o);
+      this.treasureLooks?.signal(p.from, c);
+      this.fx.impact(c, FRIENDLY(), n.r * 0.5, 5);
+      sfx.cradle(p.depth);
+      bus.emit('damage_taken', { targetId: n.id, amount: p.amount, color: '#9ff3ff', source: 'cradle', feedback: { pass: p.depth } });
+    }
   }
 
   // execute: the moment a low bug is finished off, a white slash across it
@@ -562,6 +593,7 @@ export class Enemies {
   }
 
   clear() {
+    this.passes.length = 0;
     for (const e of this.list) {
       if (e.dead) continue; // Death effects own dead models until their own cleanup.
       e.chargeSound?.(); e.chargeSound = null;   // a whine that was charging stops with the bug
@@ -1405,6 +1437,7 @@ export class Enemies {
   update(dt, player, t, decoy = null) {
     this.frame++;
     this.now = t;
+    if (this.passes.length) this.deliverPasses();
     this.playerRadius = player.radius;
     this.player = player;
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
