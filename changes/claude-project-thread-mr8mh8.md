@@ -1,0 +1,1 @@
+fits the title screen on a short landscape phone, gives Achievements a scroll area above a solid footer, hides the thumb ring in Change your look, adds a close button and a slimmer header to the Treasure book, and hides the Dev button and fps readout from players (five taps on the version bring up Dev).

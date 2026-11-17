@@ -262,3 +262,80 @@ phone('camera-turn-hint-until-first-drag', {
       { newPlayer, swing: +swing.toFixed(3), settled, restStill, hidden, keptHidden, back });
   },
 });
+
+phone('title-fits-short-landscape', {
+  about: 'On an 844x390 phone the title screen fits without scrolling, even with the Share tip and a Continue button showing.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.getElementById('g-over'), box = over.firstElementChild, resume = over.querySelector('.resume'), tip = over.querySelector('.home-tip');
+    over.classList.add('menu-home'); over.hidden = false;
+    tip.hidden = false; resume.hidden = false; resume.textContent = 'Continue run'; step(1);
+    const m = { scroll: box.scrollHeight, shown: box.clientHeight, window: innerHeight };
+    over.classList.remove('menu-home'); over.hidden = true; tip.hidden = true; resume.hidden = true;
+    return ok(m.scroll <= m.shown && m.shown <= m.window, m);
+  },
+});
+
+phone('achievements-footer-is-solid', {
+  about: 'The Achievements list scrolls above its own footer: the cards never run under the Share, Top 5 and Back buttons, and the footer is not see-through.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G();
+    run.showAchievements(() => {}); step(1);
+    const list = document.querySelector('.jf-achievements .jf-scroll'), foot = document.querySelector('.jf-achievements .btns');
+    const l = list.getBoundingClientRect(), f = foot.getBoundingClientRect();
+    const alpha = getComputedStyle(foot).backgroundColor.match(/[\d.]+/g)[3] ?? '1';
+    const m = { listBottom: Math.round(l.bottom), footTop: Math.round(f.top), scrolls: list.scrollHeight > list.clientHeight, alpha, listHeight: Math.round(l.height) };
+    run.ui.close();
+    return ok(l.bottom <= f.top + 0.5 && m.scrolls && +alpha === 1 && l.height > 120, m);
+  },
+});
+
+phone('creator-hides-touch-controls', {
+  about: 'Opening Change your look hides the thumb controls, even if they were showing, so no dashed move ring sits over the creator.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.getElementById('g-over');
+    step(1);
+    const shown = !document.getElementById('touch').hidden;
+    over.hidden = false;
+    over.querySelector('[data-act="creator"]').click(); step(2);
+    const hidden = document.getElementById('touch').hidden;
+    document.querySelector('#creator [data-act="done"]').click(); over.hidden = true; step(2);
+    const back = !document.getElementById('touch').hidden;
+    return ok(shown && hidden && back, { shown, hidden, back });
+  },
+});
+
+phone('book-has-close-button', {
+  about: 'The Treasure book has a 44 px close button at its top right and a compact header, so a phone player can always leave it.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(); let left = 0;
+    run.showBook(() => { left++; }); step(1);
+    const book = document.querySelector('.jf-book'), x = book.querySelector('.jf-x'), head = book.querySelector('.jf-head');
+    const b = book.getBoundingClientRect(), r = x.getBoundingClientRect();
+    const m = { size: [Math.round(r.width), Math.round(r.height)], rightGap: Math.round(b.right - r.right), topGap: Math.round(r.top - b.top), head: Math.round(head.getBoundingClientRect().height) };
+    x.click();
+    return ok(r.width >= 44 && r.height >= 44 && m.rightGap < 20 && m.topGap < 20 && m.head <= 90 && left === 1, { ...m, left });
+  },
+});
+
+phone('dev-button-and-fps-hidden-from-players', {
+  about: 'The title screen shows no Dev button and no fps readout to a player. Five quick taps on the version bring up the Dev button; the fps readout appears only once dev is unlocked.',
+  setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },
+  play() {
+    const over = document.getElementById('g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
+    over.classList.remove('dev-ask', 'dev-open', 'dev-reveal'); over.hidden = false;
+    const hiddenAtFirst = !shown('.dev-btn') && !shown('#g-fps');
+    const ver = over.querySelector('.ver');
+    for (let i = 0; i < 4; i++) ver.click();
+    const stillHidden = !shown('.dev-btn');
+    ver.click();
+    const revealed = shown('.dev-btn');
+    over.classList.add('dev-open');
+    const fps = shown('#g-fps');
+    over.classList.remove('dev-open', 'dev-reveal'); over.hidden = true;
+    return ok(hiddenAtFirst && stillHidden && revealed && fps, { hiddenAtFirst, stillHidden, revealed, fps });
+  },
+});

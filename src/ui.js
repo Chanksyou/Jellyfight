@@ -86,7 +86,11 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-book { width: min(900px, 94vw); max-height: 92vh; overflow-y: auto; padding: 12px 12px 16px; box-sizing: border-box; background: #12142af0; border-radius: 16px; }
 .jf-book h3 { margin: 18px 0 8px; font-size: 17px; text-align: left; }
 .jf-book h3 small { opacity: .65; font-weight: 600; }
-.jf-book .say { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 10px; min-height: 2.6em; font-size: 14px; background: #1d2034f0; border-radius: 10px; }
+.jf-book h2 { font-size: 22px; }
+.jf-book .jf-head { position: sticky; top: 0; z-index: 2; margin: -12px -12px 0; padding: 8px 56px 6px; background: #12142a; border-radius: 16px 16px 0 0; }
+.jf-book .jf-head .sub { margin: 2px 0 0; font-size: 13px; }
+.jf-book .say { margin: 4px 0 0; padding: 4px 10px; font-size: 13px; background: #1d2034f0; border-radius: 10px; }
+.jf-x { position: absolute; top: 4px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ffffff1c; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
 .jf-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
 .jf-book-grid button { font: 600 11px system-ui, sans-serif; color: #fff; background: color-mix(in srgb, var(--c, #fff) 12%, #1d2034); border: 2px solid var(--c, #ffffff22); border-radius: 10px;
   padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
@@ -94,14 +98,16 @@ body.calm .jf-sheen, body.calm .jf-pick .jf-card, body.calm .jf-pick .jf-card.jf
 .jf-book-grid button:disabled { cursor: default; opacity: .4; }
 .jf-book-grid button.locked { opacity: .6; border-style: dashed; }
 .jf-book-grid button.locked .ic { filter: brightness(0); }   /* a locked jelly type: its silhouette */
-.jf-achievements > p { font-size: 13px; line-height: 1.5; }
+.jf-achievements .jf-scroll > p { font-size: 13px; line-height: 1.5; }
 .jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 10px; text-align: left; }
 .jf-achievements article { border: 1px solid #ffffff33; border-radius: 12px; padding: 12px; background: #ffffff08; }
 .jf-achievements article.earned { border-color: #7ff6ee; background: #7ff6ee12; }
 .jf-achievements article h3 { margin: 0 0 6px; }
 .jf-achievements article p { font-size: 13px; line-height: 1.45; margin: 0 0 10px; }
 .jf-achievements article small { display: block; font-size: 12px; opacity: .8; line-height: 1.4; }
-.jf-achievements .btns { position: sticky; bottom: 0; padding: 8px; background: #12142af0; }
+.jf-achievements { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.jf-achievements .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 0; }
+.jf-book.jf-achievements .btns { flex: none; margin: 0 -12px; max-width: none; padding: 8px; background: #12142a; border-top: 1px solid #ffffff22; }
 .jf-modal .btns { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
 .jf-modal .btns button { font: 600 15px system-ui, sans-serif; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; background: #ffffff1c; color: #fff; }
 .jf-modal .btns button.go { background: #ffd23a; color: #1d1a12; }
@@ -382,12 +388,12 @@ export class UI {
     this._gen++;
     const count = items.filter(a => a.earned).length;
     this.modal.innerHTML = `<section class="jf-book jf-achievements" aria-label="Achievements">
-      <h2>🏅 Achievements</h2><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p>
-      <p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
+      <div class="jf-head"><h2>🏅 Achievements</h2><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p><button class="jf-x" data-back aria-label="Close">✕</button></div>
+      <div class="jf-scroll"><p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
       ${onTop ? `<p>${count ? 'Share your earned total with the achievement leaderboard.' : 'Earn an achievement to share your total with the leaderboard.'}</p>` : ''}
       <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
         <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
-        ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div>
+        ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div></div>
       <div class="btns">${onTop ? `<button data-share ${count ? '' : 'disabled'}>Share achievements</button><button data-top>🏆 Top 5 players</button>` : ''}<button class="go">Back</button></div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
@@ -455,7 +461,7 @@ export class UI {
       ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || '#7ff6ee'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
       : it.locked ? `<button class="locked" data-say="${esc(`${it.name}: ${it.locked}`)}"><span class="ic">${it.icon}</span><span>${esc(it.locked)}</span></button>`   // locked: a silhouette with its goal
         : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
-    this.modal.innerHTML = `<div class="jf-book"><h2>${title}</h2><p class="say" aria-live="polite">Select a discovery to read more.</p>
+    this.modal.innerHTML = `<div class="jf-book"><div class="jf-head"><h2>${title}</h2><button class="jf-x" data-back aria-label="Close">✕</button><p class="say" aria-live="polite">Select a discovery to read more.</p></div>
       ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
       <div class="btns"><button class="go" data-back>Back</button></div></div>`;
     this.modal.hidden = false;
