@@ -485,7 +485,7 @@ function closeLayout() {
   input.enabled = true;
   hud.el.hidden = false;
   // things placed on furniture need checking again (treasure spots, the player's footing)
-  if (layoutChanged) { run.spots = null; run.start(); mapFurniture(); }
+  if (layoutChanged) { run.spots = null; run.start(); }
   tpc.snapTo(player.position);
   overlay.hidden = false;
 }
@@ -528,7 +528,6 @@ async function loadRooms(parts, onProgress) {
   applyLayout(APT.root, stage.id);
   world.addObjects(added);
   added.forEach((o) => statics.add(o));
-  mapFurniture();
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
   added.forEach((o) => box.expandByObject(o));

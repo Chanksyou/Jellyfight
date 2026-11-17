@@ -137,7 +137,7 @@ body.calm #hud .hurt.on { opacity: .25; }
   #hud .clock { font-size: 19px; }
   #hud .stage { margin-top: 2px; }
   #hud .boss { top: calc(env(safe-area-inset-top, 0px) + 70px); }
-  #hud .toast { top: 30%; }
+  #hud .toast { top: 28%; padding: 6px 14px; font-size: var(--ui-size-body); }
   #hud .toast.stamp { font-size: 26px; }
   #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
 }
