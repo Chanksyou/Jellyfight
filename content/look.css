@@ -376,6 +376,11 @@
   --stomp-squeeze: 0.8;
   --stomp-squash: 0.55;
   --stomp-squash-time: 0.3;
+  /* a swatted Shot (Badminton Racket, enemies.js swatShots): how much faster it flies back, how long it lives (s),
+     and how far (m) it looks for another bug when its owner is gone */
+  --swat-speed: 1.5;
+  --swat-life: 1.5;
+  --swat-spare-reach: 0.3;
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;

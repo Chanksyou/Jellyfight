@@ -487,6 +487,7 @@ export class Bubbles {
       if (mods.wobble && !b.orb) this.wobble(b, mods.wobble, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
+      if (mods.swat) E.swatShots(b.m.position, b.r + mods.swat.reach);   // Badminton Racket: knocks a bug's Shot back
       if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
         b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
         if(!this.treasureLooks.quiet)this.treasureLooks.streak(b.m.position.clone().addScaledVector(b.vel,-.045),b.m.position,this.treasureLooks.disco,.0008,.14);
@@ -915,6 +916,7 @@ export class Bubbles {
     const p = b.m.position, E = this.enemies, c = this._c, r = SPLASH * (b.r / RADIUS) * (b.ep?.width ?? 1);
     this.poisonPw = b.pw;   // what a stack from Toxic Cloud or Burst Sac is worth: the blob's own (its share with more Attacks)
     this.looks.poisonBurst(p, r);
+    E.swatShots(p, r);   // Badminton Racket
     for (const e of E.list) {
       if (e.dead || E.center(e, c).distanceTo(p) >= r + e.r) continue;
       this.poison(e, b.pw, b.ep);
@@ -933,6 +935,7 @@ export class Bubbles {
     const floor = E.floorBelow(p, p.y - 0.03);
     this.looks.sparkleCloud(p, r, floor, roll ? STATUS_TINT[roll] : null, crit);
     this.looks.glitterPop(p, r);
+    E.swatShots(p, r);   // Badminton Racket
     if (crit) { this.fx.crit(p, Math.min(0.02, r * 0.3)); sfx.crit(); }
     else juice.feel('hit-big');
     const amount = b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) * (crit ? C.mult : 1);

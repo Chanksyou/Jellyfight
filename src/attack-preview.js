@@ -110,6 +110,7 @@ export class AttackPreview {
       center: (e, out = new THREE.Vector3()) => out.copy(e.pos).setY(e.pos.y + e.r),
       floorBelow: () => 0,
       statusMore: () => 1,
+      swatShots() {},   // (Badminton Racket: no Shots in a preview)
     };
     const P = this.P = { scene, camera, batch, world, enemies, deadT: 0 };
     quietly(P, () => {

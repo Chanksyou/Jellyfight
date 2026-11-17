@@ -289,6 +289,19 @@ export const sfx = {
     tone('sine', 170 * j, 80, 0.09 + 0.05 * k, 0.03 + 0.05 * k);
     for (let i = 0; i < 2 + Math.round(2 * k); i++) noise((2200 + Math.random() * 1600) * j, 3, 0.015, 0.015 + 0.015 * k, 'bandpass', 0.04 + i * 0.035);
   },
+  // swat (Badminton Racket): a short swish as the Shot is hit, a thwock when it lands on its owner
+  racketSwat() {
+    if (!ready() || !gap('racketSwat', 60)) return;
+    const j = jitter(0.06);
+    noise(3200 * j, 2, 0.07, 0.035, 'bandpass', 0, 1400);
+    tone('triangle', 900 * j, 1500 * j, 0.06, 0.03);
+  },
+  thwock() {
+    if (!ready() || !gap('thwock', 60)) return;
+    const j = jitter(0.06);
+    tone('sine', 220 * j, 90, 0.09, 0.07);
+    noise(1800 * j, 2, 0.04, 0.04, 'bandpass');
+  },
   // a stomp (Pogo Stick; n: stomps in a row before it, 0 for the first): a soft thump on the bug's back
   // under a springy boing, a whole tone higher each stomp in a row
   stomp(n = 0) {

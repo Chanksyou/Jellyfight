@@ -123,6 +123,7 @@ export class Lash {
     const targets = sweep ? all : all.slice(0, stats.tentacles);
     if (!targets.length) return false;
     this.count++;
+    this.enemies.swatShots(origin, reach, true);   // Badminton Racket: one bug Shot in reach
     this.flare = 0;
     if (sweep?.sting) this.stings = 0;
     const X = sweep && { sweep: true, bleed: sweep.bleed };
