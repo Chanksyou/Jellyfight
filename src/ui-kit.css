@@ -35,7 +35,6 @@
   font: 600 var(--ui-size-body)/1.1 var(--ui-font-text); text-decoration: none; cursor: pointer; touch-action: manipulation;
   transition: transform var(--ui-fast) var(--ui-ease-out), background-color var(--ui-fast), box-shadow var(--ui-fast), filter var(--ui-fast);
 }
-.ui-btn:hover { background: var(--ui-glass-strong); }
 .ui-btn:active { transform: scale(.96); }
 .ui-btn:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 3px; }
 .ui-btn:disabled, .ui-btn[aria-disabled="true"] { opacity: .45; cursor: default; transform: none; }
@@ -43,10 +42,8 @@
   padding: 0 var(--ui-space-5); border-color: transparent; background: var(--ui-gold); color: var(--ui-gold-ink);
   font: 600 var(--ui-size-heading)/1 var(--ui-font-display); box-shadow: 0 4px 0 var(--ui-gold-deep), 0 8px 22px var(--ui-shade);
 }
-.ui-btn--primary:hover { background: var(--ui-gold); filter: brightness(1.08); }
 .ui-btn--primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ui-gold-deep), 0 4px 12px var(--ui-shade); }
 .ui-btn--ghost { border-color: transparent; background: transparent; color: var(--ui-ink-dim); }
-.ui-btn--ghost:hover { background: var(--ui-glass); color: var(--ui-ink); }
 .ui-btn--icon { width: var(--ui-target); padding: 0; border-radius: 50%; }
 .ui-btn--icon .ui-icon { width: 22px; height: 22px; }
 
@@ -83,7 +80,6 @@
 .ui-card[data-rarity="epic"] { --rarity: var(--ui-epic); }
 .ui-card[data-rarity="legendary"] { --rarity: var(--ui-legendary); }
 button.ui-card { cursor: pointer; transition: transform var(--ui-fast) var(--ui-ease-out), box-shadow var(--ui-fast); }
-button.ui-card:hover { transform: translateY(-2px); box-shadow: 0 0 26px -6px var(--rarity), 0 10px 24px var(--ui-shade); }
 button.ui-card:active { transform: scale(.98); }
 button.ui-card:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 3px; }
 .ui-card-icon { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; font-size: 28px; line-height: 1; }
@@ -101,7 +97,6 @@ button.ui-card:focus-visible { outline: 2px solid var(--ui-mint); outline-offset
   transition: transform var(--ui-fast) var(--ui-ease-out), background-color var(--ui-fast);
 }
 .ui-tile .ui-icon { width: 24px; height: 24px; color: var(--ui-mint); }
-.ui-tile:hover { background: var(--ui-glass-strong); }
 .ui-tile:active { transform: scale(.96); }
 .ui-tile:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 3px; }
 
@@ -133,9 +128,18 @@ button.ui-chip { min-height: var(--ui-target); padding: 0 var(--ui-space-3); cur
   min-width: var(--ui-target); min-height: var(--ui-target); padding: 0 var(--ui-space-4); border: 0; border-radius: var(--ui-radius-pill);
   background: transparent; color: var(--ui-ink-dim); font: 600 var(--ui-size-body)/1 var(--ui-font-text); cursor: pointer; transition: background-color var(--ui-fast), color var(--ui-fast);
 }
-.ui-seg > button:hover { color: var(--ui-ink); }
 .ui-seg > button[aria-pressed="true"] { background: var(--ui-mint); color: var(--ui-deep); }
 .ui-seg > button:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 2px; }
+
+/* --- hover: only where there is a mouse (a phone keeps a tapped piece "hovered" until the next tap) */
+@media (hover: hover) {
+  .ui-btn:hover { background: var(--ui-glass-strong); }
+  .ui-btn--primary:hover { background: var(--ui-gold); filter: brightness(1.08); }
+  .ui-btn--ghost:hover { background: var(--ui-glass); color: var(--ui-ink); }
+  button.ui-card:hover { transform: translateY(-2px); box-shadow: 0 0 26px -6px var(--rarity), 0 10px 24px var(--ui-shade); }
+  .ui-tile:hover { background: var(--ui-glass-strong); }
+  .ui-seg > button:hover { color: var(--ui-ink); }
+}
 
 /* --- motion: arrive with a little overshoot, leave quickly; a reward pops */
 .ui-enter { animation: ui-in var(--ui-mid) var(--ui-ease-in) both; }

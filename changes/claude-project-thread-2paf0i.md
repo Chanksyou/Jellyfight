@@ -1,0 +1,1 @@
+UI kit follow-up: buttons, tiles and cards light up on hover only with a mouse, so a tapped one on a phone no longer stays lit; the 12 px and 44 px guards now measure each screen after it has faded in, and list the small text and short buttons that were hiding behind the fade.
