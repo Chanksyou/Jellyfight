@@ -1242,8 +1242,6 @@ export class Enemies {
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
-  // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
-  // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
   // ---------------------------------------------------------------- the firefly (lob)
   lobWind(e, dur) { sfx.glowWind(dur); }
   // the throw: from the tip of its lamp (behind it), at the floor under where you are now
@@ -1252,6 +1250,8 @@ export class Enemies {
     const from = S.spot.set(e.pos.x - Math.sin(a) * k * 1.5, e.pos.y + k * 0.3, e.pos.z - Math.cos(a) * k * 1.5);
     this.glowPools.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type);
   }
+  // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
+  // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
   biteWind(e, dur) { sfx.biteWind(dur); }
   biteGo(e) { sfx.biteGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.5, 0.2); }
   bite(e, c, dmg) {

@@ -71,6 +71,7 @@ export class GlowPools {
   }
 
   update(dt, player, t) {
+    if (!this.lobs.length && !this.pools.length) return;
     const glow = this.fx.glow, P = player.position;
     // in flight: across steadily, up and down in an arc `peak` over the line, Warning filling
     for (const L of this.lobs) {
@@ -94,8 +95,7 @@ export class GlowPools {
     let drain = 0, from = null;
     for (const D of this.pools) {
       D.t -= dt;
-      const grow = Math.min(1, D.age = (D.age || 0) + dt * 6), fade = Math.min(1, Math.max(0, D.t) / FADE);
-      D.m.scale.setScalar(D.r * (0.6 + 0.4 * grow));
+      const fade = Math.min(1, Math.max(0, D.t) / FADE);   // full size from the splash: where it shows is where it hurts
       D.m.userData.color.copy(this.color);
       D.m.userData.opacity = base * fade * (0.85 + 0.15 * Math.sin(t * 3 + D.phase));   // a slow throb: it's still live
       if (D.live && D.t > FADE && player.grounded && Math.abs(P.y - D.at.y) < 0.02 && Math.hypot(P.x - D.at.x, P.z - D.at.z) < D.r) { drain += D.drain; from = D; }
@@ -127,7 +127,7 @@ export class GlowPools {
     const live = this.pools.filter((D) => D.live);
     for (let i = 0; i <= live.length - L.most; i++) { live[i].live = false; live[i].t = Math.min(live[i].t, FADE); }   // the oldest fade first
     const m = this.pool(at, R);
-    this.pools.push({ m, at: at.clone(), r: R, t: L.last, drain: L.drain, live: true, source: L.source, phase: Math.random() * 6, age: 0 });
+    this.pools.push({ m, at: at.clone(), r: R, t: L.last, drain: L.drain, live: true, source: L.source, phase: Math.random() * 6 });
   }
 
   // a pool's mesh, shown at `at` (drawn instanced with the others: batch.js tracks it while it's in the scene)
@@ -135,7 +135,7 @@ export class GlowPools {
     const m = this.spare.pop() || new THREE.Mesh(this.geo, this.mat);
     m.userData.color ||= new THREE.Color();
     m.position.copy(at).setY(at.y + 0.0012);
-    m.scale.setScalar(R * 0.6);
+    m.scale.setScalar(R);
     m.userData.opacity = 0;
     this.scene.add(m);
     batcher.track(m);
