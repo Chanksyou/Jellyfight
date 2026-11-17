@@ -72,6 +72,7 @@
   --gadget-gold: #f5e7a7;
   --gadget-signal: #a5e5ff;
   --gadget-fizz: #b7ffe4;
+  --cradle-delay: 0.06;          /* s between a bug dying and its leftover damage landing on the next (Newton's Cradle) */
   --gadget-silver: #d3eaff;
   --gadget-cotton: #e8e5ff;
   --gadget-duck: #a8e9ce;
