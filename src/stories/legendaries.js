@@ -179,7 +179,7 @@ const mistake = (src) => { try { compileTreasures(parse(`treasure "x" name="X" i
 
 story('treasures/overkill', {
   about: 'overkill (Newton\'s Cradle): a 20 hit on a 5 Health bug takes the 15 left over off a bug 10 cm away; a bug 15 cm away is left alone; without the treasure nothing passes.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G();
     const trial = (d, owned) => {
@@ -196,7 +196,7 @@ story('treasures/overkill', {
 
 story('treasures/overkill-three-passes', {
   about: 'overkill stops after 3 passes from one original hit: a row of five 1-Health bugs 10 cm apart, hit once for plenty, loses the first four (the hit and 3 passes) and the fifth stays.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G(); cradle();
     const row = [0, 1, 2, 3, 4].map((i) => tinyAt(i * 0.1, 0, 1));
@@ -208,7 +208,7 @@ story('treasures/overkill-three-passes', {
 
 story('treasures/overkill-plain-hits-only', {
   about: 'overkill ignores Burn/Poison/Bleed ticks and anything under 1 left over; a passed hit never crits and does not itself add on-hit effects.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); step(2); },   // a frame first: Enemies.now is the last run's clock until it updates
   play() {
     const { enemies } = G(); cradle();
     const a = tinyAt(0, 0, 5), b = tinyAt(0.1, 0, 100);
