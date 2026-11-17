@@ -321,6 +321,39 @@ phone('book-has-close-button', {
   },
 });
 
+phone('book-close-is-in-view-and-sections-are-tabs', {
+  about: 'The Treasure book opens with its close button in view without scrolling, the sections are tabs (one shown at a time), and an unfound tile says where to find it instead of "???".',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G();
+    run.showBook(() => {}); step(1);
+    const book = document.querySelector('.jf-book'), x = book.querySelector('.jf-x').getBoundingClientRect(), tabs = [...book.querySelectorAll('.jf-tabs [data-tab]')];
+    const panes = () => [...book.querySelectorAll('[data-pane]')].map((p) => !p.hidden);
+    const inView = x.top >= 0 && x.bottom <= innerHeight && x.right <= innerWidth && book.querySelector('.jf-scroll').scrollTop === 0;
+    const first = panes();
+    tabs[2].click();
+    const second = panes(), pressed = tabs.map((t) => t.getAttribute('aria-pressed'));
+    const unfound = book.querySelector('.jf-book-grid button:disabled'), where = unfound?.textContent.trim() || '';
+    const m = { inView, tabs: tabs.length, first, second, pressed, where };
+    run.ui.close();
+    return ok(inView && tabs.length >= 4 && first[0] && first.filter(Boolean).length === 1 && second[2] && second.filter(Boolean).length === 1 && pressed[2] === 'true' && /^(Find in a run|Beat an Elite|Beat a boss|After a boss)$/.test(where), m);
+  },
+});
+
+phone('change-your-look-uses-kit-buttons', {
+  about: 'Change your look is headed "Change your look", its Surprise me and Let\'s go! are kit buttons, and every option chip is a kit chip at least 44 px tall.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const over = document.getElementById('g-over');
+    over.hidden = false;
+    over.querySelector('[data-act="creator"]').click(); step(2);
+    const panel = document.querySelector('#creator'), chips = [...panel.querySelectorAll('.chips button')];
+    const m = { heading: panel.querySelector('h2').textContent, chips: chips.length, short: chips.filter((c) => c.getBoundingClientRect().height < 43.5).length, kit: !!panel.querySelector('footer .ui-btn--primary[data-act="done"]') && !!panel.querySelector('footer .ui-btn[data-act="random"]') && chips.every((c) => c.classList.contains('ui-chip')) };
+    panel.querySelector('[data-act="done"]').click(); over.hidden = true; step(2);
+    return ok(m.heading === 'Change your look' && m.chips > 20 && m.short === 0 && m.kit, m);
+  },
+});
+
 phone('dev-button-and-fps-hidden-from-players', {
   about: 'The title screen shows no Dev button and no fps readout to a player. Five quick taps on the version bring up the Dev button; the fps readout appears only once dev is unlocked.',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },

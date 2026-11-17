@@ -433,8 +433,8 @@ story('modes/cosmetics-framework', {
       crown?.click();
       const note = document.querySelector('#creator .need[data-for="top"]')?.textContent || '';
       const wearing = run.playerLook().top;
-      creatorOk = !!crown && crown.classList.contains('locked') && crown.textContent.includes('✨') && crown.textContent.includes('🔒')
-        && /^🔒 Golden crown · Earned: win a run$/.test(note) && wearing !== 'goldcrown' && !!bow && !bow.classList.contains('locked');
+      creatorOk = !!crown && crown.classList.contains('locked') && crown.querySelectorAll('svg').length === 2   // the star (earned) and the lock
+        && /^Golden crown · Earned: win a run$/.test(note.trim()) && wearing !== 'goldcrown' && !!bow && !bow.classList.contains('locked');
       info.note = note;
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
       over.hidden = true;
@@ -548,8 +548,8 @@ story('modes/pearls-and-the-shop', {
       const buyBtn = document.querySelector('#creator [data-buy="top"][data-v="bottlecap"]');
       buyBtn?.click(); step(2);
       const bought = bank().pearls === 10 && bank().bought.includes('top:bottlecap') && run.playerLook().top === 'bottlecap'
-        && !chip('top', 'bottlecap').classList.contains('locked') && /🦪 10 Pearls/.test(document.querySelector('#creator .pearls').textContent);
-      const shopOk = !!lamp && lamp.classList.contains('locked') && /🦪 300/.test(lamp.textContent) && tooDear && !!buyBtn && bought;
+        && !chip('top', 'bottlecap').classList.contains('locked') && /\b10 Pearls/.test(document.querySelector('#creator .pearls').textContent);
+      const shopOk = !!lamp && lamp.classList.contains('locked') && /\b300$/.test(lamp.textContent.trim()) && tooDear && !!buyBtn && bought;
       Object.assign(info, { tooDear, bought, lampText: lamp?.textContent });
       dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
       over.hidden = true;
