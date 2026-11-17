@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v460 fits the title screen on a short landscape phone, gives Achievements a scroll area above a solid footer, hides the thumb ring in Change your look, adds a close button and a slimmer header to the Treasure book, and hides the Dev button and fps readout from players (five taps on the version bring up Dev).
+
 v459 adds the Lucky Cat, a Legendary Treasure: every "1 in N" chance of yours (crits, traps, ghosts, life steal, Pocket Vacuum, gilding…) is rolled twice and the better roll counts, with a paw and a soft bell when the second try hit; Dodge and Rarity are not rolled twice, and it is only offered once you own an effect that rolls a chance.
 
 v458 replaces the Singing Bowl's Chime with the Hum: its song swells while the whole chair seat fills with a Warning except a white circle round the bowl, then goes off on the bar, so swimming in close is the answer; its rim rings now roll out, hold dim for two beats, and roll back in to the bowl as an echo you jump again.
