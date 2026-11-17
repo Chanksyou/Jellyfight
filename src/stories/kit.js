@@ -521,7 +521,7 @@ export const EVERY_ATTACK = {
     // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
     // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
-    // the Headphones on the coffee table (elites.js), in the room: its shove waves' Warning (a white strip
+    // the Headphones on the kitchen counter (elites.js), in the room: its shove waves' Warning (a white strip
     // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
     headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },

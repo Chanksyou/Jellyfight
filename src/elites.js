@@ -121,10 +121,10 @@
 //                     it will land, a short hop toward you; it leaps on a beat and lands as a Blast
 //                     round itself on the next, then waddles back to its spot.
 //     Under 65% Health it's angry: more spores, settling faster.
-//   headphones  the Headphones on the glass coffee table (act 4's living room; headphones-model.js),
-//               standing in for the real pair on its stand there, up on their two ear cups like a
-//               pair of speakers. It keeps the song's time too (its numbers are in beats). The table
-//               is small: falling off is the punishment (back up by the vent by the coffee table).
+//   headphones  the Headphones on the kitchen counter by the stove (act 4's living room; headphones-model.js),
+//               standing in for the real pair on the coffee table, up on their two ear cups like a
+//               pair of speakers. It keeps the song's time too (its numbers are in beats). The counter
+//               ends at a drop: falling off is the punishment (back up by the vent by the stove).
 //     Shove waves:    its cups take turns, one a bar: the cup's speaker lights white while a white
 //                     Warning (a strip from it through you to the table's edge and the low lane over
 //                     it) fills, following you until a beat before; on the bar a white sound wave
@@ -730,7 +730,7 @@ export class Elites {
       juice.feel('impact'); sfx.bowlHit();
     };
     this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._eul = new THREE.Euler(); this._s3 = new THREE.Vector3();
-    // the Headphones' sound waves rolling out over the coffee table (wave(), drawn in update): nested
+    // the Headphones' sound waves rolling out over the counter (wave(), drawn in update): nested
     // white arcs lying flat at the height they shove up to, like the Encore's speakers'. Every arc in
     // flight is one instanced draw, always in the scene (so its shader is built with the rest)
     this.waves = []; this._dropC = new THREE.Color();
@@ -2748,7 +2748,7 @@ export class Elites {
     }
     this.rings = this.rings.filter((r) => !r.done);
 
-    // the Headphones' sound waves rolling out over the coffee table: nested arcs lying flat at the
+    // the Headphones' sound waves rolling out over the counter: nested arcs lying flat at the
     // height they shove up to, widest in front. Its front passing a jelly under that height (on the
     // table, in its lane) shoves it along, once, and doesn't hurt; a jelly that jumped it stays put
     let wi = 0;

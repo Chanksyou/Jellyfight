@@ -1,7 +1,7 @@
 // Stories: act 4's third Elite, the Headphones (elites.js kind 'headphones', headphones-model.js): up on
-// their ear cups on the glass coffee table in the living room at dawn. They keep the song's time
+// their ear cups on the kitchen counter by the stove in the living room at dawn. They keep the song's time
 // (run.beat); these play on the run's own beat (no song). Their waves shove rather than hurt, and the
-// table is small, so falling off and coming back by the vent is part of the fight. Shared helpers are
+// counter ends at a drop, so falling off and coming back by the vent is part of the fight. Shared helpers are
 // in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
@@ -33,8 +33,8 @@ function playOut(e, during, n = 60 * 14) {
   let started = false;
   step(n, (i) => { if (e.plan) started = true; during?.(i); return started && !e.plan && e.state === 'idle'; });
 }
-// walk the jelly to the coffee table's vent, steering round what's in the way (a step sideways when it
-// stops getting anywhere), until it's landed back on the table: how long it took (s), or null
+// walk the jelly to the stove's vent, steering round what's in the way (a step sideways when it
+// stops getting anywhere), until it's landed back on the counter: how long it took (s), or null
 function walkToVent(e, secs = 15) {
   const { input, player, tpc } = G(), v = VENT(), last = player.position.clone();
   let side = 0, back = null;
@@ -81,7 +81,7 @@ night4('headphones-wake-when-you-are-on-the-counter', {
 });
 
 night4('headphones-shove-waves-on-the-bar', {
-  about: 'Shove waves: the ear cups take turns, one wave a bar on the bar line. Each one\'s Warning, a white strip from the cup through the jelly to the table\'s edge and the low lane over it, fills to the wave; then a white sound wave rolls down it. It does no damage: a jelly in its way is shoved along it, about 20 cm.',
+  about: 'Shove waves: the ear cups take turns, one wave a bar on the bar line. Each one\'s Warning, a white strip from the cup through the jelly to the counter\'s edge and the low lane over it, fills to the wave; then a white sound wave rolls down it. It does no damage: a jelly in its way is shoved along it, about 20 cm.',
   setup() { startHeadphones(0, { hold: true }); },
   play() {
     const { e, player } = startHeadphones(0, { hold: true }), { run } = G(), W = SK().shove, log = record('damage_taken'), seen = watch();
@@ -156,7 +156,7 @@ night4('headphones-counter-never-strands-you', {
 });
 
 night4('headphones-bass-shots-on-the-beat', {
-  about: 'Bass Shots: from a bar line, a Shot a beat, the ear cups taking turns. Each one\'s Warning (a line on the table and the tube over it to the jelly\'s middle, in the Headphones\' indigo) fills to its beat; a jelly that stands still is hit by every one.',
+  about: 'Bass Shots: from a bar line, a Shot a beat, the ear cups taking turns. Each one\'s Warning (a line on the counter and the tube over it to the jelly\'s middle, in the Headphones\' indigo) fills to its beat; a jelly that stands still is hit by every one.',
   setup() { startHeadphones(1, { hold: true }); },
   play() {
     const { e, player } = startHeadphones(1, { hold: true }), B = SK().bass, log = record('damage_taken'), seen = watch();
@@ -183,7 +183,7 @@ night4('headphones-bass-dodged-by-stepping-sideways', {
       if (L && L.k < L.due.length && G().run.beat >= L.due[L.k] - B.lock && k !== L.k) {
         k = L.k; steps++;
         const d = new THREE.Vector3(L.aim.x - L.mouth.x, 0, L.aim.z - L.mouth.z).normalize();
-        player.position.x += d.z * 0.08; player.position.z -= d.x * 0.08;   // across the line, toward the table's middle
+        player.position.x += d.z * 0.08; player.position.z -= d.x * 0.08;   // across the line, toward the counter's middle
       }
     });
     step(60 * 2);

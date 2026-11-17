@@ -62,7 +62,7 @@ export const ELITES4 = [
   { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: -0.695, vent: 'Vent by the sofa',
     at: [1.15, 0.51, 1.8], wake: { min: [0.5, 0.46, 1.0], max: [2.0, 1.2, 2.3] }, stand: [1.2, 0.511, 2.1] },
   { kind: 'headphones', hide: 'Headphones', area: 'kitchen counter', face: -2.906, vent: 'Vent by the stove',
-    at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 2.0], max: [5.0, 1.6, 3.3] }, stand: [4.57, 0.94, 2.65] },
+    at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 1.7], max: [5.0, 1.6, 3.0] }, stand: [4.57, 0.94, 2.65] },
 ];
 
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
