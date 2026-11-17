@@ -472,13 +472,15 @@
   --bug-scuff: #4a3c30;          /* the fading dust mark where a lanternfly slams down or a worm cracks the floor */
   --worm-gore: #4a6a1a;          /* the fading spatter where the worm bursts out of the mantis */
   --hostile-beetle: #ff9a1f;     /* the stag beetle's ball: its halo, trail, sparks and burst, hot electric orange (the sprite's trail). Nothing in act 3 is near it (worm #ff3c00, mantis #ffcc00); the Mug's orange and the millipede's amber either side of it are acts 1 and 2 */
-  --hostile-bowl: #ff7a14;       /* the Singing Bowl's rim rings and chimes: hot bronze orange, its metal made hot (between act 4's mantis gold and worm red, apart from the sun's pale gold and the bass wave's red) */
+  --hostile-bowl: #ff7a14;       /* the Singing Bowl's rim rings and hum: hot bronze orange, its metal made hot (between act 4's mantis gold and worm red, apart from the sun's pale gold and the bass wave's red) */
   --bowl-strike-flash: 0.03;     /* the Singing Bowl: the flash where its striker meets the rim (m), */
-  --bowl-chime-flash: 0.02;      /* where a chime leaves it, */
+  --bowl-hum-flash: 0.025;       /* where its hum is let go (and where it lands on the jelly) (m), */
+  --bowl-hum-shock: 0.5;         /* how long the shock ring the hum throws across the seat lasts (s), */
+  --bowl-echo-flash: 0.02;       /* where a ring turns back at the bowl, */
   --bowl-glints: #fff2c0 #cba24b #ffffff;   /* the brass glints a strike throws, */
   --bowl-shimmer: #d8c890;       /* the harmless shimmer a strike leaves on the cushion (fading), */
   --bowl-shimmer-size: 0.5;      /* its size as a part of the Warning's radius, */
-  --bowl-chime-shimmer: 0.014;   /* and under a jelly a chime hit (m); */
+  --bowl-hum-shimmer: 0.014;     /* and under a jelly the hum hit (m); */
   --bowl-song-glow: 0.8;         /* its song glowing in the bowl as it charges and rings out, */
   --bowl-ring-out: 0.8;          /* how fast a strike's ringing fades (a second), */
   --bowl-tremble: 0.03;          /* and how much its rim trembles with it */

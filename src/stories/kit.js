@@ -516,8 +516,8 @@ export const EVERY_ATTACK = {
       during: () => G().run.bass.state !== 'idle',
       end: () => { G().run.bass.next = 1e9; } } },
     // the Singing Bowl on the lounge chair (elites.js), in the room: its rim rings' Warning (a disc and
-    // the low ring wall over it), its chimes' Shots (the ball of song swelling over it is their tell)
-    bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, chime: { is: 'shot', scene: 1, start: () => startBowl(1) } },
+    // the low ring wall over it), its hum's (a rectangle over the seat and the slab over it, all but a safe circle)
+    bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, hum: { is: 'volume', scene: 1, start: () => startBowl(1) } },
     // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
     // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
