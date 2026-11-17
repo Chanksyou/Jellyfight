@@ -60,6 +60,20 @@ story('words/spit-pin-sticks', {
     return ok(stuckAt && still && !enemies.shots.includes(s) && !log.some((d) => d.source === 'pin'), { stuck: !!stuckAt, still, gone: !enemies.shots.includes(s), y: stuckAt && +(stuckAt.y - player.position.y).toFixed(3) });
   },
 });
+story('words/spit-pin-after-clear', {
+  about: 'A pin that was stuck in the scenery when the bugs were cleared is not born stuck when its pooled shot is thrown again.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { enemies } = G(), e = spawn('ants', near(0.4, 0), { still: true });
+    enemies.spit(e, near(0, 0, -0.2), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: -0.4 });
+    const first = enemies.shots.at(-1);
+    step(60 * 2, () => first.stuckT > 0);
+    enemies.clear();
+    const again = spawn('ants', near(0.4, 0), { still: true });
+    enemies.spit(again, near(0, 0, 0.05), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: 0 });
+    return ok(enemies.shots.at(-1).stuckT === 0, { stuck: enemies.shots.at(-1).stuckT });
+  },
+});
 story('enemies/spider-web-ball', {
   about: 'The house spider walks on alternating sets of legs, rears up to aim, and lobs a web ball that arcs (rising, then falling) onto you: it stings and slows you.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('spider', near(0, -0.85)); e.shootT = 99; },

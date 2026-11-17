@@ -6,10 +6,10 @@ import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { rollChance } from '../chance.js';
-import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp } from './kit.js';
+import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp, V } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
-  'goodieBag', 'newtonsCradle', 'pogoStick'];   // (the new Legendaries join here)
+  'goodieBag', 'newtonsCradle', 'pogoStick', 'racket'];   // (the new Legendaries join here)
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
@@ -372,5 +372,111 @@ phone('stomp-with-touch', {
     btn.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true }));
     btn.setPointerCapture = capture;
     return ok(k === 4 && vy > 0.6, { k, vy });
+  },
+});
+
+// --- swat (Badminton Racket)
+// an Ant standing 40 cm off with a pin thrown at the jelly: [ant, the pin 10 frames on, in flight]
+function pinFromAnt(hp = 9999) {
+  const { enemies } = G(), ant = spawn('ants', near(0.4, 0), { still: true, hp });
+  enemies.spit(ant, near(0, 0, 0.05), { speed: 0.8, life: 2, dmg: 2, shot: 'pin', height: 0 });
+  const pin = enemies.shots.at(-1);
+  step(10);
+  return [ant, pin];
+}
+// a bubble of the jelly's, in flight, sitting on `at` (the bubbles are stepped by hand here: bubbles: false stops their update)
+function bubbleOn(at) {
+  const { run } = G(), b = run.bubbles.blow(at.clone(), null, { dir: V(0, 1, 0), size: 1, dmg: 0, pierce: 1, straight: true });
+  run.bubbles.fly(1 / 60, run.S, run.mods);
+  return b;
+}
+
+story('treasures/swat', {
+  about: 'swat (Badminton Racket): a bubble in flight that meets an Ant\'s pushpin knocks it back at the Ant, which flies back faster and hits for 3x Attack damage as a plain hit; the bubble flies on. Without the Racket the bubble ignores the pin.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, enemies } = G(), log = record('damage_taken');
+    const [ant, pin] = pinFromAnt();
+    const speed = pin.v.length();
+    bubbleOn(pin.m.position);
+    const without = pin.back !== null;
+    give('racket');
+    step(1);
+    const b = bubbleOn(pin.m.position);
+    const turned = pin.back === ant.id, faster = pin.v.length() > speed * 1.4, harmless = pin.dmg === 0, bubbleLives = !b.done;
+    step(60, () => dmgBy(log, 'swat').length > 0);
+    const hit = dmgBy(log, 'swat')[0];
+    return ok(!without && turned && faster && harmless && bubbleLives && hit?.targetId === ant.id && Math.abs(hit.amount / run.power - 3) < 1e-6 && !enemies.shots.includes(pin),
+      { without, turned, faster, harmless, bubbleLives, hit: hit && +(hit.amount / run.power).toFixed(3) });
+  },
+});
+
+story('treasures/swat-never-hurts-you', {
+  about: 'swat: a swatted Shot passing straight through the jelly does nothing to it.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('racket'); step(1); },
+  play() {
+    const { player } = G(), log = record('damage_taken');
+    const [, pin] = pinFromAnt();
+    bubbleOn(pin.m.position);
+    pin.m.position.copy(player.position).setY(player.position.y + 0.03);   // right in the jelly
+    step(30);
+    const hurt = log.some((d) => d.targetId !== undefined && d.source === 'pin' && d.amount > 0);
+    return ok(pin.back !== null && !hurt, { swatted: pin.back !== null, hurt });
+  },
+});
+
+story('treasures/swat-lash', {
+  about: 'swat: a tentacle lash swats one Shot inside its reach, not every one.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('racket'); step(1); },
+  play() {
+    const { run, enemies } = G();
+    const [, a] = pinFromAnt(), [, b] = pinFromAnt();
+    roachAt(0.05, 0);                                     // something in reach to lash at
+    for (const s of [a, b]) s.m.position.copy(near(0.02, 0.01, 0.05));
+    run.lash.fire(near(0, 0, 0.06), run.tentacleStats, run.mods.hits.tentacles, { mods: run.mods });
+    const swatted = [a, b].filter((s) => s.back !== null).length;
+    return ok(swatted === 1 && enemies.shots.length === 2, { swatted });
+  },
+});
+
+story('treasures/swat-ignores-stuck-pins', {
+  about: 'swat: a pin stuck in the scenery is left alone.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('racket'); step(1); },
+  play() {
+    const { enemies } = G(), ant = spawn('ants', near(0.4, 0), { still: true });
+    enemies.spit(ant, near(0, 0, -0.2), { speed: 0.8, life: 1, dmg: 2, shot: 'pin', height: -0.4 });
+    const pin = enemies.shots.at(-1);
+    step(60 * 2, () => pin.stuckT > 0);
+    bubbleOn(pin.m.position);
+    return ok(pin.stuckT > 0 && pin.back === null, { stuck: pin.stuckT > 0, back: pin.back });
+  },
+});
+
+story('treasures/swat-owner-gone', {
+  about: 'swat: if the bug that fired the Shot is gone, it flies at the nearest bug within 30 cm instead, and pops if there is none.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('racket'); step(1); },
+  play() {
+    const { enemies } = G();
+    const [ant, pin] = pinFromAnt(1);
+    enemies.byId.delete(ant.id); ant.dead = true;         // (gone)
+    const P = G().player.position, other = roachAt(pin.m.position.x - P.x + 0.1, pin.m.position.z - P.z);   // 10 cm from the pin
+    bubbleOn(pin.m.position);
+    const spared = pin.back === other.id;
+    other.dead = true; enemies.byId.delete(other.id);
+    const [ant2, pin2] = pinFromAnt(1);
+    enemies.byId.delete(ant2.id); ant2.dead = true;
+    bubbleOn(pin2.m.position);
+    return ok(spared && pin2.back === null && pin2.done, { spared, popped: pin2.done });
+  },
+});
+
+story('treasures/swat-burst', {
+  about: 'swat: a Poison burst covering a Shot swats it too.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('racket'); step(1); },
+  play() {
+    const { run } = G();
+    const [, pin] = pinFromAnt();
+    run.bubbles.poisonBurst({ m: { position: pin.m.position.clone() }, r: 0.012, pw: 1, ep: null });
+    return ok(pin.back !== null, { back: pin.back });
   },
 });

@@ -653,7 +653,7 @@ export class Enemies {
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, pooled, m, v, t: life, dmg, from: e.id, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
+      this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, stuckT: 0, pooled, m, v, t: life, dmg, from: e.id, back: null, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
@@ -1394,7 +1394,7 @@ export class Enemies {
   // a web ball or pin that reached the player this frame
   shotHits(pc, radius) {
     for (const s of this.shots) {
-      if (s.done || s.stuckT > 0 || s.m.position.distanceTo(pc) >= radius + 0.005) continue;
+      if (s.done || s.stuckT > 0 || s.back !== null || s.m.position.distanceTo(pc) >= radius + 0.005) continue;   // (a swatted Shot is the jelly's now)
       s.done = true;
       this.fx.impact(s.m.position, s.c, 0.02, 10);
       bus.emit('damage_taken', { targetId: PLAYER, amount: s.dmg ?? 1, source: s.source, from: s.from, unit: s.unit, at: s.m.position });
@@ -1405,6 +1405,57 @@ export class Enemies {
     }
   }
 
+  // swat (Badminton Racket): every bug Shot in flight within r of `at` (just the first with `one`) is knocked back
+  // at the bug that fired it: gone from the air if nothing is near enough to take it. No allocation: this runs
+  // for every one of your attacks each frame, but only while a Shot is out.
+  swatShots(at, r, one = false) {
+    const W = this.mods?.swat;
+    if (!W || !this.shots.length) return;
+    const r2 = r * r;
+    for (const s of this.shots) {
+      if (s.done || s.stuckT > 0 || s.back !== null || s.m.position.distanceToSquared(at) > r2) continue;
+      let to = this.byId.get(s.from);
+      if (!to || to.dead) {                              // its owner is gone: the nearest bug within 30 cm
+        to = null;
+        let best = LOOK.num('swat-spare-reach', 0.3);
+        for (const n of this.list) {
+          const d = this.center(n, S.o).distanceTo(s.m.position);
+          if (!n.dead && d < best) { to = n; best = d; }
+        }
+      }
+      this.fx.impact(s.m.position, FRIENDLY(), 0.012, 5);
+      sfx.swat();
+      if (to) {
+        s.back = to.id; s.c = FRIENDLY(); s.dmg = 0; s.slow = 0; s.arc = 0;
+        s.v.setLength(s.v.length() * LOOK.num('swat-speed', 1.5));
+        s.t = LOOK.num('swat-life', 1.5);
+        s.m.lookAt(this.center(to, S.o));                 // (a pin flies tip first)
+      } else s.done = true;
+      if (one) return;
+    }
+  }
+
+  // a swatted Shot: homes on its target at its new speed, and hits it for `back` x Attack damage as a plain hit
+  flyBack(s, dt) {
+    const n = this.byId.get(s.back), W = this.mods?.swat;
+    if (!n || n.dead || !W || s.t <= 0) { this.fx.impact(s.m.position, s.c, 0.012, 5); s.done = true; return; }
+    const speed = s.v.length(), to = S.ray.copy(this.center(n, S.o)).sub(s.m.position), d = to.length(), step = speed * dt;
+    if (d <= (n.hitR || n.r) + step) {
+      s.done = true;
+      this.fx.impact(S.o, s.c, n.r * 0.6, 8);
+      sfx.thwock();
+      bus.emit('damage_taken', { targetId: n.id, amount: (this.power ?? 1) * W.back, color: '#' + s.c.getHexString(), source: 'swat' });
+      return;
+    }
+    s.v.copy(to).multiplyScalar(speed / d);
+    s.m.position.addScaledVector(s.v, dt);
+    if (s.spin) s.m.rotateX(s.spin * dt);
+    if (s.roll) s.m.rotateZ(s.roll * dt);
+    const small = s.spin || s.roll;
+    this.fx.glow.hold(s.m.position, s.c, small ? 0.04 : 0.05, 0.9);
+    if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, small ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
+  }
+
   updateShots(dt) {
     for (const s of this.shots) {
       if (s.stuckT > 0) {                                // a pin stuck in the scenery, harmless, until it goes
@@ -1412,6 +1463,11 @@ export class Enemies {
         continue;
       }
       s.t -= dt;
+      if (s.back !== null) {                             // swatted (Badminton Racket): on its way back
+        this.flyBack(s, dt);
+        if (s.done) { this.scene.remove(s.m); this.projectiles.release(s.pooled); }
+        continue;
+      }
       const step = s.v.length() * dt;
       const wall = this.world.cast(s.m.position, S.ray.copy(s.v).normalize(), step + 0.004 + (s.roll ? s.r * 1.28 : 0));   // (a pin's tip is out in front)
       if (wall) {

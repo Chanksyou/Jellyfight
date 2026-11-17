@@ -854,6 +854,7 @@ export function newMods() {
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
     eliteBonus: null,                // elite-bonus: { every } every `every`th Elite beaten leaves a second treasure
+    swat: null,                      // swat: { back, reach } an attack of yours in flight (or a burst, or a lash) knocks a bug's Shot back at it (enemies.js swatShots)
     stomp: null,                     // stomp: { dmg, step, most, stun, safe, reach, drop } falling onto a bug stomps it (run.js stomp)
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
@@ -1505,6 +1506,10 @@ export const TREASURE_WORDS = {
     },
   },
   stomp: { doc: 'Falling onto a bug (after a drop of at least `drop` m from the top of the jump, its middle within `reach` m of touching sideways) stomps it for `dmg` x Attack damage, `step` x more for each stomp in a row before you touch the ground (at most `most` x), Stuns an ordinary bug for `stun` s and bounces you back up at jump speed with your mid-air jumps back, safe from bugs for `safe` s (never from Elites or the boss). A bounce is not a landing.', props: { dmg: 4, step: 1, most: 8, stun: 1, safe: 0.3, reach: 0.02, drop: 0.03 }, make: (_, p) => (m) => { m.stomp = { ...p }; } },
+  swat: { doc: 'Your attacks swat bug Shots (pushpins, web balls) out of the air: a bubble, Element shot or gust in flight within `reach` m of one, a Glitter or Poison burst round it, or a tentacle lash with it in reach. The swatted Shot flies back at the bug that fired it (else the nearest bug within 30 cm, else it pops) at 1.5x its speed for `back` x Attack damage, and can no longer hurt you. Elite and Boss Shots are not swatted.', props: { back: 3, reach: 0.02 }, make: (_, p) => {
+    if (!(p.back > 0 && p.reach >= 0)) throw new Error('swat: back must be above 0 and reach 0 or more');
+    return (m) => { m.swat = { ...p }; };
+  } },
   'elite-bonus': { doc: 'Every `every`th Elite you beat leaves a second treasure beside the first (the count runs from when you take it, across acts).', props: { every: 2 }, make: (_, p) => (m) => { m.eliteBonus = { every: p.every }; } },
   'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },

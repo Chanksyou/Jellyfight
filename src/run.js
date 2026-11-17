@@ -556,6 +556,7 @@ export class Run {
     this.fireTrail.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
+    this.enemies.power = this.power;    // swat (Badminton Racket): a Shot knocked back hits for x Attack damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
     this.bass.update(dt, this.beat);   // a stage's bass wave: on the song's bar line (put away outside the night)
