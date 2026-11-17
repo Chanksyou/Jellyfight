@@ -10,7 +10,7 @@ import { elementParams } from '../words.js';
 import { xpToNext } from '../stats.js';
 import { PLAYED_KEY } from '../first-run.js';
 import { BEST_KEY } from '../leaderboard.js';
-import { G, fresh, ok, record, roachAt, setupFight, spawn, near, spy, step, story, stub, offs } from './kit.js';
+import { G, fresh, ok, record, roachAt, setupFight, spawn, near, spy, step, story, stub, offs, tp } from './kit.js';
 
 // the run's combined effects become what it owns (and its jelly's own) plus these words, until the story ends
 function withWords(src) {
@@ -170,6 +170,7 @@ story('treasures/splash-reflect', {
   play() {
     const { run, world } = G(), B = run.bubbles;
     withWords('splash-reflect');
+    tp(3.0, 0.05, 4.5, 0);   // by the hallway opening's wall (the kitchen mat's edge, 1 cm high, is not a wall)
     // find a wall: from the jelly, the nearest thing straight ahead along -z at bug height
     // find a wall: the nearest thing round the jelly at bug height
     const from = near(0, 0, 0.012);
@@ -185,7 +186,7 @@ story('treasures/splash-reflect', {
     const before = balls();
     B.splash(bomb(hit, G().enemies.center(hit).clone()));
     const wallBalls = balls() - before, reflected = splashOn(log, back).length;
-    const open = roachAt(0.4, 0.4), b0 = balls();
+    const open = roachAt(0, -0.5), b0 = balls();
     B.splash(bomb(open));
     return ok(wallBalls === 2 && reflected === 1 && balls() - b0 === 1, { wall: h.distance, wallBalls, reflected, open: balls() - b0 });
   },

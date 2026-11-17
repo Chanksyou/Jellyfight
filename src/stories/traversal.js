@@ -24,14 +24,14 @@ story('traversal/moved-vent-still-lands', {
     fresh({ elites: false });
     const { traversal } = G(), v = traversal.vents[0];
     ventHome = [v.at, v.land];
-    traversal.placeVent(0, [v.x + 0.15, v.y, v.z - 0.05], [2.6, 0.46, 3.0]);
+    traversal.placeVent(0, [v.x + 0.15, v.y, v.z - 0.05], [2.0, 0.46, 2.4]);
     tp(v.x, 0.05, v.z, 0);
   },
   play() {
     const r = sim(3);
     G().traversal.placeVent(0, ...ventHome);
     const [x, y, z] = r.pos;
-    return ok(Math.hypot(x - 2.6, z - 3.0) < 0.08 && Math.abs(y - 0.46) < 0.06 && r.grounded, { end: r.pos });
+    return ok(Math.hypot(x - 2.0, z - 2.4) < 0.08 && Math.abs(y - 0.46) < 0.06 && r.grounded, { end: r.pos });
   },
 });
 story('traversal/sofa-cannot-be-climbed-with-jump', {

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { G, night4, ok, story } from './kit.js';
 
 // objects the new layout deleted: the plants that lost their pots and stands, the pillows and the rest
-const GONE = ['Round_plant_stand', 'Snake_plant', 'Aloe', 'Cat_window_perches', 'Globe_clamp_lamp', 'Olive_pillow', 'Fluffy_white_pillow', 'Red_hardcover'];
+const GONE = ['Round_plant_stand', 'Snake_plant', 'Rubber_plant', 'Aloe', 'Cat_window_perches', 'Globe_clamp_lamp', 'Olive_pillow', 'Fluffy_white_pillow', 'Red_hardcover'];
 const box = (key) => { const m = movables(G().APT.root).find((q) => q.key === key + '#1'); return m && m.node.visible ? visibleBox(m.node, new THREE.Box3()) : null; };
 const near = (v, w, e = 0.05) => v.every((n, i) => Math.abs(n - w[i]) <= e);
 // where the sofa, the coffee table and the lounge chair stand in the new layout (min x,z and max x,z)

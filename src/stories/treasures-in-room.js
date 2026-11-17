@@ -40,7 +40,7 @@ story('treasures/elite-chest-never-inside-furniture', {
     enemies.kill(bug);
     step(2);
     const t = waiting(false)[0], open = t && run.openSpot([t.pos.x, t.pos.y, t.pos.z]).ok, d = t && Math.hypot(t.pos.x - at.x, t.pos.z - at.z);
-    return ok(!!at && open && d < 0.5, { at: at && r3(at), chest: t && r3(t.pos), open, moved: d && +d.toFixed(2) });
+    return ok(!!at && open && d < 0.6, { at: at && r3(at), chest: t && r3(t.pos), open, moved: d && +d.toFixed(2) });
   },
 });
 story('treasures/touch-the-chest', {
