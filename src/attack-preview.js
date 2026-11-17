@@ -255,7 +255,7 @@ export class AttackPreview {
       const feet = av.root.position;
       P.bubbles.update(dt, new THREE.Vector3(feet.x, feet.y + H * 0.75, feet.z), P.stats, P.mods, false, A);
       const origin = new THREE.Vector3(feet.x, feet.y + H * 0.45, feet.z);
-      if (A.kind === 'tentacle') P.lash.update(dt, origin, P.lashStats, P.mods.hits.tentacles, { nth: P.mods.nth, stingCount: P.mods.stingCount, mods: P.mods });
+      if (A.kind === 'tentacle') P.lash.update(dt, origin, P.lashStats, P.mods.hits.tentacles, { nth: P.mods.nth, stingCount: P.mods.stingCount });
       else P.lash.animate(dt, origin);
       P.fx.update(dt);
     });
