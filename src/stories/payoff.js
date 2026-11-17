@@ -258,3 +258,68 @@ story('payoff/death-screen-dried-jelly', {
     return ok(alone && flat && veiled && dull && own && back, { alone, flat, veiled, dull, glowing: glowing.length, own, back });
   },
 });
+
+story('payoff/act-complete-celebrates', {
+  about: 'An act complete is a celebration: a gold stamp beside the "Act N complete" heading, a kit tile for each Treasure taken (×N when taken again) with the time, Level and bugs as chips, the score parts counting up under "Score so far", and one gold button on to the next act.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    return withEmpty([FEATS_KEY, PEARLS_KEY], () => {
+      run.owned.add('bobbyPin'); run.owned.add('rubberDuck'); run.owned.add('rubberDuck');
+      run.kills = 12; run.t = 125; run.level = 4;
+      run.actComplete({ id: 2, subtitle: 'the bathroom' });
+      const m = modal(), heading = m.querySelector('h2'), tiles = [...m.querySelectorAll('.jf-tiles .ui-tile')];
+      const stamped = !!heading.querySelector('.jf-stamp svg') && /^Act 1 complete$/.test(heading.textContent.trim());
+      const taken = tiles.length === 2 && tiles.some((t) => /×2/.test(t.textContent)) && tiles.every((t) => t.getAttribute('aria-label'));
+      const chips = [...m.querySelectorAll('.jf-chips .ui-chip')].map((c) => c.textContent.trim()).join('|');
+      const parts = /Score so far/.test(m.innerText) && /Bugs cleared/.test(m.innerText) && m.querySelectorAll('.jf-stats .jf-count').length > 2;
+      const buttons = [...m.querySelectorAll('.btns button')], one = buttons.length === 1 && buttons[0].classList.contains('ui-btn--primary') && /On to act 2/.test(buttons[0].textContent);
+      menus.close();
+      return ok(stamped && taken && chips === '2:05|Level 4|12 bugs' && parts && one, { stamped, taken, chips, parts, one });
+    });
+  },
+});
+
+phone('death-screen-fits-a-phone-and-reads-on-the-sand', {
+  about: 'On a phone held sideways, the death screen is a dark kit panel (so its words read over the pale sand) whose buttons are all on screen without scrolling: one gold Try again, and every other button a kit button with an icon.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    return withEmpty([FEATS_KEY, PEARLS_KEY], () => {
+      stub(run, 'jellyFace', null);
+      stub(run, 'board', { status: 'online', web: false, mine: null, localBest: null, keepBest: () => true, qualifies: () => false, cutoff: () => 1e6, note: () => '' });
+      run.t = 200; run.phase = 'dead';
+      run.driedOut.begin();
+      run.endRun('You dried out', 'Back to a polyp.', 'Try again');
+      step(30);
+      const panel = modal().querySelector('.ui-panel'), bg = getComputedStyle(panel).backgroundColor.match(/[\d.]+/g).map(Number);
+      const dark = (bg[3] ?? 1) >= 0.85 && Math.max(bg[0], bg[1], bg[2]) < 90;
+      const buttons = [...modal().querySelectorAll('.btns button')], seen = buttons.every((b) => { const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; });
+      const gold = buttons.filter((b) => b.classList.contains('ui-btn--primary')), one = gold.length === 1 && /Try again/.test(gold[0].textContent);
+      const icons = buttons.filter((b) => !gold.includes(b)).every((b) => b.querySelector('svg.ui-icon'));
+      menus.close(); run.start();
+      return ok(dark && seen && one && icons && buttons.length > 1, { bg, seen, one, icons, buttons: buttons.map((b) => b.textContent.trim()) });
+    });
+  },
+});
+
+story('payoff/win-panel-shows-the-run', {
+  about: 'The win screen is a kit panel beside the jelly up close: a trophy icon (no emoji) and "You won!", the run\'s time, Level, bugs and Treasures, and a gold Continue that comes after a moment and brings up the score.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, menus } = G();
+    run.kills = 30; run.t = 61; run.level = 5;
+    let went = false;
+    run.victory.begin(() => { went = true; });
+    const el = document.querySelector('.jf-victory'), panel = el.querySelector('.ui-panel'), button = el.querySelector('button');
+    const icon = !!panel.querySelector('h1 svg') && !/🏆/.test(el.innerText);
+    const nums = [...panel.querySelectorAll('.ui-tile')].map((t) => t.innerText.replace(/\s+/g, ' ').trim()).join('|');
+    const waits = button.hidden;
+    step(120);
+    const gold = !button.hidden && button.classList.contains('ui-btn--primary');
+    button.click();
+    const closed = went && !document.querySelector('.jf-victory');
+    run.victory.cancel(); menus.close();
+    return ok(icon && /^1:01 Time\|5 Level\|30 Bugs\|\d+ Treasures$/.test(nums) && waits && gold && closed, { icon, nums, waits, gold, closed });
+  },
+});
