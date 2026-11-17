@@ -437,9 +437,14 @@
   --burst-warning-pulse: 0.06;   /* its flicker above that (was 0.2) */
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
-  --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, and its dart as it lands: hot acid yellow */
+  --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, its lobbed glow, the Warning and the pool it leaves: hot acid yellow */
   --firefly-dim: #3a2208;        /* its lamp between blinks */
   --firefly-glow: 1.8;           /* how far past white its lamp burns at a blink (bloom lifts it) */
+  --firefly-lob-size: 0.007;     /* m: the glowing blob it lobs (its core; the halo is about 9x) */
+  --firefly-warning-opacity: 0.32;   /* the circle filling where a lob will land */
+  --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
+  --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
+  --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
   --hostile-moth: #ffb300;       /* the moth's swoop as it lands: hot amber (its wings are pale, so the hit isn't) */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */

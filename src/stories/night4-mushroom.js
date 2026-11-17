@@ -47,7 +47,7 @@ night4('pillow-sleeps-on-the-sofa', {
     let started = false;
     step(60 * 4, () => { if (e.state !== 'idle') started = true; });
     const real = run.elites.findObject('Mushroom_pillow').visible;
-    const on = flat(e.base, { x: 1.68, z: 2.21 }) < 0.01 && Math.abs(e.base.y - 0.51) < 0.02;
+    const on = flat(e.base, { x: 1.15, z: 1.8 }) < 0.01 && Math.abs(e.base.y - 0.51) < 0.02;
     return ok(on && !real && !e.awake && !started && e.model.eyes.scale.y < 0.4, { at: r3(e.base), realShown: real, awake: e.awake, started, eyes: +e.model.eyes.scale.y.toFixed(2) });
   },
 });
@@ -128,7 +128,7 @@ night4('pillow-angry-more-spores-settling-faster', {
   play() {
     const { e } = startPillow(0, { angry: true }), S = SK().spores;
     const r = playSpores(e);
-    const { e: c } = startPillow(0, { angry: true, x: 1.6, z: 1.95 }), corner = playSpores(c);   // by the sofa's back: every spot still on the seat
+    const { e: c } = startPillow(0, { angry: true, x: 1.9, z: 2.2 }), corner = playSpores(c);   // by the sofa's back: every spot still on the seat
     const offSeat = (corner.spots || []).filter((s) => Math.abs(s.y - c.base.y) > 0.04).length;
     return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
       && corner.spots?.length > 1 && offSeat === 0,
@@ -220,7 +220,7 @@ night4('room-elites-eyes-keep-their-size', {
   setup() { fresh(); },
   play() {
     const out = {};
-    for (const [kind, at] of [['bowl', () => kit.onChair()], ['pillow', () => onSofa()], ['headphones', () => kit.onCoffeeTable()]]) {
+    for (const [kind, at] of [['bowl', () => kit.onChair()], ['pillow', () => onSofa()], ['headphones', () => kit.onCounter()]]) {
       fresh(); at(); step(90);
       const e = G().run.elites.list.find((q) => q.kind === kind);
       e.holder.updateMatrixWorld(true);
