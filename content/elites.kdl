@@ -150,7 +150,7 @@ elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.6
 //          cups taking turns; each one's Warning (a line on the table and the tube over it to your
 //          middle, mid-jump included) locks lock= beats before it fires, at speed= m/s for reach= m
 //          (size=: its radius, m)
-elite "headphones" name="The Headphones" icon="🎧" hp=800 aggro=1.2 angry=0.65 {
+elite "headphones" name="The Headphones" icon="🎶" hp=800 aggro=1.2 angry=0.65 {
     shove waves=3 every=4 windup=3 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=1.0 angryRest=0.7
     bass dmg=3 shots=4 every=1 windup=3 lock=0.5 speed=0.8 size=0.012 reach=1.3 rest=1.0 angryRest=0.7
 }
