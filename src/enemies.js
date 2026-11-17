@@ -1420,11 +1420,11 @@ export class Enemies {
         let best = LOOK.num('swat-spare-reach', 0.3);
         for (const n of this.list) {
           const d = this.center(n, S.o).distanceTo(s.m.position);
-          if (!n.dead && d < best) { to = n; best = d; }
+          if (!n.dead && !n.proxy?.immune && d < best) { to = n; best = d; }
         }
       }
       this.fx.impact(s.m.position, FRIENDLY(), 0.012, 5);
-      sfx.swat();
+      sfx.racketSwat();
       if (to) {
         s.back = to.id; s.c = FRIENDLY(); s.dmg = 0; s.slow = 0; s.arc = 0;
         s.v.setLength(s.v.length() * LOOK.num('swat-speed', 1.5));
@@ -1458,6 +1458,7 @@ export class Enemies {
 
   updateShots(dt) {
     for (const s of this.shots) {
+      if (s.done) { this.scene.remove(s.m); this.projectiles.release(s.pooled); continue; }   // (popped by a swat, or hit the jelly: let go of it now)
       if (s.stuckT > 0) {                                // a pin stuck in the scenery, harmless, until it goes
         if ((s.stuckT -= dt) <= 0) { s.done = true; this.scene.remove(s.m); }
         continue;

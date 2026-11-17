@@ -466,7 +466,9 @@ story('treasures/swat-owner-gone', {
     const [ant2, pin2] = pinFromAnt(1);
     enemies.byId.delete(ant2.id); ant2.dead = true;
     bubbleOn(pin2.m.position);
-    return ok(spared && pin2.back === null && pin2.done, { spared, popped: pin2.done });
+    step(2);
+    const gone = !enemies.shots.includes(pin2) && !pin2.m.parent;   // let go of: out of the scene, pool entry freed
+    return ok(spared && pin2.back === null && pin2.done && gone, { spared, popped: pin2.done, gone });
   },
 });
 

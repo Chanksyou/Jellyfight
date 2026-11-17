@@ -290,8 +290,8 @@ export const sfx = {
     for (let i = 0; i < 2 + Math.round(2 * k); i++) noise((2200 + Math.random() * 1600) * j, 3, 0.015, 0.015 + 0.015 * k, 'bandpass', 0.04 + i * 0.035);
   },
   // swat (Badminton Racket): a short swish as the Shot is hit, a thwock when it lands on its owner
-  swat() {
-    if (!ready() || !gap('swat', 60)) return;
+  racketSwat() {
+    if (!ready() || !gap('racketSwat', 60)) return;
     const j = jitter(0.06);
     noise(3200 * j, 2, 0.07, 0.035, 'bandpass', 0, 1400);
     tone('triangle', 900 * j, 1500 * j, 0.06, 0.03);
