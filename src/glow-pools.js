@@ -19,7 +19,7 @@ function poolTexture() {
   const c = document.createElement('canvas'), g = c.getContext('2d');
   c.width = c.height = 128;
   const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  r.addColorStop(0, 'rgba(255,255,255,0.75)'); r.addColorStop(0.6, 'rgba(255,255,255,0.4)');
+  r.addColorStop(0, 'rgba(255,255,255,0.4)'); r.addColorStop(0.6, 'rgba(255,255,255,0.25)');
   r.addColorStop(0.86, 'rgba(255,255,255,0.95)'); r.addColorStop(0.97, 'rgba(255,255,255,0.3)'); r.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = r; g.fillRect(0, 0, 128, 128);
   const t = new THREE.CanvasTexture(c);
@@ -89,12 +89,14 @@ export class GlowPools {
     if (this.lobs.some((L) => L.done)) this.lobs = this.lobs.filter((L) => !L.done);
 
     // on the floor: each one drains while the jelly stands in it (feet on its surface); they add up
-    const glowK = LOOK.num('firefly-pool-glow', 1.6), base = LOOK.num('firefly-pool-opacity', 0.55);
+    const base = LOOK.num('firefly-pool-opacity', 0.4);
+    this.color.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-pool-glow', 1.4));
     let drain = 0, from = null;
     for (const D of this.pools) {
       D.t -= dt;
       const grow = Math.min(1, D.age = (D.age || 0) + dt * 6), fade = Math.min(1, Math.max(0, D.t) / FADE);
       D.m.scale.setScalar(D.r * (0.6 + 0.4 * grow));
+      D.m.userData.color.copy(this.color);
       D.m.userData.opacity = base * fade * (0.85 + 0.15 * Math.sin(t * 3 + D.phase));   // a slow throb: it's still live
       if (D.live && D.t > FADE && player.grounded && Math.abs(P.y - D.at.y) < 0.02 && Math.hypot(P.x - D.at.x, P.z - D.at.z) < D.r) { drain += D.drain; from = D; }
       if (D.live && Math.random() < dt * 3) glow.emit(_p.set(D.at.x + (Math.random() - 0.5) * D.r, D.at.y + 0.004, D.at.z + (Math.random() - 0.5) * D.r), this.color, 0.008, 0.002, 0.9, 0.8, _v.set(0, 0.025, 0), 0);   // motes rising off it
@@ -105,8 +107,6 @@ export class GlowPools {
       bus.emit('damage_taken', { targetId: PLAYER, amount: drain * dt, source: from.source, drain: true });
       if ((this.sizzleT -= dt) <= 0) { this.sizzleT = 0.25; this.fx.impact(_p.copy(P).setY(P.y + 0.01), this.color, 0.008, 3); sfx.glowSizzle(); }   // the jelly answers: it fizzes where it stands
     } else this.sizzleT = 0;
-    this.color.copy(hostile('firefly')).multiplyScalar(glowK);
-    for (const D of this.pools) D.m.userData.color.copy(this.color);
   }
 
   // it lands: a Blast where it comes down, then the pool (the oldest goes if there are too many)

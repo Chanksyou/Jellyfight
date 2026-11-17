@@ -442,8 +442,8 @@
   --firefly-lob-size: 0.007;     /* m: the glowing blob it lobs (its core; the halo is about 9x) */
   --firefly-warning-opacity: 0.32;   /* the circle filling where a lob will land */
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
-  --firefly-pool-opacity: 0.55;      /* the glowing pool it leaves (fades out over its last 0.4 s) */
-  --firefly-pool-glow: 1.6;          /* how far past white the pool burns (bloom lifts it; no lights) */
+  --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
+  --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
   --hostile-moth: #ffb300;       /* the moth's swoop as it lands: hot amber (its wings are pale, so the hit isn't) */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
