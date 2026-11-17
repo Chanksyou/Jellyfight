@@ -128,8 +128,9 @@ export const SCREENS = {
   leaderboard: { open() { G().run.showBoard(() => {}); }, close() { G().run.board.onChange = null; G().run.ui.close(); } },
   'change-look': { open() { over().hidden = false; over().querySelector('[data-act="creator"]').click(); }, close() { document.querySelector('#creator [data-act="done"]').click(); over().hidden = true; } },
   'act-complete': { open() { const { run } = G(); run.devRun(); run.actComplete({ id: 2, subtitle: 'the bathroom' }); }, close() { G().run.ui.close(); } },
-  death: { open() { const { run } = G(); run.devRun(); run.die(); }, close() { G().run.ui.close(); } },
-  win: { open() { const { run } = G(); run.devRun(); run.phase = 'won'; run.endRun('🏆 You won!', run.stage.won || 'The apartment is yours.', 'Play again from act 1', { parts: true }); }, close() { G().run.ui.close(); } },
+  death: { open() { const { run } = G(); run.devRun(); run.phase = 'dead'; run.driedOut.begin(); run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); }, close() { G().run.ui.close(); G().run.start(); } },
+  win: { open() { const { run } = G(); run.devRun(); run.phase = 'won'; run.endRun('Run complete', '', 'Play again from act 1', { parts: true }); }, close() { G().run.ui.close(); } },
+  'win-sea': { open() { const { run } = G(); run.devRun(); run.victory.begin(() => {}); step(120); }, close() { G().run.victory.cancel(); } },
   'turn-sideways': { phone: true, open() { const { upright } = G(); upright.test = true; upright.update(); }, close() { const { upright } = G(); upright.test = null; upright.update(); over().hidden = true; } },
 };
 // a short, stable name for an element: its tag and classes, under its parent's

@@ -36,7 +36,7 @@ story('types/unlock-finish-act-1-opens-fire', {
       stub(run, 'board', null); stub(run, 'jellyFace', () => null);
       run.phase = 'dead';
       run.endRun('You dried out', 'dead', 'Try again');
-      const row = modal().textContent, named = /🎁 Unlocked\s*Fire Jelly/.test(row);
+      const row = modal().textContent, named = /Unlocked\s*Fire Jelly/.test(row);
       fresh({ types: 'normal' });   // a later run: still open
       const kept = !typeLock('fire') && !!typeLock('lightning');
       return ok(allLocked && fire && named && kept, { start, goals, after, named, kept });
