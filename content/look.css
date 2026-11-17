@@ -936,14 +936,17 @@ body.calm #g-over:is(.menu-home, .menu-launching) button:hover, body.calm #g-ove
 }
 @media (max-height: 620px) and (min-aspect-ratio: 1/1) {
   #g-over:is(.menu-home, .menu-launching) .menu-loop { font-size: 13px; }
-  #g-over:is(.menu-home, .menu-launching) > div { padding: 18px 0; margin-left: 6%; width: 50%; }
-  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 65px; margin-bottom: 10px; }
+  #g-over:is(.menu-home, .menu-launching) > div { padding: 8px 0; margin-left: 6%; width: 50%; }
+  #g-over:is(.menu-home, .menu-launching) h1 { font-size: 46px; margin-bottom: 4px; }
   #g-over:is(.menu-home, .menu-launching) h1 span { display: inline; }
-  #g-over:is(.menu-home, .menu-launching) .play { margin: 16px 0; padding: 11px 30px; font-size: 18px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 12px; padding: 9px 24px; font-size: 17px; }
-  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 12px; }
-  #g-over:is(.menu-home, .menu-launching) .row button { padding: 7px 10px; font-size: 12px; }
-  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 9px; }
+  #g-over:is(.menu-home, .menu-launching) .play { margin: 8px 0; padding: 9px 30px; font-size: 18px; }
+  #g-over:is(.menu-home, .menu-launching) #g-quality { margin-top: 8px !important; }
+  #g-over:is(.menu-home, .menu-launching) .home-tip { margin-top: 4px; padding-block: 3px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) { margin-top: 6px; padding: 7px 24px; font-size: 17px; }
+  #g-over:is(.menu-home, .menu-launching) .resume:not([hidden]) + .play { margin-top: 6px; }
+  #g-over:is(.menu-home, .menu-launching) .row { margin: 4px 0; }
+  #g-over:is(.menu-home, .menu-launching) .row button { padding: 5px 10px; font-size: 12px; min-height: 34px; }
+  #g-over:is(.menu-home, .menu-launching) .keys { margin-top: 4px; line-height: 1.5; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly { right: 3%; width: 39%; }
   #g-over:is(.menu-home, .menu-launching) .menu-jelly-caption { right: 3%; width: 39%; bottom: 8%; }
 }

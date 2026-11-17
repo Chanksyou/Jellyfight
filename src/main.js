@@ -104,7 +104,9 @@ ui.innerHTML = `
   #g-quality button:first-of-type { border-radius: 8px 0 0 8px !important; }
   #g-quality button:last-of-type { border-radius: 0 8px 8px 0 !important; }
   /* dev tools: one 🔒 Dev button; the password opens the rest */
-  #g-over .dev-lock, #g-over .dev-tools { display: none; }
+  #g-over .dev-lock, #g-over .dev-tools, #g-over .dev-btn, #g-over #g-fps { display: none; }
+  #g-over.dev-reveal .dev-btn { display: inline-flex; }   /* tapping the version 5 times (below) */
+  #g-over.dev-open #g-fps { display: inline; }
   #g-over.dev-ask .dev-lock { display: flex; }
   #g-over.dev-open .dev-tools { display: flex; }
   #g-over.dev-open .dev-btn { display: none; }
@@ -511,6 +513,7 @@ function openCreator() {
   if (document.pointerLockElement) document.exitPointerLock();
   overlay.hidden = true;
   hud.el.hidden = true;
+  touch.show(false);   // no thumb ring over the creator
   creator.open(state.look);
   camSys.setCreatorView();
 }
@@ -866,6 +869,12 @@ async function unlockDev() {
   try { sessionStorage.setItem(DEV_KEY, '1'); } catch {}
   run.devRun();   // the run in progress stops counting too
 }
+// Players never see the Dev button: five quick taps on the version bring it up (the fps readout shows once unlocked)
+let verTaps = 0, verTimer = 0;
+overlay.querySelector('.ver').addEventListener('click', () => {
+  clearTimeout(verTimer); verTimer = setTimeout(() => { verTaps = 0; }, 1500);
+  if (++verTaps >= 5) overlay.classList.add('dev-reveal');
+});
 overlay.querySelector('[name="dev-pass"]').addEventListener('keydown', (e) => { if (e.key === 'Enter') unlockDev(); });
 try { if (sessionStorage.getItem(DEV_KEY)) overlay.classList.add('dev-open'); } catch {}   // still open after a reload into the other act
 document.addEventListener('pointerlockchange', () => {
