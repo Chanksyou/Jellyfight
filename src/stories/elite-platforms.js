@@ -7,7 +7,7 @@ import { G, V, act2, act3, fresh, holdJelly, night4, ok, step, story, tp } from 
 const cases = [
   [story, 'controller', [1.62,.66,4.47]], [story, 'mug', [.62,.83,2.95]],
   [story, 'kettle', [4.5,.96,3.45]], [act2, 'soap', [1.5,.93,5.47]],
-  [act2, 'clock', [2,.5,7.42]], [act2, 'whipper', [3.25,.02,8.6]],
+  [act2, 'clock', [2,.5,7.42]], [act2, 'whipper', [3.05,.02,8.4]],
   [act3, 'croc', [-.1,.75,10.2]], [act3, 'bull', [-.6,1.2,8.36]],
   [act3, 'coffer', [-1.52,.83,8.8]], [night4, 'bowl', [3.2,.48,1.72]], [night4, 'pillow', [1.2,.53,2.25]], [night4, 'headphones', [2.15,.5,3.05]],
 ];
