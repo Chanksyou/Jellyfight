@@ -2083,8 +2083,7 @@ export function buildWasp() {
 // ------------------------------------------------------------------ moth
 // A dusty house moth: a furry cream thorax and tapering abdomen, a small head with long feathered
 // antennae, tucked legs, and two pairs of broad pale wings, powdery grey-brown toward their edges
-// with a dark band and a dark eye-spot on each. Wings beat slowly (a moth, not a wasp); rearing to
-// swoop it flares them wide and holds them quivering, diving it sweeps them back. Facing +z,
+// with a dark band and a dark eye-spot on each. Wings beat slowly (a moth, not a wasp); climbing over you it flares them wide and holds them quivering, plunging it sweeps them back. Facing +z,
 // centred on its thorax; about 2.6 radii long, wings out about 3.4 across.
 function mothParts() {
   const cream = '#e4d9bf', fur = '#cfc2a4', dust = '#8b7d63';
@@ -2139,17 +2138,16 @@ export function buildMoth() {
   const anim = (dt, e) => {
     t += dt;
     const ph = e?.phase || 0;
-    wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-9 * dt));
-    sweep += (((e?.state === 'dive') ? 1 : 0) - sweep) * (1 - Math.exp(-14 * dt));
+    wind += (((e?.state === 'climb') ? 1 : 0) - wind) * (1 - Math.exp(-9 * dt));   // climbing over you: wings flared
+    sweep += (((e?.state === 'drop') ? 1 : 0) - sweep) * (1 - Math.exp(-14 * dt));   // plunging: swept back
     for (const W of wings) {
       const beat = Math.sin(t * (22 + wind * 14) + ph + (W.hind ? 0.6 : 0));
       // fluttering: wings up and down; rearing: held wide and high, quivering; swooping: swept back
       W.flap.rotation.z = W.s * (0.2 + beat * (0.55 - 0.45 * wind) + wind * 0.75 + sweep * 0.9);
       W.hinge.rotation.y = W.s * (-0.15 - sweep * 0.7 + wind * 0.3);
     }
-    const diving = e?.state === 'dive' && e.diveDir;
     body.position.y = Math.sin(t * 4 + ph) * 0.1 * (1 - wind);
-    body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.2 : 0.1 - wind * 0.55;
+    body.rotation.x = e?.state === 'drop' ? Math.PI / 2 + 0.2 : 0.1 - wind * 0.55;   // nose straight down
   };
   anim.reset = () => { t = 0; wind = 0; sweep = 0; };
   return { body: outer, face: new THREE.Group(), anim };
