@@ -422,7 +422,7 @@
   --pin-stuck: 2;                /* seconds a missed pin stays stuck in the scenery */
   --hostile-missile: #ff2020;   /* the ladybug's lock-on reticle and missile glow */
   --safe-spot: #ffffff;           /* the one spot an attack spares (the Kettle's lid in Boil dry): white, neither hostile nor friendly */
-  --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and cream spray: violet */
+  --hostile-whipper: #a65aff;    /* the Cream Whipper's balloon bursts and its piping's wake: violet */
   --hostile-clock: #ffc23a;      /* the Wall Clock's sweeping hand, thrown wreath and chime rings: gilt */
   --hostile-soap: #ff4a9a;       /* the Soap Dispenser's squirts, slicks and bubble rings */
   --hostile-millipede: #ffa000;  /* the millipede's roll: the lane on the floor it will roll down */
@@ -610,7 +610,8 @@
   --soap-suds-size: 0.009;
   --clock-scuff: #6a5426;        /* a dull gilt scuff where the clock's hand, wreath or chime struck */
   --clock-glints: #fff0b0 #ffc23a #e0b048;   /* gilt glints thrown off where it struck */
-  --cream-splat: #fff6e8;        /* whipped cream left on the floor after the spray */
+  --cream-splat: #fff6e8;        /* whipped cream splatted on the floor under a jelly the piping caught */
+  --whipper-bead: #f8ecff;       /* the Cream Whipper's piped bead of cream and its stream (a hint of its violet) */
   --cream-splat-size: 0.022;
   --balloon-scrap-size: 0.016;   /* the burst balloon's limp rubber scrap on the floor */
   --clog-gunk: #3a2a16;          /* the Clog's wet hair-and-gunk smears on the tub floor */
