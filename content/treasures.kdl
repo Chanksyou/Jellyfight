@@ -517,3 +517,6 @@ treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="s
 treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 of your max Health becomes Shield. You can no longer gain Health." {
     health-to-shield
 }
+treasure "goodieBag" name="Goodie Bag" icon="🛍️" rarity="legendary" text="Every second Elite you beat leaves two Treasures instead of one." {
+    elite-bonus every=2
+}

@@ -13,6 +13,7 @@ import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits, coneHits, shotHits } from './vfx.js';
+import { GlowPools } from './glow-pools.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -246,6 +247,7 @@ export class Enemies {
     this.mods = null;         // the run's combined treasure effects (run.js sets them each frame): status-damage
     this.shots = [];          // web balls and pushpins in flight (the spit word)
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
+    this.glowPools = new GlowPools(scene, fx);   // fireflies' lobs in flight and the glowing pools they leave (the lob word)
     this.pull = null;         // the dragonflies' whirlwinds sucking the jelly in this frame (m/s, flat), or null: the run adds it to its swimming
     this._whirlPull = new THREE.Vector3();
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
@@ -575,6 +577,7 @@ export class Enemies {
     this.missiles = [];
     for (const w of this.whirls || []) if (w.live) this.endWhirl(w);
     this.pull = null;
+    this.glowPools.clear();
   }
 
   // A bug's hit landed on the jelly (the player_hurt event): the bug squashes with the blow (e.recoil,
@@ -1239,6 +1242,14 @@ export class Enemies {
     this.fx.burst(this.center(e, S.spot), ['#121010', '#f2d21a', '#e08a1c'], 6, e.r * 0.25, 0.3, this.floorBelow(e.pos, e.pos.y - 0.1));   // it breaks up, spent
     this.kill(e, true);
   }
+  // ---------------------------------------------------------------- the firefly (lob)
+  lobWind(e, dur) { sfx.glowWind(dur); }
+  // the throw: from the tip of its lamp (behind it), at the floor under where you are now
+  lob(e, c, p) {
+    const k = e.mesh.scale.x, a = e.root.rotation.y, floor = this.floorBelow(c.foot, c.foot.y);
+    const from = S.spot.set(e.pos.x - Math.sin(a) * k * 1.5, e.pos.y + k * 0.3, e.pos.z - Math.cos(a) * k * 1.5);
+    this.glowPools.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type);
+  }
   // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
   // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
   biteWind(e, dur) { sfx.biteWind(dur); }
@@ -1467,6 +1478,7 @@ export class Enemies {
 
     this.updateShots(dt);
     this.updateSparkShots(dt);
+    this.glowPools.update(dt, player, t);
     this.drawSparkBalls();
     this.drawLeaps(t);
     this.drawPokes(t);

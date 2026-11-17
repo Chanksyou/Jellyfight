@@ -2198,21 +2198,23 @@ export function buildFirefly() {
   });
   body.add(angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 }));
   const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
-  let t = 0, wind = 0, dart = 0;
+  let t = 0, wind = 0;
   const anim = (dt, e) => {
     t += dt;
     wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
-    dart += (((e?.state === 'dart') ? 1 : 0) - dart) * (1 - Math.exp(-20 * dt));
-    // the lamp: a flash on every beat, held lit while it draws back and darts
-    const k = Math.max(e?.beatPulse || 0, wind, dart);
+    const kick = Math.max(0, e?.firedT || 0) / 0.3;     // the lob word: 0.3 s after the throw
+    // the lamp: a flash on every beat, held lit while it lifts its tail and throws
+    const k = Math.max(e?.beatPulse || 0, wind, kick);
     hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 1.8));
     lamp.userData.color.copy(dim).lerp(hot, k * k);
     const flap = Math.sin(t * (50 + wind * 20));
     for (const W of wings) { W.pivot.rotation.z = W.s * (0.3 + flap * 0.55); W.pivot.rotation.y = W.s * (0.25 + 0.15 * Math.cos(t * 50)); }
     body.position.y = Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - wind);
-    body.rotation.x = 0.05 - wind * 0.45 - dart * 0.2;    // drawing back it tips up, lamp low; darting, nose first
+    body.position.z = kick * kick * 0.3;                  // the throw jolts it forward, off its tail
+    body.rotation.x = 0.05 + wind * 0.55 - kick * 0.35;  // lifting its tail (nose down) to throw; the throw flicks it back
+    lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
   };
-  anim.reset = () => { t = 0; wind = 0; dart = 0; };
+  anim.reset = () => { t = 0; wind = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 

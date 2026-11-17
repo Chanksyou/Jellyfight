@@ -1203,6 +1203,22 @@ export const sfx = {
   waspSting() { if (!ready() || !gap('waspSting', 60)) return; const j = jitter(0.1); noise(4200 * j, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900 * j, 120, 0.2, 0.08); noise(700 * j, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); patter(3, 0.1, 0.25); },
   // a wasp setting off on its dive: a buzzing rip that climbs away
   diveGo() { if (!ready() || !gap('diveGo', 80)) return; const j = jitter(0.12); noise(2000 * j, 1.5, 0.2, 0.07, 'bandpass', 0, 5000 * j); tone('sawtooth', 420 * j, 620 * j, 0.15, 0.03); },
+  // a firefly's lob: a soft rising hum as it lifts its tail (the warning), a wet pop as the glow leaves
+  // it with a slow whistle rising and falling over its flight, a fizzing splash where it lands (a
+  // thump under it when it catches you), and a hiss while the jelly stands in a pool
+  glowWind(dur = 0.45) { if (!ready() || !gap('glowWind', 120)) return; const j = jitter(0.1); tone('sine', 300 * j, 620 * j, dur, 0.05); tone('triangle', 606 * j, 1240 * j, dur, 0.015); },
+  glowLob(flight = 1.2) {
+    if (!ready() || !gap('glowLob', 90)) return; const j = jitter(0.12);
+    noise(900 * j, 2, 0.06, 0.1, 'bandpass', 0, 2200 * j); tone('sine', 420 * j, 180 * j, 0.09, 0.08);
+    tone('sine', 1300 * j, 1900 * j, flight * 0.5, 0.012); tone('sine', 1900 * j, 1100 * j, flight * 0.5, 0.012, flight * 0.5);
+  },
+  glowLand(hit = false) {
+    if (!ready() || !gap('glowLand', 70)) return; const j = jitter(0.14);
+    noise(1500 * j, 1.5, 0.12, 0.16, 'bandpass', 0, 500 * j); noise(5000 * j, 1, 0.5, 0.05, 'highpass', 0.05);
+    if (hit) tone('sine', 140 * j, 60, 0.15, 0.12);
+    patter(4, 0.08, 0.3, 0.03);
+  },
+  glowSizzle() { if (!ready() || !gap('glowSizzle', 220)) return; const j = jitter(0.15); noise(7000 * j, 1, 0.14, 0.04, 'highpass'); tone('sine', 900 * j, 1300 * j, 0.08, 0.01); },
   // a mosquito's bite: its thin whine climbing as it draws back (the warning), a zip as it darts in,
   // and a sharp prick as it bites
   biteWind(dur = 0.35) {
