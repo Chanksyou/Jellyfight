@@ -396,8 +396,8 @@ export function startBowl(atk, { x = 3.2, z = 1.72, angry = false, hold = true }
 // up. Start one of its attacks with the jelly held on the seat (x, z: its stand point by default,
 // 48 cm from it toward the vent's landing), facing it, on the run's own beat (no song)
 export const pillow = () => G().run.elites.list.find((e) => e.kind === 'pillow');
-export const onSofa = (x = 1.2, z = 2.25) => tp(x, 0.53, z, -Math.PI / 2);   // (the camera behind the jelly, looking along the seat at the pillow)
-export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true } = {}) {
+export const onSofa = (x = 1.2, z = 2.1) => tp(x, 0.53, z, Math.atan2(x - 1.15, z - 1.8));   // (the camera behind the jelly, looking along the seat at the pillow)
+export function startPillow(atk, { x = 1.2, z = 2.1, angry = false, hold = true } = {}) {
   fresh({ hurt: true, bubbles: false, lash: false }); onSofa(x, z);
   stub(G().run, 'song', null);
   const e = pillow(), player = hold ? holdJelly() : G().player;
@@ -407,14 +407,14 @@ export function startPillow(atk, { x = 1.2, z = 2.25, angry = false, hold = true
   e.cool = 0; e.next = atk;
   return { e, player, seat: player.position.y };
 }
-// act 4's Headphones on the glass coffee table (elites.js kind 'headphones', headphones-model.js): the
-// table top 0.46 m up. Start one of its attacks with the jelly on the table (x, z: its stand point by
-// default, 40 cm from it toward the vent's landing), facing it, on the run's own beat (no song). Its
-// waves shove, so the jelly isn't held unless asked
+// act 4's Headphones on the kitchen counter by the stove (elites.js kind 'headphones', headphones-model.js):
+// the counter top 0.94 m up. Start one of its attacks with the jelly on the counter (x, z: its stand point by default,
+// 40 cm from it toward the vent's landing), facing it, on the run's own beat (no song). Its waves
+// shove, so the jelly isn't held unless asked
 export const headphones = () => G().run.elites.list.find((e) => e.kind === 'headphones');
-export const onCoffeeTable = (x = 2.15, z = 3.05) => tp(x, 0.5, z, Math.PI / 2);   // (the camera behind the jelly, looking along the table at the headphones)
-export function startHeadphones(atk, { x = 2.15, z = 3.05, angry = false, hold = false } = {}) {
-  fresh({ hurt: true, bubbles: false, lash: false }); onCoffeeTable(x, z);
+export const onCounter = (x = 4.57, z = 2.65) => tp(x, 0.99, z, Math.atan2(x - 4.62, z - 2.85));   // (the camera behind the jelly, looking at the headphones)
+export function startHeadphones(atk, { x = 4.57, z = 2.65, angry = false, hold = false } = {}) {
+  fresh({ hurt: true, bubbles: false, lash: false }); onCounter(x, z);
   stub(G().run, 'song', null);
   const e = headphones(), player = hold ? holdJelly() : G().player;
   e.cool = 99;

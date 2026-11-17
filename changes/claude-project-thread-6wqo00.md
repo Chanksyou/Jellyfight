@@ -1,0 +1,1 @@
+spreads act 4's three Elites across the living room so no two are ever awake together: the Mushroom Pillow moves to the desk end of the sofa and the Headphones to the kitchen counter by the stove (the Singing Bowl stays on the lounge chair).

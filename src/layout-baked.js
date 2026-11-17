@@ -34,7 +34,13 @@ export const BAKED_LAYOUT = {
     'Disco-ball_mobile#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     // the vents by the Elites land you across from them, not on them
     'vent:Vent by the lounge chair': { at: [3.432, 0, 1.877], land: [3.2, 0.435, 1.72] },
-    'vent:Vent by the sofa': { at: [1.268, 0, 2.463], land: [0.9, 0.511, 2.4] },
+    'vent:Vent by the sofa': { at: [1.268, 0, 2.463], land: [0.9, 0.511, 2.1] },
+    'vent:Vent by the stove': { at: [4.221, 0.013, 2.78], land: [4.5, 0.94, 2.35] },
+    // the two throw pillows at the desk end of the sofa make room for the Mushroom Pillow
+    'Olive_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
+    'Mustard_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
+    // the oils and grinders leave the counter by the stove free for the Headphones
+    'Oils_and_grinders#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'Pet_corner#1': { p: [-0.0504, 0, -0.0065], q: [0, 0, 0, 1] },
     'Mug#1': { p: [-0.0027, 0, -0.043], q: [0, 0, 0, 1], hidden: true },
     'Cat_scratcher_and_box#1': { p: [0.0439, 0, -0.1053], q: [0, 0, 0, 1] },
