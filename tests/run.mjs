@@ -264,7 +264,7 @@ async function touchControls(e) {
     const panel = document.querySelector('#g-over > div'), scrolled = panel.scrollTop > 0;
     document.getElementById('scroll-probe').remove(); panel.scrollTop = 0; return scrolled;
   });
-  await page.tap('#g-over .play');
+  await page.tap('#g-over .pause-resume');
   await step(2);
   out.resumed = await ev(() => document.getElementById('g-over').hidden && !document.getElementById('touch').hidden);
   const good = out.touchUi && out.startPick && out.picked && out.swam > 0.2 && out.jumpVy > 0.1 && out.stableView && out.keptMoving && out.released && out.paused && out.stablePause && out.menuScroll && out.resumed && !errors.length;

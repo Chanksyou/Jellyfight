@@ -362,6 +362,9 @@ Every jelly glows and is the same size.
 On phones: left thumb moves (full speed anywhere past 70% of the ring, however far you drag; a new thumb always takes the stick), right thumb looks, ⤴ jumps (hold to climb; tap again in the air with Pen Spring).
 The whole page blocks browser zoom during two-thumb play, including missed presses beside Jump or the map.
 The pause menu also blocks pinch and double-tap zoom, while its buttons and vertical scrolling stay usable; the home menu retains deliberate pinch zoom.
+The title is slim: How to play, Play, and three tiles (Treasure book, Trophies, which opens a small chooser for Achievements and the Leaderboard, and Change your look), with a gear in the top corner that opens Settings.
+Settings is a sheet (`src/main.js`, built from the UI kit in `src/ui-kit.css`) with Sound, Music, Graphics, Frame rate on phones, Text size (Normal or Large, kept in `jellyrun.textSize`), Install app when the browser offers it, and the Dev unlock.
+The pause menu is its own screen: Resume, Settings and Main menu (tap twice to leave the run), then a summary of Health, Level, the time to the Boss and your Treasures as icons (`src/pause-summary.js`), and the list of what each Treasure does.
 
 ## Hosting on Cloudflare (public leaderboard)
 

@@ -117,6 +117,8 @@ const over = () => document.getElementById('g-over');
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   pause: { open() { over().hidden = false; }, close() { over().hidden = true; } },
+  settings: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="settings"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
+  trophies: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="trophies"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   hud: { open() {}, close() {} },
   'type-pick': { open() { G().picker.open({ start: 'normal', onPlay() {}, onBack() {} }); }, close() { G().picker.close(); } },
   'level-up': { open() { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, close() { G().run.ui.close(); } },
@@ -163,8 +165,6 @@ const KNOWN = {
     'book: button > span', 'book: button.locked > span', 'win: b > small.jf-best',
   ],
   targets: [
-    'title: details.menu-help > summary', 'title: div.row > button', 'title: b.seg > button',
-    'pause: div > button.play', 'pause: div.row > button', 'pause: b.seg > button',
     'type-pick: header > button.tp-back',
     'change-look: div.sec > input', 'change-look: div.chips > button', 'change-look: footer > button',
     // 41 px tall with Inter or San Francisco (padding round one line of 15-18 px text, no min-height); taller fonts hide them

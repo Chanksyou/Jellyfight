@@ -223,13 +223,13 @@ phone('frame-rate-cool-by-default', {
     const { pacer, governor } = window.pacing;
     let stored = null; try { stored = localStorage.getItem('jellyrun.fps'); localStorage.removeItem('jellyrun.fps'); } catch {}
     const cool = pacer.fps === 30 || stored === '60';
-    const btn = (f) => document.querySelector(`#g-quality [data-fps="${f}"]`);
+    const btn = (f) => document.querySelector(`#g-over [data-fps="${f}"]`);
     const offered = !!btn(30) && !!btn(60);
     btn(60)?.click();
     let kept = null; try { kept = localStorage.getItem('jellyrun.fps'); } catch {}
-    const smooth = pacer.fps === 60 && Math.round(governor.target) === 17 && kept === '60' && btn(60)?.classList.contains('on');
+    const smooth = pacer.fps === 60 && Math.round(governor.target) === 17 && kept === '60' && btn(60)?.getAttribute('aria-pressed') === 'true';
     btn(30)?.click();
-    const back = pacer.fps === 30 && Math.round(governor.target) === 33 && btn(30)?.classList.contains('on');
+    const back = pacer.fps === 30 && Math.round(governor.target) === 33 && btn(30)?.getAttribute('aria-pressed') === 'true';
     try { if (stored) localStorage.setItem('jellyrun.fps', stored); else localStorage.removeItem('jellyrun.fps'); } catch {}
     if (stored) { pacer.fps = +stored; governor.base = governor.target = 1000 / +stored; }
     return ok(cool && offered && smooth && back, { cool, fps: pacer.fps, offered, smooth, back, kept });
