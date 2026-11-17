@@ -7,6 +7,7 @@
 //   node tools/ui-shots.mjs --only=book,title        just those screens
 //   node tools/ui-shots.mjs --phone | --desktop      one size
 //   node tools/ui-shots.mjs --out=DIR                somewhere else
+//   node tools/ui-shots.mjs --large                  with Settings' Large text (files end -large)
 //
 // Uses the test runner's Playwright and three.js (tests/lib.mjs: tests/.three when the CDN is blocked).
 import fs from 'node:fs';
@@ -15,6 +16,7 @@ import { start, openGame, ROOT } from '../tests/lib.mjs';
 
 const args = process.argv.slice(2), arg = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const only = arg('only')?.split(',').filter(Boolean);
+const large = args.includes('--large');
 const out = path.resolve(arg('out') || path.join(ROOT, '.wrangler/ui-shots'));
 const DEVICES = [
   { name: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
@@ -32,7 +34,8 @@ try {
     if (unknown.length) throw new Error(`no screen called ${unknown.join(', ')} (have: ${names.join(', ')})`);
     for (const [i, screen] of names.entries()) {
       if (only && !only.includes(screen)) continue;
-      const shown = await page.evaluate(async ({ screen, phone }) => {
+      const shown = await page.evaluate(async ({ screen, phone, large }) => {
+        document.documentElement.dataset.textSize = large ? 'large' : 'normal';
         const { fresh, step } = await import('/src/stories/kit.js'), ui = await import('/src/stories/ui.js');
         const s = screen.startsWith('kit') ? { open() { this.el = ui.kitSheet(); if (screen === 'kit-sheet') this.el.querySelector('[data-kit=sheet-open]').click(); }, close() { this.el.remove(); } } : ui.SCREENS[screen];
         if (s.phone && !phone) return false;
@@ -43,11 +46,11 @@ try {
         await document.fonts.ready;
         window.__shotClose = () => { try { s.close(); } finally { step(1); } };
         return true;
-      }, { screen, phone: device.name === 'phone' });
+      }, { screen, phone: device.name === 'phone', large });
       if (!shown) continue;
       // the kit sheet scrolls: a shot per screenful
       for (let part = 1, more = true; more; part++) {
-        const file = path.join(out, `${device.name}-${String(i).padStart(2, '0')}-${screen}${part > 1 ? '-' + part : ''}.jpg`);
+        const file = path.join(out, `${device.name}-${String(i).padStart(2, '0')}-${screen}${part > 1 ? '-' + part : ''}${large ? '-large' : ''}.jpg`);
         await page.waitForTimeout(400);                   // CSS transitions run on real time
         await page.screenshot({ path: file, type: 'jpeg', quality: 82, timeout: 120000 });
         console.log('✓ ' + path.relative(process.cwd(), file));

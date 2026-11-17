@@ -302,10 +302,6 @@
   --menu-bob: 0.045;
   --menu-poke-squash: 0.15;
   --menu-launch-time: 0.28;
-  --menu-ink: #101a23;
-  --menu-paper: #fff6dc;
-  --menu-mint: #a3f5d5;
-  --menu-gold: #ffd46c;
   --menu-water-deep: #06162e;
   --menu-water-shallow: #175c70;
   --menu-water-glow: #70ddc7;
@@ -940,7 +936,7 @@
   min-height: var(--ui-target); background: var(--ui-glass); color: var(--ui-ink); border-color: var(--ui-line);
   font: 600 var(--ui-size-body)/1.1 var(--ui-font-text); box-shadow: none;
 }
-#g-over .resume:not([hidden]) + .play:hover { background: var(--ui-glass-strong); filter: none; }
+@media (hover: hover) { #g-over .resume:not([hidden]) + .play:hover { background: var(--ui-glass-strong); filter: none; } }
 #g-over .menu-tiles { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }
 #g-over .menu-tiles .ui-tile { width: 104px; min-height: 72px; text-align: center; }
 #g-over .menu-gear { position: fixed; z-index: 2; top: max(var(--ui-space-3), env(safe-area-inset-top)); right: max(var(--ui-space-3), env(safe-area-inset-right)); }

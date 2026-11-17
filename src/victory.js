@@ -20,8 +20,6 @@ const CSS = `
 .jf-win h1 .ui-icon { width: 1.1em; height: 1.1em; color: var(--ui-gold); }
 .jf-win p { margin: 0; color: var(--ui-ink-dim); font-size: var(--ui-size-body); text-wrap: balance; }
 .jf-win-nums { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--ui-space-2); width: 100%; }
-.jf-win-nums .ui-tile { cursor: default; }
-.jf-win-nums .ui-tile:hover { background: var(--ui-glass); }
 .jf-win-nums b { font: 600 var(--ui-size-heading)/1.1 var(--ui-font-display); color: var(--ui-gold); font-variant-numeric: tabular-nums; }
 .jf-win .ui-btn { pointer-events: auto; }
 .jf-win .ui-btn[hidden] { display: none; }

@@ -96,8 +96,10 @@ const kitStory = (phone) => ({
     document.body.classList.toggle('calm', calm);
     const moves = getComputedStyle($('[data-kit=enter]')).animationName === (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'ui-fade-in' : 'ui-in');
     // hover looks only where there is a mouse: a tapped button on a phone would otherwise stay lit (Reduce effects' reset is fine)
+    // (every stylesheet on the page, the screens' own included, not only the kit's)
     const kitRules = [...[...document.styleSheets].find((s) => s.href?.endsWith('ui-kit.css')).cssRules];
-    const looseHover = kitRules.filter((r) => r.selectorText?.includes(':hover') && !r.selectorText.startsWith('body.calm')).map((r) => r.selectorText);
+    const topRules = [...document.styleSheets].flatMap((s) => { try { return [...s.cssRules]; } catch { return []; } });
+    const looseHover = topRules.filter((r) => r.selectorText?.includes(':hover') && !r.selectorText.startsWith('body.calm')).map((r) => r.selectorText);
     const hoverGated = !looseHover.length && kitRules.some((r) => r.media?.mediaText === '(hover: hover)');
     const near = (a, b) => Math.abs(a - b) < .05;
     const scale = phone
@@ -151,28 +153,10 @@ const MEASURE = {
     .filter(([e, r]) => e.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)))   // on top, not under another screen
     .filter(([, r]) => r.width < 44 || r.height < 44).map(([e, r]) => [nameOf(e), `${Math.round(r.width)}x${Math.round(r.height)}`]),
 };
-// Today's offenders (before the UI overhaul restyles their screens), as "screen: element". Each is
-// allowed until its screen is redone; wave 3 empties these lists. A new offender fails the story.
-// An entry also covers the same element with more classes (its states: .on, .locked, .shop).
-const KNOWN = {
-  text: [
-    'hud: div.bar.moist > span.hpn', 'hud: div.tc > div.stage',
-    'type-pick: div.tp-bars > div.tp-bar',
-    'change-look: div.sec > div.lbl',
-    // found once screens were measured at rest, after their deal-in (settle, below)
-    'level-up: button.jf-card > span.rar', 'level-up: button.jf-card > span.now',
-    'treasure-pick: button.jf-card > span.jf-new', 'treasure-pick: button.jf-card > span.rar', 'treasure-pick: button.jf-card > span.delta',
-    'treasure-pick: button.jf-card.jf-sheen > span.jf-new', 'treasure-pick: button.jf-card.jf-sheen > span.rar',
-    'book: button > span', 'book: button.locked > span', 'win: b > small.jf-best',
-  ],
-  targets: [
-    'type-pick: header > button.tp-back',
-    'change-look: div.sec > input', 'change-look: div.chips > button', 'change-look: footer > button',
-    // 41 px tall with Inter or San Francisco (padding round one line of 15-18 px text, no min-height); taller fonts hide them
-    'title: div > button.play', 'level-up: div.btns > button', 'achievements: div.btns > button', 'leaderboard: div.btns > button',
-    'act-complete: div.btns > button', 'win: div.btns > button',
-  ],
-};
+// Offenders allowed for now, as "screen: element" (an entry also covers the same element with more
+// classes: its states, .on, .locked). The UI overhaul's redo cleared every one; a new offender fails the
+// story, so fix it rather than listing it here.
+const KNOWN = { text: [], targets: [] };
 // a screen is measured where it comes to rest: arriving animations (.ui-enter, a card's deal-in) start
 // see-through, and an element at opacity 0 isn't seen, so skip them to their end (looping ones run on)
 const settle = () => { for (const a of document.getAnimations()) if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish(); };

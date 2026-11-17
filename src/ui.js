@@ -42,7 +42,7 @@ const CSS = `
 .jf-cards .ui-card { flex: 0 1 280px; min-width: 0; align-content: start; padding-top: var(--ui-space-4); text-align: left;
   background: linear-gradient(color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-panel-raised)), color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-deep)));
   box-shadow: 0 8px 20px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--rarity) var(--tint, 18%), transparent); }
-.jf-cards .ui-card:hover { box-shadow: 0 10px 24px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--rarity) var(--tint, 18%), transparent); }
+@media (hover: hover) { .jf-cards .ui-card:hover { box-shadow: 0 10px 24px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--rarity) var(--tint, 18%), transparent); } }
 .jf-cards .ui-card-icon { width: 52px; height: 52px; font-size: 36px; }
 .jf-cards .ui-card-name b { color: var(--ui-mint); font-weight: inherit; }
 .jf-cards .ui-card-body { color: var(--ui-ink); }
@@ -105,7 +105,7 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-sheet .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-1) 0; }
 .jf-sheet .jf-info { margin: 0 0 var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-deep); border-radius: var(--ui-radius-s); font-size: var(--ui-size-label); line-height: 1.4; color: var(--ui-ink-dim); text-align: left; }
 .jf-modal .jf-sheet .btns { flex: none; margin: var(--ui-space-3) calc(-1 * var(--ui-space-4)) 0; max-width: none; padding: var(--ui-space-3); background: var(--ui-panel-raised); border-top: 1px solid var(--ui-line); }
-.jf-sheet .btns .ui-btn { min-height: var(--ui-target); font-size: var(--ui-size-body); }
+.jf-sheet .btns .ui-btn { font-size: var(--ui-size-body); }
 .jf-sheet .btns .ui-btn:disabled { opacity: 1; color: var(--ui-ink-dim); background: var(--ui-shade); cursor: default; }   /* Share with nothing to share: dim, still readable (4.5:1) */
 .jf-tabs { align-self: flex-start; max-width: 100%; overflow-x: auto; margin: 0 0 var(--ui-space-2); }
 .jf-tabs > button { flex: none; padding: 0 var(--ui-space-3); }
@@ -140,7 +140,6 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 /* the leaderboard: big rows, each player's own jelly by their name */
 .jf-empty { margin: var(--ui-space-2) 0 var(--ui-space-1); color: var(--ui-ink-dim); }
 .jf-empty .ui-icon { width: 44px; height: 44px; opacity: .6; }
-.jf-board .btns .ui-btn { min-height: var(--ui-target); }
 .jf-board { width: min(760px, 94vw); max-height: 100dvh; overflow-y: auto; padding: var(--ui-space-4); box-sizing: border-box; }
 .jf-board .jf-stats { font-size: 22px; gap: 10px 36px; width: 100%; grid-template-columns: minmax(0, 1fr) auto; }
 .jf-board .jf-stats > span { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; color: var(--ui-ink); }
@@ -156,7 +155,7 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
   font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); text-align: left; color: var(--ui-ink); cursor: pointer; padding: var(--ui-space-2) var(--ui-space-3); border-radius: var(--ui-radius-m) var(--ui-radius-m) var(--ui-radius-m) 4px;
   background: var(--ui-panel); border: 1px solid var(--ui-epic); box-shadow: 0 6px 18px var(--ui-shade); }
 @media (max-height: 500px) { .jf-modal .jf-beta { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); max-width: 200px; } }
-.jf-modal .jf-beta:hover { border-color: var(--ui-ink); }
+@media (hover: hover) { .jf-modal .jf-beta:hover { border-color: var(--ui-ink); } }
 .jf-modal .jf-beta:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 2px; }
 .jf-feedback { display: block; box-sizing: border-box; width: min(460px, calc(100vw - 32px)); margin: var(--ui-space-3) auto 0; padding: 10px var(--ui-space-3); resize: vertical;
   font: 16px/1.4 var(--ui-font-text); border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-glass); color: var(--ui-ink); }
