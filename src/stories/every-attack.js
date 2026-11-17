@@ -118,9 +118,9 @@ act2('leads-to-act-3', {
   play() {
     const { run, menus } = G();
     run.metamorph();
-    document.querySelector('.jf-card')?.click();     // the evolution
-    document.querySelector('.jf-evolution-footer button').click(); // skip its transformation
     document.querySelector('.jf-card')?.click();     // the boss's Legendary
+    document.querySelector('.jf-evolution-footer button')?.click(); // skip its transformation, if the roll made it a former evolution
+    document.querySelector('.jf-card')?.click();     // the Attack upgrade
     const text = document.querySelector('.jf-modal')?.innerText || '';
     const go = [...document.querySelectorAll('.jf-modal button')].some((b) => /On to act 3/.test(b.textContent));
     menus.close();
