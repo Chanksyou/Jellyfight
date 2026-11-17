@@ -96,34 +96,39 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-panel > .ui-header { justify-content: center; }
 .jf-panel > .ui-header > :first-child { text-align: center; }
 .jf-panel .sub { margin: 0 0 var(--ui-space-3); }
-/* the Treasure book: a grid per kind, found ones in their colour, the rest as ? */
+/* the Treasure book and the Achievements list: one panel (.jf-sheet) whose header and footer stay put and whose middle scrolls */
 .jf-book { width: min(900px, 94vw); max-height: 92dvh; overflow-y: auto; box-sizing: border-box; }
-.jf-book h3 { margin: var(--ui-space-4) 0 var(--ui-space-2); font: 500 var(--ui-size-heading)/1.2 var(--ui-font-display); text-align: left; }
-.jf-book h3 small { color: var(--ui-ink-dim); font-weight: 600; }
-.jf-book .jf-head { position: sticky; top: 0; z-index: 2; margin: calc(-1 * var(--ui-space-4)) calc(-1 * var(--ui-space-4)) 0; padding: var(--ui-space-1) var(--ui-space-4) var(--ui-space-1);
-  background: var(--ui-panel-raised); border-radius: var(--ui-radius-m) var(--ui-radius-m) 0 0; }
-.jf-book .jf-head .ui-header { margin: 0; }
-.jf-book .jf-head .ui-header > :first-child { display: flex; align-items: center; gap: var(--ui-space-2); text-align: left; }
-.jf-book .jf-head .sub { margin: 0; font-size: var(--ui-size-label); }
-.jf-book .say { margin: var(--ui-space-1) 0 0; padding: var(--ui-space-1) var(--ui-space-3); font-size: var(--ui-size-label); background: var(--ui-deep); border-radius: var(--ui-radius-s); text-align: left; }
+.jf-sheet { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.jf-sheet .jf-head .ui-header { margin: 0; }
+.jf-sheet .jf-head .ui-header > :first-child { display: flex; align-items: center; gap: var(--ui-space-2); text-align: left; }
+.jf-sheet .jf-head .sub { margin: 0 0 var(--ui-space-2); font-size: var(--ui-size-label); color: var(--ui-ink-dim); text-align: left; }
+.jf-sheet .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-1) 0; }
+.jf-sheet .jf-info { margin: 0 0 var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); background: var(--ui-deep); border-radius: var(--ui-radius-s); font-size: var(--ui-size-label); line-height: 1.4; color: var(--ui-ink-dim); text-align: left; }
+.jf-modal .jf-sheet .btns { flex: none; margin: var(--ui-space-3) calc(-1 * var(--ui-space-4)) 0; max-width: none; padding: var(--ui-space-3); background: var(--ui-panel-raised); border-top: 1px solid var(--ui-line); }
+.jf-sheet .btns .ui-btn { min-height: var(--ui-target); font-size: var(--ui-size-body); }
+.jf-sheet .btns .ui-btn:disabled { opacity: 1; color: var(--ui-ink-dim); background: var(--ui-shade); cursor: default; }   /* Share with nothing to share: dim, still readable (4.5:1) */
+.jf-tabs { align-self: flex-start; max-width: 100%; overflow-x: auto; margin: 0 0 var(--ui-space-2); }
+.jf-tabs > button { flex: none; padding: 0 var(--ui-space-3); }
+.jf-sheet h3 { margin: var(--ui-space-3) 0 var(--ui-space-2); font: 500 var(--ui-size-heading)/1.2 var(--ui-font-display); text-align: left; }
+.jf-sheet h3:first-child { margin-top: 0; }
+.jf-sheet h3 small { color: var(--ui-ink-dim); font-weight: 600; }
+.jf-book .say { flex: none; margin: var(--ui-space-2) 0 var(--ui-space-3); padding: var(--ui-space-2) var(--ui-space-3); min-height: 2.6em; box-sizing: border-box; font-size: var(--ui-size-label); line-height: 1.35; background: var(--ui-deep); border-radius: var(--ui-radius-s); text-align: left; }
 .jf-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--ui-space-2); }
-.jf-book-grid button { font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink); background: color-mix(in srgb, var(--c, var(--ui-line)) 12%, var(--ui-panel-raised)); border: 2px solid var(--c, var(--ui-line)); border-radius: var(--ui-radius-s);
-  padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 64px; }
-.jf-book-grid button:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 2px; }
-.jf-book-grid button .ic { font-size: 26px; line-height: 1.1; }
-.jf-book-grid button:disabled { cursor: default; opacity: .4; }
-.jf-book-grid button.locked { opacity: .6; border-style: dashed; }
-.jf-book-grid button.locked .ic { filter: brightness(0); }   /* a locked jelly type: its silhouette */
-.jf-achievements .jf-scroll > p { font-size: var(--ui-size-body); line-height: 1.5; color: var(--ui-ink-dim); }
-.jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--ui-space-3); text-align: left; }
-.jf-achievements article { border: 1px solid var(--ui-line); border-radius: var(--ui-radius-m); padding: var(--ui-space-3); background: var(--ui-glass); }
+.jf-book-grid .ui-tile { width: 100%; min-width: 0; min-height: 72px; align-content: start; padding: var(--ui-space-2) var(--ui-space-1); text-align: center; background: color-mix(in srgb, var(--c, var(--ui-line)) 12%, var(--ui-panel-raised)); border: 2px solid var(--c, var(--ui-line)); }
+.jf-book-grid .ui-tile .ic { font-size: 26px; line-height: 1.1; }
+.jf-book-grid .ui-tile:disabled { cursor: default; border-color: var(--ui-line); background: var(--ui-shade); color: var(--ui-ink-dim); }
+.jf-book-grid .ui-tile:disabled .ui-icon { color: var(--ui-ink-dim); opacity: .45; }   /* not found yet: a dim silhouette of its section's icon, and where to find it */
+.jf-book-grid .ui-tile.locked { border-style: dashed; color: var(--ui-ink-dim); }
+.jf-book-grid .ui-tile.locked .ic { filter: brightness(0); opacity: .6; }   /* a locked jelly type: its silhouette */
+.jf-achievements .challenges { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--ui-space-2); text-align: left; }
+.jf-achievements article.ui-panel { padding: var(--ui-space-3); border-radius: var(--ui-radius-m); background: var(--ui-glass); box-shadow: none; }
 .jf-achievements article.earned { border-color: var(--ui-mint); background: color-mix(in srgb, var(--ui-mint) 8%, transparent); }
-.jf-achievements article h3 { margin: 0 0 6px; }
-.jf-achievements article p { font-size: var(--ui-size-body); line-height: 1.45; margin: 0 0 var(--ui-space-2); color: var(--ui-ink-dim); }
-.jf-achievements article small { display: block; color: var(--ui-ink-dim); line-height: 1.4; }
-.jf-achievements { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
-.jf-achievements .jf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-2) 0; }
-.jf-book.jf-achievements .btns { flex: none; margin: 0 calc(-1 * var(--ui-space-4)); max-width: none; padding: var(--ui-space-2); background: var(--ui-panel-raised); border-top: 1px solid var(--ui-line); }
+.jf-achievements article h3 { display: flex; align-items: center; gap: var(--ui-space-2); margin: 0 0 var(--ui-space-1); font-size: var(--ui-size-body); }
+.jf-achievements article h3 .ui-icon { color: var(--ui-mint); }
+.jf-achievements article h3 .jf-dot { width: .9em; height: .9em; flex: none; box-sizing: border-box; border: 2px solid var(--ui-ink-dim); border-radius: 50%; margin: 0 .17em; }
+.jf-achievements article p { font-size: var(--ui-size-label); line-height: 1.4; margin: 0 0 var(--ui-space-1); color: var(--ui-ink-dim); }
+.jf-achievements article small { display: block; color: var(--ui-mint); line-height: 1.4; }
+.jf-share-note { flex-basis: 100%; margin: 0; font-size: var(--ui-size-label); color: var(--ui-ink-dim); text-align: center; }
 .jf-modal .btns { margin-top: var(--ui-space-5); display: flex; flex-wrap: wrap; gap: var(--ui-space-3); justify-content: center; max-width: min(760px, 94vw); margin-left: auto; margin-right: auto; }
 .jf-modal .btns .ui-btn--primary { font-size: var(--ui-size-heading); }
 .jf-modal .btns .jf-key { color: var(--ui-ink-dim); font-size: var(--ui-size-label); }
@@ -133,6 +138,9 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-stats small { font-weight: 600; color: var(--ui-ink-dim); }
 .jf-stats .jf-unlock { width: 56px; height: 56px; border-radius: 50%; vertical-align: middle; margin-right: var(--ui-space-3); box-shadow: 0 0 0 2px var(--ui-gold), 0 4px 14px var(--ui-shade); }
 /* the leaderboard: big rows, each player's own jelly by their name */
+.jf-empty { margin: var(--ui-space-2) 0 var(--ui-space-1); color: var(--ui-ink-dim); }
+.jf-empty .ui-icon { width: 44px; height: 44px; opacity: .6; }
+.jf-board .btns .ui-btn { min-height: var(--ui-target); }
 .jf-board { width: min(760px, 94vw); max-height: 100dvh; overflow-y: auto; padding: var(--ui-space-4); box-sizing: border-box; }
 .jf-board .jf-stats { font-size: 22px; gap: 10px 36px; width: 100%; grid-template-columns: minmax(0, 1fr) auto; }
 .jf-board .jf-stats > span { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; color: var(--ui-ink); }
@@ -181,6 +189,11 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
   .jf-pop .ic { font-size: 28px; }
 }
 `;
+
+// the Treasure book's unfound tiles: a dim icon for the section, and where its things turn up
+const WHERE = { Treasures: ['star', 'Find in a run'], Elites: ['shield', 'Beat an Elite'], Bosses: ['trophy', 'Beat a boss'], Upgrades: ['medal', 'After a boss'] };
+// a title without the emoji run.js still puts in front of it (the screens draw an icon of their own)
+const bare = (t) => t.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '');
 
 export class UI {
   constructor(parent) {
@@ -387,20 +400,20 @@ export class UI {
   achievements(items, onBack, onTop = null) {
     this._gen++;
     const count = items.filter(a => a.earned).length;
-    this.modal.innerHTML = `<section class="ui-panel jf-book jf-achievements" aria-label="Achievements">
-      <div class="jf-head"><div class="ui-header"><h2>${icon('medal')} Achievements</h2><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div><p class="sub">${count}/${items.length} earned · Every challenge requires a full four-boss win.</p></div>
-      <div class="jf-scroll"><p>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.</p>
-      ${onTop ? `<p>${count ? 'Share your earned total with the achievement leaderboard.' : 'Earn an achievement to share your total with the leaderboard.'}</p>` : ''}
-      <div class="challenges">${items.map(a => `<article class="${a.earned ? 'earned' : ''}">
-        <h3>${a.earned ? '✓' : '○'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
+    this.modal.innerHTML = `<section class="ui-panel jf-book jf-sheet jf-achievements" aria-label="Achievements">
+      <div class="jf-head"><div class="ui-header"><h2>${icon('medal')} Achievements</h2><button class="ui-btn ui-btn--ghost ui-btn--icon" data-info aria-expanded="false" aria-label="About achievements">${icon('info')}</button><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div><p class="sub">${count}/${items.length} earned · Every challenge needs a full four-boss win.</p>
+      <p class="jf-info" hidden>Earned achievements stay on this browser. Shields and Dodge are allowed; healing never erases Health lost.${onTop ? ` ${count ? 'Share your earned total with the achievement leaderboard.' : 'Earn an achievement to share your total with the leaderboard.'}` : ''}</p></div>
+      <div class="jf-scroll"><div class="challenges">${items.map(a => `<article class="ui-panel ${a.earned ? 'earned' : ''}">
+        <h3>${a.earned ? icon('check') : '<span class="jf-dot"></span>'} ${esc(a.name)}</h3><p>${esc(a.text)}</p>
         ${a.earned ? `<small>Earned · ${esc(new Date(a.earned).toLocaleDateString())}</small>` : ''}</article>`).join('')}</div></div>
-      <div class="btns">${onTop ? `<button class="ui-btn" data-share ${count ? '' : 'disabled'}>Share achievements</button><button class="ui-btn" data-top>${icon('trophy')} Top 5 players</button>` : ''}<button class="ui-btn ui-btn--primary go">${icon('back')} Back</button></div></section>`;
+      <div class="btns">${onTop ? `<button class="ui-btn" data-share ${count ? '' : 'disabled'}>${icon('share')} Share achievements</button><button class="ui-btn" data-top>${icon('trophy')} Top 5 players</button>` : ''}<button class="ui-btn ui-btn--primary go">${icon('back')} Back</button>${onTop && !count ? '<p class="jf-share-note">Earn one to share your total.</p>' : ''}</div></section>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
     this.modal.onclick = e => {
       const button = e.target.closest('button');
       if (button?.disabled) return;
-      if (button?.matches('[data-top], [data-share]')) { this.close(); onTop(); }
+      if (button?.matches('[data-info]')) { const info = this.modal.querySelector('.jf-info'); info.hidden = !info.hidden; button.setAttribute('aria-expanded', String(!info.hidden)); }
+      else if (button?.matches('[data-top], [data-share]')) { this.close(); onTop(); }
       else if (button) back();
     };
     this.keyHandler = e => { if (e.code === 'Escape') { e.preventDefault(); back(); } };   // Enter activates the focused button natively
@@ -410,7 +423,8 @@ export class UI {
   // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)
   message(title, sub, rows, buttons, cls = '', hint = '') {
     this._gen++;
-    this.modal.innerHTML = `<div class="ui-panel jf-panel ${cls}"><div class="ui-header"><h2>${title}</h2></div>${sub ? `<p class="sub">${sub}</p>` : ''}
+    const board = cls.includes('jf-board');   // the leaderboards: a plain title, and an icon over a board with nothing on it yet
+    this.modal.innerHTML = `<div class="ui-panel jf-panel ${cls}"><div class="ui-header"><h2>${board ? bare(title) : title}</h2></div>${board && !rows.length ? `<div class="jf-empty">${icon('trophy')}</div>` : ''}${sub ? `<p class="sub">${sub}</p>` : ''}
       ${hint ? `<p class="jf-hint"><span aria-hidden="true">💡</span> ${esc(hint)}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`)).join('')}</div>
@@ -454,25 +468,32 @@ export class UI {
   }
 
   // The Treasure book (run.showBook): sections [{ title, items: [{ icon, name, text, color?, found, locked? }] }].
-  // Tap a found one to read what it does; unfound ones stay a ?
+  // The sections are tabs (every jelly's Attack upgrades share one). Tap a found one to read what it does;
+  // an unfound one is a dim silhouette of its section's icon and where to find it.
   book(title, sections, onBack) {
     this._gen++;
-    const cell = (it) => (it.found
-      ? `<button data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || 'var(--ui-mint)'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
-      : it.locked ? `<button class="locked" data-say="${esc(`${it.name}: ${it.locked}`)}"><span class="ic">${it.icon}</span><span>${esc(it.locked)}</span></button>`   // locked: a silhouette with its goal
-        : '<button disabled aria-label="Not found yet"><span class="ic">?</span><span>???</span></button>');
-    this.modal.innerHTML = `<div class="ui-panel jf-book"><div class="jf-head"><div class="ui-header"><h2>${title}</h2><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div><p class="say" aria-live="polite">Select a discovery to read more.</p></div>
-      ${sections.map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map(cell).join('')}</div>`).join('')}
-      <div class="btns"><button class="ui-btn ui-btn--primary go" data-back>${icon('back')} Back</button></div></div>`;
+    const key = (s) => (s.title.includes(': ') ? 'Upgrades' : s.title), tabs = [...new Set(sections.map(key))];
+    const cell = (it, s) => (it.found
+      ? `<button class="ui-tile" data-say="${esc(`${it.icon} ${it.name}: ${it.text}`)}" style="--c:${it.color || 'var(--ui-mint)'}"><span class="ic">${it.icon}</span><span>${esc(it.name)}</span></button>`
+      : it.locked ? `<button class="ui-tile locked" data-say="${esc(`${it.name}: ${it.locked}`)}"><span class="ic">${it.icon}</span><span>${esc(it.locked)}</span></button>`   // locked: a silhouette with its goal
+        : `<button class="ui-tile" disabled aria-label="Not found yet">${icon((WHERE[key(s)] || WHERE.Treasures)[0])}<span>${(WHERE[key(s)] || WHERE.Treasures)[1]}</span></button>`);
+    this.modal.innerHTML = `<div class="ui-panel jf-book jf-sheet"><div class="jf-head"><div class="ui-header"><h2>${icon('book')} ${bare(title)}</h2><button class="ui-btn ui-btn--ghost ui-btn--icon jf-x" data-back aria-label="Close">${icon('close')}</button></div></div>
+      <div class="ui-seg jf-tabs" role="group" aria-label="Sections">${tabs.map((t, i) => `<button data-tab="${i}" aria-pressed="${!i}">${t}</button>`).join('')}</div>
+      <div class="jf-scroll">${tabs.map((t, i) => `<div data-pane="${i}"${i ? ' hidden' : ''}>${sections.filter((s) => key(s) === t).map((s) => `<h3>${s.title} <small>${s.items.filter((it) => it.found).length} / ${s.items.length}</small></h3><div class="jf-book-grid">${s.items.map((it) => cell(it, s)).join('')}</div>`).join('')}</div>`).join('')}</div>
+      <p class="say" aria-live="polite">Select a discovery to read more.</p></div>`;
     this.modal.hidden = false;
     const back = () => { this.close(); onBack(); };
     this.modal.onclick = (e) => {
       const b = e.target.closest('button');
       if (b) sfx.tap();
       if (b?.dataset.say) this.modal.querySelector('.say').textContent = b.dataset.say;
-      else if (b && 'back' in b.dataset) back();
+      else if (b && 'tab' in b.dataset) {
+        this.modal.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t === b)));
+        this.modal.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
+        this.modal.querySelector('.jf-scroll').scrollTop = 0;
+      } else if (b && 'back' in b.dataset) back();
     };
-    this.keyHandler = (e) => { if (e.code === 'Escape' || e.code === 'Enter') back(); };
+    this.keyHandler = (e) => { if (e.code === 'Escape' || (e.code === 'Enter' && !e.target.closest?.('button'))) back(); };
   }
 
   // what's typed into the dialog's named inputs: { name: value }

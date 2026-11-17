@@ -600,6 +600,9 @@
   --encore-defeat-calm-time: 1.5;
   --victory-bubble: #bff4ff;     /* the bubbles rising past the jelly as it swims home (victory.js) */
   --victory-continue-after: 1.6; /* s before Continue shows on the win screen */
+  --victory-camera-distance: 1.35; /* jelly heights from the jelly to the camera on the win screen */
+  --victory-jelly-x: 0.3;         /* where the jelly sits on a wide win screen (0-1 across) ... */
+  --victory-jelly-y-tall: 0.32;   /* ...and on a tall one (0-1 down), beside the words */
   --death-land-deep: #0e0909;     /* behind the death screen (dried-out.js): the dusty sky up top... */
   --death-land-shallow: #553522;  /* ...the haze at the horizon, which is also the far land... */
   --death-land-glow: #e9a25c;     /* ...the low sun, its beams and the dust in the air... */
@@ -616,7 +619,7 @@
   --death-jelly-yaw: 0.3;         /* turned a little as it lies */
   --death-jelly-x: 0.85;          /* where it lies on a wide screen (0-1 across, 0-1 down); centred on a tall one */
   --death-jelly-y: 0.83;
-  --death-jelly-x-short: 0.92;    /* the same on a screen under 500 px tall (a phone on its side) */
+  --death-jelly-x-short: 0.93;    /* the same on a screen under 500 px tall (a phone on its side) */
   --death-jelly-y-short: 0.7;
   --death-camera-distance: 3.2;   /* jelly heights */
   --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */

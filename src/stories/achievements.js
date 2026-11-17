@@ -177,7 +177,7 @@ const panel = {
     const shown = box.querySelectorAll('article').length === 13 && /four-boss win/.test(box.textContent);
     const noProgress = [...box.querySelectorAll('article:not(.earned)')].every(a => !a.querySelector('small'));
     const share = box.querySelector('[data-share]'), shareRect = share?.getBoundingClientRect();
-    const shareVisible = share?.textContent === 'Share achievements' && shareRect.top >= 0 && shareRect.bottom <= innerHeight;
+    const shareVisible = share?.textContent.trim() === 'Share achievements' && shareRect.top >= 0 && shareRect.bottom <= innerHeight;
     const fits = rect.left >= 0 && rect.right <= innerWidth + 1 && rect.height <= innerHeight;
     box.querySelector('button.go').click();
     return ok(shown && noProgress && shareVisible && fits && back && !menus.open, { shown, noProgress, shareVisible, fits, back, width: rect.width, height: rect.height });

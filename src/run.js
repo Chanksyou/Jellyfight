@@ -40,6 +40,8 @@ import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
+import { icon } from './icons.js';
+import { endStyles, stamp, dressEnd } from './end-screen.js';
 import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements } from './achievements.js';
 import { balanceChanges } from './balance-editor.js';
 import { loadLayout } from './layout.js';
@@ -1711,7 +1713,7 @@ export class Run {
     if (left) this.gainXp(left);
     this.hud.setBoss(null);
     if (document.pointerLockElement) document.exitPointerLock();
-    this.victory.begin(() => this.endRun('Run complete', '', 'Play again from act 1', { parts: true }));
+    this.victory.begin(() => this.endRun(`${icon('trophy')} Run complete`, '', 'Play again from act 1', { parts: true }));
   }
 
   metamorph() {
@@ -1733,7 +1735,7 @@ export class Run {
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     // no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
     if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
-    else { this.phase = 'won'; this.endRun('🏆 You won!', this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
+    else { this.phase = 'won'; this.endRun(`${icon('trophy')} You won!`, this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
   }
 
   // Take an evolution: its effects join the run's, Health refills, and the metamorphosis plays; then: after it
@@ -1810,11 +1812,11 @@ export class Run {
     const pull = [
       ...(near ? [['So close', near]] : []),
       ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
-      ...(next ? [['🎯 Next unlock', `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
+      ...(next ? [[`${icon('lock')} Next unlock`, `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
     const hint = dead && this.stage.id <= 2 ? deathHint(!!this.attack) : '';
-    const finds = this.newFinds.length ? [['📖 New in your book', `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
+    const finds = this.newFinds.length ? [[`${icon('book')} New in your book`, `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
     let last = null;
     const show = (result) => {
@@ -1825,10 +1827,10 @@ export class Run {
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
       const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
-        ...(this.dev ? [] : [['🦪 Pearls', `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} in all</small>`]]),
-        ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...this.summary(), ...finds];
-      if (earned.length || types.length) rows.unshift(['🎁 Unlocked', `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
-      if (this.newAchievements.length) rows.unshift(['🏅 Achievements earned', this.newAchievements.map(a => esc(a.name)).join(', ')]);
+        ...(this.dev ? [] : [[`${icon('pearl')} Pearls`, `${n(this.pearls, '+')} <small>· ${n(banked, '', Math.max(0, banked - this.pearls))} in all</small>`]]),
+        ...pull, ...(parts ? this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, n(v, '+')]) : []), ...finds];
+      if (earned.length || types.length) rows.unshift([`${icon('star')} Unlocked`, `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
+      if (this.newAchievements.length) rows.unshift([`${icon('medal')} Achievements earned`, this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
       const high = !B || B.qualifies(score), canPost = B && !this.dev && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
       if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
@@ -1839,19 +1841,21 @@ export class Run {
       const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else if (!this.pickType?.()) { this.start(); this.resume(); } } };
       if (dead) buttons.push(tryAgain);
       if (canPost) {
-        buttons.push({ label: '📤 Submit score', go: !dead, enter: true, onClick: (v) => {
+        buttons.push({ label: `${icon('share')} Submit score`, go: !dead, enter: true, onClick: (v) => {
           typed = (v.player || '').trim().slice(0, 20);
           show({ posted: false, why: 'sending' });
           B.post({ ...entry, name: typed || 'Guest' }).then((r) => { if (r.posted) saveName(typed); this.lastPost = last = r; if (this.endView === 'summary') show(r); });
         } });
       }
       if (!dead) buttons.push(tryAgain);
-      if (B) buttons.push({ label: '🏆 Leaderboard', onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }) });
-      buttons.push({ label: '🏅 Achievements', onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
-      if (this.onMainMenu) buttons.push({ label: '🏠 Main menu', onClick: () => this.onMainMenu() });
+      if (B) buttons.push({ label: `${icon('trophy')} Leaderboard`, onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }) });
+      buttons.push({ label: `${icon('medal')} Achievements`, onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
+      if (this.onMainMenu) buttons.push({ label: `${icon('home')} Main menu`, onClick: () => this.onMainMenu() });
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
       if (B?.web) buttons.push({ label: '🪼 Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
-      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, '', hint);
+      endStyles();
+      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, dead ? 'jf-end jf-end-dead' : 'jf-end', hint);
+      dressEnd(this.ui.modal, this, { tiles: !dead });   // time, Level and bugs; the Treasures taken (not on a death)
     };
     show(null);
     // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)
@@ -1974,9 +1978,12 @@ export class Run {
   actComplete(next) {
     const carry = this.carryOver(), score = carry.score;
     this.recordRun('next-act');
-    this.ui.message(`Act ${this.stage.id} complete`, `Next: ${next.subtitle}. Your progress carries over.`,
-      [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.summary()],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }]);   // straight into it, no main menu
+    endStyles();
+    this.ui.message(`${stamp()} Act ${this.stage.id} complete`, `Next: ${next.subtitle}`,
+      [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, counter(v, '+')])],
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }], 'jf-end');   // straight into it, no main menu
+    dressEnd(this.ui.modal, this);   // time, Level and bugs; the Treasures taken
+    sfx.stamp();
   }
 
   // The Treasure book (collection.js) as a dialog: every Treasure, evolution, Elite and boss, found or not.
@@ -2071,17 +2078,6 @@ export class Run {
       this.ui.message('Change name', note, [['Name', `<input name="player" class="jf-name" maxlength="20" autocomplete="nickname" aria-label="Leaderboard name" value="${esc(typed)}">`]], buttons);
     };
     draw();
-  }
-
-  summary() {
-    const m = Math.floor(this.t / 60), sec = String(Math.floor(this.t % 60)).padStart(2, '0');
-    return [
-      ['Time', `${m}:${sec}`],
-      ['Level', this.level],
-      ['Dry things cleared', this.kills],
-      ...(this.evolved.length ? [['Evolutions', this.evolved.map((id) => { const e = EVOLUTIONS.find((x) => x.id === id); return `${e.icon} ${e.name}`; }).join(', ')]] : []),
-      ['Treasures', [...this.owned].map((id) => TREASURES.find((t) => t.id === id).icon + (this.owned.count(id) > 1 ? `×${this.owned.count(id)}` : '')).join(' ') || 'none'],
-    ];
   }
 
   // ------------------------------------------------------------ music
