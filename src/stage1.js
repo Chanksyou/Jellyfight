@@ -4,8 +4,8 @@
 // errors in y are fine.
 //
 // Rough layout (x runs from the desk wall to the kitchen, z from the window to the TV wall):
-//   sofa x 0.5-2.9, z 1.0-2.6 (seat 0.51)   coffee table x 1.5-2.8, z 2.45-3.15 (top 0.46)
-//   lounge chair x 2.9-3.5, z 1.1-1.9 (0.43) standing desk x 0.1-0.8, z 2.5-3.8 (0.78)
+//   sofa x 0.5-2.9, z 0.5-2.1 (seat 0.51)   coffee table x 1.3-2.7, z 1.9-2.9 (top 0.46)
+//   lounge chair x 2.8-3.5, z 0.6-1.4 (0.43) standing desk x 0.1-0.8, z 2.6-3.9 (0.78)
 //   media console x 0.9-2.4, z 4.35-4.8 (0.6) kitchen counters x 4.35-5.0 (0.94, under cabinets)
 //   stovetop x 4.4-4.65, z 3.0-3.8 (0.90), pans to its right, the kettle behind it
 // The ornate wall clock in the hallway, over the cubby bench (the one with the tennis ball on it).
@@ -39,11 +39,11 @@ export const STAGE1 = {
 
   // Floor vents: step on one and the air blows you up in an arc that lands on `land`
   vents: [
-    { name: 'Vent by the sofa', at: [1.268, 0, 2.463], radius: 0.045, land: [1.35, 0.511, 2.15], to: 'the sofa' },
-    { name: 'Vent by the coffee table', at: [2.706, 0, 3.109], radius: 0.045, land: [2.6, 0.46, 3.0], to: 'the coffee table' },
-    { name: 'Vent by the TV', at: [0.887, 0, 4.246], radius: 0.045, land: [1.0, 0.603, 4.45], to: 'the media console' },
-    { name: 'Vent by the desk', at: [0.927, 0, 3.661], radius: 0.04, land: [0.6, 0.775, 3.2], to: 'the desk' },
-    { name: 'Vent by the lounge chair', at: [3.432, 0, 1.877], radius: 0.045, land: [3.2, 0.435, 1.5], to: 'the lounge chair' },
+    { name: 'Vent by the sofa', at: [1.809, 0, 1.839], radius: 0.045, land: [1.823, 0.508, 1.549], to: 'the sofa' },
+    { name: 'Vent by the coffee table', at: [2.696, 0, 2.639], radius: 0.045, land: [2.357, 0.465, 2.405], to: 'the coffee table' },
+    { name: 'Vent by the TV', at: [2.384, 0, 4.225], radius: 0.045, land: [2.324, 0.6, 4.428], to: 'the media console' },
+    { name: 'Vent by the desk', at: [0.927, 0, 3.661], radius: 0.04, land: [0.574, 0.752, 3.51], to: 'the desk' },
+    { name: 'Vent by the lounge chair', at: [3.517, 0, 1.483], radius: 0.045, land: [3.192, 0.43, 1.246], to: 'the lounge chair' },
     { name: 'Vent by the stove', at: [4.221, 0.013, 2.78], radius: 0.045, land: [4.5, 0.9, 3.35], to: 'the stovetop' },
   ],
 
@@ -53,17 +53,17 @@ export const STAGE1 = {
   // are open: nothing overhead, nothing crowding them, flat ground (Run.openSpot).
   spots: [
     { area: 'Floor', at: [3.2, 0, 3.0], label: 'middle of the room' },
-    { area: 'Floor', at: [3.4, 0, 2.2], label: 'by the lounge chair' },
+    { area: 'Floor', at: [3.5, 0, 1.8], label: 'by the lounge chair' },
     { area: 'Floor', at: [1.15, 0, 3.5], label: 'by the desk' },
     { area: 'Kitchen', at: [4.15, 0.013, 2.6], label: 'on the kitchen mat' },
     { area: 'Kitchen', at: [3.8, 0, 3.5], label: 'kitchen floor' },
-    { area: 'Floor', at: [2.2, 0.01, 3.45], label: 'by the play gym' },
+    { area: 'Floor', at: [2.2, 0.01, 3.08], label: 'by the play gym' },
     { area: 'Floor', at: [3.3, 0, 4.2], label: 'by the cat scratcher' },
-    { area: 'Sofa', at: [1.6, 0.508, 2.18], label: 'sofa seat' },
-    { area: 'Sofa', at: [2.4, 0.508, 1.95], label: 'sofa, by the blue pillow' },
-    { area: 'Furniture', at: [3.2, 0.435, 1.5], label: 'lounge chair' },
-    { area: 'Furniture', at: [0.6, 0.775, 3.2], label: 'standing desk' },
-    { area: 'Furniture', at: [2.6, 0.46, 3.0], label: 'coffee table' },
+    { area: 'Sofa', at: [1.6, 0.508, 1.66], label: 'sofa seat' },
+    { area: 'Sofa', at: [2.4, 0.508, 1.43], label: 'sofa, by the blue pillow' },
+    { area: 'Furniture', at: [3.17, 0.435, 1.0], label: 'lounge chair' },
+    { area: 'Furniture', at: [0.56, 0.775, 3.3], label: 'standing desk' },
+    { area: 'Furniture', at: [2.05, 0.46, 2.2], label: 'coffee table' },
     { area: 'Furniture', at: [1.0, 0.603, 4.45], label: 'media console' },
   ],
 
@@ -77,7 +77,7 @@ export const STAGE1 = {
   // `hide` is the apartment object each one stands in for while it's alive.
   elites: [
     { kind: 'controller', at: [1.31, 0.603, 4.52], hide: 'Controllers', area: 'media console', wake: { min: [0.85, 0.55, 4.35], max: [2.4, 1.3, 4.83] } },
-    { kind: 'mug', at: [0.65, 0.775, 2.715], hide: 'Mug', area: 'standing desk', wake: { min: [0.09, 0.72, 2.54], max: [0.8, 1.48, 3.85] } },
+    { kind: 'mug', at: [0.61, 0.775, 2.784], hide: 'Mug', area: 'standing desk', wake: { min: [0.05, 0.72, 2.61], max: [0.76, 1.48, 3.92] } },
     { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop', wake: { min: [4.3, 0.85, 1.47], max: [5.01, 1.65, 4.31] } },
   ],
 

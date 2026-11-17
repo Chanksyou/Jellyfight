@@ -25,6 +25,7 @@ import { dressSet } from './set-dressing.js';
 import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
+import { addSkyline } from './skyline.js';
 import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -261,6 +262,7 @@ if (SKY && stage.window) {
   scene.add(skyWindow);
 }
 if (SKY) skyNow(0);
+if (!ARENA) addSkyline(scene, [1.5, 5.5]);   // the view from the 33rd floor, through every window (skyline.js)
 
 applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
