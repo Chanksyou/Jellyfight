@@ -784,6 +784,7 @@ export function newMods() {
     whiles: [],                      // conditionals: { when, stat, amount, percent } (Run.S)
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
+    eliteBonus: null,                // elite-bonus: { every } every `every`th Elite beaten leaves a second treasure
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
@@ -1431,6 +1432,7 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
+  'elite-bonus': { doc: 'Every `every`th Elite you beat leaves a second treasure beside the first (the count runs from when you take it, across acts).', props: { every: 2 }, make: (_, p) => (m) => { m.eliteBonus = { every: p.every }; } },
   'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },
   'bug-speed': { doc: 'Bugs move at `times` their speed (not elites or the boss).', args: ['times'], make: ([k]) => (m) => { m.bugSpeed *= k; } },

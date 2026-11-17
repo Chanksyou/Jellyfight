@@ -100,8 +100,8 @@ export const STAGE2 = {
   elites: [
     { kind: 'soap', at: [1.53, 0.88, 5.18], hide: 'Soap dispenser', area: 'vanity', wake: { min: [0.97, 0.83, 5.08], max: [1.62, 1.58, 5.63] } },
     HALL_CLOCK,                       // the ornate clock over the cubby bench: the bench vent lands you below it
-    // the cream whipper and its N2O cylinder, tucked into the hall's far corner beside the front door
-    { kind: 'whipper', at: [3.5, 0.002, 8.82], area: 'front door', stand: [3.15, 0.02, 8.5], wake: { min: [1.76, -0.05, 4.85], max: [3.6, 0.4, 9.05] } },
+    // the cream whipper and its N2O cylinder, a little out from the hall's far corner beside the front door (room to swim behind it)
+    { kind: 'whipper', at: [3.3, 0.002, 8.62], area: 'front door', stand: [2.95, 0.02, 8.3], wake: { min: [1.76, -0.05, 4.85], max: [3.6, 0.4, 9.05] } },
   ],
 
   // The boss arena: the bathtub. You're carried in when the timer runs out.

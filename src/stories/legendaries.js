@@ -5,10 +5,10 @@ import { bus } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { G, fresh, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
+import { G, fresh, give, ok, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
-  'newtonsCradle'];   // (the new Legendaries join here)
+  'goodieBag', 'newtonsCradle'];   // (the new Legendaries join here)
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls
@@ -171,5 +171,38 @@ story('treasures/overkill-plain-hits-only', {
     hitFor(e, 20); step(10); off();
     const passed = log.find((h) => h.targetId === f.id);
     return ok(tick === 100 && small === 100 && passed && passed.amount === 15 && !passed.feedback?.crit, { tick, small, passed: passed && passed.amount });
+  },
+});
+
+// the chests an Elite just left, then cleared away so the next count is fresh
+function chestsAfterElite(i) {
+  const { run } = G();
+  for (const t of run.roomTreasures) t.hide();
+  bus.emit('elite_defeated', { elite: run.elites.list[i % run.elites.list.length] });
+  return run.roomTreasures.filter((t) => t.active).length;
+}
+
+story('treasures/elite-bonus', {
+  about: 'elite-bonus (Goodie Bag): with it, the 1st Elite beaten leaves one treasure and the 2nd leaves two, the 3rd one, the 4th two; without it every Elite leaves one. The count runs from when it is taken.',
+  setup() { fresh({ treasures: true }); },
+  play() {
+    const { run } = G();
+    if (!run.elites.list.length) return ok(false, "no elites");
+    const without = chestsAfterElite(0);
+    give('goodieBag');
+    const got = [chestsAfterElite(1), chestsAfterElite(2), chestsAfterElite(3), chestsAfterElite(4)];
+    return ok(without === 1 && got.join() === '1,2,1,2', { without, got });
+  },
+});
+
+story('treasures/elite-bonus-carries-across-acts', {
+  about: 'The Goodie Bag\'s count rides along into the next act: one Elite in act 1, then the first Elite of act 2 is the second.',
+  setup() { fresh({ treasures: true }); },
+  play() {
+    const { run } = G();
+    give('goodieBag');
+    const first = chestsAfterElite(0);
+    const carried = JSON.parse(JSON.stringify(run.carryOver())).growCount.goodieBag;
+    return ok(first === 1 && carried === 1, { first, carried });
   },
 });
