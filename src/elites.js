@@ -636,7 +636,7 @@ class Elite {
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
     if (this.model.whip) this.model.whip.rotation.x = 0;
-    if (this.stream) this.stream.visible = false;   // the Cream Whipper's stream of cream (its bead stays)
+    if (this.kind === 'whipper' && this.owner.stream) this.owner.stream.visible = false;   // its stream of cream (its bead stays)
     if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
     if (this.kind === 'clock') this.spin = 0;
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
@@ -655,7 +655,7 @@ class Elite {
   remove() {
     this.clearTele();
     this.owner.fx.free(this.ball);   // the Kettle's steam ball, still charging
-    if (this.stream) this.stream.visible = false;
+    if (this.kind === 'whipper' && this.owner.stream) this.owner.stream.visible = false;
     this.dropSpores();               // the Mushroom Pillow's, still drifting
     if (this.inflating) { this.owner.scene.remove(this.inflating.group); this.inflating = null; }   // a balloon half blown up
     this.owner.scene.remove(this.holder);
@@ -682,6 +682,7 @@ export class Elites {
     this.thrown = [];        // the clock's wreath in flight
     this.balloons = [];      // the Cream Whipper's balloons, drifting after you
     this.beads = []; this.beadFree = [];   // and the pieces of cream it pipes along your path (fx pieces: drawn instanced, the bits' shader)
+    this.stream = null;      // and the stream it pipes them with (one fx piece, made the first time)
     this.beadGeo = beadGeometry();
     this.streamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2);   // along +z, 0 to 1
     this._beadDir = new THREE.Vector3(); this._beadAt = new THREE.Vector3();
@@ -1880,7 +1881,7 @@ export class Elites {
           // behind you, for pipe= s (path noted every PIPE_STEP s). The bead stays and hurts (the beads
           // in update): keep moving and don't double back. A stop lets the stream catch you up
           const PI = SK.piping, rt = s / CONTENT.elites.pace.tempo, S = PIPE_STEP, wake = PI.wake;   // rt: real s since it started
-          const pipe = angry ? PI.angryPipe : PI.pipe, p = (e.pipe ||= { pts: [], segs: [], laid: -1, piece: null, bead: { hit: false }, stay: angry ? PI.angryStay : PI.stay });
+          const p = (e.pipe ||= { pts: [], segs: [], laid: -1, piece: null, bead: { hit: false }, pipe: angry ? PI.angryPipe : PI.pipe, stay: angry ? PI.angryStay : PI.stay }), pipe = p.pipe;   // (angry or not as it started)
           // where you are, noted (on the surface under you, mid-jump too)
           while (p.pts.length * S <= pipe + 1e-6 && rt >= p.pts.length * S) p.pts.push(new THREE.Vector3(P.x, this.surfaceBelow(P), P.z));
           const last = p.pts.length - 1, noted = p.pts.length * S > pipe + 1e-6, tau = rt - wake;   // tau: the path's time the stream has got to
@@ -1925,7 +1926,7 @@ export class Elites {
             M.lever.rotation.z = -0.3;
             gauges(0.8 + Math.sin(e.t * 12) * 0.1);
             e.holder.updateMatrixWorld(true);
-            const from = M.tip.getWorldPosition(this._mid), to = tip.setY(tip.y + PI.height * 0.8), st = (e.stream ||= this.fx.piece(this.streamGeo, this.fx.chunkMat));
+            const from = M.tip.getWorldPosition(this._mid), to = tip.setY(tip.y + PI.height * 0.8), st = (this.stream ||= this.fx.piece(this.streamGeo, this.fx.chunkMat));
             st.visible = true; st.userData.color.set(LOOK.color('whipper-bead', '#f8ecff')).multiplyScalar(LOOK.num('whipper-bead-bright', 1.8)); st.userData.opacity = 1;
             st.position.copy(from); st.lookAt(to);
             const w = PI.height * 0.16 * (1 + Math.sin(e.t * 40) * 0.15);
@@ -1938,7 +1939,7 @@ export class Elites {
             if (Math.random() < dt * 10) this.fx.puff(to, 0xfffaf0, 0.012, 0.35);   // where it lands
           } else {
             p.piece && (p.piece.u = 1);
-            e.clearTele(); if (e.stream) e.stream.visible = false;
+            e.clearTele(); this.stream.visible = false;
             e.locked = false; e.hissed = e.sprayed = false; e.pipe = null;
             M.whip.rotation.x = 0; M.lever.rotation.z = 0; gauges(0); e.state = 'idle'; e.cool = 1.8;
           }

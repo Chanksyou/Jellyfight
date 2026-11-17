@@ -100,7 +100,7 @@ act2('whipper-piping-follows-your-path', {
     });
     const onPath = (p) => path.some((q) => flat(p, q) < 0.002);
     const length = beads.reduce((d, b) => d + flat(b.a, b.to), 0);
-    const out = { warned, paired, filled: +filled.toFixed(2), lag: lag && +lag.toFixed(3), pieces: beads.length, length: +length.toFixed(3), onPath: beads.every((b) => onPath(b.a) && onPath(b.to)), life: [...new Set(beads.map((b) => b.life))], hits: hits.length, warningGone: !pipingWarning().floor.length && !e.stream.visible };
+    const out = { warned, paired, filled: +filled.toFixed(2), lag: lag && +lag.toFixed(3), pieces: beads.length, length: +length.toFixed(3), onPath: beads.every((b) => onPath(b.a) && onPath(b.to)), life: [...new Set(beads.map((b) => b.life))], hits: hits.length, warningGone: !pipingWarning().floor.length && !G().run.elites.stream.visible };
     // 3.5 s at 0.3 m/s (and a little weave): about 1.06 m of bead in 29 pieces; the stream 0.8 s (24 cm) behind
     return ok(warned && paired && out.filled > 0.8 && out.lag > 0.2 && out.lag < 0.29 && out.pieces === 29 && out.length > 1.0 && out.length < 1.15 && out.onPath && out.life.join() === '4' && !out.hits && out.warningGone, out);
   },
@@ -170,7 +170,7 @@ for (const [atk, name] of [[0, 'balloon'], [1, 'piping']]) {
       const { APT, batcher, run } = G(), programs = APT.renderer.info.programs.length;
       let shown = {};
       if (atk === 0) { const B = balloonLoose(); step(5); if (B) shown = balloonWarning(B); }
-      else { holdJelly(); step(400, () => run.elites.beads.length && whipper().stream?.visible); shown = { floor: pipingWarning().floor[0], volume: pipingWarning().volume[0] }; }
+      else { holdJelly(); step(400, () => run.elites.beads.length && run.elites.stream?.visible); shown = { floor: pipingWarning().floor[0], volume: pipingWarning().volume[0] }; }
       batcher.sync(); G().GAME.compile();
       const newShaders = APT.renderer.info.programs.length - programs;
       return ok(shown.floor && !!shown.volume === !!atk && newShaders === 0, { newShaders, volume: !!shown.volume });
