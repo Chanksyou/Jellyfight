@@ -1,0 +1,1 @@
+puts every pick on one card: level-up, Treasure, Attack upgrade and evolution picks now share the same look, with the rarity written on the card, numbers in the text highlighted, and New! and count together in the corner. The end screens, leaderboard, Treasure book and Achievements use the new panels and icon buttons.
