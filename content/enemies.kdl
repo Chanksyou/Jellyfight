@@ -90,13 +90,13 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 }
 
 // Act 4 (from 0:45): the moth, pale and dusty-winged. Drawn to your glow, it flutters round you in
-// wide loops, then rears up (wings flared, a rising whirr) and swoops at where you were, stinging for 3
-// as it passes. Unlike the wasp it lives through its sting: it pulls up, rests and comes round again.
-// Step off its line as it rears.
+// wide loops, then climbs over you while a circle fills under it (it follows you, then locks) and
+// drops straight down it for 3: step off the circle, a jump won't clear it. Where it lands it leaves
+// a puff of black smoke that hides what's behind it for about a second.
 enemy "moth" name="Moth" hp=110 r=0.045 dmg=1 xp=9 model="moth" {
     death-motion "flutter"
     hover 0.25 above=0.14 speed=0.5 circle=1.8
-    dive range=0.45 spend=#false every=2.5 windup=0.6 speed=1.5 reach=0.7 dmg=3 rest=0.9
+    plunge range=0.45 every=2.5 windup=1 lock=0.35 height=0.3 speed=1.6 radius=0.08 dmg=3 rest=0.9
 }
 
 // Act 4 (from the start): the firefly, a small beetle with a lantern for a tail. It drifts round you

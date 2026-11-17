@@ -15,16 +15,21 @@ const WHITE = new THREE.Color(1, 1, 1);
 
 // instanced copy of a per-instance material: multiplies the output alpha by an instance attribute
 function withInstanceOpacity(src) {
-  const m = src.clone();
+  const m = src.clone(), hold = src.userData.holdout;
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;' + (hold ? '\nvHold = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;' : ''));
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vInstanceOpacity;')
-      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= vInstanceOpacity;');
+      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= vInstanceOpacity;' + (hold ? '\ngl_FragColor.a *= smoothstep(uHold.w, uHold.w * 1.6, distance(vHold, uHold.xyz));' : ''));
+    if (hold) {   // a material can keep a hole round one point (userData.holdout = { value: Vector4(x, y, z, radius) }): the jelly shows through the smoke
+      sh.uniforms.uHold = hold;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHold;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vHold; uniform vec4 uHold;');
+    }
   };
-  m.customProgramCacheKey = () => 'instanceOpacity';
+  m.customProgramCacheKey = () => (hold ? 'instanceOpacityHold' : 'instanceOpacity');
   m.transparent = true;
   return m;
 }
@@ -60,6 +65,7 @@ export class Batcher {
     if (g.mesh) { this.scene.remove(g.mesh); g.mesh.dispose(); }
     const m = new THREE.InstancedMesh(g.geo, g.mat, cap);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    m.renderOrder = g.src.userData.renderOrder || 0;   // a material can say where it draws among the transparent things
     m.frustumCulled = false;           // instances move every frame; the GPU clips them
     m.matrixAutoUpdate = false;
     if (g.per) {
