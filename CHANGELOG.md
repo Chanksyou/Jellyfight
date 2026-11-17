@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v466 rearranges the living room (acts 1 and 4) to Chan's new layout: the sofa, coffee table and lounge chair move toward the window, the plants that lost their pots and stands are gone, the vents and chest spots follow, and act 4's Singing Bowl and Mushroom Pillow Elites move with their furniture. The apartment is now on the 33rd floor: the windows look out over a city about 100 m down instead of a dark nothing.
+
 v465 puts every pick on one card: level-up, Treasure, Attack upgrade and evolution picks now share the same look, with the rarity written on the card, numbers in the text highlighted, and New! and count together in the corner. The end screens, leaderboard, Treasure book and Achievements use the new panels and icon buttons.
 
 v464 rebuilds the HUD and touch controls on the new UI kit: kit Health, XP, Shield, Elite and boss bars, a level ring, 12 px or larger HUD text with a dark outline (the night's time, the Health number, Treasure counts), a clean glass minimap of room outlines marking only chests, Elites, the boss and the way out (no more bug dots or furniture blobs), a mint glass jump button with an icon instead of the pink one, brighter thumb rings, outlined damage numbers and the kit's toast.
