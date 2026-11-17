@@ -25,7 +25,7 @@ import { dressSet } from './set-dressing.js';
 import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
-import { applyLayout, applyVentLayout, LayoutEditor, movables, visibleBox } from './layout.js';
+import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
 import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
@@ -266,22 +266,6 @@ if (SKY) skyNow(0);
 
 applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
-// furniture footprints for the minimap: things standing in the stage's rooms (not hanging decor)
-function mapFurniture() {
-  const out = [], bx = new THREE.Box3(), c = new THREE.Vector3();
-  for (const { node } of movables(APT.root)) {
-    if (!node.visible) continue;
-    visibleBox(node, bx);
-    if (bx.isEmpty() || bx.min.y > 1.2) continue;
-    const w = bx.max.x - bx.min.x, d = bx.max.z - bx.min.z;
-    if (w * d < 0.012 || w > 3 || d > 3) continue;
-    bx.getCenter(c);
-    if (!plan.some(([, poly]) => inPoly(c.x, c.z, poly))) continue;
-    out.push({ x0: bx.min.x, z0: bx.min.z, x1: bx.max.x, z1: bx.max.z, top: bx.max.y });
-  }
-  hud.setFurniture(out);
-}
-if (!ARENA) mapFurniture();
 const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);

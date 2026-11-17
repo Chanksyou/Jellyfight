@@ -64,7 +64,7 @@ night4('time-up-opens-the-stage-door-instead-of-a-boss', {
     const gone = enemies.list.filter((e) => !e.dead && !e.proxy).length;
     step(60 * 6);
     const after = enemies.list.filter((e) => !e.dead && !e.proxy).length, clock = hud.el.querySelector('.clock').textContent;
-    const marked = run.markers().some((m) => m.color === '#9fd8ff');
+    const marked = run.markers().some((m) => m.kind === 'exit');
     return ok(before > 0 && gone === 0 && after === 0 && run.doorOpen && run.phase === 'explore' && !run.boss
       && toasts.some((t) => /stage door is open/.test(t)) && !toasts.some((t) => /Time's up/.test(t)) && /Stage door open/.test(clock) && marked,
     { before, gone, after, door: run.doorOpen, phase: run.phase, toasts, clock, marked });
