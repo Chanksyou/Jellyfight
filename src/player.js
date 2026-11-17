@@ -20,6 +20,7 @@ export class Player {
     this.avatar = null;
     this.peakY = 0;          // highest point since leaving the ground
     this.onLand = null;      // (dropMeters) => void
+    this.onFall = null;      // (fromY, toY) => true if the fall hit something that bounced you (a stomp, run.js): no landing then
     this.climbing = false;
     this.flight = null;      // a vent launch in progress (scripted arc, see launch())
     this.airJumps = 0;       // mid-air jumps left
@@ -115,6 +116,7 @@ export class Player {
     const c = this.cfg;
     this.time += dt;
     this.maxAirJumps = env.airJumps ?? 0;
+    this.jumpMul = env.jumpMul ?? 1;
     this.gliding = false;
 
     if (!this.flight && env.vent) this.launch(env.vent.land);
@@ -201,9 +203,10 @@ export class Player {
     this.moveHorizontal((this.velocity.x + px) * dt, (this.velocity.z + pz) * dt, this.grounded && !this.climbing ? env.onWalk : null);
     this.depenetrate();
     const wasGrounded = this.grounded;
-    const vyBefore = this.velocity.y;
+    const vyBefore = this.velocity.y, yBefore = this.position.y;
     this.moveVertical(dt, this.climbing);
-    if (!this.grounded) this.peakY = wasGrounded ? this.position.y : Math.max(this.peakY, this.position.y);
+    if (!wasGrounded && vyBefore < 0 && this.onFall?.(yBefore, this.position.y)) { /* bounced (bounce): not a landing */ }
+    else if (!this.grounded) this.peakY = wasGrounded ? this.position.y : Math.max(this.peakY, this.position.y);
     else if (!wasGrounded) {
       this.avatar?.land(-vyBefore);
       this.onLand?.(this.peakY - this.position.y);
@@ -222,6 +225,17 @@ export class Player {
 
     this.syncMesh();
     this.avatar?.update(dt, { speed: hv, walkSpeed: c.walkSpeed, grounded: this.grounded || this.climbing, vy: this.climbing ? 0 : this.velocity.y, swim: this.swim, vel: this.velocity, push });
+  }
+
+  // a stomp (run.js): spring back up from `y` (a bug's back) at full jump speed, mid-air jumps back
+  bounce(y, impact) {
+    this.position.y = Math.max(this.position.y, y);
+    this.velocity.y = Math.sqrt(2 * this.cfg.gravity * this.cfg.jumpHeight * (this.jumpMul ?? 1));
+    this.grounded = false; this.held = false; this.cut = false;   // the full bounce, held or not (a tap on a phone too)
+    this.airJumps = this.maxAirJumps ?? 0;
+    this.peakY = this.position.y;
+    this.avatar?.land(impact);
+    this.avatar?.pulse?.();
   }
 
   moveHorizontal(dx, dz, onWalk = null) {

@@ -854,6 +854,7 @@ export function newMods() {
     per: [],                         // converters: { stat, amount, every, of, percent } (Run.S)
     timed: [], orbit: null, beam: null, aura: null,
     eliteBonus: null,                // elite-bonus: { every } every `every`th Elite beaten leaves a second treasure
+    stomp: null,                     // stomp: { dmg, step, most, stun, safe, reach, drop } falling onto a bug stomps it (run.js stomp)
     moreTreasures: 0,                // more-treasures: chance each scheduled room treasure brings another
     polyps: null,                    // polyps: { count, dmg } little helpers that shoot with you
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
@@ -1501,6 +1502,7 @@ export const TREASURE_WORDS = {
       return (m, copy = 0) => { m.growth.push({ stat: key, amount, kills: p.kills, percent: p.percent, cap: p.cap, key: `${where}#${copy}` }); };
     },
   },
+  stomp: { doc: 'Falling onto a bug (after a drop of at least `drop` m from the top of the jump, its middle within `reach` m of touching sideways) stomps it for `dmg` x Attack damage, `step` x more for each stomp in a row before you touch the ground (at most `most` x), Stuns an ordinary bug for `stun` s and bounces you back up at jump speed with your mid-air jumps back, safe from bugs for `safe` s (never from Elites or the boss). A bounce is not a landing.', props: { dmg: 4, step: 1, most: 8, stun: 1, safe: 0.3, reach: 0.02, drop: 0.03 }, make: (_, p) => (m) => { m.stomp = { ...p }; } },
   'elite-bonus': { doc: 'Every `every`th Elite you beat leaves a second treasure beside the first (the count runs from when you take it, across acts).', props: { every: 2 }, make: (_, p) => (m) => { m.eliteBonus = { every: p.every }; } },
   'more-treasures': { doc: 'Each treasure that turns up in the room on the schedule has a `percent`% chance to bring another one, a little after it goes (so about `percent`% more treasures). Copies add.', args: ['percent'], make: ([n]) => (m) => { m.moreTreasures += n / 100; } },
   'elite-damage': { doc: 'Everything you do hurts Elites and the boss `percent`% more. Copies add.', args: ['percent'], make: ([n]) => (m) => { m.eliteDamage += n / 100; } },

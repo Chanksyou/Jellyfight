@@ -216,6 +216,7 @@ export class Run {
         this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${W.health} Health`, '#c6ffb0', 14);
       }
     };
+    this.player.onFall = (from, to) => this.stomp(from, to);   // stomp (Pogo Stick): a fall onto a bug bounces instead of landing
     // a little wake of bubbles behind each stroke of the bell
     this.player.onStroke = () => {
       const P = this.player.position, f = this.player.facing;
@@ -320,6 +321,7 @@ export class Run {
     this.choosingCard = false;        // a level-up's cards are open (keepProgress)
     this.owedCards = [];              // cards a reload owes, offered before any new roll
     this.iFrames = 0;
+    this.stompChain = 0;              // stomp (Pogo Stick): stomps in a row since the jelly last touched the ground
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
     this.slipT = 0;
@@ -580,6 +582,7 @@ export class Run {
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
       if (this.phase === 'boss' && this.boss) this.keepInArena(P);
+      if (P.grounded) this.stompChain = 0;   // stomp: a chain runs until you touch the floor or furniture
     }
 
     // --- timers
@@ -1235,6 +1238,39 @@ export class Run {
     if (!p || p.distanceTo(first) < 0.08) p = first.clone().add(_near.set(0.12, 0, 0));   // never on top of the first
     this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
     this.hud.toast('✨ Goodie Bag! It left two treasures.', ms);
+  }
+
+  // stomp (Pogo Stick): the jelly's underside falling from `from` to `to` (after a drop) through the top of
+  // a bug close enough under it stomps the nearest such bug: a plain hit (no crit, no on-hit effects),
+  // harder for each stomp in a row, and the jelly bounces back up (player.bounce, never a landing)
+  stomp(from, to) {
+    const T = this.mods.stomp, P = this.player;
+    if (!T || (this.phase !== 'explore' && this.phase !== 'boss')) return false;
+    let best = null, bestD = Infinity, top = 0;
+    for (const e of this.enemies.list) {
+      if (e.dead || e.proxy?.immune) continue;   // a shielded or rising boss is no step to spring off
+      const r = e.hitR || e.r, c = this.enemies.center(e, _bug), t = c.y + r;
+      if (t > from || t < to || P.peakY - t < T.drop) continue;
+      const d = Math.hypot(c.x - P.position.x, c.z - P.position.z);
+      if (d <= this.cfg.radius + r + T.reach && d < bestD) { best = e; bestD = d; top = t; }
+    }
+    if (!best) return false;
+    const n = this.stompChain = (this.stompChain || 0) + 1, k = Math.min(T.most, T.dmg + T.step * (n - 1));
+    const at = this.enemies.center(best).setY(top), friendly = LOOK.color('friendly', '#5ff0ff');
+    bus.emit('damage_taken', { targetId: best.id, amount: this.power * k, color: friendly, source: 'stomp' });
+    if (!best.proxy) {   // Elites and the boss are neither Stunned nor give a safe moment
+      bus.emit('status_applied', { targetId: best.id, status: 'stun', duration: T.stun });
+      bus.emit('status_applied', { targetId: best.id, status: 'squash', duration: LOOK.num('stomp-squash-time', 0.3) });
+      this.iFrames = Math.max(this.iFrames, T.safe);
+    }
+    // feel: sparks off its back, droplets off the bell, STOMP and the chain over the jelly, a boing a step higher each time
+    this.fx.impact(at, this.friendly, LOOK.num('stomp-spark', 0.02) * (1 + 0.1 * (n - 1)), 8 + n);
+    this.fx.burst(_drop.copy(at), [LOOK.color('jump-splash', '#cfefff'), '#ffffff'], 6, this.cfg.radius * 0.1, 0.3, this.enemies.floorBelow(at, best.pos.y));
+    this.fx.number(_drop.copy(P.position).setY(top + this.cfg.height * 1.2), n > 1 ? `STOMP ×${n}` : 'STOMP', friendly, 16 + 2 * Math.min(n, 5));
+    juice.feel('hit-big');
+    sfx.stomp(n - 1);
+    P.bounce(top, LOOK.num('stomp-squeeze', 0.8));
+    return true;
   }
 
   // A ring of stinging (Bath Bomb, Cotton Ball)
