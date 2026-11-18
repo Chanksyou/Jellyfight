@@ -39,6 +39,7 @@ import './stories/shield.js';
 import './stories/rebound-mirage.js';
 import './stories/fire-trail.js';
 import './stories/looks.js';
+import './stories/motion.js';
 import './stories/tentacle-motion.js';
 import './stories/feel-reveal.js';
 import './stories/xp-feel.js';

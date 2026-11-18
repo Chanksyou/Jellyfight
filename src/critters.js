@@ -1813,7 +1813,7 @@ export function buildCicada() {
   const D = (GEO.cicadaMound ||= { dome: new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), rim: new THREE.RingGeometry(0.8, 1.2, 28).rotateX(-Math.PI / 2).translate(0, 0.02, 0) });
   const glow = hostile('cicada');
   M.mound ||= new THREE.MeshStandardMaterial({ color: 0x2a2018, emissive: glow, emissiveIntensity: 0.08, roughness: 1 });
-  M.moundRim ||= new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 });
+  M.moundRim ||= new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: LOOK.num('burrow-mound-rim', 0.25), depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 });   // dim: only the locked Warning is bright
   const mound = new THREE.Group();
   mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
   mound.visible = false;
