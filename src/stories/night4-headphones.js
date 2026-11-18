@@ -15,7 +15,7 @@ import { G, fresh, headphones, night4, ok, onCounter, r3, record, spy, startHead
 const offTable = () => tp(3.9, 0.02, 2.6, 0);                  // on the kitchen floor in front of the counter
 const SK = () => CONTENT.elites.headphones.skills;
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 4, 4 - (b % 4));              // beats from the nearest bar line
+const offBar = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const VENT = () => G().run.traversal.vents.find((v) => v.name === ELITES4.find((q) => q.kind === 'headphones').vent);

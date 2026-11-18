@@ -16,7 +16,7 @@ const offSofa = () => tp(0.3, 0.02, 2.9, 0);                    // on the floor 
 const isPillow = (o) => o.material.uniforms.uColor.value.getHex() === hostile('pillow').getHex();
 const pillowPairs = () => volumePairs().filter(([v, f]) => f && isPillow(v));
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 4, 4 - (b % 4));              // beats from the nearest bar line
+const offBar = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const SK = () => CONTENT.elites.pillow.skills;
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);

@@ -14,7 +14,7 @@ const offChair = () => tp(2.6, 0.05, 1.5, 0);                // on the floor bes
 const isBowl = (o) => o.material.uniforms.uColor.value.getHex() === hostile('bowl').getHex();
 const bowlPairs = () => volumePairs().filter(([v, f]) => f && isBowl(v));
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 4, 4 - (b % 4));            // beats from the nearest bar line
+const offBar = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const SK = () => CONTENT.elites.bowl.skills;
 
 night4('bowl-sleeps-on-the-lounge-chair', {
@@ -121,7 +121,7 @@ night4('bowl-turning-angry-mid-ring-finishes-the-ring', {
       struck = Math.max(struck, e.struckN || 0);
       return e.state === 'idle' && struck && !run.elites.rings.length;
     });
-    return ok(struck === R.rings && e.state === 'idle' && !e.strikes && !e.tele.length && e.cool === R.angryRest, { struck, state: e.state, cool: e.cool });
+    return ok(struck === R.rings && e.state === 'idle' && !e.strikes && !e.tele.length && e.cool > 0 && e.cool <= R.angryRest, { struck, state: e.state, cool: e.cool });
   },
 });
 

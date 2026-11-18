@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { SONGS } from '../music.js';
 import { movables, visibleBox } from '../layout.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
+import * as kit from './kit.js';
 import { G, V, fresh, night4, ok, sim, step, stub, tp } from './kit.js';
 import { LOOK } from '../look.js';
 
@@ -265,8 +266,8 @@ night4('the-dawn-look-warms-across-the-night', {
       && unlit && lights() === lit, { start, end, lit });
   },
 });
-night4('cicadas-from-1-30', {
-  about: 'A roll favouring the last eligible bug cannot spawn a cicada before 1:30 in the living room, but spawns one at exactly 1:30.',
+night4('cicadas-from-1.30', {
+  about: 'A roll favouring the last eligible bug cannot spawn a cicada before 1.30 in the living room, but spawns one at exactly 1:30.',
   setup() { fresh({ waves: true, elites: false }); },
   play() {
     const { run, enemies, player } = G();
@@ -275,5 +276,26 @@ night4('cicadas-from-1-30', {
     const during = (t) => { enemies.clear(); run.t = t; run.spawnAcc = 1; run.spawnWaves(0); return enemies.list.filter((e) => e.type === 'cicada').length; };
     const before = during(89.999), after = during(90);
     return ok(!before && after > 0, { before, after });
+  },
+});
+
+// act 4's Elites attack about 40% more often since snap=2 and the shorter windups and rests: this plays each one
+// for a minute on the run's own beat (the jelly held on its spot, no damage) and counts the attacks it starts
+// (`e.next` counts them). The bowl gains least: its rings stay a bar apart. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
+night4('elites-attack-faster', {
+  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and each at least 10% more (their old counts are in this story; now bowl 13, pillow 26, headphones 12 against 11, 17, 9).',
+  setup() { fresh(); },
+  play() {
+    const BEFORE = { bowl: 11, pillow: 17, headphones: 9 }, out = {};
+    for (const [kind, at] of [['bowl', kit.onChair], ['pillow', kit.onSofa], ['headphones', kit.onCounter]]) {
+      fresh({ bubbles: false, lash: false }); at();
+      stub(G().run, 'song', null);
+      const e = G().run.elites.list.find((q) => q.kind === kind), player = kit.holdJelly();
+      step(60); e.cool = 0; e.next = 0;
+      step(60 * 60);
+      out[kind] = e.next;
+    }
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    return ok(sum(out) >= sum(BEFORE) * 1.3 && Object.keys(BEFORE).every((k) => out[k] >= BEFORE[k] * 1.1), { attacksPerMinute: out, before: BEFORE });
   },
 });
