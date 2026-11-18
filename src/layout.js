@@ -74,7 +74,8 @@ async function addThings(root, baked, data) {
   const want = [...new Set([...Object.keys(baked), ...Object.keys(data)])].filter((k) => ADDED.test(k) && !have.has(k)).map((k) => [k, { ...baked[k], ...data[k] }]);
   if (!want.length) return [];
   const ids = [...new Set(want.map(([, e]) => e.prop).filter(Boolean))];
-  const props = ids.length ? await loadProps(ids).catch(() => ({})) : {};   // a prop that can't load is skipped, like a missing source
+  // one at a time (one download): a prop that can't load is skipped, like a missing source, and the rest still come
+  const props = Object.assign({}, ...await Promise.all(ids.map((id) => loadProps([id]).catch(() => ({})))));
   const src = new Map(movables(root).map((m) => [m.key, m.node]));
   const made = [];
   for (const [key, e] of want) {

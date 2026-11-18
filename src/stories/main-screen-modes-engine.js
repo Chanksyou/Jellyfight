@@ -496,6 +496,31 @@ story('dev/layout-baked-copy-prunes-and-deletes', {
   },
 });
 
+story('dev/layout-prop-entry-is-made', {
+  about: 'A prop:<id>#n entry in the layout puts that library prop (props.js) in the room at its size: a copy of the template (the same geometry and materials), solid, with no lights. An entry naming a prop the library doesn\'t have is skipped.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { APT } = G(), { loadProps } = await import('../props.js');
+    const data = { 'prop:monstera#1': { prop: 'monstera', p: [3.2, 0, 3.3], q: [0, 0, 0, 1], s: 1.5 }, 'prop:nothing#1': { prop: 'nothing', p: [3, 0, 3], q: [0, 0, 0, 1], s: 1 } };
+    const made = await applyLayout(APT.root, 1, data), node = made[0];
+    try {
+      const t = (await loadProps(['monstera'])).monstera, mine = [], theirs = [];
+      node?.traverse((o) => { if (o.isMesh) mine.push(o); });
+      t.traverse((o) => { if (o.isMesh) theirs.push(o); });
+      const shared = mine.length > 0 && mine.length === theirs.length && mine.every((m, i) => m.geometry === theirs[i].geometry && m.material === theirs[i].material);
+      let lights = 0; node?.traverse((o) => { if (o.isLight) lights++; });
+      // solid: a ray down onto its pot (where it stands) hits it
+      const w = node && new World(node, { staticScene: true }), top = node && visibleBox(node, new THREE.Box3());
+      if (w) { w._focusAge = Infinity; w.focus(node.position, 0, 3); }
+      const hit = w && w.cast(V(node.position.x, top.max.y + 0.05, node.position.z), V(0, -1, 0), top.max.y + 0.1);
+      return ok(made.length === 1 && node.userData.added === 'prop:monstera#1' && node.scale.x === 1.5 && shared && !lights && !!hit,
+        { made: made.length, scale: node?.scale.x, shared, lights, hit: !!hit });
+    } finally {
+      for (const n of made) { n.visible = false; n.removeFromParent(); }
+    }
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout (with the whole frame\'s draw calls and shaders) open and close cleanly.',
