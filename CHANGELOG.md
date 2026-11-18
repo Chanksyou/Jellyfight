@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v481 stops building what stands inside the hall closets (washer and dryer, coats, shoes, supplies), which nobody can enter or see into: act 2 downloads 205 KB less and draws about two dozen fewer objects; the doors are unchanged.
+
 v480 sets five Elites down clear of their furniture: the Mug and the Alligator no longer float over their desk and bed, the Kettle no longer sinks into the counter, and the Soap Dispenser and the Coffer step out of the backsplash and riser behind them; a new guard checks every Elite's body, landing spots and attacks against the room.
 
 v479 fixes the last UI problems from the final look: on a phone with Large text the death screen's hint, chips and numbers fit above the buttons again (the time/Level/bugs chips sit under the numbers on a death), "The Vacuum was 4:20 away" stays on one line, the HUD's clock-and-boss line under the timer is bigger and brighter, the next jelly on the phone's pick screen shows its whole name, and a row of looks cut at the fold in Change your look fades out instead of looking broken.
