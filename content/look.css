@@ -555,7 +555,7 @@
   --bowl-song-glow: 0.8;         /* its song glowing in the bowl as it charges and rings out, */
   --bowl-ring-out: 0.8;          /* how fast a strike's ringing fades (a second), */
   --bowl-tremble: 0.03;          /* and how much its rim trembles with it */
-  --hostile-pillow: #e040ff;     /* the Mushroom Pillow's spores, spots and hop: hot spore violet, apart from act 4's dawn oranges, golds and reds and the cicada's green (and from the Encore's disco magenta, the rule it teaches) */
+  --hostile-pillow: #e040ff;     /* the Mushroom Pillow's spores, spots and Fairy ring: hot spore violet, apart from act 4's dawn oranges, golds and reds and the cicada's green (and from the Encore's disco magenta, the rule it teaches) */
   --pillow-spot-glow: 0.9;       /* the Mushroom Pillow: its cap's spots glowing as it gathers spores, */
   --pillow-inhale: 0.16;         /* how far its cap squashes as it breathes in, */
   --pillow-pop: 0.18;            /* and pops up as it puffs, */
@@ -570,10 +570,9 @@
   --pillow-column-burst: 0.5;    /* how strongly a burst's column shows as it fades, */
   --pillow-burst-flash: 0.03;    /* the flash at a spot's foot as it bursts (m), */
   --pillow-column-life: 0.3;     /* how long a burst's column lingers, fading (s), */
-  --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst or a landing leaves (fading), */
+  --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst leaves (fading), */
   --pillow-dust-size: 0.7;       /* its size as a part of the spot's radius, */
-  --pillow-crouch: 0.22;         /* how low it crouches before a hop, */
-  --pillow-fluff: #f4ecdc #c8312b #f0c8ff;   /* and the fluff a landing throws */
+  --pillow-cap: #ff7ae8;         /* the little caps of its Fairy ring as they sprout */
   --hostile-headphones: #5a40ff; /* the Headphones' Stereo, the half the low-x cup marks and bursts: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
   --hostile-headphones-right: #00ffa8; /* and the half the other cup does: hot spearmint, the second hue the two cups' halves tell apart by (cooler than the cicada's acid green, greener than the friendly cyan) */
   --headphones-wave-warning: 0.15; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint; it shoves, never hurts, so it stays under the hurting Warnings), */

@@ -1513,7 +1513,7 @@ export const sfx = {
   bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
   // the Mushroom Pillow: a long soft breath in, the spores puffed out (a plush pff, a sparkle as they
   // scatter, the whoosh they drift on), spores settling (soft ticks), the spots bursting as columns
-  // (a rising hiss and a pop, a dull thud on the jelly), a springy hop and a heavy plush landing
+  // (a rising hiss and a pop, a dull thud on the jelly) and its Fairy ring caps sprouting
   pillowInhale(dur = 1) { if (!ready()) return; const j = jitter(0.05); noise(700 * j, 1.5, dur, 0.05, 'bandpass', 0, 2200 * j); tone('sine', 110 * j, 150 * j, dur, 0.03); },
   pillowPuff() {
     if (!ready() || !gap('pillowPuff', 80)) return; const j = jitter(0.08);
@@ -1526,12 +1526,6 @@ export const sfx = {
     noise(600 * j, 1.2, 0.3, 0.16, 'bandpass', 0, 5000 * j); tone('triangle', 260 * j, 520 * j, 0.12, 0.08);   // the columns hiss up and pop
     noise(800 * j, 0.7, 0.5, 0.07, 'lowpass', 0.12, 200); patter(4, 0.15, 0.3, 0.02);                         // the dust settling
     if (struck) { tone('sine', 160 * j, 80, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); }
-  },
-  pillowHop() { if (!ready()) return; const j = jitter(0.08); tone('sine', 170 * j, 340 * j, 0.22, 0.12); noise(1200 * j, 1, 0.2, 0.08, 'bandpass', 0, 2600); },
-  pillowSlam() {
-    if (!ready() || !gap('pillowSlam', 80)) return; const j = jitter(0.08);
-    tone('sine', 95 * j, 40, 0.35, 0.26); noise(500 * j, 0.7, 0.3, 0.3, 'lowpass', 0, 120);     // the plush thud
-    noise(2500 * j, 1, 0.15, 0.06, 'bandpass', 0.03); patter(5, 0.06, 0.3, 0.025);                  // fluff and dust
   },
   // the Headphones: a sound wave let go (a speaker's click, a deep whoomp, the air rushing after it;
   // the two cups a tone apart), a jelly it shoves (a soft wobbling thump), the hum of the bass winding

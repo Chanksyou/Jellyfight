@@ -177,6 +177,13 @@ analysis, use the focused [game toolkit](docs/agents/game-toolkit.md). Shared
 workflows live in `.claude/skills/jelly-*/SKILL.md`; `.agents/skills/` provides
 Codex discovery entries. Load only the workflow relevant to the request.
 
+### Motion design
+
+For any UI animation, transition or micro-interaction, follow `.claude/skills/motion-design/SKILL.md`
+(LottieFiles, MIT; Codex entry in `.agents/skills/motion-design`). Use the `--ui-fast/mid/slow` and
+`--ui-ease-*` tokens in `content/look.css`, animate only `transform` and `opacity` on phones, and keep
+Reduce effects (`body.calm`, OS reduced motion) to fades.
+
 ### Issue tracker
 
 GitHub Issues on `Chanksyou/Jellyfight` (no `gh` in cloud sessions: use the GitHub MCP tools). See `docs/agents/issue-tracker.md`.

@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v485 replaces the Mushroom Pillow's hop with the Fairy ring: eight spore caps sprout in a ring round where the jelly stands and burst as columns, so hold still in the middle (run and you cross one); angry, a second ring sprouts where the jelly would flee.
+
+v484 puts the dev tools in one compact Dev panel: Play (Fight boss, 1 on 1, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, with AO, Bloom and Lamps as On/Off switches), and it remembers the last group you used.
+
 v483 rearranges Act 1 props, including the pet corner and shelves, removes the smart speaker, and moves five floor vents.
 
 v482 puts the sunset canyon wallpaper and centered Jelly Run title window from the desk photo on the apartment's curved monitor.
