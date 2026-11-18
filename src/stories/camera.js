@@ -83,7 +83,7 @@ story('camera/see-through-holds-and-clears-clutter', {
 });
 
 // A prop for the real rays: a box on `at` metres along the line from the jelly to the camera
-// (`side` m to its right, `up` above it), in the collision world until `done()`.
+// (`side` m to its right, `up` above it), in the collision world until `done()` hides it.
 function propOnTheLine(at, side = 0, size = 0.06, up = 0) {
   const { tpc, world, APT } = G(), scene = APT.scene;
   const dir = V(0, 0, 0).subVectors(tpc.camera.position, tpc._jelly).normalize(), right = V(Math.cos(tpc.yaw), 0, -Math.sin(tpc.yaw));
@@ -91,7 +91,8 @@ function propOnTheLine(at, side = 0, size = 0.06, up = 0) {
   m.rotation.y = tpc.yaw;   // square to the line, so `side` is how far its edge is from it
   m.position.copy(tpc._jelly).addScaledVector(dir, at).addScaledVector(right, side); m.position.y += up;
   scene.add(m); m.updateMatrixWorld(true); world.addCollider(m, false);
-  return { m, done() { scene.remove(m); const i = world.colliders.indexOf(m); if (i >= 0) { world.colliders.splice(i, 1); world.spheres.splice(i, 1); world.sweepBounds.splice(i, 1); world.dynamicColliders = world.dynamicColliders.filter((j) => j !== i).map((j) => (j > i ? j - 1 : j)); world._focusAge = Infinity; } m.geometry.dispose(); m.material.dispose(); } };
+  // the world has no way to drop a collider (its sweep grid is indexed by position in the list): hiding it takes it out of every ray and sweep
+  return { m, done() { m.visible = false; scene.remove(m); } };
 }
 const settle = () => { const s = G().run.stage.start; tp(s[0], 0.05, s[2], 0.6); step(30); };
 
