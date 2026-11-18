@@ -10,8 +10,8 @@ enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
 }
 
 // The ant (from 0:30): a red wood ant with a pushpin in its jaws. It walks after you and keeps a
-// little off; then it stands, braces and coils back (no line on the floor: watch the ant; its aim
-// locks halfway through), and throws it spinning at you. A new pin appears in its jaws. Step aside
+// little off; then it stands, braces and coils back (its aim locks halfway through, and a dotted glow
+// line shows where the pin will fly), and throws it spinning at you. A new pin appears in its jaws. Step aside
 // as it coils. A pin that misses sticks in whatever it hits for a moment.
 enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
     death-motion "crumple"
