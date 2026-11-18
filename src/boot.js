@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { patchLegacyFalloff, scaleLightsOnRender } from './legacy-lighting.js';
 import { loadApartment } from './apartment.js';
 import { loadBakedAO } from './baked-ao.js';
+import { loadSkylineAtlas } from './skyline.js';
 import { IS_TOUCH } from './touch.js';
 import { loadLook } from './look.js';
 import { loadContent } from './content.js';
@@ -90,8 +91,10 @@ try {
   }else{
   // only the rooms this act is played in (apartment.js; stages.js picks the act)
   const bakedAO = loadBakedAO(currentStage().id);   // its corner shadows (baked-ao.js), alongside
+  const skylineAtlas = loadSkylineAtlas();
   const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts);
   apt.bakedAO = await bakedAO;
+  apt.skylineAtlas = await skylineAtlas;
   const lights = scaleLightsOnRender(renderer, scene);
   window.APT = Object.assign(apt, { scene, renderer, camera, lights });
   await loadLook();                 // content/look.css: colours and render numbers

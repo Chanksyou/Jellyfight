@@ -106,19 +106,21 @@ elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=
 // until you're on the chair (stage4.js ELITES4 `wake`), then within aggro= of it. It keeps the song's
 // time: windup= and echo= are beats of the song (128 BPM: a beat is 0.47 s), not
 // the pace's tempo; rest= is s, as for every elite.
+// snap= (all three Elites, on every attack that times to the song): beats a hit rounds up to, default 4
+// (a bar); act 4 uses 2, so a hit lands on the next half bar at least windup= beats away.
 //   ring:  the striker lifts while a Warning of radius= (a disc and the ring wall over it) fills,
-//          then strikes the rim on the first bar line at least windup= beats away, and a ring wall
+//          then strikes the rim on the first snap line at least windup= beats away, and a ring wall
 //          height= tall, band= thick rolls out at speed= m/s to reach= m: jump it. Then echo= beats
 //          later it rolls back in to the bowl, the same wall (jump it again). rings= of them,
 //          one a bar; angry, angryRings= of them two a bar, every second one at angrySpeed=
 //   hum:   the striker runs round the rim and its song swells while a Warning fills the whole seat
 //          (its cushion, `seat` in stage4.js ELITES4) except a white safe circle, safe= m from the bowl's middle;
-//          on the first bar line at least windup= beats away the sound hits everything on the seat
+//          on the first snap line at least windup= beats away the sound hits everything on the seat
 //          outside that circle (the jelly's body counting), up to height= m over it (a jump doesn't clear it), and shoves you a little (knock=):
 //          swim in close, where the rings' echo catches you
 elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
-    ring dmg=3 rings=3 angryRings=4 windup=3 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 echo=2 rest=1.0 angryRest=0.7
-    hum dmg=3 windup=4 safe=0.12 height=0.35 knock=0.5 rest=1.0 angryRest=0.7
+    ring dmg=3 rings=3 angryRings=4 snap=2 windup=2 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 echo=2 rest=0.6 angryRest=0.4
+    hum dmg=3 snap=2 windup=3 safe=0.12 height=0.35 knock=0.5 rest=0.6 angryRest=0.4
 }
 
 // act 4: the Mushroom Pillow, on the sofa seat in the living room at dawn. It sleeps until you're on
@@ -134,26 +136,26 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //           you on a beat (leap= m high, air= beats) and lands as a Blast radius= m round itself (its
 //           cap is 11 cm round)
 elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
-    spores dmg=4 spots=5 angrySpots=8 windup=2 drift=2 angryDrift=1 radius=0.06 near=0.45 spread=0.13 rest=1.0 angryRest=0.7
-    hop dmg=4 radius=0.17 reach=0.3 windup=2 air=1 leap=0.1 knock=0.8 rest=1.0 angryRest=0.7
+    spores dmg=4 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
+    hop dmg=4 radius=0.17 reach=0.3 windup=1 air=1 leap=0.1 knock=0.8 rest=0.6 angryRest=0.4
 }
 
 // act 4: the Headphones, up on their ear cups on the kitchen counter by the stove in the living room at dawn. They
 // sleep until you're on the counter (stage4.js ELITES4 `wake`), then within aggro= of them. Like the
 // Singing Bowl they keep the song's time: windup=, every= and lock= are beats of the song; rest= is s.
 // The counter is 1.3 m long and 0.65 m deep and ends at a drop: falling off is the punishment, and the vent by the stove brings you back.
-//   shove: the cups take turns, waves= of them every= beats apart from the first bar line at least
+//   shove: the cups take turns, waves= of them every= beats apart from the first snap line at least
 //          windup= beats away. Each one's Warning (a white strip width= m wide from the cup through you
 //          to the table's edge, and the lane height= m tall over it) follows you until lock= beats
 //          before; then a white sound wave rolls down it at speed= m/s. It doesn't hurt: a jelly under
 //          its top as it passes is shoved push= m along it (over carry= s). Jump it to stay put.
 //          Angry, the other cup fires a bass Shot (its dmg= and size=) at jump height along with each
 //          wave, as fast as the wave: jumping the wave flies into it, so stay down and ride the shove
-//   bass:  shots= Shots, every= beats apart from the first bar line at least windup= beats away, the
+//   bass:  shots= Shots, every= beats apart from the first snap line at least windup= beats away, the
 //          cups taking turns; each one's Warning (a line on the table and the tube over it to your
 //          middle, mid-jump included) locks lock= beats before it fires, at speed= m/s for reach= m
 //          (size=: its radius, m)
 elite "headphones" name="The Headphones" icon="🎶" hp=800 aggro=1.2 angry=0.65 {
-    shove waves=3 every=4 windup=3 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=1.0 angryRest=0.7
-    bass dmg=3 shots=4 every=1 windup=3 lock=0.5 speed=0.8 size=0.012 reach=1.3 rest=1.0 angryRest=0.7
+    shove waves=3 every=4 snap=2 windup=2 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=0.6 angryRest=0.4
+    bass dmg=3 shots=4 every=1 snap=2 windup=2 lock=0.5 speed=0.8 size=0.012 reach=1.3 rest=0.6 angryRest=0.4
 }

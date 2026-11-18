@@ -1,6 +1,8 @@
 // Stories: keeping a crowded fight readable. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 import { bus } from '../events.js';
 import { G, V, fresh, ok, spawn, step, story, tp } from './kit.js';
+import { LOOK } from '../look.js';
+import { TeleMaterial, VolumeMaterial } from '../vfx.js';
 
 story('readability/steady-fire-blinks-not-stays-white', {
   about: 'A bug under steady fire (hit every other frame for 2 s) blinks with the hits instead of staying a solid white shape: it flashes several times, but is white for under half the time.',
@@ -76,5 +78,15 @@ story('readability/floor-marks-have-shapes', {
     const reused = fx.splats.find((s) => s.alive) === fx.splats.find((s) => s.m.material === fx.splatMats.ink && s.alive) && fx.splats.find((s) => s.alive).m.material === fx.splatMats.ink;
     return ok(shapes.every(Boolean) && mats.every((m) => m.map.image === image) && new Set(mats.map((m) => m.map.offset.x + ',' + m.map.offset.y)).size === 4
       && seen.nonsense.m.material === fx.splatMats.splash && reused, { shapes });
+  },
+});
+
+story('readability/warnings-glow-from-look-css', {
+  about: 'Every Warning\'s brightness boost comes from content/look.css (--warning-floor-glow for the floor shape, --warning-volume-glow for the hex volume over it), kept calmer than before (floor under 1.7, volume under 1.5) so Elite Warnings do not glare, and still boosted (over 1) so they light up a dark surface.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const floor = new TeleMaterial('#ff3a3a').uniforms.uGlow.value, volume = new VolumeMaterial('#ff3a3a').uniforms.uGlow.value;
+    const want = { floor: LOOK.num('warning-floor-glow', -1), volume: LOOK.num('warning-volume-glow', -1) };
+    return ok(floor === want.floor && volume === want.volume && floor > 1 && floor < 1.7 && volume > 1 && volume < 1.5, { floor, volume, want });
   },
 });

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { SONGS } from '../music.js';
 import { movables, visibleBox } from '../layout.js';
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
+import * as kit from './kit.js';
 import { G, V, fresh, night4, ok, sim, step, stub, tp } from './kit.js';
 import { LOOK } from '../look.js';
 
@@ -247,22 +248,24 @@ night4('the-act-plays-sunrise-set', {
 });
 
 night4('the-dawn-look-warms-across-the-night', {
-  about: 'Act 4\'s room is lit by the dawn values (look.css --dawn-*), not the night\'s: the blue hour at 6:00 AM (fill, sky, haze, an unlit glow card on the window wall) warming to gold by 8:00 AM, with no light added or removed.',
+  about: 'The interior dawn fill, sky and haze warm across Act 4. The city remains visible and brightens on the same mesh and atlas, with no light added or removed.',
   setup() { fresh(); },
   play() {
-    const { run, APT } = G(), S = APT.scene, card = () => S.getObjectByName('Dawn window');
+    const { run, APT } = G(), S = APT.scene, city = S.getObjectByName('Skyline');
+    if (!city) return ok(false, { city: false });
+    const daylight = city.material.userData.daylight, map = city.material.map;
     const near = (a, b) => Math.abs(a - b) < 0.005;   // a frame or two into the night
     const hex = (c) => '#' + c.getHexString();
     const lights = () => { let n = 0; S.traverse((o) => { if (o.isLight) n++; }); return n; };
     step(2);
-    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, window: hex(card().material.color) };
+    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, daylight: daylight.value };
     run.t = run.duration; run.nightT = 0;
     step(2);
-    const end = { fill: S.environmentIntensity, sky: hex(S.background), window: hex(card().material.color) };
-    const unlit = card().material.isMeshBasicMaterial && card().position.x < 0;
-    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze')) && start.window === LOOK.color('dawn-window')
-      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late') && end.window === LOOK.color('dawn-window-late')
-      && unlit && lights() === lit, { start, end, lit });
+    const end = { fill: S.environmentIntensity, sky: hex(S.background), daylight: daylight.value };
+    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze'))
+      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late')
+      && start.daylight > 0 && start.daylight < 0.5 && end.daylight === 1
+      && !S.getObjectByName('Dawn window') && city.material.map === map && lights() === lit, { start, end, lit });
   },
 });
 night4('cicadas-from-1-30', {
@@ -275,5 +278,26 @@ night4('cicadas-from-1-30', {
     const during = (t) => { enemies.clear(); run.t = t; run.spawnAcc = 1; run.spawnWaves(0); return enemies.list.filter((e) => e.type === 'cicada').length; };
     const before = during(89.999), after = during(90);
     return ok(!before && after > 0, { before, after });
+  },
+});
+
+// act 4's Elites attack about 40% more often since snap=2 and the shorter windups and rests: this plays each one
+// for a minute on the run's own beat (the jelly held on its spot, no damage) and counts the attacks it starts
+// (`e.next` counts them). The bowl gains least: its rings stay a bar apart. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
+night4('elites-attack-faster', {
+  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and each at least 10% more (their old counts are in this story).',
+  setup() {},
+  play() {
+    const BEFORE = { bowl: 11, pillow: 17, headphones: 9 }, out = {};
+    for (const [kind, at] of [['bowl', kit.onChair], ['pillow', kit.onSofa], ['headphones', kit.onCounter]]) {
+      fresh({ bubbles: false, lash: false }); at();
+      stub(G().run, 'song', null);
+      const e = G().run.elites.list.find((q) => q.kind === kind), player = kit.holdJelly();
+      step(60); e.cool = 0; e.next = 0;
+      step(60 * 60);
+      out[kind] = e.next;
+    }
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    return ok(sum(out) >= sum(BEFORE) * 1.3 && Object.keys(BEFORE).every((k) => out[k] >= BEFORE[k] * 1.1), { attacksPerMinute: out, before: BEFORE });
   },
 });

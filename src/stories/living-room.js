@@ -2,6 +2,7 @@
 // its windows (skyline.js: the apartment is on the 33rd floor).
 import { movables, visibleBox } from '../layout.js';
 import { ELITES4 } from '../stage4.js';
+import { HIDDEN_SHELL } from '../layout-baked.js';
 import * as THREE from 'three';
 import { G, night4, ok, story } from './kit.js';
 
@@ -12,7 +13,10 @@ const near = (v, w, e = 0.05) => v.every((n, i) => Math.abs(n - w[i]) <= e);
 // where the sofa, the coffee table and the lounge chair stand in the new layout (min x,z and max x,z)
 const SPOTS = { Corduroy_sofa: [0.49, 0.47, 2.91, 2.08], Glass_coffee_table: [1.3, 1.89, 2.67, 2.88], Lounge_chair: [2.82, 0.59, 3.49, 1.43] };
 const layoutOk = () => {
-  const gone = GONE.filter((k) => box(k)), moved = Object.entries(SPOTS).filter(([k, w]) => { const b = box(k); return !b || !near([b.min.x, b.min.z, b.max.x, b.max.z], w); }).map(([k]) => k);
+  // the plants that are loose pieces of the walls-and-floor mesh (no editor handle) are hidden too
+  const shell = G().APT.root.getObjectByName('Shell'), loose = [];
+  shell.traverse((o) => { if (HIDDEN_SHELL[G().run.stage.id].includes(o.name) && o.visible) loose.push(o.name); });
+  const gone = [...GONE.filter((k) => box(k)), ...loose], moved = Object.entries(SPOTS).filter(([k, w]) => { const b = box(k); return !b || !near([b.min.x, b.min.z, b.max.x, b.max.z], w); }).map(([k]) => k);
   return ok(!gone.length && !moved.length, { gone, moved });
 };
 
@@ -34,15 +38,22 @@ night4('the-room-has-the-same-new-layout', {
 });
 
 story('engine/the-view-is-from-the-33rd-floor', {
-  about: 'Through the windows you look out over a city far below, not at a flat dark wall: one unlit ring of towers and street lights round the apartment (skyline.js), about 100 m down to the streets, a single draw call that is never a light and never solid.',
+  about: 'The 33rd-floor view shares one opaque draw and one atlas for the painted panorama and close towers. Its geometry never joins the collision world.',
   setup() {},
   play() {
-    const { APT } = G(), ring = APT.scene.getObjectByName('Skyline');
-    const lights = []; APT.scene.traverse((o) => { if (o.isLight) lights.push(o); });
-    const stuff = ring && ring.geometry.parameters;
-    return ok(ring && ring.isMesh && !Array.isArray(ring.material) && ring.material.isMeshBasicMaterial && !ring.material.depthWrite && ring.userData.noCollide
-      && stuff.radiusTop > 20 && stuff.height >= 100 && ring.position.y + stuff.height / 2 >= 0 && ring.position.y - stuff.height / 2 <= -90
-      && APT.scene.children.filter((o) => o.name === 'Skyline').length === 1,
-      { ring: !!ring, stuff, y: ring?.position.y, lights: lights.length });
+    const { APT, world, run } = G(), ring = APT.scene.getObjectByName('Skyline');
+    if (!ring) return ok(false, { ring: false });
+    run.setNight(0);
+    const { geometry, material } = ring;
+    geometry.computeBoundingBox();
+    const triangles = geometry.index.count / 3, { min, max } = geometry.boundingBox;
+    const image = material.map?.image;
+    const solid = world.colliders.includes(ring);
+    return ok(ring.isMesh && material.isMeshBasicMaterial && material.depthWrite && !material.transparent
+      && !material.fog && !ring.castShadow && ring.userData.noCollide && !solid
+      && APT.scene.children.filter((o) => o.name === 'Skyline').length === 1
+      && geometry.groups.length === 0 && triangles <= 320 && min.y <= -90 && max.y >= 25
+      && image?.width === 2048 && image.height === 512 && material.userData.daylight.value === 0,
+      { triangles, height: [min.y, max.y], atlas: [image?.width, image?.height], solid });
   },
 });

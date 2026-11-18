@@ -22,7 +22,7 @@
 // exported with the furniture, keyed "vent:<name>" with `at` and `land` in world meters.
 // Other stage markers (treasure spots, elites) don't follow moved furniture yet.
 import * as THREE from 'three';
-import { BAKED_LAYOUT } from './layout-baked.js';
+import { BAKED_LAYOUT, HIDDEN_SHELL } from './layout-baked.js';
 import { HIDDEN } from './batch.js';
 
 const KEY = 'jf-layout-v1';
@@ -108,6 +108,8 @@ export function applyVentLayout(vents, act, data = loadLayout(act)) {
 export function applyLayout(root, act, data = loadLayout(act)) {
   const baked = BAKED_LAYOUT[act] || {};
   let n = 0, pruned = false;
+  const gone = HIDDEN_SHELL[act];
+  if (gone) root.getObjectByName('Shell')?.traverse((o) => { if (gone.includes(o.name)) o.visible = false; });
   for (const { key, node } of movables(root)) {
     if (!node.userData.home) {
       if (baked[key]) applyEdit(node, baked[key]);

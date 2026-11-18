@@ -145,6 +145,9 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-board .jf-stats > span { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; color: var(--ui-ink); }
 .jf-board .jf-stats > b { align-self: center; font-size: 24px; }
 .jf-board .jf-rank { font-style: normal; min-width: 1.6em; }
+.jf-board .jf-rank[data-place] { font-weight: 700; color: var(--ui-gold); }
+.jf-board .jf-rank[data-place="2"] { color: var(--ui-silver); }
+.jf-board .jf-rank[data-place="3"] { color: var(--ui-bronze); }
 .jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px var(--ui-line), 0 4px 14px var(--ui-shade); flex: none; }
 .jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .jf-score { font-size: 1.5em; color: var(--ui-gold); }
@@ -424,7 +427,7 @@ export class UI {
     this._gen++;
     const board = cls.includes('jf-board');   // the leaderboards: a plain title, and an icon over a board with nothing on it yet
     this.modal.innerHTML = `<div class="ui-panel jf-panel ${cls}"><div class="ui-header"><h2>${board ? bare(title) : title}</h2></div>${board && !rows.length ? `<div class="jf-empty">${icon('trophy')}</div>` : ''}${sub ? `<p class="sub">${sub}</p>` : ''}
-      ${hint ? `<p class="jf-hint"><span aria-hidden="true">💡</span> ${esc(hint)}</p>` : ''}
+      ${hint ? `<p class="jf-hint">${icon('info')} ${esc(hint)}</p>` : ''}
       ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`)).join('')}</div>
       ${buttons.map((b, i) => (b.corner ? `<button data-i="${i}" class="jf-beta">${b.label}</button>` : '')).join('')}</div>`;

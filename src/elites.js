@@ -175,6 +175,8 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 // the Cream Whipper's Piping: how often it notes where you swam (s), and the bead's piece: a
 // star-ridged prism standing on y = 0 (2 tall, 2 wide), from z = 0 to 1; scale (R, R, length)
 const PIPE_STEP = 0.12;
+// the first snap= beats line (default 4: a bar) at or after beat `at`: act 4 Elites time their hits to it
+const snapUp = (at, snap = 4) => Math.ceil(at / snap) * snap;
 function beadGeometry(points = 8) {
   const star = new THREE.Shape();
   for (let i = 0; i < points * 2; i++) {
@@ -925,12 +927,13 @@ export class Elites {
     return m;
   }
 
-  // a warning circle that fills from the middle as the hit gets closer (k 0..1)
-  warnCircle(pos, r, mat) {
+  // a warning circle that fills from the middle as the hit gets closer (k 0..1); o: how strongly
+  // it shows (an attack that lays many at once keeps each one quieter)
+  warnCircle(pos, r, mat, o = 1) {
     const g = this.mark(null, this.flat, mat, pos, new THREE.Vector3(r, r, r));
     g.position.y += 0.002;
     g.updateMatrixWorld(true);
-    g.userData.fill = (k) => { g.material.progress = k; g.material.opacity = 0.85 + Math.sin(performance.now() / 60) * 0.15; };
+    g.userData.fill = (k) => { g.material.progress = k; g.material.opacity = o * (0.85 + Math.sin(performance.now() / 60) * 0.15); };
     return g;
   }
 
@@ -2348,7 +2351,11 @@ export class Elites {
             e.locked = true;
             const n = angry ? J.angryCount : J.count;
             e.spots = this.cofferSpots(e, n, J);
-            for (const at of e.spots) e.tele.push(this.warnCircle(at, J.radius, this.T.coffer), this.volume(col, 'dome', at, J.radius));
+            for (const at of e.spots) {                                     // (ten or more at once: each kept quiet, look.css)
+              const w = this.warnCircle(at, J.radius, this.T.coffer, LOOK.num('coffer-jewel-warning', 0.6)), v = this.volume(col, 'dome', at, J.radius);
+              v.material.opacity = LOOK.num('coffer-jewel-volume', 0.4);
+              e.tele.push(w, v);
+            }
             // each jewel leaves from a spot on the lid, at its own moment, up and a little out
             e.gems = e.spots.map((_, i) => ({ from: g.localToWorld(new THREE.Vector3((Math.random() - 0.5) * 0.15, C.lift + COFFER.base + C.gap + COFFER.lid, (Math.random() - 0.5) * 0.12)), dx: (Math.random() - 0.5) * 0.5, dz: (Math.random() - 0.5) * 0.5, at: i * 0.035, spin: Math.random() * 6, out: false }));
             e.rained = e.burst = false;
@@ -2413,7 +2420,7 @@ export class Elites {
           // wall rolls out across the seat: jump it. Angry: two a bar, the second faster
           const R = SK.ring;
           if (!e.strikes) {                                                  // planned as it starts: turning angry part way keeps the plan
-            const first = Math.ceil((beat + R.windup) / 4) * 4, every = angry ? 2 : 4;   // the first bar line at least windup beats away
+            const first = snapUp(beat + R.windup, R.snap), every = angry ? 2 : 4;   // the first bar line at least windup beats away
             e.strikes = Array.from({ length: angry ? R.angryRings : R.rings }, (_, k) => first + k * every);
             e.struckN = 0; e.fromBeat = beat;
           }
@@ -2444,7 +2451,7 @@ export class Elites {
           // that circle, up to `height` over it (a jump doesn't clear it): swim in close
           const H = SK.hum, S = e.spec.seat;
           if (!e.humAt) {
-            e.humAt = Math.ceil((beat + H.windup) / 4) * 4;                  // the first bar line at least windup beats away
+            e.humAt = snapUp(beat + H.windup, H.snap);                  // the first snap line at least windup beats away
             e.humDone = false; e.fromBeat = beat; e.turn = 0;
             const hw = (S.max[0] - S.min[0]) / 2, hd = (S.max[1] - S.min[1]) / 2, mid = this._mid2.set(S.min[0] + hw, e.base.y, S.min[1] + hd);
             e.tele.push(
@@ -2493,7 +2500,7 @@ export class Elites {
           // bar as columns that hit all the way up over a jump: step off the spot. Angry: more, settling faster
           const S = SK.spores;
           if (!e.plan) {
-            const drift = angry ? S.angryDrift : S.drift, burst = Math.ceil((beat + S.windup + drift + 1) / 4) * 4;   // the first bar line far enough off
+            const drift = angry ? S.angryDrift : S.drift, burst = snapUp(beat + S.windup + drift + 1, S.snap);   // the first snap line far enough off
             e.plan = { from: beat, puff: burst - 1 - drift, settle: burst - 1, burst, n: angry ? S.angrySpots : S.spots };
             sfx.pillowInhale((e.plan.puff - beat) * 60 / this.bpm);
           }
@@ -2508,8 +2515,8 @@ export class Elites {
             const spots = this.pillowSpots(e, P, L.n, S), size = LOOK.num('pillow-spore-size', 0.008);
             e.spores = spots.map((at) => {
               const v = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
-              v.material.opacity = LOOK.num('pillow-column-opacity', 0.5);
-              e.tele.push(this.warnCircle(at, S.radius, this.T.pillow), v);
+              v.material.opacity = LOOK.num('pillow-column-opacity', 0.2);
+              e.tele.push(this.warnCircle(at, S.radius, this.T.pillow, LOOK.num('pillow-spot-warning', 0.6)), v);
               const orb = this.fx.orb(col, size);
               orb.position.copy(muzzle);
               return { at, from: muzzle.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.12, 0, (Math.random() - 0.5) * 0.12)), orb, phase: Math.random() * 6.28 };
@@ -2525,7 +2532,7 @@ export class Elites {
             e.spores.forEach((sp, i) => {
               const w = e.tele[i * 2], v = e.tele[i * 2 + 1], ease = 1 - (1 - u) * (1 - u);
               w.userData.fill(k); v.material.progress = k;
-              if (beat >= L.settle) { const o = LOOK.num('pillow-column-opacity', 0.5); w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
+              if (beat >= L.settle) { const o = LOOK.num('pillow-column-opacity', 0.2); w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
               sp.orb.position.lerpVectors(sp.from, sp.at, ease);
               sp.orb.position.y += Math.sin(Math.min(1, u * 1.4) * Math.PI) * arc + LOOK.num('pillow-spore-size', 0.008);
               sp.orb.position.x += Math.sin(u * 9 + sp.phase) * 0.02 * (1 - u); sp.orb.position.z += Math.cos(u * 7 + sp.phase) * 0.02 * (1 - u);
@@ -2545,7 +2552,7 @@ export class Elites {
                 if (!struck && Math.hypot(P.x - at.x, P.z - at.z) < S.radius + cfg.radius && P.y + cfg.height > at.y && P.y < at.y + LOOK.num('pillow-column', 0.35)) struck = true;   // the column, as tall as it's drawn (over a full jump)
                 const pulse = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
                 pulse.material.progress = 1;
-                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-opacity', 0.5) });
+                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-burst', 0.5) });
                 this.fx.impact(mid, col, LOOK.num('pillow-burst-flash', 0.03), 8);
                 for (const h of [0.1, 0.45, 0.8]) this.fx.puff(this._probe.copy(at).setY(at.y + h * LOOK.num('pillow-column', 0.35)), LOOK.color('pillow-puff', '#f0c8ff'), S.radius * 0.9, 0.45, 0.4);
                 this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), S.radius * LOOK.num('pillow-dust-size', 0.7), 'dust');   // spore dust, fading
@@ -2615,7 +2622,7 @@ export class Elites {
           // Angry (as it starts): the other cup fires a bass Shot at jump height along with each wave
           const W = SK.shove;
           if (!e.plan) {
-            const first = Math.ceil((beat + W.windup) / 4) * 4;              // the first bar line at least windup beats away
+            const first = snapUp(beat + W.windup, W.snap);              // the first snap line at least windup beats away
             e.plan = { from: beat, due: Array.from({ length: W.waves }, (_, k) => first + k * W.every), k: 0, angry,
               start: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0.1, shotFrom: new THREE.Vector3(), aim: new THREE.Vector3() };
           }
@@ -2666,7 +2673,7 @@ export class Elites {
           // taking turns; each one's Warning (a line on the table and the tube over it to your middle,
           // mid-jump included) fills to its beat, following you until B.lock beats before: step sideways
           if (!e.plan) {
-            const first = Math.ceil((beat + B.windup) / 4) * 4;
+            const first = snapUp(beat + B.windup, B.snap);
             e.plan = { from: beat, due: Array.from({ length: B.shots }, (_, k) => first + k * B.every), k: 0, mouth: new THREE.Vector3(), aim: new THREE.Vector3() };
             sfx.headphonesHum((first - beat) * 60 / this.bpm);
           }
