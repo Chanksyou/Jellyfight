@@ -410,14 +410,14 @@ const segs=[];
 function segment(a,b,o={}){const dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,rot=Math.atan2(-uz,ux);
  const lg=grp(a[0],0,a[1]),bg=grp(a[0],0,a[1]),cg=grp(a[0],0,a[1],o.hall?hallCeil:ceilRoot);[lg,bg,cg].forEach(g=>g.rotation.y=rot);
  const S={lg,bg,cg,L,a,n:[uz,-ux]};segs.push(S);const T=.14;
- const piece=(x0,x1,y0,y1,m)=>{if(x1-x0<=0||y1<=y0)return;const b1=box(x1-x0,y1-y0,T,m,(x0+x1)/2,y0,-T/2,lg,false);const bk=new THREE.Mesh(b1.geometry,blockMat);bk.position.copy(b1.position);bk.castShadow=true;bk.userData.noPick=true;bg.add(bk);};
+ const piece=(x0,x1,y0,y1,m)=>{if(x1-x0<=0||y1<=y0)return;const b1=box(x1-x0,y1-y0,T,m,(x0+x1)/2,y0,-T/2,lg,false);b1.userData.structural=true;const bk=new THREE.Mesh(b1.geometry,blockMat);bk.position.copy(b1.position);bk.castShadow=true;bk.userData.noPick=true;bg.add(bk);};
  if(o.kind==='window'){const x0=o.x0,x1=o.x1;piece(0,x0,0,H,mat.wall);piece(x1,L,0,H,mat.wall);piece(x0,x1,0,.3,mat.frame);piece(x0,x1,2.45,H,mat.wall);
-  const gl=mesh(new THREE.PlaneGeometry(x1-x0,2.15),mat.glass,lg,false,false);gl.position.set((x0+x1)/2,1.375,-.05);gl.userData.noPick=true;(window._WGL=window._WGL||[]).push([gl,x1-x0]);
+  const gl=mesh(new THREE.PlaneGeometry(x1-x0,2.15),mat.glass,lg,false,false);gl.position.set((x0+x1)/2,1.375,-.05);gl.userData.noPick=true;gl.userData.structural=true;(window._WGL=window._WGL||[]).push([gl,x1-x0]);
   [x0,...(o.mull||[]),x1].forEach(x=>box(.06,2.15,.08,mat.frame,x,.3,-.04,lg,false));[.3,1.12,2.42].forEach(y=>box(x1-x0,.04,.08,mat.frame,(x0+x1)/2,y,-.04,lg,false));
   box(x1-x0,.035,.06,mat.frame,(x0+x1)/2,.26,.02,lg,false);}
  else if(o.kind==='open'){piece(0,L,o.hd,H,mat.wall);box(L,.03,.14,mat.base,L/2,o.hd-.03,-.07,lg,false);}
  else{const wm=o.mat||mat.wall;let x=0;(o.gaps||[]).slice().sort((a,b)=>a[0]-b[0]).forEach(([g0,g1])=>{piece(x,g0,0,H,wm);if(g0-x>0)box(g0-x,.09,.012,mat.base,(x+g0)/2,0,.006,lg,false);piece(g0,g1,2.1,H,wm);x=g1;});piece(x,L,0,H,wm);if(L-x>0)box(L-x,.09,.012,mat.base,(x+L)/2,0,.006,lg,false);}
- if(o.soffit)box(L,H-2.45,o.soffit,mat.ceil,L/2,2.45,o.soffit/2,cg,false);
+ if(o.soffit)box(L,H-2.45,o.soffit,mat.ceil,L/2,2.45,o.soffit/2,cg,false).userData.structural=true;
  S.base=lg.children.length;[lg,bg,cg].forEach(g=>g.userData.seg=true);
  return S;}
 function door(S,x0,x1,m,name,desc){const g=grp(0,0,0,S.lg);const w=x1-x0;box(w,2.06,.035,m||mat.door,(x0+x1)/2,0,.02,g);[x0-.03,x1+.03].forEach(x=>box(.05,2.1,.03,mat.base,x,0,.015,g,false));box(w+.1,.05,.03,mat.base,(x0+x1)/2,2.08,.015,g,false);
@@ -2335,6 +2335,8 @@ addEventListener('keydown',e=>{if(!arrange||!sel)return;const k=e.key.toLowerCas
 // Parts that never move on their own are merged into a few meshes per object. Plain colored parts share one vertex-colored
 // material per surface finish; parts with textures keep their material and merge with others using the same one.
 // Glass, recolorable finishes in the first pass, and anything that animates part by part stay as they are.
+// The walls, floors and ceilings that seal the rooms (segment() and the polyShape floors) are tagged for the game's camera (tools/exporter.js); they merge only with each other, so the tag survives
+const isStructural=m=>!!(m.userData.structural||m.userData.shape);
 function mergeStatic(){scene.updateMatrixWorld(true);
  const skip=new Set(),mark=o=>{if(o)o.traverse(x=>skip.add(x));},tints=new Set(),objs=new Set(),anchors=new Set(),outSet=new Set();
  OUT.traverse(o=>outSet.add(o));DOORS.forEach(d=>anchors.add(d.leaf));if(window._bouncer)anchors.add(window._bouncer);if(window._cat)mark(window._cat.parent);
@@ -2356,8 +2358,8 @@ function mergeStatic(){scene.updateMatrixWorld(true);
    const cnt=g.index?g.index.count:p.count,ix=k=>g.index?g.index.getX(k):k;for(let k=0;k<cnt;k+=3){I[io++]=vo+ix(k);if(flip){I[io++]=vo+ix(k+2);I[io++]=vo+ix(k+1);}else{I[io++]=vo+ix(k+1);I[io++]=vo+ix(k+2);}}vo+=p.count;});
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('normal',new THREE.BufferAttribute(Nn,3));if(Cc)geo.setAttribute('color',new THREE.BufferAttribute(Cc,3));if(U)geo.setAttribute('uv',new THREE.BufferAttribute(U,2));
   geo.setIndex(new THREE.BufferAttribute(I,1));geo.computeBoundingSphere();geo.computeBoundingBox();
-  const out=new THREE.Mesh(geo,outMat);out.castShadow=list[0].castShadow;out.receiveShadow=list[0].receiveShadow;a.add(out);list.forEach(m=>m.parent.remove(m));before+=list.length;after++;};
- const collect=keyOf=>{const G=new Map();scene.traverse(m=>{if(!ok(m))return;const a=anchorOf(m);if(!a||skip.has(a))return;const k=keyOf(m);if(k==null)return;const key=a.uuid+'|'+k+'|'+(m.castShadow?1:0)+(m.receiveShadow?1:0);if(!G.has(key))G.set(key,{a,list:[]});G.get(key).list.push(m);});return G;};
+  const out=new THREE.Mesh(geo,outMat);if(isStructural(list[0]))out.userData.structural=true;out.castShadow=list[0].castShadow;out.receiveShadow=list[0].receiveShadow;a.add(out);list.forEach(m=>m.parent.remove(m));before+=list.length;after++;};
+ const collect=keyOf=>{const G=new Map();scene.traverse(m=>{if(!ok(m))return;const a=anchorOf(m);if(!a||skip.has(a))return;const k=keyOf(m);if(k==null)return;const key=a.uuid+'|'+k+'|'+(m.castShadow?1:0)+(m.receiveShadow?1:0)+(isStructural(m)?'|structural':'');if(!G.has(key))G.set(key,{a,list:[]});G.get(key).list.push(m);});return G;};
  // pass 1: plain colors indoors, baked into vertex colors
  collect(m=>{const mt=m.material;return !outSet.has(m)&&plainMat(mt)?mt.roughness.toFixed(2)+'|'+mt.metalness.toFixed(2)+'|'+mt.side+'|'+(mt.flatShading?1:0):null;})
   .forEach(({a,list})=>{if(list.length<2)return;const mt=list[0].material;mergeList(a,list,bakeMat(mt.roughness.toFixed(2),mt.metalness.toFixed(2),mt.side,!!mt.flatShading),true);});

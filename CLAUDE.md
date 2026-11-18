@@ -93,6 +93,7 @@ verification across all player attack families.
 | The boss (Vacuum) | `src/vacuum.js` | Not words yet |
 | Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |
 | Movement and collision | `src/player.js`, `src/collision.js` | |
+| How the camera keeps inside the walls (how close it stays, how fast it comes back), which pieces seal the rooms | `content/look.css` (`--camera-clear-*`), `src/camera.js` (`clearTo`); `userData.structural` is set when the apartment is baked (`tools/apartment-source.html`, `tools/exporter.js`) and never fades | Re-bake with `node tools/export.mjs` (restore `assets/apartment.json` if only a flickering lamp's intensity changed), then `node tools/bake-ao.mjs`. Stories `camera/stays-inside-the-shell`, `camera/shell-never-fades` |
 
 ## Rules
 

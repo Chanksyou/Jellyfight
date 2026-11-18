@@ -42,6 +42,14 @@ export const CONFIG = {
     sensitivity: 0.0025,
     fov: 60,
     near: 0.002,         // tiny near plane so walls don't vanish when the camera is close
+    // Camera clearance (camera.js): the camera keeps inside the walls, floors and ceilings (the
+    // `structural` pieces) by dollying in along the same view, never by turning it. content/look.css --camera-clear-*.
+    clearMargin: LOOK.num('camera-clear-margin', 0.04),     // m kept between the lens and a wall: the near plane plus the biggest shake
+    clearMin: LOOK.num('camera-clear-min', 0.16),           // m: it never dollies in closer than this, even hard against a wall
+    clearBand: LOOK.num('camera-clear-band', 0.12),         // m before a wall where the dolly starts to ease in
+    clearEase: LOOK.num('camera-clear-ease', 0.05),         // m it has already come in by when the lens reaches the wall
+    clearHold: LOOK.num('camera-clear-hold', 0.1),          // s it stays in after the wall clears
+    clearRecover: LOOK.num('camera-clear-recover', 9),      // per s: how fast it eases back out (about 0.25 s to settle)
     far: 60,
   },
 };

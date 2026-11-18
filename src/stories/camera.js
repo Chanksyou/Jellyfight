@@ -207,3 +207,119 @@ for(const [ending,onPhone] of [['victory',false],['death',false],['restart',fals
     const restored=parts.every((m,i)=>m.material===before[i].material&&m.visible===before[i].visible&&world.colliders.includes(m)===before[i].collides&&!tpc.keep.has(m));
     return ok(parts.length>0&&!missed.length&&restored&&newShaders===0,{parts:parts.length,missed:missed.slice(0,6).map(m=>m.name),restored,newShaders});},
 });
+
+// --- the walls, floors and ceilings (userData.structural: tools/exporter.js) never fade, and the camera keeps inside them
+const structuralMeshes = () => { const out = []; G().APT.scene.traverse((o) => { if (o.isMesh && o.userData.structural) out.push(o); }); return out; };
+// the camera's view as asked for: where the focus, the yaw and the tilt put the lens at full distance
+const askedFor = (tpc, out) => out.copy(tpc.focus).addScaledVector(tpc.dirAt(tpc.viewPitch, new THREE.Vector3()), tpc.currentDistance);
+
+story('camera/shell-never-fades', {
+  about: 'Walls, floors, ceilings, window glass and door leaves of the apartment are marked structural when it is baked: the camera never fades them, even blocking the view, and builds no see-through copy of them ahead of time. Furniture beside them still fades.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc } = G(), shell = structuralMeshes(), box = new THREE.Box3(), size = new THREE.Vector3();
+    const tall = shell.filter((m) => m.name.startsWith('Shell') && box.setFromObject(m).getSize(size).y > 2).length;
+    const doors = shell.filter((m) => m.parent?.name.startsWith('door-')).length;
+    const withTag = tpc.seeThroughWarmers().length;
+    for (const m of shell) m.userData.structural = false;
+    const withoutTag = tpc.seeThroughWarmers().length;     // what the warm-up would build if they could fade
+    for (const m of shell) m.userData.structural = true;
+    const piece = [];
+    G().APT.scene.getObjectByName('Media_console').traverse((o) => { if (o.isMesh) piece.push(o); });
+    tpc.over.clear();
+    for (const m of [...shell, piece[0]]) tpc.over.add(m);
+    for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
+    const faded = shell.filter((m) => tpc._fades.has(m)).length, furniture = tpc._fades.has(piece[0]);
+    tpc.over.clear();
+    for (let i = 0; i < 90; i++) tpc.fade(1 / 60);
+    return ok(shell.length >= 60 && tall >= 10 && doors >= 5 && withoutTag - withTag >= 4 && faded === 0 && furniture && !tpc._fades.size,
+      { structural: shell.length, tall, doors, warmed: withTag, wouldWarm: withoutTag, faded, furniture, left: tpc._fades.size });
+  },
+});
+
+story('camera/stays-inside-the-shell', {
+  about: 'Hugging every wall of the living room and hallway at every heading (the jelly 4 and 10 cm off it), the camera keeps the yaw and tilt asked for and comes in along that view just far enough that, with 4 cm for the near plane and combat shake, no wall, floor or ceiling is between it and the jelly; only when that would be closer than 16 cm does it stop there (a lens that close sits at most 4 cm into a 14 cm wall, looking away from it). Out in the room it sits at full distance.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, world, APT } = G(), cam = tpc.camera.position, c = tpc.cfg, shake = 0.012, want = askedFor(tpc, new THREE.Vector3());
+    const stats = { views: 0, pulled: 0, free: 0, notFull: 0, crossed: 0, tilt: 0, bound: 0, deepest: 0, shaken: 0 };
+    const toCam = new THREE.Vector3(), turned = new THREE.Vector3();
+    for (const [room, P] of APT.plan.filter(([n]) => n === 'Living room' || n === 'Hallway')) {
+      for (let e = 0; e < P.length; e++) {
+        const [ax, az] = P[e], [bx, bz] = P[(e + 1) % P.length], L = Math.hypot(bx - ax, bz - az);
+        for (const inset of [0.04, 0.1]) for (let t = 0.15; t < L - 0.1; t += 0.4) {
+          let nx = -(bz - az) / L, nz = (bx - ax) / L;
+          const px = ax + ((bx - ax) * t) / L, pz = az + ((bz - az) * t) / L;
+          if (!APT.plan.some(([n, Q]) => { let c2 = false; for (let i = 0, j = Q.length - 1; i < Q.length; j = i++) { if ((Q[i][1] > pz + nz * inset) !== (Q[j][1] > pz + nz * inset) && px + nx * inset < ((Q[j][0] - Q[i][0]) * (pz + nz * inset - Q[i][1])) / (Q[j][1] - Q[i][1]) + Q[i][0]) c2 = !c2; } return n === room && c2; })) { nx = -nx; nz = -nz; }
+          for (let k = 0; k < 8; k += 2) {
+            tp(px + nx * inset, 0.05, pz + nz * inset, (k * Math.PI) / 4); step(8);
+            const dist = cam.distanceTo(tpc.focus), yaw = tpc.yaw;
+            stats.views++;
+            toCam.subVectors(cam, tpc.focus).normalize();
+            if (toCam.angleTo(tpc.dirAt(tpc.viewPitch, turned)) > 1e-4 || tpc.yaw !== yaw) stats.tilt++;   // never turned
+            const hit = world.cast(tpc.focus, toCam, 2, null, true);
+            if (tpc.pull > 1e-3) stats.pulled++; else { stats.free++; if (Math.abs(dist - tpc.currentDistance) > 1e-3) stats.notFull++; }
+            if (dist > c.clearMin + 1e-3) {
+              // free to choose its distance: the lens, the shake and the near plane all stay in front of the wall
+              for (const [sx, sy, sz] of [[0, 0, 0], [1, 1, 1], [-1, 1, -1], [1, -1, 1], [-1, -1, -1]]) {
+                const end = cam.clone().add(new THREE.Vector3(sx, sy, sz).multiplyScalar(shake));
+                const to = end.clone().sub(tpc.focus), len = to.length(), h = world.cast(tpc.focus, to.normalize(), len, null, true);
+                if (h) { stats.shaken++; stats.deepest = Math.max(stats.deepest, len - h.distance); }
+              }
+              if (hit && hit.distance < dist) { stats.crossed++; }
+            } else if (hit) stats.bound = Math.max(stats.bound, dist - hit.distance);   // stopped at the least it comes in: how far into the wall
+          }
+        }
+      }
+    }
+    return ok(stats.views > 150 && stats.pulled > 20 && stats.free > 20 && stats.notFull === 0 && stats.tilt === 0 && stats.crossed === 0 && stats.shaken === 0 && stats.bound <= c.clearMin / 2 + 1e-3,
+      { ...stats, bound: +stats.bound.toFixed(3), deepest: +stats.deepest.toFixed(3), clearMin: c.clearMin, want: want.toArray().map((v) => +v.toFixed(2)) });
+  },
+});
+
+story('camera/eases-back-out-after-a-wall', {
+  about: 'Backed against a wall the camera comes in at once; turning away so the wall is clear, it stays in for 0.1 s, then eases most of the way back out in about 0.25 s, never closer to the wall than its clearance on any frame, and it is at full distance after that.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, world } = G(), cam = tpc.camera.position, none = { x: 0, y: 0, wheel: 0 }, toCam = new THREE.Vector3(), c = tpc.cfg;
+    tp(2.0, 0.05, 0.8, 0); step(10);                       // the window wall: yaw 0 puts the camera on the far side of it
+    let yaw = tpc.yaw, towards = null;
+    for (let k = 0; k < 16 && !towards; k++) { tpc.yaw = (k * Math.PI) / 8; step(6); if (tpc.pull > 0.2) towards = tpc.yaw; }
+    if (towards === null) return ok(false, { pull: tpc.pull });
+    const pulled = tpc.pull, atOnce = tpc.currentDistance - cam.distanceTo(tpc.focus);
+    tpc.yaw = towards + Math.PI;                           // looking back the other way: the wall is clear
+    const log = [], inside = [];
+    for (let i = 0; i < 90; i++) {
+      tpc.update(1 / 60, none, G().player.position);
+      log.push(tpc.pull);
+      toCam.subVectors(cam, tpc.focus); const len = toCam.length(), h = world.cast(tpc.focus, toCam.normalize(), len, null, true);
+      if (h && h.distance < len) inside.push(i);
+    }
+    const f = (s) => log[Math.round(s * 60) - 1];
+    return ok(Math.abs(atOnce - pulled) < 1e-3 && f(0.08) > pulled * 0.99 && f(0.1 + 0.25) < pulled * 0.2 && f(1.4) < 1e-3 && !inside.length,
+      { pulled: +pulled.toFixed(3), at80ms: +f(0.08).toFixed(3), at350ms: +f(0.35).toFixed(3), at1400ms: +f(1.4).toFixed(4), inside });
+  },
+});
+
+story('camera/front-door-keeps-the-camera-in', {
+  about: 'At the hallway\'s end, with the jelly\'s back to the front door, the camera comes in instead of going out through the shut door into the corridor: door leaves are part of the shell.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, world, APT } = G(), cam = tpc.camera.position, front = APT.doors.front?.node;
+    if (!front) return ok(false, { door: false });
+    const at = front.getWorldPosition(new THREE.Vector3());
+    const worst = { before: 0, after: 0 }, tried = [];
+    for (let k = 0; k < 16; k++) {
+      tp(at.x - 0.2, 0.05, at.z, (k * Math.PI) / 8); step(10);
+      const away = cam.x - tpc.focus.x;   // the door is on +x of the jelly
+      tried.push(+(cam.x - at.x).toFixed(3));
+      worst.after = Math.max(worst.after, cam.x - at.x);
+    }
+    // the same views with the clearance off: the camera ends outside the door (what the shell prevents)
+    const margin = tpc.cfg.clearMargin; tpc.cfg.clearMargin = 0;
+    try {
+      for (let k = 0; k < 16; k++) { tp(at.x - 0.2, 0.05, at.z, (k * Math.PI) / 8); step(10); worst.before = Math.max(worst.before, cam.x - at.x); }
+    } finally { tpc.cfg.clearMargin = margin; }
+    return ok(worst.before > 0.1 && worst.after < 0.05, { door: at.toArray().map((v) => +v.toFixed(2)), outsideWithout: +worst.before.toFixed(3), outsideWith: +worst.after.toFixed(3) });
+  },
+});
