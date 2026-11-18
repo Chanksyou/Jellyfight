@@ -1,0 +1,1 @@
+adds Easy mode: switch it on in Settings and your next run deals twice the damage and takes half, earns half the Pearls and keeps no leaderboard score; an "Easy mode" badge shows under the clock while it's on.

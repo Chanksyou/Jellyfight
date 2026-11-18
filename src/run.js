@@ -38,6 +38,7 @@ import { FirstRun, markPlayed, deathHint } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm } from './sfx.js';
 import { bus, PLAYER } from './events.js';
+import { EASY, easyChosen } from './easy.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
 import { icon } from './icons.js';
@@ -152,6 +153,7 @@ export class Run {
     bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
+      if (this.easy) amount *= EASY.taken;   // Easy mode (easy.js)
       const bug = from != null && this.mods.statusTaken.length ? this.enemies.byId.get(from) : null;
       if (bug && !bug.proxy) for (const T of this.mods.statusTaken) if (this.enemies.statuses[T.status](bug)) amount *= 1 - T.less;   // status-taken
       const beforeBy = this.hurtBy, beforeUnit = this.hurtUnit;
@@ -308,6 +310,8 @@ export class Run {
     this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
+    this.easy = this.carry ? !!this.carry.easy : easyChosen();   // Easy mode (easy.js): fixed for the whole run
+    this.easyPearls = 0;
     this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal for a first run, else the pick (pick-screen.js)
     this.stats = jellyStats(this.jelly);
     this.attack = jellyAttack(this.jelly);   // { kind, hit }: the one attack it fires
@@ -557,7 +561,7 @@ export class Run {
     this.mirage.update(0);
     this.fireTrail.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
-    this.enemies.damageMult = this.shield.full ? 1 + this.mods.shield.fullDamage : 1;   // shield-full-damage
+    this.enemies.damageMult = (this.shield.full ? 1 + this.mods.shield.fullDamage : 1) * (this.easy ? EASY.dealt : 1);   // shield-full-damage, Easy mode (easy.js)
     this.enemies.power = this.power;    // swat (Badminton Racket): a Shot knocked back hits for x Attack damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
@@ -1357,7 +1361,7 @@ export class Run {
   disqualifyChallenges() { this.challenges.eligible = false; }
 
   // a dev run: no Pearls, finds, achievements, run log or leaderboard
-  devRun() { this.dev = true; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
+  devRun() { this.dev = true; this.easy = false; this.challenges.eligible = false; this.firstRun = new FirstRun(false); }
 
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest.
@@ -1820,7 +1824,7 @@ export class Run {
     const score = this.score();
     const entry = { score, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
-    const best = B ? B.keepBest(entry) : false;    // your best in this browser, posted or not
+    const best = B && !this.easy ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
     // can unlock one mid-run), with the Pearls it earned
     const had = new Set(this.awardsBefore), won = this.phase === 'won';
@@ -1856,8 +1860,9 @@ export class Run {
       if (earned.length || types.length) rows.unshift([`${icon('star')} Unlocked`, `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
       if (this.newAchievements.length) rows.unshift([`${icon('medal')} Achievements earned`, this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
-      const high = !B || B.qualifies(score), canPost = B && !this.dev && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
-      if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
+      const high = !B || B.qualifies(score), canPost = B && !this.dev && !this.easy && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
+      if (this.easy) rows.push(['Easy mode', '<small>score not on the leaderboard</small>']);
+      else if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
@@ -1927,7 +1932,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
@@ -1956,7 +1961,7 @@ export class Run {
 
   carryOver() {
     return {
-      score: this.score(), stats: this.stats, jelly: this.jelly, level: this.level, xp: this.xp, purse: this.purse,
+      score: this.score(), easy: this.easy, stats: this.stats, jelly: this.jelly, level: this.level, xp: this.xp, purse: this.purse,
       owned: [...this.owned].map((id) => [id, this.owned.count(id)]), grown: this.grown, growCount: this.growCount, growTotal: this.growTotal,
       chestsOpened: this.chestsOpened, saved: this.saved, reborn: this.reborn, evolved: this.evolved, upgrades: this.upgrades, newFinds: this.newFinds,
       pearls: this.pearls, awardsBefore: this.awardsBefore, typesBefore: this.typesBefore, logId: this.logId, challenges: JSON.parse(JSON.stringify(this.challenges)),
@@ -1995,6 +2000,7 @@ export class Run {
   // Pearls into the bank as they're earned (cosmetics.js), so a closed tab keeps them; a dev run earns none
   earn(n) {
     if (this.dev || !(n > 0)) return;
+    if (this.easy) { this.easyPearls += n * EASY.pearls; n = Math.floor(this.easyPearls); this.easyPearls -= n; if (!n) return; }   // half, the odd one carried to the next
     this.pearls += n;
     addPearls(n);
   }
@@ -2160,6 +2166,7 @@ export class Run {
     this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
     h.setHealth(this.health, this.S.health, { heal: !!this.healthPulse });
+    h.setEasy(this.easy);
     h.setShield(this.shield); this.shield.state = null;
     this.healthPulse = false;
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);

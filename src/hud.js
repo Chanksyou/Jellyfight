@@ -104,6 +104,8 @@ body.calm #hud .shield-bar.charging > i::after { animation: none; opacity: 0; }
 #hud .tc { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); text-align: center; white-space: nowrap; text-shadow: var(--hud-outline); }
 #hud .clock { font: 700 24px/1 var(--ui-font-text); font-variant-numeric: tabular-nums; }
 #hud .clock.dry { color: var(--ui-boss); }   /* the boss is almost here */
+#hud .easy-badge { display: inline-block; margin-top: 4px; padding: 2px var(--ui-space-3); border-radius: var(--ui-radius-pill); background: var(--ui-scrim); border: 1px solid var(--ui-mint); color: var(--ui-mint); font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .04em; text-transform: uppercase; }
+#hud .easy-badge[hidden] { display: none; }
 #hud .stage { margin-top: 4px; font: 600 var(--ui-size-body)/1.2 var(--ui-font-text); letter-spacing: .02em; color: var(--ui-ink); }   /* full ink and body size: it sits on the bright room (final look) */
 /* a boss's or an Elite's name and Health (hot, like everything hostile), under the clock */
 #hud .boss { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 116px); transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
@@ -181,7 +183,7 @@ export class Hud {
         <div class="bar ui-bar xp" data-kind="xp" role="progressbar" aria-label="XP"><i></i><em class="xp-flash" aria-hidden="true"></em></div>
         <div class="items"></div>
       </div>
-      <div class="tc"><div class="clock"></div><div class="stage"></div></div>
+      <div class="tc"><div class="clock"></div><div class="stage"></div><div class="easy-badge" hidden>Easy mode</div></div>
       <div class="boss" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
       <div class="elite" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
       <canvas class="map"></canvas>
@@ -441,6 +443,7 @@ export class Hud {
     this.set('clock', '.clock', () => text);
     this.$('.clock').classList.toggle('dry', dry);
   }
+  setEasy(on) { this.$('.easy-badge').hidden = !on; }
   setStage(text) { this.set('stage', '.stage', () => text); }
 
   // shielded: the bar turns purple and says so (the Vacuum's lanternflies)
