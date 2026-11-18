@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v477 Act 4's Elites (the Singing Bowl, the Mushroom Pillow and the Headphones) attack faster: their hits land on the next half bar instead of the next whole bar, their wind-ups are a beat shorter, and they rest 0.6 s between attacks (0.4 s when angry). A minute of fighting now has about 38% more attacks (bowl 11 to 13, pillow 17 to 26, headphones 9 to 12). It is harder.
+
 v476 refines the apartment's wood, fabric, tile, stone and paint finishes in the existing texture slots and fixes the grain normal map, with the same furniture meshes and walking surfaces.
 
 v475 recreates the apartment's 33rd-floor Greenpoint window views with a painted city backdrop, nearby tower silhouettes, and city lights that fade toward dawn.
