@@ -510,6 +510,13 @@
   --jelly-motion-roll-freq: 1.4;
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
   --jelly-light-reach: 0.4;    /* meters */
+  /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
+  --jelly-motion-squeeze: 0.3;    /* how far in the rim pulls at a full stroke, of its radius (it flares out a third of that as it relaxes) */
+  --jelly-motion-stretch: 0.24;   /* how far down the rim drops at a full stroke, of the bell's height */
+  --jelly-motion-flex-at: 0.65;   /* where the bell bends, down from the crown (0 crown, 1 rim) */
+  --jelly-motion-crown-give: 0.12;/* how much of the squeeze the bell above the bend still takes */
+  --jelly-motion-curl: 0.08;      /* the margin curling in further at the height of the stroke */
+  --jelly-motion-rim-lag: 0.06;   /* the rim's stroke behind the crown's, in strokes */
 
   /* --- enemies: a faint glow in their own colours and a warm rim, so they read in the dark */
   --bug-glow: 0.35;

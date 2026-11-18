@@ -32,6 +32,7 @@ export class DriedOut {
       if (!o.isMesh || !o.material) return;
       const dry = (m) => {
         const c = m.clone();
+        c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey;   // clone() drops them: the bell's (bell-flex.js) keeps its built shaders, at rest
         c.userData.from = { color: m.color?.clone(), emissive: m.emissive?.clone(), opacity: m.opacity };
         this.mats.push(c);
         return c;
