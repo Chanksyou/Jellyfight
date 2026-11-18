@@ -4,6 +4,7 @@
 // The code is what the editor's Export gives: { act, edits }, or a map of acts { "1": edits, ... }.
 // Each edit is merged over the act's baked entry (moves, deleted, hidden, copy:, prop:, vent:).
 // Comments and untouched lines in layout-baked.js stay as they are; running it twice changes nothing.
+// An object put back at its baked spot has no entry in the export, so a revert is edited by hand.
 // --check prints the summary and writes nothing. Needs the tests' setup (cd tests && npm install).
 import fs from 'fs';
 import path from 'path';
@@ -43,7 +44,7 @@ for (const act of Object.keys(acts).sort()) {
   const n = { moved: 0, added: 0, vent: 0, deleted: 0, hidden: 0, same: 0 };
   const fresh = [];
   for (const [key, e] of Object.entries(acts[act])) {
-    const next = { ...baked[key], ...e };
+    const next = e;   // the export's entry is the whole entry (restoring a hidden/deleted object drops the flag)
     if (baked[key] && sameJson(Object.entries(next).sort(), Object.entries(baked[key]).sort())) { n.same++; continue; }
     n[next.deleted ? 'deleted' : next.hidden ? 'hidden' : kind(key)]++;
     const at = out.findIndex((l) => l.startsWith(`    '${key.replace(/'/g, "\\'")}': {`));
@@ -54,11 +55,11 @@ for (const act of Object.keys(acts).sort()) {
     const open = out.findIndex((l) => new RegExp(`^  ${act}: \\{`).test(l));
     if (open < 0) out.splice(out.lastIndexOf('};'), 0, `  ${act}: {`, ...fresh, '  },');
     else if (out[open].trim().endsWith('{},')) out.splice(open, 1, `  ${act}: {`, ...fresh, '  },');
-    else { let close = open + 1; while (out[close] !== '  },') close++; out.splice(close, 0, ...fresh); }
+    else { let close = open + 1; while (out[close] !== '  },') if (++close >= out.length) { console.error(`act ${act} in layout-baked.js isn't laid out as "N: {" ... "  },"; nothing written.`); process.exit(1); } out.splice(close, 0, ...fresh); }
   }
   const did = Object.entries(n).filter(([k, v]) => v && k !== 'same').map(([k, v]) => `${v} ${k}`);
   console.log(`act ${act}: ${did.length ? did.join(', ') : 'no changes'}${n.same ? ` (${n.same} already baked)` : ''}`);
-  if (did.length) changed.push(act);
+  if (did.some((d) => !d.endsWith(' vent'))) changed.push(act);   // vents aren't in the shadows
 }
 if (check) { console.log('--check: nothing written.'); process.exit(0); }
 if (!changed.length) process.exit(0);
