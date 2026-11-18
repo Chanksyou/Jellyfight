@@ -956,7 +956,7 @@ story('engine/furniture-drawn-in-batches', {
   about: 'Furniture that shares a material is drawn in one batch (far fewer draws), and each piece still acts on its own: one the camera fades leaves the batch and is drawn see-through by itself, then goes back; one that moves (a door swinging) moves in the batch; a hidden one is hidden there too.',
   setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   play() {
-    const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2), p = b.pieces[0], o = p.mesh;
+    const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2 && x.pieces.some((q) => !q.mesh.userData.structural)), p = b.pieces.find((q) => !q.mesh.userData.structural), o = p.mesh;   // (a wall never fades: it is structural)
     const visibleAt = () => b.batch.getVisibleAt(p.id);
     const pieces = statics.count, start = visibleAt() && o.layers.mask !== 1;
     tpc.startFade(o); statics.sync();
