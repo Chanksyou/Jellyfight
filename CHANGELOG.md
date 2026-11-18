@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v495 Layout edits now bake in with one command: `node tools/bake-layout.mjs <export code>` merges the export into the baked layout and re-bakes shadows for the acts it touched.
+
 v494 keeps the camera inside the apartment: walls, floors, ceilings, window glass and doors no longer fade out when you back up against them, and the camera comes in along the same view instead of ending up outside the room, so the night, the skyline and the dark beyond the front door stay hidden. Backed against a wall it comes in at once (never closer than 16 cm), then eases back out about a tenth of a second after the wall clears.
 
 v493 makes picks and end screens move smoothly on phones: a picked Treasure's icon now flies along a curve into its slot in the Treasure row (which pops as it lands), cards deal in one by one with the rarest last, the cards you didn't pick drop away fast, and the Legendary sheen, the won glow and the golden award's rays no longer repaint the screen every frame (the rays turn twice, then rest). On a death the jelly sags in under a second and the numbers wait for it before counting up.
