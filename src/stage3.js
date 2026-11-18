@@ -100,7 +100,7 @@ export const STAGE3 = {
   // settles back when you leave; `stand` is where a 1 on 1 with it puts you.
   // The shark takes over the bed: elites are cleared at its intro.
   elites: [
-    { kind: 'croc', at: [-0.105, 0.65, 10.12],   // clear of the pillows (z 10.48 up) even as it turns round (about 33 cm each way)
+    { kind: 'croc', at: [-0.105, 0.596, 10.03],   // on the mattress, clear of the pillows (z 10.44 up) even as it turns round (about 36 cm each way): guard elite-room
       face: Math.PI, area: 'bed', wake: { min: [-0.97, 0.55, 9.05], max: [0.76, 1.3, 11.3] }, stand: [-0.1, 0.65, 9.75] },
     // the plush bull on the changing table: the dresser on the north wall (Dresser_and_changing_station,
     // x -1.01 to -0.25, z 8.13 to 8.6), its pad 1.146 up. It sits at the west end of the pad, facing
@@ -109,7 +109,7 @@ export const STAGE3 = {
     // the Latticework Coffer on the vanity desk, where its inlaid wooden box sat (hidden above), at
     // the back of the desk's open front strip, facing down it (south); the vent by the vanity lands
     // you 70 cm in front of it. Awake while you're on the desk top (its jewels rain anywhere in `wake`)
-    { kind: 'coffer', at: [-1.545, 0.78, 8.51], face: 0, area: 'vanity desk', wake: { min: [-1.89, 0.74, 8.4], max: [-1.19, 1.4, 9.34] }, stand: [-1.52, 0.78, 9.0] },
+    { kind: 'coffer', at: [-1.48, 0.78, 8.51], face: 0, area: 'vanity desk', wake: { min: [-1.89, 0.74, 8.4], max: [-1.19, 1.4, 9.34] }, stand: [-1.52, 0.78, 9.0] },
   ],
 
   // The shark's arena is the bed: it walks on its fins and dives beneath the quilt.

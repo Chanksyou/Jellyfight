@@ -1,0 +1,1 @@
+sets five Elites down clear of their furniture: the Mug and the Alligator no longer float over their desk and bed, the Kettle no longer sinks into the counter, and the Soap Dispenser and the Coffer step out of the backsplash and riser behind them; a new guard checks every Elite's body, landing spots and attacks against the room.

@@ -98,7 +98,7 @@ export const STAGE2 = {
   // High-ground elites (elites.js): the soap dispenser on the vanity, by the tap (the vanity vent
   // lands you beside it)
   elites: [
-    { kind: 'soap', at: [1.53, 0.88, 5.18], hide: 'Soap dispenser', area: 'vanity', wake: { min: [0.97, 0.83, 5.08], max: [1.62, 1.58, 5.63] } },
+    { kind: 'soap', at: [1.54, 0.88, 5.19], hide: 'Soap dispenser', area: 'vanity', wake: { min: [0.97, 0.83, 5.08], max: [1.62, 1.58, 5.63] } },
     HALL_CLOCK,                       // the ornate clock over the cubby bench: the bench vent lands you below it
     // the cream whipper and its N2O cylinder, a little out from the hall's far corner beside the front door (room to swim behind it)
     { kind: 'whipper', at: [3.3, 0.002, 8.62], area: 'front door', stand: [2.95, 0.02, 8.3], wake: { min: [1.76, -0.05, 4.85], max: [3.6, 0.4, 9.05] } },
