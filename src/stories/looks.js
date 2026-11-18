@@ -108,3 +108,59 @@ story('look/new-bells', {
     return ok(faceted && ripples, { faceted, ripples });
   },
 });
+
+// ---- the rest pose (character.js restPose) -------------------------------------------------------
+// A hash of every mesh's world-space vertices, rounded to 1e-5, for one look held in its rest pose.
+// src/stories/rest-pose.json has the hashes recorded before any motion change: motion work must
+// leave them the same (the LOOK doesn't change, only how it moves).
+export function restPoseHash(look) {
+  const c = buildCharacter({ accent: ACC, ...look }, 1);
+  c.restPose();
+  c.root.updateMatrixWorld(true);
+  let h = 2166136261 >>> 0, n = 0;
+  const v = new THREE.Vector3();
+  c.root.traverse((o) => {
+    if (!o.isMesh) return;
+    n++;
+    const p = o.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+      for (const x of [v.x, v.y, v.z]) { h = Math.imul(h ^ (Math.round(x * 1e5) | 0), 16777619) >>> 0; }
+    }
+  });
+  c.dispose();
+  return `${n}:${h.toString(16)}`;
+}
+export const restPoseKeys = () => Object.keys(SPECIES).flatMap((body) => OPTIONS.arms.flatMap(([arms]) => OPTIONS.tentacles.map(([tentacles]) => ({ body, arms, tentacles }))));
+
+story('look/rest-pose-unchanged', {
+  about: 'Every species, arm style and tentacle style, held in its rest pose, still has exactly the vertices it was recorded with: motion work changes how the jelly moves, never how it looks.',
+  setup() {},
+  async play() {
+    const fixture = await (await fetch('src/stories/rest-pose.json')).json();
+    const bad = [], keys = restPoseKeys();
+    for (const k of keys) { const id = `${k.body}/${k.arms}/${k.tentacles}`; if (restPoseHash(k) !== fixture[id]) bad.push(id); }
+    return ok(!bad.length && Object.keys(fixture).length === keys.length, { bad: bad.slice(0, 8), count: bad.length, recorded: Object.keys(fixture).length, looks: keys.length });
+  },
+});
+
+// Not a timing test (CI boxes vary): counts the chain points a jelly steps in one update at 30 fps,
+// so a motion change that makes every jelly several times dearer shows up here, not on a phone.
+// Raise it on purpose, with the bench numbers (jelly-motion in the PR), never to make a test pass.
+const MOTION_WORK_BUDGET = 1200;   // chain points per avatar.update at dt 1/30 (today's worst species: see `seen`)
+story('engine/jelly-motion-budget', {
+  about: 'One update of any jelly at 30 fps steps no more chain points than the budget (substeps x points on every tentacle, and later every arm).',
+  setup() {},
+  play() {
+    const seen = {};
+    for (const body of Object.keys(SPECIES)) {
+      const c = buildCharacter({ accent: ACC, body }, 1);
+      c.update(1 / 30, idle);   // the first frame only places the chains
+      c.update(1 / 30, idle);
+      seen[body] = c.tentacles ? c.tentacles.work : 0;
+      c.dispose();
+    }
+    const worst = Math.max(...Object.values(seen));
+    return ok(worst > 0 && worst <= MOTION_WORK_BUDGET, { worst, budget: MOTION_WORK_BUDGET, seen });
+  },
+});

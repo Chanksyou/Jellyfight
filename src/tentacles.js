@@ -97,6 +97,7 @@ export class TentacleRig {
     }
     this.trail = new THREE.Vector3();   // smoothed local velocity (units/s)
     this.t = 0;
+    this.work = 0;                      // chain points stepped in the last update (story engine/jelly-motion-budget)
     this.fresh = true;                  // first frame (or a jump cut): start the chain on its pose
     this.lastRoot = new THREE.Vector3();
     this.inv = new THREE.Matrix4();
@@ -126,8 +127,11 @@ export class TentacleRig {
 
   // state: { localVel (units/s, in the parent's frame), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
   update(dt, state) {
+    this.work = 0;
+    const rest = state.rest;           // the rest pose (character.js restPose): no clock-driven ripple or flutter
+    if (rest) { this.t = 0; this.trail.set(0, 0, 0); this.fresh = true; }
     this.t += dt;
-    this.trail.lerp(state.localVel, 1 - Math.exp(-6 * dt));
+    if (!rest) this.trail.lerp(state.localVel, 1 - Math.exp(-6 * dt));
     const L = this.length * (this.barbed ? this.barbLength : 1), contract = state.contract;
     const fall = THREE.MathUtils.clamp(-state.vy * 3, 0, 1);          // falling: stream upward
     const rise = THREE.MathUtils.clamp(state.vy * 3, 0, 1);           // jumping: trail straight down
@@ -152,15 +156,15 @@ export class TentacleRig {
       const side = _b.set(T.out.z, 0, -T.out.x);
       for (let j = 0; j <= SEG; j++) {
         const s = j / SEG, s15 = s ** 1.5;
-        const wave = Math.sin(this.t * (1.6 + moving * 1.4) - s * 4.5 + T.phase) * (0.035 + 0.025 * moving) * s;
+        const wave = rest ? 0 : Math.sin(this.t * (1.6 + moving * 1.4) - s * 4.5 + T.phase) * (0.035 + 0.025 * moving) * s;
         const p = T.goal[j].copy(T.anchor);
         p.y -= L * s * (1 - 0.55 * fall);
         p.addScaledVector(T.out, flare * s + wave * 0.5);
         p.addScaledVector(side, wave);
         if (this.style === 'curly') { const c = this.curl * Math.sqrt(s), a = s * 14 + T.phase; p.addScaledVector(T.out, Math.cos(a) * c).addScaledVector(side, Math.sin(a) * c); }
         if (this.breeze) {   // streaming back (the model faces +z), fluttering a little
-          p.z -= L * this.breezeStream * s15 * (1 + 0.2 * Math.sin(this.t * 3.1 + T.phase));
-          p.x += L * this.breezeStream * 0.12 * s * Math.sin(this.t * 2.3 + T.phase * 1.3);
+          p.z -= L * this.breezeStream * s15 * (1 + (rest ? 0 : 0.2 * Math.sin(this.t * 3.1 + T.phase)));
+          p.x += rest ? 0 : L * this.breezeStream * 0.12 * s * Math.sin(this.t * 2.3 + T.phase * 1.3);
           p.y += L * this.breezeStream * 0.25 * s15;
         }
         p.y += fall * 0.35 * s15;
@@ -173,6 +177,7 @@ export class TentacleRig {
       // damped by the water, then kept its length from the one above it (follow the leader)
       const n = Math.min(6, Math.max(1, Math.ceil(dt / STEP))), h = dt / n;
       if (!this.fresh) {
+        this.work += n * SEG;
         for (let it = 0; it < n; it++) {
           T.sim[0].copy(T.goal[0]);
           for (let j = 1; j <= SEG; j++) {
