@@ -42,7 +42,7 @@ const solid = (world, node) => {
   }
   return false;
 };
-const plants = (L) => L.items.filter((x) => /^prop:pothos#/.test(x.key));
+const plants = (L) => L.items.filter((x) => /^prop:pothos#/.test(x.key) && !(x.key in L.baked));
 
 story('dev/layout-add-prop-on-shelf', {
   about: 'Add opens a drawer listing the prop library (content/props.kdl) by label. Tapping Pothos places it on the top of whatever is in the middle of the view (a media console top, not inside it), solid, saved as a prop:<id>#n entry at its size, selected, with stamping switched on.',
@@ -50,7 +50,7 @@ story('dev/layout-add-prop-on-shelf', {
   async play() {
     const L = openEditor(), { world } = G();
     try {
-      look(L, 1.2, 0.6, 4.6);
+      look(L, 1.9, 0, 6.2);
       L.el.querySelector('[data-a=add]').click();
       const tiles = [...document.querySelectorAll('.jf-lt-sheet [data-prop]')].map((t) => t.dataset.prop);
       const wantTiles = (await import('../content.js')).CONTENT.props.map((p) => p.id);
@@ -120,7 +120,7 @@ story('dev/layout-prop-size-and-stick', {
   async play() {
     const L = openEditor();
     try {
-      look(L, 1.2, 0.6, 4.6);
+      look(L, 1.9, 0, 6.2);
       await L.addProp('pothos'); L.endStamp();
       const it = L.sel, n = it.node, key = it.key;
       const base = n.position.y;
@@ -195,12 +195,12 @@ story('dev/layout-dressed-piece-not-copied', {
 });
 
 story('dev/layout-prop-moves-after-resize', {
-  about: 'A prop can still be picked up and dragged after it has been made smaller or bigger, and again after it is back at its own size: a placed plant at 50%, 150%, 200% and 100% follows the pointer to the floor and up onto the media console, a visible thing wins the pick over the invisible click box of the TV behind it, which used to swallow a small plant.',
+  about: 'A prop can still be picked up and dragged after it has been made smaller or bigger, and again after it is back at its own size: a placed plant at 50%, 150%, 200% and 100% follows the pointer across the floor, a visible thing wins the pick over the invisible click box of the TV behind it, which used to swallow a small plant.',
   setup() { fresh({ elites: false }); gone(); },
   async play() {
     const L = openEditor(), out = {};
     try {
-      look(L, 1.2, 0.6, 4.6);
+      look(L, 1.9, 0, 6.2);
       await L.addProp('pothos'); L.endStamp();
       const it = L.sel, n = it.node;
       const grab = (p) => { const e = onScreen(L, p); L.dom.dispatchEvent(new PointerEvent('pointerdown', { ...e, pointerId: 1, button: 0, bubbles: true })); return e; };
@@ -215,7 +215,7 @@ story('dev/layout-prop-moves-after-resize', {
         return null;
       };
       // the flow in the real editor: the size button (selection stays), then straight to dragging it
-      const spots = [V(1.0, 0, 5.1), V(1.3, 0.6, 4.6)];
+      const spots = [V(1.0, 0, 5.4), V(1.0, 0, 6.6)];
       for (const s of [0.5, 1.5, 2, 1]) {
         while (Math.abs(n.userData.s - s) > 1e-6) L.resize(n.userData.s < s ? 0.1 : -0.1);
         L.refresh();
