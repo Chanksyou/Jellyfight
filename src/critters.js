@@ -1756,8 +1756,9 @@ export function buildBeetle() {
 // The cicada (act 4): a stocky dark-green body with pale green collar and rim lines, a wide blunt
 // head with big red eyes set far apart on its sides and three red dots between them, a thick thorax,
 // a tapering banded abdomen, six short thick legs, and four clear wings veined in green that lie
-// folded like a roof over its back. As it draws breath to sing (the sing word) its wings lift and
-// quiver and its abdomen swells; as it sings it shakes. About 2.8 radii long; feet at its origin.
+// folded like a roof over its back. Under the burrow word it digs into the floor and sinks out of
+// sight, leaving a mound of grit with a glowing rim that trails after you, shakes as it locks and
+// is left behind when it bursts up; dazed, it sways with its wings buzzing. About 2.8 radii long; feet at its origin.
 function cicadaParts() {
   const body = '#1a2616', thorax = '#243a1c', pale = '#9ab85a', band = '#34502a', eye = '#c4301c', leg = '#2a3a1e', dark = '#0c140a';
   const bodyParts = [
@@ -1808,26 +1809,43 @@ export function buildCicada() {
     hinge.add(m); body.add(hinge);
     return { hinge, s };
   }));
-  let t = 0, k = 0, lift = 0;
+  // the mound it leaves on the floor while it is under (one shared dome and rim, drawn instanced with the rest)
+  const D = (GEO.cicadaMound ||= { dome: new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), rim: new THREE.RingGeometry(0.8, 1.2, 28).rotateX(-Math.PI / 2).translate(0, 0.02, 0) });
+  const glow = hostile('cicada');
+  M.mound ||= new THREE.MeshStandardMaterial({ color: 0x2a2018, emissive: glow, emissiveIntensity: 0.08, roughness: 1 });
+  M.moundRim ||= new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 });
+  const mound = new THREE.Group();
+  mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
+  mound.visible = false;
+  outer.add(mound);
+  let t = 0, k = 0, sink = 0, daze = 0, mt = 0;
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 10) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (2 + 8 * k);
+    mt += dt;
     for (const L of legs) {
       L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
       L.hip.rotation.z = -L.s * Math.max(0, Math.cos(t + L.phase)) * 0.2 * k;
     }
-    // drawing breath: the wings lift and quiver, harder as the song nears; singing: held up, shaking
-    const wind = e.state === 'windup' ? e.songK || 0 : e.state === 'sing' ? 1 : 0, song = e.state === 'sing' ? 1 : 0;
-    lift += (wind - lift) * (1 - Math.exp(-10 * dt));
-    const shake = Math.sin(performance.now() * 0.12) * (0.03 + 0.08 * song) * lift;
-    for (const W of wings) { W.hinge.rotation.z = W.s * (-0.35 + lift * 0.9 + shake); W.hinge.rotation.x = lift * 0.15; }
-    body.rotation.x = -0.12 * lift;
-    body.scale.set(1 + 0.04 * lift, 1 + 0.06 * lift - 0.05 * song, 1);
-    body.position.y = Math.abs(Math.sin(t)) * 0.015 * k + song * Math.sin(performance.now() * 0.09) * 0.01;
-    body.rotation.z = Math.sin(t) * 0.025 * k;
+    // digging in sinks it into the floor (the dig takes as long as the word says), bursting out brings it back at once
+    const dig = e.digK || 0;
+    sink = dig > sink ? dig : sink + (dig - sink) * (1 - Math.exp(-14 * dt));
+    daze += ((e.state === 'dazed' ? 1 : 0) - daze) * (1 - Math.exp(-10 * dt));
+    const buzz = Math.sin(performance.now() * 0.12) * 0.08 * daze;
+    for (const W of wings) { W.hinge.rotation.z = W.s * (-0.35 + buzz); W.hinge.rotation.x = 0; }
+    body.visible = sink < 0.97;
+    body.rotation.x = 0.18 * daze;
+    body.scale.set(1, 1, 1);
+    body.position.y = -sink * 1.5 + Math.abs(Math.sin(t)) * 0.015 * k;
+    body.rotation.z = Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze;
+    // the mound: swells as it digs, heaves as it travels, shakes harder as it locks over its spot
+    const up = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
+    mound.visible = up > 0.02;
+    mound.scale.set(1.3 * up * (1 + 0.1 * lock * Math.sin(mt * 40)), up * (0.55 + 0.12 * move * Math.sin(mt * 9) + 0.25 * lock), 1.3 * up * (1 + 0.1 * lock * Math.sin(mt * 40)));
+    mound.position.x = Math.sin(mt * 55) * 0.05 * lock;
   };
-  anim.reset = () => { t = 0; k = 0; lift = 0; };
+  anim.reset = () => { t = 0; k = 0; sink = 0; daze = 0; mt = 0; body.visible = true; mound.visible = false; };
   return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
 }
 

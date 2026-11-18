@@ -3054,6 +3054,7 @@ requestAnimationFrame(loop);
 // ---------- JELLY RUN hook: hands the scene to the game (src/main.js) ----------
 const _k=P=>P.map(p=>[p[0]*K,p[1]*K]);
 window.APT={scene,renderer,camera,controls,OUT,doors:DOORMAP,
+ kit:{rubber,snake,monstera,pot,rosette,bush,leaf,buildLeaves,LEAF,GEO,mat,V,E,rr,rnd,seed:n=>{_s=n;}},/*JELLY: the plant builders, for tools/props-export.js*/
  plan:[['Living room',PMs],['Hallway',PHs],['Bathroom',PBs],['Bedroom',PRs],['Laundry closet',_k(PLc)],['Coat closet',_k(PCc)]],
  enterGame(){if(tour)endTour();if(arrange)setArrange(false);select(null);window._dcOn=false;mode='game';controls.enabled=false;tween=null;joy.hidden=true;},
  exitGame(){setMode('orbit');}};

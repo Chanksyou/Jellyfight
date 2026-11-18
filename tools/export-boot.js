@@ -16,4 +16,6 @@ script.textContent = document.getElementById('apartment-src').textContent;
 document.body.appendChild(script);
 const { exportApartment } = await import('./exporter.js');
 window.exportApartment = exportApartment;
+const { exportProps } = await import('./props-export.js');
+window.exportProps = exportProps;
 window.EXPORT_READY = !!window.APT;

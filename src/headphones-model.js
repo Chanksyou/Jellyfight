@@ -6,7 +6,7 @@
 //
 // Two vertex-coloured materials (the black plastic, the grey cushions and padding) and, in each cup,
 // its speaker glowing (unlit, opacity 0 until it plays; the elite sets its colour: white for a shove
-// wave, its hostile colour for a bass Shot): five meshes and the eyes. The elite pumps each cup
+// wave, its hostile colour for a Stereo half): five meshes and the eyes. The elite pumps each cup
 // (`cups[i]`, rest at `cupAt[i]`) as it plays; `mouths[i]` is the middle of that cup's speaker.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';

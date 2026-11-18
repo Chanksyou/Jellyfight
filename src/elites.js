@@ -121,10 +121,10 @@
 //                     seat (one onto where you are) and settle as marked spots (a circle and the
 //                     column over it); they flash for a beat, then burst on the bar as columns that
 //                     hit all the way up over a jump: step off the spot, a jump doesn't clear it.
-//     Hop-slam:       it crouches while a Warning (a circle and the half sphere over it) fills where
-//                     it will land, a short hop toward you; it leaps on a beat and lands as a Blast
-//                     round itself on the next, then waddles back to its spot.
-//     Under 65% Health it's angry: more spores, settling faster.
+//     Fairy ring:     its cap breathes in while a circle follows you, then eight caps sprout in a ring
+//                     round where you stand; they flash for a beat, then burst as columns over a
+//                     jump too. Hold still in the middle; run and you cross a column.
+//     Under 65% Health it's angry: more spores, settling faster, and a second Fairy ring where you'd flee.
 //   headphones  the Headphones on the kitchen counter by the stove (act 4's living room; headphones-model.js),
 //               standing in for the real pair on the coffee table, up on their two ear cups like a
 //               pair of speakers. It keeps the song's time too (its numbers are in beats). The counter
@@ -134,11 +134,12 @@
 //                     it) fills, following you until a beat before; on the bar a white sound wave
 //                     rolls down it. It doesn't hurt: it shoves you along it, toward the edge. Jump it
 //                     to stay put, step out of it, or ride it if there's room behind you.
-//     Bass Shots:     the cups take turns, one a beat from a bar line: each Shot's Warning (a line on
-//                     the table and the tube over it to your middle) fills in its colour, locking just
-//                     before it fires: step sideways.
-//     Under 65% Health it's angry: with each wave the other cup fires a bass Shot at jump height
-//     along with it, so jumping the wave flies you into the Shot: stay down and ride the shove.
+//     Stereo:         a line down the counter through the Headphones splits its ground into two halves, one
+//                     per cup. A cup lights up and marks its half (a floor square and the slab over it, each
+//                     half in its own colour) filling to the beat; then that half bursts: cross to the
+//                     other half on the beat. The first half is the one you stand on.
+//     Under 65% Health it's angry: more bursts, and a beat after each the cup that burst sends a shove
+//                     wave at you across the line: jump it, or be shoved deeper into the half about to burst.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -167,7 +168,7 @@ export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'piping'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
-  bowl: ['ring', 'hum'], pillow: ['spores', 'hop'], headphones: ['shove', 'bass'],
+  bowl: ['ring', 'hum'], pillow: ['spores', 'fairy'], headphones: ['shove', 'stereo'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -176,6 +177,7 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 // star-ridged prism standing on y = 0 (2 tall, 2 wide), from z = 0 to 1; scale (R, R, length)
 const PIPE_STEP = 0.12;
 // the first snap= beats line (default 4: a bar) at or after beat `at`: act 4 Elites time their hits to it
+const flat2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const snapUp = (at, snap = 4) => Math.ceil(at / snap) * snap;
 function beadGeometry(points = 8) {
   const star = new THREE.Shape();
@@ -622,7 +624,11 @@ class Elite {
 
   clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); }); this.tele = []; }
   // the Mushroom Pillow's spores still out (drifting or settled): back to the pool
-  dropSpores() { for (const s of this.spores || []) this.owner.fx.free(s.orb); this.spores = null; }
+  dropSpores() {
+    for (const s of this.spores || []) this.owner.fx.free(s.orb);
+    for (const R of [this.plan?.ring, this.plan?.second]) if (R && !R.gone) for (const k of R.caps) this.owner.fx.free(k.cap);   // (and the Fairy ring's caps)
+    this.spores = null;
+  }
 
   cancelAttack() {
     this.clearTele();
@@ -646,7 +652,7 @@ class Elite {
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
     if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
     if (this.kind === 'bowl') { this.model.pose('rest'); this.charge = 0; }
-    if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // back on the seat if it was mid-hop
+    if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // 
     if (this.kind === 'headphones') { this.plan = null; this.lit = [0, 0]; }
     if (this.kind === 'soap') {
       const M = this.model;
@@ -725,7 +731,7 @@ export class Elites {
       bowl: new TeleMaterial(hostile('bowl')), bowlSeat: new TeleMaterial(hostile('bowl'), 'square'),
       pillow: new TeleMaterial(hostile('pillow')),
       shove: new TeleMaterial(LOOK.color('encore-pulse', '#f4f8ff'), 'strip'),   // a sound wave that shoves (the Headphones'): white, like the Encore's speakers'
-      bass: new TeleMaterial(hostile('headphones'), 'strip'),
+      stereo: [new TeleMaterial(hostile('headphones'), 'square'), new TeleMaterial(hostile('headphones-right'), 'square')],   // the two halves' floor squares, one hostile colour each (Stereo)
       safe: new TeleMaterial(LOOK.color('safe-spot', '#ffffff')),   // the one spot an attack spares (the Kettle's lid)
       hour: new TeleMaterial(hostile('clock'), 'wedge', 0.45),
     };
@@ -766,11 +772,10 @@ export class Elites {
     this.waveArcs.name = 'Headphones sound waves'; this.waveArcs.frustumCulled = false; this.waveArcs.userData.noCollide = true; this.waveArcs.renderOrder = 4;
     for (let i = 0; i < WAVE.pool * WAVE.arcs; i++) { this.waveArcs.setMatrixAt(i, this._m4.makeScale(0, 0, 0)); this.waveArcs.setColorAt(i, this.waveColor); }
     scene.add(this.waveArcs);
-    // a bass Shot that reached the jelly: a buzz of sparks off it and a fading scuff under it
-    this.bassShotEnd = (b, struck) => {
-      if (!struck) return;
-      const at = b.m.position, y = this.surfaceBelow(at);
-      this.fx.burst(at, LOOK.list('headphones-buzz', ['#ffffff', '#b8a8ff', '#5a40ff']), 5, 0.0025, 0.25, y);
+    // a Stereo burst that hit the jelly (at its middle): a buzz of sparks off it and a fading scuff under it
+    this.buzzHurt = (at, color) => {
+      const y = this.surfaceBelow(at);
+      this.fx.burst(at, ['#ffffff', color], 5, 0.0025, 0.25, y);
       this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('headphones-scuff', '#6c6680'), LOOK.num('headphones-scuff-size', 0.014), 'dust');
       juice.feel('impact'); sfx.headphonesBassHit();
     };
@@ -1164,20 +1169,44 @@ export class Elites {
     return out;
   }
 
-  // where the Mushroom Pillow's hop lands (into `to`): toward the jelly, at most H.reach from where
-  // it starts, on the seat it stands on (cut short if the way there leaves it)
-  pillowLanding(e, P, H, to) {
-    const from = e.plan.start, dx = P.x - from.x, dz = P.z - from.z, d = Math.hypot(dx, dz), k = d > H.reach ? H.reach / d : 1;
-    for (let i = 0; i <= 5; i++) {
-      const f = k * (1 - i / 5);
-      this.platformTarget(e, to.set(from.x + dx * f, from.y + 0.1, from.z + dz * f), H.radius * 0.5);
-      if (Math.abs(to.y - from.y) < 0.04) return to;
-    }
-    return to.copy(from);
-  }
 
   // the middle of the Headphones' cup i's speaker (world, into `out`)
   headphonesMouth(e, i, out) { return out.copy(e.model.mouths[i]).multiplyScalar(e.size).applyAxisAngle(UP, e.holder.rotation.y).add(e.base); }
+
+  // take some of an Elite's Warning meshes (a list of them) off the scene, and out of its e.tele
+  dropTele(e, parts) { for (const m of parts) this.scene.remove(m); e.tele = e.tele.filter((m) => !parts.includes(m)); }
+
+  // One Headphones shove wave's cue, from cup `cup`, from beat `from` to beat `due` (Q: its lane's state, one per
+  // attack). Its Warning (a white strip from the cup through the jelly to the counter's edge, and the low lane over
+  // it) fills and follows the jelly until `lock` beats before; on `due` the wave rolls down it. True on that beat
+  shoveCue(e, Q, cup, from, due, lock, P, fwd, dt) {
+    const W = e.def.skills.shove, top = e.base.y, beat = this.beat, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
+    if (beat < due - lock) {                                          // following you
+      this.headphonesMouth(e, cup, Q.start).setY(top + 0.002);
+      Q.dir.set(P.x - Q.start.x, 0, P.z - Q.start.z);
+      if (Q.dir.lengthSq() < 1e-6) Q.dir.copy(fwd);
+      Q.dir.normalize();
+      const aim = Math.atan2(Q.dir.x, Q.dir.z);
+      if (Q.yaw == null || Math.abs(Math.atan2(Math.sin(aim - Q.yaw), Math.cos(aim - Q.yaw))) > 0.03) { Q.len = this.edgeAlong(e, Q.start, Q.dir); Q.yaw = aim; }   // (only once it turns a little: it casts)
+    }
+    if (!Q.parts) {
+      Q.parts = [this.mark(e, this.stripGeo, this.T.shove, Q.start, this._s3.set(W.width, 1, Q.len)), this.volume(this.waveColor, 'lane', Q.start, this._s3.set(W.width, W.height, Q.len))];
+      e.tele.push(Q.parts[1]);
+      Q.parts[0].material.opacity = LOOK.num('headphones-wave-warning', 0.3); Q.parts[1].material.opacity = LOOK.num('headphones-wave-volume', 0.35);   // (white blooms: kept faint)
+    }
+    const yaw = Math.atan2(Q.dir.x, Q.dir.z);
+    for (const m of Q.parts) { m.position.copy(Q.start); m.rotation.set(0, yaw, 0); m.scale.z = Q.len; m.material.progress = u; }
+    Q.parts[0].position.y += 0.002;
+    e.lit[cup] = u; e.model.glows[cup].material.color.copy(this.waveColor);
+    if (u < 1 && Math.random() < dt * 14 * u) this.fx.glow.emit(this._mid.copy(Q.start).setY(top + 0.03 + Math.random() * 0.04), this.waveColor, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
+    if (beat < due) return false;
+    this.dropTele(e, Q.parts); Q.parts = null; Q.yaw = null;
+    e.lit[cup] = 0; e.pump[cup] = 1; e.recoil = 0.4;
+    this.wave(Q.start, Q.dir, Q.len, W);
+    this.fx.impact(this.headphonesMouth(e, cup, this._mid), this.waveColor, LOOK.num('headphones-wave-flash', 0.025), 8);
+    juice.feel('hit'); sfx.headphonesWave(cup);
+    return true;
+  }
 
   // how far an Elite's furniture top runs from `from` (on it) along unit flat `dir` before its edge:
   // where the surface drops away or its wake box ends, in 5 cm steps (m, at least 10 cm)
@@ -1189,15 +1218,6 @@ export class Elites {
       if (p.x < W.min[0] || p.x > W.max[0] || p.z < W.min[2] || p.z > W.max[2] || this.surfaceBelow(p) < from.y - 0.04) break;
     }
     return Math.max(0.1, d - 0.05);
-  }
-
-  // a Shot's Warning (the Headphones' bass): `strip` a line on the surface (y) from under `from` toward
-  // `to`, `tube` the lane volume round its path from `from` to `to`, both on past it by `on` m; size: the Shot's radius
-  aimLine(strip, tube, from, to, y, size, on) {
-    const dx = to.x - from.x, dz = to.z - from.z, flat = Math.max(0.01, Math.hypot(dx, dz)), rise = to.y - from.y, yaw = Math.atan2(dx, dz);
-    strip.position.set(from.x, y + 0.002, from.z); strip.rotation.set(0, yaw, 0); strip.scale.set(size * 3, 1, flat + on);
-    tube.position.set(from.x, from.y - size, from.z); tube.rotation.order = 'YXZ'; tube.rotation.set(-Math.atan2(rise, flat), yaw, 0);
-    tube.scale.set(size * 2, size * 2, Math.hypot(flat, rise) * (1 + on / flat));
   }
 
   // a Headphones sound wave from `from` (on the table) along unit flat `dir` for `len` m, at W.speed
@@ -2492,7 +2512,13 @@ export class Elites {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('pillow'), beat = this.beat;
         const jumped = e.plan && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
         e.beatWas = beat;
-        if (jumped) { const S = e.attack ? SK.hop : SK.spores; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        if (jumped) { const S = e.attack ? SK.fairy : SK.spores; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        const inhale = (from, to) => {                                       // the cap breathes in, its spots glowing, spores gathering to it
+          const u = THREE.MathUtils.clamp((beat - from) / (to - from), 0, 1);
+          M.cap.scale.y *= 1 - u * LOOK.num('pillow-inhale', 0.16); M.cap.scale.x *= 1 + u * 0.05; M.cap.scale.z *= 1 + u * 0.05;
+          e.charge = u;
+          if (Math.random() < dt * 12 * u) this.fx.glow.emit(this._mid.copy(muzzle).setY(muzzle.y - 0.05 + Math.random() * 0.05).addScaledVector(this._right.set(Math.random() - 0.5, 0, Math.random() - 0.5), 0.3), col, 0.02, 0.005, 0.3, 0.8);
+        };
         if (e.attack === 0) {
           // Spores: the cap breathes in, its spots glowing; on a beat it puffs spores that drift over
           // the seat (the first onto where you are) and settle as marked spots, a circle and the
@@ -2506,10 +2532,7 @@ export class Elites {
           }
           const L = e.plan;
           if (beat < L.puff) {                                               // breathing in
-            const u = THREE.MathUtils.clamp((beat - L.from) / (L.puff - L.from), 0, 1);
-            M.cap.scale.y *= 1 - u * LOOK.num('pillow-inhale', 0.16); M.cap.scale.x *= 1 + u * 0.05; M.cap.scale.z *= 1 + u * 0.05;
-            e.charge = u;
-            if (Math.random() < dt * 12 * u) this.fx.glow.emit(this._mid.copy(muzzle).setY(muzzle.y - 0.05 + Math.random() * 0.05).addScaledVector(this._right.set(Math.random() - 0.5, 0, Math.random() - 0.5), 0.3), col, 0.02, 0.005, 0.3, 0.8);   // spores gathering to the cap
+            inhale(L.from, L.puff);
           } else if (!L.puffed) {                                            // the puff, on the beat
             L.puffed = true;
             const spots = this.pillowSpots(e, P, L.n, S), size = LOOK.num('pillow-spore-size', 0.008);
@@ -2565,44 +2588,88 @@ export class Elites {
             }
           }
         } else {
-          // Hop-slam: it crouches while a Warning (a circle and the half sphere over it) fills where it
-          // will land, a short hop toward you (it follows you until it leaps); it leaps on a beat and
-          // lands a beat later as a Blast round itself, then waddles back to its spot
-          const H = SK.hop;
-          if (!e.plan) { const leap = Math.ceil(beat + H.windup); e.plan = { from: beat, leap, land: leap + H.air, start: e.base.clone(), to: new THREE.Vector3() }; }
-          const L = e.plan, to = L.to;
-          if (beat < L.leap) this.pillowLanding(e, P, H, to);
-          else e.locked = true;
-          if (!e.tele.length && !L.landed) e.tele.push(this.warnCircle(to, H.radius, this.T.pillow), this.volume(col, 'dome', to, H.radius));
-          if (e.tele.length) {
-            const u = THREE.MathUtils.clamp((beat - L.from) / (L.land - L.from), 0, 1);
-            e.tele[0].userData.fill(u); e.tele[1].material.progress = u;
-            e.tele[0].position.copy(to).setY(to.y + 0.002); e.tele[1].position.copy(to);
+          // Fairy ring: the cap breathes in while a circle follows you (where the ring will sprout);
+          // on a beat eight caps sprout in a ring round where you stand, their Warnings (a circle and
+          // the column over each) filling together; they flash for one beat, then burst on the bar as
+          // columns that hit all the way up (over a jump). Hold still in the middle and you're fine;
+          // run and you cross a column at once. Angry: after the first bursts, a second ring sprouts
+          // where you'd flee (the way you were moving, else away from it), a beat to flash and burst
+          const F = SK.fairy, tall = LOOK.num('pillow-column', 0.35), cdim = LOOK.num('pillow-column-opacity', 0.2);
+          if (!e.plan) {
+            const burst = snapUp(beat + F.windup + F.grow + 1, F.snap);
+            e.plan = { from: beat, puff: burst - 1 - F.grow, ring: null, again: angry };
+            sfx.pillowInhale((e.plan.puff - beat) * 60 / this.bpm);
           }
-          if (beat < L.leap) {                                               // crouching
-            const c = Math.min(1, (beat - L.from) / ((L.leap - L.from) * 0.6));
-            g.scale.y *= 1 - c * LOOK.num('pillow-crouch', 0.22); g.scale.x *= 1 + c * 0.1; g.scale.z *= 1 + c * 0.1;
-            g.position.x = (Math.random() - 0.5) * 0.003 * c;
-          } else if (beat < L.land) {                                        // in the air
-            const u = (beat - L.leap) / (L.land - L.leap);
-            if (!L.leapt) { L.leapt = true; e.squash = 0.5; this.fx.puff(surf.clone().setY(surf.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), 0.1, 0.4, 0.4); sfx.pillowHop(); }   // the push off
-            e.holder.position.lerpVectors(L.start, to, u);
-            g.position.y = Math.sin(u * Math.PI) * H.leap;
-            g.scale.y *= 1 + Math.sin(u * Math.PI) * 0.12; g.scale.x *= 1 - Math.sin(u * Math.PI) * 0.05; g.scale.z *= 1 - Math.sin(u * Math.PI) * 0.05;
-          } else if (!L.landed) {                                            // the slam
-            L.landed = true;
+          const L = e.plan;
+          const sprout = (c, settle) => {                                     // eight caps round c, each with its Warning
+            const R = { c, settle, burst: settle + 1, from: settle - F.grow, caps: [], struck: false };
+            for (let i = 0; i < F.caps; i++) {
+              const a = i / F.caps * Math.PI * 2, at = new THREE.Vector3(c.x + Math.cos(a) * F.ring, c.y, c.z + Math.sin(a) * F.ring);
+              const v = this.volume(col, 'disc', at, this._s3.set(F.radius, tall, F.radius));
+              v.material.opacity = cdim;
+              e.tele.push(this.warnCircle(at, F.radius, this.T.pillow, LOOK.num('pillow-spot-warning', 0.6)), v);
+              const cap = this.fx.orb(col, 0.001);                            // (a pooled, instanced sphere, squashed to a cap)
+              cap.userData.color.set(LOOK.color('pillow-cap', '#ff7ae8'));
+              R.caps.push({ at, cap });
+            }
+            this.fx.puff(this._probe.copy(c).setY(c.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), F.ring, 0.5, 0.45);
+            this.fx.impact(c.clone().setY(c.y + 0.01), col, LOOK.num('pillow-puff-flash', 0.03), 10);
+            juice.feel('hit'); sfx.pillowPuff();
+            return R;
+          };
+          const dropRing = (R) => { for (const k of R.caps) { k.cap.visible = false; this.fx.free(k.cap); } e.clearTele(); };
+          const inColumn = (at) => Math.hypot(P.x - at.x, P.z - at.z) < F.radius + cfg.radius && P.y + cfg.height > at.y && P.y < at.y + tall;
+          if (beat < L.puff) {                                               // breathing in, the circle following you
+            inhale(L.from, L.puff);
+            if (!e.tele.length) e.tele.push(this.warnCircle(P, F.ring + F.radius, this.T.pillow, 0.5));
+            this.platformTarget(e, this._mid.copy(P), 0);
+            e.tele[0].position.copy(this._mid).setY(this._mid.y + 0.002); e.tele[0].userData.fill(THREE.MathUtils.clamp((beat - L.from) / (L.puff - L.from), 0, 1));
+          } else if (!L.ring) {                                              // sprout on the beat, where you stand
             e.clearTele();
-            this.moveElite(e, this._mid.copy(to).setY(to.y + 0.05));
-            const at = e.base.clone().setY(e.base.y + 0.002);
-            this.fx.ring(at, col, H.radius, 0.5);                            // its real reach
-            this.fx.impact(at.clone().setY(at.y + 0.01), col, 0.05, 22);
-            this.fx.puff(at.clone().setY(at.y + 0.02), LOOK.color('pillow-puff', '#f0c8ff'), H.radius * 0.9, 0.6, 0.45);
-            this.fx.burst(at.clone().setY(at.y + 0.03), LOOK.list('pillow-fluff', ['#f4ecdc', '#c8312b', '#f0c8ff']), 10, 0.004, 0.35, at.y);
-            this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), H.radius * LOOK.num('pillow-dust-size', 0.7) * 0.6, 'dust');
-            e.squash = 1;                                                    // it lands flat, then springs back
-            juice.feel('impact-big'); sfx.pillowSlam();
-            if (blastHits(at, H.radius, P, cfg)) { hit(H.dmg, 'pillow-hop', at); knock(e.base, H.knock); this.fx.impact(pc, col, 0.02, 8); }
-          } else if (beat > L.land + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? H.angryRest : H.rest; }
+            L.ring = sprout(this.platformTarget(e, P.clone(), 0), L.puff + F.grow); L.p0 = P.clone();
+            e.pop = 1; e.charge = 0.4;
+          }
+          for (const R of [L.ring, L.second]) {
+            if (!R || R.gone) continue;
+            const k = THREE.MathUtils.clamp((beat - R.from) / (R.burst - R.from), 0, 1), grow = THREE.MathUtils.clamp((beat - R.from) / Math.max(0.01, R.settle - R.from), 0, 1);
+            const flash = beat >= R.settle ? +(Math.sin((beat - R.settle) * Math.PI * 4) > 0) : 0, o = cdim;
+            R.caps.forEach((s, i) => {
+              const w = e.tele[i * 2], v = e.tele[i * 2 + 1], size = F.radius * 0.9 * grow;
+              w.userData.fill(k); v.material.progress = k;
+              if (beat >= R.settle) { w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
+              s.cap.position.set(s.at.x, s.at.y + size * 0.3, s.at.z); s.cap.scale.set(size, size * 0.5, size);
+              if (!R.struck && beat > R.from + 0.25 && inColumn(s.at)) {      // run into a cap and its column goes off (a quarter beat after it sprouts)
+                R.struck = true; hit(F.dmg, 'pillow-fairy', P); this.fx.impact(pc, col, 0.02, 8); juice.feel('impact'); sfx.pillowBurst(true);
+              }
+            });
+            e.charge = 0.4 + flash * 0.6;
+            if (beat >= R.settle && !R.settled) { R.settled = true; sfx.pillowSettle(F.caps); }
+            if (beat >= R.burst) {                                           // the burst, on the bar: columns
+              const struck = R.struck || R.caps.some((s) => inColumn(s.at));
+              dropRing(R); R.gone = true;                                    // (its volumes go back to the pool for the columns)
+              for (const { at } of R.caps) {
+                const pulse = this.volume(col, 'disc', at, this._s3.set(F.radius, tall, F.radius));
+                pulse.material.progress = 1;
+                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-burst', 0.5) });
+                this.fx.impact(this._mid.copy(at).setY(at.y + 0.02), col, LOOK.num('pillow-burst-flash', 0.03), 8);
+                for (const h of [0.1, 0.45, 0.8]) this.fx.puff(this._probe.copy(at).setY(at.y + h * tall), LOOK.color('pillow-puff', '#f0c8ff'), F.radius * 0.9, 0.45, 0.4);
+                this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), F.radius * LOOK.num('pillow-dust-size', 0.7), 'dust');
+              }
+              if (struck && !R.struck) { hit(F.dmg, 'pillow-fairy', P); this.fx.impact(pc, col, 0.02, 8); }
+              e.charge = 0; e.pop = 0.5; juice.feel(struck ? 'impact' : 'hit'); sfx.pillowBurst(struck);
+              if (R === L.ring && L.again) {                                 // angry: a second ring where you'd flee
+                const away = this._right.set(P.x - L.p0.x, 0, P.z - L.p0.z);
+                if (away.length() < 0.03) away.set(R.c.x - e.base.x, 0, R.c.z - e.base.z);
+                away.normalize().multiplyScalar(F.flee);
+                let c2 = null;
+                for (const sign of [1, -1]) {                                // the seat is narrow: if the way you'd flee runs out of it, the other way
+                  const t = this.platformTarget(e, new THREE.Vector3(R.c.x + away.x * sign, R.c.y, R.c.z + away.z * sign), 0);
+                  if (!c2 || flat2(t, R.c) > flat2(c2, R.c)) c2 = t;
+                }
+                L.second = sprout(c2, R.burst + F.grow);
+              } else { e.plan = null; e.state = 'idle'; e.cool = angry ? F.angryRest : F.rest; }
+            }
+          }
         }
       }
 
@@ -2610,91 +2677,73 @@ export class Elites {
       // Both attacks keep the song's time (this.beat), planned in beats as they start (e.plan); if the
       // beat jumps, the attack is called off rather than going off unwarned (as the Singing Bowl's)
       if (e.kind === 'headphones') {
-        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('headphones'), beat = this.beat;
+        const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, beat = this.beat, top = e.base.y;
         const jumped = e.plan && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
         e.beatWas = beat;
-        if (jumped) { const S = e.attack ? SK.bass : SK.shove; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
-        const B = SK.bass, top = e.base.y;
+        if (jumped) { const S = e.attack ? SK.stereo : SK.shove; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        const cue = () => ({ start: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0.1, yaw: null, parts: null });
         if (e.attack === 0) {
-          // Shove waves: the cups take turns, one a bar. The cup's speaker lights white while a white
-          // Warning (a strip from it through you to the table's edge and the low lane over it) fills,
-          // following you until W.lock beats before; on the bar a white wave rolls down it and shoves.
-          // Angry (as it starts): the other cup fires a bass Shot at jump height along with each wave
+          // Shove waves: the cups take turns, one a bar (shoveCue: a white Warning filling, following you
+          // until W.lock beats before, then the wave, which shoves)
           const W = SK.shove;
           if (!e.plan) {
             const first = snapUp(beat + W.windup, W.snap);              // the first snap line at least windup beats away
-            e.plan = { from: beat, due: Array.from({ length: W.waves }, (_, k) => first + k * W.every), k: 0, angry,
-              start: new THREE.Vector3(), dir: new THREE.Vector3(), len: 0.1, shotFrom: new THREE.Vector3(), aim: new THREE.Vector3() };
+            e.plan = { from: beat, due: Array.from({ length: W.waves }, (_, k) => first + k * W.every), k: 0, cue: cue() };
           }
           const L = e.plan, n = L.due.length;
           if (L.k < n) {
-            const due = L.due[L.k], from = L.k ? L.due[L.k - 1] : L.from, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1), cup = L.k % 2;
-            if (beat < due - W.lock) {                                       // following you
-              e.locked = false;
-              this.headphonesMouth(e, cup, L.start).setY(top + 0.002);
-              L.dir.set(P.x - L.start.x, 0, P.z - L.start.z);
-              if (L.dir.lengthSq() < 1e-6) L.dir.copy(fwd);
-              L.dir.normalize();
-              const aim = Math.atan2(L.dir.x, L.dir.z);
-              if (L.yaw == null || Math.abs(Math.atan2(Math.sin(aim - L.yaw), Math.cos(aim - L.yaw))) > 0.03) { L.len = this.edgeAlong(e, L.start, L.dir); L.yaw = aim; }   // (only once it turns a little: it casts)
-              if (L.angry) { this.headphonesMouth(e, 1 - cup, L.shotFrom); shotTarget(P, cfg, SHOT_HEIGHT.jump, top, L.aim); }
-            } else e.locked = true;                                          // locked: it holds still
-            if (!e.tele.length) {
-              this.mark(e, this.stripGeo, this.T.shove, L.start, this._s3.set(W.width, 1, L.len));
-              e.tele.push(this.volume(this.waveColor, 'lane', L.start, this._s3.set(W.width, W.height, L.len)));
-              e.tele[0].material.opacity = LOOK.num('headphones-wave-warning', 0.3); e.tele[1].material.opacity = LOOK.num('headphones-wave-volume', 0.35);   // (white blooms: kept faint)
-              if (L.angry) { this.mark(e, this.stripGeo, this.T.bass, L.shotFrom, ONE); e.tele.push(this.volume(col, 'lane', L.shotFrom, ONE)); }
-            }
-            const yaw = Math.atan2(L.dir.x, L.dir.z);
-            for (let i = 0; i < 2; i++) { const m = e.tele[i]; m.position.copy(L.start); m.rotation.set(0, yaw, 0); m.scale.z = L.len; }
-            e.tele[0].position.y += 0.002;
-            if (L.angry) this.aimLine(e.tele[2], e.tele[3], L.shotFrom, L.aim, top, B.size, L.len);
-            for (const m of e.tele) m.material.progress = u;
-            e.lit[cup] = u; M.glows[cup].material.color.copy(this.waveColor);
-            if (L.angry) { e.lit[1 - cup] = u; M.glows[1 - cup].material.color.copy(col); }
-            if (u < 1 && Math.random() < dt * 14 * u) this.fx.glow.emit(this._mid.copy(L.start).setY(top + 0.03 + Math.random() * 0.04), this.waveColor, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
-            if (beat >= due) {                                               // on the bar: the wave
-              L.k++; L.yaw = null;
-              e.clearTele();
-              e.lit[cup] = 0; e.pump[cup] = 1; e.recoil = 0.4;
-              this.wave(L.start, L.dir, L.len, W);
-              this.fx.impact(this.headphonesMouth(e, cup, this._mid), this.waveColor, LOOK.num('headphones-wave-flash', 0.025), 8);
-              juice.feel('hit'); sfx.headphonesWave(cup);
-              if (L.angry) {
-                const from = this.headphonesMouth(e, 1 - cup, this._mid2);
-                this.shoot(from, L.aim, col, 'headphones-bass', B.dmg, { speed: W.speed, size: B.size, life: (Math.hypot(L.aim.x - from.x, L.aim.z - from.z) + L.len) / W.speed }).onEnd = this.bassShotEnd;
-                this.fx.impact(from, col, LOOK.num('headphones-bass-flash', 0.02), 8);
-                e.lit[1 - cup] = 0; e.pump[1 - cup] = 1; sfx.headphonesBass();
-              }
-            }
+            const due = L.due[L.k];
+            e.locked = beat >= due - W.lock;                              // locked: it holds still
+            if (this.shoveCue(e, L.cue, L.k % 2, L.k ? L.due[L.k - 1] : L.from, due, W.lock, P, fwd, dt)) L.k++;
           } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? W.angryRest : W.rest; }
         } else {
-          // Bass Shots: from the first bar line at least B.windup beats away, a Shot a beat, the cups
-          // taking turns; each one's Warning (a line on the table and the tube over it to your middle,
-          // mid-jump included) fills to its beat, following you until B.lock beats before: step sideways
+          // Stereo: a dividing line down the counter through the Headphones splits the ground (the wake box)
+          // into two halves, the low-x half and the high-x half, each its cup's own. The cups take turns: a
+          // cup lights up and marks its half (a floor square and the slab S.height over it, in its colour) filling
+          // to a beat, then the half bursts and hurts a jelly whose middle is on it. The first half is the one
+          // you stand on as it starts; cross to the other on the beat. Angry, S.lead beats after each burst
+          // the cup that burst sends a shove wave at you across the line (a cue like the shove attack's)
+          const S = SK.stereo, G = e.spec.wake;
           if (!e.plan) {
-            const first = snapUp(beat + B.windup, B.snap);
-            e.plan = { from: beat, due: Array.from({ length: B.shots }, (_, k) => first + k * B.every), k: 0, mouth: new THREE.Vector3(), aim: new THREE.Vector3() };
+            const bursts = angry ? S.angryBursts : S.bursts, first = snapUp(beat + S.windup, S.snap);
+            e.plan = { from: beat, due: Array.from({ length: bursts }, (_, k) => first + k * S.every), k: 0, half: P.x < e.base.x ? 0 : 1, line: e.base.x, marks: null, cue: cue(), wave: null, angry,
+              lowCup: (M.mouths[0].x - M.mouths[1].x) * Math.cos(e.spec.face) <= 0 ? 0 : 1 };   // the cup on the low-x side as it faces its counter's length (not as it turns toward it)
             sfx.headphonesHum((first - beat) * 60 / this.bpm);
           }
           const L = e.plan, n = L.due.length;
+          e.locked = true;                                                // it faces its counter's length, so its cups sit one over each half
+          const turn = Math.atan2(Math.sin(e.spec.face - e.holder.rotation.y), Math.cos(e.spec.face - e.holder.rotation.y));
+          e.holder.rotation.y += turn * (1 - Math.exp(-6 * dt));
           if (L.k < n) {
-            const due = L.due[L.k], from = L.k ? L.due[L.k - 1] : L.from, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1), cup = L.k % 2;
-            if (beat < due - B.lock) { e.locked = false; this.headphonesMouth(e, cup, L.mouth); shotTarget(P, cfg, null, P.y, L.aim); }
-            else e.locked = true;
-            if (!e.tele.length) { this.mark(e, this.stripGeo, this.T.bass, L.mouth, ONE); e.tele.push(this.volume(col, 'lane', L.mouth, ONE)); }
-            this.aimLine(e.tele[0], e.tele[1], L.mouth, L.aim, top, B.size, 0.1);
-            for (const m of e.tele) m.material.progress = u;
-            e.lit[cup] = u; M.glows[cup].material.color.copy(col);
-            if (beat >= due) {
-              L.k++;
-              e.clearTele();
-              e.lit[cup] = 0; e.pump[cup] = 1; e.recoil = 0.3;
-              this.shoot(L.mouth, L.aim, col, 'headphones-bass', B.dmg, { speed: B.speed, size: B.size, life: B.reach / B.speed }).onEnd = this.bassShotEnd;
-              this.fx.impact(L.mouth, col, LOOK.num('headphones-bass-flash', 0.02), 8);
-              juice.feel('hit'); sfx.headphonesBass();
+            const due = L.due[L.k], from = L.k ? L.due[L.k - 1] : L.from, h = (L.half + L.k) % 2;   // h 0: x under the line
+            const cup = h ? 1 - L.lowCup : L.lowCup;
+            const col = hostile(h ? 'headphones-right' : 'headphones'), x0 = h ? L.line : G.min[0], x1 = h ? G.max[0] : L.line, hw = (x1 - x0) / 2, hd = (G.max[2] - G.min[2]) / 2;
+            if (!L.marks) {
+              const mid = this._mid2.set(x0 + hw, top, G.min[2] + hd);
+              L.marks = [this.mark(e, floorShapeGeometry('square'), this.T.stereo[h], this._probe.set(mid.x, top + 0.002, mid.z), this._s3.set(hw, 1, hd)), this.volume(col, 'symbol-square', mid, this._s3.set(hw, S.height, hd))];
+              e.tele.push(L.marks[1]);
             }
-          } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? B.angryRest : B.rest; }
+            const u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
+            for (const m of L.marks) m.material.progress = u;
+            e.lit[cup] = u; M.glows[cup].material.color.copy(col);
+            if (u < 1 && Math.random() < dt * 14 * u) this.fx.glow.emit(this.headphonesMouth(e, cup, this._mid).setY(top + 0.03 + Math.random() * 0.04), col, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
+            if (beat >= due) {                                            // on the beat: the half bursts
+              this.dropTele(e, L.marks); L.marks = null;
+              e.lit[cup] = 0; e.pump[cup] = 1; e.recoil = 0.4;
+              const centre = this._mid2.set(x0 + hw, top, G.min[2] + hd);
+              this.fx.impact(this.headphonesMouth(e, cup, this._mid), col, LOOK.num('headphones-stereo-flash', 0.025), 8);
+              this.fx.burst(this._mid.set(centre.x, top + 0.02, centre.z), ['#ffffff', col], 8, 0.004, 0.35, top);
+              this.fx.splat(centre, LOOK.color('headphones-scuff', '#6c6680'), LOOK.num('headphones-stereo-scuff', 0.1), 'dust');
+              juice.feel('hit'); sfx.headphonesBass();
+              if (P.x >= x0 && P.x <= x1 && P.z >= G.min[2] && P.z <= G.max[2] && P.y < top + S.height) {
+                hit(S.dmg, 'headphones-stereo', this.headphonesMouth(e, cup, this._mid).clone());
+                this.buzzHurt(this._mid.set(P.x, P.y + cfg.height * 0.5, P.z), '#' + col.getHexString());
+              }
+              L.k++;
+              if (L.angry && L.k < n) L.wave = { cup, from: due, at: due + S.lead };   // the cup that just burst now aims a shove wave at you
+            }
+          } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest; }
+          if (L.wave && this.shoveCue(e, L.cue, L.wave.cup, L.wave.from, L.wave.at, S.lock, P, fwd, dt)) L.wave = null;
         }
       }
     }

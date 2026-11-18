@@ -1142,28 +1142,17 @@ export const sfx = {
   },
   whirlFling() { if (!ready() || !gap('whirlFling', 80)) return; const j = jitter(0.12); noise(2200 * j, 1.2, 0.3, 0.1, 'bandpass', 0, 600 * j); tone('sine', 260 * j, 120, 0.12, 0.04); },
   whirlEnd(hit) { if (!ready() || !gap('whirlEnd', 60)) return; const j = jitter(0.12); noise((hit ? 500 : 900) * j, 1, hit ? 0.22 : 0.15, hit ? 0.16 : 0.06, 'lowpass', 0, 200); if (hit) tone('sine', 140 * j, 60, 0.12, 0.08); },
-  // the cicada: a drone climbing through its wind-up with a pulsing buzz in it (returns a function that cuts it off), then the song itself: a loud rattling shriek
-  songWind(dur = 1) {
-    if (!ready()) return null;
-    const t = now(), k = pitch() * jitter(0.05), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), oscs = [];
-    for (const [type, f0, f1, v] of [['sawtooth', 700, 2300, 0.4], ['square', 1400, 4600, 0.15]]) {
-      const o = ctx.createOscillator(), og = ctx.createGain();
-      o.type = type; og.gain.value = v;
-      o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
-      o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
-    }
-    lfo.frequency.setValueAtTime(22, t); lfo.frequency.linearRampToValueAtTime(60, t + dur); lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(0.02, t + dur);   // the buzz pulsing in the level
-    lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t + dur + 0.05);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.025, t + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.06, t + dur);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
-    g.connect(master);
-    return () => { const n = now(); holdAt(g.gain, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of [...oscs, lfo]) { try { o.stop(n + 0.06); } catch {} } };
+  // the cicada's burrow: a scrape and a rush of grit as it digs in, then a deep thud with the floor thrown up when it bursts out
+  burrowDig() {
+    if (!ready() || !gap('burrowDig', 80)) return;
+    const j = jitter(0.1);
+    noise(1500 * j, 1.5, 0.4, 0.1, 'bandpass', 0, 450 * j); tone('sine', 170 * j, 60, 0.3, 0.07); patter(5, 0.05, 0.3);
   },
-  songBlast() {
-    if (!ready() || !gap('songBlast', 80)) return;
-    const j = jitter(0.08);
-    tone('sawtooth', 2400 * j, 2100 * j, 0.4, 0.09); tone('square', 4800 * j, 4200 * j, 0.4, 0.04); tone('sine', 120 * j, 70, 0.3, 0.2);
-    for (let i = 0; i < 10; i++) noise(5000 + Math.random() * 3000, 2, 0.02, 0.07, 'bandpass', i * 0.035);   // the rattle
+  burrowRumble() { if (!ready() || !gap('burrowRumble', 380)) return; const j = jitter(0.12); noise(260 * j, 0.8, 0.32, 0.07, 'lowpass', 0, 110); tone('sine', 62 * j, 46, 0.3, 0.05); },   // the mound ploughing along under the floor
+  burrowBurst() {
+    if (!ready() || !gap('burrowBurst', 70)) return;
+    const j = jitter(0.1);
+    tone('sine', 150 * j, 45, 0.35, 0.22); noise(600 * j, 0.8, 0.3, 0.28, 'lowpass', 0, 180); noise(3200 * j, 2, 0.12, 0.1, 'bandpass', 0.03); patter(8, 0.04, 0.3, 0.05);
   },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,
@@ -1513,7 +1502,7 @@ export const sfx = {
   bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
   // the Mushroom Pillow: a long soft breath in, the spores puffed out (a plush pff, a sparkle as they
   // scatter, the whoosh they drift on), spores settling (soft ticks), the spots bursting as columns
-  // (a rising hiss and a pop, a dull thud on the jelly), a springy hop and a heavy plush landing
+  // (a rising hiss and a pop, a dull thud on the jelly) and its Fairy ring caps sprouting
   pillowInhale(dur = 1) { if (!ready()) return; const j = jitter(0.05); noise(700 * j, 1.5, dur, 0.05, 'bandpass', 0, 2200 * j); tone('sine', 110 * j, 150 * j, dur, 0.03); },
   pillowPuff() {
     if (!ready() || !gap('pillowPuff', 80)) return; const j = jitter(0.08);
@@ -1526,12 +1515,6 @@ export const sfx = {
     noise(600 * j, 1.2, 0.3, 0.16, 'bandpass', 0, 5000 * j); tone('triangle', 260 * j, 520 * j, 0.12, 0.08);   // the columns hiss up and pop
     noise(800 * j, 0.7, 0.5, 0.07, 'lowpass', 0.12, 200); patter(4, 0.15, 0.3, 0.02);                         // the dust settling
     if (struck) { tone('sine', 160 * j, 80, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); }
-  },
-  pillowHop() { if (!ready()) return; const j = jitter(0.08); tone('sine', 170 * j, 340 * j, 0.22, 0.12); noise(1200 * j, 1, 0.2, 0.08, 'bandpass', 0, 2600); },
-  pillowSlam() {
-    if (!ready() || !gap('pillowSlam', 80)) return; const j = jitter(0.08);
-    tone('sine', 95 * j, 40, 0.35, 0.26); noise(500 * j, 0.7, 0.3, 0.3, 'lowpass', 0, 120);     // the plush thud
-    noise(2500 * j, 1, 0.15, 0.06, 'bandpass', 0.03); patter(5, 0.06, 0.3, 0.025);                  // fluff and dust
   },
   // the Headphones: a sound wave let go (a speaker's click, a deep whoomp, the air rushing after it;
   // the two cups a tone apart), a jelly it shoves (a soft wobbling thump), the hum of the bass winding

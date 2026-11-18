@@ -132,12 +132,15 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //           beat, then burst on the bar as columns: dmg= once, anywhere in the column (as tall as
 //           look.css --pillow-column, over a full jump, so a jump doesn't clear one). Angry, angrySpots= of
 //           them settling in angryDrift= beats
-//   hop:    it crouches for at least windup= beats, following you, then hops at most reach= m toward
-//           you on a beat (leap= m high, air= beats) and lands as a Blast radius= m round itself (its
-//           cap is 11 cm round)
+//   fairy:  it breathes in for at least windup= beats while a circle follows you, then on a beat caps=
+//           caps sprout in a ring ring= m round where you stand (each radius= m), their Warnings filling
+//           for grow= beats, flashing one beat, then bursting on a snap= line as columns (as tall as look.css
+//           --pillow-column): dmg= once, anywhere in a column, and a cap touched goes off at once. Hold
+//           still in the middle; run and you cross a column. Angry: after the first ring bursts a
+//           second sprouts flee= m on, the way you were moving (else away from it)
 elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
     spores dmg=4 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
-    hop dmg=4 radius=0.17 reach=0.3 windup=1 air=1 leap=0.1 knock=0.8 rest=0.6 angryRest=0.4
+    fairy dmg=4 caps=8 ring=0.12 radius=0.04 snap=1 windup=1 grow=1 flee=0.34 rest=0.6 angryRest=0.4
 }
 
 // act 4: the Headphones, up on their ear cups on the kitchen counter by the stove in the living room at dawn. They
@@ -149,13 +152,18 @@ elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.6
 //          to the table's edge, and the lane height= m tall over it) follows you until lock= beats
 //          before; then a white sound wave rolls down it at speed= m/s. It doesn't hurt: a jelly under
 //          its top as it passes is shoved push= m along it (over carry= s). Jump it to stay put.
-//          Angry, the other cup fires a bass Shot (its dmg= and size=) at jump height along with each
-//          wave, as fast as the wave: jumping the wave flies into it, so stay down and ride the shove
-//   bass:  shots= Shots, every= beats apart from the first snap line at least windup= beats away, the
-//          cups taking turns; each one's Warning (a line on the table and the tube over it to your
-//          middle, mid-jump included) locks lock= beats before it fires, at speed= m/s for reach= m
-//          (size=: its radius, m)
+//          Angry, the shove has no extras; its wave joins Stereo instead
+//   stereo: a dividing line down the counter through the Headphones; each side is a half of the ground. The cups
+//          take turns, bursts= of them every= beats apart, the first on the half you stand on and the first snap
+//          line at least windup= beats away (the first half's Warning fills until then, then each fills for the
+//          every= beats before its burst). A cup lights up and marks its half (a floor square and the slab over
+//          it, height= m tall: a jump doesn't clear it, in the cup's own colour) filling to the beat; then
+//          that half bursts for dmg=: cross to the other half on the beat. Which half you're on is where your
+//          middle is. Angry, angryBursts= of them, and lead= beats after each burst but the last the cup that
+//          just burst sends a shove wave (the shove's width, height, speed and push) through you across the
+//          line; its Warning locks lock= beats before: jump it or sidestep it, or be shoved deeper into the half
+//          about to burst
 elite "headphones" name="The Headphones" icon="🎶" hp=800 aggro=1.2 angry=0.65 {
     shove waves=3 every=4 snap=2 windup=2 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=0.6 angryRest=0.4
-    bass dmg=3 shots=4 every=1 snap=2 windup=2 lock=0.5 speed=0.8 size=0.012 reach=1.3 rest=0.6 angryRest=0.4
+    stereo dmg=3 bursts=4 angryBursts=6 every=2 snap=2 windup=2 height=0.35 lead=1 lock=0.5 rest=0.6 angryRest=0.4
 }

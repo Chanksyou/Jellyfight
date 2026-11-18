@@ -146,14 +146,15 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 }
 
 // Act 4 (from 1:30): the cicada, a stocky tank with big red eyes and clear wings. It trudges after
-// you; within reach it plants itself, turns to you and draws breath (its wings lift and quiver while a
-// wedge on the floor fills, with a cone of sound rising over it; its aim locks half way), then sings:
-// anything in the cone is hurt and shoved away. The cone is low by its mouth, so jump it there, and too
-// tall to jump further out. Step out of the wedge, or get in close behind its head.
+// you; within reach, on the bar, it digs into the floor and goes under, where it can't be hit. A
+// mound trails after you for a bar of the song, then locks, and a circle and dome fill over the spot
+// for two beats; on the beat it bursts up there (a Blast: it hurts and tosses you). Step off the circle,
+// or jump clear of the dome. Then it stands dazed for a moment: that's when to hit it.
 enemy "cicada" name="Cicada" hp=190 r=0.058 dmg=1 xp=12 model="cicada" {
     death-motion "flutter"
     chase 0.13
-    sing range=0.55 every=4 windup=1.2 lock=0.5 reach=0.45 arc=70 dmg=4 knock=0.8 rest=1
+    on-beat every=4
+    burrow range=0.55 every=6 dig=0.45 follow=4 warn=2 speed=0.22 radius=0.1 dmg=4 knock=0.5 launch=0.5 daze=1.6
 }
 
 // Act 3 (from 1:30, src/stage3.js nests): the wasp nest, a grey paper teardrop stuck to a wall or the side of
