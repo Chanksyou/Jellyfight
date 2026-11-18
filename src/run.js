@@ -570,7 +570,7 @@ export class Run {
     this.enemies.power = this.power;    // swat (Badminton Racket): a Shot knocked back hits for x Attack damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
-    this.dress.update();   // the room's lit props on the beat, and the stage door's moment
+    this.dress.update(dt);   // the room's lit props on the beat, and the stage door's moment
     this.bass.update(dt, this.beat);   // a stage's bass wave: on the song's bar line (put away outside the night)
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {

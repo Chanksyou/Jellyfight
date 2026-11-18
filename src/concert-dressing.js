@@ -80,7 +80,7 @@ export class ConcertDressing {
   }
 
   build(stage) {
-    const { world, scene, player } = this.run, D = this.D, lift = LOOK.num('dress-lift', 0.003);
+    const { world, scene } = this.run, D = this.D, lift = LOOK.num('dress-lift', 0.003);
     const R = LOOK.num('dress-band-radius', 0.032), W = LOOK.num('dress-cable-width', 0.018);
     const colours = LOOK.list('dress-wristbands', ['#ff5ca8', '#38d6ff']), cord = LOOK.color('dress-cord', '#202026'), cable = LOOK.color('dress-cable', '#44444f');
     const parts = [];
@@ -110,7 +110,6 @@ export class ConcertDressing {
         last = p;
       }
     }
-    world.focus(player.position, 1);   // (castAll doesn't use it; keep the world as it was)
     this.mesh = new THREE.Mesh(mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g))),
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.1 }));
     this.mesh.name = 'Concert dressing';
@@ -146,6 +145,7 @@ export class ConcertDressing {
     if (!this.D || this.state !== 'idle') return false;
     this.state = 'moment';
     this.from = this.run.beat ?? 0;
+    this.age = 0;
     this.beats = this.calm ? this.K.beatsCalm : this.K.beats;
     this.run.hud.toast(this.run.stage.stageDoor.starts, 2400);
     sfx.bassDrop();
@@ -154,13 +154,14 @@ export class ConcertDressing {
   skip() { if (this.state === 'moment') this.from = -1e9; }
 
   // each frame of play
-  update() {
+  update(dt = 0) {
     if (!this.D) return;
     const run = this.run, K = this.K, beat = run.beat ?? 0;
     let p = 0;   // how far through the door moment
     if (this.state === 'moment') {
       if (beat < this.from) this.from = beat;   // the song started again: count on from here
-      p = Math.min(1, (beat - this.from) / this.beats);
+      this.age += dt;   // real time too, so a stalled beat clock can't hold the door shut
+      p = Math.min(1, Math.max((beat - this.from) / this.beats, this.age / (this.beats * 60 / (run.bpm || 120))));
     }
     const ph = beat - Math.floor(beat), pulse = this.calm ? 0 : Math.exp(-ph * K.decay) * (Math.floor(beat) % 4 === 0 ? 1 : 0.6);
     for (const { m, base } of this.lamps) m.emissiveIntensity = base * (1 + K.amp * pulse + p * 0.5);

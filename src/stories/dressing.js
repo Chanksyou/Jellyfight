@@ -25,8 +25,8 @@ night4('the-room-is-dressed-as-a-show-and-nothing-is-in-the-way', {
     }
     const solid = run.world.colliders.includes(m) || run.world.colliders.includes(g);
     const behindSun = pos.count > 0 && Array.from({ length: pos.count }, (_, i) => pos.getZ(i)).filter((z) => z > STAGE4.sun.to).length > pos.count * 0.5;
-    return ok(m.visible && g.visible && m.userData.noCollide && !solid && n < 15000 && n > 200 && maxY < 0.05 && near === 0 && behindSun && g.material.opacity === 0,
-      { tris: n, maxY, near, hit: [...hit].map((i) => taken[i]), solid, behindSun, glow: g.material.opacity });
+    return ok(m.visible && g.visible && m.userData.noCollide && !solid && n < 15000 && n > 200 && maxY < 0.05 && near === 0 && behindSun && g.material.opacity === 0 && g.position.y > STAGE4.stageDoor.min[1] && g.position.y < 0.75,
+      { glowY: g.position.y, tris: n, maxY, near, hit: [...hit].map((i) => taken[i]), solid, behindSun, glow: g.material.opacity });
   },
 });
 
