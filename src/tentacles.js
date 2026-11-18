@@ -25,7 +25,7 @@ const K_ROOT = 700, DAMP = 0.55, STEP = 1 / 60;
 const KEEP = 0.15;
 const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
-const NO_RIM = { k: 1, dy: 0 };
+const NO_RIM = { k: 1, dy: 0 }, _r = new THREE.Vector3();
 const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
 // The tentacles' styles (look.tentacles): every ring's shape. bead: every third ring this much
@@ -234,16 +234,17 @@ export class TentacleRig {
           }
           this.build(T, floorY); continue;
         }
-        const end = _t.copy(T.anchor).lerp(target, T.k);
-        const dist = end.distanceTo(T.anchor);
-        const ctrl = _n.copy(T.anchor).add(end).multiplyScalar(0.5).addScaledVector(T.out, dist * 0.25);
+        _r.set(T.anchor.x * rim.k, T.anchor.y + rim.dy, T.anchor.z * rim.k);   // the root rides the rim, as the chain's does
+        const end = _t.copy(_r).lerp(target, T.k);
+        const dist = end.distanceTo(_r);
+        const ctrl = _n.copy(_r).add(end).multiplyScalar(0.5).addScaledVector(T.out, dist * 0.25);
         ctrl.y += dist * 0.25;
         const w = Math.min(1, T.k * 2);
         for (let j = 0; j <= SEG; j++) {
           const s = j / SEG, u = 1 - s;
-          const bx = u * u * T.anchor.x + 2 * u * s * ctrl.x + s * s * end.x;
-          const by = u * u * T.anchor.y + 2 * u * s * ctrl.y + s * s * end.y;
-          const bz = u * u * T.anchor.z + 2 * u * s * ctrl.z + s * s * end.z;
+          const bx = u * u * _r.x + 2 * u * s * ctrl.x + s * s * end.x;
+          const by = u * u * _r.y + 2 * u * s * ctrl.y + s * s * end.y;
+          const bz = u * u * _r.z + 2 * u * s * ctrl.z + s * s * end.z;
           T.pts[j].lerp(_v.set(bx, by, bz), w);
           T.sim[j].copy(T.pts[j]).applyMatrix4(M).divideScalar(unit);
         }

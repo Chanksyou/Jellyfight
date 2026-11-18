@@ -1,5 +1,6 @@
 // Stories: the bell bends like a real jelly's (bell-flex.js). The crown stays nearly still while the
 // rim squeezes in, and the bend runs down from the crown, so the rim's squeeze comes a moment later.
+import * as THREE from 'three';
 import { SPECIES, buildCharacter } from '../character.js';
 import { bellFlex, freezeBell } from '../bell-flex.js';
 import { ok, story } from './kit.js';
@@ -43,6 +44,12 @@ story('motion/roots-hang-from-the-rim', {
         drop = Math.max(drop, T.anchor.y - p.y);
       }
       seen[body] = { low: +low.toFixed(2), drop: +drop.toFixed(3) };
+      // a Lash mid-stroke keeps its root on the rim
+      c.tentacles.aim(0, c.root.localToWorld(new THREE.Vector3(0.3, 0.3, 0)), 0.8);
+      c.update(1 / 60, { speed: 0.35, walkSpeed: 0.35, grounded: true, vy: 0, swim: 0.15 });
+      const q = T.pts[0], rimK = bellFlex(0, c.bend, f).k, lash = Math.abs(Math.hypot(q.x, q.z) / r0 - rimK);
+      c.tentacles.aim(0, null);
+      if (lash > 0.08) bad.push(body + ' (lash root)');
       if (!(low < 0.85 && off < 0.08 && drop > 0.01)) bad.push(body);
       c.dispose();
     }
@@ -66,6 +73,6 @@ story('motion/frozen-copy-keeps-its-bend', {
     copy.onBeforeCompile(dummy);
     const kept = dummy.uniforms.bellFlex.value;
     c.dispose();
-    return ok(Math.abs(moved - before) > 0.02 && kept !== c.bend && Math.abs(kept.x - c.bend.x) > 0.01, { before, moved, kept: kept.toArray() });
+    return ok(Math.abs(moved - before) > 0.02 && Math.abs(kept.x - c.bend.x) > 0.01, { before, moved, kept: kept.toArray() });
   },
 });

@@ -516,6 +516,7 @@
   --jelly-motion-crown-give: 0.12;/* how much of the squeeze the bell above the bend still takes */
   --jelly-motion-curl: 0.08;      /* the margin curling in further at the height of the stroke */
   --jelly-motion-rim-lag: 0.06;   /* the rim's stroke behind the crown's, in strokes */
+  --jelly-motion-fringe-hang: 0.3;   /* the fringe flutter stops growing this far below the rim */
   --jelly-motion-fringe-flutter: 0.8;   /* the fringe ends trail the rim: how far out they stream while the rim lags the crown (of how far they hang) */
 
   /* --- enemies: a faint glow in their own colours and a warm rim, so they read in the dark */

@@ -14,12 +14,13 @@ const STRETCH = LOOK.num('jelly-motion-stretch', 0.24);   // how far down the ri
 const FLEX = LOOK.num('jelly-motion-flex-at', 0.65);      // where the bell bends, down from the crown (0 crown, 1 rim)
 const CROWN = LOOK.num('jelly-motion-crown-give', 0.12);  // how much of the squeeze the upper bell still takes
 const CURL = LOOK.num('jelly-motion-curl', 0.08);         // the margin curling in further on the power stroke
+const HANG = LOOK.num('jelly-motion-fringe-hang', 0.3);   // how far below the rim the flutter keeps growing, in bell units
 const FLUTTER = LOOK.num('jelly-motion-fringe-flutter', 0.8);   // the fringe's ends trailing the rim's lag (how far out they stream, of how far down they hang)
 export const RIM_LAG = LOOK.num('jelly-motion-rim-lag', 0.06);   // the rim's stroke behind the crown's, in cycles
 
 const f = (x) => x.toFixed(6);   // (the CPU mirror uses the full numbers: keep enough places that they agree)
 const GLSL = /* glsl */ `{
-  float bfD = clamp(-transformed.y, 0.0, 0.3);   // how far below the rim (the fringe)
+  float bfD = clamp(-transformed.y, 0.0, ${f(HANG)});   // how far below the rim (the fringe)
   float bfS = 1.0 - clamp(transformed.y / bellFlex.z, 0.0, 1.0);
   float bfC = mix(bellFlex.x, bellFlex.y, bfS);
   float bfW = ${f(CROWN)} * bfS * bfS + ${f(1 - CROWN)} * smoothstep(${f(FLEX - 0.15)}, 1.0, bfS);
