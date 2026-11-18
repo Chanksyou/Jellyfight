@@ -2513,7 +2513,7 @@ export class Elites {
             const spots = this.pillowSpots(e, P, L.n, S), size = LOOK.num('pillow-spore-size', 0.008);
             e.spores = spots.map((at) => {
               const v = this.volume(col, 'disc', at, this._s3.set(S.radius, LOOK.num('pillow-column', 0.35), S.radius));
-              v.material.opacity = LOOK.num('pillow-column-opacity', 0.5);
+              v.material.opacity = LOOK.num('pillow-column-opacity', 0.2);
               e.tele.push(this.warnCircle(at, S.radius, this.T.pillow, LOOK.num('pillow-spot-warning', 0.6)), v);
               const orb = this.fx.orb(col, size);
               orb.position.copy(muzzle);
@@ -2530,7 +2530,7 @@ export class Elites {
             e.spores.forEach((sp, i) => {
               const w = e.tele[i * 2], v = e.tele[i * 2 + 1], ease = 1 - (1 - u) * (1 - u);
               w.userData.fill(k); v.material.progress = k;
-              if (beat >= L.settle) { const o = LOOK.num('pillow-column-opacity', 0.5); w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
+              if (beat >= L.settle) { const o = LOOK.num('pillow-column-opacity', 0.2); w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
               sp.orb.position.lerpVectors(sp.from, sp.at, ease);
               sp.orb.position.y += Math.sin(Math.min(1, u * 1.4) * Math.PI) * arc + LOOK.num('pillow-spore-size', 0.008);
               sp.orb.position.x += Math.sin(u * 9 + sp.phase) * 0.02 * (1 - u); sp.orb.position.z += Math.cos(u * 7 + sp.phase) * 0.02 * (1 - u);
