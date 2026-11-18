@@ -1,0 +1,1 @@
+keeps small props solid for the camera: a cup or teapot the camera's edge rays only brush past no longer fades out, and one that really sits between the jelly and the camera goes half see-through instead of vanishing (`src/camera.js`).
