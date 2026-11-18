@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
 import { squeeze, thrust } from './swim.js';
+import { bellFlex, patchBell, RIM_LAG } from './bell-flex.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
@@ -403,6 +404,7 @@ export function buildCharacter(look, heightMeters) {
   const spinners = [];                       // things that turn: [object, axis, speed]
   const scrollers = [];                      // textures that run down the bell: [texture, speed]
   let bell = null, rig = null;               // jellyfish only: the pulsing bell and its tentacles
+  const riders = [];                         // [object, rest position]: on the bell, moved to follow the bend at their height
 
   // --- Body: the jellyfish -------------------------------------------------
   // A fluorescent jelly in the dark: a clear bell over a glowing inner bell (radial canals,
@@ -546,6 +548,7 @@ export function buildCharacter(look, heightMeters) {
     pivot.position.set(Math.sin(a) * off, 0, Math.cos(a) * off);
     pivot.rotation.y = a;
     bell.add(pivot);
+    riders.push([pivot, pivot.position.clone()]);
     const L = A.len, half = A.width / 2, armGeo = new THREE.PlaneGeometry(A.width, L, 6, 28).translate(0, -L / 2, 0);
     const ap = armGeo.attributes.position;
     for (let q = 0; q < ap.count; q++) {
@@ -594,6 +597,11 @@ export function buildCharacter(look, heightMeters) {
       pad.scale.set(0.8, 1.5, 0.8);
     }
   }
+  // the bell bends from its rim (bell-flex.js): every piece drawn on it so far gets the patch
+  const flex = { value: new THREE.Vector3(0, 0, crownH) }, flexAt = { k: 1, dy: 0 };
+  // (the small pieces round the rim, off the bell's axis, ride on it instead: baking their placement
+  // would round their vertices differently, and look/rest-pose-unchanged would see it)
+  for (const o of bell.children) if (o.isMesh) { if (o.position.x || o.position.z) riders.push([o, o.position.clone()]); else patchBell(o, flex); }
   // the long, glowing hunting tentacles the Lash strikes with (see tentacles.js); a box jelly's
   // hang in bundles from its corners
   const T = sp.tentacles, corners = T.corners ? Array.from({ length: T.count }, (_, i) => Math.PI / 4 + Math.floor(i / 2) * Math.PI / 2 + (i % 2 ? 0.12 : -0.12)) : null;
@@ -918,11 +926,12 @@ export function buildCharacter(look, heightMeters) {
   if (look.eyes === 'snorkel') {
     const fy = face.position.y, a = 0.75, c = (y, k = 1.04) => { const r = bellR(y) * k; return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r); };
     const curve = new THREE.CatmullRomCurve3([c(fy), c((fy + crownH) / 2), c(crownH * 0.95, 1.15).add(new THREE.Vector3(0, 0.02, 0)), c(crownH * 0.95, 1.15).add(new THREE.Vector3(0, 0.12, 0))]);
-    mesh(new THREE.TubeGeometry(curve, 32, 0.014, 10, false), M.snorkel, bell);
+    const tube = M.snorkel.clone(), tipMat = M.snorkelTip.clone();   // their own copies: the face's frame (not bent by the patch) shares M.snorkel
+    patchBell(mesh(new THREE.TubeGeometry(curve, 32, 0.014, 10, false), tube, bell), flex);
     const tip = curve.getPointAt(1);
-    mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.03, 12), M.snorkelTip, bell, tip.x, tip.y, tip.z);
+    patchBell(mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.03, 12), tipMat, bell, tip.x, tip.y, tip.z), flex);
     const clip = c(fy, 1.0);
-    mesh(new THREE.SphereGeometry(0.016, 10, 8), M.snorkel, bell, clip.x, clip.y, clip.z);
+    patchBell(mesh(new THREE.SphereGeometry(0.016, 10, 8), tube, bell, clip.x, clip.y, clip.z), flex);
   }
 
   // --- Top ------------------------------------------------------------------
@@ -1585,6 +1594,11 @@ export function buildCharacter(look, heightMeters) {
   const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
   const baseSpin = spinners.map(([o, ax]) => o.rotation[ax]), baseScroll = scrollers.map(([tex]) => tex.offset.y);
 
+  const contractAt = (p, move) => kick > 0.05 ? Math.max(kick, squeeze(p)) : squeeze(p) * (0.45 + 0.55 * move);
+  // the face is wrapped onto the bell at rest; it follows the bell's bend at its middle
+  const faceRest = { s: face.scale.x, y: face.position.y }, faceMid = headHeight * 0.5;
+  const gumAt = gum ? gum.position.clone() : null;
+
   // s.rest (see restPose): the pose with every clock, spring and input at zero
   function update(dt, s) {
     if (s.rest) {
@@ -1606,9 +1620,13 @@ export function buildCharacter(look, heightMeters) {
       if (swim == null) swim = idleSwim = (idleSwim + dt * 0.6) % 1;
       kick = Math.max(0, kick - dt * 3);
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
-      contract = s.rest ? 0 : kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
-      bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
+      contract = s.rest ? 0 : contractAt(swim, move);
+      // (bell-flex.js bends the bell itself, crown first, the rim a moment behind)
+      flex.value.x = contract;
+      flex.value.y = s.rest ? 0 : contractAt((swim + 1 - RIM_LAG) % 1, move);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
+      for (const [o, p] of riders) { bellFlex(p.y, flex.value, flexAt); o.position.set(p.x * flexAt.k, p.y + flexAt.dy, p.z * flexAt.k); }
+      if (gum) { bellFlex(gumAt.y, flex.value, flexAt); gum.position.set(0, gumAt.y + flexAt.dy, gumAt.z * flexAt.k); }
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
       surge = thrust(swim) / 4.7 * move;
       lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge;
@@ -1621,8 +1639,9 @@ export function buildCharacter(look, heightMeters) {
       roll += (THREE.MathUtils.clamp(-localVel.x * 0.05, -0.35, 0.35) - roll) * (1 - Math.exp(-8 * dt));
       lean.rotation.z = roll;
       // the hat rides on the crown as the bell squeezes and relaxes (a soft one squeezes with it)
-      top.position.y = shape.topY + (bell.position.y - BELL_Y) + crownH * (bell.scale.y - 1);
-      if (soft) top.scale.set(bell.scale.x, 1, bell.scale.z);
+      bellFlex(crownH * 0.85, flex.value, flexAt);
+      top.position.y = shape.topY + (bell.position.y - BELL_Y);   // (the crown itself barely moves)
+      if (soft) top.scale.set(flexAt.k, 1, flexAt.k);
     }
 
     // landing squash as a damped spring
@@ -1665,9 +1684,15 @@ export function buildCharacter(look, heightMeters) {
     const closing = blinkIn < 0 && blinkIn > -0.12;
     if (blinkIn < -0.12) blinkIn = 2 + blinkDice() * 3.5;
     const eyeHeight = closing && blinks ? 0.12 : 1;
+    face.scale.setScalar(faceRest.s); face.position.y = faceRest.y;   // (wrapFace wraps it onto the bell at rest)
     if (eyes[0].scale.y !== eyeHeight) {
       eyes.forEach((e) => { e.scale.y = eyeHeight; });
       wrapFace();
+    }
+    if (bell) {
+      bellFlex(faceMid, flex.value, flexAt);
+      face.scale.set(faceRest.s * flexAt.k, faceRest.s, faceRest.s * flexAt.k);
+      face.position.y = faceRest.y + flexAt.dy;
     }
   }
 
@@ -1706,5 +1731,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
+  return { root, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop, bend: flex.value, crownH };
 }
