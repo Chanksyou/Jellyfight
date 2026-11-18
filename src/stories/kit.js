@@ -523,7 +523,7 @@ export const EVERY_ATTACK = {
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
     // the Headphones on the kitchen counter (elites.js), in the room: its shove waves' Warning (a white strip
     // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
-    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
+    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, stereo: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')

@@ -1,6 +1,7 @@
 // Stories: act 4's third Elite, the Headphones (elites.js kind 'headphones', headphones-model.js): up on
 // their ear cups on the kitchen counter by the stove in the living room at dawn. They keep the song's time
-// (run.beat); these play on the run's own beat (no song). Their waves shove rather than hurt, and the
+// (run.beat); these play on the run's own beat (no song). Their waves shove rather than hurt, their Stereo
+// bursts a half of the counter at a time (cross over on the beat), and the
 // counter ends at a drop, so falling off and coming back by the vent is part of the fight. Shared helpers are
 // in ./kit.js; src/stories.js imports this file in order.
 
@@ -155,62 +156,139 @@ night4('headphones-counter-never-strands-you', {
   },
 });
 
-night4('headphones-bass-shots-on-the-beat', {
-  about: 'Bass Shots: from a bar line, a Shot a beat, the ear cups taking turns. Each one\'s Warning (a line on the counter and the tube over it to the jelly\'s middle, in the Headphones\' indigo) fills to its beat; a jelly that stands still is hit by every one.',
+// Stereo's halves, as the plan holds them: one entry per burst, [beat, half 0/1, the marks' colour hex, x range]
+const LOW = () => hostile('headphones').getHex(), HIGH = () => hostile('headphones-right').getHex();
+const side = (e, p) => (p.x < e.base.x ? 0 : 1);   // the half a jelly's middle is on (0: x under the line through the Headphones)
+// play Stereo out (the jelly held where it is, or moved by `during(i, e)` each frame); what it bursts as it goes
+function stereo(e, during) {
+  const { run } = G(), bursts = [];
+  let k = 0, marked = null;
+  playOut(e, (i) => {
+    const L = e.plan;
+    if (L?.marks) marked = { colour: L.marks[0].material.uniforms.uColor.value.getHex(), x: [L.marks[0].position.x - L.marks[0].scale.x, L.marks[0].position.x + L.marks[0].scale.x], z: [L.marks[0].position.z - L.marks[0].scale.z, L.marks[0].position.z + L.marks[0].scale.z], square: L.marks[0].material.shape === 'square' && L.marks[1].material.kind === 'symbol-square', progress: L.marks[0].material.progress, tall: L.marks[1].scale.y };
+    if (L && L.k > k) { k = L.k; bursts.push({ beat: run.beat, half: (L.half + k - 1) % 2, marked }); }
+    during?.(i, e);
+  });
+  return bursts;
+}
+
+night4('headphones-stereo-halves-burst-on-the-beat', {
+  about: 'Stereo: a line down the counter through the Headphones splits its ground into two halves. A cup lights up and marks its half, a floor square and a slab over it, each half in its own hostile colour (indigo, spearmint), filling to its beat; then that half bursts, the other cup\'s half two beats later, and so on. The first half is the one the jelly is standing on. Calm: no wave.',
   setup() { startHeadphones(1, { hold: true }); },
   play() {
-    const { e, player } = startHeadphones(1, { hold: true }), B = SK().bass, log = record('damage_taken'), seen = watch();
-    let tubes = 0;
-    const col = hostile('headphones').getHex();
-    playOut(e, () => { if (e.tele.length === 2 && e.tele[1].material.kind === 'lane' && e.tele[1].material.uniforms.uColor.value.getHex() === col && e.tele[1].rotation.order === 'YXZ') tubes++; });
-    step(60 * 2);
-    seen.done();
-    const S = seen.shots, mid = player.position.y + CONFIG.player.height * 0.5, hits = hitsBy(log, 'headphones-bass');
-    const good = S.length === B.shots && offSnap(S[0].beat) < 0.05 && S.every((s, k) => offBeat(s.beat) < 0.05 && (!k || Math.abs(s.beat - S[k - 1].beat - B.every) < 0.05))
-      && flat(S[0].from, S[1].from) > 0.1 && S.every((s) => Math.abs(s.to.y - mid) < 0.005) && tubes > 60 && hits.length === B.shots && hits.every((h) => h === B.dmg);
-    return ok(good, { beats: S.map((s) => +s.beat.toFixed(2)), cupsApart: S[1] && +flat(S[0].from, S[1].from).toFixed(2), tubes, hits });
+    const out = {}, { run } = G(), S = SK().stereo;
+    for (const [name, x] of [['lowSide', 4.57], ['highSide', 4.8]]) {
+      const { e } = startHeadphones(1, { hold: true, x, z: 2.45 }), seen = watch(), W = e.spec.wake;
+      const lit = [0, 0];
+      const bursts = stereo(e, () => e.lit.forEach((v, i) => { lit[i] = Math.max(lit[i], v); }));
+      seen.done();
+      const first = bursts[0]?.half;
+      const alternates = bursts.every((b, k) => b.half === (first + k) % 2 && b.marked?.colour === (b.half ? HIGH() : LOW()) && b.marked.square && b.marked.progress > 0.9 && b.marked.tall === S.height);
+      const spans = bursts.every((b) => Math.abs(b.marked.z[0] - W.min[2]) < 0.01 && Math.abs(b.marked.z[1] - W.max[2]) < 0.01
+        && (b.half ? Math.abs(b.marked.x[0] - e.base.x) < 0.01 && Math.abs(b.marked.x[1] - W.max[0]) < 0.01 : Math.abs(b.marked.x[0] - W.min[0]) < 0.01 && Math.abs(b.marked.x[1] - e.base.x) < 0.01));
+      const timed = bursts.length === S.bursts && offSnap(bursts[0].beat) < 0.05 && bursts.every((b, k) => !k || Math.abs(b.beat - bursts[k - 1].beat - S.every) < 0.05);
+      out[name] = { n: bursts.length, first, beats: bursts.map((b) => +b.beat.toFixed(2)), alternates, spans, timed, waves: seen.waves.length, lit: lit.map((v) => +v.toFixed(2)) };
+      out[name].ok = first === (name === 'lowSide' ? 0 : 1) && alternates && spans && timed && !seen.waves.length && lit.every((v) => v > 0.9);
+    }
+    return ok(out.lowSide.ok && out.highSide.ok, out);
   },
 });
 
-night4('headphones-bass-dodged-by-stepping-sideways', {
-  about: 'Each bass Shot\'s Warning locks half a beat before it fires and the Shot flies down it: a jelly that steps 8 cm sideways after each lock (always the same way, so it never steps into the last Shot still flying) is never hit.',
+night4('headphones-stereo-only-the-marked-half-hurts', {
+  about: 'A half that bursts hurts a jelly whose middle is on it (its dmg), even one in the air under the slab\'s top: a jump does not clear it. A jelly that stays put on one half is hit by that half\'s bursts and not by the other\'s.',
   setup() { startHeadphones(1, { hold: true }); },
   play() {
-    const { e, player } = startHeadphones(1, { hold: true }), B = SK().bass, log = record('damage_taken');
-    let steps = 0, k = -1;
-    playOut(e, () => {
-      const L = e.plan;
-      if (L && L.k < L.due.length && G().run.beat >= L.due[L.k] - B.lock && k !== L.k) {
-        k = L.k; steps++;
-        const d = new THREE.Vector3(L.aim.x - L.mouth.x, 0, L.aim.z - L.mouth.z).normalize();
-        player.position.x += d.z * 0.08; player.position.z -= d.x * 0.08;   // across the line, toward the counter's middle
-      }
-    });
-    step(60 * 2);
-    return ok(steps === B.shots && !hitsBy(log, 'headphones-bass').length, { steps, hits: hitsBy(log, 'headphones-bass') });
-  },
-});
-
-night4('headphones-angry-shove-and-shot-together', {
-  about: 'Under 65% Health the Headphones are angry: with each shove wave the other cup fires a bass Shot at jump height along with it, as fast as the wave, its Warning beside the wave\'s. A jelly that stays down rides the shove and the Shot flies over it; one that jumps the wave flies into the Shot.',
-  setup() { startHeadphones(0, { angry: true }); },
-  play() {
-    const out = {}, B = SK().bass, W = SK().shove;
+    const S = SK().stereo, out = {};
     for (const jump of [false, true]) {
-      const { e, player, top } = startHeadphones(0, { angry: true, x: 4.62, z: 2.55 }), { run } = G(), log = record('damage_taken'), seen = watch();
-      let both = 0;
-      step(60 * 8, () => {
-        if (e.tele.length === 4 && e.tele[3].material.uniforms.uColor.value.getHex() === hostile('headphones').getHex()) both++;
+      const { e, player, top } = startHeadphones(1, { hold: true }), log = record('damage_taken');
+      const at = [];
+      const bursts = stereo(e, () => { if (jump && e.plan && e.plan.marks && e.plan.marks[0].material.progress > 0.9) player.position.y = top + 0.2; log.forEach((d, i) => { if (d.source === 'headphones-stereo' && at[i] == null) at[i] = G().run.beat; }); });
+      const hits = hitsBy(log, 'headphones-stereo');
+      out[jump ? 'jumping' : 'standing'] = { bursts: bursts.map((b) => b.half), hits };
+    }
+    // a jelly on the low half (x 4.57) is hit by bursts 0 and 2, the low half's, never by the high half's
+    const good = ['standing', 'jumping'].every((n) => out[n].bursts.join() === '0,1,0,1' && out[n].hits.length === 2 && out[n].hits.every((h) => h === S.dmg));
+    return ok(good, out);
+  },
+});
+
+night4('headphones-stereo-crossing-on-the-beat-avoids-both', {
+  about: 'Cross to the other half as each one is marked and no burst touches the jelly: it is on the unmarked half at every burst, from the first (the half it started on) to the last.',
+  setup() { startHeadphones(1); },
+  play() {
+    const { e, player } = startHeadphones(1), log = record('damage_taken'), S = SK().stereo;
+    let crossed = 0, was = -1;
+    const bursts = stereo(e, () => {
+      const L = e.plan; if (!L || L.k >= L.due.length) return;
+      const marked = (L.half + L.k) % 2;                                   // the half about to burst
+      if (was !== L.k) { was = L.k; if (side(e, player.position) === marked) { crossed++; player.position.x = e.base.x + (marked ? -0.1 : 0.1); } }
+    });
+    return ok(bursts.length === S.bursts && crossed === S.bursts && !hitsBy(log, 'headphones-stereo').length, { bursts: bursts.length, crossed, hurt: hitsBy(log, 'headphones-stereo') });
+  },
+});
+
+night4('headphones-stereo-can-be-crossed-on-foot', {
+  about: 'Walking at the jelly\'s base speed, from the far edge of the half it starts on, it gets across the line before the first burst and back before each next one: the two-beat Warnings are enough on foot (a jelly walks 0.42 m/s; a beat is 0.47 s at the act\'s 128 BPM).',
+  setup() { startHeadphones(1); },
+  play() {
+    const { e, player } = startHeadphones(1, { x: 4.4, z: 2.45 }), { input, tpc } = G(), log = record('damage_taken');
+    let moved = 0;
+    const bursts = stereo(e, () => {
+      const L = e.plan; if (!L || L.k >= L.due.length) { input.keys = new Set(); return; }
+      const safe = 1 - (L.half + L.k) % 2, goal = e.base.x + (safe ? 0.06 : -0.06);   // the half that won't burst next: 6 cm past the line
+      const need = side(e, player.position) !== safe || Math.abs(player.position.x - goal) > 0.07 && (safe ? player.position.x < goal : player.position.x > goal);
+      if (need) { moved++; tpc.yaw = Math.atan2(-(goal - player.position.x), 0); input.keys = new Set(['KeyW']); } else input.keys = new Set();
+    });
+    G().input.keys = new Set();
+    return ok(bursts.length === SK().stereo.bursts && !hitsBy(log, 'headphones-stereo').length, { bursts: bursts.length, hurt: hitsBy(log, 'headphones-stereo'), walkedFrames: moved, at: r3(player.position) });
+  },
+});
+
+night4('headphones-stereo-never-covers-all-the-ground', {
+  about: 'Neither half of Stereo ever covers all the ground a jelly can stand on: the counter\'s top (every spot within 3 cm of its height inside the Headphones\' wake box) is split by the line through the Headphones, each half is a strip of it with at least a third of the spots, the two together are all of them and the line is shared (a spot counts for the high half).',
+  setup() { startHeadphones(1, { hold: true }); },
+  play() {
+    const { e } = startHeadphones(1, { hold: true }), { run } = G(), E = run.elites, W = e.spec.wake, top = e.base.y;
+    const spots = [], p = new THREE.Vector3();
+    for (let x = W.min[0] + 0.01; x < W.max[0]; x += 0.02) for (let z = W.min[2] + 0.01; z < W.max[2]; z += 0.02) if (Math.abs(E.surfaceBelow(p.set(x, top + 0.05, z)) - top) < 0.03) spots.push([x, z]);
+    const marks = [];
+    stereo(e, () => { const L = e.plan; if (L?.marks && L.k < 2 && !marks[L.k]) marks[L.k] = { x: [L.marks[0].position.x - L.marks[0].scale.x, L.marks[0].position.x + L.marks[0].scale.x], z: [L.marks[0].position.z - L.marks[0].scale.z, L.marks[0].position.z + L.marks[0].scale.z] }; });
+    const inside = (m, [x, z]) => x >= m.x[0] && x <= m.x[1] && z >= m.z[0] && z <= m.z[1];
+    const covered = marks.map((m) => spots.filter((q) => inside(m, q)).length), both = spots.filter((q) => marks.every((m) => inside(m, q))).length, either = spots.filter((q) => marks.some((m) => inside(m, q))).length;
+    return ok(marks.length === 2 && spots.length > 200 && covered.every((c) => c < spots.length && c >= spots.length / 3) && either === spots.length && both === 0 && Math.abs(marks[0].x[1] - e.base.x) < 0.01,
+      { spots: spots.length, covered, both, either });
+  },
+});
+
+night4('headphones-stereo-angry-wave-crosses-the-line', {
+  about: 'Angry (under 65% Health) Stereo has angryBursts bursts and, a beat after each burst but the last, the cup that burst sends a shove wave at the jelly across the line (the shove\'s own white Warning, locking half a beat before). Crossing back toward that cup, a jelly that stays down is shoved 20 cm back into the half about to burst and hit; one that jumps the wave (low, over its 5 cm top) is not shoved and crosses cleanly. The wave never hurts.',
+  setup() { startHeadphones(1, { angry: true }); },
+  play() {
+    const S = SK().stereo, W = SK().shove, out = {};
+    for (const jump of [true, false]) {
+      const { e, player, top } = startHeadphones(1, { angry: true }), { run } = G(), log = record('damage_taken'), seen = watch();
+      let was = -1, wash = false;
+      const shoves = [];
+      const bursts = stereo(e, () => {
+        const L = e.plan; if (!L) return;
+        // cross as each half is marked, just over the line (close enough that a shove keeps it on the counter)
+        if (L.k < L.due.length && was !== L.k) { was = L.k; const marked = (L.half + L.k) % 2; if (side(e, player.position) === marked) player.position.x = e.base.x + (marked ? -0.04 : 0.04); }
         const w = run.elites.waves[0];
-        if (jump && w) { const d = flat(player.position, w.from) - w.f; if (d < 0.1 && d > -0.15) { player.position.y = top + 0.11; player.velocity.y = 0; player.grounded = false; } }   // up through the Shot's height as they pass
-        return seen.waves.length && !run.elites.waves.length && !run.elites.bullets.length;
+        if (jump && w) { const d = flat(player.position, w.from) - w.f; if (d < 0.12 && d > -0.08) { player.position.y = top + W.height + 0.02; player.velocity.y = 0; } }   // up over its top as it passes
+        const washed = run.elites.washT > 0; if (washed && !wash) shoves.push(run.elites.washDir.clone().multiplyScalar(run.elites.washT)); wash = washed;
       });
       seen.done();
-      const shot = seen.shots[0], wave = seen.waves[0];
-      out[jump ? 'jumped' : 'stayed'] = { both, together: shot && wave && Math.abs(shot.beat - wave.beat) < 1e-6, high: shot && +(shot.to.y - e.base.y).toFixed(3), hits: hitsBy(log, 'headphones-bass'), shoved: !!wave && flat(player.position, wave.from) > 0 };
+      const w = seen.waves, line = e.base.x;
+      out[jump ? 'jumped' : 'stayed'] = { bursts: bursts.length, waves: w.length,
+        fromBurst: w.every((q, k) => (bursts[k].half ? q.from.x > line : q.from.x < line)),   // from the cup that burst
+        crossing: w.every((q, k) => (bursts[k].half ? q.dir.x < 0 : q.dir.x > 0)),           // toward the half about to burst
+        leads: w.every((q, k) => Math.abs(q.beat - bursts[k].beat - S.lead) < 0.06),
+        shoves: shoves.map((m) => +m.length().toFixed(3)), hurt: log.map((d) => d.source) };
     }
-    const { stayed, jumped } = out;
-    return ok(stayed.both > 60 && stayed.together && Math.abs(stayed.high - 0.16) < 0.005 && !stayed.hits.length && jumped.together && jumped.hits.length === 1 && jumped.hits[0] === B.dmg && W.speed > 0, out);
+    const { jumped, stayed } = out;
+    const shape = (r) => r.bursts === S.angryBursts && r.waves === S.angryBursts - 1 && r.fromBurst && r.crossing && r.leads;
+    return ok(shape(jumped) && !jumped.shoves.length && !jumped.hurt.length
+      && stayed.bursts >= 2 && stayed.waves >= 1 && stayed.fromBurst && stayed.crossing && stayed.leads && Math.abs(stayed.shoves[0] - W.push) < 0.03 && stayed.hurt.includes('headphones-stereo') && !stayed.hurt.some((h) => h !== 'headphones-stereo'), out);
   },
 });
 
@@ -229,14 +307,14 @@ night4('headphones-call-off-an-attack-when-the-beat-jumps', {
       let again = false;
       step(60 * 4, () => (again = e.state !== 'idle'));
       seen.done();
-      out[atk ? 'bass' : 'shove'] = { warned, off, again };
+      out[atk ? 'stereo' : 'shove'] = { warned, off, again };
     }
     return ok(Object.values(out).every((r) => r.warned && r.off && r.again), out);
   },
 });
 
 night4('headphones-attacks-feel', {
-  about: 'Headphones feel: a cup\'s speaker glows as it gets ready and the cup kicks back as it plays, with a flash at it; a wave lifts fading motes off the glass and flashes white on the jelly it shoves; a bass Shot that hits throws sparks, leaves a fading scuff and lands with feel impact.',
+  about: 'Headphones feel: a cup\'s speaker glows as it gets ready and the cup kicks back as it plays, with a flash at it; a wave lifts fading motes off the glass and flashes white on the jelly it shoves; a Stereo burst flashes at its cup, throws sparks off its half and leaves a fading muted scuff there, and one that hits the jelly throws a buzz of sparks off it, leaves a scuff under it and lands with feel impact.',
   setup() { startHeadphones(0); },
   play() {
     let { e } = startHeadphones(0, { x: 4.62, z: 2.55 }), { run } = G();
@@ -245,10 +323,13 @@ night4('headphones-attacks-feel', {
     playOut(e, () => { glow = Math.max(glow, ...e.model.glows.map((m) => m.material.opacity)); kick = Math.max(kick, ...e.pump); });
     const white = run.elites.waveColor.getHex(), shove = { glow: +glow.toFixed(2), kick: +kick.toFixed(2), flashes: impacts.filter(([, c]) => c.getHex?.() === white).length, motes: motes.length };
     ({ e } = startHeadphones(1, { hold: true }));
-    const bursts = spy(fx, 'burst'), splats = spy(fx, 'splat'), feels = spy(juice, 'feel');
+    const flashes = spy(fx, 'impact'), sparks = spy(fx, 'burst'), splats = spy(fx, 'splat'), feels = spy(juice, 'feel');
+    const mark = hostile('headphones').getHex(), other = hostile('headphones-right').getHex();
     playOut(e);
     step(60 * 2);
-    const bass = { sparks: bursts.length, scuffs: splats.length, impact: feels.filter(([k]) => k === 'impact').length };
-    return ok(shove.glow > 0.5 && shove.kick > 0.5 && shove.flashes > SK().shove.waves && shove.motes > 10 && bass.sparks >= SK().bass.shots && bass.scuffs >= SK().bass.shots && bass.impact >= SK().bass.shots, { shove, bass });
+    const S = SK().stereo, stereo = { flashes: flashes.filter(([, c]) => [mark, other].includes(c.getHex?.())).length, sparks: sparks.length, scuffs: splats.length, hit: feels.filter(([k]) => k === 'hit').length, impact: feels.filter(([k]) => k === 'impact').length };
+    // every burst: a flash at its cup, sparks and a scuff on its half, feel hit; the held jelly is on the low half, hit by two of the four, each with its own sparks, scuff and feel impact
+    return ok(shove.glow > 0.5 && shove.kick > 0.5 && shove.flashes > SK().shove.waves && shove.motes > 10
+      && stereo.flashes >= S.bursts && stereo.sparks >= S.bursts + 2 && stereo.scuffs >= S.bursts + 2 && stereo.hit >= S.bursts && stereo.impact >= 2, { shove, stereo });
   },
 });
