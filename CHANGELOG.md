@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v492 adds Duplicate (Ctrl+D or ⧉) to the dev layout editor: a copy of the selected furniture drops 10 cm aside, solid and drawn in the same batches as the original, and saves and exports as a `copy:` entry; the layout can also hold `prop:` entries for the coming prop library.
+
 v491 keeps small props solid for the camera: a cup or teapot the camera's edge rays only brush past no longer fades out, and one that really sits between the jelly and the camera goes half see-through instead of vanishing (`src/camera.js`).
 
 v490 moves the Mushroom Pillow, the Singing Bowl and the Bull's table out of their furniture: the Pillow sits 25 cm forward on the sofa, the Bowl 10 cm forward on its chair with a shorter-held striker, the Bull's rush stops short of the changing pad's raised ends and the baby wipes and a desk-edge trinket are gone, so no Elite attack passes through furniture.

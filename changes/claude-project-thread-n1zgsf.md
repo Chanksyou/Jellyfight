@@ -1,1 +1,0 @@
-adds Duplicate (Ctrl+D or ⧉) to the dev layout editor: a copy of the selected furniture drops 10 cm aside, solid and drawn in the same batches as the original, and saves and exports as a `copy:` entry; the layout can also hold `prop:` entries for the coming prop library.
