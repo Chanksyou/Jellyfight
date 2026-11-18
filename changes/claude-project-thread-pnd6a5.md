@@ -1,0 +1,1 @@
+adds two snake plants to the layout editor's props, made from downloaded models: one in a white marble pot with pale variegated leaves, and a tall striped one in a ceramic pot with a saucer. Each is two draw calls and under 4,000 triangles, with its shading baked in.

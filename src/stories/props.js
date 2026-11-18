@@ -58,7 +58,7 @@ story('props/the-file-comes-down-only-when-asked', {
 });
 
 story('content/props-library-is-checked', {
-  about: 'content/props.kdl names every prop once, with a label, a size from 0.5 to 2 and where it stands; a duplicate id, a missing label, a size out of range or an unknown stick= stops loading with the line named.',
+  about: 'content/props.kdl names every prop once, with a label, a size from 0.5 to 2 and where it stands; either a builder (source=) or an imported model (file=); a duplicate id, a missing label, both or neither of source/file, a size out of range or an unknown stick= stops loading with the line named.',
   setup() {},
   play() {
     const fails = (kdl) => { try { compileProps(parse(kdl, 'props.kdl'), 'props.kdl'); return null; } catch (e) { return e.message; } };
@@ -70,8 +70,11 @@ story('content/props-library-is-checked', {
       tooBig: fails('prop "fern" source="fern" label="Fern" size=3 stick="surface"'),
       hangs: fails('prop "fern" source="fern" label="Fern" size=1 stick="ceiling"'),
       badId: fails('prop "rubber-plant" source="fern" label="Fern" size=1 stick="surface"'),
+      both: fails('prop "fern" source="fern" file="tools/props-src/fern.glb" label="Fern" size=1 stick="surface"'),
+      neither: fails('prop "fern" label="Fern" size=1 stick="surface"'),
+      file: fails('prop "fern" file="tools/props-src/fern.glb" label="Fern" size=1 stick="surface"'),
     };
-    const named = Object.entries(cases).filter(([k, m]) => k !== 'good').every(([, m]) => /props\.kdl:\d+/.test(m));
-    return ok(cases.good === null && named, cases);
+    const named = Object.entries(cases).filter(([k]) => k !== 'good' && k !== 'file').every(([, m]) => /props\.kdl:\d+/.test(m));
+    return ok(cases.good === null && cases.file === null && named, cases);
   },
 });

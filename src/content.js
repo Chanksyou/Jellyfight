@@ -241,10 +241,11 @@ export function compileProps(nodes, file = 'content/props.kdl') {
     if (typeof id !== 'string' || !/^[A-Za-z][A-Za-z0-9]*$/.test(id)) throw new Error(`${where}: prop needs an id of letters and digits, like prop "rubberPlant"`);
     if (seen.has(id)) throw new Error(`${where}: there are two props called "${id}"`);
     seen.add(id);
-    for (const k of ['source', 'label']) if (typeof n.props[k] !== 'string') throw new Error(`${where}: "${id}" needs ${k}="…"`);
+    if (typeof n.props.label !== 'string') throw new Error(`${where}: "${id}" needs label="…"`);
+    if ((typeof n.props.source === 'string') === (typeof n.props.file === 'string')) throw new Error(`${where}: "${id}" needs either source="…" (a builder) or file="…" (an imported model), not both`);
     if (!(n.props.size >= 0.5 && n.props.size <= 2)) throw new Error(`${where}: "${id}" size= must be a number from 0.5 to 2`);
     if (!PROP_STICKS.includes(n.props.stick)) throw new Error(`${where}: "${id}" stick= must be one of ${PROP_STICKS.join(', ')}, not "${n.props.stick}"`);
-    out.push({ id, source: n.props.source, label: n.props.label, size: n.props.size, stick: n.props.stick });
+    out.push({ id, source: n.props.source, file: n.props.file, label: n.props.label, size: n.props.size, stick: n.props.stick });
   }
   return out;
 }
