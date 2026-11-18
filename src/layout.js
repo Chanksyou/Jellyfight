@@ -7,14 +7,14 @@
 // Desktop: click an object to select it (or pick it from the list), drag it to move it along
 // the floor, WASD/arrows pan, wheel zooms, right-drag turns the view. Q/E rotate 15° (hold
 // Shift for 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Del delete, Ctrl+Z undo, Esc done.
+// The screen itself (bars, Add drawer, sheets) is layout-ui.js; the ? button lists every key.
 //
 // Edits are kept per act: the Act buttons in the top bar reload the game into that act with
 // the editor open, and each act's edits (and export) are its own — however many acts the
 // game grows. Hide just stops showing an object; delete records { deleted: true } so the
 // bake drops it for good. Hidden and deleted objects stay selectable in the list, and
 // ⌂ (put back) or 👁 restores them.
-// Touch: tap to select, drag it to move; drag empty space to pan; pinch to zoom; the toolbar
-// does the rest.
+// Touch: tap to select, drag it to move; drag empty space to pan; pinch to zoom; the bars do the rest.
 //
 // Floor vents are edited here too: each has an orange disc (the grille on the floor) and a cyan
 // ball (where it throws you), joined by the arc of the jump. Drag either one and it sticks to
@@ -26,10 +26,14 @@
 // "copy:<object key>#n" { from, p, q }; a library prop (props.js) is "prop:<id>#n" { prop, p, q, s }.
 // They're made before the collision world is built, so they're solid like the room's own
 // furniture. Deleting one you added removes its entry; deleting a baked one records it deleted.
+// Add (the drawer) places a prop in the middle of the view and then stamps one more on each tap
+// on a surface; things you added stick to the top of whatever is under the pointer as you drag.
 import * as THREE from 'three';
 import { BAKED_LAYOUT, HIDDEN_SHELL } from './layout-baked.js';
 import { HIDDEN } from './batch.js';
 import { loadProps } from './props.js';
+import { LayoutUi } from './layout-ui.js';
+import { DRESSED } from './set-dressing.js';
 
 const KEY = 'jf-layout-v1';
 const SKIP = /^(Shell|door-|Hall_lights|LED_cove|Kitchen_lights|Closet$)/;   // walls, doors and lights stay put
@@ -66,6 +70,10 @@ export function copyOf(src) {
   return c;
 }
 
+// The TV, soundbar and shower curtain are drawn by set-dressing.js (the baked piece is hidden, and set dressing
+// runs after the layout at boot, so it's known by name): a copy would be the flat baked one
+export const isDressed = (node) => !!node.userData.dressed || DRESSED.includes(node.name);
+
 // Make this act's added things that aren't in the room yet: a copy once its source's room is
 // loaded (a later act's rooms arrive with loadRooms), a prop once the library has it
 async function addThings(root, baked, data) {
@@ -80,7 +88,7 @@ async function addThings(root, baked, data) {
   const made = [];
   for (const [key, e] of want) {
     const from = e.from ? src.get(e.from) : props[e.prop];
-    if (!from) continue;
+    if (!from || isDressed(from)) continue;
     const node = copyOf(from);
     const { home, ...own } = node.userData;   // keep the source's own flags (noCollide, noCameraFade…), not its home
     node.userData = { ...own, added: key, ...(e.from ? { from: e.from } : { prop: e.prop, s: e.s ?? 1 }) };
@@ -168,12 +176,12 @@ export async function applyLayout(root, act, data = loadLayout(act)) {
   for (const { key, node, added } of [...movables(root), ...addedThings(root)]) {
     if (!node.userData.home) {
       if (baked[key]) applyEdit(node, baked[key]);
-      node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible };
+      node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible, s: node.userData.prop ? baked[key]?.s ?? 1 : undefined };
     }
     const e = data[key];
     if (!e) continue;
     const h = node.userData.home;
-    if ((!added || key in baked) && e.p && e.q && !e.deleted && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
+    if ((!added || key in baked) && e.p && e.q && !e.deleted && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v && (e.s ?? h.s) === h.s) { delete data[key]; pruned = true; continue; }
     applyEdit(node, e);
   }
   if (pruned) saveLayout(act, data);
@@ -204,7 +212,10 @@ export class LayoutEditor {
     this.box = new THREE.Box3Helper(new THREE.Box3(), 0xffd23a);
     this.box.visible = false;
     this.scene.add(this.box);
-    this.buildUi();
+    this.ui = new LayoutUi(this);
+    this.el = this.ui.el;
+    this.stamp = null;   // { id }: each tap on a surface drops another of this prop
+    this.tpl = {};       // prop templates loaded so far
     this.bind();
   }
 
@@ -262,88 +273,25 @@ export class LayoutEditor {
   }
   ventHome(vi) { const h = this.traversal.vents[vi].home; this.setVent(vi, { at: h.at, land: h.land }); }
 
-  // the first solid, visible surface under the pointer (furniture, floor), for dropping handles on
-  surfaceHit(e) {
+  // the first solid, visible surface under the pointer (furniture, floor), for dropping things on.
+  // exclude: a node to see through (the thing being dragged); up: only surfaces that face up (tops, not sides)
+  surfaceHit(e, { exclude, up } = {}) {
     const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    const within = (o, root) => { for (; o; o = o.parent) if (o === root) return true; return false; };
     for (const h of this.pointerRay(e).intersectObject(this.root, true)) {
       const m = h.object.material;
       if (!h.object.isMesh || m.visible === false || m.colorWrite === false || m.transparent || !shown(h.object)) continue;
+      if (exclude && within(h.object, exclude)) continue;
+      if (up && h.face && h.face.normal.clone().transformDirection(h.object.matrixWorld).y < 0.5) continue;
       return h.point;
     }
     return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   }
 
-  // ---------------------------------------------------------------- UI
-  buildUi() {
-    const el = this.el = document.createElement('div');
-    el.className = 'jf-keep';
-    el.hidden = true;
-    el.innerHTML = `<style>
-      #jf-layout { position: fixed; inset: auto 0 0 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 8px;
-        background: linear-gradient(transparent, #0d1020dd 30%); font: 600 13px system-ui, sans-serif; color: #fff; pointer-events: none; }
-      #jf-layout > * { pointer-events: auto; }
-      #jf-layout button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 12px; font: inherit; min-width: 44px; }
-      #jf-layout select { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px; font: inherit; max-width: 52vw; }
-      #jf-layout button:disabled { opacity: .35; }
-      #jf-layout button.go { background: #3a8a5a; }
-      #jf-layout .name { flex-basis: 100%; text-align: center; font-size: 14px; text-shadow: 0 1px 3px #000; }
-      #jf-layout-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 30; background: #0d1020cc; color: #ffd23a; padding: 6px 12px;
-        border-radius: 10px; font: 600 12px system-ui, sans-serif; text-align: center; pointer-events: none; max-width: 90vw; }
-      #jf-layout-top button { pointer-events: auto; background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 8px; padding: 3px 10px; font: inherit; margin: 0 2px; }
-      #jf-layout-io { position: fixed; inset: 10% 8%; z-index: 31; background: #1a1d30; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: #fff; font: 13px system-ui, sans-serif; }
-      #jf-layout-io textarea { flex: 1; font: 12px ui-monospace, monospace; background: #0d1020; color: #9fe2ff; border: 1px solid #ffffff33; border-radius: 8px; padding: 8px; }
-      #jf-layout-io div { display: flex; gap: 8px; justify-content: flex-end; }
-      #jf-layout-io button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 14px; font: 600 13px system-ui, sans-serif; }
-    </style>
-    <div id="jf-layout-top">🛠 Layout editor (dev) · editing <b>Act ${this.act}</b>${(this.acts || [this.act]).filter((n) => n !== this.act).map((n) => ` <button data-a="act${n}" title="Edit Act ${n}'s layout instead">Act ${n}</button>`).join('')} · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Del delete · Ctrl+D duplicate · Ctrl+Z undo'}</div>
-    <div id="jf-layout">
-      <div class="name">Nothing selected</div>
-      <select class="list" title="Choose an object (hidden and deleted ones too)"><option value="">— choose an object —</option></select>
-      <button data-a="rotL" title="Rotate left 15° (Q)">⟲</button><button data-a="rotR" title="Rotate right 15° (E)">⟳</button>
-      <button data-a="up" title="Raise 1 cm (R)">⬆</button><button data-a="down" title="Lower 1 cm (F)">⬇</button>
-      <button data-a="hide" title="Hide / show (H)">👁</button><button data-a="del" title="Delete this object (Del)">🗑</button><button data-a="home" title="Put this one back">⌂</button><button data-a="dup" title="Duplicate: a copy 10 cm aside (Ctrl+D)">⧉</button>
-      <button data-a="undo" title="Undo (Ctrl+Z)">↶</button>
-      <button data-a="viewL" title="Turn view">◀</button><button data-a="viewR" title="Turn view">▶</button>
-      <button data-a="io">⇄ Export</button><button data-a="reset">Reset all</button><button data-a="done" class="go">Done</button>
-    </div>`;
-    document.body.appendChild(el);
-    this.nameEl = el.querySelector('.name');
-    this.listEl = el.querySelector('.list');
-    this.listEl.addEventListener('change', () => {
-      const it = this.items.find((x) => x.key === this.listEl.value);
-      if (it) { this.sel = it; this.refresh(); }
-    });
-    el.addEventListener('click', (e) => {
-      const a = e.target.closest('button')?.dataset.a;
-      if (!a) return;
-      if (a.startsWith('act')) { const n = +a.slice(3); if (n !== this.act) this.onAct?.(n); return; }
-      ({
-        rotL: () => this.rotate(Math.PI / 12), rotR: () => this.rotate(-Math.PI / 12),
-        up: () => this.raise(0.01), down: () => this.raise(-0.01),
-        hide: () => this.toggleHide(), del: () => this.deleteSelected(), home: () => this.putBack(), dup: () => this.duplicate(), undo: () => this.undo(),
-        viewL: () => { this.yaw += Math.PI / 8; }, viewR: () => { this.yaw -= Math.PI / 8; },
-        io: () => this.showIo(), reset: () => this.resetAll(), done: () => this.onDone?.(),
-      })[a]?.();
-      this.refresh();
-    });
-  }
-
-  label(x) { return x.node.name.replace(/_/g, ' ') + (!x.added ? '' : x.node.userData.from ? ' (copy)' : ' (added)'); }
+  // ---------------------------------------------------------------- UI (layout-ui.js)
   refresh() {
+    this.ui.refresh();
     const it = this.sel;
-    this.nameEl.textContent = it ? `${it.vi != null ? it.node.name : this.label(it)}${it.deleted ? ' (deleted)' : it.node.visible ? '' : ' (hidden)'}${this.data[it.key] && !it.deleted ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
-    this.el.querySelectorAll('[data-a=rotL],[data-a=rotR],[data-a=up],[data-a=down],[data-a=hide],[data-a=home]').forEach((b) => { b.disabled = !it || (it.vi != null && /rot|hide/.test(b.dataset.a)); });
-    this.el.querySelector('[data-a=del]').disabled = !it || it.vi != null || !!it.deleted;
-    this.el.querySelector('[data-a=dup]').disabled = !it || it.vi != null || !!it.deleted;
-    this.el.querySelector('[data-a=undo]').disabled = !this.undoStack.length;
-    // the object list: rebuilt only when membership or states change; hidden and deleted stay listed
-    const sig = this.items.map((x) => `${x.key}:${x.deleted ? 'd' : x.node.visible ? '' : 'h'}${this.data[x.key] ? 'e' : ''}`).join('|');
-    if (sig !== this._listSig) {
-      this._listSig = sig;
-      this.listEl.innerHTML = '<option value="">— choose an object —</option>' + this.items.map((x) =>
-        `<option value="${x.key}">${this.label(x)}${x.deleted ? ' · deleted' : x.node.visible ? '' : ' · hidden'}${this.data[x.key] && !x.deleted ? ' · edited' : ''}</option>`).join('');
-    }
-    this.listEl.value = it && it.vi == null ? it.key : '';
     if (it) { visibleBox(it.node, this.box.box); this.box.visible = true; this.box.updateMatrixWorld(true); } else this.box.visible = false;
   }
 
@@ -353,7 +301,7 @@ export class LayoutEditor {
   }
 
   open() { this.refreshItems(); this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
-  close() { this.el.hidden = true; this.active = false; this.sel = null; this.box.visible = false; this.drag = null; this.showVents(false); }
+  close() { this.el.hidden = true; this.ui.dismiss(); this.active = false; this.sel = null; this.stamp = null; this.box.visible = false; this.drag = null; this.showVents(false); }
   showVents(on) { for (const it of this.ventItems) { it.node.visible = on; it.arc.visible = on; } }
 
   // ---------------------------------------------------------------- edits
@@ -362,7 +310,7 @@ export class LayoutEditor {
     if (it.vi != null) return this.commitVent(it, snap);
     const n = it.node, h = n.userData.home, u = n.userData;
     const p = n.position.toArray().map((v) => +v.toFixed(4)), q = n.quaternion.toArray().map((v) => +v.toFixed(5));
-    const same = h && !it.deleted && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v;
+    const same = h && !it.deleted && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v && u.s === h.s;
     const what = !it.added ? {} : u.from ? { from: u.from } : { prop: u.prop, s: u.s };   // an added thing's entry is the thing
     if (same && (!it.added || it.key in this.baked)) delete this.data[it.key];
     else this.data[it.key] = { ...what, p, q, ...(it.deleted ? { deleted: true } : n.visible ? {} : { hidden: true }) };
@@ -386,6 +334,19 @@ export class LayoutEditor {
     this.commit(it, snap);
   }
   raise(dy) { const it = this.sel; if (!it) return; const snap = this.snapshot(it); it.node.position.y += dy; this.commit(it, snap); }
+  // a prop's size: 0.5-2x the library's, in 10% steps (about its base, so it stays on what it stands on)
+  resize(d) {
+    const it = this.sel, u = it?.node.userData;
+    if (!u?.prop || it.deleted) return;
+    const s = Math.min(2, Math.max(0.5, Math.round((u.s + d) * 10) / 10));
+    if (s === u.s) return;
+    const snap = this.snapshot(it);
+    u.s = s; it.node.scale.setScalar(s);
+    this.commit(it, snap);
+  }
+  // does dragging it drop it on the top of whatever is under the pointer? (added things do; furniture slides on the floor unless you ask)
+  sticks(it) { return it.stick ?? !!it.added; }
+  toggleStick() { const it = this.sel; if (it && it.vi == null) it.stick = !this.sticks(it); }
   toggleHide() {
     const it = this.sel; if (!it || it.vi != null) return;
     const snap = this.snapshot(it);
@@ -420,30 +381,62 @@ export class LayoutEditor {
     for (const node of nodes) { node.updateMatrixWorld(true); this.world.addObjects([node]); this.statics?.add(node); }
     this.refreshItems();
   }
-  // a copy of the selected object (or prop) 10 cm aside along the room, selected
-  duplicate() {
-    const it = this.sel; if (!it || it.vi != null || it.deleted) return;
-    const u = it.node.userData, from = it.added ? u.from : it.key, base = from ? `copy:${from}` : `prop:${u.prop}`;
+  freeKey(base) {
     const taken = (k) => k in this.data || k in this.baked || this.items.some((x) => x.key === k);
     let n = 1;
     while (taken(`${base}#${n}`)) n++;
-    const key = `${base}#${n}`, node = copyOf(it.node), app = it.node.parent;
+    return `${base}#${n}`;
+  }
+  // a new thing (positioned already) made part of the room: solid, batched, saved, selected
+  addNew(node, key, what) {
     const { home, ...own } = node.userData;
-    node.userData = { ...own, added: key, ...(from ? { from } : { prop: u.prop, s: u.s }) };
+    node.userData = { ...own, added: key, ...what };
     node.visible = true;
-    node.position.add(new THREE.Vector3(0.1, 0, 0).applyMatrix3(new THREE.Matrix3().setFromMatrix4(app.matrixWorld).invert()));
-    node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: true };
-    app.add(node);
+    (this.root.getObjectByName('Apartment') || this.root).add(node);
+    node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: true, s: what.s };
     this.place([node]);
     this.sel = this.byNode.get(node);
     this.commit(this.sel, { key, before: null });
   }
+  // a copy of the selected object (or prop) 10 cm aside along the room, selected
+  // (not of a dressed piece: isDressed)
+  canCopy(it) { return it.vi == null && !it.deleted && !isDressed(it.node); }
+  duplicate() {
+    const it = this.sel; if (!it || !this.canCopy(it)) return;
+    const u = it.node.userData, from = it.added ? u.from : it.key, node = copyOf(it.node);
+    node.position.add(new THREE.Vector3(0.1, 0, 0).applyMatrix3(new THREE.Matrix3().setFromMatrix4(it.node.parent.matrixWorld).invert()));
+    this.addNew(node, this.freeKey(from ? `copy:${from}` : `prop:${u.prop}`), from ? { from } : { prop: u.prop, s: u.s });
+  }
+  // Add: a library prop in the middle of the view, then every tap on a surface stamps another (until endStamp)
+  async addProp(id) {
+    this.tpl[id] ||= (await loadProps([id]))[id];
+    const r = this.dom.getBoundingClientRect();
+    this.stamp = { id };
+    this.stampAt({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 });
+  }
+  stampAt(e) {
+    const { id } = this.stamp, app = this.root.getObjectByName('Apartment') || this.root, at = this.surfaceHit(e, { up: true });
+    if (!at) return;   // looking along the floor: nothing to drop it on
+    const node = copyOf(this.tpl[id]);
+    node.position.copy(app.worldToLocal(at));
+    node.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.items.length * 2.4);   // each a different way round
+    this.addNew(node, this.freeKey(`prop:${id}`), { prop: id, s: 1 });
+  }
+  endStamp() { const was = !!this.stamp; this.stamp = null; return was; }
+  // the home state back: where it was baked or loaded, shown, its own size
+  toHome(it) {
+    const h = it.node.userData.home, n = it.node;
+    if (!h) return;
+    it.deleted = false;
+    n.position.fromArray(h.p); n.quaternion.fromArray(h.q); n.visible = h.v;
+    if (h.s) { n.userData.s = h.s; n.scale.setScalar(h.s); }
+    n.updateMatrixWorld(true);
+  }
   putBack() {
     const it = this.sel; if (!it) return;
     if (it.vi != null) { const snap = this.snapshot(it); this.ventHome(it.vi); this.commitVent(it, snap); return; }
-    const snap = this.snapshot(it), h = it.node.userData.home;
-    it.deleted = false;
-    it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v;
+    const snap = this.snapshot(it);
+    this.toHome(it);
     this.commit(it, snap);
   }
   undo() {
@@ -459,48 +452,34 @@ export class LayoutEditor {
     const it = this.items.find((x) => x.key === u.key);
     if (!it) return;
     if (this.isNew(it) && !u.before) { this.drop(it); saveLayout(this.act, this.data); this.onChange?.(); return; }   // undo a duplicate
-    const h = it.node.userData.home;
-    if (u.before) applyEdit(it.node, u.before);
-    else { it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
+    if (u.before) { applyEdit(it.node, u.before); if (u.before.s) it.node.userData.s = u.before.s; }
+    else this.toHome(it);
     it.deleted = !!u.before?.deleted;
     this.commit(it, null);
     this.sel = it;
   }
   resetAll() {
-    if (!confirm('Put every object back where it started?')) return;
-    for (const it of [...this.items]) { if (this.isNew(it)) { this.drop(it); continue; } const h = it.node.userData.home; if (!h) continue; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
+    for (const it of [...this.items]) { if (this.isNew(it)) this.drop(it); else this.toHome(it); }
     this.traversal?.vents.forEach((v, vi) => this.ventHome(vi));
     this.data = {}; this.undoStack = []; saveLayout(this.act, this.data); this.onChange?.();
   }
 
-  showIo() {
-    const box = document.createElement('div');
-    box.id = 'jf-layout-io';
-    box.className = 'jf-keep';
-    box.innerHTML = `<b>Layout code — Act ${this.act}</b><span>Copy this and paste it to Claude to bake the layout in. Or paste a code here and press Load.</span>
-      <textarea spellcheck="false"></textarea><div><button data-a="copy">Copy</button><button data-a="load">Load</button><button data-a="close">Close</button></div>`;
-    const ta = box.querySelector('textarea');
-    ta.value = JSON.stringify({ act: this.act, edits: this.data }, null, 1);
-    box.addEventListener('click', async (e) => {
-      const a = e.target.closest('button')?.dataset.a;
-      if (a === 'copy') { ta.select(); try { await navigator.clipboard.writeText(ta.value); e.target.textContent = 'Copied!'; } catch { document.execCommand?.('copy'); e.target.textContent = 'Selected: copy it'; } }
-      if (a === 'load') {
-        try {
-          const d = JSON.parse(ta.value);
-          const wrapped = d && Number.isInteger(d.act) && d.edits && typeof d.edits === 'object';
-          const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
-          if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); box.querySelector('b').textContent = `Saved under Act ${d.act} — switch acts to see it`; return; }
-          for (const it of [...this.items]) { if (this.isNew(it)) { this.drop(it); continue; } const h = it.node.userData.home; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
-          this.data = edits; this.undoStack = []; saveLayout(this.act, edits); this.place(await applyLayout(this.root, this.act, edits));
-          for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
-          this.traversal?.vents.forEach((v, vi) => { const e = edits[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
-          this.onChange?.(); this.refresh(); box.remove();
-        } catch (err) { e.target.textContent = 'Not valid JSON'; }
-      }
-      if (a === 'close') box.remove();
-    });
-    document.body.appendChild(box);
+  // this act's edits as the code to paste to Claude (and back in with loadCode)
+  exportCode() { return JSON.stringify({ act: this.act, edits: this.data }, null, 1); }
+  // replaces this act's edits with a pasted code; returns a note when it went elsewhere, throws when it isn't a code
+  async loadCode(text) {
+    const d = JSON.parse(text);
+    const wrapped = d && Number.isInteger(d.act) && d.edits && typeof d.edits === 'object';
+    const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
+    if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); return `Saved under Act ${d.act}: switch acts to see it`; }
+    for (const it of [...this.items]) { if (this.isNew(it)) this.drop(it); else this.toHome(it); }
+    this.data = edits; this.undoStack = []; saveLayout(this.act, edits); this.place(await applyLayout(this.root, this.act, edits));
+    for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
+    this.traversal?.vents.forEach((v, vi) => { const e = edits[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
+    this.onChange?.(); this.refresh();
+    return null;
   }
+  showIo() { this.ui.showIo(); }
 
   // ---------------------------------------------------------------- input
   pointerRay(e) {
@@ -534,8 +513,13 @@ export class LayoutEditor {
       const got = this.pick(e);
       if (got && got.it === this.sel) {
         // grab the selected object: move it on the horizontal plane through the grab point
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -got.point.y);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -got.point.y), n = got.it.node;
         this.drag = { move: true, plane, last: got.point.clone(), snap: this.snapshot(got.it), moved: false, surface: got.it.vi != null };
+        if (!this.drag.surface && this.sticks(got.it)) {
+          // it keeps its grip on where you took hold, and its base rides on the surface under the pointer
+          const at = n.getWorldPosition(new THREE.Vector3());
+          this.drag.stick = { dx: at.x - got.point.x, dz: at.z - got.point.z, dy: at.y - visibleBox(n, new THREE.Box3()).min.y };
+        }
       } else this.drag = { pan: true, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, picked: got?.it || null };
       d.setPointerCapture?.(e.pointerId);
     });
@@ -552,6 +536,13 @@ export class LayoutEditor {
         it.node.position.copy(p).y += it.end === 'at' ? 0.003 : 0.018;
         it.node.updateMatrixWorld(true);
         this.setVent(it.vi, this.ventFromHandles(it));
+        g.moved = true;
+        this.refresh();
+      } else if (g.move && g.stick) {
+        const n = this.sel.node, p = this.surfaceHit(e, { exclude: n, up: true });
+        if (!p) return;
+        n.position.copy(n.parent.worldToLocal(new THREE.Vector3(p.x + g.stick.dx, p.y + g.stick.dy, p.z + g.stick.dz)));
+        n.updateMatrixWorld(true);
         g.moved = true;
         this.refresh();
       } else if (g.move) {
@@ -582,8 +573,8 @@ export class LayoutEditor {
       const g = this.drag; this.drag = null;
       if (!g) return;
       if (g.move && g.moved) this.commit(this.sel, g.snap);
-      // a tap (not a pan): select what was under it, or deselect
-      if (g.pan && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) this.sel = g.picked;
+      // a tap (not a pan): stamping drops another on the surface (a tap on something you added selects it instead); else select what was under it, or deselect
+      if (g.pan && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) { if (this.stamp && !g.picked?.added) this.stampAt(e); else this.sel = g.picked; }
       this.refresh();
     };
     d.addEventListener('pointerup', up);
@@ -602,7 +593,7 @@ export class LayoutEditor {
       else if (e.code === 'Delete' || e.code === 'Backspace') this.deleteSelected();
       else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) this.undo();
       else if (e.code === 'KeyD' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.duplicate(); }
-      else if (e.code === 'Escape') this.onDone?.();
+      else if (e.code === 'Escape') { if (!this.ui.dismiss() && !this.endStamp()) this.onDone?.(); }   // a sheet first, then stamping, then done
       else return;
       this.refresh();
     });

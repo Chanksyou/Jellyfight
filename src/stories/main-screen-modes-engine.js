@@ -374,7 +374,7 @@ story('dev/layout-editor-acts-and-delete', {
     const slots = STAGES.filter((s) => !s.arena).every((s) => !!BAKED_LAYOUT[s.id]) && !!BAKED_LAYOUT[3] && typeof loadLayout(3) === 'object';
     // pick an object from the list and delete it: gone, and recorded as deleted
     const it = L.items[0];
-    L.listEl.value = it.key; L.listEl.dispatchEvent(new Event('change'));
+    L.ui.listEl.value = it.key; L.ui.listEl.dispatchEvent(new Event('change'));
     const picked = L.sel === it;
     L.deleteSelected();
     const gone = !it.node.visible && it.deleted && L.data[it.key]?.deleted === true;

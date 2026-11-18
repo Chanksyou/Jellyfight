@@ -339,10 +339,15 @@ A bug turns up near you and another comes 1.5 s after you clear it; an elite put
 Pause to pick another; Restart goes back to a normal run (`Run.startDuel` in `src/run.js`).
 
 **🛠 Layout** (dev tools) lets you move, rotate, raise/lower, hide and delete the furniture and objects.
-Tap or click an object to select it (a yellow box shows it), or pick it from the toolbar's list — hidden and deleted objects stay in the list so they can be brought back (⌂ puts one back, 👁 un-hides or un-deletes).
+Tap or click an object to select it (a yellow box shows it), or pick it from the list at the top — hidden and deleted objects stay in the list so they can be brought back (⌂ puts one back, 👁 un-hides or un-deletes).
 Drag a selected object to move it.
 Desktop: WASD pan, wheel zoom, right-drag turns the view, Q/E rotate 15° (Shift: 90°), R/F raise/lower 1 cm (Shift: 5 cm), H hide, Del delete, Ctrl+Z undo.
-Touch: drag empty space to pan, pinch to zoom, and use the toolbar.
+Touch: drag empty space to pan, pinch to zoom, and use the bars; the **?** button lists every key and gesture.
+The screen is compact: act chips and **?** on top, a slim bar (Add, Undo, Export, Done) below, and a selection bar only while something is selected (rotate, up/down, a prop's size, Stick, Duplicate, hide, delete, put back).
+**Add** opens the prop library (`content/props.kdl`): tap a plant and it lands on the surface in the middle of the view, then each tap on a surface drops another until you press Esc, tap the Stamping chip or press Done.
+Things you added, and copies, stick to the top of whatever is under the pointer as you drag them; the **Stick** switch does the same for furniture.
+**Duplicate** copies the selected object (not the TV or soundbar, which the room draws separately), and a prop resizes from 50% to 200% in 10% steps.
+**Export** has the layout code, Load and Reset all.
 
 Edits are saved in the browser (`localStorage` key `jf-layout-v1`, one slice per act) and applied on every load before collisions are built, so moved furniture is solid where it is.
 The **Act** buttons in the top bar switch which act you're editing — one per act in the game, so a new act gets one automatically — the game reloads into that act with the editor open, and each act's edits are kept and exported separately, so an edit can never leak into another act's rooms. **Export** shows a JSON code tagged with its act; paste it back to Claude to bake the layout into the stage for everyone.
@@ -351,7 +356,7 @@ Hide just stops showing an object; **delete** (🗑) also records it as `deleted
 Drag either and it sticks to whatever surface is under the pointer (point at a cushion or a shelf); R/F nudge it up or down, ⌂ puts it back.
 They export with the furniture as `vent:<name>` entries, which get baked into the vent list in `src/stage1.js`.
 Other stage markers (treasure spots, elites) don't follow moved furniture yet.
-Code: `src/layout.js`.
+Code: `src/layout.js` (the editing) and `src/layout-ui.js` (its screen).
 
 ## Controls
 

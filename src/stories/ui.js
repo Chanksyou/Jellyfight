@@ -117,6 +117,9 @@ story('ui/kit-on-a-phone', kitStory(true));
 // --- the guards: the main screens on a phone, measured as a player sees them. Screens are opened the
 // way the game opens them and closed again; each returns what to measure.
 const over = () => document.getElementById('g-over');
+// the dev layout editor, opened from the pause screen's dev panel the way a person does
+const layoutOpen = () => { over().hidden = false; over().querySelector('[data-act="layout"]').click(); step(30); };
+const layoutClose = () => { G().layout.onDone(); over().hidden = true; };
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   pause: { open() { over().hidden = false; }, close() { over().hidden = true; } },
@@ -124,6 +127,8 @@ export const SCREENS = {
   trophies: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="trophies"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   hud: { open() {}, close() {} },
   'dev-panel': { open() { const m = G().mainMenu; m.show(); over().classList.add('dev-open'); over().hidden = false; over().querySelector('[data-act="dev"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); over().classList.remove('dev-open'); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
+  layout: { open() { layoutOpen(); const L = G().layout; L.sel = L.items.find((x) => x.key === 'Lounge_chair#1'); L.stamp = { id: 'pothos' }; L.refresh(); }, close: layoutClose },
+  'layout-add': { open() { layoutOpen(); G().layout.ui.showAdd(); }, close: layoutClose },
   'type-pick': { open() { G().picker.open({ start: 'normal', onPlay() {}, onBack() {} }); }, close() { G().picker.close(); } },
   'level-up': { open() { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, close() { G().run.ui.close(); } },
   'treasure-pick': { open() { G().run.pickTreasure(); }, close() { G().run.ui.close(); } },

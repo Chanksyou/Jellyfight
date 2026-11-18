@@ -45,6 +45,7 @@ import './stories/elite-platforms.js';
 import './stories/elite-room.js';
 import './stories/events-boss.js';
 import './stories/main-screen-modes-engine.js';
+import './stories/layout-editor.js';
 import './stories/main-menu.js';
 import './stories/come-back.js';
 import './stories/payoff.js';
