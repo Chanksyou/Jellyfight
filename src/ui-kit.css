@@ -33,16 +33,17 @@
   min-width: var(--ui-target); min-height: var(--ui-target); padding: 0 var(--ui-space-4);
   border: 1px solid var(--ui-line); border-radius: var(--ui-radius-pill); background: var(--ui-glass); color: var(--ui-ink);
   font: 600 var(--ui-size-body)/1.1 var(--ui-font-text); text-decoration: none; cursor: pointer; touch-action: manipulation;
-  transition: transform var(--ui-fast) var(--ui-ease-out), background-color var(--ui-fast), box-shadow var(--ui-fast), filter var(--ui-fast);
+  transition: transform var(--ui-fast) var(--ui-ease-arrive), background-color var(--ui-fast);   /* letting go springs back past 1 */
 }
-.ui-btn:active { transform: scale(.96); }
+/* pressing is quicker than letting go */
+.ui-btn:active { transform: scale(.96); transition: transform calc(var(--ui-fast) * .6) var(--ui-ease-settle), background-color var(--ui-fast); }
 .ui-btn:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 3px; }
 .ui-btn:disabled, .ui-btn[aria-disabled="true"] { opacity: .45; cursor: default; transform: none; }
 .ui-btn--primary {
   padding: 0 var(--ui-space-5); border-color: transparent; background: var(--ui-gold); color: var(--ui-gold-ink);
   font: 600 var(--ui-size-heading)/1 var(--ui-font-display); box-shadow: 0 4px 0 var(--ui-gold-deep), 0 8px 22px var(--ui-shade);
 }
-.ui-btn--primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ui-gold-deep), 0 4px 12px var(--ui-shade); }
+.ui-btn--primary:active { transform: translateY(3px) scale(.98); box-shadow: 0 1px 0 var(--ui-gold-deep), 0 4px 12px var(--ui-shade); }
 .ui-btn--ghost { border-color: transparent; background: transparent; color: var(--ui-ink-dim); }
 .ui-btn--icon { width: var(--ui-target); padding: 0; border-radius: 50%; }
 .ui-btn--icon .ui-icon { width: 22px; height: 22px; }
@@ -79,7 +80,7 @@
 .ui-card[data-rarity="rare"] { --rarity: var(--ui-rare); }
 .ui-card[data-rarity="epic"] { --rarity: var(--ui-epic); }
 .ui-card[data-rarity="legendary"] { --rarity: var(--ui-legendary); }
-button.ui-card { cursor: pointer; transition: transform var(--ui-fast) var(--ui-ease-out), box-shadow var(--ui-fast); }
+button.ui-card { cursor: pointer; transition: transform var(--ui-fast) var(--ui-ease-arrive); }
 button.ui-card:active { transform: scale(.98); }
 button.ui-card:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 3px; }
 .ui-card-icon { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; font-size: 28px; line-height: 1; }
@@ -94,7 +95,7 @@ button.ui-card:focus-visible { outline: 2px solid var(--ui-mint); outline-offset
   display: inline-grid; justify-items: center; align-content: center; gap: var(--ui-space-1); box-sizing: border-box;
   min-width: 76px; min-height: 64px; padding: var(--ui-space-2) var(--ui-space-3); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-m);
   background: var(--ui-glass); color: var(--ui-ink); font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); touch-action: manipulation;
-  transition: transform var(--ui-fast) var(--ui-ease-out), background-color var(--ui-fast);
+  transition: transform var(--ui-fast) var(--ui-ease-arrive), background-color var(--ui-fast);
 }
 .ui-tile .ui-icon { width: 24px; height: 24px; color: var(--ui-mint); }
 button.ui-tile { cursor: pointer; }   /* a tile that only shows something (a number, a Treasure) is never pressed */
@@ -103,7 +104,7 @@ button.ui-tile:active { transform: scale(.96); }
 
 /* --- bar: Health, XP, Shield or a boss's Health. --value is how full (0-1) */
 .ui-bar { --fill: var(--ui-health); position: relative; box-sizing: border-box; height: 12px; overflow: hidden; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-s); background: var(--ui-shade); }
-.ui-bar > i { position: absolute; inset: 0; background: var(--fill); transform-origin: left; transform: scaleX(var(--value, 1)); transition: transform var(--ui-mid) var(--ui-ease-out); }
+.ui-bar > i { position: absolute; inset: 0; background: var(--fill); transform-origin: left; transform: scaleX(var(--value, 1)); transition: transform var(--ui-mid) var(--ui-ease-settle); }
 .ui-bar[data-kind="xp"] { --fill: var(--ui-xp); }
 .ui-bar[data-kind="shield"] { --fill: var(--ui-shield); }
 .ui-bar[data-kind="boss"] { --fill: var(--ui-boss); }
@@ -143,11 +144,11 @@ button.ui-chip { min-height: var(--ui-target); padding: 0 var(--ui-space-3); cur
 }
 
 /* --- motion: arrive with a little overshoot, leave quickly; a reward pops */
-.ui-enter { animation: ui-in var(--ui-mid) var(--ui-ease-in) both; }
-.ui-leave { animation: ui-out var(--ui-fast) var(--ui-ease-out) both; pointer-events: none; }
-.ui-pop { animation: ui-pop var(--ui-slow) var(--ui-ease-in) both; }
+.ui-enter { animation: ui-in var(--ui-mid) var(--ui-ease-arrive) both; }
+.ui-leave { animation: ui-out var(--ui-fast) var(--ui-ease-leave) both; pointer-events: none; }
+.ui-pop { animation: ui-pop var(--ui-slow) var(--ui-ease-arrive) both; }
 .ui-sheet.ui-enter { animation-name: ui-rise; }
-.ui-sheet.ui-leave { animation-name: ui-sink; }
+.ui-sheet.ui-leave { animation-name: ui-sink; animation-duration: calc(var(--ui-mid) * .65); }   /* sinks about a third quicker than it rose */
 .ui-scrim.ui-enter { animation-name: ui-fade-in; }
 .ui-scrim.ui-leave { animation-name: ui-fade-out; }
 @keyframes ui-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
@@ -162,10 +163,10 @@ button.ui-chip { min-height: var(--ui-target); padding: 0 var(--ui-space-3); cur
 @media (prefers-reduced-motion: reduce) {
   .ui-enter, .ui-pop, .ui-sheet.ui-enter { animation-name: ui-fade-in; }
   .ui-leave, .ui-sheet.ui-leave { animation-name: ui-fade-out; }
-  .ui-btn, .ui-tile, button.ui-card, .ui-bar > i { transition-property: background-color, box-shadow, filter; }
+  .ui-btn, .ui-tile, button.ui-card, .ui-bar > i { transition-property: background-color; }
   .ui-btn:active, .ui-btn--primary:active, .ui-tile:active, button.ui-card:active, button.ui-card:hover { transform: none; }
 }
 body.calm :is(.ui-enter, .ui-pop, .ui-sheet.ui-enter) { animation-name: ui-fade-in; }
 body.calm :is(.ui-leave, .ui-sheet.ui-leave) { animation-name: ui-fade-out; }
-body.calm :is(.ui-btn, .ui-tile, button.ui-card, .ui-bar > i) { transition-property: background-color, box-shadow, filter; }
+body.calm :is(.ui-btn, .ui-tile, button.ui-card, .ui-bar > i) { transition-property: background-color; }
 body.calm :is(.ui-btn:active, .ui-btn--primary:active, .ui-tile:active, button.ui-card:active, button.ui-card:hover) { transform: none; }

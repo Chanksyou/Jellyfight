@@ -244,6 +244,46 @@ story('types/pick-screen-shows-every-type', {
   },
 });
 
+story('types/pick-screen-motion', {
+  about: 'The pick row settles on a card with a small overshoot and comes back; Play squeezes for --pick-squeeze (80 ms at most) before the run starts, and with Reduce effects it starts at once; the title\'s tiles come in one after another.',
+  setup() {},
+  play() {
+    const { picker, run } = G(), back = asPlayer(true), calm = juice.calm;
+    try {
+      pressPlay('normal');
+      juice.calm = false;
+      // the spring: a step to the next card lands past it, then ends exactly on it
+      picker.go(1);
+      let now = picker.last, peak = 0;
+      for (let i = 0; i < 120; i++) { now += 16; picker.tick(now); peak = Math.max(peak, picker.pos); }
+      const overshoots = peak > 1.005 && peak < 1.15 && picker.pos === 1 && picker.vel === 0;
+      // Play: squeezes, waits at most 80 ms, then starts the run
+      let timer = null, delay = 0;
+      stub(window, 'setTimeout', (fn, ms) => { timer = fn; delay = ms; return 1; });
+      const before = run.jelly;
+      picker.confirm();
+      const squeezing = picker.panel.play.classList.contains('tp-squeeze') && picker.isOpen && delay > 0 && delay <= 80;
+      picker.confirm();   // a second press does nothing
+      const once = picker.confirming === true;
+      timer();
+      const started = !picker.isOpen && run.jelly === picker.centre && run.jelly !== before;
+      // Reduce effects: no squeeze, no wait
+      pressPlay('normal');
+      juice.calm = true; timer = null;
+      picker.confirm();
+      const calmNow = timer === null && !picker.isOpen;
+      // the title's tiles
+      const over = document.getElementById('g-over'), had = over.classList.contains('menu-home');
+      over.classList.add('menu-home');
+      const tiles = [...document.querySelectorAll('#g-over .menu-tiles .ui-tile')];
+      const delays = tiles.map((t) => parseFloat(getComputedStyle(t).animationDelay) * 1000);
+      over.classList.toggle('menu-home', had);
+      const cascade = tiles.length === 3 && delays[0] === 0 && delays[1] > delays[0] && delays[2] > delays[1] && delays[2] < 200;
+      return ok(overshoots && squeezing && once && started && calmNow && cascade, { overshoots, peak, squeezing, delay, once, started, calmNow, cascade, delays });
+    } finally { juice.calm = calm; back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-screen-locked-card-says-how-to-open', {
   about: 'Every locked card says how to open it in one short line on its portrait ("Finish act 1", "Defeat 9 Elites"), read from the type\'s unlock; open cards say nothing. The arrows step the row (the first hides its Back arrow, the last its Next) and the dots follow the centre card.',
   setup() {},
