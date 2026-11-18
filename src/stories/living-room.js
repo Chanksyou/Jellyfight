@@ -50,6 +50,9 @@ story('room/the-monitor-shows-the-canyon-wallpaper', {
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext('2d');
+    // GLTFExporter flips CanvasTexture rows for the monitor's existing UVs.
+    ctx.translate(0, canvas.height);
+    ctx.scale(1, -1);
     ctx.drawImage(image, 0, 0);
     const sunset = ctx.getImageData(65, 48, 1, 1).data;
     const forest = ctx.getImageData(410, 46, 1, 1).data;
