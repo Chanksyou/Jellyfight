@@ -122,6 +122,7 @@ export const SCREENS = {
   settings: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="settings"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   trophies: { open() { const m = G().mainMenu; m.show(); over().hidden = false; over().querySelector('[data-act="trophies"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   hud: { open() {}, close() {} },
+  'dev-panel': { open() { const m = G().mainMenu; m.show(); over().classList.add('dev-open'); over().hidden = false; over().querySelector('[data-act="dev"]').click(); }, close() { const m = G().mainMenu; over().querySelector('[data-act="sheet-close"]').click(); over().classList.remove('dev-open'); m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   'type-pick': { open() { G().picker.open({ start: 'normal', onPlay() {}, onBack() {} }); }, close() { G().picker.close(); } },
   'level-up': { open() { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, close() { G().run.ui.close(); } },
   'treasure-pick': { open() { G().run.pickTreasure(); }, close() { G().run.ui.close(); } },
