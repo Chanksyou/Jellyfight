@@ -2,7 +2,7 @@
 // changes (look/rest-pose-unchanged); these check the motion: a second push in each stroke, and a
 // body with weight that tips back as it starts and rocks on past upright as it stops.
 import * as THREE from 'three';
-import { thrust, thrustPeak } from '../swim.js';
+import { thrust, thrustPeak, holdOf, strokeAt, sinkOf, spring } from '../swim.js';
 import { buildCharacter } from '../character.js';
 import { ok, story } from './kit.js';
 
@@ -50,5 +50,19 @@ story('motion/stop-follow-through', {
     const apart = Math.max(...[...Array(39).keys()].map((i) => Math.abs(a[(i + 1) * 3 - 1] - b[(i + 1) * 6 - 1])));   // every 0.1 s
     return ok(Math.min(...start) < -0.03 && cruise > 0.1 && rocked > cruise + 0.03 && through < -0.002 && settled < 0.005 && apart < 0.05 && peaks < 0.01,
       { tipsBack: +Math.min(...start).toFixed(3), cruise: +cruise.toFixed(3), rocked: +rocked.toFixed(3), through: +through.toFixed(3), settled: +settled.toFixed(4), peaks: +peaks.toFixed(4), apart: +apart.toFixed(4) });
+  },
+});
+
+story('motion/idle-hold-and-sink', {
+  about: 'A still jelly pulses, then holds the last third of its cycle sinking a little, and the next pulse lifts it; a swimming jelly never holds. The spring closes the gap it should.',
+  setup() {},
+  play() {
+    const hold = holdOf(1), N = 100, sink = Array.from({ length: N }, (_, i) => sinkOf(i / N, hold));
+    const moving = Array.from({ length: N }, (_, i) => sinkOf(i / N, holdOf(0)) + (strokeAt(i / N, holdOf(0)) - i / N));
+    const s = { x: 1, v: 0 }; spring(s, 0, 0.15, 0, 0.15);   // critically damped: a halflife closes about 40% of the gap (half by ~1.2 halflives)
+    return ok(hold > 0.2 && strokeAt(1 - hold, hold) === 1 && strokeAt(0.5, 0) === 0.5
+      && sink[40] === 0 && sink[N - 1] > sink[70] && sink[70] > 0 && sink[N - 1] <= 0.03 && Math.max(...moving.map(Math.abs)) === 0
+      && s.x > 0.5 && s.x < 0.7,
+    { hold, end: sink[N - 1], spring: +s.x.toFixed(3) });
   },
 });

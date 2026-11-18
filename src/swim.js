@@ -20,10 +20,10 @@ export function squeeze(p) {
 
 let K = null;
 const knobs = () => K ||= {
-  second: LOOK.num('jelly-motion-second-surge', 0.33),   // second push, as a share of the first
+  second: Math.max(0, LOOK.num('jelly-motion-second-surge', 0.33)),   // second push, as a share of the first
   at: LOOK.num('jelly-motion-second-at', 0.8),
-  width: LOOK.num('jelly-motion-second-width', 0.09),
-  hold: LOOK.num('jelly-motion-idle-hold', 0.33),        // share of an idle cycle spent holding still
+  width: Math.max(0.01, LOOK.num('jelly-motion-second-width', 0.09)),
+  hold: Math.min(0.9, Math.max(0.01, LOOK.num('jelly-motion-idle-hold', 0.33))),      // share of an idle cycle spent holding still
   sink: LOOK.num('jelly-motion-idle-sink', 0.02),        // how far it sinks in that hold (jelly heights)
   mean: 1, peak: 1,
 };
@@ -61,10 +61,10 @@ export function strokeRate(push, speedMul = 1) {
 }
 
 // Half-life spring with a wobble (Holden, "Spring-It-On: The Game Developer's Spring-Roll-Call"):
-// s = { x, v } chases `goal`, losing half its distance every `halflife` s while swinging `freq`
+// s = { x, v } chases `goal`, closing about half the gap in a `halflife` s while swinging `freq`
 // times a second. The exact solution, so 30 and 60 fps land in the same place. No allocation.
 export function spring(s, goal, halflife, freq, dt) {
-  const y = (2 * Math.LN2) / halflife, w = freq * 2 * Math.PI;
+  const y = (2 * Math.LN2) / Math.max(1e-3, halflife), w = freq * 2 * Math.PI;
   const j0 = s.x - goal, j1 = s.v + y * j0, e = Math.exp(-y * dt), c = Math.cos(w * dt), n = Math.sin(w * dt);
   s.x = e * (j0 * c + (w > 0 ? (j1 / w) * n : j1 * dt)) + goal;
   s.v = e * (s.v * c - (j0 * w + (w > 0 ? (y * j1) / w : 0)) * n) + (w > 0 ? 0 : -e * y * j1 * dt);

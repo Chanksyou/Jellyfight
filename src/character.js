@@ -1633,12 +1633,13 @@ export function buildCharacter(look, heightMeters) {
         localVel.copy(s.vel).applyQuaternion(q).multiplyScalar(toUnits);
         if (haveV) dv.set(s.vel.x - pvx, 0, s.vel.z - pvz).applyQuaternion(q).multiplyScalar(toUnits);
         pvx = s.vel.x; pvz = s.vel.z; haveV = true;
-      }
+      } else haveV = false;   // no velocity this frame (a menu): the next one isn't a start
       const C = THREE.MathUtils.clamp;
-      roll.v -= C(dv.x, -8, 8) * BODY.rollKick;   // (clamped: a teleport or a shove isn't a start)
+      if (Math.abs(dv.x) + Math.abs(dv.z) > 6) dv.set(0, 0, 0);   // more than swimming can change in a frame: a teleport or a shove isn't a start
+      roll.v -= dv.x * BODY.rollKick;
       spring(roll, C(-localVel.x * 0.05, -0.35, 0.35), BODY.rollHalf, BODY.rollFreq, dt);
       lean.rotation.z = roll.x;
-      pitch.v -= C(dv.z, -8, 8) * BODY.pitchKick;
+      pitch.v -= dv.z * BODY.pitchKick;
       spring(pitch, move * 0.16 * (s.grounded ? 1 : 0.4), BODY.pitchHalf, BODY.pitchFreq, dt);
       // the hat rides on the crown as the bell squeezes and relaxes (a soft one squeezes with it)
       top.position.y = shape.topY + (bell.position.y - BELL_Y) + crownH * (bell.scale.y - 1);
