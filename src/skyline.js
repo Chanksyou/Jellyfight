@@ -1,40 +1,108 @@
-// The view from the 33rd floor: through every window you look out over the city and down on it, not
-// at a flat dark wall. One unlit ring round the apartment, painted once on a small canvas (like
-// canvas-decals): street lights spread far below the horizon, a few towers standing about as high
-// as you, their windows lit. Never a light, one draw call. Numbers: content/look.css --skyline-*.
+// The 33rd-floor view, seen only from indoors. Near towers and the distant panorama
+// share one opaque mesh, one texture and one draw. The atlas has no private photography.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
-// its own little random stream, so painting the city never moves the game's rolls (stories replay seeds)
-function stream(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+export async function loadSkylineAtlas() {
+  try {
+    const map = await new THREE.TextureLoader().loadAsync(new URL('../assets/greenpoint.webp', import.meta.url).href);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return map;
+  } catch {
+    return null;   // the room can still play with its usual sky color
+  }
+}
 
-export function addSkyline(scene, centre) {
-  const R = LOOK.num('skyline-radius', 90), up = LOOK.num('skyline-up', 25), down = LOOK.num('skyline-down', 100);   // metres: the ring's reach, above the horizon and below it (33 floors is about 100 m)
-  const W = 1024, H = 512, horizon = H * up / (up + down);
-  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const g = cv.getContext('2d'), rnd = stream(33);
-  const tower = LOOK.color('skyline-tower', '#080b16'), lit = LOOK.list('skyline-lights', ['#ffd9a0', '#ffb468', '#bcd6ff']), street = LOOK.color('skyline-street', '#ffa653');
-  // far below: the grid of streets, dots thinning toward the horizon
-  for (let i = 0, n = LOOK.num('skyline-street-dots', 2600); i < n; i++) {
-    const depth = rnd() ** 0.6, y = horizon + 6 + depth * (H - horizon - 8), x = rnd() * W;
-    g.globalAlpha = 0.25 + 0.6 * depth * rnd(); g.fillStyle = rnd() < 0.8 ? street : lit[2];
-    const s = 1 + depth * 1.4; g.fillRect(Math.round(x), Math.round(y), s, s * 0.7);
+function panorama(radius, above, below) {
+  const first = 106, span = 236;
+  const g = new THREE.CylinderGeometry(radius, radius, above + below, 64, 2, true,
+    THREE.MathUtils.degToRad(first), THREE.MathUtils.degToRad(span));
+  const position = g.attributes.position, uv = g.attributes.uv, index = g.index;
+  for (let i = 0; i < position.count; i++) {
+    // Model -X is the desk pane, -Z is the couch pane. Reflect the narrow margins
+    // at the sides to cover glancing indoor angles beyond the painted composition.
+    const column = 1 - (first + span * uv.getX(i) - 154) / 156;
+    const u = 1 - Math.abs(1 - Math.abs(column));
+    const v = uv.getY(i);
+    // Bring the painted streets inward so the city stays under steep looks through the lower glass.
+    const reach = v === 0 ? 0.62 : 1;
+    position.setXYZ(i, position.getX(i) * reach, v === 0 ? -below : v === 1 ? above : 0, position.getZ(i) * reach);
+    uv.setXY(i, (4 + u * 1527) / 2048, v === 0 ? 0 : v === 1 ? 1 : 0.6875);
   }
-  // towers about as tall as the 33rd floor, with their windows lit
-  g.globalAlpha = 1;
-  for (let x = 0; x < W; x += 6 + rnd() * 26) {
-    const w = 14 + rnd() * 30, top = horizon - (rnd() ** 2) * horizon * 0.5 + rnd() * 20, bot = horizon + 4 + rnd() * 30;
-    g.fillStyle = tower; g.fillRect(x, top, w, bot - top);
-    for (let wy = top + 4; wy < bot - 3; wy += 5) for (let wx = x + 3; wx < x + w - 3; wx += 5) {
-      if (rnd() < LOOK.num('skyline-window-chance', 0.22)) { g.globalAlpha = 0.5 + rnd() * 0.5; g.fillStyle = lit[(rnd() * lit.length) | 0]; g.fillRect(wx, wy, 2, 3); g.globalAlpha = 1; }
-    }
+  for (let i = 0; i < index.count; i += 3) {
+    const back = index.getX(i + 1);
+    index.setX(i + 1, index.getX(i + 2));
+    index.setX(i + 2, back);
   }
-  const map = new THREE.CanvasTexture(cv); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.RepeatWrapping;
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(R, R, up + down, 48, 1, true),
-    new THREE.MeshBasicMaterial({ map, side: THREE.BackSide, transparent: true, depthWrite: false, fog: false }));
-  mesh.position.set(centre[0], (up - down) / 2, centre[1]);   // the horizon at the floor's own height, give or take the camera's
-  mesh.renderOrder = -10; mesh.name = 'Skyline'; mesh.userData.noCollide = true; mesh.frustumCulled = false;
+  return g;
+}
+
+function tower(centre, x, z, width, depth, low, high, type, topRow, bottomRow) {
+  const g = new THREE.BoxGeometry(width, high - low, depth);
+  const uv = g.attributes.uv, tile = 1538 + type * 254;
+  for (let i = 0; i < uv.count; i++) {
+    const face = Math.floor(i / 4);
+    const roof = face === 2 || face === 3;
+    const x = face === 1 || face === 5 ? 1 - uv.getX(i) : uv.getX(i);
+    const y = uv.getY(i);
+    uv.setXY(i, (tile + 4 + x * 244) / 2048,
+      1 - (roof ? 505 - y * 49 : bottomRow + y * (topRow - bottomRow)) / 512);
+  }
+  g.translate(x - centre[0], (low + high) / 2, z - centre[1]);
+  return g;
+}
+
+export function addSkyline(scene, centre, map) {
+  const above = LOOK.num('skyline-up', 84), below = LOOK.num('skyline-down', 100);
+  const parts = [
+    // Photo-matched masses. Window bays, crown lights and roof equipment are painted.
+    tower(centre, -28, 28, 16, 14, -below, 23, 0, 4, 445),
+    tower(centre, 32, -66, 18, 21, -below, 21, 1, 13, 445),
+    tower(centre, 33, -67, 15.5, 18.5, 21, 24, 1, 1, 13),
+    panorama(LOOK.num('skyline-radius', 132), above, below),
+  ];
+  const geometry = mergeGeometries(parts);
+  parts.forEach((part) => part.dispose());
+  const material = new THREE.MeshBasicMaterial({ map, fog: false, toneMapped: false });
+  const daylight = { value: 0 };
+  const nightGain = LOOK.num('skyline-night-gain', 0.30);
+  const dayGain = LOOK.num('skyline-day-gain', 2.2);
+  const dawnStart = LOOK.num('skyline-dawn-start', 315), dawnEnd = LOOK.num('skyline-dawn-end', 475);
+  const duskStart = LOOK.num('skyline-dusk-start', 1090), duskEnd = LOOK.num('skyline-dusk-end', 1230);
+  material.userData.daylight = daylight;
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.cityDaylight = daylight;
+    shader.uniforms.citySky = { value: scene.background };
+    shader.uniforms.cityNightGain = { value: nightGain };
+    shader.uniforms.cityDayGain = { value: dayGain };
+    shader.fragmentShader = `
+      uniform float cityDaylight, cityNightGain, cityDayGain;
+      uniform vec3 citySky;
+    ` + shader.fragmentShader.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      vec3 art = diffuseColor.rgb;
+      float luma = dot(art, vec3(0.2126, 0.7152, 0.0722));
+      float light = smoothstep(0.14, 0.65, luma);
+      vec3 night = art * mix(cityNightGain, 1.05, light);
+      float warmLamp = light * smoothstep(0.05, 0.42, art.r - art.b);
+      vec3 day = art * mix(cityDayGain, 0.95, light) + citySky * (0.14 * (1.0 - light));
+      day = mix(day, vec3(luma * 0.66), warmLamp * 0.7);
+      diffuseColor.rgb = mix(night, day, cityDaylight);
+    `).replace('#include <colorspace_fragment>', `
+      #include <colorspace_fragment>
+      float skyEdge = (1.0 - step(0.75, vMapUv.x)) * smoothstep(0.86, 1.0, vMapUv.y);
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, citySky, skyEdge);
+    `);
+  };
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'Skyline';
+  mesh.position.set(centre[0], 0, centre[1]);
+  mesh.userData.noCollide = true;
+  mesh.renderOrder = 10;    // opaque room surfaces write depth before the distant city
   scene.add(mesh);
-  return mesh;
+  return (minutes) => {
+    daylight.value = THREE.MathUtils.smoothstep(minutes, dawnStart, dawnEnd)
+      * (1 - THREE.MathUtils.smoothstep(minutes, duskStart, duskEnd));
+  };
 }

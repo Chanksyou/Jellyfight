@@ -898,6 +898,22 @@ story('engine/bloom-glows-without-black-squares', {
     }
   },
 });
+story('engine/floor-grain-has-valid-normals', {
+  about: 'The shared floor-grain texture contains varied upward-facing normals, including rows of the stretched noise grid.',
+  setup() {},
+  play() {
+    const mesh = G().world.colliders.find((m) => m.material.normalMap?.isDataTexture
+      && m.material.normalScale?.x === LOOK.num('surface-grain', 0.22));
+    const data = mesh?.material.normalMap.image.data;
+    if (!data) return ok(false, { found: false });
+    let invalid = 0, tilted = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 2] < 128 || data[i + 3] !== 255) invalid++;
+      if (Math.abs(data[i] - 127) > 2 || Math.abs(data[i + 1] - 127) > 2) tilted++;
+    }
+    return ok(invalid === 0 && tilted > data.length / 16, { invalid, tilted, texels: data.length / 4 });
+  },
+});
 story('engine/baked-ao-is-current', {
   about: 'Every act\'s baked corner shadows were baked from the apartment files and furniture layout it plays with now. Moved furniture or a re-exported apartment fails this until node tools/bake-ao.mjs bakes them again.',
   setup() {},

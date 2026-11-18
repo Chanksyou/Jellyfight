@@ -84,7 +84,7 @@ body.calm #hud .shield-bar.charging > i { animation: none; }
 #hud .tc { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); text-align: center; white-space: nowrap; text-shadow: var(--hud-outline); }
 #hud .clock { font: 700 24px/1 var(--ui-font-text); font-variant-numeric: tabular-nums; }
 #hud .clock.dry { color: var(--ui-boss); }   /* the boss is almost here */
-#hud .stage { margin-top: 4px; font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); letter-spacing: .03em; color: var(--ui-ink-dim); }
+#hud .stage { margin-top: 4px; font: 600 var(--ui-size-body)/1.2 var(--ui-font-text); letter-spacing: .02em; color: var(--ui-ink); }   /* full ink and body size: it sits on the bright room (final look) */
 /* a boss's or an Elite's name and Health (hot, like everything hostile), under the clock */
 #hud .boss { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 116px); transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
 #hud .boss .bar { height: 14px; }
@@ -208,6 +208,7 @@ export class Hud {
     this.scale = Math.round(s * 100) / 100;
     this.el.style.zoom = this.scale === 1 ? '' : String(this.scale);
     this.touch = document.body.classList.contains('touch');
+    this.mapPx = 0;   // (the minimap's size is read again on the next draw)
   }
 
   set(key, sel, fn) { // only touch the DOM when a value changes
@@ -464,7 +465,7 @@ export class Hud {
     const c = this.map, g = this.ctx, C = this.mapLook;
     const dpr = Math.min(3, devicePixelRatio || 1);
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
-    const css = (c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
+    const css = (this.mapPx ||= c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapCone = null; }
     const b = this.bounds, R = W / 2, TAU = Math.PI * 2;

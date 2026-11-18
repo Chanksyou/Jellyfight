@@ -18,7 +18,7 @@ const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) =
 const offFacing = (e, to) => { const d = Math.atan2(to.x - e.base.x, to.z - e.base.z) - e.holder.rotation.y; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))); };
 
 act3('croc-sleeps-on-the-pillows', {
-  about: 'The Alligator rests on the bed just in front of the pillows, in place of the real plush (hidden), far enough out that turning all the way round never takes it into them (they start at z 10.48), and sleeps while the jelly is off the bed: it never starts an attack.',
+  about: 'The Alligator rests on the bed just in front of the pillows, in place of the real plush (hidden), far enough out that turning all the way round never takes it into them (they start at z 10.44), and sleeps while the jelly is off the bed: it never starts an attack.',
   setup() { fresh(); onFloor(); },
   play() {
     const { run } = G(), e = croc();
@@ -29,7 +29,7 @@ act3('croc-sleeps-on-the-pillows', {
     run.elites.findObject('Plush_crocodile').traverse((o) => { if (o.isMesh && o.visible) real = true; });
     const b = e.base;
     const size = new THREE.Box3().setFromObject(e.holder).getSize(V(0, 0, 0)), reach = Math.max(size.x, size.z) / 2;   // as far as any of it gets from its middle as it turns
-    const clear = b.x > -0.2 && b.x < 0 && b.z + reach < 10.48 && b.y > 0.6;
+    const clear = b.x > -0.2 && b.x < 0 && b.z + reach < 10.44 && b.y > 0.58;
     return ok(clear && !real && !e.awake && !started, { at: r3(b), reach: +reach.toFixed(3), realShown: real, awake: e.awake, started });
   },
 });

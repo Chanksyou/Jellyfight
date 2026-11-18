@@ -2,6 +2,7 @@
 // for a person-sized view look flat and blurry. This adds fine tiling normal maps: grain,
 // pores and scratches on floors; an orange-peel paint finish on walls, doors and furniture.
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 
 const TILE = 0.08; // meters per repeat of the detail texture
 
@@ -11,7 +12,7 @@ function detailNormalMap(size = 256, seed = 7, { octaves = [[8, 0.5, 4], [16, 0.
   const h = new Float32Array(size * size);
   // tileable value noise, several octaves, stretched along x like grain
   for (const [cells, amp, stretch] of octaves) {
-    const cx = Math.max(1, cells / stretch), cy = cells;
+    const cx = Math.max(1, Math.round(cells / stretch)), cy = cells;
     const g = Array.from({ length: cx * cy }, rnd);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const fx = (x / size) * cx, fy = (y / size) * cy;
@@ -38,11 +39,11 @@ function detailNormalMap(size = 256, seed = 7, { octaves = [[8, 0.5, 4], [16, 0.
   const k = strength;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const dx = (H(x + 1, y) - H(x - 1, y)) * k, dy = (H(x, y + 1) - H(x, y - 1)) * k;
-    const n = new THREE.Vector3(-dx, -dy, 1).normalize();
+    const inverse = 1 / Math.sqrt(dx * dx + dy * dy + 1);
     const i = (y * size + x) * 4;
-    data[i] = (n.x * 0.5 + 0.5) * 255;
-    data[i + 1] = (n.y * 0.5 + 0.5) * 255;
-    data[i + 2] = (n.z * 0.5 + 0.5) * 255;
+    data[i] = (-dx * inverse * 0.5 + 0.5) * 255;
+    data[i + 1] = (-dy * inverse * 0.5 + 0.5) * 255;
+    data[i + 2] = (inverse * 0.5 + 0.5) * 255;
     data[i + 3] = 255;
   }
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
@@ -78,6 +79,7 @@ function uvScale(geo) {
 export function addSurfaceDetail(meshes, { inside } = {}) {
   const grain = detailNormalMap();
   const paint = detailNormalMap(256, 11, { octaves: [[32, 0.4, 1], [64, 0.35, 1], [128, 0.25, 1]], scratches: 3, strength: 1.2 });
+  const grainScale = LOOK.num('surface-grain', 0.22), paintScale = LOOK.num('surface-paint', 0.19);
   const box = new THREE.Box3(), size = new THREE.Vector3(), c = new THREE.Vector3();
   const shared = new Map();   // one clone per (material, detail, repeat)
   let count = 0;
@@ -103,7 +105,7 @@ export function addSurfaceDetail(meshes, { inside } = {}) {
       tex.repeat.set(rx, ry);
       out = mat.clone();
       out.normalMap = tex;
-      const k = floor ? 0.45 : 0.3;
+      const k = floor ? grainScale : paintScale;
       out.normalScale = new THREE.Vector2(k, k);
       shared.set(key, out);
     }

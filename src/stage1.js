@@ -77,8 +77,8 @@ export const STAGE1 = {
   // `hide` is the apartment object each one stands in for while it's alive.
   elites: [
     { kind: 'controller', at: [1.31, 0.603, 4.52], hide: 'Controllers', area: 'media console', wake: { min: [0.85, 0.55, 4.35], max: [2.4, 1.3, 4.83] } },
-    { kind: 'mug', at: [0.61, 0.775, 2.784], hide: 'Mug', area: 'standing desk', wake: { min: [0.05, 0.72, 2.61], max: [0.76, 1.48, 3.92] } },
-    { kind: 'kettle', at: [4.66, 0.9, 3.9], hide: 'Kettle', area: 'stovetop', wake: { min: [4.3, 0.85, 1.47], max: [5.01, 1.65, 4.31] } },
+    { kind: 'mug', at: [0.61, 0.752, 2.784], hide: 'Mug', area: 'standing desk', wake: { min: [0.05, 0.72, 2.61], max: [0.76, 1.48, 3.92] } },
+    { kind: 'kettle', at: [4.66, 0.94, 3.9], hide: 'Kettle', area: 'stovetop', wake: { min: [4.3, 0.85, 1.47], max: [5.01, 1.65, 4.31] } },
   ],
 
   // The boss: a robot vacuum that powers on in front of the kitchen (vacuum.js). While it's

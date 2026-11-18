@@ -180,3 +180,33 @@ const guard = (kind, about) => story('ui/' + (kind === 'text' ? 'text-at-least-1
 });
 guard('text', 'On a phone held sideways, no text on the main screens (title, pause, HUD, type pick, level-up, treasure pick, book, achievements, leaderboard, Change your look, act complete, death, win, turn your phone) is smaller than 12 px, apart from today\'s known offenders, which their screen\'s redo removes.');
 guard('targets', 'On a phone held sideways, nothing to tap on the main screens is smaller than 44 x 44 px, apart from today\'s known offenders, which their screen\'s redo removes.');
+
+// --- the death screen at Large text on a phone held sideways: the fullest end screen on the smallest one
+story('ui/death-screen-fits-at-large-text', {
+  phone: true,
+  about: 'On a phone held sideways with Large text, the death screen holds every hint whole: the hint, the time/Level/bugs chips and the numbers all fit above the buttons with nothing scrolled out of sight or overlapping, and "The Vacuum was 4:20 away" stays on one line.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  async play() {
+    const root = document.documentElement, was = root.dataset.textSize;
+    root.dataset.textSize = 'large';
+    try {
+      await document.fonts.ready;
+      G().run.t = G().run.duration - 260;   // 4:20 before the boss
+      SCREENS.death.open(); step(2); settle();
+      const { DEATH_HINTS, TYPE_HINTS } = await import('../first-run.js');
+      const $ = (s) => document.querySelector('.jf-end ' + s), box = (e) => e.getBoundingClientRect();
+      const meet = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const body = $('.jf-end-body'), hint = $('.jf-hint'), btns = box($('.btns')), bad = [];
+      for (const h of new Set([...DEATH_HINTS, ...TYPE_HINTS])) {
+        hint.lastChild.textContent = ' ' + h;   // after its icon
+        const parts = { hint, chips: $('.jf-chips'), numbers: $('.jf-stats') };
+        if (body.scrollHeight > body.clientHeight + 1) bad.push(`scrolls ${body.scrollHeight - body.clientHeight} px: ${h}`);
+        for (const [k, e] of Object.entries(parts)) if (box(e).bottom > btns.top || box(e).bottom > box(body).bottom + 1) bad.push(`${k} under the buttons: ${h}`);
+        if (meet(box(hint), box(parts.chips)) || meet(box(parts.chips), box(parts.numbers))) bad.push(`overlap: ${h}`);
+      }
+      const close = [...document.querySelectorAll('.jf-end .jf-stats > b')].find((b) => b.textContent.includes('away'));
+      const oneLine = !!close && box(close).height < 2 * px(close);   // one line of text is ~1.35 its size
+      return ok(!bad.length && oneLine, { bad: bad.slice(0, 5), close: close?.textContent, height: Math.round(close ? box(close).height : 0) });
+    } finally { try { SCREENS.death.close(); } catch {} step(1); root.dataset.textSize = was || 'normal'; }
+  },
+});
