@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v504 adds Easy mode: switch it on in Settings and your next run deals twice the damage and takes half, earns half the Pearls and keeps no leaderboard score; an "Easy mode" badge shows under the clock while it's on.
+
 v503 fixes the layout editor not letting you pick up or drag a small plant: the invisible click box of the TV (or other furniture) behind it was swallowing the tap, so a plant made smaller could no longer be moved.
 
 v502 fixes the type pick's Play button going dead after turning onto a locked card while it squeezes.
