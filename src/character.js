@@ -14,6 +14,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { TentacleRig } from './tentacles.js';
 import { ArmRig, depth } from './arms.js';
 import { squeeze, thrust, thrustPeak, holdOf, strokeAt, sinkOf, spring } from './swim.js';
+import { bellFlex, flexWeights, FLEXK, patchBell, RIM_LAG } from './bell-flex.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
@@ -404,6 +405,7 @@ export function buildCharacter(look, heightMeters) {
   const spinners = [];                       // things that turn: [object, axis, speed]
   const scrollers = [];                      // textures that run down the bell: [texture, speed]
   let bell = null, rig = null, arms = null;   // jellyfish only: the pulsing bell, its tentacles and oral arms
+  const riders = [];                         // [object, rest position]: on the bell, moved to follow the bend at their height
 
   // --- Body: the jellyfish -------------------------------------------------
   // A fluorescent jelly in the dark: a clear bell over a glowing inner bell (radial canals,
@@ -548,6 +550,7 @@ export function buildCharacter(look, heightMeters) {
     pivot.position.set(Math.sin(a) * off, 0, Math.cos(a) * off);
     pivot.rotation.y = a;
     bell.add(pivot);
+    riders.push([pivot, pivot.position.clone()]);
     const L = A.len, half = A.width / 2, armGeo = new THREE.PlaneGeometry(A.width, L, 6, 28).translate(0, -L / 2, 0);
     const ap = armGeo.attributes.position;
     for (let q = 0; q < ap.count; q++) {
@@ -597,6 +600,11 @@ export function buildCharacter(look, heightMeters) {
       pad.scale.set(0.8, 1.5, 0.8);
     }
   }
+  // the bell bends from its rim (bell-flex.js): every piece drawn on it so far gets the patch
+  const flex = { value: new THREE.Vector3(0, 0, crownH) }, flexAt = { k: 1, dy: 0 };
+  // (the small pieces round the rim, off the bell's axis, ride on it instead: baking their placement
+  // would round their vertices differently, and look/rest-pose-unchanged would see it)
+  for (const o of bell.children) if (o.isMesh) { if (o.position.x || o.position.z) riders.push([o, o.position.clone()]); else patchBell(o, flex); }
   // the long, glowing hunting tentacles the Lash strikes with (see tentacles.js); a box jelly's
   // hang in bundles from its corners
   const T = sp.tentacles, corners = T.corners ? Array.from({ length: T.count }, (_, i) => Math.PI / 4 + Math.floor(i / 2) * Math.PI / 2 + (i % 2 ? 0.12 : -0.12)) : null;
@@ -839,7 +847,8 @@ export function buildCharacter(look, heightMeters) {
       o.renderOrder = 3;
       const toBell = new THREE.Matrix4().multiplyMatrices(bell.matrixWorld.clone().invert(), o.matrixWorld);
       const fromBell = toBell.clone().invert();
-      const positions = o.geometry.attributes.position;
+      const positions = o.geometry.attributes.position, e = fromBell.elements, moved = [];
+      faceBent.set(o, { wrapped: null, moved: null, y: [e[4], e[5], e[6]] });
       for (let i = 0; i < positions.count; i++) {
         point.fromArray(faceVertices.get(o), i * 3).applyMatrix4(toBell);
         const y = point.y / R;
@@ -850,12 +859,36 @@ export function buildCharacter(look, heightMeters) {
         if (Math.abs(point.x) >= bellHalfWidth(sp, radius) * 0.98) faceFits = false;
         const z = bellFront(sp, radius, point.x);
         point.z = z + faceOffset + o.parent.children.indexOf(o) * faceLayer;
+        // each point the bend reaches: [index, s, w, t3, and its rest offset from the bell's axis, in the face's frame]
+        const W = flexWeights(point.y, crownH, weight);
+        if (W.w > 1e-5) moved.push(i * 3, W.s, W.w, W.t3, e[0] * point.x + e[8] * point.z, e[1] * point.x + e[9] * point.z, e[2] * point.x + e[10] * point.z);
         point.applyMatrix4(fromBell);
         positions.setXYZ(i, point.x, point.y, point.z);
       }
       positions.needsUpdate = true;
       o.geometry.computeVertexNormals();
+      Object.assign(faceBent.get(o), { wrapped: positions.array.slice(), moved: new Float32Array(moved) });
     });
+    faceFlat = true;
+  }
+  // the face bends with the bell beneath it (bell-flex.js), point by point from where it was wrapped at rest
+  // (normals stay as wrapped: the face sits on the upper bell, which barely bends)
+  let faceFlat = true;
+  const faceBent = new Map(), weight = {};
+  function bendFace(u) {
+    if (!u.x && !u.y) { if (!faceFlat) for (const [o, b] of faceBent) { o.geometry.attributes.position.array.set(b.wrapped); o.geometry.attributes.position.needsUpdate = true; } faceFlat = true; return; }
+    faceFlat = false;
+    for (const [o, b] of faceBent) {
+      // (bell-flex.js bend, written out: k - 1 scales the offset from the axis, dy moves along the bell's up)
+      const a = o.geometry.attributes.position.array, W = b.wrapped, M = b.moved, [yx, yy, yz] = b.y;
+      for (let j = 0; j < M.length; j += 7) {
+        const i = M[j], c = u.x + (u.y - u.x) * M[j + 1], m = c * M[j + 2];
+        const k1 = -(FLEXK.squeeze * m + (c > 0 ? FLEXK.curl * c * M[j + 3] : 0)), dy = -FLEXK.stretch * u.z * m;
+        a[i] = W[i] + k1 * M[j + 4] + dy * yx; a[i + 1] = W[i + 1] + k1 * M[j + 5] + dy * yy; a[i + 2] = W[i + 2] + k1 * M[j + 6] + dy * yz;
+      }
+      const positions = o.geometry.attributes.position;
+      positions.needsUpdate = true;
+    }
   }
   wrapFace();
   for (let i = 0; !faceFits && i < 32; i++) {
@@ -921,11 +954,12 @@ export function buildCharacter(look, heightMeters) {
   if (look.eyes === 'snorkel') {
     const fy = face.position.y, a = 0.75, c = (y, k = 1.04) => { const r = bellR(y) * k; return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r); };
     const curve = new THREE.CatmullRomCurve3([c(fy), c((fy + crownH) / 2), c(crownH * 0.95, 1.15).add(new THREE.Vector3(0, 0.02, 0)), c(crownH * 0.95, 1.15).add(new THREE.Vector3(0, 0.12, 0))]);
-    mesh(new THREE.TubeGeometry(curve, 32, 0.014, 10, false), M.snorkel, bell);
+    const tube = M.snorkel.clone(), tipMat = M.snorkelTip.clone();   // their own copies: the face's frame (not bent by the patch) shares M.snorkel
+    patchBell(mesh(new THREE.TubeGeometry(curve, 32, 0.014, 10, false), tube, bell), flex);
     const tip = curve.getPointAt(1);
-    mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.03, 12), M.snorkelTip, bell, tip.x, tip.y, tip.z);
+    patchBell(mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.03, 12), tipMat, bell, tip.x, tip.y, tip.z), flex);
     const clip = c(fy, 1.0);
-    mesh(new THREE.SphereGeometry(0.016, 10, 8), M.snorkel, bell, clip.x, clip.y, clip.z);
+    patchBell(mesh(new THREE.SphereGeometry(0.016, 10, 8), tube, bell, clip.x, clip.y, clip.z), flex);
   }
 
   // --- Top ------------------------------------------------------------------
@@ -1597,6 +1631,9 @@ export function buildCharacter(look, heightMeters) {
   const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
   const baseSpin = spinners.map(([o, ax]) => o.rotation[ax]), baseScroll = scrollers.map(([tex]) => tex.offset.y);
 
+  const contractAt = (p, move) => kick > 0.05 ? Math.max(kick, squeeze(p)) : squeeze(p) * (0.45 + 0.55 * move);
+  const gumAt = gum ? gum.position.clone() : null;
+
   // s.rest (see restPose): the pose with every clock, spring and input at zero
   function update(dt, s) {
     if (s.rest) {
@@ -1621,9 +1658,13 @@ export function buildCharacter(look, heightMeters) {
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
       // when it's still the stroke is quicker and the rest of the cycle a hold (swim.js)
       const hold = s.rest ? 0 : holdOf(1 - move), stroke = strokeAt(swim, hold);
-      contract = s.rest ? 0 : kick > 0.05 ? Math.max(kick, squeeze(stroke)) : squeeze(stroke) * (0.45 + 0.55 * move);
-      bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
+      contract = s.rest ? 0 : contractAt(stroke, move);
+      // (bell-flex.js bends the bell itself, crown first, the rim a moment behind)
+      flex.value.x = contract;
+      flex.value.y = s.rest ? 0 : contractAt(strokeAt((swim + 1 - RIM_LAG) % 1, hold), move);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
+      for (const [o, p] of riders) { bellFlex(p.y, flex.value, flexAt); o.position.set(p.x * flexAt.k, p.y + flexAt.dy, p.z * flexAt.k); }
+      if (gum) { bellFlex(gumAt.y, flex.value, flexAt); gum.position.set(0, gumAt.y + flexAt.dy, gumAt.z * flexAt.k); }
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
       surge = thrust(stroke) / thrustPeak() * move;
       lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge - sinkOf(swim, hold);
@@ -1645,8 +1686,9 @@ export function buildCharacter(look, heightMeters) {
       pitch.v -= dv.z * BODY.pitchKick;
       spring(pitch, move * 0.16 * (s.grounded ? 1 : 0.4), BODY.pitchHalf, BODY.pitchFreq, dt);
       // the hat rides on the crown as the bell squeezes and relaxes (a soft one squeezes with it)
-      top.position.y = shape.topY + (bell.position.y - BELL_Y) + crownH * (bell.scale.y - 1);
-      if (soft) top.scale.set(bell.scale.x, 1, bell.scale.z);
+      bellFlex(crownH * 0.85, flex.value, flexAt);
+      top.position.y = shape.topY + (bell.position.y - BELL_Y);   // (the crown itself barely moves)
+      if (soft) top.scale.set(flexAt.k, 1, flexAt.k);
     }
 
     // landing squash as a damped spring
@@ -1694,6 +1736,7 @@ export function buildCharacter(look, heightMeters) {
       eyes.forEach((e) => { e.scale.y = eyeHeight; });
       wrapFace();
     }
+    bendFace(flex.value);
   }
 
   // landing: squash flat (impact > 0), harder the faster it came down; the spring overshoots
@@ -1731,5 +1774,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, lean, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, arms, squash, hatTop };
+  return { root, lean, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, arms, squash, hatTop, bend: flex.value, crownH };
 }

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v514 bends the jelly's bell like a real one: the crown stays nearly still while the lower bell squeezes in on each stroke and flares open as it relaxes, the bend running down so the rim moves a moment after the crown.
+
 v513 Act 4 reads better: the Cicada's trailing mound is dim until it locks, the Soundbar's bass wave lets the floor show through, and the sun's lit side stands out more.
 
 v512 gives the jelly weight when it swims: each stroke pushes twice (a small second push as the bell recoils), a still jelly pulses then rests a beat while it sinks a little, and the body tips back when you start, rocks forward and through upright when you stop, and banks into turns.

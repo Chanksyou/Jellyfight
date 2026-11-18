@@ -10,6 +10,7 @@ import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
 import { sfx, unlock as unlockAudio, audio } from '../sfx.js';
 import { SPECIES, buildCharacter, normalizeLook, bellFront, bellHalfWidth } from '../character.js';
+import { bellFlex } from '../bell-flex.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
 import { applyState } from '../cat.js';
@@ -1194,7 +1195,8 @@ story('look/face-fits-every-head', {
       c.root.updateMatrixWorld(true);
       const p = new THREE.Vector3();
       const sp = SPECIES[body], top = sp.profile.at(-1)[1] * sp.R;
-      let good = bell.scale.x < 1;
+      let good = c.bend.x > 0.5;   // squeezing (bell-flex.js bends the bell, and the face with it)
+      const f = { k: 1, dy: 0 };
       let closed = false, reopened = false;
       const check = () => face.traverse((o) => {
         if (!o.isMesh) return;
@@ -1202,6 +1204,9 @@ story('look/face-fits-every-head', {
         const positions = o.geometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
           p.fromBufferAttribute(positions, i).applyMatrix4(matrix);
+          let ry = p.y;   // where that point of the bell is at rest (the bend moves it down by dy(rest height))
+          for (let n = 0; n < 40; n++) ry = p.y - bellFlex(ry, c.bend, f).dy;
+          p.y = ry; p.x /= f.k; p.z /= f.k;
           const y = p.y / sp.R, upper = sp.profile.findIndex((v) => v[1] >= y);
           const [r0, y0] = sp.profile[Math.max(0, upper - 1)], [r1, y1] = sp.profile[Math.max(1, upper)];
           const radius = sp.R * (r0 + (r1 - r0) * (y - y0) / (y1 - y0));
