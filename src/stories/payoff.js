@@ -3,6 +3,7 @@
 import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import { DEATH_HINTS, TYPE_HINTS } from '../first-run.js';
 import { juice } from '../juice.js';
+import { LOOK } from '../look.js';
 import { bus, PLAYER } from '../events.js';
 import { TREASURES, treasureTier } from '../stats.js';
 import { G, V, fresh, ok, phone, step, story, stub } from './kit.js';
@@ -24,13 +25,16 @@ story('payoff/level-up-dings-then-deals-like-a-pick', {
     const dinged = document.querySelector('#hud .lvl').classList.contains('ding') && !!document.querySelector('.jf-ding-ring');
     const cards = [...modal().querySelectorAll('.jf-level .jf-pick .jf-card')];
     const delays = cards.map((c) => parseFloat(c.style.getPropertyValue('--d')));
+    const rank = (c) => ['', 'common', 'rare', 'epic', 'legendary'].indexOf(c.dataset.rarity);
+    const byDelay = cards.map((c, i) => [delays[i], rank(c)]).sort((a, b) => a[0] - b[0]), order = byDelay.map((d) => d[0]);
     const tinted = cards.every((c) => c.style.getPropertyValue('--tint'));
     cards[0].click();
     const won = cards[0].classList.contains('jf-won') && cards.slice(1).every((c) => c.classList.contains('jf-burn'));
     const lingers = menus.open && menus.closing;
     step(50);
     const closed = !menus.open;
-    return ok(dinged && delays[0] >= 300 && delays[1] > delays[0] && tinted && won && lingers && closed, { dinged, delays, tinted, won, lingers, closed });
+    const dealt = order[0] >= 300 && new Set(delays).size === delays.length && order[order.length - 1] - order[0] < 400 && byDelay.every((d, i) => !i || d[1] >= byDelay[i - 1][1]);   // after the beat, one by one, inside 400 ms, the rarest last
+    return ok(dinged && dealt && tinted && won && lingers && closed, { dinged, delays, dealt, tinted, won, lingers, closed });
   },
 });
 
@@ -92,6 +96,60 @@ story('payoff/end-screen-counts-up', {
   },
 });
 
+story('payoff/picked-treasure-flies-to-its-row-slot', {
+  about: 'Picking a Treasure flies its icon into its slot in the HUD\'s Treasure row: one element moved by transform alone along a curve, measured once as it is picked. The new slot stays empty until the icon lands, then pops; Reduce effects skip the flight.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run } = G(), row = run.hud.$('.items'), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    document.querySelectorAll('.jf-flyer').forEach((e) => e.remove());   // (an earlier story's, still flying)
+    const was = new Set(run.owned);
+    run.pickTreasure();
+    const cards = [...modal().querySelectorAll('.jf-pick .jf-card')];
+    cards[0].click();
+    const flyer = document.querySelector('.jf-flyer'), anim = flyer?.getAnimations()[0];
+    const frames = anim?.effect.getKeyframes() || [], props = new Set(frames.flatMap((f) => Object.keys(f)).filter((k) => !['offset', 'computedOffset', 'easing', 'composite'].includes(k)));
+    const [, x, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(frames.at(-1)?.transform || '') || [];
+    const cx = +x + flyer.offsetWidth / 2, cy = +y + flyer.offsetHeight / 2, box = row.getBoundingClientRect();   // where the last frame centres it
+    const atRow = cx > box.left - 40 && cx < box.right + 40 && cy > box.top - 40 && cy < box.bottom + 40;   // (the row, one slot's room round it)
+    const curved = frames.length >= 4;
+    run.refreshHud();                                     // the HUD draws the new Treasure (on the next frame, in play)
+    await wait(0);                                        // (the HUD's new slot is held empty a microtask later)
+    const id = [...run.owned].find((t) => !was.has(t)), slot = row.querySelector(`[data-id="${id}"]`);
+    const empty = slot?.classList.contains('jf-landing') && getComputedStyle(slot).opacity === '0';
+    anim?.finish();
+    await wait(60);
+    const landed = !slot?.isConnected || (!slot.classList.contains('jf-landing') && slot.classList.contains('pop'));
+    const gone = !document.querySelector('.jf-flyer');
+    step(50);
+    // Reduce effects: no flight at all
+    document.body.classList.add('calm');
+    try { run.pickTreasure(); [...modal().querySelectorAll('.jf-pick .jf-card')][0].click(); } finally { document.body.classList.remove('calm'); }
+    const calmFlight = !!document.querySelector('.jf-flyer');
+    step(5);
+    return ok(!!anim && [...props].join() === 'transform' && atRow && curved && empty && landed && gone && !calmFlight, { props: [...props], atRow, curved, empty, landed, gone, calmFlight, to: [cx, cy], box: [box.left, box.top, box.right, box.bottom] });
+  },
+});
+
+story('payoff/death-numbers-wait-for-the-sag', {
+  about: 'On a death the jelly sags into its puddle in `death-dry-time` (0.8 s), fast at first and settling with no overshoot, and the end screen\'s numbers wait for it: its rows start arriving only once it has settled.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(), D = run.driedOut;
+    try {
+      run.devRun(); run.phase = 'dead'; D.begin();
+      run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again');
+      const rows = [...modal().querySelectorAll('.jf-stats > b')].map((b) => parseFloat(b.style.getPropertyValue('--d')));
+      const dry = LOOK.num('death-dry-time', 0.8) * 1000, flat = LOOK.num('death-jelly-flat', 0.35);
+      const sag = (t) => { D.t = t; D.frame(0); return D.body.scale.y; };
+      const ys = [0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.2].map(sag);
+      const settled = Math.abs(ys[5] - flat) < 0.001 && Math.abs(ys[6] - flat) < 0.001, falling = ys.every((y, i) => !i || y <= ys[i - 1] + 1e-9);   // no overshoot: it never drops under its puddle or comes back up
+      const fastFirst = ys[2] < (1 + flat) / 2;   // half the sag is done within a quarter of it
+      const waits = rows.length > 1 && rows[0] >= dry - 1 && rows.every((d, i) => !i || d > rows[i - 1]);
+      return ok(dry <= 900 && settled && falling && fastFirst && waits, { dry, ys, rows });
+    } finally { run.ui.close(); run.start(); }
+  },
+});
+
 story('payoff/golden-award-is-revealed', {
   about: 'A golden award earned in a run gets its own reveal over the end screen before the tally runs: your jelly wearing it, its name and what earned it, Wear it now (which puts it on) and Continue; the end screen still lists it.',
   setup() { fresh({ elites: false }); },
@@ -108,6 +166,7 @@ story('payoff/golden-award-is-revealed', {
       const el = document.querySelector('.jf-award'), text = el?.innerText || '';
       const shown = /Golden award unlocked/i.test(text) && /Golden laurel/.test(text) && /Clear 1,000 bugs/.test(text) && /^data:image/.test(el?.querySelector('img')?.src || '');
       const listed = /Unlocked\s*Golden laurel/.test(modal().innerText);
+      const turns = getComputedStyle(el.querySelector('.face'), '::before').animationIterationCount;   // the gold rays turn twice, then rest
       step(30);
       const held = !!modal().querySelector('.jf-count.run');                // the tally waits for it
       el.querySelector('[data-wear]').click();
@@ -116,7 +175,7 @@ story('payoff/golden-award-is-revealed', {
       step(90);
       const tallied = !modal().querySelector('.jf-count.run');
       menus.close();
-      return ok(shown && listed && held && worn[0] === 'top:laurel' && gone && tallied, { shown, listed, held, worn, gone, tallied, text: text.slice(0, 120) });
+      return ok(shown && listed && held && turns === '2' && worn[0] === 'top:laurel' && gone && tallied, { shown, listed, held, turns, worn, gone, tallied, text: text.slice(0, 120) });
     });
   },
 });

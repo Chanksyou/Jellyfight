@@ -23,13 +23,23 @@ const tierCard = ({ i, tier, icon: ic, name, body, badges = '', key = '', d }) =
     <span class="ui-card-icon ic">${ic}</span>${tier ? `<span class="ui-card-rarity rar">${esc(tier.name)}</span>` : ''}<span class="ui-card-name">${name}</span>
     <span class="ui-card-body">${body}</span><span class="jf-badges">${key ? `<span class="key" aria-hidden="true">${key}</span>` : ''}${badges}</span></button>`;
 };
-const DEAL = 90, BEAT = 300;   // ms between cards dealt; a level-up's beat before the first
-const COUNT = 0.7, ROW = 70;   // an end screen's tally: seconds a number counts up, ms between its rows
+const BEAT = 300;     // a level-up's beat (ms) before the first card is dealt
+const COUNT = 0.7;    // an end screen's tally: seconds a number counts up
+const DEAL_MAX = 360; // a deal or a cascade of rows is over inside this many ms (the skill's staggers stay under 400)
+// A motion token from look.css (--ui-fast, --ui-stagger…) as a number of ms (read when a motion starts, never per frame)
+export const tok = (name, fallback) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || fallback;
+export const stagger = () => tok('--ui-stagger', 60);
+// When each card is dealt (ms), the rarest last: a rarer card waits longer, equals keep their order. `tiers` are tier names
+export const dealDelays = (tiers, beat = 0) => {
+  const s = stagger(), order = tiers.map((t, i) => [Math.max(0, TIERS.indexOf(t)), i]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), at = [];
+  order.forEach(([, i], rank) => { at[i] = beat + Math.min(rank * s, DEAL_MAX); });
+  return at;
+};
 
 const CSS = `
 .jf-modal { position: fixed; inset: 0; display: grid; place-items: center; box-sizing: border-box; background: var(--ui-scrim); z-index: 30;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn .18s ease-out; }
+  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn var(--ui-fast) var(--ui-ease-settle); }
 .jf-modal[hidden] { display: none; }
 @keyframes jfIn { from { opacity: 0; } }
 .jf-modal h2 { margin: 0; font: 600 var(--ui-size-title)/1.1 var(--ui-font-display); text-shadow: 0 2px 10px var(--ui-shade); text-wrap: balance; }
@@ -47,44 +57,56 @@ const CSS = `
 .jf-cards .ui-card-name b { color: var(--ui-mint); font-weight: inherit; }
 .jf-cards .ui-card-body { color: var(--ui-ink); }
 .jf-card.ui-enter { animation-fill-mode: backwards; animation-delay: var(--d, 0ms); }
-.jf-sheen::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: jfSheen 3.6s ease-in-out infinite;
-  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--rarity) 22%, transparent) 48%, transparent 62%); background-size: 230% 100%; background-position: 65% 0; }
-@keyframes jfSheen { 0% { background-position: 130% 0; } 42% { background-position: -30% 0; } 100% { background-position: -30% 0; } }
+.jf-sheen { overflow: hidden; }
+/* the Legendary sheen: a pre-painted strip slid across the card (transform only) */
+.jf-sheen::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 60%; pointer-events: none; animation: jfSheen 3.6s var(--ui-ease-float) infinite;
+  background: linear-gradient(115deg, transparent 20%, color-mix(in srgb, var(--rarity) 22%, transparent) 50%, transparent 80%); transform: translateX(-110%); }
+@keyframes jfSheen { 0% { transform: translateX(-110%); } 42%, 100% { transform: translateX(230%); } }
 /* count / New! in the card's top corner, and the number key that picks it */
 .jf-badges { position: absolute; top: var(--ui-space-2); right: var(--ui-space-2); display: flex; gap: var(--ui-space-1); align-items: center; }
 .jf-badges .ui-card-count { position: static; }
 .jf-card .key { font: 700 var(--ui-size-label)/1 var(--ui-font-text); opacity: .55; }
 .jf-card .jf-new { padding: 2px 8px; border-radius: var(--ui-radius-pill); background: var(--ui-gold); color: var(--ui-gold-ink); font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); }
-.jf-pick .jf-card.jf-won { animation: jfWon .5s ease-out; }
-@keyframes jfWon { 30% { transform: scale(1.06); box-shadow: 0 10px 34px var(--ui-shade), inset 0 0 60px color-mix(in srgb, var(--rarity) 45%, transparent); } }
-.jf-pick .jf-card.jf-burn { animation: jfBurn .62s ease-in forwards; pointer-events: none; }
-@keyframes jfBurn { 20% { filter: brightness(1.6) sepia(.5) hue-rotate(-15deg); } 45% { filter: brightness(1.2) sepia(.85); transform: translateY(-3px); opacity: 1; } 100% { filter: grayscale(.9) brightness(.5) blur(1px); transform: translateY(-16px); opacity: 0; } }
+.jf-pick .jf-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; }
+/* the picked card swells while a glow layer (its rarity, pre-painted) fades in and out; the others drop away under a dark ember tint.
+   Only transform and opacity move: no filter or shadow is animated (they repaint every frame on a phone) */
+.jf-pick .jf-card.jf-won { animation: jfWon var(--ui-slow) var(--ui-ease-arrive); }
+.jf-pick .jf-card.jf-won::after { box-shadow: inset 0 0 60px color-mix(in srgb, var(--rarity) 45%, transparent); animation: jfGlow var(--ui-slow) var(--ui-ease-settle); }
+@keyframes jfWon { 40% { transform: scale(1.06); } }
+@keyframes jfGlow { 40% { opacity: 1; } }
+.jf-pick .jf-card.jf-burn { animation: jfBurn var(--ui-fast) var(--ui-ease-leave) forwards; pointer-events: none; }
+.jf-pick .jf-card.jf-burn::after { background: color-mix(in srgb, var(--ui-boss) 30%, var(--ui-deep)); animation: jfBurnTint var(--ui-fast) var(--ui-ease-leave) forwards; }
+@keyframes jfBurn { to { opacity: 0; transform: translateY(12px) scale(.97); } }
+@keyframes jfBurnTint { to { opacity: .75; } }
+/* the picked icon, flying to its slot in the HUD (flyIcon): a new Treasure's own slot waits empty until it lands */
+.jf-flyer { position: fixed; left: 0; top: 0; z-index: 40; display: grid; place-items: center; pointer-events: none; will-change: transform; }
+#hud .items span.jf-landing { opacity: 0; }
 /* reduced motion (the device setting, or Reduce effects): the deal-in and the title only fade (the kit's
    .ui-enter / .ui-pop), the sheen and the won / burn outro stand still (the pick closes at once) */
-body.calm .jf-sheen::before, body.calm .jf-pick .jf-card.jf-burn, body.calm .jf-pick .jf-card.jf-won { animation: none; }
-@media (prefers-reduced-motion: reduce) { .jf-sheen::before, .jf-pick .jf-card.jf-burn, .jf-pick .jf-card.jf-won { animation: none; } }
+body.calm .jf-sheen::before, body.calm .jf-pick .jf-card.jf-burn, body.calm .jf-pick .jf-card.jf-won, body.calm .jf-pick .jf-card::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .jf-sheen::before, .jf-pick .jf-card.jf-burn, .jf-pick .jf-card.jf-won, .jf-pick .jf-card::after { animation: none; } }
 /* the end screens tally (tick): rows arrive one by one and numbers count up. The real number stays
    in the page (only hidden while it counts), so what the screen says is always the final one */
-.jf-tally .jf-stats > * { animation: jfRow .28s ease-out backwards; animation-delay: var(--d, 0ms); }
+.jf-tally .jf-stats > * { animation: jfRow var(--ui-mid) var(--ui-ease-settle) backwards; animation-delay: var(--d, 0ms); }
 .jf-tally.jf-done .jf-stats > * { animation: none; }
 @keyframes jfRow { from { opacity: 0; transform: translateY(6px); } }
 .jf-count.run { position: relative; -webkit-text-fill-color: transparent; }
 .jf-count.run::after { content: attr(data-shown); position: absolute; right: 0; top: 0; white-space: nowrap; -webkit-text-fill-color: currentColor; }
-.jf-best.on { display: inline-block; animation: jfBest .4s cubic-bezier(.2, 1.6, .4, 1); }
+.jf-best.on { display: inline-block; animation: jfBest var(--ui-slow) var(--ui-ease-arrive); }
 @keyframes jfBest { from { transform: scale(2.4) rotate(-8deg); opacity: 0; } }
 /* a golden award earned (award): your jelly wearing it, on turning gold rays, before the score */
 .jf-award { position: fixed; inset: 0; z-index: 32; display: grid; place-items: center; box-sizing: border-box;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ui-gold) 22%, var(--ui-deep)), var(--ui-deep) 62%);
-  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn .25s ease-out; }
+  font-family: var(--ui-font-text); color: var(--ui-ink); text-align: center; animation: jfIn var(--ui-mid) var(--ui-ease-settle); }
 .jf-award > div { display: grid; justify-items: center; gap: var(--ui-space-2); padding: var(--ui-space-4); }
 .jf-award .eyebrow { margin: 0; font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
 .jf-award h2 { margin: 0; font: 600 var(--ui-size-title)/1.1 var(--ui-font-display); text-shadow: 0 3px 14px var(--ui-shade); }
 .jf-award .for { margin: 0; color: var(--ui-ink-dim); font-size: var(--ui-size-body); }
 .jf-award .face { position: relative; width: 190px; height: 190px; display: grid; place-items: center; margin: 6px 0 8px; }
-.jf-award .face::before { content: ''; position: absolute; inset: -40px; border-radius: 50%; animation: jfRays 9s linear infinite;
+.jf-award .face::before { content: ''; position: absolute; inset: -40px; border-radius: 50%; animation: jfRays 12s linear 2;   /* two slow turns, then still */
   background: repeating-conic-gradient(color-mix(in srgb, var(--ui-gold) 33%, transparent) 0 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); }
-.jf-award .face img { position: relative; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ui-gold), 0 0 40px color-mix(in srgb, var(--ui-gold) 55%, transparent); animation: jfRise .6s cubic-bezier(.2, 1.4, .4, 1) .1s backwards; }
+.jf-award .face img { position: relative; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ui-gold), 0 0 40px color-mix(in srgb, var(--ui-gold) 55%, transparent); animation: jfRise var(--ui-slow) var(--ui-ease-arrive) var(--ui-fast) backwards; }
 @keyframes jfRays { to { transform: rotate(1turn); } }
 @keyframes jfRise { from { transform: translateY(30px) scale(.6); opacity: 0; } }
 .jf-award .btns { display: flex; gap: var(--ui-space-3); flex-wrap: wrap; justify-content: center; margin-top: var(--ui-space-3); }
@@ -260,13 +282,14 @@ export class UI {
     const gen = ++this._gen;
     let out = false;
     const render = (beat) => {
+      const at = dealDelays(cards.map((c) => c.rarity?.name), beat);
       this.modal.innerHTML = `<div class="jf-level"><h2 class="ui-pop">Level ${level}!</h2><p class="sub">Choose an upgrade.</p>
         <div class="jf-cards jf-pick">${cards.map((c, i) => {
           const info = STAT_INFO[c.stat], [head, ...more] = cardText(c).split(' · ');   // (the Attacks card's "· 20% less damage each" goes under its name)
-          return tierCard({ i, tier: c.rarity, icon: info.icon, name: hi(head), body: [...more, `now ${info.fmt(stats[c.stat])}`].map(hi).join('<br>'), key: i + 1, d: beat + i * DEAL });
+          return tierCard({ i, tier: c.rarity, icon: info.icon, name: hi(head), body: [...more, `now ${info.fmt(stats[c.stat])}`].map(hi).join('<br>'), key: i + 1, d: at[i] });
         }).join('')}</div>
         <div class="btns"><button class="ui-btn" data-act="reroll" ${rerolls > 0 ? '' : 'disabled'}>${icon('reroll')} Reroll (${rerolls}) <span class="jf-key">[R]</span></button></div></div>`;
-      this.dealSound(cards.map((c) => c.rarity.name), beat);
+      this.dealSound(at, cards.map((c) => c.rarity?.name));
     };
     const pick = (i) => { const c = cards[i]; if (!c || out) return; out = true; this.outro(gen, i, to); onPick(c); };
     const reroll = () => {
@@ -292,39 +315,41 @@ export class UI {
   // choices: [{ icon, name, text, tier?, delta? }] — the pick screen's order (plan step 1):
   // name, the big icon, the rarity written out, what it does, and a delta line when the
   // treasure grows (Lv 1 → Lv 2, ×1 → ×2)
-  choose(title, sub, choices, onPick) {
+  // slot(choice) -> { to: DOMRect, done?() } | null: where the won card's icon lands in the HUD (measured once, as it's picked), else the toast's spot
+  choose(title, sub, choices, onPick, slot = null) {
     const gen = ++this._gen;
+    const at = dealDelays(choices.map((c) => c.tier?.name));
     this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
-      <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: i * DEAL,
+      <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: at[i],
         badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
     this.modal.hidden = false;
-    this.dealSound(choices.map((c) => c.tier?.name), 0);
+    this.dealSound(at, choices.map((c) => c.tier?.name));
     let out = false;
     const pick = (i) => {
       const c = choices[i];
       if (!c || out) return;
       out = true;
-      this.outro(gen, i);
+      const land = slot?.(c);
+      this.outro(gen, i, land?.to, land?.done);
       onPick(c);   // resume can capture the mouse during this click, before user activation expires
     };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
     this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
   }
 
-  // A whoosh per card as it's dealt, then a chord as big as the rarest card's rarity
-  dealSound(tiers, beat) {
-    const d = calm() ? 0 : beat / 1000;
-    tiers.forEach((_, i) => sfx.deal(d + (calm() ? 0 : i * DEAL / 1000)));
-    sfx.reveal(Math.max(0, ...tiers.map((t) => TIERS.indexOf(t))), d + (calm() ? 0 : tiers.length * DEAL / 1000));
+  // A whoosh per card as it's dealt (`at`: when each is, ms), then a chord as big as the rarest card's rarity
+  dealSound(at, tiers) {
+    at.forEach((ms) => sfx.deal(calm() ? 0 : ms / 1000));
+    sfx.reveal(Math.max(0, ...tiers.map((t) => TIERS.indexOf(t))), calm() ? 0 : (Math.max(0, ...at) + stagger()) / 1000);
   }
 
   // A pick resolves at once (the game flows on exactly as before), but the modal stays up for one
   // beat so the moment can land: the won card pulses, its icon flies up (to `to`, else to where the
-  // treasure toast appears), and the unpicked cards burn away
-  outro(gen, i, to) {
+  // treasure toast appears; `done` runs as it lands), and the unpicked cards drop away
+  outro(gen, i, to, done) {
     const cards = [...this.modal.querySelectorAll('.jf-card')];
     cards.forEach((el, j) => el.classList.add(j === i ? 'jf-won' : 'jf-burn'));
-    this.flyIcon(cards[i], to);
+    this.flyIcon(cards[i], to, done);
     sfx.pick();
     if (cards.length > 1) sfx.burn();
     // the outro runs on the game's clock (tick, from GAME.step), not a wall timer:
@@ -383,17 +408,29 @@ export class UI {
     this.modal.firstElementChild?.classList.add('jf-done');
   }
 
-  // A copy of the won card's icon, flown up to the treasure toast's spot (top centre), or to `to` (a DOMRect)
-  flyIcon(card, to = null) {
+  // A copy of the won card's icon, flown to the treasure toast's spot (top centre), or to `to` (a DOMRect: a slot in the HUD).
+  // It's one element moved by transform alone (the card's own box measured once, scaled and carried to the target): up and over
+  // in an arc, then in with a little overshoot. Reduce effects: no flight, `done` runs at once
+  flyIcon(card, to = null, done = null) {
     const ic = card?.querySelector('.ic');
-    if (!ic || document.body.classList.contains('calm')) return;
-    const r = ic.getBoundingClientRect(), el = document.createElement('span');
+    if (!ic || calm()) { done?.(); return null; }
+    const r = ic.getBoundingClientRect(), el = document.createElement('span'), end = to || new DOMRect(innerWidth / 2 - r.width * 0.325, innerHeight * 0.13 - r.height * 0.325, r.width * 0.65, r.height * 0.65);
+    el.className = 'jf-flyer';
     el.textContent = ic.textContent;
-    el.style.cssText = `position:fixed; left:${r.left}px; top:${r.top}px; width:${r.width}px; height:${r.height}px; font-size:${getComputedStyle(ic).fontSize}; line-height:${r.height}px; text-align:center; z-index:40; pointer-events:none; transition:all .55s cubic-bezier(.5,0,.8,.4);`;
+    el.style.cssText = `width:${r.width}px; height:${r.height}px; font-size:${getComputedStyle(ic).fontSize}`;
     document.body.appendChild(el);
-    const [x, y] = to ? [`${to.left + to.width / 2}px`, `${to.top + to.height / 2}px`] : ['50%', '13%'];
-    requestAnimationFrame(() => { el.style.left = x; el.style.top = y; el.style.transform = 'translate(-50%,-50%) scale(.65)'; el.style.opacity = '.85'; });
-    setTimeout(() => el.remove(), 620);
+    // the flight: from the icon's centre to the target's, scaled about its centre to the target's size, along a curve
+    // (a quadratic whose middle is pulled up) sampled into a few keyframes
+    const at = (x, y, k) => `translate(${x - r.width / 2}px, ${y - r.height / 2}px) scale(${k})`;
+    const x0 = r.left + r.width / 2, y0 = r.top + r.height / 2, x1 = end.left + end.width / 2, y1 = end.top + end.height / 2, k1 = Math.max(0.25, end.width / r.width);
+    const cx = (x0 + x1) / 2, cy = Math.min(y0, y1) - Math.max(40, Math.abs(y1 - y0) * 0.5);   // the control point: above both ends
+    const path = [0, 0.25, 0.5, 0.75, 1].map((t) => ({ offset: t, transform: at((1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t * t * x1, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t * t * y1, 1 + (k1 - 1) * t) }));
+    const ms = tok('--ui-mid', 240) + tok('--ui-fast', 120), ease = getComputedStyle(document.documentElement).getPropertyValue('--ui-ease-arrive').trim() || 'ease-out';
+    const fin = () => { if (el.isConnected) { el.remove(); done?.(); } };
+    const a = el.animate(path, { duration: ms, easing: ease, fill: 'forwards' });
+    a.onfinish = fin;
+    setTimeout(fin, ms + 80);   // (a hidden tab never finishes an animation)
+    return a;
   }
 
   // rows: [[label, value]], buttons: [{ label, go, enter?, onClick }] (Enter presses the `enter` one, else the `go` one)
@@ -423,12 +460,14 @@ export class UI {
   }
 
   // buttons: [{ label, onClick(values), go?, enter?, corner? }]; a corner one sits apart, top left (the beta bubble)
-  message(title, sub, rows, buttons, cls = '', hint = '') {
+  // hold: ms the rows wait before they start arriving (a death lets its jelly finish drying out first)
+  message(title, sub, rows, buttons, cls = '', hint = '', hold = 0) {
     this._gen++;
     const board = cls.includes('jf-board');   // the leaderboards: a plain title, and an icon over a board with nothing on it yet
+    const s = stagger(), d = (i) => hold + Math.min(i * s, DEAL_MAX);   // when row i arrives (the tally counts each up from there)
     this.modal.innerHTML = `<div class="ui-panel jf-panel ${cls}"><div class="ui-header"><h2>${board ? bare(title) : title}</h2></div>${board && !rows.length ? `<div class="jf-empty">${icon('trophy')}</div>` : ''}${sub ? `<p class="sub">${sub}</p>` : ''}
       ${hint ? `<p class="jf-hint">${icon('info')} ${esc(hint)}</p>` : ''}
-      ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${i * ROW}ms">${k}</span><b style="--d:${i * ROW}ms">${v}</b>`).join('')}</div>` : ''}
+      ${rows.length ? `<div class="jf-stats">${rows.map(([k, v], i) => `<span style="--d:${d(i)}ms">${k}</span><b style="--d:${d(i)}ms">${v}</b>`).join('')}</div>` : ''}
       <div class="btns">${buttons.map((b, i) => (b.corner ? '' : `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`)).join('')}</div>
       ${buttons.map((b, i) => (b.corner ? `<button data-i="${i}" class="jf-beta">${b.label}</button>` : '')).join('')}</div>`;
     this.modal.hidden = false;

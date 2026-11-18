@@ -1,13 +1,14 @@
 // Behind the death screen: the player's own jelly (a copy of it and what it wears, like the win
 // screen's) lying dried out on cracked dry land under a dusty sun, the title screen's look gone dry.
 // It slumps into a flat puddle with its tentacles splayed out across the mud, and fades to a dull
-// husk over its first moment, then holds still until a new run starts.
+// husk over its first moment (`death-dry-time`; the end screen's numbers wait for it), then holds still until a new run starts.
 import * as THREE from 'three';
 import { UnderwaterBackdrop } from './main-menu.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 
-const ease = (u) => u * u * (3 - 2 * u);
+// it sags and settles: fast at first, then ever slower, no overshoot (the shape of --ui-ease-settle)
+const ease = (u) => 1 - (1 - u) ** 4;
 
 export class DriedOut {
   constructor(run) {

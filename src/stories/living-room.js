@@ -5,7 +5,7 @@ import { ELITES4 } from '../stage4.js';
 import { HIDDEN_SHELL } from '../layout-baked.js';
 import { meshesNamed } from '../traversal.js';
 import * as THREE from 'three';
-import { G, night4, ok, story } from './kit.js';
+import { G, fresh, night4, ok, step, story } from './kit.js';
 
 // objects the new layout deleted: every plant that lost its pot or stand (and the Monstera and Tall snake plant), the pillows and the rest
 const GONE = ['Round_plant_stand', 'Snake_plant', 'Tall_snake_plant', 'Rubber_plant', 'Monstera', 'Aloe', 'Cat_window_perches', 'Globe_clamp_lamp', 'Olive_pillow', 'Fluffy_white_pillow', 'Red_hardcover'];
@@ -82,5 +82,38 @@ story('engine/the-view-is-from-the-33rd-floor', {
       && geometry.groups.length === 0 && triangles <= 320 && min.y <= -90 && max.y >= 25
       && image?.width === 2048 && image.height === 512 && material.userData.daylight.value === 0,
       { triangles, height: [min.y, max.y], atlas: [image?.width, image?.height], solid });
+  },
+});
+
+story('room/copies-share-batches', {
+  about: 'Ten copies of a piece of furniture (the layout editor\'s Duplicate) share its geometry and materials, carry no lights and go in its batches: the room has no more to draw than before.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { statics, APT } = G(), scene = APT.scene;
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    document.querySelector('#g-over').hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    const meshes = (n) => { const out = []; n.traverse((o) => { if (o.isMesh) out.push(o); }); return out; };
+    const batched = new Set(statics.batches.flatMap((b) => b.pieces.map((p) => p.mesh)));
+    const src = L.items.find((it) => !it.added && it.node.visible && meshes(it.node).length > 1 && meshes(it.node).every((m) => batched.has(m) && m.visible));
+    // what the renderer has to draw: every shown mesh on the camera's layers (a batch is one)
+    const draws = () => { let n = 0; scene.traverseVisible((o) => { if (o.isMesh && o.layers.test(APT.camera.layers)) n++; }); return n; };
+    const before = draws();
+    L.sel = src;
+    const had = new Set(L.items);
+    for (let i = 0; i < 10; i++) L.duplicate();
+    const copies = L.items.filter((x) => !had.has(x)), own = meshes(src.node);
+    const shared = copies.every((c) => meshes(c.node).every((m, i) => m.geometry === own[i].geometry && m.material === own[i].material));
+    const lights = copies.reduce((n, c) => { c.node.traverse((o) => { if (o.isLight) n++; }); return n; }, 0);
+    const after = draws();
+    // and every copy is drawn: in a batch, or by itself
+    const inBatch = new Set(statics.batches.flatMap((b) => b.pieces.filter((p) => p.inBatch).map((p) => p.mesh)));
+    const drawn = copies.every((c) => meshes(c.node).every((m) => inBatch.has(m) || m.layers.test(APT.camera.layers)));
+    for (const c of copies) L.drop(c);
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    L.onDone();
+    return ok(src && copies.length === 10 && shared && !lights && drawn && after === before, { src: src?.key, copies: copies.length, shared, lights, drawn, before, after });
   },
 });

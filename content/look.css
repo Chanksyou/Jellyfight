@@ -622,7 +622,7 @@
   --death-land-horizon: 0.5;      /* where the land meets the sky (0 bottom, 1 top) */
   --death-husk: #d8b98c;          /* what the jelly's colours fade to as it dries */
   --death-husk-mix: 0.75;
-  --death-dry-time: 1.6;          /* s it takes to slump, splay out and dry */
+  --death-dry-time: 0.8;          /* s it takes to slump, splay out and dry (the end screen's numbers start after it) */
   --death-jelly-flat: 0.35;       /* its height once dried, of what it was */
   --death-jelly-spread: 0.35;     /* how much wider its bell spreads as it slumps */
   --death-jelly-yaw: 0.3;         /* turned a little as it lies */

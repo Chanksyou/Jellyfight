@@ -219,7 +219,7 @@ const HUD_STATES = {
   'hud: low Health': { open() { const h = G().hud; h.resetHealth(); h.setHealth(100, 100); h.setHealth(20, 100); h.setHealth(60, 100); h.setHealth(20, 100); const e = h.hpNodes['hp-edge-track']; e.style.transitionDuration = '180ms'; e.style.transform = 'translateX(90%)'; }, close() { G().hud.resetHealth(); } },
   'hud: Shield charging': { open() { const h = G().hud; h.setShield({ hp: 1, max: 3, state: 'broken', charging: false }); h.setShield({ hp: 1, max: 3, state: 'charging', charging: true }); h.setShield({ hp: 3, max: 3, state: 'full', charging: false }); h.setShield({ hp: 1, max: 3, state: 'charging', charging: true }); }, close() { G().hud.setShield({ hp: 0, max: 0, state: null, charging: false }); } },
   'hud: Treasure pop': { open() { const items = G().hud.$('.items'), el = items.firstElementChild || items.appendChild(document.createElement('span')); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }, close() { G().hud.$('.items').querySelectorAll('.pop').forEach((e) => e.classList.remove('pop')); } },
-  'treasure pick: outro': { open() { G().run.pickTreasure(); const cards = [...G().run.ui.modal.querySelectorAll('.jf-card')]; cards[0]?.classList.add('jf-sheen'); cards[0]?.click(); }, close() { G().run.ui.close(); } },
+  'treasure pick: outro': { open() { G().run.pickTreasure(); const cards = [...G().run.ui.modal.querySelectorAll('.jf-card')]; cards[0]?.classList.add('jf-sheen'); cards[0]?.click(); }, close() { G().run.ui.close(); document.querySelectorAll('.jf-flyer').forEach((e) => e.remove()); } },   // (a flyer outlives the screen by a moment: not into the next guard)
   'hud: level ding': { open() { G().hud.levelDing(innerWidth / 2, innerHeight / 2); }, close() { document.querySelectorAll('.jf-ding-ring').forEach((e) => e.remove()); G().hud.$('.lvl').classList.remove('ding'); } },
 };
 // Everything animating (CSS animations and transitions) while each screen is open, as "<name>: <property>".
@@ -243,13 +243,9 @@ function motionOf() {
 // Allowed for now, as "animation name: property" tagged by the task that removes it (a name matches on any screen).
 // A new offender fails the story: use transform and opacity (a glow is a pre-painted layer whose opacity moves).
 const KNOWN_MOTION = {
-  'transition top: top': 'M3', 'transition left: left': 'M3', 'transition width: width': 'M3', 'transition height: height': 'M3',   // the won icon's flight (transition: all), seen only while it flies
-  'jfWon: boxShadow': 'M3', 'jfSheen: backgroundPositionX': 'M3', 'jfSheen: backgroundPositionY': 'M3', 'jfBurn: filter': 'M3',
 };
 const KNOWN_CALM = {
-  'jf-swim: transform': 'M2', 'jf-wave: transform': 'M2', 'jf-shine: transform': 'M2',   // the title screen's ambient loops keep going
-  'transition top: top': 'M3', 'transition left: left': 'M3',   // the won icon's flight
-  'transition transform: transform': 'M2/M3',   // the pick screen's cards turning; the won icon's flight
+  'jf-swim: transform': 'M4', 'jf-wave: transform': 'M4', 'jf-shine: transform': 'M4',   // the title screen's ambient loops keep going
 };
 const motionGuard = (name, about, calm, bad, known) => story(name, {
   phone: true,
