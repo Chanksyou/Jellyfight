@@ -1155,11 +1155,11 @@ story('treasures/health-drain', {
   },
 });
 story('treasures/pocket-vacuum', {
-  about: 'on-attack + whirl dmg= (Pocket Vacuum): an attack that rolls under 1 in 10 sets off a tornado at the nearest bug; one that rolls over sets off none. It pulls a bug 10 cm off toward it, stings the bugs in it every 0.5 s, keeps to 3 at once and is gone after 4 s.',
+  about: 'on-attack + whirl dmg= (Pocket Vacuum): an attack that rolls under 1 in 10 sets off a tornado at the nearest bug; one that rolls over sets off none. It sucks two bugs 25 cm apart into a huddle (under 10 cm) within 2 s, stings the bugs in it every 0.5 s, keeps to 3 at once and is gone after 4 s.',
   setup() { setupFight({ lash: false, bubbles: false }); give('pocketVacuum'); },
   play() {
     const { run } = G(), Gd = run.gadgets, log = record('damage_taken'), real = Math.random;
-    const a = roachAt(0, -0.2), b = roachAt(0.1, -0.2);
+    const a = roachAt(0, -0.2), b = roachAt(0.25, -0.2);
     let none, one, capped;
     try {
       Math.random = () => 0.5; run.attacked(); none = Gd.whirls?.length || 0;
@@ -1172,7 +1172,7 @@ story('treasures/pocket-vacuum', {
     const d1 = b.pos.distanceTo(a.pos), stung = new Set(dmgBy(log, 'whirl').map((d) => d.targetId)).size;
     step(130);
     const gone = Gd.whirls.length === 0;
-    return ok(none === 0 && one === 1 && capped === 3 && d1 < d0 - 0.01 && stung === 2 && gone, { none, one, capped, d0, d1, stung, gone });
+    return ok(none === 0 && one === 1 && capped === 3 && d1 < 0.1 && stung === 2 && gone, { none, one, capped, d0, d1, stung, gone });
   },
 });
 story('treasures/on-attack', {

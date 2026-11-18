@@ -2,6 +2,14 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v506 The ant's pushpin is easier to read: once an ant locks its aim, a dotted glow line shows where the pin will fly, and a thrown pin is drawn bigger with a brighter halo and trail. A missed pin glows where it sticks until it goes. Damage and hit size are unchanged.
+
+v505 makes the Pocket Vacuum's mini tornado much stronger: it is 2.5 times wider and its pull is six times harder, so every bug round it is sucked hard into the middle, with air streaking in from the rim.
+
+v504 adds Easy mode: switch it on in Settings and your next run deals twice the damage and takes half, earns half the Pearls and keeps no leaderboard score; an "Easy mode" badge shows under the clock while it's on.
+
+v503 fixes the layout editor not letting you pick up or drag a small plant: the invisible click box of the TV (or other furniture) behind it was swallowing the tap, so a plant made smaller could no longer be moved.
+
 v502 fixes the type pick's Play button going dead after turning onto a locked card while it squeezes.
 
 v501 the dev layout editor is now compact and built on the UI kit: act chips and a ? help button on top, a slim bar (Add, Undo, Export, Done) below, and a selection bar only while something is selected (rotate, up/down, a prop's size, Stick, Duplicate, hide, delete, put back); Reset all moved into the Export sheet. Add opens a drawer of the prop library: tapping a plant places it on the surface in the middle of the view, and every tap on a surface after that stamps another until Esc, the Stamping chip or Done. Things you added stick to the top of whatever is under the pointer as you drag them (Stick switches it on for furniture); props resize 50-200% in 10% steps. The TV and soundbar can't be duplicated (the room draws them separately).

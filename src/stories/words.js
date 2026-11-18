@@ -44,6 +44,20 @@ story('words/spit-pin', {
     return ok(aimed && stood && spun > 0.3 && hit?.amount === 2 && gone && Math.abs(back - 1) < 0.01, { aimed, stood, spun: +spun.toFixed(2), hit: hit?.amount, gone, back });
   },
 });
+story('words/spit-pin-readable', {
+  about: 'An ant that has locked its aim shows a dotted glow line from its jaws to where the pin will fly (none before the lock); the thrown pin is drawn bigger than the one in its jaws and keeps its hit size.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('ants', near(0.4, 0)); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], hold = enemies.fx.glow.hold.bind(enemies.fx.glow);
+    let early = 0, locked = 0, lastLen = 0;
+    enemies.fx.glow.hold = (p, ...a) => { if (e.aimT > 0 && e.aimAt) { if (e.aimT > e.aimMax * 0.5) early++; else locked++; } hold(p, ...a); };
+    let big = null;
+    try {
+      step(60 * 8, () => { const s = enemies.shots.find((q) => q.roll); if (s) { big = s.m.scale.x / e.r; return true; } return false; });
+    } finally { enemies.fx.glow.hold = hold; }
+    return ok(locked >= 5 && big > 1.3 && big < 2.2, { locked, early, big: big && +big.toFixed(2) });
+  },
+});
 story('words/spit-pin-sticks', {
   about: 'A pushpin that misses sticks in the scenery for a moment (harmless), then goes.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
