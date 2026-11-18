@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v476 refines the apartment's wood, fabric, tile, stone and paint finishes in the existing texture slots and fixes the grain normal map, with the same furniture meshes and walking surfaces.
+
 v475 recreates the apartment's 33rd-floor Greenpoint window views with a painted city backdrop, nearby tower silhouettes, and city lights that fade toward dawn.
 
 v474 swaps the last emoji in toasts, screen titles, hints and the leaderboard for the UI's own icons (gold, silver and bronze ranks, a trophy beside a winning score), and the minimap no longer measures itself every frame.
