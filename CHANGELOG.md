@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v487 adds a prop library for the dev layout editor: six plants (Aloe, Monstera, Pothos, Rubber plant, Snake plant, Spider plant), each whole with its pot, baked into one small file the game only downloads when a prop is asked for. Nothing in play changes yet.
+
 v486 replaces the Cicada's cone of sound in Act 4 with a Burrow: on the bar it digs into the floor and can't be hit while under. A glowing mound trails after you for a bar of the song, then locks, and a circle and dome fill over the spot for two beats. On the beat it bursts up there, hurting and tossing you if you're still inside. Step off the circle. Afterwards it stands dazed for a moment: that's when to hit it.
 
 v485 replaces the Mushroom Pillow's hop with the Fairy ring: eight spore caps sprout in a ring round where the jelly stands and burst as columns, so hold still in the middle (run and you cross one); angry, a second ring sprouts where the jelly would flee.

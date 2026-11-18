@@ -1,1 +1,0 @@
-adds a prop library for the dev layout editor: six plants (Aloe, Monstera, Pothos, Rubber plant, Snake plant, Spider plant), each whole with its pot, baked into one small file the game only downloads when a prop is asked for. Nothing in play changes yet.
