@@ -66,6 +66,13 @@ export const ELITES4 = [
     at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 1.7], max: [5.0, 1.6, 3.0] }, stand: [4.57, 0.94, 2.65] },
 ];
 
+// Keep the dawn layout's floor vents tied to its own furniture placements.
+const VENT_PLACEMENTS = {
+  'Vent by the coffee table': { at: [2.696, 0, 2.639], land: [2.357, 0.465, 2.405] },
+  'Vent by the TV': { at: [2.384, 0, 4.225], land: [2.324, 0.6, 4.428] },
+  'Vent by the desk': { at: [0.927, 0, 3.661], land: [0.574, 0.752, 3.51] },
+};
+
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
 export const STAGE4 = {
   id: 4,
@@ -92,7 +99,7 @@ export const STAGE4 = {
   fade: {},
   doors: STAGE1.doors,
   walls: STAGE1.walls,                // the hallway opening and the safety floor, as in act 1
-  vents: STAGE1.vents.map((v) => ({ ...v })),   // act 1's six (a copy: the layout editor moves this act's own; the three by the Elites land clear of them: layout-baked.js)
+  vents: STAGE1.vents.map((v) => ({ ...v, ...VENT_PLACEMENTS[v.name] })), // the three Elite vent overrides are in layout-baked.js
   climbs: [],
   // act 1's spots, less the two the Elites' props now crowd (the sofa seat under the Mushroom pillow, the lounge chair seat)
   spots: STAGE1.spots.filter((sp) => !['sofa seat', 'lounge chair'].includes(sp.label)),
