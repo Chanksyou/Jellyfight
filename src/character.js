@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
-import { ArmRig } from './arms.js';
+import { ArmRig, depth } from './arms.js';
 import { squeeze, thrust } from './swim.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
@@ -559,8 +559,8 @@ export function buildCharacter(look, heightMeters) {
     }
     armGeo.computeVertexNormals();
     const mat = arms.add(pivot, armMat);
-    mesh(armGeo, mat, pivot);
-    if (AS.puff) mesh(new THREE.IcosahedronGeometry(sp.arms.width * AS.puff, 1).translate(0, -L, 0), mat, pivot);   // a pom-pom on the end (it rides the chain's end)
+    mesh(depth(armGeo, L), mat, pivot);
+    if (AS.puff) mesh(depth(new THREE.IcosahedronGeometry(sp.arms.width * AS.puff, 1).translate(0, -L, 0), L, 1), mat, pivot);   // a pom-pom on the end (it rides the chain's end)
   }
   armMat.dispose();   // only its copies are drawn
   // the species' own feature

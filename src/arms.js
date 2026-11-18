@@ -14,17 +14,26 @@ const PTS = 5;                    // chain points root to end (the shader's armB
 const K_ROOT = 500, DAMP = 0.6, STEP = 1 / 60, KEEP = 0.15;
 const _s = new THREE.Vector3(), _v = new THREE.Vector3(), _flow = new THREE.Vector3();
 
-// The arm's vertex shader: a vertex `f` of the way down the arm (0 root, 1 end; a pom-pom on the
-// end follows the end) moves by the chain's offset there, blended between the two nearest points.
-// Every arm gets its own closure, but they read the same, so three.js builds one program for all.
-function bendShader(bend, len) {
+// The arm's vertex shader: a vertex `armDepth` of the way down the arm (0 root, 1 end: see
+// `depth`; a pom-pom on the end is all 1, so it rides the end whole) moves by the chain's offset
+// there, blended between the two nearest points. Every arm gets its own closure, but they read
+// the same, so three.js builds one program for all.
+function bendShader(bend) {
   return (sh) => {
     sh.uniforms.armBend = { value: bend };
-    sh.uniforms.armLen = { value: len };
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 armBend[5];\nuniform float armLen;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat armF = clamp(-position.y / armLen, 0.0, 1.0) * 4.0;\nfor (int k = 0; k < 5; k++) transformed += armBend[k] * max(0.0, 1.0 - abs(armF - float(k)));');
+      .replace('#include <common>', '#include <common>\nuniform vec3 armBend[5];\nattribute float armDepth;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat armF = armDepth * 4.0;\nfor (int k = 0; k < 5; k++) transformed += armBend[k] * max(0.0, 1.0 - abs(armF - float(k)));');
   };
+}
+
+// Mark how far down the arm each vertex of `geo` is (the shader's armDepth): by its height below
+// the pivot, or `at` for every vertex (a pom-pom: 1). Returns geo.
+export function depth(geo, len, at = null) {
+  const p = geo.attributes.position, d = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) d[i] = at ?? Math.min(1, Math.max(0, -p.getY(i) / len));
+  geo.setAttribute('armDepth', new THREE.BufferAttribute(d, 1));
+  return geo;
 }
 
 export class ArmRig {
@@ -39,6 +48,7 @@ export class ArmRig {
     this.alongDrag = LOOK.num('jelly-motion-drag-along', 0.5);
     this.flare = LOOK.num('jelly-motion-arm-flare', 0.5);
     this.carry = LOOK.num('jelly-motion-arm-carry', 0.8);
+    this.flowMax = LOOK.num('jelly-motion-arm-carry-max', 6);
     this.compliance = LOOK.num('jelly-motion-bend-compliance', 0.0002);
     const kTip = LOOK.num('jelly-motion-arm-spring', 60), drag = LOOK.num('jelly-motion-arm-drag', 9);
     this.K = Array.from({ length: PTS }, (_, j) => K_ROOT + (kTip - K_ROOT) * (j / (PTS - 1)) ** 0.6);
@@ -55,7 +65,7 @@ export class ArmRig {
   add(pivot, material) {
     const v3 = () => Array.from({ length: PTS }, () => new THREE.Vector3());
     const A = { pivot, bend: v3(), sim: v3(), vel: v3(), goal: v3(), mat: material.clone() };
-    A.mat.onBeforeCompile = bendShader(A.bend, this.len);
+    A.mat.onBeforeCompile = bendShader(A.bend);
     this.list.push(A);
     return A.mat;
   }
@@ -76,7 +86,7 @@ export class ArmRig {
     _v.setFromMatrixPosition(this.floorRoot.matrixWorld).divideScalar(unit);
     if (this.fresh || dt <= 0 || dt > 0.25 || _v.distanceTo(this.lastRoot) > 3) this.fresh = true;
     // the water under the bell moves along with it (most of the way): what the arms are dragged through
-    if (!this.fresh) _flow.copy(_v).sub(this.lastRoot).multiplyScalar(this.carry / dt);
+    if (!this.fresh) _flow.copy(_v).sub(this.lastRoot).multiplyScalar(this.carry / dt).clampLength(0, this.flowMax);   // (a blink or a shove: no whipping)
     this.lastRoot.copy(_v);
     const floor = _v.y + 0.015;
     // pushed out (along the pivot's +z, away from the middle) while the bell relaxes open
