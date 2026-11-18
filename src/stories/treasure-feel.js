@@ -47,7 +47,7 @@ story('treasure-feel/brick-drop-does-not-delay-activation',{
   play(){const {run}=G(),g=run.gadgets,c=context(),ef=effect('brick'),log=record('damage_taken');g.fire(ef,c);const b=g.bricks[0],at=b.m.position.clone();
     const e=roachAt(0,0);e.pos.copy(at);g.update(1/60,c);
     const hits=log.filter(d=>d.source==='brick'),hit=hits.length===1&&hits[0].amount===c.power*ef.dmg;
-    const grounded=b.m.position.equals(at),studs=g.looks.pools.stud.some(p=>p.alive);
+    const grounded=b.m.position.distanceTo(at)<.002,studs=g.looks.pools.stud.some(p=>p.alive);
     g.fire(ef,c);const reused=g.bricks[0].m===b.m&&g.bricks[0].age===0;
     return ok(hit&&grounded&&studs&&reused,{hit,grounded,studs,reused});},
 });

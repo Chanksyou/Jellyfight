@@ -2,6 +2,12 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v509 bakes Chan's act 1 and act 2 layout edits: plants moved and added in the living room and the bathroom, a few small items removed, and the round plant stand hidden.
+
+v508 adds the tests and tools for the coming jelly motion work, with no change to how the game looks or plays: a rest pose for every jelly (`restPose`), a story that keeps every look's rest pose exactly as it was, a story that caps the work one jelly does per frame, and `tools/motion-reel.mjs` for before/after reels.
+
+v507 makes a dropped Lego Brick fall to whatever is under it (a jump, a ledge) instead of hanging in the air, and lets the act bosses step on a brick and take its hit and burst (Elites still don't).
+
 v506 The ant's pushpin is easier to read: once an ant locks its aim, a dotted glow line shows where the pin will fly, and a thrown pin is drawn bigger with a brighter halo and trail. A missed pin glows where it sticks until it goes. Damage and hit size are unchanged.
 
 v505 makes the Pocket Vacuum's mini tornado much stronger: it is 2.5 times wider and its pull is six times harder, so every bug round it is sucked hard into the middle, with air streaking in from the rim.

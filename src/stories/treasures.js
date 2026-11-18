@@ -6,7 +6,7 @@ import { rollCards, RARITY, BASE_STATS } from '../stats.js';
 import { elementParams } from '../words.js';
 import { parse } from '../kdl.js';
 import { seededRandom } from '../story-random.mjs';
-import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, near, ok, record, restore, roachAt, setupFight, spawn, spy, step, story, stub, tp, withElement } from './kit.js';
+import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, holdJelly, near, ok, record, restore, roachAt, setupFight, spawn, startVacuum, spy, step, story, stub, tp, withElement } from './kit.js';
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
 
@@ -866,6 +866,51 @@ story('treasures/brick', {
     }
     step(5);
     return ok(!!b && b.m.scale.x === 2 && dmgBy(log, 'brick').length === 2, { bricks: gadgets.bricks.length, size: b?.m.scale.x, hits: dmgBy(log, 'brick').length });
+  },
+});
+story('treasures/brick-falls', {
+  about: 'brick (Lego Brick): one dropped while you are in the air falls to the floor under you instead of hanging there.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('legoBrick'); },
+  play() {
+    const { gadgets } = G().run, P = holdJelly();
+    step(1);
+    const floorY = P.position.y;
+    P.position.y = floorY + 0.35;   // up near the top of a jump
+    step(60 * 3, () => gadgets.bricks.length > 0);
+    const b = gadgets.bricks[0];
+    const startY = b?.m.position.y;
+    step(2);
+    const falling = b && !b.landed && b.m.position.y < startY;
+    step(60);
+    return ok(!!b && startY > floorY + 0.3 && falling && b.landed && Math.abs(b.m.position.y - floorY) < 0.01,
+      { floorY, startY, y: b?.m.position.y, landed: b?.landed });
+  },
+});
+story('treasures/brick-hurts-boss', {
+  about: 'brick (Lego Brick): a boss that steps on a brick takes its hit (and the burst); an Elite does not.',
+  setup() { setupFight({ bubbles: false, lash: false }); give('legoBrick'); },
+  play() {
+    const { gadgets } = G().run, { enemies } = G();
+    step(60 * 3, () => gadgets.bricks.length > 0);
+    step(60, () => gadgets.bricks[0]?.landed);
+    const b = gadgets.bricks[0];
+    const mk = (dx) => ({ position: b.m.position.clone().add(V(dx, 0, 0)), r: 0.02, dead: false, hp: 100, maxHp: 100, damage(a) { this.hp -= a; if (this.hp <= 0) this.dead = true; } });
+    const boss = mk(0), elite = mk(0.01), bo = enemies.addProxy(boss), el = enemies.addProxy(elite); bo.boss = true;
+    step(5);
+    for (const x of [el, bo]) { x.dead = true; enemies.list.splice(enemies.list.indexOf(x), 1); enemies.byId.delete(x.id); }
+    return ok(boss.hp < 100 && elite.hp === 100, { boss: boss.hp, elite: elite.hp });
+  },
+});
+story('treasures/brick-hurts-vacuum', {
+  about: 'brick (Lego Brick): the real Vacuum, rolling over a brick on the floor, loses Health.',
+  setup() { startVacuum('charge'); give('legoBrick'); },
+  play() {
+    const { gadgets } = G().run, B = G().run.boss, hp = B.hp;
+    const ef = G().run.mods.timed.flatMap((t) => t.effects).find((e) => e.kind === 'brick');
+    const feet = B.position.clone();
+    gadgets.fire(ef, { feet, center: feet.clone().setY(feet.y + 0.05), facing: 0, power: 1, mods: G().run.mods });
+    step(60 * 2);
+    return ok(B.hp < hp, { before: hp, after: B.hp });
   },
 });
 story('treasures/marble', {
