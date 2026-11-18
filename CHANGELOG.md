@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v472 tidies the UI overhaul after review: tapping on a phone no longer leaves the Continue/Play button, a pick card or the feedback bubble lit, tiles that only show a number (the win and end screens) no longer press in when tapped, an unlock's "· win a run" stays on one line, the 12 px and 44 px guards now hold every screen with no exceptions, and on a tall window the jelly pick cards are as tall as what they hold instead of stretching with an empty middle.
+
 v471 adds the Badminton Racket, a Legendary Treasure: your attacks (bubbles, Element shots, gusts, Glitter and Poison bursts, tentacle lashes) swat bug Shots (pushpins, web balls) out of the air, and a swatted Shot flies back at the bug that fired it for 3x your Attack damage; and fixes a pin that was stuck when the bugs cleared coming back stuck the next time it was thrown.
 
 v470 takes the last plants out of the living room (the Monstera and the Tall snake plant) and bakes in the Headphones' new spot in act 1.
