@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v500 swaps the dusk sky in the 33rd-floor window for a sunrise sky in Act 4's living room, a gradient with a low warm sun at 6:00 AM that brightens to a clear blue morning by 8:00 AM. Nothing new is downloaded.
+
 v499 adds two snake plants to the layout editor's props, made from downloaded models: one in a white marble pot with pale variegated leaves, and a tall striped one in a ceramic pot with a saucer. Each is two draw calls and under 4,000 triangles, with its shading baked in.
 
 v498 gives the title tiles a quick cascade, springs buttons back past full size when you let go, has sheets rise then sink faster, makes the jelly pick row settle on a card with a small overshoot, and squeezes Play for 80 ms before a run starts.

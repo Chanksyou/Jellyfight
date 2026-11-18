@@ -1,1 +1,0 @@
-swaps the dusk sky in the 33rd-floor window for a sunrise sky in Act 4's living room, a gradient with a low warm sun at 6:00 AM that brightens to a clear blue morning by 8:00 AM. Nothing new is downloaded.
