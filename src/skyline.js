@@ -70,15 +70,33 @@ export function addSkyline(scene, centre, map) {
   const dayGain = LOOK.num('skyline-day-gain', 2.2);
   const dawnStart = LOOK.num('skyline-dawn-start', 315), dawnEnd = LOOK.num('skyline-dawn-end', 475);
   const duskStart = LOOK.num('skyline-dusk-start', 1090), duskEnd = LOOK.num('skyline-dusk-end', 1230);
+  // Daytime sky: the photo is a dusk, so after sunrise its sky pixels (blue, and above the roofs) are swapped
+  // for a gradient from the scene's own sky colour (overhead) down to a pale horizon, with the sun low on it.
+  // Nothing is downloaded: the same atlas, the same draw.
+  const sky = {
+    mix: { value: 0 }, up: { value: 0 }, horizon: { value: new THREE.Color() }, sun: { value: new THREE.Color() },
+    sunAt: { value: new THREE.Vector2(LOOK.num('skyline-sun-x', 640), 0) },
+  };
+  const skyStart = LOOK.num('skyline-sky-start', 300), skyEnd = LOOK.num('skyline-sky-end', 350);
+  const sunStart = LOOK.num('skyline-sun-start', 360), sunEnd = LOOK.num('skyline-sun-end', 480);
+  const tints = ['horizon', 'sun'].map((n) => [new THREE.Color(LOOK.color(`skyline-${n}`, '#ffffff')), new THREE.Color(LOOK.color(`skyline-${n}-late`, '#ffffff'))]);
+  const sunLow = LOOK.num('skyline-sun-low', 0.03), sunHigh = LOOK.num('skyline-sun-high', 0.4);
   material.userData.daylight = daylight;
+  material.userData.sky = sky;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.cityDaylight = daylight;
     shader.uniforms.citySky = { value: scene.background };
     shader.uniforms.cityNightGain = { value: nightGain };
     shader.uniforms.cityDayGain = { value: dayGain };
+    shader.uniforms.citySkyMix = sky.mix;
+    shader.uniforms.citySunUp = sky.up;
+    shader.uniforms.cityHorizon = sky.horizon;
+    shader.uniforms.citySun = sky.sun;
+    shader.uniforms.citySunAt = sky.sunAt;
     shader.fragmentShader = `
-      uniform float cityDaylight, cityNightGain, cityDayGain;
-      uniform vec3 citySky;
+      uniform float cityDaylight, cityNightGain, cityDayGain, citySkyMix, citySunUp;
+      uniform vec3 citySky, cityHorizon, citySun;
+      uniform vec2 citySunAt;
     ` + shader.fragmentShader.replace('#include <map_fragment>', `
       #include <map_fragment>
       vec3 art = diffuseColor.rgb;
@@ -88,11 +106,19 @@ export function addSkyline(scene, centre, map) {
       float warmLamp = light * smoothstep(0.05, 0.42, art.r - art.b);
       vec3 day = art * mix(cityDayGain, 0.95, light) + citySky * (0.14 * (1.0 - light));
       day = mix(day, vec3(luma * 0.66), warmLamp * 0.7);
+      day *= mix(vec3(1.0, 0.8, 0.62), vec3(1.0), citySunUp);   // the first light is warm
       diffuseColor.rgb = mix(night, day, cityDaylight);
+      // the photo's sky: blue, above the roofs, in the painted panorama (the towers' tiles start at 0.75)
+      float skyness = smoothstep(0.15, 0.22, art.b - art.r) * (1.0 - step(0.745, vMapUv.x)) * smoothstep(0.64, 0.68, vMapUv.y);
+      float high = clamp((vMapUv.y - 0.69) / 0.31, 0.0, 1.0);
+      vec2 toSun = vec2((vMapUv.x * 2048.0 - citySunAt.x) / 150.0, (high - citySunAt.y) * 2.6);
+      float halo = exp(-dot(toSun, toSun) * 1.4), disc = smoothstep(0.16, 0.1, length(toSun));
+      vec3 dayHigh = mix(cityHorizon, citySky, pow(high, 0.55)) + citySun * (halo * 0.55 + disc);
+      diffuseColor.rgb = mix(diffuseColor.rgb, dayHigh, skyness * citySkyMix);
     `).replace('#include <colorspace_fragment>', `
       #include <colorspace_fragment>
       float skyEdge = (1.0 - step(0.75, vMapUv.x)) * smoothstep(0.86, 1.0, vMapUv.y);
-      gl_FragColor.rgb = mix(gl_FragColor.rgb, citySky, skyEdge);
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, citySky, skyEdge);   // the top blends into the sky colour overhead
     `);
   };
   const mesh = new THREE.Mesh(geometry, material);
@@ -104,5 +130,11 @@ export function addSkyline(scene, centre, map) {
   return (minutes) => {
     daylight.value = THREE.MathUtils.smoothstep(minutes, dawnStart, dawnEnd)
       * (1 - THREE.MathUtils.smoothstep(minutes, duskStart, duskEnd));
+    sky.mix.value = THREE.MathUtils.smoothstep(minutes, skyStart, skyEnd);
+    const t = THREE.MathUtils.smoothstep(minutes, sunStart, sunEnd);
+    sky.up.value = t;
+    sky.horizon.value.copy(tints[0][0]).lerp(tints[0][1], t);
+    sky.sun.value.copy(tints[1][0]).lerp(tints[1][1], t);
+    sky.sunAt.value.y = sunLow + (sunHigh - sunLow) * t;
   };
 }
