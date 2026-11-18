@@ -1243,7 +1243,7 @@ story('words/leap-subtle-warning', {
 
 // --- the cicada (act 4): a slow tank that digs in, trails you as a mound, locks and bursts up (a Blast that hurts and tosses)
 // it starts at once (its cooldown is spent) and, with on-beat, on the next bar line
-const cicadaAt = (d = 0.3) => { const e = spawn('cicada', near(d, 0)); e.burrowCd = 0; return e; };
+const cicadaAt = (d = 0.3) => { stub(G().run, 'song', null); const e = spawn('cicada', near(d, 0)); e.burrowCd = 0; return e; };   // (the run's own beat count: a song the speakers play, as an earlier story may have started one, keeps its own time)
 story('words/burrow', {
   about: 'Within reach on the bar the cicada digs in (0.45 s, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for a bar of the song (4 beats), then locks and a circle and dome over the spot fill together for 2 beats; on that beat it bursts up as a Blast under the jelly that stood still (4 Health) and the Warning is gone.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
