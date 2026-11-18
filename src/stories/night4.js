@@ -31,7 +31,7 @@ function startWith(carry, fn) {
 function atTheDoor() {
   const { run } = G();
   run.t = run.duration;
-  step(1);
+  step(60 * 6, () => run.doorOpen);   // the door's few beats of warm-up (concert-dressing.js), then open
   run.xpDrops.clear(); run.pendingLevels = 0;
   tp(1.6, 0.62, 4.55);
 }
@@ -83,6 +83,7 @@ night4('through-the-stage-door-the-arena-loads-with-the-act-carried', {
       stub(run, 'dev', false);
       run.health = 77; run.kills = 41;
       atTheDoor();
+      run.health = 77;   // (the door's warm-up let it heal a little)
       step(3);
       const s = JSON.parse(sessionStorage.getItem(STATE)), M = s?.carry?.mid, kept = keptRun();
       const carried = M && M.scene === 2 && M.health === 77 && M.kills === 41 && M.t >= 180 && !M.chests.length && !M.treasureTimesLeft.length

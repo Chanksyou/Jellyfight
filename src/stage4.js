@@ -115,6 +115,21 @@ export const STAGE4 = {
   // Elites aren't hurt. It never reaches the stage door (z 4.35 up). `across`: the room's x span.
   sun: { from: 0.3, to: 3.3, drain: 1.5, across: [0, 5] },
 
+  // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
+  // painted flat, never a collider or a light.
+  //   wristbands: a low crowd barrier of Festival wristbands strung along z, behind where the sun stops
+  //   cables: runs along the floor from the media console's front (from) to the room's edge (to), x z
+  //   pulse: the lit props that flash on the song's beat (their emissive, by the apartment's names)
+  dressing: {
+    wristbands: { z: 3.42, across: [0.2, 4.85], gap: 0.055 },
+    cables: [
+      { from: [1.0, 4.33], to: [0.28, 3.78] },
+      { from: [1.6, 4.33], to: [3.0, 3.86] },
+      { from: [2.25, 4.33], to: [4.15, 4.3] },
+    ],
+    pulse: ['LED_cove_strip', 'Corner_LED_floor_lamp', 'Spotlight_floor_lamp'],
+  },
+
   // The Soundbar's bass wave (bass-wave.js): every `every` bars of the song (16: 30 s at 128 BPM), on the
   // bar, one low wave rolls from the TV wall (z `from`, the media console's front) to the window wall
   // (z `to`), the room's width (`across`), `width` m deep and `height` m tall, at `speed` m/s (4 s across):
@@ -128,6 +143,7 @@ export const STAGE4 = {
     min: [0.9, 0.55, 4.35],
     max: [2.4, 1.3, 4.83],
     to: ENCORE,
+    starts: '⏰ 8:00 AM! The show is starting…',   // the TV flares and the console lights up for a few beats (concert-dressing.js), then:
     opens: '⏰ 8:00 AM! The stage door is open on the media console',
     hint: 'The stage door is open: get onto the media console by the TV',
   },
