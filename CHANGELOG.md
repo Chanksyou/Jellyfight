@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v513 Act 4 reads better: the Cicada's trailing mound is dim until it locks, the Soundbar's bass wave lets the floor show through, and the sun's lit side stands out more.
+
 v512 gives the jelly weight when it swims: each stroke pushes twice (a small second push as the bell recoils), a still jelly pulses then rests a beat while it sinks a little, and the body tips back when you start, rocks forward and through upright when you stop, and banks into turns.
 
 v511 makes the jelly's tentacles move like real ones: no more ripple on a clock; each stroke squeezes their roots in and the wave runs down to the tips, which hang softer, sink a little, trail behind and swing on after a stop, and curve instead of kinking.
