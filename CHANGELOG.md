@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v506 The ant's pushpin is easier to read: once an ant locks its aim, a dotted glow line shows where the pin will fly, and a thrown pin is drawn bigger with a brighter halo and trail. A missed pin glows where it sticks until it goes. Damage and hit size are unchanged.
+
 v505 makes the Pocket Vacuum's mini tornado much stronger: it is 2.5 times wider and its pull is six times harder, so every bug round it is sucked hard into the middle, with air streaking in from the rim.
 
 v504 adds Easy mode: switch it on in Settings and your next run deals twice the damage and takes half, earns half the Pearls and keeps no leaderboard score; an "Easy mode" badge shows under the clock while it's on.

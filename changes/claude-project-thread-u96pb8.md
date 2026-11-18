@@ -1,1 +1,0 @@
-The ant's pushpin is easier to read: once an ant locks its aim, a dotted glow line shows where the pin will fly, and a thrown pin is drawn bigger with a brighter halo and trail. A missed pin glows where it sticks until it goes. Damage and hit size are unchanged.
