@@ -1,0 +1,1 @@
+moves the HUD only by transform and opacity, so it stops repainting every frame on phones: a hit squashes the Health bar and it settles, the low-Health glow breathes softly, a new Treasure pops into the row while one taken again bumps its count, and a level-up empties the XP bar quickly before refilling it.

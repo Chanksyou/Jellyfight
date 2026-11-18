@@ -233,7 +233,7 @@ story('hud/treasure-timers', {
   play() {
     const { run } = G(), span = (id) => document.querySelector(`#hud .items span[data-id="${id}"]`), cd = (id) => +span(id).style.getPropertyValue('--cd');
     step(2);
-    const big = span('lemon').getBoundingClientRect().width >= 26;
+    const big = span('lemon').offsetWidth >= 26;   // (its layout size: a Treasure just taken is still popping in)
     const a = cd('guitarPick'); step(60); const b = cd('guitarPick');
     const counting = span('guitarPick').classList.contains('wait') && b < a;
     step(60 * 5, () => cd('guitarPick') > 0.9);                      // it went off: the wait starts over
