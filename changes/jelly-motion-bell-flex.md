@@ -1,1 +1,0 @@
-bends the jelly's bell like a real one: the crown stays nearly still while the lower bell squeezes in on each stroke and flares open as it relaxes, the bend running down so the rim moves a moment after the crown.
