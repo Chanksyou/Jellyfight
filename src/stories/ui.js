@@ -250,7 +250,6 @@ const KNOWN_MOTION = {
   'script div.vit > div.bar.ui-bar.shield-bar.charging: boxShadow': 'M1',
 };
 const KNOWN_CALM = {
-  'jf-swim: transform': 'M2', 'jf-wave: transform': 'M2', 'jf-shine: transform': 'M2',   // the title screen's ambient loops keep going
   'transition transform: transform': 'M1', 'transition left: left': 'M1', 'jf-glow: boxShadow': 'M1',   // bar fills and slides, the Treasure glow
 };
 const motionGuard = (name, about, calm, bad, known) => story(name, {
