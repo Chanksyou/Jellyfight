@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v483 rearranges Act 1 props, including the pet corner and shelves, removes the smart speaker, and moves five floor vents.
+
 v482 puts the sunset canyon wallpaper and centered Jelly Run title window from the desk photo on the apartment's curved monitor.
 
 v481 stops building what stands inside the hall closets (washer and dryer, coats, shoes, supplies), which nobody can enter or see into: act 2 downloads 205 KB less and draws about two dozen fewer objects; the doors are unchanged.
