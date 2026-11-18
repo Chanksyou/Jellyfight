@@ -189,7 +189,7 @@ night4('pillow-fairy-ring-hold-still-is-safe', {
     const R = r.rings[0], ringAt = R && R.caps.map((k) => flat(k.at, R.c));
     const good = r.rings.length === 1 && R.caps.length === F.caps && flat(R.c, at) < 0.01 && ringAt.every((d) => Math.abs(d - F.ring) < 0.002)
       && followed > 20 && columns === F.caps && caps === F.caps && lit === before && squashed < 0.9
-      && Math.abs(R.settle - (r.plan.puff + F.grow)) < 0.05 && offSnap(R.burst) < 0.05 && Math.abs(R.burst - R.settle - 1) < 0.05
+      && Math.abs(R.settle - (r.plan.puff + F.grow)) < 0.05 && offBeat(R.burst) < 0.05 && Math.abs(R.burst - R.settle - 1) < 0.05
       && !hitsBy(log, 'pillow-fairy').length && F.ring - F.radius > CONFIG.player.radius;
     return ok(good, { rings: r.rings.length, caps: R?.caps.length, centre: R && +flat(R.c, at).toFixed(3), followed, columns, alive: caps, lights: [before, lit], squashed: +squashed.toFixed(2), burst: R && +R.burst.toFixed(2), hits: hitsBy(log, 'pillow-fairy') });
   },

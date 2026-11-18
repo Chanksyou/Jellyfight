@@ -625,7 +625,7 @@ class Elite {
   // the Mushroom Pillow's spores still out (drifting or settled): back to the pool
   dropSpores() {
     for (const s of this.spores || []) this.owner.fx.free(s.orb);
-    for (const R of [this.plan?.ring, this.plan?.second]) for (const k of R?.caps || []) this.owner.fx.free(k.cap);   // (and the Fairy ring's caps)
+    for (const R of [this.plan?.ring, this.plan?.second]) if (R && !R.gone) for (const k of R.caps) this.owner.fx.free(k.cap);   // (and the Fairy ring's caps)
     this.spores = null;
   }
 
@@ -2576,7 +2576,7 @@ export class Elites {
           }
           const L = e.plan;
           const sprout = (c, settle) => {                                     // eight caps round c, each with its Warning
-            const R = { c, settle, burst: settle + 1, from: beat, caps: [], struck: false };
+            const R = { c, settle, burst: settle + 1, from: settle - F.grow, caps: [], struck: false };
             for (let i = 0; i < F.caps; i++) {
               const a = i / F.caps * Math.PI * 2, at = new THREE.Vector3(c.x + Math.cos(a) * F.ring, c.y, c.z + Math.sin(a) * F.ring);
               const v = this.volume(col, 'disc', at, this._s3.set(F.radius, tall, F.radius));
@@ -2612,7 +2612,7 @@ export class Elites {
               w.userData.fill(k); v.material.progress = k;
               if (beat >= R.settle) { w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
               s.cap.position.set(s.at.x, s.at.y + size * 0.3, s.at.z); s.cap.scale.set(size, size * 0.5, size);
-              if (!R.struck && inColumn(s.at)) {                             // run into a cap and its column goes off
+              if (!R.struck && beat > R.from + 0.25 && inColumn(s.at)) {      // run into a cap and its column goes off (a quarter beat after it sprouts)
                 R.struck = true; hit(F.dmg, 'pillow-fairy', P); this.fx.impact(pc, col, 0.02, 8); juice.feel('impact'); sfx.pillowBurst(true);
               }
             });
@@ -2640,7 +2640,7 @@ export class Elites {
                   const t = this.platformTarget(e, new THREE.Vector3(R.c.x + away.x * sign, R.c.y, R.c.z + away.z * sign), 0);
                   if (!c2 || flat2(t, R.c) > flat2(c2, R.c)) c2 = t;
                 }
-                L.second = sprout(c2, beat + F.grow);
+                L.second = sprout(c2, R.burst + F.grow);
               } else { e.plan = null; e.state = 'idle'; e.cool = angry ? F.angryRest : F.rest; }
             }
           }

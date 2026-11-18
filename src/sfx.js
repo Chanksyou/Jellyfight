@@ -1513,7 +1513,7 @@ export const sfx = {
   bowlHit() { if (!ready() || !gap('bowlHit', 60)) return; const j = jitter(0.08); tone('sine', 180 * j, 90, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); tone('sine', 1320 * j, 1300 * j, 0.25, 0.025, 0.02); patter(4, 0.03, 0.2, 0.03); },
   // the Mushroom Pillow: a long soft breath in, the spores puffed out (a plush pff, a sparkle as they
   // scatter, the whoosh they drift on), spores settling (soft ticks), the spots bursting as columns
-  // (a rising hiss and a pop, a dull thud on the jelly), a springy hop and a heavy plush landing
+  // (a rising hiss and a pop, a dull thud on the jelly) and its Fairy ring caps sprouting
   pillowInhale(dur = 1) { if (!ready()) return; const j = jitter(0.05); noise(700 * j, 1.5, dur, 0.05, 'bandpass', 0, 2200 * j); tone('sine', 110 * j, 150 * j, dur, 0.03); },
   pillowPuff() {
     if (!ready() || !gap('pillowPuff', 80)) return; const j = jitter(0.08);
