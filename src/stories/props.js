@@ -9,7 +9,7 @@ const TRIANGLES = 8000;   // per prop: the leaves are most of it, and a prop is 
 const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
 
 story('props/every-prop-loads', {
-  about: 'Each prop in content/props.kdl loads from assets/props.glb as one group named by its id: standing on y=0, in one connected piece (its pot and leaves touch), no lights, at most 2 materials, under the triangle cap, plain float positions for collision.',
+  about: 'Each prop in content/props.kdl loads from assets/props.glb as one group named by its id: standing on y=0, its pot and leaves boxes overlap, no lights, at most 2 materials, under the triangle cap, plain float positions for collision.',
   setup() {},
   async play() {
     const ids = CONTENT.props.map((p) => p.id), got = await loadProps(ids), bad = [], report = {};
@@ -31,7 +31,7 @@ story('props/every-prop-loads', {
       if (t3 > TRIANGLES) why.push(`${t3} triangles`);
       if (Math.abs(box.min.y) > 0.01) why.push(`stands at y=${box.min.y.toFixed(3)}`);
       if (size.y < 0.1 || size.y > 2.5) why.push(`${size.y.toFixed(2)} m tall`);
-      if (!boxes.every((b, i) => boxes.some((c, j) => i !== j && b.intersectsBox(c)) || boxes.length === 1)) why.push('pieces apart');
+      if (!boxes.every((b, i) => boxes.some((c, j) => i !== j && b.intersectsBox(c)) || boxes.length === 1)) why.push('pot and leaves apart');
       if (!meshes.every((m) => m.geometry.attributes.position.array instanceof Float32Array)) why.push('packed positions');
       if (why.length) bad.push(`${id}: ${why.join(', ')}`);
     }
@@ -40,7 +40,7 @@ story('props/every-prop-loads', {
 });
 
 story('props/the-file-comes-down-only-when-asked', {
-  about: 'Importing the library downloads nothing: assets/props.glb(.gz) is fetched by the first loadProps call, once, and a second call (any other prop) reuses it, so an act that adds no prop never pays for it.',
+  about: 'Importing the library downloads nothing: assets/props.glb(.gz) is fetched by the first loadProps call, once, and a second call (any other prop) reuses it. (That nothing else calls loadProps is up to the callers: an act with no prop never asks.)',
   setup() {},
   async play() {
     const asked = [], real = window.fetch;

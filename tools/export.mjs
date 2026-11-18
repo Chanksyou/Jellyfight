@@ -20,8 +20,8 @@ fs.mkdirSync(path.join(root, 'assets'), { recursive: true });
 fs.writeFileSync(path.join(root, 'assets/apartment.glb'), Buffer.from(glb, 'base64'));
 fs.writeFileSync(path.join(root, 'assets/apartment.json'), JSON.stringify(meta, null, 1));
 await compress(path.join(root, 'assets/apartment.glb'), path.join(root, 'assets/apartment-q.glb'));
-console.log('split into acts', await split(path.join(root, 'assets')));
-console.log('props', await buildProps(page, path.join(root, 'assets')));   // what the game loads: apartment-act<N>.glb
+console.log('split into acts', await split(path.join(root, 'assets')));   // what the game loads: apartment-act<N>.glb
+console.log('props', await buildProps(page, path.join(root, 'assets')));
 const mb = (f) => (fs.statSync(f).size / 1e6).toFixed(1);
 console.log(`apartment.glb ${(Buffer.from(glb, 'base64').length / 1e6).toFixed(1)} MB -> ${mb(path.join(root, 'assets/apartment.glb'))} MB compressed (${mb(path.join(root, 'assets/apartment-q.glb'))} MB fallback), ${meta.lights.length} lights`, meta.stats);
 await browser.close();
