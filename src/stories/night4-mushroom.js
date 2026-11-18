@@ -155,64 +155,105 @@ night4('pillow-angry-more-spores-settling-faster', {
   },
 });
 
-night4('pillow-hop-slams-where-it-lands-on-the-beat', {
-  about: 'Hop-slam: the pillow crouches while a Warning (a circle and the half sphere over it, in its colour) fills where it will land, a short hop toward the jelly (30 cm at most); it leaps on a beat and lands a beat later as a Blast round itself: 4 and a shove to a jelly that stays. Then it waddles back to its spot.',
+// play its Fairy ring to the end, noting each ring (the plan's `ring`, then `second` when angry) as it sprouts
+function playFairy(e, during) {
+  const { run } = G(), out = { rings: [] };
+  let plan = null;
+  step(60 * 14, (i) => {
+    if (e.plan && !plan) plan = e.plan;
+    for (const k of ['ring', 'second']) if (plan?.[k] && !out.rings.includes(plan[k])) out.rings.push(plan[k]);
+    if (during) during(i, plan);
+    return plan && !e.plan && e.state === 'idle';
+  });
+  out.end = run.beat;
+  out.plan = plan;
+  return out;
+}
+const aliveCaps = () => G().fx.orbs.filter((o) => o.alive).length;
+
+night4('pillow-fairy-ring-hold-still-is-safe', {
+  about: 'Fairy ring: the cap breathes in while a circle follows the jelly, then on a beat eight caps sprout in a 12 cm ring round where it stands, each with its Warning (a circle and the column over it, in the pillow\'s violet) filling together to the burst on the bar. A jelly that holds still in the middle is not hit. The caps are pooled instanced pieces: no light is added.',
   setup() { startPillow(1); },
   play() {
-    const { e } = startPillow(1), { run } = G(), log = record('damage_taken'), knocks = record('knockback'), H = SK().hop, home = e.home.clone();
-    let warned = 0, crouch = 1, leap = null, land = null, plan = null, far = 0;
-    step(60 * 6, () => {
-      if (e.plan) plan = e.plan;
-      if (pillowPairs().some(([v]) => v.material.kind === 'dome')) warned++;
-      if (plan && !plan.leapt) crouch = Math.min(crouch, e.model.group.scale.y);
-      if (plan?.leapt && leap == null) leap = run.beat;
-      if (plan?.landed && land == null) { land = run.beat; far = flat(e.base, home); }
-      return plan && !e.plan && e.state === 'idle';
+    const { e } = startPillow(1), { run, APT } = G(), scene = APT.scene, log = record('damage_taken'), F = SK().fairy, at = G().player.position.clone();
+    const lights = () => { let n = 0; scene.traverse((o) => { if (o.isLight) n++; }); return n; }, before = lights();
+    let followed = 0, columns = 0, caps = 0, circles = 0, squashed = 1, lit = before;
+    const r = playFairy(e, (i, plan) => {
+      squashed = Math.min(squashed, e.model.cap.scale.y);
+      if (plan && !plan.ring && e.tele.length === 1) followed++;
+      if (plan?.ring && !plan.ring.gone) {
+        columns = Math.max(columns, pillowPairs().filter(([v]) => v.material.kind === 'disc').length);
+        caps = Math.max(caps, aliveCaps()); lit = lights();
+      }
     });
-    const hits = hitsBy(log, 'pillow-hop');
-    step(60 * 4);
-    const back = flat(e.base, home);
-    return ok(warned > 30 && crouch < 0.9 && offBeat(leap) < 0.05 && Math.abs(land - leap - H.air) < 0.05 && far > 0.1 && far <= H.reach + 0.01 && hits.length === 1 && hits[0] === H.dmg && knocks.length > 0 && back < 0.01,
-      { warned, crouch: +crouch.toFixed(2), leap: leap && +leap.toFixed(2), land: land && +land.toFixed(2), far: +far.toFixed(2), hits, knocks: knocks.length, back: +back.toFixed(3) });
+    const R = r.rings[0], ringAt = R && R.caps.map((k) => flat(k.at, R.c));
+    const good = r.rings.length === 1 && R.caps.length === F.caps && flat(R.c, at) < 0.01 && ringAt.every((d) => Math.abs(d - F.ring) < 0.002)
+      && followed > 20 && columns === F.caps && caps === F.caps && lit === before && squashed < 0.9
+      && Math.abs(R.settle - (r.plan.puff + F.grow)) < 0.05 && offSnap(R.burst) < 0.05 && Math.abs(R.burst - R.settle - 1) < 0.05
+      && !hitsBy(log, 'pillow-fairy').length && F.ring - F.radius > CONFIG.player.radius;
+    return ok(good, { rings: r.rings.length, caps: R?.caps.length, centre: R && +flat(R.c, at).toFixed(3), followed, columns, alive: caps, lights: [before, lit], squashed: +squashed.toFixed(2), burst: R && +R.burst.toFixed(2), hits: hitsBy(log, 'pillow-fairy') });
   },
 });
 
-night4('pillow-hop-dodged-by-stepping-away', {
-  about: 'The hop-slam\'s landing follows the jelly only until the pillow leaps: a jelly that steps 30 cm back once it is in the air is outside the Blast and not hit.',
+night4('pillow-fairy-ring-leaving-it-is-hit', {
+  about: 'A jelly that leaves its Fairy ring once the caps have sprouted crosses a column (the caps are 9 cm apart, the jelly 6 cm across: no gap to slip through) and takes 4, once, however many columns it crosses. Over a jump too: a column hits as high as it is drawn.',
   setup() { startPillow(1); },
   play() {
-    const { e, player } = startPillow(1), log = record('damage_taken');
-    let moved = false;
-    step(60 * 6, () => {
-      if (e.plan?.leapt && !moved) { moved = true; player.position.x -= 0.3; }
-      return moved && !e.plan && e.state === 'idle';
+    const out = {};
+    for (const [name, up] of [['run', 0], ['jump', CONFIG.player.jumpHeight]]) {
+      const { e, player, seat } = startPillow(1), log = record('damage_taken');
+      let walking = false;
+      playFairy(e, (i, plan) => {
+        if (plan?.ring && !plan.ring.gone) { walking = true; player.position.x += 0.01; if (up) { player.position.y = seat + up; player.grounded = false; } }
+      });
+      out[name] = { hits: hitsBy(log, 'pillow-fairy'), walking, x: +player.position.x.toFixed(2) };
+    }
+    return ok(Object.values(out).every((r) => r.walking && r.hits.length === 1 && r.hits[0] === SK().fairy.dmg), out);
+  },
+});
+
+night4('pillow-fairy-ring-angry-second-ring-where-you-flee', {
+  about: 'Under 65% Health the Mushroom Pillow follows its Fairy ring with a second: when the first bursts, eight more caps sprout 34 cm on from it, the way the jelly was moving (away from the pillow if it held still, or the other way where the seat runs out), with their own Warnings, and burst a bar later. Holding still through both is safe; a jelly that bolts for the second ring walks into it.',
+  setup() { startPillow(1, { angry: true }); },
+  play() {
+    const { e } = startPillow(1, { angry: true }), log = record('damage_taken'), F = SK().fairy;
+    const r = playFairy(e, () => {});
+    const [a, b] = r.rings, apart = a && b && flat(a.c, b.c);
+    const still = hitsBy(log, 'pillow-fairy').length;
+    const { e: f, player } = startPillow(1, { angry: true }), log2 = record('damage_taken');
+    let from = null;
+    playFairy(f, (i, plan) => {
+      if (plan?.ring && !from) from = player.position.clone();
+      if (plan?.second && !plan.second.gone) { const d = plan.second.c.clone().sub(player.position).setY(0).normalize(); player.position.x += d.x * 0.012; player.position.z += d.z * 0.012; }   // the jelly flees the first ring, into the second
     });
-    return ok(moved && !hitsBy(log, 'pillow-hop').length, { moved, hits: hitsBy(log, 'pillow-hop'), x: +player.position.x.toFixed(2) });
+    const fled = hitsBy(log2, 'pillow-fairy');
+    return ok(r.rings.length === 2 && apart > 0.25 && still === 0 && Math.abs(b.burst - a.burst - F.grow - 1) < 0.1 && fled.length === 1,
+      { rings: r.rings.length, apart: apart && +apart.toFixed(3), still, fled, gap: b && +(b.burst - a.burst).toFixed(2) });
   },
 });
 
 night4('pillow-calls-off-an-attack-when-the-beat-jumps', {
-  about: 'If the song\'s beat jumps mid-attack (a menu ate some of it, or the song just started), the Mushroom Pillow calls the attack off rather than going off unwarned: its Warnings and drifting spores go, it is back on its spot, and it starts again later.',
+  about: 'If the song\'s beat jumps mid-attack (a menu ate some of it, or the song just started), the Mushroom Pillow calls the attack off rather than going off unwarned: its Warnings, drifting spores and caps go, it is back on its spot, and it starts again later.',
   setup() { startPillow(0); },
   play() {
     const out = {};
     for (const atk of [0, 1]) {
       const { e } = startPillow(atk), { run, fx } = G();
-      step(60 * 4, () => (atk ? e.plan?.leapt : e.spores) && e.tele.length);
+      step(60 * 4, () => (atk ? e.plan?.ring : e.spores) && e.tele.length);
       const warned = e.tele.length > 0;
       run.beat += 6;
       step(2);
       const off = e.state === 'idle' && !e.tele.length && !e.spores && !e.plan && flat(e.holder.position, e.base) < 1e-6 && !fx.orbs.some((o) => o.alive);
       let again = false;
       step(60 * 4, () => (again = e.state !== 'idle'));
-      out[atk ? 'hop' : 'spores'] = { warned, off, again };
+      out[atk ? 'fairy' : 'spores'] = { warned, off, again };
     }
     return ok(Object.values(out).every((r) => r.warned && r.off && r.again), out);
   },
 });
 
 night4('pillow-attacks-feel', {
-  about: 'Mushroom Pillow feel: its spots glow as it breathes in; the puff flashes at its cap and pops it up; each spot\'s burst flashes at its foot and leaves fading spore dust; the burst shakes the screen. The hop-slam\'s landing shows its real reach (a ring), throws fluff, leaves dust, squashes the pillow flat and lands hard (feel impact-big).',
+  about: 'Mushroom Pillow feel: its spots glow as it breathes in; the puff flashes at its cap and pops it up; each spot\'s burst flashes at its foot and leaves fading spore dust; the burst shakes the screen. The Fairy ring\'s caps sprout with a flash and a pale puff in the middle of the ring, each column\'s burst flashes at its foot and leaves fading dust, and the burst shakes the screen.',
   setup() { startPillow(0); },
   play() {
     let { e } = startPillow(0), { run, fx } = G();
@@ -224,13 +265,13 @@ night4('pillow-attacks-feel', {
     const dust = splats.filter(([at]) => r.spots?.some((s) => flat(s, at) < 0.01)).length;
     const spores = { glow: +glow.toFixed(2), pop: +pop.toFixed(2), puffFlash, footFlash, dust, n, shake: feels.filter(([k]) => k === 'impact' || k === 'hit').length };
     ({ e } = startPillow(1));
-    const rings = spy(fx, 'ring'), bursts = spy(fx, 'burst');
-    splats = spy(fx, 'splat'); feels = spy(juice, 'feel');
-    let squash = 1, landed = false;
-    step(60 * 6, () => { if (e.plan?.landed) { landed = true; squash = Math.min(squash, e.model.group.scale.y); } return landed && e.state === 'idle'; });
-    const hop = { ring: rings.filter(([, , rad]) => Math.abs(rad - SK().hop.radius) < 1e-6).length, fluff: bursts.length, dust: splats.length, big: feels.filter(([k]) => k === 'impact-big').length, squash: +squash.toFixed(2) };
+    impacts = spy(G().fx, 'impact'); splats = spy(G().fx, 'splat'); feels = spy(juice, 'feel');
+    const F = SK().fairy, f = playFairy(e), R = f.rings[0];
+    const sprout = impacts.filter(([at]) => R && flat(at, R.c) < 0.01).length, foot = impacts.filter(([at]) => R?.caps.some((k) => flat(k.at, at) < 0.01 && at.y - k.at.y < 0.05)).length;
+    const fairyDust = splats.filter(([at]) => R?.caps.some((k) => flat(k.at, at) < 0.01)).length;
+    const fairy = { sprout, foot, dust: fairyDust, shake: feels.filter(([k]) => k === 'impact' || k === 'hit').length };
     return ok(spores.glow > 0.5 && spores.pop > 1.05 && spores.puffFlash >= 1 && spores.footFlash >= n && spores.dust >= n && spores.shake >= 2 && n === S.spots
-      && hop.ring >= 1 && hop.fluff >= 1 && hop.dust >= 1 && hop.big >= 1 && hop.squash < 0.9, { spores, hop, run: !!run });
+      && fairy.sprout >= 1 && fairy.foot >= F.caps && fairy.dust >= F.caps && fairy.shake >= 2, { spores, fairy, run: !!run });
   },
 });
 

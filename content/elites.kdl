@@ -132,12 +132,15 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //           beat, then burst on the bar as columns: dmg= once, anywhere in the column (as tall as
 //           look.css --pillow-column, over a full jump, so a jump doesn't clear one). Angry, angrySpots= of
 //           them settling in angryDrift= beats
-//   hop:    it crouches for at least windup= beats, following you, then hops at most reach= m toward
-//           you on a beat (leap= m high, air= beats) and lands as a Blast radius= m round itself (its
-//           cap is 11 cm round)
+//   fairy:  it breathes in for at least windup= beats while a circle follows you, then on a beat caps=
+//           caps sprout in a ring ring= m round where you stand (each radius= m), their Warnings filling
+//           for grow= beats, flashing one beat, then bursting on the bar as columns (as tall as look.css
+//           --pillow-column): dmg= once, anywhere in a column, and a cap touched goes off at once. Hold
+//           still in the middle; run and you cross a column. Angry: after the first ring bursts a
+//           second sprouts flee= m on, the way you were moving (else away from it)
 elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
     spores dmg=4 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
-    hop dmg=4 radius=0.17 reach=0.3 windup=1 air=1 leap=0.1 knock=0.8 rest=0.6 angryRest=0.4
+    fairy dmg=4 caps=8 ring=0.12 radius=0.04 snap=2 windup=2 grow=1 flee=0.34 rest=0.6 angryRest=0.4
 }
 
 // act 4: the Headphones, up on their ear cups on the kitchen counter by the stove in the living room at dawn. They

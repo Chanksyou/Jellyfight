@@ -1527,12 +1527,6 @@ export const sfx = {
     noise(800 * j, 0.7, 0.5, 0.07, 'lowpass', 0.12, 200); patter(4, 0.15, 0.3, 0.02);                         // the dust settling
     if (struck) { tone('sine', 160 * j, 80, 0.16, 0.16); noise(1100 * j, 1, 0.08, 0.1, 'lowpass'); }
   },
-  pillowHop() { if (!ready()) return; const j = jitter(0.08); tone('sine', 170 * j, 340 * j, 0.22, 0.12); noise(1200 * j, 1, 0.2, 0.08, 'bandpass', 0, 2600); },
-  pillowSlam() {
-    if (!ready() || !gap('pillowSlam', 80)) return; const j = jitter(0.08);
-    tone('sine', 95 * j, 40, 0.35, 0.26); noise(500 * j, 0.7, 0.3, 0.3, 'lowpass', 0, 120);     // the plush thud
-    noise(2500 * j, 1, 0.15, 0.06, 'bandpass', 0.03); patter(5, 0.06, 0.3, 0.025);                  // fluff and dust
-  },
   // the Headphones: a sound wave let go (a speaker's click, a deep whoomp, the air rushing after it;
   // the two cups a tone apart), a jelly it shoves (a soft wobbling thump), the hum of the bass winding
   // up, a bass Shot (a sub drop with a buzz) and one landing (a thud and a crackle)
